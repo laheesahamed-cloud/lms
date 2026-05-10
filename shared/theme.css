@@ -1,0 +1,359 @@
+/* ============================================================
+   ERPM Medical LMS — Brand Tokens
+   ============================================================ */
+
+:root {
+  /* Primary: deep clinical blue → rich indigo → deep violet */
+  --brand-primary-start: #1D4ED8;
+  --brand-primary-mid:   #4338CA;
+  --brand-primary-end:   #5B21B6;
+  --brand-primary-solid: #2563EB;
+  --brand-primary-soft:  #93C5FD;
+
+  /* Extended palette */
+  --brand-cyan:    #06B6D4;
+  --brand-indigo:  #4338CA;
+  --brand-teal:    #0D9488;
+  --brand-teal-vivid: #14B8A6;
+  --brand-violet:  #7C3AED;
+  --brand-pink:    #DB2777;
+  --brand-emerald: #059669;
+  --brand-amber:   #D97706;
+  --brand-rose:    #E11D48;
+  --brand-success: #059669;
+  --brand-warning: #D97706;
+  --brand-error:   #DC2626;
+
+  /* Gradients */
+  --brand-gradient-primary: linear-gradient(135deg, #1D4ED8 0%, #4338CA 50%, #5B21B6 100%);
+  --brand-gradient-vivid:   linear-gradient(135deg, #0891B2 0%, #2563EB 48%, #7C3AED 100%);
+  --brand-gradient-teal:    linear-gradient(135deg, #0D9488 0%, #0891B2 50%, #2563EB 100%);
+  --brand-gradient-warm:    linear-gradient(135deg, #2563EB 0%, #7C3AED 52%, #DB2777 100%);
+  --brand-gradient-hero:    linear-gradient(135deg, #080C18 0%, #1D4ED8 38%, #4338CA 68%, #0D9488 100%);
+
+  /* Subject gradients for course cards */
+  --brand-gradient-anatomy:    linear-gradient(135deg, #E11D48 0%, #BE185D 100%);
+  --brand-gradient-physiology: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  --brand-gradient-biochem:    linear-gradient(135deg, #D97706 0%, #B45309 100%);
+  --brand-gradient-pathology:  linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+  --brand-gradient-pharma:     linear-gradient(135deg, #059669 0%, #047857 100%);
+  --brand-gradient-micro:      linear-gradient(135deg, #0D9488 0%, #0F766E 100%);
+  --brand-gradient-forensic:   linear-gradient(135deg, #64748B 0%, #475569 100%);
+
+  /* Glow presets */
+  --brand-shadow-soft: 0 6px 20px rgba(29, 78, 216, 0.16);
+  --brand-shadow-md:   0 10px 28px rgba(29, 78, 216, 0.20);
+  --brand-shadow-lg:   0 18px 44px rgba(29, 78, 216, 0.26);
+  --brand-glow:        0 0 20px rgba(29, 78, 216, 0.28), 0 0 44px rgba(29, 78, 216, 0.10);
+  --brand-glow-teal:   0 0 20px rgba(13, 148, 136, 0.28), 0 0 44px rgba(13, 148, 136, 0.10);
+}
+
+/* ============================================================
+   App Design Tokens — Light Mode (Default)
+   ============================================================ */
+
+:root {
+  font-family: "Plus Jakarta Sans", "Inter", "Manrope", system-ui, sans-serif;
+  color-scheme: light;
+
+  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body:    "Inter", "Plus Jakarta Sans", system-ui, sans-serif;
+
+  --ease-std:    cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.4, 0.27, 1.55);
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --radius-xs:   5px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   22px;
+  --radius-2xl:  28px;
+  --radius-full: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  --page-pad-x:       22px;
+  --page-pad-y:       18px;
+  --section-gap:      18px;
+  --card-pad:         20px;
+  --card-pad-compact: 16px;
+  --form-gap:         16px;
+  --table-cell-pad-y: 12px;
+  --table-cell-pad-x: 16px;
+  --control-h:        42px;
+
+  /* ── Light Mode Surfaces: crisp white, clear hierarchy ─── */
+  --surface-0:          #F7F9FC;
+  --surface-1:          #FFFFFF;
+  --surface-2:          #F3F6FA;
+  --surface-3:          #E8EEF6;
+  --surface-4:          #D9E3EF;
+  --surface-card:       #FFFFFF;
+  --surface-card-elevated: #FFFFFF;
+  --surface-glass:      rgba(255, 255, 255, 0.88);
+  --surface-glass-strong:  rgba(255, 255, 255, 0.98);
+  --surface-glass-subtle:  rgba(255, 255, 255, 0.78);
+
+  /* ── Borders ─────────────────────────────────────────────── */
+  --line-soft:   #E7EDF5;
+  --line-medium: #CBD8E8;
+  --line-strong: #94A3B8;
+
+  /* ── Text ────────────────────────────────────────────────── */
+  --ink-strong: #0B1220;
+  --ink-medium: #2A3B52;
+  --ink-soft:   #62758A;
+  --ink-muted:  #95A6B8;
+
+  /* ── Semantic Colors ─────────────────────────────────────── */
+  --color-primary:       #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-light: rgba(37, 99, 235, 0.09);
+  --color-primary-glow:  rgba(37, 99, 235, 0.20);
+
+  --color-secondary:       #7C3AED;
+  --color-secondary-light: rgba(124, 58, 237, 0.09);
+
+  --color-accent:       #0D9488;
+  --color-accent-light: rgba(13, 148, 136, 0.09);
+
+  --color-cyan:       #0891B2;
+  --color-cyan-light: rgba(8, 145, 178, 0.09);
+
+  --color-teal:       #0D9488;
+  --color-teal-light: rgba(13, 148, 136, 0.09);
+
+  --color-indigo:       #4338CA;
+  --color-indigo-light: rgba(67, 56, 202, 0.09);
+
+  --color-violet:       #7C3AED;
+  --color-violet-light: rgba(124, 58, 237, 0.09);
+
+  --color-pink:       #DB2777;
+  --color-pink-light: rgba(219, 39, 119, 0.09);
+
+  --color-success:       #059669;
+  --color-success-light: rgba(5, 150, 105, 0.10);
+  --color-success-bg:    #D1FAE5;
+  --color-warning:       #D97706;
+  --color-warning-light: rgba(217, 119, 6, 0.10);
+  --color-warning-bg:    #FEF3C7;
+  --color-error:         #DC2626;
+  --color-error-light:   rgba(220, 38, 38, 0.10);
+  --color-error-bg:      #FEE2E2;
+
+  /* ── Shadows — light mode: clean, layered ─────────────────── */
+  --shadow-xs: 0 1px 2px rgba(11, 18, 32, 0.025);
+  --shadow-sm: 0 1px 3px rgba(11, 18, 32, 0.035);
+  --shadow-md: 0 5px 16px rgba(11, 18, 32, 0.05), 0 1px 3px rgba(11, 18, 32, 0.025);
+  --shadow-lg: 0 10px 28px rgba(11, 18, 32, 0.065), 0 3px 8px rgba(37, 99, 235, 0.03);
+  --shadow-xl: 0 14px 38px rgba(11, 18, 32, 0.075), 0 5px 12px rgba(37, 99, 235, 0.035);
+  --shadow-2xl: 0 20px 52px rgba(11, 18, 32, 0.10), 0 8px 18px rgba(37, 99, 235, 0.045);
+  --shadow-glow: 0 0 0 1px rgba(37, 99, 235, 0.12), 0 10px 28px rgba(37, 99, 235, 0.16);
+  --shadow-soft: var(--shadow-xl);
+  --shadow-lift: var(--shadow-lg);
+
+  /* ── Page Background — light: clean gradient ─────────────── */
+  --page-background:
+    linear-gradient(180deg, #FFFFFF 0%, #F8FAFD 48%, #F2F6FB 100%);
+
+  /* ── Sidebar ─────────────────────────────────────────────── */
+  --sidebar-w:           264px;
+  --sidebar-w-collapsed: 76px;
+  --sidebar-shell-gap:   14px;
+  --sidebar-bg:          rgba(255, 255, 255, 0.99);
+  --sidebar-border:      rgba(226, 235, 246, 0.98);
+  --header-h:            66px;
+  --admin-header-h:      66px;
+
+  /* ── Inputs ─────────────────────────────────────────────── */
+  --input-bg:           #FFFFFF;
+  --input-border:       rgba(196, 210, 229, 0.90);
+  --input-focus-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+
+  /* ── Card tokens ─────────────────────────────────────────── */
+  --card-bg:     var(--surface-card);
+  --card-border: var(--line-soft);
+  --card-shadow: var(--shadow-sm);
+  --card-radius: var(--radius-lg);
+
+  --page-content-max:   1440px;
+  --topbar-bg:          rgba(255, 255, 255, 0.99);
+  --topbar-border:      var(--line-soft);
+  --btn-primary-bg:     var(--brand-gradient-primary);
+  --btn-secondary-bg:   rgba(255, 255, 255, 0.94);
+  --btn-secondary-text: var(--ink-medium);
+
+  /* ── Aliases ─────────────────────────────────────────────── */
+  --accent-primary:   var(--color-primary);
+  --accent-secondary: var(--color-secondary);
+  --accent-cyan:      var(--color-accent);
+  --accent-success:   var(--color-success);
+  --accent-warning:   var(--color-warning);
+  --accent-danger:    var(--color-error);
+  --ink-body:         var(--ink-medium);
+  --border:           var(--line-soft);
+  --text-primary:     var(--ink-strong);
+  --text-secondary:   var(--ink-medium);
+  --text-muted:       var(--ink-muted);
+  --accent-blue:      var(--color-primary);
+  --ink-base:         var(--ink-medium);
+  --surface-hover:    var(--surface-3);
+  --bg-card:          var(--surface-card);
+  --bg-elevated:      var(--surface-card-elevated);
+  --surface-elevated: var(--surface-card-elevated);
+
+  background: var(--page-background);
+  color: var(--ink-strong);
+}
+
+/* ============================================================
+   Dark Mode — Rich Deep Black, Premium Feel
+   ============================================================ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  color: #DDE5F0;
+
+  /* ── Surfaces: deep blue-black with subtle tonal depth ─────── */
+  --surface-0: #010205;
+  --surface-1: #030711;
+  --surface-2: #060B17;
+  --surface-3: #0C1220;
+  --surface-4: #131C2C;
+
+  --surface-card:          rgba(5, 8, 16, 0.97);
+  --surface-card-elevated: rgba(8, 13, 22, 0.99);
+  --surface-glass:         rgba(4, 7, 14, 0.92);
+  --surface-glass-strong:  rgba(3, 6, 12, 0.99);
+  --surface-glass-subtle:  rgba(7, 11, 19, 0.88);
+
+  /* ── Borders — subtle, barely-there ─────────────────────── */
+  --line-soft:   rgba(148, 163, 184, 0.13);
+  --line-medium: rgba(148, 163, 184, 0.20);
+  --line-strong: rgba(191, 219, 254, 0.28);
+
+  /* ── Text — clear and readable on dark ─────────────────── */
+  --ink-strong: #DDE5F0;
+  --ink-medium: #B8C8DB;
+  --ink-soft:   #7A8FA8;
+  --ink-muted:  #50647A;
+
+  /* ── Colors — slightly lighter for dark bg contrast ─────── */
+  --color-primary:       #3B82F6;
+  --color-primary-hover: #60A5FA;
+  --color-primary-light: rgba(59, 130, 246, 0.13);
+  --color-primary-glow:  rgba(59, 130, 246, 0.28);
+
+  --color-secondary:       #A78BFA;
+  --color-secondary-light: rgba(167, 139, 250, 0.13);
+
+  --color-accent:       #2DD4BF;
+  --color-accent-light: rgba(45, 212, 191, 0.11);
+
+  --color-teal:       #2DD4BF;
+  --color-teal-light: rgba(45, 212, 191, 0.11);
+
+  --color-indigo:       #818CF8;
+  --color-indigo-light: rgba(129, 140, 248, 0.14);
+
+  --color-violet:       #A78BFA;
+  --color-violet-light: rgba(167, 139, 250, 0.14);
+
+  --color-cyan:       #22D3EE;
+  --color-cyan-light: rgba(34, 211, 238, 0.11);
+
+  --color-success:       #34D399;
+  --color-success-light: rgba(52, 211, 153, 0.13);
+  --color-success-bg:    rgba(5, 150, 105, 0.18);
+  --color-warning:       #FBBF24;
+  --color-warning-light: rgba(251, 191, 36, 0.13);
+  --color-warning-bg:    rgba(217, 119, 6, 0.18);
+  --color-error:         #F87171;
+  --color-error-light:   rgba(248, 113, 113, 0.13);
+  --color-error-bg:      rgba(220, 38, 38, 0.18);
+
+  /* ── Shadows — deep, with blue glow ─────────────────────── */
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.40);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 12px 36px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.26);
+  --shadow-lg: 0 20px 54px rgba(0, 0, 0, 0.50), 0 4px 14px rgba(59, 130, 246, 0.06);
+  --shadow-xl: 0 26px 70px rgba(0, 0, 0, 0.58), 0 8px 22px rgba(59, 130, 246, 0.08);
+  --shadow-2xl: 0 32px 88px rgba(0, 0, 0, 0.66), 0 12px 30px rgba(59, 130, 246, 0.09);
+  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.16), 0 0 24px rgba(59, 130, 246, 0.28), 0 14px 36px rgba(0, 0, 0, 0.36);
+  --shadow-soft: var(--shadow-xl);
+  --shadow-lift: var(--shadow-lg);
+
+  /* ── Page Background — deep medical blue-black with ambient glows ── */
+  --page-background:
+    radial-gradient(ellipse at 18% 0%,   rgba(37, 99, 235, 0.07)  0%, transparent 46%),
+    radial-gradient(ellipse at 84% 9%,   rgba(13, 148, 136, 0.052) 0%, transparent 42%),
+    radial-gradient(ellipse at 52% 97%,  rgba(67, 56, 202, 0.038)  0%, transparent 50%),
+    linear-gradient(165deg, #010308 0%, #010206 44%, #000204 100%);
+
+  /* ── Sidebar ─────────────────────────────────────────────── */
+  --sidebar-bg:     rgba(0, 0, 0, 0.99);
+  --sidebar-border: rgba(148, 163, 184, 0.16);
+
+  /* ── Inputs ─────────────────────────────────────────────── */
+  --input-bg:           rgba(8, 15, 25, 0.96);
+  --input-border:       rgba(148, 163, 184, 0.20);
+  --input-focus-shadow: 0 0 0 3px rgba(59, 130, 246, 0.26);
+
+  /* ── Card tokens ─────────────────────────────────────────── */
+  --card-bg:     var(--surface-card);
+  --card-border: var(--line-soft);
+  --card-shadow: var(--shadow-md);
+
+  --topbar-bg:         rgba(2, 5, 10, 0.99);
+  --btn-secondary-bg:  var(--surface-glass-subtle);
+  --btn-secondary-text: var(--ink-medium);
+}
+
+/* ── Codeforge Accent Theme ───────────────────────────────── */
+:root[data-accent-theme='codeforge'] {
+  --brand-primary-start: #0EA5E9;
+  --brand-primary-mid:   #2563EB;
+  --brand-primary-end:   #7C3AED;
+  --brand-primary-solid: #2563EB;
+  --brand-primary-soft:  #7DD3FC;
+  --brand-violet: #9333EA;
+  --brand-gradient-primary: linear-gradient(135deg, #0EA5E9 0%, #2563EB 48%, #7C3AED 100%);
+  --brand-gradient-vivid:   linear-gradient(135deg, #06B6D4 0%, #2563EB 48%, #9333EA 100%);
+  --brand-gradient-warm:    linear-gradient(135deg, #2563EB, #7C3AED 52%, #DB2777);
+  --brand-gradient-hero:    linear-gradient(135deg, #060A14 0%, #0EA5E9 34%, #2563EB 58%, #7C3AED 100%);
+  --brand-shadow-soft: 0 6px 20px rgba(14, 165, 233, 0.16);
+  --brand-shadow-md:   0 10px 28px rgba(14, 165, 233, 0.20);
+  --brand-shadow-lg:   0 18px 44px rgba(14, 165, 233, 0.22);
+  --brand-glow: 0 0 20px rgba(14, 165, 233, 0.26), 0 0 44px rgba(124, 58, 237, 0.10);
+  --color-primary:       #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-light: rgba(37, 99, 235, 0.10);
+  --color-primary-glow:  rgba(37, 99, 235, 0.24);
+  --input-focus-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  --page-background:
+    radial-gradient(ellipse at 14% 0%, rgba(14, 165, 233, 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse at 88% 8%, rgba(124, 58, 237, 0.05) 0%, transparent 42%),
+    linear-gradient(180deg, #F8FAFE 0%, #F3F6FC 50%, #EEF4FA 100%);
+}
+
+:root[data-theme='dark'][data-accent-theme='codeforge'] {
+  --color-primary:       #38BDF8;
+  --color-primary-hover: #7DD3FC;
+  --color-primary-light: rgba(56, 189, 248, 0.13);
+  --color-primary-glow:  rgba(56, 189, 248, 0.32);
+  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 8px 24px rgba(37, 99, 235, 0.22);
+  --input-focus-shadow: 0 0 0 3px rgba(56, 189, 248, 0.24);
+  --page-background:
+    linear-gradient(135deg, #000102 0%, #010308 48%, #000000 100%);
+}

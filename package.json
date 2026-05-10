@@ -1,0 +1,72 @@
+{
+  "name": "lms",
+  "version": "1.0.0",
+  "description": "Root command layer for the LMS React + NestJS rebuild",
+  "private": true,
+  "scripts": {
+    "install:frontend": "npm install --prefix frontend",
+    "install:backend": "npm install --prefix backend",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:backend": "npm run build --prefix backend",
+    "build": "npm run build:frontend && npm run build:backend",
+    "mobile:preview": "npm run build:frontend",
+    "desktop:dev": "electron .",
+    "desktop:pack:win": "electron-builder --win portable --x64",
+    "desktop:pack:win:arm64": "electron-builder --win portable --arm64",
+    "desktop:dist:win": "electron-builder --win nsis --x64",
+    "desktop:dist:mac:m1": "electron-builder --mac dmg --arm64 -c.mac.identity=null",
+    "start:api": "npm run start:dev --prefix backend",
+    "start:api:bg": "node scripts/api-daemon.mjs start",
+    "stop:api:bg": "node scripts/api-daemon.mjs stop",
+    "status:api": "node scripts/api-daemon.mjs status",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "check:frontend": "npm run build --prefix frontend",
+    "check:backend": "npm run build --prefix backend",
+    "check:health": "curl -s http://localhost:3000/api/health",
+    "check:routes": "node scripts/route-smoke-check.mjs",
+    "check:bare-controls": "node scripts/bare-control-audit.mjs"
+  },
+  "main": "desktop/main.cjs",
+  "build": {
+    "appId": "com.erpm.medical.lms",
+    "productName": "ERPM Medical LMS",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "win": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "mac": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "category": "public.app-category.education",
+      "target": [
+        "dmg"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "framer-motion": "^12.38.0"
+  },
+  "devDependencies": {
+    "electron": "^42.0.0",
+    "electron-builder": "^26.8.1"
+  }
+}

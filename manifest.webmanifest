@@ -1,0 +1,26 @@
+{
+  "name": "ERPM Medical LMS",
+  "short_name": "ERPM LMS",
+  "id": "/lms/?source=pwa-v6",
+  "description": "Premium medical learning app for lessons, quizzes, revision notes, and structured progress.",
+  "start_url": "/lms/?source=pwa-v6",
+  "scope": "/lms/",
+  "display": "standalone",
+  "background_color": "#f8fbff",
+  "theme_color": "#F8FBFF",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/lms/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/lms/pwa-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

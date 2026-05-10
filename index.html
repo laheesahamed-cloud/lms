@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>ERPM LMS</title>
+    <meta name="theme-color" content="#F8FBFF" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ERPM LMS" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/lms/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/lms/pwa-icon.svg" />
+    <link rel="apple-touch-icon" href="/lms/pwa-icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Caveat:wght@400;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <script>
+      /* ── 1. Theme detection — must run synchronously before first paint ── */
+      (function () {
+        var theme = 'light';
+        var accentTheme = 'codeforge';
+        try {
+          var savedTheme = window.localStorage.getItem('lms_theme_mode');
+          if (savedTheme === 'light' || savedTheme === 'dark') {
+            theme = savedTheme;
+          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          }
+          var savedAccent = window.localStorage.getItem('lms_accent_theme');
+          if (savedAccent === 'erpm' || savedAccent === 'codeforge') {
+            accentTheme = savedAccent;
+          }
+        } catch (e) {}
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.accentTheme = accentTheme;
+        document.documentElement.style.colorScheme = theme;
+        var metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+          metaThemeColor.setAttribute('content', theme === 'dark' ? '#050B18' : '#F8FBFF');
+        }
+      })();
+
+      /* ── 2. Boot animation gate — ThemeBootstrap checks this flag ── */
+      window.__lmsAnimDone = false;
+
+      /* ── Scroll unlock — runs before React/service worker assets ── */
+      (function () {
+        function unlockScroll() {
+          var nodes = [
+            document.documentElement,
+            document.body,
+            document.getElementById('root')
+          ];
+
+          for (var i = 0; i < nodes.length; i += 1) {
+            var node = nodes[i];
+            if (!node) continue;
+            node.style.height = 'auto';
+            node.style.minHeight = '100%';
+            node.style.overflowX = 'hidden';
+            node.style.overflowY = 'auto';
+          }
+
+          var shellNodes = document.querySelectorAll('.portal-shell, .portal-content, .portal-content__frame, .lms-route-page');
+          for (var j = 0; j < shellNodes.length; j += 1) {
+            shellNodes[j].style.height = 'auto';
+            shellNodes[j].style.minHeight = '100dvh';
+            shellNodes[j].style.maxHeight = 'none';
+            shellNodes[j].style.overflowX = 'hidden';
+            shellNodes[j].style.overflowY = 'visible';
+          }
+        }
+
+        window.__lmsUnlockScroll = unlockScroll;
+        document.addEventListener('DOMContentLoaded', unlockScroll);
+        window.addEventListener('load', unlockScroll);
+        window.setTimeout(unlockScroll, 250);
+        window.setTimeout(unlockScroll, 1200);
+
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', function () {
+            navigator.serviceWorker.getRegistrations()
+              .then(function (registrations) {
+                registrations.forEach(function (registration) {
+                  registration.unregister();
+                });
+              })
+              .catch(function () {});
+          });
+        }
+
+        if ('caches' in window) {
+          window.addEventListener('load', function () {
+            window.caches.keys()
+              .then(function (keys) {
+                return Promise.all(keys.filter(function (key) {
+                  return key.indexOf('erpm-lms-shell-') === 0;
+                }).map(function (key) {
+                  return window.caches.delete(key);
+                }));
+              })
+              .catch(function () {});
+          });
+        }
+      })();
+    </script>
+
+    <style>
+      /* ── App root styles ─────────────────────────────────────────── */
+      :root {
+        color-scheme: light;
+        font-family: "Plus Jakarta Sans", "Inter", "Manrope", system-ui, sans-serif;
+      }
+      :root[data-theme='dark'] { color-scheme: dark; }
+
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: radial-gradient(ellipse at 20% 0%, rgba(59,130,246,0.09) 0%, transparent 55%),
+          radial-gradient(ellipse at 80% 10%, rgba(20,184,166,0.06) 0%, transparent 40%),
+          linear-gradient(160deg, #F8FAFF 0%, #F0F5FF 45%, #EBF2FF 100%);
+      }
+      body { color: #0F172A; }
+
+      :root[data-theme='dark'] html,
+      :root[data-theme='dark'] body {
+        background: linear-gradient(160deg, #000102 0%, #010308 48%, #000000 100%);
+      }
+      :root[data-theme='dark'] body { color: #F1F5FF; }
+      #root { min-height: 100vh; }
+
+      /* ══════════════════════════════════════════════════════════════
+         PREMIUM BOOT LOADER ANIMATION
+         Dark navy background → ERPM LMS with aurora gradient →
+         progress bar fills → text zooms out → overlay dissolves.
+      ══════════════════════════════════════════════════════════════ */
+
+      /* ── Loader overlay — always on top, always opaque until exit ── */
+      #app-boot-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 2147482000;
+        background: #050B18;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        pointer-events: none;
+        contain: layout paint style;
+      }
+
+      /* Removed by ThemeBootstrap (after animation done signal) */
+      body.app-ready #app-boot-loader {
+        pointer-events: none;
+      }
+
+      /* ── Ambient background glows ─────────────────────────────── */
+      .abl-glow {
+        display: none;
+      }
+      /* Top-left teal glow */
+      .abl-glow--tl {
+        width: 600px; height: 600px;
+        top: -200px; left: -150px;
+        background: radial-gradient(circle, rgba(6,182,212,0.22) 0%, transparent 70%);
+        animation-delay: 0ms;
+      }
+      /* Bottom-right purple glow */
+      .abl-glow--br {
+        width: 500px; height: 500px;
+        bottom: -180px; right: -100px;
+        background: radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%);
+        animation-delay: 150ms;
+      }
+      /* Center blue halo — behind the brand */
+      .abl-glow--center {
+        width: 380px; height: 380px;
+        background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 65%);
+        animation-delay: 300ms;
+      }
+
+      @keyframes abl-glow-in {
+        to { opacity: 1; }
+      }
+
+      /* Subtle dot-grid texture */
+      .abl-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px);
+        background-size: 28px 28px;
+        pointer-events: none;
+        opacity: 0;
+        animation: abl-glow-in 1s 200ms ease forwards;
+        will-change: opacity;
+      }
+
+      /* ── Stage: centered content column ──────────────────────── */
+      .abl-stage {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        text-align: center;
+        transform: translateZ(0);
+      }
+
+      /* ── Medical icon ─────────────────────────────────────────── */
+      .abl-icon {
+        width: 60px; height: 60px;
+        margin-bottom: 20px;
+        opacity: 0;
+        transform: translateY(16px);
+        animation: abl-rise 0.6s 100ms cubic-bezier(0.22,1,0.36,1) forwards;
+      }
+      .abl-icon svg { width: 100%; height: 100%; }
+
+      /* ── Brand text wrapper (receives zoom transform) ─────────── */
+      .abl-brand-wrap {
+        will-change: transform, opacity;
+        transform-origin: center center;
+        backface-visibility: hidden;
+      }
+      /* Step 6: zoom the brand text toward the viewer */
+      .abl-brand-wrap--zoom {
+        animation: abl-brand-zoom 0.55s cubic-bezier(0.4, 0, 1, 1) forwards;
+      }
+      @keyframes abl-brand-zoom {
+        0%   { transform: scale(1);   opacity: 1; }
+        45%  { transform: scale(4.5); opacity: 0.72; }
+        100% { transform: scale(14);  opacity: 0; }
+      }
+
+      /* ── "ERPM LMS" text with aurora moving gradient ─────────── */
+      .abl-brand-text {
+        font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+        font-size: clamp(42px, 9vw, 76px);
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        line-height: 1;
+        /* Aurora gradient: teal → blue → violet → cyan → back */
+        background: linear-gradient(
+          110deg,
+          #22d3ee  0%,
+          #38bdf8 14%,
+          #818cf8 28%,
+          #a78bfa 42%,
+          #06b6d4 56%,
+          #3b82f6 70%,
+          #c4b5fd 84%,
+          #22d3ee 100%
+        );
+        background-size: 280% 100%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        /* Shimmer sweep + appear simultaneously */
+        opacity: 0;
+        animation:
+          abl-aurora  3.5s 350ms linear infinite,
+          abl-rise    0.7s 350ms cubic-bezier(0.22,1,0.36,1) forwards;
+        /* Soft text glow via drop-shadow (works with -webkit-text-fill-color) */
+        filter: drop-shadow(0 0 24px rgba(6,182,212,0.35)) drop-shadow(0 0 48px rgba(99,102,241,0.2));
+        will-change: opacity, transform, background-position;
+        transform: translateZ(0);
+      }
+      @keyframes abl-aurora {
+        0%   { background-position: 0%   50%; }
+        100% { background-position: 280% 50%; }
+      }
+
+      /* Shared rise-in keyframe */
+      @keyframes abl-rise {
+        0%   { opacity: 0; transform: translateY(14px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+
+      /* ── Tagline ──────────────────────────────────────────────── */
+      .abl-tagline {
+        margin: 10px 0 0;
+        font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+        font-size: clamp(11px, 2vw, 13px);
+        font-weight: 500;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: rgba(148,163,184,0.75);
+        opacity: 0;
+        animation: abl-rise 0.5s 750ms cubic-bezier(0.22,1,0.36,1) forwards;
+      }
+
+      /* ── Progress area ────────────────────────────────────────── */
+      .abl-progress-area {
+        margin-top: 36px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        opacity: 0;
+        animation: abl-rise 0.4s 850ms ease forwards;
+      }
+
+      /* Track */
+      .abl-progress-track {
+        width: clamp(200px, 36vw, 300px);
+        height: 2.5px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 100px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* Fill: gradient + moving gleam */
+      .abl-progress-fill {
+        height: 100%;
+        width: 100%;
+        border-radius: 100px;
+        background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
+        box-shadow: 0 0 12px rgba(6,182,212,0.7), 0 0 28px rgba(59,130,246,0.4);
+        position: relative;
+        overflow: hidden;
+        transform: scaleX(0);
+        transform-origin: left center;
+        will-change: transform;
+      }
+      /* Moving gleam inside the fill */
+      .abl-progress-fill::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        width: 60%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+        animation: abl-gleam 1.4s 900ms ease-in-out infinite;
+        transform: translateX(-140%);
+        will-change: transform;
+      }
+      @keyframes abl-gleam {
+        0%   { transform: translateX(-140%); }
+        100% { transform: translateX(240%); }
+      }
+
+      /* Step text below bar */
+      .abl-step-text {
+        margin: 0;
+        font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+        font-size: 11px;
+        font-weight: 400;
+        color: rgba(100,116,139,0.85);
+        letter-spacing: 0.04em;
+        min-height: 16px;
+        transition: opacity 0.3s ease;
+      }
+
+      /* ── Loader exit: background dissolves to reveal the app ─── */
+      /* Step 7: whole overlay fades out after zoom peak */
+      #app-boot-loader.abl-exiting {
+        animation: abl-overlay-out 0.55s ease forwards;
+      }
+      @keyframes abl-overlay-out {
+        0%   { background-color: #050B18;             opacity: 1; }
+        55%  { background-color: rgba(5,11,24,0.25);  opacity: 1; }
+        100% { background-color: rgba(5,11,24,0);     opacity: 0; }
+      }
+
+      /* Elements other than brand fade early during exit */
+      #app-boot-loader.abl-exiting .abl-icon,
+      #app-boot-loader.abl-exiting .abl-tagline,
+      #app-boot-loader.abl-exiting .abl-progress-area {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+
+      /* ── Reduced-motion: skip all animations, quick fade ─────── */
+      @media (prefers-reduced-motion: reduce) {
+        .abl-glow, .abl-grid, .abl-icon, .abl-brand-text,
+        .abl-tagline, .abl-progress-area {
+          opacity: 1 !important;
+          animation: none !important;
+          transform: none !important;
+        }
+        .abl-brand-wrap--zoom    { animation: none !important; }
+        #app-boot-loader.abl-exiting { animation: abl-overlay-out 0.3s ease forwards !important; }
+      }
+
+      html,
+      body,
+      #root {
+        height: auto !important;
+        min-height: 100%;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+      }
+
+      .portal-shell,
+      .portal-content,
+      .portal-content__frame {
+        height: auto !important;
+        min-height: 100dvh;
+        max-height: none !important;
+        overflow-y: visible !important;
+      }
+    </style>
+
+    <link rel="stylesheet" crossorigin href="/lms/frontend/dist/assets/app.css?v=20260508-native-scroll" />
+    <script type="module" crossorigin src="/lms/frontend/dist/assets/app.js?v=20260508-native-scroll"></script>
+  </head>
+
+  <body class="app-booting">
+
+    <!-- ══════════════════════════════════════════════════════════
+         PREMIUM BOOT LOADER
+         Removed from DOM by ThemeBootstrap after animation done.
+    ══════════════════════════════════════════════════════════════ -->
+    <div id="app-boot-loader" aria-hidden="true" role="presentation">
+
+      <!-- Ambient glow orbs — purely decorative -->
+      <div class="abl-glow abl-glow--tl"></div>
+      <div class="abl-glow abl-glow--br"></div>
+      <div class="abl-glow abl-glow--center"></div>
+
+      <!-- Subtle dot-grid texture -->
+      <div class="abl-grid"></div>
+
+      <!-- Main centered stage -->
+      <div class="abl-stage">
+
+        <!-- Medical icon: hexagonal ring with cross -->
+        <div class="abl-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Outer hexagon ring -->
+            <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z"
+              stroke="url(#abl-hex)" stroke-width="1.4" fill="none" opacity="0.65"/>
+            <!-- Inner hexagon -->
+            <path d="M32 14L48 23.5V42.5L32 52L16 42.5V23.5L32 14Z"
+              stroke="url(#abl-hex)" stroke-width="0.9" fill="none" opacity="0.35"/>
+            <!-- Medical cross -->
+            <path d="M32 22V42" stroke="url(#abl-cross)" stroke-width="4.5" stroke-linecap="round"/>
+            <path d="M22 32H42" stroke="url(#abl-cross)" stroke-width="4.5" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="abl-hex" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+                <stop offset="0%"   stop-color="#22d3ee"/>
+                <stop offset="100%" stop-color="#818cf8"/>
+              </linearGradient>
+              <linearGradient id="abl-cross" x1="22" y1="22" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+                <stop offset="0%"   stop-color="#06b6d4"/>
+                <stop offset="100%" stop-color="#a78bfa"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <!-- Brand name — aurora gradient text, zoom wrapper -->
+        <div class="abl-brand-wrap" id="ablBrandWrap">
+          <div class="abl-brand-text">ERPM LMS</div>
+        </div>
+
+        <!-- Tagline -->
+        <p class="abl-tagline">Your Medical Exam Companion</p>
+
+        <!-- Progress bar + step text -->
+        <div class="abl-progress-area">
+          <div class="abl-progress-track">
+            <div class="abl-progress-fill" id="ablFill"></div>
+          </div>
+          <p class="abl-step-text" id="ablStep">Preparing your medical learning experience…</p>
+        </div>
+
+      </div><!-- /.abl-stage -->
+    </div><!-- /#app-boot-loader -->
+
+    <div id="root"></div>
+
+    <script>
+      /* ══════════════════════════════════════════════════════════
+         Boot animation controller
+         Sequence:
+           Phase 1 — Elements rise in (CSS-driven, 0–900ms)
+           Phase 2 — Progress bar fills with step text (180–720ms)
+           Phase 3 — Brand zooms toward camera (820ms)
+           Phase 4 — Animation sequence done gate (980ms)
+           Phase 5 — Overlay dissolves only when BOTH animation done
+                      AND React has mounted (lms:react-ready signal)
+           Fallback — Hard exit at 1600ms regardless of React state
+      ══════════════════════════════════════════════════════════ */
+      (function () {
+        'use strict';
+
+        var fill   = document.getElementById('ablFill');
+        var step   = document.getElementById('ablStep');
+        var wrap   = document.getElementById('ablBrandWrap');
+        var loader = document.getElementById('app-boot-loader');
+        var done   = false;
+
+        /* Loading messages that cycle as the bar advances */
+        var steps = [
+          'Preparing your medical learning experience…',
+          'Loading study materials and resources…',
+          'Calibrating your assessment engine…',
+          'Syncing question bank and progress data…',
+          'Ready'
+        ];
+
+        /* Smoothly advance the fill bar */
+        function setProgress(pct, ms) {
+          if (!fill) return;
+          fill.style.transition = 'transform ' + ms + 'ms cubic-bezier(0.4,0,0.2,1)';
+          fill.style.transform = 'scaleX(' + (pct / 100) + ')';
+        }
+
+        /* Crossfade step text */
+        function setStep(idx) {
+          if (!step) return;
+          step.style.opacity = '0';
+          setTimeout(function () {
+            step.textContent = steps[Math.min(idx, steps.length - 1)];
+            step.style.opacity = '1';
+          }, 160);
+        }
+
+        /* Dissolve the overlay and signal React to clean up */
+        function finishBoot() {
+          if (done) return;
+          done = true;
+          window.__lmsAnimDone = true;
+          document.body.classList.remove('app-booting');
+          document.body.classList.add('app-ready');
+          if (loader) loader.classList.add('abl-exiting');
+          document.dispatchEvent(new CustomEvent('lms:anim-done'));
+          setTimeout(function () {
+            if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
+          }, 650);
+        }
+
+        /*
+         * Two-gate pattern: the overlay only dissolves when BOTH gates pass.
+         *   animSeqDone — set at t=2350ms after the brand zoom animation plays
+         *   reactIsReady — set when AppFrame dispatches lms:react-ready
+         *
+         * On fast machines React is ready well before t=2350ms, so there is no
+         * delay. On slow/low-end machines where JS parsing takes >2350ms, the
+         * overlay stays up (keeping the premium animation visible) until React
+         * has actually mounted — preventing the blank-page gap.
+         */
+        var animSeqDone  = false;
+        var reactIsReady = window.__lmsReactReady === true;
+
+        function tryFinish() {
+          if (animSeqDone && reactIsReady) finishBoot();
+        }
+
+        if (!reactIsReady) {
+          document.addEventListener('lms:react-ready', function () {
+            reactIsReady = true;
+            tryFinish();
+          }, { once: true });
+        }
+
+        /* Phase 2: progress fills in five increments */
+        setTimeout(function () { setProgress(28, 140); setStep(1); }, 180);
+        setTimeout(function () { setProgress(56, 150); setStep(2); }, 360);
+        setTimeout(function () { setProgress(82, 150); setStep(3); }, 540);
+        setTimeout(function () { setProgress(100, 140); setStep(4); }, 720);
+
+        /* Phase 3: brand text zooms toward the viewer */
+        setTimeout(function () {
+          if (wrap) wrap.classList.add('abl-brand-wrap--zoom');
+        }, 820);
+
+        /* Phase 4: animation sequence complete — try to exit */
+        setTimeout(function () {
+          animSeqDone = true;
+          tryFinish();
+        }, 980);
+
+        /* Hard fallback: exit regardless of React state — covers broken JS,
+           non-landing routes that skip AppFrame, and extreme slow devices */
+        setTimeout(finishBoot, 1600);
+
+      })();
+    </script>
+
+  </body>
+</html>

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ERPM LMS Frontend</title>
+    <meta name="theme-color" content="#F8FBFF" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ERPM LMS" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%pwa-icon.svg" />
+    <link rel="apple-touch-icon" href="%BASE_URL%pwa-icon.svg" />
+    <script>
+      (function () {
+        var theme = 'light';
+        var accentTheme = 'codeforge';
+
+        try {
+          var requestedTheme = new URLSearchParams(window.location.search).get('theme');
+          var savedTheme = window.localStorage.getItem('lms_theme_mode');
+          if (requestedTheme === 'light' || requestedTheme === 'dark') {
+            theme = requestedTheme;
+          } else if (savedTheme === 'light' || savedTheme === 'dark') {
+            theme = savedTheme;
+          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          }
+
+          var savedAccent = window.localStorage.getItem('lms_accent_theme');
+          if (savedAccent === 'erpm' || savedAccent === 'codeforge') {
+            accentTheme = savedAccent;
+          }
+        } catch (error) {}
+
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.accentTheme = accentTheme;
+        document.documentElement.style.colorScheme = theme;
+
+        var metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+          metaThemeColor.setAttribute('content', theme === 'dark' ? '#050B18' : '#F8FBFF');
+        }
+      })();
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+      }
+
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+      }
+
+      html,
+      body,
+      #root {
+        min-height: 100vh;
+        min-height: 100dvh;
+      }
+
+      body {
+        margin: 0;
+        color: #0F172A;
+        background:
+          radial-gradient(ellipse at 18% 0%, rgba(0, 132, 209, 0.08) 0%, transparent 48%),
+          linear-gradient(180deg, #FFFFFF 0%, #F8FBFF 52%, #F8FAFC 100%);
+      }
+
+      :root[data-theme='dark'] body {
+        color: #F1F5FF;
+        background:
+          radial-gradient(ellipse at 18% 0%, rgba(0, 132, 209, 0.17) 0%, transparent 52%),
+          linear-gradient(160deg, #050B18 0%, #08142A 45%, #0A1124 100%);
+      }
+
+      #app-boot-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 2147482000;
+        display: grid;
+        place-items: center;
+        background: inherit;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 220ms ease;
+      }
+
+      body.app-booting #app-boot-loader {
+        opacity: 1;
+      }
+
+      .app-boot-mark {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 3px solid rgba(0, 132, 209, 0.18);
+        border-top-color: #0084D1;
+        animation: appBootSpin 760ms linear infinite;
+      }
+
+      @keyframes appBootSpin {
+        to { transform: rotate(360deg); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #app-boot-loader { transition: none; }
+        .app-boot-mark { animation: none; }
+      }
+    </style>
+  </head>
+  <body class="app-booting">
+    <div id="app-boot-loader" aria-hidden="true">
+      <span class="app-boot-mark"></span>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+  </html>

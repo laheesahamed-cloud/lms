@@ -1,0 +1,73 @@
+export const siteContent = {
+  siteName: 'ERPM LMS',
+  tagline: 'Future Doctor Learning OS',
+  defaultPlanLabel: 'Clinical Momentum',
+  whatsappContactUrl: 'https://wa.me/94771234567',
+  testimonials: [
+    {
+      name: 'Ayesha F.',
+      role: 'Final Year Medical Student',
+      quote: 'The platform finally feels calm enough for long revision sessions and smart enough to keep me moving.',
+    },
+    {
+      name: 'Dr. Perera',
+      role: 'Instructor',
+      quote: 'The new LMS experience feels like a premium academic product, not a patched collection of screens.',
+    },
+    {
+      name: 'Nadun R.',
+      role: 'Clinical Batch Leader',
+      quote: 'Quizzes, notes, and progress now live in one system that students actually enjoy opening every day.',
+    },
+  ],
+  plans: [
+    {
+      name: 'Quick Revision',
+      price: 'LKR 990',
+      regularPrice: 'LKR 1,390',
+      period: '/7 days',
+      tag: 'Trial',
+      savings: 'Save 29%',
+      description: 'Fast all-subject MCQ practice for last-minute revision before an exam week.',
+      features: [
+        'All-subject MCQ access',
+        'Quizzes and practice mode',
+        'Exam-mode revision',
+        '7 days of focused access',
+      ],
+      accent: 'starter',
+    },
+    {
+      name: 'Complete Prep',
+      price: 'LKR 8,990',
+      regularPrice: 'LKR 11,890',
+      period: '/3 months',
+      tag: 'Best value',
+      savings: 'Save 24%',
+      description: 'The best balance of time, price, and full ERPM preparation for serious students.',
+      features: [
+        'Everything in Monthly Prep',
+        '3 months of full access',
+        'Best fit for most exam timelines',
+        'About LKR 2,997 per month',
+      ],
+      accent: 'growth',
+    },
+    {
+      name: 'Monthly Prep',
+      price: 'LKR 3,990',
+      regularPrice: 'LKR 5,290',
+      period: '/month',
+      tag: 'Starter',
+      savings: 'Save 25%',
+      description: 'A focused month of all-subject lessons, notes, MCQs, quizzes, practice, and exam mode.',
+      features: [
+        'All subjects included',
+        'Lessons, notes, and MCQs',
+        'Practice and exam mode',
+        'Progress and weak-area insights',
+      ],
+      accent: 'starter',
+    },
+  ],
+};

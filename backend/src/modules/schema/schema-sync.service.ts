@@ -1,0 +1,906 @@
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import * as bcrypt from 'bcryptjs';
+import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
+
+@Injectable()
+export class SchemaSyncService implements OnModuleInit {
+  private readonly logger = new Logger(SchemaSyncService.name);
+
+  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
+
+  async onModuleInit() {
+    const connection = await this.db.getConnection();
+
+    try {
+      await this.ensurePlansTable(connection);
+      await this.ensureUserSubscriptionsTable(connection);
+      await this.ensureSubscriptionCouponsTable(connection);
+      await this.ensurePaymentTransactionsTable(connection);
+      await this.ensureStudyBookmarksTable(connection);
+      await this.ensureStudyActivityEventsTable(connection);
+      await this.ensurePapersTable(connection);
+      await this.ensureQuestionReportsTable(connection);
+      await this.ensureLessonAnnotationsTable(connection);
+      await this.ensureStudentLessonProgressTable(connection);
+      await this.ensureSystemSettingsTable(connection);
+      await this.ensureAiProviderConfigsTable(connection);
+      await this.ensureSmartNotesTable(connection);
+      await this.ensureAiIllustratedNotesTable(connection);
+      await this.ensureQuestionKeywordsTables(connection);
+      await this.ensureSubscriptionFeaturesTables(connection);
+      await this.ensureSubscriptionRequestTables(connection);
+      await this.ensureQuestionTheoryRecapsTable(connection);
+      await this.ensureColumn(connection, 'users', 'avatar_key', "VARCHAR(64) NULL AFTER status");
+      await this.ensureColumn(connection, 'users', 'session_expires_at', 'DATETIME NULL AFTER session_token');
+      await this.ensureColumn(connection, 'users', 'password_reset_token', 'VARCHAR(128) NULL AFTER session_expires_at');
+      await this.ensureColumn(connection, 'users', 'password_reset_expires_at', 'DATETIME NULL AFTER password_reset_token');
+      await this.ensureColumn(connection, 'ai_illustrated_notes', 'is_public',   "TINYINT NOT NULL DEFAULT 1");
+      await this.ensureColumn(connection, 'ai_illustrated_notes', 'course_id',   'INT NULL');
+      await this.ensureColumn(connection, 'ai_illustrated_notes', 'topic_id',    'INT NULL');
+      await this.ensureColumn(connection, 'ai_illustrated_notes', 'subtopic_id', 'INT NULL');
+      await this.ensureColumn(connection, 'ai_illustrated_notes', 'status',      "ENUM('active','inactive') NOT NULL DEFAULT 'active'");
+      await this.ensureColumn(connection, 'ai_illustrated_notes', 'lesson_id',   'INT NULL');
+      await this.ensureColumn(connection, 'ai_illustrated_notes', 'engine_key',  "VARCHAR(32) NOT NULL DEFAULT 'gemini' AFTER raw_text");
+      await this.ensureColumn(connection, 'ai_illustrated_notes', 'video_url',   'VARCHAR(1000) NULL AFTER lesson_id');
+      await this.ensureColumn(connection, 'questions', 'subtopic_id', 'INT NULL AFTER topic_id');
+      await this.ensureColumn(connection, 'questions', 'lesson_id', 'INT NULL AFTER subtopic_id');
+      await this.ensureColumn(connection, 'questions', 'paper_id', 'INT NULL AFTER lesson_id');
+      await this.ensureColumn(connection, 'questions', 'keywords_text', 'TEXT NULL AFTER question_text');
+      await this.ensureColumn(connection, 'question_options', 'why_incorrect', 'TEXT NULL AFTER is_correct');
+      await this.ensureColumn(connection, 'quizzes', 'subtopic_id', 'INT NULL AFTER topic_id');
+      await this.ensureColumn(connection, 'quizzes', 'lesson_id', 'INT NULL AFTER subtopic_id');
+      await this.ensureColumn(connection, 'quizzes', 'paper_id', 'INT NULL AFTER lesson_id');
+      await this.ensureColumn(connection, 'quizzes', 'category', 'VARCHAR(120) NULL AFTER paper_id');
+      await this.ensureColumn(connection, 'quizzes', 'collection_tags', 'TEXT NULL AFTER category');
+      await this.ensureColumn(connection, 'quizzes', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER collection_tags');
+      await this.ensureColumn(connection, 'quizzes', 'admin_name', 'VARCHAR(255) NULL AFTER exam_mode_only');
+      await this.ensureColumn(connection, 'quizzes', 'student_title', 'VARCHAR(255) NULL AFTER admin_name');
+      await this.ensureColumn(connection, 'lessons', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER video_url');
+      await this.ensureColumn(connection, 'ai_illustrated_notes', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_public');
+      await this.ensureColumn(connection, 'plans', 'slug', 'VARCHAR(160) NULL AFTER name');
+      await this.ensureColumn(connection, 'plans', 'regular_price', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00 AFTER description');
+      await this.ensureColumn(connection, 'plans', 'offer_price', 'DECIMAL(10, 2) NULL AFTER regular_price');
+      await this.ensureColumn(connection, 'plans', 'offer_enabled', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER offer_price');
+      await this.ensureColumn(connection, 'plans', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER status');
+      await this.ensureColumn(connection, 'plans', 'recommended', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER sort_order');
+      await this.ensureColumn(connection, 'user_subscriptions', 'amount_paid', 'DECIMAL(10, 2) NULL AFTER payment_status');
+      await this.ensureColumn(connection, 'user_subscriptions', 'payment_method', 'VARCHAR(80) NULL AFTER amount_paid');
+      await this.ensureColumn(connection, 'user_subscriptions', 'payment_reference', 'VARCHAR(191) NULL AFTER payment_method');
+      await this.ensureColumn(connection, 'user_subscriptions', 'payment_date', 'DATE NULL AFTER payment_reference');
+      await this.ensureColumn(connection, 'user_subscriptions', 'receipt_url', 'VARCHAR(1000) NULL AFTER payment_date');
+      await this.ensureColumn(connection, 'user_subscriptions', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER receipt_url");
+      await this.ensureColumn(connection, 'user_subscriptions', 'course_ids_json', 'TEXT NULL AFTER access_scope');
+      await this.ensureColumn(connection, 'user_subscriptions', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
+      await this.ensureColumn(connection, 'subscription_requests', 'invoice_id', 'VARCHAR(20) NULL AFTER plan_id');
+      await this.ensureColumn(connection, 'subscription_requests', 'payment_method', 'VARCHAR(80) NULL AFTER message');
+      await this.ensureColumn(connection, 'subscription_requests', 'payment_reference', 'VARCHAR(191) NULL AFTER payment_method');
+      await this.ensureColumn(connection, 'subscription_requests', 'payment_amount', 'DECIMAL(10, 2) NULL AFTER payment_reference');
+      await this.ensureColumn(connection, 'subscription_requests', 'payment_currency', 'VARCHAR(10) NULL AFTER payment_amount');
+      await this.ensureColumn(connection, 'subscription_requests', 'payment_proof_name', 'VARCHAR(255) NULL AFTER payment_currency');
+      await this.ensureColumn(connection, 'subscription_requests', 'payment_proof_mime', 'VARCHAR(80) NULL AFTER payment_proof_name');
+      await this.ensureColumn(connection, 'subscription_requests', 'payment_proof_data_url', 'LONGTEXT NULL AFTER payment_proof_mime');
+      await this.ensureColumn(connection, 'subscription_requests', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER payment_proof_data_url");
+      await this.ensureColumn(connection, 'subscription_requests', 'course_ids_json', 'TEXT NULL AFTER access_scope');
+      await this.ensureColumn(connection, 'subscription_requests', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
+      await this.ensureColumn(connection, 'payment_transactions', 'invoice_id', 'VARCHAR(20) NULL AFTER order_id');
+      await this.ensureColumn(connection, 'payment_transactions', 'coupon_code', 'VARCHAR(40) NULL AFTER currency');
+      await this.ensureColumn(connection, 'payment_transactions', 'discount_amount', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00 AFTER coupon_code');
+      await this.ensureColumn(connection, 'payment_transactions', 'order_note', 'TEXT NULL AFTER discount_amount');
+      await this.ensureColumn(connection, 'payment_transactions', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER order_note");
+      await this.ensureColumn(connection, 'payment_transactions', 'course_ids_json', 'TEXT NULL AFTER access_scope');
+      await this.ensureColumn(connection, 'payment_transactions', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
+      await this.ensureColumn(connection, 'question_quizzes', 'sort_order', 'INT NOT NULL DEFAULT 0');
+      await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_practice', 'TINYINT(1) NOT NULL DEFAULT 1');
+      await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_exam', 'TINYINT(1) NOT NULL DEFAULT 0');
+      await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_review', 'TINYINT(1) NOT NULL DEFAULT 1');
+      await this.ensureIndex(connection, 'questions', 'idx_questions_subtopic_id', 'subtopic_id');
+      await this.ensureIndex(connection, 'questions', 'idx_questions_lesson_id', 'lesson_id');
+      await this.ensureIndex(connection, 'questions', 'idx_questions_paper_id', 'paper_id');
+      await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_subtopic_id', 'subtopic_id');
+      await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_lesson_id', 'lesson_id');
+      await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_paper_id', 'paper_id');
+      await this.ensureIndex(connection, 'plans', 'idx_plans_slug', 'slug');
+      await this.ensureIndex(connection, 'users', 'idx_users_password_reset_token', 'password_reset_token');
+      await this.ensureIndex(connection, 'plans', 'idx_plans_sort_order', 'sort_order');
+      await this.ensureIndex(connection, 'question_quizzes', 'idx_question_quizzes_quiz_sort', 'quiz_id, sort_order');
+      await this.ensureIndex(connection, 'question_keyword_map', 'idx_question_keyword_map_keyword_id', 'keyword_id');
+      await this.ensureIndex(connection, 'subscription_features', 'idx_subscription_features_key', 'feature_key');
+      await this.ensureIndex(connection, 'subscription_features', 'idx_subscription_features_category', 'category');
+      await this.ensureIndex(connection, 'subscription_plan_features', 'idx_subscription_plan_features_feature_id', 'feature_id');
+      await this.ensureIndex(connection, 'subscription_requests', 'idx_subscription_requests_user', 'user_id');
+      await this.ensureIndex(connection, 'subscription_requests', 'idx_subscription_requests_status', 'status');
+      await this.ensureIndex(connection, 'subscription_requests', 'idx_subscription_requests_invoice', 'invoice_id');
+      await this.ensureIndex(connection, 'subscription_audit_events', 'idx_subscription_audit_subscription', 'subscription_id');
+      await this.ensureIndex(connection, 'subscription_audit_events', 'idx_subscription_audit_request', 'request_id');
+      await this.ensureIndex(connection, 'payment_transactions', 'idx_payment_transactions_order_id', 'order_id');
+      await this.ensureIndex(connection, 'payment_transactions', 'idx_payment_transactions_invoice', 'invoice_id');
+      await this.ensureIndex(connection, 'payment_transactions', 'idx_payment_transactions_user', 'user_id');
+      await this.ensureIndex(connection, 'subscription_coupons', 'idx_subscription_coupons_status', 'status');
+      await this.backfillPlanSubscriptionColumns(connection);
+      await this.seedSubscriptionFeatureCatalog(connection);
+      await this.seedDefaultPlans(connection);
+      await this.backfillPlanFeatureMaps(connection);
+      await this.backfillQuestionKeywordMaps(connection);
+      await this.backfillQuizTitles(connection);
+      await this.hashLegacyPlaintextPasswords(connection);
+    } finally {
+      connection.release();
+    }
+  }
+
+  private async hashLegacyPlaintextPasswords(connection: PoolConnection) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, password
+       FROM users
+       WHERE password IS NOT NULL
+         AND password <> ''
+         AND password NOT LIKE '$2a$%'
+         AND password NOT LIKE '$2b$%'
+         AND password NOT LIKE '$2y$%'`
+    );
+
+    for (const row of rows) {
+      const hashedPassword = await bcrypt.hash(String(row.password), 10);
+      await connection.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, Number(row.id)]);
+    }
+
+    if (rows.length > 0) {
+      this.logger.warn(`Hashed ${rows.length} legacy plaintext user password(s).`);
+    }
+  }
+
+  private async backfillQuizTitles(connection: PoolConnection) {
+    await connection.execute(`
+      UPDATE quizzes
+      SET
+        admin_name = COALESCE(NULLIF(TRIM(admin_name), ''), quiz_title),
+        student_title = COALESCE(NULLIF(TRIM(student_title), ''), quiz_title),
+        quiz_title = COALESCE(NULLIF(TRIM(student_title), ''), NULLIF(TRIM(quiz_title), ''), NULLIF(TRIM(admin_name), ''))
+    `);
+  }
+
+  private async ensurePapersTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS papers (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        paper_title VARCHAR(255) NOT NULL,
+        year INT NOT NULL,
+        exam_source ENUM('local', 'erpm') NOT NULL DEFAULT 'local',
+        keywords_text TEXT NULL,
+        status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  }
+
+  private async ensurePlansTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS plans (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT NULL,
+        price DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+        currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+        billing_period VARCHAR(50) NOT NULL DEFAULT 'month',
+        duration_days INT NOT NULL DEFAULT 30,
+        features_json JSON NULL,
+        status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_plans_status (status)
+      )
+    `);
+  }
+
+  private async ensureUserSubscriptionsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS user_subscriptions (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        plan_id INT NOT NULL,
+        assigned_by INT NULL,
+        notes TEXT NULL,
+        status ENUM('active', 'pending', 'expired', 'cancelled') NOT NULL DEFAULT 'active',
+        payment_status ENUM('manual', 'paid', 'unpaid', 'waived') NOT NULL DEFAULT 'manual',
+        amount_paid DECIMAL(10, 2) NULL,
+        payment_method VARCHAR(80) NULL,
+        payment_reference VARCHAR(191) NULL,
+        payment_date DATE NULL,
+        receipt_url VARCHAR(1000) NULL,
+        access_scope ENUM('all','courses','lessons') NOT NULL DEFAULT 'all',
+        course_ids_json TEXT NULL,
+        lesson_ids_json TEXT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_subscriptions_user (user_id),
+        INDEX idx_user_subscriptions_plan (plan_id),
+        INDEX idx_user_subscriptions_status (status),
+        INDEX idx_user_subscriptions_dates (start_date, end_date)
+      )
+    `);
+  }
+
+  private async ensureSubscriptionCouponsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS subscription_coupons (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(40) NOT NULL,
+        label VARCHAR(120) NULL,
+        discount_type ENUM('percent', 'fixed') NOT NULL DEFAULT 'percent',
+        discount_value DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+        status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+        starts_at DATE NULL,
+        expires_at DATE NULL,
+        max_redemptions INT NULL,
+        redemption_count INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_subscription_coupons_code (code),
+        INDEX idx_subscription_coupons_status (status)
+      )
+    `);
+  }
+
+  private async ensurePaymentTransactionsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS payment_transactions (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        provider VARCHAR(40) NOT NULL DEFAULT 'payhere',
+        order_id VARCHAR(120) NOT NULL,
+        invoice_id VARCHAR(20) NULL,
+        user_id INT NOT NULL,
+        plan_id INT NOT NULL,
+        subscription_id INT NULL,
+        amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+        currency VARCHAR(10) NOT NULL DEFAULT 'LKR',
+        coupon_code VARCHAR(40) NULL,
+        discount_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+        order_note TEXT NULL,
+        access_scope ENUM('all','courses','lessons') NOT NULL DEFAULT 'all',
+        course_ids_json TEXT NULL,
+        lesson_ids_json TEXT NULL,
+        status ENUM('initiated', 'pending', 'paid', 'cancelled', 'failed', 'chargedback', 'invalid') NOT NULL DEFAULT 'initiated',
+        payhere_payment_id VARCHAR(120) NULL,
+        payment_method VARCHAR(80) NULL,
+        md5sig VARCHAR(64) NULL,
+        raw_notify_json JSON NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_payment_transactions_order_id (order_id),
+        INDEX idx_payment_transactions_user (user_id),
+        INDEX idx_payment_transactions_plan (plan_id),
+        INDEX idx_payment_transactions_status (status)
+      )
+    `);
+  }
+
+  private async ensureStudyBookmarksTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS study_bookmarks (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        item_type ENUM('quiz', 'ai_note') NOT NULL,
+        item_id INT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_study_bookmark (user_id, item_type, item_id),
+        INDEX idx_study_bookmarks_user (user_id),
+        INDEX idx_study_bookmarks_item (item_type, item_id)
+      )
+    `);
+  }
+
+  private async ensureStudyActivityEventsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS study_activity_events (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        activity_type ENUM('ai_note_viewed') NOT NULL,
+        item_id INT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_study_activity_user (user_id),
+        INDEX idx_study_activity_type (activity_type),
+        INDEX idx_study_activity_created (created_at)
+      )
+    `);
+  }
+
+  private async ensureQuestionReportsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS question_reports (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        question_id INT NOT NULL,
+        user_id INT NOT NULL,
+        reason VARCHAR(120) NOT NULL,
+        comment TEXT NULL,
+        status ENUM('open', 'resolved', 'rejected') NOT NULL DEFAULT 'open',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_question_reports_question_id (question_id),
+        INDEX idx_question_reports_user_id (user_id),
+        INDEX idx_question_reports_status (status)
+      )
+    `);
+  }
+
+  private async ensureLessonAnnotationsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS lesson_annotations (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        lesson_id INT NOT NULL,
+        user_id INT NOT NULL,
+        type ENUM('highlight', 'note') NOT NULL,
+        selected_text TEXT NOT NULL,
+        start_offset INT NOT NULL,
+        end_offset INT NOT NULL,
+        color VARCHAR(32) NULL,
+        note_text TEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_lesson_annotations_lesson_user (lesson_id, user_id),
+        INDEX idx_lesson_annotations_user (user_id)
+      )
+    `);
+  }
+
+  private async ensureStudentLessonProgressTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS student_lesson_progress (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        course_id INT NOT NULL,
+        subject_id INT NOT NULL,
+        topic_id INT NULL,
+        lesson_id INT NOT NULL,
+        status ENUM('not_started', 'in_progress', 'completed') NOT NULL DEFAULT 'not_started',
+        progress_percent INT NOT NULL DEFAULT 0,
+        started_at TIMESTAMP NULL DEFAULT NULL,
+        completed_at TIMESTAMP NULL DEFAULT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_student_lesson_progress (user_id, lesson_id),
+        INDEX idx_student_lesson_progress_user_course (user_id, course_id),
+        INDEX idx_student_lesson_progress_user_subject (user_id, subject_id),
+        INDEX idx_student_lesson_progress_user_topic (user_id, topic_id),
+        INDEX idx_student_lesson_progress_status (status)
+      )
+    `);
+  }
+
+  private async ensureSystemSettingsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        setting_key VARCHAR(120) NOT NULL PRIMARY KEY,
+        setting_value TEXT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+  }
+
+  private async ensureAiProviderConfigsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS ai_provider_configs (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        provider_key VARCHAR(32) NOT NULL,
+        provider_label VARCHAR(120) NOT NULL,
+        api_key_encrypted TEXT NULL,
+        api_code_encrypted TEXT NULL,
+        base_url VARCHAR(255) NULL,
+        model VARCHAR(160) NULL,
+        status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+        is_active TINYINT(1) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_ai_provider_configs_provider_key (provider_key),
+        INDEX idx_ai_provider_configs_status (status),
+        INDEX idx_ai_provider_configs_is_active (is_active)
+      )
+    `);
+  }
+
+  private async ensureSmartNotesTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS smart_notes (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        title VARCHAR(255) NOT NULL DEFAULT 'Untitled Note',
+        raw_text LONGTEXT NULL,
+        processed_qa JSON NULL,
+        infographic_elements JSON NULL,
+        representative_image_data LONGTEXT NULL,
+        representative_image_prompt TEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_smart_notes_user (user_id)
+      )
+    `);
+
+    await this.ensureColumn(connection, 'smart_notes', 'representative_image_data', 'LONGTEXT NULL AFTER infographic_elements');
+    await this.ensureColumn(connection, 'smart_notes', 'representative_image_prompt', 'TEXT NULL AFTER representative_image_data');
+  }
+
+  private async ensureAiIllustratedNotesTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS ai_illustrated_notes (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        title VARCHAR(255) NOT NULL DEFAULT 'Untitled Note',
+        raw_text LONGTEXT NULL,
+        engine_key VARCHAR(32) NOT NULL DEFAULT 'gemini',
+        note_data LONGTEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_ai_illustrated_notes_user (user_id)
+      )
+    `);
+  }
+
+  private async ensureQuestionTheoryRecapsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS question_theory_recaps (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        question_id INT NOT NULL,
+        concept_name VARCHAR(255) NULL,
+        hierarchy_course VARCHAR(255) NULL,
+        hierarchy_subject VARCHAR(255) NULL,
+        hierarchy_topic VARCHAR(255) NULL,
+        hierarchy_lesson VARCHAR(255) NULL,
+        etiology JSON NULL,
+        pathophysiology JSON NULL,
+        clinical_features JSON NULL,
+        investigations JSON NULL,
+        treatment JSON NULL,
+        key_points JSON NULL,
+        mnemonic TEXT NULL,
+        generated_by ENUM('ai', 'manual') NOT NULL DEFAULT 'ai',
+        reviewed_status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_question_theory_recaps_question_id (question_id),
+        INDEX idx_question_theory_recaps_reviewed_status (reviewed_status)
+      )
+    `);
+  }
+
+  private async ensureQuestionKeywordsTables(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS question_keywords (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        keyword_name VARCHAR(191) NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_question_keywords_keyword_name (keyword_name)
+      )
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS question_keyword_map (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        question_id INT NOT NULL,
+        keyword_id INT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_question_keyword_map_question_keyword (question_id, keyword_id),
+        INDEX idx_question_keyword_map_question_id (question_id)
+      )
+    `);
+  }
+
+  private async ensureSubscriptionFeaturesTables(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS subscription_features (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        feature_name VARCHAR(191) NOT NULL,
+        feature_key VARCHAR(191) NOT NULL,
+        description TEXT NULL,
+        category VARCHAR(120) NOT NULL,
+        status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_subscription_features_feature_key (feature_key)
+      )
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS subscription_plan_features (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        plan_id INT NOT NULL,
+        feature_id INT NOT NULL,
+        is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_subscription_plan_feature (plan_id, feature_id),
+        INDEX idx_subscription_plan_features_plan_id (plan_id)
+      )
+    `);
+  }
+
+  private async ensureSubscriptionRequestTables(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS subscription_requests (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        plan_id INT NOT NULL,
+        invoice_id VARCHAR(20) NULL,
+        status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
+        message TEXT NULL,
+        payment_method VARCHAR(80) NULL,
+        payment_reference VARCHAR(191) NULL,
+        payment_amount DECIMAL(10, 2) NULL,
+        payment_currency VARCHAR(10) NULL,
+        payment_proof_name VARCHAR(255) NULL,
+        payment_proof_mime VARCHAR(80) NULL,
+        payment_proof_data_url LONGTEXT NULL,
+        access_scope ENUM('all','courses','lessons') NOT NULL DEFAULT 'all',
+        course_ids_json TEXT NULL,
+        lesson_ids_json TEXT NULL,
+        admin_note TEXT NULL,
+        requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        resolved_at TIMESTAMP NULL DEFAULT NULL,
+        resolved_by INT NULL,
+        subscription_id INT NULL,
+        INDEX idx_subscription_requests_plan (plan_id)
+      )
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS subscription_audit_events (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        subscription_id INT NULL,
+        request_id INT NULL,
+        user_id INT NULL,
+        actor_id INT NULL,
+        event_type VARCHAR(80) NOT NULL,
+        summary VARCHAR(255) NOT NULL,
+        details_json JSON NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_subscription_audit_user (user_id),
+        INDEX idx_subscription_audit_actor (actor_id),
+        INDEX idx_subscription_audit_created (created_at)
+      )
+    `);
+  }
+
+  private async backfillPlanSubscriptionColumns(connection: PoolConnection) {
+    const [planRows] = await connection.execute<RowDataPacket[]>(
+      'SELECT id, name, price, regular_price, slug, sort_order FROM plans ORDER BY id ASC'
+    );
+
+    for (const [index, row] of planRows.entries()) {
+      const slug = String(row.slug || '').trim() || this.slugify(String(row.name || `plan-${row.id}`));
+      const regularPrice = row.regular_price === null || row.regular_price === undefined
+        ? Number(row.price || 0)
+        : Number(row.regular_price || 0);
+      const sortOrder = Number(row.sort_order || 0) > 0 ? Number(row.sort_order) : index + 1;
+
+      await connection.execute(
+        'UPDATE plans SET slug = ?, regular_price = ?, sort_order = ? WHERE id = ?',
+        [slug, regularPrice, sortOrder, Number(row.id)]
+      );
+    }
+  }
+
+  private async seedSubscriptionFeatureCatalog(connection: PoolConnection) {
+    for (const feature of DEFAULT_SUBSCRIPTION_FEATURES) {
+      await connection.execute(
+        `
+          INSERT INTO subscription_features (feature_name, feature_key, description, category, status)
+          VALUES (?, ?, ?, ?, 'active')
+          ON DUPLICATE KEY UPDATE
+            feature_name = VALUES(feature_name),
+            description = VALUES(description),
+            category = VALUES(category)
+        `,
+        [feature.featureName, feature.featureKey, feature.description, feature.category]
+      );
+    }
+  }
+
+  private async seedDefaultPlans(connection: PoolConnection) {
+    for (const plan of DEFAULT_PLAN_BLUEPRINTS) {
+      const featureNames = DEFAULT_SUBSCRIPTION_FEATURES
+        .filter((feature) => (plan.featureKeys as readonly string[]).includes(feature.featureKey))
+        .map((feature) => feature.featureName);
+
+      const [existingRows] = await connection.execute<RowDataPacket[]>(
+        'SELECT id FROM plans WHERE slug = ? LIMIT 1',
+        [plan.slug]
+      );
+      if (existingRows[0]) {
+        await connection.execute(
+          `
+            UPDATE plans
+            SET
+              name = ?,
+              description = ?,
+              price = ?,
+              regular_price = ?,
+              offer_price = ?,
+              offer_enabled = ?,
+              currency = ?,
+              billing_period = 'month',
+              duration_days = ?,
+              features_json = ?,
+              status = ?,
+              sort_order = ?,
+              recommended = ?
+            WHERE id = ?
+          `,
+          [
+            plan.name,
+            plan.description,
+            plan.regularPrice,
+            plan.regularPrice,
+            plan.offerPrice,
+            plan.offerEnabled,
+            plan.currency,
+            plan.durationDays,
+            JSON.stringify(featureNames),
+            plan.status,
+            plan.sortOrder,
+            plan.recommended,
+            Number(existingRows[0].id),
+          ]
+        );
+        await this.syncDefaultPlanFeatureMap(connection, Number(existingRows[0].id), [...plan.featureKeys]);
+        continue;
+      }
+
+      const [result] = await connection.execute<ResultSetHeader>(
+        `
+          INSERT INTO plans (
+            name, slug, description, price, regular_price, offer_price, offer_enabled, currency, billing_period,
+            duration_days, features_json, status, sort_order, recommended
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'month', ?, ?, ?, ?, ?)
+        `,
+        [
+          plan.name,
+          plan.slug,
+          plan.description,
+          plan.regularPrice,
+          plan.regularPrice,
+          plan.offerPrice,
+          plan.offerEnabled,
+          plan.currency,
+          plan.durationDays,
+          JSON.stringify(featureNames),
+          plan.status,
+          plan.sortOrder,
+          plan.recommended,
+        ]
+      );
+      await this.syncDefaultPlanFeatureMap(connection, Number(result.insertId || 0), [...plan.featureKeys]);
+    }
+
+    await this.removeNonDefaultPlans(connection);
+  }
+
+  private async syncDefaultPlanFeatureMap(connection: PoolConnection, planId: number, featureKeys: string[]) {
+    if (!planId) {
+      return;
+    }
+
+    const [featureRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id, feature_key FROM subscription_features`
+    );
+    const selectedFeatureIds = featureRows
+      .filter((feature) => featureKeys.includes(String(feature.feature_key)))
+      .map((feature) => Number(feature.id))
+      .filter((id) => id > 0);
+
+    await connection.execute('DELETE FROM subscription_plan_features WHERE plan_id = ?', [planId]);
+
+    for (const featureId of selectedFeatureIds) {
+      await connection.execute(
+        'INSERT IGNORE INTO subscription_plan_features (plan_id, feature_id, is_enabled) VALUES (?, ?, 1)',
+        [planId, featureId]
+      );
+    }
+  }
+
+  private async removeNonDefaultPlans(connection: PoolConnection) {
+    const defaultSlugs = DEFAULT_PLAN_BLUEPRINTS.map((plan) => plan.slug);
+    const placeholders = defaultSlugs.map(() => '?').join(',');
+
+    const [oldPlanRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM plans WHERE slug IS NULL OR slug NOT IN (${placeholders})`,
+      defaultSlugs
+    );
+    const oldPlanIds = oldPlanRows.map((row) => Number(row.id)).filter((id) => id > 0);
+    if (oldPlanIds.length === 0) {
+      return;
+    }
+
+    const oldPlanPlaceholders = oldPlanIds.map(() => '?').join(',');
+    await connection.execute(
+      `DELETE FROM user_subscriptions WHERE plan_id IN (${oldPlanPlaceholders})`,
+      oldPlanIds
+    );
+
+    await connection.execute(
+      `DELETE FROM subscription_plan_features WHERE plan_id IN (${oldPlanPlaceholders})`,
+      oldPlanIds
+    );
+    await connection.execute(
+      `DELETE FROM plans WHERE id IN (${oldPlanPlaceholders})`,
+      oldPlanIds
+    );
+  }
+
+  private async backfillPlanFeatureMaps(connection: PoolConnection) {
+    const [featureRows] = await connection.execute<RowDataPacket[]>(
+      'SELECT id, feature_name, feature_key, category FROM subscription_features'
+    );
+    const featureIdByKey = new Map(featureRows.map((row) => [String(row.feature_key), Number(row.id)]));
+    const featureIdByName = new Map(featureRows.map((row) => [String(row.feature_name).trim().toLowerCase(), Number(row.id)]));
+
+    const [planRows] = await connection.execute<RowDataPacket[]>(
+      'SELECT id, slug, name, features_json FROM plans ORDER BY sort_order ASC, id ASC'
+    );
+
+    for (const planRow of planRows) {
+      const planId = Number(planRow.id);
+      const [mappingRows] = await connection.execute<RowDataPacket[]>(
+        'SELECT id FROM subscription_plan_features WHERE plan_id = ? LIMIT 1',
+        [planId]
+      );
+      if (mappingRows.length > 0) {
+        continue;
+      }
+
+      const defaultBlueprint = DEFAULT_PLAN_BLUEPRINTS.find((plan) => plan.slug === String(planRow.slug || '').trim().toLowerCase());
+      const legacyFeatures = this.parseFeatureArray(String(planRow.features_json || ''));
+      const featureIds = new Set<number>();
+
+      if (defaultBlueprint) {
+        for (const featureKey of defaultBlueprint.featureKeys) {
+          const featureId = featureIdByKey.get(featureKey);
+          if (featureId) {
+            featureIds.add(featureId);
+          }
+        }
+      }
+
+      for (const featureName of legacyFeatures) {
+        let featureId = featureIdByName.get(featureName.trim().toLowerCase());
+
+        if (!featureId) {
+          const featureKey = this.slugify(featureName).replace(/-/g, '_');
+          await connection.execute(
+            `
+              INSERT INTO subscription_features (feature_name, feature_key, description, category, status)
+              VALUES (?, ?, ?, 'Support / Extras', 'active')
+              ON DUPLICATE KEY UPDATE feature_name = VALUES(feature_name)
+            `,
+            [featureName, featureKey, 'Imported from a legacy plan feature list.']
+          );
+          const [newFeatureRows] = await connection.execute<RowDataPacket[]>(
+            'SELECT id, feature_name FROM subscription_features WHERE feature_key = ? LIMIT 1',
+            [featureKey]
+          );
+          if (newFeatureRows[0]) {
+            featureId = Number(newFeatureRows[0].id);
+            featureIdByName.set(String(newFeatureRows[0].feature_name).trim().toLowerCase(), featureId);
+            featureIdByKey.set(featureKey, featureId);
+          }
+        }
+
+        if (featureId) {
+          featureIds.add(featureId);
+        }
+      }
+
+      for (const featureId of featureIds) {
+        await connection.execute(
+          'INSERT IGNORE INTO subscription_plan_features (plan_id, feature_id, is_enabled) VALUES (?, ?, 1)',
+          [planId, featureId]
+        );
+      }
+    }
+  }
+
+  private async backfillQuestionKeywordMaps(connection: PoolConnection) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `
+        SELECT id, keywords_text
+        FROM questions
+        WHERE keywords_text IS NOT NULL AND TRIM(keywords_text) <> ''
+      `
+    );
+
+    for (const row of rows) {
+      const keywords = this.parseKeywordList(String(row.keywords_text || ''));
+      if (keywords.length === 0) {
+        continue;
+      }
+
+      for (const keyword of keywords) {
+        await connection.execute(
+          'INSERT IGNORE INTO question_keywords (keyword_name) VALUES (?)',
+          [keyword]
+        );
+
+        const [keywordRows] = await connection.execute<RowDataPacket[]>(
+          'SELECT id FROM question_keywords WHERE keyword_name = ? LIMIT 1',
+          [keyword]
+        );
+
+        if (!keywordRows[0]) {
+          continue;
+        }
+
+        await connection.execute(
+          'INSERT IGNORE INTO question_keyword_map (question_id, keyword_id) VALUES (?, ?)',
+          [Number(row.id), Number(keywordRows[0].id)]
+        );
+      }
+    }
+  }
+
+  private parseKeywordList(raw: string) {
+    return Array.from(
+      new Set(
+        raw
+          .split(',')
+          .map((keyword) => keyword.trim())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  private parseFeatureArray(raw: string) {
+    try {
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.map((value) => String(value || '').trim()).filter(Boolean)
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private slugify(value: string) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'item';
+  }
+
+  private async ensureColumn(connection: PoolConnection, tableName: string, columnName: string, definition: string) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+        LIMIT 1
+      `,
+      [tableName, columnName]
+    );
+
+    if (rows.length > 0) {
+      return;
+    }
+
+    await connection.execute(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+    this.logger.log(`Added ${tableName}.${columnName}`);
+  }
+
+  private async ensureIndex(connection: PoolConnection, tableName: string, indexName: string, columnName: string) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `
+        SELECT INDEX_NAME
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?
+        LIMIT 1
+      `,
+      [tableName, indexName]
+    );
+
+    if (rows.length > 0) {
+      return;
+    }
+
+    await connection.execute(`ALTER TABLE ${tableName} ADD INDEX ${indexName} (${columnName})`);
+    this.logger.log(`Added index ${indexName} on ${tableName}.${columnName}`);
+  }
+}

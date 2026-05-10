@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:3000/api/health)",
+      "Bash(curl -s http://localhost:3000/health)",
+      "Bash(python3 /Applications/XAMPP/xamppfiles/htdocs/lms/skills/ui-ux-pro-max/scripts/search.py \"LMS course detail accordion interactive educational premium\" --design-system -p \"ERPM LMS\")",
+      "Read(//Users/laheez/.claude/skills/ui-ux-pro-max/**)",
+      "Bash(python3 /Users/laheez/.claude/skills/ui-ux-pro-max/scripts/search.py \"LMS course detail accordion interactive educational premium\" --design-system -p \"ERPM LMS\")",
+      "Bash(curl -s --max-time 10 -o /dev/null -w \"%{http_code}\" https://api.anthropic.com)",
+      "Bash(nslookup api.anthropic.com)",
+      "Bash(claude --version)",
+      "Bash(python3 /Users/laheez/.claude/skills/ui-ux-pro-max/scripts/search.py \"medical education interactive study canvas notes learning engagement\" --design-system -p \"ERPM LMS AI Canvas\")",
+      "Bash(curl -s --max-time 5 \"https://generativelanguage.googleapis.com/v1beta/models?key=test\")",
+      "Bash(node -e ' *)"
+    ]
+  }
+}
