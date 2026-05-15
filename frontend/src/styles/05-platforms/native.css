@@ -1,0 +1,23 @@
+html[data-lms-runtime="native"] {
+  --lms-app-card-radius: 18px;
+  --lms-app-card-pad: clamp(15px, 3.2vw, 22px);
+}
+
+html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .lms-course-card, .lms-quiz-card, .lms-dashboard-card) {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+html[data-lms-runtime="native"] .dashboard-page .lms-dashboard-welcome-card {
+  background: var(--lms-app-card-bg) !important;
+  border-color: var(--lms-app-card-border) !important;
+  color: var(--lms-app-card-title) !important;
+  clip-path: none !important;
+}
+
+html[data-lms-runtime="native"] .dashboard-page .lms-dashboard-welcome-card::before,
+html[data-lms-runtime="native"] .dashboard-page .lms-dashboard-welcome-card::after {
+  content: none !important;
+  animation: none !important;
+}

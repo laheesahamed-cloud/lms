@@ -1,0 +1,24 @@
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] :where(.lms-hero-card, .lms-page-header-card) {
+  min-height: auto !important;
+  border-radius: 17px !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .dashboard-page .lms-dashboard-welcome-card {
+  grid-template-columns: minmax(0, 1fr) clamp(72px, 21vw, 92px) !important;
+  gap: 12px !important;
+  padding: clamp(14px, 4vw, 18px) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .dashboard-page .lms-dashboard-welcome-mascot {
+  max-width: clamp(72px, 21vw, 92px) !important;
+}
+
+@media (max-width: 360px) {
+  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .dashboard-page .lms-dashboard-welcome-card {
+    grid-template-columns: minmax(0, 1fr) 64px !important;
+  }
+
+  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .dashboard-page .lms-dashboard-welcome-mascot {
+    max-width: 64px !important;
+  }
+}

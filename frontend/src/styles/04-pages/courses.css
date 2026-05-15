@@ -1,0 +1,84 @@
+.student-course-card {
+  min-height: clamp(236px, 26vw, 300px) !important;
+  border-radius: var(--lms-app-card-radius) !important;
+}
+
+:root:not([data-theme='dark']) .student-page-hero.lms-hero-card,
+:root:not([data-theme='dark']) .lms-course-detail-hero.lms-page-header-card,
+:root[data-theme='dark'] .student-page-hero.lms-hero-card,
+:root[data-theme='dark'] .lms-course-detail-hero.lms-page-header-card {
+  border-color: var(--lms-app-card-border) !important;
+  background: var(--lms-app-card-bg) !important;
+  box-shadow: var(--lms-app-card-shadow) !important;
+}
+
+.student-course-card__visual {
+  min-height: clamp(74px, 8.5vw, 94px) !important;
+  background:
+    radial-gradient(circle at 86% 22%, color-mix(in srgb, var(--color-teal) 22%, transparent), transparent 34%),
+    linear-gradient(135deg, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary) 64%, var(--color-teal)) 54%, var(--color-teal) 100%) !important;
+  color: #ffffff !important;
+}
+
+.student-course-card__body {
+  gap: 12px !important;
+}
+
+.student-course-card__body [style*="linear-gradient"] {
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-teal) 100%) !important;
+}
+
+.lms-course-detail-hero {
+  min-height: auto !important;
+}
+
+.lms-course-detail-hero h1 {
+  font-size: clamp(26px, 3.4vw, 44px) !important;
+  line-height: 1.08 !important;
+}
+
+@media (max-width: 640px) {
+  .student-course-card {
+    min-height: 0 !important;
+  }
+
+  .student-course-card__visual {
+    min-height: 76px !important;
+  }
+
+  .lms-course-detail-hero {
+    padding: 14px !important;
+  }
+
+  .lms-course-detail-hero > .relative.z-\[1\] {
+    gap: 14px !important;
+  }
+
+  .lms-course-detail-hero h1 {
+    font-size: clamp(24px, 8.4vw, 32px) !important;
+  }
+
+  .lms-course-detail-hero .course-overview-stats {
+    gap: 7px !important;
+  }
+
+  .lms-course-detail-hero .course-overview-stat {
+    gap: 6px !important;
+    padding: 8px 7px !important;
+    border-radius: 12px !important;
+  }
+
+  .lms-course-detail-hero .course-overview-icon {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 10px !important;
+  }
+
+  .lms-course-detail-hero .course-overview-stat strong {
+    font-size: clamp(14px, 4.4vw, 18px) !important;
+  }
+
+  .lms-course-detail-hero .course-overview-stat span:last-child {
+    font-size: 9.5px !important;
+  }
+}

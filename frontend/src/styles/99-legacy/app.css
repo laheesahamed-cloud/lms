@@ -1,5 +1,5 @@
 /* Legacy mixed stylesheet.
-   Keep this import last in styles/index.css while rules are migrated into
+   Imported as a compatibility base while rules are migrated into
    tokens/base/layout/components/pages/platforms/utilities. */
 
 @layer utilities {
@@ -9697,275 +9697,6 @@
     text-align: left !important;
   }
 
-  /* Dashboard hero: keep the visual tone tied to the selected next move. */
-  .dashboard-page .lms-dashboard-welcome-card {
-    --hero-move-color: color-mix(in srgb, var(--color-primary) 82%, #06b6d4);
-    --hero-move-border: color-mix(in srgb, var(--color-primary) 18%, var(--color-border-soft));
-    --hero-move-bg: color-mix(in srgb, var(--color-primary) 8%, var(--surface-1));
-  }
-
-  .dashboard-page .lms-dashboard-welcome-card[data-study-move="lesson"] {
-    --hero-move-color: color-mix(in srgb, var(--color-teal) 82%, var(--ink-strong));
-    --hero-move-border: color-mix(in srgb, var(--color-teal) 20%, var(--color-border-soft));
-    --hero-move-bg: color-mix(in srgb, var(--color-teal) 8%, var(--surface-1));
-  }
-
-  .dashboard-page .lms-dashboard-welcome-card[data-study-move="review"] {
-    --hero-move-color: color-mix(in srgb, #8b5cf6 78%, var(--ink-strong));
-    --hero-move-border: color-mix(in srgb, #8b5cf6 20%, var(--color-border-soft));
-    --hero-move-bg: color-mix(in srgb, #8b5cf6 8%, var(--surface-1));
-  }
-
-  .dashboard-page .lms-dashboard-welcome-copy > span:first-child,
-  .dashboard-page .lms-hero-next-step,
-  .dashboard-page .lms-hero-next-step strong {
-    color: var(--hero-move-color) !important;
-  }
-
-  .dashboard-page .lms-hero-next-step strong::before {
-    color: color-mix(in srgb, var(--hero-move-color) 54%, var(--ink-muted)) !important;
-  }
-
-  .dashboard-page .lms-rc-tags,
-  html[data-lms-runtime="native"] .dashboard-page .lms-rc-tags {
-    gap: 2px !important;
-    margin-top: 8px !important;
-  }
-
-  .dashboard-page .lms-rc-tag,
-  html[data-lms-runtime="native"] .dashboard-page .lms-rc-tag {
-    border-color: var(--hero-move-border) !important;
-    background: var(--hero-move-bg) !important;
-    color: var(--hero-move-color) !important;
-  }
-
-  .dashboard-page .lms-rc-tag--topic,
-  html[data-lms-runtime="native"] .dashboard-page .lms-rc-tag--topic {
-    border-color: color-mix(in srgb, var(--color-teal) 20%, var(--color-border-soft)) !important;
-    background: color-mix(in srgb, var(--color-teal) 8%, var(--surface-1)) !important;
-    color: color-mix(in srgb, var(--color-teal) 78%, var(--ink-strong)) !important;
-  }
-}
-
-/* Final app card polish: unify LMS hero/header/course/quiz cards without
-   redesigning the product or forcing media-style 16:9 sizing. */
-:root {
-  --lms-app-card-radius: clamp(16px, 1.5vw, 22px);
-  --lms-app-card-pad: clamp(16px, 2vw, 24px);
-  --lms-app-card-gap: clamp(12px, 1.45vw, 18px);
-  --lms-app-card-bg:
-    linear-gradient(145deg,
-      color-mix(in srgb, var(--color-primary) 5%, var(--surface-card)) 0%,
-      var(--surface-card) 62%,
-      color-mix(in srgb, var(--color-teal) 4%, var(--surface-card)) 100%);
-  --lms-app-card-border: color-mix(in srgb, var(--color-primary) 16%, var(--line-soft));
-  --lms-app-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 38px rgba(37, 99, 235, 0.06);
-  --lms-app-card-title: var(--ink-strong);
-  --lms-app-card-muted: var(--ink-soft);
-  --lms-app-card-accent: var(--color-primary);
-}
-
-:root[data-theme='dark'] {
-  --lms-app-card-bg:
-    linear-gradient(145deg,
-      rgba(14, 165, 233, 0.12) 0%,
-      rgba(255, 255, 255, 0.044) 56%,
-      rgba(20, 184, 166, 0.075) 100%);
-  --lms-app-card-border: rgba(125, 211, 252, 0.16);
-  --lms-app-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.035), 0 18px 42px rgba(0, 0, 0, 0.2);
-  --lms-app-card-title: rgba(255, 255, 255, 0.94);
-  --lms-app-card-muted: rgba(226, 232, 240, 0.68);
-}
-
-:where(.lms-hero-card, .lms-page-header-card) {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  aspect-ratio: auto !important;
-  min-height: clamp(156px, 18vw, 232px) !important;
-  max-height: none !important;
-  gap: var(--lms-app-card-gap);
-  border-color: var(--lms-app-card-border) !important;
-  border-radius: var(--lms-app-card-radius) !important;
-  background: var(--lms-app-card-bg) !important;
-  box-shadow: var(--lms-app-card-shadow) !important;
-  contain: layout paint;
-}
-
-:where(.student-page-hero, .lms-dashboard-welcome-card, .lms-course-detail-hero) {
-  padding: var(--lms-app-card-pad) !important;
-}
-
-:where(.student-page-hero__title, .lms-course-detail-hero h1, .dashboard-page .lms-dashboard-welcome-copy h2) {
-  max-width: min(100%, 18ch);
-  color: var(--lms-app-card-title);
-  letter-spacing: 0;
-}
-
-:where(.student-page-hero__subtitle, .lms-course-detail-hero p, .dashboard-page .lms-hero-next-step) {
-  color: var(--lms-app-card-muted) !important;
-}
-
-.student-page-hero {
-  align-items: stretch;
-}
-
-.student-page-hero > .relative.z-\[1\] {
-  justify-content: center !important;
-  gap: clamp(14px, 2vw, 22px) !important;
-}
-
-.student-page-hero__title {
-  font-size: clamp(28px, 4vw, 54px) !important;
-  line-height: 1.04 !important;
-}
-
-.student-page-hero__subtitle {
-  max-width: 62ch !important;
-}
-
-.student-page-hero__metric {
-  min-width: 0;
-  border-color: color-mix(in srgb, var(--lms-app-card-accent) 14%, var(--line-soft)) !important;
-}
-
-.dashboard-page .lms-dashboard-welcome-card {
-  grid-template-columns: minmax(0, 1fr) minmax(118px, 22%) !important;
-  min-height: clamp(164px, 17vw, 230px) !important;
-  align-items: center !important;
-}
-
-.dashboard-page .lms-dashboard-welcome-copy {
-  max-width: 620px !important;
-}
-
-.dashboard-page .lms-dashboard-welcome-copy h2 {
-  font-size: clamp(25px, 3.2vw, 38px) !important;
-  line-height: 1.05 !important;
-}
-
-.dashboard-page .lms-dashboard-welcome-mascot {
-  max-width: min(190px, 100%) !important;
-}
-
-.dashboard-page .lms-dashboard-hero-actions {
-  align-self: end;
-  margin-top: 0 !important;
-}
-
-:where(.lms-course-card, .lms-quiz-card, .lms-dashboard-card) {
-  min-width: 0;
-  border-color: color-mix(in srgb, var(--color-primary) 12%, var(--line-soft)) !important;
-  background: var(--surface-card) !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035) !important;
-}
-
-.student-course-card {
-  min-height: clamp(254px, 28vw, 312px) !important;
-  border-radius: var(--lms-app-card-radius) !important;
-}
-
-.student-course-card__visual {
-  min-height: clamp(76px, 9vw, 96px) !important;
-}
-
-.student-course-card__body {
-  gap: 12px !important;
-}
-
-.lms-quiz-card {
-  min-height: clamp(100px, 10vw, 122px) !important;
-  border-radius: var(--lms-app-card-radius) !important;
-}
-
-.lms-course-detail-hero {
-  min-height: auto !important;
-}
-
-.lms-course-detail-hero h1 {
-  font-size: clamp(26px, 3.4vw, 44px) !important;
-  line-height: 1.08 !important;
-}
-
-@media (max-width: 640px) {
-  :root {
-    --lms-app-card-radius: 16px;
-    --lms-app-card-pad: 16px;
-    --lms-app-card-gap: 12px;
-  }
-
-  :where(.lms-hero-card, .lms-page-header-card) {
-    min-height: auto !important;
-  }
-
-  .student-page-hero {
-    gap: 14px !important;
-  }
-
-  .student-page-hero > .relative.z-\[1\] {
-    max-width: 100% !important;
-    min-height: 0 !important;
-  }
-
-  .student-page-hero__title,
-  .dashboard-page .lms-dashboard-welcome-copy h2 {
-    max-width: 100% !important;
-    font-size: clamp(24px, 8vw, 34px) !important;
-    line-height: 1.08 !important;
-  }
-
-  .student-page-hero__subtitle {
-    margin-top: 10px !important;
-    font-size: 13px !important;
-    line-height: 1.5 !important;
-  }
-
-  .student-page-hero__metric {
-    padding: 10px 11px !important;
-  }
-
-  .dashboard-page .lms-dashboard-welcome-card {
-    grid-template-columns: minmax(0, 1fr) 78px !important;
-    min-height: auto !important;
-    gap: 12px !important;
-  }
-
-  .dashboard-page .lms-dashboard-welcome-mascot {
-    max-width: 78px !important;
-  }
-
-  .dashboard-page .lms-dashboard-hero-actions {
-    grid-column: 1 / -1 !important;
-    grid-template-columns: 1fr !important;
-  }
-
-  .student-course-card,
-  .lms-quiz-card {
-    min-height: 0 !important;
-  }
-}
-
-html[data-lms-runtime="native"] {
-  --lms-app-card-radius: 18px;
-  --lms-app-card-pad: clamp(15px, 3.2vw, 22px);
-}
-
-html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .lms-course-card, .lms-quiz-card, .lms-dashboard-card) {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] :where(.lms-hero-card, .lms-page-header-card) {
-  min-height: auto !important;
-  border-radius: 17px !important;
-}
-
-html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .dashboard-page .lms-dashboard-welcome-card {
-  aspect-ratio: auto !important;
-  min-height: clamp(176px, 20vw, 260px) !important;
-  max-height: none !important;
-  grid-template-columns: minmax(0, 1fr) clamp(120px, 18vw, 184px) !important;
 }
 
 @layer components {
@@ -10363,5 +10094,37 @@ html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .dashboard-page .
     -webkit-touch-callout: none !important;
     -webkit-user-select: none !important;
     user-select: none !important;
+  }
+}
+
+/* Compatibility override: keep migrated LMS hero/header cards on the shared
+   app card palette until the older page-specific rules above are fully removed. */
+:root:not([data-theme='dark']) .student-page-hero.lms-hero-card,
+:root:not([data-theme='dark']) .lms-course-detail-hero.lms-page-header-card,
+:root[data-theme='dark'] .student-page-hero.lms-hero-card,
+:root[data-theme='dark'] .lms-course-detail-hero.lms-page-header-card {
+  border-color: var(--lms-app-card-border) !important;
+  background: var(--lms-app-card-bg) !important;
+  box-shadow: var(--lms-app-card-shadow) !important;
+}
+
+:root:not([data-theme='dark']) .student-page-hero.lms-hero-card > [aria-hidden="true"],
+:root[data-theme='dark'] .student-page-hero.lms-hero-card > [aria-hidden="true"] {
+  opacity: 0.24 !important;
+}
+
+@layer utilities {
+  :root:not([data-theme='dark']) .student-page-hero.lms-hero-card,
+  :root:not([data-theme='dark']) .lms-course-detail-hero.lms-page-header-card,
+  :root[data-theme='dark'] .student-page-hero.lms-hero-card,
+  :root[data-theme='dark'] .lms-course-detail-hero.lms-page-header-card {
+    border-color: var(--lms-app-card-border) !important;
+    background: var(--lms-app-card-bg) !important;
+    box-shadow: var(--lms-app-card-shadow) !important;
+  }
+
+  :root:not([data-theme='dark']) .student-page-hero.lms-hero-card > [aria-hidden="true"],
+  :root[data-theme='dark'] .student-page-hero.lms-hero-card > [aria-hidden="true"] {
+    opacity: 0.24 !important;
   }
 }

@@ -1,0 +1,106 @@
+/* Student dashboard hero/card polish. The hero should not change whole visual
+   themes based on score band; only small status elements may carry that color. */
+
+.dashboard-page .lms-dashboard-welcome-card {
+  --hero-move-color: color-mix(in srgb, var(--color-primary) 82%, #06b6d4);
+  --hero-move-border: color-mix(in srgb, var(--color-primary) 18%, var(--color-border-soft));
+  --hero-move-bg: color-mix(in srgb, var(--color-primary) 8%, var(--surface-1));
+  --native-hero-accent: var(--color-primary);
+  grid-template-columns: minmax(0, 1fr) minmax(118px, 22%) !important;
+  min-height: clamp(154px, 16vw, 220px) !important;
+  align-items: center !important;
+  background: var(--lms-app-card-bg) !important;
+  border-color: var(--lms-app-card-border) !important;
+  color: var(--lms-app-card-title) !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-card::before,
+.dashboard-page .lms-dashboard-welcome-card::after {
+  content: none !important;
+  animation: none !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-card[data-score-band],
+html[data-lms-runtime="native"] .dashboard-page .lms-dashboard-welcome-card[data-score-band] {
+  background: var(--lms-app-card-bg) !important;
+  border-color: var(--lms-app-card-border) !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-card[data-study-move="lesson"] {
+  --hero-move-color: color-mix(in srgb, var(--color-teal) 82%, var(--ink-strong));
+  --hero-move-border: color-mix(in srgb, var(--color-teal) 20%, var(--color-border-soft));
+  --hero-move-bg: color-mix(in srgb, var(--color-teal) 8%, var(--surface-1));
+}
+
+.dashboard-page .lms-dashboard-welcome-card[data-study-move="review"] {
+  --hero-move-color: color-mix(in srgb, #8b5cf6 78%, var(--ink-strong));
+  --hero-move-border: color-mix(in srgb, #8b5cf6 20%, var(--color-border-soft));
+  --hero-move-bg: color-mix(in srgb, #8b5cf6 8%, var(--surface-1));
+}
+
+.dashboard-page .lms-dashboard-welcome-copy {
+  max-width: 620px !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-copy h2 {
+  font-size: clamp(25px, 3.2vw, 38px) !important;
+  line-height: 1.05 !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-copy > span:first-child,
+.dashboard-page .lms-hero-next-step,
+.dashboard-page .lms-hero-next-step strong {
+  color: var(--hero-move-color) !important;
+}
+
+.dashboard-page .lms-hero-next-step strong::before {
+  content: " - " !important;
+  margin-right: 0 !important;
+  color: color-mix(in srgb, var(--hero-move-color) 54%, var(--ink-muted)) !important;
+}
+
+.dashboard-page .lms-rc-tags,
+html[data-lms-runtime="native"] .dashboard-page .lms-rc-tags {
+  gap: 2px !important;
+  margin-top: 8px !important;
+}
+
+.dashboard-page .lms-rc-tag,
+html[data-lms-runtime="native"] .dashboard-page .lms-rc-tag {
+  border-color: var(--hero-move-border) !important;
+  background: var(--hero-move-bg) !important;
+  color: var(--hero-move-color) !important;
+}
+
+.dashboard-page .lms-rc-tag--topic,
+html[data-lms-runtime="native"] .dashboard-page .lms-rc-tag--topic {
+  border-color: color-mix(in srgb, var(--color-teal) 20%, var(--color-border-soft)) !important;
+  background: color-mix(in srgb, var(--color-teal) 8%, var(--surface-1)) !important;
+  color: color-mix(in srgb, var(--color-teal) 78%, var(--ink-strong)) !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-mascot {
+  max-width: min(190px, 100%) !important;
+}
+
+.dashboard-page .lms-dashboard-hero-actions {
+  align-self: end;
+  margin-top: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .dashboard-page .lms-dashboard-welcome-card {
+    grid-template-columns: minmax(0, 1fr) 78px !important;
+    min-height: auto !important;
+    gap: 12px !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-mascot {
+    max-width: 78px !important;
+  }
+
+  .dashboard-page .lms-dashboard-hero-actions {
+    grid-column: 1 / -1 !important;
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -1,0 +1,10 @@
+.lms-quiz-card {
+  min-height: clamp(100px, 10vw, 122px) !important;
+  border-radius: var(--lms-app-card-radius) !important;
+}
+
+@media (max-width: 640px) {
+  .lms-quiz-card {
+    min-height: 0 !important;
+  }
+}
