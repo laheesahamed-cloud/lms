@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { fetchWithRetry } from '../../utils/fetch-with-retry';
+import { fetchWithRetry } from '../../common/utils/fetch-with-retry';
 
 type LayoutElement = { id: string; type: string; text: string; color: string };
 type LayoutResult = { title: string; imagePrompt: string; elements: LayoutElement[] };

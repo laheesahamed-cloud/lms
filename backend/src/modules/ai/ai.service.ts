@@ -17,8 +17,8 @@ import {
   getDefaultModelForProvider,
   isAiProviderKey,
   normalizeAiProviderBaseUrl,
-} from '../../utils/ai-provider.utils';
-import { fetchWithRetry } from '../../utils/fetch-with-retry';
+} from '../../common/utils/ai-provider.utils';
+import { fetchWithRetry } from '../../common/utils/fetch-with-retry';
 import { BeautifyLessonDto } from './dto/beautify-lesson.dto';
 import { GenerateAiQuizDto } from './dto/generate-ai-quiz.dto';
 import { GenerateWhyIncorrectDto } from './dto/generate-why-incorrect.dto';

@@ -13,8 +13,8 @@ import {
   getDefaultModelForProvider,
   isAiProviderKey,
   normalizeAiProviderBaseUrl,
-} from '../../utils/ai-provider.utils';
-import { fetchWithRetry } from '../../utils/fetch-with-retry';
+} from '../../common/utils/ai-provider.utils';
+import { fetchWithRetry } from '../../common/utils/fetch-with-retry';
 import { hashSessionToken } from '../auth/auth-token.util';
 import { PlansService } from '../plans/plans.service';
 

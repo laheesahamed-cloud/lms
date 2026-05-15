@@ -1,0 +1,110 @@
+@layer utilities {
+  .platform-gate {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    color: #eef6ff;
+    background:
+      linear-gradient(135deg, rgba(6, 14, 32, 0.98), rgba(10, 31, 43, 0.96)),
+      #07111f;
+  }
+
+  .platform-gate__panel {
+    width: min(520px, 100%);
+    border: 1px solid rgba(180, 210, 255, 0.18);
+    border-radius: 8px;
+    padding: 28px;
+    background: rgba(8, 18, 32, 0.86);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  }
+
+  .platform-gate__eyebrow {
+    margin: 0 0 10px;
+    color: #8fe0ce;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .platform-gate h1 {
+    margin: 0;
+    font-size: clamp(1.65rem, 5vw, 2.4rem);
+    line-height: 1.05;
+    letter-spacing: 0;
+  }
+
+  .platform-gate p:last-child {
+    margin: 14px 0 0;
+    color: rgba(238, 246, 255, 0.78);
+    line-height: 1.65;
+  }
+
+  html[data-lms-runtime="native"] body,
+  html[data-lms-runtime="desktop"] body {
+    overscroll-behavior: none;
+  }
+
+  html[data-lms-runtime="pwa"] {
+    --lms-tabbar-safe-bottom: 8px;
+    --lms-tabbar-content-shift: 0px;
+    --lms-tabbar-row-height: 64px;
+    --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-tabbar-safe-bottom));
+    --lms-mobile-nav-height: var(--bottom-nav-height);
+    --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 10px);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html[data-lms-runtime="pwa"] .lms-route-page {
+    padding-top: 14px !important;
+  }
+
+  html[data-lms-runtime="pwa"] .lms-topbar {
+    top: auto !important;
+  }
+
+  html[data-lms-runtime="pwa"],
+  html[data-lms-runtime="pwa"] * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  html[data-lms-runtime="pwa"] a,
+  html[data-lms-runtime="pwa"] button,
+  html[data-lms-runtime="pwa"] [role='button'] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  html[data-lms-runtime="pwa"] input,
+  html[data-lms-runtime="pwa"] select,
+  html[data-lms-runtime="pwa"] textarea,
+  html[data-lms-runtime="pwa"] .lms-native-field {
+    font-size: 16px !important;
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+    touch-action: manipulation;
+  }
+
+  html[data-lms-runtime="pwa"] ::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+  }
+
+  html[data-lms-form-factor="phone"] {
+    --lms-platform-content-density: compact;
+  }
+
+  html[data-lms-form-factor="tablet"] {
+    --lms-platform-content-density: comfortable;
+  }
+
+  html[data-lms-target="native-ios-phone"] {
+    --lms-native-bottom-safe-extra: env(safe-area-inset-bottom, 0px);
+  }
+}

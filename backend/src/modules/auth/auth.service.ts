@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import * as nodemailer from 'nodemailer';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
-import { decryptSecret } from '../../utils/ai-provider.utils';
+import { decryptSecret } from '../../common/utils/ai-provider.utils';
 import { createSessionExpiry, extractBearerToken, hashSessionToken } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';

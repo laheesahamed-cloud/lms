@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from './app/App.jsx';
 import { useAuthStore } from './stores/authStore.js';
 import { applyPerformanceProfile } from './utils/performanceProfile.js';
-import './styles/app.css';
+import './styles/index.css';
 
 if ('serviceWorker' in navigator && typeof window !== 'undefined') {
   window.addEventListener('load', () => {

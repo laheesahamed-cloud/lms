@@ -14,7 +14,7 @@ import {
   isAiProviderKey,
   maskSecret,
   normalizeAiProviderBaseUrl,
-} from '../../utils/ai-provider.utils';
+} from '../../common/utils/ai-provider.utils';
 
 type SettingRow = RowDataPacket & {
   setting_key: string;

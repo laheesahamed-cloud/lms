@@ -1,0 +1,71 @@
+/* ============================================================
+   ERPM Medical LMS — Stylesheet Entrypoint
+   Import order: tokens, base, layout, components, pages, platforms, utilities.
+   ============================================================ */
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "../../../shared/theme.css";
+@import "../../../shared/foundation.css";
+
+@import "./00-tokens/colors.css";
+@import "./00-tokens/spacing.css";
+@import "./00-tokens/typography.css";
+@import "./00-tokens/radius-shadow.css";
+@import "./00-tokens/z-index.css";
+@import "./00-tokens/motion.css";
+
+@import "./01-base/reset.css";
+@import "./01-base/document.css";
+@import "./01-base/accessibility.css";
+@import "./01-base/theme.css";
+
+@import "./02-layout/app-shell.css";
+@import "./02-layout/page-shell.css";
+@import "./02-layout/topbar.css";
+@import "./02-layout/sidebar.css";
+@import "./02-layout/bottom-nav.css";
+@import "./02-layout/grids.css";
+
+@import "./03-components/buttons.css";
+@import "./03-components/cards.css";
+@import "./03-components/forms.css";
+@import "./03-components/tables.css";
+@import "./03-components/modals.css";
+@import "./03-components/tabs.css";
+@import "./03-components/badges.css";
+@import "./03-components/empty-loading-error.css";
+
+@import "./04-pages/dashboard.css";
+@import "./04-pages/courses.css";
+@import "./04-pages/quizzes.css";
+@import "./04-pages/lessons.css";
+@import "./04-pages/results.css";
+@import "./04-pages/profile.css";
+@import "./04-pages/auth.css";
+@import "./04-pages/landing.css";
+@import "./04-pages/admin.css";
+
+@import "./05-platforms/platform-runtime.css";
+@import "./05-platforms/web.css";
+@import "./05-platforms/pwa.css";
+@import "./05-platforms/desktop.css";
+@import "./05-platforms/native.css";
+@import "./05-platforms/native-phone.css";
+@import "./05-platforms/native-tablet.css";
+@import "./05-platforms/native-ios.css";
+@import "./05-platforms/native-ios-phone.css";
+@import "./05-platforms/native-ios-tablet.css";
+@import "./05-platforms/native-android.css";
+@import "./05-platforms/native-android-phone.css";
+@import "./05-platforms/native-android-tablet.css";
+
+@import "./06-utilities/responsive.css";
+@import "./06-utilities/safe-area.css";
+@import "./06-utilities/performance.css";
+@import "./06-utilities/print.css";
+
+@import "./99-legacy/app.css";
+
+@config "../../tailwind.config.js";
+@source "../**/*.{js,jsx,ts,tsx}";

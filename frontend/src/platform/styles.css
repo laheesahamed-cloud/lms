@@ -1,0 +1,2 @@
+/* Compatibility shim. Runtime CSS now lives with the platform style layer. */
+@import "../styles/05-platforms/platform-runtime.css";

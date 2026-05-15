@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
-import { AI_PROVIDER_KEYS } from '../../../utils/ai-provider.utils';
+import { AI_PROVIDER_KEYS } from '../../../common/utils/ai-provider.utils';
 
 export class UpdateAiProviderDto {
   @IsOptional()
