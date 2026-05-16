@@ -25,6 +25,8 @@ type QuizRow = RowDataPacket & {
   is_general: number;
   is_free: number;
   exam_mode_only: number;
+  student_title?: string | null;
+  display_title_mode?: string | null;
   quiz_title: string;
   quiz_description: string | null;
   total_questions: number;
@@ -34,11 +36,15 @@ type QuizRow = RowDataPacket & {
   passing_marks: number;
   hide_passing_marks: number;
   status: 'active' | 'inactive';
+  updated_at?: string | Date | null;
+  created_at?: string | Date | null;
   course_title?: string | null;
   topic_name?: string | null;
   subject_name?: string | null;
   lesson_title?: string | null;
   exam_attempt_count?: number;
+  latest_attempt_id?: number | null;
+  practice_completed_count?: number;
   practice_session_id?: number | null;
   last_question_index?: number | null;
   practice_answered_count?: number | null;
@@ -93,6 +99,20 @@ type TheoryRecapRow = RowDataPacket & {
   mnemonic: string | null;
 };
 
+type QuizAccessScopeRow = RowDataPacket & {
+  feature_key: string | null;
+  plan_slug: string | null;
+  access_scope: 'all' | 'courses' | 'lessons' | null;
+  course_ids_json: string | null;
+  lesson_ids_json: string | null;
+};
+
+type QuizAccessProfile = {
+  hasAnyPaidQuizAccess: boolean;
+  hasFullAccess: boolean;
+  courseIds: Set<number>;
+};
+
 type LoadedQuestion = QuestionRow & {
   options: Array<{ id: number; optionLabel: string; optionText: string; isCorrect: number; whyIncorrect: string }>;
   theoryRecap: TheoryRecapData | null;
@@ -123,6 +143,7 @@ export class QuizAttemptsService {
       this.plansService.hasFeatureAccess(user.id, 'practice_mode'),
       this.plansService.hasFeatureAccess(user.id, 'exam_mode'),
     ]);
+    const accessProfile = await this.getQuizAccessProfile(user.id);
     const [rows] = await this.db.execute<QuizRow[]>(
       `
         SELECT
@@ -136,6 +157,20 @@ export class QuizAttemptsService {
             FROM quiz_attempts qa
             WHERE qa.quiz_id = q.id AND qa.user_id = ?
           ) AS exam_attempt_count,
+          (
+            SELECT qa.id
+            FROM quiz_attempts qa
+            WHERE qa.quiz_id = q.id AND qa.user_id = ?
+            ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
+            LIMIT 1
+          ) AS latest_attempt_id,
+          (
+            SELECT COUNT(*)
+            FROM practice_sessions cps
+            WHERE cps.quiz_id = q.id
+              AND cps.user_id = ?
+              AND cps.status = 'completed'
+          ) AS practice_completed_count,
           ps.id AS practice_session_id,
           ps.last_question_index,
           (
@@ -155,40 +190,52 @@ export class QuizAttemptsService {
         WHERE q.status = 'active'
         ORDER BY q.id DESC
       `,
-      [user.id, user.id]
+      [user.id, user.id, user.id, user.id]
     );
 
-    return rows.map((row) => ({
-      id: row.id,
-      courseId: row.course_id,
-      topicId: row.topic_id,
-      subtopicId: row.subtopic_id ? Number(row.subtopic_id) : null,
-      lessonId: row.lesson_id ? Number(row.lesson_id) : null,
-      subtopic: row.subtopic || '',
-      isGeneral: Number(row.is_general) === 1,
-      examModeOnly: Number(row.exam_mode_only) === 1,
-      quizTitle: row.quiz_title,
-      quizDescription: row.quiz_description || '',
-      totalQuestions: Number(row.total_questions || 0),
-      totalMarks: Number(row.total_marks || 0),
-      timeLimit: Number(row.time_limit || 0),
-      hideTimeLimit: Number(row.hide_time_limit) === 1,
-      passingMarks: this.resolvePassingMarks(Number(row.passing_marks || 0)),
-      hidePassingMarks: Number(row.hide_passing_marks) === 1,
-      courseTitle: row.course_title || '',
-      subjectName: row.subject_name || '',
-      topicName: row.subject_name || '',
-      subtopicName: row.topic_name || '',
-      lessonTitle: row.lesson_title || '',
-      examAttemptCount: Number(row.exam_attempt_count || 0),
-      practiceSessionId: row.practice_session_id ? Number(row.practice_session_id) : null,
-      lastQuestionIndex: Number(row.last_question_index || 0),
-      practiceAnsweredCount: Number(row.practice_answered_count || 0),
-      isCompleted: Number(row.exam_attempt_count || 0) > 0,
-      isFree: Number(row.is_free) === 1,
-      canPracticeMode: canPractice || Number(row.is_free) === 1,
-      canExamMode: canExam || Number(row.is_free) === 1,
-    }));
+    return rows.map((row) => {
+      const canAccessQuiz = this.canAccessQuiz(row, accessProfile);
+      const isFree = Number(row.is_free) === 1;
+      return {
+        id: row.id,
+        courseId: row.course_id,
+        topicId: row.topic_id,
+        subtopicId: row.subtopic_id ? Number(row.subtopic_id) : null,
+        lessonId: row.lesson_id ? Number(row.lesson_id) : null,
+        subtopic: row.subtopic || '',
+        isGeneral: Number(row.is_general) === 1,
+        examModeOnly: Number(row.exam_mode_only) === 1,
+        quizTitle: row.quiz_title,
+        studentTitle: row.student_title || row.quiz_title,
+        displayTitleMode: row.display_title_mode === 'title' ? 'title' : 'number',
+        quizDescription: row.quiz_description || '',
+        totalQuestions: Number(row.total_questions || 0),
+        totalMarks: Number(row.total_marks || 0),
+        timeLimit: Number(row.time_limit || 0),
+        hideTimeLimit: Number(row.hide_time_limit) === 1,
+        passingMarks: this.resolvePassingMarks(Number(row.passing_marks || 0)),
+        hidePassingMarks: Number(row.hide_passing_marks) === 1,
+        updatedAt: row.updated_at || row.created_at || null,
+        courseTitle: row.course_title || '',
+        subjectName: row.subject_name || '',
+        topicName: row.subject_name || '',
+        subtopicName: row.topic_name || '',
+        lessonTitle: row.lesson_title || '',
+        examAttemptCount: Number(row.exam_attempt_count || 0),
+        latestAttemptId: row.latest_attempt_id ? Number(row.latest_attempt_id) : null,
+        practiceCompletedCount: Number(row.practice_completed_count || 0),
+        practiceSessionId: row.practice_session_id ? Number(row.practice_session_id) : null,
+        lastQuestionIndex: Number(row.last_question_index || 0),
+        practiceAnsweredCount: Number(row.practice_answered_count || 0),
+        isCompleted: Number(row.exam_attempt_count || 0) > 0 || Number(row.practice_completed_count || 0) > 0,
+        isFree,
+        canAccess: canAccessQuiz,
+        accessLocked: !canAccessQuiz,
+        accessMessage: canAccessQuiz ? '' : 'Your subscription does not include this course question bank.',
+        canPracticeMode: canAccessQuiz && (canPractice || isFree),
+        canExamMode: canAccessQuiz && (canExam || isFree),
+      };
+    });
   }
 
   async listResults(authorization?: string) {
@@ -233,13 +280,14 @@ export class QuizAttemptsService {
     const forcedMode = Number(quiz.exam_mode_only) === 1 ? 'exam' : mode;
 
     const isFreeQuiz = Number(quiz.is_free) === 1;
+    await this.ensureStudentCanAccessQuiz(user.id, quiz);
 
     if (forcedMode === 'practice' && !isFreeQuiz && !(await this.plansService.hasFeatureAccess(user.id, 'practice_mode'))) {
-      throw new BadRequestException('Your current subscription does not include practice mode');
+      throw new BadRequestException('Practice mode is included with selected plans');
     }
 
     if (forcedMode === 'exam' && !isFreeQuiz && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
-      throw new BadRequestException('Your current subscription does not include exam mode');
+      throw new BadRequestException('Exam mode is included with selected plans');
     }
 
     if (forcedMode === 'exam') {
@@ -247,7 +295,7 @@ export class QuizAttemptsService {
         mode: 'exam',
         quiz: this.mapQuizForStudent(quiz),
         questions: questions.map((question) => ({
-          ...this.mapQuestion(question),
+          ...this.mapQuestionForActiveAttempt(question),
           savedAnswer: null,
         })),
       };
@@ -274,8 +322,9 @@ export class QuizAttemptsService {
   async savePractice(authorization: string | undefined, quizId: number, dto: SavePracticeDto) {
     const user = await this.requireStudent(authorization);
     const quiz = await this.loadActiveQuiz(quizId);
+    await this.ensureStudentCanAccessQuiz(user.id, quiz);
     if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'practice_mode'))) {
-      throw new BadRequestException('Your current subscription does not include practice mode');
+      throw new BadRequestException('Practice mode is included with selected plans');
     }
     if (Number(quiz.exam_mode_only) === 1) {
       throw new BadRequestException('This quiz is exam mode only');
@@ -339,8 +388,9 @@ export class QuizAttemptsService {
   async submitExam(authorization: string | undefined, quizId: number, dto: SubmitExamDto) {
     const user = await this.requireStudent(authorization);
     const quiz = await this.loadActiveQuiz(quizId);
+    await this.ensureStudentCanAccessQuiz(user.id, quiz);
     if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
-      throw new BadRequestException('Your current subscription does not include exam mode');
+      throw new BadRequestException('Exam mode is included with selected plans');
     }
     const questions = await this.loadQuestionsForQuiz(quizId);
     const submittedAnswers = (dto.answers || {}) as Record<string, unknown>;
@@ -488,6 +538,7 @@ export class QuizAttemptsService {
   async practiceReview(authorization: string | undefined, quizId: number, complete: boolean) {
     const user = await this.requireStudent(authorization);
     const quiz = await this.loadActiveQuiz(quizId);
+    await this.ensureStudentCanAccessQuiz(user.id, quiz);
     const session = await this.getLatestPracticeSession(user.id, quizId);
     if (!session) {
       throw new NotFoundException('No practice session found');
@@ -568,6 +619,81 @@ export class QuizAttemptsService {
       throw new UnauthorizedException('Authentication token is missing');
     }
     return token;
+  }
+
+  private async ensureStudentCanAccessQuiz(userId: number, quiz: Pick<QuizRow, 'id' | 'course_id' | 'is_free'>) {
+    const accessProfile = await this.getQuizAccessProfile(userId);
+    if (!this.canAccessQuiz(quiz, accessProfile)) {
+      throw new BadRequestException('This quiz is included with selected course plans');
+    }
+  }
+
+  private async getQuizAccessProfile(userId: number): Promise<QuizAccessProfile> {
+    const [rows] = await this.db.execute<QuizAccessScopeRow[]>(
+      `
+        SELECT sf.feature_key, plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
+        FROM user_subscriptions us
+        INNER JOIN plans ON plans.id = us.plan_id
+        INNER JOIN subscription_plan_features spf
+          ON spf.plan_id = us.plan_id
+         AND spf.is_enabled = 1
+        INNER JOIN subscription_features sf
+          ON sf.id = spf.feature_id
+         AND sf.status = 'active'
+        WHERE us.user_id = ?
+          AND us.status = 'active'
+          AND us.start_date <= CURDATE()
+          AND us.end_date >= CURDATE()
+          AND sf.feature_key IN ('question_bank_full', 'question_bank_limited', 'practice_mode', 'exam_mode')
+      `,
+      [userId]
+    );
+
+    const profile: QuizAccessProfile = {
+      hasAnyPaidQuizAccess: rows.length > 0,
+      hasFullAccess: false,
+      courseIds: new Set<number>(),
+    };
+
+    for (const row of rows) {
+      const courseIds = this.parseIdList(row.course_ids_json);
+      const scope = this.resolveEffectiveAccessScope(row, courseIds);
+
+      if (scope === 'all' && courseIds.length === 0) {
+        profile.hasFullAccess = true;
+      } else if (scope === 'courses') {
+        courseIds.forEach((id) => profile.courseIds.add(id));
+      }
+    }
+
+    return profile;
+  }
+
+  private parseIdList(raw: string | null) {
+    try {
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  private resolveEffectiveAccessScope(row: QuizAccessScopeRow, courseIds: number[]) {
+    const planSlug = String(row.plan_slug || '').trim();
+    if (planSlug.startsWith('custom-single-') || planSlug.startsWith('custom-multi-')) {
+      return 'courses';
+    }
+    return row.access_scope || (courseIds.length ? 'courses' : 'all');
+  }
+
+  private canAccessQuiz(quiz: Pick<QuizRow, 'id' | 'course_id' | 'is_free'>, profile: QuizAccessProfile) {
+    if (Number(quiz.is_free) === 1) return true;
+    if (!profile.hasAnyPaidQuizAccess) return false;
+    if (profile.hasFullAccess) return true;
+    return profile.courseIds.has(Number(quiz.course_id));
   }
 
   private async loadActiveQuiz(quizId: number) {
@@ -986,7 +1112,46 @@ export class QuizAttemptsService {
       questionText: question.question_text,
       explanation: question.explanation || '',
       options: question.options,
+      answerKey: this.buildAnswerKey(question),
       theoryRecap: question.theoryRecap || null,
+    };
+  }
+
+  private buildAnswerKey(question: LoadedQuestion) {
+    if (question.question_type === 'true_false') {
+      return {
+        type: 'true_false',
+        statements: question.options.map((option) => ({
+          optionId: option.id,
+          label: option.optionLabel,
+          text: option.optionText,
+          answer: option.isCorrect === 1 ? 'True' : 'False',
+        })),
+      };
+    }
+
+    return {
+      type: 'sba',
+      correctOptions: question.options
+        .filter((option) => option.isCorrect === 1)
+        .map((option) => ({
+          optionId: option.id,
+          label: option.optionLabel,
+          text: option.optionText,
+        })),
+    };
+  }
+
+  private mapQuestionForActiveAttempt(question: LoadedQuestion) {
+    return {
+      id: question.id,
+      questionType: question.question_type,
+      questionText: question.question_text,
+      options: question.options.map((option) => ({
+        id: option.id,
+        optionLabel: option.optionLabel,
+        optionText: option.optionText,
+      })),
     };
   }
 

@@ -3,19 +3,19 @@
    ============================================================ */
 
 :root {
-  /* Primary: deep clinical blue → rich indigo → deep violet */
-  --brand-primary-start: #1D4ED8;
-  --brand-primary-mid:   #4338CA;
-  --brand-primary-end:   #5B21B6;
+  /* Primary: bright study blue → vivid indigo → rich violet */
+  --brand-primary-start: #0EA5E9;
+  --brand-primary-mid:   #2563EB;
+  --brand-primary-end:   #7C3AED;
   --brand-primary-solid: #2563EB;
-  --brand-primary-soft:  #93C5FD;
+  --brand-primary-soft:  #7DD3FC;
 
   /* Extended palette */
   --brand-cyan:    #06B6D4;
   --brand-indigo:  #4338CA;
   --brand-teal:    #0D9488;
   --brand-teal-vivid: #14B8A6;
-  --brand-violet:  #7C3AED;
+  --brand-violet:  #9333EA;
   --brand-pink:    #DB2777;
   --brand-emerald: #059669;
   --brand-amber:   #D97706;
@@ -25,11 +25,11 @@
   --brand-error:   #DC2626;
 
   /* Gradients */
-  --brand-gradient-primary: linear-gradient(135deg, #1D4ED8 0%, #4338CA 50%, #5B21B6 100%);
-  --brand-gradient-vivid:   linear-gradient(135deg, #0891B2 0%, #2563EB 48%, #7C3AED 100%);
+  --brand-gradient-primary: linear-gradient(135deg, #0EA5E9 0%, #2563EB 48%, #7C3AED 100%);
+  --brand-gradient-vivid:   linear-gradient(135deg, #06B6D4 0%, #2563EB 48%, #9333EA 100%);
   --brand-gradient-teal:    linear-gradient(135deg, #0D9488 0%, #0891B2 50%, #2563EB 100%);
   --brand-gradient-warm:    linear-gradient(135deg, #2563EB 0%, #7C3AED 52%, #DB2777 100%);
-  --brand-gradient-hero:    linear-gradient(135deg, #080C18 0%, #1D4ED8 38%, #4338CA 68%, #0D9488 100%);
+  --brand-gradient-hero:    linear-gradient(135deg, #060A14 0%, #0EA5E9 34%, #2563EB 58%, #7C3AED 100%);
 
   /* Subject gradients for course cards */
   --brand-gradient-anatomy:    linear-gradient(135deg, #E11D48 0%, #BE185D 100%);
@@ -41,10 +41,10 @@
   --brand-gradient-forensic:   linear-gradient(135deg, #64748B 0%, #475569 100%);
 
   /* Glow presets */
-  --brand-shadow-soft: 0 6px 20px rgba(29, 78, 216, 0.16);
-  --brand-shadow-md:   0 10px 28px rgba(29, 78, 216, 0.20);
-  --brand-shadow-lg:   0 18px 44px rgba(29, 78, 216, 0.26);
-  --brand-glow:        0 0 20px rgba(29, 78, 216, 0.28), 0 0 44px rgba(29, 78, 216, 0.10);
+  --brand-shadow-soft: 0 6px 20px rgba(14, 165, 233, 0.16);
+  --brand-shadow-md:   0 10px 28px rgba(14, 165, 233, 0.20);
+  --brand-shadow-lg:   0 18px 44px rgba(14, 165, 233, 0.22);
+  --brand-glow:        0 0 20px rgba(14, 165, 233, 0.26), 0 0 44px rgba(124, 58, 237, 0.10);
   --brand-glow-teal:   0 0 20px rgba(13, 148, 136, 0.28), 0 0 44px rgba(13, 148, 136, 0.10);
 }
 
@@ -109,6 +109,9 @@
   --line-soft:   #E7EDF5;
   --line-medium: #CBD8E8;
   --line-strong: #94A3B8;
+  --color-border-soft: var(--line-soft);
+  --color-border-medium: var(--line-medium);
+  --color-border-strong: var(--line-strong);
 
   /* ── Text ────────────────────────────────────────────────── */
   --ink-strong: #0B1220;
@@ -119,8 +122,8 @@
   /* ── Semantic Colors ─────────────────────────────────────── */
   --color-primary:       #2563EB;
   --color-primary-hover: #1D4ED8;
-  --color-primary-light: rgba(37, 99, 235, 0.09);
-  --color-primary-glow:  rgba(37, 99, 235, 0.20);
+  --color-primary-light: rgba(37, 99, 235, 0.10);
+  --color-primary-glow:  rgba(37, 99, 235, 0.24);
 
   --color-secondary:       #7C3AED;
   --color-secondary-light: rgba(124, 58, 237, 0.09);
@@ -166,7 +169,9 @@
 
   /* ── Page Background — light: clean gradient ─────────────── */
   --page-background:
-    linear-gradient(180deg, #FFFFFF 0%, #F8FAFD 48%, #F2F6FB 100%);
+    radial-gradient(ellipse at 14% 0%, rgba(14, 165, 233, 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse at 88% 8%, rgba(124, 58, 237, 0.05) 0%, transparent 42%),
+    linear-gradient(180deg, #F8FAFE 0%, #F3F6FC 50%, #EEF4FA 100%);
 
   /* ── Sidebar ─────────────────────────────────────────────── */
   --sidebar-w:           264px;
@@ -180,7 +185,7 @@
   /* ── Inputs ─────────────────────────────────────────────── */
   --input-bg:           #FFFFFF;
   --input-border:       rgba(196, 210, 229, 0.90);
-  --input-focus-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  --input-focus-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
 
   /* ── Card tokens ─────────────────────────────────────────── */
   --card-bg:     var(--surface-card);
@@ -242,6 +247,9 @@
   --line-soft:   rgba(148, 163, 184, 0.13);
   --line-medium: rgba(148, 163, 184, 0.20);
   --line-strong: rgba(191, 219, 254, 0.28);
+  --color-border-soft: var(--line-soft);
+  --color-border-medium: var(--line-medium);
+  --color-border-strong: var(--line-strong);
 
   /* ── Text — clear and readable on dark ─────────────────── */
   --ink-strong: #DDE5F0;
@@ -250,10 +258,10 @@
   --ink-muted:  #50647A;
 
   /* ── Colors — slightly lighter for dark bg contrast ─────── */
-  --color-primary:       #3B82F6;
-  --color-primary-hover: #60A5FA;
-  --color-primary-light: rgba(59, 130, 246, 0.13);
-  --color-primary-glow:  rgba(59, 130, 246, 0.28);
+  --color-primary:       #38BDF8;
+  --color-primary-hover: #7DD3FC;
+  --color-primary-light: rgba(56, 189, 248, 0.13);
+  --color-primary-glow:  rgba(56, 189, 248, 0.32);
 
   --color-secondary:       #A78BFA;
   --color-secondary-light: rgba(167, 139, 250, 0.13);
@@ -290,7 +298,7 @@
   --shadow-lg: 0 20px 54px rgba(0, 0, 0, 0.50), 0 4px 14px rgba(59, 130, 246, 0.06);
   --shadow-xl: 0 26px 70px rgba(0, 0, 0, 0.58), 0 8px 22px rgba(59, 130, 246, 0.08);
   --shadow-2xl: 0 32px 88px rgba(0, 0, 0, 0.66), 0 12px 30px rgba(59, 130, 246, 0.09);
-  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.16), 0 0 24px rgba(59, 130, 246, 0.28), 0 14px 36px rgba(0, 0, 0, 0.36);
+  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 8px 24px rgba(37, 99, 235, 0.22), 0 14px 36px rgba(0, 0, 0, 0.36);
   --shadow-soft: var(--shadow-xl);
   --shadow-lift: var(--shadow-lg);
 
@@ -308,7 +316,7 @@
   /* ── Inputs ─────────────────────────────────────────────── */
   --input-bg:           rgba(8, 15, 25, 0.96);
   --input-border:       rgba(148, 163, 184, 0.20);
-  --input-focus-shadow: 0 0 0 3px rgba(59, 130, 246, 0.26);
+  --input-focus-shadow: 0 0 0 3px rgba(56, 189, 248, 0.24);
 
   /* ── Card tokens ─────────────────────────────────────────── */
   --card-bg:     var(--surface-card);
@@ -318,6 +326,45 @@
   --topbar-bg:         rgba(2, 5, 10, 0.99);
   --btn-secondary-bg:  var(--surface-glass-subtle);
   --btn-secondary-text: var(--ink-medium);
+}
+
+/* ── ERPM Accent Theme ─────────────────────────────────────── */
+:root[data-accent-theme='erpm'] {
+  --brand-primary-start: #1D4ED8;
+  --brand-primary-mid:   #4338CA;
+  --brand-primary-end:   #5B21B6;
+  --brand-primary-solid: #2563EB;
+  --brand-primary-soft:  #93C5FD;
+  --brand-violet: #7C3AED;
+  --brand-gradient-primary: linear-gradient(135deg, #1D4ED8 0%, #4338CA 50%, #5B21B6 100%);
+  --brand-gradient-vivid:   linear-gradient(135deg, #0891B2 0%, #2563EB 48%, #7C3AED 100%);
+  --brand-gradient-warm:    linear-gradient(135deg, #2563EB 0%, #7C3AED 52%, #DB2777 100%);
+  --brand-gradient-hero:    linear-gradient(135deg, #080C18 0%, #1D4ED8 38%, #4338CA 68%, #0D9488 100%);
+  --brand-shadow-soft: 0 6px 20px rgba(29, 78, 216, 0.16);
+  --brand-shadow-md:   0 10px 28px rgba(29, 78, 216, 0.20);
+  --brand-shadow-lg:   0 18px 44px rgba(29, 78, 216, 0.26);
+  --brand-glow: 0 0 20px rgba(29, 78, 216, 0.28), 0 0 44px rgba(29, 78, 216, 0.10);
+  --color-primary:       #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-light: rgba(37, 99, 235, 0.09);
+  --color-primary-glow:  rgba(37, 99, 235, 0.20);
+  --input-focus-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  --page-background:
+    linear-gradient(180deg, #FFFFFF 0%, #F8FAFD 48%, #F2F6FB 100%);
+}
+
+:root[data-theme='dark'][data-accent-theme='erpm'] {
+  --color-primary:       #3B82F6;
+  --color-primary-hover: #60A5FA;
+  --color-primary-light: rgba(59, 130, 246, 0.13);
+  --color-primary-glow:  rgba(59, 130, 246, 0.28);
+  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.16), 0 0 24px rgba(59, 130, 246, 0.28), 0 14px 36px rgba(0, 0, 0, 0.36);
+  --input-focus-shadow: 0 0 0 3px rgba(59, 130, 246, 0.26);
+  --page-background:
+    radial-gradient(ellipse at 18% 0%,   rgba(37, 99, 235, 0.07)  0%, transparent 46%),
+    radial-gradient(ellipse at 84% 9%,   rgba(13, 148, 136, 0.052) 0%, transparent 42%),
+    radial-gradient(ellipse at 52% 97%,  rgba(67, 56, 202, 0.038)  0%, transparent 50%),
+    linear-gradient(165deg, #010308 0%, #010206 44%, #000204 100%);
 }
 
 /* ── Codeforge Accent Theme ───────────────────────────────── */

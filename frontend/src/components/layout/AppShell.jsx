@@ -1,22 +1,25 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AppSidebar } from './AppSidebar.jsx';
+import { AppSidebar, MobileBottomNav } from './AppSidebar.jsx';
 import { GlobalSearch } from '../search/GlobalSearch.jsx';
+import { detectPlatform } from '../../platform/detect.js';
+import { shouldUseOverlayNavigation } from '../../platform/config.js';
 import { useAuthStore } from '../../stores/authStore.js';
 import { preloadRouteByPath } from '../../app/router.jsx';
 import { getRoutePreloadLimit } from '../../utils/performanceProfile.js';
 import { cx, ui } from '../../styles/tailwindClasses.js';
 
+const PLATFORM = detectPlatform();
 const SIDEBAR_COLLAPSE_STORAGE_KEY = 'lms.sidebar.collapsed';
 const sidebarOverlayClass =
-  'fixed inset-0 z-[810] border-0 bg-slate-950/55 backdrop-blur-lg animate-overlayIn max-[900px]:block min-[901px]:hidden';
+  'lms-sidebar-overlay fixed inset-0 z-[810] hidden border-0 bg-slate-950/55 backdrop-blur-lg animate-overlayIn max-[900px]:block';
 const shellUi = {
   shell:
-    'portal-shell relative isolate block min-h-dvh overflow-x-hidden overflow-y-visible bg-[var(--page-background)] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)]',
+    'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#F5F6FF] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[#05070d]',
   shellMobile: '',
   shellQuizFocus: '',
   content:
-    'portal-content relative z-[1] min-h-dvh min-w-0 overflow-x-hidden overflow-y-visible pb-6 [-webkit-overflow-scrolling:touch] min-[901px]:ml-[calc(var(--sidebar-w)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w)_-_var(--sidebar-shell-gap))] max-[900px]:ml-0 max-[900px]:w-full max-[900px]:pt-0',
+    'main-content app-content page-content portal-content relative z-[1] min-h-[100dvh] min-w-0 overflow-x-hidden overflow-y-visible pb-[var(--lms-mobile-content-bottom)] [-webkit-overflow-scrolling:touch] min-[901px]:ml-[calc(var(--sidebar-w)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w)_-_var(--sidebar-shell-gap))] min-[901px]:pb-6 max-[900px]:ml-0 max-[900px]:w-full max-[900px]:pt-0',
   contentCollapsed:
     'min-[901px]:ml-[calc(var(--sidebar-w-collapsed)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w-collapsed)_-_var(--sidebar-shell-gap))]',
   contentAiFocus: '',
@@ -29,7 +32,7 @@ const shellUi = {
   ambient: 'portal-shell-ambient pointer-events-none hidden',
   ambientGlow: 'portal-shell-ambient__glow absolute rounded-full blur-[90px]',
   ambientGlowOne:
-    'portal-shell-ambient__glow--one left-[20%] top-[-120px] size-[680px] bg-[radial-gradient(ellipse,rgba(20,184,166,0.042),rgba(37,99,235,0.022)_38%,transparent_72%)] opacity-0 dark:opacity-28',
+    'portal-shell-ambient__glow--one left-[20%] top-[-120px] size-[680px] bg-[radial-gradient(ellipse,rgba(14,165,233,0.042),rgba(37,99,235,0.022)_38%,transparent_72%)] opacity-0 dark:opacity-28',
   ambientGlowTwo:
     'portal-shell-ambient__glow--two bottom-[-160px] right-[8%] size-[560px] bg-[radial-gradient(ellipse,rgba(37,99,235,0.026),transparent_74%)] opacity-0 dark:opacity-24',
   ambientGrid:
@@ -66,28 +69,40 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [tabletOverlayNav, setTabletOverlayNav] = useState(() => {
+    return shouldUseOverlayNavigation(detectPlatform());
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === 'undefined') {
       return desktopSidebarHiddenByDefault;
     }
-    const saved = window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
-    if (saved === 'true') return true;
-    if (saved === 'false') return false;
+    try {
+      const saved = window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
+      if (saved === 'true') return true;
+      if (saved === 'false') return false;
+    } catch {
+      return desktopSidebarHiddenByDefault;
+    }
     return desktopSidebarHiddenByDefault;
   });
   const isSigningOut = useAuthStore((state) => state.isSigningOut);
   const user = useAuthStore((state) => state.user);
   const routeSearchParams = new URLSearchParams(location.search);
-  const isQuizRoute = /^\/quizzes\/[^/]+$/.test(location.pathname);
+  const isQuizRoute = /^\/(?:app\/)?quizzes\/[^/]+$/.test(location.pathname);
   const quizMode = routeSearchParams.get('mode') || 'practice';
   const isQuizFocusMode = isQuizRoute && (quizMode === 'exam' || quizMode === 'practice');
-  const isAiNoteReaderRoute = /^\/ai-notes\/[^/]+$/.test(location.pathname);
-  const isReviewFocusRoute = /^\/review\/[^/]+$/.test(location.pathname);
-  const isPracticeReviewFocusRoute = /^\/quizzes\/[^/]+\/practice-review$/.test(location.pathname);
+  const isAiNoteReaderRoute =
+    /^\/(?:app\/|admin\/)?ai-notes\/[^/]+$/.test(location.pathname) ||
+    /^\/(?:app\/)?study\/lesson\/[^/]+$/.test(location.pathname);
+  const isReviewFocusRoute = /^\/(?:app\/)?review\/[^/]+$/.test(location.pathname);
+  const isPracticeReviewFocusRoute = /^\/(?:app\/)?quizzes\/[^/]+\/practice-review$/.test(location.pathname);
   const isQuestionBankRoute = /^\/questions(?:\/|$)/.test(location.pathname);
   const isQuizBuilderRoute = /^\/quizzes\/new$/.test(location.pathname) || /^\/quizzes\/[^/]+\/edit$/.test(location.pathname);
   const isCompactFocusMode = isQuizFocusMode || isReviewFocusRoute || isPracticeReviewFocusRoute;
   const isFocusMode = isCompactFocusMode || isAiNoteReaderRoute;
+  const isCollapsedDesktop = desktopSidebarToggle && sidebarCollapsed && !tabletOverlayNav;
+  const effectiveSidebarCollapsed = isCollapsedDesktop;
+  const hideGlobalSidebar = isFocusMode;
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
 
@@ -114,7 +129,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         return;
       }
 
-      if (window.innerWidth <= 900) {
+      if (window.innerWidth <= 900 || tabletOverlayNav) {
         setSidebarOpen((current) => !current);
         return;
       }
@@ -126,21 +141,66 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
 
     window.addEventListener('lms:toggle-sidebar', handleToggleSidebar);
     return () => window.removeEventListener('lms:toggle-sidebar', handleToggleSidebar);
-  }, [desktopSidebarToggle, isFocusMode]);
+  }, [desktopSidebarToggle, isFocusMode, tabletOverlayNav]);
 
   useEffect(() => {
     function handleResize() {
-      if (window.innerWidth > 900) setSidebarOpen(false);
+      if (window.innerWidth > 900 && !tabletOverlayNav) setSidebarOpen(false);
     }
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, [tabletOverlayNav]);
+
+  useEffect(() => {
+    if (!sidebarOpen || hideGlobalSidebar || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    function handleOutsidePointer(event) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('.lms-sidebar')) return;
+      if (target.closest('.lms-topbar-menu-button')) return;
+      setSidebarOpen(false);
+    }
+
+    document.addEventListener('pointerdown', handleOutsidePointer, true);
+    return () => document.removeEventListener('pointerdown', handleOutsidePointer, true);
+  }, [hideGlobalSidebar, sidebarOpen]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const tabletMedia = window.matchMedia('(min-width: 901px) and (max-width: 1366px) and (orientation: landscape)');
+    const pointerMedia = window.matchMedia('(pointer: coarse), (any-pointer: coarse)');
+    const updateTabletOverlay = () => {
+      const next = shouldUseOverlayNavigation(detectPlatform());
+      setTabletOverlayNav(next);
+      if (!next) setSidebarOpen(false);
+    };
+
+    updateTabletOverlay();
+    tabletMedia.addEventListener?.('change', updateTabletOverlay);
+    pointerMedia.addEventListener?.('change', updateTabletOverlay);
+    window.addEventListener('resize', updateTabletOverlay);
+    window.addEventListener('orientationchange', updateTabletOverlay);
+
+    return () => {
+      tabletMedia.removeEventListener?.('change', updateTabletOverlay);
+      pointerMedia.removeEventListener?.('change', updateTabletOverlay);
+      window.removeEventListener('resize', updateTabletOverlay);
+      window.removeEventListener('orientationchange', updateTabletOverlay);
+    };
   }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
-    window.localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, String(sidebarCollapsed));
+    try {
+      window.localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, String(sidebarCollapsed));
+    } catch {
+      // Sidebar preference persistence is optional in embedded WebViews.
+    }
   }, [sidebarCollapsed]);
 
   useEffect(() => {
@@ -154,7 +214,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
       return;
     }
 
-    const preloadLimit = getRoutePreloadLimit();
+    const preloadLimit = PLATFORM.isNative ? (PLATFORM.isPhone ? 2 : 6) : getRoutePreloadLimit();
     if (preloadLimit <= 0) {
       return;
     }
@@ -166,17 +226,26 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     const timers = [];
     const warm = () => {
       targets.forEach((path, index) => {
-        timers.push(window.setTimeout(() => preloadRouteByPath(path, user.role), index * 160));
+        const delay = PLATFORM.isNative
+          ? index * (PLATFORM.isPhone ? 260 : 80)
+          : index * 160;
+        timers.push(window.setTimeout(() => preloadRouteByPath(path, user.role), delay));
       });
     };
 
     let cleanup = () => {};
 
-    if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(warm, { timeout: 1200 });
+    if (PLATFORM.isNative && window.__lmsBootComplete !== true) {
+      const afterBoot = () => {
+        timers.push(window.setTimeout(warm, PLATFORM.isPhone ? 900 : 120));
+      };
+      document.addEventListener('lms:boot-complete', afterBoot, { once: true });
+      cleanup = () => document.removeEventListener('lms:boot-complete', afterBoot);
+    } else if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(warm, { timeout: PLATFORM.isNative ? (PLATFORM.isPhone ? 1400 : 300) : 1200 });
       cleanup = () => window.cancelIdleCallback(idleId);
     } else {
-      const timer = window.setTimeout(warm, 500);
+      const timer = window.setTimeout(warm, PLATFORM.isNative ? (PLATFORM.isPhone ? 1000 : 180) : 500);
       cleanup = () => window.clearTimeout(timer);
     }
 
@@ -186,10 +255,6 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     };
   }, [location.pathname, user?.role]);
 
-  const isCollapsedDesktop = desktopSidebarToggle && sidebarCollapsed;
-  const effectiveSidebarCollapsed = isCollapsedDesktop;
-  const hideGlobalSidebar = isFocusMode;
-
   return (
     <div
       className={cx(
@@ -198,8 +263,10 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         'group/shell',
         isSigningOut && 'signing-out',
         effectiveSidebarCollapsed && 'sidebar-collapsed',
+        tabletOverlayNav && 'tablet-overlay-nav',
         hideGlobalSidebar && 'sidebar-hidden',
         isAiNoteReaderRoute && 'exam-focus-mode',
+        isAiNoteReaderRoute && 'ai-note-focus-mode',
         isCompactFocusMode && 'compact-focus-mode',
         isQuizFocusMode && 'quiz-focus-mode',
         isQuizFocusMode && shellUi.shellQuizFocus
@@ -226,6 +293,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         <AppSidebar
           isOpen={sidebarOpen}
           isCollapsed={effectiveSidebarCollapsed}
+          isOverlayNav={tabletOverlayNav}
           isExamFocusMode={isFocusMode}
           onClose={() => setSidebarOpen(false)}
           onSearchOpen={openSearch}
@@ -233,14 +301,18 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         />
       ) : null}
 
+      <MobileBottomNav isExamFocusMode={isFocusMode} onNavigate={() => setSidebarOpen(false)} />
+
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
+
+      <div className="app-safe-top-spacer" aria-hidden="true" />
 
       <main
         className={cx(
           shellUi.content,
           effectiveSidebarCollapsed && !hideGlobalSidebar && shellUi.contentCollapsed,
           isAiNoteReaderRoute && shellUi.contentAiFocus,
-          hideGlobalSidebar && shellUi.contentCompactFocus,
+          (hideGlobalSidebar || tabletOverlayNav) && shellUi.contentCompactFocus,
           isQuizFocusMode && shellUi.contentQuizFocus,
           isSigningOut && shellUi.contentSigningOut,
         )}

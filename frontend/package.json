@@ -6,9 +6,25 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "postbuild": "node ../scripts/build/sync-root-index.mjs",
+    "build:web": "VITE_LMS_BUILD_TARGET=web vite build --mode web",
+    "build:pwa": "VITE_LMS_BUILD_TARGET=pwa vite build --mode pwa",
+    "build:cap": "VITE_LMS_BUILD_TARGET=native CAPACITOR_BUILD=1 vite build --mode capacitor",
+    "build:desktop": "VITE_LMS_BUILD_TARGET=desktop vite build --mode desktop",
+    "cap:sync": "npm run build:cap && RUBYOPT=-rlogger PATH=\"$HOME/.gem/ruby/2.6.0/bin:$PATH\" CAPACITOR_COCOAPODS_PATH=\"$HOME/.gem/ruby/2.6.0/bin/pod\" cap sync",
+    "cap:sync:android": "npm run build:cap && cap sync android",
+    "cap:sync:ios": "npm run build:cap && RUBYOPT=-rlogger PATH=\"$HOME/.gem/ruby/2.6.0/bin:$PATH\" CAPACITOR_COCOAPODS_PATH=\"$HOME/.gem/ruby/2.6.0/bin/pod\" cap sync ios",
+    "cap:open:android": "cap open android",
+    "cap:open:ios": "cap open ios",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.3",
+    "@capacitor/cli": "^8.3.3",
+    "@capacitor/core": "^8.3.3",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.3.4",
+    "@capacitor/push-notifications": "^8.0.4",
     "axios": "^1.9.0",
     "html2canvas": "^1.4.1",
     "react": "^19.2.0",
@@ -22,6 +38,7 @@
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.10",
     "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.3",
     "vite": "^8.0.8"
   }
 }

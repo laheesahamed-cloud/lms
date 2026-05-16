@@ -11,17 +11,17 @@
       145deg,
       color-mix(in srgb, var(--color-primary) 5%, var(--surface-card)) 0%,
       var(--surface-card) 62%,
-      color-mix(in srgb, var(--color-teal) 4%, var(--surface-card)) 100%
+      color-mix(in srgb, var(--color-primary) 3%, var(--surface-card)) 100%
     );
   --lms-app-list-card-bg:
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-primary) 3%, var(--surface-card)) 0%,
       var(--surface-card) 58%,
-      color-mix(in srgb, var(--color-teal) 2%, var(--surface-card)) 100%
+      color-mix(in srgb, var(--color-primary) 2%, var(--surface-card)) 100%
     );
-  --lms-app-card-border: color-mix(in srgb, var(--color-primary) 16%, var(--line-soft));
-  --lms-app-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 38px rgba(37, 99, 235, 0.06);
+  --lms-app-card-border: color-mix(in srgb, var(--color-primary) 8%, var(--line-soft));
+  --lms-app-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.035), 0 14px 32px rgba(37, 99, 235, 0.045);
   --lms-app-list-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.035), 0 10px 28px rgba(37, 99, 235, 0.035);
   --lms-app-card-title: var(--ink-strong);
   --lms-app-card-muted: var(--ink-soft);
@@ -34,14 +34,14 @@
       145deg,
       rgba(14, 165, 233, 0.12) 0%,
       rgba(255, 255, 255, 0.044) 56%,
-      rgba(20, 184, 166, 0.075) 100%
+      rgba(96, 165, 250, 0.075) 100%
     );
   --lms-app-list-card-bg:
     linear-gradient(
       180deg,
       rgba(14, 165, 233, 0.075) 0%,
       rgba(255, 255, 255, 0.042) 58%,
-      rgba(20, 184, 166, 0.052) 100%
+      rgba(96, 165, 250, 0.052) 100%
     );
   --lms-app-card-border: rgba(125, 211, 252, 0.16);
   --lms-app-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.035), 0 18px 42px rgba(0, 0, 0, 0.2);
@@ -103,14 +103,20 @@
   gap: clamp(14px, 2vw, 22px) !important;
 }
 
+.student-page-hero > .relative.z-\[1\] > .grid {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .student-page-hero__title {
-  background-image: linear-gradient(135deg, var(--color-primary) 0%, var(--color-teal) 58%, var(--color-secondary) 100%) !important;
+  background-image: none !important;
   font-size: clamp(28px, 4vw, 54px) !important;
   line-height: 1.04 !important;
 }
 
 .student-page-hero__eyebrow {
-  color: color-mix(in srgb, var(--color-primary) 82%, var(--color-teal)) !important;
+  color: color-mix(in srgb, var(--color-primary) 84%, #0ea5e9) !important;
 }
 
 .student-page-hero__subtitle {
@@ -133,7 +139,7 @@
 
 :where(.lms-course-card, .lms-quiz-card, .lms-dashboard-card) {
   min-width: 0;
-  border-color: color-mix(in srgb, var(--color-primary) 12%, var(--line-soft)) !important;
+  border-color: color-mix(in srgb, var(--color-primary) 8%, var(--line-soft)) !important;
   background: var(--lms-app-list-card-bg) !important;
   box-shadow: var(--lms-app-list-card-shadow) !important;
 }
@@ -162,6 +168,10 @@
     min-height: 0 !important;
   }
 
+  .student-page-hero > .relative.z-\[1\] > .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
   .student-page-hero__title,
   .dashboard-page .lms-dashboard-welcome-copy h2 {
     max-width: 100% !important;
@@ -177,5 +187,68 @@
 
   .student-page-hero__metric {
     padding: 10px 11px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .student-page-hero {
+    padding: 15px !important;
+    border-radius: 18px !important;
+  }
+
+  .student-page-hero > .relative.z-\[1\] > .grid {
+    gap: 8px !important;
+  }
+
+  .student-page-hero__metric {
+    overflow: hidden;
+    padding: 9px 10px !important;
+  }
+
+  .student-page-hero__metric-value {
+    font-size: clamp(18px, 7vw, 24px) !important;
+  }
+
+  .student-page-hero__metric-label {
+    font-size: 9.5px !important;
+    letter-spacing: 0.06em !important;
+  }
+}
+
+:where(
+  .lms-hero-card,
+  .lms-page-header-card,
+  .lms-dashboard-hero-card,
+  .lms-dashboard-card,
+  .lms-quiz-card,
+  .lms-course-card,
+  .student-course-card,
+  .lms-exam-header,
+  .lms-exam-main-card,
+  .lms-exam-sidebar > section,
+  .lms-exam-explainer > section
+) {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  outline: 0 !important;
+}
+
+@media (max-width: 700px) {
+  :where(
+    .lms-hero-card,
+    .lms-page-header-card,
+    .lms-dashboard-hero-card,
+    .lms-dashboard-card,
+    .lms-quiz-card,
+    .lms-course-card,
+    .student-course-card,
+    .lms-exam-header,
+    .lms-exam-main-card,
+    .lms-exam-sidebar > section,
+    .lms-exam-explainer > section
+  ) {
+    border-radius: 18px !important;
+    border-width: 1px !important;
   }
 }

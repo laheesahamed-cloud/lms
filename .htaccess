@@ -11,3 +11,6 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /lms/index.html [L]
 </IfModule>
+
+AddType application/manifest+json .webmanifest
+AddType image/svg+xml .svg

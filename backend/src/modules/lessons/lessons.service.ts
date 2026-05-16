@@ -39,6 +39,21 @@ type UserRow = RowDataPacket & {
   status: 'active' | 'inactive';
 };
 
+type AccessScopeRow = RowDataPacket & {
+  feature_key: string | null;
+  plan_slug: string | null;
+  access_scope: 'all' | 'courses' | 'lessons' | null;
+  course_ids_json: string | null;
+  lesson_ids_json: string | null;
+};
+
+type LessonAccessProfile = {
+  hasAnyPaidLessonAccess: boolean;
+  hasFullAccess: boolean;
+  courseIds: Set<number>;
+  lessonIds: Set<number>;
+};
+
 type LessonAnnotationRow = RowDataPacket & {
   id: number;
   lesson_id: number;
@@ -154,7 +169,8 @@ export class LessonsService {
   }
 
   async findStudentList(authorization?: string) {
-    await this.findActiveStudentByToken(this.extractToken(authorization));
+    const student = await this.findActiveStudentByToken(this.extractToken(authorization));
+    const accessProfile = await this.getLessonAccessProfile(student.id);
 
     const [rows] = await this.db.execute<LessonRow[]>(
       `SELECT
@@ -163,8 +179,8 @@ export class LessonsService {
         l.topic_id,
         l.subtopic_id,
         l.lesson_title,
-        l.lesson_content,
-        l.video_url,
+        NULL AS lesson_content,
+        NULL AS video_url,
         l.is_free,
         l.status,
         l.created_at,
@@ -179,18 +195,20 @@ export class LessonsService {
       ORDER BY l.created_at DESC, l.id DESC`
     );
 
-    return rows.map((row) => ({
-      ...this.mapLesson(row),
-      excerpt: this.toExcerpt(row.lesson_content || ''),
-    }));
+    return rows.map((row) => this.mapStudentLesson(row, accessProfile));
   }
 
   async findStudentLesson(id: number, authorization?: string) {
-    await this.findActiveStudentByToken(this.extractToken(authorization));
+    const student = await this.findActiveStudentByToken(this.extractToken(authorization));
     const lesson = await this.findById(id);
 
     if (lesson.status !== 'active') {
       throw new NotFoundException('Lesson not found');
+    }
+
+    const accessProfile = await this.getLessonAccessProfile(student.id);
+    if (!this.canAccessLesson(lesson, accessProfile)) {
+      throw new ForbiddenException('Your subscription does not include this premium lesson');
     }
 
     return {
@@ -201,7 +219,7 @@ export class LessonsService {
 
   async findStudentAnnotations(lessonId: number, authorization?: string) {
     const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-    await this.ensureActiveLessonExists(lessonId);
+    await this.ensureStudentCanAccessLesson(lessonId, user.id);
 
     const [rows] = await this.db.execute<LessonAnnotationRow[]>(
       `
@@ -218,7 +236,7 @@ export class LessonsService {
 
   async createStudentAnnotation(lessonId: number, dto: CreateLessonAnnotationDto, authorization?: string) {
     const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-    const lesson = await this.ensureActiveLessonExists(lessonId);
+    const lesson = await this.ensureStudentCanAccessLesson(lessonId, user.id);
     const lessonText = this.toPlainText(lesson.lessonContent || '');
     this.validateAnnotationPayload(dto, lessonText.length);
 
@@ -251,7 +269,7 @@ export class LessonsService {
     authorization?: string
   ) {
     const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-    await this.ensureActiveLessonExists(lessonId);
+    await this.ensureStudentCanAccessLesson(lessonId, user.id);
     const annotation = await this.findOwnedAnnotation(annotationId, lessonId, user.id);
 
     await this.db.execute(
@@ -275,7 +293,7 @@ export class LessonsService {
 
   async removeStudentAnnotation(lessonId: number, annotationId: number, authorization?: string) {
     const user = await this.findActiveStudentByToken(this.extractToken(authorization));
-    await this.ensureActiveLessonExists(lessonId);
+    await this.ensureStudentCanAccessLesson(lessonId, user.id);
     await this.findOwnedAnnotation(annotationId, lessonId, user.id);
 
     await this.db.execute('DELETE FROM lesson_annotations WHERE id = ? AND lesson_id = ? AND user_id = ?', [
@@ -389,6 +407,92 @@ export class LessonsService {
     return lesson;
   }
 
+  private async ensureStudentCanAccessLesson(lessonId: number, userId: number) {
+    const lesson = await this.ensureActiveLessonExists(lessonId);
+    const accessProfile = await this.getLessonAccessProfile(userId);
+
+    if (!this.canAccessLesson(lesson, accessProfile)) {
+      throw new ForbiddenException('Your subscription does not include this premium lesson');
+    }
+
+    return lesson;
+  }
+
+  private async getLessonAccessProfile(userId: number): Promise<LessonAccessProfile> {
+    const [rows] = await this.db.execute<AccessScopeRow[]>(
+      `
+        SELECT sf.feature_key, plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
+        FROM user_subscriptions us
+        INNER JOIN plans ON plans.id = us.plan_id
+        INNER JOIN subscription_plan_features spf
+          ON spf.plan_id = us.plan_id
+         AND spf.is_enabled = 1
+        INNER JOIN subscription_features sf
+          ON sf.id = spf.feature_id
+         AND sf.status = 'active'
+        WHERE us.user_id = ?
+          AND us.status = 'active'
+          AND us.start_date <= CURDATE()
+          AND us.end_date >= CURDATE()
+          AND sf.feature_key IN ('lessons_access_full', 'lessons_access_limited', 'notes_canvas_study_mode')
+      `,
+      [userId]
+    );
+
+    const profile: LessonAccessProfile = {
+      hasAnyPaidLessonAccess: rows.length > 0,
+      hasFullAccess: false,
+      courseIds: new Set<number>(),
+      lessonIds: new Set<number>(),
+    };
+
+    for (const row of rows) {
+      const courseIds = this.parseIdList(row.course_ids_json);
+      const lessonIds = this.parseIdList(row.lesson_ids_json);
+      const scope = this.resolveEffectiveAccessScope(row, courseIds, lessonIds);
+
+      if (scope === 'all' && courseIds.length === 0 && lessonIds.length === 0) {
+        profile.hasFullAccess = true;
+      } else if (scope === 'courses') {
+        courseIds.forEach((id) => profile.courseIds.add(id));
+      } else if (scope === 'lessons') {
+        lessonIds.forEach((id) => profile.lessonIds.add(id));
+      }
+    }
+
+    return profile;
+  }
+
+  private parseIdList(raw: string | null) {
+    try {
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  private resolveEffectiveAccessScope(row: AccessScopeRow, courseIds: number[], lessonIds: number[]) {
+    const planSlug = String(row.plan_slug || '').trim();
+    if (planSlug.startsWith('custom-single-') || planSlug.startsWith('custom-multi-')) {
+      return 'courses';
+    }
+    return row.access_scope || (courseIds.length ? 'courses' : lessonIds.length ? 'lessons' : 'all');
+  }
+
+  private canAccessLesson(
+    lesson: { id: number; courseId?: number; course_id?: number; isFree?: number; is_free?: number },
+    profile: LessonAccessProfile
+  ) {
+    if (Number(lesson.isFree ?? lesson.is_free) === 1) return true;
+    if (!profile.hasAnyPaidLessonAccess) return false;
+    if (profile.hasFullAccess) return true;
+    return profile.courseIds.has(Number(lesson.courseId ?? lesson.course_id)) || profile.lessonIds.has(Number(lesson.id));
+  }
+
   private validateAnnotationPayload(dto: CreateLessonAnnotationDto, lessonLength: number) {
     if (!dto.selectedText.trim()) {
       throw new BadRequestException('Selected text is required');
@@ -452,6 +556,23 @@ export class LessonsService {
       courseTitle: row.course_title || '',
       topicName: row.topic_name || '',
       subtopicName: row.subtopic_name || '',
+    };
+  }
+
+  private mapStudentLesson(row: LessonRow, accessProfile: LessonAccessProfile) {
+    const lesson = this.mapLesson(row);
+    const canAccess = this.canAccessLesson(row, accessProfile);
+
+    return {
+      ...lesson,
+      lessonContent: canAccess ? lesson.lessonContent : '',
+      videoUrl: canAccess ? lesson.videoUrl : '',
+      excerpt: canAccess
+        ? this.toExcerpt(row.lesson_content || '')
+        : 'Premium lesson locked for your current course subscription.',
+      canAccess,
+      accessLocked: !canAccess,
+      lockReason: canAccess ? '' : 'Your subscription does not include this premium lesson.',
     };
   }
 

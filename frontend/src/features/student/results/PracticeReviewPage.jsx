@@ -5,34 +5,42 @@ import { getErrorMessage } from '../../../api/client.js';
 import { ThemeToggle } from '../../../components/layout/ThemeToggle.jsx';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
 import { ui } from '../../../styles/tailwindClasses.js';
+import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 
 const reviewPageUi = {
   screen:
-    `${ui.screenShell} px-[clamp(18px,2.8vw,30px)] pb-[clamp(18px,2.8vw,30px)] pt-[clamp(10px,1.4vw,18px)] max-[600px]:p-3.5`,
+    `${ui.screenShell} practice-review-page px-[clamp(18px,2.8vw,30px)] pb-[clamp(18px,2.8vw,30px)] pt-[clamp(10px,1.4vw,18px)] max-[600px]:p-3.5`,
   layout:
     'mx-auto grid w-[min(100%,1520px)] gap-[18px]',
   header:
-    'sticky top-2.5 z-20 flex items-center justify-between gap-4 rounded-[22px] border border-line-soft bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] px-3.5 py-3 shadow-md backdrop-blur-[14px] dark:border-white/10 dark:bg-[rgba(8,14,26,0.74)] max-[760px]:static max-[760px]:grid max-[760px]:gap-3',
+    'sticky top-2.5 z-20 flex items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] px-3 py-2.5 shadow-md backdrop-blur-[14px] dark:border-white/10 dark:bg-[rgba(8,14,26,0.74)] max-[760px]:static max-[760px]:grid max-[760px]:gap-2.5',
   brand:
-    'flex min-w-0 items-center gap-3.5',
+    'flex min-w-0 items-center gap-3',
   mark:
-    'grid size-11 shrink-0 place-items-center rounded-[14px] border border-line-soft bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_18%,var(--surface-card)),color-mix(in_srgb,var(--color-teal)_12%,var(--surface-card)))] text-brand-primary shadow-sm dark:border-white/10',
+    'grid size-10 shrink-0 place-items-center rounded-[13px] border border-line-soft bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_18%,var(--surface-card)),color-mix(in_srgb,var(--color-teal)_12%,var(--surface-card)))] text-brand-primary shadow-sm dark:border-white/10',
   titleWrap:
     'min-w-0',
   title:
-    'm-0 truncate text-lg font-extrabold leading-tight text-ink-strong',
+    'm-0 truncate text-[17px] font-bold leading-tight text-ink-strong',
   subtitle:
-    'mt-[3px] block max-w-[min(680px,52vw)] truncate text-xs text-ink-soft max-[760px]:max-w-[calc(100vw-112px)]',
+    'mt-0.5 block max-w-[min(680px,52vw)] truncate text-xs text-ink-soft max-[760px]:max-w-full',
   actions:
-    'flex min-w-0 flex-wrap items-center justify-end gap-2.5 max-[760px]:justify-start',
+    'flex min-w-0 flex-nowrap items-center justify-end gap-2 max-[760px]:w-full max-[760px]:justify-start max-[420px]:gap-1.5',
   scoreChip:
-    'inline-flex min-h-11 items-center gap-2.5 rounded-[14px] border border-line-soft bg-surface-glass-subtle px-4 text-sm text-ink-medium shadow-xs dark:border-white/10',
+    'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-[13px] border border-line-soft bg-surface-glass-subtle px-3 text-sm text-ink-medium shadow-xs dark:border-white/10 max-[420px]:min-h-9 max-[420px]:px-2.5 max-[420px]:text-[12px]',
   scoreValue:
-    'text-lg font-extrabold text-ink-strong',
+    'text-base font-bold text-ink-strong max-[420px]:text-sm',
+  actionButton:
+    'inline-flex min-h-10 shrink-0 items-center justify-center rounded-[13px] border px-4 text-sm font-semibold transition-[background,border-color,color,opacity] duration-150 active:opacity-85 max-[420px]:min-h-9 max-[420px]:px-3 max-[420px]:text-[12px]',
+  actionSecondary:
+    'border-line-soft bg-surface-glass-subtle text-ink-medium hover:border-brand-primary/22 hover:bg-brand-primary/7 hover:text-brand-primary dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-200',
+  actionPrimary:
+    'border-brand-primary/22 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200',
 };
 
 function ReviewHeader({ data, complete, onQuizzes, onHome }) {
-  const quizTitle = data?.quiz?.quizTitle || 'Practice review';
+  const quizLabel = getQuizNumberLabel(data?.quiz);
+  const quizTitle = getQuizTitleText(data?.quiz, 'Practice review');
   const topicName = data?.quiz?.topicName || data?.quiz?.topicDisplay || 'Review workspace';
   const percentage = Number(data?.summary?.percentage ?? data?.summary?.score ?? 0);
   const hasScore = Number.isFinite(percentage) && data?.summary;
@@ -47,13 +55,13 @@ function ReviewHeader({ data, complete, onQuizzes, onHome }) {
             <defs>
               <linearGradient id="practice-review-mark" x1="3" y1="3" x2="20" y2="20" gradientUnits="userSpaceOnUse">
                 <stop stopColor="#2563EB" />
-                <stop offset="1" stopColor="#14B8A6" />
+                <stop offset="1" stopColor="#0EA5E9" />
               </linearGradient>
             </defs>
           </svg>
         </span>
         <div className={reviewPageUi.titleWrap}>
-          <h1 className={reviewPageUi.title}>{complete ? 'Practice complete' : 'Practice review'}</h1>
+          <h1 className={reviewPageUi.title}>{complete ? `${quizLabel} complete` : `${quizLabel} review`}</h1>
           <span className={reviewPageUi.subtitle}>{quizTitle} • {topicName}</span>
         </div>
       </div>
@@ -66,10 +74,10 @@ function ReviewHeader({ data, complete, onQuizzes, onHome }) {
             <strong className={reviewPageUi.scoreValue}>{Math.round(percentage)}%</strong>
           </div>
         ) : null}
-        <button type="button" className={ui.secondaryAction} onClick={onHome}>
+        <button type="button" className={`${reviewPageUi.actionButton} ${reviewPageUi.actionSecondary}`} onClick={onHome}>
           Home
         </button>
-        <button className={ui.primaryAction} type="button" onClick={onQuizzes}>
+        <button className={`${reviewPageUi.actionButton} ${reviewPageUi.actionPrimary}`} type="button" onClick={onQuizzes}>
           Quizzes
         </button>
       </div>
@@ -111,7 +119,13 @@ export function PracticeReviewPage() {
         />
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
         {data ? (
-          <ReviewWorkspace questions={data.questions} summary={data.summary} navigatorVariant="bubbles" />
+          <ReviewWorkspace
+            questions={data.questions}
+            summary={data.summary}
+            navigatorVariant="bubbles"
+            exitLabel="Finish"
+            onExit={() => navigate('/quizzes')}
+          />
         ) : null}
         </section>
       </main>

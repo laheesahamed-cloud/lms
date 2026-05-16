@@ -97,7 +97,7 @@ export class SubscriptionsController {
   @Post('request')
   async requestUpgrade(@Headers('authorization') authorization: string | undefined, @Body() dto: RequestSubscriptionDto) {
     const student = await this.authService.requireStudent(authorization);
-    return this.subscriptionsService.requestUpgrade(student.id, dto.planId, dto.message);
+    return this.subscriptionsService.requestUpgrade(student.id, dto);
   }
 
   @Post('payhere/initiate')

@@ -1,10 +1,5 @@
 import { useState, useEffect, useRef, useDeferredValue, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminListAiNotes, listAiNotes } from '../../api/aiNotes.api.js';
-import { fetchCourses, fetchStudentCourses } from '../../api/courses.api.js';
-import { fetchStudentQuizzes } from '../../api/quizAttempts.api.js';
-import { fetchQuizzes } from '../../api/quizzes.api.js';
-import { fetchUsers } from '../../api/users.api.js';
 import { useAuthStore } from '../../stores/authStore.js';
 import { cx } from '../../styles/tailwindClasses.js';
 
@@ -134,6 +129,11 @@ function resultLabel(type) {
   return 'Lesson';
 }
 
+function rolePath(path, isAdmin) {
+  if (path.startsWith('/admin') || path.startsWith('/app')) return path;
+  return `${isAdmin ? '/admin' : '/app'}${path}`;
+}
+
 export function GlobalSearch({ onClose }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -168,10 +168,18 @@ export function GlobalSearch({ onClose }) {
 
     setLoading(true);
 
-    const notesRequest = roleIsAdmin ? adminListAiNotes().catch(() => []) : listAiNotes().catch(() => []);
-    const quizzesRequest = roleIsAdmin ? fetchQuizzes({}).catch(() => []) : fetchStudentQuizzes().catch(() => []);
-    const coursesRequest = roleIsAdmin ? fetchCourses().catch(() => []) : fetchStudentCourses().catch(() => []);
-    const usersRequest = roleIsAdmin ? fetchUsers({ role: 'student' }).catch(() => []) : Promise.resolve([]);
+    const notesRequest = import('../../api/aiNotes.api.js')
+      .then((api) => roleIsAdmin ? api.adminListAiNotes() : api.listAiNotes())
+      .catch(() => []);
+    const quizzesRequest = roleIsAdmin
+      ? import('../../api/quizzes.api.js').then((api) => api.fetchQuizzes({})).catch(() => [])
+      : import('../../api/quizAttempts.api.js').then((api) => api.fetchStudentQuizzes()).catch(() => []);
+    const coursesRequest = import('../../api/courses.api.js')
+      .then((api) => roleIsAdmin ? api.fetchCourses() : api.fetchStudentCourses())
+      .catch(() => []);
+    const usersRequest = roleIsAdmin
+      ? import('../../api/users.api.js').then((api) => api.fetchUsers({ role: 'student' })).catch(() => [])
+      : Promise.resolve([]);
 
     Promise.all([notesRequest, quizzesRequest, coursesRequest, usersRequest]).then(([n, qz, c, u]) => {
       if (cancelled) return;
@@ -214,7 +222,7 @@ export function GlobalSearch({ onClose }) {
         id: n.id,
         title: n.title,
         sub: [n.courseTitle, n.topicName].filter(Boolean).join(' › '),
-        url: `/ai-notes/${n.id}`,
+        url: rolePath(`/ai-notes/${n.id}`, isAdmin),
       }));
 
     const courseResults = courses
@@ -228,7 +236,7 @@ export function GlobalSearch({ onClose }) {
         id: c.id,
         title: c.title || c.courseTitle || c.name || 'Course',
         sub: isAdmin ? 'Course management' : 'Course library',
-        url: isAdmin ? '/courses' : `/courses/${c.id}`,
+        url: rolePath(isAdmin ? '/courses' : `/courses/${c.id}`, isAdmin),
       }));
 
     const quizResults = quizzes
@@ -243,7 +251,7 @@ export function GlobalSearch({ onClose }) {
         id: qz.id,
         title: qz.title || qz.quizTitle || 'Quiz',
         sub: [qz.courseTitle, qz.topicName].filter(Boolean).join(' › '),
-        url: isAdmin ? `/quizzes/${qz.id}/edit` : `/quizzes/${qz.id}?mode=practice`,
+        url: rolePath(isAdmin ? `/quizzes/${qz.id}/edit` : `/quizzes/${qz.id}?mode=practice`, isAdmin),
       }));
 
     const adminStudentResults = isAdmin
@@ -259,7 +267,7 @@ export function GlobalSearch({ onClose }) {
             id: u.id,
             title: u.fullName || u.full_name || u.email || 'Student',
             sub: [u.email, u.status].filter(Boolean).join(' • '),
-            url: '/users',
+            url: rolePath('/users', isAdmin),
           }))
       : [];
 

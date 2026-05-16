@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../api/studyBookmarks.api.js';
 import { getErrorMessage } from '../../../api/client.js';
 import { AppHeader } from '../../../components/layout/AppHeader.jsx';
+import { StudentPageHero } from '../components/StudentPageHero.jsx';
 import { cx, ui } from '../../../styles/tailwindClasses.js';
 
 function BookmarkIcon({ filled }) {
@@ -15,7 +16,6 @@ function QuizIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fil
 function PlayIcon()  { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 2l7 4-7 4V2z" fill="currentColor"/></svg>; }
 function ReadIcon()  { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M3.5 4h5M3.5 6h5M3.5 8h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>; }
 function TrashIcon() { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3h8M4.5 1.75h3M4 3v6.25m4-6.25v6.25M3 3l.4 6.2A1 1 0 0 0 4.4 10h3.2a1 1 0 0 0 1-.8L9 3" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
-function SparkIcon() { return <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 1.8l1.25 4.35L14.4 7.5l-4.15 1.35L9 13.2 7.75 8.85 3.6 7.5l4.15-1.35L9 1.8Z" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round"/><path d="M14.2 11.2l.5 1.65 1.55.55-1.55.5-.5 1.7-.5-1.7-1.55-.5 1.55-.55.5-1.65Z" fill="currentColor"/></svg>; }
 
 const TYPE_FILTERS = [
   { key: 'all',  label: 'All' },
@@ -69,18 +69,17 @@ export function BookmarksPage() {
 
         {error && <div className={ui.feedbackError}>{error}</div>}
 
-        <section className="relative overflow-hidden rounded-2xl border border-line-soft bg-surface-1 p-7 shadow-xl">
-          <div className="pointer-events-none absolute -left-16 -top-20 size-64 rounded-full bg-brand-primary/10 blur-3xl" aria-hidden="true" />
-          <div className="pointer-events-none absolute -bottom-24 right-0 size-72 rounded-full bg-brand-teal/10 blur-3xl" aria-hidden="true" />
-          <div className="relative z-[1] grid gap-4 pr-24 max-[720px]:pr-0">
-            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-brand-primary/15 bg-brand-primary-light px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-brand-primary"><SparkIcon /> Revision Queue</span>
-            <h2 className="m-0 max-w-[720px] font-display text-[clamp(28px,4vw,48px)] font-extrabold leading-tight text-ink-strong">Pick up exactly where your future self hoped you would.</h2>
-            <p className="m-0 max-w-[680px] text-[15px] leading-relaxed text-ink-soft">Saved quizzes and lessons stay collected here so your next study session starts with the right material, not a search.</p>
-          </div>
-          <div className="absolute right-8 top-1/2 grid size-20 -translate-y-1/2 place-items-center rounded-2xl border border-brand-primary/15 bg-brand-primary-light text-brand-primary shadow-md max-[720px]:hidden" aria-hidden="true">
-            <BookmarkIcon filled />
-          </div>
-        </section>
+        <StudentPageHero
+          title="Saved Items"
+          subtitle="Saved exams and lessons stay collected here so your next study session starts with the right material, not a search."
+          tone="violet"
+          metrics={[
+            { label: 'Total Saved', value: items.length },
+            { label: 'Practice', value: quizCount },
+            { label: 'Lessons', value: noteCount },
+            { label: 'Showing', value: activeCount },
+          ]}
+        />
 
         <div className="grid grid-cols-[repeat(4,minmax(0,1fr))] gap-3 max-[780px]:grid-cols-2" aria-label="Bookmark summary">
           <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
@@ -106,7 +105,7 @@ export function BookmarksPage() {
             <button className={cx(
                 'min-h-10 rounded-md border px-3 text-sm font-bold shadow-none transition',
                 filter === f.key
-                  ? 'border-transparent bg-[var(--brand-gradient-primary)] text-white'
+                  ? 'border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary'
                   : 'border-line-soft bg-surface-1 text-ink-medium hover:bg-surface-2'
               )}
               key={f.key}
@@ -115,7 +114,7 @@ export function BookmarksPage() {
               onClick={() => setFilter(f.key)}
             >
               <span>{f.label}</span>
-              <small className={cx('ml-2 rounded-full px-2 py-0.5 text-[11px]', filter === f.key ? 'bg-white/20 text-white' : 'bg-brand-primary-light text-brand-primary')}>
+              <small className={cx('ml-2 rounded-full px-2 py-0.5 text-[11px]', filter === f.key ? 'bg-white/60 text-brand-primary dark:bg-white/10 dark:text-sky-100' : 'bg-brand-primary-light text-brand-primary')}>
                 {f.key === 'quiz' ? quizCount : f.key === 'note' ? noteCount : items.length}
               </small>
             </button>

@@ -1,4 +1,5 @@
 import { forwardRef, memo, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useThemeStore } from '../../../stores/themeStore.js';
 import { cx, ui } from '../../../styles/tailwindClasses.js';
 
@@ -14,18 +15,23 @@ if (typeof document !== 'undefined' && !document.getElementById('canvas-study-st
   sty.id = 'canvas-study-styles';
   sty.textContent = [
     '@keyframes ncvCardIn{from{opacity:0;transform:translateY(18px) scale(0.975)}to{opacity:1;transform:translateY(0) scale(1)}}',
+    '@keyframes ncvLightboxBackdropIn{from{opacity:0}to{opacity:1}}',
+    '@keyframes ncvLightboxPanelIn{from{opacity:0;transform:translateY(12px) scale(0.985)}to{opacity:1;transform:translateY(0) scale(1)}}',
     '.ncv-enter{opacity:0!important}',
     '.ncv-entered{animation:ncvCardIn 0.48s cubic-bezier(0.22,1,0.36,1) both}',
+    '.ncv-lightbox-backdrop{animation:ncvLightboxBackdropIn 0.18s cubic-bezier(0.22,1,0.36,1) both}',
+    '.ncv-lightbox-panel{animation:ncvLightboxPanelIn 0.22s cubic-bezier(0.22,1,0.36,1) both}',
     '.focus-canvas .ncv-item{transition:opacity 0.2s ease,transform 0.2s ease,box-shadow 0.2s ease;opacity:0.3}',
     '.focus-canvas .ncv-item:hover{opacity:1!important;transform:translateY(-3px) scale(1.014);z-index:12;position:relative}',
+    '@media (prefers-reduced-motion: reduce){.ncv-entered,.ncv-lightbox-backdrop,.ncv-lightbox-panel{animation:none!important}.focus-canvas .ncv-item{transition:none!important}}',
   ].join('');
   document.head.appendChild(sty);
 }
 
 const noteCanvasUi = {
   highlight:
-    'rounded-[3px] px-1 font-semibold not-italic text-slate-900 dark:text-white',
-  boldTerm: 'font-bold text-blue-700 dark:text-[#ff8a80]',
+    'break-words rounded-[3px] px-1 font-semibold not-italic text-slate-900 dark:text-white',
+  boldTerm: 'break-words font-bold text-blue-700 dark:text-[#ff8a80]',
   editInput:
     "block w-full rounded-[5px] border border-transparent bg-transparent px-0.5 py-px font-['Patrick_Hand',cursive] text-[inherit] leading-[inherit] text-[inherit] shadow-none outline-none transition placeholder:opacity-45 hover:border-indigo-500/10 hover:bg-white/20 focus:border-indigo-500/25 focus:bg-white/28 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.08)] dark:hover:border-indigo-300/10 dark:hover:bg-white/[0.025] dark:focus:border-indigo-300/20 dark:focus:bg-white/[0.045]",
   editArea:
@@ -34,42 +40,48 @@ const noteCanvasUi = {
     "mb-1 pl-0.5 font-['Plus_Jakarta_Sans',sans-serif] text-[9.5px] tracking-[0.2px] opacity-45",
   bullets: 'm-0 mb-2 flex list-none flex-col gap-[5px] p-0',
   bullet:
-    "flex items-start gap-2 font-['Patrick_Hand',cursive] text-[13px] leading-[1.6] text-slate-700 dark:text-[#c8d4f0]",
-  subBullet: 'pl-[18px] text-[12.5px] opacity-90 dark:opacity-100 dark:text-[#b8caf0]',
+    "min-w-0 flex items-start gap-2 break-words font-['Patrick_Hand',cursive] text-[14.5px] leading-[1.58] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[15px]",
+  subBullet: 'pl-[18px] text-[13.5px] opacity-90 dark:opacity-100 dark:text-[#b8caf0] max-[520px]:text-[14px]',
   subArrow: 'mt-0.5 shrink-0 text-xs opacity-75 dark:opacity-100',
   bulletDot: 'mt-[5px] size-[7px] shrink-0 rounded-full dark:shadow-[0_0_6px_currentColor]',
   summaryFrags: 'flex flex-wrap items-center gap-2',
   summaryFrag:
-    "rounded-md border border-blue-700/15 bg-blue-700/[0.08] px-2.5 py-1 font-['Patrick_Hand',cursive] text-[13px] leading-[1.5] text-[#1e3a5f] dark:border-white/10 dark:bg-white/[0.06] dark:text-[rgba(220,230,255,0.92)]",
+    "min-w-0 max-w-full break-words rounded-md border border-blue-700/15 bg-blue-700/[0.08] px-2.5 py-1 font-['Patrick_Hand',cursive] text-[13px] leading-[1.5] text-[#1e3a5f] dark:border-white/10 dark:bg-white/[0.06] dark:text-[rgba(220,230,255,0.92)]",
   wrapOuter: 'relative',
   canvas:
-    "relative mx-auto max-w-[1040px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-[#fffdf8] bg-[radial-gradient(circle,rgba(87,69,39,0.055)_1.2px,transparent_1.2px)] bg-[length:22px_22px] font-['Patrick_Hand',cursive] text-[#1f2937] shadow-[0_14px_38px_rgba(91,64,35,0.10),0_2px_8px_rgba(15,23,42,0.04)] dark:border-white/10 dark:bg-[#0d0f1a] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.055)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_8px_40px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)] print:max-w-full print:rounded-none print:shadow-none",
+    "relative mx-auto w-full max-w-[1120px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-[#fffdf8] bg-[radial-gradient(circle,rgba(87,69,39,0.055)_1.2px,transparent_1.2px)] bg-[length:22px_22px] font-['Patrick_Hand',cursive] text-[#1f2937] shadow-[0_14px_38px_rgba(91,64,35,0.10),0_2px_8px_rgba(15,23,42,0.04)] dark:border-white/10 dark:bg-[#0d0f1a] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.055)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_8px_40px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)] print:max-w-full print:rounded-none print:shadow-none",
   editable: '!overflow-visible',
   overviewWrap: 'relative z-[4] flex justify-center',
   overviewBadge:
     "rounded-b-xl bg-[#d9c7ee] px-7 py-1 font-['Plus_Jakarta_Sans',sans-serif] text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#4b2d71] shadow-[0_2px_8px_rgba(76,45,113,0.10)] dark:bg-violet-400/25 dark:text-violet-100",
   header:
-    'relative z-[3] mx-5 mb-2 mt-4 overflow-hidden rounded-[20px] border border-[#eadfce] bg-[radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.10),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(16,185,129,0.10),transparent_38%),radial-gradient(circle,rgba(87,69,39,0.045)_1px,transparent_1px),rgba(255,255,255,0.82)] bg-[length:auto,auto,18px_18px,auto] px-5 py-4 shadow-[0_10px_30px_rgba(91,64,35,0.09),0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-sm dark:border-white/10 dark:bg-[radial-gradient(circle_at_100%_0%,rgba(96,165,250,0.14),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(52,211,153,0.10),transparent_38%),radial-gradient(circle,rgba(255,255,255,0.055)_1px,transparent_1px),rgba(255,255,255,0.055)]',
+    'relative z-[3] mx-5 mb-2 mt-4 min-w-0 overflow-hidden rounded-[20px] border border-[#eadfce] bg-[radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.10),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(16,185,129,0.10),transparent_38%),radial-gradient(circle,rgba(87,69,39,0.045)_1px,transparent_1px),rgba(255,255,255,0.82)] bg-[length:auto,auto,18px_18px,auto] px-5 py-4 shadow-[0_10px_30px_rgba(91,64,35,0.09),0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-sm dark:border-white/10 dark:bg-[radial-gradient(circle_at_100%_0%,rgba(96,165,250,0.14),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(52,211,153,0.10),transparent_38%),radial-gradient(circle,rgba(255,255,255,0.055)_1px,transparent_1px),rgba(255,255,255,0.055)] max-[520px]:mx-2 max-[520px]:px-2.5 max-[520px]:py-3',
   headerInner: 'relative flex items-center justify-between gap-4 max-[720px]:items-start max-[720px]:flex-col',
   titleCluster: 'min-w-0 flex-1',
   titleRow: 'flex min-w-0 flex-wrap items-center gap-2.5',
   leafMark:
     'inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-100/75 text-[25px] shadow-[0_8px_18px_rgba(16,185,129,0.12)] dark:border-emerald-300/20 dark:bg-emerald-300/10',
   title:
-    "m-0 min-w-[180px] flex-1 font-['Patrick_Hand',cursive] text-[38px] font-bold leading-[1.05] text-slate-950 dark:text-[#f0f4ff] dark:[text-shadow:0_0_26px_rgba(160,180,255,0.16)] max-[520px]:text-[31px]",
+    "m-0 min-w-0 flex-1 break-words font-['Patrick_Hand',cursive] text-[38px] font-bold leading-[1.05] text-slate-950 dark:text-[#f0f4ff] dark:[text-shadow:0_0_26px_rgba(160,180,255,0.16)] max-[520px]:w-full max-[520px]:text-[30px]",
+  titleReadOnly:
+    "flex w-full items-center justify-center bg-transparent px-0 py-0 text-center font-['Patrick_Hand',cursive] text-[42px] font-bold leading-[1.02] text-slate-950 shadow-none dark:text-[#f5f8ff] max-[520px]:text-[34px]",
+  titleMedicalIcon:
+    'flex size-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/22 bg-sky-300/10 text-sky-200 shadow-[0_0_18px_rgba(96,165,250,0.18)] max-[520px]:size-9 max-[520px]:rounded-xl [&_svg]:size-7 max-[520px]:[&_svg]:size-5',
   subtitle:
-    "m-0 inline-flex w-fit rounded-lg border border-emerald-500/20 bg-emerald-100/70 px-3 py-1 font-['Plus_Jakarta_Sans',sans-serif] text-[12px] font-bold text-emerald-800 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100",
+    "m-0 inline-flex max-w-full rounded-lg border border-emerald-500/20 bg-emerald-100/70 px-3 py-1 font-['Plus_Jakarta_Sans',sans-serif] text-[12px] font-bold leading-snug text-emerald-800 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100 max-[520px]:w-full max-[520px]:break-words",
   metaStack:
-    "flex min-w-[170px] flex-col items-end gap-1.5 font-['Plus_Jakarta_Sans',sans-serif] text-[12px] font-semibold text-slate-700 dark:text-slate-200 max-[720px]:items-start",
-  metaItem: 'flex items-center gap-2 whitespace-nowrap',
+    "flex min-w-0 flex-col items-end gap-1.5 font-['Plus_Jakarta_Sans',sans-serif] text-[12px] font-semibold text-slate-700 dark:text-slate-200 max-[720px]:w-full max-[720px]:items-start",
+  metaItem: 'flex min-w-0 items-center gap-2',
   metaIcon: 'inline-flex size-5 items-center justify-center rounded-md border border-slate-300/70 bg-white/70 text-[11px] dark:border-white/10 dark:bg-white/[0.06]',
   tagRow: 'flex flex-wrap gap-1.5',
   tag:
     'rounded-full border border-blue-500/15 bg-blue-50/80 px-2 py-0.5 text-[11px] font-bold text-blue-700 dark:border-blue-300/15 dark:bg-blue-300/10 dark:text-blue-100',
-  sectionGrid: 'grid grid-cols-2 gap-0.5 px-5 py-2 max-[640px]:grid-cols-1',
+  sectionGrid: 'grid min-w-0 grid-cols-2 gap-0.5 px-5 py-2 max-[640px]:grid-cols-1 max-[520px]:px-2',
   sectionGridOne: '!grid-cols-1 [&>*]:col-span-1',
   section:
-    'group/canvas-card relative break-inside-avoid overflow-hidden rounded-[14px] border border-[#eadfce] bg-white/[0.72] shadow-[0_2px_10px_rgba(91,64,35,0.055)] hover:-translate-y-[3px] hover:shadow-[0_8px_24px_rgba(91,64,35,0.12),0_2px_8px_rgba(15,23,42,0.04)] transition-[transform,box-shadow] duration-200 dark:border-white/10 dark:bg-white/[0.045] dark:shadow-[0_2px_12px_rgba(0,0,0,0.35)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.3)] dark:backdrop-blur',
+    'group/canvas-card relative min-w-0 break-inside-avoid overflow-hidden rounded-[14px] border border-[#eadfce] bg-white/[0.72] shadow-[0_2px_10px_rgba(91,64,35,0.055)] hover:-translate-y-[3px] hover:shadow-[0_8px_24px_rgba(91,64,35,0.12),0_2px_8px_rgba(15,23,42,0.04)] transition-[transform,box-shadow] duration-200 dark:border-white/10 dark:bg-white/[0.045] dark:shadow-[0_2px_12px_rgba(0,0,0,0.35)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.3)] dark:backdrop-blur',
+  cardMedicalIcon:
+    'pointer-events-none absolute right-2.5 top-2.5 z-[4] flex size-7 items-center justify-center rounded-full border bg-white/42 opacity-65 shadow-[0_4px_12px_rgba(15,23,42,0.08)] dark:bg-slate-950/20 max-[520px]:right-2 max-[520px]:top-2 max-[520px]:size-6 [&_svg]:size-[16px] max-[520px]:[&_svg]:size-[14px]',
   imageSection: '',
   imageFull: 'col-span-full',
   imageExplained: 'overflow-visible',
@@ -85,6 +97,30 @@ const noteCanvasUi = {
     '!relative !size-6 !overflow-hidden !rounded-md !border !border-black/10 !bg-white !text-[13px] !font-extrabold',
   resizeHandle:
     'absolute inset-x-0 bottom-0 flex h-3 cursor-ns-resize select-none items-center justify-center rounded-b-md bg-[linear-gradient(to_top,rgba(99,102,241,0.14),transparent)] opacity-0 touch-none transition group-hover/canvas-card:opacity-100 hover:bg-[linear-gradient(to_top,rgba(99,102,241,0.38),transparent)] [&_span]:block [&_span]:h-[3px] [&_span]:w-8 [&_span]:rounded-sm [&_span]:bg-white/70',
+  imageOpenButton:
+    'group/image relative block w-full cursor-zoom-in overflow-hidden border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500',
+  imageExpandHint:
+    'pointer-events-none absolute right-2 top-2 z-10 inline-flex size-8 items-center justify-center rounded-full border border-white/25 bg-slate-950/50 text-white/92 opacity-80 shadow-[0_6px_18px_rgba(0,0,0,0.22)] backdrop-blur-md transition group-hover/image:scale-105 group-hover/image:opacity-100 dark:border-white/18 dark:bg-slate-950/62 max-[520px]:size-7 [&_svg]:size-4 max-[520px]:[&_svg]:size-3.5',
+  imageOpenHint:
+    'pointer-events-none absolute left-2 top-2 z-10 inline-flex translate-y-1 items-center gap-1 rounded-full border border-white/20 bg-slate-950/54 px-2 py-1 font-sans text-[10px] font-extrabold uppercase tracking-[0.05em] text-white opacity-0 shadow-sm backdrop-blur-md transition group-hover/image:translate-y-0 group-hover/image:opacity-100 group-focus-visible/image:translate-y-0 group-focus-visible/image:opacity-100',
+  imageFitBar:
+    'mx-2.5 mt-2 flex flex-wrap items-center justify-between gap-2 font-sans',
+  imageFitOverlay:
+    'absolute bottom-2 left-2 z-20 m-0 max-w-[calc(100%-92px)] rounded-xl border border-white/20 bg-slate-950/58 p-1 shadow-sm backdrop-blur-md opacity-0 transition group-hover/canvas-card:opacity-100 focus-within:opacity-100',
+  imageFitLabel:
+    'text-[10px] font-extrabold uppercase tracking-[0.08em] text-ink-muted',
+  imageFitLabelOverlay:
+    'sr-only',
+  imageFitToggle:
+    'inline-flex overflow-hidden rounded-lg border border-line-soft bg-surface-glass p-0.5 dark:border-white/10 dark:bg-white/[0.04]',
+  imageFitToggleOverlay:
+    'border-white/15 bg-white/10',
+  imageFitButton:
+    'min-h-[26px] cursor-pointer rounded-md px-2.5 font-sans text-[10.5px] font-extrabold text-ink-muted transition hover:bg-surface-raised hover:text-ink-strong active:scale-[0.97] dark:hover:bg-white/[0.08] dark:hover:text-white',
+  imageFitButtonOverlay:
+    'min-h-[24px] px-2 text-white/74 hover:bg-white/12 hover:text-white',
+  imageFitButtonOn:
+    '!bg-primary !text-white shadow-sm dark:!bg-sky-400 dark:!text-slate-950',
   imagePlaceholder:
     'flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-md border-2 border-dashed border-indigo-500/30 bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_5%,var(--surface-2,#f8fafc))] font-sans text-[13px] text-ink-muted transition hover:bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_10%,var(--surface-2,#f8fafc))]',
   imageCaption: 'mx-2.5 mb-2 mt-1.5 text-center font-sans text-xs italic text-ink-muted',
@@ -99,7 +135,7 @@ const noteCanvasUi = {
   imgExplanationEdit:
     'box-border w-full resize-y rounded-md border border-dashed border-indigo-500/35 bg-indigo-500/[0.05] px-2.5 py-2 font-sans text-[13px] leading-[1.6] text-ink-base outline-none placeholder:text-ink-muted placeholder:opacity-60 focus:border-indigo-500/60 focus:bg-indigo-500/[0.07] dark:border-violet-500/30 dark:bg-violet-500/[0.07]',
   sectionImageWrap: 'relative my-2 mb-1 min-w-0 rounded-lg border border-black/[0.06] bg-white/50 p-1 dark:border-white/10 dark:bg-white/[0.04]',
-  sectionImageWrapInline: 'm-0 flex-[0_0_42%]',
+  sectionImageWrapInline: 'm-0 flex-[0_0_42%] max-[640px]:w-full max-[640px]:flex-none',
   imageControlsBar: 'mt-[5px] flex flex-wrap items-center gap-1.5',
   imagePosButtons: 'flex flex-wrap gap-[3px]',
   imagePosButton:
@@ -109,55 +145,57 @@ const noteCanvasUi = {
   imageSmallButton:
     'cursor-pointer rounded-[5px] border-[1.5px] border-line-soft bg-surface-raised px-2 py-0.5 font-sans text-[11px] font-semibold text-ink-muted transition hover:bg-surface-glass-strong hover:text-ink-strong',
   imageDeleteButton: 'border-red-600/30 text-red-600 hover:bg-red-600/[0.08]',
-  sectionBody: 'px-3.5 pb-3 pt-2',
+  sectionBody: 'px-3.5 pb-3 pt-2 max-[520px]:px-2.5',
   sectionBodySplit: 'flex items-start gap-3 p-0',
-  sectionBodyLeft: 'flex items-start gap-3 p-0',
-  sectionBodyRight: 'flex items-start gap-3 p-0',
+  sectionBodyLeft: 'flex items-start gap-3 p-0 max-[640px]:flex-col',
+  sectionBodyRight: 'flex items-start gap-3 p-0 max-[640px]:flex-col',
   sectionTextCol: 'min-w-0 flex-1 py-2',
-  sectionHeading: 'flex items-center gap-2.5 px-3.5 pb-0 pt-3',
+  sectionHeading: 'flex items-center gap-2.5 px-3.5 pb-0 pt-3 max-[520px]:px-2.5',
   diagramIcon: 'size-[46px] shrink-0 drop-shadow-[0_0_6px_rgba(160,200,255,0.25)] [&_svg]:size-full',
   headingText:
-    "m-0 inline-flex w-fit max-w-full rounded-md px-2.5 py-0.5 font-['Plus_Jakarta_Sans',sans-serif] text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-900 dark:text-[#f0f4ff]",
+    "m-0 inline-flex w-fit max-w-full break-words rounded-md px-2.5 py-0.5 font-['Plus_Jakarta_Sans',sans-serif] text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-900 dark:text-[#f0f4ff]",
   sectionExtras: 'mt-1 flex flex-col gap-1.5',
   callout:
-    "flex items-start gap-2 rounded-lg border border-black/[0.05] bg-amber-50/70 px-3 py-2 font-['Patrick_Hand',cursive] text-[13px] leading-[1.5] text-slate-700 dark:!border-[rgba(180,200,255,0.18)] dark:bg-white/[0.055] dark:text-[#c8d8ff]",
+    "flex min-w-0 items-start gap-2 break-words rounded-lg border border-black/[0.05] bg-amber-50/70 px-3 py-2 font-['Patrick_Hand',cursive] text-[14.5px] leading-[1.52] text-slate-700 dark:!border-[rgba(180,200,255,0.18)] dark:bg-white/[0.055] dark:text-[#c8d8ff] max-[520px]:text-[15px]",
   calloutArrow: 'shrink-0 text-sm',
+  examTrapPill:
+    "inline-flex shrink-0 items-center rounded-full border border-red-400/25 bg-red-400/14 px-2 py-0.5 font-['Plus_Jakarta_Sans',sans-serif] text-[9.5px] font-extrabold uppercase tracking-[0.08em] text-red-600 dark:border-red-300/22 dark:bg-red-300/12 dark:text-red-200",
   mnemonic:
     'rotate-[-0.6deg] rounded-lg border-[1.5px] border-[rgba(180,130,0,0.3)] bg-[rgba(220,160,0,0.08)] px-3 py-2.5 dark:border-[rgba(255,210,0,0.35)] dark:bg-[rgba(100,70,0,0.35)] dark:shadow-[0_0_14px_rgba(255,210,0,0.08)]',
   mnemonicLabel: 'mb-[5px] text-[10px] font-extrabold uppercase tracking-[1.2px] text-amber-800 dark:text-[#ffe57a]',
   mnemonicText:
     "whitespace-pre-line font-['Patrick_Hand',cursive] text-[13px] leading-[1.55] text-amber-900 dark:text-[#fff0b0]",
   sticky:
-    'relative rotate-[-0.5deg] rounded-[4px_10px_10px_2px] border border-black/[0.06] px-3.5 py-2.5 pl-[18px] opacity-95 shadow-[0_3px_10px_rgba(91,64,35,0.10)] dark:border-white/10 dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)]',
+    'relative rounded-lg border border-black/[0.05] px-3 py-2 opacity-95 shadow-[0_3px_10px_rgba(91,64,35,0.06)] dark:!border-[rgba(180,200,255,0.18)] dark:bg-white/[0.055] dark:shadow-none',
   stickyPin:
     'absolute left-1/2 top-[-5px] size-2.5 -translate-x-1/2 rounded-full bg-white/30 shadow-[0_0_6px_rgba(255,255,255,0.2)]',
   stickyText:
-    "m-0 font-['Patrick_Hand',cursive] text-[13px] font-semibold leading-[1.5] text-slate-900 dark:font-bold dark:text-slate-900",
+    "m-0 font-['Patrick_Hand',cursive] text-[14.5px] font-semibold leading-[1.52] text-slate-700 dark:font-semibold dark:text-[#c8d8ff] max-[520px]:text-[15px]",
   keyPoints:
-    'mx-5 mb-3 mt-1 rounded-[14px] border border-[#f3c77f]/70 px-4 py-3.5 shadow-[0_2px_10px_rgba(91,64,35,0.055)] dark:border-white/[0.07] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)]',
+    'relative mx-5 mb-3 mt-1 overflow-hidden rounded-[14px] border border-[#f3c77f]/70 px-4 py-3.5 shadow-[0_2px_10px_rgba(91,64,35,0.055)] dark:border-white/[0.07] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)] max-[520px]:mx-2 max-[520px]:px-3',
   keyPointsLabel:
     "mb-2.5 flex items-center gap-1.5 font-['Patrick_Hand',cursive] text-[13px] font-bold uppercase tracking-[0.8px] text-slate-600 dark:text-[rgba(200,220,255,0.7)]",
   keyPointsList: 'flex flex-wrap gap-2',
   keyChip:
-    "rounded-lg border border-black/[0.05] px-3 py-1.5 font-['Patrick_Hand',cursive] text-[13px] font-bold text-slate-900 shadow-[0_1px_4px_rgba(91,64,35,0.08)] dark:text-[#e5ecff] dark:shadow-[0_2px_8px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.05)]",
+    "max-w-full break-words rounded-lg border border-black/[0.05] px-3 py-1.5 font-['Patrick_Hand',cursive] text-[14px] font-bold text-slate-900 shadow-[0_1px_4px_rgba(91,64,35,0.08)] dark:text-[#e5ecff] dark:shadow-[0_2px_8px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.05)] max-[520px]:text-[14.5px]",
   keyChipEdit: 'cursor-text focus:outline focus:outline-2 focus:outline-white/50',
   summary:
-    'mx-5 mb-5 rounded-[14px] border border-cyan-600/20 px-5 py-4 shadow-[0_2px_10px_rgba(91,64,35,0.055)] dark:border-white/10 dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)]',
+    'relative mx-5 mb-5 overflow-hidden rounded-[14px] border border-cyan-600/20 px-5 py-4 shadow-[0_2px_10px_rgba(91,64,35,0.055)] dark:border-white/10 dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] max-[520px]:mx-2 max-[520px]:px-3',
   summaryLabel:
     "mb-2 flex items-center gap-1.5 font-['Patrick_Hand',cursive] text-xs font-bold uppercase tracking-[0.8px] text-blue-700/65 dark:text-[rgba(150,180,255,0.7)]",
   footer:
     'border-t border-black/[0.06] px-[22px] py-2.5 text-right text-[10px] tracking-[0.3px] text-black/25 dark:border-t-white/[0.06] dark:text-white/20',
   toolbar:
-    'absolute right-3 top-3 z-[60] flex max-w-[760px] flex-wrap items-center gap-1.5 rounded-xl border border-line-soft bg-white/78 px-3 py-2 shadow-[0_12px_30px_rgba(15,23,42,0.10)] backdrop-blur-[14px] dark:bg-[rgba(15,20,36,0.76)] max-[820px]:left-3',
-  toolbarLabel: 'whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-muted',
-  toolbarDivider: 'h-[18px] w-px shrink-0 bg-line-soft',
-  toolbarButton: '!flex !items-center !gap-[5px] !whitespace-nowrap !px-2.5 !py-1 !text-xs',
+    'absolute right-3 top-3 z-[60] flex max-w-[760px] flex-wrap items-center gap-1.5 rounded-xl border border-line-soft bg-white/78 px-3 py-2 shadow-[0_12px_30px_rgba(15,23,42,0.10)] backdrop-blur-[14px] dark:border-[rgba(145,170,255,0.16)] dark:bg-[rgba(8,12,24,0.82)] dark:shadow-[0_16px_36px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] max-[820px]:left-3',
+  toolbarLabel: 'whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-muted dark:text-sky-100/58',
+  toolbarDivider: 'h-[18px] w-px shrink-0 bg-line-soft dark:bg-white/10',
+  toolbarButton: '!flex !items-center !gap-[5px] !whitespace-nowrap !px-2.5 !py-1 !text-xs dark:!border-[rgba(145,170,255,0.16)] dark:!bg-white/[0.06] dark:!text-slate-200 dark:hover:!border-sky-300/28 dark:hover:!bg-sky-300/12 dark:hover:!text-white',
   bgSwatch: 'inline-block size-3.5 shrink-0 rounded border-[1.5px] border-black/20',
   layoutToggle: 'flex items-center gap-[3px]',
   layoutButton:
-    'flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-[7px] border-[1.5px] border-line-soft bg-transparent px-[9px] py-1 font-sans text-[11px] font-semibold text-ink-muted transition hover:bg-surface-raised hover:text-ink-strong',
+    'flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-[7px] border-[1.5px] border-line-soft bg-transparent px-[9px] py-1 font-sans text-[11px] font-semibold text-ink-muted transition hover:bg-surface-raised hover:text-ink-strong active:scale-[0.97] dark:border-[rgba(145,170,255,0.16)] dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-sky-300/26 dark:hover:bg-sky-300/10 dark:hover:text-white',
   layoutButtonOn:
-    'border-[color-mix(in_srgb,var(--color-primary,#2563eb)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_12%,transparent)] text-primary',
+    'border-[color-mix(in_srgb,var(--color-primary,#2563eb)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_12%,transparent)] text-primary dark:!border-sky-300/36 dark:!bg-sky-300/14 dark:!text-sky-100',
   popup:
     'absolute left-0 top-[calc(100%+6px)] z-[300] rounded-[14px] border border-line-soft bg-surface-1 p-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.13)] dark:border-white/[0.08] dark:bg-[#111827]',
   stickerPicker: 'grid w-[228px] grid-cols-6 gap-[5px]',
@@ -187,9 +225,35 @@ const noteCanvasUi = {
     "inline-flex items-center gap-1.5 rounded-lg border border-slate-300/60 bg-white/60 px-2.5 py-1 font-['Plus_Jakarta_Sans',sans-serif] text-[11px] font-semibold text-slate-600 backdrop-blur-sm transition hover:bg-white hover:text-slate-900 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
   focusBtnOn:
     '!border-violet-400/50 !bg-violet-100/90 !text-violet-700 dark:!border-violet-400/30 dark:!bg-violet-500/15 dark:!text-violet-200',
+  lightboxBackdrop:
+    'ncv-lightbox-backdrop fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/86 p-3 backdrop-blur-xl touch-none',
+  lightboxPanel:
+    'ncv-lightbox-panel flex h-full max-h-[96dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-slate-950/82 shadow-[0_30px_90px_rgba(0,0,0,0.48)]',
+  lightboxTopbar:
+    'flex min-h-[58px] items-center justify-between gap-3 border-b border-white/10 px-3.5 py-2.5 font-sans text-white max-[640px]:flex-col max-[640px]:items-stretch',
+  lightboxTitle:
+    'min-w-0 flex-1',
+  lightboxCaption:
+    'truncate text-[13px] font-extrabold leading-snug',
+  lightboxMeta:
+    'mt-0.5 text-[11px] font-semibold text-white/56',
+  lightboxActions:
+    'flex shrink-0 flex-wrap items-center justify-end gap-1.5 max-[640px]:justify-start',
+  lightboxButton:
+    'inline-flex min-h-[36px] cursor-pointer items-center justify-center rounded-lg border border-white/12 bg-white/[0.065] px-3 font-sans text-[12px] font-extrabold text-white/86 transition hover:bg-white/[0.12] hover:text-white active:scale-[0.97]',
+  lightboxIconButton:
+    'inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/12 bg-white/[0.065] p-0 font-sans text-[17px] font-extrabold text-white/86 transition hover:bg-white/[0.12] hover:text-white active:scale-[0.97]',
+  lightboxViewport:
+    'relative flex min-h-0 flex-1 cursor-grab items-center justify-center overflow-hidden bg-slate-950 p-4 touch-none active:cursor-grabbing',
+  lightboxImage:
+    'max-h-full max-w-full select-none rounded-lg object-contain shadow-[0_18px_60px_rgba(0,0,0,0.38)] transition-transform duration-200 ease-out',
 };
 
 const DEFAULT_HIGHLIGHT_COLORS = ['#FBBF24', '#60A5FA', '#34D399', '#F472B6', '#A78BFA', '#22D3EE', '#FB7185', '#FDBA74'];
+const IMAGE_FIT_OPTIONS = [
+  { key: 'contain', label: 'Fit' },
+  { key: 'cover', label: 'Crop' },
+];
 
 function isHexColor(value) {
   return /^#[0-9a-f]{6}$/i.test(String(value || '').trim());
@@ -208,17 +272,314 @@ function getHighlightPalette(colors, accentColor) {
   return Array.from(new Set(palette.map(color => color.toUpperCase())));
 }
 
-function highlightMarkStyle(color) {
+function highlightMarkStyle(color, theme) {
+  const isDark = theme === 'dark';
   return {
-    backgroundColor: colorWithAlpha(color, '42'),
-    boxShadow: `inset 0 -1px 0 ${colorWithAlpha(color, 'B0')}`,
+    backgroundColor: colorWithAlpha(color, isDark ? '56' : '3A'),
+    color: isDark ? '#f8fbff' : '#0f172a',
+    boxShadow: 'none',
+    textDecoration: 'none',
+    textShadow: isDark ? '0 1px 0 rgba(0,0,0,0.24)' : 'none',
   };
+}
+
+function ExpandImageIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M7.5 3.5H3.5v4M12.5 3.5h4v4M7.5 16.5H3.5v-4M12.5 16.5h4v-4" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M8 8L4 4M12 8l4-4M8 12l-4 4M12 12l4 4" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function splitExamTrap(text) {
+  const raw = String(text || '').trim();
+  const match = raw.match(/^\[?\s*(exam\s*trap|trap|warning)\s*\]?\s*[:\-]?\s*/i);
+  if (!match) return { isExamTrap: false, text: raw };
+  return { isExamTrap: true, text: raw.slice(match[0].length).trim() };
+}
+
+function CalloutContent({ text, accentColor, highlightColors, highlightIndex }) {
+  const parsed = splitExamTrap(text);
+  return (
+    <span className="min-w-0">
+      {parsed.isExamTrap && <span className={noteCanvasUi.examTrapPill}>Exam Trap</span>}
+      {parsed.isExamTrap && parsed.text ? ' ' : null}
+      <RichText text={parsed.text || text} accentColor={accentColor} highlightColors={highlightColors} highlightIndex={highlightIndex}/>
+    </span>
+  );
+}
+
+function MedicalIconSvg({ type = 0 }) {
+  const variant = Math.abs(Number(type) || 0) % 6;
+  if (variant === 0) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 12h3l2-5 4 10 2-5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M5.5 6.5C7.7 4.2 10.6 4.8 12 7c1.4-2.2 4.3-2.8 6.5-.5 2.3 2.4 1.4 6.4-6.5 11.1-7.9-4.7-8.8-8.7-6.5-11.1z" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round" opacity="0.48"/>
+      </svg>
+    );
+  }
+  if (variant === 1) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="17" cy="17" r="3" stroke="currentColor" strokeWidth="1.7"/>
+        <path d="M5 4v6a6 6 0 0 0 12 0V4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+        <path d="M4 4h3M17 4h3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+      </svg>
+    );
+  }
+  if (variant === 2) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <rect x="4" y="4" width="16" height="16" rx="5" stroke="currentColor" strokeWidth="1.4" opacity="0.48"/>
+      </svg>
+    );
+  }
+  if (variant === 3) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="4" y="10" width="16" height="7" rx="3.5" transform="rotate(-35 4 10)" stroke="currentColor" strokeWidth="1.7"/>
+        <path d="M11.5 7.2l4.1 5.8" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" opacity="0.55"/>
+      </svg>
+    );
+  }
+  if (variant === 4) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M9 4h6M12 4v5l5 8.5A2.3 2.3 0 0 1 15 21H9a2.3 2.3 0 0 1-2-3.5L12 9V4z" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M8.4 16h7.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.52"/>
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M8 18h8M12 15v3M9 15h6l1.5-7h-9L9 15z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M10 8V5h4v3M8 21h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function MedicalMiniIcon({ index = 0, color = '#60A5FA', theme }) {
+  return (
+    <span
+      className={noteCanvasUi.cardMedicalIcon}
+      style={{
+        color,
+        borderColor: colorWithAlpha(color, '55'),
+        background: theme === 'dark' ? colorWithAlpha(color, '16') : colorWithAlpha(color, '12'),
+      }}
+    >
+      <MedicalIconSvg type={index} />
+    </span>
+  );
+}
+
+function normalizeImageFit(value) {
+  return value === 'cover' ? 'cover' : 'contain';
+}
+
+function imageSurfaceStyle(theme) {
+  return {
+    background: theme === 'dark'
+      ? 'linear-gradient(135deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02))'
+      : 'linear-gradient(135deg, rgba(248,250,252,0.96), rgba(239,246,255,0.62))',
+  };
+}
+
+function imageAspectRatio(source) {
+  const imageWidth = Number(source?.imageWidth) || 0;
+  const imageHeight = Number(source?.imageHeight) || 0;
+  return imageWidth > 0 && imageHeight > 0 ? `${imageWidth} / ${imageHeight}` : undefined;
+}
+
+function responsiveImageStyle(source, requestedHeight, editable, imageFit, borderRadius) {
+  return {
+    display: 'block',
+    width: '100%',
+    height: editable ? Math.max(80, Number(requestedHeight) || 200) : 'auto',
+    aspectRatio: editable ? undefined : imageAspectRatio(source),
+    objectFit: editable ? imageFit : 'contain',
+    borderRadius,
+  };
+}
+
+function ImageFitControls({ value, onChange, floating = false }) {
+  const current = normalizeImageFit(value);
+  return (
+    <div className={cx(noteCanvasUi.imageFitBar, floating && noteCanvasUi.imageFitOverlay)}>
+      <span className={cx(noteCanvasUi.imageFitLabel, floating && noteCanvasUi.imageFitLabelOverlay)}>Image display</span>
+      <div className={cx(noteCanvasUi.imageFitToggle, floating && noteCanvasUi.imageFitToggleOverlay)} role="group" aria-label="Image display mode">
+        {IMAGE_FIT_OPTIONS.map(option => (
+          <button
+            key={option.key}
+            type="button"
+            className={cx(noteCanvasUi.imageFitButton, floating && noteCanvasUi.imageFitButtonOverlay, current === option.key && noteCanvasUi.imageFitButtonOn)}
+            onClick={() => onChange(option.key)}
+            aria-pressed={current === option.key}
+            title={option.key === 'contain' ? 'Show the whole image' : 'Crop image to fill the block'}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ImageLightbox({ image, onClose }) {
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const pointersRef = useRef(new Map());
+  const panRef = useRef(null);
+  const pinchRef = useRef(null);
+
+  function applyScale(updater) {
+    setScale(current => {
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      const clamped = Math.max(1, Math.min(4, Number(next.toFixed?.(2) ?? next)));
+      if (clamped === 1) setOffset({ x: 0, y: 0 });
+      return clamped;
+    });
+  }
+
+  function pointerDistance(points) {
+    const [a, b] = points;
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  }
+
+  function onPointerDown(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    pointersRef.current.set(event.pointerId, event);
+    const points = Array.from(pointersRef.current.values());
+    if (points.length === 2) {
+      pinchRef.current = { distance: pointerDistance(points), scale };
+      panRef.current = null;
+      return;
+    }
+    if (scale > 1) {
+      panRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        offsetX: offset.x,
+        offsetY: offset.y,
+      };
+    }
+  }
+
+  function onPointerMove(event) {
+    if (!pointersRef.current.has(event.pointerId)) return;
+    event.preventDefault();
+    pointersRef.current.set(event.pointerId, event);
+    const points = Array.from(pointersRef.current.values());
+    if (points.length === 2 && pinchRef.current) {
+      const nextScale = pinchRef.current.scale * (pointerDistance(points) / Math.max(1, pinchRef.current.distance));
+      applyScale(nextScale);
+      return;
+    }
+    if (panRef.current?.pointerId === event.pointerId && scale > 1) {
+      setOffset({
+        x: panRef.current.offsetX + event.clientX - panRef.current.startX,
+        y: panRef.current.offsetY + event.clientY - panRef.current.startY,
+      });
+    }
+  }
+
+  function onPointerEnd(event) {
+    pointersRef.current.delete(event.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (panRef.current?.pointerId === event.pointerId) panRef.current = null;
+  }
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key === 'Escape') onClose();
+      if (event.key === '+' || event.key === '=') applyScale(current => current + 0.25);
+      if (event.key === '-') applyScale(current => current - 0.25);
+      if (event.key === '0') applyScale(1);
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [onClose]);
+
+  if (!image?.src || typeof document === 'undefined') return null;
+
+  const caption = image.caption || 'Lesson image';
+  const meta = scale > 1 ? `${Math.round(scale * 100)}% zoom` : 'Fit to screen';
+
+  return createPortal(
+    <div
+      className={noteCanvasUi.lightboxBackdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image viewer"
+      onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}
+    >
+      <div className={noteCanvasUi.lightboxPanel}>
+        <div className={noteCanvasUi.lightboxTopbar}>
+          <div className={noteCanvasUi.lightboxTitle}>
+            <div className={noteCanvasUi.lightboxCaption}>{caption}</div>
+            <div className={noteCanvasUi.lightboxMeta}>{meta}</div>
+          </div>
+          <div className={noteCanvasUi.lightboxActions}>
+            <button type="button" className={noteCanvasUi.lightboxButton} onClick={() => applyScale(current => current - 0.25)}>
+              Zoom out
+            </button>
+            <button type="button" className={noteCanvasUi.lightboxButton} onClick={() => applyScale(1)}>
+              Reset
+            </button>
+            <button type="button" className={noteCanvasUi.lightboxButton} onClick={() => applyScale(current => current + 0.25)}>
+              Zoom in
+            </button>
+            <button type="button" className={noteCanvasUi.lightboxIconButton} onClick={onClose} aria-label="Close image viewer">
+              ×
+            </button>
+          </div>
+        </div>
+        <div
+          className={noteCanvasUi.lightboxViewport}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerEnd}
+          onDoubleClick={event => {
+            event.preventDefault();
+            applyScale(scale > 1 ? 1 : 2.25);
+          }}
+        >
+          <img
+            src={image.src}
+            alt={caption}
+            className={noteCanvasUi.lightboxImage}
+            style={{
+              transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,
+              maxWidth: '100%',
+              maxHeight: '100%',
+              transformOrigin: 'center',
+            }}
+            draggable={false}
+          />
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 /* ══════════════════════════════════════════════════════════════
    RICH TEXT — ==highlight== and **bold**
 ══════════════════════════════════════════════════════════════ */
 function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
+  const theme = useThemeStore(s => s.theme);
   if (!text) return null;
   const markColors = getHighlightPalette(highlightColors, accentColor);
   const parts = [];
@@ -232,7 +593,7 @@ function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
       const e = s.indexOf('==', 2); if (e === -1) { parts.push(s); break; }
       const color = markColors[(highlightIndex + markIndex) % markColors.length];
       markIndex += 1;
-      parts.push(<mark key={k++} className={noteCanvasUi.highlight} style={highlightMarkStyle(color)}>{s.slice(2, e)}</mark>); s = s.slice(e + 2);
+      parts.push(<mark key={k++} className={noteCanvasUi.highlight} style={highlightMarkStyle(color, theme)}>{s.slice(2, e)}</mark>); s = s.slice(e + 2);
     } else {
       const e = s.indexOf('**', 2); if (e === -1) { parts.push(s); break; }
       parts.push(<strong key={k++} className={noteCanvasUi.boldTerm}>{s.slice(2, e)}</strong>); s = s.slice(e + 2);
@@ -271,7 +632,7 @@ function BulletList({ bullets, accentColor, highlightColors }) {
             {sub
               ? <span className={noteCanvasUi.subArrow} style={{ color: accentColor }}>↳</span>
               : <span className={noteCanvasUi.bulletDot} style={{ background: accentColor }}/>}
-            <span><RichText text={sub ? b.replace(/^→\s*/, '') : b} accentColor={accentColor} highlightColors={highlightColors} highlightIndex={i}/></span>
+            <span className="min-w-0 break-words"><RichText text={sub ? b.replace(/^→\s*/, '') : b} accentColor={accentColor} highlightColors={highlightColors} highlightIndex={i}/></span>
           </li>
         );
       })}
@@ -298,7 +659,7 @@ function CheckableBullet({ bulletKey, text, isSub, accentColor, highlightColors,
               transition: 'background 0.2s, box-shadow 0.2s',
             }}
           />}
-      <span style={{ textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.42 : 1, transition: 'opacity 0.2s, text-decoration 0.1s' }}>
+      <span style={{ minWidth: 0, overflowWrap: 'anywhere', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.42 : 1, transition: 'opacity 0.2s, text-decoration 0.1s' }}>
         <RichText text={text} accentColor={accentColor} highlightColors={highlightColors} highlightIndex={highlightIndex}/>
       </span>
       {done && <span style={{ marginLeft: 5, fontSize: 11, color: '#10b981', flexShrink: 0, lineHeight: 1 }}>✓</span>}
@@ -425,20 +786,21 @@ function BulletEditor({ bullets = [], accentColor, onChange }) {
 }
 
 function canvasCardBackground(accentColor, theme) {
-  const surface = theme === 'dark' ? 'rgba(255,255,255,0.045)' : 'rgba(255,255,255,0.76)';
-  const topFade = theme === 'dark' ? '18' : '10';
-  const cornerFade = theme === 'dark' ? '22' : '14';
+  const surface = theme === 'dark' ? 'rgba(10,16,30,0.76)' : 'rgba(255,255,255,0.76)';
+  const topFade = theme === 'dark' ? '24' : '10';
+  const cornerFade = theme === 'dark' ? '30' : '14';
   return [
     `radial-gradient(circle at 100% 100%, ${accentColor}${cornerFade} 0%, transparent 42%)`,
+    theme === 'dark' ? 'radial-gradient(circle at 0% 0%, rgba(125,170,255,0.08) 0%, transparent 42%)' : '',
     `linear-gradient(135deg, ${accentColor}${topFade} 0%, transparent 58%)`,
     surface,
-  ].join(', ');
+  ].filter(Boolean).join(', ');
 }
 
 function dottedCardBackground(accentColor, theme, surface) {
-  const topFade = theme === 'dark' ? '18' : '10';
-  const cornerFade = theme === 'dark' ? '22' : '14';
-  const dotColor = theme === 'dark' ? 'rgba(255,255,255,0.055)' : 'rgba(87,69,39,0.045)';
+  const topFade = theme === 'dark' ? '24' : '10';
+  const cornerFade = theme === 'dark' ? '30' : '14';
+  const dotColor = theme === 'dark' ? 'rgba(190,210,255,0.06)' : 'rgba(87,69,39,0.045)';
   return [
     `radial-gradient(circle at 100% 100%, ${accentColor}${cornerFade} 0%, transparent 42%)`,
     `linear-gradient(135deg, ${accentColor}${topFade} 0%, transparent 58%)`,
@@ -465,7 +827,7 @@ function SummaryFragments({ text, highlightColors, accentColor }) {
    COLORS
 ══════════════════════════════════════════════════════════════ */
 const DARK_COLORS  = ['#7EB8FF','#FFE082','#FF8A80','#80CBC4','#CE93D8','#FFCC80'];
-const LIGHT_COLORS = ['#2563EB','#D97706','#DC2626','#059669','#7C3AED','#0891B2'];
+const LIGHT_COLORS = ['#2563EB','#D97706','#DC2626','#0EA5E9','#7C3AED','#60A5FA'];
 
 function normalizeVisualStyleColors(raw) {
   return Array.isArray(raw)
@@ -474,7 +836,7 @@ function normalizeVisualStyleColors(raw) {
 }
 
 const PALETTE = [
-  '#2563EB','#DC2626','#059669','#D97706','#7C3AED','#0891B2',
+  '#2563EB','#DC2626','#0EA5E9','#D97706','#7C3AED','#60A5FA',
   '#DB2777','#EA580C','#16A34A','#CA8A04',
   '#A7D8FF','#FFE082','#FF8A80','#80CBC4','#CE93D8',
   '#FFCC80','#F48FB1','#80DEEA','#A5D6A7','#FFE0B2',
@@ -717,6 +1079,31 @@ function useElementWidth() {
   return [ref, width];
 }
 
+function useViewportWidth() {
+  const [width, setWidth] = useState(() => (
+    typeof window === 'undefined' ? 1024 : window.innerWidth
+  ));
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    let frame = 0;
+    const update = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => setWidth(window.innerWidth));
+    };
+    update();
+    window.addEventListener('resize', update, { passive: true });
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, []);
+
+  return width;
+}
+
 /* ══════════════════════════════════════════════════════════════
    STICKERS
 ══════════════════════════════════════════════════════════════ */
@@ -813,7 +1200,7 @@ function ColorPickerPopup({ current, onSelect, onClose }) {
 /* ══════════════════════════════════════════════════════════════
    IMAGE SECTION CARD  (plain image — lives in the grid)
 ══════════════════════════════════════════════════════════════ */
-function ImageSectionCard({ section, index, totalSections, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onReplaceRequest, theme }) {
+function ImageSectionCard({ section, index, totalSections, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onReplaceRequest, onOpenImage, theme }) {
   const resizeDrag = useRef(null);
   const [cardRef, cardWidth] = useElementWidth();
 
@@ -839,6 +1226,8 @@ function ImageSectionCard({ section, index, totalSections, editable, onSectionCh
   const imgHeight   = section.height || 200;
   const sizeLabel   = imageSizeLabel(section, imgHeight);
   const layoutSizeLabel = cardWidth ? `${cardWidth}x${imgHeight} px` : `${imgHeight}px high`;
+  const imageFit = normalizeImageFit(section.imageFit);
+  const imageRadius = editable ? 0 : 8;
 
   return (
     <div
@@ -849,6 +1238,7 @@ function ImageSectionCard({ section, index, totalSections, editable, onSectionCh
         background: canvasCardBackground('#2563eb', theme),
       }}
     >
+      {!editable && <MedicalMiniIcon index={index} color="#60A5FA" theme={theme} />}
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -871,14 +1261,28 @@ function ImageSectionCard({ section, index, totalSections, editable, onSectionCh
 
       {section.src ? (
         <div style={{ position:'relative', overflow:'hidden' }}>
-          <img src={section.src} alt={section.caption || ''}
-            style={{ display:'block', width:'100%', height: imgHeight, objectFit:'cover', borderRadius: editable ? 0 : 8 }}
-            loading="lazy"
-            decoding="async"
-            draggable={false}/>
-          {sizeLabel && <span className={noteCanvasUi.imageSizePill}>{sizeLabel}</span>}
+          <button
+            type="button"
+            className={noteCanvasUi.imageOpenButton}
+            onClick={() => onOpenImage?.({ src: section.src, caption: section.caption, sizeLabel: editable ? sizeLabel : '' })}
+            title="Open image"
+            style={{ borderRadius: imageRadius, ...imageSurfaceStyle(theme) }}
+          >
+            <img src={section.src} alt={section.caption || ''}
+              width={section.imageWidth || undefined}
+              height={section.imageHeight || undefined}
+              style={responsiveImageStyle(section, imgHeight, editable, imageFit, imageRadius)}
+              loading="lazy"
+              decoding="async"
+              draggable={false}/>
+            {!editable && <span className={noteCanvasUi.imageExpandHint}><ExpandImageIcon /></span>}
+            {editable && sizeLabel && <span className={noteCanvasUi.imageSizePill}>{sizeLabel}</span>}
+          </button>
           {editable && (
-            <div className={noteCanvasUi.resizeHandle} onPointerDown={onResizeDown} title="Drag to resize height"><span/></div>
+            <>
+              <ImageFitControls value={section.imageFit} onChange={v => onSectionChange('imageFit', v)} floating />
+              <div className={noteCanvasUi.resizeHandle} onPointerDown={onResizeDown} title="Drag to resize height"><span/></div>
+            </>
           )}
         </div>
       ) : (
@@ -895,9 +1299,11 @@ function ImageSectionCard({ section, index, totalSections, editable, onSectionCh
       )}
 
       {editable ? (
-        <EField value={section.caption} onChange={v => onSectionChange('caption', v)}
-          placeholder="Caption (optional)…"
-          style={{ margin:'6px 10px', fontSize:12, color:'var(--ink-muted)', fontFamily:'inherit' }}/>
+        <>
+          <EField value={section.caption} onChange={v => onSectionChange('caption', v)}
+            placeholder="Caption (optional)…"
+            style={{ margin:'6px 10px', fontSize:12, color:'var(--ink-muted)', fontFamily:'inherit' }}/>
+        </>
       ) : (
         section.caption && <p className={noteCanvasUi.imageCaption}>{section.caption}</p>
       )}
@@ -909,7 +1315,7 @@ function ImageSectionCard({ section, index, totalSections, editable, onSectionCh
    IMAGE + EXPLANATION SECTION CARD
    Full-width block: image on top, detailed explanation below.
 ══════════════════════════════════════════════════════════════ */
-function ImageExplainedSectionCard({ section, index, totalSections, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onReplaceRequest, theme }) {
+function ImageExplainedSectionCard({ section, index, totalSections, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onReplaceRequest, onOpenImage, theme }) {
   const resizeDrag  = useRef(null);
   const [colorOpen, setColorOpen] = useState(false);
   const [cardRef, cardWidth] = useElementWidth();
@@ -937,6 +1343,8 @@ function ImageExplainedSectionCard({ section, index, totalSections, editable, on
   const accentColor  = section.accentColor || '#2563EB';
   const sizeLabel    = imageSizeLabel(section, imgHeight);
   const layoutSizeLabel = cardWidth ? `${cardWidth}x${imgHeight} px` : `${imgHeight}px high`;
+  const imageFit = normalizeImageFit(section.imageFit);
+  const imageRadius = editable ? 0 : '6px 6px 0 0';
 
   return (
     <div
@@ -948,6 +1356,7 @@ function ImageExplainedSectionCard({ section, index, totalSections, editable, on
       }}
     >
 
+      {!editable && <MedicalMiniIcon index={index + 2} color={accentColor} theme={theme} />}
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -979,14 +1388,28 @@ function ImageExplainedSectionCard({ section, index, totalSections, editable, on
       {/* ── Image ── */}
       {section.src ? (
         <div style={{ position:'relative', overflow:'hidden' }}>
-          <img src={section.src} alt={section.caption || 'Figure'}
-            style={{ display:'block', width:'100%', height: imgHeight, objectFit:'cover', borderRadius: editable ? 0 : '6px 6px 0 0' }}
-            loading="lazy"
-            decoding="async"
-            draggable={false}/>
-          {sizeLabel && <span className={noteCanvasUi.imageSizePill}>{sizeLabel}</span>}
+          <button
+            type="button"
+            className={noteCanvasUi.imageOpenButton}
+            onClick={() => onOpenImage?.({ src: section.src, caption: section.caption || 'Figure', sizeLabel: editable ? sizeLabel : '' })}
+            title="Open image"
+            style={{ borderRadius: imageRadius, ...imageSurfaceStyle(theme) }}
+          >
+            <img src={section.src} alt={section.caption || 'Figure'}
+              width={section.imageWidth || undefined}
+              height={section.imageHeight || undefined}
+              style={responsiveImageStyle(section, imgHeight, editable, imageFit, imageRadius)}
+              loading="lazy"
+              decoding="async"
+              draggable={false}/>
+            {!editable && <span className={noteCanvasUi.imageExpandHint}><ExpandImageIcon /></span>}
+            {editable && sizeLabel && <span className={noteCanvasUi.imageSizePill}>{sizeLabel}</span>}
+          </button>
           {editable && (
-            <div className={noteCanvasUi.resizeHandle} onPointerDown={onResizeDown} title="Drag to resize height"><span/></div>
+            <>
+              <ImageFitControls value={section.imageFit} onChange={v => onSectionChange('imageFit', v)} floating />
+              <div className={noteCanvasUi.resizeHandle} onPointerDown={onResizeDown} title="Drag to resize height"><span/></div>
+            </>
           )}
         </div>
       ) : (
@@ -1056,7 +1479,7 @@ const IMG_POSITIONS = [
   { key:'right',  label:'Right', icon:'→' },
 ];
 
-function SectionInlineImage({ image, editable, onChange, onAddRequest, inline }) {
+function SectionInlineImage({ image, editable, onChange, onAddRequest, onOpenImage, inline, theme }) {
   const resizeDrag = useRef(null);
 
   function onResizeDown(e) {
@@ -1079,23 +1502,41 @@ function SectionInlineImage({ image, editable, onChange, onAddRequest, inline })
   const h   = image?.height || 180;
   const pos = image?.position || 'bottom';
   const sizeLabel = imageSizeLabel(image, h);
+  const imageFit = normalizeImageFit(image?.imageFit);
+  const imageRadius = 8;
 
   if (!image?.src) return null;
 
   return (
-    <div className={cx(noteCanvasUi.sectionImageWrap, inline && noteCanvasUi.sectionImageWrapInline)}>
-      <div style={{ position:'relative', overflow:'hidden', borderRadius:6 }}>
-        <img
-          src={image.src}
-          alt={image.caption || ''}
-          style={{ display:'block', width:'100%', height:h, objectFit:'cover', borderRadius:6 }}
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-        />
-        {sizeLabel && <span className={noteCanvasUi.imageSizePill}>{sizeLabel}</span>}
+    <div
+      className={cx(noteCanvasUi.sectionImageWrap, inline && noteCanvasUi.sectionImageWrapInline)}
+    >
+      <div style={{ position:'relative', overflow:'hidden', borderRadius:imageRadius }}>
+        <button
+          type="button"
+          className={noteCanvasUi.imageOpenButton}
+          onClick={() => onOpenImage?.({ src: image.src, caption: image.caption, sizeLabel: editable ? sizeLabel : '' })}
+          title="Open image"
+          style={{ borderRadius:imageRadius, ...imageSurfaceStyle(theme) }}
+        >
+          <img
+            src={image.src}
+            alt={image.caption || ''}
+            width={image.imageWidth || undefined}
+            height={image.imageHeight || undefined}
+            style={responsiveImageStyle(image, h, editable, imageFit, imageRadius)}
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+          />
+          {!editable && <span className={noteCanvasUi.imageExpandHint}><ExpandImageIcon /></span>}
+          {editable && sizeLabel && <span className={noteCanvasUi.imageSizePill}>{sizeLabel}</span>}
+        </button>
         {editable && (
-          <div className={noteCanvasUi.resizeHandle} onPointerDown={onResizeDown} title="Drag to resize height"><span/></div>
+          <>
+            <ImageFitControls value={image.imageFit} onChange={v => onChange({ ...image, imageFit: v })} floating />
+            <div className={noteCanvasUi.resizeHandle} onPointerDown={onResizeDown} title="Drag to resize height"><span/></div>
+          </>
         )}
       </div>
 
@@ -1206,7 +1647,7 @@ function MasonryItem({ children, span = 'half', columns = 2, editable = false, i
 /* ══════════════════════════════════════════════════════════════
    TEXT SECTION CARD
 ══════════════════════════════════════════════════════════════ */
-function SectionCard({ section, colorIndex, totalSections, colors, highlightColors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onAddImageRequest, theme }) {
+function SectionCard({ section, colorIndex, totalSections, colors, highlightColors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, onAddImageRequest, onOpenImage, theme }) {
   const [colorOpen, setColorOpen] = useState(false);
   const resizeDrag = useRef(null);
   const baseColor    = colors[colorIndex % colors.length] || '#A7D8FF';
@@ -1244,6 +1685,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
         background: canvasCardBackground(accentColor, theme),
       }}
     >
+      {!editable && <MedicalMiniIcon index={colorIndex + 1} color={accentColor} theme={theme} />}
       {editable && (
         <div className={noteCanvasUi.sectionActions}>
           <div style={{ display:'flex', gap:3 }}>
@@ -1313,12 +1755,14 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
             editable={editable}
             onChange={img => onSectionChange('sectionImage', img)}
             onAddRequest={onAddImageRequest}
+            onOpenImage={onOpenImage}
             inline={isLR}
+            theme={theme}
           />
         );
 
         const textEl = (
-          <div className={isLR ? noteCanvasUi.sectionTextCol : undefined}>
+          <div className={isLR ? noteCanvasUi.sectionTextCol : 'min-w-0'}>
             {editable ? (
               <BulletEditor
                 bullets={section.bullets}
@@ -1334,7 +1778,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
                   <span className={noteCanvasUi.calloutArrow}>⚡</span>
                   {editable
                     ? <EField value={section.callout} onChange={v => onSectionChange('callout', v)} placeholder="Callout / EXAM TRAP…" style={{ flex:1 }}/>
-                    : <span><RichText text={section.callout} accentColor={accentColor} highlightColors={richColors} highlightIndex={colorIndex}/></span>}
+                    : <CalloutContent text={section.callout} accentColor={accentColor} highlightColors={richColors} highlightIndex={colorIndex}/>}
                 </div>
               )}
               {section.mnemonic && (
@@ -1346,7 +1790,13 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
                 </div>
               )}
               {section.sticky_note && (
-                <div className={noteCanvasUi.sticky} style={{ background: accentColor + (theme === 'dark' ? '44' : '22') }}>
+                <div
+                  className={noteCanvasUi.sticky}
+                  style={{
+                    borderColor: accentColor + (theme === 'dark' ? '66' : 'cc'),
+                    background: theme === 'dark' ? 'rgba(255,255,255,0.055)' : accentColor + '14',
+                  }}
+                >
                   <div className={noteCanvasUi.stickyPin}/>
                   {editable
                     ? <EArea value={section.sticky_note} onChange={v => onSectionChange('sticky_note', v)} placeholder="Sticky note…" className={noteCanvasUi.stickyText} style={{ background:'transparent' }}/>
@@ -1566,12 +2016,16 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   const highlightColors = normalizeVisualStyleColors(data?.visual_style?.colors);
   const sections = data.sections || [];
   const layout = data.layout || '2col';
-  const columnCount = layout === '1col' ? 1 : layout === '3col' ? 3 : 2;
+  const firstTextSectionIndex = sections.findIndex(section => section.type !== 'image' && section.type !== 'image-explained');
+  const viewportWidth = useViewportWidth();
+  const isMobileCanvas = viewportWidth <= 700;
+  const columnCount = isMobileCanvas ? 1 : layout === '1col' ? 1 : layout === '3col' ? 3 : 2;
 
   const [selectedSticker, setSelectedSticker] = useState(null);
   const [compressing,     setCompressing]     = useState(false);
   const [draggingIndex,   setDraggingIndex]   = useState(null);
   const [focusMode,       setFocusMode]       = useState(false);
+  const [lightboxImage,   setLightboxImage]   = useState(null);
 
   /* Hidden file inputs */
   const addImgRef      = useRef(null);
@@ -1612,17 +2066,22 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
     const kp = [...(data.key_points || [])]; kp[idx] = value; patch({ key_points: kp });
   }
 
+  function openImageLightbox(image) {
+    if (!image?.src) return;
+    setLightboxImage(image);
+  }
+
   /* ── section management ────────────────────────────────── */
   function addTextSection() {
     patch({ sections: [...sections, { heading:'New Section', bullets:['Enter your content here'], callout:'', mnemonic:'', sticky_note:'' }] });
   }
 
   function addImageSection(src = '', meta = {}) {
-    patch({ sections: [...sections, { type:'image', src, caption:'', span:'half', height:200, ...meta }] });
+    patch({ sections: [...sections, { type:'image', src, caption:'', span:'half', height:200, imageFit:'contain', ...meta }] });
   }
 
   function addImageExplainedSection(src = '', meta = {}) {
-    patch({ sections: [...sections, { type:'image-explained', src, caption:'', explanation:'', span:'full', height:220, accentColor:'', ...meta }] });
+    patch({ sections: [...sections, { type:'image-explained', src, caption:'', explanation:'', span:'full', height:220, accentColor:'', imageFit:'contain', ...meta }] });
   }
 
   function deleteSection(idx) {
@@ -1757,10 +2216,10 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
     setCompressing(true);
     try {
       const image = await compressImage(file);
-      patchSection(idx, 'sectionImage', { src: image.src, imageWidth: image.imageWidth, imageHeight: image.imageHeight, caption: sections[idx]?.sectionImage?.caption || '', height: sections[idx]?.sectionImage?.height || 180 });
+      patchSection(idx, 'sectionImage', { src: image.src, imageWidth: image.imageWidth, imageHeight: image.imageHeight, caption: sections[idx]?.sectionImage?.caption || '', height: sections[idx]?.sectionImage?.height || 180, imageFit: sections[idx]?.sectionImage?.imageFit || 'contain' });
     } catch {
       const image = await readFileAsImage(file);
-      patchSection(idx, 'sectionImage', { src: image.src, imageWidth: image.imageWidth, imageHeight: image.imageHeight, caption: '', height: 180 });
+      patchSection(idx, 'sectionImage', { src: image.src, imageWidth: image.imageWidth, imageHeight: image.imageHeight, caption: '', height: 180, imageFit: 'contain' });
     } finally {
       sectImgIdxRef.current = null;
       setCompressing(false);
@@ -1845,18 +2304,18 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
           </button>
         )}
 
-        <div className={noteCanvasUi.overviewWrap}>
-          <div className={noteCanvasUi.overviewBadge}>Lesson Structure Overview</div>
-        </div>
-
         <div className={noteCanvasUi.header}>
           <div className={noteCanvasUi.headerInner}>
             <div className={noteCanvasUi.titleCluster}>
               <div className={noteCanvasUi.titleRow}>
-                <span className={noteCanvasUi.leafMark}>🍃</span>
+                {editable && <span className={noteCanvasUi.leafMark}>🍃</span>}
                 {editable
                   ? <EField value={data.title} onChange={v => patch({ title:v })} placeholder="Lesson title…" className={noteCanvasUi.title}/>
-                  : <h1 className={noteCanvasUi.title}>{data.title}</h1>}
+                  : (
+                    <h1 className={cx(noteCanvasUi.title, noteCanvasUi.titleReadOnly)}>
+                      <span>{data.title}</span>
+                    </h1>
+                  )}
                 {editable
                   ? <EField
                       value={data.subtitle}
@@ -1865,34 +2324,18 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                       className={noteCanvasUi.subtitle}
                       style={{ width:'auto', minWidth:110 }}
                     />
-                  : subjectLabel && <p className={noteCanvasUi.subtitle}>{subjectLabel}</p>}
+                  : null}
               </div>
             </div>
 
-            {(canvasTags.length > 0 || !editable) && (
+            {editable && canvasTags.length > 0 && (
               <div className={noteCanvasUi.metaStack}>
-                {canvasTags.length > 0 && (
-                  <div className={noteCanvasUi.metaItem}>
-                    <span className={noteCanvasUi.metaIcon}>🏷</span>
-                    <div className={noteCanvasUi.tagRow}>
-                      {canvasTags.map(tag => <span key={tag} className={noteCanvasUi.tag}>#{tag}</span>)}
-                    </div>
+                <div className={noteCanvasUi.metaItem}>
+                  <span className={noteCanvasUi.metaIcon}>🏷</span>
+                  <div className={noteCanvasUi.tagRow}>
+                    {canvasTags.map(tag => <span key={tag} className={noteCanvasUi.tag}>#{tag}</span>)}
                   </div>
-                )}
-                {!editable && (
-                  <button
-                    className={cx(noteCanvasUi.focusBtn, focusMode && noteCanvasUi.focusBtnOn)}
-                    onClick={() => setFocusMode(v => !v)}
-                    title={focusMode ? 'Exit focus mode' : 'Focus mode — hover a card to spotlight it'}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink:0 }}>
-                      <circle cx="6" cy="6" r="2.2" fill="currentColor"/>
-                      <circle cx="6" cy="6" r="4.8" stroke="currentColor" strokeWidth="1.2"/>
-                      <path d="M6 1v1.5M6 9.5V11M1 6h1.5M9.5 6H11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    </svg>
-                    {focusMode ? 'Focus On' : 'Focus'}
-                  </button>
-                )}
+                </div>
               </div>
             )}
           </div>
@@ -1903,6 +2346,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
             className={cx(noteCanvasUi.sectionGrid, layout === '1col' && noteCanvasUi.sectionGridOne)}
             style={{
               gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+              gap: isMobileCanvas ? 10 : undefined,
               gridAutoRows: '8px',
               gridAutoFlow: 'dense',
               alignItems: 'start',
@@ -1933,6 +2377,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                       onMoveDown={() => moveSection(i, 1)}
                       onDelete={() => deleteSection(i)}
                       onReplaceRequest={requestReplace}
+                      onOpenImage={openImageLightbox}
                       theme={theme}
                     />
                   </MasonryItem>
@@ -1962,6 +2407,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                       onMoveDown={() => moveSection(i, 1)}
                       onDelete={() => deleteSection(i)}
                       onReplaceRequest={requestReplace}
+                      onOpenImage={openImageLightbox}
                       theme={theme}
                     />
                   </MasonryItem>
@@ -1970,7 +2416,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
               return (
                 <MasonryItem
                   key={i}
-                  span={section.span || 'half'}
+                  span={!editable && i === firstTextSectionIndex ? 'full' : section.span || 'half'}
                   columns={columnCount}
                   editable={editable}
                   index={i}
@@ -1992,6 +2438,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     onMoveDown={() => moveSection(i, 1)}
                     onDelete={() => deleteSection(i)}
                     onAddImageRequest={() => requestSectionImage(i)}
+                    onOpenImage={openImageLightbox}
                     theme={theme}
                   />
                 </MasonryItem>
@@ -2008,6 +2455,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
               backgroundSize: 'auto, auto, 18px 18px, auto',
             }}
           >
+            {!editable && <MedicalMiniIcon index={sections.length + 3} color="#f59e0b" theme={theme} />}
             <div className={noteCanvasUi.keyPointsLabel}>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M7 1L8.5 5H13L9.5 7.5L11 12L7 9.5L3 12L4.5 7.5L1 5H5.5L7 1Z" fill="currentColor"/>
@@ -2038,6 +2486,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
               backgroundSize: 'auto, auto, 18px 18px, auto',
             }}
           >
+            {!editable && <MedicalMiniIcon index={sections.length + 5} color="#0891b2" theme={theme} />}
             <div className={noteCanvasUi.summaryLabel}>
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                 <rect x="1" y="1" width="11" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.5"/>
@@ -2051,10 +2500,9 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
           </div>
         )}
 
-        <div className={noteCanvasUi.footer}>
-          {new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}
-        </div>
       </div>
+
+      {lightboxImage && <ImageLightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />}
     </div>
   );
 }));

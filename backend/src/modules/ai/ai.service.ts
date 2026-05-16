@@ -197,11 +197,15 @@ export class AiService {
     const parsed = this.parseJson(candidateText, provider.providerKey) as any;
     const items = Array.isArray(parsed?.items) ? parsed.items : Array.isArray(parsed) ? parsed : [];
 
+    const isTrueFalse = dto.questionType === 'true_false';
     const correctLabel = String(dto.correctAnswerLabel || '').trim().toUpperCase();
-    const allowedWrongLabels = new Set(
+    const allowedLabels = new Set(
       (dto.options || [])
-        .filter((option) => String(option.optionLabel || '').trim().toUpperCase() !== correctLabel)
-        .filter((option) => !String(option.whyIncorrect || '').trim())
+        .filter((option) => {
+          const label = String(option.optionLabel || '').trim().toUpperCase();
+          if (!label || String(option.whyIncorrect || '').trim()) return false;
+          return isTrueFalse || label !== correctLabel;
+        })
         .map((option) => String(option.optionLabel || '').trim().toUpperCase())
     );
 
@@ -214,7 +218,7 @@ export class AiService {
           optionLabel: this.normalizeString(item?.option_label || item?.optionLabel || item?.label).toUpperCase(),
           whyIncorrect: this.normalizeString(item?.why_incorrect || item?.whyIncorrect || item?.reason),
         }))
-        .filter((item: { optionLabel: string; whyIncorrect: string }) => allowedWrongLabels.has(item.optionLabel) && item.whyIncorrect),
+        .filter((item: { optionLabel: string; whyIncorrect: string }) => allowedLabels.has(item.optionLabel) && item.whyIncorrect),
     };
   }
 
@@ -365,6 +369,38 @@ export class AiService {
   }
 
   private buildWhyIncorrectPrompt(input: GenerateWhyIncorrectDto): string {
+    if (input.questionType === 'true_false') {
+      const statements = (input.options || [])
+        .map((option) => {
+          const label = String(option.optionLabel || '').trim().toUpperCase();
+          const answer = option.isCorrect === 1 || option.isCorrect === true ? 'True' : 'False';
+          const existing = String(option.whyIncorrect || '').trim();
+          return `${label}. ${option.optionText} [ANSWER: ${answer}]${existing ? ' [already has reason]' : ''}`;
+        })
+        .join('\n');
+
+      return [
+        'You are a senior medical educator helping an admin improve True/False statement explanations.',
+        'Return strict JSON only. No markdown fences. No extra commentary.',
+        'Do not change the question, statements, or True/False answers.',
+        'Only write short medically accurate reasons for statements that are missing a reason.',
+        'Each reason should explain why the marked True/False answer is correct.',
+        '',
+        `Question:\n${input.questionText}`,
+        '',
+        `Statements:\n${statements}`,
+        '',
+        input.explanation ? `Main explanation:\n${input.explanation}` : '',
+        '',
+        `Return this JSON shape:
+{
+  "items": [
+    { "option_label": "A", "why_incorrect": "string" }
+  ]
+}`,
+      ].filter(Boolean).join('\n');
+    }
+
     const correctLabel = String(input.correctAnswerLabel || '').trim().toUpperCase();
     const options = (input.options || [])
       .map((option) => {
@@ -443,6 +479,8 @@ export class AiService {
   }
 
   private buildPrompt(dto: GenerateAiQuizDto) {
+    const includeExplanations = dto.includeExplanations !== false;
+    const includeWhyIncorrect = dto.includeWhyIncorrect === true;
     const hierarchyLines = [
       dto.course?.trim() ? `course: ${dto.course.trim()}` : '',
       dto.subject?.trim() ? `subject: ${dto.subject.trim()}` : '',
@@ -477,7 +515,13 @@ export class AiService {
     {
       "question_type": "sba",
       "question_text": "string",
-      "options": ["string", "string", "string", "string", "string"],
+      "options": [
+        { "text": "string", "why_incorrect": "string" },
+        { "text": "string", "why_incorrect": "string" },
+        { "text": "string", "why_incorrect": "string" },
+        { "text": "string", "why_incorrect": "string" },
+        { "text": "string", "why_incorrect": "string" }
+      ],
       "correct_answer": "string",
       "explanation": "string",
       "course": "string",
@@ -496,11 +540,11 @@ export class AiService {
       "question_type": "true_false",
       "question_text": "string",
       "statements": [
-        { "text": "string", "answer": true },
-        { "text": "string", "answer": false },
-        { "text": "string", "answer": true },
-        { "text": "string", "answer": false },
-        { "text": "string", "answer": true }
+        { "text": "string", "answer": true, "why_incorrect": "string" },
+        { "text": "string", "answer": false, "why_incorrect": "string" },
+        { "text": "string", "answer": true, "why_incorrect": "string" },
+        { "text": "string", "answer": false, "why_incorrect": "string" },
+        { "text": "string", "answer": true, "why_incorrect": "string" }
       ],
       "explanation": "string",
       "course": "string",
@@ -523,7 +567,15 @@ export class AiService {
       'Use medically relevant, exam-style wording where appropriate, but keep the content clear and educational.',
       'If the type is "sba", always produce exactly 5 answer options and exactly 1 correct answer.',
       'If the type is "true_false", always produce exactly 5 statements and each statement must have a boolean answer.',
-      'Every question must include a concise explanation.',
+      includeExplanations
+        ? 'Every question must include a concise explanation.'
+        : 'Set explanation to an empty string for every question.',
+      includeWhyIncorrect
+        ? 'For SBA, include a short why_incorrect reason for every incorrect option and an empty why_incorrect for the correct option.'
+        : 'For SBA, set every option why_incorrect to an empty string.',
+      includeWhyIncorrect
+        ? 'For True/False, include a short reason in why_incorrect for each statement explaining why the true/false answer is correct.'
+        : 'For True/False, set every statement why_incorrect to an empty string.',
       'Preserve the requested hierarchy values in every item. If any field is blank, return an empty string for it.',
       `Automatic LMS prompt context: ${automaticMedicalPrompt}`,
       hierarchyLines.length > 0 ? hierarchyLines.join('\n') : 'No hierarchy values were selected.',
@@ -1089,7 +1141,7 @@ export class AiService {
       category: dto.category,
       difficulty: dto.difficulty,
       explanation: this.normalizeString(item.explanation),
-      question_text: this.normalizeString(item.question_text),
+      question_text: this.normalizeString(item.question_text ?? item.questionText ?? item.question),
     };
 
     if (!base.question_text) {
@@ -1098,14 +1150,26 @@ export class AiService {
 
     if (dto.questionType === 'sba') {
       const options = Array.isArray(item.options)
-        ? item.options.map((option: unknown) => this.normalizeString(option)).filter(Boolean)
+        ? item.options.map((option: unknown) => {
+            if (typeof option === 'object' && option !== null) {
+              return {
+                text: this.normalizeString((option as any).text ?? (option as any).option_text ?? (option as any).optionText),
+                why_incorrect: this.normalizeString((option as any).why_incorrect ?? (option as any).whyIncorrect ?? (option as any).reason ?? (option as any).explanation),
+              };
+            }
+            return {
+              text: this.normalizeString(option),
+              why_incorrect: '',
+            };
+          }).filter((option: { text: string }) => option.text)
         : [];
 
       if (options.length !== 5) {
         throw new BadGatewayException(`Generated SBA item ${index + 1} must contain exactly 5 options`);
       }
 
-      const correctAnswer = this.normalizeString(item.correct_answer);
+      const correctAnswer = this.normalizeString(item.correct_answer ?? item.correctAnswer)
+        || this.normalizeCorrectOptionLabel(item.options);
       if (!correctAnswer) {
         throw new BadGatewayException(`Generated SBA item ${index + 1} is missing correct_answer`);
       }
@@ -1130,6 +1194,7 @@ export class AiService {
         answer: this.normalizeBooleanValue(
           statement?.answer ?? statement?.isTrue ?? statement?.is_true ?? statement?.isCorrect ?? statement?.is_correct
         ),
+        why_incorrect: this.normalizeString(statement?.why_incorrect ?? statement?.whyIncorrect ?? statement?.reason ?? statement?.explanation),
       }))
       .filter((statement: { text: string }) => statement.text);
 
@@ -1151,6 +1216,17 @@ export class AiService {
 
   private normalizeString(value: unknown, fallback = '') {
     return typeof value === 'string' ? value.trim() : String(fallback || '').trim();
+  }
+
+  private normalizeCorrectOptionLabel(options: unknown) {
+    if (!Array.isArray(options)) return '';
+    const index = options.findIndex((option: any) => {
+      const value = option?.is_correct ?? option?.isCorrect ?? option?.correct;
+      return value === true || value === 1 || String(value || '').trim().toLowerCase() === 'true';
+    });
+    if (index < 0) return '';
+    const option = options[index] as any;
+    return this.normalizeString(option?.label).toUpperCase() || String.fromCharCode(65 + index);
   }
 
   private normalizeBooleanValue(value: unknown): boolean | null {

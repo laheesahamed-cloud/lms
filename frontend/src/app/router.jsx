@@ -1,34 +1,20 @@
-import { Suspense, lazy, memo } from 'react';
+import { Suspense, lazy, memo, useLayoutEffect } from 'react';
 import { Navigate, createBrowserRouter, useLocation } from 'react-router-dom';
 import { ProtectedRoute, PublicOnlyRoute } from '../components/auth/RouteGate.jsx';
 import { AppRouteError } from './AppRouteError.jsx';
+import { AppErrorBoundary } from './AppErrorBoundary.jsx';
 import { AppFrame } from './AppFrame.jsx';
 import { PanelLayout } from '../components/layout/PanelLayout.jsx';
 import { useAuthStore } from '../stores/authStore.js';
 import { ui } from '../styles/tailwindClasses.js';
 import { shouldPreloadRoutes } from '../utils/performanceProfile.js';
+import { detectPlatform } from '../platform/detect.js';
+import { getRouterBasename, normalizeLegacyBuildPath } from '../platform/config.js';
 
-const APP_BASENAME = import.meta.env.VITE_APP_BASENAME || '/';
-const LEGACY_BUILD_BASENAME = '/lms/frontend/dist';
+const PLATFORM = detectPlatform();
+const ROUTER_BASENAME = getRouterBasename(PLATFORM);
 
-function toAppPath(path) {
-  if (APP_BASENAME === '/') {
-    return path;
-  }
-
-  return `${APP_BASENAME}${path}`.replace(/\/{2,}/g, '/');
-}
-
-if (typeof window !== 'undefined') {
-  const { pathname, search, hash } = window.location;
-
-  if (hash.startsWith('#/')) {
-    window.history.replaceState(null, '', `${toAppPath(hash.slice(1))}${search}`);
-  } else if (pathname === LEGACY_BUILD_BASENAME || pathname.startsWith(`${LEGACY_BUILD_BASENAME}/`)) {
-    const cleanPath = pathname.slice(LEGACY_BUILD_BASENAME.length) || '/';
-    window.history.replaceState(null, '', `${toAppPath(cleanPath)}${search}${hash}`);
-  }
-}
+normalizeLegacyBuildPath(PLATFORM);
 
 function lazyNamed(loader, exportName) {
   const Component = lazy(() =>
@@ -53,15 +39,24 @@ const QuizBuilderPage = lazyNamed(() => import('../features/admin/quizzes/QuizBu
 const AdminSubscriptionsPage = lazyNamed(() => import('../features/admin/subscriptions/AdminSubscriptionsPage.jsx'), 'AdminSubscriptionsPage');
 const QuestionsPage = lazyNamed(() => import('../features/admin/questions/QuestionsPage.jsx'), 'QuestionsPage');
 const BulkQuestionInputPage = lazyNamed(() => import('../features/admin/questions/BulkQuestionInputPage.jsx'), 'BulkQuestionInputPage');
+const QuestionReviewPage = lazyNamed(() => import('../features/admin/questions/QuestionReviewPage.jsx'), 'QuestionReviewPage');
 const StructurePage = lazyNamed(() => import('../features/admin/structure/StructurePage.jsx'), 'StructurePage');
 const UsersPage = lazyNamed(() => import('../features/admin/users/UsersPage.jsx'), 'UsersPage');
+const AdminStudentDetailPage = lazyNamed(() => import('../features/admin/users/AdminStudentDetailPage.jsx'), 'AdminStudentDetailPage');
 const AdminSettingsPage = lazyNamed(() => import('../features/admin/settings/AdminSettingsPage.jsx'), 'AdminSettingsPage');
+const AdminSetupPage = lazyNamed(() => import('../features/admin/setup/AdminSetupPage.jsx'), 'AdminSetupPage');
+const AdminAnnouncementsPage = lazyNamed(() => import('../features/admin/announcements/AdminAnnouncementsPage.jsx'), 'AdminAnnouncementsPage');
+const AdminReportsPage = lazyNamed(() => import('../features/admin/reports/AdminReportsPage.jsx'), 'AdminReportsPage');
+const AdminDoubtsPage = lazyNamed(() => import('../features/admin/doubts/AdminDoubtsPage.jsx'), 'AdminDoubtsPage');
 const StudentDashboardPage = lazyNamed(() => import('../features/student/dashboard/StudentDashboardPage.jsx'), 'StudentDashboardPage');
 const StudentCoursesPage = lazyNamed(() => import('../features/student/courses/StudentCoursesPage.jsx'), 'StudentCoursesPage');
 const CourseDetailPage = lazyNamed(() => import('../features/student/courses/CourseDetailPage.jsx'), 'CourseDetailPage');
 const StudentBillingPage = lazyNamed(() => import('../features/student/billing/StudentBillingPage.jsx'), 'StudentBillingPage');
 const StudentCheckoutPage = lazyNamed(() => import('../features/student/billing/StudentCheckoutPage.jsx'), 'StudentCheckoutPage');
 const BookmarksPage = lazyNamed(() => import('../features/student/bookmarks/BookmarksPage.jsx'), 'BookmarksPage');
+const StudentNotificationsPage = lazyNamed(() => import('../features/student/notifications/StudentNotificationsPage.jsx'), 'StudentNotificationsPage');
+const StudyPlannerPage = lazyNamed(() => import('../features/student/planner/StudyPlannerPage.jsx'), 'StudyPlannerPage');
+const StudentDoubtsPage = lazyNamed(() => import('../features/student/doubts/StudentDoubtsPage.jsx'), 'StudentDoubtsPage');
 const StudentFlashcardsPage = lazyNamed(() => import('../features/student/flashcards/StudentFlashcardsPage.jsx'), 'StudentFlashcardsPage');
 const StudentNotesPage = lazyNamed(() => import('../features/student/notes/StudentNotesPage.jsx'), 'StudentNotesPage');
 const AiNotesPage = lazyNamed(() => import('../features/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
@@ -98,16 +93,24 @@ const roleRoutePreloaders = {
     ['/structure', StructurePage.preload],
     ['/questions', QuestionsPage.preload],
     ['/questions/bulk', BulkQuestionInputPage.preload],
+    ['/questions/review', QuestionReviewPage.preload],
     ['/quizzes', QuizzesPage.preload],
     ['/quizzes/new', QuizBuilderPage.preload],
     ['/subscriptions', AdminSubscriptionsPage.preload],
     ['/ai-notes', AdminAiNotesListPage.preload],
     ['/users', UsersPage.preload],
+    ['/announcements', AdminAnnouncementsPage.preload],
+    ['/reports', AdminReportsPage.preload],
+    ['/doubts', AdminDoubtsPage.preload],
+    ['/setup', AdminSetupPage.preload],
     ['/settings', AdminSettingsPage.preload],
   ]),
   student: new Map([
     ['/dashboard', StudentDashboardPage.preload],
     ['/courses', StudentCoursesPage.preload],
+    ['/notifications', StudentNotificationsPage.preload],
+    ['/planner', StudyPlannerPage.preload],
+    ['/doubts', StudentDoubtsPage.preload],
     ['/ai-notes', AiNotesListPage.preload],
     ['/flashcards', StudentFlashcardsPage.preload],
     ['/quizzes', StudentQuizzesPage.preload],
@@ -119,11 +122,12 @@ const roleRoutePreloaders = {
 };
 
 export function preloadRouteByPath(path, role = useAuthStore.getState().user?.role) {
-  if (!path || !shouldPreloadRoutes()) {
+  if (!path || (!PLATFORM.isNative && !shouldPreloadRoutes())) {
     return;
   }
 
-  const preload = roleRoutePreloaders[role]?.get(path) || commonRoutePreloaders.get(path);
+  const cleanPath = path.replace(/^\/(?:admin|app|student)(?=\/|$)/, '') || '/dashboard';
+  const preload = roleRoutePreloaders[role]?.get(cleanPath) || commonRoutePreloaders.get(cleanPath);
   if (typeof preload === 'function') {
     preload().catch(() => {});
   }
@@ -154,8 +158,26 @@ function RouteFallback() {
 
 const RouteReveal = memo(function RouteReveal({ children }) {
   const location = useLocation();
+
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    let cancelled = false;
+    const raf = window.requestAnimationFrame(() => {
+      if (cancelled) return;
+      window.__lmsRouteReady = true;
+      document.dispatchEvent(new CustomEvent('lms:route-ready', {
+        detail: { pathname: location.pathname },
+      }));
+    });
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf);
+    };
+  }, [location.pathname]);
+
   return (
-    <div className="motion-smooth animate-panelRouteFade" key={location.pathname}>
+    <div className="lms-route-reveal motion-smooth animate-panelRouteFade" key={location.pathname}>
       {children}
     </div>
   );
@@ -163,9 +185,11 @@ const RouteReveal = memo(function RouteReveal({ children }) {
 
 function withSuspense(element) {
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <RouteReveal>{element}</RouteReveal>
-    </Suspense>
+    <AppErrorBoundary>
+      <Suspense fallback={<RouteFallback />}>
+        <RouteReveal>{element}</RouteReveal>
+      </Suspense>
+    </AppErrorBoundary>
   );
 }
 
@@ -174,11 +198,248 @@ function RoleSwitch({ admin, student }) {
   return user?.role === 'admin' ? admin : student;
 }
 
-function LegacyRoleRedirect() {
-  const location = useLocation();
-  const cleanPath = location.pathname.replace(/^\/(?:admin|student)(?=\/|$)/, '') || '/dashboard';
-  return <Navigate to={`${cleanPath}${location.search}${location.hash}`} replace />;
+function roleHomePath(user) {
+  if (user?.role === 'admin') return '/admin/dashboard';
+  if (user?.role === 'student' && user.status !== 'active') return '/pending';
+  return '/dashboard';
 }
+
+function prefixRolePath(path, user) {
+  const normalized = path && path !== '/' ? path : '/dashboard';
+  const cleanPath = normalized.replace(/^\/(?:admin|student|app)(?=\/|$)/, '') || '/dashboard';
+  const prefix = user?.role === 'admin' ? '/admin' : '';
+  return `${prefix}${cleanPath}`;
+}
+
+function LegacyRoleRedirect({ targetPath = '' }) {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isHydrating = useAuthStore((state) => state.isHydrating);
+  const location = useLocation();
+
+  if (isHydrating) return <RouteFallback />;
+
+  if (!isAuthenticated || !user) {
+    const from = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/auth/login?from=${encodeURIComponent(from)}`} replace />;
+  }
+
+  return <Navigate to={`${prefixRolePath(targetPath || location.pathname, user)}${location.search}${location.hash}`} replace />;
+}
+
+function RoleHomeRedirect() {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isHydrating = useAuthStore((state) => state.isHydrating);
+  const location = useLocation();
+
+  if (isHydrating) return <RouteFallback />;
+
+  if (!isAuthenticated || !user) {
+    const from = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/auth/login?from=${encodeURIComponent(from)}`} replace />;
+  }
+
+  return <Navigate to={roleHomePath(user)} replace />;
+}
+
+const adminPanelRoutes = [
+  {
+    index: true,
+    element: <Navigate to="dashboard" replace />,
+  },
+  {
+    path: 'dashboard',
+    element: withSuspense(<AdminDashboardPage />),
+  },
+  {
+    path: 'profile',
+    element: withSuspense(<ProfilePage />),
+  },
+  {
+    path: 'courses',
+    element: withSuspense(<CoursesPage />),
+  },
+  {
+    path: 'structure',
+    element: withSuspense(<StructurePage />),
+  },
+  {
+    path: 'users',
+    element: withSuspense(<UsersPage />),
+  },
+  {
+    path: 'users/:userId',
+    element: withSuspense(<AdminStudentDetailPage />),
+  },
+  {
+    path: 'questions',
+    element: withSuspense(<QuestionsPage />),
+  },
+  {
+    path: 'questions/bulk',
+    element: withSuspense(<BulkQuestionInputPage />),
+  },
+  {
+    path: 'questions/review',
+    element: withSuspense(<QuestionReviewPage />),
+  },
+  {
+    path: 'quizzes',
+    element: withSuspense(<QuizzesPage />),
+  },
+  {
+    path: 'quizzes/new',
+    element: withSuspense(<QuizBuilderPage />),
+  },
+  {
+    path: 'quizzes/:quizId/edit',
+    element: withSuspense(<QuizBuilderPage />),
+  },
+  {
+    path: 'subscriptions',
+    element: withSuspense(<AdminSubscriptionsPage />),
+  },
+  {
+    path: 'ai-notes',
+    element: withSuspense(<AdminAiNotesListPage />),
+  },
+  {
+    path: 'ai-notes/:id',
+    element: withSuspense(<AdminAiNotesEditorPage />),
+  },
+  {
+    path: 'announcements',
+    element: withSuspense(<AdminAnnouncementsPage />),
+  },
+  {
+    path: 'reports',
+    element: withSuspense(<AdminReportsPage />),
+  },
+  {
+    path: 'doubts',
+    element: withSuspense(<AdminDoubtsPage />),
+  },
+  {
+    path: 'setup',
+    element: withSuspense(<AdminSetupPage />),
+  },
+  {
+    path: 'settings',
+    element: withSuspense(<AdminSettingsPage />),
+  },
+];
+
+const studentPanelRoutes = [
+  {
+    index: true,
+    element: <Navigate to="dashboard" replace />,
+  },
+  {
+    path: 'dashboard',
+    element: withSuspense(<StudentDashboardPage />),
+  },
+  {
+    path: 'pending',
+    element: withSuspense(
+      <DashboardPage
+        title="Awaiting approval"
+        subtitle="This page mirrors the current pending flow for newly registered student accounts."
+        cards={[
+          { kicker: 'Pending', title: 'Approval required', text: 'Students stay here until an admin marks the account active.' },
+        ]}
+      />
+    ),
+  },
+  {
+    path: 'profile',
+    element: withSuspense(<ProfilePage />),
+  },
+  {
+    path: 'courses',
+    element: withSuspense(<StudentCoursesPage />),
+  },
+  {
+    path: 'courses/:courseId',
+    element: withSuspense(<CourseDetailPage />),
+  },
+  {
+    path: 'quizzes',
+    element: withSuspense(<StudentQuizzesPage pageMode="practice" />),
+  },
+  {
+    path: 'exams',
+    element: withSuspense(<StudentQuizzesPage pageMode="exam" />),
+  },
+  {
+    path: 'quizzes/:quizId/practice-review',
+    element: withSuspense(<PracticeReviewPage />),
+  },
+  {
+    path: 'quizzes/:quizId',
+    element: withSuspense(<TakeQuizPage />),
+  },
+  {
+    path: 'subscriptions/checkout/:planId',
+    element: withSuspense(<StudentCheckoutPage />),
+  },
+  {
+    path: 'subscriptions',
+    element: withSuspense(<StudentBillingPage />),
+  },
+  {
+    path: 'billing',
+    element: <Navigate to="../subscriptions" replace />,
+  },
+  {
+    path: 'bookmarks',
+    element: withSuspense(<BookmarksPage />),
+  },
+  {
+    path: 'notifications',
+    element: withSuspense(<StudentNotificationsPage />),
+  },
+  {
+    path: 'planner',
+    element: withSuspense(<StudyPlannerPage />),
+  },
+  {
+    path: 'doubts',
+    element: withSuspense(<StudentDoubtsPage />),
+  },
+  {
+    path: 'flashcards',
+    element: withSuspense(<StudentFlashcardsPage />),
+  },
+  {
+    path: 'notes',
+    element: withSuspense(<StudentNotesPage />),
+  },
+  {
+    path: 'study/lesson/:lessonId',
+    element: withSuspense(<AiNotesPage />),
+  },
+  {
+    path: 'ai-notes',
+    element: withSuspense(<AiNotesListPage />),
+  },
+  {
+    path: 'ai-notes/:id',
+    element: withSuspense(<AiNotesPage />),
+  },
+  {
+    path: 'results',
+    element: withSuspense(<ResultsListPage />),
+  },
+  {
+    path: 'results/:attemptId',
+    element: withSuspense(<ResultPage />),
+  },
+  {
+    path: 'review/:attemptId',
+    element: withSuspense(<ReviewPage />),
+  },
+];
 
 export const router = createBrowserRouter([
   {
@@ -188,7 +449,7 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: withSuspense(<LandingPage />),
+        element: withSuspense(PLATFORM.isNative ? <RoleHomeRedirect /> : <LandingPage />),
       },
       {
         path: 'login',
@@ -307,6 +568,24 @@ export const router = createBrowserRouter([
         element: withSuspense(<GeminiPage />),
       },
       {
+        path: 'admin',
+        element: (
+          <ProtectedRoute role="admin">
+            <PanelLayout />
+          </ProtectedRoute>
+        ),
+        children: adminPanelRoutes,
+      },
+      {
+        path: 'app',
+        element: (
+          <ProtectedRoute role="student" allowPending>
+            <PanelLayout />
+          </ProtectedRoute>
+        ),
+        children: studentPanelRoutes,
+      },
+      {
         element: <PanelLayout />,
         children: [
           {
@@ -380,6 +659,14 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            path: 'users/:userId',
+            element: (
+              <ProtectedRoute role="admin">
+                {withSuspense(<AdminStudentDetailPage />)}
+              </ProtectedRoute>
+            ),
+          },
+          {
             path: 'questions',
             element: (
               <ProtectedRoute role="admin">
@@ -392,6 +679,14 @@ export const router = createBrowserRouter([
             element: (
               <ProtectedRoute role="admin">
                 {withSuspense(<BulkQuestionInputPage />)}
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'questions/review',
+            element: (
+              <ProtectedRoute role="admin">
+                {withSuspense(<QuestionReviewPage />)}
               </ProtectedRoute>
             ),
           },
@@ -478,6 +773,33 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            path: 'notifications',
+            element: (
+              <ProtectedRoute>
+                {withSuspense(<StudentNotificationsPage />)}
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'planner',
+            element: (
+              <ProtectedRoute role="student">
+                {withSuspense(<StudyPlannerPage />)}
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'doubts',
+            element: (
+              <ProtectedRoute>
+                <RoleSwitch
+                  admin={withSuspense(<AdminDoubtsPage />)}
+                  student={withSuspense(<StudentDoubtsPage />)}
+                />
+              </ProtectedRoute>
+            ),
+          },
+          {
             path: 'flashcards',
             element: (
               <ProtectedRoute role="student">
@@ -548,6 +870,30 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            path: 'announcements',
+            element: (
+              <ProtectedRoute role="admin">
+                {withSuspense(<AdminAnnouncementsPage />)}
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'reports',
+            element: (
+              <ProtectedRoute role="admin">
+                {withSuspense(<AdminReportsPage />)}
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'setup',
+            element: (
+              <ProtectedRoute role="admin">
+                {withSuspense(<AdminSetupPage />)}
+              </ProtectedRoute>
+            ),
+          },
+          {
             path: 'settings',
             element: (
               <ProtectedRoute role="admin">
@@ -556,14 +902,6 @@ export const router = createBrowserRouter([
             ),
           },
         ],
-      },
-      {
-        path: 'admin',
-        element: <LegacyRoleRedirect />,
-      },
-      {
-        path: 'admin/*',
-        element: <LegacyRoleRedirect />,
       },
       {
         path: 'student',
@@ -580,5 +918,5 @@ export const router = createBrowserRouter([
     ],
   },
 ], {
-  basename: APP_BASENAME === '/' ? undefined : APP_BASENAME,
+  basename: ROUTER_BASENAME,
 });

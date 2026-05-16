@@ -12,8 +12,17 @@ export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('generate-quiz')
-  generateQuiz(@Body() dto: GenerateAiQuizDto, @Query('engine') engine: string) {
-    return this.aiService.generateQuiz(dto, engine);
+  generateQuiz(
+    @Body() dto: GenerateAiQuizDto,
+    @Query('engine') engine: string,
+    @Query('includeExplanations') includeExplanations?: string,
+    @Query('includeWhyIncorrect') includeWhyIncorrect?: string,
+  ) {
+    return this.aiService.generateQuiz({
+      ...dto,
+      includeExplanations: parseQueryBoolean(includeExplanations, dto.includeExplanations),
+      includeWhyIncorrect: parseQueryBoolean(includeWhyIncorrect, dto.includeWhyIncorrect),
+    }, engine);
   }
 
   @Post('beautify-lesson')
@@ -22,8 +31,14 @@ export class AiController {
   }
 
   @Post('generate-why-incorrect')
-  generateWhyIncorrect(@Body() dto: GenerateWhyIncorrectDto) {
-    return this.aiService.generateWhyIncorrect(dto);
+  generateWhyIncorrect(
+    @Body() dto: GenerateWhyIncorrectDto,
+    @Query('questionType') questionType?: 'sba' | 'true_false',
+  ) {
+    return this.aiService.generateWhyIncorrect({
+      ...dto,
+      questionType: questionType || dto.questionType,
+    });
   }
 
   @Post('generate-explanation')
@@ -35,4 +50,9 @@ export class AiController {
   generateTheoryCard(@Body() dto: GenerateExplanationDto & { explanation?: string }) {
     return this.aiService.generateTheoryCardFromQuestion(dto);
   }
+}
+
+function parseQueryBoolean(value: string | undefined, fallback: boolean | undefined) {
+  if (value === undefined) return fallback;
+  return value === 'true' || value === '1';
 }

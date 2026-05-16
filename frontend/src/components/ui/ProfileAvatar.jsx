@@ -1,10 +1,10 @@
 export const PROFILE_AVATARS = [
   { key: 'blue-tie', skin: '#B77955', hair: '#111827', shirt: '#2563EB', accent: '#DBEAFE', feature: 'tie' },
-  { key: 'teal-coat', skin: '#8D5524', hair: '#1F2937', shirt: '#0F766E', accent: '#CCFBF1', feature: 'coat' },
+  { key: 'teal-coat', skin: '#8D5524', hair: '#1F2937', shirt: '#2563EB', accent: '#DBEAFE', feature: 'coat' },
   { key: 'pink-necklace', skin: '#F1C27D', hair: '#4A2C2A', shirt: '#DB2777', accent: '#FCE7F3', feature: 'necklace' },
   { key: 'violet-scarf', skin: '#C68642', hair: '#171717', shirt: '#7C3AED', accent: '#EDE9FE', feature: 'scarf' },
   { key: 'amber-coat', skin: '#E0AC69', hair: '#78350F', shirt: '#D97706', accent: '#FEF3C7', feature: 'coat' },
-  { key: 'cyan-necklace', skin: '#A47148', hair: '#0F172A', shirt: '#0891B2', accent: '#CFFAFE', feature: 'necklace' },
+  { key: 'cyan-necklace', skin: '#A47148', hair: '#0F172A', shirt: '#0EA5E9', accent: '#DBEAFE', feature: 'necklace' },
 ];
 
 function hashText(value) {
@@ -28,7 +28,7 @@ export function ProfileAvatar({ user, avatarKey = '', size = 'sm' }) {
   const sizeClass = size === 'xl' ? 'size-20 rounded-3xl' : size === 'lg' ? 'size-10 rounded-[14px]' : 'size-[34px] rounded-xl';
 
   return (
-    <span className={`inline-grid shrink-0 place-items-center overflow-hidden bg-surface-2 shadow-[0_3px_8px_rgba(37,99,235,0.20)] ${sizeClass}`} aria-hidden="true">
+    <span className={`lms-profile-avatar inline-grid shrink-0 place-items-center overflow-hidden bg-surface-2 shadow-[0_3px_8px_rgba(37,99,235,0.20)] ${sizeClass}`} aria-hidden="true">
       <svg className="block size-full" viewBox="0 0 48 48" focusable="false">
         <rect width="48" height="48" rx="16" fill={avatar.accent} />
         <circle cx="24" cy="18" r="10.5" fill={avatar.hair} />

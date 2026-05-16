@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getAiNote, listAiNotes } from '../../../api/aiNotes.api.js';
 import { getErrorMessage } from '../../../api/client.js';
 import { AppHeader } from '../../../components/layout/AppHeader.jsx';
+import { StudentPageHero } from '../components/StudentPageHero.jsx';
 import { cx, ui } from '../../../styles/tailwindClasses.js';
 
 /* ─────────────────────────────────────────
@@ -39,7 +40,7 @@ const CARD_TYPE = {
   definition:     { label: 'Definition',        color: '#3B82F6', bg: 'rgba(59,130,246,0.10)'  },
   mechanism:      { label: 'Mechanism',          color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)'  },
   features:       { label: 'Clinical Features',  color: '#10B981', bg: 'rgba(16,185,129,0.10)'  },
-  management:     { label: 'Management',         color: '#14B8A6', bg: 'rgba(20,184,166,0.10)'  },
+  management:     { label: 'Management',         color: '#0EA5E9', bg: 'rgba(14,165,233,0.10)'  },
   classification: { label: 'Classification',     color: '#F97316', bg: 'rgba(249,115,22,0.10)'  },
   causes:         { label: 'Causes / Etiology',  color: '#F43F5E', bg: 'rgba(244,63,94,0.10)'   },
   diagnosis:      { label: 'Investigations',     color: '#EAB308', bg: 'rgba(234,179,8,0.10)'   },
@@ -538,7 +539,7 @@ function LessonCard({ note, onStart, starting }) {
           onClick={() => onStart(note)}
           disabled={starting || note.accessLocked}
         >
-          {note.accessLocked ? 'Locked' : starting ? 'Loading…' : 'Start'}
+          {note.accessLocked ? 'Plan access needed' : starting ? 'Loading…' : 'Start'}
         </button>
       </div>
     </div>
@@ -646,6 +647,17 @@ function PickPhase({ notes, loading, error, onStartNote, onStartMixed, starting 
         <AppHeader
           title="Flashcards"
           subtitle="Choose a lesson. Each deck generates targeted Q&A cards from your notes."
+        />
+
+        <StudentPageHero
+          title="Flashcards"
+          subtitle="Choose a lesson, recall first, then flip into targeted Q&A practice."
+          tone="violet"
+          metrics={[
+            { label: 'Lessons', value: loading ? '-' : notes.length },
+            { label: 'Courses', value: loading ? '-' : courseNames.length },
+            { label: 'Modes', value: '2' },
+          ]}
         />
 
         {error && <div className={cx(ui.feedbackError, 'mb-4 fc-fade-up')}>{error}</div>}
@@ -1044,7 +1056,7 @@ export function StudentFlashcardsPage() {
   async function loadMixedCards(selectedNotes, title = 'Mixed Flashcards') {
     const unlockedNotes = (Array.isArray(selectedNotes) ? selectedNotes : []).filter((note) => !note.accessLocked);
     if (!unlockedNotes.length) {
-      setError('No unlocked lessons are available for this mixed deck.');
+      setError('No available lessons are ready for this mixed deck.');
       return;
     }
 

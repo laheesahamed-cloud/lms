@@ -55,6 +55,11 @@ export class CreateQuizDto {
 
   @IsOptional()
   @IsString()
+  @IsIn(['number', 'title'])
+  displayTitleMode?: 'number' | 'title';
+
+  @IsOptional()
+  @IsString()
   quizTitle?: string;
 
   @IsOptional()

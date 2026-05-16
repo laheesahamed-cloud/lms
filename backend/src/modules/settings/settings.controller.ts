@@ -26,6 +26,11 @@ export class SettingsController {
     return this.settingsService.getGeneralSettings();
   }
 
+  @Get('public')
+  async getPublicSettings() {
+    return this.settingsService.getPublicSettings();
+  }
+
   @Get('payments')
   async getPaymentSettings(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);

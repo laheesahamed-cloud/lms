@@ -1,6 +1,6 @@
 export const studyPageUi = {
   page:
-    'min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.09),transparent_26%),radial-gradient(circle_at_90%_10%,rgba(13,148,136,0.08),transparent_22%),linear-gradient(180deg,#f7fbff_0%,#eef5ff_100%)] px-[clamp(18px,4vw,40px)] py-[clamp(28px,4vw,56px)]',
+    'min-h-dvh bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.09),transparent_26%),radial-gradient(circle_at_90%_10%,rgba(14,165,233,0.08),transparent_22%),linear-gradient(180deg,#f7fbff_0%,#eef5ff_100%)] px-[clamp(18px,4vw,40px)] py-[clamp(28px,4vw,56px)]',
   shell: 'mx-auto grid w-[min(1100px,100%)] gap-[22px]',
   panel:
     'rounded-3xl border border-slate-400/20 bg-white/90 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur-[10px]',

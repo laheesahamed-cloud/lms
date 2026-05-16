@@ -1,0 +1,422 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 4217 >>
+stream
+q
+0.975 0.982 0.995 rg
+0 0 595.28 841.89 re f
+Q
+q
+0.08 0.18 0.42 rg
+0 691.89 595.28 150 re f
+Q
+BT
+/F2 27 Tf
+1 1 1 rg
+46 765.89 Td
+(Claude Code Prompt) Tj
+ET
+BT
+/F1 13 Tf
+0.82 0.9 1 rg
+46 740.89 Td
+(Medical LMS brand-name generation brief) Tj
+ET
+BT
+/F2 17 Tf
+0.05 0.08 0.14 rg
+46 655.89 Td
+(Copy this prompt into Claude Code) Tj
+ET
+BT
+/F1 10.8 Tf
+0.24 0.29 0.38 rg
+46 631.89 Td
+(Use this when you want a stricter naming pass that fits the actual product: a modern) Tj
+ET
+BT
+/F1 10.8 Tf
+0.24 0.29 0.38 rg
+46 615.89 Td
+(ERPM-focused medical study platform, not a generic LMS or old-school tuition brand.) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 593.89 Td
+(You are helping name a serious medical LMS brand.) Tj
+ET
+BT
+/F2 11.2 Tf
+0.06 0.11 0.24 rg
+46 573.6899999999999 Td
+(Context:) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 556.6899999999999 Td
+(This product is an LMS/study platform for Sri Lankan medical students preparing for ERPM and) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 543.4899999999999 Td
+(related medical exams. It includes structured medical subjects, interactive notes, quizzes,) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 530.2899999999998 Td
+(practice mode, exam mode, analytics, weak-area tracking, bookmarks, subscriptions,) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 517.0899999999998 Td
+(PWA/mobile/desktop support, and AI-assisted quiz/content generation.) Tj
+ET
+BT
+/F2 11.2 Tf
+0.06 0.11 0.24 rg
+46 496.8899999999998 Td
+(Brand goal:) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 479.8899999999998 Td
+(Create a strong, modern medical learning brand like Osmosis, Kenhub, Geeky Medics, Amboss, or) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 466.6899999999998 Td
+(Sketchy. Do not make it sound like an old-school tuition class, academy, institute, or generic LMS.) Tj
+ET
+BT
+/F2 11.2 Tf
+0.06 0.11 0.24 rg
+46 446.48999999999984 Td
+(Avoid these words and styles:) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 429.48999999999984 Td
+(- LMS) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 416.28999999999985 Td
+(- Academy) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 403.08999999999986 Td
+(- Institute) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 389.8899999999999 Td
+(- School) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 376.6899999999999 Td
+(- Tuition) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 363.4899999999999 Td
+(- Mastery) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 350.2899999999999 Td
+(- Compass) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 337.0899999999999 Td
+(- Mentor) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 323.88999999999993 Td
+(- Prep) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 310.68999999999994 Td
+(- Course) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 297.48999999999995 Td
+(- Learn) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 284.28999999999996 Td
+(- Edu) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 271.09 Td
+(- Generic names like Learnova, SkillBridge, MedPath, ERPM Mastery) Tj
+ET
+BT
+/F2 11.2 Tf
+0.06 0.11 0.24 rg
+46 250.89 Td
+(Naming requirements:) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 233.89 Td
+(- Must feel medical, clinical, or anatomy-related) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 220.69 Td
+(- Must be short, memorable, and brandable) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 207.49 Td
+(- Should work as an app name, website name, YouTube channel name, and community name) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 194.29000000000002 Td
+(- Should feel modern, not childish) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 181.09000000000003 Td
+(- Should be serious but not boring) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 167.89000000000004 Td
+(- Should be easy to pronounce for Sri Lankan students) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 154.69000000000005 Td
+(- Can be inspired by medical words like anatomy, physiology, pathology, clinical practice, hospital) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 141.49000000000007 Td
+(culture, diagnosis, recall, exams, wards, rounds, notes, or question stems) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 128.29000000000008 Td
+(- Prefer names that can grow beyond ERPM later, but still allow positioning as an ERPM platform) Tj
+ET
+BT
+/F2 11.2 Tf
+0.06 0.11 0.24 rg
+46 108.09000000000007 Td
+(Deliver:) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 91.09000000000007 Td
+(1. Generate 80 fresh brand name ideas.) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 2118 >>
+stream
+q
+0.975 0.982 0.995 rg
+0 0 595.28 841.89 re f
+Q
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 795.89 Td
+(2. Do not repeat these names: ClinIQ, Synapse, Wardnote, Pulse, Scrubbed, Viva, Clinix, Medbyte,) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 782.6899999999999 Td
+(Rounds, GreyMatter, Auscult, Medulla, Suture, Murmur, OnRounds, PostCall, CortexIQ, VivaLab,) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 769.4899999999999 Td
+(CaseLabs, RecallRx, Acuity, Lumen, Plexus, StemLab, Osler, Afferent, Dura, CoreDx, RecallRoom,) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 756.2899999999998 Td
+(CuraCore.) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 743.0899999999998 Td
+(3. Group names by category:) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+64 729.8899999999998 Td
+(- Anatomy-inspired) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+64 716.6899999999997 Td
+(- Clinical/hospital culture) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+64 703.4899999999997 Td
+(- Exam/question-bank inspired) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+64 690.2899999999996 Td
+(- Premium startup-style medical names) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+64 677.0899999999996 Td
+(- Bold memorable names) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 663.8899999999995 Td
+(4. For each name, give a one-line reason why it works.) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 650.6899999999995 Td
+(5. Pick the top 10.) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 637.4899999999994 Td
+(6. Pick the best 3 overall.) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 624.2899999999994 Td
+(7. For the best 3, provide:) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+64 611.0899999999993 Td
+(- Tagline) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+64 597.8899999999993 Td
+(- Brand personality) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+64 584.6899999999993 Td
+(- Possible logo direction) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+64 571.4899999999992 Td
+(- Why Sri Lankan medical students would remember it) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 558.2899999999992 Td
+(8. Be strict. Reject weak, old-fashioned, or generic names.) Tj
+ET
+BT
+/F3 9.7 Tf
+0.12 0.15 0.2 rg
+46 538.0899999999991 Td
+(Think like a brand strategist, not a teacher naming a class.) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000197 00000 n 
+0000000272 00000 n 
+0000000340 00000 n 
+0000004608 00000 n 
+0000004760 00000 n 
+0000006929 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+7081
+%%EOF

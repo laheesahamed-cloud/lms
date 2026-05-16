@@ -9,6 +9,7 @@ import { PlansService } from '../plans/plans.service';
 import { SettingsService } from '../settings/settings.service';
 import { AssignSubscriptionDto } from './dto/assign-subscription.dto';
 import { ManualPaymentRequestDto } from './dto/manual-payment-request.dto';
+import { RequestSubscriptionDto } from './dto/request-subscription.dto';
 import { SubscriptionCouponDto } from './dto/subscription-coupon.dto';
 
 type SubscriptionRow = RowDataPacket & {
@@ -246,9 +247,10 @@ export class SubscriptionsService {
     return { ok: true, id: subscriptionId };
   }
 
-  async requestUpgrade(userId: number, planId: number, message?: string) {
+  async requestUpgrade(userId: number, dto: Pick<RequestSubscriptionDto, 'planId' | 'message' | 'accessScope' | 'courseIds' | 'lessonIds'>) {
     const student = await this.getStudentOrThrow(userId);
-    const plan = await this.plansService.findById(planId);
+    const plan = await this.plansService.findById(dto.planId);
+    const scope = this.normalizeAccessScope(dto.accessScope, dto.courseIds, dto.lessonIds);
 
     const [existingRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT id FROM subscription_requests WHERE user_id = ? AND plan_id = ? AND status = 'pending' LIMIT 1`,
@@ -259,8 +261,17 @@ export class SubscriptionsService {
     }
 
     const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO subscription_requests (user_id, plan_id, message, status) VALUES (?, ?, ?, 'pending')`,
-      [student.id, plan.id, String(message || '').trim()]
+      `INSERT INTO subscription_requests (
+         user_id, plan_id, message, access_scope, course_ids_json, lesson_ids_json, status
+       ) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+      [
+        student.id,
+        plan.id,
+        String(dto.message || '').trim(),
+        scope.accessScope,
+        JSON.stringify(scope.courseIds),
+        JSON.stringify(scope.lessonIds),
+      ]
     );
 
     await this.logAudit({
@@ -269,7 +280,7 @@ export class SubscriptionsService {
       actorId: student.id,
       eventType: 'request_created',
       summary: `${student.fullName} requested ${plan.name}`,
-      details: { planId: plan.id },
+      details: { planId: plan.id, ...scope },
     });
 
     return { ok: true, id: result.insertId };
@@ -1326,22 +1337,37 @@ export class SubscriptionsService {
       return '';
     }
 
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+      throw new BadRequestException('Invalid date provided');
+    }
+
     const date = new Date(`${input}T00:00:00`);
     if (Number.isNaN(date.getTime())) {
       throw new BadRequestException('Invalid date provided');
     }
 
-    return this.toDateOnly(date);
+    return input;
   }
 
   private toDateOnly(date: Date) {
-    return date.toISOString().slice(0, 10);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private addDays(dateText: string, days: number) {
     const date = new Date(`${dateText}T00:00:00`);
     date.setDate(date.getDate() + days);
     return this.toDateOnly(date);
+  }
+
+  private dateValueToText(value: string | Date | null | undefined) {
+    if (value instanceof Date) {
+      return this.toDateOnly(value);
+    }
+
+    return String(value || '').slice(0, 10);
   }
 
   private normalizeAccessScope(
@@ -1386,10 +1412,12 @@ export class SubscriptionsService {
 
   private async mapSubscription(row: SubscriptionRow) {
     const plan = await this.plansService.findById(Number(row.plan_id));
-    const end = new Date(`${row.end_date}T00:00:00`);
+    const startDate = this.dateValueToText(row.start_date);
+    const endDate = this.dateValueToText(row.end_date);
+    const end = new Date(`${endDate}T00:00:00`);
     const today = new Date(`${this.toDateOnly(new Date())}T00:00:00`);
-    const daysRemaining = Math.ceil((end.getTime() - today.getTime()) / 86400000);
-    const computedStatus = row.status === 'active' && daysRemaining < 0 ? 'expired' : row.status;
+    const daysRemaining = Math.floor((end.getTime() - today.getTime()) / 86400000) + 1;
+    const computedStatus = row.status === 'active' && daysRemaining <= 0 ? 'expired' : row.status;
 
     return {
       id: Number(row.id),
@@ -1408,10 +1436,10 @@ export class SubscriptionsService {
       accessScope: row.access_scope || 'all',
       courseIds: this.parseIdList(row.course_ids_json),
       lessonIds: this.parseIdList(row.lesson_ids_json),
-      startDate: row.start_date,
-      endDate: row.end_date,
+      startDate,
+      endDate,
       daysRemaining,
-      isExpiringSoon: computedStatus === 'active' && daysRemaining >= 0 && daysRemaining <= 7,
+      isExpiringSoon: computedStatus === 'active' && daysRemaining > 0 && daysRemaining <= 7,
       createdAt: row.created_at || null,
       updatedAt: row.updated_at || null,
       studentName: String(row.student_name || ''),

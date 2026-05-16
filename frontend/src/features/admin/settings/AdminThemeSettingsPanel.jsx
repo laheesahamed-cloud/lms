@@ -12,7 +12,7 @@ const themes = [
     key: 'erpm',
     name: 'ERPM Original',
     description: 'The previous LMS blue to teal medical workspace palette.',
-    colors: ['#2563EB', '#1D4ED8', '#0D9488'],
+    colors: ['#2563EB', '#1D4ED8', '#0EA5E9'],
   },
 ];
 

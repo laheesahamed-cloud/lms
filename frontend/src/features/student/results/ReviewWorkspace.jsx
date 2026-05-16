@@ -2,25 +2,35 @@ import { useEffect, useRef, useState } from 'react';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
 import { cx, ui } from '../../../styles/tailwindClasses.js';
 
-const THEORY_RECAP_COACHMARK_KEY = 'lms.review.quickTheoryRecapCoachmark.dismissed';
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+
+function isCorrectOption(option) {
+  const value = option?.isCorrect ?? option?.is_correct ?? option?.correct;
+  if (value === true) return true;
+  if (value === false) return false;
+  if (value === 1 || value === 0) return value === 1;
+  return ['1', 'true', 'correct', 'yes'].includes(String(value ?? '').trim().toLowerCase());
+}
 
 const reviewUi = {
   shell:
-    'grid grid-cols-[minmax(188px,236px)_minmax(0,1fr)] items-start gap-[18px] max-[980px]:grid-cols-1 min-[901px]:group-[.compact-focus-mode]/shell:grid-cols-[minmax(180px,220px)_minmax(520px,1fr)]',
+    'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(196px,236px)_minmax(0,1fr)] items-start gap-[18px] max-[900px]:grid-cols-1',
   shellThree:
-    'grid-cols-[minmax(188px,236px)_minmax(520px,1fr)_minmax(300px,360px)] max-[980px]:grid-cols-1 min-[901px]:group-[.compact-focus-mode]/shell:grid-cols-[minmax(180px,220px)_minmax(520px,1fr)_minmax(300px,360px)]',
+    'min-[1181px]:grid-cols-[minmax(188px,220px)_minmax(0,1fr)]',
+  shellFocus:
+    'lms-review-workspace lms-review-workspace--focus mx-auto grid w-full grid-cols-1 items-start',
   sidebar:
-    'sticky top-6 grid max-h-[calc(100vh-48px)] gap-3.5 overflow-hidden max-[980px]:static max-[980px]:max-h-none max-[980px]:overflow-visible',
-  main: 'min-w-0',
+    'lms-review-sidebar sticky top-6 grid max-h-[calc(100dvh-48px)] gap-3.5 overflow-hidden max-[900px]:static max-[900px]:max-h-none max-[900px]:overflow-visible',
+  main: 'lms-review-main min-w-0',
+  mainFocus: 'lms-review-main lms-review-main--focus w-full min-w-0',
   explanationSide:
-    'sticky top-6 max-h-[calc(100vh-48px)] min-w-0 overflow-auto overscroll-contain max-[980px]:static max-[980px]:max-h-none max-[980px]:overflow-visible',
-  summaryGrid: 'grid grid-cols-2 gap-2.5',
+    'sticky top-6 max-h-[calc(100dvh-48px)] min-w-0 overflow-auto overscroll-contain max-[1180px]:col-span-2 max-[900px]:static max-[900px]:col-span-1 max-[900px]:max-h-none max-[900px]:overflow-visible',
+  summaryGrid: 'grid grid-cols-4 gap-2 max-[420px]:gap-1.5',
   summaryTile:
-    'grid gap-1 rounded-[14px] border-[1.5px] border-line-soft bg-surface-2 px-2.5 py-2.5 text-center [&_span]:text-[10px] [&_span]:font-bold [&_span]:uppercase [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-lg [&_strong]:font-extrabold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong',
+    'grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]',
   nav: 'grid min-h-0 gap-2.5',
   navHead: 'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft',
-  navList: 'grid min-h-0 gap-2 overflow-y-auto pr-1 max-[980px]:max-h-60',
+  navList: 'lms-review-nav-list grid min-h-0 gap-2 overflow-y-auto pr-1 max-[980px]:max-h-60',
   navItem:
     'relative grid w-full justify-items-start gap-[5px] rounded-[14px] border-[1.5px] border-line-soft bg-surface-1 px-3 py-2.5 text-left shadow-none transition hover:border-[color-mix(in_srgb,var(--color-primary)_25%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] hover:shadow-[0_2px_8px_rgba(37,99,235,0.08)]',
   navItemActive:
@@ -28,48 +38,51 @@ const reviewUi = {
   navItemIndex: 'text-xs font-extrabold tracking-[0.02em] text-brand-primary',
   navItemText:
     'line-clamp-2 overflow-hidden text-[13px] leading-[1.35] text-ink-strong [-webkit-box-orient:vertical] [display:-webkit-box]',
-  questionCard: 'grid gap-[18px] p-[22px_24px] max-[640px]:gap-3 max-[640px]:p-3.5',
-  questionText: 'm-0 text-[clamp(17px,1.55vw,19px)] font-extrabold leading-[1.3] text-ink-strong',
+  questionCard: 'lms-review-question-card grid gap-[16px] p-[22px_24px] max-[640px]:gap-3.5 max-[640px]:p-3.5',
+  questionText: 'lms-reading-question m-0 max-w-[76ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[15.5px] max-[640px]:leading-[1.6]',
   questionHead: 'flex min-h-0 items-center justify-between gap-2 max-[640px]:flex-col max-[640px]:items-start',
   questionMeta: 'flex flex-wrap items-center gap-1.5',
   questionNumber: 'text-[10.5px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft',
-  unansweredNotice:
-    'rounded-xl border border-[color-mix(in_srgb,#d97706_26%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_10%,var(--surface-2))] px-3 py-2.5 text-[13px] font-bold text-[color-mix(in_srgb,#92400e_82%,var(--ink-strong))]',
-  footer:
-    'mt-1 flex items-center justify-between gap-2.5 border-t border-line-soft pt-3.5 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-2 max-[640px]:[&_button]:w-full',
+  questionNav:
+    'lms-review-question-nav flex items-center justify-between gap-2.5 rounded-2xl border border-line-soft bg-surface-card p-3 shadow-sm max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:gap-2',
+  questionNavActions:
+    'flex items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-2 max-[640px]:[&_button]:w-full',
   position: 'text-xs font-extrabold text-ink-soft',
-  optionsGrid: 'grid gap-2.5',
+  optionsGrid: 'lms-review-options-grid grid gap-2.5',
   optionTopline: 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start',
   optionLead: 'flex min-w-0 flex-auto items-start gap-2',
   optionLabels: 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start',
-  optionText: 'm-0 min-w-0 flex-auto text-[15px] font-medium leading-normal text-ink-strong max-[640px]:text-sm',
+  optionText: 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15px] font-medium leading-[1.48] text-ink-strong max-[640px]:text-sm max-[640px]:leading-[1.45]',
   explanation:
-    'mt-0 grid gap-2.5 rounded-[18px] border border-[color-mix(in_srgb,var(--color-primary)_15%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-primary)_4%,transparent),transparent_42%),var(--surface-2)] p-3.5',
+    'mt-0 grid gap-3 rounded-[14px] border border-[color-mix(in_srgb,var(--color-primary)_15%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-primary)_4%,transparent),transparent_42%),var(--surface-2)] p-4 max-[640px]:rounded-xl max-[640px]:p-3',
+  explanationEmpty:
+    'grid gap-1 rounded-[16px] border border-dashed border-line-soft bg-surface-2 p-4 text-sm leading-relaxed text-ink-soft [&_strong]:text-ink-strong',
   explanationHeader:
-    'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start [&_h3]:m-0 [&_h3]:text-sm [&_h3]:font-extrabold [&_h3]:tracking-normal [&_h3]:text-ink-strong',
-  explanationGrid: 'grid grid-cols-1 gap-2',
+    'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start [&_h3]:m-0 [&_h3]:text-[12px] [&_h3]:font-extrabold [&_h3]:uppercase [&_h3]:tracking-[0.11em] [&_h3]:text-ink-soft max-[640px]:[&_h3]:text-[11px]',
+  explanationGrid: 'grid grid-cols-1 gap-3',
+  explanationCopy:
+    'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.62]',
   studyList: 'm-0 grid list-none gap-[5px] p-0',
-  incorrectList: 'grid gap-[7px]',
-  bubbleNav: 'grid grid-cols-5 gap-2',
+  incorrectList:
+    'overflow-hidden rounded-[12px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_4%,var(--surface-1))]',
+  incorrectItem:
+    'grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 border-t border-[color-mix(in_srgb,var(--color-warning)_14%,var(--line-soft))] px-2.5 py-2 first:border-t-0 max-[640px]:grid-cols-[22px_minmax(0,1fr)] max-[640px]:gap-1.5 max-[640px]:px-2 max-[640px]:py-1.5',
+  incorrectBadge:
+    'inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[#92400e] max-[640px]:size-[22px] max-[640px]:text-[10px]',
+  incorrectCopy:
+    'lms-reading-incorrect min-w-0 text-left [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[13px] [&_strong]:font-extrabold [&_strong]:leading-snug [&_strong]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.56] [&_p]:text-ink-medium max-[640px]:[&_strong]:text-[12.5px] max-[640px]:[&_p]:text-[13px] max-[640px]:[&_p]:leading-[1.52]',
+  bubbleNav: 'lms-review-bubble-nav grid grid-cols-5 gap-2',
   bubble:
-    'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none',
-  bubbleActive: 'border-brand-primary bg-brand-primary text-white',
-  bubbleCorrect: 'border-brand-success/25 bg-brand-success text-white',
-  bubbleWrong: 'border-brand-error/25 bg-brand-error text-white',
+    'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-80',
+  bubbleActive:
+    'border-brand-primary/38 bg-brand-primary/12 text-brand-primary shadow-none',
+  bubbleCorrect: 'border-brand-success/30 bg-brand-success/12 text-brand-success',
+  bubbleWrong: 'border-brand-error/30 bg-brand-error/12 text-brand-error',
   bubbleUnanswered: 'border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-[var(--exam-nav-idle-text)]',
   bubbleLegend:
-    'mt-3 flex flex-wrap gap-4 text-xs text-ink-soft [&_i]:inline-block [&_i]:size-3 [&_i]:rounded [&_i]:border [&_span]:inline-flex [&_span]:items-center [&_span]:gap-2',
+    'mt-3 grid grid-cols-4 items-center gap-1.5 text-[10.5px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded [&_i]:border [&_span]:inline-flex [&_span]:min-w-0 [&_span]:items-center [&_span]:gap-1 [&_span]:whitespace-nowrap',
   recapAction:
-    'relative w-full max-w-none flex-none [&_.qtr-popup-trigger]:min-h-[34px] [&_.qtr-popup-trigger]:whitespace-nowrap [&_.qtr-popup-trigger]:rounded-xl [&_.qtr-popup-trigger]:px-2.5 [&_.qtr-popup-trigger]:py-[7px] [&_.qtr-popup-trigger__label]:overflow-hidden [&_.qtr-popup-trigger__label]:text-ellipsis [&_.qtr-popup-trigger__label]:whitespace-nowrap [&_.qtr-popup-trigger__label]:text-xs max-[640px]:w-full max-[640px]:max-w-none',
-  recapCoachmark:
-    'absolute right-0 top-[calc(100%+12px)] z-20 w-[min(340px,82vw)] rounded-xl border border-blue-200/90 bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FAFF_100%)] p-4 text-slate-900 shadow-[0_18px_42px_rgba(15,23,42,0.14)] ring-1 ring-blue-100/80 before:absolute before:right-7 before:top-[-7px] before:size-3.5 before:rotate-45 before:border-l before:border-t before:border-blue-200/90 before:bg-white before:content-[""] dark:border-brand-primary/25 dark:bg-surface-elevated dark:text-ink-strong dark:shadow-2xl dark:ring-white/10 dark:before:border-brand-primary/25 dark:before:bg-surface-elevated max-[640px]:fixed max-[640px]:inset-x-3 max-[640px]:bottom-3 max-[640px]:top-auto max-[640px]:w-auto max-[640px]:before:hidden',
-  recapCopy:
-    'grid gap-1.5 [&_p]:m-0 [&_p]:text-[13px] [&_p]:leading-relaxed [&_p]:text-slate-600 dark:[&_p]:text-ink-medium [&_strong]:text-[15px] [&_strong]:font-extrabold [&_strong]:leading-tight [&_strong]:text-slate-950 dark:[&_strong]:text-ink-strong',
-  recapActions: 'mt-3 flex justify-end gap-2 max-[420px]:grid max-[420px]:grid-cols-1',
-  recapLink:
-    'min-h-9 cursor-pointer rounded-md border border-transparent bg-[var(--brand-gradient-primary)] px-3.5 text-xs font-extrabold text-white shadow-glow transition hover:-translate-y-px hover:brightness-105',
-  recapMute:
-    'min-h-9 cursor-pointer rounded-md border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-line-soft dark:bg-surface-2 dark:text-ink-medium dark:hover:bg-surface-3 dark:hover:text-ink-strong',
+    'relative w-full max-w-none flex-none [&_.qtr-popup-trigger]:min-h-11 [&_.qtr-popup-trigger]:rounded-xl [&_.qtr-popup-trigger]:px-3 [&_.qtr-popup-trigger]:py-2.5 [&_.qtr-popup-trigger__label]:text-[13px] max-[640px]:w-full max-[640px]:max-w-none max-[640px]:[&_.qtr-popup-trigger]:min-h-12 max-[640px]:[&_.qtr-popup-trigger]:rounded-2xl max-[640px]:[&_.qtr-popup-trigger__concept]:max-w-[42vw]',
 };
 
 const summaryTileToneClass = {
@@ -91,9 +104,9 @@ const chipToneClass = {
 const optionCardToneClass = {
   neutral: 'bg-surface-1',
   correct:
-    'border-[color-mix(in_srgb,var(--color-success)_40%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-success)_10%,var(--surface-1))_0%,color-mix(in_srgb,var(--color-success)_5%,var(--surface-1))_100%)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-success)_18%,transparent),0_2px_12px_color-mix(in_srgb,var(--color-success)_12%,transparent)] before:absolute before:bottom-0 before:left-0 before:top-0 before:w-[3px] before:rounded-r-sm before:bg-brand-success before:content-[""]',
+    'border-[color-mix(in_srgb,var(--color-success)_30%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-success)_10%,var(--surface-1))_0%,color-mix(in_srgb,var(--color-success)_4%,var(--surface-card))_100%)] shadow-none',
   wrong:
-    'border-[color-mix(in_srgb,var(--color-error)_40%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-error)_9%,var(--surface-1))_0%,color-mix(in_srgb,var(--color-error)_4%,var(--surface-1))_100%)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-error)_16%,transparent),0_2px_10px_color-mix(in_srgb,var(--color-error)_10%,transparent)] before:absolute before:bottom-0 before:left-0 before:top-0 before:w-[3px] before:rounded-r-sm before:bg-brand-error before:content-[""]',
+    'border-[color-mix(in_srgb,var(--color-error)_32%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-error)_9%,var(--surface-1))_0%,color-mix(in_srgb,var(--color-error)_4%,var(--surface-card))_100%)] shadow-none',
   unanswered:
     'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_6%,var(--surface-1))] shadow-[0_0_0_1px_color-mix(in_srgb,#d97706_12%,transparent)]',
 };
@@ -109,11 +122,11 @@ const optionIconToneClass = {
 
 const studyCardToneClass = {
   summary:
-    'border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_6%,var(--surface-1))_0%,var(--surface-1)_60%)] before:absolute before:bottom-0 before:left-0 before:top-0 before:w-[3px] before:rounded-r-sm before:bg-[var(--brand-gradient-primary)] before:content-[""]',
+    'border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))_0%,var(--surface-1)_72%)]',
   theory:
-    'border-[color-mix(in_srgb,#8b5cf6_24%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_7%,var(--surface-1))_0%,var(--surface-1)_70%)] before:absolute before:bottom-0 before:left-0 before:top-0 before:w-[3px] before:rounded-r-sm before:bg-[linear-gradient(180deg,#7c3aed,#2563eb)] before:content-[""]',
+    'border-[color-mix(in_srgb,#8b5cf6_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_5%,var(--surface-1))_0%,var(--surface-1)_74%)]',
   incorrect:
-    'border-[color-mix(in_srgb,var(--color-warning)_24%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-warning)_7%,var(--surface-1))_0%,var(--surface-1)_72%)] before:absolute before:bottom-0 before:left-0 before:top-0 before:w-[3px] before:rounded-r-sm before:bg-[linear-gradient(180deg,#f59e0b,#f97316)] before:content-[""]',
+    'border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-warning)_5%,var(--surface-1))_0%,var(--surface-1)_74%)]',
 };
 
 function reviewChipClass(tone = 'neutral') {
@@ -140,7 +153,7 @@ function reviewOptionIconClass(tone) {
 
 function reviewStudyCardClass(tone, extra = '') {
   return cx(
-    'relative grid gap-2 overflow-hidden rounded-xl border border-line-soft bg-surface-1 px-3 py-[11px] transition hover:border-line-medium hover:shadow-sm [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.07em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:text-[13.5px] [&_p]:leading-normal [&_p]:text-ink-strong max-[640px]:[&_p]:text-sm',
+    'relative grid gap-2 rounded-[14px] border border-line-soft bg-surface-1 px-3.5 py-3 transition hover:border-line-medium hover:shadow-sm [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.07em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.58] [&_p]:text-ink-strong max-[640px]:[&_p]:text-sm',
     studyCardToneClass[tone],
     extra
   );
@@ -185,7 +198,7 @@ function ReviewOptionLabels({ labels }) {
 }
 
 function ReviewSbaOption({ option, question, displayLabel }) {
-  const isCorrect = option.isCorrect === 1;
+  const isCorrect = isCorrectOption(option);
   const isSelected = question.answerState.selectedIds?.includes(option.id);
   const unanswered = question.answerStatus === 'unanswered';
   const tone = isSelected && !isCorrect ? 'wrong' : isCorrect ? 'correct' : unanswered ? 'unanswered' : 'neutral';
@@ -213,7 +226,7 @@ function ReviewSbaOption({ option, question, displayLabel }) {
 
 function ReviewTrueFalseOption({ option, question, displayLabel }) {
   const studentValue = question.answerState.tfMap?.[option.id];
-  const correctValue = option.isCorrect === 1 ? 1 : 0;
+  const correctValue = isCorrectOption(option) ? 1 : 0;
   const answered = studentValue !== undefined;
   const isCorrect = answered && Number(studentValue) === correctValue;
   const tone = !answered ? 'unanswered' : isCorrect ? 'correct' : 'wrong';
@@ -264,8 +277,9 @@ function ReviewAnswerGrid({ question }) {
 
 function hasReviewExplanation(question) {
   const hasDatabaseExplanation = String(question.explanation || '').trim();
+  const isTrueFalse = question?.questionType === 'true_false' || question?.question_type === 'true_false';
   const hasIncorrectReasons = (question.options || []).some(
-    (option) => Number(option.isCorrect) !== 1 && String(option.whyIncorrect || '').trim()
+    (option) => (isTrueFalse || !isCorrectOption(option)) && String(option.whyIncorrect || '').trim()
   );
 
   return Boolean(hasDatabaseExplanation || hasIncorrectReasons);
@@ -284,83 +298,50 @@ function hasTheoryRecap(recap) {
 }
 
 function ReviewExplanation({ question }) {
+  const isTrueFalse = question?.questionType === 'true_false' || question?.question_type === 'true_false';
   const explanationBlocks = String(question.explanation || '')
     .split(/\r?\n+/)
     .map((block) => block.trim())
     .filter(Boolean);
-  const [showRecapCoachmark, setShowRecapCoachmark] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(THEORY_RECAP_COACHMARK_KEY) !== 'true';
-  });
   const incorrectReasons = (question.options || [])
     .map((option, index) => ({
       ...option,
       displayLabel: DISPLAY_OPTION_LABELS[index] || option.optionLabel || String(index + 1),
     }))
-    .filter((option) => Number(option.isCorrect) !== 1 && String(option.whyIncorrect || '').trim())
+    .filter((option) => (isTrueFalse || !isCorrectOption(option)) && String(option.whyIncorrect || '').trim())
     .map((option) => ({
       label: option.displayLabel,
       text: option.optionText,
       reason: String(option.whyIncorrect || '').trim(),
     }));
   if (explanationBlocks.length === 0 && incorrectReasons.length === 0) return null;
-
-  const canShowRecapCoachmark = showRecapCoachmark && hasTheoryRecap(question.theoryRecap);
-
-  function dismissRecapCoachmark({ neverShowAgain = false } = {}) {
-    if (neverShowAgain && typeof window !== 'undefined') {
-      window.localStorage.setItem(THEORY_RECAP_COACHMARK_KEY, 'true');
-    }
-    setShowRecapCoachmark(false);
-  }
+  const explanationTitle = explanationBlocks.length
+    ? 'Explanation'
+    : incorrectReasons.length
+      ? 'Why other options are incorrect'
+      : 'Explanation';
 
   return (
     <section className={reviewUi.explanation}>
-      {question.theoryRecap !== undefined ? (
-        <div className={reviewUi.recapAction} data-recap-coachmark-root>
-          <TheoryRecapPopupTrigger
-            recap={question.theoryRecap}
-            context="review"
-            revealed={true}
-          />
-          {canShowRecapCoachmark ? (
-            <div className={reviewUi.recapCoachmark} role="status">
-              <div className={reviewUi.recapCopy}>
-                <strong>Need a quick theory refresh?</strong>
-                <p>Open the recap to review the key points behind this question.</p>
-              </div>
-              <div className={reviewUi.recapActions}>
-                <button className={reviewUi.recapLink}
-                  type="button"
-                 
-                  onClick={() => dismissRecapCoachmark()}
-                >
-                  Got it
-                </button>
-                <button className={reviewUi.recapMute}
-                  type="button"
-                 
-                  onClick={() => dismissRecapCoachmark({ neverShowAgain: true })}
-                >
-                  Don't show again
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
       <div className={reviewUi.explanationHeader}>
-        <h3>Explanation</h3>
+        <h3>{explanationTitle}</h3>
       </div>
       <div className={reviewUi.explanationGrid}>
         {explanationBlocks.length ? (
-          <article className={reviewStudyCardClass('summary', '[&_p]:whitespace-pre-wrap [&_p]:text-[13px] [&_p]:leading-[1.62]')}>
-            <h4>Explanation</h4>
+          <div className={reviewUi.explanationCopy}>
             {explanationBlocks.map((block, index) => (
               <p key={`${index}-${block.slice(0, 16)}`}>{block}</p>
             ))}
-          </article>
+          </div>
+        ) : null}
+        {question.theoryRecap !== undefined ? (
+          <div className={reviewUi.recapAction}>
+            <TheoryRecapPopupTrigger
+              recap={question.theoryRecap}
+              context="review"
+              revealed={true}
+            />
+          </div>
         ) : null}
         {hasTheoryRecap(question.theoryRecap) ? (
           <article className={reviewStudyCardClass('theory')}>
@@ -381,32 +362,43 @@ function ReviewExplanation({ question }) {
           </article>
         ) : null}
         {incorrectReasons.length ? (
-          <article className={reviewStudyCardClass('incorrect')}>
-            <h4>Why other options are incorrect</h4>
-            <div className={reviewUi.incorrectList}>
-              {incorrectReasons.map((item) => (
-                <div
-                  className="grid grid-cols-[26px_minmax(0,1fr)] items-start gap-2 rounded-[10px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-1))] px-[9px] py-2"
-                  key={item.label}
-                >
-                  <span className="inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[#92400e]">{item.label}</span>
-                  <div>
-                    <strong className="mb-[3px] block text-[12.5px] leading-[1.35] text-ink-strong">{item.text}</strong>
-                    <p className="m-0 text-[13px] leading-[1.45] text-ink-strong">{item.reason}</p>
-                  </div>
+          <div className={reviewUi.incorrectList} aria-label="Why other options are incorrect">
+            {incorrectReasons.map((item) => (
+              <div className={reviewUi.incorrectItem} key={item.label}>
+                <span className={reviewUi.incorrectBadge}>{item.label}</span>
+                <div className={reviewUi.incorrectCopy}>
+                  <strong>{item.text}</strong>
+                  <p>{item.reason}</p>
                 </div>
-              ))}
-            </div>
-          </article>
+              </div>
+            ))}
+          </div>
         ) : null}
       </div>
     </section>
   );
 }
 
-export function ReviewWorkspace({ questions, summary = null, navigatorVariant = 'cards' }) {
+function ReviewExplanationEmpty() {
+  return (
+    <section className={reviewUi.explanationEmpty}>
+      <strong>Explanation</strong>
+      <span>No written explanation is available for this question.</span>
+    </section>
+  );
+}
+
+export function ReviewWorkspace({
+  questions,
+  summary = null,
+  navigatorVariant = 'cards',
+  exitLabel = 'Done',
+  onExit = null,
+  focusQuestionOnly = false,
+}) {
   const [activeIndex, setActiveIndex] = useState(0);
   const mainRef = useRef(null);
+  const questionCardRef = useRef(null);
   const safeQuestions = Array.isArray(questions) ? questions : [];
   const activeQuestion = safeQuestions[activeIndex] || null;
 
@@ -419,7 +411,11 @@ export function ReviewWorkspace({ questions, summary = null, navigatorVariant = 
 
   useEffect(() => {
     if (!activeQuestion) return;
-    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    const target = questionCardRef.current || mainRef.current;
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeQuestion]);
 
@@ -429,9 +425,44 @@ export function ReviewWorkspace({ questions, summary = null, navigatorVariant = 
 
   const hasExplanation = hasReviewExplanation(activeQuestion);
   const showBubbleNavigator = navigatorVariant === 'bubbles';
+  const shellClass = focusQuestionOnly
+    ? reviewUi.shellFocus
+    : cx(reviewUi.shell, reviewUi.shellThree);
+  const questionNavigation = (
+    <nav className={reviewUi.questionNav} aria-label="Review question navigation">
+      <span className={reviewUi.position}>Question {activeIndex + 1} / {safeQuestions.length}</span>
+      <div className={reviewUi.questionNavActions}>
+        <button className={ui.secondaryAction}
+          type="button"
+          onClick={() => setActiveIndex((value) => Math.max(value - 1, 0))}
+          disabled={activeIndex === 0}
+        >
+          Previous
+        </button>
+        {activeIndex >= safeQuestions.length - 1 ? (
+          <button className={ui.primaryAction}
+            type="button"
+            onClick={onExit || undefined}
+            disabled={!onExit}
+          >
+            {exitLabel}
+          </button>
+        ) : (
+          <button className={ui.primaryAction}
+            type="button"
+            onClick={() => setActiveIndex((value) => Math.min(value + 1, safeQuestions.length - 1))}
+          >
+            Next
+          </button>
+        )}
+      </div>
+    </nav>
+  );
 
   return (
-    <section className={cx(reviewUi.shell, hasExplanation && reviewUi.shellThree)}>
+    <>
+    <section className={shellClass}>
+      {!focusQuestionOnly ? (
       <aside className={cx(ui.compactPanelCard, reviewUi.sidebar)}>
         {summary ? (
           <div className={reviewUi.summaryGrid}>
@@ -504,10 +535,11 @@ export function ReviewWorkspace({ questions, summary = null, navigatorVariant = 
           )}
         </div>
       </aside>
+      ) : null}
 
-      <section className={reviewUi.main} ref={mainRef}>
-        <article className={cx(ui.panelCard, reviewUi.questionCard)}>
-          <h2 className={reviewUi.questionText}>{activeQuestion.questionText}</h2>
+      <section className={focusQuestionOnly ? reviewUi.mainFocus : reviewUi.main} ref={mainRef}>
+        <article className={cx(ui.panelCard, reviewUi.questionCard)} ref={questionCardRef}>
+          <p className={reviewUi.questionText}>{activeQuestion.questionText}</p>
 
           <div className={reviewUi.questionHead}>
             <div className={reviewUi.questionMeta}>
@@ -519,41 +551,14 @@ export function ReviewWorkspace({ questions, summary = null, navigatorVariant = 
             <ReviewStatusChip status={activeQuestion.answerStatus} />
           </div>
 
-          {activeQuestion.answerStatus === 'unanswered' ? (
-            <div className={reviewUi.unansweredNotice}>
-              Unanswered question. The correct answer is still highlighted below.
-            </div>
-          ) : null}
-
           <ReviewAnswerGrid question={activeQuestion} />
 
-          <div className={reviewUi.footer}>
-            <button className={ui.secondaryAction}
-              type="button"
-             
-              onClick={() => setActiveIndex((value) => Math.max(value - 1, 0))}
-              disabled={activeIndex === 0}
-            >
-              Previous
-            </button>
-            <span className={reviewUi.position}>Question {activeIndex + 1} / {safeQuestions.length}</span>
-            <button className={ui.primaryAction}
-              type="button"
-             
-              onClick={() => setActiveIndex((value) => Math.min(value + 1, safeQuestions.length - 1))}
-              disabled={activeIndex >= safeQuestions.length - 1}
-            >
-              Next
-            </button>
-          </div>
+          {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty />}
+
+          {questionNavigation}
         </article>
       </section>
-
-      {hasExplanation ? (
-        <aside className={reviewUi.explanationSide}>
-          <ReviewExplanation question={activeQuestion} />
-        </aside>
-      ) : null}
     </section>
+    </>
   );
 }

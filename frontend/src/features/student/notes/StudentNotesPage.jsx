@@ -9,6 +9,7 @@ import {
   updateLessonAnnotation,
 } from '../../../api/lessons.api.js';
 import { getErrorMessage } from '../../../api/client.js';
+import { recordStudyActivity } from '../../../api/dashboard.api.js';
 import { AppHeader } from '../../../components/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../components/ui/ActionIcons.jsx';
 import { cx, ui } from '../../../styles/tailwindClasses.js';
@@ -22,7 +23,7 @@ const notesOverlayClass = 'fixed inset-0 z-[80] hidden bg-slate-950/35 backdrop-
 const notesListClass = 'flex flex-col gap-3';
 const notesTreeGroupClass = 'flex flex-col gap-2.5';
 const notesToggleBaseClass = 'flex w-full items-center justify-between gap-3 rounded-lg border border-line-soft bg-surface-glass-subtle px-4 py-3.5 text-left text-inherit shadow-none filter-none';
-const notesTopicToggleClass = 'ml-3 w-[calc(100%-12px)] bg-surface-1 max-[900px]:ml-0 max-[900px]:w-full';
+const notesTopicToggleClass = 'ml-3 w-[calc(100%_-_12px)] bg-surface-1 max-[900px]:ml-0 max-[900px]:w-full';
 const notesToggleOpenClass = 'border-brand-primary/20';
 const notesToggleCopyClass = 'flex flex-col gap-1 [&_strong]:text-[15px] [&_strong]:text-ink-strong [&_small]:text-[11.5px] [&_small]:text-ink-soft';
 const notesTreeCaretClass = 'grid size-7 shrink-0 place-items-center rounded-full bg-surface-1 text-base font-bold text-ink-medium';
@@ -247,8 +248,13 @@ export function StudentNotesPage() {
         const data = await fetchStudentLessons();
         setLessons(data);
 
+        const firstOpenLesson = data.find((lesson) => !lesson.accessLocked && lesson.canAccess !== false);
         const hasRequestedLesson = requestedLessonId && data.some((lesson) => lesson.id === requestedLessonId);
-        const nextLessonId = hasRequestedLesson ? requestedLessonId : data[0]?.id || null;
+        const requestedLesson = hasRequestedLesson ? data.find((lesson) => lesson.id === requestedLessonId) : null;
+        const nextLessonId =
+          requestedLesson && !requestedLesson.accessLocked && requestedLesson.canAccess !== false
+            ? requestedLessonId
+            : firstOpenLesson?.id || data[0]?.id || null;
         setActiveLessonId(nextLessonId);
       } catch (loadError) {
         setError(getErrorMessage(loadError, 'Unable to load notebook lessons'));
@@ -268,6 +274,15 @@ export function StudentNotesPage() {
       return;
     }
 
+    const summary = lessons.find((item) => item.id === activeLessonId);
+    if (summary?.accessLocked || summary?.canAccess === false) {
+      setActiveLesson(null);
+      setAnnotations([]);
+      setComposer(createEmptyComposer());
+      setError(summary.lockReason || 'Your subscription does not include this premium lesson.');
+      return;
+    }
+
     async function loadLessonState() {
       setDetailLoading(true);
       try {
@@ -276,6 +291,7 @@ export function StudentNotesPage() {
           fetchLessonAnnotations(activeLessonId),
         ]);
         setActiveLesson(lessonData);
+        recordStudyActivity({ activityType: 'lesson_viewed', itemId: activeLessonId }).catch(() => {});
         setAnnotations(annotationData);
         setComposer(createEmptyComposer());
         setError('');
@@ -289,7 +305,7 @@ export function StudentNotesPage() {
     }
 
     loadLessonState();
-  }, [activeLessonId]);
+  }, [activeLessonId, lessons]);
 
   const activeLessonSummary = useMemo(
     () => lessons.find((item) => item.id === activeLessonId) || lessons[0] || null,
@@ -379,12 +395,25 @@ export function StudentNotesPage() {
     if (!activeLessonId) {
       return;
     }
+    if (activeLessonSummary?.accessLocked || activeLessonSummary?.canAccess === false) {
+      return;
+    }
 
     const data = await fetchLessonAnnotations(activeLessonId);
     setAnnotations(data);
   }
 
   function handleSelectLesson(lessonId) {
+    const lesson = lessons.find((item) => item.id === lessonId);
+    if (lesson?.accessLocked || lesson?.canAccess === false) {
+      setActiveLessonId(lessonId);
+      setActiveLesson(null);
+      setAnnotations([]);
+      setError(lesson.lockReason || 'Your subscription does not include this premium lesson.');
+      setLibraryOpen(false);
+      return;
+    }
+
     setActiveLessonId(lessonId);
     setLibraryOpen(false);
     setSearchParams((current) => {
@@ -603,7 +632,11 @@ export function StudentNotesPage() {
                           {expandedTopics[topic.id] ? (
                             <div className={notesTopicLessonsClass}>
                               {topic.lessons.map((lesson) => (
-                                <button className={cx(notesLessonChipClass, activeLessonSummary?.id === lesson.id && notesLessonChipSelectedClass)}
+                                <button className={cx(
+                                  notesLessonChipClass,
+                                  activeLessonSummary?.id === lesson.id && notesLessonChipSelectedClass,
+                                  (lesson.accessLocked || lesson.canAccess === false) && 'opacity-70'
+                                )}
                                   key={lesson.id}
                                   type="button"
                                  
@@ -612,7 +645,14 @@ export function StudentNotesPage() {
                                   <span className="m-0 text-[15px] text-ink-strong">
                                     {lesson.subtopicName || lesson.lessonTitle}
                                   </span>
-                                  <small>{lesson.lessonTitle}</small>
+                                  <small className="flex flex-wrap items-center gap-1.5">
+                                    {lesson.isFree ? (
+                                      <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                        Free lesson
+                                      </span>
+                                    ) : null}
+                                    <span>{lesson.accessLocked || lesson.canAccess === false ? 'Included with selected plans' : lesson.lessonTitle}</span>
+                                  </small>
                                 </button>
                               ))}
                             </div>
@@ -674,15 +714,23 @@ export function StudentNotesPage() {
               <div className="min-h-0">
                 {detailLoading ? <div className={ui.emptyBox}>Opening notebook...</div> : null}
                 {!detailLoading && activeLesson ? (
-                  <div
-                    ref={contentRef}
-                    className={cx(notesPaperClass, studyMode && notesStudyPaperClass)}
-                    onMouseUp={handleSelectionCapture}
-                    onClick={handleNotebookClick}
-                    dangerouslySetInnerHTML={{ __html: renderedLessonHtml }}
-                  />
+                  <div className="relative">
+                    <div
+                      ref={contentRef}
+                      className={cx(notesPaperClass, studyMode && notesStudyPaperClass, 'relative z-0')}
+                      onMouseUp={handleSelectionCapture}
+                      onClick={handleNotebookClick}
+                      dangerouslySetInnerHTML={{ __html: renderedLessonHtml }}
+                    />
+                  </div>
                 ) : null}
-                {!detailLoading && !activeLesson && !loading ? <div className={ui.emptyBox}>Select a lesson to open notebook view.</div> : null}
+                {!detailLoading && !activeLesson && !loading ? (
+                  <div className={ui.emptyBox}>
+                    {activeLessonSummary?.accessLocked || activeLessonSummary?.canAccess === false
+                      ? activeLessonSummary.lockReason || 'This lesson is included with selected subscriptions.'
+                      : 'Select a lesson to open notebook view.'}
+                  </div>
+                ) : null}
               </div>
             </div>
           </section>

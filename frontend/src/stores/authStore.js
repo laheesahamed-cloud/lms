@@ -1,52 +1,11 @@
 import { create } from 'zustand';
+import { setUnauthorizedHandler } from '../api/client.js';
 import { fetchCurrentUser, login, logout, register } from '../api/auth.api.js';
-
-const AUTH_TOKEN_KEY = 'lms_session_token';
+import { detectPlatform } from '../platform/detect.js';
+import { clearStoredAuth, getAuthToken, getBootstrapAuth, setAuthToken, setStoredAuthUser } from './authToken.js';
 
 let hydratePromise = null;
-let volatileToken = '';
-
-function getBootstrapAuth() {
-  if (typeof window === 'undefined') {
-    return {
-      token: '',
-      user: null,
-    };
-  }
-
-  let token = '';
-  try {
-    token = window.localStorage.getItem(AUTH_TOKEN_KEY) || '';
-  } catch {
-    token = '';
-  }
-
-  return {
-    token,
-    user: null,
-  };
-}
-
-export function getAuthToken() {
-  return volatileToken || getBootstrapAuth().token || '';
-}
-
-function setAuthToken(token) {
-  volatileToken = token || '';
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    if (volatileToken) {
-      window.localStorage.setItem(AUTH_TOKEN_KEY, volatileToken);
-    } else {
-      window.localStorage.removeItem(AUTH_TOKEN_KEY);
-    }
-  } catch {
-    // Keep the in-memory token even if browser storage is unavailable.
-  }
-}
+let authMutationVersion = 0;
 
 function isPublicAuthRoute() {
   if (typeof window === 'undefined') {
@@ -62,15 +21,32 @@ function isPublicAuthRoute() {
     pathname.endsWith('/auth/reset-password');
 }
 
-export function clearStoredAuth() {
+function finishSignedOut(set) {
   setAuthToken('');
+  setStoredAuthUser(null);
+  set({
+    token: '',
+    user: null,
+    isAuthenticated: false,
+    isHydrating: false,
+    isSigningOut: false,
+  });
 }
 
+function syncNativePushAfterAuth() {
+  if (!detectPlatform().isNative) return;
+  import('../platform/native/NotificationDelivery.js')
+    .then((module) => module.syncNativePushToken?.())
+    .catch(() => {});
+}
+
+const bootstrapAuth = getBootstrapAuth();
+
 export const useAuthStore = create((set, get) => ({
-  user: null,
-  token: getAuthToken(),
-  isHydrating: true,
-  isAuthenticated: false,
+  user: bootstrapAuth.user,
+  token: bootstrapAuth.token,
+  isHydrating: Boolean(bootstrapAuth.token && !bootstrapAuth.user),
+  isAuthenticated: Boolean(bootstrapAuth.token && bootstrapAuth.user),
   isSigningOut: false,
 
   hydrate: async () => {
@@ -78,40 +54,28 @@ export const useAuthStore = create((set, get) => ({
       return hydratePromise;
     }
 
+    const hydrateVersion = authMutationVersion;
     hydratePromise = (async () => {
-      const bootstrapAuth = getBootstrapAuth();
-      const token = get().token || getAuthToken();
-
-      if (!token) {
-        setAuthToken(bootstrapAuth.token || '');
-      }
-
-      const isQuietPublicCheck = isPublicAuthRoute() && !token;
-
-      if (isQuietPublicCheck) {
-        set({ isHydrating: false });
-      }
-
       try {
         const data = await fetchCurrentUser({
-          silent: isQuietPublicCheck,
-          timeout: isQuietPublicCheck ? 2500 : 5000,
+          silent: isPublicAuthRoute(),
+          timeout: isPublicAuthRoute() ? 2500 : 5000,
         });
+        if (hydrateVersion !== authMutationVersion) {
+          return;
+        }
         set({
           token: getAuthToken(),
           user: data.user,
           isAuthenticated: true,
           isHydrating: false,
         });
+        setStoredAuthUser(data.user);
       } catch {
-        setAuthToken('');
-        set({
-          token: '',
-          user: null,
-          isAuthenticated: false,
-          isHydrating: false,
-          isSigningOut: false,
-        });
+        if (hydrateVersion !== authMutationVersion) {
+          return;
+        }
+        finishSignedOut(set);
       }
     })();
 
@@ -124,29 +88,44 @@ export const useAuthStore = create((set, get) => ({
 
   signIn: async (payload) => {
     const data = await login(payload);
+    if (detectPlatform().isNative && !data.sessionToken) {
+      throw new Error('Native sign-in did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
+    }
+    authMutationVersion += 1;
     setAuthToken(data.sessionToken || '');
+    setStoredAuthUser(data.user);
     set({
       token: data.sessionToken || '',
       user: data.user,
       isAuthenticated: true,
+      isHydrating: false,
       isSigningOut: false,
     });
+    syncNativePushAfterAuth();
     return data;
   },
 
   signUp: async (payload) => {
     const data = await register(payload);
+    if (detectPlatform().isNative && !data.sessionToken) {
+      throw new Error('Native registration did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
+    }
+    authMutationVersion += 1;
     setAuthToken(data.sessionToken || '');
+    setStoredAuthUser(data.user);
     set({
       token: data.sessionToken || '',
       user: data.user,
       isAuthenticated: true,
+      isHydrating: false,
       isSigningOut: false,
     });
+    syncNativePushAfterAuth();
     return data;
   },
 
   signOut: async () => {
+    authMutationVersion += 1;
     set({ isSigningOut: true });
 
     await new Promise((resolve) => {
@@ -160,6 +139,7 @@ export const useAuthStore = create((set, get) => ({
     }
 
     setAuthToken('');
+    setStoredAuthUser(null);
     set({
       token: '',
       user: null,
@@ -169,6 +149,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   forceSignOut: () => {
+    authMutationVersion += 1;
     clearStoredAuth();
     set({
       token: '',
@@ -183,3 +164,7 @@ export const useAuthStore = create((set, get) => ({
     set({ user });
   },
 }));
+
+setUnauthorizedHandler(() => {
+  useAuthStore.getState().forceSignOut();
+});

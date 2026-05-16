@@ -5,128 +5,143 @@ import { useAuthStore } from '../../stores/authStore.js';
 import { preloadRouteByPath } from '../../app/router.jsx';
 import { cx } from '../../styles/tailwindClasses.js';
 
-/* ── Icon Set (20×20) ─────────────────────────────────────────── */
+/* ── Icon Set (16×16) — standard stroke-based icons ──────────── */
 const Icons = {
   Dashboard: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="2" y="2" width="7.5" height="7.5" rx="2.5" fill="currentColor"/>
-      <rect x="10.5" y="2" width="7.5" height="7.5" rx="2.5" fill="currentColor" opacity="0.42"/>
-      <rect x="2" y="10.5" width="7.5" height="7.5" rx="2.5" fill="currentColor" opacity="0.42"/>
-      <rect x="10.5" y="10.5" width="7.5" height="7.5" rx="2.5" fill="currentColor" opacity="0.68"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <rect x="3" y="3" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="11" y="3" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="3" y="11" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="11" y="11" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
     </svg>
   ),
   Courses: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <path d="M10 6C8.4 5 6.3 4.5 4.5 4.5C3.67 4.5 3 5.17 3 6V14.5C3 15.33 3.67 16 4.5 16C6.3 16 8.4 16.5 10 17.5" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M10 6C11.6 5 13.7 4.5 15.5 4.5C16.33 4.5 17 5.17 17 6V14.5C17 15.33 16.33 16 15.5 16C13.7 16 11.6 16.5 10 17.5" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round"/>
-      <line x1="10" y1="6" x2="10" y2="17.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M3.5 5C5.5 5 8 5.5 10 7C12 5.5 14.5 5 16.5 5V15.5C14.5 15.5 12 16 10 17.5C8 16 5.5 15.5 3.5 15.5V5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M10 7V17.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
     </svg>
   ),
   Structure: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="7.5" y="2" width="5" height="4" rx="1.5" fill="currentColor"/>
-      <rect x="2" y="14" width="5" height="4" rx="1.5" fill="currentColor" opacity="0.65"/>
-      <rect x="13" y="14" width="5" height="4" rx="1.5" fill="currentColor" opacity="0.65"/>
-      <path d="M10 6V9.5M10 9.5H5M10 9.5H15M5 9.5V14M15 9.5V14" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <rect x="7.5" y="2" width="5" height="4" rx="1.25" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="2" y="14" width="5" height="4" rx="1.25" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="13" y="14" width="5" height="4" rx="1.25" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M10 6V9.5M10 9.5H4.5V14M10 9.5H15.5V14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
   Lessons: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="2" y="3.5" width="16" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.55" fill="none"/>
-      <path d="M8.5 7.5L13.5 9.5L8.5 11.5V7.5Z" fill="currentColor"/>
-      <path d="M7 17H13" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="4.5" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M14 8L18 6V14L14 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
   Questions: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.55" fill="none"/>
-      <path d="M8.25 8.25A2 2 0 0 1 12 8.5C12 10.25 10 10.5 10 12.25" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round"/>
-      <circle cx="10" cy="14.5" r="0.9" fill="currentColor"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M8 8.5C8 7.12 8.9 6.25 10 6.25C11.1 6.25 12 7.12 12 8.5C12 9.75 10.75 10.25 10.25 11C10.1 11.25 10 11.5 10 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="10" cy="14.25" r="0.9" fill="currentColor"/>
     </svg>
   ),
   Quizzes: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <path d="M7.5 2.5H6A1.5 1.5 0 0 0 4.5 4V16A1.5 1.5 0 0 0 6 17.5H14A1.5 1.5 0 0 0 15.5 16V4A1.5 1.5 0 0 0 14 2.5H12.5" stroke="currentColor" strokeWidth="1.45" fill="none"/>
-      <rect x="7.5" y="2" width="5" height="2.5" rx="1.25" stroke="currentColor" strokeWidth="1.3"/>
-      <path d="M7 9.5L9 11.5L13.5 7" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M7 14.5H13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.4"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M7.5 2.5H7C5.9 2.5 5 3.4 5 4.5V16C5 17.1 5.9 18 7 18H13C14.1 18 15 17.1 15 16V4.5C15 3.4 14.1 2.5 13 2.5H12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <rect x="7.5" y="1.5" width="5" height="3" rx="1.25" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M7.5 9.5L9.5 11.5L13 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7.5 14.5H12.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     </svg>
   ),
   Exams: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.55" fill="none"/>
-      <path d="M7 7H13M7 10H11" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round"/>
-      <path d="M6.75 13.25L8.25 14.75L13.25 11.25" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M11.5 2.5H7C5.9 2.5 5 3.4 5 4.5V15.5C5 16.6 5.9 17.5 7 17.5H10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M11.5 2.5L14.5 5.5M11.5 2.5V5.5H14.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7 9H10M7 12H9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <circle cx="15" cy="15.5" r="3" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M15 14V15.5L16 16.25" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
   Users: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <circle cx="7.5" cy="6.5" r="2.75" stroke="currentColor" strokeWidth="1.55" fill="none"/>
-      <path d="M2 17C2 14.1 4.46 11.75 7.5 11.75C10.54 11.75 13 14.1 13 17" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" fill="none"/>
-      <circle cx="14.5" cy="7" r="2.2" stroke="currentColor" strokeWidth="1.3" opacity="0.58" fill="none"/>
-      <path d="M16.5 17C16.5 15.34 15.36 14 14 14C13.34 14 12.76 14.27 12.36 14.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.58"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <circle cx="7.5" cy="6.5" r="3" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M1.5 17.5C1.5 14.46 4.19 12 7.5 12C10.81 12 13.5 14.46 13.5 17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="14.5" cy="7" r="2.25" stroke="currentColor" strokeWidth="1.35"/>
+      <path d="M16.5 17.5C16.5 15.56 15.64 14 14.5 14C13.75 14 13.1 14.5 12.75 15.25" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round"/>
     </svg>
   ),
   Settings: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="2.75" stroke="currentColor" strokeWidth="1.55" fill="none"/>
-      <path d="M10 3.25V5M10 15V16.75M16.75 10H15M5 10H3.25M15.07 4.93L13.82 6.18M6.18 13.82L4.93 15.07M15.07 15.07L13.82 13.82M6.18 6.18L4.93 4.93" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="2.75" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M10 3.5V5M10 15V16.5M16.5 10H15M5 10H3.5M14.6 5.4L13.54 6.46M6.46 13.54L5.4 14.6M14.6 14.6L13.54 13.54M6.46 6.46L5.4 5.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  Setup: () => (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M3.5 6.5H16.5M3.5 10H16.5M3.5 13.5H16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="7" cy="6.5" r="2" stroke="currentColor" strokeWidth="1.4"/>
+      <circle cx="13" cy="10" r="2" stroke="currentColor" strokeWidth="1.4"/>
+      <circle cx="7" cy="13.5" r="2" stroke="currentColor" strokeWidth="1.4"/>
+    </svg>
+  ),
+  Bell: () => (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M5 9C5 6.24 7.24 4 10 4C12.76 4 15 6.24 15 9V12.5L17 15H3L5 12.5V9Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M10 2.5V4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      <path d="M8 16.5C8.45 17.38 9.17 18 10 18C10.83 18 11.55 17.38 12 16.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
     </svg>
   ),
   Mission: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.55" fill="none"/>
-      <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="1.3" opacity="0.52" fill="none"/>
-      <circle cx="10" cy="10" r="1.75" fill="currentColor"/>
-      <path d="M10 2.5V4.5M10 15.5V17.5M2.5 10H4.5M15.5 10H17.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.32"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M10 3L18 7.5L10 12L2 7.5L10 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M5 10V14.5C7 16 13 16 15 14.5V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M18 7.5V12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
     </svg>
   ),
   Notes: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <path d="M5 2.5H12.5L17 7V17A1.5 1.5 0 0 1 15.5 18.5H5A1.5 1.5 0 0 1 3.5 17V4A1.5 1.5 0 0 1 5 2.5Z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-      <path d="M12.5 2.5V7H17" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-      <path d="M7 11H13M7 13.5H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M5 2.5H15C15.83 2.5 16.5 3.17 16.5 4V14L12.5 17.5H5C4.17 17.5 3.5 16.83 3.5 16V4C3.5 3.17 4.17 2.5 5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M12.5 14V17.5L16.5 14" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+      <path d="M7 8H13M7 11H10.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     </svg>
   ),
   Results: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="2.5" y="12" width="3.5" height="5.5" rx="1" fill="currentColor" opacity="0.42"/>
-      <rect x="8.25" y="8" width="3.5" height="9.5" rx="1" fill="currentColor" opacity="0.68"/>
-      <rect x="14" y="4.5" width="3.5" height="13" rx="1" fill="currentColor"/>
-      <path d="M2 19H18" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.3"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M3 17H17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      <rect x="3.5" y="12" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.4"/>
+      <rect x="8.5" y="8" width="3" height="9" rx="0.75" stroke="currentColor" strokeWidth="1.4"/>
+      <rect x="13.5" y="4.5" width="3" height="12.5" rx="0.75" stroke="currentColor" strokeWidth="1.4"/>
     </svg>
   ),
   AI: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <path d="M10 2.5L12 8.5H18L13 12.25L15 18.25L10 14.5L5 18.25L7 12.25L2 8.5H8L10 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M10 2.5L11.5 7H16.5L12.5 9.75L14 14.25L10 11.5L6 14.25L7.5 9.75L3.5 7H8.5L10 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M16 16L16.75 17.75L18.5 16.75L16.75 15.75L16 14L15.25 15.75L13.5 16.75L15.25 17.75L16 16Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
     </svg>
   ),
   Billing: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="2" y="4.5" width="16" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.55" fill="none"/>
-      <path d="M2 8.5H18" stroke="currentColor" strokeWidth="1.5"/>
-      <rect x="4" y="11.5" width="4.5" height="2.5" rx="0.75" fill="currentColor" opacity="0.42"/>
-      <circle cx="15.75" cy="12.75" r="1.25" fill="currentColor" opacity="0.62"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="5" width="16" height="10.5" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M2 9H18" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M5 13H9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      <circle cx="15" cy="13" r="1.25" stroke="currentColor" strokeWidth="1.3"/>
     </svg>
   ),
   Bookmarks: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <path d="M5.5 2.5H14.5C15.05 2.5 15.5 2.95 15.5 3.5V17.5L10 14L4.5 17.5V3.5C4.5 2.95 4.95 2.5 5.5 2.5Z" stroke="currentColor" strokeWidth="1.55" strokeLinejoin="round" fill="none"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M5 2.5H15C15.55 2.5 16 2.95 16 3.5V17.5L10 14.25L4 17.5V3.5C4 2.95 4.45 2.5 5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
     </svg>
   ),
   AiNotes: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <path d="M4.5 2.5H12L16 6.5V17C16 17.55 15.55 18 15 18H4.5C3.95 18 3.5 17.55 3.5 17V3.5C3.5 2.95 3.95 2.5 4.5 2.5Z" stroke="currentColor" strokeWidth="1.4" fill="none"/>
-      <path d="M12 2.5V6.5H16" stroke="currentColor" strokeWidth="1.2"/>
-      <path d="M6 11H9.5M6 13.5H8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-      <path d="M13.5 9.25L14.75 11.75L17 11.25L14.75 13L13.5 15.5L12.25 13L10 11.25L12.25 11.75L13.5 9.25Z" fill="currentColor" opacity="0.62"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M11.5 2.5H6C5.17 2.5 4.5 3.17 4.5 4V16C4.5 16.83 5.17 17.5 6 17.5H14C14.83 17.5 15.5 16.83 15.5 16V6.5L11.5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M11.5 2.5V6.5H15.5" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+      <path d="M7 11H9.5M7 13.5H8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M13 9L13.75 11L15.5 10.5L13.75 12L13 14L12.25 12L10.5 10.5L12.25 11L13 9Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
     </svg>
   ),
   Flashcards: () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="1.5" y="7" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.55" fill="none"/>
-      <rect x="4.5" y="4.5" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.35" opacity="0.38" fill="none"/>
-      <path d="M5 12H8.5M5 14.5H10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <rect x="4.5" y="7" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="2" y="4.5" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M5.5 10.5H11M5.5 13H8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     </svg>
   ),
 };
@@ -145,6 +160,7 @@ const adminLinks = [
   { to: '/courses',       label: 'Courses',       icon: 'Courses'   },
   { to: '/structure',     label: 'Structure',     icon: 'Structure' },
   { to: '/questions',     label: 'Questions',     icon: 'Questions' },
+  { to: '/questions/review', label: 'Review Queue', icon: 'Questions' },
   { to: '/quizzes',       label: 'Assessments',   icon: 'Quizzes'   },
   {
     label: 'AI Tools',
@@ -158,13 +174,19 @@ const adminLinks = [
   { to: '/subscriptions', label: 'Subscriptions', icon: 'Billing'   },
   { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes'   },
   { to: '/users',         label: 'Students',      icon: 'Users'     },
+  { to: '/announcements', label: 'Announcements', icon: 'Bell'      },
+  { to: '/reports',       label: 'Reports',       icon: 'Results'   },
+  { to: '/doubts',        label: 'Doubts',        icon: 'Notes'     },
+  { to: '/setup',         label: 'Setup',         icon: 'Setup'     },
   { to: '/settings',      label: 'Settings',      icon: 'Settings'  },
 ];
 
 const studentLinks = [
   { to: '/dashboard',     label: 'Study Hub',     icon: 'Mission'    },
   { to: '/courses',       label: 'Courses',       icon: 'Courses'    },
+  { to: '/planner',       label: 'Planner',       icon: 'Results'    },
   { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes'    },
+  { to: '/doubts',        label: 'Doubts',        icon: 'Notes'      },
   { to: '/flashcards',    label: 'Flashcards',    icon: 'Flashcards' },
   { to: '/quizzes',       label: 'Q-Bank',        icon: 'Quizzes'    },
   { to: '/exams',         label: 'Exams',         icon: 'Exams'      },
@@ -176,13 +198,19 @@ const studentLinks = [
 const END_EXACT = new Set([
   '/dashboard',
   '/bookmarks', '/subscriptions', '/exams', '/flashcards',
-  '/structure', '/users', '/settings',
+  '/structure', '/users', '/setup', '/settings', '/announcements',
+  '/reports', '/doubts', '/notifications', '/planner', '/questions/review',
   '/ai/gemini', '/ai/chatgpt',
 ]);
 
+function isExactNavPath(path) {
+  const cleanPath = path.replace(/^\/(?:admin|app|student)(?=\/|$)/, '') || '/dashboard';
+  return END_EXACT.has(cleanPath);
+}
+
 const sidebarUi = {
   shell:
-    'fixed inset-y-0 left-0 z-[820] flex h-screen min-h-screen w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[transform,width,box-shadow,border-color] duration-[300ms] ease-[var(--ease-smooth)] [height:100dvh] [min-height:100dvh] will-change-[transform,width] shadow-[1px_0_0_var(--line-soft),var(--shadow-sm)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88vw)] max-[900px]:-translate-x-full max-[900px]:rounded-r-[22px] max-[900px]:shadow-2xl',
+    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[transform,width,box-shadow,border-color] duration-[300ms] ease-[var(--ease-smooth)] [height:100dvh] [min-height:100dvh] will-change-[transform,width] shadow-[1px_0_0_var(--line-soft),var(--shadow-sm)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[22px]',
   shellLight:
     '',
   open: 'max-[900px]:translate-x-0',
@@ -194,7 +222,7 @@ const sidebarUi = {
   logoRowCollapsed:
     'min-[901px]:flex-col min-[901px]:justify-center min-[901px]:gap-2 min-[901px]:px-0 min-[901px]:py-3',
   brandIcon:
-    'grid size-[38px] shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,#0B1220_0%,#0F766E_44%,#2563EB_100%)] shadow-[0_8px_20px_rgba(20,184,166,0.14)]',
+    'grid size-[38px] shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,#0B1220_0%,#2563EB_48%,#7C3AED_100%)] shadow-[0_8px_20px_rgba(37,99,235,0.16)]',
   brandIconCollapsed: 'min-[901px]:size-[36px]',
   wordmark: 'grid min-w-0 gap-0.5',
   wordmarkName: 'truncate text-[14.5px] font-extrabold tracking-[-0.01em] text-ink-strong',
@@ -252,7 +280,7 @@ const sidebarUi = {
   kbd:
     'ml-auto rounded-[8px] border border-brand-primary/14 bg-[var(--color-primary-light)] px-1.5 py-0.5 text-[10.5px] font-bold text-brand-primary',
   studyCard:
-    'relative mx-3 mt-2.5 mb-3 grid min-h-[128px] shrink-0 overflow-hidden rounded-xl border border-line-soft bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-teal)_11%,var(--surface-card)),color-mix(in_srgb,var(--color-primary)_7%,var(--surface-card)))] p-3 shadow-sm before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_82%_16%,color-mix(in_srgb,var(--color-primary)_18%,transparent),transparent_34%),radial-gradient(circle_at_10%_100%,color-mix(in_srgb,var(--color-teal)_16%,transparent),transparent_38%)] before:content-[""] dark:border-white/10 dark:bg-[linear-gradient(145deg,rgba(20,184,166,0.12),rgba(37,99,235,0.08),rgba(255,255,255,0.04))] max-[900px]:hidden',
+    'relative mx-3 mt-2.5 mb-3 grid min-h-[128px] shrink-0 overflow-hidden rounded-xl border border-line-soft bg-[linear-gradient(145deg,color-mix(in_srgb,#0ea5e9_9%,var(--surface-card)),color-mix(in_srgb,var(--color-primary)_7%,var(--surface-card)))] p-3 shadow-sm before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_82%_16%,color-mix(in_srgb,var(--color-primary)_18%,transparent),transparent_34%),radial-gradient(circle_at_10%_100%,color-mix(in_srgb,#0ea5e9_14%,transparent),transparent_38%)] before:content-[""] dark:border-white/10 dark:bg-[linear-gradient(145deg,rgba(14,165,233,0.10),rgba(37,99,235,0.08),rgba(255,255,255,0.04))] max-[900px]:hidden',
   studyIcon:
     'absolute right-2 top-1 grid h-[82px] w-[92px] place-items-center text-[var(--color-teal)]',
   studyCopy:
@@ -280,7 +308,7 @@ function FlyoutPanel({ group, onClose }) {
         <NavLink
           key={child.to}
           to={child.to}
-          end={END_EXACT.has(child.to)}
+          end={isExactNavPath(child.to)}
           className={({ isActive }) => cx(sidebarUi.flyoutItem, isActive && sidebarUi.flyoutItemActive)}
           onClick={onClose}
         >
@@ -350,7 +378,7 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
             <NavLink
               key={child.to}
               to={child.to}
-              end={END_EXACT.has(child.to)}
+              end={isExactNavPath(child.to)}
               className={({ isActive: a }) => cx(sidebarUi.submenuItem, a && sidebarUi.submenuItemActive)}
               onMouseEnter={() => preloadRouteByPath(child.to, role)}
               onFocus={() => preloadRouteByPath(child.to, role)}
@@ -375,6 +403,7 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
 export function AppSidebar({
   isOpen = false,
   isCollapsed = false,
+  isOverlayNav = false,
   isExamFocusMode = false,
   onClose = () => {},
   onSearchOpen = () => {},
@@ -382,7 +411,7 @@ export function AppSidebar({
 }) {
   const user = useAuthStore((state) => state.user);
   const location = useLocation();
-  const links = user?.role === 'admin' ? adminLinks : studentLinks;
+  const links = prefixLinks(user?.role === 'admin' ? adminLinks : studentLinks, user?.role);
 
   const [openGroups, setOpenGroups] = useState(() => {
     return links
@@ -403,8 +432,10 @@ export function AppSidebar({
         sidebarUi.shell,
         sidebarUi.shellLight,
         isOpen && sidebarUi.open,
+        isOpen && 'is-open',
         isCollapsed && sidebarUi.collapsed,
         isCollapsed && 'is-collapsed',
+        isOverlayNav && 'is-overlay-nav',
         isExamFocusMode && 'exam-focus',
         isCollapsed && 'min-[901px]:overflow-visible group/sidebar is-collapsed',
       )}
@@ -418,7 +449,7 @@ export function AppSidebar({
             <defs>
               <linearGradient id="sb-logo-g" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stopColor="#2563EB"/>
-                <stop offset="100%" stopColor="#14B8A6"/>
+                <stop offset="100%" stopColor="#0EA5E9"/>
               </linearGradient>
             </defs>
           </svg>
@@ -496,7 +527,7 @@ export function AppSidebar({
             <NavLink
               key={item.to}
               to={item.to}
-              end={END_EXACT.has(item.to)}
+              end={isExactNavPath(item.to)}
               style={{ '--li': i }}
               className={({ isActive }) => cx(
                 'group',
@@ -519,22 +550,6 @@ export function AppSidebar({
           );
         })}
       </nav>
-
-      {/* ── Search (students only) ────────────────────────────────── */}
-      {user?.role === 'student' && (
-        <button className={cx(sidebarUi.searchButton, isCollapsed && 'min-[901px]:hidden')}
-          type="button"
-         
-          onClick={() => { onClose(); onSearchOpen(); }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.4"/>
-            <path d="M9 9L11.5 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-          </svg>
-          <span>Search…</span>
-          <kbd className={sidebarUi.kbd}>⌘K</kbd>
-        </button>
-      )}
 
       {user?.role === 'student' && !isCollapsed && (
         <div className={sidebarUi.studyCard}>
@@ -570,7 +585,7 @@ export function AppSidebar({
               <circle cx="46" cy="28" r="6" fill="#FDE68A" opacity=".85" />
               <circle cx="58" cy="34" r="5" fill="#FACC15" opacity=".9" />
               {/* Medical cross book */}
-              <rect x="27" y="30" width="14" height="18" rx="3" fill="#14B8A6" transform="rotate(-14 34 39)" />
+              <rect x="27" y="30" width="14" height="18" rx="3" fill="#0EA5E9" transform="rotate(-14 34 39)" />
               <path d="M31 38 H39 M35 34 V42" stroke="white" strokeWidth="1.8" strokeLinecap="round" transform="rotate(-14 34 39)" />
               {/* Pink star */}
               <path d="M60 26 L61.2 30 L65 31 L61.2 32 L60 36 L58.8 32 L55 31 L58.8 30 Z" fill="#FDA4AF" stroke="#BE185D" strokeWidth="1" />
@@ -586,7 +601,7 @@ export function AppSidebar({
               <path d="M71 26 Q74 28 77 26" stroke="#C05621" strokeWidth="1.2" strokeLinecap="round" fill="none" />
               {/* Mini coat */}
               <path d="M67 29 Q66 40 66 46 Q70 44 74 46 Q78 44 82 46 Q82 40 81 29 Z" fill="white" stroke="#BFDBFE" strokeWidth="1" />
-              <path d="M70 29 L69 46 H79 L78 29 Z" fill="#14B8A6" opacity=".7" />
+              <path d="M70 29 L69 46 H79 L78 29 Z" fill="#0EA5E9" opacity=".7" />
             </svg>
           </div>
           <div className={sidebarUi.studyCopy}>
@@ -604,4 +619,90 @@ export function AppSidebar({
   }
 
   return createPortal(sidebar, document.body);
+}
+
+/* ── Mobile bottom navigation bar (students only, ≤900px) ──────── */
+const mobileNavItems = [
+  { to: '/courses',   label: 'Courses', icon: 'Courses'   },
+  { to: '/quizzes',   label: 'Q-Bank',  icon: 'Quizzes'   },
+  { to: '/dashboard', label: 'Home',    icon: 'Mission'   },
+  { to: '/ai-notes',  label: 'Lessons', icon: 'AiNotes'   },
+  { to: '/results',   label: 'Results', icon: 'Results'   },
+];
+
+function withRolePrefix(path, role) {
+  if (!path || path.startsWith('/admin') || path.startsWith('/app')) return path;
+  if (path.startsWith('/ai/')) return path;
+  return `${role === 'admin' ? '/admin' : '/app'}${path}`;
+}
+
+function prefixLinks(items, role) {
+  return items.map((item) => {
+    if (item.children) {
+      return {
+        ...item,
+        children: item.children.map((child) => ({
+          ...child,
+          to: withRolePrefix(child.to, role),
+        })),
+      };
+    }
+
+    return {
+      ...item,
+      to: withRolePrefix(item.to, role),
+    };
+  });
+}
+
+export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {} }) {
+  const user = useAuthStore((s) => s.user);
+
+  if (user?.role !== 'student' || isExamFocusMode) return null;
+
+  const items = prefixLinks(mobileNavItems, user?.role);
+
+  const nav = (
+    <nav
+      className="bottom-nav mobile-nav tab-bar lms-mobile-bottom-nav fixed inset-x-0 bottom-0 z-[9999] isolate !m-0 !h-[var(--bottom-nav-height)] !min-h-[var(--bottom-nav-height)] overflow-hidden !border-0 !border-t !border-slate-200/90 !bg-white !p-0 !shadow-[0_-1px_8px_rgba(15,23,42,0.045)] !outline-none !backdrop-blur-none !transform-none dark:!border-white/10 dark:!bg-[#05070d] dark:!shadow-[0_-1px_10px_rgba(0,0,0,0.26)] min-[901px]:hidden"
+      aria-label="Mobile navigation"
+    >
+      <div className="relative z-[1] mx-auto grid h-[var(--lms-tabbar-row-height)] w-full max-w-md grid-cols-5 items-stretch px-1.5">
+        {items.map((item) => {
+          const IconComp = Icons[item.icon] || Icons.Mission;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={isExactNavPath(item.to)}
+              onPointerDown={() => preloadRouteByPath(item.to, user?.role)}
+              onTouchStart={() => preloadRouteByPath(item.to, user?.role)}
+              onClick={onNavigate}
+              className={({ isActive }) => cx(
+                'flex h-full min-h-11 w-full min-w-0 flex-col items-center justify-center justify-self-center gap-1 text-center text-[11.5px] font-semibold leading-none tracking-normal no-underline',
+                isActive ? 'text-blue-600 dark:text-sky-300' : 'text-slate-600 dark:text-slate-400',
+              )}
+            >
+              {({ isActive }) => (
+                <>
+                  <span className={cx(
+                    'flex h-7 w-7 shrink-0 items-center justify-center [&_svg]:size-[23px]',
+                    isActive ? 'text-blue-600 dark:text-sky-300' : 'text-slate-500 dark:text-slate-400',
+                  )}>
+                    <IconComp />
+                  </span>
+                  <span className="block max-w-full truncate whitespace-nowrap text-center leading-none">
+                    {item.label}
+                  </span>
+                </>
+              )}
+            </NavLink>
+          );
+        })}
+      </div>
+    </nav>
+  );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(nav, document.body);
 }

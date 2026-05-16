@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 
 export const SESSION_TTL_DAYS = 7;
+export const ADMIN_SESSION_TTL_DAYS = 1;
 
 export function extractBearerToken(authorization?: string) {
   const token = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : authorization?.trim();
@@ -16,4 +17,3 @@ export function createSessionExpiry(ttlDays = SESSION_TTL_DAYS) {
   expiresAt.setDate(expiresAt.getDate() + ttlDays);
   return expiresAt;
 }
-

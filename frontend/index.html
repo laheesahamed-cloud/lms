@@ -1,122 +1,195 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light" data-accent-theme="codeforge">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ERPM LMS Frontend</title>
-    <meta name="theme-color" content="#F8FBFF" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>ERPM LMS</title>
+    <meta name="theme-color" content="#05070d" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ERPM LMS" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
-    <link rel="icon" type="image/svg+xml" href="%BASE_URL%pwa-icon.svg" />
-    <link rel="apple-touch-icon" href="%BASE_URL%pwa-icon.svg" />
+    <link rel="manifest" href="/lms/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/lms/pwa-icon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/lms/apple-touch-icon.png" />
     <script>
       (function () {
         var theme = 'light';
         var accentTheme = 'codeforge';
-
         try {
           var requestedTheme = new URLSearchParams(window.location.search).get('theme');
           var savedTheme = window.localStorage.getItem('lms_theme_mode');
-          if (requestedTheme === 'light' || requestedTheme === 'dark') {
-            theme = requestedTheme;
-          } else if (savedTheme === 'light' || savedTheme === 'dark') {
-            theme = savedTheme;
-          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            theme = 'dark';
-          }
-
           var savedAccent = window.localStorage.getItem('lms_accent_theme');
-          if (savedAccent === 'erpm' || savedAccent === 'codeforge') {
-            accentTheme = savedAccent;
-          }
+          if (requestedTheme === 'light' || requestedTheme === 'dark') theme = requestedTheme;
+          else if (savedTheme === 'light' || savedTheme === 'dark') theme = savedTheme;
+          if (savedAccent === 'erpm' || savedAccent === 'codeforge') accentTheme = savedAccent;
+        } catch (error) {}
+        var root = document.documentElement;
+        var isNativeShell = window.location.protocol === 'capacitor:' || window.location.protocol === 'ionic:' || window.Capacitor?.isNativePlatform?.() === true;
+        var isStandalonePwa = false;
+        try {
+          isStandalonePwa = window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true;
         } catch (error) {}
 
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.dataset.accentTheme = accentTheme;
-        document.documentElement.style.colorScheme = theme;
-
-        var metaThemeColor = document.querySelector('meta[name="theme-color"]');
-        if (metaThemeColor) {
-          metaThemeColor.setAttribute('content', theme === 'dark' ? '#050B18' : '#F8FBFF');
+        function positiveNumber(value) {
+          var number = Number(value);
+          return Number.isFinite(number) && number > 0 ? number : 0;
         }
+
+        function smallestPositive(values) {
+          var candidates = values.map(positiveNumber).filter(Boolean);
+          return candidates.length ? Math.round(Math.min.apply(Math, candidates)) : 0;
+        }
+
+        function detectOs() {
+          var ua = window.navigator?.userAgent || '';
+          var platform = window.navigator?.platform || '';
+          if (window.Capacitor?.getPlatform?.() === 'ios' || /iPad|iPhone|iPod/i.test(ua)) return 'ios';
+          if (window.Capacitor?.getPlatform?.() === 'android' || /Android/i.test(ua)) return 'android';
+          if (platform === 'MacIntel' && (window.navigator?.maxTouchPoints || 0) > 1) return 'ios';
+          if (/Win/i.test(platform)) return 'windows';
+          if (/Mac/i.test(platform)) return 'macos';
+          if (/Linux/i.test(platform)) return 'linux';
+          return 'unknown';
+        }
+
+        function detectFormFactor(runtime, os) {
+          var width = smallestPositive([window.visualViewport?.width, window.innerWidth, document.documentElement.clientWidth]);
+          var height = smallestPositive([window.visualViewport?.height, window.innerHeight, document.documentElement.clientHeight]);
+          var shortest = Math.min(width || 0, height || 0);
+          var longest = Math.max(width || 0, height || 0);
+          var screenShortest = smallestPositive([window.screen?.width, window.screen?.height]);
+          var ua = window.navigator?.userAgent || '';
+          var coarse = false;
+          try {
+            coarse = window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches === true;
+          } catch (error) {}
+          var explicitTablet = /iPad|Tablet|PlayBook|Silk/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua));
+          var iosTablet = os === 'ios' && window.navigator?.platform === 'MacIntel' && (window.navigator?.maxTouchPoints || 0) > 1;
+
+          if (shortest <= 767 || (screenShortest > 0 && screenShortest <= 767)) return 'phone';
+          if (runtime === 'native' && longest > 0 && longest <= 932) return 'phone';
+          if (explicitTablet || iosTablet || (coarse && shortest >= 768 && (screenShortest === 0 || screenShortest >= 768))) return 'tablet';
+          if (coarse || (longest > 0 && longest <= 932)) return 'phone';
+          return 'desktop';
+        }
+
+        var runtime = isNativeShell ? 'native' : isStandalonePwa ? 'pwa' : 'web';
+        var os = detectOs();
+        var formFactor = detectFormFactor(runtime, os);
+        var target = runtime + '-' + formFactor;
+        if (runtime === 'native' && (os === 'ios' || os === 'android')) target = 'native-' + os + '-' + formFactor;
+        else if (runtime === 'web' && formFactor === 'phone') target = 'web-mobile';
+        else if (runtime === 'web') target = 'web-' + formFactor;
+
+        root.dataset.theme = theme;
+        root.dataset.accentTheme = accentTheme;
+        root.dataset.lmsRuntime = runtime;
+        root.dataset.lmsOs = os;
+        root.dataset.lmsFormFactor = formFactor;
+        root.dataset.lmsTarget = target;
+        root.dataset.lmsPwa = isStandalonePwa ? 'true' : 'false';
+        if (isNativeShell) {
+          var viewport = document.querySelector('meta[name="viewport"]');
+          if (viewport) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no');
+          }
+        }
+        root.style.colorScheme = theme;
+        root.style.backgroundColor = isNativeShell ? '#ffffff' : '#05070d';
       })();
     </script>
     <style>
-      :root {
-        color-scheme: light;
-        font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
-      }
-
-      :root[data-theme='dark'] {
-        color-scheme: dark;
-      }
-
       html,
       body,
       #root {
-        min-height: 100vh;
-        min-height: 100dvh;
-      }
-
-      body {
         margin: 0;
-        color: #0F172A;
-        background:
-          radial-gradient(ellipse at 18% 0%, rgba(0, 132, 209, 0.08) 0%, transparent 48%),
-          linear-gradient(180deg, #FFFFFF 0%, #F8FBFF 52%, #F8FAFC 100%);
+        min-height: 100%;
+        width: 100%;
+        background: #05070d;
       }
-
-      :root[data-theme='dark'] body {
-        color: #F1F5FF;
-        background:
-          radial-gradient(ellipse at 18% 0%, rgba(0, 132, 209, 0.17) 0%, transparent 52%),
-          linear-gradient(160deg, #050B18 0%, #08142A 45%, #0A1124 100%);
+      html[data-lms-runtime="native"],
+      html[data-lms-runtime="native"] body,
+      html[data-lms-runtime="native"] #root {
+        background: #ffffff;
       }
-
-      #app-boot-loader {
+      #lms-static-boot {
         position: fixed;
         inset: 0;
-        z-index: 2147482000;
+        z-index: 2147481000;
         display: grid;
         place-items: center;
-        background: inherit;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 220ms ease;
+        min-height: 100dvh;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 44%, rgba(56, 189, 248, 0.12), transparent 24%),
+          linear-gradient(180deg, #050b18 0%, #02040b 100%);
+        color: #e5eefb;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
-
-      body.app-booting #app-boot-loader {
-        opacity: 1;
+      #lms-static-boot::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        background-size: 28px 28px;
+        opacity: 0.8;
       }
-
-      .app-boot-mark {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        border: 3px solid rgba(0, 132, 209, 0.18);
-        border-top-color: #0084D1;
-        animation: appBootSpin 760ms linear infinite;
+      .lms-static-boot__mark {
+        position: relative;
+        display: grid;
+        gap: 14px;
+        justify-items: center;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
       }
-
-      @keyframes appBootSpin {
-        to { transform: rotate(360deg); }
+      .lms-static-boot__pulse {
+        position: relative;
+        width: 54px;
+        height: 54px;
+        border-radius: 18px;
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        box-shadow: 0 0 34px rgba(14, 165, 233, 0.18), inset 0 0 24px rgba(56, 189, 248, 0.08);
+        animation: lms-static-pulse 1.05s ease-in-out infinite;
       }
-
+      .lms-static-boot__pulse::after {
+        content: "";
+        position: absolute;
+        inset: -7px;
+        border-radius: 24px;
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        animation: lms-static-ring 1.2s ease-out infinite;
+      }
+      .lms-static-boot__text {
+        font-size: 13px;
+        font-weight: 800;
+      }
+      @keyframes lms-static-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.86; }
+        50% { transform: scale(1.045); opacity: 1; }
+      }
+      @keyframes lms-static-ring {
+        0% { transform: scale(0.88); opacity: 0.55; }
+        75%, 100% { transform: scale(1.22); opacity: 0; }
+      }
       @media (prefers-reduced-motion: reduce) {
-        #app-boot-loader { transition: none; }
-        .app-boot-mark { animation: none; }
+        .lms-static-boot__pulse,
+        .lms-static-boot__pulse::after {
+          animation: none;
+        }
       }
     </style>
   </head>
   <body class="app-booting">
-    <div id="app-boot-loader" aria-hidden="true">
-      <span class="app-boot-mark"></span>
+    <div id="lms-static-boot" aria-hidden="true">
+      <div class="lms-static-boot__mark">
+        <span class="lms-static-boot__pulse"></span>
+        <span class="lms-static-boot__text">ERPM LMS</span>
+      </div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
-  </html>
+</html>

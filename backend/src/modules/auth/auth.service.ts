@@ -6,7 +6,7 @@ import * as bcrypt from 'bcryptjs';
 import * as nodemailer from 'nodemailer';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { decryptSecret } from '../../common/utils/ai-provider.utils';
-import { createSessionExpiry, extractBearerToken, hashSessionToken } from './auth-token.util';
+import { ADMIN_SESSION_TTL_DAYS, SESSION_TTL_DAYS, createSessionExpiry, extractBearerToken, hashSessionToken } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -88,15 +88,17 @@ export class AuthService {
     }
 
     const sessionToken = randomBytes(32).toString('hex');
+    const sessionTtlDays = user.role === 'admin' ? ADMIN_SESSION_TTL_DAYS : SESSION_TTL_DAYS;
     await this.db.execute('UPDATE users SET session_token = ?, session_expires_at = ? WHERE id = ?', [
       hashSessionToken(sessionToken),
-      createSessionExpiry(),
+      createSessionExpiry(sessionTtlDays),
       user.id,
     ]);
 
     return {
       ok: true,
       sessionToken,
+      sessionTtlDays,
       redirectPath: this.getRedirectPath(user.role, user.status),
       user: await this.serializeUser(user),
     };
@@ -132,7 +134,8 @@ export class AuthService {
     return {
       ok: true,
       sessionToken,
-      redirectPath: '/dashboard',
+      sessionTtlDays: SESSION_TTL_DAYS,
+      redirectPath: this.getRedirectPath('student', 'active'),
       user: await this.serializeUser({
         id: result.insertId,
         full_name: fullName,
@@ -328,10 +331,10 @@ export class AuthService {
         throw new UnauthorizedException('Your admin account is not active right now');
       }
 
-      return '/dashboard';
+      return '/admin/dashboard';
     }
 
-    return '/dashboard';
+    return status === 'active' ? '/app/dashboard' : '/app/pending';
   }
 
   private extractToken(authorization?: string) {
@@ -634,7 +637,12 @@ ${settings.footer}`;
     const durationDays = Math.max(Number(entryPlan.duration_days || 3650), 1);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + durationDays - 1);
-    const toDateOnly = (date: Date) => date.toISOString().slice(0, 10);
+    const toDateOnly = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
     await this.db.execute(
       `

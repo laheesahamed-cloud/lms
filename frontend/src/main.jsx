@@ -1,29 +1,52 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './app/App.jsx';
-import { useAuthStore } from './stores/authStore.js';
+import { applyPlatformAttributes, installPlatformAttributeSync } from './platform/detect.js';
+import { shouldRegisterServiceWorker } from './platform/config.js';
 import { applyPerformanceProfile } from './utils/performanceProfile.js';
+import { installPwaRegistration, uninstallPwaRegistration } from './utils/pwaRegistration.js';
+import { installNativeErrorOverlay } from './utils/nativeErrorOverlay.js';
 import './styles/index.css';
 
-if ('serviceWorker' in navigator && typeof window !== 'undefined') {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.getRegistrations()
-      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-      .catch(() => {});
+installNativeErrorOverlay();
 
-    if ('caches' in window) {
-      window.caches.keys().then((keys) => Promise.all(
-        keys
-          .filter((key) => key.startsWith('erpm-lms-shell-'))
-          .map((key) => window.caches.delete(key))
-      )).catch(() => {});
+function isPwaMode() {
+  return document.documentElement.dataset.lmsPwa === 'true';
+}
+
+function isEditableTarget(target) {
+  return Boolean(target?.closest?.('input, textarea, select, [contenteditable="true"]'));
+}
+
+function installPwaTouchGuards() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  document.addEventListener('contextmenu', (event) => {
+    if (!isPwaMode() || isEditableTarget(event.target)) return;
+    if (event.target?.closest?.('a, button, [role="button"]')) {
+      event.preventDefault();
     }
-  });
+  }, { capture: true });
+}
+
+const initialPlatform = applyPlatformAttributes();
+if (typeof window !== 'undefined') {
+  installPwaTouchGuards();
+  installPlatformAttributeSync();
 }
 
 // Start user/session hydration while the boot loader is still covering the app.
 applyPerformanceProfile();
-useAuthStore.getState().hydrate();
+if (shouldRegisterServiceWorker(initialPlatform)) {
+  installPwaRegistration();
+} else {
+  uninstallPwaRegistration();
+}
+
+if (initialPlatform.isNative) {
+  import('./platform/native/NotificationDelivery.js')
+    .then((module) => module.installNativePushNotificationHandlers?.())
+    .catch(() => {});
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <App />

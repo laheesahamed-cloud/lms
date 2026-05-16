@@ -29,11 +29,12 @@ import { API_BASE_URL, getErrorMessage } from '../../../api/client.js';
 import { AppHeader } from '../../../components/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../components/ui/ActionIcons.jsx';
 import { cx, statusPill, ui } from '../../../styles/tailwindClasses.js';
+import { getSafeExternalUrl } from '../../../utils/linkSafety.js';
 
 const subscriptionUi = {
   overviewGrid: 'grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2 max-[700px]:grid-cols-1',
   overviewCard:
-    'grid gap-2 rounded-lg border border-line-soft bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(20,184,166,0.045)),var(--surface-card)] px-[18px] py-4 shadow-md',
+    'grid gap-2 rounded-lg border border-line-soft bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(14,165,233,0.045)),var(--surface-card)] px-[18px] py-4 shadow-md',
   overviewLabel: 'text-[11px] font-bold uppercase tracking-[0.06em] text-ink-soft',
   overviewValue: 'text-[clamp(20px,2.2vw,26px)] leading-none text-ink-strong',
   overviewText: 'm-0 text-[12.5px] text-ink-soft',
@@ -154,7 +155,10 @@ const emptySubscriptionFilters = {
 };
 
 function toDateOnly(date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function parseDateInput(value) {
@@ -342,10 +346,21 @@ function resolveProofPreviewUrl(rawPath) {
   if (!text) {
     throw new Error('Missing proof file');
   }
-  if (/^https?:\/\//i.test(text) || text.startsWith('blob:')) {
+  if (/^https?:\/\//i.test(text)) {
+    const safeUrl = getSafeExternalUrl(text);
+    if (!safeUrl) {
+      throw new Error('Invalid proof URL');
+    }
+    return { url: safeUrl, revoke: false };
+  }
+  if (text.startsWith('blob:')) {
     return { url: text, revoke: false };
   }
   if (text.startsWith('/uploads/')) {
+    const protectedPath = text.replace(/^\/uploads\/payment-proofs\//, '/uploads/payment-proofs/');
+    if (protectedPath !== text) {
+      return { url: `${API_BASE_URL}${protectedPath}`, revoke: false };
+    }
     return { url: `${API_BASE_URL.replace(/\/api\/?$/i, '')}${text}`, revoke: false };
   }
 

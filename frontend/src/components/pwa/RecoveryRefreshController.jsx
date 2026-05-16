@@ -18,7 +18,23 @@ function isNoAutoRefreshRoute() {
   }
 
   const routeText = `${window.location.pathname || ''}${window.location.hash || ''}`;
-  return /\/ai-notes\/[^/?#]+/.test(routeText);
+  return /\/ai-notes(?:\/|$)/.test(routeText) ||
+    /\/(?:auth\/)?(?:login|register)(?:\/|$)/.test(routeText) ||
+    /\/auth\/(?:forgot-password|reset-password)(?:\/|$)/.test(routeText);
+}
+
+function hasRecentAuthSuccess() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  let timestamp = 0;
+  try {
+    timestamp = Number(window.sessionStorage.getItem('lms_recent_auth_success') || 0);
+  } catch {
+    return true;
+  }
+  return timestamp > 0 && Date.now() - timestamp < 15000;
 }
 
 async function pingHealth() {
@@ -70,7 +86,7 @@ export function RecoveryRefreshController() {
   }, [isOnline, serverNotResponding]);
 
   useEffect(() => {
-    if (isPreviewRoute() || isNoAutoRefreshRoute() || !recoveryNeededRef.current || reloadingRef.current) {
+    if (isPreviewRoute() || isNoAutoRefreshRoute() || hasRecentAuthSuccess() || !recoveryNeededRef.current || reloadingRef.current) {
       return undefined;
     }
 

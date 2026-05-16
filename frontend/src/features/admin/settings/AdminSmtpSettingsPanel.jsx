@@ -196,7 +196,7 @@ export function AdminSmtpSettingsPanel() {
             </div>
 
             <div className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-sm">
-              <div className="bg-[linear-gradient(135deg,#2563EB,#14B8A6)] px-5 py-4 text-white">
+              <div className="bg-[linear-gradient(135deg,#2563EB,#0EA5E9)] px-5 py-4 text-white">
                 <div className="text-[11px] font-extrabold uppercase tracking-[0.08em]">ERPM LMS</div>
                 <h3 className="m-0 mt-2 text-[22px] font-black leading-tight">{form.heading}</h3>
               </div>

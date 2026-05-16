@@ -9,7 +9,12 @@ frontend/.env
 
 dist/
 frontend/dist/
+frontend/dist-capacitor/
 backend/dist/
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/build/
+frontend/ios/**/DerivedData/
 
 .runtime/
 release/
@@ -18,3 +23,4 @@ backend/uploads/
 
 .DS_Store
 *.log
+*.tsbuildinfo

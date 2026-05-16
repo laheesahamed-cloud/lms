@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../api/client.js';
 import { fetchGeneralSettings, updateGeneralSettings } from '../../../api/settings.api.js';
-import { ui } from '../../../styles/tailwindClasses.js';
+import { cx, ui } from '../../../styles/tailwindClasses.js';
+import { getSafeExternalUrl } from '../../../utils/linkSafety.js';
+
+function normalizeWhatsAppInput(value) {
+  return String(value || '').replace(/[^\d+\s()-]/g, '');
+}
 
 export function AdminGeneralSettingsPanel() {
   const [settings, setSettings] = useState(null);
   const [form, setForm] = useState({ whatsappNumber: '' });
   const [status, setStatus] = useState({ loading: true, saving: false, error: '', success: '' });
+  const safeWhatsappUrl = getSafeExternalUrl(settings?.whatsappUrl);
 
   useEffect(() => {
     loadSettings();
@@ -40,7 +46,7 @@ export function AdminGeneralSettingsPanel() {
       setStatus((current) => ({
         ...current,
         saving: false,
-        success: 'General settings updated successfully.',
+        success: 'WhatsApp settings updated successfully.',
       }));
     } catch (error) {
       setStatus((current) => ({
@@ -61,20 +67,24 @@ export function AdminGeneralSettingsPanel() {
       ) : (
         <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(280px,0.9fr)] items-start gap-[18px] max-[900px]:grid-cols-1">
           <form className={ui.stackForm} onSubmit={handleSubmit}>
-            <label className="flex flex-col gap-2 text-[13px] font-bold text-ink-strong">
+            <label className={cx(ui.formLabel, 'gap-2')}>
               WhatsApp number
-              <input className="w-full"
-               
+              <input
+                className={ui.input}
                 value={form.whatsappNumber}
-                onChange={(event) => setForm({ whatsappNumber: event.target.value })}
-                placeholder="+8801712345678"
+                onChange={(event) => setForm({ whatsappNumber: normalizeWhatsAppInput(event.target.value) })}
+                placeholder="+94 77 123 4567"
                 autoComplete="tel"
+                inputMode="tel"
               />
+              <span className="text-[12px] font-medium leading-relaxed text-ink-soft">
+                Include the country code. Spaces, brackets, and dashes are okay.
+              </span>
             </label>
 
             <div className={ui.buttonRow}>
               <button className={ui.primaryAction} type="submit" disabled={status.saving}>
-                {status.saving ? 'Saving...' : 'Save general settings'}
+                {status.saving ? 'Saving...' : 'Save WhatsApp number'}
               </button>
               <button type="button" className={ui.secondaryAction} onClick={loadSettings} disabled={status.saving}>
                 Refresh
@@ -86,6 +96,16 @@ export function AdminGeneralSettingsPanel() {
             <div className="flex flex-col gap-1.5 rounded-lg border border-line-soft bg-surface-glass-subtle px-4 py-3.5">
               <span className="text-xs text-ink-soft">WhatsApp contact</span>
               <strong className="[overflow-wrap:anywhere] text-sm leading-normal text-ink-strong">{settings?.whatsappNumber || 'Not set yet'}</strong>
+            </div>
+            <div className="flex flex-col gap-1.5 rounded-lg border border-line-soft bg-surface-glass-subtle px-4 py-3.5">
+              <span className="text-xs text-ink-soft">Click-to-chat link</span>
+              {safeWhatsappUrl ? (
+                <a className="break-all text-sm font-extrabold text-brand-primary no-underline hover:underline" href={safeWhatsappUrl} target="_blank" rel="noreferrer">
+                  {settings.whatsappUrl}
+                </a>
+              ) : (
+                <strong className="[overflow-wrap:anywhere] text-sm leading-normal text-ink-strong">Not available yet</strong>
+              )}
             </div>
             <div className="flex flex-col gap-1.5 rounded-lg border border-line-soft bg-surface-glass-subtle px-4 py-3.5">
               <span className="text-xs text-ink-soft">Usage</span>

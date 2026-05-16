@@ -8,7 +8,12 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 
 const workbookUploadOptions = {
-  limits: { fileSize: 2 * 1024 * 1024 },
+  limits: {
+    fileSize: 2 * 1024 * 1024,
+    files: 1,
+    fields: 0,
+    fieldNameSize: 80,
+  },
   fileFilter: (_request: unknown, file: { originalname?: string; mimetype?: string }, callback: (error: Error | null, acceptFile: boolean) => void) => {
     const name = String(file.originalname || '').toLowerCase();
     const mimetype = String(file.mimetype || '').toLowerCase();

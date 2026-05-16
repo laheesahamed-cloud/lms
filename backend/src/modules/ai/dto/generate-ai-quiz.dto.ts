@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class GenerateAiQuizDto {
   @IsOptional()
@@ -53,4 +53,12 @@ export class GenerateAiQuizDto {
   @IsOptional()
   @IsString()
   instruction?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  includeExplanations?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  includeWhyIncorrect?: boolean;
 }

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { detectPlatform, isStandalonePwaDisplay } from '../../platform/detect.js';
+import { shouldShowPwaInstallPrompt } from '../../platform/config.js';
 import { cx, ui } from '../../styles/tailwindClasses.js';
 
 function InstallIcon() {
@@ -31,15 +33,14 @@ function ShareIcon() {
 }
 
 function isStandaloneApp() {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  return isStandalonePwaDisplay();
 }
 
 function getInstallSurface() {
-  if (typeof navigator === 'undefined') return 'browser';
-  const ua = navigator.userAgent || '';
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isAndroid = /Android/i.test(ua);
+  const platform = detectPlatform();
+  const isIOS = platform.isIos;
+  const isAndroid = platform.isAndroid;
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent || '';
   const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|Edg/i.test(ua);
   if (isIOS && isSafari) return 'ios';
   if (isAndroid) return 'android';
@@ -48,28 +49,28 @@ function getInstallSurface() {
 
 const installUi = {
   button:
-    'inline-flex h-9 min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-brand-primary/18 bg-[var(--color-primary-light)] px-3 text-[12px] font-extrabold text-brand-primary shadow-xs transition-[background,border-color,transform,color,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-px hover:border-brand-primary/30 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] hover:shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_14%,transparent)] active:translate-y-0 active:scale-[0.98] max-[520px]:px-2.5 [&_span]:max-[760px]:hidden',
-  backdrop: 'fixed inset-0 z-[1200] grid place-items-center bg-slate-950/45 p-5 backdrop-blur-md animate-overlayIn',
+    'inline-flex h-9 min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-brand-primary/18 bg-[var(--color-primary-light)] px-3 text-[12px] font-extrabold text-brand-primary shadow-xs transition-[background,border-color,transform,color,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-px hover:border-brand-primary/30 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] hover:shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_14%,transparent)] active:translate-y-0 active:scale-[0.98] max-[520px]:size-8 max-[520px]:min-h-8 max-[520px]:min-w-8 max-[520px]:gap-0 max-[520px]:p-0 [&_span]:max-[760px]:hidden',
+  backdrop: 'fixed inset-0 z-[1200] grid place-items-center bg-slate-950/45 p-5 backdrop-blur-md animate-overlayIn max-[520px]:items-end max-[520px]:p-0',
   modal:
-    'motion-smooth grid w-[min(520px,100%)] gap-5 overflow-hidden rounded-2xl border border-line-soft bg-surface-card-elevated p-5 shadow-2xl animate-dropdownIn',
+    'motion-smooth grid w-[min(520px,100%)] max-h-[calc(100dvh-24px)] gap-5 overflow-y-auto rounded-2xl border border-line-soft bg-surface-card-elevated p-5 shadow-2xl animate-dropdownIn [-webkit-overflow-scrolling:touch] max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-8px)] max-[520px]:gap-4 max-[520px]:rounded-b-none max-[520px]:p-4 max-[520px]:pb-[calc(16px+env(safe-area-inset-bottom,0px))]',
   top: 'flex items-start justify-between gap-4',
   mark:
-    'grid size-12 shrink-0 place-items-center rounded-xl border border-brand-primary/16 bg-[var(--color-primary-light)] text-brand-primary shadow-xs',
-  title: 'm-0 text-[21px] font-black leading-tight text-ink-strong',
+    'grid size-12 shrink-0 place-items-center rounded-xl border border-brand-primary/16 bg-[var(--color-primary-light)] text-brand-primary shadow-xs max-[520px]:size-10',
+  title: 'm-0 text-[21px] font-black leading-tight text-ink-strong max-[520px]:text-[18px]',
   text: 'm-0 mt-1 text-[13px] leading-relaxed text-ink-soft',
   close:
     'grid size-9 min-h-9 place-items-center rounded-lg border border-line-soft bg-surface-1 text-ink-soft transition hover:bg-surface-2 hover:text-ink-strong',
   commandGrid: 'grid gap-2',
   command:
-    'grid grid-cols-[32px_minmax(0,1fr)] items-start gap-3 rounded-xl border border-line-soft bg-surface-1 px-3.5 py-3',
+    'grid grid-cols-[32px_minmax(0,1fr)] items-start gap-3 rounded-xl border border-line-soft bg-surface-1 px-3.5 py-3 max-[520px]:grid-cols-[28px_minmax(0,1fr)] max-[520px]:gap-2.5 max-[520px]:px-3 max-[520px]:py-2.5',
   commandIndex:
-    'grid size-8 place-items-center rounded-lg bg-[var(--color-primary-light)] text-[12px] font-black text-brand-primary',
+    'grid size-8 place-items-center rounded-lg bg-[var(--color-primary-light)] text-[12px] font-black text-brand-primary max-[520px]:size-7 max-[520px]:text-[10px]',
   commandTitle: 'block text-[13.5px] font-extrabold text-ink-strong',
   commandText: 'mt-0.5 block text-[12px] leading-relaxed text-ink-soft',
   iosGuide:
     'relative overflow-hidden rounded-2xl border border-brand-primary/16 bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_7%,var(--surface-card)),var(--surface-card)_58%,color-mix(in_srgb,var(--color-accent)_5%,var(--surface-card)))] p-4 shadow-sm',
   phoneFrame:
-    'relative mx-auto grid min-h-[190px] w-[min(300px,100%)] overflow-hidden rounded-[28px] border border-line-medium bg-surface-card shadow-[0_18px_42px_rgba(15,23,42,0.12)]',
+    'relative mx-auto grid min-h-[190px] w-[min(300px,100%)] overflow-hidden rounded-[28px] border border-line-medium bg-surface-card shadow-[0_18px_42px_rgba(15,23,42,0.12)] max-[520px]:min-h-[160px] max-[520px]:w-[min(260px,100%)] max-[520px]:rounded-[24px]',
   phoneScreen:
     'grid content-between gap-3 p-4 pb-3',
   phoneTop: 'grid gap-2',
@@ -90,10 +91,11 @@ const installUi = {
   arrowHead:
     'size-3 rotate-45 border-b-2 border-r-2 border-brand-primary',
   premiumNote:
-    'rounded-xl border border-brand-accent/20 bg-[color-mix(in_srgb,var(--color-accent-light)_62%,var(--surface-card))] px-3.5 py-3 text-[12.5px] font-semibold leading-relaxed text-ink-medium',
+    'rounded-xl border border-brand-accent/20 bg-[color-mix(in_srgb,var(--color-accent-light)_62%,var(--surface-card))] px-3.5 py-3 text-[12.5px] font-semibold leading-relaxed text-ink-medium max-[520px]:text-[12px]',
 };
 
 export function PwaInstallPrompt() {
+  const platform = useMemo(() => detectPlatform(), []);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [open, setOpen] = useState(false);
   const [installed, setInstalled] = useState(() => isStandaloneApp());
@@ -102,6 +104,8 @@ export function PwaInstallPrompt() {
   const canOpenShareMenu = surface === 'ios' && typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   useEffect(() => {
+    if (!shouldShowPwaInstallPrompt(platform) || typeof window === 'undefined') return undefined;
+
     function handleBeforeInstallPrompt(event) {
       event.preventDefault();
       setDeferredPrompt(event);
@@ -120,7 +124,11 @@ export function PwaInstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleInstalled);
     };
-  }, []);
+  }, [platform]);
+
+  if (!shouldShowPwaInstallPrompt(platform)) {
+    return null;
+  }
 
   async function handleInstallClick() {
     if (deferredPrompt) {

@@ -10,7 +10,7 @@ function getPlanEndDate(plan) {
   const days = Number(plan?.durationDays || 0);
   if (!days) return '';
   const date = new Date();
-  date.setDate(date.getDate() + days);
+  date.setDate(date.getDate() + Math.max(1, days) - 1);
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
@@ -280,9 +280,6 @@ export function StudentCheckoutPage() {
                       Country
                       <input className={ui.input} name="country" value={form.country} onChange={handleChange} autoComplete="country-name" />
                     </label>
-                    {billing.payment?.sandboxMode ? (
-                      <div className={ui.warningFeedback}>Sandbox mode is enabled. PayHere will open in test checkout.</div>
-                    ) : null}
                     <div className={ui.buttonRow}>
                       <button className={ui.primaryAction} type="submit" disabled={submitting || !billing.payment?.enabled || !billing.payment?.configured}>
                         {submitting ? 'Creating order...' : 'Continue to PayHere'}

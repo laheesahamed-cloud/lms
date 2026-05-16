@@ -24,6 +24,12 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureQuestionReportsTable(connection);
       await this.ensureLessonAnnotationsTable(connection);
       await this.ensureStudentLessonProgressTable(connection);
+      await this.ensureAnnouncementsTable(connection);
+      await this.ensurePushSubscriptionsTable(connection);
+      await this.ensureNativePushTokensTable(connection);
+      await this.ensureStudyPlannerTasksTable(connection);
+      await this.ensureQuestionReviewItemsTable(connection);
+      await this.ensureLessonDoubtsTable(connection);
       await this.ensureSystemSettingsTable(connection);
       await this.ensureAiProviderConfigsTable(connection);
       await this.ensureSmartNotesTable(connection);
@@ -32,6 +38,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureSubscriptionFeaturesTables(connection);
       await this.ensureSubscriptionRequestTables(connection);
       await this.ensureQuestionTheoryRecapsTable(connection);
+      await this.ensureStudyActivityEventTypes(connection);
       await this.ensureColumn(connection, 'users', 'avatar_key', "VARCHAR(64) NULL AFTER status");
       await this.ensureColumn(connection, 'users', 'session_expires_at', 'DATETIME NULL AFTER session_token');
       await this.ensureColumn(connection, 'users', 'password_reset_token', 'VARCHAR(128) NULL AFTER session_expires_at');
@@ -48,6 +55,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'questions', 'lesson_id', 'INT NULL AFTER subtopic_id');
       await this.ensureColumn(connection, 'questions', 'paper_id', 'INT NULL AFTER lesson_id');
       await this.ensureColumn(connection, 'questions', 'keywords_text', 'TEXT NULL AFTER question_text');
+      await this.ensureColumn(connection, 'questions', 'question_category', "VARCHAR(20) NULL AFTER category");
       await this.ensureColumn(connection, 'question_options', 'why_incorrect', 'TEXT NULL AFTER is_correct');
       await this.ensureColumn(connection, 'quizzes', 'subtopic_id', 'INT NULL AFTER topic_id');
       await this.ensureColumn(connection, 'quizzes', 'lesson_id', 'INT NULL AFTER subtopic_id');
@@ -57,6 +65,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'quizzes', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER collection_tags');
       await this.ensureColumn(connection, 'quizzes', 'admin_name', 'VARCHAR(255) NULL AFTER exam_mode_only');
       await this.ensureColumn(connection, 'quizzes', 'student_title', 'VARCHAR(255) NULL AFTER admin_name');
+      await this.ensureColumn(connection, 'quizzes', 'display_title_mode', "VARCHAR(20) NOT NULL DEFAULT 'number' AFTER student_title");
       await this.ensureColumn(connection, 'lessons', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER video_url');
       await this.ensureColumn(connection, 'ai_illustrated_notes', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_public');
       await this.ensureColumn(connection, 'plans', 'slug', 'VARCHAR(160) NULL AFTER name');
@@ -84,6 +93,10 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'subscription_requests', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER payment_proof_data_url");
       await this.ensureColumn(connection, 'subscription_requests', 'course_ids_json', 'TEXT NULL AFTER access_scope');
       await this.ensureColumn(connection, 'subscription_requests', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
+      await this.ensureColumn(connection, 'lesson_doubts', 'question_id', 'INT NULL AFTER lesson_id');
+      await this.ensureColumn(connection, 'lesson_doubts', 'context_type', "ENUM('lesson','question','general') NOT NULL DEFAULT 'general' AFTER question_id");
+      await this.ensureColumn(connection, 'lesson_doubts', 'faq_answer', 'TEXT NULL AFTER reply');
+      await this.ensureColumn(connection, 'lesson_doubts', 'converted_to_faq', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER faq_answer');
       await this.ensureColumn(connection, 'payment_transactions', 'invoice_id', 'VARCHAR(20) NULL AFTER order_id');
       await this.ensureColumn(connection, 'payment_transactions', 'coupon_code', 'VARCHAR(40) NULL AFTER currency');
       await this.ensureColumn(connection, 'payment_transactions', 'discount_amount', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00 AFTER coupon_code');
@@ -118,6 +131,15 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIndex(connection, 'payment_transactions', 'idx_payment_transactions_invoice', 'invoice_id');
       await this.ensureIndex(connection, 'payment_transactions', 'idx_payment_transactions_user', 'user_id');
       await this.ensureIndex(connection, 'subscription_coupons', 'idx_subscription_coupons_status', 'status');
+      await this.ensureIndex(connection, 'announcements', 'idx_announcements_status_target', 'status, target_role');
+      await this.ensureIndex(connection, 'announcement_reads', 'idx_announcement_reads_user', 'user_id');
+      await this.ensureIndex(connection, 'push_subscriptions', 'idx_push_subscriptions_user', 'user_id');
+      await this.ensureIndex(connection, 'push_subscriptions', 'idx_push_subscriptions_enabled', 'enabled');
+      await this.ensureIndex(connection, 'native_push_tokens', 'idx_native_push_tokens_user', 'user_id');
+      await this.ensureIndex(connection, 'native_push_tokens', 'idx_native_push_tokens_enabled', 'enabled');
+      await this.ensureIndex(connection, 'study_planner_tasks', 'idx_study_planner_user_due', 'user_id, due_date');
+      await this.ensureIndex(connection, 'question_review_items', 'idx_question_review_items_status', 'status');
+      await this.ensureIndex(connection, 'lesson_doubts', 'idx_lesson_doubts_status', 'status');
       await this.backfillPlanSubscriptionColumns(connection);
       await this.seedSubscriptionFeatureCatalog(connection);
       await this.seedDefaultPlans(connection);
@@ -298,14 +320,22 @@ export class SchemaSyncService implements OnModuleInit {
       CREATE TABLE IF NOT EXISTS study_activity_events (
         id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
-        activity_type ENUM('ai_note_viewed') NOT NULL,
+        activity_type VARCHAR(80) NOT NULL,
         item_id INT NULL,
+        event_type VARCHAR(80) NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_study_activity_user (user_id),
         INDEX idx_study_activity_type (activity_type),
         INDEX idx_study_activity_created (created_at)
       )
     `);
+  }
+
+  private async ensureStudyActivityEventTypes(connection: PoolConnection) {
+    await connection.execute(
+      "ALTER TABLE study_activity_events MODIFY activity_type VARCHAR(80) NOT NULL"
+    ).catch(() => undefined);
+    await this.ensureColumn(connection, 'study_activity_events', 'event_type', 'VARCHAR(80) NULL AFTER item_id');
   }
 
   private async ensureQuestionReportsTable(connection: PoolConnection) {
@@ -365,6 +395,138 @@ export class SchemaSyncService implements OnModuleInit {
         INDEX idx_student_lesson_progress_user_subject (user_id, subject_id),
         INDEX idx_student_lesson_progress_user_topic (user_id, topic_id),
         INDEX idx_student_lesson_progress_status (status)
+      )
+    `);
+  }
+
+  private async ensureAnnouncementsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS announcements (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(180) NOT NULL,
+        body TEXT NOT NULL,
+        target_role ENUM('all','student','admin') NOT NULL DEFAULT 'student',
+        status ENUM('draft','published','archived') NOT NULL DEFAULT 'published',
+        publish_at DATETIME NULL,
+        created_by INT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_announcements_status_target (status, target_role),
+        INDEX idx_announcements_publish_at (publish_at)
+      )
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS announcement_reads (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        announcement_id INT NOT NULL,
+        user_id INT NOT NULL,
+        read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_announcement_read (announcement_id, user_id),
+        INDEX idx_announcement_reads_user (user_id)
+      )
+    `);
+  }
+
+  private async ensurePushSubscriptionsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        endpoint_hash CHAR(64) NOT NULL,
+        endpoint TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        user_agent VARCHAR(500) NULL,
+        delivery_mode ENUM('inside','outside','both') NOT NULL DEFAULT 'outside',
+        enabled TINYINT(1) NOT NULL DEFAULT 1,
+        last_error VARCHAR(500) NULL,
+        failed_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_push_endpoint_hash (endpoint_hash),
+        INDEX idx_push_subscriptions_user (user_id),
+        INDEX idx_push_subscriptions_enabled (enabled)
+      )
+    `);
+  }
+
+  private async ensureNativePushTokensTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS native_push_tokens (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        token_hash CHAR(64) NOT NULL,
+        token TEXT NOT NULL,
+        platform ENUM('ios','android','unknown') NOT NULL DEFAULT 'unknown',
+        delivery_mode ENUM('inside','outside','both') NOT NULL DEFAULT 'outside',
+        enabled TINYINT(1) NOT NULL DEFAULT 1,
+        last_error VARCHAR(500) NULL,
+        failed_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_native_push_token_hash (token_hash),
+        INDEX idx_native_push_tokens_user (user_id),
+        INDEX idx_native_push_tokens_enabled (enabled)
+      )
+    `);
+  }
+
+  private async ensureStudyPlannerTasksTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS study_planner_tasks (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        title VARCHAR(220) NOT NULL,
+        description TEXT NULL,
+        due_date DATE NULL,
+        status ENUM('todo','done') NOT NULL DEFAULT 'todo',
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_study_planner_user_due (user_id, due_date),
+        INDEX idx_study_planner_status (status)
+      )
+    `);
+  }
+
+  private async ensureQuestionReviewItemsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS question_review_items (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        question_id INT NULL,
+        source ENUM('ai','import','manual','report') NOT NULL DEFAULT 'manual',
+        title VARCHAR(220) NOT NULL,
+        notes TEXT NULL,
+        status ENUM('draft','reviewing','approved','rejected') NOT NULL DEFAULT 'draft',
+        created_by INT NULL,
+        reviewed_by INT NULL,
+        reviewed_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_question_review_items_status (status),
+        INDEX idx_question_review_items_question (question_id)
+      )
+    `);
+  }
+
+  private async ensureLessonDoubtsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS lesson_doubts (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        lesson_id INT NULL,
+        subject VARCHAR(220) NOT NULL,
+        message TEXT NOT NULL,
+        reply TEXT NULL,
+        status ENUM('open','answered','closed') NOT NULL DEFAULT 'open',
+        answered_by INT NULL,
+        answered_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_lesson_doubts_user (user_id),
+        INDEX idx_lesson_doubts_lesson (lesson_id),
+        INDEX idx_lesson_doubts_status (status)
       )
     `);
   }

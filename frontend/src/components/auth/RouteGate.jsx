@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore.js';
 import { ui } from '../../styles/tailwindClasses.js';
+import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../utils/routeForwarding.js';
 
 function GateShell({ label }) {
   return (
@@ -11,6 +12,17 @@ function GateShell({ label }) {
       </section>
     </main>
   );
+}
+
+function getSafeFromPath(location) {
+  const from = new URLSearchParams(location.search).get('from');
+  return getSafeForwardPath(from);
+}
+
+function getRoleHome(user) {
+  if (user?.role === 'admin') return '/admin/dashboard';
+  if (user?.role === 'student' && user.status !== 'active') return '/pending';
+  return '/dashboard';
 }
 
 export function ProtectedRoute({ children, role, allowPending = false, requiredFeature = '' }) {
@@ -24,11 +36,12 @@ export function ProtectedRoute({ children, role, allowPending = false, requiredF
   }
 
   if (!isAuthenticated || !user) {
-    return <Navigate to="/auth/login" replace />;
+    const from = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/auth/login?from=${encodeURIComponent(from)}`} replace />;
   }
 
   if (role && user.role !== role) {
-    return <Navigate to={user.role === 'admin' ? '/dashboard' : user.status === 'active' ? '/dashboard' : '/pending'} replace />;
+    return <Navigate to={getRoleHome(user)} replace />;
   }
 
   if (user.role === 'student' && !allowPending && user.status !== 'active') {
@@ -49,6 +62,7 @@ export function ProtectedRoute({ children, role, allowPending = false, requiredF
 }
 
 export function PublicOnlyRoute({ children }) {
+  const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isHydrating = useAuthStore((state) => state.isHydrating);
@@ -58,7 +72,8 @@ export function PublicOnlyRoute({ children }) {
   }
 
   if (isAuthenticated && user) {
-    const nextPath = user.role === 'admin' ? '/dashboard' : user.status === 'active' ? '/dashboard' : '/pending';
+    const requestedPath = canonicalizeForwardPathForUser(getSafeFromPath(location), user);
+    const nextPath = requestedPath || getRoleHome(user);
     return <Navigate to={nextPath} replace />;
   }
 

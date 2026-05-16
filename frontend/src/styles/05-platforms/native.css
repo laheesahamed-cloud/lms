@@ -8,16 +8,3 @@ html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .l
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
-
-html[data-lms-runtime="native"] .dashboard-page .lms-dashboard-welcome-card {
-  background: var(--lms-app-card-bg) !important;
-  border-color: var(--lms-app-card-border) !important;
-  color: var(--lms-app-card-title) !important;
-  clip-path: none !important;
-}
-
-html[data-lms-runtime="native"] .dashboard-page .lms-dashboard-welcome-card::before,
-html[data-lms-runtime="native"] .dashboard-page .lms-dashboard-welcome-card::after {
-  content: none !important;
-  animation: none !important;
-}

@@ -4,7 +4,9 @@ import { ThemeBootstrap } from './ThemeBootstrap.jsx';
 export function AppProviders({ children }) {
   return (
     <ThemeBootstrap>
-      <AuthBootstrap>{children}</AuthBootstrap>
+      <AuthBootstrap>
+        {children}
+      </AuthBootstrap>
     </ThemeBootstrap>
   );
 }

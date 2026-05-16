@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Patch, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Patch, Post, Query, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { SESSION_TTL_DAYS } from './auth-token.util';
@@ -17,17 +17,35 @@ export class AuthController {
   ) {}
 
   @Post('login')
-  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) response: any) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Query('native') nativeQuery: string | undefined,
+    @Res({ passthrough: true }) response: any
+  ) {
     const result = await this.authService.login(loginDto);
-    this.setSessionCookie(response, result.sessionToken);
-    return result;
+    this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
+    if (this.shouldExposeSessionToken(nativeHeader, nativeQuery)) {
+      return result;
+    }
+    const { sessionToken: _sessionToken, ...safeResult } = result;
+    return safeResult;
   }
 
   @Post('register')
-  async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) response: any) {
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Query('native') nativeQuery: string | undefined,
+    @Res({ passthrough: true }) response: any
+  ) {
     const result = await this.authService.register(registerDto);
-    this.setSessionCookie(response, result.sessionToken);
-    return result;
+    this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
+    if (this.shouldExposeSessionToken(nativeHeader, nativeQuery)) {
+      return result;
+    }
+    const { sessionToken: _sessionToken, ...safeResult } = result;
+    return safeResult;
   }
 
   @Get('me')
@@ -61,13 +79,13 @@ export class AuthController {
     return this.authService.changePassword(authorization, changePasswordDto);
   }
 
-  private setSessionCookie(response: any, token: string) {
+  private setSessionCookie(response: any, token: string, ttlDays = SESSION_TTL_DAYS) {
     response.cookie('lms_session', token, {
       httpOnly: true,
       secure: this.configService.get<string>('NODE_ENV') === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+      maxAge: ttlDays * 24 * 60 * 60 * 1000,
     });
   }
 
@@ -78,5 +96,9 @@ export class AuthController {
       sameSite: 'lax',
       path: '/',
     });
+  }
+
+  private shouldExposeSessionToken(...signals: Array<string | undefined>) {
+    return signals.some((signal) => /^(1|true|native|ios|android)$/i.test(String(signal || '').trim()));
   }
 }

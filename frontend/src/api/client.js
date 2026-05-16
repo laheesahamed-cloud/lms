@@ -1,55 +1,30 @@
 import axios from 'axios';
-import { clearStoredAuth, getAuthToken, useAuthStore } from '../stores/authStore.js';
+import { clearStoredAuth, getAuthToken } from '../stores/authToken.js';
 import { beginNetworkActivity, endNetworkActivity } from '../stores/networkActivityStore.js';
 import { clearServerNotResponding, markServerNotResponding } from '../stores/serverStatusStore.js';
+import { detectPlatform } from '../platform/detect.js';
+import { getLoginPath, resolveApiBaseUrl, resolveApiBaseUrls } from '../platform/config.js';
+import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
-const APP_BASENAME = import.meta.env.VITE_APP_BASENAME || '';
+const REQUEST_TIMEOUT_MS = detectPlatform().isNative ? 3500 : 15000;
+let unauthorizedHandler = null;
 
-function toAppPath(path) {
-  if (!APP_BASENAME || APP_BASENAME === '/') {
-    return path;
-  }
-
-  return `${APP_BASENAME}${path}`.replace(/\/{2,}/g, '/');
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = typeof handler === 'function' ? handler : null;
 }
 
 function isPrivateLanHost(hostname) {
   return /^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/i.test(hostname);
 }
 
-function resolveApiBaseUrl() {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
-  }
-
-  if (typeof window !== 'undefined' && window.location) {
-    const protocol = window.location.protocol || 'http:';
-    const hostname = window.location.hostname || 'localhost';
-    if (hostname === 'localhost') {
-      return LOCAL_API_BASE_URL;
-    }
-
-    if (hostname === '127.0.0.1') {
-      return 'http://127.0.0.1:3000/api';
-    }
-
-    if (isPrivateLanHost(hostname)) {
-      return `${protocol}//${hostname}:3000/api`;
-    }
-
-    return `${protocol}//${hostname}:3000/api`;
-  }
-
-  return LOCAL_API_BASE_URL;
-}
-
 export const API_BASE_URL = resolveApiBaseUrl();
+export const API_BASE_URLS = resolveApiBaseUrls();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
-  timeout: 15000,
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
 function finalizeNetworkActivity(config) {
@@ -84,22 +59,38 @@ function redirectToLoginIfNeeded() {
   }
 
   const path = window.location.pathname || '';
+  const publicPath = path.replace(/^\/lms(?:\/frontend\/dist)?(?=\/|$)/, '') || '/';
   if (
-    path.endsWith('/login') ||
-    path.endsWith('/register') ||
-    path.endsWith('/auth/login') ||
-    path.endsWith('/auth/register') ||
-    path.endsWith('/auth/forgot-password') ||
-    path.endsWith('/auth/reset-password')
+    publicPath === '/' ||
+    publicPath === '/login' ||
+    publicPath === '/register' ||
+    publicPath === '/terms' ||
+    publicPath === '/privacy-policy' ||
+    publicPath === '/auth/login' ||
+    publicPath === '/auth/register' ||
+    publicPath === '/auth/forgot-password' ||
+    publicPath === '/auth/reset-password'
   ) {
     return;
   }
 
-  window.location.href = toAppPath('/auth/login');
+  const from = getCurrentForwardPath();
+  const forwardQuery = from ? `?from=${encodeURIComponent(from)}` : '';
+  const loginPath = getLoginPath(detectPlatform());
+  window.location.href = `${loginPath}${forwardQuery}`;
+}
+
+function getNextApiFallbackUrl(currentBaseUrl, triedBaseUrls = []) {
+  const tried = new Set([currentBaseUrl, ...triedBaseUrls].map((url) => String(url || '')));
+  return API_BASE_URLS.find((url) => !tried.has(url)) || '';
 }
 
 apiClient.interceptors.response.use(
   (response) => {
+    const responseBaseUrl = String(response?.config?.baseURL || '');
+    if (responseBaseUrl && API_BASE_URLS.includes(responseBaseUrl) && apiClient.defaults.baseURL !== responseBaseUrl) {
+      apiClient.defaults.baseURL = responseBaseUrl;
+    }
     finalizeNetworkActivity(response?.config);
     clearServerNotResponding();
     return response;
@@ -110,15 +101,32 @@ apiClient.interceptors.response.use(
     const currentHost =
       typeof window !== 'undefined' && window.location ? window.location.hostname : '';
     const allowLocalhostRetry =
-      currentHost === 'localhost' || currentHost === '127.0.0.1' || isPrivateLanHost(currentHost);
+      !detectPlatform().isNative &&
+      (currentHost === 'localhost' || currentHost === '127.0.0.1' || isPrivateLanHost(currentHost));
     const shouldRetryAgainstLocalhost =
       allowLocalhostRetry &&
       (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') &&
       requestConfig &&
       !requestConfig.__retriedWithLocalhost &&
       currentBaseUrl !== LOCAL_API_BASE_URL;
+    const nextApiFallbackUrl =
+      (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error' || !error?.response) &&
+      requestConfig &&
+      getNextApiFallbackUrl(currentBaseUrl, requestConfig.__triedApiBaseUrls);
 
     finalizeNetworkActivity(requestConfig);
+
+    if (nextApiFallbackUrl) {
+      return apiClient.request({
+        ...requestConfig,
+        baseURL: nextApiFallbackUrl,
+        __triedApiBaseUrls: [
+          ...(requestConfig.__triedApiBaseUrls || []),
+          currentBaseUrl,
+        ],
+        __networkActivityFinalized: false,
+      });
+    }
 
     if (shouldRetryAgainstLocalhost) {
       return apiClient.request({
@@ -145,16 +153,30 @@ apiClient.interceptors.response.use(
     }
 
     const status = error?.response?.status;
+    const serverMessage = error?.response?.data?.message;
+    const normalizedMessage = Array.isArray(serverMessage)
+      ? serverMessage.join(' ')
+      : String(serverMessage || '');
     const requestUrl = String(error?.config?.url || '');
     const isAuthPageRequest =
       requestUrl.includes('/auth/login') ||
       requestUrl.includes('/auth/register') ||
       requestUrl.includes('/auth/forgot-password') ||
       requestUrl.includes('/auth/reset-password');
+    const isRoleScopeMismatch =
+      status === 401 &&
+      /(?:admin|student) access is required/i.test(normalizedMessage);
 
-    if (status === 401 && !isAuthPageRequest) {
+    if (status === 401 && !isAuthPageRequest && !isRoleScopeMismatch) {
+      console.log('AUTH_CHECK_RESULT', {
+        stage: 'api_unauthorized',
+        url: requestUrl,
+        status,
+        message: normalizedMessage,
+        hasToken: Boolean(getAuthToken()),
+      });
       clearStoredAuth();
-      useAuthStore.getState().forceSignOut();
+      unauthorizedHandler?.();
       redirectToLoginIfNeeded();
     }
 

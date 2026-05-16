@@ -52,6 +52,7 @@ type ProgressRow = RowDataPacket & {
 
 type AccessScopeRow = RowDataPacket & {
   feature_key: string | null;
+  plan_slug: string | null;
   access_scope: 'all' | 'courses' | 'lessons' | null;
   course_ids_json: string | null;
   lesson_ids_json: string | null;
@@ -379,8 +380,9 @@ export class CoursesService {
   private async getLessonAccessProfile(userId: number): Promise<LessonAccessProfile> {
     const [rows] = await this.db.execute<AccessScopeRow[]>(
       `
-        SELECT sf.feature_key, us.access_scope, us.course_ids_json, us.lesson_ids_json
+        SELECT sf.feature_key, plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
         FROM user_subscriptions us
+        INNER JOIN plans ON plans.id = us.plan_id
         INNER JOIN subscription_plan_features spf
           ON spf.plan_id = us.plan_id
          AND spf.is_enabled = 1
@@ -404,13 +406,16 @@ export class CoursesService {
     };
 
     for (const row of rows) {
-      const scope = row.access_scope || 'all';
-      if (scope === 'all') {
+      const courseIds = this.parseIdList(row.course_ids_json);
+      const lessonIds = this.parseIdList(row.lesson_ids_json);
+      const scope = this.resolveEffectiveAccessScope(row, courseIds, lessonIds);
+
+      if (scope === 'all' && courseIds.length === 0 && lessonIds.length === 0) {
         profile.hasFullAccess = true;
       } else if (scope === 'courses') {
-        this.parseIdList(row.course_ids_json).forEach((id) => profile.courseIds.add(id));
+        courseIds.forEach((id) => profile.courseIds.add(id));
       } else if (scope === 'lessons') {
-        this.parseIdList(row.lesson_ids_json).forEach((id) => profile.lessonIds.add(id));
+        lessonIds.forEach((id) => profile.lessonIds.add(id));
       }
     }
 
@@ -427,6 +432,14 @@ export class CoursesService {
     } catch {
       return [];
     }
+  }
+
+  private resolveEffectiveAccessScope(row: AccessScopeRow, courseIds: number[], lessonIds: number[]) {
+    const planSlug = String(row.plan_slug || '').trim();
+    if (planSlug.startsWith('custom-single-') || planSlug.startsWith('custom-multi-')) {
+      return 'courses';
+    }
+    return row.access_scope || (courseIds.length ? 'courses' : lessonIds.length ? 'lessons' : 'all');
   }
 
   private canAccessLesson(lesson: LessonHierarchyRow, profile: LessonAccessProfile) {

@@ -114,12 +114,21 @@ export class SettingsService {
     return {
       ok: true,
       whatsappNumber,
+      whatsappUrl: this.toWhatsAppUrl(whatsappNumber),
       note: 'These lightweight system preferences are saved inside the LMS database and can be updated without changing environment files.',
     };
   }
 
+  async getPublicSettings() {
+    const whatsappNumber = await this.getSettingValue(WHATSAPP_NUMBER_SETTING_KEY);
+    return {
+      ok: true,
+      whatsappUrl: this.toWhatsAppUrl(whatsappNumber),
+    };
+  }
+
   async updateGeneralSettings(input: { whatsappNumber?: string }) {
-    const whatsappNumber = this.normalizeOptionalValue(input.whatsappNumber);
+    const whatsappNumber = this.normalizeWhatsAppNumber(input.whatsappNumber);
 
     await this.saveSettingValue(WHATSAPP_NUMBER_SETTING_KEY, whatsappNumber);
 
@@ -557,7 +566,16 @@ export class SettingsService {
   }
 
   private serializePaymentSettings(settings: PayHerePaymentSettings, includeAdminFields: boolean) {
-    const base = {
+    if (!includeAdminFields) {
+      return {
+        enabled: settings.enabled,
+        currency: settings.currency,
+        buttonLabel: settings.buttonLabel,
+        configured: Boolean(settings.merchantId && settings.merchantSecret),
+      };
+    }
+
+    return {
       enabled: settings.enabled,
       sandboxMode: settings.sandboxMode,
       currency: settings.currency,
@@ -565,14 +583,6 @@ export class SettingsService {
       buttonLabel: settings.buttonLabel,
       supportText: settings.supportText,
       configured: Boolean(settings.merchantId && settings.merchantSecret),
-    };
-
-    if (!includeAdminFields) {
-      return base;
-    }
-
-    return {
-      ...base,
       merchantId: settings.merchantId,
       hasMerchantSecret: Boolean(settings.merchantSecret),
       maskedMerchantSecret: settings.merchantSecret ? maskSecret(settings.merchantSecret) : '',
@@ -597,6 +607,25 @@ export class SettingsService {
   private normalizeOptionalValue(value?: string | null) {
     const normalized = String(value || '').trim();
     return normalized || '';
+  }
+
+  private normalizeWhatsAppNumber(value?: string | null) {
+    const normalized = this.normalizeOptionalValue(value);
+    if (!normalized) {
+      return '';
+    }
+
+    return normalized.replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '');
+  }
+
+  private toWhatsAppUrl(value?: string | null) {
+    const normalized = this.normalizeWhatsAppNumber(value);
+    if (!normalized) {
+      return '';
+    }
+
+    const digits = normalized.replace(/\D/g, '');
+    return digits ? `https://wa.me/${digits}` : '';
   }
 
   private normalizeSecretInput(value?: string | null) {

@@ -24,6 +24,16 @@ Useful env files:
 - [frontend/.env.example](/Applications/XAMPP/xamppfiles/htdocs/lms/frontend/.env.example)
 - [backend/.env.example](/Applications/XAMPP/xamppfiles/htdocs/lms/backend/.env.example)
 
+Database seed/export:
+
+- [database/lms.sql](/Applications/XAMPP/xamppfiles/htdocs/lms/database/lms.sql)
+
+Versioned backend migrations:
+
+```bash
+npm run migrate:backend
+```
+
 ## Daily startup
 
 1. Start XAMPP Apache and MySQL.
@@ -86,12 +96,6 @@ API health:
 npm run check:health
 ```
 
-Route smoke check:
-
-```bash
-npm run check:routes
-```
-
 Both:
 
 ```bash
@@ -105,7 +109,6 @@ npm run build
 - `npm run start:api` runs in the current terminal only. If you close that terminal, the API stops too.
 - `npm run start:api:bg` is the better local option when you want the app to keep working after closing VS Code terminals.
 - If `npm run check:health` does not return JSON, the API is offline or using a different port.
-- If `npm run check:routes` fails, a migrated route or legacy bridge mapping was removed accidentally.
 - The Vite dev server is optional now. The normal local flow uses Apache + the built frontend bundle.
 
 ## Runtime Validation

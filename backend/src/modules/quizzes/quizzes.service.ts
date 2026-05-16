@@ -37,6 +37,7 @@ type QuizRow = RowDataPacket & {
   exam_mode_only: number;
   admin_name: string | null;
   student_title: string | null;
+  display_title_mode: 'number' | 'title' | null;
   quiz_title: string;
   quiz_description: string | null;
   total_questions: number;
@@ -330,9 +331,9 @@ export class QuizzesService {
       const [result] = await connection.execute<ResultSetHeader>(
         `
           INSERT INTO quizzes (
-            course_id, topic_id, subtopic_id, lesson_id, paper_id, category, collection_tags, is_free, subtopic, is_general, exam_mode_only, admin_name, student_title, quiz_title,
+            course_id, topic_id, subtopic_id, lesson_id, paper_id, category, collection_tags, is_free, subtopic, is_general, exam_mode_only, admin_name, student_title, display_title_mode, quiz_title,
             quiz_description, total_questions, total_marks, time_limit, hide_time_limit, passing_marks, hide_passing_marks, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           createQuizDto.courseId,
@@ -348,6 +349,7 @@ export class QuizzesService {
           createQuizDto.examModeOnly,
           this.resolveAdminName(createQuizDto),
           this.resolveStudentTitle(createQuizDto),
+          this.resolveDisplayTitleMode(createQuizDto.displayTitleMode),
           this.resolveStudentTitle(createQuizDto),
           (createQuizDto.quizDescription || '').trim(),
           totalQuestions,
@@ -388,6 +390,7 @@ export class QuizzesService {
       examModeOnly: updateQuizDto.examModeOnly ?? (existing.examModeOnly === 1 ? 1 : 0),
       adminName: updateQuizDto.adminName ?? existing.adminName,
       studentTitle: updateQuizDto.studentTitle ?? existing.studentTitle ?? existing.quizTitle,
+      displayTitleMode: this.resolveDisplayTitleMode(updateQuizDto.displayTitleMode ?? existing.displayTitleMode),
       quizTitle: updateQuizDto.quizTitle ?? existing.studentTitle ?? existing.quizTitle,
       quizDescription: updateQuizDto.quizDescription ?? existing.quizDescription ?? '',
       timeLimit: updateQuizDto.timeLimit ?? existing.timeLimit,
@@ -423,6 +426,7 @@ export class QuizzesService {
             exam_mode_only = ?,
             admin_name = ?,
             student_title = ?,
+            display_title_mode = ?,
             quiz_title = ?,
             quiz_description = ?,
             total_questions = ?,
@@ -448,6 +452,7 @@ export class QuizzesService {
           merged.examModeOnly,
           this.resolveAdminName(merged),
           this.resolveStudentTitle(merged),
+          this.resolveDisplayTitleMode(merged.displayTitleMode),
           this.resolveStudentTitle(merged),
           (merged.quizDescription || '').trim(),
           totalQuestions,
@@ -591,6 +596,10 @@ export class QuizzesService {
     return String(quiz.studentTitle || quiz.quizTitle || '').trim();
   }
 
+  private resolveDisplayTitleMode(value?: string | null) {
+    return value === 'title' ? 'title' : 'number';
+  }
+
   private async getKeywordSuggestions(questionRows: RowDataPacket[]) {
     const [keywordRows] = await this.db.execute<RowDataPacket[]>(
       'SELECT keyword_name FROM question_keywords ORDER BY keyword_name ASC'
@@ -625,6 +634,7 @@ export class QuizzesService {
       examModeOnly: Number(row.exam_mode_only) === 1 ? 1 : 0,
       adminName: String(row.admin_name || row.quiz_title || ''),
       studentTitle: String(row.student_title || row.quiz_title || ''),
+      displayTitleMode: this.resolveDisplayTitleMode(row.display_title_mode),
       quizTitle: String(row.student_title || row.quiz_title || ''),
       quizDescription: row.quiz_description || '',
       totalQuestions: Number(row.total_questions || 0),
@@ -674,7 +684,7 @@ export class QuizzesService {
     const [recapRows] = await this.db.execute<CardTheoryRecapRow[]>(
       `SELECT question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic, hierarchy_lesson,
               etiology, pathophysiology, clinical_features, investigations, treatment, key_points, mnemonic
-       FROM theory_recaps
+       FROM question_theory_recaps
        WHERE question_id IN (${placeholders})`,
       ids,
     );

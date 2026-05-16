@@ -23,6 +23,9 @@ import { PlansModule } from './modules/plans/plans.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { StudyBookmarksModule } from './modules/study-bookmarks/study-bookmarks.module';
 import { TheoryRecapModule } from './modules/theory-recap/theory-recap.module';
+import { SetupModule } from './modules/setup/setup.module';
+import { WorkspaceModule } from './modules/workspace/workspace.module';
+import { PushNotificationsModule } from './modules/push-notifications/push-notifications.module';
 import databaseConfig from './config/database.config';
 import { DatabaseModule } from './database/database.module';
 
@@ -55,6 +58,9 @@ import { DatabaseModule } from './database/database.module';
     SubscriptionsModule,
     StudyBookmarksModule,
     TheoryRecapModule,
+    SetupModule,
+    PushNotificationsModule,
+    WorkspaceModule,
   ],
   controllers: [HealthController],
 })

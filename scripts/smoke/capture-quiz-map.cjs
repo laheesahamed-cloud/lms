@@ -129,14 +129,14 @@ async function main() {
   }
 
   await waitFor(
-    "document.body && (document.body.innerText.includes('Choose a Course Map') || document.body.innerText.includes('Q-Bank'))",
+    "document.body && (document.body.innerText.includes('Choose a Course') || document.body.innerText.includes('Q-Bank'))",
     25000,
   );
 
   await evalExpr(`
     (() => {
       const buttons = [...document.querySelectorAll('button')];
-      const button = buttons.find((item) => /Open Medicine map|Medicine/.test(item.getAttribute('aria-label') || item.innerText));
+      const button = buttons.find((item) => /Open Medicine|Medicine/.test(item.getAttribute('aria-label') || item.innerText));
       if (!button) return false;
       button.click();
       return true;
@@ -144,7 +144,7 @@ async function main() {
   `);
 
   await waitFor(
-    "document.body && (document.body.innerText.includes('Map hierarchy') || document.body.innerText.includes('Map overview'))",
+    "document.body && (document.body.innerText.includes('Content hierarchy') || document.body.innerText.includes('Course overview'))",
     15000,
   );
   await new Promise((resolve) => setTimeout(resolve, 900));

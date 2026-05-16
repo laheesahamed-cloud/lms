@@ -4,7 +4,10 @@ import { fetchAttemptReview } from '../../../api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../api/client.js';
 import { AppHeader } from '../../../components/layout/AppHeader.jsx';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
-import { ui } from '../../../styles/tailwindClasses.js';
+import { cx, ui } from '../../../styles/tailwindClasses.js';
+import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
+
+const reviewPageNavClass = 'flex items-center justify-start';
 
 export function ReviewPage() {
   const { attemptId } = useParams();
@@ -45,24 +48,27 @@ export function ReviewPage() {
   ) : null;
 
   return (
-      <main className={ui.screenShell}>
+      <main className={cx(ui.screenShell, 'lms-review-page')}>
         <section className={ui.managementLayout}>
         <AppHeader
-          title="Review answers"
-          subtitle={data ? `${data.attempt.quizTitle} • ${data.attempt.topicDisplay}` : ''}
-          actions={(
-            <div className={ui.buttonRow}>
-              <button type="button" className={ui.secondaryAction} onClick={() => navigate(-1)}>
-                Back
-              </button>
-              <button className={ui.primaryAction} type="button" onClick={() => navigate('/results')}>
-                Results
-              </button>
-            </div>
-          )}
+          title={data ? `${getQuizNumberLabel(data.attempt)} review` : 'Review answers'}
+          subtitle={data ? `${getQuizTitleText(data.attempt, data.attempt.quizTitle)} • ${data.attempt.topicDisplay}` : ''}
         />
+        <div className={reviewPageNavClass}>
+          <button type="button" className={ui.secondaryAction} onClick={() => navigate(-1)}>
+            Back to results
+          </button>
+        </div>
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
-        {data ? <ReviewWorkspace questions={data.questions} summary={summary} navigatorVariant="bubbles" /> : null}
+        {data ? (
+          <ReviewWorkspace
+            questions={data.questions}
+            summary={summary}
+            navigatorVariant="bubbles"
+            exitLabel="Finish"
+            onExit={() => navigate(-1)}
+          />
+        ) : null}
         </section>
       </main>
   );

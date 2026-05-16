@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { fetchNotifications, markNotificationRead } from '../../api/workspace.api.js';
 import { useAuthStore } from '../../stores/authStore.js';
 import { ProfileAvatar } from '../ui/ProfileAvatar.jsx';
-import { PwaInstallPrompt } from '../pwa/PwaInstallPrompt.jsx';
 import { ThemeToggle } from './ThemeToggle.jsx';
+import { HeaderInstallAction } from './HeaderInstallAction.jsx';
 import { cx, ui } from '../../styles/tailwindClasses.js';
 
 function BellIcon() {
@@ -37,10 +38,10 @@ function MenuIcon() {
   );
 }
 
-function ChevronDownIcon() {
+function CloseIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M4 6.5 8 10l4-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -102,18 +103,40 @@ function useOutsideDismiss(ref, onDismiss) {
   }, [ref, onDismiss]);
 }
 
-function buildNotifications(user, title) {
-  void user;
-  void title;
-  return [];
+function formatNotificationTime(value) {
+  if (!value) {
+    return 'Just now';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Recently';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function getNotificationTimestamp(item) {
+  const value = item?.publishAt || item?.createdAt || item?.updatedAt || '';
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function sortLatestNotifications(items) {
+  return [...items].sort((a, b) => getNotificationTimestamp(b) - getNotificationTimestamp(a));
 }
 
 const topbarUi = {
   header:
-    'lms-topbar glass-card sticky top-3 z-50 mb-ui-3 flex min-h-[66px] min-w-0 flex-wrap items-center justify-between gap-3 overflow-visible rounded-xl px-4 py-2.5 max-[900px]:top-2 max-[900px]:min-h-[58px] max-[900px]:rounded-[16px] max-[900px]:p-2.5 max-[520px]:gap-2 max-[520px]:rounded-[14px]',
-  left: 'flex min-w-[180px] flex-1 items-center gap-2.5 max-[520px]:min-w-0',
+    'lms-topbar glass-card sticky top-3 z-50 mb-3 flex min-h-[66px] min-w-0 flex-wrap items-center justify-between gap-3 overflow-visible rounded-xl px-4 py-2.5 max-[900px]:top-2 max-[900px]:min-h-[58px] max-[900px]:rounded-[16px] max-[900px]:p-2.5 max-[760px]:grid max-[760px]:grid-cols-[minmax(0,1fr)_auto] max-[760px]:items-center max-[760px]:gap-x-2 max-[760px]:gap-y-2 max-[520px]:min-h-[54px] max-[520px]:rounded-[14px] max-[520px]:px-2.5 max-[520px]:py-2',
+  left: 'flex min-w-[180px] flex-1 items-center gap-2.5 self-center max-[760px]:min-w-0 max-[520px]:gap-1',
   titleBlock: 'grid min-w-0 max-w-full gap-0.5',
-  title: 'gradient-text m-0 truncate text-[clamp(16px,1.7vw,21px)] font-extrabold leading-[1.15] max-[420px]:text-[16px]',
+  title: 'gradient-text m-0 truncate text-[clamp(15px,1.7vw,21px)] font-extrabold leading-[1.15] max-[420px]:text-[15px]',
   subtitle: 'm-0 max-w-[min(420px,36vw)] truncate text-[11px] font-semibold leading-tight text-ink-soft max-[900px]:hidden',
   center: 'flex min-w-0 w-full max-w-[260px] justify-center max-[1280px]:hidden',
   search:
@@ -121,29 +144,35 @@ const topbarUi = {
   searchIcon: 'grid shrink-0 place-items-center text-brand-primary',
   searchCopy: 'min-w-0 flex-1 truncate text-left text-[12.5px] font-semibold',
   searchShortcut: 'shrink-0 rounded-md bg-brand-primary-light px-1.5 py-0.5 text-[10px] font-bold text-brand-primary max-[1360px]:hidden',
-  right: 'flex min-w-0 flex-wrap items-center justify-end gap-2 max-[760px]:w-full max-[760px]:justify-between max-[520px]:gap-1.5',
+  right: 'flex min-w-0 shrink-0 items-center justify-end gap-2 self-center max-[760px]:w-auto max-[760px]:justify-end max-[520px]:gap-1',
   mobileMenuButton:
-    'hidden size-9 min-h-9 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-0 text-ink-medium shadow-none transition-[background,border-color,color] duration-150 ease-out hover:border-brand-primary/24 hover:bg-brand-primary/10 hover:text-brand-primary max-[900px]:inline-flex group-[.sidebar-hidden]/shell:!hidden',
-  actionsSlot: 'flex min-w-0 flex-wrap items-center justify-end gap-2 max-[760px]:order-2 max-[760px]:w-full max-[760px]:justify-start max-[760px]:border-t max-[760px]:border-line-soft max-[760px]:pt-2 max-[520px]:grid max-[520px]:grid-cols-1 max-[520px]:[&>*]:w-full',
-  utility: 'flex min-w-0 shrink-0 items-center gap-2 max-[520px]:gap-1.5',
+    'lms-topbar-menu-button hidden size-9 min-h-9 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-0 text-ink-medium shadow-none transition-[background,border-color,color] duration-150 ease-out hover:border-brand-primary/24 hover:bg-brand-primary/10 hover:text-brand-primary max-[900px]:inline-flex max-[520px]:size-8 max-[520px]:min-h-8 max-[520px]:min-w-8 group-[.sidebar-hidden]/shell:!hidden',
+  actionsSlot: 'flex min-w-0 flex-wrap items-center justify-end gap-2 max-[760px]:col-span-2 max-[760px]:w-full max-[760px]:justify-start max-[760px]:border-t max-[760px]:border-line-soft max-[760px]:pt-2 max-[520px]:grid max-[520px]:grid-cols-1 max-[520px]:[&>*]:w-full',
+  utility: 'lms-topbar-utility flex min-w-0 shrink-0 items-center gap-2 max-[520px]:grid max-[520px]:grid-flow-col max-[520px]:auto-cols-[32px] max-[520px]:gap-1 [&_.lms-profile-avatar]:max-[520px]:size-6 [&_.lms-profile-avatar]:max-[520px]:rounded-lg [&_.lms-profile-avatar]:max-[520px]:justify-self-center',
   iconButton:
-    'relative inline-flex size-9 min-h-9 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-0 text-ink-medium shadow-none transition-[background,border-color,color] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 hover:text-brand-primary',
+    'relative inline-flex size-9 min-h-9 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-0 text-ink-medium shadow-none transition-[background,border-color,color] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 hover:text-brand-primary max-[520px]:size-8 max-[520px]:min-h-8 max-[520px]:min-w-8',
   countBadge:
     'absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full border-2 border-surface-card bg-brand-error px-1 text-[10px] font-extrabold leading-4 text-white',
   profileButton:
-    'inline-flex h-9 min-h-9 w-[176px] min-w-0 shrink-0 items-center gap-2 rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] py-1 pl-1 pr-2 text-left shadow-none transition-[background,border-color,color] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 max-[1280px]:w-[136px] max-[1100px]:w-[94px] max-[980px]:w-auto max-[760px]:pr-1.5 max-[520px]:rounded-full max-[520px]:p-1',
-  profileCopy: 'grid min-w-0 flex-1 text-left max-[1100px]:hidden [&_small]:truncate [&_small]:text-[10.5px] [&_small]:font-semibold [&_small]:text-ink-soft [&_strong]:truncate [&_strong]:text-[13px] [&_strong]:font-extrabold [&_strong]:text-ink-strong',
-  caret: 'shrink-0 text-ink-muted',
-  menuWrap: 'relative',
+    'inline-flex size-9 min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-1 text-left shadow-none transition-[background,border-color,color] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 max-[520px]:size-8 max-[520px]:min-h-8 max-[520px]:min-w-8',
+  menuWrap: 'relative z-[60]',
   dropdown:
-    'lms-floating-panel motion-smooth absolute right-0 top-[calc(100%+8px)] z-30 w-[min(360px,calc(100vw-32px))] origin-top-right overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-2xl animate-dropdownIn',
+    'lms-floating-panel motion-smooth absolute right-0 top-[calc(100%+8px)] z-[1200] w-[min(360px,calc(100vw_-_24px))] origin-top-right overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-2xl animate-dropdownIn max-[520px]:fixed max-[520px]:inset-x-3 max-[520px]:top-[70px] max-[520px]:w-auto max-[520px]:origin-top max-[520px]:rounded-[18px]',
+  notificationDropdown:
+    'max-[520px]:fixed max-[520px]:inset-x-3 max-[520px]:top-[70px] max-[520px]:max-h-[calc(100dvh-86px)] max-[520px]:w-auto max-[520px]:origin-top max-[520px]:rounded-[18px]',
   dropdownHead:
-    'flex items-center gap-3 border-b border-line-soft px-4 py-3.5 [&_small]:mt-1 [&_small]:block [&_small]:text-xs [&_small]:font-medium [&_small]:text-ink-soft [&_strong]:block [&_strong]:text-sm [&_strong]:font-extrabold [&_strong]:text-ink-strong',
+    'flex min-w-0 items-center justify-between gap-3 border-b border-line-soft px-4 py-3.5 max-[520px]:px-3.5 max-[520px]:py-3 [&_div]:min-w-0 [&_small]:mt-1 [&_small]:block [&_small]:truncate [&_small]:text-xs [&_small]:font-medium [&_small]:text-ink-soft [&_strong]:block [&_strong]:truncate [&_strong]:text-sm [&_strong]:font-extrabold [&_strong]:text-ink-strong',
+  dropdownClose:
+    'inline-flex size-8 min-h-8 min-w-8 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-0 text-ink-soft transition-[background,border-color,color] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 hover:text-brand-primary',
   dropdownSection: 'grid gap-1 border-t border-line-soft p-2 first:border-t-0',
-  notificationList: 'grid gap-1 p-2',
-  notificationItem: 'grid grid-cols-[auto_minmax(0,1fr)] gap-2.5 rounded-xl px-3 py-2.5',
-  notificationDot: 'mt-1 size-2 rounded-full bg-brand-primary',
-  notificationCopy: 'grid gap-0.5 [&_p]:m-0 [&_p]:text-xs [&_p]:text-ink-soft [&_small]:text-[11px] [&_small]:text-ink-muted [&_strong]:text-sm [&_strong]:text-ink-strong',
+  notificationList: 'grid max-h-[min(420px,calc(100dvh-210px))] gap-1 overflow-y-auto p-2 [-webkit-overflow-scrolling:touch] max-[520px]:max-h-[calc(100dvh-224px)] max-[520px]:p-1.5',
+  notificationItem:
+    'grid min-h-14 w-full grid-cols-[10px_minmax(0,1fr)] items-start gap-2.5 rounded-xl border-0 bg-transparent px-3 py-3 text-left transition-colors duration-150 hover:bg-surface-2 active:bg-surface-2 max-[520px]:min-h-[60px] max-[520px]:gap-2 max-[520px]:rounded-[14px] max-[520px]:px-2.5 max-[520px]:py-2.5',
+  notificationItemRead: 'opacity-80',
+  notificationDot: 'mt-1.5 size-2 rounded-full bg-brand-primary max-[520px]:mt-2',
+  notificationDotRead: 'bg-ink-muted/35',
+  notificationCopy: 'grid min-w-0 gap-1 [&_p]:m-0 [&_p]:break-words [&_p]:text-xs [&_p]:leading-relaxed [&_p]:text-ink-soft [&_small]:text-[11px] [&_small]:font-semibold [&_small]:text-ink-muted [&_strong]:break-words [&_strong]:text-sm [&_strong]:leading-snug [&_strong]:text-ink-strong',
+  dropdownFoot: 'border-t border-line-soft p-2 max-[520px]:p-1.5',
   menuItem:
     'flex min-h-10 w-full items-center justify-start gap-2.5 rounded-xl border-0 bg-transparent px-3 py-2 text-sm font-semibold text-ink-medium shadow-none transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 hover:text-ink-strong hover:shadow-none active:scale-[0.98]',
   dangerItem: 'text-brand-error hover:bg-brand-error/10 hover:text-brand-error',
@@ -151,12 +180,20 @@ const topbarUi = {
   mobileCopy: 'hidden',
 };
 
+function rolePath(path, role) {
+  if (!path) return '';
+  if (path.startsWith('/admin') || path.startsWith('/app')) return path;
+  return `${role === 'admin' ? '/admin' : '/app'}${path}`;
+}
+
 export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const signOut = useAuthStore((state) => state.signOut);
   const isSigningOut = useAuthStore((state) => state.isSigningOut);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const notificationRef = useRef(null);
   const profileRef = useRef(null);
@@ -164,15 +201,46 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   useOutsideDismiss(notificationRef, () => setNotificationsOpen(false));
   useOutsideDismiss(profileRef, () => setProfileOpen(false));
 
-  const notifications = useMemo(() => buildNotifications(user, title), [title, user]);
+  const unreadNotifications = useMemo(() => sortLatestNotifications(notifications.filter((item) => !item.read)), [notifications]);
+  const visibleUnreadNotifications = useMemo(() => unreadNotifications.slice(0, 5), [unreadNotifications]);
 
-  const settingsPath = user?.role === 'admin' ? '/settings' : '';
-  const profilePath = user?.role === 'admin' ? '/profile' : '/profile';
+  const settingsPath = user?.role === 'admin' ? rolePath('/settings', user?.role) : '';
+  const profilePath = rolePath('/profile', user?.role);
 
   async function handleLogout() {
     setProfileOpen(false);
     await signOut();
     navigate('/auth/login');
+  }
+
+  async function loadNotifications() {
+    if (!user?.id || user.role !== 'student') {
+      setNotifications([]);
+      return;
+    }
+
+    setNotificationsLoading(true);
+    try {
+      const items = await fetchNotifications();
+      setNotifications(Array.isArray(items) ? items : []);
+    } catch {
+      setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }
+
+  async function handleNotificationRead(item) {
+    if (!item?.id || item.read) {
+      return;
+    }
+
+    setNotifications((current) => current.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry)));
+    try {
+      await markNotificationRead(item.id);
+    } catch {
+      setNotifications((current) => current.map((entry) => (entry.id === item.id ? { ...entry, read: false } : entry)));
+    }
   }
 
   function handleNavigate(path) {
@@ -188,10 +256,14 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     window.dispatchEvent(new CustomEvent('lms:toggle-sidebar'));
   }
 
+  useEffect(() => {
+    loadNotifications();
+  }, [user?.id]);
+
   return (
     <>
       <header className={cx(topbarUi.header, className)}>
-        <div className={topbarUi.left}>
+        <div className={cx('lms-topbar-left', topbarUi.left)}>
           <button className={topbarUi.mobileMenuButton}
             type="button"
             onClick={toggleSidebar}
@@ -206,7 +278,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
           </div>
         </div>
 
-        <div className={topbarUi.center}>
+        <div className={cx('lms-topbar-center', topbarUi.center)}>
           <button type="button" className={topbarUi.search} onClick={openSearch} aria-label="Search the LMS">
             <span className={topbarUi.searchIcon} aria-hidden="true">
               <SearchIcon />
@@ -218,13 +290,12 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
           </button>
         </div>
 
-        <div className={topbarUi.right}>
-          {actions ? <div className={topbarUi.actionsSlot}>{actions}</div> : null}
-
+        <div className={cx('lms-topbar-right', topbarUi.right)}>
           <div className={topbarUi.utility}>
-            <PwaInstallPrompt />
+            <HeaderInstallAction />
             <ThemeToggle />
 
+            {user?.role === 'student' ? (
             <div className={topbarUi.menuWrap} ref={notificationRef}>
               <button className={topbarUi.iconButton}
                 type="button"
@@ -232,45 +303,83 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                 aria-label="Notifications"
                 aria-expanded={notificationsOpen ? 'true' : 'false'}
                 onClick={() => {
-                  setNotificationsOpen((current) => !current);
+                  setNotificationsOpen((current) => {
+                    if (!current) {
+                      loadNotifications();
+                    }
+                    return !current;
+                  });
                   setProfileOpen(false);
                 }}
               >
                 <BellIcon />
-                {notifications.length ? <span className={topbarUi.countBadge}>{notifications.length}</span> : null}
+                {unreadNotifications.length ? <span className={topbarUi.countBadge}>{unreadNotifications.length}</span> : null}
               </button>
 
               {notificationsOpen ? (
-                <div className={topbarUi.dropdown}>
+                <div className={cx(topbarUi.dropdown, topbarUi.notificationDropdown)}>
                   <div className={topbarUi.dropdownHead}>
                     <div>
-                      <strong>Notifications</strong>
-                      <small>Recent updates in your LMS workspace</small>
+                      <strong>Unread notifications</strong>
+                      <small>
+                        {unreadNotifications.length
+                          ? unreadNotifications.length > 5
+                            ? `Showing latest 5 of ${unreadNotifications.length}`
+                            : `${unreadNotifications.length} waiting for you`
+                          : 'You are all caught up'}
+                      </small>
                     </div>
+                    <button
+                      type="button"
+                      className={topbarUi.dropdownClose}
+                      onClick={() => setNotificationsOpen(false)}
+                      aria-label="Close notifications"
+                    >
+                      <CloseIcon />
+                    </button>
                   </div>
 
-                  {notifications.length ? (
+                  {notificationsLoading ? (
+                    <div className={topbarUi.emptyState}>
+                      <strong>Loading notifications</strong>
+                      <p>Checking recent LMS updates...</p>
+                    </div>
+                  ) : unreadNotifications.length ? (
                     <div className={topbarUi.notificationList}>
-                      {notifications.map((item) => (
-                        <div key={item.id} className={topbarUi.notificationItem}>
+                      {visibleUnreadNotifications.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className={topbarUi.notificationItem}
+                          onClick={() => handleNotificationRead(item)}
+                        >
                           <span className={topbarUi.notificationDot} aria-hidden="true" />
                           <div className={topbarUi.notificationCopy}>
                             <strong>{item.title}</strong>
                             <p>{item.body}</p>
-                            <small>{item.time}</small>
+                            <small>{formatNotificationTime(item.publishAt || item.createdAt)}</small>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   ) : (
                     <div className={topbarUi.emptyState}>
-                      <strong>No notifications yet</strong>
-                      <p>Important LMS updates will appear here when they are available.</p>
+                      <strong>No unread notifications</strong>
+                      <p>New unread updates will appear here.</p>
                     </div>
                   )}
+
+                  {unreadNotifications.length ? (
+                    <div className={topbarUi.dropdownFoot}>
+                      <button type="button" className={topbarUi.menuItem} onClick={() => navigate(rolePath('/notifications', user?.role))}>
+                        <span>Open notifications page</span>
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
+            ) : null}
 
             <button className={topbarUi.iconButton}
               type="button"
@@ -293,13 +402,6 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                 }}
               >
                 <ProfileAvatar user={user} />
-                <span className={topbarUi.profileCopy}>
-                  <strong>{user?.fullName || 'Signed in user'}</strong>
-                  <small>{user?.role === 'admin' ? 'Administrator' : 'Medical Student'}</small>
-                </span>
-                <span className={topbarUi.caret} aria-hidden="true">
-                  <ChevronDownIcon />
-                </span>
               </button>
 
               {profileOpen ? (
@@ -327,7 +429,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                   </div>
 
                   <div className={topbarUi.dropdownSection}>
-                    <button className={cx(topbarUi.menuItem, topbarUi.dangerItem)}
+                    <button className={topbarUi.menuItem}
                       type="button"
                      
                       onClick={handleLogout}
@@ -342,6 +444,8 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
             </div>
           </div>
         </div>
+
+        {actions ? <div className={cx('lms-topbar-actions', topbarUi.actionsSlot)}>{actions}</div> : null}
       </header>
 
       <div className={topbarUi.mobileCopy}>

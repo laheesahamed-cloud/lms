@@ -29,11 +29,11 @@ const defaultQuotes = [
 
 const serverUi = {
   rootBase: 'pointer-events-none isolate',
-  rootLive: 'fixed inset-0 z-[9999] grid place-items-center p-5',
+  rootLive: 'fixed inset-0 z-[9999] grid place-items-center p-5 max-[520px]:p-3 max-[520px]:pb-[calc(12px+env(safe-area-inset-bottom,0px))] max-[520px]:pt-[calc(12px+env(safe-area-inset-top,0px))]',
   rootPreview: 'absolute inset-0 z-[2] grid place-items-center p-5',
   scrim: 'absolute inset-0 bg-red-950/25 backdrop-blur-[4px]',
   dialog:
-    'pointer-events-auto relative z-[1] grid w-[min(430px,100%)] justify-items-center gap-3 rounded-2xl border border-red-300/15 bg-[linear-gradient(135deg,rgba(30,10,18,0.94),rgba(15,23,42,0.9))] p-6 text-center text-white shadow-2xl',
+    'pointer-events-auto relative z-[1] grid w-[min(430px,100%)] justify-items-center gap-3 rounded-2xl border border-red-300/15 bg-[linear-gradient(135deg,rgba(30,10,18,0.94),rgba(15,23,42,0.9))] p-6 text-center text-white shadow-2xl max-[520px]:rounded-[20px] max-[520px]:p-4',
   badge: 'rounded-full border border-red-300/20 bg-red-400/10 px-3 py-1 text-[10.5px] font-black uppercase tracking-[0.14em] text-red-100',
   loader: 'flex items-center gap-2 py-1',
   dot: 'size-2.5 rounded-full bg-red-200 shadow-[0_0_14px_rgba(254,202,202,0.58)] animate-bounce',

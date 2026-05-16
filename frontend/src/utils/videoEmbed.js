@@ -1,3 +1,5 @@
+import { getSafeExternalUrl } from './linkSafety.js';
+
 export function normalizeVideoUrl(url) {
   const raw = String(url || '').trim();
   if (!raw) return '';
@@ -35,6 +37,7 @@ function currentOrigin() {
 export function getVideoEmbed(url) {
   const raw = normalizeVideoUrl(url);
   if (!raw) return null;
+  const safeExternalUrl = getSafeExternalUrl(raw);
   const youtubeParams = {
     rel:'0',
     modestbranding:'1',
@@ -73,8 +76,8 @@ export function getVideoEmbed(url) {
   } catch {
     // Fall through to direct media detection.
   }
-  if (/^https?:\/\//i.test(raw) && /\.(mp4|webm|ogg|mov)(?:[?#].*)?$/i.test(raw)) return { type:'video', src:raw };
-  return { type:'blocked' };
+  if (safeExternalUrl && /\.(mp4|webm|ogg|mov)(?:[?#].*)?$/i.test(safeExternalUrl)) return { type:'video', src:safeExternalUrl };
+  return { type:'blocked', externalUrl:safeExternalUrl };
 }
 
 export function getVideoThumbnail(url) {

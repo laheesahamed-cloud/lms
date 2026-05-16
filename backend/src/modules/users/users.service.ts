@@ -70,6 +70,103 @@ export class UsersService {
     };
   }
 
+  async detail(id: number) {
+    const [userRows] = await this.db.execute<UserRow[]>(
+      'SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1',
+      [id]
+    );
+    const user = userRows[0];
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const [[subscriptionRows], [attemptRows], [progressRows], [bookmarkRows], [doubtRows]] = await Promise.all([
+      this.db.execute<RowDataPacket[]>(
+        `SELECT us.*, p.name AS plan_name
+         FROM user_subscriptions us
+         LEFT JOIN plans p ON p.id = us.plan_id
+         WHERE us.user_id = ?
+         ORDER BY us.end_date DESC, us.id DESC
+         LIMIT 8`,
+        [id]
+      ),
+      this.db.execute<RowDataPacket[]>(
+        `SELECT qa.id, qa.quiz_id, COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
+                qa.score, qa.percentage, qa.pass_status, qa.submitted_at
+         FROM quiz_attempts qa
+         INNER JOIN quizzes q ON q.id = qa.quiz_id
+         WHERE qa.user_id = ?
+         ORDER BY qa.submitted_at DESC, qa.id DESC
+         LIMIT 10`,
+        [id]
+      ),
+      this.db.execute<RowDataPacket[]>(
+        `SELECT
+           COUNT(*) AS tracked_lessons,
+           SUM(status = 'completed') AS completed_lessons,
+           AVG(progress_percent) AS average_progress,
+           MAX(updated_at) AS last_progress_at
+         FROM student_lesson_progress
+         WHERE user_id = ?`,
+        [id]
+      ),
+      this.db.execute<RowDataPacket[]>(
+        `SELECT item_type, COUNT(*) AS total
+         FROM study_bookmarks
+         WHERE user_id = ?
+         GROUP BY item_type`,
+        [id]
+      ),
+      this.db.execute<RowDataPacket[]>(
+        `SELECT id, subject, status, created_at
+         FROM lesson_doubts
+         WHERE user_id = ?
+         ORDER BY created_at DESC
+         LIMIT 5`,
+        [id]
+      ),
+    ]);
+
+    const progress = progressRows[0] || {};
+    return {
+      user: this.mapUser(user),
+      progress: {
+        trackedLessons: Number(progress.tracked_lessons || 0),
+        completedLessons: Number(progress.completed_lessons || 0),
+        averageProgress: Math.round(Number(progress.average_progress || 0)),
+        lastProgressAt: progress.last_progress_at || null,
+      },
+      subscriptions: subscriptionRows.map((row) => ({
+        id: Number(row.id),
+        planName: String(row.plan_name || 'Plan'),
+        status: String(row.status || ''),
+        paymentStatus: String(row.payment_status || ''),
+        startDate: row.start_date ? String(row.start_date).slice(0, 10) : '',
+        endDate: row.end_date ? String(row.end_date).slice(0, 10) : '',
+        amountPaid: row.amount_paid === null || row.amount_paid === undefined ? null : Number(row.amount_paid),
+      })),
+      attempts: attemptRows.map((row) => ({
+        id: Number(row.id),
+        quizId: Number(row.quiz_id),
+        quizTitle: String(row.quiz_title || ''),
+        score: Number(row.score || 0),
+        percentage: Number(row.percentage || 0),
+        passStatus: String(row.pass_status || ''),
+        submittedAt: row.submitted_at || null,
+      })),
+      bookmarks: bookmarkRows.map((row) => ({
+        itemType: String(row.item_type || ''),
+        total: Number(row.total || 0),
+      })),
+      doubts: doubtRows.map((row) => ({
+        id: Number(row.id),
+        subject: String(row.subject || ''),
+        status: String(row.status || ''),
+        createdAt: row.created_at || null,
+      })),
+    };
+  }
+
   async create(createUserDto: CreateUserDto) {
     const normalizedEmail = createUserDto.email.trim().toLowerCase();
     const [existingRows] = await this.db.execute<RowDataPacket[]>(
@@ -233,7 +330,12 @@ export class UsersService {
     const durationDays = Math.max(Number(entryPlan.duration_days || 3650), 1);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + durationDays - 1);
-    const toDateOnly = (date: Date) => date.toISOString().slice(0, 10);
+    const toDateOnly = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
     await this.db.execute(
       `

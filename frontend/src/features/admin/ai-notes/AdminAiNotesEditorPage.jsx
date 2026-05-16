@@ -13,6 +13,7 @@ function PrintIcon()   { return <svg width="14" height="14" viewBox="0 0 14 14" 
 function PublishIcon() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4.5 7l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function EditIcon()    { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9.5 1.5L12.5 4.5L5 12H2V9L9.5 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>; }
 function DoneIcon()    { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5l3 3 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
+function QuizIcon()    { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="1.5" width="10" height="11" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M4.2 5h5.6M4.2 7.2h3.7M4.2 9.4h5.2" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round"/><circle cx="10.4" cy="7.2" r=".65" fill="currentColor"/></svg>; }
 
 function normalizeNoteData(raw) {
   if (!raw) return null;
@@ -366,6 +367,52 @@ export function AdminAiNotesEditorPage({
     finally { setSaving(false); }
   }
 
+  async function handleCreateQuiz() {
+    setError('');
+    setSaveStatus('');
+    try {
+      let lessonId = linkedLessonId;
+      if (selCourse && selTopic && selSubtopic) {
+        lessonId = await ensureLinkedLesson();
+      }
+
+      if (!lessonId || !selCourse || !selTopic) {
+        setError('Choose at least a course and subject, then save the lesson before creating a quiz.');
+        return;
+      }
+
+      const cleanData = noteData ? cleanNoteDataForSave(noteData) : null;
+      await adminUpdateAiNote(Number(id), {
+        title,
+        rawText,
+        noteData: cleanData,
+        lessonId,
+        videoUrl: cleanVideoUrl(videoUrl),
+      }, { timeout: 60000 }, { engine: engineKey });
+      if (cleanData) {
+        setNoteData(cleanData);
+        setSavedData(cleanData);
+      }
+
+      navigate('/ai/gemini', {
+        state: {
+          lessonQuiz: {
+            noteId: Number(id),
+            lessonId,
+            courseId: selCourse ? Number(selCourse) : null,
+            subjectId: selTopic ? Number(selTopic) : null,
+            topicId: selSubtopic ? Number(selSubtopic) : null,
+            title: title || note?.title || 'Lesson',
+            rawText,
+            noteData: cleanData,
+          },
+        },
+      });
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not prepare this lesson for quiz generation'));
+    }
+  }
+
   async function handleExportPng() {
     if (!bookRef.current) return;
     setExportMsg('Capturing…');
@@ -440,6 +487,12 @@ export function AdminAiNotesEditorPage({
             >
               <PublishIcon/>
               {saving ? 'Publishing…' : isUnsaved ? 'Publish to Students' : 'Published'}
+            </button>
+            <button className={cx(ui.secondaryAction, editorUi.smallAction)}
+              type="button"
+              onClick={handleCreateQuiz}
+            >
+              <QuizIcon/> Create Quiz
             </button>
             <button className={cx(ui.secondaryAction, editorUi.smallAction)}
                     onClick={handleExportPng}><DownloadIcon/> PNG</button>

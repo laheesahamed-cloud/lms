@@ -4,7 +4,9 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getAiNote, getLessonAiNote } from '../../../api/aiNotes.api.js';
 import { getErrorMessage } from '../../../api/client.js';
 import { recordStudyActivity } from '../../../api/dashboard.api.js';
+import { updateStudentLessonProgress } from '../../../api/courses.api.js';
 import { getVideoEmbed, getVideoThumbnail } from '../../../utils/videoEmbed.js';
+import { ThemeToggle } from '../../../components/layout/ThemeToggle.jsx';
 import { NoteCanvas } from './NoteCanvas.jsx';
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
@@ -15,6 +17,16 @@ if (typeof document !== 'undefined' && !document.getElementById('canvas-hand-fon
   document.head.appendChild(lnk);
 }
 const KL = { fontFamily: "'Patrick Hand', cursive" };
+
+function LockIcon({ size = 48 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="M15 21v-4.2C15 11.4 18.8 7.5 24 7.5s9 3.9 9 9.3V21" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+      <rect x="10.5" y="21" width="27" height="18.5" rx="4.5" stroke="currentColor" strokeWidth="3.2" />
+      <path d="M24 27.8v4.8" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 function useDark() {
@@ -30,14 +42,6 @@ function useDark() {
 const ICONS_LIB = ['☆','💡','📚','🌿','📅','🏷️','💬','✅','⚠️','❓','🔄','📌','🩺','💊','🧬','🔬'];
 const DECOS_LIB = ['✦','✧','♡','☁','〰','🌿','🍃','✿','✾','❋','◆','◇'];
 const STICKERS  = ['⭐','🔥','💡','🏆','✅','⚠️','❤️','👍','🧠','📚','📌','❗','❓','🚀','✏️','✨','⏰','🚩','🎯','💊','🧬','🔬','🩺','📊'];
-const LABEL_CHIPS = [
-  { text: 'Definition', c: '#1d4ed8', bg: '#dbeafe' },
-  { text: 'Clinical', c: '#047857', bg: '#d1fae5' },
-  { text: 'Exam Tip', c: '#92400e', bg: '#fef3c7' },
-  { text: 'Pathway', c: '#6d28d9', bg: '#ede9fe' },
-  { text: 'Warning', c: '#b91c1c', bg: '#fee2e2' },
-];
-
 function getMCQTag(note) {
   const t = `${note?.title||''} ${note?.courseTitle||''} ${note?.topicName||''}`.toLowerCase();
   if (/cardiac|heart|coronar|arrhythm|myocard/.test(t)) return { tag:'Cardiology',   c:'#9d174d', bg:'#fce7f3' };
@@ -159,6 +163,9 @@ function SmoothCanvasMotion() {
       .lms-ai-canvas-shell {
         animation: lmsCanvasFadeUp 260ms cubic-bezier(.16,1,.3,1) both;
       }
+      .lms-ai-note-topbar-inner > * {
+        min-width: 0;
+      }
       .lms-canvas-page {
         animation: lmsCanvasFadeUp 320ms cubic-bezier(.16,1,.3,1) both;
         contain: layout paint;
@@ -181,6 +188,20 @@ function SmoothCanvasMotion() {
           grid-template-columns: auto minmax(0, 1fr) auto !important;
           gap: 12px !important;
         }
+        .lms-ai-canvas-shell {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          align-items: start;
+        }
+        .lms-ai-note-main {
+          grid-column: 1 / -1;
+          order: 1;
+        }
+        .lms-ai-note-left-panel {
+          order: 2;
+        }
+        .lms-ai-note-right-panel {
+          order: 3;
+        }
       }
       @media (max-width: 760px) {
         .lms-ai-note-topbar-inner {
@@ -190,6 +211,14 @@ function SmoothCanvasMotion() {
         .lms-ai-note-topbar-actions {
           justify-content: flex-start !important;
           flex-wrap: wrap;
+        }
+        .lms-ai-canvas-shell {
+          grid-template-columns: 1fr !important;
+        }
+        .lms-ai-note-main,
+        .lms-ai-note-left-panel,
+        .lms-ai-note-right-panel {
+          grid-column: auto;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -314,68 +343,6 @@ function WatchVideoModal({ open, url, onClose, isDark }) {
   );
 }
 
-function StudyStructurePanel({ note, pages, isDark }) {
-  const bg = isDark ? '#12141f' : '#fff';
-  const bd = isDark ? 'rgba(255,255,255,.09)' : '#e5e7eb';
-  const text = isDark ? 'rgba(240,244,255,.92)' : '#111827';
-  const muted = isDark ? 'rgba(200,210,255,.52)' : '#64748b';
-  const tones = ['#2563eb', '#7c3aed', '#0891b2', '#059669'];
-  const baseItems = [
-    note?.courseTitle && { label:'Course', title:note.courseTitle, icon:'📚' },
-    note?.topicName && { label:'Subject', title:note.topicName, icon:'🏷️' },
-    note?.subtopicName && { label:'Subtopic', title:note.subtopicName, icon:'📌' },
-    (note?.lessonTitle || note?.title) && { label:'Lesson', title:note.lessonTitle || note.title, icon:'▶' },
-  ].filter(Boolean);
-  const pageItems = (pages || []).map((p, i) => ({
-    label:`Page ${i + 1}`,
-    title:p?.title || (i === 0 ? note?.title : 'Study section'),
-    icon:'📄',
-  }));
-  const items = baseItems.length ? baseItems : [{ label:'Lesson', title:note?.title || 'Study Lesson', icon:'📝' }];
-  return (
-    <div style={{ position:'sticky', top:72 }}>
-      <div style={{ background:bg, border:`1px solid ${bd}`, borderRadius:18, padding:'14px 15px', marginBottom:12, boxShadow:isDark?'0 18px 48px rgba(0,0,0,.22)':'0 16px 34px rgba(15,23,42,.06)' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:12 }}>
-          <div>
-            <div style={{ fontFamily:'sans-serif', fontSize:9, fontWeight:900, letterSpacing:'0.12em', textTransform:'uppercase', color:muted }}>Study Structure</div>
-            <div style={{ ...KL, fontSize:20, fontWeight:800, color:text, lineHeight:1.05 }}>Selected lesson map</div>
-          </div>
-          <span style={{ display:'grid', placeItems:'center', width:34, height:34, borderRadius:12, background:isDark?'rgba(124,58,237,.16)':'#f3e8ff', color:'#7c3aed', fontSize:17 }}>☰</span>
-        </div>
-        <div style={{ position:'relative', display:'grid', gap:9 }}>
-          <span aria-hidden="true" style={{ position:'absolute', left:15, top:22, bottom:22, width:1, background:isDark?'rgba(255,255,255,.08)':'#e2e8f0' }} />
-          {items.map((it, i) => {
-            const tone = tones[i % tones.length];
-            return (
-              <div key={`${it.label}-${i}`} style={{ position:'relative', display:'grid', gridTemplateColumns:'32px 1fr', gap:10, alignItems:'start' }}>
-                <span style={{ zIndex:1, display:'grid', placeItems:'center', width:32, height:32, borderRadius:12, background:isDark?`${tone}24`:`${tone}14`, border:`1px solid ${tone}35`, fontSize:14 }}>{it.icon}</span>
-                <div style={{ minWidth:0, border:`1px solid ${bd}`, background:isDark?'rgba(255,255,255,.035)':'#f8fafc', borderRadius:14, padding:'8px 10px' }}>
-                  <span style={{ display:'inline-flex', alignItems:'center', border:`1px solid ${tone}35`, background:isDark?`${tone}1e`:`${tone}12`, color:tone, borderRadius:999, padding:'1px 8px', fontSize:9, fontWeight:900, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:5 }}>{it.label}</span>
-                  <div style={{ ...KL, fontSize:15, fontWeight:800, color:text, lineHeight:1.12, wordBreak:'break-word' }}>{it.title}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div style={{ background:bg, border:`1px solid ${bd}`, borderRadius:18, padding:'14px 15px' }}>
-        <div style={{ fontFamily:'sans-serif', fontSize:9, fontWeight:900, letterSpacing:'0.12em', textTransform:'uppercase', color:muted, marginBottom:10 }}>Lesson Sections</div>
-        <div style={{ display:'grid', gap:7 }}>
-          {(pageItems.length ? pageItems : [{ label:'Page 1', title:'Main lesson', icon:'📄' }]).map((it, i) => (
-            <div key={`${it.label}-${i}`} style={{ display:'flex', alignItems:'center', gap:8, border:`1px solid ${bd}`, borderRadius:12, padding:'7px 9px', background:isDark?'rgba(255,255,255,.035)':'#f8fafc' }}>
-              <span style={{ fontSize:13 }}>{it.icon}</span>
-              <div style={{ minWidth:0 }}>
-                <div style={{ fontSize:9, fontWeight:800, color:muted, textTransform:'uppercase', letterSpacing:'.08em' }}>{it.label}</div>
-                <div style={{ ...KL, fontSize:13.5, fontWeight:700, color:text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{it.title}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function WatchVideoPanel({ videoUrl, onOpenVideo, isDark }) {
   const bg = isDark ? '#12141f' : '#fff';
   const bd = isDark ? 'rgba(255,255,255,.09)' : '#e5e7eb';
@@ -409,12 +376,12 @@ function WatchVideoPanel({ videoUrl, onOpenVideo, isDark }) {
 }
 
 // ── Right panel ───────────────────────────────────────────────────────────────
-function RightPanel({ onStickerAdd, onNoteAdd, note, isDark, pages, isEditing, videoUrl, onOpenVideo }) {
+function RightPanel({ onStickerAdd, onNoteAdd, note, isDark, isEditing, videoUrl, onOpenVideo }) {
   const [stickerOpen, setStickerOpen] = useState(false);
   const navigate = useNavigate();
   const mcq = getMCQTag(note);
   const bg  = isDark?'#12141f':'#fff', bd=isDark?'rgba(255,255,255,.09)':'#e5e7eb';
-  const lbl = isDark?'rgba(200,210,255,.4)':'#9ca3af', tx=isDark?'rgba(220,230,255,.82)':'#374151';
+  const lbl = isDark?'rgba(200,210,255,.4)':'#9ca3af';
   const C = ch => <div style={{ background:bg, border:`1px solid ${bd}`, borderRadius:16, padding:'13px 15px', marginBottom:12 }}>{ch}</div>;
   const L = t => <div style={{ fontFamily:'sans-serif', fontSize:9, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:lbl, marginBottom:9 }}>{t}</div>;
   const btnHov = (e,on) => {
@@ -434,17 +401,11 @@ function RightPanel({ onStickerAdd, onNoteAdd, note, isDark, pages, isEditing, v
           Test knowledge on <strong style={{ color:isDark?'#a78bfa':'#5b21b6' }}>{note?.title||'this topic'}</strong>.
         </p>
         <button className="w-full" onClick={() => navigate('/quizzes')}
-          style={{ width:'100%', background:'#7c3aed', color:'#fff', borderRadius:11, padding:'8px 0', fontSize:11, fontWeight:800, border:'none', cursor:'pointer' }}
-          onMouseEnter={e => e.currentTarget.style.background='#6d28d9'}
-          onMouseLeave={e => e.currentTarget.style.background='#7c3aed'}>
+          style={{ width:'100%', background:isDark?'rgba(167,139,250,.12)':'#f5f3ff', color:isDark?'#ddd6fe':'#6d28d9', borderRadius:11, padding:'8px 0', fontSize:11, fontWeight:800, border:`1px solid ${isDark?'rgba(167,139,250,.28)':'rgba(124,58,237,.24)'}`, cursor:'pointer' }}
+          onMouseEnter={e => { e.currentTarget.style.background = isDark?'rgba(167,139,250,.18)':'#ede9fe'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = isDark?'rgba(167,139,250,.12)':'#f5f3ff'; }}>
           Start MCQ Session →
         </button>
-      </>)}
-      {C(<>
-        {L('Headers & Labels')}
-        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-          {LABEL_CHIPS.map((c,i) => <span key={i} style={{ background:isDark?`${c.bg}18`:c.bg, color:c.c, border:`1px solid ${c.c}35`, borderRadius:99, padding:'2px 10px', fontSize:10, fontWeight:600 }}>{c.text}</span>)}
-        </div>
       </>)}
       {C(<>
         {L('Icons')}
@@ -475,16 +436,6 @@ function RightPanel({ onStickerAdd, onNoteAdd, note, isDark, pages, isEditing, v
           {stickerOpen && <StickerPicker onPick={onStickerAdd} onClose={() => setStickerOpen(false)} />}
         </div>
       </>)}
-      {note && C(<>
-        {L('Lesson Info')}
-        {[note.courseTitle&&{icon:'📚',label:'Course',val:note.courseTitle}, note.topicName&&{icon:'🏷️',label:'Subject',val:note.topicName}, note.subtopicName&&{icon:'📌',label:'Topic',val:note.subtopicName}, {icon:'📄',label:'Pages',val:`${pages.length} page${pages.length!==1?'s':''}`}]
-          .filter(Boolean).map((it,i) => (
-          <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:9, marginBottom:8 }}>
-            <span style={{ fontSize:13 }}>{it.icon}</span>
-            <div><div style={{ fontSize:10, color:lbl, fontFamily:'sans-serif' }}>{it.label}</div><div style={{ fontSize:12, fontWeight:600, color:tx }}>{it.val}</div></div>
-          </div>
-        ))}
-      </>)}
       <div style={{ borderRadius:16, border:isDark?'1px solid rgba(251,191,36,.2)':'1px solid #fde68a', background:isDark?'rgba(251,191,36,.05)':'#fffbeb', padding:'13px 15px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5 }}>
           <span>💡</span>
@@ -500,7 +451,6 @@ function RightPanel({ onStickerAdd, onNoteAdd, note, isDark, pages, isEditing, v
   );
 }
 
-const MemoStudyStructurePanel = memo(StudyStructurePanel);
 const MemoRightPanel = memo(RightPanel);
 
 // ── Canvas card grid (one page) ───────────────────────────────────────────────
@@ -521,9 +471,6 @@ function cleanCanvasLabel(value, fallback = '') {
   return parts.length ? parts[parts.length - 1] : text;
 }
 function BackIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M9.5 3.5l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
-function DownloadIcon() { return <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 2v6.5M4 6l2.5 3 2.5-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
-function PrintIcon()    { return <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="2.5" y="1" width="8" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/><path d="M2.5 6H1a.5.5 0 0 0-.5.5v4.5c0 .276.224.5.5.5H12a.5.5 0 0 0 .5-.5V6.5A.5.5 0 0 0 12 6H10.5" stroke="currentColor" strokeWidth="1.3"/><rect x="2.5" y="7.5" width="8" height="4" rx="1" stroke="currentColor" strokeWidth="1.3"/></svg>; }
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabel='Lessons' }) {
   const { id, lessonId } = useParams();
@@ -535,13 +482,15 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const [note,      setNote]      = useState(null);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState('');
-  const [exportMsg, setExportMsg] = useState('');
   const [localData, setLocalData] = useState(null);
   const [stickers,  setStickers]  = useState([]);
   const [toast,     setToast]     = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [videoUrl,  setVideoUrl]  = useState('');
   const [videoOpen, setVideoOpen] = useState(false);
+  const [readingProgress, setReadingProgress] = useState(0);
+  const [lessonCompleted, setLessonCompleted] = useState(false);
+  const [completionBusy, setCompletionBusy] = useState(false);
   const sidRef = useRef(0);
   const saveTimerRef = useRef(null);
 
@@ -563,6 +512,21 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [engineKey, id, lessonId]);
+
+  useEffect(() => {
+    function updateProgress() {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      setReadingProgress(Math.min(100, Math.max(0, Math.round((scrollTop / max) * 100))));
+    }
+    updateProgress();
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
+    return () => {
+      window.removeEventListener('scroll', updateProgress);
+      window.removeEventListener('resize', updateProgress);
+    };
+  }, [note?.id]);
 
   useEffect(() => {
     const key = studentCanvasPersonalStorageKey(note?.id || id || lessonId);
@@ -596,18 +560,6 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   }, [id, lessonId, note?.id]);
 
   function handleBack() { if (location.state?.returnToPath) { navigate(location.state.returnToPath); return; } navigate(-1); }
-
-  async function handleExportPng() {
-    if (!canvasRef.current) return; setExportMsg('Capturing…');
-    try {
-      const { default: html2canvas } = await import('html2canvas');
-      const cv = await html2canvas(canvasRef.current, { scale:2, useCORS:true, backgroundColor:isDark?'#0d0f1a':'#fefcf8', logging:false });
-      const a = document.createElement('a'); a.href = cv.toDataURL('image/png');
-      a.download = `${(note?.title||'canvas').replace(/\s+/g,'-').toLowerCase()}.png`; a.click();
-      setExportMsg('PNG saved!');
-    } catch { setExportMsg('Export failed'); }
-    finally { setTimeout(() => setExportMsg(''), 2500); }
-  }
 
   const addSticker    = useCallback(emoji => {
     if (!isEditing) {
@@ -646,18 +598,37 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const openVideo = useCallback(() => {
     setVideoOpen(true);
   }, []);
+  const markLessonComplete = useCallback(async () => {
+    const resolvedLessonId = Number(note?.lessonId || location.state?.lessonId || lessonId || 0);
+    setCompletionBusy(true);
+    try {
+      if (resolvedLessonId > 0) {
+        await updateStudentLessonProgress(resolvedLessonId, { status: 'completed', progressPercent: 100 });
+      }
+      setLessonCompleted(true);
+      notify('Lesson marked complete');
+    } catch (completeError) {
+      notify(getErrorMessage(completeError, 'Unable to mark lesson complete'));
+    } finally {
+      setCompletionBusy(false);
+    }
+  }, [lessonId, location.state?.lessonId, note?.lessonId]);
 
-  const pageBg = isDark?'#0d0f1a':'#faf8f4';
-  const topBg  = isDark?'rgba(13,15,26,.96)':'rgba(255,255,255,.96)';
-  const topBd  = isDark?'rgba(255,255,255,.08)':'#e5e7eb';
-  const btnBg  = isDark?'rgba(255,255,255,.06)':'#f9fafb';
-  const btnBd  = isDark?'rgba(255,255,255,.12)':'#e5e7eb';
-  const btnTx  = isDark?'rgba(220,230,255,.75)':'#374151';
+  const pageBg = isDark
+    ? 'radial-gradient(circle at 18% -8%, rgba(37,99,235,.18), transparent 34%), radial-gradient(circle at 88% 4%, rgba(14,165,233,.10), transparent 30%), #05070d'
+    : '#faf8f4';
+  const topBg  = isDark?'rgba(5,7,13,.86)':'rgba(255,255,255,.96)';
+  const topBd  = isDark?'rgba(145,170,255,.16)':'#e5e7eb';
+  const btnBg  = isDark?'linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.045))':'#f9fafb';
+  const btnBd  = isDark?'rgba(145,170,255,.18)':'#e5e7eb';
+  const btnTx  = isDark?'rgba(230,238,255,.84)':'#374151';
+  const lessonButtonShadow = isDark
+    ? 'inset 0 1px 0 rgba(255,255,255,.08), 0 8px 22px rgba(0,0,0,.18)'
+    : 'none';
 
   if (loading) return (
-    <main style={{ minHeight:'100vh', background:pageBg }}>
-      <div className="mx-auto grid max-w-[1680px] grid-cols-[280px_minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:grid-cols-1 max-[1180px]:px-4 max-[520px]:px-3">
-        <div className="animate-pulse" style={{ height:360, borderRadius:16, background:isDark?'#1a1d2e':'#e5e7eb' }}/>
+    <main style={{ minHeight:'100dvh', background:pageBg }}>
+      <div className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:grid-cols-1 max-[1180px]:px-4 max-[520px]:px-3">
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, alignItems:'start' }}>
           {[1,2,3,4,5,6].map((i,j) => <div key={i} className="animate-pulse" style={{ height:[220,160,200,180,240,140][j], borderRadius:16, background:isDark?'#1a1d2e':'#e5e7eb', gridColumn:j===0?'1/-1':'span 1' }}/>)}
         </div>
@@ -667,7 +638,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   );
 
   if (error) return (
-    <main style={{ minHeight:'100vh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+    <main style={{ minHeight:'100dvh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ textAlign:'center' }}>
         <div style={{ fontSize:48, marginBottom:16 }}>⚠️</div>
         <p style={{ fontSize:14, color:isDark?'#94a3b8':'#6b7280', marginBottom:16 }}>{error}</p>
@@ -689,25 +660,33 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   ].filter(Boolean).join(' / ');
 
   return (
-    <main style={{ minHeight:'100vh', background:pageBg }}>
+    <main className="lms-ai-note-page select-text [-webkit-user-select:text]" style={{ minHeight:'100dvh', background:pageBg }}>
       <SmoothCanvasMotion />
       {/* Top bar */}
       <div className="lms-ai-note-topbar" style={{ position:'sticky', top:0, zIndex:40, background:topBg, borderBottom:`1px solid ${topBd}`, backdropFilter:'blur(12px)' }}>
-        <div className="lms-ai-note-topbar-inner" style={{ display:'grid', gridTemplateColumns:'280px minmax(0,1fr) 280px', alignItems:'center', gap:20, maxWidth:1680, margin:'0 auto', padding:'10px 24px' }}>
+        <div className="lms-ai-note-topbar-inner" style={{ display:'grid', gridTemplateColumns:'280px minmax(0,1fr) 280px', alignItems:'center', gap:20, maxWidth:1680, margin:'0 auto', padding:'calc(10px + env(safe-area-inset-top, 0px)) 24px 10px' }}>
           <div style={{ display:'flex', justifyContent:'flex-end', minWidth:0 }}>
-            <button className="lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'6px 12px', fontSize:12, fontWeight:600, color:btnTx, cursor:'pointer', flexShrink:0 }}>
+            <button className="lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'6px 12px', fontSize:12, fontWeight:600, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
               <BackIcon/> Lessons
             </button>
           </div>
           <div style={{ minWidth:0, overflow:'hidden' }}>
-            <div style={{ ...KL, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#111827', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasTitle}</div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+              <div style={{ ...KL, minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#111827', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasTitle}</div>
+              {note.isFree ? (
+                <span style={{ flexShrink:0, border:'1px solid rgba(16,185,129,.25)', background:'rgba(16,185,129,.12)', color:isDark?'#86efac':'#047857', borderRadius:999, padding:'2px 8px', fontSize:10, fontWeight:900, textTransform:'uppercase' }}>
+                  Free lesson
+                </span>
+              ) : null}
+            </div>
             {canvasContext && <div style={{ fontSize:11, color:isDark?'rgba(200,210,255,.45)':'#9ca3af', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasContext}</div>}
           </div>
           <div className="lms-ai-note-topbar-actions" style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:8, minWidth:0 }}>
+            <ThemeToggle />
             <button className="lms-smooth-action inline-flex items-center justify-center"
               onClick={() => navigate(`/flashcards?noteId=${note.id || id || lessonId}`)}
               disabled={isLocked}
-              style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'6px 12px', fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : 1 }}>
+              style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'6px 12px', fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : 1, boxShadow:lessonButtonShadow }}>
               Flashcards
             </button>
             <button className="lms-smooth-action inline-flex items-center justify-center"
@@ -717,69 +696,37 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
                 display:'flex',
                 alignItems:'center',
                 gap:6,
-                border:`1px solid ${isEditing ? '#7c3aed' : btnBd}`,
-                background:isEditing ? '#7c3aed' : btnBg,
+                border:`1px solid ${isEditing ? (isDark ? 'rgba(167,139,250,.42)' : '#7c3aed') : btnBd}`,
+                background:isEditing ? (isDark ? 'linear-gradient(180deg,rgba(167,139,250,.22),rgba(96,165,250,.10))' : '#f5f3ff') : btnBg,
                 borderRadius:12,
                 padding:'6px 12px',
                 fontSize:11,
                 fontWeight:800,
-                color:isEditing ? '#fff' : btnTx,
+                color:isEditing ? (isDark ? '#ddd6fe' : '#6d28d9') : btnTx,
                 cursor:'pointer',
                 opacity:isLocked ? 0.4 : 1,
+                boxShadow:isEditing && isDark ? '0 10px 24px rgba(88,28,135,.18), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
               }}
             >
               {isEditing ? 'Done' : 'Personalize'}
             </button>
-            <button className="lms-smooth-action inline-flex items-center justify-center" onClick={handleExportPng} disabled={isLocked} style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'6px 12px', fontSize:11, fontWeight:600, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : 1 }}><DownloadIcon/> PNG</button>
-            <button className="lms-smooth-action inline-flex items-center justify-center" onClick={() => window.print()} disabled={isLocked} style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'6px 12px', fontSize:11, fontWeight:600, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : 1 }}><PrintIcon/> PDF</button>
-            {exportMsg && <span style={{ fontSize:11, color:isDark?'#94a3b8':'#6b7280' }}>{exportMsg}</span>}
           </div>
         </div>
       </div>
 
       {/* Body */}
-      <div className="lms-ai-canvas-shell mx-auto grid max-w-[1680px] grid-cols-[280px_minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:grid-cols-1 max-[1180px]:px-4 max-[520px]:gap-4 max-[520px]:px-3">
-        <aside>
-          <MemoStudyStructurePanel note={note} pages={pages} isDark={isDark} />
-        </aside>
-        <section>
-          <div ref={canvasRef} style={{ position:'relative' }}>
-            {!isLocked && (
-              <button className="lms-smooth-action inline-flex items-center justify-center"
-                onClick={toggleEditing}
-                style={{
-                  position:'sticky',
-                  top:64,
-                  zIndex:35,
-                  float:'right',
-                  display:'flex',
-                  alignItems:'center',
-                  gap:7,
-                  margin:'0 8px -42px 0',
-                  border:`1px solid ${isEditing ? '#7c3aed' : btnBd}`,
-                  background:isEditing ? '#7c3aed' : (isDark ? 'rgba(18,20,31,.94)' : 'rgba(255,255,255,.94)'),
-                  borderRadius:999,
-                  padding:'8px 14px',
-                  fontSize:12,
-                  fontWeight:900,
-                  color:isEditing ? '#fff' : btnTx,
-                  cursor:'pointer',
-                  boxShadow:isDark ? '0 10px 28px rgba(0,0,0,.35)' : '0 10px 24px rgba(15,23,42,.10)',
-                  backdropFilter:'blur(12px)',
-                }}
-              >
-                {isEditing ? 'Done' : 'Personalize'}
-              </button>
-            )}
+      <div className="lms-ai-canvas-shell mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:px-4 max-[520px]:gap-3 max-[520px]:px-1.5">
+        <section className="lms-ai-note-main min-w-0">
+          <div ref={canvasRef} style={{ position:'relative', minWidth:0, maxWidth:'100%' }}>
             {stickers.map(s => <FloatingSticker key={s.id} s={s} editable={canEdit} onUpdate={updateSticker} onDelete={deleteSticker} canvasRef={canvasRef}/>)}
 
             {isLocked ? (
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, minHeight:400, borderRadius:20, border:`1.5px dashed ${topBd}`, background:isDark?'rgba(255,255,255,.02)':'#fff', padding:48, textAlign:'center' }}>
-                <span style={{ fontSize:48 }}>🔒</span>
-                <div style={{ fontSize:15, fontWeight:800, color:isDark?'#f0f4ff':'#111827' }}>{note.upgradeLabel||'Available in Standard plan'}</div>
-                <div style={{ fontSize:13, color:isDark?'#94a3b8':'#6b7280' }}>{note.lockReason||'Upgrade to unlock full lesson access.'}</div>
+                <span style={{ color:isDark?'#93c5fd':'#2563eb' }}><LockIcon /></span>
+                <div style={{ fontSize:15, fontWeight:800, color:isDark?'#f0f4ff':'#111827' }}>{note.upgradeLabel||'Plan access needed'}</div>
+                <div style={{ fontSize:13, color:isDark?'#94a3b8':'#6b7280' }}>{note.lockReason||'This lesson is included with selected subscriptions.'}</div>
                 <button className="inline-flex items-center justify-center" onClick={() => navigate('/subscriptions',{state:{from:location.pathname}})}
-                  style={{ background:'#7c3aed', color:'#fff', borderRadius:12, padding:'10px 20px', fontSize:12, fontWeight:800, border:'none', cursor:'pointer' }}>Unlock Access</button>
+                  style={{ background:isDark?'rgba(167,139,250,.14)':'#f5f3ff', color:isDark?'#ddd6fe':'#6d28d9', borderRadius:12, padding:'10px 20px', fontSize:12, fontWeight:800, border:`1px solid ${isDark?'rgba(167,139,250,.28)':'rgba(124,58,237,.24)'}`, cursor:'pointer' }}>View access options</button>
               </div>
             ) : pages.length > 0 ? (
               <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
@@ -803,12 +750,11 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
             )}
           </div>
         </section>
-        <aside>
+        <aside className="lms-ai-note-right-panel min-w-0">
           <MemoRightPanel
             onStickerAdd={addSticker}
             note={note}
             isDark={isDark}
-            pages={pages}
             isEditing={canEdit}
             videoUrl={videoUrl}
             onNoteAdd={addStickyNote}
@@ -824,11 +770,33 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
         isDark={isDark}
       />
 
+      {!isLocked && (
+        <div style={{ position:'fixed', left:'50%', bottom:'calc(env(safe-area-inset-bottom) + 16px)', transform:'translateX(-50%)', zIndex:45, width:'min(680px, calc(100% - 24px))' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto auto', gap:8, alignItems:'center', border:`1px solid ${topBd}`, background:isDark?'linear-gradient(180deg,rgba(15,20,36,.94),rgba(8,12,24,.94))':'rgba(255,255,255,.94)', borderRadius:18, padding:10, boxShadow:isDark?'0 18px 44px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.08)':'0 18px 44px rgba(15,23,42,.14)', backdropFilter:'blur(14px)' }}>
+            <div style={{ minWidth:0 }}>
+              <div style={{ fontSize:10, fontWeight:900, letterSpacing:'.12em', textTransform:'uppercase', color:isDark?'rgba(200,210,255,.48)':'#64748b' }}>Reading Progress</div>
+              <div style={{ ...KL, fontSize:16, fontWeight:800, color:isDark?'#f8fafc':'#111827', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                {lessonCompleted ? 'Lesson complete' : `${readingProgress}% read`}
+              </div>
+            </div>
+            <button className="lms-smooth-action inline-flex items-center justify-center" type="button" onClick={markLessonComplete} disabled={completionBusy || lessonCompleted}
+              style={{ minHeight:40, border:`1px solid ${lessonCompleted ? '#10b98155' : '#2563eb55'}`, background:lessonCompleted ? '#10b98122' : (isDark ? 'rgba(96,165,250,.14)' : '#eff6ff'), color:lessonCompleted ? (isDark ? '#a7f3d0' : '#047857') : (isDark ? '#bfdbfe' : '#1d4ed8'), borderRadius:12, padding:'0 13px', fontSize:12, fontWeight:900, cursor:'pointer', opacity:completionBusy ? 0.7 : 1 }}>
+              {completionBusy ? 'Saving...' : lessonCompleted ? 'Done' : 'Mark Complete'}
+            </button>
+            <button className="lms-smooth-action inline-flex items-center justify-center" type="button" onClick={() => navigate('/quizzes')}
+              style={{ minHeight:40, border:`1px solid ${btnBd}`, background:btnBg, color:btnTx, borderRadius:12, padding:'0 13px', fontSize:12, fontWeight:900, cursor:'pointer' }}>
+              Practice
+            </button>
+          </div>
+        </div>
+      )}
+
       {toast && (
         <div className="lms-toast" style={{ position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:50 }}>
           <div style={{ ...KL, display:'flex', alignItems:'center', gap:8, border:`1px solid ${topBd}`, background:isDark?'#1a1d2e':'#fff', borderRadius:16, padding:'10px 20px', fontSize:13, fontWeight:600, color:isDark?'#f0f4ff':'#374151', boxShadow:'0 8px 32px rgba(0,0,0,.15)' }}>{toast}</div>
         </div>
       )}
+
     </main>
   );
 }

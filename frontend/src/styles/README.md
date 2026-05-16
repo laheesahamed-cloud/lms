@@ -7,12 +7,11 @@ Order matters:
 1. `00-tokens` for CSS variables and design tokens.
 2. `01-base` for reset, document, accessibility, and theme basics.
 3. `02-layout` for app shell, page shell, nav, and responsive grids.
-4. `99-legacy/app.css` for existing mixed rules that are still being migrated.
-5. `03-components` for reusable buttons, cards, forms, tables, modals, tabs, badges, and states.
-6. `04-pages` for page-level styling that cannot live in components yet.
-7. `05-platforms` for web, PWA, native, tablet, phone, iOS, Android, and desktop runtime selectors.
-8. `06-utilities` for small cross-cutting helpers.
+4. `03-components` for reusable buttons, cards, forms, tables, modals, tabs, badges, and states.
+5. `04-pages` for page-level styling that cannot live in components yet.
+6. `05-platforms` for web, PWA, native, tablet, phone, iOS, Android, and desktop runtime selectors.
+7. `06-utilities` for small cross-cutting helpers.
 
-`99-legacy/app.css` is imported before the migrated component/page/platform layers so new clean CSS can override old page-specific rules without adding more fixes to the legacy file.
+`99-legacy/app.css` is kept only as a reference while migration cleanup continues. It is not imported by the app entrypoint because its historical native and card rules can conflict with the clean component/page/platform layers.
 
 New styling should go into the smallest matching layer. Keep platform-only rules in `05-platforms` using selectors such as `html[data-lms-runtime="native"]` or `html[data-lms-target="native-ios-phone"]`.

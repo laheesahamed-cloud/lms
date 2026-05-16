@@ -18,6 +18,16 @@ function matchesMedia(query) {
   return Boolean(win?.matchMedia?.(query)?.matches);
 }
 
+function positiveNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
+function smallestPositive(values) {
+  const candidates = values.map(positiveNumber).filter(Boolean);
+  return candidates.length ? Math.round(Math.min(...candidates)) : 0;
+}
+
 function getCapacitorPlatform() {
   const win = getWindow();
   const platform = win?.Capacitor?.getPlatform?.();
@@ -62,26 +72,48 @@ function getOs() {
 function getViewport() {
   const win = getWindow();
   const doc = getDocument();
-  const width = win?.innerWidth || doc?.documentElement?.clientWidth || 0;
-  const height = win?.innerHeight || doc?.documentElement?.clientHeight || 0;
+  const width = smallestPositive([
+    win?.visualViewport?.width,
+    win?.innerWidth,
+    doc?.documentElement?.clientWidth,
+  ]);
+  const height = smallestPositive([
+    win?.visualViewport?.height,
+    win?.innerHeight,
+    doc?.documentElement?.clientHeight,
+  ]);
   return { width, height };
 }
 
-function getFormFactor(os) {
+function getScreenShortestSide() {
+  const win = getWindow();
+  return smallestPositive([win?.screen?.width, win?.screen?.height]);
+}
+
+function getFormFactor(os, runtime) {
   const nav = getNavigator();
   const ua = nav?.userAgent || '';
   const { width, height } = getViewport();
   const shortest = Math.min(width || 0, height || 0);
   const longest = Math.max(width || 0, height || 0);
+  const screenShortest = getScreenShortestSide();
   const coarsePointer = matchesMedia('(hover: none) and (pointer: coarse)');
   const explicitTabletUa = /iPad|Tablet|PlayBook|Silk/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua));
   const iosTablet = os === 'ios' && nav?.platform === 'MacIntel' && (nav?.maxTouchPoints || 0) > 1;
 
-  if (explicitTabletUa || iosTablet || (coarsePointer && shortest >= TABLET_MIN_WIDTH)) {
+  if (shortest <= PHONE_MAX_WIDTH || (screenShortest > 0 && screenShortest <= PHONE_MAX_WIDTH)) {
+    return 'phone';
+  }
+
+  if (runtime === 'native' && longest > 0 && longest <= 932) {
+    return 'phone';
+  }
+
+  if (explicitTabletUa || iosTablet || (coarsePointer && shortest >= TABLET_MIN_WIDTH && (screenShortest === 0 || screenShortest >= TABLET_MIN_WIDTH))) {
     return 'tablet';
   }
 
-  if (coarsePointer || shortest <= PHONE_MAX_WIDTH || (longest > 0 && longest <= 932)) {
+  if (coarsePointer || (longest > 0 && longest <= 932)) {
     return 'phone';
   }
 
@@ -126,7 +158,7 @@ export function detectPlatform() {
   const nativeShell = isNativeShell();
   const runtime = getRuntimeKind(buildTarget);
   const os = getOs();
-  const formFactor = getFormFactor(os);
+  const formFactor = getFormFactor(os, runtime);
   const target = getTargetKey({ runtime, os, formFactor });
 
   return {
@@ -180,6 +212,7 @@ export function installPlatformAttributeSync(onChange) {
   win.addEventListener('resize', sync);
   win.addEventListener('orientationchange', sync);
   win.addEventListener('pageshow', sync);
+  win.visualViewport?.addEventListener?.('resize', sync);
   win.matchMedia?.('(display-mode: standalone)')?.addEventListener?.('change', sync);
   win.matchMedia?.('(display-mode: window-controls-overlay)')?.addEventListener?.('change', sync);
 
@@ -188,6 +221,7 @@ export function installPlatformAttributeSync(onChange) {
     win.removeEventListener('resize', sync);
     win.removeEventListener('orientationchange', sync);
     win.removeEventListener('pageshow', sync);
+    win.visualViewport?.removeEventListener?.('resize', sync);
     win.matchMedia?.('(display-mode: standalone)')?.removeEventListener?.('change', sync);
     win.matchMedia?.('(display-mode: window-controls-overlay)')?.removeEventListener?.('change', sync);
   };

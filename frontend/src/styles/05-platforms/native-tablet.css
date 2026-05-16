@@ -1,6 +1,2 @@
-html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .dashboard-page .lms-dashboard-welcome-card {
-  aspect-ratio: auto !important;
-  min-height: clamp(176px, 20vw, 260px) !important;
-  max-height: none !important;
-  grid-template-columns: minmax(0, 1fr) clamp(120px, 18vw, 184px) !important;
-}
+/* Native tablet keeps platform behavior here only. Shared app visuals belong
+   in page/component styles so tablet, phone, web, and desktop match. */

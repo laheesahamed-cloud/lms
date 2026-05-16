@@ -8,7 +8,7 @@ let studentCoursesCache = {
 };
 
 export async function fetchCourses() {
-  const response = await apiClient.get('/courses');
+  const response = await apiClient.get('/admin/courses');
   return response.data;
 }
 
@@ -21,7 +21,7 @@ export async function fetchStudentCourses({ force = false } = {}) {
     return studentCoursesCache.promise;
   }
 
-  studentCoursesCache.promise = apiClient.get('/courses/student')
+  studentCoursesCache.promise = apiClient.get('/student/courses')
     .then((response) => {
       studentCoursesCache = {
         data: response.data,
@@ -47,31 +47,31 @@ export function clearStudentCoursesCache() {
 }
 
 export async function fetchStudentCoursesUncached() {
-  const response = await apiClient.get('/courses/student');
+  const response = await apiClient.get('/student/courses');
   return response.data;
 }
 
 export async function fetchStudentCourseDetail(courseId) {
-  const response = await apiClient.get(`/courses/student/${courseId}`);
+  const response = await apiClient.get(`/student/courses/${courseId}`);
   return response.data;
 }
 
 export async function updateStudentLessonProgress(lessonId, payload) {
-  const response = await apiClient.patch(`/courses/student/lessons/${lessonId}/progress`, payload);
+  const response = await apiClient.patch(`/student/courses/lessons/${lessonId}/progress`, payload);
   return response.data;
 }
 
 export async function createCourse(payload) {
-  const response = await apiClient.post('/courses', payload);
+  const response = await apiClient.post('/admin/courses', payload);
   return response.data;
 }
 
 export async function updateCourse(id, payload) {
-  const response = await apiClient.patch(`/courses/${id}`, payload);
+  const response = await apiClient.patch(`/admin/courses/${id}`, payload);
   return response.data;
 }
 
 export async function deleteCourse(id) {
-  const response = await apiClient.delete(`/courses/${id}`);
+  const response = await apiClient.delete(`/admin/courses/${id}`);
   return response.data;
 }

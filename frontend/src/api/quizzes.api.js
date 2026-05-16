@@ -1,33 +1,33 @@
 import { apiClient } from './client.js';
 
 export async function fetchQuizzes(params) {
-  const response = await apiClient.get('/quizzes', { params });
+  const response = await apiClient.get('/admin/quizzes', { params });
   return response.data;
 }
 
 export async function fetchQuizzesMeta(options = {}) {
-  const response = await apiClient.get('/quizzes/meta', {
+  const response = await apiClient.get('/admin/quizzes/meta', {
     params: options.includeQuestions ? { includeQuestions: '1' } : {},
   });
   return response.data;
 }
 
 export async function fetchQuiz(id) {
-  const response = await apiClient.get(`/quizzes/${id}`);
+  const response = await apiClient.get(`/admin/quizzes/${id}`);
   return response.data;
 }
 
 export async function createQuiz(payload) {
-  const response = await apiClient.post('/quizzes', payload);
+  const response = await apiClient.post('/admin/quizzes', payload);
   return response.data;
 }
 
 export async function updateQuiz(id, payload) {
-  const response = await apiClient.patch(`/quizzes/${id}`, payload);
+  const response = await apiClient.patch(`/admin/quizzes/${id}`, payload);
   return response.data;
 }
 
 export async function deleteQuiz(id) {
-  const response = await apiClient.delete(`/quizzes/${id}`);
+  const response = await apiClient.delete(`/admin/quizzes/${id}`);
   return response.data;
 }

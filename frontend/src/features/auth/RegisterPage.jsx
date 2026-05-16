@@ -1,14 +1,15 @@
 import { memo, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../api/client.js';
 import { useAuthStore } from '../../stores/authStore.js';
 import { ui } from '../../styles/tailwindClasses.js';
+import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../utils/routeForwarding.js';
 
 const auth = {
   shell: 'grid min-h-dvh place-items-center bg-page px-6 py-6',
   scene: 'mx-auto grid w-[min(1100px,100%)] items-center gap-12 lg:grid-cols-[minmax(0,1fr)_480px]',
   visual:
-    'relative flex min-h-[540px] flex-col justify-center gap-5 overflow-hidden rounded-2xl bg-[var(--brand-gradient-hero)] px-[clamp(24px,4vw,52px)] py-[clamp(32px,5vw,64px)] text-white shadow-xl before:absolute before:inset-0 before:pointer-events-none before:bg-[radial-gradient(ellipse_at_70%_20%,rgba(255,255,255,0.12),transparent_55%),radial-gradient(ellipse_at_20%_80%,rgba(13,148,136,0.2),transparent_50%)] max-lg:hidden',
+    'relative flex min-h-[540px] flex-col justify-center gap-5 overflow-hidden rounded-2xl bg-[var(--brand-gradient-hero)] px-[clamp(24px,4vw,52px)] py-[clamp(32px,5vw,64px)] text-white shadow-xl before:absolute before:inset-0 before:pointer-events-none before:bg-[radial-gradient(ellipse_at_70%_20%,rgba(255,255,255,0.12),transparent_55%),radial-gradient(ellipse_at_20%_80%,rgba(14,165,233,0.18),transparent_50%)] max-lg:hidden',
   visualEyebrow: 'relative z-[1] inline-block text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-white/70',
   visualTitle: 'relative z-[1] m-0 max-w-[400px] font-display text-[clamp(24px,3.5vw,36px)] font-extrabold leading-tight text-white',
   visualText: 'relative z-[1] m-0 max-w-[380px] text-[15px] leading-[1.7] text-white/80',
@@ -61,8 +62,11 @@ const RegisterVisual = memo(function RegisterVisual() {
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const signUp = useAuthStore((state) => state.signUp);
   const [status, setStatus] = useState({ loading: false, error: '', success: '' });
+  const fromParam = new URLSearchParams(location.search).get('from') || '';
+  const requestedPath = getSafeForwardPath(fromParam);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -80,7 +84,7 @@ export function RegisterPage() {
     try {
       const data = await signUp(registration);
       setStatus({ loading: false, error: '', success: `Account created for ${data.user.fullName}` });
-      navigate(data.redirectPath);
+      navigate(canonicalizeForwardPathForUser(requestedPath, data.user) || data.redirectPath);
     } catch (error) {
       setStatus({ loading: false, error: getErrorMessage(error, 'Unable to create your account'), success: '' });
     }

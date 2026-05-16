@@ -3,6 +3,10 @@ import { create } from 'zustand';
 const THEME_KEY = 'lms_theme_mode';
 const ACCENT_THEME_KEY = 'lms_accent_theme';
 const ACCENT_THEMES = new Set(['erpm', 'codeforge']);
+const CHROME_THEME_COLORS = {
+  light: '#F5F6FF',
+  dark: '#05070d',
+};
 let themeTransitionTimer = null;
 
 function canUseMotion() {
@@ -26,9 +30,16 @@ function commitTheme(theme, options = {}) {
 
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
+  document.documentElement.style.backgroundColor = CHROME_THEME_COLORS[theme];
+  document.body.style.backgroundColor = CHROME_THEME_COLORS[theme];
   document.documentElement.classList.toggle('dark', theme === 'dark');
   document.body.classList.toggle('dark', theme === 'dark');
   document.body.classList.toggle('dark-bg', theme === 'dark');
+
+  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  if (metaThemeColor) {
+    metaThemeColor.setAttribute('content', CHROME_THEME_COLORS[theme]);
+  }
 
   window.clearTimeout(themeTransitionTimer);
   if (shouldAnimate) {
@@ -86,7 +97,7 @@ function getPreferredTheme() {
     return typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   }
 
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return 'light';
 }
 
 function getPreferredAccentTheme() {

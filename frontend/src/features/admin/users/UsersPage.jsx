@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { createUser, deleteUser, fetchUsers, fetchUsersSummary, updateUser, updateUserStatus } from '../../../api/users.api.js';
 import { getErrorMessage } from '../../../api/client.js';
 import { AppHeader } from '../../../components/layout/AppHeader.jsx';
@@ -18,6 +19,22 @@ const initialUserForm = {
   password: '',
   role: 'student',
   status: 'inactive',
+};
+
+const usersPageUi = {
+  accountHeader:
+    'flex flex-wrap items-start justify-between gap-3 max-[640px]:grid max-[640px]:grid-cols-1',
+  accountHeaderCopy: 'min-w-0',
+  accountHeaderAction:
+    'max-[640px]:w-full max-[640px]:min-h-11',
+  filterActions:
+    'items-end max-[520px]:items-stretch',
+  statusActions:
+    'flex flex-wrap items-center gap-2 max-[520px]:grid max-[520px]:w-full max-[520px]:grid-cols-1 max-[520px]:items-stretch',
+  compactRowAction:
+    'max-[520px]:min-h-10 max-[520px]:w-full',
+  tableActions:
+    'max-[520px]:grid max-[520px]:w-full max-[520px]:grid-cols-[minmax(0,1fr)_40px_40px] max-[520px]:items-center',
 };
 
 function EntityModal({ open, title, subtitle, children, onClose }) {
@@ -148,6 +165,7 @@ function UserStatsCard({ summary }) {
 }
 
 export function UsersPage() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState(initialFilters);
   const [users, setUsers] = useState([]);
   const [quickFilter, setQuickFilter] = useState('all');
@@ -410,7 +428,7 @@ export function UsersPage() {
               </select>
             </label>
 
-            <div className={cx(ui.buttonRow, 'items-end')}>
+            <div className={cx(ui.buttonRow, usersPageUi.filterActions)}>
               <button type="submit" className={ui.secondaryAction}>Refresh</button>
               <button type="button" className={ui.secondaryAction} onClick={handleReset}>Reset</button>
             </div>
@@ -418,12 +436,12 @@ export function UsersPage() {
         </section>
 
         <section className={ui.panelCard}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+          <div className={usersPageUi.accountHeader}>
+            <div className={usersPageUi.accountHeaderCopy}>
               <h2 className={ui.panelTitle}>User accounts</h2>
               <p className={ui.panelText}>Create student and admin accounts, or update existing user details.</p>
             </div>
-            <button type="button" className={ui.secondaryAction} onClick={handleOpenCreateUser}>
+            <button type="button" className={cx(ui.secondaryAction, usersPageUi.accountHeaderAction)} onClick={handleOpenCreateUser}>
               Create new user
             </button>
           </div>
@@ -547,12 +565,12 @@ export function UsersPage() {
                     <td className={ui.tableCell}>{user.email}</td>
                     <td className={ui.tableCell}><span className={ui.tablePill}>{user.role}</span></td>
                     <td className={ui.tableCell}>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className={usersPageUi.statusActions}>
                         <span className={statusPill(user.status)}>
                           {user.status === 'inactive' ? 'Pending approval' : 'Active'}
                         </span>
                         {user.status !== 'active' ? (
-                          <button className="inline-flex min-h-8 items-center justify-center rounded-md border border-brand-success/25 bg-[var(--color-success-light)] px-3 text-xs font-extrabold text-brand-success transition hover:-translate-y-0.5"
+                          <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-success/25 bg-[var(--color-success-light)] px-3 text-xs font-extrabold text-brand-success transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
                             type="button"
                            
                             aria-label={`Approve ${user.fullName}`}
@@ -562,7 +580,7 @@ export function UsersPage() {
                           </button>
                         ) : null}
                         {user.role !== 'admin' && user.status === 'active' ? (
-                          <button className="inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5"
+                          <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
                             type="button"
                            
                             aria-label={`Inactivate ${user.fullName}`}
@@ -572,7 +590,7 @@ export function UsersPage() {
                           </button>
                         ) : null}
                         {user.status !== 'active' && user.role !== 'admin' ? (
-                          <button className="inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5"
+                          <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
                             type="button"
                            
                             aria-label={`Reject ${user.fullName}`}
@@ -585,7 +603,15 @@ export function UsersPage() {
                     </td>
                     <td className={ui.tableCell}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</td>
                     <td className={ui.tableCell}>
-                      <div className={ui.iconRow}>
+                      <div className={cx(ui.iconRow, usersPageUi.tableActions)}>
+                        {user.role === 'student' ? (
+                          <button className={cx(ui.secondaryAction, usersPageUi.compactRowAction)}
+                            type="button"
+                            onClick={() => navigate(`/users/${user.id}`)}
+                          >
+                            View
+                          </button>
+                        ) : null}
                         <button className={ui.iconButton}
                           type="button"
                          

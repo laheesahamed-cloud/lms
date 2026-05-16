@@ -512,7 +512,7 @@ export class QuestionsService {
         ]
       );
 
-      await this.replaceOptions(connection, result.insertId, createQuestionDto.options);
+      await this.replaceOptions(connection, result.insertId, createQuestionDto.options, createQuestionDto.questionType);
       await this.syncQuestionKeywords(connection, result.insertId, createQuestionDto.keywordsText);
 
       await connection.commit();
@@ -594,7 +594,7 @@ export class QuestionsService {
         ]
       );
 
-      await this.replaceOptions(connection, id, merged.options);
+      await this.replaceOptions(connection, id, merged.options, merged.questionType);
       await this.syncQuestionKeywords(connection, id, merged.keywordsText);
 
       await connection.commit();
@@ -808,7 +808,7 @@ export class QuestionsService {
     }
   }
 
-  private async replaceOptions(connection: PoolConnection, questionId: number, options: QuestionOptionDto[]) {
+  private async replaceOptions(connection: PoolConnection, questionId: number, options: QuestionOptionDto[], questionType: string) {
     await connection.execute('DELETE FROM question_options WHERE question_id = ?', [questionId]);
 
     const cleaned = options
@@ -826,7 +826,7 @@ export class QuestionsService {
           INSERT INTO question_options (question_id, option_label, option_text, is_correct, why_incorrect)
           VALUES (?, ?, ?, ?, ?)
         `,
-        [questionId, option.optionLabel, option.optionText, option.isCorrect, option.isCorrect === 1 ? null : option.whyIncorrect || null]
+        [questionId, option.optionLabel, option.optionText, option.isCorrect, questionType === 'sba' && option.isCorrect === 1 ? null : option.whyIncorrect || null]
       );
     }
   }

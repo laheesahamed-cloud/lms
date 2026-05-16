@@ -2,8 +2,11 @@ import { memo, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../api/client.js';
 import { ThemeToggle } from '../../components/layout/ThemeToggle.jsx';
+import { detectPlatform } from '../../platform/detect.js';
 import { useAuthStore } from '../../stores/authStore.js';
+import { clearServerNotResponding } from '../../stores/serverStatusStore.js';
 import { cx, ui } from '../../styles/tailwindClasses.js';
+import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../utils/routeForwarding.js';
 
 /* ── Animation keyframes ─────────────────────────────────────────────────────── */
 const ANIM_CSS = `
@@ -49,7 +52,7 @@ const ANIM_CSS = `
     --lms-brand-ecg-base: rgba(2,132,199,.28);
     --lms-brand-ecg-dot: rgba(2,132,199,.24);
     --lms-brand-blue-glow: rgba(37,99,235,.12);
-    --lms-brand-cyan-glow: rgba(20,184,166,.10);
+    --lms-brand-cyan-glow: rgba(14,165,233,.10);
     --lms-brand-violet-glow: rgba(124,58,237,.07);
     --lms-brand-monitor-bg: rgba(255,255,255,.86);
     --lms-brand-monitor-label: #64748B;
@@ -543,7 +546,7 @@ const LoginBrand = memo(function LoginBrand() {
             <defs>
               <linearGradient id="bp-logo-g" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stopColor="#2563EB"/>
-                <stop offset="100%" stopColor="#14B8A6"/>
+                <stop offset="100%" stopColor="#0EA5E9"/>
               </linearGradient>
             </defs>
           </svg>
@@ -695,6 +698,38 @@ function LoginMotionOverlay({ phase = 'loading', rect = null }) {
   );
 }
 
+const SKIP_LOGIN_MOTION = detectPlatform().isNative;
+const PLATFORM = detectPlatform();
+
+function showNativeDocument() {
+  if (typeof document === 'undefined') return;
+
+  const targets = [
+    document.documentElement,
+    document.body,
+    document.getElementById('root'),
+    document.querySelector('.lms-app-scroll-root'),
+    document.querySelector('.portal-content'),
+    document.querySelector('.portal-content__frame'),
+  ].filter(Boolean);
+
+  document.body.classList.remove('app-booting');
+  document.body.classList.add('app-ready');
+  targets.forEach((element) => {
+    element.style.visibility = 'visible';
+    element.style.opacity = '1';
+    element.style.webkitBackfaceVisibility = 'hidden';
+    element.style.backfaceVisibility = 'hidden';
+  });
+}
+
+function nextPaint() {
+  if (typeof window === 'undefined') return Promise.resolve();
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+  });
+}
+
 /* ── Login page ──────────────────────────────────────────────────────────────── */
 export function LoginPage() {
   const navigate = useNavigate();
@@ -705,25 +740,64 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loginMotion,  setLoginMotion]  = useState(null);
   const submitRef = useRef(null);
+  const fromParam = new URLSearchParams(location.search).get('from') || '';
+  const requestedPath = getSafeForwardPath(fromParam);
 
   async function handleSubmit(e) {
     e.preventDefault();
     const startedAt  = performance.now();
     const buttonRect = submitRef.current?.getBoundingClientRect();
-    if (buttonRect) {
+    // Skip the GPU-composited zoom animation on native (iOS WKWebView black-screen bug)
+    if (!SKIP_LOGIN_MOTION && buttonRect) {
       setLoginMotion({ phase: 'loading', rect: { left: buttonRect.left, top: buttonRect.top, width: buttonRect.width, height: buttonRect.height } });
     }
     const fd = new FormData(e.currentTarget);
     setStatus({ loading: true, error: '', success: '' });
     try {
+      if (PLATFORM.isNative && PLATFORM.isIos) {
+        showNativeDocument();
+      }
+
       const data = await signIn({ email: String(fd.get('email') || ''), password: String(fd.get('password') || '') });
+      console.log('LOGIN_SUCCESS', {
+        role: data.user?.role,
+        status: data.user?.status,
+        hasSessionToken: Boolean(data.sessionToken),
+        native: PLATFORM.isNative,
+      });
+      clearServerNotResponding();
+      try {
+        window.sessionStorage.setItem('lms_recent_auth_success', String(Date.now()));
+      } catch (storageError) {
+        console.log('AUTH_CHECK_RESULT', {
+          stage: 'recent_auth_marker_unavailable',
+          error: storageError?.message || String(storageError),
+        });
+      }
       setStatus({ loading: false, error: '', success: `Welcome back, ${data.user.fullName}` });
-      const remaining = Math.max(0, 220 - (performance.now() - startedAt));
-      if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
-      setLoginMotion(cur => cur ? { ...cur, phase: 'success' } : null);
-      await new Promise(r => setTimeout(r, 520));
-      navigate(data.redirectPath);
+
+      const defaultHome = data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard';
+      const nextPath = canonicalizeForwardPathForUser(requestedPath, data.user) || data.redirectPath || defaultHome;
+      console.log('ROUTE_TO_DASHBOARD', nextPath);
+
+      if (SKIP_LOGIN_MOTION) {
+        if (PLATFORM.isNative) {
+          await nextPaint();
+          navigate(nextPath, { replace: true });
+        } else {
+          navigate(nextPath, { replace: true });
+        }
+      } else {
+        const remaining = Math.max(0, 220 - (performance.now() - startedAt));
+        if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
+        setLoginMotion(cur => cur ? { ...cur, phase: 'success' } : null);
+        await new Promise(r => setTimeout(r, 520));
+        navigate(nextPath);
+      }
     } catch (err) {
+      if (PLATFORM.isNative && PLATFORM.isIos) {
+        showNativeDocument();
+      }
       setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in'), success: '' });
       setLoginMotion(null);
     }
@@ -753,7 +827,7 @@ export function LoginPage() {
               <defs>
                 <linearGradient id="mb-logo-g" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
                   <stop offset="0%" stopColor="#2563EB"/>
-                  <stop offset="100%" stopColor="#14B8A6"/>
+                  <stop offset="100%" stopColor="#0EA5E9"/>
                 </linearGradient>
               </defs>
             </svg>

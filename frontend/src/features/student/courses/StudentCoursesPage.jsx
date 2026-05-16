@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchStudentCourses } from '../../../api/courses.api.js';
 import { getErrorMessage } from '../../../api/client.js';
+import { AppHeader } from '../../../components/layout/AppHeader.jsx';
+import { StudentPageHero } from '../components/StudentPageHero.jsx';
 import { cx, statusPill, ui } from '../../../styles/tailwindClasses.js';
 
 // ─── Per-subject config: gradient + rich SVG watermark illustration ──────────
@@ -148,7 +150,7 @@ const subjectConfig = {
 
   pharmacology: {
     cls: 'subject-pharma',
-    accent: 'rgba(5,150,105,0.72)',
+    accent: 'rgba(37,99,235,0.72)',
     /* Pill capsule + molecular bonds */
     watermark: (
       <svg viewBox="0 0 140 100" fill="none" className="h-full w-full" aria-hidden="true">
@@ -185,7 +187,7 @@ const subjectConfig = {
 
   microbiology: {
     cls: 'subject-micro',
-    accent: 'rgba(13,148,136,0.72)',
+    accent: 'rgba(14,165,233,0.72)',
     /* Petri dish + bacteria + DNA spiral */
     watermark: (
       <svg viewBox="0 0 130 130" fill="none" className="h-full w-full" aria-hidden="true">
@@ -355,10 +357,10 @@ function CourseCard({ course, index, onClick }) {
       type="button"
       onClick={onClick}
       aria-label={`Open ${course.courseTitle}`}
-      className="lms-course-card group/card relative flex min-h-[390px] flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface-card text-left shadow-sm outline-none transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-1 hover:border-brand-primary/24 hover:shadow-[0_18px_44px_rgba(0,0,0,0.14)] focus-visible:ring-4 focus-visible:ring-brand-primary/22 dark:border-white/[0.08] dark:bg-[rgba(6,10,18,0.96)] dark:hover:border-white/[0.14]"
+      className="lms-course-card student-course-card group/card relative flex min-h-[286px] flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface-card text-left shadow-sm outline-none transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-1 hover:border-brand-primary/24 hover:shadow-[0_18px_44px_rgba(0,0,0,0.14)] focus-visible:ring-4 focus-visible:ring-brand-primary/22 dark:border-white/[0.08] dark:bg-[rgba(6,10,18,0.96)] dark:hover:border-white/[0.14]"
     >
       {/* Subject header */}
-      <div className={cx('relative flex items-end justify-between overflow-hidden px-5 py-4', subj.cls)} style={{ minHeight: 108 }}>
+      <div className={cx('student-course-card__visual relative flex items-end justify-between overflow-hidden px-5 py-4', subj.cls)}>
         {/* Radial highlight */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_85%,rgba(255,255,255,0.13),transparent_60%)] pointer-events-none"/>
         {/* Decorative watermark illustration */}
@@ -376,38 +378,19 @@ function CourseCard({ course, index, onClick }) {
               <span className="text-[24px] font-black leading-none text-white drop-shadow-sm">{progress}%</span>
               <span className="text-[10px] font-bold text-white/65 uppercase tracking-[0.10em]">complete</span>
             </>
-          ) : (
-            <span className="rounded-full bg-white/20 px-3 py-1.5 text-[11px] font-extrabold text-white/94 backdrop-blur-sm">
-              Start now
-            </span>
-          )}
+          ) : null}
         </div>
       </div>
 
       {/* Card body */}
-      <div className="flex flex-1 flex-col gap-3.5 p-4">
-        {/* Meta row */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex min-h-[22px] items-center rounded-full border border-brand-primary/14 bg-[var(--color-primary-light)] px-2.5 text-[10.5px] font-extrabold text-brand-primary">
-            {course.examType || 'Course'}
-          </span>
-          {course.courseCode && (
-            <span className="inline-flex min-h-[22px] items-center rounded-full border border-line-soft bg-surface-2 px-2.5 text-[10.5px] font-extrabold text-ink-muted">
-              {course.courseCode}
-            </span>
-          )}
-          <span className={cx(statusPill(state.tone), 'ml-auto text-[10px]')}>
-            {state.label}
-          </span>
-        </div>
-
+      <div className="student-course-card__body flex flex-1 flex-col gap-3 p-4">
         {/* Title */}
         <h2 className="m-0 line-clamp-2 text-[15px] font-extrabold leading-snug text-ink-strong">
           {course.courseTitle}
         </h2>
 
         {/* Description */}
-        <p className="m-0 line-clamp-2 flex-1 text-[12.5px] leading-relaxed text-ink-soft">
+        <p className="student-course-card__description m-0 line-clamp-2 text-[12.5px] leading-relaxed text-ink-soft">
           {course.description || 'Course content and lessons are available inside this module.'}
         </p>
 
@@ -429,7 +412,7 @@ function CourseCard({ course, index, onClick }) {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="student-course-card__stats grid grid-cols-3 gap-2">
           {[
             { label: 'Subjects',   value: course.subjectCount ?? '—' },
             { label: 'Lessons',    value: course.totalLessonsCount ?? '—' },
@@ -437,7 +420,7 @@ function CourseCard({ course, index, onClick }) {
           ].map(stat => (
             <div
               key={stat.label}
-              className="flex min-w-0 flex-col items-center gap-0.5 rounded-xl border border-line-soft bg-surface-0 px-1 py-3 dark:bg-white/[0.032] dark:border-white/[0.07]"
+              className="student-course-card__stat flex min-w-0 flex-col items-center gap-0.5 rounded-xl border border-line-soft bg-surface-0 px-1 py-3 dark:bg-white/[0.032] dark:border-white/[0.07]"
             >
               <strong className="text-[16px] font-extrabold text-ink-strong">{stat.value}</strong>
               <small className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-ink-muted">{stat.label}</small>
@@ -446,8 +429,8 @@ function CourseCard({ course, index, onClick }) {
         </div>
 
         {/* CTA button */}
-        <div className="mt-auto inline-flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-xl border border-brand-primary/22 bg-[var(--color-primary-light)] text-[12.5px] font-extrabold text-brand-primary transition-[background,border-color,transform] duration-150 group-hover/card:border-brand-primary/35 group-hover/card:bg-brand-primary/15 active:scale-[0.98]">
-          {course.actionLabel || (progress > 0 ? 'Continue Course' : 'View Course')}
+        <div className="student-course-card__cta mt-auto inline-flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-xl border border-brand-primary/22 bg-[var(--color-primary-light)] text-[12.5px] font-extrabold text-brand-primary transition-[background,border-color,transform] duration-150 group-hover/card:border-brand-primary/35 group-hover/card:bg-brand-primary/15 active:scale-[0.98]">
+          {course.actionLabel || (progress > 0 ? 'Continue Course' : 'Start Now')}
           <svg className="size-3.5 opacity-75" viewBox="0 0 14 14" fill="none">
             <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -484,57 +467,23 @@ export function StudentCoursesPage() {
   return (
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
+        <AppHeader
+          title="All Courses"
+          subtitle="Continue your active courses with subject, lesson, and progress tracking."
+        />
+
         {error && <div className={ui.feedbackError}>{error}</div>}
 
-        {/* ── Hero ── */}
-        <section className="relative isolate overflow-hidden rounded-[32px] border border-cyan-300/10 bg-[#050B18] p-8 text-white shadow-[0_0_80px_rgba(34,211,238,0.08)] max-[640px]:rounded-3xl max-[640px]:p-5">
-          {/* Glows */}
-          <div className="pointer-events-none absolute left-[8%] top-[-160px] h-[440px] w-[440px] rounded-full bg-cyan-400/20 blur-[130px]" aria-hidden="true" />
-          <div className="pointer-events-none absolute bottom-[10%] right-[-60px] h-[340px] w-[340px] rounded-full bg-blue-600/20 blur-[120px]" aria-hidden="true" />
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(34,211,238,0.10),transparent_45%,rgba(37,99,235,0.10))]" aria-hidden="true" />
-
-          {/* Title */}
-          <div className="relative z-[1]">
-            <p className="m-0 mb-3 text-[13px] font-black uppercase tracking-[0.1em] text-cyan-300/70">Student Portal</p>
-            <h1 className="m-0 bg-[linear-gradient(90deg,#ffffff_0%,#a5f3fc_48%,#60a5fa_100%)] bg-clip-text font-display text-[clamp(46px,7vw,88px)] font-black leading-none tracking-normal text-transparent drop-shadow-[0_0_28px_rgba(34,211,238,0.42)]">
-              All Courses
-            </h1>
-            <p className="m-0 mt-4 max-w-[640px] text-[clamp(15px,1.6vw,18px)] leading-relaxed text-slate-300">
-              Continue your active courses with live subject, lesson, and progress tracking.
-            </p>
-
-            {/* Stats row */}
-            <div className="mt-8 flex flex-wrap gap-4">
-              <div className="flex items-center gap-3 rounded-[24px] border border-white/10 bg-white/[0.055] px-5 py-3 backdrop-blur-xl">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full border border-cyan-300/20 bg-cyan-300/12 text-sm font-black text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.14)]">01</span>
-                <div>
-                  <p className="m-0 text-[clamp(18px,2vw,24px)] font-black leading-none text-white">
-                    {loading ? '—' : courses.length}
-                  </p>
-                  <p className="m-0 mt-0.5 text-sm font-semibold text-slate-300">Active Courses</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 rounded-[24px] border border-white/10 bg-white/[0.055] px-5 py-3 backdrop-blur-xl">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full border border-cyan-300/20 bg-cyan-300/12 text-sm font-black text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.14)]">02</span>
-                <div>
-                  <p className="m-0 text-[clamp(18px,2vw,24px)] font-black leading-none text-white">
-                    {loading ? '—' : courses.filter(c => c.status === 'in_progress').length}
-                  </p>
-                  <p className="m-0 mt-0.5 text-sm font-semibold text-slate-300">In Progress</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 rounded-[24px] border border-white/10 bg-white/[0.055] px-5 py-3 backdrop-blur-xl">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full border border-cyan-300/20 bg-cyan-300/12 text-sm font-black text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.14)]">03</span>
-                <div>
-                  <p className="m-0 text-[clamp(18px,2vw,24px)] font-black leading-none text-white">
-                    {loading ? '—' : courses.filter(c => c.status === 'completed').length}
-                  </p>
-                  <p className="m-0 mt-0.5 text-sm font-semibold text-slate-300">Completed</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <StudentPageHero
+          title="All Courses"
+          subtitle="Continue your active courses with live subject, lesson, and progress tracking."
+          tone="blue"
+          metrics={[
+            { label: 'Active Courses', value: loading ? '-' : courses.length },
+            { label: 'In Progress', value: loading ? '-' : courses.filter((course) => course.status === 'in_progress').length },
+            { label: 'Completed', value: loading ? '-' : courses.filter((course) => course.status === 'completed').length },
+          ]}
+        />
 
         <section className={cx(ui.panelCard, 'animate-fadePop')}>
           <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -552,7 +501,7 @@ export function StudentCoursesPage() {
           </div>
 
           {/* Grid */}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,264px),1fr))] gap-5 max-[520px]:gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,264px),1fr))] gap-5 max-[900px]:grid-cols-1 max-[520px]:gap-4">
             {loading && [1,2,3,4,5,6].map(n => <CourseSkeleton key={n}/>)}
 
             {!loading && courses.length === 0 && (

@@ -5,6 +5,7 @@ import { AdminAiSettingsPanel } from './AdminAiSettingsPanel.jsx';
 import { AdminPaymentSettingsPanel } from './AdminPaymentSettingsPanel.jsx';
 import { AdminSmtpSettingsPanel } from './AdminSmtpSettingsPanel.jsx';
 import { AdminThemeSettingsPanel } from './AdminThemeSettingsPanel.jsx';
+import { AdminNotificationSettingsPanel } from './AdminNotificationSettingsPanel.jsx';
 import { cx, ui } from '../../../styles/tailwindClasses.js';
 
 const settingsCategories = [
@@ -35,6 +36,13 @@ const settingsCategories = [
     title: 'SMTP email',
     description: 'Configure your domain email SMTP account and preview the password reset email students receive.',
     panel: <AdminSmtpSettingsPanel />,
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    title: 'Notifications',
+    description: 'Check Web Push setup, review active phone subscribers, and send a native phone notification.',
+    panel: <AdminNotificationSettingsPanel />,
   },
   {
     id: 'themes',

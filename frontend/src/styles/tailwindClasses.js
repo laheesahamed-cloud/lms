@@ -6,13 +6,13 @@
 // ── Base compositions ────────────────────────────────────────
 
 const secondaryButtonBase =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line-medium bg-[var(--btn-secondary-bg)] px-[18px] text-sm font-extrabold text-ink-medium no-underline shadow-xs backdrop-blur-sm transition-[transform,box-shadow,background,border-color,color] duration-150 ease-[var(--ease-out)] hover:-translate-y-px hover:border-brand-primary/28 hover:bg-[var(--color-primary-light)] hover:text-brand-primary hover:shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_14%,transparent)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 disabled:cursor-not-allowed disabled:translate-y-0 disabled:scale-100 disabled:opacity-50 disabled:shadow-none';
+  'inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-full border border-line-medium bg-[var(--btn-secondary-bg)] px-[18px] text-sm font-extrabold text-ink-medium no-underline shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/28 hover:bg-[var(--color-primary-light)] hover:text-brand-primary active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-50 disabled:shadow-none max-[520px]:w-full';
 
 const cardBase =
   'glass-card relative w-full max-w-full overflow-hidden text-ink-strong';
 
 const interactiveCard =
-  `${cardBase} transition-[transform,box-shadow,border-color] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:border-brand-primary/20 hover:shadow-md active:translate-y-0 active:scale-[0.995]`;
+  `${cardBase} transition-[background,border-color,box-shadow] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/20 hover:shadow-sm active:shadow-none`;
 
 // ── Exports ──────────────────────────────────────────────────
 
@@ -20,9 +20,9 @@ export const ui = {
 
   // ── Layout ────────────────────────────────────────────────
   screenShell:
-    'w-full max-w-full overflow-x-hidden px-page-x py-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:py-3.5',
+    'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5',
   managementLayout:
-    'mx-auto grid w-full max-w-page min-w-0 gap-section max-[520px]:gap-4',
+    'management-layout mx-auto grid w-full max-w-page min-w-0 gap-section max-[520px]:gap-4',
   managementGrid:
     'grid gap-section',
   routeScene:
@@ -82,7 +82,7 @@ export const ui = {
   metricCardBlue:
     'border-l-[3px] border-l-brand-primary bg-[linear-gradient(150deg,rgba(37,99,235,0.055)_0%,transparent_50%),var(--surface-card)]',
   metricCardTeal:
-    'border-l-[3px] border-l-brand-teal bg-[linear-gradient(150deg,rgba(13,148,136,0.055)_0%,transparent_50%),var(--surface-card)]',
+    'border-l-[3px] border-l-sky-500 bg-[linear-gradient(150deg,rgba(14,165,233,0.055)_0%,transparent_50%),var(--surface-card)]',
   metricCardSlate:
     'border-l-[3px] border-l-brand-indigo bg-[linear-gradient(150deg,rgba(67,56,202,0.055)_0%,transparent_50%),var(--surface-card)]',
   metricCardViolet:
@@ -116,7 +116,7 @@ export const ui = {
   skeletonCircle:
     'skeleton-pulse rounded-full',
   skeletonCard:
-    'glass-card overflow-hidden p-5',
+    'glass-card skeleton-pulse overflow-hidden p-5',
   // Dashboard skeleton grid — 4 metric cards
   skeletonMetricGrid:
     'grid grid-cols-4 gap-4 max-[760px]:grid-cols-2',
@@ -132,7 +132,9 @@ export const ui = {
 
   // ── Buttons ───────────────────────────────────────────────
   primaryAction:
-    'inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-brand-primary/18 bg-[var(--color-primary-light)] px-[18px] text-sm font-extrabold text-brand-primary no-underline shadow-xs transition-[transform,box-shadow,background,border-color,color] duration-150 ease-[var(--ease-out)] hover:-translate-y-px hover:border-brand-primary/32 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] hover:shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_16%,transparent)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/22 disabled:cursor-not-allowed disabled:translate-y-0 disabled:scale-100 disabled:opacity-50 disabled:shadow-none',
+    'inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-full border border-brand-primary/18 bg-[var(--color-primary-light)] px-[18px] text-sm font-extrabold text-brand-primary no-underline shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/32 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/22 disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-50 disabled:shadow-none max-[520px]:w-full',
+  primaryButton:
+    'inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-full border border-brand-primary/18 bg-[var(--color-primary-light)] px-[18px] text-sm font-extrabold text-brand-primary no-underline shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/32 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/22 disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-50 disabled:shadow-none max-[520px]:w-full',
   secondaryAction:
     secondaryButtonBase,
   secondaryButton:
@@ -238,7 +240,7 @@ export const ui = {
   toastContainerCenter:
     'place-items-center p-6',
   toast:
-    'lms-alert inline-flex min-w-[min(420px,calc(100vw-32px))] max-w-[540px] items-center gap-2.5 rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated px-[18px] py-3.5 text-[13px] font-bold text-ink-strong shadow-xl animate-toastSlideUp',
+    'lms-alert inline-flex min-w-[min(420px,calc(100%_-_32px))] max-w-[540px] items-center gap-2.5 rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated px-[18px] py-3.5 text-[13px] font-bold text-ink-strong shadow-xl animate-toastSlideUp',
   toastSuccess:
     'border-brand-success/18 bg-[color-mix(in_srgb,var(--surface-glass-strong)_84%,var(--color-success-light))]',
   toastError:
@@ -250,12 +252,12 @@ export const ui = {
   buttonRow:    'flex min-w-0 flex-wrap items-center gap-2.5 max-[520px]:grid max-[520px]:w-full max-[520px]:grid-cols-1 max-[520px]:[&>*]:w-full',
   iconRow:      'flex flex-wrap items-center gap-2',
   questionBankActions: 'flex flex-wrap items-center justify-end gap-2',
-  tableShell:   'w-full max-w-full overflow-x-auto rounded-[var(--radius-lg)] border border-line-soft bg-surface-card shadow-sm',
-  modernTable:  'w-full min-w-[760px] border-collapse',
+  tableShell:   'lms-table-shell relative w-full max-w-full overflow-x-auto overscroll-x-contain rounded-[var(--radius-lg)] border border-line-soft bg-surface-card shadow-sm [scrollbar-width:thin] [-webkit-overflow-scrolling:touch] max-[640px]:rounded-lg',
+  modernTable:  'w-full min-w-[760px] border-collapse max-[640px]:min-w-[680px]',
   tableHeadCell:
-    'sticky top-0 z-[2] whitespace-nowrap border-b border-line-soft bg-surface-card-elevated px-4 py-3 text-left align-middle text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-ink-muted',
+    'sticky top-0 z-[2] whitespace-nowrap border-b border-line-soft bg-surface-card-elevated px-4 py-3 text-left align-middle text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-ink-muted max-[640px]:px-3 max-[640px]:py-2.5',
   tableCell:
-    'border-b border-line-soft px-4 py-3 text-left align-middle text-[13px] text-ink-strong',
+    'max-w-[340px] border-b border-line-soft px-4 py-3 text-left align-middle text-[13px] text-ink-strong max-[640px]:px-3 max-[640px]:py-2.5',
   tableEmpty:
     'rounded-full bg-[var(--color-primary-light)] px-4 py-3.5 text-center text-[11.5px] font-bold tracking-[0.02em] text-brand-primary',
   tableSubtext: 'text-xs text-ink-muted',
@@ -264,7 +266,7 @@ export const ui = {
 
   // ── Course rows ───────────────────────────────────────────
   courseList:    'grid gap-3',
-  courseRowCard: `${interactiveCard} flex items-center justify-between gap-4 px-[18px] py-[14px]`,
+  courseRowCard: `${interactiveCard} flex min-w-0 items-center justify-between gap-4 px-[18px] py-[14px] max-[640px]:grid max-[640px]:gap-3 max-[640px]:px-4`,
   courseRowMain: 'flex min-w-0 flex-auto items-start gap-3',
   courseRowCopy: 'grid min-w-0 gap-1',
   courseRowTitle: 'm-0 text-[14.5px] font-bold leading-snug text-ink-strong',
@@ -274,7 +276,7 @@ export const ui = {
   statusDot:
     'mt-1.5 size-2.5 shrink-0 rounded-full bg-ink-muted shadow-[0_0_0_5px_color-mix(in_srgb,var(--surface-2)_90%,transparent)]',
   lessonSnippet:
-    'inline-block max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap',
+    'inline-block max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap max-[520px]:max-w-full max-[520px]:whitespace-normal',
   lessonNotebookContent:
     'rounded-[var(--radius-lg)] border border-[var(--card-border)] bg-[var(--card-bg)] p-[clamp(18px,3vw,30px)] text-[15px] leading-[1.75] text-ink-strong shadow-[var(--card-shadow)] [&_h1]:text-ink-strong [&_h1]:font-extrabold [&_h1]:leading-tight [&_h2]:text-ink-strong [&_h2]:font-extrabold [&_h2]:leading-tight [&_h3]:text-ink-strong [&_h3]:font-extrabold [&_h3]:leading-tight [&_p]:mb-3 [&_p]:text-ink-medium',
 
@@ -287,7 +289,7 @@ export const ui = {
 
   // ── Skeleton ──────────────────────────────────────────────
   shimmer:
-    'rounded-[var(--radius-sm)] bg-[linear-gradient(90deg,var(--surface-2)_0%,var(--surface-3)_40%,var(--surface-2)_80%)] bg-[length:200%_100%] animate-shimmer',
+    'shimmer rounded-[var(--radius-sm)]',
   routeSkeleton:
     'glass-card mx-auto grid w-full max-w-page gap-4 p-5',
   routeSkeletonTop:

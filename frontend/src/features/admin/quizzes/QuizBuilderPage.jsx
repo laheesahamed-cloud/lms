@@ -25,6 +25,7 @@ import { cx, ui } from '../../../styles/tailwindClasses.js';
 const defaultForm = {
   adminName: '',
   studentTitle: '',
+  displayTitleMode: 'number',
   quizDescription: '',
   courseId: '',
   subjectId: '',
@@ -591,7 +592,7 @@ function BulkAddQuestionsPanel({
             {['text', 'json'].map((mode) => (
               <button className={cx(
                   'min-h-9 rounded px-3 text-xs font-extrabold shadow-none',
-                  inputMode === mode ? 'bg-brand-primary text-white' : 'bg-transparent text-ink-soft'
+                  inputMode === mode ? 'border border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary' : 'bg-transparent text-ink-soft'
                 )}
                 key={mode}
                 type="button"
@@ -1039,6 +1040,7 @@ export function QuizBuilderPage() {
           const nextForm = {
             adminName: quizPayload.adminName || quizPayload.quizTitle || '',
             studentTitle: quizPayload.studentTitle || quizPayload.quizTitle || '',
+            displayTitleMode: quizPayload.displayTitleMode === 'title' ? 'title' : 'number',
             quizDescription: quizPayload.quizDescription || '',
             courseId: String(quizPayload.courseId || ''),
             subjectId: quizPayload.topicId ? String(quizPayload.topicId) : '',
@@ -1236,6 +1238,7 @@ export function QuizBuilderPage() {
       examModeOnly: nextForm.examModeOnly ? 1 : 0,
       adminName: nextForm.adminName.trim(),
       studentTitle: nextForm.studentTitle.trim(),
+      displayTitleMode: nextForm.displayTitleMode === 'title' ? 'title' : 'number',
       quizTitle: nextForm.studentTitle.trim(),
       quizDescription: nextForm.quizDescription,
       timeLimit: Number(nextForm.timeLimit),
@@ -1348,6 +1351,9 @@ export function QuizBuilderPage() {
     }
     if (name === 'examModeOnly') {
       next.quizMode = checked ? 'exam_only' : 'standard';
+    }
+    if (name === 'prioritizeQuizNumber') {
+      next.displayTitleMode = checked ? 'number' : 'title';
     }
     if (name === 'isGeneral' && checked) {
       next.subjectId = '';
@@ -2082,6 +2088,14 @@ export function QuizBuilderPage() {
                 </label>
               </div>
 
+              <label className={qb.checkbox}>
+                <input className="shrink-0" type="checkbox" name="prioritizeQuizNumber" checked={form.displayTitleMode !== 'title'} onChange={handleFormChange} />
+                <span>
+                  Prioritize Quiz 01 in the student list
+                  <FieldNote>Checked: Quiz 01 is the main label and your quiz name sits below it. Unchecked: your quiz name becomes the main label.</FieldNote>
+                </span>
+              </label>
+
               <label className={ui.formLabel}>
                 Description
                 <textarea className={ui.textarea} name="quizDescription" rows="3" value={form.quizDescription} onChange={handleFormChange} />
@@ -2238,7 +2252,7 @@ export function QuizBuilderPage() {
                 <button className={cx(
                     'min-h-10 rounded-md px-4 text-sm font-extrabold shadow-none',
                     questionTab === tab.id
-                      ? 'bg-brand-primary text-white'
+                      ? 'border border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary'
                       : 'border border-line-soft bg-surface-2 text-ink-soft hover:bg-surface-3 hover:text-ink-strong'
                   )}
                   key={tab.id}
@@ -2672,6 +2686,10 @@ export function QuizBuilderPage() {
                 <div className={qb.checklistItem}>
                   <strong className="text-xs text-ink-strong">Student title</strong>
                   <span className="break-words text-xs leading-normal text-ink-soft">{form.studentTitle || 'Add a student title'}</span>
+                </div>
+                <div className={qb.checklistItem}>
+                  <strong className="text-xs text-ink-strong">Student list priority</strong>
+                  <span className="break-words text-xs leading-normal text-ink-soft">{form.displayTitleMode === 'title' ? 'Quiz name first' : 'Quiz 01 first'}</span>
                 </div>
                 <div className={qb.checklistItem}>
                   <strong className="text-xs text-ink-strong">Hierarchy</strong>

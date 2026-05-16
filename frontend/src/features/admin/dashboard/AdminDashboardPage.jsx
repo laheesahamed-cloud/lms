@@ -7,7 +7,7 @@ import { cx, ui } from '../../../styles/tailwindClasses.js';
 import { isLowSpecDevice } from '../../../utils/performanceProfile.js';
 
 const adminDashboardLayoutClass = 'gap-6';
-const aiHeroClass = 'lms-dashboard-card grid grid-cols-[minmax(0,1fr)_auto] items-center gap-6 rounded-lg border border-line-soft bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(20,184,166,0.045)),var(--surface-card)] p-6 shadow-md max-[900px]:grid-cols-1';
+const aiHeroClass = 'lms-dashboard-card grid grid-cols-[minmax(0,1fr)_auto] items-center gap-6 rounded-lg border border-line-soft bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(14,165,233,0.045)),var(--surface-card)] p-6 shadow-md max-[900px]:grid-cols-1';
 const aiHeroCopyClass = 'min-w-0';
 const aiHeroTitleClass = 'm-0 mt-2 text-[clamp(22px,3vw,32px)] font-extrabold leading-tight text-ink-strong';
 const aiHeroTextClass = 'my-3 max-w-[720px] text-sm leading-relaxed text-ink-soft';
@@ -175,7 +175,7 @@ function calculateAnalyticsSummary(series) {
   const values = Array.isArray(series) ? series : [];
   const total = values.reduce((sum, point) => sum + Number(point.value || 0), 0);
   const max = values.reduce((peak, point) => Math.max(peak, Number(point.value || 0)), 0);
-  const latest = values.at(-1)?.value || 0;
+  const latest = values.length ? values[values.length - 1]?.value || 0 : 0;
   return { total, max, latest };
 }
 
@@ -550,8 +550,8 @@ export function AdminDashboardPage() {
       const series = dashboard.analytics?.attempts || [];
       if (series.length >= 30) {
         setCustomRange({
-          start: series.at(-30)?.date || '',
-          end: series.at(-1)?.date || '',
+          start: series[series.length - 30]?.date || '',
+          end: series[series.length - 1]?.date || '',
         });
       }
     }

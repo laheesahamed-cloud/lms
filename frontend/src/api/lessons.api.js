@@ -6,32 +6,32 @@ export async function fetchLessonMeta() {
 }
 
 export async function fetchAdminLessons(params) {
-  const response = await apiClient.get('/lessons/admin', { params });
+  const response = await apiClient.get('/admin/lessons', { params });
   return response.data;
 }
 
 export async function createLesson(payload) {
-  const response = await apiClient.post('/lessons', payload);
+  const response = await apiClient.post('/admin/lessons', payload);
   return response.data;
 }
 
 export async function updateLesson(id, payload) {
-  const response = await apiClient.patch(`/lessons/${id}`, payload);
+  const response = await apiClient.patch(`/admin/lessons/${id}`, payload);
   return response.data;
 }
 
 export async function deleteLesson(id) {
-  const response = await apiClient.delete(`/lessons/${id}`);
+  const response = await apiClient.delete(`/admin/lessons/${id}`);
   return response.data;
 }
 
 export async function fetchStudentLessons() {
-  const response = await apiClient.get('/lessons/student');
+  const response = await apiClient.get('/student/lessons');
   return response.data;
 }
 
 export async function fetchStudentLesson(id) {
-  const response = await apiClient.get(`/lessons/student/${id}`);
+  const response = await apiClient.get(`/student/lessons/${id}`);
   return response.data;
 }
 

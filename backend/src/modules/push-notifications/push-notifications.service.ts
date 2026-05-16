@@ -1,0 +1,509 @@
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createHash } from 'crypto';
+import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import * as webPush from 'web-push';
+import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { AuthService } from '../auth/auth.service';
+import { NativePushSender } from './native-push.sender';
+
+type DeliveryMode = 'inside' | 'outside' | 'both';
+type AdminDeliveryType = 'inside' | 'outside' | 'both';
+
+type PushPayload = {
+  title: string;
+  body: string;
+  url?: string;
+  icon?: string;
+  badge?: string;
+  tag?: string;
+  data?: Record<string, unknown>;
+};
+
+type PushSubscriptionInput = {
+  endpoint?: string;
+  keys?: {
+    p256dh?: string;
+    auth?: string;
+  };
+};
+
+@Injectable()
+export class PushNotificationsService {
+  private readonly logger = new Logger(PushNotificationsService.name);
+  private webPushConfigured = false;
+  private readonly nativePushSender: NativePushSender;
+
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Pool,
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService
+  ) {
+    this.nativePushSender = new NativePushSender(this.configService, this.logger);
+    this.configureWebPush();
+  }
+
+  getPublicConfig() {
+    return {
+      enabled: this.webPushConfigured,
+      publicKey: this.configService.get<string>('VAPID_PUBLIC_KEY') || '',
+    };
+  }
+
+  async getSettings(authorization?: string) {
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT delivery_mode, enabled
+       FROM push_subscriptions
+       WHERE user_id = ?
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [user.id]
+    );
+
+    return {
+      supported: true,
+      vapidEnabled: this.webPushConfigured,
+      deliveryMode: this.normalizeDeliveryMode(rows[0]?.delivery_mode || 'outside'),
+      outsideEnabled: Boolean(rows[0]?.enabled),
+      nativeEnabled: await this.hasEnabledNativeToken(user.id),
+    };
+  }
+
+  async updateSettings(authorization: string | undefined, input: any) {
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const deliveryMode = this.normalizeDeliveryMode(input?.deliveryMode || 'inside');
+    await this.db.execute(
+      `UPDATE push_subscriptions SET delivery_mode = ?, enabled = ? WHERE user_id = ?`,
+      [deliveryMode, deliveryMode === 'inside' ? 0 : 1, user.id]
+    );
+    return { ok: true, deliveryMode };
+  }
+
+  async getAdminStatus(authorization?: string) {
+    await this.authService.requireAdmin(authorization);
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT
+          COUNT(*) AS totalSubscriptions,
+          SUM(CASE WHEN enabled = 1 THEN 1 ELSE 0 END) AS activeSubscriptions,
+          SUM(CASE WHEN enabled = 1 AND delivery_mode IN ('outside','both') THEN 1 ELSE 0 END) AS phoneSubscriptions,
+          SUM(CASE WHEN delivery_mode = 'inside' THEN 1 ELSE 0 END) AS insideOnlySubscriptions,
+          COUNT(DISTINCT CASE WHEN enabled = 1 AND delivery_mode IN ('outside','both') THEN user_id END) AS phoneUsers
+       FROM push_subscriptions`
+    );
+    const [nativeRows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT
+          COUNT(*) AS totalNativeTokens,
+          SUM(CASE WHEN enabled = 1 THEN 1 ELSE 0 END) AS activeNativeTokens,
+          COUNT(DISTINCT CASE WHEN enabled = 1 THEN user_id END) AS nativePushUsers
+       FROM native_push_tokens`
+    );
+    const stats = rows[0] || {};
+    const nativeStats = nativeRows[0] || {};
+    return {
+      vapidEnabled: this.webPushConfigured,
+      publicKeyConfigured: Boolean(this.configService.get<string>('VAPID_PUBLIC_KEY')),
+      privateKeyConfigured: Boolean(this.configService.get<string>('VAPID_PRIVATE_KEY')),
+      subject: this.configService.get<string>('VAPID_SUBJECT') || 'mailto:admin@example.com',
+      totalSubscriptions: Number(stats.totalSubscriptions || 0),
+      activeSubscriptions: Number(stats.activeSubscriptions || 0),
+      phoneSubscriptions: Number(stats.phoneSubscriptions || 0),
+      insideOnlySubscriptions: Number(stats.insideOnlySubscriptions || 0),
+      phoneUsers: Number(stats.phoneUsers || 0),
+      nativePushConfigured: this.nativePushSender.isConfigured(),
+      nativePushUsers: Number(nativeStats.nativePushUsers || 0),
+      nativePushTokens: Number(nativeStats.activeNativeTokens || 0),
+      defaultIcon: '/lms/pwa-icon.svg',
+      defaultBadge: '/lms/pwa-maskable.svg',
+    };
+  }
+
+  async subscribe(authorization: string | undefined, input: any, userAgent?: string) {
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const subscription = this.normalizeSubscription(input?.subscription || input);
+    const deliveryMode = this.normalizeDeliveryMode(input?.deliveryMode || 'outside');
+    const endpointHash = this.hashEndpoint(subscription.endpoint);
+
+    const [result] = await this.db.execute<ResultSetHeader>(
+      `INSERT INTO push_subscriptions
+        (user_id, endpoint_hash, endpoint, p256dh, auth, user_agent, delivery_mode, enabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+        user_id = VALUES(user_id),
+        endpoint = VALUES(endpoint),
+        p256dh = VALUES(p256dh),
+        auth = VALUES(auth),
+        user_agent = VALUES(user_agent),
+        delivery_mode = VALUES(delivery_mode),
+        enabled = VALUES(enabled),
+        last_error = NULL,
+        failed_at = NULL,
+        updated_at = CURRENT_TIMESTAMP`,
+      [
+        user.id,
+        endpointHash,
+        subscription.endpoint,
+        subscription.keys.p256dh,
+        subscription.keys.auth,
+        String(userAgent || '').slice(0, 500),
+        deliveryMode,
+        deliveryMode === 'inside' ? 0 : 1,
+      ]
+    );
+
+    return { ok: true, id: result.insertId || undefined, deliveryMode };
+  }
+
+  async unsubscribe(authorization: string | undefined, input: any) {
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const endpoint = String(input?.endpoint || '');
+
+    if (endpoint) {
+      await this.db.execute(
+        `UPDATE push_subscriptions SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND endpoint_hash = ?`,
+        [user.id, this.hashEndpoint(endpoint)]
+      );
+    } else {
+      await this.db.execute(
+        `UPDATE push_subscriptions SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
+        [user.id]
+      );
+    }
+
+    return { ok: true };
+  }
+
+  async saveNativeToken(authorization: string | undefined, input: any) {
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const token = String(input?.token || '').trim();
+    const platform = this.normalizeNativePlatform(input?.platform);
+    const deliveryMode = this.normalizeDeliveryMode(input?.deliveryMode || 'outside');
+
+    if (!token) {
+      throw new BadRequestException('Native push token is required');
+    }
+
+    await this.db.execute(
+      `INSERT INTO native_push_tokens
+        (user_id, token_hash, token, platform, delivery_mode, enabled)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+        user_id = VALUES(user_id),
+        token = VALUES(token),
+        platform = VALUES(platform),
+        delivery_mode = VALUES(delivery_mode),
+        enabled = VALUES(enabled),
+        last_error = NULL,
+        failed_at = NULL,
+        updated_at = CURRENT_TIMESTAMP`,
+      [
+        user.id,
+        this.hashEndpoint(token),
+        token,
+        platform,
+        deliveryMode,
+        deliveryMode === 'inside' ? 0 : 1,
+      ]
+    );
+
+    return { ok: true, deliveryMode, nativeEnabled: deliveryMode !== 'inside' };
+  }
+
+  async deleteNativeToken(authorization: string | undefined, input: any) {
+    const user = await this.authService.requireAuthenticatedUser(authorization);
+    const token = String(input?.token || '').trim();
+
+    if (token) {
+      await this.db.execute(
+        `UPDATE native_push_tokens SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND token_hash = ?`,
+        [user.id, this.hashEndpoint(token)]
+      );
+    } else {
+      await this.db.execute(
+        `UPDATE native_push_tokens SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
+        [user.id]
+      );
+    }
+
+    return { ok: true };
+  }
+
+  async sendAdminNotification(authorization: string | undefined, input: any) {
+    const admin = await this.authService.requireAdmin(authorization);
+    const payload = this.normalizePayload(input);
+    const deliveryType = this.normalizeAdminDeliveryType(input?.deliveryType || input?.deliveryMode || 'both');
+    const targetRole = this.normalizeTargetRole(input?.targetRole);
+    const userIds = Array.isArray(input?.userIds)
+      ? input.userIds.map((id: unknown) => Number(id)).filter((id: number) => Number.isInteger(id) && id > 0)
+      : [];
+
+    let inAppCreated = 0;
+    let pushResult: { ok: boolean; sent: number; failed: number; reason?: string } = { ok: true, sent: 0, failed: 0 };
+
+    // Admin controls delivery per message. Students only opt their device into phone push.
+    if (deliveryType === 'inside' || deliveryType === 'both') {
+      inAppCreated = await this.createInAppAnnouncement(payload, targetRole, Number(admin.id));
+    }
+
+    if (deliveryType === 'outside' || deliveryType === 'both') {
+      pushResult = await this.sendToAudience(payload, { targetRole, userIds });
+    }
+
+    return {
+      ok: deliveryType === 'inside' ? true : pushResult.ok,
+      deliveryType,
+      inAppCreated,
+      sent: pushResult.sent,
+      failed: pushResult.failed,
+      reason: pushResult.reason,
+    };
+  }
+
+  async sendAnnouncementPush(input: {
+    title: string;
+    body: string;
+    targetRole: 'all' | 'student' | 'admin';
+    url?: string;
+  }) {
+    return this.sendToAudience(
+      {
+        title: input.title,
+        body: input.body,
+        url: input.url || '/notifications',
+        tag: `announcement-${Date.now()}`,
+      },
+      { targetRole: input.targetRole }
+    );
+  }
+
+  async sendToAudience(payload: PushPayload, audience: { targetRole?: string; userIds?: number[] } = {}) {
+    if (!this.webPushConfigured && !this.nativePushSender.isConfigured()) {
+      this.logger.warn('Skipping push send because neither VAPID nor native push credentials are configured.');
+      return { ok: false, sent: 0, failed: 0, reason: 'Push credentials are not configured' };
+    }
+
+    const params: Array<string | number> = [];
+    const where = [`ps.enabled = 1`, `ps.delivery_mode IN ('outside','both')`];
+
+    if (audience.userIds?.length) {
+      where.push(`ps.user_id IN (${audience.userIds.map(() => '?').join(',')})`);
+      params.push(...audience.userIds);
+    } else if (audience.targetRole && audience.targetRole !== 'all') {
+      where.push('u.role = ?');
+      params.push(audience.targetRole);
+    }
+
+    let sent = 0;
+    let failed = 0;
+
+    if (this.webPushConfigured) {
+      const [rows] = await this.db.execute<RowDataPacket[]>(
+        `SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth
+         FROM push_subscriptions ps
+         INNER JOIN users u ON u.id = ps.user_id
+         WHERE ${where.join(' AND ')}`,
+        params
+      );
+
+      await Promise.all(rows.map(async (row) => {
+        try {
+          await webPush.sendNotification(
+            {
+              endpoint: String(row.endpoint),
+              keys: {
+                p256dh: String(row.p256dh),
+                auth: String(row.auth),
+              },
+            },
+            JSON.stringify(this.withDefaults(payload))
+          );
+          sent += 1;
+        } catch (error: any) {
+          failed += 1;
+          const statusCode = Number(error?.statusCode || 0);
+          const message = String(error?.message || 'Push delivery failed').slice(0, 500);
+          await this.db.execute(
+            `UPDATE push_subscriptions
+             SET enabled = CASE WHEN ? IN (404, 410) THEN 0 ELSE enabled END,
+                 last_error = ?,
+                 failed_at = CURRENT_TIMESTAMP,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?`,
+            [statusCode, message, Number(row.id)]
+          );
+        }
+      }));
+    }
+
+    const nativeResult = await this.sendNativeToAudience(payload, audience);
+    sent += nativeResult.sent;
+    failed += nativeResult.failed;
+
+    return { ok: failed === 0, sent, failed };
+  }
+
+  private async sendNativeToAudience(payload: PushPayload, audience: { targetRole?: string; userIds?: number[] } = {}) {
+    if (!this.nativePushSender.isConfigured()) {
+      return { sent: 0, failed: 0 };
+    }
+
+    const params: Array<string | number> = [];
+    const where = [`npt.enabled = 1`, `npt.delivery_mode IN ('outside','both')`];
+
+    if (audience.userIds?.length) {
+      where.push(`npt.user_id IN (${audience.userIds.map(() => '?').join(',')})`);
+      params.push(...audience.userIds);
+    } else if (audience.targetRole && audience.targetRole !== 'all') {
+      where.push('u.role = ?');
+      params.push(audience.targetRole);
+    }
+
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT npt.id, npt.token, npt.platform
+       FROM native_push_tokens npt
+       INNER JOIN users u ON u.id = npt.user_id
+       WHERE ${where.join(' AND ')}`,
+      params
+    );
+
+    let sent = 0;
+    let failed = 0;
+
+    await Promise.all(rows.map(async (row) => {
+      const platform = this.normalizeNativePlatform(row.platform);
+      try {
+        const result = await this.nativePushSender.send(platform, String(row.token), this.withDefaults(payload));
+        if (result.ok) {
+          sent += 1;
+          return;
+        }
+
+        failed += 1;
+        await this.markNativeTokenFailure(Number(row.id), result.statusCode || 0, result.error || 'Native push delivery failed');
+      } catch (error: any) {
+        failed += 1;
+        await this.markNativeTokenFailure(Number(row.id), 0, error?.message || 'Native push delivery failed');
+      }
+    }));
+
+    return { sent, failed };
+  }
+
+  private configureWebPush() {
+    const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
+    const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
+    const subject = this.configService.get<string>('VAPID_SUBJECT') || 'mailto:admin@example.com';
+
+    if (!publicKey || !privateKey) {
+      this.webPushConfigured = false;
+      return;
+    }
+
+    webPush.setVapidDetails(subject, publicKey, privateKey);
+    this.webPushConfigured = true;
+  }
+
+  private normalizeSubscription(subscription: PushSubscriptionInput) {
+    const endpoint = String(subscription?.endpoint || '').trim();
+    const p256dh = String(subscription?.keys?.p256dh || '').trim();
+    const auth = String(subscription?.keys?.auth || '').trim();
+
+    if (!endpoint || !p256dh || !auth) {
+      throw new BadRequestException('Invalid push subscription');
+    }
+
+    return { endpoint, keys: { p256dh, auth } };
+  }
+
+  private normalizePayload(input: any): PushPayload {
+    const title = String(input?.title || '').trim();
+    const body = String(input?.body || '').trim();
+
+    if (!title || !body) {
+      throw new BadRequestException('Notification title and body are required');
+    }
+
+    return this.withDefaults({
+      title,
+      body,
+      url: this.safeInternalPath(input?.url || input?.actionPath || '/notifications'),
+      icon: input?.icon,
+      badge: input?.badge,
+      tag: input?.tag,
+      data: typeof input?.data === 'object' && input.data !== null ? input.data : {},
+    });
+  }
+
+  private withDefaults(payload: PushPayload): PushPayload {
+    return {
+      title: payload.title || 'ERPM LMS',
+      body: payload.body || 'You have a new notification.',
+      url: this.safeInternalPath(payload.url || '/notifications'),
+      icon: payload.icon || '/lms/pwa-icon.svg',
+      badge: payload.badge || '/lms/pwa-maskable.svg',
+      tag: payload.tag || 'erpm-lms-notification',
+      data: payload.data || {},
+    };
+  }
+
+  private normalizeDeliveryMode(value: unknown): DeliveryMode {
+    return value === 'outside' || value === 'both' || value === 'inside' ? value : 'outside';
+  }
+
+  private normalizeAdminDeliveryType(value: unknown): AdminDeliveryType {
+    return value === 'inside' || value === 'outside' || value === 'both' ? value : 'both';
+  }
+
+  private normalizeTargetRole(value: unknown) {
+    return value === 'student' || value === 'admin' || value === 'all' ? value : 'all';
+  }
+
+  private normalizeNativePlatform(value: unknown) {
+    return value === 'ios' || value === 'android' ? value : 'unknown';
+  }
+
+  private safeInternalPath(value: unknown) {
+    const path = String(value || '/notifications').trim();
+    if (!path.startsWith('/') || path.startsWith('//')) return '/notifications';
+    return path;
+  }
+
+  private hashEndpoint(endpoint: string) {
+    return createHash('sha256').update(endpoint).digest('hex');
+  }
+
+  private async markNativeTokenFailure(id: number, statusCode: number, message: string) {
+    await this.db.execute(
+      `UPDATE native_push_tokens
+       SET enabled = CASE WHEN ? IN (400, 404, 410) THEN 0 ELSE enabled END,
+           last_error = ?,
+           failed_at = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [statusCode, String(message || 'Native push delivery failed').slice(0, 500), id]
+    );
+  }
+
+  private async hasEnabledNativeToken(userId: number) {
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id FROM native_push_tokens WHERE user_id = ? AND enabled = 1 LIMIT 1`,
+      [userId]
+    );
+    return rows.length > 0;
+  }
+
+  private async createInAppAnnouncement(payload: PushPayload, targetRole: string, adminId: number) {
+    const [result] = await this.db.execute<ResultSetHeader>(
+      `INSERT INTO announcements (title, body, target_role, status, publish_at, created_by)
+       VALUES (?, ?, ?, 'published', NULL, ?)`,
+      [
+        String(payload.title || 'ERPM LMS').slice(0, 180),
+        payload.body || 'You have a new notification.',
+        this.normalizeTargetRole(targetRole),
+        adminId || null,
+      ]
+    );
+
+    return Number(result.insertId || 0);
+  }
+}

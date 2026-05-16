@@ -4,6 +4,7 @@ import { fetchAttemptResult } from '../../../api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../api/client.js';
 import { AppHeader } from '../../../components/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../styles/tailwindClasses.js';
+import { ImpactStyle, nativeImpact } from '../../../utils/nativeHaptics.js';
 
 export function ResultPage() {
   const { attemptId } = useParams();
@@ -32,16 +33,34 @@ export function ResultPage() {
   const isPassed = result?.passStatus === 'pass';
   const unanswered = result?.unansweredQuestions || 0;
   const answered = result ? Math.max(Number(result.totalQuestions || 0) - unanswered, 0) : 0;
-  const ringStyle = { '--result-angle': `${Math.max(0, Math.min(100, percentage)) * 3.6}deg` };
+  const boundedPercentage = Math.max(0, Math.min(100, percentage));
+  const ringStyle = {
+    background: `conic-gradient(${isPassed ? '#10b981' : '#f59e0b'} ${boundedPercentage * 3.6}deg, color-mix(in_srgb,var(--surface-3)_86%,transparent) 0deg)`,
+  };
+  const accuracyNote = percentage >= 80
+    ? 'Excellent command. Keep this topic warm with a short review later.'
+    : percentage >= 60
+      ? 'Good movement. Review the misses while the reasoning is still fresh.'
+      : 'This is a useful diagnostic. Slow down, review explanations, then retry.';
+  const focusItems = [
+    result?.wrongAnswers > 0 ? { label: 'Mistakes to review', value: result.wrongAnswers, text: 'Open review and focus on why the selected answer was tempting.' } : null,
+    unanswered > 0 ? { label: 'Time / confidence gap', value: unanswered, text: 'Unanswered items usually mean pacing or uncertainty needs attention.' } : null,
+    result?.correctAnswers > 0 ? { label: 'Reliable answers', value: result.correctAnswers, text: 'Protect these strengths with a quick recap before the next attempt.' } : null,
+  ].filter(Boolean);
+
+  function openReviewAnswers() {
+    void nativeImpact(ImpactStyle.Light);
+    navigate(`/review/${attemptId}`);
+  }
 
   return (
       <main className={ui.screenShell}>
         <section className={ui.managementLayout}>
-        <AppHeader title="Quiz result" subtitle={`${result?.courseTitle || ''} • ${result?.topicDisplay || ''}`} />
+        <AppHeader title="Exam result" subtitle={`${result?.courseTitle || ''} • ${result?.topicDisplay || ''}`} />
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
         {result ? (
-          <section className={cx(ui.panelCard, 'grid gap-6')}>
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+          <section className={cx(ui.panelCard, 'grid gap-6 overflow-hidden')}>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
               <div>
                 <span className={statusPill(isPassed ? 'active' : 'inactive')}>
                   {isPassed ? 'Passed' : 'Needs review'}
@@ -51,16 +70,22 @@ export function ResultPage() {
                   {result.courseTitle}
                   {result.topicDisplay ? ` • ${result.topicDisplay}` : ''}
                 </p>
+                <p className="mt-4 max-w-[680px] rounded-xl border border-line-soft bg-surface-2 px-4 py-3 text-[14px] font-semibold leading-relaxed text-ink-medium dark:border-white/10 dark:bg-white/[0.035]">
+                  {accuracyNote}
+                </p>
                 <div className={cx(ui.buttonRow, 'mt-5')}>
-                  <button className={ui.primaryAction} type="button" onClick={() => navigate(`/review/${attemptId}`)}>Review answers</button>
+                  <button className={ui.primaryAction} type="button" onClick={openReviewAnswers}>Review answers</button>
+                  <button type="button" className={ui.secondaryAction} onClick={() => navigate('/quizzes')}>Retry practice</button>
                   <button type="button" className={ui.secondaryAction} onClick={() => navigate('/results')}>All results</button>
                 </div>
               </div>
 
-              <div className="grid place-items-center" style={ringStyle} aria-label={`${percentage.toFixed(2)} percent score`}>
-                <div className="grid size-44 place-items-center rounded-full border-[14px] border-brand-primary/20 bg-surface-2 text-center shadow-inner">
-                  <strong className="text-3xl font-extrabold text-ink-strong">{percentage.toFixed(1)}%</strong>
-                  <span className="text-xs font-bold text-ink-muted">{score.toFixed(2)} / {totalMarks}</span>
+              <div className="grid place-items-center" aria-label={`${percentage.toFixed(2)} percent score`}>
+                <div className="grid size-48 place-items-center rounded-full p-[14px] shadow-[0_18px_44px_rgba(15,23,42,0.10)] dark:shadow-none" style={ringStyle}>
+                  <div className="grid size-full place-items-center rounded-full bg-surface-0 text-center dark:bg-[#07111f]">
+                    <strong className="text-4xl font-extrabold text-ink-strong">{percentage.toFixed(1)}%</strong>
+                    <span className="text-xs font-bold text-ink-muted">{score.toFixed(2)} / {totalMarks}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -83,6 +108,16 @@ export function ResultPage() {
                 <strong className="mt-2 block text-xl font-extrabold text-ink-strong">{answered} of {result.totalQuestions}</strong>
                 <p className="m-0 mt-1 text-sm text-ink-soft">{unanswered > 0 ? `${unanswered} question${unanswered === 1 ? '' : 's'} left unanswered.` : 'Every question was answered.'}</p>
               </article>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {focusItems.map((item) => (
+                <article className="lms-student-delight rounded-xl border border-line-soft bg-surface-2 p-4 dark:border-white/10 dark:bg-white/[0.035]" key={item.label}>
+                  <span className={ui.eyebrow}>{item.label}</span>
+                  <strong className="mt-2 block text-3xl font-extrabold text-ink-strong">{item.value}</strong>
+                  <p className="m-0 mt-2 text-[13px] leading-relaxed text-ink-soft">{item.text}</p>
+                </article>
+              ))}
             </div>
           </section>
         ) : null}

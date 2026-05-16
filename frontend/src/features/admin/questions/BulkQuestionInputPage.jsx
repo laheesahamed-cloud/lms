@@ -1739,14 +1739,14 @@ export function BulkQuestionInputPage() {
             </div>
 
             <div className={bq.modeToggle} role="tablist" aria-label="Bulk input mode">
-              <button className={cx(bq.modeButton, inputMode === 'text' ? 'bg-brand-primary text-white' : 'bg-transparent text-ink-soft hover:bg-surface-3 hover:text-ink-strong')}
+              <button className={cx(bq.modeButton, inputMode === 'text' ? 'border border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary' : 'bg-transparent text-ink-soft hover:bg-surface-3 hover:text-ink-strong')}
                 type="button"
                
                 onClick={() => setInputMode('text')}
               >
                 Paste Text
               </button>
-              <button className={cx(bq.modeButton, inputMode === 'json' ? 'bg-brand-primary text-white' : 'bg-transparent text-ink-soft hover:bg-surface-3 hover:text-ink-strong')}
+              <button className={cx(bq.modeButton, inputMode === 'json' ? 'border border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary' : 'bg-transparent text-ink-soft hover:bg-surface-3 hover:text-ink-strong')}
                 type="button"
                
                 onClick={() => setInputMode('json')}

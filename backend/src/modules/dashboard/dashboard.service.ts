@@ -66,6 +66,22 @@ type AttemptDayRow = RowDataPacket & {
   attempt_day: string;
 };
 
+type PerformanceWindowRow = RowDataPacket & {
+  window_key: 'last_7' | 'previous_7';
+  attempts_count: number;
+  average_percentage: number | null;
+};
+
+type MissedPatternRow = RowDataPacket & {
+  course_title: string | null;
+  subject_name: string | null;
+  topic_name: string | null;
+  lesson_title: string | null;
+  question_type: 'sba' | 'true_false';
+  miss_count: number;
+  latest_missed_at: string | null;
+};
+
 type NoteReviewRow = RowDataPacket & {
   id: number;
   course_title: string | null;
@@ -555,6 +571,52 @@ export class DashboardService {
       [student.id]
     );
 
+    const [performanceWindows] = await this.db.execute<PerformanceWindowRow[]>(
+      `SELECT
+         CASE
+           WHEN DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 'last_7'
+           ELSE 'previous_7'
+         END AS window_key,
+         COUNT(*) AS attempts_count,
+         AVG(percentage) AS average_percentage
+       FROM quiz_attempts
+       WHERE user_id = ?
+         AND status = 'submitted'
+         AND DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+       GROUP BY window_key`,
+      [student.id]
+    );
+
+    const [missedPatterns] = await this.db.execute<MissedPatternRow[]>(
+      `SELECT
+         c.course_title,
+         subj.topic_name AS subject_name,
+         sub.subtopic_name AS topic_name,
+         l.lesson_title,
+         qn.question_type,
+         COUNT(*) AS miss_count,
+         MAX(COALESCE(qa.submitted_at, qa.created_at)) AS latest_missed_at
+       FROM student_answers sa
+       INNER JOIN quiz_attempts qa ON qa.id = sa.attempt_id
+       INNER JOIN questions qn ON qn.id = sa.question_id
+       INNER JOIN question_options qo ON qo.id = sa.option_id
+       LEFT JOIN courses c ON c.id = qn.course_id
+       LEFT JOIN topics subj ON subj.id = qn.topic_id
+       LEFT JOIN subtopics sub ON sub.id = qn.subtopic_id
+       LEFT JOIN lessons l ON l.id = qn.lesson_id
+       WHERE qa.user_id = ?
+         AND qa.status = 'submitted'
+         AND COALESCE(qa.submitted_at, qa.created_at) >= DATE_SUB(NOW(), INTERVAL 45 DAY)
+         AND (
+           (qn.question_type = 'sba' AND sa.is_selected = 1 AND qo.is_correct = 0)
+           OR (qn.question_type = 'true_false' AND sa.is_selected <> qo.is_correct)
+         )
+       GROUP BY c.course_title, subj.topic_name, sub.subtopic_name, l.lesson_title, qn.question_type
+       ORDER BY miss_count DESC, latest_missed_at DESC
+       LIMIT 5`,
+      [student.id]
+    );
+
     const [todayQuizRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT q.id, c.course_title, t.topic_name
        FROM quiz_attempts qa
@@ -667,6 +729,22 @@ export class DashboardService {
       },
     ];
     const completedGoals = dailyGoals.filter((goal) => goal.completed).length;
+    const performanceSnapshot = this.buildStudentPerformanceSnapshot({
+      totalAttempts,
+      averagePercentage,
+      passRate,
+      quizDayStreak,
+      dailyGoalsCompleted: completedGoals,
+      dailyGoalsTotal: dailyGoals.length,
+      performanceWindows,
+    });
+    const adaptivePlan = this.buildStudentAdaptivePlan({
+      totalAttempts,
+      weakestTopic,
+      recommendedNoteTitle: smartNotes[0]?.title || '',
+      todayQuizCount: todayQuizRows.length,
+      todayNoteCount: todayNoteRows.length,
+    });
 
     return {
       user: {
@@ -705,7 +783,19 @@ export class DashboardService {
       dailyGoalsCompleted: completedGoals,
       focusTopic,
       focusCourse,
-      progressTone: averagePercentage >= 70 ? 'steady' : averagePercentage >= 50 ? 'building' : 'needs-attention',
+      performanceSnapshot,
+      adaptivePlan,
+      missedPatterns: missedPatterns.map((row) => ({
+        courseTitle: row.course_title || 'General',
+        subjectName: row.subject_name || '',
+        topicName: row.topic_name || row.subject_name || 'General',
+        lessonTitle: row.lesson_title || '',
+        questionType: row.question_type,
+        missCount: Number(row.miss_count || 0),
+        latestMissedAt: row.latest_missed_at,
+        patternLabel: row.question_type === 'true_false' ? 'True/false accuracy' : 'Answer selection',
+      })),
+      progressTone: averagePercentage >= 75 ? 'strong' : averagePercentage >= 50 ? 'steady' : 'focus',
       progressNote:
         totalAttempts === 0
           ? 'No submitted quizzes yet. Start with one short quiz to build your baseline.'
@@ -721,11 +811,156 @@ export class DashboardService {
     const student = await this.findActiveStudentByToken(this.extractToken(authorization));
 
     await this.db.execute(
-      'INSERT INTO study_activity_events (user_id, activity_type, item_id) VALUES (?, ?, ?)',
-      [student.id, dto.activityType, dto.itemId ?? null]
+      'INSERT INTO study_activity_events (user_id, activity_type, item_id, event_type) VALUES (?, ?, ?, ?)',
+      [student.id, dto.activityType, dto.itemId ?? null, dto.eventType || null]
     );
 
+    if (dto.activityType.endsWith('_protection_attempt')) {
+      console.warn(JSON.stringify({
+        event: 'content_protection_attempt',
+        userId: student.id,
+        activityType: dto.activityType,
+        itemId: dto.itemId ?? null,
+        eventType: dto.eventType || '',
+      }));
+    }
+
     return { ok: true };
+  }
+
+  private buildStudentPerformanceSnapshot({
+    totalAttempts,
+    averagePercentage,
+    passRate,
+    quizDayStreak,
+    dailyGoalsCompleted,
+    dailyGoalsTotal,
+    performanceWindows,
+  }: {
+    totalAttempts: number;
+    averagePercentage: number;
+    passRate: number;
+    quizDayStreak: number;
+    dailyGoalsCompleted: number;
+    dailyGoalsTotal: number;
+    performanceWindows: PerformanceWindowRow[];
+  }) {
+    const last7 = performanceWindows.find((row) => row.window_key === 'last_7');
+    const previous7 = performanceWindows.find((row) => row.window_key === 'previous_7');
+    const last7Attempts = Number(last7?.attempts_count || 0);
+    const previous7Attempts = Number(previous7?.attempts_count || 0);
+    const last7Average = Number(last7?.average_percentage || 0);
+    const previous7Average = Number(previous7?.average_percentage || 0);
+    const scoreDelta = previous7Attempts > 0
+      ? Math.round(last7Average - previous7Average)
+      : last7Attempts > 0 ? Math.round(last7Average) : 0;
+    const goalCompletionRate = dailyGoalsTotal > 0 ? dailyGoalsCompleted / dailyGoalsTotal : 0;
+    const readinessScore = totalAttempts === 0
+      ? 0
+      : Math.round(
+          Math.min(100, Math.max(0,
+            averagePercentage * 0.5 +
+            passRate * 0.25 +
+            Math.min(quizDayStreak, 7) * 3 +
+            goalCompletionRate * 20
+          ))
+        );
+
+    return {
+      readinessScore,
+      readinessLabel:
+        readinessScore >= 75 ? 'Ready to advance' :
+        readinessScore >= 50 ? 'Building steadily' :
+        totalAttempts > 0 ? 'Needs focused review' : 'Baseline not set',
+      weeklyAttempts: last7Attempts,
+      weeklyAverage: Number(last7Average.toFixed(2)),
+      previousWeeklyAverage: Number(previous7Average.toFixed(2)),
+      scoreDelta,
+      scoreTrend:
+        previous7Attempts === 0
+          ? last7Attempts > 0 ? 'new' : 'empty'
+          : scoreDelta > 3 ? 'up'
+            : scoreDelta < -3 ? 'down'
+              : 'steady',
+      trendLabel:
+        previous7Attempts === 0
+          ? last7Attempts > 0 ? 'New activity this week' : 'No quiz activity yet'
+          : scoreDelta > 3 ? `+${scoreDelta} pts vs last week`
+            : scoreDelta < -3 ? `${scoreDelta} pts vs last week`
+              : 'Stable vs last week',
+      consistencyLabel:
+        quizDayStreak >= 5 ? 'Excellent consistency' :
+        quizDayStreak >= 2 ? 'Momentum building' :
+        last7Attempts > 0 ? 'Keep the rhythm going' : 'Start today',
+    };
+  }
+
+  private buildStudentAdaptivePlan({
+    totalAttempts,
+    weakestTopic,
+    recommendedNoteTitle,
+    todayQuizCount,
+    todayNoteCount,
+  }: {
+    totalAttempts: number;
+    weakestTopic: { topicName: string; courseTitle: string; averagePercentage: number; attemptsCount: number } | null;
+    recommendedNoteTitle: string;
+    todayQuizCount: number;
+    todayNoteCount: number;
+  }) {
+    if (totalAttempts === 0) {
+      return [
+        {
+          key: 'baseline',
+          title: 'Set your baseline',
+          description: 'Take one practice quiz so the LMS can start personalizing your revision.',
+          actionType: 'quiz',
+          status: todayQuizCount > 0 ? 'done' : 'next',
+        },
+        {
+          key: 'first-review',
+          title: 'Review immediately',
+          description: 'Open the result after your first quiz and mark the questions that felt uncertain.',
+          actionType: 'results',
+          status: 'queued',
+        },
+        {
+          key: 'lesson-primer',
+          title: recommendedNoteTitle || 'Read one lesson',
+          description: 'Pair quiz practice with one short lesson review to make the first score useful.',
+          actionType: 'note',
+          status: todayNoteCount > 0 ? 'done' : 'queued',
+        },
+      ];
+    }
+
+    return [
+      {
+        key: 'weak-topic-practice',
+        title: weakestTopic ? `Practice ${weakestTopic.topicName}` : 'Practice your next quiz',
+        description: weakestTopic
+          ? `${weakestTopic.courseTitle} is the clearest place to gain points right now.`
+          : 'Keep your quiz rhythm active with one focused practice session.',
+        actionType: 'quiz',
+        status: todayQuizCount > 0 ? 'done' : 'next',
+      },
+      {
+        key: 'lesson-review',
+        title: weakestTopic ? `Review ${weakestTopic.topicName}` : recommendedNoteTitle || 'Review one lesson',
+        description: todayNoteCount > 0
+          ? 'Lesson review is already logged today. Use the next step for recall.'
+          : 'Read the matching lesson before repeating questions from memory.',
+        actionType: 'note',
+        status: todayNoteCount > 0 ? 'done' : 'next',
+      },
+      {
+        key: 'result-loop',
+        title: 'Close the feedback loop',
+        description: 'Open your latest result and compare missed questions with the lesson notes.',
+        actionType: 'results',
+        status: todayQuizCount > 0 ? 'next' : 'queued',
+      },
+    ];
   }
 
   private extractToken(authorization?: string) {

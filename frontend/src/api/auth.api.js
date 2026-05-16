@@ -1,12 +1,27 @@
 import { apiClient } from './client.js';
+import { detectPlatform } from '../platform/detect.js';
+
+function nativeAuthHeaders() {
+  return detectPlatform().isNative ? { 'X-LMS-Native': '1' } : undefined;
+}
+
+function nativeAuthParams() {
+  return detectPlatform().isNative ? { native: '1' } : undefined;
+}
 
 export async function login(payload) {
-  const response = await apiClient.post('/auth/login', payload);
+  const response = await apiClient.post('/auth/login', payload, {
+    headers: nativeAuthHeaders(),
+    params: nativeAuthParams(),
+  });
   return response.data;
 }
 
 export async function register(payload) {
-  const response = await apiClient.post('/auth/register', payload);
+  const response = await apiClient.post('/auth/register', payload, {
+    headers: nativeAuthHeaders(),
+    params: nativeAuthParams(),
+  });
   return response.data;
 }
 

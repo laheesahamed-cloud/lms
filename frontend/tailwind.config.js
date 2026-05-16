@@ -107,8 +107,8 @@ export default {
           to: { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
         shimmer: {
-          '0%': { backgroundPosition: '-200% center' },
-          '100%': { backgroundPosition: '200% center' },
+          '0%': { backgroundPosition: '220% center' },
+          '100%': { backgroundPosition: '-220% center' },
         },
         signoutSoftExit: {
           to: { opacity: '0.18', transform: 'translateY(10px)' },

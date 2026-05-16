@@ -1,6 +1,6 @@
 /* ============================================================
    ERPM Medical LMS — Stylesheet Entrypoint
-   Import order: tokens, base, layout, legacy base, clean layers, utilities.
+   Import order: tokens, base, layout, clean components/pages/platforms/utilities.
    ============================================================ */
 
 @import "tailwindcss/theme.css" layer(theme);
@@ -38,7 +38,6 @@
 @import "./03-components/badges.css";
 @import "./03-components/empty-loading-error.css";
 
-@import "./04-pages/dashboard.css";
 @import "./04-pages/courses.css";
 @import "./04-pages/quizzes.css";
 @import "./04-pages/lessons.css";
@@ -66,6 +65,8 @@
 @import "./06-utilities/safe-area.css";
 @import "./06-utilities/performance.css";
 @import "./06-utilities/print.css";
+
+@import "./04-pages/dashboard.css";
 
 @config "../../tailwind.config.js";
 @source "../**/*.{js,jsx,ts,tsx}";

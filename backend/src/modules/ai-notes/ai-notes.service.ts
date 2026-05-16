@@ -47,6 +47,7 @@ type UserRow        = RowDataPacket & { id: number; role: string; status: string
 type SubscriptionFeatureRow = RowDataPacket & { feature_key: string | null };
 type AccessScopeRow = RowDataPacket & {
   feature_key: string | null;
+  plan_slug: string | null;
   access_scope: 'all' | 'courses' | 'lessons' | null;
   course_ids_json: string | null;
   lesson_ids_json: string | null;
@@ -61,6 +62,8 @@ type AiNoteRow      = RowDataPacket & {
   status: 'active' | 'inactive';
   created_at: string; updated_at: string;
   course_title?: string | null; topic_name?: string | null; subtopic_name?: string | null; lesson_title?: string | null; lesson_video_url?: string | null;
+  effective_course_id?: number | null; effective_topic_id?: number | null; effective_subtopic_id?: number | null;
+  effective_is_free?: number | null;
 };
 type HierarchyRow = RowDataPacket & { id: number; name: string; };
 type CanvasEngineKey = 'gemini' | 'openai';
@@ -276,12 +279,16 @@ export class AiNotesService {
     const accessProfile = await this.getLessonAccessProfile(student.id);
     const [rows] = await this.db.execute<AiNoteRow[]>(`
       SELECT n.id, n.title, NULL AS note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
+             COALESCE(n.course_id, l.course_id) AS effective_course_id,
+             COALESCE(n.topic_id, l.topic_id) AS effective_topic_id,
+             COALESCE(n.subtopic_id, l.subtopic_id) AS effective_subtopic_id,
+             COALESCE(l.is_free, n.is_free) AS effective_is_free,
              c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
       FROM ai_illustrated_notes n
-      LEFT JOIN courses  c ON c.id = n.course_id
-      LEFT JOIN topics   t ON t.id = n.topic_id
-      LEFT JOIN subtopics s ON s.id = n.subtopic_id
       LEFT JOIN lessons  l ON l.id = n.lesson_id
+      LEFT JOIN courses  c ON c.id = COALESCE(n.course_id, l.course_id)
+      LEFT JOIN topics   t ON t.id = COALESCE(n.topic_id, l.topic_id)
+      LEFT JOIN subtopics s ON s.id = COALESCE(n.subtopic_id, l.subtopic_id)
       WHERE n.is_public = 1 AND n.note_data IS NOT NULL AND n.status = 'active'
         AND n.engine_key = ?
       ORDER BY c.course_title ASC, t.topic_name ASC, n.updated_at DESC`, [engineKey]);
@@ -293,12 +300,17 @@ export class AiNotesService {
     const hasNotesAccess = await this.plansService.hasFeatureAccess(student.id, 'notes_canvas_study_mode');
     const accessProfile = await this.getLessonAccessProfile(student.id);
     const [rows] = await this.db.execute<AiNoteRow[]>(`
-      SELECT n.*, c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
+      SELECT n.*,
+             COALESCE(n.course_id, l.course_id) AS effective_course_id,
+             COALESCE(n.topic_id, l.topic_id) AS effective_topic_id,
+             COALESCE(n.subtopic_id, l.subtopic_id) AS effective_subtopic_id,
+             COALESCE(l.is_free, n.is_free) AS effective_is_free,
+             c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
       FROM ai_illustrated_notes n
-      LEFT JOIN courses  c ON c.id = n.course_id
-      LEFT JOIN topics   t ON t.id = n.topic_id
-      LEFT JOIN subtopics s ON s.id = n.subtopic_id
       LEFT JOIN lessons  l ON l.id = n.lesson_id
+      LEFT JOIN courses  c ON c.id = COALESCE(n.course_id, l.course_id)
+      LEFT JOIN topics   t ON t.id = COALESCE(n.topic_id, l.topic_id)
+      LEFT JOIN subtopics s ON s.id = COALESCE(n.subtopic_id, l.subtopic_id)
       WHERE n.id = ? AND n.is_public = 1 AND n.status = 'active' AND n.engine_key = ?`, [id, engineKey]);
     if (!rows.length) throw new NotFoundException('Lesson not found');
     return this.mapStudentNote(rows[0], hasNotesAccess, accessProfile);
@@ -309,7 +321,12 @@ export class AiNotesService {
     const hasNotesAccess = await this.plansService.hasFeatureAccess(student.id, 'notes_canvas_study_mode');
     const accessProfile = await this.getLessonAccessProfile(student.id);
     const [rows] = await this.db.execute<AiNoteRow[]>(`
-      SELECT n.*, c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
+      SELECT n.*,
+             l.course_id AS effective_course_id,
+             l.topic_id AS effective_topic_id,
+             l.subtopic_id AS effective_subtopic_id,
+             l.is_free AS effective_is_free,
+             c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
       FROM ai_illustrated_notes n
       INNER JOIN lessons l ON l.id = n.lesson_id
       INNER JOIN courses c ON c.id = l.course_id
@@ -907,12 +924,12 @@ export class AiNotesService {
       rawText: row.raw_text,
       noteData,
       engineKey: row.engine_key || 'gemini',
-      courseId:     row.course_id    ?? null,
-      topicId:      row.topic_id     ?? null,
-      subtopicId:   row.subtopic_id  ?? null,
+      courseId:     row.effective_course_id ?? row.course_id    ?? null,
+      topicId:      row.effective_topic_id ?? row.topic_id     ?? null,
+      subtopicId:   row.effective_subtopic_id ?? row.subtopic_id  ?? null,
       lessonId:     row.lesson_id    ?? null,
       videoUrl:     row.video_url || row.lesson_video_url || '',
-      isFree:       Number(row.is_free) === 1,
+      isFree:       Number(row.effective_is_free ?? row.is_free) === 1,
       status:       row.status       ?? 'active',
       courseTitle:  row.course_title  ?? null,
       topicName:    row.topic_name    ?? null,
@@ -926,8 +943,9 @@ export class AiNotesService {
   private async getLessonAccessProfile(userId: number): Promise<LessonAccessProfile> {
     const [rows] = await this.db.execute<AccessScopeRow[]>(
       `
-        SELECT sf.feature_key, us.access_scope, us.course_ids_json, us.lesson_ids_json
+        SELECT sf.feature_key, plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
         FROM user_subscriptions us
+        INNER JOIN plans ON plans.id = us.plan_id
         INNER JOIN subscription_plan_features spf
           ON spf.plan_id = us.plan_id
          AND spf.is_enabled = 1
@@ -951,13 +969,16 @@ export class AiNotesService {
     };
 
     for (const row of rows) {
-      const scope = row.access_scope || 'all';
-      if (scope === 'all') {
+      const courseIds = this.parseIdList(row.course_ids_json);
+      const lessonIds = this.parseIdList(row.lesson_ids_json);
+      const scope = this.resolveEffectiveAccessScope(row, courseIds, lessonIds);
+
+      if (scope === 'all' && courseIds.length === 0 && lessonIds.length === 0) {
         profile.hasFullAccess = true;
       } else if (scope === 'courses') {
-        this.parseIdList(row.course_ids_json).forEach((courseId) => profile.courseIds.add(courseId));
+        courseIds.forEach((courseId) => profile.courseIds.add(courseId));
       } else if (scope === 'lessons') {
-        this.parseIdList(row.lesson_ids_json).forEach((lessonId) => profile.lessonIds.add(lessonId));
+        lessonIds.forEach((lessonId) => profile.lessonIds.add(lessonId));
       }
     }
 
@@ -974,6 +995,14 @@ export class AiNotesService {
     } catch {
       return [];
     }
+  }
+
+  private resolveEffectiveAccessScope(row: AccessScopeRow, courseIds: number[], lessonIds: number[]) {
+    const planSlug = String(row.plan_slug || '').trim();
+    if (planSlug.startsWith('custom-single-') || planSlug.startsWith('custom-multi-')) {
+      return 'courses';
+    }
+    return row.access_scope || (courseIds.length ? 'courses' : lessonIds.length ? 'lessons' : 'all');
   }
 
   private canAccessStudentNote(

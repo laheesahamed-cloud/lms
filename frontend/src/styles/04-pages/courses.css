@@ -15,8 +15,8 @@
 .student-course-card__visual {
   min-height: clamp(74px, 8.5vw, 94px) !important;
   background:
-    radial-gradient(circle at 86% 22%, color-mix(in srgb, var(--color-teal) 22%, transparent), transparent 34%),
-    linear-gradient(135deg, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary) 64%, var(--color-teal)) 54%, var(--color-teal) 100%) !important;
+    radial-gradient(circle at 86% 22%, color-mix(in srgb, #0ea5e9 22%, transparent), transparent 34%),
+    linear-gradient(135deg, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary) 70%, #0ea5e9) 58%, #7c3aed 100%) !important;
   color: #ffffff !important;
 }
 
@@ -25,7 +25,7 @@
 }
 
 .student-course-card__body [style*="linear-gradient"] {
-  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-teal) 100%) !important;
+  background: linear-gradient(90deg, var(--color-primary) 0%, #0ea5e9 100%) !important;
 }
 
 .lms-course-detail-hero {
