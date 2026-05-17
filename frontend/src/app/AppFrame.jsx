@@ -1,12 +1,17 @@
 import { useEffect, useLayoutEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { RouteScrollRestoration } from '../components/routing/RouteScrollRestoration.jsx';
-import { detectPlatform } from '../platform/detect.js';
-import { useAuthStore } from '../stores/authStore.js';
-import { cx, ui } from '../styles/tailwindClasses.js';
+import { RouteScrollRestoration } from '../shared/routing/RouteScrollRestoration.jsx';
+import { detectPlatform } from '../shared/platform/detect.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
 const PLATFORM = detectPlatform();
 const NATIVE_PUSH_PROMPT_KEY = 'lms_native_push_permission_prompted';
+const routeSceneClass = 'relative isolate min-h-dvh overflow-x-hidden animate-routeFade';
+const authRouteSceneClass = 'auth-route-scene animate-authRouteFade';
+
+function cx(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
 
 function setStyleIfChanged(element, property, value) {
   if (element.style[property] !== value) {
@@ -73,7 +78,7 @@ export function AppFrame() {
         const {
           requestNativePushPermission,
           syncNativePushToken,
-        } = await import('../platform/native/NotificationDelivery.js');
+        } = await import('../shared/platform/native/NotificationDelivery.js');
 
         if (prompted === 'granted') {
           await syncNativePushToken().catch(() => {});
@@ -207,7 +212,7 @@ export function AppFrame() {
   }
 
   return (
-    <div className={cx('lms-app-scroll-root', ui.routeScene, isAuthRoute && ui.authRouteScene)}>
+    <div className={cx('lms-app-scroll-root', routeSceneClass, isAuthRoute && authRouteSceneClass)}>
       <RouteScrollRestoration />
       <div className="main-glow" aria-hidden="true" />
       <Outlet />

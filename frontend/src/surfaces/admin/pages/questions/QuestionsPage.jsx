@@ -1,0 +1,1631 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import {
+  createQuestion,
+  bulkDeleteQuestions,
+  deleteQuestion,
+  exportQuestions,
+  fetchQuestion,
+  fetchQuestions,
+  fetchQuestionsMeta,
+  importQuestions,
+  updateQuestion,
+} from '../../../../shared/api/questions.api.js';
+import {
+  deleteTheoryRecap,
+  fetchTheoryRecap,
+  generateTheoryRecap,
+  regenerateTheoryRecap,
+  upsertTheoryRecap,
+} from '../../../../shared/api/theoryRecap.api.js';
+import { getErrorMessage } from '../../../../shared/api/client.js';
+import {
+  generateQuestionExplanation,
+  generateQuestionTheoryCard,
+  generateWhyIncorrectExplanations,
+} from '../../../../shared/api/ai.api.js';
+import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
+import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
+import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+
+const recapAdminSectionClass = 'mt-1 overflow-hidden rounded-lg border border-line-soft bg-surface-1';
+const recapToggleClass = 'flex w-full items-center gap-2.5 border-0 bg-transparent px-3.5 py-3 text-left font-inherit text-inherit transition hover:bg-surface-2';
+const recapToggleIconClass = 'shrink-0 text-[15px]';
+const recapToggleLabelClass = 'flex-1 text-[13.5px] font-semibold text-ink-strong';
+const recapToggleChevronClass = 'shrink-0 text-[10px] text-ink-muted';
+const recapBadgeClass = 'rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize';
+const recapBadgeExistsClass = 'bg-brand-primary/15 text-brand-primary';
+const recapBadgeNoneClass = 'border border-line-soft bg-surface-2 text-ink-muted';
+const recapBodyClass = 'flex flex-col gap-3.5 border-t border-line-soft px-4 py-3.5';
+const recapLoadingClass = 'm-0 text-[13px] text-ink-soft';
+const recapHierarchyGridClass = 'grid grid-cols-2 gap-2.5 max-[600px]:grid-cols-1';
+const recapHintClass = 'ml-1 text-[11px] font-normal text-ink-muted';
+const questionModalInlineNoteClass = 'mx-6 mt-5 rounded-lg border border-brand-primary/15 bg-brand-primary/5 px-4 py-3 text-[13px] leading-relaxed text-ink-soft max-[600px]:mx-4';
+const questionModalFormClass = 'gap-[18px] px-6 pb-6 max-[600px]:px-4';
+const questionModalRecapPanelClass = 'px-6 pb-6 max-[600px]:px-4';
+const bulkSelectBarClass =
+  'mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-2 px-4 py-3 text-sm text-ink-medium';
+const tableCheckboxClass =
+  'size-4 cursor-pointer rounded border-line-medium accent-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20';
+const bulkWarningClass =
+  'rounded-lg border border-brand-warning/25 bg-[var(--color-warning-light)] px-4 py-3 text-[13px] leading-relaxed text-ink-medium';
+
+const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+
+function buildOptions(questionType = 'sba', incomingOptions = []) {
+  const optionMap = new Map(
+    incomingOptions.map((option) => [String(option.optionLabel || '').trim().toUpperCase(), option])
+  );
+
+  return optionLabels.map((label) => {
+    const existing = optionMap.get(label);
+    return {
+      optionLabel: label,
+      optionText: existing?.optionText || '',
+      isCorrect:
+        questionType === 'true_false'
+          ? Number(existing?.isCorrect) === 1
+            ? 1
+            : 0
+          : Number(existing?.isCorrect) === 1 && label === existing?.optionLabel
+            ? 1
+            : 0,
+      whyIncorrect: existing?.whyIncorrect || existing?.why_incorrect || '',
+    };
+  });
+}
+
+function buildDefaultForm() {
+  return {
+    courseId: '',
+    subjectId: '',
+    topicId: '',
+    lessonId: '',
+    topicLabel: '',
+    examSource: 'local',
+    category: 'mock',
+    questionType: 'sba',
+    questionText: '',
+    keywordsText: '',
+    explanation: '',
+    status: 'active',
+    options: buildOptions('sba'),
+  };
+}
+
+function mapQuestionToForm(question) {
+  const questionType = question.questionType || 'sba';
+  return {
+    courseId: question.courseId ? String(question.courseId) : '',
+    subjectId: question.subjectId ? String(question.subjectId) : '',
+    topicId: question.topicId ? String(question.topicId) : '',
+    lessonId: question.lessonId ? String(question.lessonId) : '',
+    topicLabel: question.topicLabel || '',
+    examSource: question.examSource || 'local',
+    category: question.category || 'mock',
+    questionType,
+    questionText: question.questionText || '',
+    keywordsText: question.keywordsText || '',
+    explanation: question.explanation || '',
+    status: question.status || 'active',
+    options: buildOptions(questionType, question.options || []),
+  };
+}
+
+function textToArray(text) {
+  return String(text || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function normalizeRecapArray(value) {
+  if (Array.isArray(value)) {
+    return value.map(String).map((line) => line.trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return textToArray(value);
+  }
+  return [];
+}
+
+function normalizeTheoryRecap(recap) {
+  if (!recap) return null;
+  return {
+    ...recap,
+    conceptName: recap.conceptName || recap.concept_name || '',
+    hierarchy: {
+      course: recap.hierarchy?.course || recap.hierarchyCourse || recap.hierarchy_course || '',
+      subject: recap.hierarchy?.subject || recap.hierarchySubject || recap.hierarchy_subject || '',
+      topic: recap.hierarchy?.topic || recap.hierarchyTopic || recap.hierarchy_topic || '',
+      lesson: recap.hierarchy?.lesson || recap.hierarchyLesson || recap.hierarchy_lesson || '',
+    },
+    etiology: normalizeRecapArray(recap.etiology),
+    pathophysiology: normalizeRecapArray(recap.pathophysiology),
+    clinicalFeatures: normalizeRecapArray(recap.clinicalFeatures || recap.clinical_features),
+    investigations: normalizeRecapArray(recap.investigations),
+    treatment: normalizeRecapArray(recap.treatment),
+    keyPoints: normalizeRecapArray(recap.keyPoints || recap.key_points),
+    mnemonic: recap.mnemonic || '',
+    reviewedStatus: recap.reviewedStatus || recap.reviewed_status || 'pending',
+  };
+}
+
+function recapToUpsertPayload(recap) {
+  const normalized = normalizeTheoryRecap(recap);
+  if (!normalized) return null;
+  return {
+    conceptName: normalized.conceptName,
+    hierarchyCourse: normalized.hierarchy.course,
+    hierarchySubject: normalized.hierarchy.subject,
+    hierarchyTopic: normalized.hierarchy.topic,
+    hierarchyLesson: normalized.hierarchy.lesson,
+    etiology: normalized.etiology,
+    pathophysiology: normalized.pathophysiology,
+    clinicalFeatures: normalized.clinicalFeatures,
+    investigations: normalized.investigations,
+    treatment: normalized.treatment,
+    keyPoints: normalized.keyPoints,
+    mnemonic: normalized.mnemonic,
+    reviewedStatus: normalized.reviewedStatus,
+  };
+}
+
+function adminFieldsToRecap(fields) {
+  return {
+    conceptName: fields.conceptName || '',
+    hierarchy: {
+      course: fields.hierarchyCourse || '',
+      subject: fields.hierarchySubject || '',
+      topic: fields.hierarchyTopic || '',
+      lesson: fields.hierarchyLesson || '',
+    },
+    etiology: textToArray(fields.etiology || ''),
+    pathophysiology: textToArray(fields.pathophysiology || ''),
+    clinicalFeatures: textToArray(fields.clinicalFeatures || ''),
+    investigations: textToArray(fields.investigations || ''),
+    treatment: textToArray(fields.treatment || ''),
+    keyPoints: textToArray(fields.keyPoints || ''),
+    mnemonic: fields.mnemonic || '',
+    reviewedStatus: fields.reviewedStatus || 'pending',
+  };
+}
+
+export function QuestionsPage() {
+  const navigate = useNavigate();
+  const importInputRef = useRef(null);
+  const [questions, setQuestions] = useState([]);
+  const [meta, setMeta] = useState({ courses: [], subjects: [], topics: [], lessons: [], papers: [], keywordSuggestions: [] });
+  const [filters, setFilters] = useState({ search: '', status: '', type: '', category: '', unclassified: '', courseId: '', subjectId: '', topicId: '', lessonId: '' });
+  const [form, setForm] = useState(buildDefaultForm);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [loadingQuestionId, setLoadingQuestionId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState(() => new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [error, setError] = useState('');
+  const [recap, setRecap] = useState(null);
+  const [recapLoading, setRecapLoading] = useState(false);
+  const [recapSaving, setRecapSaving] = useState(false);
+  const [recapGenerating, setRecapGenerating] = useState(false);
+  const [whyGenerating, setWhyGenerating] = useState(false);
+  const [explanationGenerating, setExplanationGenerating] = useState(false);
+  const [learningContentGenerating, setLearningContentGenerating] = useState(false);
+  const [recapError, setRecapError] = useState('');
+
+  useEffect(() => {
+    Promise.all([loadQuestions(), loadMeta()]);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setToast(null);
+    }, 3200);
+
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  const visibleSubjects = useMemo(
+    () => meta.subjects.filter((subject) => String(subject.courseId) === String(form.courseId || '')),
+    [meta.subjects, form.courseId]
+  );
+
+  const visibleTopics = useMemo(
+    () => meta.topics.filter((topic) => String(topic.subjectId) === String(form.subjectId || '')),
+    [meta.topics, form.subjectId]
+  );
+
+  const visibleLessons = useMemo(
+    () =>
+      meta.lessons.filter(
+        (lesson) =>
+          String(lesson.subjectId) === String(form.subjectId || '') &&
+          (form.topicId ? String(lesson.topicId || '') === String(form.topicId) : true)
+      ),
+    [meta.lessons, form.subjectId, form.topicId]
+  );
+  const filterSubjects = useMemo(
+    () => meta.subjects.filter((subject) => !filters.courseId || String(subject.courseId) === String(filters.courseId)),
+    [meta.subjects, filters.courseId]
+  );
+  const filterTopics = useMemo(
+    () => meta.topics.filter((topic) => !filters.subjectId || String(topic.subjectId) === String(filters.subjectId)),
+    [meta.topics, filters.subjectId]
+  );
+  const filterLessons = useMemo(
+    () =>
+      meta.lessons.filter(
+        (lesson) =>
+          (!filters.subjectId || String(lesson.subjectId) === String(filters.subjectId)) &&
+          (!filters.topicId || String(lesson.topicId || '') === String(filters.topicId))
+      ),
+    [meta.lessons, filters.subjectId, filters.topicId]
+  );
+  const selectedVisibleIds = useMemo(
+    () => questions.filter((question) => selectedQuestionIds.has(question.id)).map((question) => question.id),
+    [questions, selectedQuestionIds]
+  );
+  const selectedVisibleQuestions = useMemo(
+    () => questions.filter((question) => selectedQuestionIds.has(question.id)),
+    [questions, selectedQuestionIds]
+  );
+  const allVisibleSelected = questions.length > 0 && selectedVisibleIds.length === questions.length;
+  const selectedLinkedQuestionCount = selectedVisibleQuestions.filter((question) => Number(question.quizCount || 0) > 0).length;
+  const selectedLinkedQuizCount = selectedVisibleQuestions.reduce((total, question) => total + Number(question.quizCount || 0), 0);
+
+  async function loadQuestions(nextFilters = filters) {
+    setLoading(true);
+
+    try {
+      const params = Object.fromEntries(Object.entries(nextFilters).filter(([, value]) => value));
+      const data = await fetchQuestions(params);
+      setQuestions(data);
+      setSelectedQuestionIds((current) => {
+        const visibleIds = new Set(data.map((question) => question.id));
+        return new Set([...current].filter((id) => visibleIds.has(id)));
+      });
+      setError('');
+    } catch (loadError) {
+      setError(getErrorMessage(loadError, 'Unable to load questions'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function resetComposer() {
+    setModalOpen(false);
+    setEditingId(null);
+    setLoadingQuestionId(null);
+    setForm(buildDefaultForm());
+    setRecap(null);
+    setRecapError('');
+  }
+
+  function showToast(text, type = 'success') {
+    setToast({ text, type });
+  }
+
+  async function loadMeta() {
+    try {
+      const data = await fetchQuestionsMeta();
+      setMeta(data);
+    } catch (loadError) {
+      setError(getErrorMessage(loadError, 'Unable to load question form metadata'));
+    }
+  }
+
+  function handleFilterChange(event) {
+    const { name, value } = event.target;
+    setFilters((current) => {
+      if (name === 'courseId') {
+        return { ...current, courseId: value, subjectId: '', topicId: '', lessonId: '' };
+      }
+      if (name === 'subjectId') {
+        return { ...current, subjectId: value, topicId: '', lessonId: '' };
+      }
+      if (name === 'topicId') {
+        return { ...current, topicId: value, lessonId: '' };
+      }
+      return { ...current, [name]: value };
+    });
+  }
+
+  function handleFormChange(event) {
+    const { name, value } = event.target;
+
+    setForm((current) => {
+      const next = { ...current, [name]: value };
+      if (name === 'courseId') {
+        next.subjectId = '';
+        next.topicId = '';
+        next.lessonId = '';
+        next.topicLabel = '';
+      }
+      if (name === 'subjectId') {
+        next.topicId = '';
+        next.lessonId = '';
+        next.topicLabel = '';
+      }
+      if (name === 'topicId') {
+        next.lessonId = '';
+        next.topicLabel = '';
+      }
+      if (name === 'category' && value !== 'past_paper') {
+        next.examSource = 'local';
+      }
+      if (name === 'questionType') {
+        next.options = buildOptions(value, current.options);
+      }
+      return next;
+    });
+  }
+
+  function handleOptionTextChange(index, value) {
+    setForm((current) => ({
+      ...current,
+      options: current.options.map((option, optionIndex) =>
+        optionIndex === index ? { ...option, optionText: value } : option
+      ),
+    }));
+  }
+
+  function handleSbaCorrect(label) {
+    setForm((current) => ({
+      ...current,
+      options: current.options.map((option) => ({
+        ...option,
+        isCorrect: option.optionLabel === label ? 1 : 0,
+        whyIncorrect: option.optionLabel === label ? '' : option.whyIncorrect,
+      })),
+    }));
+  }
+
+  function handleOptionWhyIncorrectChange(index, value) {
+    setForm((current) => ({
+      ...current,
+      options: current.options.map((option, optionIndex) =>
+        optionIndex === index ? { ...option, whyIncorrect: value } : option
+      ),
+    }));
+  }
+
+  async function handleGenerateWhyIncorrect() {
+    const correctOption = form.options.find((option) => Number(option.isCorrect) === 1);
+    if (!correctOption) {
+      setError('Select the correct SBA answer before generating why-incorrect explanations.');
+      return;
+    }
+
+    setWhyGenerating(true);
+    setError('');
+    try {
+      const result = await generateWhyIncorrectExplanations({
+        questionText: form.questionText,
+        correctAnswerLabel: correctOption.optionLabel,
+        explanation: form.explanation,
+        options: form.options.map((option) => ({
+          optionLabel: option.optionLabel,
+          optionText: option.optionText,
+          isCorrect: Number(option.isCorrect) === 1,
+          whyIncorrect: option.whyIncorrect || '',
+        })),
+      });
+      const generatedMap = new Map((result.items || []).map((item) => [String(item.optionLabel || '').toUpperCase(), item.whyIncorrect || '']));
+      setForm((current) => ({
+        ...current,
+        options: current.options.map((option) => (
+          Number(option.isCorrect) === 1 || option.whyIncorrect
+            ? option
+            : { ...option, whyIncorrect: generatedMap.get(option.optionLabel) || option.whyIncorrect || '' }
+        )),
+      }));
+      showToast('AI drafted why-incorrect explanations. Review before saving.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to generate why-incorrect explanations'));
+    } finally {
+      setWhyGenerating(false);
+    }
+  }
+
+  function buildAiLearningPayload(currentForm = form, explanationOverride = currentForm.explanation) {
+    const correctOption = currentForm.options.find((option) => Number(option.isCorrect) === 1);
+    const course = meta.courses.find((item) => String(item.id) === String(currentForm.courseId));
+    const subject = meta.subjects.find((item) => String(item.id) === String(currentForm.subjectId));
+    const topic = meta.topics.find((item) => String(item.id) === String(currentForm.topicId));
+    const lesson = meta.lessons.find((item) => String(item.id) === String(currentForm.lessonId));
+
+    return {
+      questionText: currentForm.questionText,
+      questionType: currentForm.questionType,
+      correctAnswerLabel: correctOption?.optionLabel || '',
+      explanation: explanationOverride || '',
+      course: course?.courseTitle || '',
+      subject: subject?.subjectName || '',
+      topic: topic?.topicName || currentForm.topicLabel || '',
+      lesson: lesson?.lessonTitle || '',
+      options: currentForm.options.map((option) => ({
+        optionLabel: option.optionLabel,
+        optionText: option.optionText,
+        isCorrect: Number(option.isCorrect) === 1,
+        whyIncorrect: option.whyIncorrect || '',
+      })),
+    };
+  }
+
+  async function handleGenerateExplanation({ silent = false } = {}) {
+    const correctOption = form.options.find((option) => Number(option.isCorrect) === 1);
+    if (!form.questionText.trim() || !correctOption) {
+      setError('Add question text and select the correct answer before generating an explanation.');
+      return '';
+    }
+
+    setExplanationGenerating(true);
+    setError('');
+    try {
+      const result = await generateQuestionExplanation(buildAiLearningPayload());
+      const explanation = result.explanation || '';
+      setForm((current) => ({
+        ...current,
+        explanation: current.explanation?.trim() ? current.explanation : explanation,
+      }));
+      if (!silent) {
+        showToast('AI drafted the main explanation. Review before saving.');
+      }
+      return explanation;
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to generate explanation'));
+      return '';
+    } finally {
+      setExplanationGenerating(false);
+    }
+  }
+
+  async function handleGenerateLearningContent() {
+    const correctOption = form.options.find((option) => Number(option.isCorrect) === 1);
+    if (!form.questionText.trim() || !correctOption) {
+      setError('Add question text and select the correct answer before generating learning content.');
+      return;
+    }
+
+    setLearningContentGenerating(true);
+    setError('');
+    setRecapError('');
+    try {
+      let explanation = form.explanation;
+      if (!String(explanation || '').trim()) {
+        const result = await generateQuestionExplanation(buildAiLearningPayload());
+        explanation = result.explanation || '';
+        setForm((current) => ({ ...current, explanation: current.explanation?.trim() ? current.explanation : explanation }));
+      }
+
+      if (form.questionType === 'sba') {
+        const whyResult = await generateWhyIncorrectExplanations(buildAiLearningPayload({ ...form, explanation }, explanation));
+        const generatedMap = new Map((whyResult.items || []).map((item) => [String(item.optionLabel || '').toUpperCase(), item.whyIncorrect || '']));
+        setForm((current) => ({
+          ...current,
+          options: current.options.map((option) => (
+            Number(option.isCorrect) === 1 || option.whyIncorrect
+              ? option
+              : { ...option, whyIncorrect: generatedMap.get(option.optionLabel) || option.whyIncorrect || '' }
+          )),
+        }));
+      }
+
+      if (!recap) {
+        const generatedRecap = editingId
+          ? await generateTheoryRecap(editingId)
+          : await generateQuestionTheoryCard(buildAiLearningPayload({ ...form, explanation }, explanation));
+        setRecap(generatedRecap);
+      }
+
+      showToast('AI drafted missing learning content. Review before saving.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Unable to generate missing learning content'));
+    } finally {
+      setLearningContentGenerating(false);
+    }
+  }
+
+  function handleTfCorrect(index, value) {
+    setForm((current) => ({
+      ...current,
+      options: current.options.map((option, optionIndex) =>
+        optionIndex === index ? { ...option, isCorrect: Number(value) } : option
+      ),
+    }));
+  }
+
+  async function handleFilterSubmit(event) {
+    event.preventDefault();
+    await loadQuestions(filters);
+  }
+
+  async function handleExportQuestions() {
+    setExporting(true);
+    setError('');
+
+    try {
+      const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
+      const blob = await exportQuestions(params);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `questions-export-${Date.now()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showToast('Question export downloaded successfully.');
+    } catch (exportError) {
+      setError(getErrorMessage(exportError, 'Unable to export questions'));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleImportFileChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setImporting(true);
+    setError('');
+
+    try {
+      const result = await importQuestions(file);
+      await Promise.all([loadQuestions(filters), loadMeta()]);
+
+      if (result.failedCount > 0) {
+        setError(result.errors.join(' | '));
+      }
+
+      showToast(
+        result.failedCount > 0
+          ? `${result.importedCount} question(s) imported with ${result.failedCount} issue(s).`
+          : `${result.importedCount} question(s) imported successfully.`
+      );
+    } catch (importError) {
+      setError(getErrorMessage(importError, 'Unable to import questions'));
+    } finally {
+      if (event.target) {
+        event.target.value = '';
+      }
+      setImporting(false);
+    }
+  }
+
+  async function handleSaveQuestion(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+
+    try {
+      const payload = {
+        courseId: Number(form.courseId),
+        subjectId: Number(form.subjectId),
+        topicId: form.topicId ? Number(form.topicId) : null,
+        lessonId: form.lessonId ? Number(form.lessonId) : null,
+        topicLabel: form.topicLabel,
+        category: form.category,
+        questionType: form.questionType,
+        questionText: form.questionText,
+        keywordsText: form.keywordsText,
+        explanation: form.explanation,
+        status: form.status,
+        options: form.options,
+      };
+
+      if (editingId) {
+        await updateQuestion(editingId, payload);
+        showToast('Question updated successfully.');
+        resetComposer();
+      } else {
+        const result = await createQuestion(payload);
+        if (recap) {
+          const recapPayload = recapToUpsertPayload(recap);
+          if (recapPayload) {
+            await upsertTheoryRecap(result.id, recapPayload);
+          }
+        }
+        showToast(recap ? 'Question and AI learning content created.' : 'Question created. You can now add a Theory Recap below.');
+        setEditingId(result.id);
+        setRecap(null);
+        setRecapError('');
+      }
+
+      await loadQuestions(filters);
+    } catch (saveError) {
+      setError(getErrorMessage(saveError, editingId ? 'Unable to update question' : 'Unable to create question'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleEditQuestion(questionId) {
+    setLoadingQuestionId(questionId);
+    setError('');
+    setRecap(null);
+    setRecapError('');
+
+    try {
+      const [data, recapData] = await Promise.allSettled([
+        fetchQuestion(questionId),
+        fetchTheoryRecap(questionId),
+      ]);
+
+      if (data.status === 'rejected') {
+        throw data.reason;
+      }
+
+      setEditingId(questionId);
+      setForm(mapQuestionToForm(data.value));
+      setRecap(recapData.status === 'fulfilled' ? recapData.value : null);
+      setModalOpen(true);
+    } catch (loadError) {
+      setError(getErrorMessage(loadError, 'Unable to load question details'));
+    } finally {
+      setLoadingQuestionId(null);
+    }
+  }
+
+  async function handleRecapSave(fields) {
+    if (!editingId) {
+      setRecap(adminFieldsToRecap(fields));
+      showToast('Draft theory card updated. It will be saved with the question.');
+      return;
+    }
+    setRecapSaving(true);
+    setRecapError('');
+    try {
+      const saved = await upsertTheoryRecap(editingId, fields);
+      setRecap(saved);
+      showToast('Theory recap saved.');
+    } catch (err) {
+      setRecapError(getErrorMessage(err, 'Unable to save theory recap'));
+    } finally {
+      setRecapSaving(false);
+    }
+  }
+
+  async function handleRecapGenerate() {
+    setRecapGenerating(true);
+    setRecapError('');
+    try {
+      const generated = editingId
+        ? (recap ? await regenerateTheoryRecap(editingId) : await generateTheoryRecap(editingId))
+        : await generateQuestionTheoryCard(buildAiLearningPayload());
+      setRecap(generated);
+      showToast('Theory recap generated.');
+    } catch (err) {
+      setRecapError(getErrorMessage(err, 'Unable to generate theory recap'));
+    } finally {
+      setRecapGenerating(false);
+    }
+  }
+
+  async function handleRecapDelete() {
+    if (!window.confirm('Delete this theory recap?')) return;
+    if (!editingId) {
+      setRecap(null);
+      showToast('Draft theory recap removed.');
+      return;
+    }
+    setRecapSaving(true);
+    setRecapError('');
+    try {
+      await deleteTheoryRecap(editingId);
+      setRecap(null);
+      showToast('Theory recap deleted.');
+    } catch (err) {
+      setRecapError(getErrorMessage(err, 'Unable to delete theory recap'));
+    } finally {
+      setRecapSaving(false);
+    }
+  }
+
+  function handleOpenCreateModal() {
+    setError('');
+    setEditingId(null);
+    setForm(buildDefaultForm());
+    setModalOpen(true);
+  }
+
+  async function handleDeleteQuestion(questionId) {
+    const confirmed = window.confirm('Delete this question permanently?');
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(questionId);
+    setError('');
+
+    try {
+      await deleteQuestion(questionId);
+      if (editingId === questionId) {
+        resetComposer();
+      }
+      showToast('Question deleted successfully.');
+      await loadQuestions(filters);
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError, 'Unable to delete question'));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function toggleQuestionSelection(questionId) {
+    setSelectedQuestionIds((current) => {
+      const next = new Set(current);
+      if (next.has(questionId)) {
+        next.delete(questionId);
+      } else {
+        next.add(questionId);
+      }
+      return next;
+    });
+  }
+
+  function toggleAllVisibleQuestions() {
+    setSelectedQuestionIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        questions.forEach((question) => next.delete(question.id));
+      } else {
+        questions.forEach((question) => next.add(question.id));
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkDeleteSelected() {
+    if (selectedVisibleIds.length === 0) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    setError('');
+    try {
+      const result = await bulkDeleteQuestions(selectedVisibleIds);
+      setBulkDeleteOpen(false);
+      setSelectedQuestionIds(new Set());
+      showToast(
+        result.linkedQuestionCount > 0
+          ? `${result.deletedCount} question(s) deleted and removed from ${result.linkedQuizCount} quiz link(s).`
+          : `${result.deletedCount} question(s) deleted successfully.`
+      );
+      await loadQuestions(filters);
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError, 'Unable to delete selected questions'));
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  return (
+    <main className={ui.screenShell}>
+      <section className={ui.managementLayout}>
+        <AppHeader
+          title="Questions module"
+          subtitle="Create, edit, filter, and remove SBA and True/False questions with a cleaner admin workflow."
+        />
+
+        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {toast && createPortal(
+          <div className={cx(ui.toastContainer, ui.toastContainerCenter)} role="status" aria-live="polite">
+            <div className={cx(ui.toast, toast.type === 'success' ? ui.toastSuccess : ui.toastError)}>
+              <span className={ui.toastIcon} aria-hidden="true">
+                {toast.type === 'success' ? '✓' : '⚠'}
+              </span>
+              <span>{toast.text}</span>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        <div className={ui.managementGrid}>
+          <section className={ui.panelCard}>
+            <div className={ui.panelTop}>
+              <div>
+                <h2>Question bank</h2>
+                <p>{loading ? 'Loading questions...' : `${questions.length} question(s) loaded from the live course structure hierarchy`}</p>
+              </div>
+              <div className={ui.questionBankActions}>
+                <span className={ui.tablePill}>{questions.filter((question) => question.questionType === 'sba').length} SBA</span>
+                <span className={ui.tablePill}>{questions.filter((question) => question.questionType === 'true_false').length} T/F</span>
+                <button type="button" className={ui.secondaryAction} onClick={handleExportQuestions} disabled={exporting || importing}>
+                  {exporting ? 'Exporting...' : 'Export CSV'}
+                </button>
+                <button className={ui.secondaryAction}
+                  type="button"
+                 
+                  onClick={() => importInputRef.current?.click()}
+                  disabled={importing || exporting}
+                >
+                  {importing ? 'Importing...' : 'Import CSV'}
+                </button>
+                <button type="button" className={ui.secondaryAction} onClick={() => navigate('/questions/bulk')}>
+                  Bulk Add Questions
+                </button>
+                <button type="button" className={ui.secondaryAction} onClick={() => navigate('/structure')}>
+                  Open Structure
+                </button>
+                <button className={ui.primaryAction} type="button" onClick={handleOpenCreateModal}>
+                  Add question
+                </button>
+                <input className="shrink-0"
+                  ref={importInputRef}
+                  type="file"
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  onChange={handleImportFileChange}
+                />
+              </div>
+            </div>
+
+            <form className={ui.questionFilterGrid} onSubmit={handleFilterSubmit}>
+              <label className={ui.formLabel}>
+                Search
+                <input className={ui.input} name="search" value={filters.search} onChange={handleFilterChange} placeholder="Search question text" />
+              </label>
+              <label className={ui.formLabel}>
+                Course
+                <select className={ui.input} name="courseId" value={filters.courseId} onChange={handleFilterChange}>
+                  <option value="">All courses</option>
+                  {meta.courses.map((course) => (
+                    <option key={course.id} value={course.id}>{course.courseTitle}</option>
+                  ))}
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Subject
+                <select className={ui.input} name="subjectId" value={filters.subjectId} onChange={handleFilterChange}>
+                  <option value="">All subjects</option>
+                  {filterSubjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>{subject.subjectName}</option>
+                  ))}
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Topic
+                <select className={ui.input} name="topicId" value={filters.topicId} onChange={handleFilterChange}>
+                  <option value="">All topics</option>
+                  {filterTopics.map((topic) => (
+                    <option key={topic.id} value={topic.id}>{topic.topicName}</option>
+                  ))}
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Lesson
+                <select className={ui.input} name="lessonId" value={filters.lessonId} onChange={handleFilterChange}>
+                  <option value="">All lessons</option>
+                  {filterLessons.map((lesson) => (
+                    <option key={lesson.id} value={lesson.id}>{lesson.lessonTitle}</option>
+                  ))}
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Type
+                <select className={ui.input} name="type" value={filters.type} onChange={handleFilterChange}>
+                  <option value="">All</option>
+                  <option value="sba">SBA</option>
+                  <option value="true_false">T/F</option>
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Status
+                <select className={ui.input} name="status" value={filters.status} onChange={handleFilterChange}>
+                  <option value="">All</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Category
+                <select className={ui.input} name="category" value={filters.category} onChange={handleFilterChange}>
+                  <option value="">All</option>
+                  <option value="past_paper">Past Paper</option>
+                  <option value="mock">Mock</option>
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Unclassified
+                <select className={ui.input} name="unclassified" value={filters.unclassified} onChange={handleFilterChange}>
+                  <option value="">All</option>
+                  <option value="true">Needs topic / lesson</option>
+                </select>
+              </label>
+              <div className={cx(ui.buttonRow, ui.filterActions)}>
+                <button className={ui.primaryAction} type="submit">Filter</button>
+                <button className={ui.secondaryAction}
+                  type="button"
+                 
+                  onClick={() => {
+                    const next = { search: '', status: '', type: '', category: '', unclassified: '', courseId: '', subjectId: '', topicId: '', lessonId: '' };
+                    setFilters(next);
+                    loadQuestions(next);
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+
+            <div className={bulkSelectBarClass}>
+              <label className={cx(ui.checkboxLabel, 'min-w-0')}>
+                <input className={tableCheckboxClass}
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleAllVisibleQuestions}
+                  disabled={loading || questions.length === 0}
+                />
+                <span>{allVisibleSelected ? 'Clear visible selection' : 'Select all visible'}</span>
+              </label>
+              <div className={cx(ui.buttonRow, 'justify-end')}>
+                <span className={ui.tablePill}>{selectedVisibleIds.length} selected</span>
+                <button className={ui.dangerAction}
+                  type="button"
+                  onClick={() => setBulkDeleteOpen(true)}
+                  disabled={selectedVisibleIds.length === 0 || bulkDeleting}
+                >
+                  Delete selected
+                </button>
+              </div>
+            </div>
+
+            <div className={ui.tableShell}>
+              <table className={ui.modernTable}>
+                <thead>
+                  <tr>
+                    <th className={ui.tableHeadCell}>
+                      <input className={tableCheckboxClass}
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        onChange={toggleAllVisibleQuestions}
+                        disabled={loading || questions.length === 0}
+                        aria-label="Select all visible questions"
+                      />
+                    </th>
+                    <th className={ui.tableHeadCell}>ID</th>
+                    <th className={ui.tableHeadCell}>Question</th>
+                    <th className={ui.tableHeadCell}>Course</th>
+                    <th className={ui.tableHeadCell}>Hierarchy</th>
+                    <th className={ui.tableHeadCell}>Type</th>
+                    <th className={ui.tableHeadCell}>Status</th>
+                    <th className={ui.tableHeadCell}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="8" className={ui.tableEmpty}>Loading questions...</td>
+                    </tr>
+                  ) : null}
+                  {!loading && questions.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" className={ui.tableEmpty}>No questions found.</td>
+                    </tr>
+                  ) : null}
+                  {!loading && questions.map((question) => (
+                    <tr key={question.id}>
+                      <td className={ui.tableCell}>
+                        <input className={tableCheckboxClass}
+                          type="checkbox"
+                          checked={selectedQuestionIds.has(question.id)}
+                          onChange={() => toggleQuestionSelection(question.id)}
+                          aria-label={`Select question #${question.id}`}
+                        />
+                      </td>
+                      <td className={ui.tableCell}>#{question.id}</td>
+                      <td className={ui.tableCell}>
+                        <strong>{question.questionText.slice(0, 80)}{question.questionText.length > 80 ? '...' : ''}</strong>
+                        <div className={ui.tableSubtext}>
+                          {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.keywordsText ? `Keywords: ${question.keywordsText}` : null]
+                            .filter(Boolean)
+                            .join(' • ')}
+                        </div>
+                      </td>
+                      <td className={ui.tableCell}>{question.courseTitle || '-'}</td>
+                      <td className={ui.tableCell}>{[question.subjectName, question.topicName, question.lessonTitle].filter(Boolean).join(' / ') || '-'}</td>
+                      <td className={ui.tableCell}><span className={ui.tablePill}>{question.questionType === 'sba' ? 'SBA' : 'T/F'}</span></td>
+                      <td className={ui.tableCell}><span className={statusPill(question.status)}>{question.status}</span></td>
+                      <td className={ui.tableCell}>
+                        <div className={ui.buttonRow}>
+                          <button className={cx(ui.iconButton, 'min-h-[38px] px-0')}
+                            type="button"
+                           
+                            aria-label={`Edit question #${question.id}`}
+                            title="Edit question"
+                            onClick={() => handleEditQuestion(question.id)}
+                            disabled={loadingQuestionId === question.id}
+                          >
+                            <EditActionIcon />
+                          </button>
+                          <button className={cx(ui.dangerIconButton, 'min-h-[38px] px-0')}
+                            type="button"
+                           
+                            aria-label={`Delete question #${question.id}`}
+                            title="Delete question"
+                            onClick={() => handleDeleteQuestion(question.id)}
+                            disabled={deletingId === question.id}
+                          >
+                            <DeleteActionIcon />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        {bulkDeleteOpen && createPortal(
+          <div className={ui.modalBackdrop} onClick={() => !bulkDeleting && setBulkDeleteOpen(false)}>
+            <div className={ui.confirmModal} onClick={(event) => event.stopPropagation()}>
+              <div className={ui.confirmModalHead}>
+                <div>
+                  <h2>Delete selected questions?</h2>
+                  <p>This will permanently delete {selectedVisibleIds.length} selected question(s).</p>
+                </div>
+              </div>
+              <div className={ui.confirmModalBody}>
+                {selectedLinkedQuestionCount > 0 ? (
+                  <div className={bulkWarningClass}>
+                    {selectedLinkedQuestionCount} selected question(s) are linked to {selectedLinkedQuizCount} quiz link(s). Deleting them will remove those questions from affected quizzes.
+                  </div>
+                ) : (
+                  <p className={ui.entityModalText}>No selected question appears to be linked to a quiz.</p>
+                )}
+              </div>
+              <div className={ui.modalActions}>
+                <button className={ui.secondaryAction}
+                  type="button"
+                  onClick={() => setBulkDeleteOpen(false)}
+                  disabled={bulkDeleting}
+                >
+                  Cancel
+                </button>
+                <button className={ui.dangerAction}
+                  type="button"
+                  onClick={handleBulkDeleteSelected}
+                  disabled={bulkDeleting || selectedVisibleIds.length === 0}
+                >
+                  {bulkDeleting ? 'Deleting...' : 'Delete selected'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        <QuestionEditModal
+          open={modalOpen}
+          form={form}
+          meta={meta}
+          saving={saving}
+          onClose={resetComposer}
+          onSubmit={handleSaveQuestion}
+          onFormChange={handleFormChange}
+          onOptionTextChange={handleOptionTextChange}
+          onSbaCorrect={handleSbaCorrect}
+          onTfCorrect={handleTfCorrect}
+          onOptionWhyIncorrectChange={handleOptionWhyIncorrectChange}
+          onGenerateExplanation={handleGenerateExplanation}
+          onGenerateWhyIncorrect={handleGenerateWhyIncorrect}
+          onGenerateLearningContent={handleGenerateLearningContent}
+          explanationGenerating={explanationGenerating}
+          whyGenerating={whyGenerating}
+          learningContentGenerating={learningContentGenerating}
+          visibleSubjects={visibleSubjects}
+          visibleTopics={visibleTopics}
+          visibleLessons={visibleLessons}
+          editingId={editingId}
+          onOpenStructure={() => navigate('/structure')}
+          recap={recap}
+          recapLoading={recapLoading}
+          recapSaving={recapSaving}
+          recapGenerating={recapGenerating}
+          recapError={recapError}
+          onRecapSave={handleRecapSave}
+          onRecapGenerate={handleRecapGenerate}
+          onRecapDelete={handleRecapDelete}
+        />
+      </section>
+    </main>
+  );
+}
+
+const RECAP_ARRAY_FIELDS = [
+  { key: 'etiology', label: 'Etiology' },
+  { key: 'pathophysiology', label: 'Pathophysiology' },
+  { key: 'clinicalFeatures', label: 'Clinical Features' },
+  { key: 'investigations', label: 'Investigations' },
+  { key: 'treatment', label: 'Treatment' },
+  { key: 'keyPoints', label: 'Key Points' },
+];
+
+function arrayToText(arr) {
+  return Array.isArray(arr) ? arr.join('\n') : '';
+}
+
+export function TheoryRecapAdminSection({ recap, loading, saving, generating, error, onSave, onGenerate, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+  const [fields, setFields] = useState({
+    conceptName: '',
+    hierarchyCourse: '',
+    hierarchySubject: '',
+    hierarchyTopic: '',
+    hierarchyLesson: '',
+    etiology: '',
+    pathophysiology: '',
+    clinicalFeatures: '',
+    investigations: '',
+    treatment: '',
+    keyPoints: '',
+    mnemonic: '',
+    reviewedStatus: 'pending',
+  });
+
+  useEffect(() => {
+    if (recap) {
+      setFields({
+        conceptName: recap.conceptName || '',
+        hierarchyCourse: recap.hierarchy?.course || '',
+        hierarchySubject: recap.hierarchy?.subject || '',
+        hierarchyTopic: recap.hierarchy?.topic || '',
+        hierarchyLesson: recap.hierarchy?.lesson || '',
+        etiology: arrayToText(recap.etiology),
+        pathophysiology: arrayToText(recap.pathophysiology),
+        clinicalFeatures: arrayToText(recap.clinicalFeatures),
+        investigations: arrayToText(recap.investigations),
+        treatment: arrayToText(recap.treatment),
+        keyPoints: arrayToText(recap.keyPoints),
+        mnemonic: recap.mnemonic || '',
+        reviewedStatus: recap.reviewedStatus || 'pending',
+      });
+    } else {
+      setFields({
+        conceptName: '',
+        hierarchyCourse: '',
+        hierarchySubject: '',
+        hierarchyTopic: '',
+        hierarchyLesson: '',
+        etiology: '',
+        pathophysiology: '',
+        clinicalFeatures: '',
+        investigations: '',
+        treatment: '',
+        keyPoints: '',
+        mnemonic: '',
+        reviewedStatus: 'pending',
+      });
+    }
+  }, [recap]);
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setFields((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const payload = {
+      conceptName: fields.conceptName || null,
+      hierarchyCourse: fields.hierarchyCourse || null,
+      hierarchySubject: fields.hierarchySubject || null,
+      hierarchyTopic: fields.hierarchyTopic || null,
+      hierarchyLesson: fields.hierarchyLesson || null,
+      mnemonic: fields.mnemonic || null,
+      reviewedStatus: fields.reviewedStatus,
+    };
+    for (const { key } of RECAP_ARRAY_FIELDS) {
+      payload[key] = textToArray(fields[key]);
+    }
+    onSave(payload);
+  }
+
+  const busy = saving || generating;
+
+  return (
+    <div className={recapAdminSectionClass}>
+      <button className={recapToggleClass}
+        type="button"
+       
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+      >
+        <span className={recapToggleIconClass} aria-hidden="true">⚡</span>
+        <span className={recapToggleLabelClass}>Theory Recap</span>
+        {recap ? (
+          <span className={cx(recapBadgeClass, recapBadgeExistsClass)}>{recap.reviewedStatus || 'pending'}</span>
+        ) : (
+          <span className={cx(recapBadgeClass, recapBadgeNoneClass)}>none</span>
+        )}
+        <span className={recapToggleChevronClass} aria-hidden="true">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded ? (
+        <div className={recapBodyClass}>
+          {loading ? (
+            <p className={recapLoadingClass}>Loading recap…</p>
+          ) : (
+            <>
+              {error ? <div className={ui.feedbackError}>{error}</div> : null}
+
+              <div className={ui.buttonRow}>
+                <button className={ui.secondaryAction}
+                  type="button"
+                 
+                  onClick={onGenerate}
+                  disabled={busy}
+                >
+                  {generating ? 'Generating…' : recap ? 'Regenerate with AI' : 'Generate with AI'}
+                </button>
+                {recap ? (
+                  <button className={ui.dangerAction}
+                    type="button"
+                   
+                    onClick={onDelete}
+                    disabled={busy}
+                  >
+                    Delete recap
+                  </button>
+                ) : null}
+              </div>
+
+              <form className={ui.stackForm} onSubmit={handleSubmit}>
+                <label className={ui.formLabel}>
+                  Concept Name
+                  <input className={ui.input} name="conceptName" value={fields.conceptName} onChange={handleChange} placeholder="e.g. Aortic Stenosis" />
+                </label>
+
+                <div className={recapHierarchyGridClass}>
+                  <label className={ui.formLabel}>
+                    Course
+                    <input className={ui.input} name="hierarchyCourse" value={fields.hierarchyCourse} onChange={handleChange} placeholder="Course" />
+                  </label>
+                  <label className={ui.formLabel}>
+                    Subject
+                    <input className={ui.input} name="hierarchySubject" value={fields.hierarchySubject} onChange={handleChange} placeholder="Subject" />
+                  </label>
+                  <label className={ui.formLabel}>
+                    Topic
+                    <input className={ui.input} name="hierarchyTopic" value={fields.hierarchyTopic} onChange={handleChange} placeholder="Topic" />
+                  </label>
+                  <label className={ui.formLabel}>
+                    Lesson
+                    <input className={ui.input} name="hierarchyLesson" value={fields.hierarchyLesson} onChange={handleChange} placeholder="Lesson" />
+                  </label>
+                </div>
+
+                {RECAP_ARRAY_FIELDS.map(({ key, label }) => (
+                  <label className={ui.formLabel} key={key}>
+                    {label} <span className={recapHintClass}>(one item per line)</span>
+                    <textarea className={ui.textarea}
+                      name={key}
+                      rows={3}
+                      value={fields[key]}
+                      onChange={handleChange}
+                      placeholder={`Enter ${label.toLowerCase()} points, one per line`}
+                    />
+                  </label>
+                ))}
+
+                <label className={ui.formLabel}>
+                  Mnemonic
+                  <textarea className={ui.textarea} name="mnemonic" rows={2} value={fields.mnemonic} onChange={handleChange} placeholder="Optional mnemonic" />
+                </label>
+
+                <label className={ui.formLabel}>
+                  Review Status
+                  <select className={ui.input} name="reviewedStatus" value={fields.reviewedStatus} onChange={handleChange}>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </label>
+
+                <div className={ui.buttonRow}>
+                  <button className={ui.primaryAction} type="submit" disabled={busy}>
+                    {saving ? 'Saving…' : 'Save recap'}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function QuestionEditModal({
+  open,
+  form,
+  meta,
+  saving,
+  onClose,
+  onSubmit,
+  onFormChange,
+  onOptionTextChange,
+  onSbaCorrect,
+  onTfCorrect,
+  onOptionWhyIncorrectChange,
+  onGenerateExplanation,
+  onGenerateWhyIncorrect,
+  onGenerateLearningContent,
+  explanationGenerating,
+  whyGenerating,
+  learningContentGenerating,
+  visibleSubjects,
+  visibleTopics,
+  visibleLessons,
+  editingId,
+  onOpenStructure,
+  recap,
+  recapLoading,
+  recapSaving,
+  recapGenerating,
+  recapError,
+  onRecapSave,
+  onRecapGenerate,
+  onRecapDelete,
+}) {
+  if (!open) {
+    return null;
+  }
+
+  const missingWhyIncorrectCount = form.questionType === 'sba'
+    ? form.options.filter((option) => option.optionText && Number(option.isCorrect) !== 1 && !String(option.whyIncorrect || '').trim()).length
+    : 0;
+
+  return createPortal(
+    <div className={ui.modalBackdrop} onClick={onClose}>
+      <div className={cx(ui.entityModal, 'w-[min(1040px,100%)]')} onClick={(event) => event.stopPropagation()}>
+        <div className={ui.entityModalTop}>
+          <div>
+            <h2 className={ui.entityModalTitle}>{editingId ? `Edit question #${editingId}` : 'Add question'}</h2>
+            <p className={ui.entityModalText}>{editingId ? 'Update the selected question and keep it aligned with the live Course → Subject → Topic → Lesson structure.' : 'Create a new SBA or True / False question using the live Course → Subject → Topic → Lesson structure.'}</p>
+          </div>
+          <button type="button" className={ui.subtleIconButton} onClick={onClose} aria-label="Close">
+            x
+          </button>
+        </div>
+
+        <div className={questionModalInlineNoteClass}>
+          This form uses the same hierarchy as the Structure page. Create or edit Courses, Subjects, Topics, and Lessons in the central structure manager first.
+          <div className={cx(ui.buttonRow, 'mt-2.5')}>
+            <button type="button" className={ui.secondaryAction} onClick={onOpenStructure}>Open Structure</button>
+          </div>
+        </div>
+
+        <form className={cx(ui.stackForm, ui.modalForm, questionModalFormClass)} onSubmit={onSubmit}>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-4 gap-y-3.5">
+            <label className={ui.formLabel}>
+              Course
+              <select className={ui.input} name="courseId" value={form.courseId} onChange={onFormChange} required>
+                <option value="">Select course</option>
+                {meta.courses.map((course) => (
+                  <option key={course.id} value={course.id}>{course.courseTitle}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className={ui.formLabel}>
+              Subject
+              <select className={ui.input} name="subjectId" value={form.subjectId} onChange={onFormChange} required>
+                <option value="">Select subject</option>
+                {visibleSubjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>{subject.subjectName}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className={ui.formLabel}>
+              Topic
+              <select className={ui.input} name="topicId" value={form.topicId} onChange={onFormChange}>
+                <option value="">All topics under subject</option>
+                {visibleTopics.map((topic) => (
+                  <option key={topic.id} value={topic.id}>{topic.topicName}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className={ui.formLabel}>
+              Lesson
+              <select className={ui.input} name="lessonId" value={form.lessonId} onChange={onFormChange}>
+                <option value="">All lessons under topic</option>
+                {visibleLessons.map((lesson) => (
+                  <option key={lesson.id} value={lesson.id}>{lesson.lessonTitle}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className={ui.formLabel}>
+              Category
+              <select className={ui.input} name="category" value={form.category} onChange={onFormChange}>
+                <option value="past_paper">Past Paper</option>
+                <option value="mock">Mock</option>
+              </select>
+            </label>
+
+            <label className={ui.formLabel}>
+              Type
+              <select className={ui.input} name="questionType" value={form.questionType} onChange={onFormChange}>
+                <option value="sba">SBA</option>
+                <option value="true_false">T/F</option>
+              </select>
+            </label>
+
+            <label className={ui.formLabel}>
+              Status
+              <select className={ui.input} name="status" value={form.status} onChange={onFormChange}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
+          </div>
+
+          <label className={ui.formLabel}>
+            Internal Topic Label
+            <input className={ui.input}
+              name="topicLabel"
+              value={form.topicLabel}
+              onChange={onFormChange}
+              placeholder="Optional internal label for extra grouping only"
+            />
+          </label>
+
+          <label className={ui.formLabel}>
+            Question text
+            <textarea className={ui.textarea} name="questionText" rows="4" value={form.questionText} onChange={onFormChange} required />
+          </label>
+
+          <label className={ui.formLabel}>
+            Keywords
+            <input className={ui.input}
+              list="question-keyword-suggestions"
+              name="keywordsText"
+              value={form.keywordsText}
+              onChange={onFormChange}
+              placeholder="Example: cardiology, murmur, valvular disease, cardiology_quiz_1"
+            />
+          </label>
+          <datalist id="question-keyword-suggestions">
+            {(meta.keywordSuggestions || []).map((keyword) => (
+              <option key={keyword} value={keyword} />
+            ))}
+          </datalist>
+
+          <label className={ui.formLabel}>
+            Main explanation
+            <textarea className={ui.textarea} name="explanation" rows="3" value={form.explanation} onChange={onFormChange} />
+          </label>
+
+          <div className="grid items-center gap-3 rounded-2xl border border-brand-primary/20 bg-[linear-gradient(135deg,rgba(37,99,235,0.05),transparent_54%),var(--surface-2)] p-3.5 min-[721px]:grid-cols-[minmax(0,1fr)_auto]">
+            <div>
+              <strong className="m-0 block text-sm font-extrabold text-ink-strong">AI learning content</strong>
+              <span className="mt-1 block text-xs leading-snug text-ink-soft">Generate only missing study content. Question text, options, and correct answer stay unchanged.</span>
+            </div>
+            <div className={ui.buttonRow}>
+              <button className={ui.secondaryAction}
+                type="button"
+               
+                onClick={() => onGenerateExplanation()}
+                disabled={explanationGenerating || learningContentGenerating || Boolean(form.explanation?.trim())}
+              >
+                {explanationGenerating ? 'Generating...' : 'Generate Explanation'}
+              </button>
+              {form.questionType === 'sba' ? (
+                <button type="button" className={ui.secondaryAction} onClick={onGenerateWhyIncorrect} disabled={whyGenerating || learningContentGenerating}>
+                  {whyGenerating ? 'Generating...' : 'Generate Why Incorrect'}
+                </button>
+              ) : null}
+              <button className={ui.primaryAction}
+                type="button"
+                onClick={onGenerateLearningContent}
+                disabled={learningContentGenerating || explanationGenerating || whyGenerating}
+              >
+                {learningContentGenerating ? 'Generating...' : 'Generate Explanation + Why Incorrect + Quick Theory'}
+              </button>
+            </div>
+          </div>
+
+          <div className={ui.questionBuilder}>
+            <div className={cx(ui.questionBuilderHead, 'mb-1')}>
+              <span>{form.questionType === 'sba' ? 'SBA options' : 'T/F statements'}</span>
+              {form.questionType === 'sba' ? (
+                <button type="button" className={ui.secondaryAction} onClick={onGenerateWhyIncorrect} disabled={whyGenerating}>
+                  {whyGenerating ? 'Generating...' : 'Generate why incorrect explanations'}
+                </button>
+              ) : null}
+            </div>
+            {missingWhyIncorrectCount > 0 ? (
+              <div className={cx(ui.warningFeedback, 'my-0.5 mb-2.5')}>
+                {missingWhyIncorrectCount} incorrect option{missingWhyIncorrectCount === 1 ? '' : 's'} missing a why-incorrect explanation. You can save, but students will only see reasons for completed options.
+              </div>
+            ) : null}
+            {form.options.map((option, index) => (
+              <div className={ui.optionBuilderCard} key={option.optionLabel}>
+                <div className={ui.optionBuilderTop}>
+                  <strong>{option.optionLabel}</strong>
+                  {form.questionType === 'sba' ? (
+                    <label className={ui.inlineCheck}>
+                      <input className="shrink-0"
+                        type="radio"
+                        name="editSbaCorrect"
+                        checked={option.isCorrect === 1}
+                        onChange={() => onSbaCorrect(option.optionLabel)}
+                      />
+                      Correct
+                    </label>
+                  ) : (
+                    <select className={ui.input} value={option.isCorrect} onChange={(event) => onTfCorrect(index, event.target.value)}>
+                      <option value={0}>False</option>
+                      <option value={1}>True</option>
+                    </select>
+                  )}
+                </div>
+                <input className={ui.input}
+                  value={option.optionText}
+                  onChange={(event) => onOptionTextChange(index, event.target.value)}
+                  placeholder={form.questionType === 'sba' ? `Option ${option.optionLabel}` : `Statement ${option.optionLabel}`}
+                />
+                {form.questionType === 'sba' && Number(option.isCorrect) !== 1 ? (
+                  <label className={ui.whyIncorrectField}>
+                    Why option {option.optionLabel} is incorrect
+                    <textarea className={ui.textarea}
+                      rows={2}
+                      value={option.whyIncorrect || ''}
+                      onChange={(event) => onOptionWhyIncorrectChange(index, event.target.value)}
+                      placeholder="Optional but recommended. Explain why this option is not the best answer."
+                    />
+                  </label>
+                ) : null}
+              </div>
+            ))}
+          </div>
+
+          <div className={ui.buttonRow}>
+            <button className={ui.primaryAction} type="submit" disabled={saving}>
+              {saving ? 'Saving...' : editingId ? 'Update question' : 'Save question'}
+            </button>
+            <button type="button" className={ui.secondaryAction} onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+          </div>
+        </form>
+
+        {editingId || recap ? (
+          <div className={questionModalRecapPanelClass}>
+            <TheoryRecapAdminSection
+              recap={recap}
+              loading={recapLoading}
+              saving={recapSaving}
+              generating={recapGenerating}
+              error={recapError}
+              onSave={onRecapSave}
+              onGenerate={onRecapGenerate}
+              onDelete={onRecapDelete}
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>,
+    document.body
+  );
+}

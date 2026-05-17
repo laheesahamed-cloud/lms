@@ -1,0 +1,1293 @@
+/* ============================================================
+   Student App — Concept A "Elevated Navy"
+   Tokens, shared primitives, light + dark mode.
+   Scoped to .student-app-shell so admin/auth/landing stay untouched.
+   ============================================================ */
+
+.student-app-shell {
+  /* ────────────────────────────────────────────────────────────
+     CONCEPT A LOCAL TOKENS (--sa-*)
+     Used internally by student-app/dashboard/courses/quizzes CSS.
+     ──────────────────────────────────────────────────────────── */
+  --sa-bg: #eff1fb;
+  --sa-bg-grad-1: #dce0f4;
+  --sa-bg-grad-2: #e7defa;
+  --sa-surface: #ffffff;
+  --sa-surface-2: #f4f5fb;
+  --sa-surface-raised: #ffffff;
+
+  --sa-ink: #0e1538;
+  --sa-ink-deep: #070a20;
+  --sa-text-2: #5c6582;
+  --sa-text-3: #a8aecb;
+
+  --sa-border: #e5e7f0;
+  --sa-border-soft: #eef0f6;
+  --sa-border-strong: #d6dae8;
+
+  --sa-primary: #3d5afe;
+  --sa-primary-deep: #2336cc;
+  --sa-primary-soft: #e5e9ff;
+  --sa-purple: #8b5cf6;
+  --sa-purple-soft: #f0e7ff;
+
+  --sa-warn: #f08a2c;
+  --sa-warn-soft: #fff1de;
+  --sa-warn-deep: #a05a0f;
+  --sa-danger: #e5484d;
+  --sa-danger-soft: rgba(229, 72, 77, 0.08);
+  --sa-danger-deep: #a33b3f;
+  --sa-ok: #16a974;
+  --sa-ok-soft: rgba(22, 169, 116, 0.1);
+  --sa-ok-deep: #087a54;
+
+  --sa-grad: linear-gradient(135deg, #3d5afe 0%, #8b5cf6 100%);
+  --sa-grad-soft: linear-gradient(135deg, #e5e9ff 0%, #f0e7ff 100%);
+  --sa-grad-warm: linear-gradient(135deg, #fff6e9 0%, #ffe4c2 100%);
+
+  --app-bg: var(--sa-bg);
+  --page-background: var(--sa-bg);
+
+  --sa-shadow-card: 0 1px 0 rgba(15, 20, 48, 0.03);
+  --sa-shadow-card-hover: 0 1px 0 rgba(15, 20, 48, 0.03), 0 18px 42px rgba(14, 21, 56, 0.08);
+  --sa-shadow-cta: 0 10px 24px -8px rgba(61, 90, 254, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --sa-shadow-warn: 0 6px 14px -4px rgba(240, 138, 44, 0.55);
+
+  --sa-radius-xs: 10px;
+  --sa-radius-sm: 14px;
+  --sa-radius-md: 18px;
+  --sa-radius-lg: 22px;
+  --sa-radius-xl: 28px;
+
+  --sa-font-display: "Bricolage Grotesque", "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sa-font-sans: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --sa-ease: cubic-bezier(0.32, 0.72, 0.32, 1);
+  --sa-dur: 160ms;
+  --sidebar-shell-gap: 16px;
+
+  /* ────────────────────────────────────────────────────────────
+     GLOBAL TOKEN REBIND — Concept A
+     Rebind the framework's design tokens INSIDE the student shell
+     so every Tailwind utility (bg-surface-card, text-ink-strong,
+     border-line-soft, text-brand-primary, font-display, etc.)
+     automatically resolves to Concept A values.
+     This is what makes the whole student app feel like Concept A,
+     not just the dashboard.
+     ──────────────────────────────────────────────────────────── */
+
+  /* Surfaces */
+  --surface-0: var(--sa-bg);
+  --surface-1: var(--sa-surface);
+  --surface-2: var(--sa-surface-2);
+  --surface-3: var(--sa-border-soft);
+  --surface-4: var(--sa-border);
+  --surface-card: var(--sa-surface);
+  --surface-card-elevated: var(--sa-surface);
+  --surface-glass: rgba(255, 255, 255, 0.82);
+  --surface-glass-strong: rgba(255, 255, 255, 0.92);
+  --surface-glass-subtle: rgba(255, 255, 255, 0.72);
+
+  /* Borders */
+  --line-soft: var(--sa-border);
+  --line-medium: var(--sa-border-strong);
+  --line-strong: #b9c0d5;
+  --color-border-soft: var(--sa-border);
+  --color-border-medium: var(--sa-border-strong);
+  --color-border-strong: #b9c0d5;
+
+  /* Ink (text) */
+  --ink-strong: var(--sa-ink);
+  --ink-medium: #2a2f55;
+  --ink-soft: var(--sa-text-2);
+  --ink-muted: var(--sa-text-3);
+
+  /* Brand / primary */
+  --color-primary: var(--sa-primary);
+  --color-primary-hover: var(--sa-primary-deep);
+  --color-primary-light: var(--sa-primary-soft);
+  --color-primary-glow: rgba(61, 90, 254, 0.24);
+  --color-secondary: var(--sa-purple);
+  --color-secondary-light: var(--sa-purple-soft);
+  --color-accent: var(--sa-purple);
+  --color-accent-light: var(--sa-purple-soft);
+
+  --brand-primary-start: #3d5afe;
+  --brand-primary-mid: #5b71fe;
+  --brand-primary-end: #8b5cf6;
+  --brand-primary-solid: #3d5afe;
+  --brand-primary-soft: #e5e9ff;
+  --brand-gradient-primary: var(--sa-grad);
+  --brand-gradient-vivid: var(--sa-grad);
+  --brand-gradient-hero: linear-gradient(135deg, #0e1538 0%, #3d5afe 60%, #8b5cf6 100%);
+  --brand-shadow-soft: 0 6px 20px rgba(61, 90, 254, 0.16);
+  --brand-shadow-md: 0 10px 28px rgba(61, 90, 254, 0.20);
+  --brand-shadow-lg: 0 18px 44px rgba(61, 90, 254, 0.22);
+  --brand-glow: 0 0 20px rgba(61, 90, 254, 0.26), 0 0 44px rgba(139, 92, 246, 0.12);
+
+  /* Semantic */
+  --color-success: var(--sa-ok);
+  --color-success-light: var(--sa-ok-soft);
+  --color-warning: var(--sa-warn);
+  --color-warning-light: var(--sa-warn-soft);
+  --color-error: var(--sa-danger);
+  --color-error-light: var(--sa-danger-soft);
+
+  /* Typography */
+  --font-display: var(--sa-font-display);
+  --font-body: var(--sa-font-sans);
+
+  /* Radii — softer, more rounded for app feel */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-2xl: 28px;
+
+  /* Shadows */
+  --shadow-xs: var(--sa-shadow-card);
+  --shadow-sm: var(--sa-shadow-card);
+  --shadow-md: var(--sa-shadow-card-hover);
+  --shadow-lg: 0 24px 60px rgba(14, 21, 56, 0.12);
+  --shadow-xl: 0 28px 80px rgba(14, 21, 56, 0.15);
+  --shadow-2xl: 0 32px 100px rgba(14, 21, 56, 0.18);
+  --shadow-glow: var(--brand-glow);
+  --card-shadow: var(--sa-shadow-card);
+
+  background: var(--sa-bg);
+  color: var(--sa-ink);
+  font-family: var(--sa-font-sans);
+  letter-spacing: 0;
+}
+
+.lms-sidebar--student-model {
+  --student-sidebar-ink: #0e1538;
+  --student-sidebar-muted: #5c6582;
+  --student-sidebar-faint: #a8aecb;
+  --student-sidebar-border: rgba(14, 21, 56, 0.06);
+  --student-sidebar-hover: rgba(14, 21, 56, 0.04);
+  --student-sidebar-active: linear-gradient(135deg, rgba(61, 90, 254, 0.1), rgba(139, 92, 246, 0.1));
+  --student-sidebar-grad: linear-gradient(135deg, #3d5afe 0%, #8b5cf6 100%);
+  color: var(--student-sidebar-ink);
+  background: rgba(255, 255, 255, 0.7) !important;
+  border-color: var(--student-sidebar-border) !important;
+  box-shadow: 0 20px 40px -20px rgba(14, 21, 56, 0.12) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.lms-sidebar--student-model::before {
+  opacity: 0 !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-brand {
+  min-height: auto !important;
+  gap: 12px !important;
+  padding: 4px 4px 24px !important;
+  border-bottom: 0 !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-brand-mark {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 12px !important;
+  background: var(--student-sidebar-grad) !important;
+  box-shadow: 0 8px 20px -6px rgba(61, 90, 254, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-brand-name {
+  color: var(--student-sidebar-ink) !important;
+  font-family: "Bricolage Grotesque", "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 19px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.6px !important;
+  line-height: 1 !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-brand-sub {
+  margin-top: 2px;
+  color: var(--student-sidebar-muted) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.2px !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-section-label {
+  display: none !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-nav {
+  gap: 4px !important;
+  padding: 0 !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-link {
+  position: relative;
+  min-height: 44px !important;
+  height: 44px !important;
+  gap: 12px !important;
+  padding: 12px 14px !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  background: transparent !important;
+  color: var(--student-sidebar-muted) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.1px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-link:hover {
+  background: var(--student-sidebar-hover) !important;
+  color: var(--student-sidebar-ink) !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-link.nav-active-glow {
+  background: var(--student-sidebar-active) !important;
+  color: var(--student-sidebar-ink) !important;
+  font-weight: 800 !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-link.nav-active-glow::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  width: 3px;
+  height: 22px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #3d5afe, #8b5cf6);
+  transform: translateY(-50%);
+}
+
+.lms-sidebar--student-model .lms-sidebar-link-icon {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  background: transparent !important;
+  color: currentColor !important;
+  box-shadow: none !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-link-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.lms-sidebar--student-model .lms-sidebar-link-text {
+  color: inherit !important;
+  font-size: 14px !important;
+  font-weight: inherit !important;
+}
+
+.lms-sidebar--student-model .lms-sidebar-student-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 16px 4px 0;
+  border-top: 1px solid var(--student-sidebar-border);
+}
+
+.lms-sidebar--student-model .lms-sidebar-student-avatar {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--student-sidebar-grad);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.lms-sidebar--student-model .lms-sidebar-student-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.lms-sidebar--student-model .lms-sidebar-student-copy strong,
+.lms-sidebar--student-model .lms-sidebar-student-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lms-sidebar--student-model .lms-sidebar-student-copy strong {
+  color: var(--student-sidebar-ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.lms-sidebar--student-model .lms-sidebar-student-copy span {
+  color: var(--student-sidebar-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+@media (min-width: 901px) {
+  .lms-sidebar--student-model:not(.is-overlay-nav) {
+    top: 16px !important;
+    bottom: 16px !important;
+    left: 16px !important;
+    width: 248px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 32px) !important;
+    padding: 22px 18px !important;
+    border: 1px solid var(--student-sidebar-border) !important;
+    border-radius: 24px !important;
+  }
+
+  .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed {
+    width: var(--sidebar-w-collapsed) !important;
+    padding: 14px 8px !important;
+  }
+
+  .lms-sidebar--student-model.is-collapsed .lms-sidebar-brand {
+    justify-content: center !important;
+    padding: 4px 0 14px !important;
+  }
+
+  .lms-sidebar--student-model.is-collapsed .lms-sidebar-link {
+    justify-content: center !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 !important;
+  }
+
+  .lms-sidebar--student-model.is-collapsed .lms-sidebar-link.nav-active-glow::before {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .student-app-shell {
+    --sidebar-shell-gap: 0px;
+  }
+
+  .lms-sidebar--student-model {
+    border-radius: 0 22px 22px 0 !important;
+  }
+}
+
+:root[data-theme='dark'] .lms-sidebar--student-model {
+  --student-sidebar-ink: #f7f8ff;
+  --student-sidebar-muted: #b8bfd8;
+  --student-sidebar-faint: #7d86a5;
+  --student-sidebar-border: rgba(255, 255, 255, 0.08);
+  --student-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --student-sidebar-active: linear-gradient(135deg, rgba(61, 90, 254, 0.22), rgba(139, 92, 246, 0.18));
+  background: rgba(8, 12, 30, 0.78) !important;
+  box-shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.72) !important;
+}
+
+/* ============================================================
+   DARK MODE — first-class, not invert.
+   ============================================================ */
+:root[data-theme="dark"] .student-app-shell,
+.student-app-shell[data-theme="dark"] {
+  /* Local --sa-* tokens, dark variant */
+  --sa-bg: #0b0e1c;
+  --sa-bg-grad-1: #1a1d3a;
+  --sa-bg-grad-2: #25214a;
+  --sa-surface: #161a2e;
+  --sa-surface-2: #1d2138;
+  --sa-surface-raised: #1f2440;
+
+  --sa-ink: #f3f5fb;
+  --sa-ink-deep: #ffffff;
+  --sa-text-2: #a7afcc;
+  --sa-text-3: #6e779a;
+
+  --sa-border: rgba(255, 255, 255, 0.08);
+  --sa-border-soft: rgba(255, 255, 255, 0.05);
+  --sa-border-strong: rgba(255, 255, 255, 0.14);
+
+  --sa-primary: #6c83ff;
+  --sa-primary-deep: #8a9cff;
+  --sa-primary-soft: rgba(108, 131, 255, 0.16);
+  --sa-purple: #a78bfa;
+  --sa-purple-soft: rgba(167, 139, 250, 0.16);
+
+  --sa-warn: #f5a84e;
+  --sa-warn-soft: rgba(245, 168, 78, 0.14);
+  --sa-warn-deep: #ffd9a8;
+  --sa-danger: #fb7185;
+  --sa-danger-soft: rgba(251, 113, 133, 0.12);
+  --sa-danger-deep: #ffb8c0;
+  --sa-ok: #34d399;
+  --sa-ok-soft: rgba(52, 211, 153, 0.12);
+  --sa-ok-deep: #bbf7d0;
+
+  --sa-grad: linear-gradient(135deg, #6c83ff 0%, #a78bfa 100%);
+  --sa-grad-soft: linear-gradient(135deg, rgba(108, 131, 255, 0.18) 0%, rgba(167, 139, 250, 0.2) 100%);
+  --sa-grad-warm: linear-gradient(135deg, rgba(245, 168, 78, 0.14) 0%, rgba(245, 168, 78, 0.22) 100%);
+
+  --app-bg: var(--sa-bg);
+  --page-background: var(--sa-bg);
+
+  --sa-shadow-card: 0 1px 0 rgba(0, 0, 0, 0.3);
+  --sa-shadow-card-hover: 0 1px 0 rgba(0, 0, 0, 0.3), 0 18px 42px rgba(0, 0, 0, 0.3);
+  --sa-shadow-cta: 0 10px 24px -8px rgba(108, 131, 255, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --sa-shadow-warn: 0 6px 14px -4px rgba(245, 168, 78, 0.4);
+
+  /* Global token rebind, dark variant */
+  --surface-0: var(--sa-bg);
+  --surface-1: var(--sa-surface);
+  --surface-2: var(--sa-surface-2);
+  --surface-3: var(--sa-surface-raised);
+  --surface-4: rgba(255, 255, 255, 0.05);
+  --surface-card: var(--sa-surface);
+  --surface-card-elevated: var(--sa-surface-raised);
+  --surface-glass: rgba(22, 26, 46, 0.78);
+  --surface-glass-strong: rgba(22, 26, 46, 0.92);
+  --surface-glass-subtle: rgba(22, 26, 46, 0.62);
+
+  --line-soft: var(--sa-border);
+  --line-medium: var(--sa-border-strong);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --color-border-soft: var(--sa-border);
+  --color-border-medium: var(--sa-border-strong);
+  --color-border-strong: rgba(255, 255, 255, 0.22);
+
+  --ink-strong: var(--sa-ink);
+  --ink-medium: #d8defc;
+  --ink-soft: var(--sa-text-2);
+  --ink-muted: var(--sa-text-3);
+
+  --color-primary: var(--sa-primary);
+  --color-primary-hover: var(--sa-primary-deep);
+  --color-primary-light: var(--sa-primary-soft);
+  --color-primary-glow: rgba(108, 131, 255, 0.28);
+  --color-secondary: var(--sa-purple);
+  --color-secondary-light: var(--sa-purple-soft);
+  --color-accent: var(--sa-purple);
+  --color-accent-light: var(--sa-purple-soft);
+
+  --brand-primary-start: #6c83ff;
+  --brand-primary-mid: #8a9cff;
+  --brand-primary-end: #a78bfa;
+  --brand-primary-solid: #6c83ff;
+  --brand-primary-soft: rgba(108, 131, 255, 0.16);
+  --brand-gradient-primary: var(--sa-grad);
+  --brand-gradient-vivid: var(--sa-grad);
+  --brand-gradient-hero: linear-gradient(135deg, #050714 0%, #6c83ff 60%, #a78bfa 100%);
+  --brand-shadow-soft: 0 6px 20px rgba(108, 131, 255, 0.20);
+  --brand-shadow-md: 0 10px 28px rgba(108, 131, 255, 0.24);
+  --brand-shadow-lg: 0 18px 44px rgba(108, 131, 255, 0.28);
+  --brand-glow: 0 0 20px rgba(108, 131, 255, 0.32), 0 0 44px rgba(167, 139, 250, 0.18);
+
+  --color-success: var(--sa-ok);
+  --color-success-light: var(--sa-ok-soft);
+  --color-warning: var(--sa-warn);
+  --color-warning-light: var(--sa-warn-soft);
+  --color-error: var(--sa-danger);
+  --color-error-light: var(--sa-danger-soft);
+
+  --shadow-xs: var(--sa-shadow-card);
+  --shadow-sm: var(--sa-shadow-card);
+  --shadow-md: var(--sa-shadow-card-hover);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 28px 80px rgba(0, 0, 0, 0.45);
+  --shadow-2xl: 0 32px 100px rgba(0, 0, 0, 0.5);
+  --shadow-glow: var(--brand-glow);
+  --card-shadow: var(--sa-shadow-card);
+
+  background: var(--sa-bg);
+  color: var(--sa-ink);
+}
+
+.student-app-shell,
+.student-app-shell * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.student-app-shell {
+  font-family: var(--sa-font-sans);
+}
+
+/* Display font everywhere headings live */
+.student-app-shell :where(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--sa-font-display);
+  letter-spacing: -0.3px;
+}
+
+.student-app-shell .main-content,
+.student-app-shell .portal-content__frame,
+.student-app-shell .lms-route-reveal {
+  background: var(--sa-bg);
+}
+
+.student-app-shell .lms-route-page {
+  background: var(--sa-bg);
+  color: var(--sa-ink);
+}
+
+/* ============================================================
+   LAYOUT — page widths, padding rhythm.
+   ============================================================ */
+.student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
+  width: min(390px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 0 calc(var(--lms-mobile-content-bottom, 92px) + 28px + env(safe-area-inset-bottom, 0px));
+  color: var(--sa-ink);
+}
+
+.student-app-shell .management-layout {
+  width: min(100%, 1120px);
+  gap: clamp(14px, 2.2vw, 20px);
+}
+
+/* ============================================================
+   TOPBAR — clean, sticky, glass.
+   ============================================================ */
+.student-app-shell .lms-topbar {
+  position: relative;
+  top: auto;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  margin-bottom: 8px;
+  padding: 0 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--sa-ink);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.student-app-shell .lms-topbar-left {
+  min-width: 0;
+  gap: 12px;
+}
+
+.student-app-shell .lms-topbar-menu-button {
+  display: inline-flex !important;
+}
+
+.student-app-shell.sidebar-hidden .lms-topbar-menu-button,
+.group\/shell.sidebar-hidden .student-app-shell .lms-topbar-menu-button {
+  display: none !important;
+}
+
+.student-app-shell .lms-topbar-left > div {
+  display: grid;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.student-app-shell .lms-topbar h1 {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--sa-ink);
+  font-family: var(--sa-font-display);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-text-fill-color: currentColor;
+  background: none;
+}
+
+.student-app-shell .lms-topbar p {
+  order: -1;
+  margin: 0;
+  max-width: min(56vw, 520px);
+  overflow: hidden;
+  color: var(--sa-text-3);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.1px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right button, .lms-topbar-utility button, .lms-topbar-center button, .lms-profile-avatar) {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border-color: var(--sa-border);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--sa-ink);
+  box-shadow: none;
+  transition: background var(--sa-dur) var(--sa-ease), border-color var(--sa-dur) var(--sa-ease), color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease);
+}
+
+.student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right button, .lms-topbar-utility button, .lms-topbar-center button):hover {
+  border-color: color-mix(in srgb, var(--sa-primary) 24%, var(--sa-border));
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
+}
+
+.student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right button, .lms-topbar-utility button, .lms-topbar-center button):active {
+  transform: scale(0.97);
+}
+
+.student-app-shell .lms-profile-avatar {
+  background: var(--sa-grad);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.student-app-shell .lms-topbar-right,
+.student-app-shell .lms-topbar-utility {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.student-app-shell .lms-topbar-center {
+  display: flex !important;
+  width: 42px;
+  max-width: 42px;
+}
+
+.student-app-shell .lms-topbar-center button {
+  justify-content: center;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+}
+
+.student-app-shell .lms-topbar-center button span {
+  color: currentColor;
+}
+
+.student-app-shell .lms-topbar-center button > span:nth-child(2),
+.student-app-shell .lms-topbar-center button > span:nth-child(3) {
+  display: none;
+}
+
+/* ============================================================
+   SHARED PRIMITIVES — usable by every student page.
+   ============================================================ */
+
+/* App-card (replaces the loud glass-card/card-surface jumble) */
+.student-app-shell :where(.glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .lms-app-card) {
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  box-shadow: var(--sa-shadow-card);
+}
+
+.student-app-shell :where(.bg-surface-1, .bg-surface-card, .bg-surface-card-elevated) {
+  background-color: var(--sa-surface);
+}
+
+.student-app-shell :where(.bg-surface-2) {
+  background-color: var(--sa-surface-2);
+}
+
+.student-app-shell :where([class*="rounded-xl"][class*="border"], [class*="rounded-2xl"][class*="border"]) {
+  border-color: var(--sa-border);
+  border-radius: var(--sa-radius-lg);
+  background-color: var(--sa-surface);
+  color: var(--sa-ink);
+  box-shadow: var(--sa-shadow-card);
+}
+
+.student-app-shell :where([class*="rounded-xl"][class*="border"]:hover, [class*="rounded-2xl"][class*="border"]:hover) {
+  border-color: color-mix(in srgb, var(--sa-primary) 22%, var(--sa-border));
+}
+
+.student-app-shell :where(.glass-card, .card-surface, .lms-app-card):hover {
+  border-color: color-mix(in srgb, var(--sa-primary) 22%, var(--sa-border));
+}
+
+.lms-app-card--padded { padding: 20px; }
+.lms-app-card--soft   { background: var(--sa-surface-2); }
+.lms-app-card--xl     { border-radius: var(--sa-radius-xl); }
+
+/* Page hero */
+.student-app-shell :where(.lms-page-header-card, .student-page-hero) {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-xl);
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  box-shadow: var(--sa-shadow-card);
+}
+
+.student-app-shell .student-page-hero {
+  min-height: 220px;
+  margin-top: 12px;
+  padding: 24px;
+}
+
+.student-app-shell :where(.lms-page-header-card, .student-page-hero)::after {
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 210px;
+  height: 210px;
+  border-radius: 999px;
+  background: var(--sa-grad-soft);
+  opacity: 0.72;
+  pointer-events: none;
+  content: "";
+}
+
+.student-app-shell .student-page-hero > .pointer-events-none {
+  display: none !important;
+}
+
+.student-app-shell :where(.lms-page-header-card, .student-page-hero) > * {
+  position: relative;
+  z-index: 1;
+}
+
+.student-app-shell :where(.lms-page-header-card h1, .lms-page-header-card h2, .student-page-hero h1, .student-page-hero h2) {
+  color: var(--sa-ink);
+  font-family: var(--sa-font-display);
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 0.98;
+}
+
+.student-app-shell :where(.lms-page-header-card p, .student-page-hero p) {
+  color: var(--sa-text-2);
+  line-height: 1.55;
+}
+
+.student-app-shell .student-page-hero__eyebrow {
+  margin-bottom: 14px;
+  color: var(--sa-primary) !important;
+}
+
+.student-app-shell .student-page-hero__title {
+  max-width: 720px;
+  font-size: clamp(34px, 5vw, 46px) !important;
+}
+
+.student-app-shell .student-page-hero__subtitle {
+  max-width: 680px;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.student-app-shell .student-page-hero__metric {
+  border-color: transparent !important;
+  background: var(--sa-primary-soft) !important;
+  color: var(--sa-primary) !important;
+  box-shadow: none;
+}
+
+/* Course / quiz / set cards — single rule replacing the override soup */
+.student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card, .results-performance-board, .results-focus-board) {
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  box-shadow: var(--sa-shadow-card);
+  transition: border-color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease), box-shadow var(--sa-dur) var(--sa-ease);
+}
+
+.student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):hover {
+  border-color: color-mix(in srgb, var(--sa-primary) 22%, var(--sa-border));
+  box-shadow: var(--sa-shadow-card-hover);
+}
+
+.student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):active {
+  transform: scale(0.99);
+}
+
+.student-app-shell :where(.lms-course-card button, .student-course-card button, .lms-quiz-card button, .lms-quiz-course-card button, .lms-quiz-subject-card button, .lms-quiz-topic-card button, .lms-quiz-set-card button, .student-course-card__cta) {
+  min-height: 44px;
+  border-radius: var(--sa-radius-sm);
+}
+
+/* App button — replaces inconsistent buttons across pages */
+.lms-app-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--sa-radius-sm);
+  background: transparent;
+  color: var(--sa-ink);
+  font-family: var(--sa-font-sans);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: background var(--sa-dur) var(--sa-ease), border-color var(--sa-dur) var(--sa-ease), color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease), box-shadow var(--sa-dur) var(--sa-ease);
+}
+
+.lms-app-btn--primary {
+  background: var(--sa-grad);
+  color: #ffffff;
+  box-shadow: var(--sa-shadow-cta);
+}
+
+.lms-app-btn--primary:hover { filter: brightness(1.04); }
+
+.lms-app-btn--ghost {
+  border-color: var(--sa-border);
+  background: var(--sa-surface);
+  color: var(--sa-primary);
+}
+
+.lms-app-btn--ghost:hover {
+  border-color: color-mix(in srgb, var(--sa-primary) 30%, var(--sa-border));
+  background: var(--sa-primary-soft);
+}
+
+.lms-app-btn--soft {
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
+}
+
+.lms-app-btn--icon {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.lms-app-btn:active { transform: scale(0.97); }
+.lms-app-btn:focus-visible {
+  outline: 2px solid var(--sa-primary);
+  outline-offset: 2px;
+}
+
+/* App chip — for tags / quick filters / hero chips */
+.lms-app-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.lms-app-chip--purple { background: var(--sa-purple-soft); color: var(--sa-purple); }
+.lms-app-chip--warn   { background: var(--sa-warn-soft); color: var(--sa-warn-deep); }
+.lms-app-chip--ok     { background: var(--sa-ok-soft); color: var(--sa-ok-deep); }
+.lms-app-chip--ghost  { background: transparent; border: 1px solid var(--sa-border); color: var(--sa-text-2); }
+
+/* Section head — eyebrow + small */
+.lms-app-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 4px 12px;
+}
+.lms-app-section-head .lms-app-eyebrow {
+  display: block;
+  color: var(--sa-text-3);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.lms-app-section-head small {
+  color: var(--sa-text-3);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+/* Soft icon badge — used in cards (e.g., quick actions) */
+.lms-app-soft-icon {
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
+}
+.lms-app-soft-icon--purple { background: var(--sa-purple-soft); color: var(--sa-purple); }
+.lms-app-soft-icon--warn   { background: var(--sa-warn-soft); color: var(--sa-warn); }
+.lms-app-soft-icon--ok     { background: var(--sa-ok-soft); color: var(--sa-ok); }
+.lms-app-soft-icon--danger { background: var(--sa-danger-soft); color: var(--sa-danger); }
+.lms-app-soft-icon--sm     { width: 36px; height: 36px; border-radius: 12px; }
+
+/* Subtle text helpers */
+.student-app-shell :where(.text-ink-soft, .text-ink-muted, .table-subtext) {
+  color: var(--sa-text-2);
+}
+
+/* Alerts */
+.student-app-shell :where(.lms-alert) {
+  border-radius: var(--sa-radius-md);
+}
+.student-app-shell :where(.lms-alert-error) {
+  border-color: color-mix(in srgb, var(--sa-danger) 28%, var(--sa-border));
+  background: var(--sa-danger-soft);
+  color: var(--sa-danger-deep);
+}
+.student-app-shell :where(.lms-alert-success) {
+  border-color: color-mix(in srgb, var(--sa-ok) 28%, var(--sa-border));
+  background: var(--sa-ok-soft);
+  color: var(--sa-ok-deep);
+}
+.student-app-shell :where(.lms-alert-warning) {
+  border-color: color-mix(in srgb, var(--sa-warn) 32%, var(--sa-border));
+  background: var(--sa-warn-soft);
+  color: var(--sa-warn-deep);
+}
+
+/* Tables */
+.student-app-shell :where(.lms-table-shell) {
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-surface);
+  box-shadow: var(--sa-shadow-card);
+}
+.student-app-shell :where(table th) {
+  background: var(--sa-surface-2);
+  color: var(--sa-text-2);
+  letter-spacing: 0;
+}
+.student-app-shell :where(table td) {
+  border-color: var(--sa-border-soft);
+}
+
+/* Inputs */
+.student-app-shell :where(input, textarea, select) {
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-sm);
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+}
+.student-app-shell :where(input:focus, textarea:focus, select:focus) {
+  border-color: var(--sa-primary);
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sa-primary) 18%, transparent);
+}
+.student-app-shell :where(input::placeholder, textarea::placeholder) {
+  color: var(--sa-text-3);
+}
+
+/* Floating panel (search, etc.) */
+.student-app-shell :where(.lms-floating-panel) {
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  box-shadow: 0 24px 70px rgba(14, 21, 56, 0.18);
+}
+
+/* ============================================================
+   STUDENT CONSISTENCY SWEEP — dashboard language everywhere.
+   These late, scoped rules neutralize older page gradients and
+   hard-coded panels without leaking into admin/auth/website views.
+   ============================================================ */
+.student-app-shell :where(
+  .lms-page-header-card,
+  .student-page-hero,
+  .lms-course-detail-hero
+) {
+  border-color: var(--sa-border) !important;
+  border-radius: var(--sa-radius-xl) !important;
+  background: var(--sa-surface) !important;
+  color: var(--sa-ink) !important;
+  box-shadow: var(--sa-shadow-card) !important;
+}
+
+.student-app-shell.student-app-shell .student-page-hero.lms-hero-card,
+.student-app-shell.student-app-shell .lms-page-header-card,
+.student-app-shell.student-app-shell .lms-course-detail-hero,
+.student-app-shell.student-app-shell .glass-card,
+.student-app-shell.student-app-shell .card-surface,
+.student-app-shell.student-app-shell .lms-app-card,
+.student-app-shell.student-app-shell .lms-course-card,
+.student-app-shell.student-app-shell .student-course-card,
+.student-app-shell.student-app-shell .lms-quiz-card,
+.student-app-shell.student-app-shell .lms-quiz-course-card,
+.student-app-shell.student-app-shell .lms-quiz-subject-card,
+.student-app-shell.student-app-shell .lms-quiz-topic-card,
+.student-app-shell.student-app-shell .lms-quiz-set-card,
+.student-app-shell.student-app-shell .results-performance-board,
+.student-app-shell.student-app-shell .results-focus-board {
+  border-color: var(--sa-border) !important;
+  background: var(--sa-surface) !important;
+  color: var(--sa-ink) !important;
+  box-shadow: var(--sa-shadow-card) !important;
+}
+
+.student-app-shell :where(
+  .glass-card,
+  .card-surface,
+  .lms-app-card,
+  .lms-course-card,
+  .student-course-card,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .results-performance-board,
+  .results-focus-board,
+  .results-kpi-strip > *,
+  .results-focus-column,
+  .lms-review-main,
+  .lms-review-sidebar > section,
+  .lms-exam-header,
+  .lms-exam-main-card,
+  .lms-exam-sidebar > section,
+  .lms-exam-explainer > section
+) {
+  border-color: var(--sa-border) !important;
+  background: var(--sa-surface) !important;
+  color: var(--sa-ink) !important;
+  box-shadow: var(--sa-shadow-card) !important;
+}
+
+.student-app-shell :where(
+  .lms-course-card,
+  .student-course-card,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .results-performance-board,
+  .results-focus-board,
+  .lms-review-main,
+  .lms-review-sidebar > section,
+  .lms-exam-header,
+  .lms-exam-main-card,
+  .lms-exam-sidebar > section,
+  .lms-exam-explainer > section
+) {
+  border-radius: var(--sa-radius-lg) !important;
+}
+
+.student-app-shell :where(
+  .bg-surface-0,
+  .bg-surface-1,
+  .bg-surface-card,
+  .bg-surface-card-elevated
+) {
+  background-color: var(--sa-surface) !important;
+}
+
+.student-app-shell :where(
+  .bg-surface-2,
+  .results-spark-panel,
+  .lms-review-question-card,
+  .lms-reading-explanation
+) {
+  background: var(--sa-surface-2) !important;
+}
+
+.student-app-shell :where(
+  .lms-route-page,
+  .lms-course-detail-page,
+  .lms-exam-page,
+  .practice-review-page,
+  .lms-review-page,
+  .lms-ai-note-page
+) {
+  background: var(--sa-bg) !important;
+}
+
+.student-app-shell .lms-exam-layout {
+  --exam-shell-bg: transparent !important;
+  --exam-card-bg: var(--sa-surface) !important;
+  --exam-main-bg: var(--sa-surface) !important;
+  --exam-card-border: var(--sa-border) !important;
+  --exam-card-shadow: var(--sa-shadow-card) !important;
+  --exam-header-chip-bg: var(--sa-surface-2) !important;
+  --exam-header-chip-border: var(--sa-border) !important;
+  --exam-header-chip-shadow: var(--sa-shadow-card) !important;
+  --exam-header-logo-bg: var(--sa-grad-soft) !important;
+  --exam-header-logo-border: transparent !important;
+  --exam-header-logo-shadow: none !important;
+  --exam-soft-panel: var(--sa-surface-2) !important;
+  --exam-stat-bg: var(--sa-surface-2) !important;
+  --exam-stat-border: var(--sa-border) !important;
+  --exam-nav-idle-bg: var(--sa-surface) !important;
+  --exam-nav-idle-border: var(--sa-border) !important;
+  --exam-nav-idle-text: var(--sa-ink) !important;
+  --exam-jump-bg: var(--sa-surface) !important;
+  --exam-jump-border: var(--sa-border) !important;
+  --exam-jump-text: var(--sa-primary) !important;
+  --exam-chip-primary-bg: var(--sa-primary-soft) !important;
+  --exam-chip-text: var(--sa-primary) !important;
+  --exam-answer-border: var(--sa-border) !important;
+  --exam-answer-hover-border: color-mix(in srgb, var(--sa-primary) 28%, var(--sa-border)) !important;
+  --exam-answer-hover-shadow: var(--sa-shadow-card-hover) !important;
+  --exam-answer-selected-border: color-mix(in srgb, var(--sa-primary) 58%, var(--sa-border)) !important;
+  --exam-answer-selected-ring: 0 0 0 3px color-mix(in srgb, var(--sa-primary) 12%, transparent) !important;
+  --exam-answer-radio: var(--sa-text-3) !important;
+  --exam-answer-text: var(--sa-ink) !important;
+  --exam-tf-bg: var(--sa-surface-2) !important;
+  --exam-tf-border: var(--sa-border) !important;
+  --exam-tf-text: var(--sa-ink) !important;
+  --exam-footer-btn-bg: var(--sa-surface) !important;
+  --exam-footer-btn-border: var(--sa-border) !important;
+  --exam-footer-btn-text: var(--sa-ink) !important;
+}
+
+.student-app-shell :where(.lms-exam-layout, .lms-exam-grid, .lms-review-workspace) {
+  width: min(100%, 1120px) !important;
+}
+
+.student-app-shell :where(.practice-review-page, .lms-review-page) {
+  width: min(1080px, calc(100% - 48px));
+  margin: 0 auto;
+  padding-inline: 0 !important;
+}
+
+.student-app-shell :where(.lms-ai-note-page) {
+  color: var(--sa-ink);
+}
+
+/* ============================================================
+   RESPONSIVE — phones / tablets / desktops.
+   ============================================================ */
+@media (max-width: 900px) {
+  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
+    width: min(720px, calc(100% - 32px));
+    padding-inline: 0;
+  }
+
+  .student-app-shell :where(.practice-review-page, .lms-review-page) {
+    width: min(720px, calc(100% - 32px));
+  }
+
+  .student-app-shell .lms-topbar {
+    position: relative;
+    top: auto;
+    margin-bottom: 8px;
+  }
+}
+
+@media (min-width: 760px) {
+  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
+    width: min(720px, calc(100% - 32px));
+  }
+}
+
+@media (min-width: 1080px) {
+  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
+    width: min(1080px, calc(100% - 48px));
+  }
+}
+
+@media (max-width: 640px) {
+  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
+    width: min(390px, calc(100% - 24px));
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 0 calc(var(--lms-mobile-content-bottom, 92px) + 24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .student-app-shell :where(.practice-review-page, .lms-review-page) {
+    width: min(390px, calc(100% - 24px));
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 0 calc(var(--lms-mobile-content-bottom, 92px) + 24px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .student-app-shell .management-layout {
+    width: 100%;
+    gap: 14px;
+  }
+
+  .student-app-shell .lms-topbar {
+    min-height: 42px;
+    border-radius: 0;
+    padding: 0 0 8px;
+  }
+
+  .student-app-shell .lms-topbar h1 { font-size: 22px; }
+  .student-app-shell .lms-topbar p {
+    display: block;
+    max-width: 100%;
+  }
+
+  .student-app-shell .student-page-hero {
+    min-height: 0;
+    padding: 20px;
+  }
+
+  .student-app-shell .student-page-hero__title {
+    font-size: clamp(32px, 9vw, 40px) !important;
+  }
+
+  .student-app-shell :where(.glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .lms-page-header-card, .student-page-hero, .lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card, .lms-table-shell, .lms-app-card) {
+    border-radius: 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
+    width: min(100% - 18px, 390px);
+  }
+
+  .student-app-shell :where(.practice-review-page, .lms-review-page) {
+    width: min(100% - 18px, 390px);
+  }
+
+  .student-app-shell .lms-topbar h1 { font-size: 20px; }
+}
+
+html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
+  padding-top: calc(16px + env(safe-area-inset-top, 0px)) !important;
+}
+
+@media (max-width: 430px) {
+  .student-app-shell .lms-topbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto auto !important;
+    min-height: 42px !important;
+    gap: 12px !important;
+    padding: 0 0 8px !important;
+    border-radius: 0 !important;
+  }
+
+  .student-app-shell .lms-topbar .lms-topbar-left {
+    gap: 12px !important;
+  }
+
+  .student-app-shell .lms-topbar h1 {
+    font-size: 22px !important;
+    letter-spacing: -0.6px !important;
+  }
+
+  .student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button) {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right button, .lms-topbar-utility button, .lms-topbar-center button),
+  .student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card),
+  .lms-app-btn {
+    transition: none;
+  }
+}

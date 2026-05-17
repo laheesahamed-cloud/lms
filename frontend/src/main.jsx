@@ -1,12 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './app/App.jsx';
-import { applyPlatformAttributes, installPlatformAttributeSync } from './platform/detect.js';
-import { shouldRegisterServiceWorker } from './platform/config.js';
-import { applyPerformanceProfile } from './utils/performanceProfile.js';
-import { installPwaRegistration, uninstallPwaRegistration } from './utils/pwaRegistration.js';
-import { installNativeErrorOverlay } from './utils/nativeErrorOverlay.js';
-import './styles/index.css';
+import { applyPlatformAttributes, installPlatformAttributeSync } from './shared/platform/detect.js';
+import { shouldRegisterServiceWorker } from './shared/platform/config.js';
+import { applyPerformanceProfile } from './shared/utils/performanceProfile.js';
+import { installPwaRegistration, uninstallPwaRegistration } from './shared/utils/pwaRegistration.js';
+import { installNativeErrorOverlay } from './shared/utils/nativeErrorOverlay.js';
+import './shared/styles/index.css';
 
 installNativeErrorOverlay();
 
@@ -43,7 +43,7 @@ if (shouldRegisterServiceWorker(initialPlatform)) {
 }
 
 if (initialPlatform.isNative) {
-  import('./platform/native/NotificationDelivery.js')
+  import('./shared/platform/native/NotificationDelivery.js')
     .then((module) => module.installNativePushNotificationHandlers?.())
     .catch(() => {});
 }

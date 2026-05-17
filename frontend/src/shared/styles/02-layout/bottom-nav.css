@@ -1,0 +1,225 @@
+/* ============================================================
+   Mobile Bottom Nav — app-3 style
+   Dark navy bottom bar with top-only rounded corners.
+   ============================================================ */
+
+.lms-mobile-bottom-nav--app3 {
+  display: flex !important;
+  align-items: flex-end;
+  justify-content: center;
+  height: auto !important;
+  min-height: calc(var(--lms-tabbar-row-height, 64px) + max(18px, calc(env(safe-area-inset-bottom, 0px) + 10px))) !important;
+  padding: 8px 0 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  border-top: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-lms-runtime] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3,
+html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
+  padding: 8px 0 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  border-top: 0 !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme="dark"] .lms-mobile-bottom-nav--app3,
+.student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav--app3 {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.lms-mobile-bottom-nav__inner {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: calc(var(--lms-tabbar-row-height, 64px) + env(safe-area-inset-bottom, 0px)) !important;
+  min-height: calc(58px + env(safe-area-inset-bottom, 0px));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  background: linear-gradient(180deg, #111943 0%, #0c1232 100%);
+  color: #ffffff;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  gap: 2px;
+  padding: 6px 6px max(6px, env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 18px 36px -18px rgba(14, 21, 56, 0.52), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  transform: none !important;
+}
+
+:root[data-theme="dark"] .lms-mobile-bottom-nav__inner,
+.student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__inner {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, #1a1f3d 0%, #11162f 100%);
+  box-shadow: 0 18px 38px -18px rgba(0, 0, 0, 0.62), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 > .lms-mobile-bottom-nav__inner {
+  height: calc(var(--lms-tabbar-row-height, 64px) + var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+  padding-bottom: max(6px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+.lms-mobile-bottom-nav__tab {
+  position: relative;
+  min-width: 0;
+  height: 52px;
+  min-height: 48px;
+  border-radius: 17px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px 2px;
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 180ms cubic-bezier(0.32, 0.72, 0.32, 1),
+              color 180ms cubic-bezier(0.32, 0.72, 0.32, 1),
+              transform 180ms cubic-bezier(0.32, 0.72, 0.32, 1);
+}
+
+.lms-mobile-bottom-nav__tab:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.lms-mobile-bottom-nav__tab:active {
+  transform: scale(0.95);
+}
+
+.lms-mobile-bottom-nav__tab:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.4);
+  outline-offset: 2px;
+}
+
+.lms-mobile-bottom-nav__tab.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset;
+}
+
+.lms-mobile-bottom-nav__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+}
+
+.lms-mobile-bottom-nav__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-nav__icon svg {
+  stroke-width: 2;
+}
+
+.lms-mobile-bottom-nav__label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-nav__label {
+  opacity: 1;
+}
+
+@media (min-width: 700px) and (max-width: 900px) {
+  .lms-mobile-bottom-nav--app3 {
+    padding-inline: 0 !important;
+  }
+
+  .lms-mobile-bottom-nav__inner {
+    height: 68px !important;
+    border-radius: 24px 24px 0 0;
+    gap: 4px;
+    padding: 7px 7px max(7px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .lms-mobile-bottom-nav__tab {
+    height: 54px;
+    border-radius: 18px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 380px) {
+  .lms-mobile-bottom-nav--app3 {
+    padding-inline: 0 !important;
+  }
+
+  .lms-mobile-bottom-nav__inner {
+    height: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(56px + env(safe-area-inset-bottom, 0px));
+    border-radius: 20px 20px 0 0;
+    padding: 5px 5px max(5px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .lms-mobile-bottom-nav__tab {
+    height: 50px;
+    min-height: 46px;
+    border-radius: 16px;
+    font-size: 9.5px;
+  }
+
+  .lms-mobile-bottom-nav__icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .lms-mobile-bottom-nav__icon svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+@media (max-width: 335px) {
+  .lms-mobile-bottom-nav__inner {
+    height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .lms-mobile-bottom-nav__tab {
+    height: 46px;
+    gap: 0;
+  }
+
+  .lms-mobile-bottom-nav__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lms-mobile-bottom-nav__tab { transition: none; }
+}

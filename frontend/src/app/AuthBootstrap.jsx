@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useAuthStore } from '../stores/authStore.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 
 export function AuthBootstrap({ children }) {
   useEffect(() => {

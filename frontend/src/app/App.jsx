@@ -1,18 +1,17 @@
 import { Suspense, lazy } from 'react';
-import { RouterProvider } from 'react-router-dom';
-import { router } from './router.jsx';
 import { AppProviders } from './providers.jsx';
 import { AppErrorBoundary } from './AppErrorBoundary.jsx';
-import { PlatformProvider, usePlatform } from '../platform/PlatformProvider.jsx';
-import { getPlatformConfig } from '../platform/config.js';
-import { AppOnlyBrowserGate } from '../platform/AppOnlyBrowserGate.jsx';
+import { PlatformProvider, usePlatform } from '../shared/platform/PlatformProvider.jsx';
+import { getPlatformConfig } from '../shared/platform/config.js';
+import { AppOnlyBrowserGate } from '../shared/platform/AppOnlyBrowserGate.jsx';
 import { BootLoader } from './BootLoader.jsx';
 // Example usage:
-// import HeartFailureNotes, { heartFailureLesson } from '../components/lessons/HeartFailureNotes.jsx';
+// import HeartFailureNotes, { heartFailureLesson } from '../shared/lessons/HeartFailureNotes.jsx';
 
-const OfflineExperience = lazy(() => import('../components/pwa/OfflineExperience.jsx').then((module) => ({ default: module.OfflineExperience })));
-const RecoveryRefreshController = lazy(() => import('../components/pwa/RecoveryRefreshController.jsx').then((module) => ({ default: module.RecoveryRefreshController })));
-const MacChromiumScrollFix = lazy(() => import('../components/pwa/MacChromiumScrollFix.jsx').then((module) => ({ default: module.MacChromiumScrollFix })));
+const OfflineExperience = lazy(() => import('../shared/pwa/OfflineExperience.jsx').then((module) => ({ default: module.OfflineExperience })));
+const RecoveryRefreshController = lazy(() => import('../shared/pwa/RecoveryRefreshController.jsx').then((module) => ({ default: module.RecoveryRefreshController })));
+const MacChromiumScrollFix = lazy(() => import('../shared/pwa/MacChromiumScrollFix.jsx').then((module) => ({ default: module.MacChromiumScrollFix })));
+const AppRouter = lazy(() => import('./router.jsx').then((module) => ({ default: module.AppRouter })));
 
 export function App() {
   if (getPlatformConfig().blockDirectAppHost) {
@@ -25,7 +24,9 @@ export function App() {
       <PlatformProvider>
         <AppProviders>
           <AppErrorBoundary>
-            <RouterProvider router={router} />
+            <Suspense fallback={null}>
+              <AppRouter />
+            </Suspense>
           </AppErrorBoundary>
           <PwaRuntimeEffects />
           {/*

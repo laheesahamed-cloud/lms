@@ -62,8 +62,8 @@
 
 - `backend/src/modules/auth/*` now mirrors current PHP login/register rules
 - `backend/src/modules/courses/*` now exposes CRUD endpoints for courses
-- `frontend/src/features/auth/LoginPage.jsx` calls the new auth API
-- `frontend/src/features/admin/courses/CoursesPage.jsx` calls the new courses API
+- `frontend/src/surfaces/website/auth/LoginPage.jsx` calls the new auth API
+- `frontend/src/surfaces/admin/pages/courses/CoursesPage.jsx` calls the new courses API
 
 ## Next recommended slice
 

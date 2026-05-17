@@ -2,15 +2,9 @@
   RewriteEngine On
   RewriteBase /lms/
 
-  RewriteRule ^index\.html$ - [L]
-  RewriteRule ^frontend/dist/ - [L]
-  RewriteRule ^backend/ - [L]
-  RewriteRule ^api/ - [L]
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
 
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /lms/index.html [L]
+  RewriteRule ^ index.html [L]
 </IfModule>
-
-AddType application/manifest+json .webmanifest
-AddType image/svg+xml .svg

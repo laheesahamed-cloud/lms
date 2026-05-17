@@ -1,0 +1,93 @@
+/* ============================================================
+   Courses pages — Concept A
+   Card chrome lives in student-app.css. Only course-specific
+   bits live here: cover art, detail hero metrics, dense breakpoints.
+   ============================================================ */
+
+.student-app-shell .student-course-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: clamp(236px, 26vw, 300px);
+}
+
+.student-app-shell .student-course-card__visual {
+  position: relative;
+  min-height: clamp(74px, 8.5vw, 94px);
+  background:
+    radial-gradient(circle at 86% 22%, color-mix(in srgb, var(--sa-purple) 38%, transparent), transparent 38%),
+    var(--sa-grad);
+  color: #ffffff;
+}
+
+.student-app-shell .student-course-card__body {
+  gap: 12px;
+}
+
+/* Progress bar inside course card body (legacy inline gradient) */
+.student-app-shell .student-course-card__body [style*="linear-gradient"] {
+  background: var(--sa-grad) !important;
+}
+
+/* Course detail hero — tighter feel */
+.student-app-shell .lms-course-detail-hero {
+  min-height: auto;
+}
+
+.student-app-shell .lms-course-detail-hero h1 {
+  font-family: var(--sa-font-display);
+  font-size: clamp(26px, 3.4vw, 44px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.6px;
+}
+
+.student-app-shell .lms-course-detail-hero p {
+  color: var(--sa-text-2);
+}
+
+@media (max-width: 640px) {
+  .student-app-shell .student-course-card {
+    min-height: 0;
+  }
+
+  .student-app-shell .student-course-card__visual {
+    min-height: 76px;
+  }
+
+  .student-app-shell .lms-course-detail-hero {
+    padding: 14px;
+  }
+
+  .student-app-shell .lms-course-detail-hero > .relative.z-\[1\] {
+    gap: 14px;
+  }
+
+  .student-app-shell .lms-course-detail-hero h1 {
+    font-size: clamp(24px, 8.4vw, 32px);
+  }
+
+  .student-app-shell .lms-course-detail-hero .course-overview-stats {
+    gap: 7px;
+  }
+
+  .student-app-shell .lms-course-detail-hero .course-overview-stat {
+    gap: 6px;
+    padding: 8px 7px;
+    border-radius: 12px;
+  }
+
+  .student-app-shell .lms-course-detail-hero .course-overview-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+  }
+
+  .student-app-shell .lms-course-detail-hero .course-overview-stat strong {
+    font-size: clamp(14px, 4.4vw, 18px);
+  }
+
+  .student-app-shell .lms-course-detail-hero .course-overview-stat span:last-child {
+    font-size: 9.5px;
+  }
+}

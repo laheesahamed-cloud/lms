@@ -1,6 +1,6 @@
 # Platform Separation
 
-The frontend uses one codebase for public web, PWA, Capacitor native, and future desktop targets. Platform-specific behavior must enter through `frontend/src/platform`, not through random checks in feature pages.
+The frontend uses one codebase for public web, PWA, Capacitor native, and future desktop targets. Platform-specific behavior must enter through `frontend/src/shared/platform`, not through random checks in feature pages.
 
 ## Architecture
 
@@ -17,7 +17,7 @@ Use a hybrid approach:
 ## Current Structure
 
 ```text
-frontend/src/platform/
+frontend/src/shared/platform/
   detect.js
   config.js
   PlatformProvider.jsx
@@ -234,18 +234,18 @@ html[data-lms-target="web-desktop"] .lesson-toolbar {
 
 Avoid direct platform-only edits in:
 
-- `frontend/src/styles/99-legacy/app.css`
+- `frontend/src/shared/styles/99-legacy/app.css`
 - `shared/theme.css`
 - `shared/foundation.css`
 - `frontend/src/app/router.jsx`
 - `frontend/src/app/App.jsx`
 - `frontend/src/app/AppFrame.jsx`
-- `frontend/src/components/layout/AppHeader.jsx`
-- `frontend/src/components/layout/AppShell.jsx`
-- `frontend/src/components/layout/AppSidebar.jsx`
-- shared feature pages under `frontend/src/features`
+- `frontend/src/shared/layout/AppHeader.jsx`
+- `frontend/src/shared/layout/AppShell.jsx`
+- `frontend/src/shared/layout/AppSidebar.jsx`
+- surface feature pages under `frontend/src/surfaces`
 
-If a platform-only change seems to require those files, first add a platform override or a config policy in `frontend/src/platform`.
+If a platform-only change seems to require those files, first add a platform override or a config policy in `frontend/src/shared/platform`.
 
 ## Remaining Shared Surface
 

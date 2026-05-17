@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medical Study App — Redesign</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
+      background:
+        radial-gradient(60% 60% at 30% 20%, #DCE0F4 0%, transparent 70%),
+        radial-gradient(50% 60% at 80% 80%, #E7DEFA 0%, transparent 70%),
+        #EFF1FB;
+      color: #0E1538;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      position: relative;
+    }
+    /* grain overlay for vibe */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
+      opacity: 0.5; mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.05  0 0 0 0 0.08  0 0 0 0 0.22  0 0 0 0.12 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+
+    /* shimmer on gradient CTAs */
+    @keyframes vibeShimmer {
+      0%, 100% { filter: brightness(1) saturate(1.05); }
+      50%      { filter: brightness(1.08) saturate(1.15); }
+    }
+    /* pulse for "live" dots */
+    @keyframes vibePulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50%      { transform: scale(1.4); opacity: 0.35; }
+    }
+    /* hide scrollbars inside the phone */
+    .phone-scroll::-webkit-scrollbar { display: none; }
+
+    .stage {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      gap: 60px;
+      position: relative;
+    }
+    .stage::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(rgba(14,21,56,0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+      mask-image: radial-gradient(circle at 50% 50%, black 30%, transparent 75%);
+    }
+
+    .side {
+      width: 240px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+    }
+    .side .meta-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.4px; color: #5C6582;
+      text-transform: uppercase; margin-bottom: 14px;
+    }
+    .side h1 {
+      font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700; font-size: 42px; line-height: 0.95;
+      color: #0E1538; margin: 0 0 16px; letter-spacing: -1.6px;
+      font-variation-settings: 'opsz' 48;
+    }
+    .side h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg, #3D5AFE 0%, #8B5CF6 100%);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+    }
+    .side p { font-size: 13px; line-height: 1.55; color: #5C6582; margin: 0 0 24px; max-width: 220px; }
+    .side .links a {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; border-radius: 14px;
+      text-decoration: none; color: #0E1538; font-size: 13px; font-weight: 700;
+      border: 1px solid #E5E7F0; background: rgba(255,255,255,0.7); backdrop-filter: blur(8px);
+      margin-bottom: 8px; transition: all 0.15s;
+    }
+    .side .links a:hover { background: #FFF; transform: translateX(2px); border-color: #C8CCFF; }
+    .side .links a span.arrow { color: #5C6582; }
+    .side .footnote {
+      margin-top: 22px;
+      font-size: 11px; color: #A8AECB; line-height: 1.55; max-width: 220px;
+    }
+
+    /* current tab label below phone */
+    .now-showing {
+      position: relative; z-index: 2;
+      text-align: center; margin-top: 24px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #5C6582; font-size: 13px; font-weight: 500;
+    }
+    .now-showing strong { color: #0E1538; font-weight: 800; }
+
+    /* phone column */
+    .phone-col {
+      display: flex; flex-direction: column; align-items: center;
+      position: relative; z-index: 2;
+    }
+
+    @media (max-width: 880px) {
+      .stage { flex-direction: column; gap: 24px; padding: 24px 16px; }
+      .side { width: 100%; max-width: 390px; text-align: left; }
+      .side p { max-width: none; }
+    }
+  </style>
+
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <!-- Shell + screens -->
+  <script type="text/babel" src="app-shell.jsx"></script>
+  <script type="text/babel" src="screens-1.jsx"></script>
+  <script type="text/babel" src="screens-2.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ─── TWEAKABLE DEFAULTS (persisted via host) ─────────────
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "accent": "blue",
+      "ink": "navy",
+      "surface": "lavender"
+    }/*EDITMODE-END*/;
+
+    const ACCENT_PALETTES = {
+      blue:    { accent: '#3D5AFE', accentSoft: '#E5E9FF', primary: '#3D5AFE', primarySoft: '#E5E9FF', primaryInk: '#2336CC', accent2: '#8B5CF6', accent2Soft: '#F0E7FF', grad: 'linear-gradient(135deg, #3D5AFE 0%, #8B5CF6 100%)', gradSoft: 'linear-gradient(135deg, #E5E9FF 0%, #F0E7FF 100%)' },
+      emerald: { accent: '#0F9A6B', accentSoft: '#D7F0E5', primary: '#0F9A6B', primarySoft: '#D7F0E5', primaryInk: '#0B7251', accent2: '#0EA5E9', accent2Soft: '#D7F0FA', grad: 'linear-gradient(135deg, #0F9A6B 0%, #0EA5E9 100%)', gradSoft: 'linear-gradient(135deg, #D7F0E5 0%, #D7F0FA 100%)' },
+      sunset:  { accent: '#FF6B3D', accentSoft: '#FFE0D2', primary: '#FF6B3D', primarySoft: '#FFE0D2', primaryInk: '#D14418', accent2: '#E04E6A', accent2Soft: '#FCE0E5', grad: 'linear-gradient(135deg, #FF6B3D 0%, #E04E6A 100%)', gradSoft: 'linear-gradient(135deg, #FFE0D2 0%, #FCE0E5 100%)' },
+    };
+    const INK_PALETTES = {
+      navy:    { ink: '#0E1538', inkDeep: '#070A20' },
+      teal:    { ink: '#15252E', inkDeep: '#0B1A22' },
+      graphite:{ ink: '#1C1F2E', inkDeep: '#0E1018' },
+    };
+    const SURFACE_PALETTES = {
+      lavender:{ bg: '#EFF1FB', surface: '#FFFFFF', surface2: '#F4F5FB', border: '#E5E7F0', borderSoft: '#EEF0F6', stageBg: '#EFF1FB', stageBg2: '#DCE0F4', stageBg3: '#E7DEFA' },
+      mist:    { bg: '#EEF2F6', surface: '#FFFFFF', surface2: '#F4F7FA', border: '#DDE3EA', borderSoft: '#E8ECF1', stageBg: '#EEF2F6', stageBg2: '#D8E0E8', stageBg3: '#E0E6ED' },
+      bone:    { bg: '#F4F1EA', surface: '#FFFFFF', surface2: '#FAF6EC', border: '#E8E4D8', borderSoft: '#F0EBDF', stageBg: '#F4F1EA', stageBg2: '#EEE8D8', stageBg3: '#E8E2D0' },
+    };
+
+    function applyTokens(t) {
+      Object.assign(window.TOKENS,
+        ACCENT_PALETTES[t.accent] || ACCENT_PALETTES.blue,
+        INK_PALETTES[t.ink] || INK_PALETTES.navy,
+        SURFACE_PALETTES[t.surface] || SURFACE_PALETTES.lavender,
+      );
+      const s = SURFACE_PALETTES[t.surface] || SURFACE_PALETTES.lavender;
+      document.body.style.background =
+        `radial-gradient(60% 60% at 30% 20%, ${s.stageBg2} 0%, transparent 70%),` +
+        `radial-gradient(50% 60% at 80% 80%, ${s.stageBg3} 0%, transparent 70%),` +
+        s.stageBg;
+    }
+
+    // ─── APP ROOT ────────────────────────────────────────────
+    function App() {
+      const [t, setTweak] = window.useTweaks
+        ? window.useTweaks(TWEAK_DEFAULTS)
+        : [TWEAK_DEFAULTS, () => {}];
+
+      const [tab, setTab] = useState('home');
+      const [stack, setStack] = useState([]); // for lesson detail push
+      const [scrollKey, setScrollKey] = useState(0); // reset scroll on nav
+
+      useEffect(() => { applyTokens(t); /* force re-render */ setScrollKey(k => k + 1); }, [t.accent, t.ink, t.surface]);
+
+      const goTab = (id) => { setTab(id); setStack([]); setScrollKey(k => k + 1); };
+      const openLesson = (course) => { setStack([{ kind: 'lessonDetail', course }]); setScrollKey(k => k + 1); };
+      const back = () => { setStack([]); setScrollKey(k => k + 1); };
+
+      // Current view
+      let view;
+      if (stack[0]?.kind === 'lessonDetail') {
+        view = <window.LessonDetailScreen onBack={back} course={stack[0].course} />;
+      } else if (tab === 'home')    view = <window.HomeScreen onNav={goTab} />;
+      else if (tab === 'qbank')     view = <window.QBankScreen />;
+      else if (tab === 'courses')   view = <window.CoursesScreen />;
+      else if (tab === 'lessons')   view = <window.LessonsScreen onOpenLesson={openLesson} />;
+      else if (tab === 'results')   view = <window.ResultsScreen />;
+
+      const labelMap = { home: 'Study Hub', qbank: 'Q-Bank', courses: 'All Courses', lessons: 'Lessons', results: 'Results' };
+      const screenLabel = stack[0]?.kind === 'lessonDetail' ? `${stack[0].course?.name || 'Lesson'} · Unit 1` : labelMap[tab];
+      const idxMap = { home: 3, qbank: 2, courses: 1, lessons: 4, results: 5 };
+      const screenIdx = stack[0]?.kind === 'lessonDetail' ? '4·1' : idxMap[tab];
+
+      return (
+        <div className="stage">
+          <aside className="side">
+            <div className="meta-eyebrow">Case study · 2026</div>
+            <h1>Medical study app, <em>refreshed.</em></h1>
+            <p>UX fixes for the original blue/purple study tool: tighter header, no text overflow, encouraging empty states, real charts, working back nav — same vibe, sharper execution.</p>
+            <div className="links">
+              <a href="audit.html" target="_blank" rel="noopener">
+                Read the redesign audit <span className="arrow">→</span>
+              </a>
+              <a href="#" onClick={(e) => { e.preventDefault(); goTab('home'); }}>
+                Reset to home tab <span className="arrow">↺</span>
+              </a>
+            </div>
+            <div className="footnote">
+              Tap tabs at the bottom of the phone to navigate. Click a course in Lessons to push into the lesson detail. Toggle Tweaks from the toolbar to swap accents, ink, surface tone, or density.
+            </div>
+          </aside>
+
+          <div className="phone-col" data-screen-label={`${screenIdx} ${screenLabel}`}>
+            <window.PhoneScreen scrollKey={scrollKey} bg={window.TOKENS.bg}>
+              {view}
+              <window.BottomNav active={stack[0]?.kind === 'lessonDetail' ? 'lessons' : tab} onChange={goTab} />
+            </window.PhoneScreen>
+            <div className="now-showing">
+              now showing — <strong>{screenLabel}</strong>
+            </div>
+          </div>
+
+          {/* TWEAKS PANEL */}
+          {window.TweaksPanel && (
+            <window.TweaksPanel title="Tweaks">
+              <window.TweakSection label="Color">
+                <window.TweakRadio
+                  label="Accent palette"
+                  value={t.accent}
+                  options={[
+                    { value: 'blue',    label: 'Blue/Purple' },
+                    { value: 'emerald', label: 'Emerald' },
+                    { value: 'sunset',  label: 'Sunset' },
+                  ]}
+                  onChange={(v) => setTweak('accent', v)}
+                />
+                <window.TweakRadio
+                  label="Ink (dark surface)"
+                  value={t.ink}
+                  options={[
+                    { value: 'navy',     label: 'Navy' },
+                    { value: 'teal',     label: 'Teal' },
+                    { value: 'graphite', label: 'Graphite' },
+                  ]}
+                  onChange={(v) => setTweak('ink', v)}
+                />
+                <window.TweakRadio
+                  label="Surface tone"
+                  value={t.surface}
+                  options={[
+                    { value: 'lavender', label: 'Lavender' },
+                    { value: 'mist',     label: 'Mist' },
+                    { value: 'bone',     label: 'Bone' },
+                  ]}
+                  onChange={(v) => setTweak('surface', v)}
+                />
+              </window.TweakSection>
+            </window.TweaksPanel>
+          )}
+        </div>
+      );
+    }
+
+    // Set initial tokens before first render
+    applyTokens(TWEAK_DEFAULTS);
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

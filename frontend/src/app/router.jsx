@@ -1,18 +1,25 @@
 import { Suspense, lazy, memo, useLayoutEffect } from 'react';
-import { Navigate, createBrowserRouter, useLocation } from 'react-router-dom';
-import { ProtectedRoute, PublicOnlyRoute } from '../components/auth/RouteGate.jsx';
+import { Navigate, RouterProvider, createBrowserRouter, useLocation } from 'react-router-dom';
+import { ProtectedRoute, PublicOnlyRoute } from '../shared/auth/RouteGate.jsx';
 import { AppRouteError } from './AppRouteError.jsx';
 import { AppErrorBoundary } from './AppErrorBoundary.jsx';
 import { AppFrame } from './AppFrame.jsx';
-import { PanelLayout } from '../components/layout/PanelLayout.jsx';
-import { useAuthStore } from '../stores/authStore.js';
-import { ui } from '../styles/tailwindClasses.js';
-import { shouldPreloadRoutes } from '../utils/performanceProfile.js';
-import { detectPlatform } from '../platform/detect.js';
-import { getRouterBasename, normalizeLegacyBuildPath } from '../platform/config.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
+import { shouldPreloadRoutes } from '../shared/utils/performanceProfile.js';
+import { detectPlatform } from '../shared/platform/detect.js';
+import { getRouterBasename, normalizeLegacyBuildPath } from '../shared/platform/config.js';
 
 const PLATFORM = detectPlatform();
 const ROUTER_BASENAME = getRouterBasename(PLATFORM);
+const routeUi = {
+  screenShell:
+    'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5',
+  routeSkeleton: 'route-skeleton',
+  routeSkeletonTop: 'route-skeleton__top',
+  routeSkeletonGrid: 'route-skeleton__grid',
+  routeSkeletonCard: 'route-skeleton__card',
+  shimmer: 'skeleton-pulse',
+};
 
 normalizeLegacyBuildPath(PLATFORM);
 
@@ -24,61 +31,62 @@ function lazyNamed(loader, exportName) {
   return Component;
 }
 
-const LandingPage  = lazyNamed(() => import('../pages/LandingPage.jsx'),               'LandingPage');
-const LoginPage    = lazyNamed(() => import('../features/auth/LoginPage.jsx'),          'LoginPage');
-const RegisterPage = lazyNamed(() => import('../features/auth/RegisterPage.jsx'),       'RegisterPage');
-const ForgotPasswordPage = lazyNamed(() => import('../features/auth/ForgotPasswordPage.jsx'), 'ForgotPasswordPage');
-const ResetPasswordPage = lazyNamed(() => import('../features/auth/ResetPasswordPage.jsx'), 'ResetPasswordPage');
-const TermsPage    = lazyNamed(() => import('../pages/TermsPage.jsx'),                  'TermsPage');
-const PrivacyPolicyPage = lazyNamed(() => import('../pages/PrivacyPolicyPage.jsx'),     'PrivacyPolicyPage');
+const LandingPage  = lazyNamed(() => import('../surfaces/website/pages/LandingPage.jsx'),               'LandingPage');
+const LoginPage    = lazyNamed(() => import('../surfaces/website/auth/LoginPage.jsx'),          'LoginPage');
+const RegisterPage = lazyNamed(() => import('../surfaces/website/auth/RegisterPage.jsx'),       'RegisterPage');
+const ForgotPasswordPage = lazyNamed(() => import('../surfaces/website/auth/ForgotPasswordPage.jsx'), 'ForgotPasswordPage');
+const ResetPasswordPage = lazyNamed(() => import('../surfaces/website/auth/ResetPasswordPage.jsx'), 'ResetPasswordPage');
+const TermsPage    = lazyNamed(() => import('../surfaces/website/pages/TermsPage.jsx'),                  'TermsPage');
+const PrivacyPolicyPage = lazyNamed(() => import('../surfaces/website/pages/PrivacyPolicyPage.jsx'),     'PrivacyPolicyPage');
 
-const CoursesPage = lazyNamed(() => import('../features/admin/courses/CoursesPage.jsx'), 'CoursesPage');
-const AdminDashboardPage = lazyNamed(() => import('../features/admin/dashboard/AdminDashboardPage.jsx'), 'AdminDashboardPage');
-const QuizzesPage = lazyNamed(() => import('../features/admin/quizzes/QuizzesPage.jsx'), 'QuizzesPage');
-const QuizBuilderPage = lazyNamed(() => import('../features/admin/quizzes/QuizBuilderPage.jsx'), 'QuizBuilderPage');
-const AdminSubscriptionsPage = lazyNamed(() => import('../features/admin/subscriptions/AdminSubscriptionsPage.jsx'), 'AdminSubscriptionsPage');
-const QuestionsPage = lazyNamed(() => import('../features/admin/questions/QuestionsPage.jsx'), 'QuestionsPage');
-const BulkQuestionInputPage = lazyNamed(() => import('../features/admin/questions/BulkQuestionInputPage.jsx'), 'BulkQuestionInputPage');
-const QuestionReviewPage = lazyNamed(() => import('../features/admin/questions/QuestionReviewPage.jsx'), 'QuestionReviewPage');
-const StructurePage = lazyNamed(() => import('../features/admin/structure/StructurePage.jsx'), 'StructurePage');
-const UsersPage = lazyNamed(() => import('../features/admin/users/UsersPage.jsx'), 'UsersPage');
-const AdminStudentDetailPage = lazyNamed(() => import('../features/admin/users/AdminStudentDetailPage.jsx'), 'AdminStudentDetailPage');
-const AdminSettingsPage = lazyNamed(() => import('../features/admin/settings/AdminSettingsPage.jsx'), 'AdminSettingsPage');
-const AdminSetupPage = lazyNamed(() => import('../features/admin/setup/AdminSetupPage.jsx'), 'AdminSetupPage');
-const AdminAnnouncementsPage = lazyNamed(() => import('../features/admin/announcements/AdminAnnouncementsPage.jsx'), 'AdminAnnouncementsPage');
-const AdminReportsPage = lazyNamed(() => import('../features/admin/reports/AdminReportsPage.jsx'), 'AdminReportsPage');
-const AdminDoubtsPage = lazyNamed(() => import('../features/admin/doubts/AdminDoubtsPage.jsx'), 'AdminDoubtsPage');
-const StudentDashboardPage = lazyNamed(() => import('../features/student/dashboard/StudentDashboardPage.jsx'), 'StudentDashboardPage');
-const StudentCoursesPage = lazyNamed(() => import('../features/student/courses/StudentCoursesPage.jsx'), 'StudentCoursesPage');
-const CourseDetailPage = lazyNamed(() => import('../features/student/courses/CourseDetailPage.jsx'), 'CourseDetailPage');
-const StudentBillingPage = lazyNamed(() => import('../features/student/billing/StudentBillingPage.jsx'), 'StudentBillingPage');
-const StudentCheckoutPage = lazyNamed(() => import('../features/student/billing/StudentCheckoutPage.jsx'), 'StudentCheckoutPage');
-const BookmarksPage = lazyNamed(() => import('../features/student/bookmarks/BookmarksPage.jsx'), 'BookmarksPage');
-const StudentNotificationsPage = lazyNamed(() => import('../features/student/notifications/StudentNotificationsPage.jsx'), 'StudentNotificationsPage');
-const StudyPlannerPage = lazyNamed(() => import('../features/student/planner/StudyPlannerPage.jsx'), 'StudyPlannerPage');
-const StudentDoubtsPage = lazyNamed(() => import('../features/student/doubts/StudentDoubtsPage.jsx'), 'StudentDoubtsPage');
-const StudentFlashcardsPage = lazyNamed(() => import('../features/student/flashcards/StudentFlashcardsPage.jsx'), 'StudentFlashcardsPage');
-const StudentNotesPage = lazyNamed(() => import('../features/student/notes/StudentNotesPage.jsx'), 'StudentNotesPage');
-const AiNotesPage = lazyNamed(() => import('../features/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
-const AiNotesListPage = lazyNamed(() => import('../features/student/ai-notes/AiNotesListPage.jsx'), 'AiNotesListPage');
-const AdminAiNotesListPage = lazyNamed(() => import('../features/admin/ai-notes/AdminAiNotesListPage.jsx'), 'AdminAiNotesListPage');
-const AdminAiNotesEditorPage = lazyNamed(() => import('../features/admin/ai-notes/AdminAiNotesEditorPage.jsx'), 'AdminAiNotesEditorPage');
-const StudentQuizzesPage = lazyNamed(() => import('../features/student/quizzes/StudentQuizzesPage.jsx'), 'StudentQuizzesPage');
-const TakeQuizPage = lazyNamed(() => import('../features/student/quizzes/TakeQuizPage.jsx'), 'TakeQuizPage');
-const PracticeReviewPage = lazyNamed(() => import('../features/student/results/PracticeReviewPage.jsx'), 'PracticeReviewPage');
-const ResultPage = lazyNamed(() => import('../features/student/results/ResultPage.jsx'), 'ResultPage');
-const ResultsListPage = lazyNamed(() => import('../features/student/results/ResultsListPage.jsx'), 'ResultsListPage');
-const ReviewPage = lazyNamed(() => import('../features/student/results/ReviewPage.jsx'), 'ReviewPage');
-const DashboardPage = lazyNamed(() => import('../pages/DashboardPage.jsx'), 'DashboardPage');
-const NotFoundPage = lazyNamed(() => import('../pages/NotFoundPage.jsx'), 'NotFoundPage');
-const AiQuizGeneratorPage = lazyNamed(() => import('../features/ai/AiQuizGeneratorPage.jsx'), 'AiQuizGeneratorPage');
-const LessonNotesDemoPage = lazyNamed(() => import('../pages/LessonNotesDemoPage.jsx'), 'LessonNotesDemoPage');
-const HeadacheNotesDemoPage = lazyNamed(() => import('../pages/HeadacheNotesDemoPage.jsx'), 'HeadacheNotesDemoPage');
-const PwaPreviewPage = lazyNamed(() => import('../pages/PwaPreviewPage.jsx'), 'PwaPreviewPage');
-const BrowserTestPage = lazyNamed(() => import('../pages/BrowserTestPage.jsx'), 'BrowserTestPage');
-const GptPage = lazyNamed(() => import('../pages/GptPage.jsx'), 'GptPage');
-const GeminiPage = lazyNamed(() => import('../pages/GeminiPage.jsx'), 'GeminiPage');
-const ProfilePage = lazyNamed(() => import('../pages/ProfilePage.jsx'), 'ProfilePage');
+const CoursesPage = lazyNamed(() => import('../surfaces/admin/pages/courses/CoursesPage.jsx'), 'CoursesPage');
+const AdminDashboardPage = lazyNamed(() => import('../surfaces/admin/pages/dashboard/AdminDashboardPage.jsx'), 'AdminDashboardPage');
+const QuizzesPage = lazyNamed(() => import('../surfaces/admin/pages/quizzes/QuizzesPage.jsx'), 'QuizzesPage');
+const QuizBuilderPage = lazyNamed(() => import('../surfaces/admin/pages/quizzes/QuizBuilderPage.jsx'), 'QuizBuilderPage');
+const AdminSubscriptionsPage = lazyNamed(() => import('../surfaces/admin/pages/subscriptions/AdminSubscriptionsPage.jsx'), 'AdminSubscriptionsPage');
+const QuestionsPage = lazyNamed(() => import('../surfaces/admin/pages/questions/QuestionsPage.jsx'), 'QuestionsPage');
+const BulkQuestionInputPage = lazyNamed(() => import('../surfaces/admin/pages/questions/BulkQuestionInputPage.jsx'), 'BulkQuestionInputPage');
+const QuestionReviewPage = lazyNamed(() => import('../surfaces/admin/pages/questions/QuestionReviewPage.jsx'), 'QuestionReviewPage');
+const StructurePage = lazyNamed(() => import('../surfaces/admin/pages/structure/StructurePage.jsx'), 'StructurePage');
+const UsersPage = lazyNamed(() => import('../surfaces/admin/pages/users/UsersPage.jsx'), 'UsersPage');
+const AdminStudentDetailPage = lazyNamed(() => import('../surfaces/admin/pages/users/AdminStudentDetailPage.jsx'), 'AdminStudentDetailPage');
+const AdminSettingsPage = lazyNamed(() => import('../surfaces/admin/pages/settings/AdminSettingsPage.jsx'), 'AdminSettingsPage');
+const AdminSetupPage = lazyNamed(() => import('../surfaces/admin/pages/setup/AdminSetupPage.jsx'), 'AdminSetupPage');
+const AdminAnnouncementsPage = lazyNamed(() => import('../surfaces/admin/pages/announcements/AdminAnnouncementsPage.jsx'), 'AdminAnnouncementsPage');
+const AdminReportsPage = lazyNamed(() => import('../surfaces/admin/pages/reports/AdminReportsPage.jsx'), 'AdminReportsPage');
+const AdminDoubtsPage = lazyNamed(() => import('../surfaces/admin/pages/doubts/AdminDoubtsPage.jsx'), 'AdminDoubtsPage');
+const StudentDashboardPage = lazyNamed(() => import('../surfaces/app/student/dashboard/StudentDashboardPage.jsx'), 'StudentDashboardPage');
+const StudentCoursesPage = lazyNamed(() => import('../surfaces/app/student/courses/StudentCoursesPage.jsx'), 'StudentCoursesPage');
+const CourseDetailPage = lazyNamed(() => import('../surfaces/app/student/courses/CourseDetailPage.jsx'), 'CourseDetailPage');
+const StudentBillingPage = lazyNamed(() => import('../surfaces/app/student/billing/StudentBillingPage.jsx'), 'StudentBillingPage');
+const StudentCheckoutPage = lazyNamed(() => import('../surfaces/app/student/billing/StudentCheckoutPage.jsx'), 'StudentCheckoutPage');
+const BookmarksPage = lazyNamed(() => import('../surfaces/app/student/bookmarks/BookmarksPage.jsx'), 'BookmarksPage');
+const StudentNotificationsPage = lazyNamed(() => import('../surfaces/app/student/notifications/StudentNotificationsPage.jsx'), 'StudentNotificationsPage');
+const StudyPlannerPage = lazyNamed(() => import('../surfaces/app/student/planner/StudyPlannerPage.jsx'), 'StudyPlannerPage');
+const StudentDoubtsPage = lazyNamed(() => import('../surfaces/app/student/doubts/StudentDoubtsPage.jsx'), 'StudentDoubtsPage');
+const StudentFlashcardsPage = lazyNamed(() => import('../surfaces/app/student/flashcards/StudentFlashcardsPage.jsx'), 'StudentFlashcardsPage');
+const StudentNotesPage = lazyNamed(() => import('../surfaces/app/student/notes/StudentNotesPage.jsx'), 'StudentNotesPage');
+const AiNotesPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
+const AiNotesListPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesListPage.jsx'), 'AiNotesListPage');
+const AdminAiNotesListPage = lazyNamed(() => import('../surfaces/admin/pages/ai-notes/AdminAiNotesListPage.jsx'), 'AdminAiNotesListPage');
+const AdminAiNotesEditorPage = lazyNamed(() => import('../surfaces/admin/pages/ai-notes/AdminAiNotesEditorPage.jsx'), 'AdminAiNotesEditorPage');
+const StudentQuizzesPage = lazyNamed(() => import('../surfaces/app/student/quizzes/StudentQuizzesPage.jsx'), 'StudentQuizzesPage');
+const TakeQuizPage = lazyNamed(() => import('../surfaces/app/student/quizzes/TakeQuizPage.jsx'), 'TakeQuizPage');
+const PracticeReviewPage = lazyNamed(() => import('../surfaces/app/student/results/PracticeReviewPage.jsx'), 'PracticeReviewPage');
+const ResultPage = lazyNamed(() => import('../surfaces/app/student/results/ResultPage.jsx'), 'ResultPage');
+const ResultsListPage = lazyNamed(() => import('../surfaces/app/student/results/ResultsListPage.jsx'), 'ResultsListPage');
+const ReviewPage = lazyNamed(() => import('../surfaces/app/student/results/ReviewPage.jsx'), 'ReviewPage');
+const DashboardPage = lazyNamed(() => import('../shared/pages/DashboardPage.jsx'), 'DashboardPage');
+const NotFoundPage = lazyNamed(() => import('../shared/pages/NotFoundPage.jsx'), 'NotFoundPage');
+const AiQuizGeneratorPage = lazyNamed(() => import('../surfaces/website/ai/AiQuizGeneratorPage.jsx'), 'AiQuizGeneratorPage');
+const LessonNotesDemoPage = lazyNamed(() => import('../surfaces/website/pages/LessonNotesDemoPage.jsx'), 'LessonNotesDemoPage');
+const HeadacheNotesDemoPage = lazyNamed(() => import('../surfaces/website/pages/HeadacheNotesDemoPage.jsx'), 'HeadacheNotesDemoPage');
+const PwaPreviewPage = lazyNamed(() => import('../surfaces/website/pages/PwaPreviewPage.jsx'), 'PwaPreviewPage');
+const BrowserTestPage = lazyNamed(() => import('../surfaces/website/pages/BrowserTestPage.jsx'), 'BrowserTestPage');
+const GptPage = lazyNamed(() => import('../surfaces/website/pages/GptPage.jsx'), 'GptPage');
+const GeminiPage = lazyNamed(() => import('../surfaces/website/pages/GeminiPage.jsx'), 'GeminiPage');
+const ProfilePage = lazyNamed(() => import('../shared/account/ProfilePage.jsx'), 'ProfilePage');
+const PanelLayout = lazyNamed(() => import('../shared/layout/PanelLayout.jsx'), 'PanelLayout');
 
 const commonRoutePreloaders = new Map([
   ['/profile', ProfilePage.preload],
@@ -135,19 +143,19 @@ export function preloadRouteByPath(path, role = useAuthStore.getState().user?.ro
 
 function RouteFallback() {
   return (
-    <main className={ui.screenShell} aria-busy="true">
-      <div className={ui.routeSkeleton}>
-        <div className={ui.routeSkeletonTop}>
-          <span className={ui.shimmer} />
-          <span className={ui.shimmer} />
-          <span className={ui.shimmer} />
+    <main className={routeUi.screenShell} aria-busy="true">
+      <div className={routeUi.routeSkeleton}>
+        <div className={routeUi.routeSkeletonTop}>
+          <span className={routeUi.shimmer} />
+          <span className={routeUi.shimmer} />
+          <span className={routeUi.shimmer} />
         </div>
-        <div className={ui.routeSkeletonGrid}>
+        <div className={routeUi.routeSkeletonGrid}>
           {[1, 2, 3].map((item) => (
-            <div className={ui.routeSkeletonCard} key={item}>
-              <span className={ui.shimmer} />
-              <span className={ui.shimmer} />
-              <span className={ui.shimmer} />
+            <div className={routeUi.routeSkeletonCard} key={item}>
+              <span className={routeUi.shimmer} />
+              <span className={routeUi.shimmer} />
+              <span className={routeUi.shimmer} />
             </div>
           ))}
         </div>
@@ -188,6 +196,16 @@ function withSuspense(element) {
     <AppErrorBoundary>
       <Suspense fallback={<RouteFallback />}>
         <RouteReveal>{element}</RouteReveal>
+      </Suspense>
+    </AppErrorBoundary>
+  );
+}
+
+function withLayoutSuspense(element) {
+  return (
+    <AppErrorBoundary>
+      <Suspense fallback={<RouteFallback />}>
+        {element}
       </Suspense>
     </AppErrorBoundary>
   );
@@ -569,7 +587,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin',
-        element: (
+        element: withLayoutSuspense(
           <ProtectedRoute role="admin">
             <PanelLayout />
           </ProtectedRoute>
@@ -578,7 +596,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'app',
-        element: (
+        element: withLayoutSuspense(
           <ProtectedRoute role="student" allowPending>
             <PanelLayout />
           </ProtectedRoute>
@@ -586,7 +604,7 @@ export const router = createBrowserRouter([
         children: studentPanelRoutes,
       },
       {
-        element: <PanelLayout />,
+        element: withLayoutSuspense(<PanelLayout />),
         children: [
           {
             path: 'dashboard',
@@ -920,3 +938,7 @@ export const router = createBrowserRouter([
 ], {
   basename: ROUTER_BASENAME,
 });
+
+export function AppRouter() {
+  return <RouterProvider router={router} />;
+}

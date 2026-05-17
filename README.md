@@ -59,7 +59,15 @@ npm run stop:api:bg
 3. Open the app:
 
 ```text
-http://localhost/lms/#/login
+http://localhost/lms/auth/login
+```
+
+Local surface URLs:
+
+```text
+http://localhost/lms/                 public website
+http://localhost/lms/app/dashboard    student app surface
+http://localhost/lms/admin/dashboard  admin surface
 ```
 
 Mobile browser preview:
@@ -105,6 +113,8 @@ npm run build
 ## Notes
 
 - The React UI is served directly from `frontend/dist`.
+- Local Apache deep links are handled by `.htaccess`, so `/lms/app/*` and `/lms/admin/*` fall back to the React app.
+- Public website code lives under `frontend/src/surfaces/website`, student app code under `frontend/src/surfaces/app`, admin code under `frontend/src/surfaces/admin`, and cross-surface code under `frontend/src/shared`.
 - If the login page shows `Network Error`, the NestJS API is usually not running.
 - `npm run start:api` runs in the current terminal only. If you close that terminal, the API stops too.
 - `npm run start:api:bg` is the better local option when you want the app to keep working after closing VS Code terminals.

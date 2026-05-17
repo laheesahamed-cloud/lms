@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { detectPlatform } from '../platform/detect.js';
+import { detectPlatform } from '../shared/platform/detect.js';
 
 const PLATFORM = detectPlatform();
 

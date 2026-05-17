@@ -1,0 +1,202 @@
+<svg width="1180" height="1220" viewBox="0 0 1180 1220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1180" height="1220" fill="#EFF1FB"/>
+  <style>
+    .font { font-family: Inter, Arial, sans-serif; }
+    .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0; fill: #A8AECB; }
+    .title { font-size: 26px; font-weight: 800; fill: #0E1538; }
+    .label { font-size: 13px; font-weight: 800; fill: #0E1538; }
+    .muted { font-size: 12px; font-weight: 700; fill: #5C6582; }
+    .small { font-size: 10px; font-weight: 800; fill: #A8AECB; }
+  </style>
+
+  <g transform="translate(72 72)">
+    <rect width="340" height="844" rx="28" fill="#FFFFFF"/>
+    <text x="28" y="44" class="font" font-size="12" font-weight="800" fill="#3D5AFE">STUDENT DASHBOARD COPY</text>
+    <text x="28" y="92" class="font" font-size="34" font-weight="800" fill="#0E1538">Improved</text>
+    <text x="28" y="130" class="font" font-size="34" font-weight="800" fill="#0E1538">Study Hub</text>
+    <text x="28" y="166" class="font" font-size="15" font-weight="600" fill="#5C6582">A cleaner mobile-first dashboard that keeps</text>
+    <text x="28" y="190" class="font" font-size="15" font-weight="600" fill="#5C6582">the current production data model while</text>
+    <text x="28" y="214" class="font" font-size="15" font-weight="600" fill="#5C6582">improving scanability and action priority.</text>
+
+    <g transform="translate(28 258)">
+      <circle cx="17" cy="17" r="17" fill="#3D5AFE"/>
+      <text x="17" y="22" text-anchor="middle" class="font" font-size="13" font-weight="800" fill="#FFFFFF">1</text>
+      <text x="48" y="7" class="font label">Lead with next study action,</text>
+      <text x="48" y="27" class="font label">not generic stats.</text>
+    </g>
+    <g transform="translate(28 354)">
+      <circle cx="17" cy="17" r="17" fill="#F08A2C"/>
+      <text x="17" y="22" text-anchor="middle" class="font" font-size="13" font-weight="800" fill="#FFFFFF">2</text>
+      <text x="48" y="7" class="font label">Keep streak and readiness</text>
+      <text x="48" y="27" class="font label">adjacent for daily momentum.</text>
+    </g>
+    <g transform="translate(28 450)">
+      <circle cx="17" cy="17" r="17" fill="#8B5CF6"/>
+      <text x="17" y="22" text-anchor="middle" class="font" font-size="13" font-weight="800" fill="#FFFFFF">3</text>
+      <text x="48" y="7" class="font label">Use compact quick actions</text>
+      <text x="48" y="27" class="font label">with meaningful counts.</text>
+    </g>
+    <g transform="translate(28 546)">
+      <circle cx="17" cy="17" r="17" fill="#16A974"/>
+      <text x="17" y="22" text-anchor="middle" class="font" font-size="13" font-weight="800" fill="#FFFFFF">4</text>
+      <text x="48" y="7" class="font label">Make question of the day</text>
+      <text x="48" y="27" class="font label">feel tappable and review-ready.</text>
+    </g>
+    <text x="28" y="724" class="font muted">Maps to StudentDashboardPage.jsx:</text>
+    <text x="28" y="746" class="font muted">topbar, continue card, streak, readiness,</text>
+    <text x="28" y="768" class="font muted">quick actions, and question card.</text>
+  </g>
+
+  <g transform="translate(456 72)">
+    <rect width="390" height="1068" rx="30" fill="#EFF1FB"/>
+
+    <rect x="18" y="24" width="42" height="42" rx="14" fill="#FFFFFF" stroke="#E5E7F0"/>
+    <text x="39" y="50" text-anchor="middle" class="font" font-size="18" font-weight="800" fill="#0E1538">=</text>
+    <text x="76" y="36" class="font small">TODAY / SUN, MAY 17</text>
+    <text x="76" y="64" class="font title">Study Hub</text>
+    <rect x="286" y="24" width="42" height="42" rx="14" fill="#FFFFFF" stroke="#E5E7F0"/>
+    <text x="307" y="50" text-anchor="middle" class="font" font-size="14" font-weight="800" fill="#0E1538">S</text>
+    <rect x="334" y="24" width="42" height="42" rx="14" fill="url(#avatarGradient)"/>
+    <text x="355" y="50" text-anchor="middle" class="font" font-size="14" font-weight="800" fill="#FFFFFF">L</text>
+
+    <g transform="translate(18 88)">
+      <rect width="354" height="274" rx="28" fill="#FFFFFF" stroke="#E5E7F0"/>
+      <circle cx="295" cy="39" r="107" fill="#E5E9FF"/>
+      <circle cx="320" cy="44" r="66" fill="#F0E7FF"/>
+      <text x="24" y="36" class="font" font-size="11" font-weight="800" fill="#3D5AFE">CONTINUE WHERE YOU LEFT OFF</text>
+      <text x="24" y="86" class="font" font-size="36" font-weight="900" fill="#0E1538">Hi, Laheez</text>
+      <text x="24" y="125" class="font" font-size="14" font-weight="700" fill="#5C6582">Next study move: Practice</text>
+      <rect x="24" y="138" width="92" height="32" rx="16" fill="#E5E9FF"/>
+      <text x="70" y="158" text-anchor="middle" class="font" font-size="12" font-weight="800" fill="#3D5AFE">Surgery</text>
+      <rect x="124" y="138" width="154" height="32" rx="16" fill="#F0E7FF"/>
+      <text x="201" y="158" text-anchor="middle" class="font" font-size="12" font-weight="800" fill="#8B5CF6">Hernia - 76% ready</text>
+      <rect x="24" y="196" width="224" height="56" rx="18" fill="url(#primaryGradient)"/>
+      <text x="136" y="230" text-anchor="middle" class="font" font-size="14" font-weight="900" fill="#FFFFFF">Resume practice</text>
+      <rect x="260" y="196" width="56" height="56" rx="18" fill="#FFFFFF" stroke="#E5E7F0"/>
+      <text x="288" y="230" text-anchor="middle" class="font" font-size="15" font-weight="900" fill="#3D5AFE">R</text>
+    </g>
+
+    <g transform="translate(18 378)">
+      <rect width="354" height="154" rx="22" fill="url(#streakGradient)" stroke="#F5D9A8"/>
+      <rect x="16" y="16" width="44" height="44" rx="14" fill="url(#amberGradient)"/>
+      <text x="38" y="44" text-anchor="middle" class="font" font-size="14" font-weight="900" fill="#FFFFFF">F</text>
+      <text x="72" y="30" class="font" font-size="10" font-weight="800" fill="#E66B1F">DAILY STREAK</text>
+      <text x="72" y="52" class="font" font-size="16" font-weight="900" fill="#0E1538">6 active days</text>
+      <text x="320" y="40" text-anchor="middle" class="font" font-size="23" font-weight="900" fill="#E66B1F">6</text>
+      <text x="320" y="56" text-anchor="middle" class="font" font-size="9" font-weight="900" fill="#734B1E">days</text>
+      <g transform="translate(16 74)">
+        <rect width="38" height="12" rx="4" fill="#FFECCF" stroke="#F08A2C" stroke-dasharray="2 2"/>
+        <rect x="46" width="38" height="12" rx="4" fill="#FFECCF" stroke="#F08A2C" stroke-dasharray="2 2"/>
+        <rect x="92" width="38" height="12" rx="4" fill="#FFECCF" stroke="#F08A2C" stroke-dasharray="2 2"/>
+        <rect x="138" width="38" height="12" rx="4" fill="#FFECCF" stroke="#F08A2C" stroke-dasharray="2 2"/>
+        <rect x="184" width="38" height="12" rx="4" fill="#F7AD59"/>
+        <rect x="230" width="38" height="12" rx="4" fill="#F08A2C"/>
+        <rect x="276" width="38" height="12" rx="4" fill="#E66B1F"/>
+        <rect y="18" width="38" height="12" rx="4" fill="#FFECCF" stroke="#F08A2C" stroke-dasharray="2 2"/>
+        <rect x="46" y="18" width="38" height="12" rx="4" fill="#F7AD59"/>
+        <rect x="92" y="18" width="38" height="12" rx="4" fill="#F08A2C"/>
+        <rect x="138" y="18" width="38" height="12" rx="4" fill="#E66B1F"/>
+        <rect x="184" y="18" width="38" height="12" rx="4" fill="#F7AD59"/>
+        <rect x="230" y="18" width="38" height="12" rx="4" fill="#F08A2C"/>
+        <rect x="276" y="18" width="38" height="12" rx="4" fill="#E66B1F"/>
+        <rect y="36" width="38" height="12" rx="4" fill="#F7AD59"/>
+        <rect x="46" y="36" width="38" height="12" rx="4" fill="#F08A2C"/>
+        <rect x="92" y="36" width="38" height="12" rx="4" fill="#E66B1F"/>
+        <rect x="138" y="36" width="38" height="12" rx="4" fill="#F7AD59"/>
+        <rect x="184" y="36" width="38" height="12" rx="4" fill="#F08A2C"/>
+        <rect x="230" y="36" width="38" height="12" rx="4" fill="#E66B1F"/>
+        <rect x="276" y="36" width="38" height="12" rx="4" fill="#F7AD59"/>
+      </g>
+      <text x="16" y="146" class="font" font-size="11" font-weight="800" fill="#734B1E">Past 4 weeks - 12 active days</text>
+    </g>
+
+    <g transform="translate(18 544)">
+      <rect width="354" height="150" rx="22" fill="#0E1538"/>
+      <circle cx="331" cy="23" r="85" fill="#8B5CF6" opacity=".24"/>
+      <circle cx="25" cy="145" r="75" fill="#3D5AFE" opacity=".22"/>
+      <rect x="18" y="30" width="60" height="60" rx="18" fill="url(#primaryGradient)"/>
+      <text x="48" y="67" text-anchor="middle" class="font" font-size="16" font-weight="900" fill="#FFFFFF">C</text>
+      <text x="96" y="38" class="font" font-size="10" font-weight="800" fill="#FFFFFF">EXAM READINESS</text>
+      <text x="322" y="38" text-anchor="end" class="font" font-size="10" font-weight="800" fill="#B8BEDF">Target 82%</text>
+      <text x="96" y="84" class="font" font-size="36" font-weight="900" fill="#FFFFFF">76</text>
+      <text x="164" y="76" class="font" font-size="14" font-weight="900" fill="#C2C7E5">% ready</text>
+      <rect x="96" y="94" width="226" height="6" rx="3" fill="#FFFFFF" opacity=".12"/>
+      <rect x="96" y="94" width="172" height="6" rx="3" fill="url(#primaryGradient)"/>
+      <text x="96" y="123" class="font" font-size="10" font-weight="800" fill="#A6ADD1">Keep building</text>
+      <text x="322" y="123" text-anchor="end" class="font" font-size="10" font-weight="800" fill="#A6ADD1">76% complete</text>
+    </g>
+
+    <text x="22" y="725" class="font eyebrow">QUICK ACTIONS</text>
+    <text x="366" y="725" text-anchor="end" class="font muted">3 shortcuts</text>
+    <g transform="translate(18 742)">
+      <rect width="110" height="130" rx="20" fill="#FFFFFF" stroke="#E5E7F0"/>
+      <rect x="14" y="14" width="42" height="42" rx="14" fill="#E5E9FF"/>
+      <text x="35" y="40" text-anchor="middle" class="font" font-size="13" font-weight="900" fill="#3D5AFE">A</text>
+      <text x="82" y="32" text-anchor="middle" class="font" font-size="18" font-weight="900" fill="#3D5AFE">12</text>
+      <text x="14" y="105" class="font" font-size="13" font-weight="900" fill="#0E1538">Review</text>
+      <text x="14" y="121" class="font" font-size="13" font-weight="900" fill="#0E1538">answers</text>
+    </g>
+    <g transform="translate(140 742)">
+      <rect width="110" height="130" rx="20" fill="#FFFFFF" stroke="#E5E7F0"/>
+      <rect x="14" y="14" width="42" height="42" rx="14" fill="#F0E7FF"/>
+      <text x="35" y="40" text-anchor="middle" class="font" font-size="13" font-weight="900" fill="#8B5CF6">P</text>
+      <text x="82" y="32" text-anchor="middle" class="font" font-size="18" font-weight="900" fill="#8B5CF6">8</text>
+      <text x="14" y="112" class="font" font-size="13" font-weight="900" fill="#0E1538">Practice</text>
+    </g>
+    <g transform="translate(262 742)">
+      <rect width="110" height="130" rx="20" fill="#FFFFFF" stroke="#E5E7F0"/>
+      <rect x="14" y="14" width="42" height="42" rx="14" fill="#FFF1DE"/>
+      <text x="35" y="40" text-anchor="middle" class="font" font-size="13" font-weight="900" fill="#F08A2C">L</text>
+      <text x="82" y="32" text-anchor="middle" class="font" font-size="18" font-weight="900" fill="#F08A2C">5</text>
+      <text x="14" y="112" class="font" font-size="13" font-weight="900" fill="#0E1538">Lessons</text>
+    </g>
+
+    <text x="22" y="907" class="font eyebrow">QUESTION OF THE DAY</text>
+    <text x="366" y="907" text-anchor="end" class="font muted">Tap an answer</text>
+    <g transform="translate(18 924)">
+      <rect width="354" height="126" rx="22" fill="#FFFFFF" stroke="#E5E7F0"/>
+      <text x="20" y="41" class="font" font-size="16" font-weight="900" fill="#0E1538">Which finding most strongly suggests</text>
+      <text x="20" y="63" class="font" font-size="16" font-weight="900" fill="#0E1538">incarcerated hernia?</text>
+      <rect x="20" y="76" width="314" height="34" rx="12" fill="#E9FBF5" stroke="#82DEAD"/>
+      <rect x="28" y="83" width="20" height="20" rx="8" fill="#16A974"/>
+      <text x="38" y="98" text-anchor="middle" class="font" font-size="10" font-weight="900" fill="#FFFFFF">B</text>
+      <text x="58" y="98" class="font" font-size="12" font-weight="700" fill="#0E1538">Irreducible painful lump</text>
+    </g>
+  </g>
+
+  <g transform="translate(888 72)">
+    <rect width="300" height="520" rx="24" fill="#FFFFFF"/>
+    <text x="24" y="41" class="font" font-size="11" font-weight="800" fill="#3D5AFE">EDITABLE TOKENS</text>
+    <text x="24" y="78" class="font" font-size="24" font-weight="800" fill="#0E1538">Study Hub palette</text>
+    <g class="font" font-size="13" font-weight="800" fill="#0E1538">
+      <rect x="24" y="106" width="34" height="34" rx="10" fill="#EFF1FB" stroke="#EEF0F6"/><text x="72" y="128">Background</text>
+      <rect x="24" y="154" width="34" height="34" rx="10" fill="#FFFFFF" stroke="#EEF0F6"/><text x="72" y="176">Surface</text>
+      <rect x="24" y="202" width="34" height="34" rx="10" fill="#0E1538"/><text x="72" y="224">Ink</text>
+      <rect x="24" y="250" width="34" height="34" rx="10" fill="#3D5AFE"/><text x="72" y="272">Primary</text>
+      <rect x="24" y="298" width="34" height="34" rx="10" fill="#8B5CF6"/><text x="72" y="320">Violet</text>
+      <rect x="24" y="346" width="34" height="34" rx="10" fill="#F08A2C"/><text x="72" y="368">Streak</text>
+      <rect x="24" y="394" width="34" height="34" rx="10" fill="#16A974"/><text x="72" y="416">Success</text>
+    </g>
+    <text x="24" y="468" class="font muted">Primitive-based and importable because</text>
+    <text x="24" y="488" class="font muted">the repo has no Code Connect mappings yet.</text>
+  </g>
+
+  <defs>
+    <linearGradient id="primaryGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#3D5AFE"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="avatarGradient" x1="334" y1="24" x2="376" y2="66">
+      <stop stop-color="#3D5AFE"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="streakGradient" x1="0" y1="0" x2="354" y2="154">
+      <stop stop-color="#FFF6E9"/>
+      <stop offset="1" stop-color="#FFE4C2"/>
+    </linearGradient>
+    <linearGradient id="amberGradient" x1="16" y1="16" x2="60" y2="60">
+      <stop stop-color="#F08A2C"/>
+      <stop offset="1" stop-color="#E66B1F"/>
+    </linearGradient>
+  </defs>
+</svg>

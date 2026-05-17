@@ -1,0 +1,100 @@
+/* ============================================================
+   AI Notes / Lessons pages — Concept A
+   Card chrome lives in student-app.css. This file handles:
+     - AI note reader (.ai-note-page)
+     - Study mode player
+     - Lesson list polish
+   ============================================================ */
+
+/* ============================================================
+   AI NOTE READER (focus mode — sidebar hidden)
+   ============================================================ */
+.ai-note-page {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  color: var(--sa-ink);
+}
+
+.ai-note-page * { box-sizing: border-box; }
+
+.student-app-shell .ai-note-topbar {
+  position: sticky;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  z-index: 40;
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-lg);
+  background: color-mix(in srgb, var(--sa-surface) 82%, transparent);
+  color: var(--sa-ink);
+  box-shadow: var(--sa-shadow-card-hover);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.student-app-shell .ai-note-topbar-inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.student-app-shell .ai-note-topbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.student-app-shell .ai-note-topbar-actions :where(button, a) {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  transition: background var(--sa-dur) var(--sa-ease), border-color var(--sa-dur) var(--sa-ease), color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease);
+}
+
+.student-app-shell .ai-note-topbar-actions :where(button, a):hover {
+  border-color: color-mix(in srgb, var(--sa-primary) 28%, var(--sa-border));
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
+}
+
+.student-app-shell .ai-note-topbar-actions :where(button, a):active {
+  transform: scale(0.96);
+}
+
+.student-app-shell .ai-note-main {
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-xl);
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  padding: clamp(20px, 3vw, 36px);
+  box-shadow: var(--sa-shadow-card);
+}
+
+.student-app-shell .ai-note-right-panel {
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-surface);
+  box-shadow: var(--sa-shadow-card);
+}
+
+@media (max-width: 1024px) {
+  .student-app-shell .ai-note-main { padding: 18px; border-radius: var(--sa-radius-lg); }
+}
+
+@media (max-width: 640px) {
+  .student-app-shell .ai-note-topbar-inner { padding: 8px 10px; gap: 8px; }
+  .student-app-shell .ai-note-main { padding: 16px; }
+}
+
+/* ============================================================
+   LMS DELIGHT (study mode reward sheet)
+   ============================================================ */
+.student-app-shell .lms-student-delight {
+  border-radius: var(--sa-radius-xl);
+  background: var(--sa-surface);
+  border: 1px solid var(--sa-border);
+  box-shadow: var(--sa-shadow-card-hover);
+}

@@ -88,6 +88,23 @@ type NoteReviewRow = RowDataPacket & {
   topic_name: string | null;
 };
 
+type DashboardQuestionRow = RowDataPacket & {
+  id: number;
+  question_text: string;
+  question_type: 'sba' | 'true_false';
+  course_title: string | null;
+  subject_name: string | null;
+  topic_name: string | null;
+};
+
+type DashboardQuestionOptionRow = RowDataPacket & {
+  id: number;
+  question_id: number;
+  option_label: string;
+  option_text: string;
+  is_correct: number;
+};
+
 type DailyCountRow = RowDataPacket & {
   day_key: string;
   count_value: number;
@@ -745,6 +762,7 @@ export class DashboardService {
       todayQuizCount: todayQuizRows.length,
       todayNoteCount: todayNoteRows.length,
     });
+    const questionOfDay = await this.getRandomDashboardQuestion();
 
     return {
       user: {
@@ -785,6 +803,7 @@ export class DashboardService {
       focusCourse,
       performanceSnapshot,
       adaptivePlan,
+      questionOfDay,
       missedPatterns: missedPatterns.map((row) => ({
         courseTitle: row.course_title || 'General',
         subjectName: row.subject_name || '',
@@ -961,6 +980,57 @@ export class DashboardService {
         status: todayQuizCount > 0 ? 'next' : 'queued',
       },
     ];
+  }
+
+  private async getRandomDashboardQuestion() {
+    const [questionRows] = await this.db.execute<DashboardQuestionRow[]>(
+      `SELECT
+         q.id,
+         q.question_text,
+         q.question_type,
+         c.course_title,
+         subj.topic_name AS subject_name,
+         sub.subtopic_name AS topic_name
+       FROM questions q
+       LEFT JOIN courses c ON c.id = q.course_id
+       LEFT JOIN topics subj ON subj.id = q.topic_id
+       LEFT JOIN subtopics sub ON sub.id = q.subtopic_id
+       WHERE q.status = 'active'
+         AND EXISTS (
+           SELECT 1
+           FROM question_options qo
+           WHERE qo.question_id = q.id
+         )
+       ORDER BY RAND()
+       LIMIT 1`
+    );
+    const question = questionRows[0];
+    if (!question) {
+      return null;
+    }
+
+    const [optionRows] = await this.db.execute<DashboardQuestionOptionRow[]>(
+      `SELECT id, question_id, option_label, option_text, is_correct
+       FROM question_options
+       WHERE question_id = ?
+       ORDER BY option_label ASC, id ASC`,
+      [question.id]
+    );
+
+    return {
+      id: Number(question.id),
+      questionType: question.question_type,
+      questionText: question.question_text,
+      courseTitle: question.course_title || '',
+      subjectName: question.subject_name || '',
+      topicName: question.topic_name || question.subject_name || '',
+      options: optionRows.map((option) => ({
+        id: Number(option.id),
+        optionLabel: option.option_label,
+        optionText: option.option_text,
+        isCorrect: Number(option.is_correct) === 1,
+      })),
+    };
   }
 
   private extractToken(authorization?: string) {

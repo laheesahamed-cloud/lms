@@ -46,7 +46,13 @@
       "Skill(update-config:*)",
       "WebFetch(domain:localhost)",
       "Bash(python3 skills/ui-ux-pro-max/scripts/search.py \"medical LMS education dark premium\" --design-system -p \"ERPM LMS\")",
-      "Bash(python3 skills/ui-ux-pro-max/scripts/search.py \"LMS course detail accordion interactive educational premium\" --design-system -p \"ERPM LMS\")"
+      "Bash(python3 skills/ui-ux-pro-max/scripts/search.py \"LMS course detail accordion interactive educational premium\" --design-system -p \"ERPM LMS\")",
+      "Bash(python3 /Users/laheez/.claude/skills/ui-ux-pro-max/scripts/search.py \"medical education mobile dashboard premium student app\" --design-system -p \"LMS Study Hub\" -f markdown)",
+      "Bash(open /Applications/XAMPP/xamppfiles/htdocs/lms/design-concepts.html)",
+      "Bash(grep -hE \"className=\\\\\"[^\\\\\"]{0,80}\\\\\"\" /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/surfaces/app/student/planner/StudyPlannerPage.jsx)",
+      "Bash(awk '/--color-primary[^a-z-]/{print NR\": \"$0}' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/99-legacy/app.css)",
+      "Bash(awk '/--ink-strong/{print NR\": \"$0}' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/99-legacy/app.css)",
+      "Bash(awk '/--surface-card/{print NR\": \"$0}' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/99-legacy/app.css)"
     ]
   }
 }
