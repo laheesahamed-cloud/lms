@@ -142,16 +142,18 @@ function fixtureHtml(attrs) {
       </header>
 
       <section class="lms-dashboard-welcome-card lms-hero-card lms-dashboard-hero-card qa-box" data-score-band="fail" data-study-move="exam">
-        <div class="lms-dashboard-welcome-copy">
-          <span class="lms-rc-eyebrow">ERPM LMS</span>
-          <h2>Welcome back, Laheez</h2>
-          <p class="lms-hero-quiz-context">Next study move - EXAM</p>
+        <div class="lms-dashboard-hero-content">
+          <div class="lms-dashboard-welcome-copy">
+            <span class="lms-rc-eyebrow">ERPM LMS</span>
+            <h2>Welcome back, Laheez</h2>
+            <p class="lms-hero-next-step"><span>Next study move</span><strong>EXAM</strong></p>
+          </div>
+          <div class="lms-dashboard-hero-actions">
+            <button class="lms-dashboard-hero-primary"><span>Start exam</span></button>
+            <button class="lms-dashboard-hero-secondary"><span>View last result</span></button>
+          </div>
         </div>
         <div class="lms-dashboard-welcome-mascot"></div>
-        <div class="lms-dashboard-hero-actions">
-          <button class="lms-dashboard-hero-primary"><span>Start exam</span></button>
-          <button class="lms-dashboard-hero-secondary"><span>View last result</span></button>
-        </div>
       </section>
 
       <section class="lms-dashboard-quick-actions">

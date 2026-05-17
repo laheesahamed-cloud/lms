@@ -1327,52 +1327,60 @@ export function StudentDashboardPage() {
                 data-study-move={String(welcomeCard.moveType || '').trim().toLowerCase()}
                 style={heroSc ? { '--rc-score-color': heroSc.color, '--rc-score-bg': heroSc.bg, '--rc-score-border': heroSc.border } : {}}
               >
-                <div className="lms-dashboard-welcome-copy relative">
-                  <span className="lms-rc-eyebrow">{welcomeCard.eyebrow}</span>
-                  <h2 className={dashboardUi.heroTitle}>
-                    Welcome back,{' '}
-                    <span className="lms-hero-name-gradient">{firstName}</span>
-                    {' '}<WaveHandIcon />
-                  </h2>
-                  {welcomeCard.subheading && (
-                    <p className="lms-hero-next-step">
-                      <span>{welcomeCard.subheading}</span>
-                      {welcomeCard.moveType ? <strong>{welcomeCard.moveType}</strong> : null}
-                    </p>
-                  )}
-                  {(heroCourse || heroTopic) && (
-                    <div className="lms-rc-tags">
-                      {heroCourse && <span className="lms-rc-tag">{heroCourse}</span>}
-                      {heroTopic && <span className="lms-rc-tag lms-rc-tag--topic">{heroTopic}</span>}
-                    </div>
-                  )}
-                  {heroResultLabel && (
-                    <span className="lms-rc-result-badge lms-hero-result-badge">
-                      {heroBand === 'pass' ? (
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 6l3 3 5-5.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      ) : heroBand === 'fail' ? (
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 3v3.5M6 9v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                      ) : (
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                      )}
-                      {heroResultLabel}
-                    </span>
-                  )}
+                <div className="lms-dashboard-hero-content">
+                  <div className="lms-dashboard-welcome-copy relative">
+                    <span className="lms-rc-eyebrow">{welcomeCard.eyebrow}</span>
+                    <h2 className={dashboardUi.heroTitle}>
+                      Welcome back,{' '}
+                      <span className="lms-hero-name-gradient">{firstName}</span>
+                      {' '}<WaveHandIcon />
+                    </h2>
+                    {welcomeCard.subheading && (
+                      <p className="lms-hero-next-step">
+                        <span>{welcomeCard.subheading}</span>
+                        {welcomeCard.moveType ? <strong>{welcomeCard.moveType}</strong> : null}
+                      </p>
+                    )}
+                    {(heroCourse || heroTopic) && (
+                      <div className="lms-rc-tags">
+                        {heroCourse && <span className="lms-rc-tag">{heroCourse}</span>}
+                        {heroTopic && <span className="lms-rc-tag lms-rc-tag--topic">{heroTopic}</span>}
+                      </div>
+                    )}
+                    {heroResultLabel && (
+                      <span className="lms-rc-result-badge lms-hero-result-badge">
+                        {heroBand === 'pass' ? (
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 6l3 3 5-5.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        ) : heroBand === 'fail' ? (
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 3v3.5M6 9v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                        ) : (
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                        )}
+                        {heroResultLabel}
+                      </span>
+                    )}
+                  </div>
+                  <div className="lms-dashboard-hero-actions">
+                    <button type="button" className="lms-dashboard-hero-primary" onClick={welcomeCard.primaryAction}>
+                      <HeroCtaIcon />
+                      <span>{welcomeCard.primaryLabel}</span>
+                    </button>
+                    {welcomeCard.secondaryLabel && (
+                      <button
+                        type="button"
+                        className="lms-dashboard-hero-secondary"
+                        onClick={welcomeCard.secondaryAction}
+                        aria-label={welcomeCard.secondaryLabel}
+                        title={welcomeCard.secondaryLabel}
+                      >
+                        <HeroCtaIcon type="secondary" />
+                        <span>{welcomeCard.secondaryLabel}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="lms-dashboard-welcome-mascot lms-mascot-breathing lms-hero-mascot-col flex items-center justify-center min-w-0">
                   <HeroMedicalIllustration />
-                </div>
-                <div className="lms-dashboard-hero-actions">
-                  <button type="button" className="lms-dashboard-hero-primary" onClick={welcomeCard.primaryAction}>
-                    <HeroCtaIcon />
-                    <span>{welcomeCard.primaryLabel}</span>
-                  </button>
-                  {welcomeCard.secondaryLabel && (
-                    <button type="button" className="lms-dashboard-hero-secondary" onClick={welcomeCard.secondaryAction}>
-                      <HeroCtaIcon type="secondary" />
-                      <span>{welcomeCard.secondaryLabel}</span>
-                    </button>
-                  )}
                 </div>
               </section>
             );
@@ -1388,16 +1396,22 @@ export function StudentDashboardPage() {
         ) : null}
 
         {!loading ? (
-          <section className="lms-dashboard-quick-actions" aria-label="Quick actions">
-            {quickActions.map((item) => (
-              <button type="button" key={item.key} className={`lms-dashboard-quick-action lms-dashboard-quick-action--${item.type}`} onClick={item.action}>
-                <span className="lms-dashboard-quick-action__icon"><QuickActionIcon type={item.type} /></span>
-                <span className="lms-dashboard-quick-action__copy">
-                  <strong>{item.label}</strong>
-                  <small>{item.hint}</small>
-                </span>
-              </button>
-            ))}
+          <section className="lms-dashboard-quick-actions-section" aria-label="Quick actions">
+            <div className="lms-dashboard-section-head">
+              <span className="lms-dashboard-section-eyebrow">Quick actions</span>
+              <span className="lms-dashboard-section-meta">{quickActions.length} shortcuts</span>
+            </div>
+            <div className="lms-dashboard-quick-actions">
+              {quickActions.map((item) => (
+                <button type="button" key={item.key} className={`lms-dashboard-quick-action lms-dashboard-quick-action--${item.type}`} onClick={item.action}>
+                  <span className="lms-dashboard-quick-action__icon"><QuickActionIcon type={item.type} /></span>
+                  <span className="lms-dashboard-quick-action__copy">
+                    <strong>{item.label}</strong>
+                    <small>{item.hint}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
           </section>
         ) : null}
 

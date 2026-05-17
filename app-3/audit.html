@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redesign audit — Medical study app</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #EFF1FB;
+      --surface: #FFFFFF;
+      --surface2: #F4F5FB;
+      --ink: #0E1538;
+      --primary: #3D5AFE;
+      --primary-soft: #E5E9FF;
+      --accent: #3D5AFE;
+      --accent-soft: #E5E9FF;
+      --accent2: #8B5CF6;
+      --accent2-soft: #F0E7FF;
+      --grad: linear-gradient(135deg, #3D5AFE 0%, #8B5CF6 100%);
+      --ok: #16A974;
+      --ok-soft: #DEF5E7;
+      --warn: #F08A2C;
+      --danger: #E5484D;
+      --text: #0E1538;
+      --text2: #5C6582;
+      --text3: #A8AECB;
+      --border: #E5E7F0;
+      --border-soft: #EEF0F6;
+      --sans: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 80px 32px 120px;
+    }
+    @media (max-width: 640px) {
+      .wrap { padding: 48px 20px 80px; }
+    }
+
+    /* ─── Header ─────────────────────────────────────────── */
+    .meta {
+      display: flex; gap: 12px; align-items: center; margin-bottom: 28px;
+      font-size: 12px; color: var(--text3); font-weight: 600; letter-spacing: 0.4px;
+    }
+    .meta-pill {
+      padding: 5px 11px; border-radius: 999px; background: var(--surface);
+      border: 1px solid var(--border); color: var(--text); font-weight: 600;
+    }
+    h1 {
+      font-family: var(--sans); font-weight: 800; font-size: clamp(40px, 7vw, 64px);
+      line-height: 1.0; letter-spacing: -1.5px; margin: 0 0 16px;
+    }
+    h1 em {
+      font-style: normal;
+      background: var(--grad); -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+    }
+    .lede {
+      font-size: 18px; color: var(--text2); max-width: 620px; margin: 0 0 16px;
+      line-height: 1.55;
+    }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600; color: var(--accent2);
+      text-decoration: none; margin-top: 8px;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    /* ─── TOC ────────────────────────────────────────────── */
+    .toc {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 20px 24px;
+      margin: 36px 0 56px;
+    }
+    .toc a {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0; font-size: 14px; color: var(--text); text-decoration: none;
+      font-weight: 500; border-bottom: 1px solid var(--border-soft);
+    }
+    .toc a:last-child { border-bottom: none; }
+    .toc a:hover { color: var(--accent); }
+    .toc a span.idx {
+      font-family: var(--sans); font-weight: 800; color: var(--accent);
+      font-size: 13px; margin-right: 10px; min-width: 28px; letter-spacing: -0.2px;
+    }
+    @media (max-width: 640px) {
+      .toc { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Sections ───────────────────────────────────────── */
+    section { margin-bottom: 80px; scroll-margin-top: 24px; }
+    .sect-head {
+      display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px;
+      padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    .sect-num {
+      font-family: var(--sans); font-weight: 800; font-size: 22px;
+      background: var(--grad); -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+      line-height: 1; min-width: 40px; letter-spacing: -0.5px;
+    }
+    h2 {
+      font-family: var(--sans); font-weight: 800; font-size: clamp(28px, 4.5vw, 40px);
+      line-height: 1.05; letter-spacing: -0.8px; margin: 0;
+    }
+
+    /* findings grid */
+    .findings {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+      margin-top: 24px;
+      border: 1px solid var(--border); border-radius: 20px; overflow: hidden;
+      background: var(--surface);
+    }
+    .col {
+      padding: 22px 24px; border-bottom: 1px solid var(--border-soft);
+    }
+    .col + .col { border-left: 1px solid var(--border-soft); }
+    .findings .col:nth-last-child(1),
+    .findings .col:nth-last-child(2) { border-bottom: none; }
+    .col-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .col.before .col-label { color: var(--danger); }
+    .col.after  .col-label { color: var(--ok); }
+    .col-label::before {
+      content: ''; width: 6px; height: 6px; border-radius: 999px;
+      background: currentColor;
+    }
+    .col ul { margin: 0; padding: 0; list-style: none; }
+    .col li {
+      padding: 8px 0 8px 18px; position: relative;
+      font-size: 14px; line-height: 1.5; color: var(--text);
+    }
+    .col li::before {
+      content: '';
+      position: absolute; left: 0; top: 16px; width: 8px; height: 1px;
+      background: var(--text3);
+    }
+    .col li strong { color: var(--ink); font-weight: 700; }
+    .col li code {
+      font-family: var(--mono); font-size: 12px; color: var(--accent2);
+      background: var(--accent-soft); padding: 1px 6px; border-radius: 4px;
+    }
+    @media (max-width: 720px) {
+      .findings { grid-template-columns: 1fr; }
+      .col + .col { border-left: none; border-top: 1px solid var(--border-soft); }
+    }
+
+    /* system blocks */
+    .system-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+      margin-top: 20px;
+    }
+    .sys-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 22px 24px;
+    }
+    .sys-card h3 {
+      font-family: var(--sans); font-weight: 800; font-size: 20px;
+      margin: 0 0 16px; color: var(--ink); line-height: 1.1; letter-spacing: -0.4px;
+    }
+    .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .swatch { display: flex; flex-direction: column; gap: 6px; }
+    .swatch .chip {
+      height: 64px; border-radius: 14px; border: 1px solid rgba(21,37,46,0.08);
+    }
+    .swatch .name { font-size: 11px; font-weight: 700; color: var(--ink); letter-spacing: 0.2px; }
+    .swatch .hex { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+    .type-row { display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+    .type-row:last-child { border-bottom: none; }
+    .type-row .sample { flex: 1; }
+    .type-row .meta-txt { font-family: var(--mono); font-size: 11px; color: var(--text3); white-space: nowrap; }
+    .ser-display { font-family: var(--sans); font-weight: 800; font-size: 44px; line-height: 1; color: var(--ink); letter-spacing: -1.2px; background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .ser-numeral { font-family: var(--sans); font-weight: 800; font-size: 32px; color: var(--accent); letter-spacing: -0.6px; }
+    .sans-h    { font-family: var(--sans); font-weight: 700; font-size: 20px; color: var(--ink); }
+    .sans-body { font-family: var(--sans); font-weight: 500; font-size: 14px; color: var(--text); }
+    .sans-eyebrow { font-family: var(--sans); font-weight: 700; font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text3); }
+
+    @media (max-width: 720px) {
+      .system-grid { grid-template-columns: 1fr; }
+    }
+
+    /* principles */
+    .principles {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+      margin-top: 20px;
+    }
+    .principle {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 22px;
+    }
+    .principle .num {
+      font-family: var(--sans); font-weight: 800; font-size: 24px;
+      background: var(--grad); -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+      line-height: 1; margin-bottom: 12px; letter-spacing: -0.4px;
+    }
+    .principle h4 {
+      font-family: var(--sans); font-weight: 700; font-size: 15px; margin: 0 0 6px;
+      color: var(--ink);
+    }
+    .principle p { font-size: 13px; color: var(--text2); margin: 0; line-height: 1.55; }
+    @media (max-width: 720px) {
+      .principles { grid-template-columns: 1fr; }
+    }
+
+    /* footer */
+    .end {
+      margin-top: 60px; padding-top: 32px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      flex-wrap: wrap;
+    }
+    .end-link {
+      display: inline-flex; align-items: center; gap: 8px; padding: 14px 20px;
+      background: var(--ink); color: #FBF8F2; border-radius: 16px;
+      text-decoration: none; font-weight: 700; font-size: 14px;
+    }
+    .end-link:hover { background: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Header -->
+    <div class="meta">
+      <span class="meta-pill">Redesign audit</span>
+      <span>·</span>
+      <span>Medical study app</span>
+      <span>·</span>
+      <span>v1 · 2026</span>
+    </div>
+    <h1>What changed, <em>and why.</em></h1>
+    <p class="lede">
+      A walk through every screen — what the original got wrong, what was kept,
+      and how the existing blue/purple visual language was tightened. The vibe stays;
+      the rough edges go.
+    </p>
+    <a class="back-link" href="index.html">← Back to the prototype</a>
+
+    <!-- TOC -->
+    <nav class="toc" aria-label="Contents">
+      <a href="#system"><span class="idx">00</span> The system <span>→</span></a>
+      <a href="#home"><span class="idx">01</span> Study Hub <span>→</span></a>
+      <a href="#qbank"><span class="idx">02</span> Q-Bank <span>→</span></a>
+      <a href="#courses"><span class="idx">03</span> All Courses <span>→</span></a>
+      <a href="#lessons"><span class="idx">04</span> Lessons index <span>→</span></a>
+      <a href="#lesson"><span class="idx">05</span> Lesson detail <span>→</span></a>
+      <a href="#results"><span class="idx">06</span> Results <span>→</span></a>
+      <a href="#principles"><span class="idx">07</span> Principles <span>→</span></a>
+    </nav>
+
+    <!-- System -->
+    <section id="system">
+      <div class="sect-head">
+        <span class="sect-num">00</span>
+        <h2>The system</h2>
+      </div>
+      <p class="lede" style="font-size: 16px; max-width: 700px;">
+        Same DNA, sharpened. The original's blue→purple gradient becomes a real
+        <strong>brand motif</strong> — used confidently on the hero CTA, the Resume pill, italic
+        numerals on the Results hero, and the active tab — instead of bleeding onto
+        every stat card. <strong>Plus Jakarta Sans 800</strong> at scale carries
+        the “more confident type” brief; the streak orange stays as a warm semantic accent.
+      </p>
+
+      <div class="system-grid">
+        <div class="sys-card">
+          <h3>Color</h3>
+          <div class="swatches">
+            <div class="swatch"><div class="chip" style="background:#EFF1FB"></div><span class="name">BG lavender</span><span class="hex">#EFF1FB</span></div>
+            <div class="swatch"><div class="chip" style="background:#FFFFFF"></div><span class="name">Surface</span><span class="hex">#FFFFFF</span></div>
+            <div class="swatch"><div class="chip" style="background:#0E1538"></div><span class="name">Ink</span><span class="hex">#0E1538</span></div>
+            <div class="swatch"><div class="chip" style="background:#3D5AFE"></div><span class="name">Primary</span><span class="hex">#3D5AFE</span></div>
+            <div class="swatch"><div class="chip" style="background:#8B5CF6"></div><span class="name">Accent 2</span><span class="hex">#8B5CF6</span></div>
+            <div class="swatch"><div class="chip" style="background:linear-gradient(135deg,#3D5AFE,#8B5CF6)"></div><span class="name">Brand grad</span><span class="hex">135°</span></div>
+            <div class="swatch"><div class="chip" style="background:#F08A2C"></div><span class="name">Streak</span><span class="hex">#F08A2C</span></div>
+            <div class="swatch"><div class="chip" style="background:#16A974"></div><span class="name">Success</span><span class="hex">#16A974</span></div>
+          </div>
+          <p style="font-size:13px; color: var(--text2); margin: 18px 0 0;">
+            One gradient, used as a motif — hero CTA, active tab, numeral fills, "Resume" pills.
+            Not on stat tiles. The streak orange is the only competing accent and earns its place.
+          </p>
+        </div>
+
+        <div class="sys-card">
+          <h3>Type</h3>
+          <div class="type-row">
+            <div class="sample"><span class="ser-display">25.63%</span></div>
+            <div class="meta-txt">Jakarta · 800 · 44</div>
+          </div>
+          <div class="type-row">
+            <div class="sample"><span class="ser-numeral">8</span> available exams</div>
+            <div class="meta-txt">Display numerals</div>
+          </div>
+          <div class="type-row">
+            <div class="sample"><div class="sans-h">Start your first streak today</div></div>
+            <div class="meta-txt">Jakarta · 700 · 20</div>
+          </div>
+          <div class="type-row">
+            <div class="sample"><div class="sans-body">Surgery · Hernia · Lesson 3 of 8</div></div>
+            <div class="meta-txt">Jakarta · 500 · 14</div>
+          </div>
+          <div class="type-row">
+            <div class="sample"><div class="sans-eyebrow">Continue where you left off</div></div>
+            <div class="meta-txt">Jakarta · 700 · 11</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 01 HOME -->
+    <section id="home">
+      <div class="sect-head">
+        <span class="sect-num">01</span>
+        <h2>Study Hub</h2>
+      </div>
+      <p class="lede" style="font-size: 16px; max-width: 720px;">
+        The home tab carries the most narrative weight — the first thing a student sees.
+        Original had real overflow, weak hierarchy, and a discouraging "0 days" empty state.
+      </p>
+      <div class="findings">
+        <div class="col before">
+          <div class="col-label">Issues fixed</div>
+          <ul>
+            <li><strong>Text overflow:</strong> "Welcome back, laheez" wrapped awkwardly with a hand emoji on its own line.</li>
+            <li><strong>Missing space:</strong> <code>Next study movePractice</code> had no separator — copy + layout bug.</li>
+            <li><strong>Header density:</strong> menu + title + dark mode + bell + search + avatar = 6 controls fighting for the same row.</li>
+            <li><strong>Loud gradient CTA:</strong> the giant blue→purple "Resume practice" button dominated the screen.</li>
+            <li><strong>Discouraging empty state:</strong> "DAILY STREAK · 0 Days · Start today!" felt like a scolding.</li>
+            <li><strong>Quick action cards wrapping:</strong> "Review answers", "Resume practice", "Review lesson" all broke onto two lines.</li>
+          </ul>
+        </div>
+        <div class="col after">
+          <div class="col-label">What we did</div>
+          <ul>
+            <li><strong>Hero card</strong> in deep ink with a single rust accent. <em>"Hi, Laheez 👋"</em> renders inline at any name length.</li>
+            <li>Subheading reads <em>"Pick up where you left off — you were on Hernia in Surgery."</em> Full sentence, not three fragments.</li>
+            <li>Header trimmed to <strong>menu + title + search + avatar.</strong> Dark mode moves into the side menu where it belongs.</li>
+            <li>Primary CTA is solid rust, secondary "Open exams" is an outlined icon button — clear hierarchy, no gradients.</li>
+            <li>Streak card flipped to encouragement: <em>"Start your first streak today."</em> Plus a week dot strip that <em>today</em> ringed in accent.</li>
+            <li>Quick actions use <strong>non-breaking spaces</strong> so labels never split mid-phrase. Added a small italic numeral for quantity.</li>
+            <li>New <strong>"Today's plan"</strong> list — three concrete next moves with time estimates. Replaces dead space below the streak.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 QBANK -->
+    <section id="qbank">
+      <div class="sect-head">
+        <span class="sect-num">02</span>
+        <h2>Q-Bank</h2>
+      </div>
+      <div class="findings">
+        <div class="col before">
+          <div class="col-label">Issues fixed</div>
+          <ul>
+            <li><strong>Mysterious "COURSE VIEW" pill</strong> in the top right — purpose unclear, no toggle pair.</li>
+            <li><strong>Heavy gradient course-icon tiles</strong> didn't differentiate Medicine from Surgery.</li>
+            <li><strong>Lots of dead vertical space</strong> below the 2 cards on first launch.</li>
+            <li>No filter / no search / no sense of progress at a glance.</li>
+          </ul>
+        </div>
+        <div class="col after">
+          <div class="col-label">What we did</div>
+          <ul>
+            <li>Added a real <strong>search bar</strong> and four <strong>filter chips</strong> (All / In progress / Completed / Not started) with counts.</li>
+            <li>Each course gets a <strong>distinct icon + soft tint</strong> (Medicine = teal, Surgery = rust) for instant scan.</li>
+            <li>"Course view" → labeled <strong>"Subject view"</strong> with an icon, so its job is obvious.</li>
+            <li>Course cards now show a <strong>progress bar + remaining count</strong> + italic % in the accent color. Completion reads instantly.</li>
+            <li>Dead space replaced with a dashed <strong>"Add a course"</strong> affordance — a real, useful end-of-list state.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 COURSES -->
+    <section id="courses">
+      <div class="sect-head">
+        <span class="sect-num">03</span>
+        <h2>All Courses</h2>
+      </div>
+      <div class="findings">
+        <div class="col before">
+          <div class="col-label">Issues fixed</div>
+          <ul>
+            <li><strong>Title clipped behind the dynamic island:</strong> "All C…" — the title started too far left and ran into the camera notch.</li>
+            <li>Stat tiles laid out as 2-up-then-1 grid → awkward orphan "0 COMPLETED" tile on its own row.</li>
+            <li>Big "billboard" course card with a giant gradient — only 1 course visible at a time on the fold.</li>
+            <li>"Gynacology" misspelled (kept logic intact, used <strong>Gynaecology</strong> in the new copy).</li>
+            <li>Bottom of the card got cut off behind the tab bar.</li>
+          </ul>
+        </div>
+        <div class="col after">
+          <div class="col-label">What we did</div>
+          <ul>
+            <li>Page header sits in a <strong>safe inset</strong> below the dynamic island — never clipped.</li>
+            <li>Stats compressed to a clean <strong>3-up row of italic numerals</strong> (4 / 1 / 0), in editorial serif.</li>
+            <li>Course list is <strong>compact and scannable</strong> — 4 courses visible above the fold, each with icon + subject/lesson/remaining counts + a progress bar.</li>
+            <li>Bottom-tab nav uses a <strong>fade-to-bg gradient overlay</strong> so the last card always has clean tail space.</li>
+            <li>Section header uses the "MY COURSES / <em>Your active tracks</em>" pattern — eyebrow + italic serif headline, repeated across the app.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 LESSONS -->
+    <section id="lessons">
+      <div class="sect-head">
+        <span class="sect-num">04</span>
+        <h2>Lessons index</h2>
+      </div>
+      <div class="findings">
+        <div class="col before">
+          <div class="col-label">Issues fixed</div>
+          <ul>
+            <li><strong>Stat tile orphan</strong> again — 9 LESSONS / 2 COURSES / 4 SUBJECTS as a 2-2-1 grid left "4 SUBJECTS" half-alone.</li>
+            <li>Big "8" / "1" lesson counts in the course rows were oversized and pulled focus from the course name.</li>
+            <li>No sense of <strong>recency or activity</strong> — every course looked equally fresh.</li>
+            <li>"OPEN COURSE" pill at the foot of each card felt redundant when the whole card was tappable.</li>
+            <li>"Peadiatrics" misspelled (kept logic, fixed copy).</li>
+          </ul>
+        </div>
+        <div class="col after">
+          <div class="col-label">What we did</div>
+          <ul>
+            <li>Stats in a clean <strong>3-up row</strong> with italic numerals; the active "Courses" stat takes the rust accent.</li>
+            <li>Course count moves to a <strong>small italic numeral</strong> at the right, with a "LESSONS" label — italic, but not shouty.</li>
+            <li>Each card gains an <strong>"Updated 2 days ago"</strong> subline so the list reads like a feed, not a static directory.</li>
+            <li>Topic chips (Cardiology / Hematology / Toxicology) are <strong>tappable</strong> and visually quieter than the original.</li>
+            <li>"Open course →" is a single inline affordance under a divider, not a duplicate button.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 LESSON DETAIL -->
+    <section id="lesson">
+      <div class="sect-head">
+        <span class="sect-num">05</span>
+        <h2>Lesson detail</h2>
+      </div>
+      <div class="findings">
+        <div class="col before">
+          <div class="col-label">Issues fixed</div>
+          <ul>
+            <li><strong>Layout collision:</strong> the "1.1 Overview" pill overlapped the progress arc — clearly a sizing bug.</li>
+            <li><strong>"NEXT" button wrapped</strong> across two lines as <em>"NEX T"</em> in the "Continue where you left off" card.</li>
+            <li>Each lesson showed <strong>both "Mark done" AND "Start"</strong> at the same time — the user can only meaningfully tap one.</li>
+            <li>No way to <strong>get back</strong> from the detail screen — no back arrow, only the tab bar.</li>
+            <li>Placeholder titles like <code>jnkjbkj</code> / <code>sdcsdvsdv</code> visible (we replaced these with realistic content for the mock).</li>
+          </ul>
+        </div>
+        <div class="col after">
+          <div class="col-label">What we did</div>
+          <ul>
+            <li>A real <strong>top bar with back arrow</strong> + breadcrumb (course → unit). Tapping back returns to the Lessons index.</li>
+            <li>Unit hero is one clean card: progress bar + italic % + state chip. <strong>No overlap.</strong></li>
+            <li>Each lesson row shows <strong>one state chip + one contextual CTA</strong>: Completed → "Review"; In progress → solid "Continue"; Not started → "Start".</li>
+            <li>"Mark done" is moved into the lesson interior — users mark complete from <em>inside</em> the lesson, not from the index.</li>
+            <li>"Continue where you left off" uses a wider <strong>"Resume →"</strong> pill with explicit text + arrow — no more wrapping.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 RESULTS -->
+    <section id="results">
+      <div class="sect-head">
+        <span class="sect-num">06</span>
+        <h2>Results</h2>
+      </div>
+      <div class="findings">
+        <div class="col before">
+          <div class="col-label">Issues fixed</div>
+          <ul>
+            <li><strong>Four full-bleed gradient cards</strong> stacked vertically — each ~200px tall, the screen felt like a casino.</li>
+            <li><strong>"25.63%" rendered in red</strong> on the Score Trend card — reads as an error, not a stat.</li>
+            <li>No actual <strong>chart</strong> — just decorative icons faded into the gradient.</li>
+            <li>No <strong>list of recent attempts</strong> — the user has 4 attempts but can't see them.</li>
+            <li>"Exam day streak" with a 0 felt punitive next to all the encouragement elsewhere.</li>
+          </ul>
+        </div>
+        <div class="col after">
+          <div class="col-label">What we did</div>
+          <ul>
+            <li>One <strong>editorial hero card</strong>: big italic <em>25.63</em>, an <strong>actual sparkline</strong> showing 4-exam trend, and a short narrative ("Strong upward trend").</li>
+            <li>The <strong>"▲ 26%"</strong> delta keeps its green semantic; the score itself is in cream — neutral, not alarming.</li>
+            <li>Supporting stats in a <strong>2×2 grid of flat tiles</strong>, each with its own italic numeral and soft icon tint — no gradients.</li>
+            <li>New <strong>"Recent attempts"</strong> list — each row shows mock name, time-ago, question count, and italic score. The empty data finally tells a story.</li>
+            <li>Day-streak framing changed from "0 days" to <em>"Start today"</em>, with a smaller accent flame icon.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 PRINCIPLES -->
+    <section id="principles">
+      <div class="sect-head">
+        <span class="sect-num">07</span>
+        <h2>Principles applied</h2>
+      </div>
+      <div class="principles">
+        <div class="principle">
+          <div class="num">01</div>
+          <h4>Same DNA, sharper expression</h4>
+          <p>The blue→purple gradient stays — but as a deliberate brand motif, not wallpaper on every card. Used on one hero element per screen.</p>
+        </div>
+        <div class="principle">
+          <div class="num">02</div>
+          <h4>Confident type, single family</h4>
+          <p>Plus Jakarta Sans 800 at scale does the heavy lifting. Big bold numerals replace timid grey labels; eyebrow caps anchor every screen.</p>
+        </div>
+        <div class="principle">
+          <div class="num">03</div>
+          <h4>Encouraging by default</h4>
+          <p>Every zero is reframed as a beginning. "Start your first streak" beats "0 days" every time.</p>
+        </div>
+        <div class="principle">
+          <div class="num">04</div>
+          <h4>One state, one action</h4>
+          <p>Buttons reflect the user's next move — never show "Mark done" and "Start" together. Let the state pick the verb.</p>
+        </div>
+        <div class="principle">
+          <div class="num">05</div>
+          <h4>Headers earn their seat</h4>
+          <p>Three controls in the header, max. Anything else moves to the menu, an inline action, or in-page filters.</p>
+        </div>
+        <div class="principle">
+          <div class="num">06</div>
+          <h4>Cards earn their fills</h4>
+          <p>Heavy gradients reserved for the hero. Most cards are white with a soft border; data shows through, not the chrome.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- End -->
+    <div class="end">
+      <span style="color: var(--text3); font-size: 13px;">End of audit · happy to walk through any decision live.</span>
+      <a class="end-link" href="index.html">Back to the prototype →</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -460,3 +460,844 @@
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+/* App-3 skeleton translation.
+   Borrow structure, scale, and scan rhythm only; keep LMS tokens as the visual source. */
+.dashboard-page {
+  --dash-bg: var(--page-background) !important;
+  --dash-card: color-mix(in srgb, var(--surface-card) 96%, transparent) !important;
+  --dash-ink: var(--ink-strong) !important;
+  --dash-muted: var(--ink-soft) !important;
+  --dash-soft: var(--ink-muted) !important;
+  --dash-line: color-mix(in srgb, var(--color-primary) 10%, var(--line-soft)) !important;
+  --dash-blue: var(--color-primary) !important;
+  --dash-sky: var(--brand-primary-start) !important;
+  --dash-violet: var(--brand-primary-end) !important;
+  --dash-teal: var(--color-accent) !important;
+  --dash-shadow: var(--shadow-md) !important;
+}
+
+.dashboard-page .management-layout {
+  max-width: 980px !important;
+  gap: clamp(14px, 2.5vw, 24px) !important;
+}
+
+.dashboard-page .lms-topbar {
+  position: relative !important;
+  top: auto !important;
+  min-height: 52px !important;
+  margin-bottom: 0 !important;
+  padding: 4px 2px 8px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.dashboard-page .lms-topbar h1 {
+  color: var(--ink-strong) !important;
+  font-size: clamp(24px, 3.4vw, 32px) !important;
+  font-weight: 900 !important;
+  line-height: 1.08 !important;
+}
+
+.dashboard-page .lms-topbar-left {
+  gap: 10px !important;
+}
+
+.dashboard-page .lms-topbar :where(button, .lms-profile-avatar) {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  border-radius: 14px !important;
+}
+
+.dashboard-page .lms-topbar :where(button) {
+  border: 1px solid var(--line-soft) !important;
+  background: transparent !important;
+  color: var(--ink-medium) !important;
+  box-shadow: none !important;
+}
+
+.dashboard-page .lms-topbar :where(button:hover) {
+  border-color: color-mix(in srgb, var(--color-primary) 22%, var(--line-soft)) !important;
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--surface-card)) !important;
+  color: var(--color-primary) !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-card,
+.dashboard-page .lms-dashboard-welcome-card[data-score-band] {
+  grid-template-columns: minmax(0, 1fr) clamp(92px, 18vw, 150px) !important;
+  gap: clamp(12px, 2.8vw, 22px) !important;
+  padding: clamp(20px, 4vw, 28px) !important;
+  border: 1px solid var(--dash-line) !important;
+  border-radius: clamp(22px, 4vw, 28px) !important;
+  background:
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 4%, var(--surface-card)) 0%, var(--surface-card) 54%, color-mix(in srgb, var(--color-secondary) 4%, var(--surface-card)) 100%) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-copy {
+  gap: 9px !important;
+}
+
+.dashboard-page .lms-rc-eyebrow {
+  margin-bottom: 2px !important;
+  color: var(--color-primary) !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.12em !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-copy h2 {
+  max-width: min(100%, 16ch) !important;
+  font-size: clamp(30px, 5vw, 42px) !important;
+  line-height: 1.02 !important;
+}
+
+.dashboard-page .lms-hero-wave-svg {
+  width: 0.82em !important;
+  height: 0.82em !important;
+  margin-left: 5px !important;
+  vertical-align: -0.08em !important;
+}
+
+.dashboard-page .lms-hero-next-step {
+  margin: 0 !important;
+  max-width: 340px !important;
+  color: var(--ink-soft) !important;
+  font-size: clamp(13px, 1.6vw, 15px) !important;
+  font-weight: 650 !important;
+  line-height: 1.5 !important;
+}
+
+.dashboard-page .lms-hero-next-step strong {
+  font-weight: 900 !important;
+}
+
+.dashboard-page .lms-rc-tags {
+  gap: 8px !important;
+  margin-top: 2px !important;
+}
+
+.dashboard-page .lms-rc-tag {
+  min-height: 28px !important;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 14%, var(--line-soft)) !important;
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--surface-card)) !important;
+  padding: 5px 12px !important;
+  color: color-mix(in srgb, var(--color-primary) 82%, var(--ink-strong)) !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+.dashboard-page .lms-rc-tag--topic {
+  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--line-soft)) !important;
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--surface-card)) !important;
+  color: color-mix(in srgb, var(--color-accent) 82%, var(--ink-strong)) !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-mascot {
+  max-width: clamp(92px, 18vw, 150px) !important;
+}
+
+.dashboard-page .lms-dashboard-hero-actions {
+  grid-column: 1 / -1 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 10px !important;
+  margin-top: 6px !important;
+}
+
+.dashboard-page .lms-dashboard-hero-primary,
+.dashboard-page .lms-dashboard-hero-secondary {
+  min-height: 56px !important;
+  border-radius: 18px !important;
+  padding: 0 18px !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  justify-content: center !important;
+  gap: 10px !important;
+}
+
+.dashboard-page .lms-dashboard-hero-primary {
+  background: var(--brand-gradient-primary) !important;
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-primary) 22%, transparent) !important;
+}
+
+.dashboard-page .lms-dashboard-hero-secondary {
+  min-width: 56px !important;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--line-soft)) !important;
+  background: color-mix(in srgb, var(--surface-card) 88%, transparent) !important;
+  color: var(--color-primary) !important;
+}
+
+.dashboard-page .lms-streak-card {
+  grid-template-columns: 44px minmax(0, 1fr) auto !important;
+  gap: 12px !important;
+  min-height: 0 !important;
+  padding: 16px !important;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 22%, var(--line-soft)) !important;
+  border-radius: 20px !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-warning) 10%, var(--surface-card)) 0%, var(--surface-card) 100%) !important;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--color-warning) 10%, transparent) !important;
+}
+
+.dashboard-page .lms-streak-fire-wrap {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+}
+
+.dashboard-page .lms-streak-label {
+  font-size: 11px !important;
+  letter-spacing: 0.12em !important;
+}
+
+.dashboard-page .lms-streak-count {
+  align-items: baseline !important;
+  gap: 6px !important;
+}
+
+.dashboard-page .lms-streak-count strong {
+  color: var(--color-warning) !important;
+  font-size: 24px !important;
+}
+
+.dashboard-page .lms-streak-count span,
+.dashboard-page .lms-streak-sub {
+  color: color-mix(in srgb, var(--color-warning) 48%, var(--ink-soft)) !important;
+  font-size: 12px !important;
+}
+
+.dashboard-page .lms-streak-dots {
+  gap: 4px !important;
+}
+
+.dashboard-page .lms-streak-dot {
+  width: 16px !important;
+  height: 6px !important;
+  border-radius: 999px !important;
+}
+
+.dashboard-page .lms-streak-ring-wrap {
+  width: 58px !important;
+  height: 58px !important;
+}
+
+.dashboard-page .lms-streak-ring-label strong {
+  font-size: 14px !important;
+}
+
+.dashboard-page .lms-dashboard-quick-actions-section {
+  display: grid !important;
+  gap: 12px !important;
+}
+
+.dashboard-page .lms-dashboard-section-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding-inline: 4px !important;
+}
+
+.dashboard-page .lms-dashboard-section-eyebrow {
+  color: var(--ink-muted) !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.dashboard-page .lms-dashboard-section-meta {
+  color: var(--ink-soft) !important;
+  font-size: 12px !important;
+  font-weight: 750 !important;
+}
+
+.dashboard-page .lms-dashboard-quick-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.dashboard-page .lms-dashboard-quick-action {
+  position: relative !important;
+  justify-items: start !important;
+  align-content: space-between !important;
+  min-height: 118px !important;
+  padding: 14px !important;
+  border: 1px solid var(--dash-line) !important;
+  border-radius: 20px !important;
+  background: var(--surface-card) !important;
+  color: var(--ink-strong) !important;
+  text-align: left !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.dashboard-page .lms-dashboard-quick-action:hover {
+  transform: translateY(-1px) !important;
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--line-soft)) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.dashboard-page .lms-dashboard-quick-action__icon {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 12px !important;
+  margin-bottom: 18px !important;
+}
+
+.dashboard-page .lms-dashboard-quick-action__copy {
+  display: grid !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+}
+
+.dashboard-page .lms-dashboard-quick-action__copy strong {
+  color: var(--ink-strong) !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  line-height: 1.18 !important;
+}
+
+.dashboard-page .lms-dashboard-quick-action__copy small {
+  display: block !important;
+  color: var(--ink-soft) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  line-height: 1.2 !important;
+}
+
+.dashboard-page .lms-imc-grid {
+  gap: 12px !important;
+}
+
+.dashboard-page .lms-imc-card {
+  min-height: 132px !important;
+  border-radius: 22px !important;
+  padding: 18px !important;
+}
+
+.dashboard-page .lms-imc-value {
+  font-size: clamp(34px, 6vw, 54px) !important;
+}
+
+.dashboard-page .lms-imc-label {
+  font-size: clamp(11px, 1.8vw, 14px) !important;
+}
+
+@media (max-width: 560px) {
+  .dashboard-page .management-layout {
+    gap: 14px !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-card {
+    grid-template-columns: minmax(0, 1fr) 86px !important;
+    padding: 20px !important;
+    border-radius: 24px !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-copy h2 {
+    font-size: clamp(28px, 8.2vw, 36px) !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-mascot,
+  .dashboard-page .lms-dashboard-welcome-mascot svg {
+    max-width: 86px !important;
+  }
+
+  .dashboard-page .lms-dashboard-hero-actions {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-actions {
+    gap: 8px !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-action {
+    min-height: 108px !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-action__icon {
+    width: 34px !important;
+    height: 34px !important;
+    margin-bottom: 14px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .dashboard-page .lms-dashboard-welcome-card {
+    grid-template-columns: minmax(0, 1fr) 72px !important;
+    padding: 18px !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-mascot,
+  .dashboard-page .lms-dashboard-welcome-mascot svg {
+    max-width: 72px !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-action__copy strong {
+    font-size: 12px !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-action__copy small {
+    display: none !important;
+  }
+}
+
+/* Stricter app-3 hero architecture:
+   app-3 = radius 28, padding 24, one content stack, top-right motif,
+   chips before CTA row, primary flex CTA + 56px icon secondary. */
+.dashboard-page .lms-dashboard-welcome-card,
+.dashboard-page .lms-dashboard-welcome-card[data-score-band] {
+  display: block !important;
+  min-height: 0 !important;
+  padding: 24px !important;
+  border-radius: 28px !important;
+  border: 1px solid var(--line-soft) !important;
+  background: var(--surface-card) !important;
+  box-shadow: none !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-card::before {
+  content: "" !important;
+  position: absolute !important;
+  top: -50px !important;
+  right: -50px !important;
+  z-index: 0 !important;
+  width: 220px !important;
+  height: 220px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 16%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent) 13%, transparent) 100%
+  ) !important;
+  opacity: 0.7 !important;
+  pointer-events: none !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-card::after {
+  content: none !important;
+}
+
+.dashboard-page .lms-dashboard-hero-content {
+  display: block !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-copy {
+  display: block !important;
+  max-width: none !important;
+  padding-right: 58px !important;
+}
+
+.dashboard-page .lms-rc-eyebrow {
+  display: block !important;
+  margin-bottom: 14px !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-copy h2 {
+  margin: 0 0 4px !important;
+  max-width: none !important;
+  font-size: 36px !important;
+  line-height: 0.98 !important;
+}
+
+.dashboard-page .lms-hero-next-step {
+  margin-top: 10px !important;
+  max-width: 300px !important;
+}
+
+.dashboard-page .lms-rc-tags {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin: 18px 0 22px !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-mascot {
+  position: absolute !important;
+  top: 22px !important;
+  right: 22px !important;
+  z-index: 0 !important;
+  width: 54px !important;
+  max-width: 54px !important;
+  opacity: 0.45 !important;
+  pointer-events: none !important;
+}
+
+.dashboard-page .lms-dashboard-welcome-mascot svg {
+  width: 54px !important;
+  height: auto !important;
+}
+
+.dashboard-page .lms-dashboard-hero-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  margin-top: 0 !important;
+}
+
+.dashboard-page .lms-dashboard-hero-primary,
+.dashboard-page .lms-dashboard-hero-secondary {
+  height: 56px !important;
+  min-height: 56px !important;
+  border-radius: 18px !important;
+}
+
+.dashboard-page .lms-dashboard-hero-primary {
+  flex: 1 1 auto !important;
+  width: auto !important;
+}
+
+.dashboard-page .lms-dashboard-hero-secondary {
+  flex: 0 0 56px !important;
+  width: 56px !important;
+  min-width: 56px !important;
+  padding: 0 !important;
+}
+
+.dashboard-page .lms-dashboard-hero-secondary span {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+}
+
+.dashboard-page .lms-dashboard-hero-secondary svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+@media (max-width: 430px) {
+  .dashboard-page .lms-dashboard-welcome-card,
+  .dashboard-page .lms-dashboard-welcome-card[data-score-band] {
+    padding: 24px !important;
+    border-radius: 28px !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-copy {
+    padding-right: 46px !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-copy h2 {
+    font-size: clamp(31px, 9vw, 36px) !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-mascot,
+  .dashboard-page .lms-dashboard-welcome-mascot svg {
+    width: 48px !important;
+    max-width: 48px !important;
+  }
+}
+
+/* F3 architecture lock:
+   These rules copy the reference proportions directly and remap only colors
+   to LMS tokens. */
+@media (max-width: 520px) {
+  .dashboard-page {
+    padding: 0 24px var(--lms-mobile-content-bottom) !important;
+  }
+
+  .dashboard-page .management-layout {
+    gap: 0 !important;
+  }
+
+  .dashboard-page .lms-topbar {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-height: 0 !important;
+    padding: 18px 0 8px !important;
+  }
+
+  .dashboard-page .lms-topbar h1 {
+    color: var(--ink-strong) !important;
+    font-family: var(--font-display, "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif) !important;
+    font-size: 26px !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .dashboard-page .lms-topbar p {
+    display: block !important;
+    margin: 0 0 2px !important;
+    color: var(--ink-muted) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.11em !important;
+    text-transform: uppercase !important;
+  }
+
+  .dashboard-page .lms-topbar :where(button, .lms-profile-avatar) {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    border-radius: 14px !important;
+  }
+
+  .dashboard-page .lms-topbar :where(button) {
+    border: 1px solid var(--line-soft) !important;
+    background: transparent !important;
+    color: var(--ink-strong) !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .dashboard-page .lms-topbar :where(svg) {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-card,
+  .dashboard-page .lms-dashboard-welcome-card[data-score-band] {
+    margin-top: 12px !important;
+    padding: 24px !important;
+    border: 1px solid var(--line-soft) !important;
+    border-radius: 28px !important;
+    background: var(--surface-card) !important;
+    box-shadow: none !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-card::before {
+    top: -50px !important;
+    right: -50px !important;
+    width: 220px !important;
+    height: 220px !important;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary) 15%, var(--surface-card)) 0%,
+      color-mix(in srgb, var(--color-secondary) 14%, var(--surface-card)) 100%
+    ) !important;
+    opacity: 0.7 !important;
+  }
+
+  .dashboard-page .lms-dashboard-hero-content {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-copy {
+    padding-right: 58px !important;
+  }
+
+  .dashboard-page .lms-rc-eyebrow {
+    margin-bottom: 14px !important;
+    color: var(--color-primary) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.127em !important;
+    text-transform: uppercase !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-copy h2 {
+    margin: 0 0 4px !important;
+    color: var(--ink-strong) !important;
+    font-family: var(--font-display, "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif) !important;
+    font-size: 36px !important;
+    font-weight: 700 !important;
+    line-height: 0.98 !important;
+    letter-spacing: 0 !important;
+    text-wrap: normal !important;
+  }
+
+  .dashboard-page .lms-hero-name-gradient {
+    display: inline-block !important;
+    background: var(--brand-gradient-primary) !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  .dashboard-page .lms-hero-wave-svg {
+    width: 28px !important;
+    height: 28px !important;
+    margin-left: 6px !important;
+    vertical-align: -0.12em !important;
+  }
+
+  .dashboard-page .lms-hero-next-step {
+    margin: 10px 0 0 !important;
+    max-width: 300px !important;
+    color: var(--ink-soft) !important;
+    font-family: var(--font-sans, "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1.5 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .dashboard-page .lms-hero-next-step strong {
+    color: var(--ink-strong) !important;
+    font-weight: 800 !important;
+  }
+
+  .dashboard-page .lms-hero-next-step strong::before {
+    content: " - " !important;
+    color: var(--ink-soft) !important;
+    font-weight: 500 !important;
+  }
+
+  .dashboard-page .lms-rc-tags {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    margin: 18px 0 22px !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-page .lms-rc-tag {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-height: 0 !important;
+    padding: 5px 12px !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--surface-card)) !important;
+    color: color-mix(in srgb, var(--color-primary) 82%, var(--ink-strong)) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  .dashboard-page .lms-rc-tag--topic {
+    background: color-mix(in srgb, var(--color-secondary) 12%, var(--surface-card)) !important;
+    color: color-mix(in srgb, var(--color-secondary) 82%, var(--ink-strong)) !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-mascot {
+    top: 22px !important;
+    right: 22px !important;
+    width: 48px !important;
+    max-width: 48px !important;
+    opacity: 0.45 !important;
+  }
+
+  .dashboard-page .lms-dashboard-welcome-mascot svg {
+    width: 48px !important;
+    height: 48px !important;
+    stroke-width: 1.4px !important;
+  }
+
+  .dashboard-page .lms-dashboard-hero-actions {
+    display: flex !important;
+    gap: 10px !important;
+  }
+
+  .dashboard-page .lms-dashboard-hero-primary,
+  .dashboard-page .lms-dashboard-hero-secondary {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    border-radius: 18px !important;
+    font-family: var(--font-sans, "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif) !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .dashboard-page .lms-dashboard-hero-primary {
+    flex: 1 1 auto !important;
+    border: 0 !important;
+    background: var(--brand-gradient-primary) !important;
+    color: #fff !important;
+    box-shadow:
+      0 10px 24px -8px color-mix(in srgb, var(--color-primary) 55%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-page .lms-dashboard-hero-primary svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .dashboard-page .lms-dashboard-hero-secondary {
+    flex: 0 0 56px !important;
+    width: 56px !important;
+    min-width: 56px !important;
+    padding: 0 !important;
+    border: 1px solid var(--line-soft) !important;
+    background: var(--surface-card) !important;
+    color: var(--color-primary) !important;
+    box-shadow: none !important;
+  }
+
+  .dashboard-page .lms-dashboard-hero-secondary svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-actions-section {
+    margin-top: 16px !important;
+    gap: 12px !important;
+  }
+
+  .dashboard-page .lms-dashboard-section-head {
+    margin: 0 !important;
+    padding-left: 4px !important;
+    padding-right: 0 !important;
+  }
+
+  .dashboard-page .lms-dashboard-section-eyebrow {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.127em !important;
+  }
+
+  .dashboard-page .lms-dashboard-section-meta {
+    color: var(--ink-muted) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-actions {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-action {
+    min-height: 0 !important;
+    padding: 14px !important;
+    border-radius: 20px !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-action__icon {
+    width: 36px !important;
+    height: 36px !important;
+    margin-bottom: 36px !important;
+    border-radius: 12px !important;
+  }
+
+  .dashboard-page .lms-dashboard-quick-action__copy strong {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0 !important;
+  }
+}
