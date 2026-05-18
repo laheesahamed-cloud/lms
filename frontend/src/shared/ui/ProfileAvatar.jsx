@@ -22,13 +22,13 @@ export function getProfileAvatar(userOrKey) {
   return PROFILE_AVATARS[Math.abs(hashText(key)) % PROFILE_AVATARS.length];
 }
 
-export function ProfileAvatar({ user, avatarKey = '', size = 'sm' }) {
+export function ProfileAvatar({ user, avatarKey = '', size = 'sm', className = '' }) {
   const avatar = getProfileAvatar(avatarKey || user);
   const isLongHair = avatar.feature === 'necklace' || avatar.feature === 'scarf';
   const sizeClass = size === 'xl' ? 'size-20 rounded-3xl' : size === 'lg' ? 'size-10 rounded-[14px]' : 'size-[34px] rounded-xl';
 
   return (
-    <span className={`lms-profile-avatar inline-grid shrink-0 place-items-center overflow-hidden bg-surface-2 shadow-[0_3px_8px_rgba(37,99,235,0.20)] ${sizeClass}`} aria-hidden="true">
+    <span className={`lms-profile-avatar inline-grid shrink-0 place-items-center overflow-hidden border border-white/80 bg-surface-2 shadow-[0_3px_8px_rgba(37,99,235,0.20)] ring-1 ring-[rgba(37,99,235,0.16)] dark:border-white/10 dark:ring-white/10 ${sizeClass} ${className}`} aria-hidden="true">
       <svg className="block size-full" viewBox="0 0 48 48" focusable="false">
         <rect width="48" height="48" rx="16" fill={avatar.accent} />
         <circle cx="24" cy="18" r="10.5" fill={avatar.hair} />

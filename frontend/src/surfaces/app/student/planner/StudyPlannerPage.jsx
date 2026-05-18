@@ -28,11 +28,11 @@ export function StudyPlannerPage() {
     });
     await load();
   }
-  return <main className={ui.screenShell}><section className={ui.managementLayout}>
-    <AppHeader title="Study Planner" subtitle="Turn exam prep into small daily tasks." />
+  return <main className={ui.studentScreenShell}><section className={ui.studentManagementLayout}>
+    <AppHeader title="Study Planner" subtitle="Study Plan" />
     <StudentPageHero
       title="Study Planner"
-      subtitle="Turn exam prep into small daily tasks with adaptive suggestions from your progress."
+      subtitle="Daily Planning"
       tone="amber"
       metrics={[
         { label: 'Tasks', value: tasks.length },

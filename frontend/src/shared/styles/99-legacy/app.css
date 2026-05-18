@@ -380,8 +380,8 @@
     --safe-right: var(--lms-safe-right);
     --safe-bottom: var(--lms-safe-bottom);
     --safe-left: var(--lms-safe-left);
-    --app-bg: #F5F6FF;
-    --app-light-bg: #F5F6FF;
+    --app-bg: var(--page-background);
+    --app-light-bg: var(--page-background);
     --app-dark-bg: #05070d;
     --lms-tabbar-bg: #fff;
     --lms-tabbar-content-shift: 0px;
@@ -396,7 +396,7 @@
   }
 
   :root[data-theme='dark'] {
-    --app-bg: #05070d;
+    --app-bg: var(--page-background);
     --lms-tabbar-bg: #05070d;
   }
 
@@ -751,6 +751,12 @@
     max-width: 100%;
   }
 
+  @media (min-width: 901px) {
+    .lms-topbar {
+      top: var(--sidebar-float-gap, 16px) !important;
+    }
+  }
+
   @media (max-width: 640px) {
     .lms-ai-note-topbar {
       top: 0 !important;
@@ -815,7 +821,7 @@
   .card-interactive:hover {
     transform:    translateY(-2px);
     box-shadow:   var(--shadow-md);
-    border-color: color-mix(in srgb, var(--color-primary) 20%, var(--line-soft));
+    border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.2);
   }
 
   .lms-student-delight {
@@ -828,7 +834,7 @@
 
   .lms-student-delight:hover {
     transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--color-primary) 22%, var(--line-soft));
+    border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.22);
     box-shadow: 0 14px 30px rgba(37, 99, 235, 0.08);
   }
 
@@ -954,15 +960,15 @@
   .premium-primary-button {
     background: var(--color-primary-light);
     color: var(--color-primary);
-    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
+    border: 1px solid rgba(var(--sa-primary-rgb, 37, 99, 235), 0.18);
     border-radius: 999px;
     box-shadow: var(--shadow-xs);
     transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out), background 160ms var(--ease-out), border-color 160ms var(--ease-out);
   }
   .premium-primary-button:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-primary) 14%, transparent);
-    border-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
-    box-shadow: 0 8px 18px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    background: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.14);
+    border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.32);
+    box-shadow: 0 8px 18px rgba(var(--sa-primary-rgb, 37, 99, 235), 0.16);
   }
   :root[data-theme='dark'] .premium-primary-button {
     background: rgba(37, 99, 235, 0.16);
@@ -1804,7 +1810,7 @@
   .lms-topbar {
     top: max(4px, var(--lms-safe-top));
     background: var(--topbar-bg);
-    border-color: color-mix(in srgb, var(--line-soft) 86%, transparent);
+    border-color: rgba(var(--sa-border-rgb, 221, 228, 238), 0.86);
     box-shadow:
       0 1px 0 rgba(255,255,255,0.55) inset,
       0 12px 30px rgba(15,23,42,0.065);
@@ -2619,6 +2625,39 @@
     box-shadow: 1px 0 0 rgba(148,163,184,0.12), 18px 0 42px rgba(0,0,0,0.42);
   }
 
+  @media (min-width: 901px) {
+    .lms-sidebar:not(.is-overlay-nav) {
+      inset-block: var(--sidebar-float-gap, 16px) !important;
+      left: var(--sidebar-float-gap, 16px) !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: calc(100dvh - (var(--sidebar-float-gap, 16px) * 2)) !important;
+      border: 1px solid var(--sidebar-border) !important;
+      border-radius: 24px !important;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.72) inset,
+        0 18px 46px rgba(15,23,42,0.10),
+        0 4px 14px rgba(37,99,235,0.045) !important;
+    }
+
+    .lms-sidebar:not(.is-overlay-nav)::before {
+      border-radius: inherit;
+    }
+
+    .lms-sidebar:not(.is-overlay-nav).is-collapsed {
+      border-radius: 22px !important;
+    }
+  }
+
+  @media (min-width: 901px) {
+    :root[data-theme='dark'] .lms-sidebar:not(.is-overlay-nav) {
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.035) inset,
+        0 24px 60px rgba(0,0,0,0.46),
+        0 0 0 1px rgba(148,163,184,0.05) !important;
+    }
+  }
+
   .lms-sidebar .nav-active-glow {
     background:
       linear-gradient(135deg,
@@ -2639,7 +2678,7 @@
   .lms-course-card,
   .bg-surface-card,
   .bg-surface-card-elevated {
-    border-color: color-mix(in srgb, var(--line-soft) 92%, transparent);
+    border-color: rgba(var(--sa-border-rgb, 221, 228, 238), 0.92);
   }
 
   :root:not([data-theme='dark']) .glass-card,
@@ -2746,9 +2785,9 @@
   }
 
   /* ── Low-spec device overrides ─────────────────────────── */
-  :root[data-low-spec] *,
-  :root[data-low-spec] *::before,
-  :root[data-low-spec] *::after {
+  :root[data-low-spec]:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) *,
+  :root[data-low-spec]:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) *::before,
+  :root[data-low-spec]:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) *::after {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 80ms !important;
@@ -2903,15 +2942,15 @@
     animation: none !important;
   }
 
-  :root[data-visual-effects='balanced'] .animate-routeFade,
-  :root[data-visual-effects='balanced'] .animate-panelRouteFade,
-  :root[data-visual-effects='balanced'] .animate-fadePop,
-  :root[data-visual-effects='balanced'] .animate-scaleIn,
-  :root[data-visual-effects='balanced'] .animate-dropdownIn,
-  :root[data-visual-effects='balanced'] .animate-overlayIn,
-  :root[data-visual-effects='balanced'] .animate-progressShimmer,
-  :root[data-visual-effects='balanced'] .shimmer,
-  :root[data-visual-effects='balanced'] .skeleton-pulse {
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-routeFade,
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-panelRouteFade,
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-fadePop,
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-scaleIn,
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-dropdownIn,
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-overlayIn,
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-progressShimmer,
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .shimmer,
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .skeleton-pulse {
     animation: none !important;
   }
 
@@ -2956,25 +2995,18 @@
   }
 
   /* ── Native (Capacitor / WKWebView) ───────────────────── */
-  /* WKWebView doesn't reliably composite CSS animation start frames, leaving
-     content invisible (opacity:0) until the animation ticks — looks like a
-     black screen. Kill all route-transition and entrance animations on native. */
+  /* Keep native route frames visible while platform-specific CSS supplies
+     compositor-friendly motion. */
   html[data-lms-runtime="native"] .animate-panelRouteFade,
   html[data-lms-runtime="native"] .animate-routeFade,
   html[data-lms-runtime="native"] .animate-fadePop,
   html[data-lms-runtime="native"] .animate-scaleIn,
   html[data-lms-runtime="native"] .motion-smooth {
-    animation: none !important;
-    transition: none !important;
     opacity: 1 !important;
-    transform: none !important;
   }
 
   html[data-lms-runtime="native"] body.app-ready .lms-route-reveal.animate-panelRouteFade {
-    animation: none !important;
-    transition: none !important;
     opacity: 1 !important;
-    transform: none !important;
   }
 
   html[data-lms-runtime="native"] #root,

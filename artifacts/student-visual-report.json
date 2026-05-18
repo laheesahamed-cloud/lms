@@ -1,7 +1,7 @@
 [
   {
     "route": "dashboard-desktop",
-    "url": "http://127.0.0.1:5174/lms/dashboard",
+    "url": "http://127.0.0.1:5181/lms/dashboard",
     "viewport": {
       "width": 1440,
       "height": 1100
@@ -10,8 +10,8 @@
     "shell": {
       "selector": ".student-app-shell",
       "className": "app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#F5F6FF] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[#05070d] group/shell student-app-shell",
-      "background": "rgb(239, 241, 251)",
-      "borderColor": "rgb(14, 21, 56)",
+      "background": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
       "width": 1440
@@ -19,60 +19,60 @@
     "page": {
       "selector": ".lms-route-page, .dashboard-page",
       "className": "dashboard-page study-hub-page",
-      "background": "rgb(239, 241, 251)",
-      "borderColor": "rgb(14, 21, 56)",
+      "background": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
-      "width": 1176
+      "width": 1160
     },
     "layout": {
       "selector": ".study-hub-shell, .management-layout",
       "className": "study-hub-shell",
       "background": "rgba(0, 0, 0, 0)",
-      "borderColor": "rgb(14, 21, 56)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
-      "width": 1080
+      "width": 1112
     },
     "cards": [
       {
         "className": "study-continue-card",
         "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
+        "borderColor": "rgba(37, 99, 235, 0.18)",
         "borderRadius": "28px",
-        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px",
-        "width": 1080
+        "boxShadow": "rgba(37, 99, 235, 0.04) 0px 0px 0px 1px, rgba(37, 99, 235, 0.2) 0px 18px 40px -12px",
+        "width": 1112
       },
       {
         "className": "study-card study-streak-card",
         "background": "rgba(0, 0, 0, 0)",
-        "borderColor": "color(srgb 0.911843 0.789176 0.695216)",
-        "borderRadius": "22px",
-        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px",
-        "width": 567
+        "borderColor": "rgba(245, 158, 11, 0.3)",
+        "borderRadius": "16px",
+        "boxShadow": "rgba(255, 255, 255, 0.6) 0px 1px 0px 0px inset, rgba(245, 158, 11, 0.08) 0px 0px 0px 1px, rgba(245, 158, 11, 0.28) 0px 10px 28px -10px",
+        "width": 584
       },
       {
         "className": "study-card study-readiness-card",
-        "background": "rgb(14, 21, 56)",
-        "borderColor": "rgb(255, 255, 255)",
-        "borderRadius": "22px",
-        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px",
-        "width": 493
+        "background": "rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(37, 99, 235, 0.28)",
+        "borderRadius": "28px",
+        "boxShadow": "rgba(37, 99, 235, 0.14) 0px 0px 0px 1px, rgba(37, 99, 235, 0.42) 0px 18px 40px -14px",
+        "width": 508
       },
       {
         "className": "study-card study-question-card",
         "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
+        "borderColor": "rgb(221, 228, 238)",
         "borderRadius": "22px",
-        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px",
-        "width": 1080
+        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px, rgba(37, 99, 235, 0.04) 0px 4px 16px 0px",
+        "width": 1112
       }
     ],
     "hasHorizontalOverflow": false
   },
   {
     "route": "results-desktop",
-    "url": "http://127.0.0.1:5174/lms/results",
+    "url": "http://127.0.0.1:5181/lms/results",
     "viewport": {
       "width": 1440,
       "height": 1100
@@ -81,53 +81,36 @@
     "shell": {
       "selector": ".student-app-shell",
       "className": "app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#F5F6FF] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[#05070d] group/shell student-app-shell",
-      "background": "rgb(239, 241, 251)",
-      "borderColor": "rgb(14, 21, 56)",
+      "background": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
       "width": 1440
     },
     "page": {
       "selector": ".lms-route-page, .dashboard-page",
-      "className": "lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5",
-      "background": "rgb(239, 241, 251)",
-      "borderColor": "rgb(14, 21, 56)",
+      "className": "lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5 student-results-page",
+      "background": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
-      "width": 1080
+      "width": 1160
     },
     "layout": {
       "selector": ".study-hub-shell, .management-layout",
-      "className": "management-layout mx-auto grid w-full max-w-page min-w-0 gap-section max-[520px]:gap-4",
+      "className": "management-layout grid w-full min-w-0 gap-section max-[520px]:gap-4 student-results-layout",
       "background": "rgba(0, 0, 0, 0)",
-      "borderColor": "rgb(14, 21, 56)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
-      "width": 1080
+      "width": 1068
     },
-    "cards": [
-      {
-        "className": "results-performance-board animate-fadePop",
-        "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
-        "borderRadius": "22px",
-        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px",
-        "width": 1080
-      },
-      {
-        "className": "glass-card relative w-full max-w-full overflow-hidden text-ink-strong p-card grid gap-3 max-[520px]:p-3.5",
-        "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
-        "borderRadius": "22px",
-        "boxShadow": "rgba(11, 18, 32, 0.035) 0px 1px 2px 0px, rgba(15, 23, 42, 0.043) 0px 8px 18px 0px",
-        "width": 1080
-      }
-    ],
+    "cards": [],
     "hasHorizontalOverflow": false
   },
   {
     "route": "courses-mobile",
-    "url": "http://127.0.0.1:5174/lms/courses",
+    "url": "http://127.0.0.1:5181/lms/courses",
     "viewport": {
       "width": 390,
       "height": 900
@@ -136,8 +119,8 @@
     "shell": {
       "selector": ".student-app-shell",
       "className": "app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#F5F6FF] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[#05070d] group/shell student-app-shell tablet-overlay-nav",
-      "background": "rgb(239, 241, 251)",
-      "borderColor": "rgb(14, 21, 56)",
+      "background": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
       "width": 390
@@ -145,60 +128,60 @@
     "page": {
       "selector": ".lms-route-page, .dashboard-page",
       "className": "lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5",
-      "background": "rgb(239, 241, 251)",
-      "borderColor": "rgb(14, 21, 56)",
+      "background": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
       "width": 390
     },
     "layout": {
       "selector": ".study-hub-shell, .management-layout",
-      "className": "management-layout mx-auto grid w-full max-w-page min-w-0 gap-section max-[520px]:gap-4",
+      "className": "management-layout grid w-full min-w-0 gap-section max-[520px]:gap-4",
       "background": "rgba(0, 0, 0, 0)",
-      "borderColor": "rgb(14, 21, 56)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
-      "width": 390
+      "width": 338
     },
     "cards": [
       {
-        "className": "student-page-hero lms-hero-card lms-page-header-card grid min-h-[148px] overflow-hidden rounded-[18px] border border-line-soft bg-surface-card p-5 text-ink-strong shadow-sm dark:bo",
+        "className": "lms-app-card student-course-card group grid text-left outline-none transition-[transform,border-color,box-shadow] duration-200 focus-visible:ring-4 focus-visible:ring-brand-primary",
         "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
-        "borderRadius": "28px",
-        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px",
-        "width": 390
-      },
-      {
-        "className": "glass-card relative w-full max-w-full overflow-hidden text-ink-strong p-card animate-fadePop",
-        "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
-        "borderRadius": "20px",
-        "boxShadow": "rgba(11, 18, 32, 0.035) 0px 1px 2px 0px, rgba(15, 23, 42, 0.043) 0px 8px 18px 0px",
-        "width": 390
-      },
-      {
-        "className": "lms-course-card student-course-card group/card relative flex min-h-[286px] flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface-card text-left shadow-sm outline-",
-        "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
+        "borderColor": "rgb(221, 228, 238)",
         "borderRadius": "22px",
-        "boxShadow": "rgba(11, 18, 32, 0.035) 0px 1px 2px 0px, rgba(15, 23, 42, 0.043) 0px 8px 18px 0px",
-        "width": 348
+        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px, rgba(37, 99, 235, 0.04) 0px 4px 16px 0px",
+        "width": 338
       },
       {
-        "className": "lms-course-card student-course-card group/card relative flex min-h-[286px] flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface-card text-left shadow-sm outline-",
+        "className": "lms-app-card student-course-card group grid text-left outline-none transition-[transform,border-color,box-shadow] duration-200 focus-visible:ring-4 focus-visible:ring-brand-primary",
         "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
+        "borderColor": "rgb(221, 228, 238)",
         "borderRadius": "22px",
-        "boxShadow": "rgba(11, 18, 32, 0.035) 0px 1px 2px 0px, rgba(15, 23, 42, 0.043) 0px 8px 18px 0px",
-        "width": 348
+        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px, rgba(37, 99, 235, 0.04) 0px 4px 16px 0px",
+        "width": 338
+      },
+      {
+        "className": "lms-app-card student-course-card group grid text-left outline-none transition-[transform,border-color,box-shadow] duration-200 focus-visible:ring-4 focus-visible:ring-brand-primary",
+        "background": "rgb(255, 255, 255)",
+        "borderColor": "rgb(221, 228, 238)",
+        "borderRadius": "22px",
+        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px, rgba(37, 99, 235, 0.04) 0px 4px 16px 0px",
+        "width": 338
+      },
+      {
+        "className": "lms-app-card student-course-card group grid text-left outline-none transition-[transform,border-color,box-shadow] duration-200 focus-visible:ring-4 focus-visible:ring-brand-primary",
+        "background": "rgb(255, 255, 255)",
+        "borderColor": "rgb(221, 228, 238)",
+        "borderRadius": "22px",
+        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px, rgba(37, 99, 235, 0.04) 0px 4px 16px 0px",
+        "width": 338
       }
     ],
     "hasHorizontalOverflow": false
   },
   {
     "route": "results-mobile",
-    "url": "http://127.0.0.1:5174/lms/results",
+    "url": "http://127.0.0.1:5181/lms/results",
     "viewport": {
       "width": 390,
       "height": 900
@@ -207,48 +190,31 @@
     "shell": {
       "selector": ".student-app-shell",
       "className": "app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#F5F6FF] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[#05070d] group/shell student-app-shell tablet-overlay-nav",
-      "background": "rgb(239, 241, 251)",
-      "borderColor": "rgb(14, 21, 56)",
+      "background": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
       "width": 390
     },
     "page": {
       "selector": ".lms-route-page, .dashboard-page",
-      "className": "lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5",
-      "background": "rgb(239, 241, 251)",
-      "borderColor": "rgb(14, 21, 56)",
+      "className": "lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5 student-results-page",
+      "background": "rgba(0, 0, 0, 0)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
       "width": 390
     },
     "layout": {
       "selector": ".study-hub-shell, .management-layout",
-      "className": "management-layout mx-auto grid w-full max-w-page min-w-0 gap-section max-[520px]:gap-4",
+      "className": "management-layout grid w-full min-w-0 gap-section max-[520px]:gap-4 student-results-layout",
       "background": "rgba(0, 0, 0, 0)",
-      "borderColor": "rgb(14, 21, 56)",
+      "borderColor": "rgb(12, 24, 48)",
       "borderRadius": "0px",
       "boxShadow": "none",
-      "width": 390
+      "width": 338
     },
-    "cards": [
-      {
-        "className": "results-performance-board animate-fadePop",
-        "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
-        "borderRadius": "22px",
-        "boxShadow": "rgba(15, 20, 48, 0.03) 0px 1px 0px 0px",
-        "width": 390
-      },
-      {
-        "className": "glass-card relative w-full max-w-full overflow-hidden text-ink-strong p-card grid gap-3 max-[520px]:p-3.5",
-        "background": "rgb(255, 255, 255)",
-        "borderColor": "rgb(229, 231, 240)",
-        "borderRadius": "20px",
-        "boxShadow": "rgba(11, 18, 32, 0.035) 0px 1px 2px 0px, rgba(15, 23, 42, 0.043) 0px 8px 18px 0px",
-        "width": 390
-      }
-    ],
+    "cards": [],
     "hasHorizontalOverflow": false
   }
 ]

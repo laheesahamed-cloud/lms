@@ -641,17 +641,17 @@ function PickPhase({ notes, loading, error, onStartNote, onStartMixed, starting 
   const courseNames = Object.keys(groups);
 
   return (
-    <main className={ui.screenShell}>
+    <main className={ui.studentScreenShell}>
       <style>{ANIM_CSS}</style>
-      <section className={ui.managementLayout}>
+      <section className={ui.studentManagementLayout}>
         <AppHeader
           title="Flashcards"
-          subtitle="Choose a lesson. Each deck generates targeted Q&A cards from your notes."
+          subtitle="Recall Practice"
         />
 
         <StudentPageHero
           title="Flashcards"
-          subtitle="Choose a lesson, recall first, then flip into targeted Q&A practice."
+          subtitle="Recall Practice"
           tone="violet"
           metrics={[
             { label: 'Lessons', value: loading ? '-' : notes.length },
@@ -780,9 +780,9 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
   }, []);
 
   return (
-    <main className={ui.screenShell}>
+    <main className={ui.studentScreenShell}>
       <style>{ANIM_CSS}</style>
-      <section className={ui.managementLayout}>
+      <section className={ui.studentManagementLayout}>
 
         {/* Header */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-1 px-5 py-3.5 shadow-xs fc-fade-up">
@@ -928,9 +928,9 @@ function ResultPhase({ quiz, result, onRetry, onRetryMissed, onBack }) {
   const circumference = 2 * Math.PI * 34;
 
   return (
-    <main className={ui.screenShell}>
+    <main className={ui.studentScreenShell}>
       <style>{ANIM_CSS}</style>
-      <section className={ui.managementLayout}>
+      <section className={ui.studentManagementLayout}>
         <div className="flex flex-col items-center px-5 py-12 text-center">
 
           <div className="mb-5 grid size-20 place-items-center rounded-2xl fc-scale-in"

@@ -3,6 +3,8 @@ import { create } from 'zustand';
 const THEME_KEY = 'lms_theme_mode';
 const ACCENT_THEME_KEY = 'lms_accent_theme';
 const ACCENT_THEMES = new Set(['erpm', 'codeforge']);
+const STUDENT_ACCENT_KEY = 'lms_student_accent';
+const STUDENT_ACCENTS = new Set(['blue', 'violet']);
 const CHROME_THEME_COLORS = {
   light: '#F5F6FF',
   dark: '#05070d',
@@ -59,6 +61,14 @@ function commitAccentTheme(accentTheme) {
   document.documentElement.dataset.accentTheme = accentTheme;
 }
 
+function commitStudentAccent(studentAccent) {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.documentElement.dataset.studentAccent = studentAccent;
+}
+
 function applyTheme(theme) {
   if (typeof document === 'undefined') {
     return;
@@ -113,6 +123,19 @@ function getPreferredAccentTheme() {
   }
 }
 
+function getPreferredStudentAccent() {
+  if (typeof window === 'undefined') {
+    return 'blue';
+  }
+
+  try {
+    const stored = window.localStorage.getItem(STUDENT_ACCENT_KEY);
+    return STUDENT_ACCENTS.has(stored) ? stored : 'blue';
+  } catch {
+    return typeof document !== 'undefined' ? document.documentElement.dataset.studentAccent || 'blue' : 'blue';
+  }
+}
+
 function getBootstrapTheme() {
   if (typeof document === 'undefined') {
     return 'light';
@@ -131,14 +154,25 @@ function getBootstrapAccentTheme() {
   return ACCENT_THEMES.has(accentTheme) ? accentTheme : 'codeforge';
 }
 
+function getBootstrapStudentAccent() {
+  if (typeof document === 'undefined') {
+    return 'blue';
+  }
+
+  const studentAccent = document.documentElement.dataset.studentAccent;
+  return STUDENT_ACCENTS.has(studentAccent) ? studentAccent : 'blue';
+}
+
 export const useThemeStore = create((set, get) => ({
   theme: getBootstrapTheme(),
   accentTheme: getBootstrapAccentTheme(),
+  studentAccent: getBootstrapStudentAccent(),
   hydrated: false,
 
   hydrateTheme: () => {
     const theme = getPreferredTheme();
     const accentTheme = getPreferredAccentTheme();
+    const studentAccent = getPreferredStudentAccent();
 
     if (typeof document !== 'undefined' && document.body.classList.contains('app-booting')) {
       commitTheme(theme, { animate: false });
@@ -147,7 +181,8 @@ export const useThemeStore = create((set, get) => ({
     }
 
     commitAccentTheme(accentTheme);
-    set({ theme, accentTheme, hydrated: true });
+    commitStudentAccent(studentAccent);
+    set({ theme, accentTheme, studentAccent, hydrated: true });
   },
 
   setTheme: (theme) => {
@@ -193,6 +228,21 @@ export const useThemeStore = create((set, get) => ({
 
     commitAccentTheme(accentTheme);
     set({ accentTheme, hydrated: true });
+  },
+
+  setStudentAccent: (studentAccent) => {
+    if (!STUDENT_ACCENTS.has(studentAccent)) {
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(STUDENT_ACCENT_KEY, studentAccent);
+      } catch {}
+    }
+
+    commitStudentAccent(studentAccent);
+    set({ studentAccent, hydrated: true });
   },
 
   toggleTheme: () => {

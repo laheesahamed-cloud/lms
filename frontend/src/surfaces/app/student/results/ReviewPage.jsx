@@ -27,7 +27,7 @@ export function ReviewPage() {
   }, [attemptId]);
 
   if (!data && !error) {
-    return <main className={ui.screenShell}><div className={ui.emptyBox}>Loading review...</div></main>;
+    return <main className={ui.studentScreenShell}><div className={ui.emptyBox}>Loading review...</div></main>;
   }
 
   const summary = data ? data.questions.reduce(
@@ -48,11 +48,11 @@ export function ReviewPage() {
   ) : null;
 
   return (
-      <main className={cx(ui.screenShell, 'lms-review-page')}>
-        <section className={ui.managementLayout}>
+      <main className={cx(ui.studentScreenShell, 'lms-review-page')}>
+        <section className={ui.studentManagementLayout}>
         <AppHeader
           title={data ? `${getQuizNumberLabel(data.attempt)} review` : 'Review answers'}
-          subtitle={data ? `${getQuizTitleText(data.attempt, data.attempt.quizTitle)} • ${data.attempt.topicDisplay}` : ''}
+          subtitle="Answer Review"
         />
         <div className={reviewPageNavClass}>
           <button type="button" className={ui.secondaryAction} onClick={() => navigate(-1)}>

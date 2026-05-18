@@ -518,11 +518,11 @@ export function StudentBillingPage() {
   }
 
   return (
-    <main className={ui.screenShell}>
-      <section className={ui.managementLayout}>
+    <main className={ui.studentScreenShell}>
+      <section className={ui.studentManagementLayout}>
         <AppHeader
           title="Subscriptions"
-          subtitle="Compare available plans, review your current access, and see which features are included in each subscription."
+          subtitle="Plan Access"
         />
 
         {error ? <div className={ui.feedbackError}>{error}</div> : null}

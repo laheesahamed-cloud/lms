@@ -182,7 +182,7 @@ export function CoursesPage() {
         <section className={ui.managementLayout}>
         <AppHeader
           title="Courses"
-          subtitle="Create, update, and organize the course catalog using the current LMS course structure."
+          subtitle="Course Catalog"
         />
 
         <div className={ui.managementGrid}>

@@ -24,7 +24,7 @@ export function AdminStudentDetailPage() {
   return (
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
-        <AppHeader title={data?.user?.fullName || 'Student detail'} subtitle="Profile, access, progress, quiz history, bookmarks, and doubts in one admin view." />
+        <AppHeader title={data?.user?.fullName || 'Student detail'} subtitle="Student Profile" />
         <Link className={ui.secondaryAction} to="/users">Back to students</Link>
         {status.error ? <div className={ui.feedbackError}>{status.error}</div> : null}
         {status.loading ? <div className={ui.emptyBox}>Loading student detail...</div> : null}

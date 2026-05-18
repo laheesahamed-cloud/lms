@@ -1,10 +1,230 @@
 html[data-lms-runtime="native"] {
   --lms-app-card-radius: 18px;
   --lms-app-card-pad: clamp(15px, 3.2vw, 22px);
+  --lms-native-motion-enter: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .lms-course-card, .lms-quiz-card) {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+}
+
+@keyframes nativeRouteFade {
+  from { opacity: 1; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes nativePanelRouteFade {
+  from { opacity: 1; transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes nativeFadePop {
+  from { opacity: 1; transform: translate3d(0, 7px, 0) scale(0.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes nativeScaleIn {
+  from { opacity: 1; transform: translate3d(0, 4px, 0) scale(0.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes nativeDropdownIn {
+  from { opacity: 1; transform: translate3d(0, -4px, 0) scale(0.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes nativeOverlayIn {
+  from { opacity: 0.001; }
+  to { opacity: 1; }
+}
+
+html[data-lms-runtime="native"][data-visual-effects] .animate-routeFade,
+html[data-lms-runtime="native"][data-low-spec] .animate-routeFade,
+html[data-lms-runtime="native"] .animate-routeFade {
+  animation: nativeRouteFade 0.22s var(--lms-native-motion-enter) both !important;
+  animation-name: nativeRouteFade !important;
+  animation-duration: 0.22s !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+  transition-property: opacity, transform !important;
+  transition-duration: 160ms !important;
+  opacity: 1 !important;
+  will-change: transform;
+}
+
+html[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
+html[data-lms-runtime="native"][data-visual-effects] body.app-ready .lms-route-reveal.animate-panelRouteFade,
+html[data-lms-runtime="native"][data-low-spec] .animate-panelRouteFade,
+html[data-lms-runtime="native"][data-low-spec] body.app-ready .lms-route-reveal.animate-panelRouteFade,
+html[data-lms-runtime="native"] .animate-panelRouteFade,
+html[data-lms-runtime="native"] body.app-ready .lms-route-reveal.animate-panelRouteFade {
+  animation: nativePanelRouteFade 0.20s var(--lms-native-motion-enter) both !important;
+  animation-name: nativePanelRouteFade !important;
+  animation-duration: 0.20s !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+  transition-property: opacity, transform !important;
+  transition-duration: 150ms !important;
+  opacity: 1 !important;
+  will-change: transform;
+}
+
+html[data-lms-runtime="native"][data-visual-effects] .animate-fadePop,
+html[data-lms-runtime="native"][data-low-spec] .animate-fadePop,
+html[data-lms-runtime="native"] .animate-fadePop {
+  animation: nativeFadePop 0.22s var(--lms-native-motion-enter) both !important;
+  animation-name: nativeFadePop !important;
+  animation-duration: 0.22s !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+  transition-property: opacity, transform !important;
+  transition-duration: 150ms !important;
+  opacity: 1 !important;
+  will-change: transform;
+}
+
+html[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn,
+html[data-lms-runtime="native"][data-low-spec] .animate-scaleIn,
+html[data-lms-runtime="native"] .animate-scaleIn {
+  animation: nativeScaleIn 0.18s var(--lms-native-motion-enter) both !important;
+  animation-name: nativeScaleIn !important;
+  animation-duration: 0.18s !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+  transition-property: opacity, transform !important;
+  transition-duration: 140ms !important;
+  opacity: 1 !important;
+  will-change: transform;
+}
+
+html[data-lms-runtime="native"][data-visual-effects] .animate-dropdownIn,
+html[data-lms-runtime="native"][data-low-spec] .animate-dropdownIn,
+html[data-lms-runtime="native"] .animate-dropdownIn {
+  animation: nativeDropdownIn 0.16s var(--ease-out, var(--lms-native-motion-enter)) both !important;
+  animation-name: nativeDropdownIn !important;
+  animation-duration: 0.16s !important;
+  animation-timing-function: var(--ease-out, var(--lms-native-motion-enter)) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+  transition-property: opacity, transform !important;
+  transition-duration: 140ms !important;
+  opacity: 1 !important;
+  will-change: transform;
+}
+
+html[data-lms-runtime="native"][data-visual-effects] .animate-overlayIn,
+html[data-lms-runtime="native"][data-low-spec] .animate-overlayIn,
+html[data-lms-runtime="native"] .animate-overlayIn {
+  animation: nativeOverlayIn 0.14s var(--ease-out, var(--lms-native-motion-enter)) both !important;
+  animation-name: nativeOverlayIn !important;
+  animation-duration: 0.14s !important;
+  animation-timing-function: var(--ease-out, var(--lms-native-motion-enter)) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+  transition-property: opacity !important;
+  transition-duration: 140ms !important;
+  will-change: opacity;
+}
+
+html[data-lms-runtime="native"] .motion-smooth {
+  transition-duration: var(--lms-motion-duration, 160ms) !important;
+}
+
+html[data-lms-runtime="native"] :where(
+  .animate-routeFade,
+  .animate-panelRouteFade,
+  .animate-fadePop,
+  .animate-scaleIn,
+  .animate-dropdownIn,
+  .animate-overlayIn
+) {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+:root[data-lms-runtime="native"][data-visual-effects] .animate-routeFade {
+  animation-name: nativeRouteFade !important;
+  animation-duration: 0.22s !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+}
+
+:root[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
+:root[data-lms-runtime="native"][data-visual-effects] body.app-ready .lms-route-reveal.animate-panelRouteFade {
+  animation-name: nativePanelRouteFade !important;
+  animation-duration: 0.20s !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+}
+
+:root[data-lms-runtime="native"][data-visual-effects] .animate-fadePop {
+  animation-name: nativeFadePop !important;
+  animation-duration: 0.22s !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+}
+
+:root[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn {
+  animation-name: nativeScaleIn !important;
+  animation-duration: 0.18s !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+}
+
+:root[data-lms-runtime="native"][data-visual-effects] .animate-dropdownIn {
+  animation-name: nativeDropdownIn !important;
+  animation-duration: 0.16s !important;
+  animation-timing-function: var(--ease-out, var(--lms-native-motion-enter)) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+}
+
+:root[data-lms-runtime="native"][data-visual-effects] .animate-overlayIn {
+  animation-name: nativeOverlayIn !important;
+  animation-duration: 0.14s !important;
+  animation-timing-function: var(--ease-out, var(--lms-native-motion-enter)) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-lms-runtime="native"][data-visual-effects] .animate-routeFade,
+  :root[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
+  :root[data-lms-runtime="native"][data-visual-effects] .animate-fadePop,
+  :root[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn,
+  :root[data-lms-runtime="native"][data-visual-effects] .animate-dropdownIn,
+  :root[data-lms-runtime="native"][data-visual-effects] .animate-overlayIn,
+  html[data-lms-runtime="native"][data-visual-effects] .animate-routeFade,
+  html[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
+  html[data-lms-runtime="native"][data-visual-effects] .animate-fadePop,
+  html[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn,
+  html[data-lms-runtime="native"][data-visual-effects] .animate-dropdownIn,
+  html[data-lms-runtime="native"][data-visual-effects] .animate-overlayIn,
+  html[data-lms-runtime="native"][data-low-spec] .animate-routeFade,
+  html[data-lms-runtime="native"][data-low-spec] .animate-panelRouteFade,
+  html[data-lms-runtime="native"][data-low-spec] .animate-fadePop,
+  html[data-lms-runtime="native"][data-low-spec] .animate-scaleIn,
+  html[data-lms-runtime="native"][data-low-spec] .animate-dropdownIn,
+  html[data-lms-runtime="native"][data-low-spec] .animate-overlayIn,
+  html[data-lms-runtime="native"] .animate-routeFade,
+  html[data-lms-runtime="native"] .animate-panelRouteFade,
+  html[data-lms-runtime="native"] .animate-fadePop,
+  html[data-lms-runtime="native"] .animate-scaleIn,
+  html[data-lms-runtime="native"] .animate-dropdownIn,
+  html[data-lms-runtime="native"] .animate-overlayIn {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

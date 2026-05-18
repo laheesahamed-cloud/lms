@@ -1695,7 +1695,7 @@ export function BulkQuestionInputPage() {
       <section className={ui.managementLayout}>
         <AppHeader
           title="Bulk Question Input"
-          subtitle="Paste raw questions, parse them into cards, review the queue, then save ready items now and continue the draft later."
+          subtitle="Question Import"
           actions={(
             <div className={ui.buttonRow}>
               <button type="button" className={ui.secondaryAction} onClick={() => navigate('/questions')}>

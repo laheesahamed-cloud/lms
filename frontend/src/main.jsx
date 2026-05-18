@@ -31,7 +31,7 @@ function installPwaTouchGuards() {
 const initialPlatform = applyPlatformAttributes();
 if (typeof window !== 'undefined') {
   installPwaTouchGuards();
-  installPlatformAttributeSync();
+  installPlatformAttributeSync(() => applyPerformanceProfile());
 }
 
 // Start user/session hydration while the boot loader is still covering the app.

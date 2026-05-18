@@ -177,11 +177,11 @@ export function StudentCheckoutPage() {
   }
 
   return (
-    <main className={ui.screenShell}>
-      <section className={ui.managementLayout}>
+    <main className={ui.studentScreenShell}>
+      <section className={ui.studentManagementLayout}>
         <AppHeader
           title="Checkout"
-          subtitle="Confirm your plan, choose card or bank transfer, then complete the order."
+          subtitle="Plan Checkout"
           actions={<Link className={ui.secondaryAction} to="/subscriptions">Back to plans</Link>}
         />
 

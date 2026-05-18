@@ -27,7 +27,7 @@ export function AdminAnnouncementsPage() {
 
   return (
     <main className={ui.screenShell}><section className={ui.managementLayout}>
-      <AppHeader title="Announcements" subtitle="Publish messages for students or admins. Student announcements appear in Notifications." />
+      <AppHeader title="Announcements" subtitle="Message Center" />
       {message ? <div className={message.startsWith('Unable') ? ui.feedbackError : ui.feedbackSuccess}>{message}</div> : null}
       <section className={ui.panelCard}>
         <div className={ui.infoCard}>

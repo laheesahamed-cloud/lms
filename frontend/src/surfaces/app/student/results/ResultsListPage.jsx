@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchStudentDashboard } from '../../../../shared/api/dashboard.api.js';
 import { fetchStudentResults } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 
@@ -191,73 +190,89 @@ export function ResultsListPage() {
   }
 
   return (
-    <main className={ui.screenShell}>
-      <section className={ui.managementLayout}>
-        <AppHeader
-          title={focusedQuizTitle ? `${focusedQuizTitle} results` : 'My results'}
-          subtitle={focusQuizId ? 'Showing only your submitted attempts for this question set.' : 'Review your submitted exam attempts in the new student area.'}
-        />
+    <main className={cx(ui.studentScreenShell, 'student-results-page')}>
+      <section className={cx(ui.studentManagementLayout, 'student-results-layout')}>
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
 
-        <section className="results-performance-board animate-fadePop" aria-label="Performance summary">
-          <div className="results-performance-main">
-            <ScoreRing value={averagePercentage} />
-            <div className="min-w-0">
-              <span className={ui.eyebrow}>Performance</span>
-              <h2 className="results-performance-title">
-                {loading ? 'Loading your progress...' : totalAttempts ? 'Your exam score trend' : 'Start your first exam'}
-              </h2>
-              <p className="results-performance-text">
-                {totalAttempts
+        <section className="student-results-hero lms-page-header-card animate-fadePop" aria-label="Results summary">
+          <div className="student-results-hero__copy">
+            <span className={ui.eyebrow}>{focusQuizId ? 'Filtered Attempts' : 'Exam Attempts'}</span>
+            <h1>{focusedQuizTitle ? `${focusedQuizTitle} results` : 'My results'}</h1>
+            <p>
+              {loading
+                ? 'Loading your latest exam attempts.'
+                : totalAttempts
                   ? `Latest score ${latestPercentage}%. ${passedAttempts} of ${totalAttempts} attempts passed.`
-                  : 'Submit an exam to see scores, review links, and focus areas here.'}
-              </p>
+                  : 'Complete an exam to begin building your result history.'}
+            </p>
+            <div className="student-results-hero__actions">
+              <button type="button" className="lms-app-btn lms-app-btn--primary" onClick={() => navigate('/quizzes')}>
+                Practice
+              </button>
+              {focusQuizId ? (
+                <button type="button" className="lms-app-btn lms-app-btn--ghost" onClick={() => navigate('/results')}>
+                  All results
+                </button>
+              ) : latestResult ? (
+                <button type="button" className="lms-app-btn lms-app-btn--ghost" onClick={() => openAttemptReview(latestResult.attemptId)}>
+                  Review latest
+                </button>
+              ) : null}
             </div>
           </div>
 
-          <div className="results-kpi-strip" aria-label="Results statistics">
-            <div>
-              <span><AttemptsIcon /></span>
-              <strong>{loading ? '...' : totalAttempts}</strong>
-              <small>Attempts</small>
+          <div className="student-results-hero__score">
+            <ScoreRing value={averagePercentage} />
+            <div className="student-results-hero__trend">
+              <div>
+                <span className={ui.eyebrow}>Trend</span>
+                <p>Recent attempt pattern</p>
+              </div>
+              <ScoreSparkline results={visibleResults} />
             </div>
-            <div>
-              <span><PassedIcon /></span>
-              <strong>{loading ? '...' : passedAttempts}</strong>
-              <small>Passed</small>
-            </div>
-            <div>
-              <span><AverageIcon /></span>
-              <strong>{loading ? '...' : `${averagePercentage}%`}</strong>
-              <small>Average</small>
-            </div>
-          </div>
-
-          <div className="results-spark-panel">
-            <div>
-              <span className={ui.eyebrow}>Last Attempts</span>
-              <p>Newest performance shape, from left to right.</p>
-            </div>
-            <ScoreSparkline results={visibleResults} />
           </div>
         </section>
 
+        <section className="student-results-metrics" aria-label="Results statistics">
+          <article>
+            <span><AttemptsIcon /></span>
+            <div>
+              <strong>{loading ? '...' : totalAttempts}</strong>
+              <small>Attempts</small>
+            </div>
+          </article>
+          <article>
+            <span><PassedIcon /></span>
+            <div>
+              <strong>{loading ? '...' : passedAttempts}</strong>
+              <small>Passed</small>
+            </div>
+          </article>
+          <article>
+            <span><AverageIcon /></span>
+            <div>
+              <strong>{loading ? '...' : `${averagePercentage}%`}</strong>
+              <small>Average</small>
+            </div>
+          </article>
+        </section>
+
         {!loading && (weakTopics.length > 0 || missedPatterns.length > 0) ? (
-          <section className={cx(ui.panelCard, 'results-focus-board')}>
+          <section className="student-results-focus lms-app-card">
             <div className={ui.panelTop}>
               <div>
                 <h2 className={ui.panelTitle}>Focus areas</h2>
-                <p className={ui.panelText}>Weak topics and repeated mistake patterns live here now, not on the main dashboard.</p>
+                <p className={ui.panelText}>Weak topics and repeated mistake patterns from your recent attempts.</p>
               </div>
             </div>
-            <div className="results-focus-grid">
-              <div className="results-focus-column">
+            <div className="student-results-focus__grid">
+              <div className="student-results-focus__column">
                 <span className={ui.eyebrow}>Weak Topics</span>
                 {weakTopics.length === 0 ? (
                   <div className={ui.emptyBox}>No weak-topic data yet.</div>
                 ) : weakTopics.map((topic) => (
-                  <button type="button" className="results-focus-row" key={`${topic.courseTitle}-${topic.topicName}`} onClick={() => navigate('/quizzes')}>
-                    <span className="results-focus-score">{Math.round(Number(topic.averagePercentage || 0))}%</span>
+                  <button type="button" className="student-results-focus__row" key={`${topic.courseTitle}-${topic.topicName}`} onClick={() => navigate('/quizzes')}>
+                    <span className="student-results-focus__score">{Math.round(Number(topic.averagePercentage || 0))}%</span>
                     <span>
                       <strong>{topic.topicName}</strong>
                       <small>{topic.courseTitle} • {topic.attemptsCount || 0} attempt{topic.attemptsCount === 1 ? '' : 's'}</small>
@@ -265,13 +280,13 @@ export function ResultsListPage() {
                   </button>
                 ))}
               </div>
-              <div className="results-focus-column">
+              <div className="student-results-focus__column">
                 <span className={ui.eyebrow}>Missed Patterns</span>
                 {missedPatterns.length === 0 ? (
                   <div className={ui.emptyBox}>No repeated missed patterns yet.</div>
                 ) : missedPatterns.map((pattern) => (
-                  <button type="button" className="results-focus-row" key={`${pattern.courseTitle}-${pattern.topicName}-${pattern.patternLabel}`} onClick={() => navigate('/quizzes')}>
-                    <span className="results-focus-miss">x{pattern.missCount || 0}</span>
+                  <button type="button" className="student-results-focus__row" key={`${pattern.courseTitle}-${pattern.topicName}-${pattern.patternLabel}`} onClick={() => navigate('/quizzes')}>
+                    <span className="student-results-focus__miss">x{pattern.missCount || 0}</span>
                     <span>
                       <strong>{pattern.topicName}</strong>
                       <small>{pattern.courseTitle}{pattern.patternLabel ? ` • ${pattern.patternLabel}` : ''}</small>
@@ -283,11 +298,11 @@ export function ResultsListPage() {
           </section>
         ) : null}
 
-        <section className={cx(ui.panelCard, 'grid gap-3 max-[520px]:p-3.5')}>
+        <section className="student-results-history lms-app-card">
           <div className={ui.panelTop}>
             <div>
               <h2 className={ui.panelTitle}>Attempt history</h2>
-              <p className={cx(ui.panelText, 'max-[520px]:text-sm')}>Exam attempts, scores, and review links.</p>
+              <p className={cx(ui.panelText, 'max-[520px]:text-sm')}>Exam attempts, scores, submitted time, and review status.</p>
             </div>
           </div>
 
@@ -357,22 +372,22 @@ export function ResultsListPage() {
                 </tbody>
               </table>
             </div>
-            <div className="hidden max-[640px]:block">
-              <div className="overflow-hidden rounded-[18px] border border-line-soft bg-surface-1 shadow-sm">
-                <div className="grid grid-cols-[minmax(0,1.55fr)_76px_44px] items-center gap-2 border-b border-line-soft bg-surface-2/55 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-ink-muted">
+            <div className="student-results-mobile-history">
+              <div className="student-results-mobile-history__shell">
+                <div className="student-results-mobile-history__head">
                   <span>Exam</span>
                   <span className="text-right">Score</span>
                   <span className="text-right">Open</span>
                 </div>
 
-                <div className="divide-y divide-line-soft">
+                <div className="student-results-attempt-list">
                   {visibleResults.map((result) => {
                     const isPassed = result.passStatus === 'pass';
                     const score = Number(formatPercentage(result.percentage));
                     return (
                       <div
                         key={result.attemptId}
-                        className="grid grid-cols-[minmax(0,1.55fr)_76px_44px] items-center gap-2 px-3 py-3"
+                        className="student-results-attempt-card"
                       >
                         <div className="min-w-0">
                           <strong className="block truncate text-[14px] font-extrabold leading-tight text-ink-strong">

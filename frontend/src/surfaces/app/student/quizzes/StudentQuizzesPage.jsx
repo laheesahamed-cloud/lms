@@ -1105,13 +1105,13 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   ];
 
   return (
-    <main className={cx(ui.screenShell, 'student-quiz-map-page')}>
-      <section className={ui.managementLayout}>
+    <main className={cx(ui.studentScreenShell, 'student-quiz-map-page')}>
+      <section className={ui.studentManagementLayout}>
         <AppHeader
           title={isExamPage ? 'Exams' : 'Q-Bank'}
           subtitle={isExamPage
-            ? 'Timed exam sets with scoring and retakes.'
-            : 'Practice sets organized by course, subject, and topic.'
+            ? 'Timed Exams'
+            : 'Practice Bank'
           }
         />
 

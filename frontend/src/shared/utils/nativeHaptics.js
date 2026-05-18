@@ -10,6 +10,10 @@ function fallbackVibrate(pattern = 10) {
   }
 }
 
+export function webVibrate(pattern = 10) {
+  fallbackVibrate(pattern);
+}
+
 function runHaptic(effect, fallbackPattern = 10) {
   return new Promise((resolve) => {
     let settled = false;

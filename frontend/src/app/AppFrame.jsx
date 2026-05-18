@@ -148,8 +148,8 @@ export function AppFrame() {
       setStyleIfChanged(element, 'overflowX', 'hidden');
       setStyleIfChanged(element, 'overflowY', PLATFORM.isNative ? 'clip' : '');
       setStyleIfChanged(element, 'overscrollBehavior', 'none');
-      setStyleIfChanged(element, 'background', 'var(--app-bg, #05070d)');
-      setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg, #05070d)');
+      setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #05070d))');
+      setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #05070d))');
       setStyleIfChanged(element, 'color', '');
     });
 
@@ -168,8 +168,8 @@ export function AppFrame() {
       setStyleIfChanged(root, 'overflowY', PLATFORM.isNative ? 'clip' : '');
       setStyleIfChanged(root, 'overscrollBehavior', 'none');
       setStyleIfChanged(root, 'touchAction', 'pan-y');
-      setStyleIfChanged(root, 'background', 'var(--app-bg, #05070d)');
-      setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg, #05070d)');
+      setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #05070d))');
+      setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #05070d))');
       setStyleIfChanged(root, 'color', '');
       setStyleIfChanged(root, 'webkitOverflowScrolling', 'touch');
     }
@@ -190,7 +190,7 @@ export function AppFrame() {
       setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
     });
 
-    document.querySelectorAll('.portal-shell, .portal-content, .portal-content__frame, .motion-smooth, .lms-route-page').forEach((element) => {
+    document.querySelectorAll('.portal-shell, .portal-content, .portal-content__frame, .motion-smooth, .lms-route-page, .student-route-page').forEach((element) => {
       setStyleIfChanged(element, 'height', 'auto');
       setStyleIfChanged(element, 'minHeight', '100%');
       setStyleIfChanged(element, 'maxHeight', 'none');

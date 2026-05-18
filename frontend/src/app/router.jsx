@@ -362,7 +362,7 @@ const studentPanelRoutes = [
     element: withSuspense(
       <DashboardPage
         title="Awaiting approval"
-        subtitle="This page mirrors the current pending flow for newly registered student accounts."
+        subtitle="Approval Pending"
         cards={[
           { kicker: 'Pending', title: 'Approval required', text: 'Students stay here until an admin marks the account active.' },
         ]}
@@ -624,7 +624,7 @@ export const router = createBrowserRouter([
                 {withSuspense(
                   <DashboardPage
                     title="Awaiting approval"
-                    subtitle="This page mirrors the current pending flow for newly registered student accounts."
+                    subtitle="Approval Pending"
                     cards={[
                       { kicker: 'Pending', title: 'Approval required', text: 'Students stay here until an admin marks the account active.' },
                     ]}

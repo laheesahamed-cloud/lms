@@ -2057,7 +2057,7 @@ export function QuizBuilderPage() {
       <section className={ui.managementLayout}>
         <AppHeader
           title={isEditing ? 'Edit Assessment' : 'Create Assessment'}
-          subtitle="Build quizzes in a clear LMS flow: set names, choose the hierarchy, filter questions, move them into the quiz, then finalize the settings."
+          subtitle="Quiz Builder"
         />
 
         {error ? <div className={ui.feedbackError}>{error}</div> : null}

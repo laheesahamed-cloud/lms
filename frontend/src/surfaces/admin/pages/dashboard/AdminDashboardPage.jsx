@@ -578,7 +578,7 @@ export function AdminDashboardPage() {
       <section className={cx(ui.managementLayout, adminDashboardLayoutClass)}>
         <AppHeader
           title="Admin Hub"
-          subtitle="AI-first operational visibility across platform growth, learner behavior, content velocity, and assessment readiness."
+          subtitle="Operations Hub"
         />
 
         {error ? <div className={ui.feedbackError}>{error}</div> : null}

@@ -43,7 +43,7 @@ window.TOKENS = TOKENS;
 // ─── ICONS ───────────────────────────────────────────────────
 const Icon = ({ name, size = 22, stroke = 1.7, color = 'currentColor', style }) => {
   const paths = {
-    menu:    <><path d="M4 7h16M4 12h16M4 17h10"/></>,
+    menu:    <><path d="M4 7h16M4 12h16M7 17h10"/></>,
     bell:    <><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2H4.5L6 16Z"/><path d="M10 20a2 2 0 0 0 4 0"/></>,
     search:  <><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></>,
     moon:    <><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></>,
@@ -234,15 +234,15 @@ const BottomNav = ({ active, onChange }) => {
           const isActive = t.id === active;
           return (
             <button key={t.id} onClick={() => onChange(t.id)} style={{
-              flex: 1, height: 48, borderRadius: 16, border: 'none', cursor: 'pointer',
+              flex: 1, height: 48, borderRadius: 16, border: 'none', outline: 'none', boxShadow: 'none', cursor: 'pointer',
               background: isActive ? TOKENS.grad : 'transparent',
               color: isActive ? '#FFF' : 'rgba(255,255,255,0.65)',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               gap: 2, fontFamily: TOKENS.sans, fontSize: 10, fontWeight: 700,
               letterSpacing: 0.2, transition: 'all 0.18s',
-              padding: 0,
+              padding: 0, WebkitTapHighlightColor: 'transparent',
             }}>
-              <Icon name={t.icon} size={20} stroke={isActive ? 2 : 1.7} />
+              <Icon name={t.icon} size={20} stroke={1.7} />
               <span style={{ opacity: isActive ? 1 : 0.85 }}>{t.label}</span>
             </button>
           );

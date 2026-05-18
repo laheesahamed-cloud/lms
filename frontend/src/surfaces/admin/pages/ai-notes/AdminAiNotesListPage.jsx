@@ -186,7 +186,7 @@ export function AdminAiNotesListPage({
       <section className={ui.managementLayout}>
         <AppHeader
           title={pageTitle}
-          subtitle={`${pageSubtitle} • ${notes.length} lesson${notes.length === 1 ? '' : 's'}`}
+          subtitle="Lesson Notes"
         />
 
         <div className={adminCanvasUi.page}>

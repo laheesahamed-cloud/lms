@@ -52,7 +52,14 @@
       "Bash(grep -hE \"className=\\\\\"[^\\\\\"]{0,80}\\\\\"\" /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/surfaces/app/student/planner/StudyPlannerPage.jsx)",
       "Bash(awk '/--color-primary[^a-z-]/{print NR\": \"$0}' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/99-legacy/app.css)",
       "Bash(awk '/--ink-strong/{print NR\": \"$0}' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/99-legacy/app.css)",
-      "Bash(awk '/--surface-card/{print NR\": \"$0}' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/99-legacy/app.css)"
+      "Bash(awk '/--surface-card/{print NR\": \"$0}' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/99-legacy/app.css)",
+      "mcp__Claude_Preview__preview_start",
+      "Skill(ui-ux-pro-max)",
+      "Skill(ui-ux-pro-max:*)",
+      "Bash(python3 scripts/search.py \"medical education LMS student dashboard study-blue cyan premium calm\" --design-system -p \"ERPM LMS\")",
+      "Bash(python3 scripts/search.py \"animation micro-interactions dashboard card hover\" --domain ux -n 8)",
+      "Bash(python3 scripts/search.py \"glassmorphism premium dashboard\" --domain style -n 4)",
+      "Bash(python3 scripts/search.py \"entrance stagger reveal performant\" --domain ux -n 4)"
     ]
   }
 }

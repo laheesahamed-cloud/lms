@@ -561,11 +561,11 @@ export function StudentNotesPage() {
   }
 
   return (
-    <main className={ui.screenShell}>
-      <section className={ui.managementLayout}>
+    <main className={ui.studentScreenShell}>
+      <section className={ui.studentManagementLayout}>
         <AppHeader
           title="Notes"
-          subtitle="Open the notebook in a calm study view first, then switch to workspace mode only when you want to manage notes."
+          subtitle="Study Notebook"
         />
 
         {error ? <div className={ui.feedbackError}>{error}</div> : null}

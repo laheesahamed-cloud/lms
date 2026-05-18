@@ -380,7 +380,7 @@ export function UsersPage() {
         <section className={ui.managementLayout}>
         <AppHeader
           title="Users"
-          subtitle="Manage student approvals, roles, and access."
+          subtitle="Access Control"
         />
 
         {toast && createPortal(
@@ -450,7 +450,7 @@ export function UsersPage() {
         <EntityModal
           open={modalOpen}
           title={isEditing ? 'Edit user' : 'Create new user'}
-          subtitle="Create student and admin accounts, or update existing user details."
+          subtitle="User Accounts"
           onClose={handleCancelEdit}
         >
           <form className={cx(ui.formGrid, ui.modalForm)} onSubmit={handleSaveUser}>

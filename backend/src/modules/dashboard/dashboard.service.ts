@@ -762,7 +762,7 @@ export class DashboardService {
       todayQuizCount: todayQuizRows.length,
       todayNoteCount: todayNoteRows.length,
     });
-    const questionOfDay = await this.getRandomDashboardQuestion();
+    const questionOfDay = await this.getRandomDashboardQuestion(student.id);
 
     return {
       user: {
@@ -982,7 +982,7 @@ export class DashboardService {
     ];
   }
 
-  private async getRandomDashboardQuestion() {
+  private async getRandomDashboardQuestion(studentId: number) {
     const [questionRows] = await this.db.execute<DashboardQuestionRow[]>(
       `SELECT
          q.id,
@@ -996,13 +996,21 @@ export class DashboardService {
        LEFT JOIN topics subj ON subj.id = q.topic_id
        LEFT JOIN subtopics sub ON sub.id = q.subtopic_id
        WHERE q.status = 'active'
-         AND EXISTS (
-           SELECT 1
+         AND q.question_type = 'sba'
+         AND (
+           SELECT COUNT(*)
            FROM question_options qo
            WHERE qo.question_id = q.id
-         )
-       ORDER BY RAND()
-       LIMIT 1`
+         ) = 5
+         AND (
+           SELECT COUNT(*)
+           FROM question_options qo
+           WHERE qo.question_id = q.id
+             AND qo.is_correct = 1
+         ) = 1
+       ORDER BY SHA2(CONCAT(CURDATE(), ':', ?, ':', q.id), 256), q.id ASC
+       LIMIT 1`,
+      [studentId]
     );
     const question = questionRows[0];
     if (!question) {

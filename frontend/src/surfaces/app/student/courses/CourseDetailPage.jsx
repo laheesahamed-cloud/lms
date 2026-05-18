@@ -12,6 +12,102 @@ const subtleButton =
   'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line-medium bg-surface-2 px-4 text-[13px] font-semibold text-ink-medium transition-[background,border-color,color] duration-150 hover:border-brand-primary/26 hover:bg-[var(--color-primary-light)] hover:text-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 disabled:cursor-not-allowed disabled:opacity-55 dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-300 dark:hover:border-sky-400/28 dark:hover:bg-sky-400/12 dark:hover:text-white';
 const primaryButton =
   'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand-primary/24 bg-[var(--color-primary-light)] px-4 text-[13px] font-semibold text-brand-primary transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/36 hover:bg-brand-primary/14 disabled:cursor-not-allowed disabled:opacity-55 dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200 dark:hover:bg-sky-400/18';
+const surfaceCard = 'lms-app-card rounded-2xl border border-line-soft bg-surface-card shadow-sm';
+
+const clinicalSteps = [
+  {
+    key: 'concept',
+    title: 'Understand',
+    text: 'Start with the core mechanism before memorising details.',
+  },
+  {
+    key: 'pattern',
+    title: 'Recognize',
+    text: 'Connect signs, labs, and phrasing to a clinical pattern.',
+  },
+  {
+    key: 'apply',
+    title: 'Apply',
+    text: 'Use each lesson as a bridge into SBA-style decisions.',
+  },
+];
+
+function CourseHeroArtwork() {
+  return (
+    <svg className="course-map-medical-art" viewBox="0 0 230 170" fill="none" aria-hidden="true">
+      <path className="course-map-medical-art__grid" d="M24 42h180M24 78h180M24 114h180M58 24v122M100 24v122M142 24v122M184 24v122" />
+      <rect className="course-map-medical-art__panel" x="34" y="34" width="86" height="108" rx="20" />
+      <path className="course-map-medical-art__line" d="M54 62h42M54 82h52M54 102h34" />
+      <path className="course-map-medical-art__ecg" d="M102 92h20l10-26 16 54 12-28h42" />
+      <path className="course-map-medical-art__scope" d="M145 48c0 24 34 24 34 0M145 48V36M179 48V36" />
+      <path className="course-map-medical-art__scope" d="M162 70v18" />
+      <circle className="course-map-medical-art__scope-end" cx="162" cy="108" r="18" />
+      <g className="course-map-medical-art__capsule">
+        <rect x="129" y="126" width="50" height="20" rx="10" transform="rotate(-18 129 126)" />
+        <path d="M153 119l6 18" />
+      </g>
+    </svg>
+  );
+}
+
+function ClinicalStepIcon({ type }) {
+  if (type === 'pattern') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 13h4l2-6 4 12 2-6h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (type === 'apply') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6.5 4h11A1.5 1.5 0 0 1 19 5.5v13A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-13A1.5 1.5 0 0 1 6.5 4Z" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8.5 9h7M8.5 13h4M15 14.5l1.5 1.5 3-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7 4.5h10M8 4.5v5.4a5 5 0 1 0 8 0V4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 14h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function LessonGlyph({ lesson }) {
+  if (lesson.accessLocked) {
+    return (
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M6.5 8V6.6a3.5 3.5 0 0 1 7 0V8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <rect x="4.5" y="8" width="11" height="8" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      </svg>
+    );
+  }
+
+  if (lesson.status === 'completed') {
+    return (
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="m5 10 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (lesson.status === 'in_progress') {
+    return (
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M4 10h4l2-5 3 10 2-5h1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M6 4.5h8M7 4.5v4.2a4 4 0 1 0 6 0V4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function clampPercent(value) {
   const numeric = Number(value || 0);
@@ -299,8 +395,8 @@ export function CourseDetailPage() {
 
   if (loading) {
     return (
-      <main className={cx(ui.screenShell, 'min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white')}>
-        <section className={cx(ui.managementLayout, 'max-w-[1180px]')}>
+      <main className={cx(ui.studentScreenShell, 'min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white')}>
+        <section className={cx(ui.studentManagementLayout, 'max-w-[1180px]')}>
           <div className="grid gap-4">
             <div className="h-52 rounded-2xl bg-surface-2 dark:bg-white/[0.055]" />
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -315,8 +411,8 @@ export function CourseDetailPage() {
 
   if (!course) {
     return (
-      <main className={cx(ui.screenShell, 'min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white')}>
-        <section className={cx(ui.managementLayout, 'max-w-[1180px]')}>
+      <main className={cx(ui.studentScreenShell, 'min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white')}>
+        <section className={cx(ui.studentManagementLayout, 'max-w-[1180px]')}>
           <div className={cx(surfaceCard, 'p-6 text-[14px] text-ink-soft dark:text-slate-300')}>Course details are unavailable.</div>
         </section>
       </main>
@@ -324,8 +420,8 @@ export function CourseDetailPage() {
   }
 
   return (
-    <main className={cx(ui.screenShell, 'lms-course-detail-page lms-course-map-page relative min-h-dvh overflow-hidden bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white')}>
-      <section className={cx(ui.managementLayout, 'relative max-w-[1120px] gap-5')}>
+    <main className={cx(ui.studentScreenShell, 'lms-course-detail-page lms-course-map-page relative min-h-dvh overflow-hidden bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white')}>
+      <section className={cx(ui.studentManagementLayout, 'relative gap-5')}>
         {error ? (
           <div className="rounded-2xl border border-brand-error/20 bg-brand-error/8 px-4 py-3 text-[14px] font-semibold text-brand-error dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100">
             {error}
@@ -357,12 +453,16 @@ export function CourseDetailPage() {
           </div>
 
           <div className="course-map-hero__body">
-            <div className="min-w-0">
+            <div className="course-map-hero__copy">
               <span className="course-map-eyebrow">Lesson Map</span>
               <h1>{course.courseTitle}</h1>
               <p>
-                Subjects, topics, and lessons are ordered from broad to specific so students can scan the whole course path without opening nested drawers.
+                Subjects, topics, and lessons are ordered from broad concepts to clinical application so students can scan the whole course path without opening nested drawers.
               </p>
+            </div>
+
+            <div className="course-map-hero__visual">
+              <CourseHeroArtwork />
             </div>
 
             <div className="course-map-progress" aria-label={`${clampPercent(course.progressPercent)} percent complete`}>
@@ -377,6 +477,20 @@ export function CourseDetailPage() {
               <div key={item.label}>
                 <strong>{item.value}</strong>
                 <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="course-map-clinical-strip" aria-label="Clinical study approach">
+            {clinicalSteps.map((step) => (
+              <div className="course-map-clinical-card" key={step.key}>
+                <span>
+                  <ClinicalStepIcon type={step.key} />
+                </span>
+                <div>
+                  <strong>{step.title}</strong>
+                  <p>{step.text}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -454,6 +568,9 @@ export function CourseDetailPage() {
                                   disabled={busyLessonId === lesson.id}
                                 >
                                   <span>{subjectIndex + 1}.{topicIndex + 1}.{lessonIndex + 1}</span>
+                                  <span className="course-map-lesson-glyph">
+                                    <LessonGlyph lesson={lesson} />
+                                  </span>
                                   <strong>{lesson.lessonTitle}</strong>
                                   {lesson.isFree ? <em>Free</em> : null}
                                 </button>

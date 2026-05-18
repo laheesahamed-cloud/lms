@@ -84,7 +84,7 @@ function hasQuestionAnswerKey(question) {
 }
 
 const examCardKickerClass = 'text-[11px] font-extrabold uppercase tracking-[0.08em] text-brand-primary';
-const examScreenShellClass = `${ui.screenShell} lms-exam-page px-[clamp(18px,2.8vw,30px)] pb-[clamp(18px,2.8vw,30px)] pt-[clamp(10px,1.4vw,18px)] max-[700px]:pb-28 max-[600px]:p-3.5 max-[600px]:pb-28`;
+const examScreenShellClass = `${ui.studentScreenShell} lms-exam-page px-[clamp(18px,2.8vw,30px)] pb-[clamp(18px,2.8vw,30px)] pt-[clamp(10px,1.4vw,18px)] max-[700px]:pb-28 max-[600px]:p-3.5 max-[600px]:pb-28`;
 const examLayoutClass = 'lms-exam-layout mx-auto grid w-[min(100%,1520px)] gap-[18px] bg-[var(--exam-shell-bg)] pb-2.5';
 const examThemeLightVars = {
   '--exam-shell-bg': 'radial-gradient(circle at top left, rgba(59,130,246,0.10), transparent 24%), radial-gradient(circle at top right, rgba(124,58,237,0.08), transparent 20%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,247,255,0.95))',
@@ -117,7 +117,7 @@ const examThemeLightVars = {
   '--exam-chip-text': '#2563EB',
   '--exam-answer-border': 'rgba(214,224,240,0.95)',
   '--exam-answer-hover-border': 'rgba(59,130,246,0.28)',
-  '--exam-answer-hover-shadow': '0 12px 24px rgba(59,130,246,0.08)',
+  '--exam-answer-hover-shadow': 'none',
   '--exam-answer-selected-border': 'rgba(37,99,235,0.55)',
   '--exam-answer-selected-ring': '0 0 0 3px rgba(37,99,235,0.10)',
   '--exam-answer-radio': '#C3CFDF',
@@ -165,7 +165,7 @@ const examThemeDarkVars = {
   '--exam-chip-text': '#9FC2FF',
   '--exam-answer-border': 'rgba(96,125,168,0.22)',
   '--exam-answer-hover-border': 'rgba(96,165,250,0.40)',
-  '--exam-answer-hover-shadow': '0 14px 28px rgba(15,23,42,0.20)',
+  '--exam-answer-hover-shadow': 'none',
   '--exam-answer-selected-border': 'rgba(96,165,250,0.72)',
   '--exam-answer-selected-ring': '0 0 0 3px rgba(59,130,246,0.14)',
   '--exam-answer-radio': 'rgba(132,157,196,0.6)',
@@ -196,9 +196,9 @@ const examHeaderChipClass =
 const examHeaderChipValueClass = 'text-base font-extrabold text-ink-strong';
 const examHeaderIconClass = 'inline-grid place-items-center text-ink-soft';
 const examHeaderEndClass =
-  'min-h-9 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold text-[var(--exam-end-text)] shadow-none transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
-const examGridClass = 'lms-exam-grid grid grid-cols-[minmax(196px,236px)_minmax(0,1fr)_minmax(300px,360px)] items-start gap-[18px] max-[1180px]:grid-cols-[minmax(188px,224px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
-const practiceGridClass = 'min-[1181px]:!grid-cols-[minmax(188px,220px)_minmax(0,900px)] min-[1181px]:justify-center';
+  'min-h-9 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold text-[var(--exam-end-text)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60';
+const examGridClass = 'lms-exam-grid grid grid-cols-[minmax(240px,300px)_minmax(0,780px)_minmax(240px,300px)] items-start justify-center gap-[18px] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
+const practiceGridClass = '';
 const examSidebarClass = 'lms-exam-sidebar grid gap-[18px]';
 const examExplainerClass = 'lms-exam-explainer grid gap-[18px] max-[1180px]:col-span-2 max-[900px]:hidden';
 const examPanelClass =
@@ -216,19 +216,19 @@ const examProgressToplineClass = 'mb-3 mt-3.5 flex items-center justify-between 
 const examProgressCurrentClass = 'text-base font-bold text-ink-strong';
 const examProgressPercentClass = 'text-[13px] text-ink-soft';
 const examProgressBarClass = 'h-[7px] overflow-hidden rounded-full border border-[var(--exam-card-border)] bg-[var(--exam-progress-track)]';
-const examProgressFillClass = 'block h-full rounded-[inherit] bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] shadow-[0_0_10px_rgba(37,99,235,0.24)]';
+const examProgressFillClass = 'block h-full rounded-[inherit] bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] shadow-none';
 const quizFlashPanelClass = 'rounded-[22px] backdrop-blur-md max-[600px]:rounded-[18px]';
 const quizFlashQuestionCopyClass = 'lms-reading-question relative max-w-[78ch] whitespace-pre-line pb-[22px] text-left text-[16px] font-medium leading-[1.64] tracking-normal text-[var(--exam-answer-text)] [text-wrap:pretty] max-[600px]:pb-4 max-[600px]:text-[15.5px] max-[600px]:leading-[1.6]';
 const quizFlashAnswerCardClass =
   'rounded-[18px] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(247,249,255,0.88))] dark:bg-[linear-gradient(180deg,rgba(17,27,44,0.94),rgba(10,18,31,0.98))]';
 const quizFlashSelectedAnswerClass = 'bg-[linear-gradient(180deg,rgba(239,246,255,0.98),rgba(230,240,255,0.92))]';
 const quizFlashFooterButtonClass = 'rounded-xl';
-const quizFlashNextButtonClass = 'shadow-[0_12px_24px_rgba(99,102,241,0.22)]';
+const quizFlashNextButtonClass = 'shadow-none';
 const quizFlashTipClass = 'border border-slate-400/15 bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(124,58,237,0.06))]';
 const examQuestionStartAnchorClass = 'scroll-mt-4';
 const examQuestionNavClass = 'lms-exam-question-nav grid grid-cols-[repeat(auto-fill,minmax(34px,1fr))] gap-2 max-[900px]:grid-cols-8 max-[600px]:grid-cols-5';
 const examNavBubbleBaseClass =
-  'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,transform] duration-150 active:scale-[0.98]';
+  'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-85';
 const examNavLegendClass = 'lms-exam-nav-legend mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10.5px] font-bold leading-tight text-ink-soft';
 const examNavLegendItemClass = 'inline-flex min-w-0 items-center gap-1 whitespace-nowrap';
 const examNavLegendDotClass = 'inline-block size-2.5 shrink-0 rounded border border-transparent';
@@ -237,21 +237,26 @@ const examNavJumpClass =
   'flex min-h-[46px] items-center justify-between gap-3 rounded-[14px] border border-[var(--exam-jump-border)] bg-[var(--exam-jump-bg)] px-4 text-sm font-bold text-[var(--exam-jump-text)] shadow-none disabled:bg-[var(--exam-jump-disabled-bg)] disabled:text-[var(--exam-jump-disabled-text)]';
 const examExplanationEmptyClass =
   'rounded-[14px] border border-dashed border-[var(--exam-card-border)] bg-[var(--exam-soft-panel)] p-4 text-sm leading-relaxed text-ink-soft [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[14px] [&_strong]:text-ink-strong [&_p]:m-0';
-const examExplanationBodyClass = 'lms-reading-explanation grid gap-2.5 text-left text-[14.5px] font-normal leading-[1.66] text-ink-medium [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:[text-wrap:pretty]';
+const examExplanationBodyClass = 'lms-reading-explanation grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,var(--sa-primary)_16%,var(--sa-border))] !bg-[var(--exam-soft-panel)] p-4 text-left text-[14.5px] font-normal leading-[1.66] text-ink-medium shadow-none [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:[text-wrap:pretty]';
 const examWhyIncorrectClass = 'mt-1 grid gap-2 border-t border-[var(--exam-card-border)] pt-3 [&>strong]:text-[13px] [&>strong]:text-ink-strong';
 const examWhyIncorrectItemClass = 'lms-reading-incorrect grid gap-1 border-l-2 border-line-medium pl-3 text-left [&_span]:text-[12.5px] [&_span]:font-bold [&_span]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[13px] [&_p]:font-normal [&_p]:leading-[1.58] [&_p]:text-ink-soft';
-const practiceLearningSupportClass = 'mt-4 grid gap-3.5 border-t border-[var(--exam-card-border)] pt-4 [&_.qtr-popup-trigger]:min-h-12 [&_.qtr-popup-trigger]:rounded-2xl [&_.qtr-popup-trigger]:px-3.5 [&_.qtr-popup-trigger]:py-3 [&_.qtr-popup-trigger__label]:text-sm [&_.qtr-popup-trigger__concept]:max-w-[42vw]';
+const practiceLearningSupportClass = 'mt-4 grid gap-3.5 border-t border-[var(--exam-card-border)] pt-4 min-[901px]:hidden [&_.qtr-popup-trigger]:min-h-12 [&_.qtr-popup-trigger]:rounded-2xl [&_.qtr-popup-trigger]:px-3.5 [&_.qtr-popup-trigger]:py-3 [&_.qtr-popup-trigger__label]:text-sm [&_.qtr-popup-trigger__concept]:max-w-[42vw]';
 const practiceKeyPointsClass = 'grid gap-2';
 const practiceKeyPointClass = 'lms-reading-incorrect border-l-2 border-brand-primary/35 pl-3 text-left text-[13px] font-medium leading-[1.58] text-ink-strong';
 const examAnswerListClass = 'mx-auto grid w-[min(100%,900px)] gap-2.5 px-0 pb-2.5 pt-2 max-[700px]:gap-2.5 max-[700px]:pb-4';
 const examAnswerCardClass =
-  'flex min-h-[48px] cursor-pointer touch-manipulation items-center gap-2.5 rounded-[14px] border border-[var(--exam-answer-border)] px-3.5 py-2.5 transition active:scale-[0.99] focus-within:ring-2 focus-within:ring-brand-primary/30 hover:-translate-y-px hover:border-[var(--exam-answer-hover-border)] hover:shadow-[var(--exam-answer-hover-shadow)] max-[700px]:min-h-[52px] max-[700px]:rounded-[16px] max-[700px]:px-3.5 max-[700px]:py-3';
+  'flex min-h-[48px] cursor-pointer touch-manipulation items-center gap-2.5 rounded-[14px] border border-[var(--exam-answer-border)] px-3.5 py-2.5 transition-[background,border-color,box-shadow,opacity] duration-150 active:opacity-90 focus-within:ring-2 focus-within:ring-brand-primary/30 hover:border-[var(--exam-answer-hover-border)] hover:shadow-[var(--exam-answer-hover-shadow)] max-[700px]:min-h-[52px] max-[700px]:rounded-[16px] max-[700px]:px-3.5 max-[700px]:py-3';
 const examAnswerSelectedClass = 'border-[var(--exam-answer-selected-border)] shadow-[var(--exam-answer-selected-ring)]';
 const examAnswerCorrectClass =
-  'border-emerald-500/40 bg-[linear-gradient(180deg,rgba(236,253,243,0.98),rgba(220,252,231,0.94))] shadow-[0_0_0_3px_rgba(34,197,94,0.12)] dark:bg-[linear-gradient(180deg,rgba(7,52,39,0.94),rgba(7,39,31,0.96))]';
+  'border-[color-mix(in_srgb,var(--sa-ok)_30%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_10%,var(--sa-surface))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--sa-ok)_10%,transparent)] dark:!bg-[color-mix(in_srgb,var(--sa-ok)_16%,var(--sa-surface))]';
 const examAnswerWrongClass =
-  'border-red-500/40 bg-[linear-gradient(180deg,rgba(254,242,242,0.98),rgba(254,226,226,0.92))] shadow-[0_0_0_3px_rgba(239,68,68,0.12)] dark:bg-[linear-gradient(180deg,rgba(69,18,25,0.94),rgba(45,14,20,0.96))]';
+  'border-[color-mix(in_srgb,var(--sa-danger)_30%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_9%,var(--sa-surface))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--sa-danger)_9%,transparent)] dark:!bg-[color-mix(in_srgb,var(--sa-danger)_15%,var(--sa-surface))]';
 const examAnswerContentClass = 'flex w-full min-w-0 items-center justify-start gap-2.5';
+const examAnswerTextStackClass = 'grid min-w-0 flex-1 gap-1';
+const examAnswerStateRowClass = 'flex flex-wrap items-center gap-1.5';
+const examAnswerStatePillClass = 'inline-flex min-h-6 items-center rounded-full border px-2.5 text-[11px] font-extrabold leading-none';
+const examAnswerStateCorrectClass = 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200';
+const examAnswerStateWrongClass = 'border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-200';
 const examAnswerRadioClass =
   'relative size-5 shrink-0 rounded-full border-2 border-[var(--exam-answer-radio)] after:absolute after:inset-[3px] after:scale-0 after:rounded-full after:bg-brand-primary after:transition-transform after:content-[""]';
 const examAnswerRadioSelectedClass = 'border-brand-primary after:scale-100';
@@ -263,9 +268,9 @@ const examTfCardClass =
 const examTfCopyClass = 'min-w-0 flex-1';
 const examTfActionsClass = 'ml-auto flex shrink-0 justify-end gap-2 max-[600px]:ml-0 max-[600px]:w-full max-[600px]:justify-stretch';
 const examTfToggleClass =
-  'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-tf-border)] bg-[var(--exam-tf-bg)] px-4 text-[13px] font-bold text-[var(--exam-tf-text)] shadow-none transition active:scale-[0.98] max-[600px]:min-h-11 max-[600px]:flex-1';
-const examTfTrueActiveClass = 'border-emerald-500/20 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200';
-const examTfFalseActiveClass = 'border-red-500/20 bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-200';
+  'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-tf-border)] bg-[var(--exam-tf-bg)] px-4 text-[13px] font-bold text-[var(--exam-tf-text)] shadow-none transition-colors active:opacity-85 max-[600px]:min-h-11 max-[600px]:flex-1';
+const examTfTrueActiveClass = 'border-[color-mix(in_srgb,var(--sa-ok)_26%,var(--sa-border))] bg-[color-mix(in_srgb,var(--sa-ok)_10%,var(--sa-surface))] text-emerald-700 dark:bg-[color-mix(in_srgb,var(--sa-ok)_15%,var(--sa-surface))] dark:text-emerald-200';
+const examTfFalseActiveClass = 'border-[color-mix(in_srgb,var(--sa-danger)_26%,var(--sa-border))] bg-[color-mix(in_srgb,var(--sa-danger)_9%,var(--sa-surface))] text-red-600 dark:bg-[color-mix(in_srgb,var(--sa-danger)_14%,var(--sa-surface))] dark:text-red-200';
 const examTfRevealClass =
   'basis-full rounded-[12px] px-3 py-2 text-[13px] font-bold';
 const examTfRevealTrueClass = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-200';
@@ -285,9 +290,9 @@ const practiceAnswerKeyTextClass = 'min-w-0 whitespace-pre-line font-medium text
 const examMainFooterClass = 'lms-exam-main-footer mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--exam-card-border)] pt-4 max-[700px]:hidden';
 const examMainFooterLeftClass = 'flex flex-wrap gap-2.5';
 const examFooterButtonClass =
-  'min-h-11 rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-[18px] text-sm font-bold text-[var(--exam-footer-btn-text)] shadow-none transition disabled:cursor-not-allowed disabled:opacity-55';
+  'min-h-11 rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-[18px] text-sm font-bold text-[var(--exam-footer-btn-text)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
 const examFooterIconButtonClass =
-  'grid min-h-11 min-w-11 place-items-center rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-3 text-[var(--exam-footer-btn-text)] shadow-none transition disabled:cursor-not-allowed disabled:opacity-55';
+  'grid min-h-11 min-w-11 place-items-center rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-3 text-[var(--exam-footer-btn-text)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
 const examFooterFlagActiveClass = 'border-orange-500/30 bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200';
 const examFooterNextClass = 'border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary';
 const examModeFooterClass =
@@ -371,7 +376,7 @@ function MobileQuizActionBar({
 function getExamNavBubbleClass({ active, answered, flagged, review }) {
   return cx(
     examNavBubbleBaseClass,
-    active && 'border-brand-primary/38 bg-brand-primary/12 text-brand-primary shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_12%,transparent)]',
+    active && 'border-brand-primary/38 bg-brand-primary/12 text-brand-primary shadow-none',
     !active && answered && 'border-brand-success/30 bg-brand-success/12 text-brand-success',
     !active && flagged && 'border-orange-500/25 bg-orange-500/12 text-orange-700 dark:text-orange-200',
     !active && !answered && !flagged && review && 'border-brand-violet/20 bg-purple-100 text-brand-violet'
@@ -500,13 +505,13 @@ function formatExplanationBlocks(text) {
     .filter(Boolean);
 }
 
-function PracticeAnswerKey({ question, revealed }) {
+function PracticeAnswerKey({ question, revealed, className = '' }) {
   if (!revealed) return null;
   const items = getAnswerKeyItems(question);
   if (!items.length) return null;
 
   return (
-    <section className={practiceAnswerKeyClass} aria-label="Answer key">
+    <section className={cx(practiceAnswerKeyClass, className)} aria-label="Answer key">
       <strong className={practiceAnswerKeyTitleClass}>Answer key</strong>
       <ul className={practiceAnswerKeyListClass}>
         {items.map((item, index) => (
@@ -544,6 +549,8 @@ function ExplanationRail({
   currentQuestionRevealed,
   canRevealAnswers,
 }) {
+  const keyPoints = currentQuestion?.theoryRecap?.keyPoints || [];
+
   return (
     <aside className={examExplainerClass}>
       <section className={cx(examPanelClass, quizFlashPanelClass)}>
@@ -599,6 +606,13 @@ function ExplanationRail({
         )}
       </section>
 
+      {!isExam ? (
+        <PracticeAnswerKey
+          question={currentQuestion}
+          revealed={currentQuestionRevealed}
+        />
+      ) : null}
+
       {!isExam && currentQuestion?.theoryRecap !== undefined ? (
         <div className="relative mt-2">
           <TheoryRecapPopupTrigger
@@ -607,6 +621,17 @@ function ExplanationRail({
             revealed={currentQuestionRevealed}
           />
         </div>
+      ) : null}
+
+      {!isExam && currentQuestionRevealed && keyPoints.length ? (
+        <section className={cx(examPanelClass, quizFlashPanelClass, practiceKeyPointsClass)}>
+          <div className={examCardKickerClass}>Key points</div>
+          {keyPoints.map((point, index) => (
+            <div className={practiceKeyPointClass} key={`${index}-${point.slice(0, 18)}`}>
+              {point}
+            </div>
+          ))}
+        </section>
       ) : null}
     </aside>
   );
@@ -812,6 +837,7 @@ export function TakeQuizPage() {
   const progressPercent = totalQuestions ? Math.round((answeredCount / totalQuestions) * 100) : 0;
   const currentQuestionAnswered = currentQuestion ? isAnswered(currentQuestion, answers[currentQuestion.id]) : false;
   const currentQuestionFlagged = currentQuestion ? flaggedQuestionIds.has(currentQuestion.id) : false;
+  const currentQuestionBookmarked = currentQuestion ? bookmarkedQuestionIds.has(currentQuestion.id) : false;
   const currentQuestionRevealed = currentQuestion ? revealedAnswerIds.has(currentQuestion.id) : false;
   const currentQuestionCanReveal = Boolean(
     currentQuestion && !isExam && (
@@ -1001,7 +1027,7 @@ export function TakeQuizPage() {
   }, [answers, currentIndex, data, totalQuestions]);
 
   if (loading) return (
-    <main className={ui.screenShell}>
+    <main className={ui.studentScreenShell}>
       <div className={ui.quizLoadingState}>
         <div className={ui.quizLoadingSpinner} />
         <p>Preparing your quiz…</p>
@@ -1010,7 +1036,7 @@ export function TakeQuizPage() {
   );
 
   if (!data || !currentQuestion) return (
-    <main className={ui.screenShell}>
+    <main className={ui.studentScreenShell}>
       <div className={ui.emptyBox}>
         {error || 'Quiz unavailable.'}
         {error ? (
@@ -1092,6 +1118,7 @@ export function TakeQuizPage() {
                   <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-brand-primary')} />Current</span>
                   <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-[#4CC46A]')} />Answered</span>
                   <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'border-[var(--exam-nav-idle-border)] bg-[var(--exam-progress-track)]')} />Not answered</span>
+                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-purple-400')} />Review</span>
                   <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-[#FB923C]')} />Flagged</span>
                 </div>
 
@@ -1111,7 +1138,7 @@ export function TakeQuizPage() {
                   currentQuestion.options.map((option, optionIndex) => {
                     const isSelected = Number(answers[currentQuestion.id]) === option.id;
                     const isCorrect = isCorrectOption(option);
-                    const isSelectedWrong = currentQuestionRevealed && isSelected && !isCorrect;
+                    const isWrong = currentQuestionRevealed && !isCorrect;
                     const letterLabel = getOptionDisplayLabel(option, optionIndex);
 
                     return (
@@ -1121,7 +1148,7 @@ export function TakeQuizPage() {
                         isSelected && examAnswerSelectedClass,
                         isSelected && quizFlashSelectedAnswerClass,
                         currentQuestionRevealed && isCorrect && examAnswerCorrectClass,
-                        isSelectedWrong && examAnswerWrongClass
+                        isWrong && examAnswerWrongClass
                       )}
                       key={option.id}
                     >
@@ -1135,49 +1162,82 @@ export function TakeQuizPage() {
                         <span className={cx(
                           examAnswerLetterBadgeClass,
                           currentQuestionRevealed && isCorrect ? examAnswerLetterCorrectClass :
-                          isSelectedWrong ? examAnswerLetterWrongClass :
+                          isWrong ? examAnswerLetterWrongClass :
                           isSelected ? examAnswerLetterSelectedClass : examAnswerLetterIdleClass
                         )} aria-hidden="true">{letterLabel}</span>
-                        <span className={examAnswerCopyClass}>{option.optionText}</span>
+                        <span className={examAnswerTextStackClass}>
+                          <span className={examAnswerCopyClass}>{option.optionText}</span>
+                          {currentQuestionRevealed ? (
+                            <span className={examAnswerStateRowClass}>
+                              {isSelected ? (
+                                <span className={cx(
+                                  examAnswerStatePillClass,
+                                  isCorrect ? examAnswerStateCorrectClass : examAnswerStateWrongClass
+                                )}>
+                                  Your answer · {isCorrect ? 'Correct' : 'Incorrect'}
+                                </span>
+                              ) : null}
+                              {isCorrect ? (
+                                <span className={cx(examAnswerStatePillClass, examAnswerStateCorrectClass)}>
+                                  Correct answer
+                                </span>
+                              ) : !isSelected ? (
+                                <span className={cx(examAnswerStatePillClass, examAnswerStateWrongClass)}>
+                                  Incorrect
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : null}
+                        </span>
                       </span>
                     </label>
                     );
                   })
                 ) : (
-                  currentQuestion.options.map((option) => (
-                    <div className={cx(examTfCardClass, quizFlashAnswerCardClass, currentQuestionRevealed && isCorrectOption(option) && examAnswerCorrectClass)} key={option.id}>
-                      <div className={examTfCopyClass}>
-                        <span className={examAnswerCopyClass}>{option.optionText}</span>
-                      </div>
-                      <div className={examTfActionsClass}>
-                        <button className={cx(examTfToggleClass, answers[currentQuestion.id]?.[option.id] === 1 && examTfTrueActiveClass)}
-                          type="button"
-                         
-                          onClick={() => updateTf(currentQuestion.id, option.id, 1)}
-                        >
-                          True
-                        </button>
-                        <button className={cx(examTfToggleClass, answers[currentQuestion.id]?.[option.id] === 0 && examTfFalseActiveClass)}
-                          type="button"
-                         
-                          onClick={() => updateTf(currentQuestion.id, option.id, 0)}
-                        >
-                          False
-                        </button>
-                      </div>
-                      {currentQuestionRevealed ? (
-                        <div className={cx(examTfRevealClass, isCorrectOption(option) ? examTfRevealTrueClass : examTfRevealFalseClass)}>
-                          Correct answer: {isCorrectOption(option) ? 'True' : 'False'}
+                  currentQuestion.options.map((option) => {
+                    const correctValue = isCorrectOption(option) ? 1 : 0;
+                    const selectedValue = answers[currentQuestion.id]?.[option.id];
+                    const hasSelectedValue = selectedValue === 1 || selectedValue === 0;
+                    const selectedCorrect = hasSelectedValue && Number(selectedValue) === correctValue;
+
+                    return (
+                      <div className={cx(
+                        examTfCardClass,
+                        quizFlashAnswerCardClass,
+                        currentQuestionRevealed && (correctValue === 1 ? examAnswerCorrectClass : examAnswerWrongClass)
+                      )} key={option.id}>
+                        <div className={examTfCopyClass}>
+                          <span className={examAnswerCopyClass}>{option.optionText}</span>
                         </div>
-                      ) : null}
-                    </div>
-                  ))
+                        <div className={examTfActionsClass}>
+                          <button className={cx(examTfToggleClass, selectedValue === 1 && examTfTrueActiveClass)}
+                            type="button"
+                            onClick={() => updateTf(currentQuestion.id, option.id, 1)}
+                          >
+                            True
+                          </button>
+                          <button className={cx(examTfToggleClass, selectedValue === 0 && examTfFalseActiveClass)}
+                            type="button"
+                            onClick={() => updateTf(currentQuestion.id, option.id, 0)}
+                          >
+                            False
+                          </button>
+                        </div>
+                        {currentQuestionRevealed ? (
+                          <div className={cx(examTfRevealClass, selectedCorrect ? examTfRevealTrueClass : examTfRevealFalseClass)}>
+                            Your answer: {hasSelectedValue ? (selectedValue === 1 ? 'True' : 'False') : 'Not answered'} · Correct answer: {correctValue === 1 ? 'True' : 'False'}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
               <PracticeAnswerKey
                 question={currentQuestion}
                 revealed={currentQuestionRevealed}
+                className="min-[901px]:hidden"
               />
 
               <PracticeInlineLearningSupport
@@ -1189,20 +1249,25 @@ export function TakeQuizPage() {
                 <div className={examMainFooterLeftClass}>
                   <button className={cx(examFooterButtonClass, quizFlashFooterButtonClass)}
                     type="button"
-                   
                     onClick={() => goTo(currentIndex - 1)}
                     disabled={currentIndex === 0 || saving}
                   >
                     Previous
                   </button>
 
-                <button className={cx(examFooterButtonClass, quizFlashFooterButtonClass)}
+                  <button className={cx(examFooterButtonClass, quizFlashFooterButtonClass)}
                     type="button"
-                   
                     onClick={revealCurrentAnswer}
                     disabled={currentQuestionRevealed || !currentQuestionCanReveal}
                   >
                     {currentQuestionRevealed ? 'Explanation shown' : currentQuestionCanReveal ? 'Show answer and explanation' : 'Available after review'}
+                  </button>
+
+                  <button className={cx(examFooterButtonClass, quizFlashFooterButtonClass, currentQuestionBookmarked && 'border-brand-violet/25 bg-purple-100 text-brand-violet dark:bg-purple-500/15 dark:text-purple-200')}
+                    type="button"
+                    onClick={toggleBookmarkCurrentQuestion}
+                  >
+                    {currentQuestionBookmarked ? 'Review marked' : 'Mark review'}
                   </button>
 
                   <button
@@ -1237,6 +1302,14 @@ export function TakeQuizPage() {
                 )}
               </div>
             </section>
+
+            <ExplanationRail
+              isExam={false}
+              currentQuestion={currentQuestion}
+              currentQuestionAnswered={currentQuestionAnswered}
+              currentQuestionRevealed={currentQuestionRevealed}
+              canRevealAnswers={currentQuestionCanReveal}
+            />
 
           </div>
 
@@ -1345,6 +1418,7 @@ export function TakeQuizPage() {
                 <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-brand-primary')} />Current</span>
                 <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-[#4CC46A]')} />Answered</span>
                 <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'border-[var(--exam-nav-idle-border)] bg-[var(--exam-progress-track)]')} />Not answered</span>
+                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-purple-400')} />Review</span>
                 <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-[#FB923C]')} />Flagged</span>
               </div>
 
@@ -1423,6 +1497,13 @@ export function TakeQuizPage() {
                   disabled={currentIndex === 0 || saving}
                 >
                   Previous
+                </button>
+                <button
+                  className={cx(examFooterButtonClass, quizFlashFooterButtonClass, currentQuestionBookmarked && 'border-brand-violet/25 bg-purple-100 text-brand-violet dark:bg-purple-500/15 dark:text-purple-200')}
+                  type="button"
+                  onClick={toggleBookmarkCurrentQuestion}
+                >
+                  {currentQuestionBookmarked ? 'Review marked' : 'Mark review'}
                 </button>
                 <button
                   className={cx(examFooterIconButtonClass, quizFlashFooterButtonClass, currentQuestionFlagged && examFooterFlagActiveClass)}

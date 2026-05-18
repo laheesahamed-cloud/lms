@@ -119,7 +119,7 @@
     border-radius: 14px !important;
   }
 
-  .lms-topbar .lms-profile-avatar {
+  .lms-topbar :where(.lms-topbar-right > div > button, .lms-topbar-utility > div > button) .lms-profile-avatar {
     width: 28px !important;
     height: 28px !important;
     border-radius: 12px !important;
@@ -214,7 +214,7 @@ html[data-lms-runtime='native'] {
 .student-course-card__cta,
 .student-quiz-map-page :where(.lms-quiz-course-card button, .lms-quiz-subject-card button, .lms-quiz-topic-card button, .lms-quiz-set-card button),
 .student-quiz-map-page :where(.lms-quiz-course-card > div:first-child > span, .lms-quiz-subject-card [aria-hidden='true']) {
-  border-color: color-mix(in srgb, var(--color-primary) 22%, var(--line-soft)) !important;
+  border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.22) !important;
 }
 
 .student-course-card__visual {
@@ -238,9 +238,11 @@ html[data-lms-runtime='native'] {
 }
 
 .student-quiz-map-page :where(.lms-quiz-course-card > div:first-child > span, .lms-quiz-subject-card span.grid, .lms-quiz-topic-card span.grid) {
-  background: color-mix(in srgb, var(--color-primary) 10%, var(--surface-card)) !important;
+  background:
+    linear-gradient(rgba(var(--sa-primary-rgb, 37, 99, 235), 0.1), rgba(var(--sa-primary-rgb, 37, 99, 235), 0.1)),
+    var(--surface-card) !important;
   color: var(--color-primary) !important;
-  border-color: color-mix(in srgb, var(--color-primary) 14%, var(--line-soft)) !important;
+  border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.14) !important;
 }
 
 .lms-exam-page,
@@ -278,8 +280,10 @@ html[data-lms-runtime='native'] {
 }
 
 :where(.lms-exam-page, .practice-review-page) :where(.lms-reading-explanation, .lms-review-question-card .lms-reading-explanation) {
-  border-color: color-mix(in srgb, var(--color-primary) 12%, var(--line-soft)) !important;
-  background: color-mix(in srgb, var(--color-primary) 4%, var(--surface-card)) !important;
+  border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.12) !important;
+  background:
+    linear-gradient(rgba(var(--sa-primary-rgb, 37, 99, 235), 0.04), rgba(var(--sa-primary-rgb, 37, 99, 235), 0.04)),
+    var(--surface-card) !important;
   color: var(--ink-medium) !important;
 }
 

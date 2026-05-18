@@ -158,6 +158,8 @@ const topbarUi = {
   menuWrap: 'relative z-[60]',
   dropdown:
     'lms-floating-panel motion-smooth absolute right-0 top-[calc(100%+8px)] z-[1200] w-[min(360px,calc(100vw_-_24px))] origin-top-right overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-2xl animate-dropdownIn max-[520px]:fixed max-[520px]:inset-x-3 max-[520px]:top-[70px] max-[520px]:w-auto max-[520px]:origin-top max-[520px]:rounded-[18px]',
+  profileDropdown:
+    'lms-profile-menu w-[min(320px,calc(100vw_-_24px))] max-[520px]:top-[calc(var(--lms-safe-top,0px)+68px)]',
   notificationDropdown:
     'max-[520px]:fixed max-[520px]:inset-x-3 max-[520px]:top-[70px] max-[520px]:max-h-[calc(100dvh-86px)] max-[520px]:w-auto max-[520px]:origin-top max-[520px]:rounded-[18px]',
   dropdownHead:
@@ -206,7 +208,6 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
 
   const settingsPath = user?.role === 'admin' ? rolePath('/settings', user?.role) : '';
   const profilePath = rolePath('/profile', user?.role);
-  const profileInitial = (user?.fullName || user?.email || 'S').trim().slice(0, 1).toUpperCase();
 
   async function handleLogout() {
     setProfileOpen(false);
@@ -265,7 +266,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     return (
       <>
         <header className={cx('study-hub-topbar', className)}>
-          <button type="button" className="study-icon-button" aria-label="Toggle navigation" onClick={toggleSidebar}>
+          <button type="button" className="study-icon-button lms-topbar-menu-button" aria-label="Toggle navigation" onClick={toggleSidebar}>
             <MenuIcon />
           </button>
 
@@ -282,7 +283,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
             <div className={topbarUi.menuWrap} ref={profileRef}>
               <button
                 type="button"
-                className="study-avatar"
+                className="study-avatar study-avatar--profile"
                 aria-label="Open profile menu"
                 aria-expanded={profileOpen ? 'true' : 'false'}
                 onClick={() => {
@@ -290,11 +291,11 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                   setNotificationsOpen(false);
                 }}
               >
-                {profileInitial}
+                <ProfileAvatar user={user} />
               </button>
 
               {profileOpen ? (
-                <div className={topbarUi.dropdown}>
+                <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown)}>
                   <div className={topbarUi.dropdownHead}>
                     <ProfileAvatar user={user} size="lg" />
                     <div>
@@ -476,7 +477,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
               </button>
 
               {profileOpen ? (
-                <div className={topbarUi.dropdown}>
+                <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown)}>
                   <div className={topbarUi.dropdownHead}>
                     <ProfileAvatar user={user} size="lg" />
                     <div>

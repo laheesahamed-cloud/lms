@@ -201,7 +201,7 @@ export function AdminReportsPage() {
   return (
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
-        <AppHeader title="Reports" subtitle="Operational signals for learning activity, quiz quality, course progress, and subscriptions." />
+        <AppHeader title="Reports" subtitle="Learning Signals" />
 
         <section className={reportUi.panel}>
           <form className={ui.stackForm} onSubmit={handleFilterSubmit}>

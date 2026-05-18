@@ -14,9 +14,9 @@ function isCorrectOption(option) {
 
 const reviewUi = {
   shell:
-    'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(196px,236px)_minmax(0,1fr)] items-start gap-[18px] max-[900px]:grid-cols-1',
+    'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(240px,300px)_minmax(0,780px)_minmax(240px,300px)] items-start justify-center gap-[18px] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1',
   shellThree:
-    'min-[1181px]:grid-cols-[minmax(188px,220px)_minmax(0,1fr)]',
+    '',
   shellFocus:
     'lms-review-workspace lms-review-workspace--focus mx-auto grid w-full grid-cols-1 items-start',
   sidebar:
@@ -24,7 +24,7 @@ const reviewUi = {
   main: 'lms-review-main min-w-0',
   mainFocus: 'lms-review-main lms-review-main--focus w-full min-w-0',
   explanationSide:
-    'sticky top-6 max-h-[calc(100dvh-48px)] min-w-0 overflow-auto overscroll-contain max-[1180px]:col-span-2 max-[900px]:static max-[900px]:col-span-1 max-[900px]:max-h-none max-[900px]:overflow-visible',
+    'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:col-span-2 max-[900px]:hidden',
   summaryGrid: 'grid grid-cols-4 gap-2 max-[420px]:gap-1.5',
   summaryTile:
     'grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]',
@@ -32,9 +32,9 @@ const reviewUi = {
   navHead: 'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft',
   navList: 'lms-review-nav-list grid min-h-0 gap-2 overflow-y-auto pr-1 max-[980px]:max-h-60',
   navItem:
-    'relative grid w-full justify-items-start gap-[5px] rounded-[14px] border-[1.5px] border-line-soft bg-surface-1 px-3 py-2.5 text-left shadow-none transition hover:border-[color-mix(in_srgb,var(--color-primary)_25%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] hover:shadow-[0_2px_8px_rgba(37,99,235,0.08)]',
+    'relative grid w-full justify-items-start gap-[5px] rounded-[14px] border-[1.5px] border-line-soft bg-surface-1 px-3 py-2.5 text-left shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_25%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))]',
   navItemActive:
-    'border-[color-mix(in_srgb,var(--color-primary)_36%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_8%,var(--surface-1))] shadow-[0_2px_12px_rgba(37,99,235,0.12)] before:absolute before:bottom-[20%] before:left-0 before:top-[20%] before:w-[3px] before:rounded-r-[3px] before:bg-[var(--brand-gradient-primary)] before:content-[""]',
+    'border-[color-mix(in_srgb,var(--color-primary)_36%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_8%,var(--surface-1))] shadow-none before:absolute before:bottom-[20%] before:left-0 before:top-[20%] before:w-[3px] before:rounded-r-[3px] before:bg-[var(--brand-gradient-primary)] before:content-[""]',
   navItemIndex: 'text-xs font-extrabold tracking-[0.02em] text-brand-primary',
   navItemText:
     'line-clamp-2 overflow-hidden text-[13px] leading-[1.35] text-ink-strong [-webkit-box-orient:vertical] [display:-webkit-box]',
@@ -44,7 +44,7 @@ const reviewUi = {
   questionMeta: 'flex flex-wrap items-center gap-1.5',
   questionNumber: 'text-[10.5px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft',
   questionNav:
-    'lms-review-question-nav flex items-center justify-between gap-2.5 rounded-2xl border border-line-soft bg-surface-card p-3 shadow-sm max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:gap-2',
+    'lms-review-question-nav flex items-center justify-between gap-2.5 border-t border-line-soft pt-4 max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:gap-2',
   questionNavActions:
     'flex items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-2 max-[640px]:[&_button]:w-full',
   position: 'text-xs font-extrabold text-ink-soft',
@@ -54,7 +54,7 @@ const reviewUi = {
   optionLabels: 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start',
   optionText: 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15px] font-medium leading-[1.48] text-ink-strong max-[640px]:text-sm max-[640px]:leading-[1.45]',
   explanation:
-    'mt-0 grid gap-3 rounded-[14px] border border-[color-mix(in_srgb,var(--color-primary)_15%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-primary)_4%,transparent),transparent_42%),var(--surface-2)] p-4 max-[640px]:rounded-xl max-[640px]:p-3',
+    'mt-0 grid gap-3 rounded-[14px] border border-[color-mix(in_srgb,var(--color-primary)_15%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--surface-2))] p-4 shadow-none max-[640px]:rounded-xl max-[640px]:p-3',
   explanationEmpty:
     'grid gap-1 rounded-[16px] border border-dashed border-line-soft bg-surface-2 p-4 text-sm leading-relaxed text-ink-soft [&_strong]:text-ink-strong',
   explanationHeader:
@@ -64,7 +64,7 @@ const reviewUi = {
     'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.62]',
   studyList: 'm-0 grid list-none gap-[5px] p-0',
   incorrectList:
-    'overflow-hidden rounded-[12px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_4%,var(--surface-1))]',
+    'overflow-hidden rounded-[12px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-2))]',
   incorrectItem:
     'grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 border-t border-[color-mix(in_srgb,var(--color-warning)_14%,var(--line-soft))] px-2.5 py-2 first:border-t-0 max-[640px]:grid-cols-[22px_minmax(0,1fr)] max-[640px]:gap-1.5 max-[640px]:px-2 max-[640px]:py-1.5',
   incorrectBadge:
@@ -85,6 +85,11 @@ const reviewUi = {
     'relative w-full max-w-none flex-none [&_.qtr-popup-trigger]:min-h-11 [&_.qtr-popup-trigger]:rounded-xl [&_.qtr-popup-trigger]:px-3 [&_.qtr-popup-trigger]:py-2.5 [&_.qtr-popup-trigger__label]:text-[13px] max-[640px]:w-full max-[640px]:max-w-none max-[640px]:[&_.qtr-popup-trigger]:min-h-12 max-[640px]:[&_.qtr-popup-trigger]:rounded-2xl max-[640px]:[&_.qtr-popup-trigger__concept]:max-w-[42vw]',
 };
 
+const reviewSecondaryButtonClass =
+  'min-h-11 rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-sm font-bold text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
+const reviewPrimaryButtonClass =
+  'min-h-11 rounded-xl border border-brand-primary/30 bg-[var(--color-primary-light)] px-[18px] text-sm font-bold text-brand-primary shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
+
 const summaryTileToneClass = {
   correct:
     'border-[color-mix(in_srgb,var(--color-success)_32%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_10%,var(--surface-2))] [&_strong]:text-brand-success',
@@ -104,9 +109,9 @@ const chipToneClass = {
 const optionCardToneClass = {
   neutral: 'bg-surface-1',
   correct:
-    'border-[color-mix(in_srgb,var(--color-success)_30%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-success)_10%,var(--surface-1))_0%,color-mix(in_srgb,var(--color-success)_4%,var(--surface-card))_100%)] shadow-none',
+    'border-[color-mix(in_srgb,var(--color-success)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_10%,var(--surface-1))] shadow-none',
   wrong:
-    'border-[color-mix(in_srgb,var(--color-error)_32%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-error)_9%,var(--surface-1))_0%,color-mix(in_srgb,var(--color-error)_4%,var(--surface-card))_100%)] shadow-none',
+    'border-[color-mix(in_srgb,var(--color-error)_32%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_9%,var(--surface-1))] shadow-none',
   unanswered:
     'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_6%,var(--surface-1))] shadow-[0_0_0_1px_color-mix(in_srgb,#d97706_12%,transparent)]',
 };
@@ -153,7 +158,7 @@ function reviewOptionIconClass(tone) {
 
 function reviewStudyCardClass(tone, extra = '') {
   return cx(
-    'relative grid gap-2 rounded-[14px] border border-line-soft bg-surface-1 px-3.5 py-3 transition hover:border-line-medium hover:shadow-sm [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.07em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.58] [&_p]:text-ink-strong max-[640px]:[&_p]:text-sm',
+    'relative grid gap-2 rounded-[14px] border border-line-soft bg-surface-1 px-3.5 py-3 transition-colors hover:border-line-medium [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.07em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.58] [&_p]:text-ink-strong max-[640px]:[&_p]:text-sm',
     studyCardToneClass[tone],
     extra
   );
@@ -432,7 +437,7 @@ export function ReviewWorkspace({
     <nav className={reviewUi.questionNav} aria-label="Review question navigation">
       <span className={reviewUi.position}>Question {activeIndex + 1} / {safeQuestions.length}</span>
       <div className={reviewUi.questionNavActions}>
-        <button className={ui.secondaryAction}
+        <button className={reviewSecondaryButtonClass}
           type="button"
           onClick={() => setActiveIndex((value) => Math.max(value - 1, 0))}
           disabled={activeIndex === 0}
@@ -440,7 +445,7 @@ export function ReviewWorkspace({
           Previous
         </button>
         {activeIndex >= safeQuestions.length - 1 ? (
-          <button className={ui.primaryAction}
+          <button className={reviewPrimaryButtonClass}
             type="button"
             onClick={onExit || undefined}
             disabled={!onExit}
@@ -448,7 +453,7 @@ export function ReviewWorkspace({
             {exitLabel}
           </button>
         ) : (
-          <button className={ui.primaryAction}
+          <button className={reviewPrimaryButtonClass}
             type="button"
             onClick={() => setActiveIndex((value) => Math.min(value + 1, safeQuestions.length - 1))}
           >
@@ -511,9 +516,9 @@ export function ReviewWorkspace({
                 ))}
               </div>
               <div className={reviewUi.bubbleLegend}>
-                <span><i className="border-transparent bg-[#2563EB]" />Current</span>
-                <span><i className="border-transparent bg-[#4CC46A]" />Correct</span>
-                <span><i className="border-transparent bg-[#ef4444]" />Wrong</span>
+                <span><i className="border-brand-primary/30 bg-brand-primary/30" />Current</span>
+                <span><i className="border-brand-success/30 bg-brand-success/30" />Correct</span>
+                <span><i className="border-brand-error/30 bg-brand-error/30" />Wrong</span>
                 <span><i className="border-[var(--exam-nav-idle-border)] bg-[var(--exam-progress-track)]" />Unanswered</span>
               </div>
             </>
@@ -538,7 +543,7 @@ export function ReviewWorkspace({
       ) : null}
 
       <section className={focusQuestionOnly ? reviewUi.mainFocus : reviewUi.main} ref={mainRef}>
-        <article className={cx(ui.panelCard, reviewUi.questionCard)} ref={questionCardRef}>
+        <article className={reviewUi.questionCard} ref={questionCardRef}>
           <p className={reviewUi.questionText}>{activeQuestion.questionText}</p>
 
           <div className={reviewUi.questionHead}>
@@ -553,11 +558,19 @@ export function ReviewWorkspace({
 
           <ReviewAnswerGrid question={activeQuestion} />
 
-          {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty />}
+          <div className={focusQuestionOnly ? '' : 'min-[901px]:hidden'}>
+            {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty />}
+          </div>
 
           {questionNavigation}
         </article>
       </section>
+
+      {!focusQuestionOnly ? (
+        <aside className={reviewUi.explanationSide}>
+          {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty />}
+        </aside>
+      ) : null}
     </section>
     </>
   );

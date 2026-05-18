@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AppSidebar, MobileBottomNav } from './AppSidebar.jsx';
+import { AppSidebar, MobileBottomNav, MobileTopNav } from './AppSidebar.jsx';
 import { GlobalSearch } from '../search/GlobalSearch.jsx';
 import { detectPlatform } from '../platform/detect.js';
 import { shouldUseOverlayNavigation } from '../platform/config.js';
@@ -11,8 +11,6 @@ import { cx } from '../styles/tailwindClasses.js';
 
 const PLATFORM = detectPlatform();
 const SIDEBAR_COLLAPSE_STORAGE_KEY = 'lms.sidebar.collapsed';
-const sidebarOverlayClass =
-  'lms-sidebar-overlay fixed inset-0 z-[810] hidden border-0 bg-slate-950/55 backdrop-blur-lg animate-overlayIn max-[900px]:block';
 const shellUi = {
   shell:
     'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#F5F6FF] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[#05070d]',
@@ -155,11 +153,15 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     if (!sidebarOpen || hideGlobalSidebar || typeof document === 'undefined') {
       return undefined;
     }
+    if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+      return undefined;
+    }
 
     function handleOutsidePointer(event) {
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest('.lms-sidebar')) return;
+      if (target.closest('.lms-mobile-top-nav')) return;
       if (target.closest('.lms-topbar-menu-button')) return;
       setSidebarOpen(false);
     }
@@ -281,16 +283,6 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         <span className={shellUi.ambientGrid} />
       </div>
 
-      {/* Mobile overlay */}
-      {sidebarOpen && !hideGlobalSidebar && (
-        <button className={sidebarOverlayClass}
-          type="button"
-         
-          onClick={() => setSidebarOpen(false)}
-          aria-label="Close navigation"
-        />
-      )}
-
       {!hideGlobalSidebar ? (
         <AppSidebar
           isOpen={sidebarOpen}
@@ -301,6 +293,12 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
           onSearchOpen={openSearch}
         />
       ) : null}
+
+      <MobileTopNav
+        isOpen={sidebarOpen}
+        isExamFocusMode={isFocusMode}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       <MobileBottomNav isExamFocusMode={isFocusMode} onNavigate={() => setSidebarOpen(false)} />
 

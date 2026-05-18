@@ -215,7 +215,7 @@ export function QuizzesPage() {
       <section className={ui.managementLayout}>
         <AppHeader
           title="Assessments"
-          subtitle="Manage active and draft assessments in one clean list, then open the dedicated builder when you need to create or edit."
+          subtitle="Assessment Library"
         />
 
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
@@ -290,7 +290,7 @@ export function QuizzesPage() {
 
         <QuizTable
           title="Active Quizzes"
-          subtitle={`${activeQuizzes.length} currently visible`}
+          subtitle="Active Quizzes"
           quizzes={activeQuizzes}
           loading={loading}
           emptyLabel="No active quizzes found."
@@ -302,7 +302,7 @@ export function QuizzesPage() {
 
         <QuizTable
           title="Draft Quizzes"
-          subtitle={`${draftQuizzes.length} draft or inactive assessments`}
+          subtitle="Draft Quizzes"
           quizzes={draftQuizzes}
           loading={loading}
           emptyLabel="No draft quizzes found."

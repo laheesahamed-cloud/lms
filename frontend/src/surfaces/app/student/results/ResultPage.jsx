@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchAttemptResult } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 
@@ -24,7 +23,13 @@ export function ResultPage() {
   }, [attemptId]);
 
   if (!result && !error) {
-    return <main className={ui.screenShell}><div className={ui.emptyBox}>Loading result...</div></main>;
+    return (
+      <main className={cx(ui.studentScreenShell, 'student-result-detail-page')}>
+        <section className={ui.studentManagementLayout}>
+          <div className={ui.emptyBox}>Loading result...</div>
+        </section>
+      </main>
+    );
   }
 
   const percentage = result ? Number(result.percentage || 0) : 0;
@@ -35,7 +40,7 @@ export function ResultPage() {
   const answered = result ? Math.max(Number(result.totalQuestions || 0) - unanswered, 0) : 0;
   const boundedPercentage = Math.max(0, Math.min(100, percentage));
   const ringStyle = {
-    background: `conic-gradient(${isPassed ? '#10b981' : '#f59e0b'} ${boundedPercentage * 3.6}deg, color-mix(in_srgb,var(--surface-3)_86%,transparent) 0deg)`,
+    background: `conic-gradient(${isPassed ? 'var(--sa-ok)' : 'var(--sa-warn)'} ${boundedPercentage * 3.6}deg, color-mix(in srgb, var(--sa-surface-2) 86%, transparent) 0deg)`,
   };
   const accuracyNote = percentage >= 80
     ? 'Excellent command. Keep this topic warm with a short review later.'
@@ -54,72 +59,71 @@ export function ResultPage() {
   }
 
   return (
-      <main className={ui.screenShell}>
-        <section className={ui.managementLayout}>
-        <AppHeader title="Exam result" subtitle={`${result?.courseTitle || ''} • ${result?.topicDisplay || ''}`} />
+      <main className={cx(ui.studentScreenShell, 'student-result-detail-page')}>
+        <section className={cx(ui.studentManagementLayout, 'student-result-detail-layout')}>
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
         {result ? (
-          <section className={cx(ui.panelCard, 'grid gap-6 overflow-hidden')}>
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
-              <div>
+          <>
+          <section className="student-result-detail-hero lms-page-header-card">
+            <div className="student-result-detail-hero__copy">
                 <span className={statusPill(isPassed ? 'active' : 'inactive')}>
                   {isPassed ? 'Passed' : 'Needs review'}
                 </span>
-                <h2 className="mb-2 mt-4 font-display text-[clamp(28px,4vw,44px)] font-extrabold leading-tight text-ink-strong">{result.quizTitle}</h2>
-                <p className="m-0 text-[15px] leading-relaxed text-ink-soft">
+                <h1>{result.quizTitle}</h1>
+                <p>
                   {result.courseTitle}
                   {result.topicDisplay ? ` • ${result.topicDisplay}` : ''}
                 </p>
-                <p className="mt-4 max-w-[680px] rounded-xl border border-line-soft bg-surface-2 px-4 py-3 text-[14px] font-semibold leading-relaxed text-ink-medium dark:border-white/10 dark:bg-white/[0.035]">
+                <div className="student-result-detail-note">
                   {accuracyNote}
-                </p>
-                <div className={cx(ui.buttonRow, 'mt-5')}>
-                  <button className={ui.primaryAction} type="button" onClick={openReviewAnswers}>Review answers</button>
-                  <button type="button" className={ui.secondaryAction} onClick={() => navigate('/quizzes')}>Retry practice</button>
-                  <button type="button" className={ui.secondaryAction} onClick={() => navigate('/results')}>All results</button>
+                </div>
+                <div className="student-result-detail-actions">
+                  <button className="lms-app-btn lms-app-btn--primary" type="button" onClick={openReviewAnswers}>Review answers</button>
+                  <button type="button" className="lms-app-btn lms-app-btn--ghost" onClick={() => navigate('/quizzes')}>Practice</button>
+                  <button type="button" className="lms-app-btn lms-app-btn--ghost" onClick={() => navigate('/results')}>All results</button>
                 </div>
               </div>
 
-              <div className="grid place-items-center" aria-label={`${percentage.toFixed(2)} percent score`}>
-                <div className="grid size-48 place-items-center rounded-full p-[14px] shadow-[0_18px_44px_rgba(15,23,42,0.10)] dark:shadow-none" style={ringStyle}>
-                  <div className="grid size-full place-items-center rounded-full bg-surface-0 text-center dark:bg-[#07111f]">
-                    <strong className="text-4xl font-extrabold text-ink-strong">{percentage.toFixed(1)}%</strong>
-                    <span className="text-xs font-bold text-ink-muted">{score.toFixed(2)} / {totalMarks}</span>
+              <div className="student-result-score-card" aria-label={`${percentage.toFixed(2)} percent score`}>
+                <div className="student-result-score-ring" style={ringStyle}>
+                  <div>
+                    <strong>{percentage.toFixed(1)}%</strong>
+                    <span>{score.toFixed(2)} / {totalMarks}</span>
                   </div>
                 </div>
               </div>
+          </section>
+
+            <div className="student-result-stat-grid">
+              <article className="student-result-stat-card"><span>Total</span><strong>{result.totalQuestions}</strong></article>
+              <article className="student-result-stat-card is-correct"><span>Correct</span><strong>{result.correctAnswers}</strong></article>
+              <article className="student-result-stat-card is-wrong"><span>Wrong</span><strong>{result.wrongAnswers}</strong></article>
+              <article className="student-result-stat-card"><span>Unanswered</span><strong>{unanswered}</strong></article>
             </div>
 
-            <div className="grid grid-cols-[repeat(4,minmax(0,1fr))] gap-3 max-[780px]:grid-cols-2">
-              <article className="rounded-lg border border-line-soft bg-surface-2 p-4"><span className="text-xs font-bold text-ink-muted">Total</span><strong className="mt-1 block text-2xl font-extrabold text-ink-strong">{result.totalQuestions}</strong></article>
-              <article className="rounded-lg border border-line-soft bg-surface-2 p-4"><span className="text-xs font-bold text-ink-muted">Correct</span><strong className="mt-1 block text-2xl font-extrabold text-brand-success">{result.correctAnswers}</strong></article>
-              <article className="rounded-lg border border-line-soft bg-surface-2 p-4"><span className="text-xs font-bold text-ink-muted">Wrong</span><strong className="mt-1 block text-2xl font-extrabold text-brand-error">{result.wrongAnswers}</strong></article>
-              <article className="rounded-lg border border-line-soft bg-surface-2 p-4"><span className="text-xs font-bold text-ink-muted">Unanswered</span><strong className="mt-1 block text-2xl font-extrabold text-ink-strong">{unanswered}</strong></article>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 max-[780px]:grid-cols-1">
-              <article className="rounded-lg border border-line-soft bg-surface-2 p-4">
+            <div className="student-result-insight-grid">
+              <article className="student-result-insight-card">
                 <span className={ui.eyebrow}>Passing mark</span>
-                <strong className="mt-2 block text-xl font-extrabold text-ink-strong">{result.passingMarks} / {totalMarks}</strong>
-                <p className="m-0 mt-1 text-sm text-ink-soft">Your score is {score.toFixed(2)} marks.</p>
+                <strong>{result.passingMarks} / {totalMarks}</strong>
+                <p>Your score is {score.toFixed(2)} marks.</p>
               </article>
-              <article className="rounded-lg border border-line-soft bg-surface-2 p-4">
+              <article className="student-result-insight-card">
                 <span className={ui.eyebrow}>Answered</span>
-                <strong className="mt-2 block text-xl font-extrabold text-ink-strong">{answered} of {result.totalQuestions}</strong>
-                <p className="m-0 mt-1 text-sm text-ink-soft">{unanswered > 0 ? `${unanswered} question${unanswered === 1 ? '' : 's'} left unanswered.` : 'Every question was answered.'}</p>
+                <strong>{answered} of {result.totalQuestions}</strong>
+                <p>{unanswered > 0 ? `${unanswered} question${unanswered === 1 ? '' : 's'} left unanswered.` : 'Every question was answered.'}</p>
               </article>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="student-result-focus-grid">
               {focusItems.map((item) => (
-                <article className="lms-student-delight rounded-xl border border-line-soft bg-surface-2 p-4 dark:border-white/10 dark:bg-white/[0.035]" key={item.label}>
+                <article className="student-result-focus-card" key={item.label}>
                   <span className={ui.eyebrow}>{item.label}</span>
-                  <strong className="mt-2 block text-3xl font-extrabold text-ink-strong">{item.value}</strong>
-                  <p className="m-0 mt-2 text-[13px] leading-relaxed text-ink-soft">{item.text}</p>
+                  <strong>{item.value}</strong>
+                  <p>{item.text}</p>
                 </article>
               ))}
             </div>
-          </section>
+          </>
         ) : null}
         </section>
       </main>

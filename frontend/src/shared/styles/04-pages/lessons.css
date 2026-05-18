@@ -24,7 +24,7 @@
   z-index: 40;
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-lg);
-  background: color-mix(in srgb, var(--sa-surface) 82%, transparent);
+  background: rgba(var(--sa-surface-rgb), 0.82);
   color: var(--sa-ink);
   box-shadow: var(--sa-shadow-card-hover);
   backdrop-filter: blur(18px);
@@ -55,7 +55,7 @@
 }
 
 .student-app-shell .ai-note-topbar-actions :where(button, a):hover {
-  border-color: color-mix(in srgb, var(--sa-primary) 28%, var(--sa-border));
+  border-color: rgba(var(--sa-primary-rgb), 0.28);
   background: var(--sa-primary-soft);
   color: var(--sa-primary);
 }

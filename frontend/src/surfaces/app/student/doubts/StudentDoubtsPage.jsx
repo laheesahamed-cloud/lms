@@ -16,11 +16,11 @@ export function StudentDoubtsPage() {
   async function load() { setItems(await fetchStudentDoubts()); }
   useEffect(() => { load().catch(() => {}); }, []);
   async function save(event) { event.preventDefault(); await createLessonDoubt({ ...form, lessonId: form.lessonId || null, questionId: form.questionId || null }); setForm({ subject: '', message: '', lessonId: '', questionId: '' }); await load(); }
-  return <main className={ui.screenShell}><section className={ui.managementLayout}>
-    <AppHeader title="Doubt Box" subtitle="Send lesson or revision questions to the admin team." />
+  return <main className={ui.studentScreenShell}><section className={ui.studentManagementLayout}>
+    <AppHeader title="Doubt Box" subtitle="Doubt Support" />
     <StudentPageHero
       title="Doubt Box"
-      subtitle="Send lesson or revision questions to the admin team and keep every reply in one place."
+      subtitle="Doubt Support"
       tone="teal"
       metrics={[
         { label: 'Questions', value: items.length },

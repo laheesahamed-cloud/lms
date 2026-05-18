@@ -52,11 +52,13 @@ export function shouldUseBalancedVisualEffects() {
 export function applyPerformanceProfile() {
   if (typeof document === 'undefined') return false;
   const root = document.documentElement;
-  const nativeRuntime = root.dataset.lmsRuntime === 'native';
+  const runtime = root.dataset.lmsRuntime || 'web';
+  const nativeRuntime = runtime === 'native';
+  const installedRuntime = nativeRuntime || runtime === 'pwa';
   const lowSpec = isLowSpecDevice();
-  const balancedEffects = nativeRuntime ? false : shouldUseBalancedVisualEffects();
+  const balancedEffects = installedRuntime ? false : shouldUseBalancedVisualEffects();
   const browserProfile = getBrowserPerformanceProfile();
-  root.toggleAttribute('data-low-spec', !nativeRuntime && lowSpec);
+  root.toggleAttribute('data-low-spec', !installedRuntime && lowSpec);
   root.dataset.visualEffects = balancedEffects ? 'balanced' : 'full';
   root.dataset.browserEngine = browserProfile.isSafari || browserProfile.isIOS
     ? 'webkit'

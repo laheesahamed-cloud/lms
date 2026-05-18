@@ -570,7 +570,7 @@ export function StructurePage() {
       <section className={ui.managementLayout}>
         <AppHeader
           title="Academic structure"
-          subtitle="Manage courses, subjects, topics, and lessons."
+          subtitle="Curriculum Builder"
         />
 
         {feedback.error ? <div className={ui.feedbackError}>{feedback.error}</div> : null}
@@ -701,7 +701,7 @@ export function StructurePage() {
         <EntityModal
           open={modal === 'course'}
           title={editingCourseId ? 'Edit course' : 'Create course'}
-          subtitle="Manage the top-level program details for this academic tree."
+          subtitle="Program Details"
           onClose={closeModal}
         >
           <form className={cx(ui.stackForm, ui.modalForm)} onSubmit={handleCourseSubmit}>
@@ -764,7 +764,7 @@ export function StructurePage() {
         <EntityModal
           open={modal === 'subject'}
           title={editingSubjectId ? 'Edit subject' : 'Create subject'}
-          subtitle="Subjects sit inside the selected course and can seed starter topics with tags."
+          subtitle="Subject Setup"
           onClose={closeModal}
         >
           <form className={cx(ui.stackForm, ui.modalForm)} onSubmit={handleSubjectSubmit}>
@@ -833,7 +833,7 @@ export function StructurePage() {
         <EntityModal
           open={modal === 'topic'}
           title={editingTopicId ? 'Edit topic' : 'Create topic'}
-          subtitle="Topics keep the third level of the curriculum clean and easy to scan."
+          subtitle="Topic Setup"
           onClose={closeModal}
         >
           <form className={cx(ui.stackForm, ui.modalForm)} onSubmit={handleTopicSubmit}>

@@ -9,7 +9,7 @@ import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 
 const reviewPageUi = {
   screen:
-    `${ui.screenShell} practice-review-page px-[clamp(18px,2.8vw,30px)] pb-[clamp(18px,2.8vw,30px)] pt-[clamp(10px,1.4vw,18px)] max-[600px]:p-3.5`,
+    `${ui.studentScreenShell} practice-review-page px-[clamp(18px,2.8vw,30px)] pb-[clamp(18px,2.8vw,30px)] pt-[clamp(10px,1.4vw,18px)] max-[600px]:p-3.5`,
   layout:
     'mx-auto grid w-[min(100%,1520px)] gap-[18px]',
   header:
@@ -105,7 +105,7 @@ export function PracticeReviewPage() {
   }, [quizId, complete]);
 
   if (!data && !error) {
-    return <main className={ui.screenShell}><div className={ui.emptyBox}>Loading practice review...</div></main>;
+    return <main className={ui.studentScreenShell}><div className={ui.emptyBox}>Loading practice review...</div></main>;
   }
 
   return (

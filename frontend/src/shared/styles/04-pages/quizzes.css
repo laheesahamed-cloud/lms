@@ -229,8 +229,10 @@
 }
 
 .student-app-shell .lms-exam-page .lms-reading-explanation {
-  border-color: color-mix(in srgb, var(--sa-primary) 16%, var(--sa-border));
-  background: color-mix(in srgb, var(--sa-primary) 5%, var(--sa-surface));
+  border-color: rgba(var(--sa-primary-rgb), 0.16);
+  background:
+    linear-gradient(rgba(var(--sa-primary-rgb), 0.05), rgba(var(--sa-primary-rgb), 0.05)),
+    var(--sa-surface);
 }
 
 :root[data-theme="dark"] .student-app-shell .lms-exam-page .lms-reading-explanation,
@@ -239,7 +241,7 @@
 }
 
 .student-app-shell .lms-exam-page .lms-reading-incorrect {
-  border-left-color: color-mix(in srgb, var(--sa-primary) 35%, var(--sa-border-strong));
+  border-left-color: rgba(var(--sa-primary-rgb), 0.35);
 }
 
 .lms-exam-page label:has(.lms-reading-answer),

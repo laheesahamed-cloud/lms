@@ -27,8 +27,8 @@ export function StudentNotificationsPage() {
   const unreadItems = useMemo(() => sortLatestNotifications(items.filter((item) => !item.read)), [items]);
   const visibleItems = unreadItems.length ? unreadItems.slice(0, 5) : sortLatestNotifications(items);
 
-  return <main className={ui.screenShell}><section className={ui.managementLayout}>
-    <AppHeader title="Notifications" subtitle="Announcements, access updates, and important LMS messages." />
+  return <main className={ui.studentScreenShell}><section className={ui.studentManagementLayout}>
+    <AppHeader title="Notifications" subtitle="Message Inbox" />
     <section className="grid gap-3">
       {unreadItems.length > 5 ? (
         <div className={ui.infoCard}>Showing the latest 5 unread notifications.</div>

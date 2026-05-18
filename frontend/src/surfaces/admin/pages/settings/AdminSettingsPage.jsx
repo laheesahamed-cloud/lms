@@ -69,7 +69,7 @@ export function AdminSettingsPage() {
       <section className={ui.managementLayout}>
         <AppHeader
           title="Settings"
-          subtitle="Manage lightweight system preferences for the new LMS workspace without editing environment files manually."
+          subtitle="System Preferences"
         />
 
         <section className={ui.panelCard}>

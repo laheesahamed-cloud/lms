@@ -63,15 +63,15 @@ export function BookmarksPage() {
   }
 
   return (
-    <main className={ui.screenShell}>
-      <section className={ui.managementLayout}>
-        <AppHeader title="Saved Items" subtitle="Your personal revision queue — quizzes and lessons saved for quick access." />
+    <main className={ui.studentScreenShell}>
+      <section className={ui.studentManagementLayout}>
+        <AppHeader title="Saved Items" subtitle="Saved Queue" />
 
         {error && <div className={ui.feedbackError}>{error}</div>}
 
         <StudentPageHero
           title="Saved Items"
-          subtitle="Saved exams and lessons stay collected here so your next study session starts with the right material, not a search."
+          subtitle="Saved Queue"
           tone="violet"
           metrics={[
             { label: 'Total Saved', value: items.length },

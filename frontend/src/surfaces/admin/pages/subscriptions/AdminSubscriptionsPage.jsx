@@ -1126,8 +1126,8 @@ export function AdminSubscriptionsPage() {
         <AppHeader
           title={subscriptionView === 'manage' ? 'Manage Packages' : 'Subscriptions'}
           subtitle={subscriptionView === 'manage'
-            ? 'Manage package pricing, feature access, and coupon codes away from the student workflow.'
-            : 'Review student requests, bank transfer proofs, active subscriptions, renewals, and payment status.'}
+            ? 'Package Controls'
+            : 'Payment Review'}
           actions={(
             <div className={ui.buttonRow}>
               {subscriptionView === 'manage' ? (
@@ -1860,7 +1860,7 @@ export function AdminSubscriptionsPage() {
           onClose={resetPlanForm}
           wide
           title={editingPlanId ? 'Edit plan' : 'Add plan'}
-          subtitle="Set pricing, offers, status, and feature access in one focused popup."
+          subtitle="Plan Settings"
         >
           <form className={cx(ui.stackForm, ui.modalForm, 'px-6 pb-6 pt-[22px]')} onSubmit={handlePlanSubmit}>
             <div className={subscriptionUi.templateRow}>
@@ -1954,7 +1954,7 @@ export function AdminSubscriptionsPage() {
           open={featureModalOpen}
           onClose={resetFeatureForm}
           title={editingFeatureId ? 'Edit feature' : 'Add feature'}
-          subtitle="Manage the master feature list that appears as plan checkboxes."
+          subtitle="Feature Library"
         >
           <form className={cx(ui.stackForm, ui.modalForm, 'question-modal-form gap-[18px]')} onSubmit={handleFeatureSubmit}>
             <div className={subscriptionUi.metaGrid}>
@@ -2003,7 +2003,7 @@ export function AdminSubscriptionsPage() {
           open={Boolean(proofPreviewRequest)}
           onClose={() => setProofPreviewRequest(null)}
           title="Bank transfer proof"
-          subtitle={proofPreviewRequest ? `${proofPreviewRequest.studentName || 'Student'} - ${proofPreviewRequest.planName || 'Plan'}` : ''}
+          subtitle="Payment Proof"
           wide
         >
           {proofPreviewRequest ? <BankTransferProofPreview request={proofPreviewRequest} /> : null}

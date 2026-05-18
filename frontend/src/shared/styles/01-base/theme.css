@@ -1,0 +1,345 @@
+/* ============================================================
+   Final Theme Hardening
+   This file is imported last so legacy/page-level light surfaces cannot
+   accidentally win over the active app theme.
+   ============================================================ */
+
+:root {
+  --app-bg: var(--page-background);
+  --app-bg-solid: #f5f6ff;
+}
+
+:root[data-theme="dark"] {
+  --app-bg:
+    radial-gradient(ellipse at 16% 0%, rgba(37, 99, 235, 0.10) 0%, transparent 42%),
+    radial-gradient(ellipse at 86% 8%, rgba(14, 165, 233, 0.07) 0%, transparent 38%),
+    radial-gradient(ellipse at 50% 100%, rgba(99, 102, 241, 0.05) 0%, transparent 48%),
+    linear-gradient(180deg, #030712 0%, #050a16 44%, #020617 100%);
+  --page-background: var(--app-bg);
+  --app-bg-solid: #030712;
+
+  --surface-0: #07101f;
+  --surface-1: #0a1324;
+  --surface-2: #0f1b2e;
+  --surface-3: #142238;
+  --surface-4: #1a2b44;
+  --surface-card: rgba(9, 17, 31, 0.94);
+  --surface-card-elevated: rgba(13, 24, 42, 0.96);
+  --surface-glass: rgba(9, 17, 31, 0.86);
+  --surface-glass-strong: rgba(9, 17, 31, 0.96);
+  --surface-glass-subtle: rgba(13, 24, 42, 0.78);
+
+  --line-soft: rgba(148, 163, 184, 0.14);
+  --line-medium: rgba(148, 163, 184, 0.22);
+  --line-strong: rgba(191, 219, 254, 0.30);
+  --color-border-soft: var(--line-soft);
+  --color-border-medium: var(--line-medium);
+  --color-border-strong: var(--line-strong);
+
+  --ink-strong: #edf4ff;
+  --ink-medium: #c8d6ea;
+  --ink-soft: #94a8c4;
+  --ink-muted: #6f819c;
+  --text-primary: var(--ink-strong);
+  --text-secondary: var(--ink-medium);
+  --text-muted: var(--ink-soft);
+
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-light: rgba(96, 165, 250, 0.15);
+  --color-primary-glow: rgba(96, 165, 250, 0.28);
+
+  --topbar-bg: rgba(5, 10, 22, 0.84);
+  --sidebar-bg: rgba(6, 12, 24, 0.86);
+  --card-bg: var(--surface-card);
+  --btn-secondary-bg: rgba(15, 27, 46, 0.82);
+  --btn-secondary-text: var(--ink-medium);
+
+  --shadow-xs: 0 1px 0 rgba(255, 255, 255, 0.03), 0 8px 18px rgba(0, 0, 0, 0.22);
+  --shadow-sm: 0 1px 0 rgba(255, 255, 255, 0.035), 0 12px 26px rgba(0, 0, 0, 0.26);
+  --shadow-md: 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 42px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 1px 0 rgba(255, 255, 255, 0.045), 0 26px 62px rgba(0, 0, 0, 0.42);
+
+  --lms-app-card-bg:
+    linear-gradient(
+      145deg,
+      rgba(96, 165, 250, 0.07) 0%,
+      rgba(15, 27, 46, 0.52) 58%,
+      rgba(56, 189, 248, 0.045) 100%
+    ),
+    var(--surface-card);
+  --lms-app-list-card-bg:
+    linear-gradient(
+      180deg,
+      rgba(96, 165, 250, 0.052) 0%,
+      rgba(15, 27, 46, 0.45) 58%,
+      rgba(56, 189, 248, 0.035) 100%
+    ),
+    var(--surface-card);
+  --lms-app-card-border: var(--line-soft);
+  --lms-app-card-shadow: var(--shadow-sm);
+  --lms-app-list-card-shadow: var(--shadow-xs);
+  --lms-app-card-title: var(--ink-strong);
+  --lms-app-card-muted: var(--ink-soft);
+}
+
+:root[data-theme="dark"] :where(
+  .student-app-shell,
+  .dashboard-page,
+  .student-route-page
+) {
+  --sa-bg: var(--app-bg);
+  --sa-surface: var(--surface-card);
+  --sa-surface-2: var(--surface-2);
+  --sa-surface-raised: var(--surface-card-elevated);
+  --sa-surface-rgb: 9, 17, 31;
+  --sa-surface-2-rgb: 15, 27, 46;
+  --sa-ink: var(--ink-strong);
+  --sa-ink-deep: #f8fbff;
+  --sa-text-2: var(--ink-soft);
+  --sa-text-3: var(--ink-muted);
+  --sa-border: var(--line-soft);
+  --sa-border-soft: rgba(148, 163, 184, 0.10);
+  --sa-border-strong: var(--line-medium);
+  --sa-border-rgb: 148, 163, 184;
+  --sa-primary: var(--color-primary);
+  --sa-primary-deep: var(--color-primary-hover);
+  --sa-primary-soft: var(--color-primary-light);
+  --sa-primary-rgb: 96, 165, 250;
+  --sa-purple: #38bdf8;
+  --sa-purple-soft: rgba(56, 189, 248, 0.12);
+  --sa-purple-rgb: 56, 189, 248;
+  --sa-shadow-card: var(--shadow-sm);
+  --sa-shadow-card-hover: var(--shadow-md);
+}
+
+:root[data-theme="dark"] .student-app-shell .dashboard-page,
+:root[data-theme="dark"] .student-app-shell .student-route-page,
+:root[data-theme="dark"] .dashboard-page,
+:root[data-theme="dark"] .student-route-page {
+  --sa-bg: var(--app-bg) !important;
+  --page-background: var(--app-bg) !important;
+  background: var(--app-bg) !important;
+  background-color: var(--app-bg-solid) !important;
+}
+
+:root[data-theme="dark"],
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] #root {
+  background: var(--app-bg) !important;
+  background-color: var(--app-bg-solid) !important;
+  color: var(--ink-strong);
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] :where(
+  .app,
+  .app-shell,
+  .portal-shell,
+  .main-layout,
+  .main-content,
+  .portal-content,
+  .portal-content__frame,
+  .page,
+  .page-wrapper,
+  .page-content,
+  .app-content,
+  .lms-app-scroll-root,
+  .lms-route-reveal,
+  .lms-route-page,
+  .dashboard-page,
+  .student-route-page,
+  .auth-route-scene
+) {
+  background: var(--app-bg) !important;
+  color: var(--ink-strong);
+}
+
+:root[data-theme="dark"] :where(
+  .glass-card,
+  .card-surface,
+  .bg-surface-card,
+  .bg-surface-card-elevated,
+  .surface-card,
+  .lms-app-card,
+  .lms-course-card,
+  .student-course-card,
+  .lms-quiz-card,
+  .lms-page-header-card,
+  .lms-hero-card,
+  .lms-form-card,
+  .lms-floating-panel,
+  .lms-alert,
+  .route-skeleton__card,
+  .study-card,
+  .study-continue-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-todo-card,
+  .study-mood-card
+) {
+  border-color: var(--line-soft) !important;
+  background:
+    linear-gradient(145deg, rgba(96, 165, 250, 0.07), rgba(15, 27, 46, 0.38) 54%, rgba(56, 189, 248, 0.045)),
+    var(--surface-card) !important;
+  box-shadow: var(--shadow-sm) !important;
+  color: var(--ink-strong);
+}
+
+:root[data-theme="dark"] :where(
+  input,
+  textarea,
+  select,
+  .lms-native-field,
+  .form-input,
+  .form-select,
+  .form-textarea
+) {
+  border-color: var(--line-medium) !important;
+  background: rgba(7, 16, 31, 0.92) !important;
+  color: var(--ink-strong) !important;
+}
+
+:root[data-theme="dark"] :where(
+  input::placeholder,
+  textarea::placeholder
+) {
+  color: var(--ink-muted) !important;
+}
+
+:root[data-theme="dark"] :where(
+  table,
+  thead,
+  tbody,
+  tr,
+  th,
+  td
+) {
+  border-color: var(--line-soft) !important;
+}
+
+:root[data-theme="dark"] :where(
+  th,
+  .table-head,
+  .admin-table__head
+) {
+  background: rgba(15, 27, 46, 0.82) !important;
+  color: var(--ink-medium) !important;
+}
+
+:root[data-theme="dark"] :where(
+  .text-ink-strong,
+  .text-slate-900,
+  .text-gray-900,
+  .text-zinc-900
+) {
+  color: var(--ink-strong) !important;
+}
+
+:root[data-theme="dark"] :where(
+  .text-ink-medium,
+  .text-slate-700,
+  .text-gray-700,
+  .text-zinc-700
+) {
+  color: var(--ink-medium) !important;
+}
+
+:root[data-theme="dark"] :where(
+  .text-ink-soft,
+  .text-ink-muted,
+  .text-slate-500,
+  .text-slate-600,
+  .text-gray-500,
+  .text-gray-600,
+  .text-zinc-500,
+  .text-zinc-600
+) {
+  color: var(--ink-soft) !important;
+}
+
+:root[data-theme="dark"] :where(
+  .bg-white,
+  .bg-surface-card,
+  .bg-surface-0,
+  .bg-surface-1
+) {
+  background-color: var(--surface-card) !important;
+}
+
+:root[data-theme="dark"] :where(
+  [class*="bg-white/"],
+  [class*="dark:bg-white/"],
+  [class*="bg-white\\["],
+  [class*="dark:bg-white\\["],
+  [class*="bg-surface-card/"],
+  [class*="bg-surface-0/"],
+  [class*="bg-surface-1/"]
+) {
+  background-color: rgba(9, 17, 31, 0.86) !important;
+}
+
+:root[data-theme="dark"] :where(
+  .bg-surface-2,
+  .bg-surface-3,
+  .bg-surface-4
+) {
+  background-color: var(--surface-2) !important;
+}
+
+:root[data-theme="dark"] :where(
+  .border-line-soft,
+  .border-line-medium,
+  .border-line-strong
+) {
+  border-color: var(--line-soft) !important;
+}
+
+:root[data-theme="dark"] :where(
+  .dashboard-page,
+  .student-route-page
+)::before,
+:root[data-theme="dark"] :where(
+  .dashboard-page,
+  .student-route-page
+)::after {
+  opacity: 0.34 !important;
+  filter: blur(88px) saturate(0.9) !important;
+  mix-blend-mode: normal !important;
+}
+
+:root[data-theme="dark"] :where(
+  .lms-page-header-card,
+  .student-page-hero,
+  .student-results-hero,
+  .student-courses-hero,
+  .lms-course-detail-hero
+)::after {
+  background:
+    radial-gradient(circle at center, rgba(56, 189, 248, 0.10) 0%, rgba(37, 99, 235, 0.055) 48%, transparent 74%) !important;
+  opacity: 0.62 !important;
+  mix-blend-mode: normal !important;
+}
+
+:root[data-theme="dark"] .study-readiness-icon::after,
+:root[data-theme="dark"] .student-app-shell .study-readiness-icon::after {
+  background: radial-gradient(circle at 30% 25%, rgba(96, 165, 250, 0.18), transparent 70%) !important;
+  opacity: 0.58 !important;
+}
+
+:root[data-theme="dark"] :where(
+  .lms-sidebar,
+  .lms-sidebar--student-model,
+  .lms-topbar,
+  .lms-mobile-bottom-nav__inner,
+  .lms-mobile-top-nav,
+  .lms-mobile-top-nav--plain::before
+) {
+  background:
+    linear-gradient(180deg, rgba(10, 20, 38, 0.92), rgba(6, 12, 24, 0.88)) !important;
+  border-color: var(--line-soft) !important;
+}
+
+:root[data-theme="dark"] .lms-mobile-top-nav::after {
+  background: linear-gradient(to bottom, transparent, rgba(6, 12, 24, 0.78)) !important;
+}

@@ -118,7 +118,7 @@ export function AdminSetupPage() {
       <section className={ui.managementLayout}>
         <AppHeader
           title="Admin Setup"
-          subtitle="Check LMS readiness without exposing database credentials, server paths, or private configuration values."
+          subtitle="System Readiness"
         />
 
         {status.error ? <div className={ui.feedbackError}>{status.error}</div> : null}

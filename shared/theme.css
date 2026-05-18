@@ -84,7 +84,7 @@
   --space-8: 40px;
 
   --page-pad-x:       22px;
-  --page-pad-y:       18px;
+  --page-pad-y:       16px;
   --section-gap:      18px;
   --card-pad:         20px;
   --card-pad-compact: 16px;
@@ -172,11 +172,14 @@
     radial-gradient(ellipse at 14% 0%, rgba(14, 165, 233, 0.07) 0%, transparent 50%),
     radial-gradient(ellipse at 88% 8%, rgba(124, 58, 237, 0.05) 0%, transparent 42%),
     linear-gradient(180deg, #F8FAFE 0%, #F3F6FC 50%, #EEF4FA 100%);
+  --app-bg: var(--page-background);
+  --app-bg-solid: #F5F6FF;
 
   /* ── Sidebar ─────────────────────────────────────────────── */
   --sidebar-w:           264px;
   --sidebar-w-collapsed: 76px;
-  --sidebar-shell-gap:   14px;
+  --sidebar-float-gap:   var(--page-pad-y);
+  --sidebar-shell-gap:   32px;
   --sidebar-bg:          rgba(255, 255, 255, 0.99);
   --sidebar-border:      rgba(226, 235, 246, 0.98);
   --header-h:            66px;
@@ -224,13 +227,12 @@
 }
 
 /* ============================================================
-   Dark Mode — Rich Deep Black, Premium Feel
+   Dark Mode — Clinical Night
    ============================================================ */
 :root[data-theme='dark'] {
   color-scheme: dark;
   color: #DDE5F0;
 
-  /* ── Surfaces: deep blue-black with subtle tonal depth ─────── */
   --surface-0: #010205;
   --surface-1: #030711;
   --surface-2: #060B17;
@@ -304,10 +306,12 @@
 
   /* ── Page Background — deep medical blue-black with ambient glows ── */
   --page-background:
-    radial-gradient(ellipse at 18% 0%,   rgba(37, 99, 235, 0.07)  0%, transparent 46%),
-    radial-gradient(ellipse at 84% 9%,   rgba(13, 148, 136, 0.052) 0%, transparent 42%),
-    radial-gradient(ellipse at 52% 97%,  rgba(67, 56, 202, 0.038)  0%, transparent 50%),
+    radial-gradient(ellipse at 18% 0%, rgba(37, 99, 235, 0.07) 0%, transparent 46%),
+    radial-gradient(ellipse at 84% 9%, rgba(13, 148, 136, 0.052) 0%, transparent 42%),
+    radial-gradient(ellipse at 52% 97%, rgba(67, 56, 202, 0.038) 0%, transparent 50%),
     linear-gradient(165deg, #010308 0%, #010206 44%, #000204 100%);
+  --app-bg: var(--page-background);
+  --app-bg-solid: #05070d;
 
   /* ── Sidebar ─────────────────────────────────────────────── */
   --sidebar-bg:     rgba(0, 0, 0, 0.99);
@@ -326,6 +330,13 @@
   --topbar-bg:         rgba(2, 5, 10, 0.99);
   --btn-secondary-bg:  var(--surface-glass-subtle);
   --btn-secondary-text: var(--ink-medium);
+}
+
+:root[data-theme='dark'],
+:root[data-theme='dark'] body,
+:root[data-theme='dark'] #root {
+  background: var(--page-background) !important;
+  color: var(--ink-strong);
 }
 
 /* ── ERPM Accent Theme ─────────────────────────────────────── */
@@ -358,12 +369,12 @@
   --color-primary-hover: #60A5FA;
   --color-primary-light: rgba(59, 130, 246, 0.13);
   --color-primary-glow:  rgba(59, 130, 246, 0.28);
-  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.16), 0 0 24px rgba(59, 130, 246, 0.28), 0 14px 36px rgba(0, 0, 0, 0.36);
-  --input-focus-shadow: 0 0 0 3px rgba(59, 130, 246, 0.26);
+  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.16), 0 0 24px rgba(59, 130, 246, 0.28), 0 14px 36px rgba(0,0,0,.36);
+  --input-focus-shadow: 0 0 0 3px rgba(59,130,246,.26);
   --page-background:
-    radial-gradient(ellipse at 18% 0%,   rgba(37, 99, 235, 0.07)  0%, transparent 46%),
-    radial-gradient(ellipse at 84% 9%,   rgba(13, 148, 136, 0.052) 0%, transparent 42%),
-    radial-gradient(ellipse at 52% 97%,  rgba(67, 56, 202, 0.038)  0%, transparent 50%),
+    radial-gradient(ellipse at 18% 0%, rgba(37, 99, 235, 0.07) 0%, transparent 46%),
+    radial-gradient(ellipse at 84% 9%, rgba(13, 148, 136, 0.052) 0%, transparent 42%),
+    radial-gradient(ellipse at 52% 97%, rgba(67, 56, 202, 0.038) 0%, transparent 50%),
     linear-gradient(165deg, #010308 0%, #010206 44%, #000204 100%);
 }
 

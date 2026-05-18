@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
+import { useThemeStore } from '../stores/themeStore.js';
 import { preloadRouteByPath } from '../../app/router.jsx';
 import { cx } from '../styles/tailwindClasses.js';
 
@@ -232,7 +233,7 @@ const sidebarUi = {
   logoRowCollapsed:
     'min-[901px]:flex-col min-[901px]:justify-center min-[901px]:gap-2 min-[901px]:px-0 min-[901px]:py-3',
   brandIcon:
-    'grid size-[38px] shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,#0B1220_0%,#2563EB_48%,#7C3AED_100%)] shadow-[0_8px_20px_rgba(37,99,235,0.16)]',
+    'grid size-[38px] shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,#0B1220_0%,#2563EB_55%,#38BDF8_100%)] shadow-[0_8px_20px_rgba(37,99,235,0.16)]',
   brandIconCollapsed: 'min-[901px]:size-[36px]',
   wordmark: 'grid min-w-0 gap-0.5',
   wordmarkName: 'truncate text-[14.5px] font-extrabold tracking-[-0.01em] text-ink-strong',
@@ -404,6 +405,70 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
   );
 }
 
+/* ── Student accent picker (blue / violet) ────────────────────── */
+function StudentAccentPicker() {
+  const studentAccent = useThemeStore((state) => state.studentAccent);
+  const setStudentAccent = useThemeStore((state) => state.setStudentAccent);
+
+  const options = [
+    {
+      key: 'blue',
+      label: 'Study Blue',
+      swatch: 'linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)',
+    },
+    {
+      key: 'violet',
+      label: 'Violet',
+      swatch: 'linear-gradient(135deg, #3d5afe 0%, #8b5cf6 100%)',
+    },
+  ];
+
+  return (
+    <div className="lms-student-accent-picker" role="radiogroup" aria-label="Sidebar color theme">
+      <span className="lms-student-accent-picker__label">Theme</span>
+      <div className="lms-student-accent-picker__row">
+        {options.map((opt) => {
+          const isActive = studentAccent === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              aria-label={`Switch to ${opt.label} theme`}
+              title={opt.label}
+              className={cx(
+                'lms-student-accent-swatch',
+                isActive && 'is-active'
+              )}
+              onClick={() => setStudentAccent(opt.key)}
+            >
+              <span
+                className="lms-student-accent-swatch__color"
+                style={{ background: opt.swatch }}
+                aria-hidden="true"
+              />
+              <span className="lms-student-accent-swatch__text">{opt.label}</span>
+              {isActive && (
+                <svg
+                  className="lms-student-accent-swatch__check"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path d="M2.5 6.2 5 8.7l4.5-5.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main sidebar ──────────────────────────────────────────────── */
 export function AppSidebar({
   isOpen = false,
@@ -534,6 +599,8 @@ export function AppSidebar({
         })}
       </nav>
 
+      {isStudent && !isCollapsed && <StudentAccentPicker />}
+
       {isStudent && !isCollapsed && (
         <div className="lms-sidebar-student-footer">
           <div className="lms-sidebar-student-avatar" aria-hidden="true">{getInitials(user)}</div>
@@ -563,6 +630,10 @@ const mobileNavItems = [
   { to: '/results',   label: 'Results', icon: 'Results'   },
 ];
 
+const mobileNavPrimaryPaths = new Set(mobileNavItems.map((item) => item.to));
+mobileNavPrimaryPaths.delete('/dashboard');
+const MOBILE_TOP_NAV_EXIT_MS = 620;
+
 function withRolePrefix(path, role) {
   if (!path || path.startsWith('/admin') || path.startsWith('/app')) return path;
   if (path.startsWith('/ai/')) return path;
@@ -586,6 +657,220 @@ function prefixLinks(items, role) {
       to: withRolePrefix(item.to, role),
     };
   });
+}
+
+export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose = () => {} }) {
+  const user = useAuthStore((state) => state.user);
+  const [shouldRender, setShouldRender] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [geometry, setGeometry] = useState(null);
+  const isVisible = Boolean(isOpen && !isExamFocusMode && user);
+
+  useEffect(() => {
+    if (isVisible) {
+      setShouldRender(true);
+      setIsClosing(false);
+      return undefined;
+    }
+
+    if (!shouldRender) return undefined;
+
+    setIsClosing(true);
+    const timer = window.setTimeout(() => {
+      setShouldRender(false);
+      setIsClosing(false);
+    }, MOBILE_TOP_NAV_EXIT_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [isVisible, shouldRender]);
+
+  useLayoutEffect(() => {
+    if (!shouldRender || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+    function syncGeometry() {
+      const trigger = document.querySelector('.student-app-shell .lms-topbar-menu-button, .study-hub-topbar .lms-topbar-menu-button');
+      if (!trigger) return;
+
+      const triggerRect = trigger.getBoundingClientRect();
+      const shell = trigger.closest('.study-hub-shell, .management-layout, .lms-route-page, .student-app-shell');
+      const shellRect = shell?.getBoundingClientRect();
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 390;
+      const viewportPadding = viewportWidth <= 380 ? 9 : 12;
+      const left = Math.max(viewportPadding, Math.round(triggerRect.left));
+      const maxWidth = Math.max(triggerRect.width, viewportWidth - left - viewportPadding);
+      const shellWidth = shellRect?.width ? Math.round(shellRect.width) : maxWidth;
+      const menuWidth = Math.min(shellWidth, maxWidth, Math.max(230, Math.round(viewportWidth * 0.64)));
+      const styles = window.getComputedStyle(trigger);
+      const radius = parseFloat(styles.borderTopLeftRadius) || 14;
+
+      setGeometry({
+        left,
+        top: Math.max(0, Math.round(triggerRect.top)),
+        width: menuWidth,
+        size: Math.round(Math.max(triggerRect.width, triggerRect.height)),
+        radius: Math.round(radius),
+      });
+    }
+
+    syncGeometry();
+    window.addEventListener('resize', syncGeometry);
+    window.addEventListener('orientationchange', syncGeometry);
+
+    return () => {
+      window.removeEventListener('resize', syncGeometry);
+      window.removeEventListener('orientationchange', syncGeometry);
+    };
+  }, [shouldRender]);
+
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return undefined;
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') onClose();
+    }
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
+  if (!shouldRender || !user) return null;
+
+  const role = user.role;
+  const sourceLinks = role === 'admin' ? adminLinks : studentLinks;
+  const menuLinks =
+    role === 'student'
+      ? sourceLinks.filter((item) => item.group || !mobileNavPrimaryPaths.has(item.to))
+      : sourceLinks;
+  const items = prefixLinks(menuLinks, role);
+  const isStudentMenu = role === 'student';
+  const title = role === 'admin' ? 'Admin Console' : 'Student Portal';
+  const geometryStyle = geometry
+    ? {
+        '--mobile-top-nav-left': `${geometry.left}px`,
+        '--mobile-top-nav-top': `${geometry.top}px`,
+        '--mobile-top-nav-width': `${geometry.width}px`,
+        '--mobile-top-nav-trigger-size': `${geometry.size}px`,
+        '--mobile-top-nav-trigger-radius': `${geometry.radius}px`,
+      }
+    : undefined;
+
+  const panel = (
+    <div
+      className={cx('lms-mobile-top-nav-layer min-[901px]:hidden', isClosing && 'is-closing')}
+      style={geometryStyle}
+    >
+      <button
+        type="button"
+        className="lms-mobile-top-nav-backdrop"
+        onClick={onClose}
+        aria-label="Close navigation"
+      />
+
+      <section
+        className={cx('lms-mobile-top-nav', isStudentMenu && 'lms-mobile-top-nav--plain')}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mobile navigation"
+      >
+        {!isStudentMenu && (
+          <header className="lms-mobile-top-nav__head">
+            <span className="lms-mobile-top-nav__mark" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 30 30" fill="none">
+                <rect width="30" height="30" rx="9" fill="url(#mobile-nav-logo-g)" />
+                <path d="M9 10.5h12M9 15h8M9 19.5h12" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                <defs>
+                  <linearGradient id="mobile-nav-logo-g" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#2563EB" />
+                    <stop offset="100%" stopColor="#0EA5E9" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </span>
+
+            <div className="lms-mobile-top-nav__brand">
+              <strong>ERPM LMS</strong>
+              <span>{title}</span>
+            </div>
+
+            <button
+              type="button"
+              className="lms-mobile-top-nav__close"
+              onClick={onClose}
+              aria-label="Close navigation"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </button>
+          </header>
+        )}
+
+        {isStudentMenu && (
+          <button
+            type="button"
+            className="lms-mobile-top-nav__plain-close"
+            onClick={onClose}
+            aria-label="Close navigation"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
+
+        <nav className="lms-mobile-top-nav__list">
+          {items.map((item) => {
+            if (item.group) {
+              const ParentIcon = Icons[item.icon] || Icons.AI;
+              return (
+                <div className="lms-mobile-top-nav__group" key={item.label}>
+                  <span className="lms-mobile-top-nav__group-label">
+                    <ParentIcon />
+                    {item.label}
+                  </span>
+                  {item.children.map((child) => (
+                    <NavLink
+                      key={child.to}
+                      to={child.to}
+                      end={isExactNavPath(child.to)}
+                      onPointerDown={() => preloadRouteByPath(child.to, role)}
+                      onFocus={() => preloadRouteByPath(child.to, role)}
+                      onClick={onClose}
+                      className={({ isActive }) => cx('lms-mobile-top-nav__item is-child', isActive && 'is-active')}
+                    >
+                      <span className="lms-mobile-top-nav__child-dot" aria-hidden="true" />
+                      <span>{child.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              );
+            }
+
+            const IconComp = Icons[item.icon] || Icons.Dashboard;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={isExactNavPath(item.to)}
+                onPointerDown={() => preloadRouteByPath(item.to, role)}
+                onFocus={() => preloadRouteByPath(item.to, role)}
+                onClick={onClose}
+                className={({ isActive }) => cx('lms-mobile-top-nav__item', isActive && 'is-active')}
+              >
+                <span className="lms-mobile-top-nav__icon" aria-hidden="true">
+                  <IconComp />
+                </span>
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+      </section>
+    </div>
+  );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(panel, document.body);
 }
 
 export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {} }) {

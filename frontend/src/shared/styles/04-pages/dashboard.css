@@ -1,10 +1,11 @@
 /* ============================================================
-   Student Dashboard ("Study Hub") — Concept A
-   Uses --sa-* tokens from student-app.css.
-   Light + dark mode first-class. Mobile / tablet / desktop.
+   Student Dashboard ("Study Hub")
+   Inherits unified --sa-* tokens from student-app.css.
+   Only overrides a few values for the deeper hero/readiness vibe.
    ============================================================ */
 
-.dashboard-page {
+.dashboard-page,
+.student-route-page {
   min-height: 100dvh;
   background: var(--sa-bg);
   color: var(--sa-ink);
@@ -12,17 +13,41 @@
   letter-spacing: 0;
 }
 
+/* In dark mode, give the dashboard a deeper navy stage with cards floating on it. */
+:root[data-theme="dark"] .dashboard-page,
+.student-app-shell[data-theme="dark"] .dashboard-page,
+:root[data-theme="dark"] .student-route-page,
+.student-app-shell[data-theme="dark"] .student-route-page {
+  --sa-bg: linear-gradient(180deg, #050a16 0%, #071331 30%, #061126 70%, #050a16 100%);
+  --sa-surface:   #0d1730;
+  --sa-surface-2: #131e3a;
+  background: var(--sa-bg) !important;
+}
+
+/* In light mode, give the dashboard a slightly cooler pastel        */
+:root:not([data-theme="dark"]) .dashboard-page,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page,
+:root:not([data-theme="dark"]) .student-route-page,
+:root:not([data-theme="dark"]) .student-app-shell .student-route-page {
+  --sa-bg: linear-gradient(180deg, #eef4fc 0%, #e4ecf7 45%, #dce6f4 100%);
+}
+
 .dashboard-page,
-.dashboard-page * {
+.dashboard-page *,
+.student-route-page,
+.student-route-page * {
   box-sizing: border-box;
   min-width: 0;
 }
 
-/* Shell — mobile-first 390px, grows on tablet and desktop. */
+/* ── Shell — mobile-first 390px ──────────────────────────────────── */
 .study-hub-shell {
-  width: min(390px, calc(100% - 24px));
+  width: var(--sa-page-width-mobile, min(390px, calc(100% - 24px)));
   margin: 0 auto;
-  padding: calc(16px + env(safe-area-inset-top, 0px)) 0 calc(var(--lms-mobile-content-bottom, 92px) + 28px + env(safe-area-inset-bottom, 0px));
+  padding: var(
+    --sa-page-padding,
+    calc(16px + env(safe-area-inset-top, 0px)) 0 calc(var(--lms-mobile-content-bottom, 92px) + 28px + env(safe-area-inset-bottom, 0px))
+  );
 }
 
 /* ============================================================
@@ -30,15 +55,19 @@
    ============================================================ */
 .study-hub-topbar {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 0 0 8px;
+  min-height: 44px;
+  padding: 0 0 10px;
 }
 
 .study-topbar-title {
+  display: grid;
   min-width: 0;
-  line-height: 1.1;
+  min-height: 42px;
+  align-content: center;
+  line-height: 1;
 }
 
 .study-topbar-title span,
@@ -47,19 +76,25 @@
   color: var(--sa-text-3);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.1px;
+  letter-spacing: 0.12px;
   line-height: 1.2;
   text-transform: uppercase;
 }
 
+.study-topbar-title span {
+  order: 2;
+  margin-top: 3px;
+}
+
 .study-topbar-title h1 {
-  margin: 2px 0 0;
+  order: 1;
+  margin: 0;
   overflow: hidden;
   color: var(--sa-ink);
   font-family: var(--sa-font-display);
-  font-size: 26px;
+  font-size: 25px;
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1;
   letter-spacing: -0.6px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -67,7 +102,7 @@
 
 .study-topbar-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .study-icon-button,
@@ -79,17 +114,21 @@
   place-items: center;
   border: 1px solid var(--sa-border);
   border-radius: 14px;
-  background: transparent;
+  background: var(--sa-surface);
   color: var(--sa-ink);
 }
 
 .study-icon-button {
   cursor: pointer;
-  transition: background var(--sa-dur) var(--sa-ease), border-color var(--sa-dur) var(--sa-ease), color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease);
+  transition:
+    background  var(--sa-dur) var(--sa-ease),
+    border-color var(--sa-dur) var(--sa-ease),
+    color        var(--sa-dur) var(--sa-ease),
+    transform    var(--sa-dur) var(--sa-ease);
 }
 
 .study-icon-button:hover {
-  border-color: color-mix(in srgb, var(--sa-primary) 24%, var(--sa-border));
+  border-color: rgba(56, 189, 248, 0.3);
   background: var(--sa-primary-soft);
   color: var(--sa-primary);
 }
@@ -102,15 +141,26 @@
 .study-avatar {
   border: 0;
   background: var(--sa-grad);
-  color: #ffffff;
+  color: #fff;
   font-size: 13px;
   font-weight: 900;
 }
 
-.study-avatar:is(button) {
-  padding: 0;
-  cursor: pointer;
+.study-avatar--profile {
+  overflow: hidden;
+  border: 1px solid rgba(var(--sa-primary-rgb), 0.22);
+  background: var(--sa-surface);
+  box-shadow: var(--sa-shadow-card);
 }
+
+.study-avatar--profile .lms-profile-avatar {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  box-shadow: none;
+}
+
+.study-avatar:is(button) { padding: 0; cursor: pointer; }
 
 .study-avatar:is(button):focus-visible {
   outline: 2px solid var(--sa-primary);
@@ -118,7 +168,7 @@
 }
 
 /* ============================================================
-   GENERIC CARDS
+   CARD SHELL — base shared by all cards
    ============================================================ */
 .study-card,
 .study-continue-card,
@@ -136,37 +186,75 @@
    ============================================================ */
 .study-continue-card {
   position: relative;
-  min-height: 268px;
-  margin-top: 12px;
+  min-height: 272px;
+  margin-top: 14px;
   overflow: hidden;
   padding: 24px;
-  border-radius: var(--sa-radius-xl);
+  border-radius: var(--sa-radius-xl);   /* 28px */
+  background: var(--sa-surface);
+  /* Light mode — stronger blue border + soft blue shadow */
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(37, 99, 235, 0.04),
+    0 18px 40px -12px rgba(37, 99, 235, 0.2);
 }
 
+:root[data-theme="dark"] .study-continue-card,
+.student-app-shell[data-theme="dark"] .study-continue-card {
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  box-shadow:
+    0 0 0 1px rgba(56,189,248,.06),
+    0 24px 56px -12px rgba(0,0,0,.7);
+}
+
+/* Decorative blob — top-right, blue→indigo */
 .study-hero-soft-shape {
   position: absolute;
-  top: -54px;
-  right: -54px;
-  width: 220px;
-  height: 220px;
+  top: -64px;
+  right: -64px;
+  width: 250px;
+  height: 250px;
   border-radius: 999px;
-  background: var(--sa-grad-soft);
-  opacity: 0.72;
+  /* Light mode — stronger so it reads on white */
+  background: radial-gradient(
+    circle at center,
+    rgba(37, 99, 235, 0.22) 0%,
+    rgba(99, 102, 241, 0.14) 55%,
+    transparent 75%
+  );
   pointer-events: none;
 }
 
+:root[data-theme="dark"] .study-hero-soft-shape,
+.student-app-shell[data-theme="dark"] .study-hero-soft-shape {
+  background: radial-gradient(
+    circle at center,
+    rgba(56,189,248,.18) 0%,
+    rgba(99,102,241,.1) 55%,
+    transparent 75%
+  );
+}
+
+/* Stethoscope motif — cyan, not violet */
 .study-hero-stetho {
   position: absolute;
-  top: 22px;
-  right: 22px;
-  color: var(--sa-purple);
-  opacity: 0.45;
+  top: 20px;
+  right: 20px;
+  /* Light mode — deeper blue with higher opacity */
+  color: #2563eb;
+  opacity: 0.4;
   pointer-events: none;
+}
+
+:root[data-theme="dark"] .study-hero-stetho,
+.student-app-shell[data-theme="dark"] .study-hero-stetho {
+  color: #38bdf8;
+  opacity: 0.28;
 }
 
 .study-hero-stetho svg {
-  width: 48px;
-  height: 48px;
+  width: 54px;
+  height: 54px;
 }
 
 .study-continue-card__copy {
@@ -177,27 +265,40 @@
 .study-continue-card .study-eyebrow {
   margin-bottom: 14px;
   color: var(--sa-primary);
+  letter-spacing: 0.4px;
 }
 
+/* Greeting — "Hi, laheez" */
 .study-hero-name {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: var(--sa-ink);
   font-family: var(--sa-font-display);
-  font-size: 36px;
+  font-size: 38px;
   font-weight: 800;
   line-height: 0.98;
-  letter-spacing: -1.2px;
+  letter-spacing: -1.4px;
 }
 
+.study-hero-name > span { color: var(--sa-ink); }
+
 .study-hero-name strong {
-  background: var(--sa-grad);
+  /* Light mode — deeper, more saturated gradient so the name pops */
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #6366f1 100%);
   background-clip: text;
+  -webkit-background-clip: text;
   color: transparent;
   font: inherit;
+  -webkit-text-fill-color: transparent;
+}
+
+:root[data-theme="dark"] .study-hero-name strong,
+.student-app-shell[data-theme="dark"] .study-hero-name strong {
+  background: linear-gradient(135deg, #60c8ff 0%, #38bdf8 45%, #818cf8 100%);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -206,16 +307,17 @@
   max-width: 300px;
   margin: 10px 0 0;
   color: var(--sa-text-2);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .study-hero-lead b {
   color: var(--sa-ink);
-  font-weight: 900;
+  font-weight: 800;
 }
 
+/* Topic chips */
 .study-chip-row {
   display: flex;
   gap: 8px;
@@ -228,11 +330,11 @@
 
 .study-chip-row span {
   display: inline-flex;
-  min-height: 31px;
+  min-height: 32px;
   align-items: center;
   gap: 6px;
   border-radius: 999px;
-  padding: 7px 11px;
+  padding: 7px 12px;
   background: var(--sa-primary-soft);
   color: var(--sa-primary);
   font-size: 12px;
@@ -241,59 +343,76 @@
   white-space: nowrap;
 }
 
+.study-chip-row span svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 .study-chip-row span:nth-child(2) {
   background: var(--sa-purple-soft);
   color: var(--sa-purple);
 }
 
+/* CTA row */
 .study-hero-actions {
   display: flex;
   gap: 10px;
 }
 
+/* ============================================================
+   BUTTONS
+   ============================================================ */
 .study-button,
 .study-square-action {
   display: inline-flex;
-  height: 56px;
+  height: 52px;
   align-items: center;
   justify-content: center;
-  border-radius: 18px;
+  border-radius: 16px;
   cursor: pointer;
   font-family: var(--sa-font-sans);
-  font-weight: 900;
+  font-weight: 800;
   letter-spacing: 0;
-  transition: background var(--sa-dur) var(--sa-ease), border-color var(--sa-dur) var(--sa-ease), color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease), box-shadow var(--sa-dur) var(--sa-ease), filter var(--sa-dur) var(--sa-ease);
+  transition:
+    background    var(--sa-dur) var(--sa-ease),
+    border-color  var(--sa-dur) var(--sa-ease),
+    color         var(--sa-dur) var(--sa-ease),
+    transform     var(--sa-dur) var(--sa-ease),
+    box-shadow    var(--sa-dur) var(--sa-ease),
+    filter        var(--sa-dur) var(--sa-ease);
 }
 
 .study-button {
   flex: 1;
   gap: 10px;
   border: 0;
-  padding: 0 16px;
+  padding: 0 20px;
   font-size: 14px;
 }
 
 .study-button--primary {
   background: var(--sa-grad);
-  color: #ffffff;
+  color: #fff;
   box-shadow: var(--sa-shadow-cta);
 }
-.study-button--primary:hover { filter: brightness(1.04); }
+.study-button--primary:hover { filter: brightness(1.07); }
 
 .study-button--ghost,
 .study-square-action {
   border: 1px solid var(--sa-border);
-  background: var(--sa-surface);
+  background: var(--sa-surface-2);
   color: var(--sa-primary);
 }
+
 .study-square-action:hover {
-  border-color: color-mix(in srgb, var(--sa-primary) 30%, var(--sa-border));
+  border-color: rgba(56, 189, 248, 0.3);
   background: var(--sa-primary-soft);
 }
 
 .study-square-action {
-  width: 56px;
-  flex: 0 0 56px;
+  width: 52px;
+  flex: 0 0 52px;
   padding: 0;
 }
 
@@ -304,39 +423,214 @@
 }
 
 /* ============================================================
-   STREAK CARD
+   STREAK CARD  — warm amber on dark navy
    ============================================================ */
 .study-streak-card {
-  margin-top: 16px;
-  padding: 16px;
-  border-color: color-mix(in srgb, var(--sa-warn) 32%, var(--sa-border));
-  background: var(--sa-grad-warm);
+  margin-top: 14px;
+  min-height: 156px;
+  padding: 18px 20px 14px;
+  border-radius: 16px;
+  /* Light mode — visible warm cream gradient with amber border */
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: linear-gradient(145deg, #fff5e3 0%, #ffe7c2 60%, #ffdca8 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 0 0 1px rgba(245, 158, 11, 0.08),
+    0 10px 28px -10px rgba(245, 158, 11, 0.28);
+}
+
+:root[data-theme="dark"] .study-streak-card,
+.student-app-shell[data-theme="dark"] .study-streak-card {
+  border: 1px solid rgba(245,158,11,.18);
+  background: linear-gradient(145deg, rgba(245,158,11,.07) 0%, rgba(231,100,20,.1) 100%);
+  box-shadow:
+    0 0 0 1px rgba(245,158,11,.055),
+    0 14px 34px -18px rgba(245,158,11,.28);
 }
 
 .study-streak-top {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
 }
 
 .study-streak-icon {
   display: inline-grid;
-  width: 44px;
-  height: 44px;
+  position: relative;
+  isolation: isolate;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
   place-items: center;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--sa-warn), #e66b1f);
-  color: #ffffff;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f59e0b, #e66b1f);
+  color: #fff;
   box-shadow: var(--sa-shadow-warn);
+  overflow: hidden;
+  animation: studyFireGlow 1.85s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
-.study-streak-top .study-eyebrow { color: var(--sa-warn-deep); }
+.study-streak-icon::before,
+.study-streak-icon::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 999px;
+}
+
+.study-streak-icon::before {
+  inset: 8px 10px 6px;
+  background:
+    radial-gradient(circle at 45% 78%, rgba(255, 255, 255, 0.46), transparent 33%),
+    radial-gradient(circle at 55% 28%, rgba(255, 231, 170, 0.65), transparent 56%);
+  filter: blur(7px);
+  opacity: 0.72;
+  transform-origin: 50% 90%;
+  animation: studyFireInnerFlicker 760ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.study-streak-icon::after {
+  width: 8px;
+  height: 8px;
+  right: 10px;
+  top: 11px;
+  background: rgba(255, 244, 204, 0.72);
+  box-shadow:
+    -22px 20px 0 -3px rgba(255, 236, 176, 0.55),
+    -8px 25px 0 -4px rgba(255, 255, 255, 0.48);
+  animation: studyFireEmbers 1.35s linear infinite;
+}
+
+.study-streak-icon svg {
+  width: 24px;
+  height: 24px;
+  position: relative;
+  z-index: 1;
+  transform-origin: 50% 82%;
+  filter: drop-shadow(0 2px 8px rgba(255, 226, 137, 0.62));
+  animation: studyFireFlicker 680ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.study-fire-svg {
+  overflow: visible;
+}
+
+.study-fire-outer,
+.study-fire-inner {
+  transform-box: fill-box;
+  transform-origin: 50% 88%;
+}
+
+.study-fire-outer {
+  animation: studyFlameBody 720ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.study-fire-inner {
+  animation: studyFlameCore 520ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes studyFireGlow {
+  0%, 100% {
+    transform: translateY(0) rotate(-0.4deg);
+    box-shadow:
+      0 12px 30px rgba(245, 158, 11, 0.28),
+      0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+  }
+  42% {
+    transform: translateY(-1px) rotate(0.6deg);
+    box-shadow:
+      0 16px 36px rgba(245, 158, 11, 0.36),
+      0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+  }
+  68% {
+    transform: translateY(0) rotate(-0.8deg);
+    box-shadow:
+      0 10px 26px rgba(230, 107, 31, 0.32),
+      0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+  }
+}
+
+@keyframes studyFireFlicker {
+  0%, 100% { transform: translateY(0) rotate(-1deg); opacity: 0.96; }
+  34% { transform: translateY(-1.5px) rotate(2.5deg); opacity: 1; }
+  62% { transform: translateY(0.5px) rotate(-2.5deg); opacity: 0.92; }
+  82% { transform: translateY(-0.75px) rotate(1deg); opacity: 1; }
+}
+
+@keyframes studyFlameBody {
+  0%, 100% { transform: scale(1, 1) skewX(0deg); }
+  32% { transform: scale(1.12, 0.92) skewX(3deg); }
+  64% { transform: scale(0.9, 1.12) skewX(-4deg); }
+  82% { transform: scale(1.06, 0.98) skewX(2deg); }
+}
+
+@keyframes studyFlameCore {
+  0%, 100% { transform: translateY(0) scale(0.9, 1.06); opacity: 0.7; }
+  42% { transform: translateY(-1px) scale(1.18, 0.88); opacity: 1; }
+  72% { transform: translateY(0.75px) scale(0.78, 1.2); opacity: 0.82; }
+}
+
+@keyframes studyFireInnerFlicker {
+  0%, 100% { transform: translateY(2px) scale(0.92, 1); opacity: 0.52; }
+  48% { transform: translateY(-3px) scale(1.05, 1.18); opacity: 0.84; }
+  72% { transform: translateY(0) scale(0.98, 1.08); opacity: 0.68; }
+}
+
+@keyframes studyFireEmbers {
+  0% { transform: translateY(14px) scale(0.72); opacity: 0; }
+  18% { opacity: 0.75; }
+  100% { transform: translateY(-18px) scale(1.08); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-low-spec] .study-streak-icon {
+    animation: studyFireGlow 1.85s cubic-bezier(0.45, 0, 0.55, 1) infinite !important;
+  }
+
+  :root[data-low-spec] .study-streak-icon::before {
+    animation: studyFireInnerFlicker 760ms cubic-bezier(0.45, 0, 0.55, 1) infinite !important;
+  }
+
+  :root[data-low-spec] .study-streak-icon::after {
+    animation: studyFireEmbers 1.35s linear infinite !important;
+  }
+
+  :root[data-low-spec] .study-streak-icon svg {
+    animation: studyFireFlicker 680ms cubic-bezier(0.45, 0, 0.55, 1) infinite !important;
+  }
+
+  :root[data-low-spec] .study-fire-outer {
+    animation: studyFlameBody 720ms cubic-bezier(0.45, 0, 0.55, 1) infinite !important;
+  }
+
+  :root[data-low-spec] .study-fire-inner {
+    animation: studyFlameCore 520ms cubic-bezier(0.45, 0, 0.55, 1) infinite !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-streak-icon,
+  .study-streak-icon::before,
+  .study-streak-icon::after,
+  .study-streak-icon svg,
+  .study-fire-outer,
+  .study-fire-inner {
+    animation: none;
+  }
+}
+
+.study-streak-top .study-eyebrow {
+  color: var(--sa-warn-deep);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
 
 .study-streak-top strong {
   display: block;
   min-width: 0;
-  margin-top: 2px;
+  margin-top: 3px;
   overflow-wrap: anywhere;
   color: var(--sa-ink);
   font-size: 15px;
@@ -345,88 +639,147 @@
 }
 
 .study-streak-days { text-align: right; }
+
 .study-streak-days strong {
   color: var(--sa-warn);
   font-family: var(--sa-font-display);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1;
 }
+
 .study-streak-days span {
   display: block;
   margin-top: 2px;
-  color: color-mix(in srgb, var(--sa-warn-deep) 75%, transparent);
+  color: rgba(var(--sa-warn-deep-rgb), 0.65);
   font-size: 9px;
   font-weight: 900;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 
+/* Heatmap grid — 7×4, 28 compact bars so the streak card stays rectangular */
 .study-heatmap {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .study-heatmap__cell {
-  height: 18px;
-  border: 1.2px dashed color-mix(in srgb, var(--sa-warn) 32%, transparent);
-  border-radius: 4px;
+  height: clamp(12px, 4vw, 20px);
+  /* Light mode — visible amber dashed border on cream background */
+  border: 1.2px dashed rgba(160, 90, 15, 0.32);
+  border-radius: 6px;
   background: transparent;
 }
-.study-heatmap__cell.is-1 { border: 0; background: color-mix(in srgb, var(--sa-warn) 42%, transparent); }
-.study-heatmap__cell.is-2 { border: 0; background: color-mix(in srgb, var(--sa-warn) 70%, transparent); }
+
+.study-heatmap__cell.is-1 { border: 0; background: rgba(245, 158, 11, 0.4); }
+.study-heatmap__cell.is-2 { border: 0; background: rgba(245, 158, 11, 0.7); }
 .study-heatmap__cell.is-3 { border: 0; background: var(--sa-warn); }
+
+:root[data-theme="dark"] .study-heatmap__cell,
+.student-app-shell[data-theme="dark"] .study-heatmap__cell {
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+:root[data-theme="dark"] .study-heatmap__cell.is-1,
+.student-app-shell[data-theme="dark"] .study-heatmap__cell.is-1 {
+  background: rgba(245, 158, 11, 0.28);
+}
+
+:root[data-theme="dark"] .study-heatmap__cell.is-2,
+.student-app-shell[data-theme="dark"] .study-heatmap__cell.is-2 {
+  background: rgba(245, 158, 11, 0.55);
+}
 
 .study-streak-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 8px;
-  color: color-mix(in srgb, var(--sa-warn-deep) 70%, transparent);
+  margin-top: 10px;
+  /* Light mode — deep amber for legibility on cream */
+  color: rgba(160, 90, 15, 0.78);
   font-size: 11px;
   font-weight: 750;
 }
-.study-streak-footer b { color: var(--sa-warn); font-weight: 900; }
+
+.study-streak-footer b { color: var(--sa-warn-deep); font-weight: 900; }
+
+:root[data-theme="dark"] .study-streak-footer,
+.student-app-shell[data-theme="dark"] .study-streak-footer {
+  color: rgba(245, 158, 11, 0.52);
+}
+
+:root[data-theme="dark"] .study-streak-footer b,
+.student-app-shell[data-theme="dark"] .study-streak-footer b {
+  color: var(--sa-warn);
+}
 
 .study-heatmap-key {
   display: flex;
-  gap: 3px;
+  gap: 4px;
   align-items: center;
 }
+
 .study-heatmap-key i {
   width: 8px;
   height: 8px;
   border-radius: 2px;
   background: transparent;
-  border: 1px dashed color-mix(in srgb, var(--sa-warn) 40%, transparent);
+  border: 1px dashed rgba(160, 90, 15, 0.4);
 }
-.study-heatmap-key i:nth-child(2) { border: 0; background: color-mix(in srgb, var(--sa-warn) 42%, transparent); }
-.study-heatmap-key i:nth-child(3) { border: 0; background: color-mix(in srgb, var(--sa-warn) 70%, transparent); }
+
+.study-heatmap-key i:nth-child(2) { border: 0; background: rgba(245, 158, 11, 0.4); }
+.study-heatmap-key i:nth-child(3) { border: 0; background: rgba(245, 158, 11, 0.7); }
 .study-heatmap-key i:nth-child(4) { border: 0; background: var(--sa-warn); }
 
+:root[data-theme="dark"] .study-heatmap-key i,
+.student-app-shell[data-theme="dark"] .study-heatmap-key i {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+:root[data-theme="dark"] .study-heatmap-key i:nth-child(2),
+.student-app-shell[data-theme="dark"] .study-heatmap-key i:nth-child(2) {
+  background: rgba(245, 158, 11, 0.28);
+}
+
+:root[data-theme="dark"] .study-heatmap-key i:nth-child(3),
+.student-app-shell[data-theme="dark"] .study-heatmap-key i:nth-child(3) {
+  background: rgba(245, 158, 11, 0.55);
+}
+
 /* ============================================================
-   READINESS CARD (deep navy)
+   EXAM READINESS CARD — branded "feature" card
+   Dark navy gradient in both modes for premium feel.
    ============================================================ */
 .study-readiness-card {
   position: relative;
   display: grid;
-  grid-template-columns: 60px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   gap: 16px;
   align-items: center;
-  margin-top: 12px;
+  margin-top: 14px;
   overflow: hidden;
-  padding: 18px;
-  border: 0;
-  background: var(--sa-ink);
-  color: #ffffff;
+  padding: 20px;
+  border-radius: var(--sa-radius-xl);
+  color: #fff;
+  /* Light mode default — vivid blue gradient, white text reads cleanly */
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  background: linear-gradient(140deg, #2563eb 0%, #3b82f6 50%, #1d4ed8 100%);
+  box-shadow:
+    0 0 0 1px rgba(37, 99, 235, 0.14),
+    0 18px 40px -14px rgba(37, 99, 235, 0.42);
 }
 
-:root[data-theme="dark"] .dashboard-page .study-readiness-card,
-.student-app-shell[data-theme="dark"] .dashboard-page .study-readiness-card {
-  background: #050714;
+:root[data-theme="dark"] .study-readiness-card,
+.student-app-shell[data-theme="dark"] .study-readiness-card {
+  border-color: rgba(56,189,248,.18);
+  background: linear-gradient(140deg, #0c1c3e 0%, #0a1530 60%, #081024 100%);
+  box-shadow:
+    0 0 0 1px rgba(56,189,248,.08),
+    0 24px 48px -12px rgba(0,0,0,.65);
 }
 
 .study-readiness-glow {
@@ -440,7 +793,7 @@
   right: -50px;
   width: 180px;
   height: 180px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.34), transparent 65%);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22), transparent 65%);
 }
 
 .study-readiness-glow--two {
@@ -448,19 +801,38 @@
   left: -40px;
   width: 140px;
   height: 140px;
-  background: radial-gradient(circle, rgba(61, 90, 254, 0.32), transparent 65%);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.2), transparent 65%);
 }
 
 .study-readiness-icon {
   position: relative;
   display: inline-grid;
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
   place-items: center;
-  border-radius: 18px;
+  border-radius: 20px;
+  /* Light mode — white glass icon block on vivid blue card */
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 8px 22px -6px rgba(0, 0, 0, 0.18);
+}
+
+:root[data-theme="dark"] .study-readiness-icon,
+.student-app-shell[data-theme="dark"] .study-readiness-icon {
   background: var(--sa-grad);
-  color: #ffffff;
-  box-shadow: 0 8px 22px -6px rgba(61, 90, 254, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 0;
+  box-shadow:
+    0 8px 22px -6px rgba(56, 189, 248, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.study-readiness-icon svg {
+  width: 28px;
+  height: 28px;
 }
 
 .study-readiness-copy {
@@ -474,30 +846,34 @@
   align-items: center;
   margin-bottom: 4px;
 }
+
 .study-readiness-meta .study-eyebrow,
 .study-readiness-meta span {
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.52);
   font-size: 10px;
   font-weight: 800;
+  letter-spacing: 0.5px;
 }
 
 .study-readiness-card__score {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 5px;
+  margin-bottom: 10px;
 }
+
 .study-readiness-card__score strong {
-  color: #ffffff;
+  color: #fff;
   font-family: var(--sa-font-display);
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 800;
   line-height: 1;
-  letter-spacing: -0.8px;
+  letter-spacing: -1px;
 }
+
 .study-readiness-card__score span {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -505,13 +881,26 @@
   height: 5px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  /* On the vivid blue card in light mode, lighter rail track works better */
+  background: rgba(255, 255, 255, 0.22);
 }
+
 .study-large-rail span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--sa-grad);
+  /* In light mode the card itself is blue, so the fill is white-cyan */
+  background: linear-gradient(90deg, #ffffff, #cfe9ff);
+}
+
+:root[data-theme="dark"] .study-large-rail,
+.student-app-shell[data-theme="dark"] .study-large-rail {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .study-large-rail span,
+.student-app-shell[data-theme="dark"] .study-large-rail span {
+  background: linear-gradient(90deg, #3b82f6, #38bdf8);
 }
 
 .study-readiness-foot {
@@ -519,9 +908,201 @@
   justify-content: space-between;
   gap: 12px;
   margin-top: 6px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
   font-size: 10px;
   font-weight: 800;
+}
+
+/* ============================================================
+   READINESS + TODO STACK
+   ============================================================ */
+.study-readiness-stack {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.study-readiness-stack > .study-readiness-card {
+  margin-top: 0;
+}
+
+.study-todo-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 66px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border-color: rgba(var(--sa-primary-rgb), 0.16);
+  background: var(--sa-surface);
+  box-shadow: var(--sa-shadow-card);
+}
+
+.study-todo-copy {
+  min-width: 0;
+}
+
+.study-todo-copy strong,
+.study-todo-copy small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.study-todo-copy strong {
+  margin-top: 2px;
+  color: var(--sa-ink);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.study-todo-copy small {
+  margin-top: 3px;
+  color: var(--sa-text-2);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.study-todo-action {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 12px;
+  white-space: nowrap;
+  transition:
+    background var(--sa-dur) var(--sa-ease),
+    color var(--sa-dur) var(--sa-ease),
+    transform var(--sa-dur) var(--sa-ease);
+}
+
+.study-todo-action:hover {
+  background: rgba(var(--sa-primary-rgb), 0.14);
+}
+
+.study-todo-action:active {
+  transform: scale(0.97);
+}
+
+.study-todo-action:focus-visible {
+  outline: 2px solid var(--sa-primary);
+  outline-offset: 2px;
+}
+
+:root[data-theme="dark"] .study-todo-card,
+.student-app-shell[data-theme="dark"] .study-todo-card {
+  border-color: rgba(122, 183, 255, 0.12);
+  background: var(--sa-surface);
+}
+
+/* ============================================================
+   STUDY MOOD CARD
+   ============================================================ */
+.study-mood-card {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  overflow: hidden;
+  padding: 18px;
+  border-radius: 16px;
+  border-color: rgba(var(--sa-primary-rgb), 0.16);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), var(--sa-surface)),
+    var(--sa-surface);
+}
+
+.study-mood-orbit {
+  position: absolute;
+  right: -34px;
+  top: -42px;
+  width: 128px;
+  height: 128px;
+  border: 1px solid rgba(var(--sa-primary-rgb), 0.18);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.study-mood-orbit::before {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--sa-primary);
+  box-shadow: 0 0 22px rgba(var(--sa-primary-rgb), 0.46);
+  content: "";
+}
+
+.study-mood-main {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.study-mood-main strong {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  color: var(--sa-ink);
+  font-family: var(--sa-font-display);
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.study-mood-card p {
+  position: relative;
+  max-width: 48rem;
+  margin: 0;
+  color: var(--sa-text-2);
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.45;
+}
+
+.study-mood-meter {
+  position: relative;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--sa-surface-2);
+}
+
+.study-mood-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sa-primary), #38bdf8);
+}
+
+.study-mood-card small {
+  position: relative;
+  color: var(--sa-text-3);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+:root[data-theme="dark"] .study-mood-card,
+.student-app-shell[data-theme="dark"] .study-mood-card {
+  background:
+    linear-gradient(135deg, rgba(23, 37, 84, 0.14), var(--sa-surface)),
+    var(--sa-surface);
 }
 
 /* ============================================================
@@ -532,7 +1113,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 16px 4px 12px;
+  margin: 20px 4px 12px;
 }
 
 .study-section-head small {
@@ -548,21 +1129,33 @@
    ============================================================ */
 .study-action-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
 .study-action-card {
   position: relative;
-  min-height: 130px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 82px;
   padding: 14px;
   cursor: pointer;
   text-align: left;
-  transition: background var(--sa-dur) var(--sa-ease), border-color var(--sa-dur) var(--sa-ease), color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease), box-shadow var(--sa-dur) var(--sa-ease);
+  border: 1px solid var(--sa-border);
+  border-radius: 14px;
+  background: var(--sa-surface);
+  box-shadow: var(--sa-shadow-card);
+  transition:
+    background    var(--sa-dur) var(--sa-ease),
+    border-color  var(--sa-dur) var(--sa-ease),
+    transform     var(--sa-dur) var(--sa-ease),
+    box-shadow    var(--sa-dur) var(--sa-ease);
 }
 
 .study-action-card:hover {
-  border-color: color-mix(in srgb, var(--sa-primary) 22%, var(--sa-border));
+  border-color: rgba(56, 189, 248, 0.24);
   box-shadow: var(--sa-shadow-card-hover);
 }
 
@@ -571,40 +1164,80 @@
   outline-offset: 2px;
 }
 
+/* Icon badge — card 1: cyan, card 2: electric blue, card 3: indigo */
 .study-action-card > span {
   display: inline-grid;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
+  grid-column: 1;
+  grid-row: 1;
   place-items: center;
   border-radius: 12px;
-  margin-bottom: 36px;
+  margin-bottom: 0;
   background: var(--sa-primary-soft);
   color: var(--sa-primary);
 }
 
-.study-action-card:nth-child(2) > span { background: var(--sa-purple-soft); color: var(--sa-purple); }
-.study-action-card:nth-child(3) > span { background: var(--sa-warn-soft);   color: var(--sa-warn);   }
+.study-action-card:nth-child(2) > span {
+  background: rgba(59, 130, 246, 0.16);
+  color: #3b82f6;
+}
 
+.study-action-card:nth-child(3) > span {
+  background: var(--sa-purple-soft);
+  color: var(--sa-purple);
+}
+
+/* Count badge — top-right */
 .study-action-card em {
-  position: absolute;
-  top: 14px;
-  right: 14px;
+  position: static;
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
   color: var(--sa-primary);
   font-size: 18px;
   font-style: normal;
   font-weight: 900;
   line-height: 1;
 }
-.study-action-card:nth-child(2) em { color: var(--sa-purple); }
-.study-action-card:nth-child(3) em { color: var(--sa-warn); }
 
+.study-action-card:nth-child(2) em { color: #3b82f6; }
+.study-action-card:nth-child(3) em { color: var(--sa-purple); }
+
+/* Label */
 .study-action-card strong {
   display: block;
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--sa-ink);
   font-size: 13px;
   font-weight: 900;
+  line-height: 1.2;
+}
+
+/* ============================================================
+   CARD HEAD — used by DailyQuestionCard (hidden there) and
+   TopicList when rendered.
+   ============================================================ */
+.study-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.study-card__head > div { min-width: 0; }
+
+.study-card__head h2 {
+  margin: 4px 0 0;
+  color: var(--sa-ink);
+  font-family: var(--sa-font-display);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
   line-height: 1.2;
 }
 
@@ -623,29 +1256,36 @@
   margin: 0 0 16px;
   overflow-wrap: anywhere;
   color: var(--sa-ink);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 850;
-  line-height: 1.32;
+  line-height: 1.35;
   letter-spacing: -0.1px;
 }
 
 .study-answer-list { display: grid; gap: 9px; }
 
 .study-answer-option {
+  position: relative;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   width: 100%;
-  min-height: 56px;
+  min-height: 52px;
   border: 1px solid var(--sa-border-soft);
   border-radius: 15px;
   padding: 10px 12px;
   background: var(--sa-surface-2);
   color: var(--sa-ink);
   cursor: pointer;
+  overflow: visible;
   text-align: left;
-  transition: background var(--sa-dur) var(--sa-ease), border-color var(--sa-dur) var(--sa-ease), color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease);
+  transition:
+    background    var(--sa-dur) var(--sa-ease),
+    border-color  var(--sa-dur) var(--sa-ease),
+    box-shadow    var(--sa-dur) var(--sa-ease),
+    color         var(--sa-dur) var(--sa-ease),
+    transform     var(--sa-dur) var(--sa-ease);
 }
 
 .study-answer-option:focus-visible {
@@ -658,7 +1298,7 @@
   width: 34px;
   height: 34px;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--sa-surface);
   color: var(--sa-primary);
   font-size: 13px;
@@ -675,24 +1315,98 @@
 }
 
 .study-answer-option.is-correct {
-  border-color: color-mix(in srgb, var(--sa-ok) 38%, var(--sa-border));
-  background: var(--sa-ok-soft);
+  border-color: rgba(var(--sa-ok-rgb), 0.3);
+  background:
+    linear-gradient(rgba(var(--sa-ok-rgb), 0.1), rgba(var(--sa-ok-rgb), 0.1)),
+    var(--sa-surface-2);
 }
 .study-answer-option.is-correct > span {
-  background: var(--sa-ok);
-  color: #ffffff;
+  border: 1px solid rgba(var(--sa-ok-rgb), 0.22);
+  background:
+    linear-gradient(rgba(var(--sa-ok-rgb), 0.16), rgba(var(--sa-ok-rgb), 0.16)),
+    var(--sa-surface);
+  color: var(--sa-ok-deep);
 }
 
 .study-answer-option.is-wrong {
-  border-color: color-mix(in srgb, var(--sa-danger) 38%, var(--sa-border));
-  background: var(--sa-danger-soft);
+  border-color: rgba(var(--sa-danger-rgb), 0.3);
+  background:
+    linear-gradient(rgba(var(--sa-danger-rgb), 0.09), rgba(var(--sa-danger-rgb), 0.09)),
+    var(--sa-surface-2);
 }
 .study-answer-option.is-wrong > span {
-  background: var(--sa-danger);
-  color: #ffffff;
+  border: 1px solid rgba(var(--sa-danger-rgb), 0.22);
+  background:
+    linear-gradient(rgba(var(--sa-danger-rgb), 0.14), rgba(var(--sa-danger-rgb), 0.14)),
+    var(--sa-surface);
+  color: var(--sa-danger-deep);
 }
 
-.study-answer-option.is-muted { opacity: 0.55; }
+.study-answer-option.is-selected {
+  box-shadow: 0 0 0 3px rgba(var(--sa-primary-rgb), 0.09);
+}
+
+.study-answer-option.is-selected.is-correct {
+  padding-right: 54px;
+  box-shadow: 0 0 0 3px rgba(var(--sa-ok-rgb), 0.14);
+}
+
+.study-answer-option.is-selected.is-wrong {
+  box-shadow: 0 0 0 3px rgba(var(--sa-danger-rgb), 0.12);
+}
+
+.study-answer-option.is-shaking {
+  animation: study-answer-shake 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.study-correct-burst {
+  position: absolute;
+  top: -18px;
+  right: -18px;
+  z-index: 2;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  color: #facc15;
+  filter:
+    drop-shadow(0 7px 12px rgba(245, 158, 11, 0.36))
+    drop-shadow(0 0 1px rgba(146, 64, 14, 0.2));
+  pointer-events: none;
+  animation: study-correct-badge-flight 6000ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.study-correct-burst::before,
+.study-correct-burst::after {
+  position: absolute;
+  z-index: -1;
+  right: 7px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fde68a;
+  box-shadow:
+    -13px 5px 0 rgba(250, 204, 21, 0.72),
+    -23px 0 0 rgba(245, 158, 11, 0.48),
+    4px -8px 0 rgba(254, 240, 138, 0.72);
+  content: "";
+  animation: study-correct-yellow-puff 6000ms ease-out both;
+}
+
+.study-correct-burst::after {
+  right: 19px;
+  bottom: 0;
+  width: 9px;
+  height: 9px;
+  animation-delay: 120ms;
+}
+
+.study-correct-burst svg {
+  width: 34px;
+  height: 34px;
+  fill: currentColor;
+}
 
 .study-answer-reveal {
   margin-top: 12px;
@@ -711,7 +1425,7 @@
 
 .study-empty-copy {
   margin: 0;
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 14px;
   background: var(--sa-surface-2);
   color: var(--sa-text-2);
@@ -721,7 +1435,7 @@
 }
 
 /* ============================================================
-   LOADING / ERROR
+   LOADING / ERROR STATES
    ============================================================ */
 .study-loading-card,
 .study-error-card {
@@ -741,13 +1455,14 @@
 .study-loader {
   width: 42px;
   height: 42px;
-  border: 4px solid color-mix(in srgb, var(--sa-primary) 14%, transparent);
+  border: 4px solid rgba(56, 189, 248, 0.14);
   border-top-color: var(--sa-primary);
   border-radius: 999px;
   animation: study-spin 880ms linear infinite;
 }
 
 .study-error-card { gap: 14px; }
+
 .study-error-card h1 {
   margin: 0 0 5px;
   color: var(--sa-ink);
@@ -755,6 +1470,7 @@
   font-size: 20px;
   font-weight: 800;
 }
+
 .study-error-card p {
   margin: 0;
   color: var(--sa-text-2);
@@ -762,6 +1478,9 @@
   font-weight: 750;
 }
 
+/* ============================================================
+   SOFT ICON BADGES
+   ============================================================ */
 .study-soft-icon {
   display: inline-grid;
   width: 44px;
@@ -771,15 +1490,16 @@
   background: var(--sa-primary-soft);
   color: var(--sa-primary);
 }
-.study-soft-icon--indigo { background: var(--sa-primary-soft); color: var(--sa-primary); }
-.study-soft-icon--cyan   { background: rgba(14, 165, 233, 0.12); color: #0ea5e9; }
-.study-soft-icon--violet { background: var(--sa-purple-soft); color: var(--sa-purple); }
-.study-soft-icon--amber  { background: var(--sa-warn-soft); color: var(--sa-warn); }
-.study-soft-icon--danger { background: var(--sa-danger-soft); color: var(--sa-danger); }
-.study-soft-icon--strong { background: var(--sa-primary-soft); color: var(--sa-primary); }
+
+.study-soft-icon--indigo { background: var(--sa-primary-soft);              color: var(--sa-primary); }
+.study-soft-icon--cyan   { background: rgba(56, 189, 248, 0.14);            color: #38bdf8; }
+.study-soft-icon--violet { background: var(--sa-purple-soft);               color: var(--sa-purple); }
+.study-soft-icon--amber  { background: var(--sa-warn-soft);                 color: var(--sa-warn); }
+.study-soft-icon--danger { background: var(--sa-danger-soft);               color: var(--sa-danger); }
+.study-soft-icon--strong { background: var(--sa-primary-soft);              color: var(--sa-primary); }
 
 /* ============================================================
-   PRESS / ACTIVE FEEDBACK
+   PRESS FEEDBACK
    ============================================================ */
 .study-icon-button:active,
 .study-button:active,
@@ -793,38 +1513,93 @@
   to { transform: rotate(360deg); }
 }
 
+@keyframes study-answer-shake {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(-7px) rotate(-0.6deg); }
+  36% { transform: translateX(6px) rotate(0.6deg); }
+  54% { transform: translateX(-4px) rotate(-0.35deg); }
+  72% { transform: translateX(3px) rotate(0.25deg); }
+}
+
+@keyframes study-correct-badge-flight {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.72) rotate(-10deg);
+  }
+  7% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1.12) rotate(0deg);
+  }
+  33% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  66% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -150px, 0) scale(1.08) rotate(10deg);
+  }
+}
+
+@keyframes study-correct-yellow-puff {
+  0%, 31% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.55);
+  }
+  39% {
+    opacity: 0.95;
+    transform: translate3d(-4px, 4px, 0) scale(1);
+  }
+  62% {
+    opacity: 0.82;
+    transform: translate3d(-12px, 12px, 0) scale(1.42);
+  }
+  66%, 100% {
+    opacity: 0;
+    transform: translate3d(-22px, 22px, 0) scale(1.9);
+  }
+}
+
 /* ============================================================
    RESPONSIVE
    ============================================================ */
 
-/* Small mobile */
-@media (max-width: 360px) {
-  .study-hub-shell { width: min(100% - 18px, 390px); }
-  .study-continue-card { padding: 20px; }
-  .study-hero-name { font-size: 32px; }
-  .study-action-card {
-    min-height: 122px;
-    padding: 12px;
+/* Small mobile — 320–360px */
+@media (max-width: 640px) {
+  .study-hub-shell {
+    padding: var(
+      --sa-page-padding-compact,
+      calc(12px + env(safe-area-inset-top, 0px)) 0 calc(var(--lms-mobile-content-bottom, 92px) + 24px + env(safe-area-inset-bottom, 0px))
+    );
   }
 }
 
-/* Tablet — wider container, side-by-side metric/streak */
+@media (max-width: 360px) {
+  .study-hub-shell { width: var(--sa-page-width-compact, min(100% - 18px, 390px)); }
+  .study-continue-card { padding: 20px; }
+  .study-hero-name { font-size: 32px; letter-spacing: -1px; }
+  .study-action-card { min-height: 78px; padding: 12px; }
+}
+
+/* Tablet */
 @media (min-width: 760px) {
-  .study-hub-shell {
-    width: min(720px, calc(100% - 32px));
-  }
-
+  .study-hub-shell    { width: var(--sa-page-width-tablet, min(720px, calc(100% - 32px))); }
   .study-continue-card { min-height: 244px; }
-
-  .study-action-grid { gap: 14px; }
-
+  .study-action-grid  { grid-template-columns: repeat(3, 1fr); }
+  .study-action-grid  { gap: 14px; }
   .study-question-card { padding: 24px; }
 }
 
-/* Desktop — 2-column dashboard grid */
+/* Desktop — 2-column grid */
 @media (min-width: 1080px) {
   .study-hub-shell {
-    width: min(1080px, calc(100% - 48px));
+    width: var(--sa-page-width-desktop, min(1080px, calc(100% - 48px)));
+  }
+
+  .dashboard-page > .study-hub-shell {
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     grid-column-gap: 20px;
@@ -832,21 +1607,24 @@
     align-items: start;
   }
 
-  .study-hub-topbar { grid-column: 1 / -1; padding-bottom: 4px; }
+  .study-hub-topbar    { grid-column: 1 / -1; padding-bottom: 4px; }
   .study-continue-card { grid-column: 1 / -1; min-height: 220px; }
 
   .study-streak-card,
-  .study-readiness-card {
-    margin-top: 0;
+  .study-readiness-stack,
+  .study-mood-card { margin-top: 0; }
+  .study-streak-card    { grid-column: 1 / 2; align-self: stretch; }
+  .study-readiness-stack {
+    grid-column: 2 / 3;
+    align-self: stretch;
+    grid-template-rows: minmax(132px, 1fr) auto;
   }
-  .study-streak-card { grid-column: 1 / 2; }
-  .study-readiness-card { grid-column: 2 / 3; min-height: 132px; }
+  .study-readiness-stack > .study-readiness-card { min-height: 132px; }
+  .study-mood-card      { grid-column: 1 / -1; }
 
-  .study-section-head { grid-column: 1 / -1; margin: 12px 4px 4px; }
+  .study-section-head          { grid-column: 1 / -1; margin: 12px 4px 4px; }
   .study-section-head--question { margin-top: 12px; }
-
-  .study-action-grid { grid-column: 1 / -1; }
-
+  .study-action-grid   { grid-column: 1 / -1; }
   .study-question-card { grid-column: 1 / -1; margin-top: 0; }
 }
 
@@ -861,4 +1639,567 @@
   .study-answer-option {
     transition: none;
   }
+}
+
+/* ============================================================
+   VIOLET ACCENT — repaint hardcoded cyan dashboard accents
+   when <html data-student-accent="violet">.
+   ============================================================ */
+:root[data-student-accent="violet"] .study-continue-card {
+  border-color: rgba(139, 92, 246, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.06),
+    0 24px 56px -12px rgba(4, 8, 24, 0.7);
+}
+
+:root[data-student-accent="violet"] .study-hero-soft-shape {
+  background: radial-gradient(
+    circle at center,
+    rgba(139, 92, 246, 0.18) 0%,
+    rgba(99, 102, 241, 0.1) 55%,
+    transparent 75%
+  );
+}
+
+:root[data-student-accent="violet"] .study-hero-stetho {
+  color: #a78bfa;
+}
+
+:root[data-student-accent="violet"] .study-hero-name strong {
+  background: linear-gradient(135deg, #b8c1ff 0%, #6c83ff 45%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+:root[data-student-accent="violet"] .study-readiness-card {
+  border-color: rgba(139,92,246,.2);
+  background: linear-gradient(140deg,#1a1240 0%,#14123a 60%,#0e0c2b 100%);
+  box-shadow:
+    0 0 0 1px rgba(139,92,246,.08),
+    0 18px 40px -14px rgba(4,8,24,.45);
+}
+
+:root[data-student-accent="violet"] .study-readiness-glow--one {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.22), transparent 65%);
+}
+:root[data-student-accent="violet"] .study-readiness-glow--two {
+  background: radial-gradient(circle, rgba(108, 131, 255, 0.2), transparent 65%);
+}
+
+:root[data-student-accent="violet"] .study-large-rail span {
+  background: linear-gradient(90deg, #6c83ff, #a78bfa);
+}
+
+:root[data-student-accent="violet"] .study-action-card:nth-child(2) > span {
+  background: rgba(108, 131, 255, 0.16);
+  color: #6c83ff;
+}
+:root[data-student-accent="violet"] .study-action-card:nth-child(2) em {
+  color: #6c83ff;
+}
+
+/* ============================================================
+   POLISH LAYER — ui-ux-pro-max recommendations
+   Liquid Glass + Modern Dark Cinema motifs.
+   Atmospheric blobs · staggered entrance · refined hover ·
+   progress rail reveal · streak flame breathe.
+   All wrapped in prefers-reduced-motion respect at the bottom.
+   ============================================================ */
+
+/* ── Ambient atmospheric blobs (fixed, behind content) ─────────── */
+.dashboard-page,
+.student-route-page {
+  position: relative;
+  overflow-x: clip;
+}
+
+.dashboard-page::before,
+.dashboard-page::after,
+.student-route-page::before,
+.student-route-page::after {
+  content: '';
+  position: fixed;
+  border-radius: 999px;
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+
+.dashboard-page::before,
+.student-route-page::before {
+  top: -14%;
+  right: -10%;
+  width: 380px;
+  height: 380px;
+  /* Adapts to active accent (blue or violet) via --sa-primary-rgb */
+  background: radial-gradient(circle at center, rgba(var(--sa-primary-rgb), 0.16) 0%, transparent 70%);
+  animation: study-blob-drift-a 22s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+}
+
+.dashboard-page::after,
+.student-route-page::after {
+  bottom: -12%;
+  left: -12%;
+  width: 340px;
+  height: 340px;
+  /* Secondary blob — adapts to active accent's secondary via --sa-purple-rgb */
+  background: radial-gradient(circle at center, rgba(var(--sa-purple-rgb), 0.12) 0%, transparent 70%);
+  animation: study-blob-drift-b 26s cubic-bezier(0.45, 0.05, 0.55, 0.95) -10s infinite alternate;
+}
+
+/* Lift visible content above the blobs */
+.study-hub-shell {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes study-blob-drift-a {
+  0%   { transform: translate3d(0, 0, 0)         scale(1); }
+  100% { transform: translate3d(-32px, 28px, 0)  scale(1.08); }
+}
+@keyframes study-blob-drift-b {
+  0%   { transform: translate3d(0, 0, 0)        scale(1); }
+  100% { transform: translate3d(28px, -22px, 0) scale(1.1); }
+}
+
+/* Light mode — soften the blob alpha so they don't muddy the pastel.
+   Same hue source (--sa-primary-rgb / --sa-purple-rgb), lower opacity. */
+:root:not([data-theme="dark"]) .dashboard-page::before,
+:root:not([data-theme="dark"]) .student-route-page::before,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page::before,
+:root:not([data-theme="dark"]) .student-app-shell .student-route-page::before {
+  background: radial-gradient(circle at center, rgba(var(--sa-primary-rgb), 0.1) 0%, transparent 70%);
+}
+
+:root:not([data-theme="dark"]) .dashboard-page::after,
+:root:not([data-theme="dark"]) .student-route-page::after,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page::after,
+:root:not([data-theme="dark"]) .student-app-shell .student-route-page::after {
+  background: radial-gradient(circle at center, rgba(var(--sa-purple-rgb), 0.08) 0%, transparent 70%);
+}
+
+/* ── Staggered fade-up entrance for dashboard sections ─────────── */
+@keyframes study-fade-up {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.study-hub-shell > .study-continue-card,
+.study-hub-shell > .study-streak-card,
+.study-hub-shell > .study-readiness-stack,
+.study-hub-shell > .study-section-head,
+.study-hub-shell > .study-action-grid,
+.study-hub-shell > .study-question-card {
+  animation: study-fade-up 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.study-hub-shell > .study-continue-card           { animation-delay:  40ms; }
+.study-hub-shell > .study-streak-card             { animation-delay: 130ms; }
+.study-hub-shell > .study-readiness-stack         { animation-delay: 210ms; }
+.study-hub-shell > .study-section-head            { animation-delay: 280ms; }
+.study-hub-shell > .study-action-grid             { animation-delay: 330ms; }
+.study-hub-shell > .study-section-head--question  { animation-delay: 380ms; }
+.study-hub-shell > .study-question-card           { animation-delay: 430ms; }
+
+/* Topbar fades in without lift so it doesn't feel jumpy */
+@keyframes study-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.study-hub-shell > .study-hub-topbar {
+  animation: study-fade-in 380ms ease-out both;
+}
+
+/* ── Refined hover/press for action cards ──────────────────────── */
+.study-action-card {
+  transition:
+    transform    220ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow   220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease;
+  will-change: transform;
+}
+
+.study-action-card:hover {
+  transform: translateY(-2px);
+  /* Adapts to active accent — blue or violet — via --sa-primary-rgb */
+  border-color: rgba(var(--sa-primary-rgb), 0.28);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.04),
+    0 16px 36px -14px rgba(var(--sa-primary-rgb), 0.28);
+}
+
+:root[data-theme="dark"] .study-action-card:hover,
+.student-app-shell[data-theme="dark"] .study-action-card:hover {
+  border-color: rgba(var(--sa-primary-rgb), 0.32);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.5),
+    0 18px 38px -14px rgba(var(--sa-primary-rgb), 0.22);
+}
+
+.study-action-card:hover > span {
+  transform: scale(1.06);
+}
+
+.study-action-card > span {
+  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hero card subtle lift on hover */
+.study-continue-card {
+  transition:
+    transform  260ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.study-continue-card:hover {
+  transform: translateY(-1px);
+}
+
+/* ── Readiness progress rail — animate from 0 to value ─────────── */
+@keyframes study-rail-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.study-large-rail span {
+  transform-origin: left center;
+  animation: study-rail-grow 1100ms cubic-bezier(0.16, 1, 0.3, 1) 560ms both;
+}
+
+/* ── Streak flame animation lives in the dedicated fire block above
+       (studyFireGlow + studyFireFlicker + studyFlameBody + studyFireEmbers).
+       Don't override it here — that block is more refined. ─────── */
+
+/* ── Hero name — one-time shimmer sweep on mount ───────────────── */
+@keyframes study-name-shimmer {
+  0%   { background-position: -100% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.study-hero-name strong {
+  background-size: 220% 100%;
+  animation: study-name-shimmer 1800ms cubic-bezier(0.4, 0, 0.2, 1) 700ms 1 both;
+}
+
+/* ── Refined readiness icon — soft inner glow in light mode ────── */
+.study-readiness-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.32), transparent 65%);
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+:root[data-theme="dark"] .study-readiness-icon::after,
+.student-app-shell[data-theme="dark"] .study-readiness-icon::after {
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.22), transparent 70%);
+}
+
+/* ── Reduced motion: disable all decorative motion ─────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page::before,
+  .dashboard-page::after,
+  .student-route-page::before,
+  .student-route-page::after,
+  .study-streak-icon,
+  .study-hero-name strong,
+  .study-large-rail span,
+  .study-hub-shell > .study-continue-card,
+  .study-hub-shell > .study-streak-card,
+  .study-hub-shell > .study-readiness-stack,
+  .study-hub-shell > .study-section-head,
+  .study-hub-shell > .study-action-grid,
+  .study-hub-shell > .study-question-card,
+  .study-hub-shell > .study-hub-topbar,
+  .study-answer-option.is-shaking,
+  .study-correct-burst {
+    animation: none !important;
+  }
+
+  .study-action-card,
+  .study-continue-card,
+  .study-action-card > span {
+    transition: none !important;
+  }
+
+  .study-action-card:hover,
+  .study-continue-card:hover {
+    transform: none;
+  }
+
+  .study-large-rail span {
+    transform: scaleX(1);
+  }
+}
+
+/* ============================================================
+   HERO MOTIF LIBRARY — one of five SVG decorations picked
+   at random on mount. Each is theme/accent adaptive.
+   ============================================================ */
+
+.study-hero-motif {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── 1. Sonar pulse rings (from stethoscope) ──────────────────── */
+.study-hero-motif--sonar {
+  top: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  display: block;
+}
+
+.study-hero-sonar-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 1.5px solid rgba(var(--sa-primary-rgb), 0.42);
+  opacity: 0;
+  animation: study-sonar-pulse 3.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.study-hero-sonar-ring:nth-child(2) { animation-delay: 1.2s; }
+.study-hero-sonar-ring:nth-child(3) { animation-delay: 2.4s; }
+
+:root[data-theme="dark"] .study-hero-sonar-ring,
+.student-app-shell[data-theme="dark"] .study-hero-sonar-ring {
+  border-color: rgba(var(--sa-primary-rgb), 0.5);
+}
+
+@keyframes study-sonar-pulse {
+  0%   { transform: scale(0.4); opacity: 0; }
+  20%  { opacity: 0.7; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* ── 2. DNA double helix — top-right, BELOW the stethoscope ───
+   Sits in the safe zone between stethoscope (top) and buttons (bottom).
+   ──────────────────────────────────────────────────────────────── */
+.study-hero-motif--dna {
+  top: 86px;
+  right: 14px;
+  width: 46px;
+  height: 76px;
+  color: var(--sa-primary);
+  opacity: 0.34;
+  animation: study-dna-spin 40s linear infinite;
+}
+
+:root[data-theme="dark"] .study-hero-motif--dna,
+.student-app-shell[data-theme="dark"] .study-hero-motif--dna {
+  opacity: 0.42;
+}
+
+.study-hero-dna-strand--b {
+  color: var(--sa-purple);
+}
+
+@keyframes study-dna-spin {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(360deg); }
+}
+
+/* ── 3. Caduceus watermark behind name ────────────────────────── */
+.study-hero-motif--caduceus {
+  top: 50%;
+  left: 50%;
+  width: 220px;
+  height: 220px;
+  transform: translate(-50%, -50%);
+  color: var(--sa-primary);
+  opacity: 0.06;
+}
+
+:root[data-theme="dark"] .study-hero-motif--caduceus,
+.student-app-shell[data-theme="dark"] .study-hero-motif--caduceus {
+  opacity: 0.09;
+}
+
+/* ── 4. Aurora gradient wash ──────────────────────────────────── */
+.study-hero-motif--aurora {
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  display: block;
+}
+
+.study-hero-aurora-band {
+  position: absolute;
+  inset: -30% -30%;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(var(--sa-primary-rgb), 0.18) 45%,
+    rgba(var(--sa-purple-rgb), 0.16) 55%,
+    transparent 70%
+  );
+  filter: blur(28px);
+  animation: study-aurora-drift 18s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+}
+
+.study-hero-aurora-band--b {
+  background: linear-gradient(
+    245deg,
+    transparent 30%,
+    rgba(var(--sa-purple-rgb), 0.14) 50%,
+    transparent 70%
+  );
+  animation-duration: 22s;
+  animation-delay: -7s;
+}
+
+:root:not([data-theme="dark"]) .study-hero-aurora-band,
+:root:not([data-theme="dark"]) .student-app-shell .study-hero-aurora-band {
+  opacity: 0.7;
+}
+
+@keyframes study-aurora-drift {
+  0%   { transform: translate3d(-8%, -6%, 0) rotate(0deg); }
+  100% { transform: translate3d(8%, 6%, 0)   rotate(8deg); }
+}
+
+/* ── 5. EKG / heartbeat trace — top monitor strip ─────────────
+   Moved from the bottom (was under the action buttons) to the
+   upper area, sitting behind the eyebrow as a "vital monitor"
+   reading. Stops short of the stethoscope on the right.
+   ──────────────────────────────────────────────────────────── */
+.study-hero-motif--ekg {
+  top: 90px;
+  left: 24px;
+  right: 24px;
+  width: calc(100% - 48px);
+  height: 38px;
+  color: var(--sa-primary);
+  opacity: 0.32;
+  display: block;
+}
+
+:root[data-theme="dark"] .study-hero-motif--ekg,
+.student-app-shell[data-theme="dark"] .study-hero-motif--ekg {
+  color: #38bdf8;
+  opacity: 0.6;
+}
+
+.study-hero-ekg-trace {
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  animation: study-ekg-draw 5.5s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(var(--sa-primary-rgb), 0.45));
+}
+
+@keyframes study-ekg-draw {
+  0%   { stroke-dashoffset: 1400; }
+  60%  { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -1400; }
+}
+
+/* Hero copy must stay above any motif */
+.study-continue-card__copy {
+  z-index: 2;
+}
+
+/* ============================================================
+   FLOATING DUST PARTICLES — dark-mode atmospheric layer
+   ============================================================ */
+.study-dust-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  display: none;
+}
+
+:root[data-theme="dark"] .study-dust-layer,
+.student-app-shell[data-theme="dark"] .study-dust-layer {
+  display: block;
+}
+
+.study-dust-particle {
+  position: absolute;
+  bottom: -10px;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(var(--sa-primary-rgb), 0.55);
+  box-shadow: 0 0 6px rgba(var(--sa-primary-rgb), 0.45);
+  opacity: 0;
+  animation-name: study-dust-rise;
+  animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+  animation-iteration-count: infinite;
+}
+
+.study-dust-particle:nth-child(3n) {
+  width: 2px;
+  height: 2px;
+  background: rgba(var(--sa-purple-rgb), 0.5);
+  box-shadow: 0 0 5px rgba(var(--sa-purple-rgb), 0.4);
+}
+
+.study-dust-particle:nth-child(5n) {
+  width: 4px;
+  height: 4px;
+}
+
+@keyframes study-dust-rise {
+  0%   { transform: translate3d(0, 0, 0)          scale(0.6); opacity: 0; }
+  15%  { opacity: 0.8; }
+  85%  { opacity: 0.4; }
+  100% { transform: translate3d(-12px, -110vh, 0) scale(1.1); opacity: 0; }
+}
+
+/* ============================================================
+   QUESTION CARD EMPTY STATE — illustrated SVG
+   ============================================================ */
+.study-question-empty {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  padding: 24px 16px 8px;
+  text-align: center;
+}
+
+.study-question-empty-art {
+  width: 96px;
+  height: auto;
+  color: var(--sa-primary);
+  opacity: 0.55;
+}
+
+.study-question-empty p {
+  margin: 0;
+  max-width: 28ch;
+  color: var(--sa-text-2);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+:root[data-theme="dark"] .study-question-empty-art,
+.student-app-shell[data-theme="dark"] .study-question-empty-art {
+  opacity: 0.72;
+}
+
+/* ============================================================
+   REDUCED MOTION — disable new decorative motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .study-hero-sonar-ring,
+  .study-hero-motif--dna,
+  .study-hero-aurora-band,
+  .study-hero-ekg-trace,
+  .study-dust-particle {
+    animation: none !important;
+  }
+
+  .study-hero-sonar-ring { display: none; }
+  .study-hero-ekg-trace  { stroke-dashoffset: 0; }
+  .study-dust-layer      { display: none !important; }
 }

@@ -1,104 +1,589 @@
 /* ============================================================
-   Results / Review pages — Concept A
-   Card chrome lives in student-app.css. This file polishes the
-   specific result, review-workspace, and practice-review surfaces.
+   Results / Review pages
+   Student results now use the same shell, surface, and card system
+   as the dashboard while keeping review workspace styles separate.
    ============================================================ */
 
 /* ============================================================
-   RESULTS OVERVIEW (list + performance + focus boards)
+   RESULTS OVERVIEW
    ============================================================ */
-.student-app-shell .results-kpi-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+.student-app-shell .student-results-layout {
+  gap: 14px;
 }
 
-.student-app-shell .results-kpi-strip > * {
+.student-app-shell .student-results-page {
+  padding-inline: 0 !important;
+}
+
+.student-app-shell .student-results-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  align-items: stretch;
+  gap: clamp(16px, 3vw, 26px);
+  min-height: 250px;
+  overflow: hidden;
+  padding: clamp(20px, 3vw, 30px) !important;
+}
+
+.student-app-shell .student-results-hero::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(var(--sa-primary-rgb), 0.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(var(--sa-primary-rgb), 0.06) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(110deg, transparent 0%, #000 20%, #000 64%, transparent 100%);
+  opacity: 0.52;
+  content: "";
+}
+
+.student-app-shell .student-results-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.student-app-shell .student-results-hero__copy {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.student-app-shell .student-results-hero h1 {
+  max-width: 740px;
+  margin: 0;
+  color: var(--sa-ink);
+  font-family: var(--sa-font-display);
+  font-size: clamp(34px, 5vw, 52px);
+  font-weight: 900;
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.student-app-shell .student-results-hero p {
+  max-width: 640px;
+  margin: 0;
+  color: var(--sa-text-2);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.6;
+}
+
+.student-app-shell .student-results-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.student-app-shell .student-results-hero__score {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 2px 8px;
+  gap: 16px;
+  min-width: 0;
   border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-md);
+  border-radius: var(--sa-radius-lg);
+  background: rgba(var(--sa-surface-2-rgb), 0.76);
+  padding: 16px;
+}
+
+.student-app-shell .student-results-hero__trend {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.student-app-shell .student-results-hero__trend p {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.student-app-shell .result-score-ring {
+  flex: 0 0 auto;
+  filter: drop-shadow(0 14px 24px rgba(37, 99, 235, 0.12));
+}
+
+.student-app-shell .result-score-ring text:first-of-type {
+  fill: var(--sa-ink);
+}
+
+.student-app-shell .result-score-ring text:last-of-type {
+  fill: var(--sa-text-3);
+}
+
+.student-app-shell .result-sparkline {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 78px;
+}
+
+.student-app-shell .result-spark-empty {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 78px;
+  color: var(--sa-text-2);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.student-app-shell .result-spark-empty svg {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--sa-primary);
+}
+
+.student-app-shell .student-results-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.student-app-shell .student-results-metrics article {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-lg);
   background: var(--sa-surface);
-  padding: 14px;
+  padding: 16px;
+  color: var(--sa-ink);
   box-shadow: var(--sa-shadow-card);
 }
 
-.student-app-shell .results-kpi-strip > * > span {
-  grid-row: 1 / span 2;
-  display: inline-grid;
-  width: 30px;
-  height: 30px;
+.student-app-shell .student-results-metrics article > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
   place-items: center;
-  border-radius: 11px;
+  border-radius: 15px;
   background: var(--sa-primary-soft);
   color: var(--sa-primary);
 }
 
-.student-app-shell .results-kpi-strip > * > strong {
+.student-app-shell .student-results-metrics strong {
+  display: block;
   color: var(--sa-ink);
-  font-size: 18px;
-  font-weight: 900;
+  font-size: 24px;
+  font-weight: 950;
   line-height: 1;
 }
 
-.student-app-shell .results-kpi-strip > * > small {
-  color: var(--sa-text-2);
+.student-app-shell .student-results-metrics small {
+  display: block;
+  margin-top: 4px;
+  color: var(--sa-text-3);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 850;
+  letter-spacing: 0.08em;
   line-height: 1.2;
   text-transform: uppercase;
 }
 
-.student-app-shell :where(.results-performance-board, .results-focus-board) {
+.student-app-shell .student-results-focus,
+.student-app-shell .student-results-history {
+  display: grid;
+  gap: 14px;
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-lg);
   background: var(--sa-surface);
+  padding: clamp(16px, 2.4vw, 22px);
   color: var(--sa-ink);
   box-shadow: var(--sa-shadow-card);
 }
 
-.student-app-shell :where(.results-performance-title, .results-performance-text) {
-  font-family: var(--sa-font-display);
-  font-weight: 800;
-  letter-spacing: -0.3px;
+.student-app-shell .student-results-focus__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.student-app-shell .results-performance-text { color: var(--sa-ink); }
-
-.student-app-shell .results-spark-panel {
+.student-app-shell .student-results-focus__column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-md);
   background: var(--sa-surface-2);
   padding: 14px;
 }
 
-.student-app-shell .results-focus-grid {
+.student-app-shell .student-results-focus__row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  border: 1px solid transparent;
+  border-radius: var(--sa-radius-sm);
+  background: var(--sa-surface);
+  padding: 10px;
+  color: var(--sa-ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--sa-dur) var(--sa-ease),
+    background var(--sa-dur) var(--sa-ease),
+    transform var(--sa-dur) var(--sa-ease);
+}
+
+.student-app-shell .student-results-focus__row:hover {
+  border-color: rgba(var(--sa-primary-rgb), 0.22);
+  background:
+    linear-gradient(rgba(var(--sa-primary-rgb), 0.05), rgba(var(--sa-primary-rgb), 0.05)),
+    var(--sa-surface);
+}
+
+.student-app-shell .student-results-focus__row:active {
+  transform: scale(0.99);
+}
+
+.student-app-shell .student-results-focus__row strong,
+.student-app-shell .student-results-focus__row small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-app-shell .student-results-focus__row strong {
+  color: var(--sa-ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.student-app-shell .student-results-focus__row small {
+  margin-top: 2px;
+  color: var(--sa-text-2);
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+.student-app-shell .student-results-focus__score,
+.student-app-shell .student-results-focus__miss {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.student-app-shell .student-results-focus__miss {
+  background: var(--sa-warn-soft);
+  color: var(--sa-warn-deep);
+}
+
+.student-app-shell .student-results-mobile-history {
+  display: none;
+}
+
+.student-app-shell .student-results-mobile-history__shell {
+  overflow: hidden;
+  border: 1px solid var(--sa-border);
+  border-radius: 18px;
+  background: var(--sa-surface);
+  box-shadow: var(--sa-shadow-card);
+}
+
+.student-app-shell .student-results-mobile-history__head,
+.student-app-shell .student-results-attempt-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) 76px 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.student-app-shell .student-results-mobile-history__head {
+  border-bottom: 1px solid var(--sa-border);
+  background: var(--sa-surface-2);
+  padding: 10px 12px;
+  color: var(--sa-text-3);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.student-app-shell .student-results-attempt-list {
+  display: grid;
+}
+
+.student-app-shell .student-results-attempt-card {
+  padding: 12px;
+}
+
+.student-app-shell .student-results-attempt-card + .student-results-attempt-card {
+  border-top: 1px solid var(--sa-border-soft);
+}
+
+@media (max-width: 900px) {
+  .student-app-shell .student-results-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .student-app-shell .student-results-hero__score {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .student-app-shell .student-results-metrics,
+  .student-app-shell .student-results-focus__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .student-app-shell .student-results-hero {
+    min-height: 0;
+    padding: 20px !important;
+  }
+
+  .student-app-shell .student-results-hero h1 {
+    font-size: clamp(32px, 9vw, 40px);
+  }
+
+  .student-app-shell .student-results-hero__score {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .student-app-shell .student-results-hero__trend {
+    width: 100%;
+  }
+
+  .student-app-shell .student-results-mobile-history {
+    display: block;
+  }
+}
+
+/* ============================================================
+   SINGLE RESULT DETAIL
+   ============================================================ */
+.student-app-shell .student-result-detail-layout {
+  gap: 14px;
+}
+
+.student-app-shell .student-result-detail-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  align-items: center;
+  gap: clamp(16px, 3vw, 28px);
+  overflow: hidden;
+  padding: clamp(20px, 3vw, 30px) !important;
+}
+
+.student-app-shell .student-result-detail-hero__copy {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.student-app-shell .student-result-detail-hero h1 {
+  margin: 0;
+  color: var(--sa-ink);
+  font-family: var(--sa-font-display);
+  font-size: clamp(30px, 4.5vw, 48px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.student-app-shell .student-result-detail-hero p {
+  margin: 0;
+  color: var(--sa-text-2);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.student-app-shell .student-result-detail-note {
+  max-width: 700px;
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-md);
+  background: var(--sa-surface-2);
+  padding: 13px 14px;
+  color: var(--sa-ink);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.student-app-shell .student-result-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.student-app-shell .student-result-score-card {
+  display: grid;
+  place-items: center;
+  min-height: 210px;
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-lg);
+  background: var(--sa-surface-2);
+}
+
+.student-app-shell .student-result-score-ring {
+  display: grid;
+  width: 180px;
+  height: 180px;
+  place-items: center;
+  border-radius: 999px;
+  padding: 14px;
+  box-shadow: 0 18px 44px rgba(37, 99, 235, 0.12);
+}
+
+.student-app-shell .student-result-score-ring > div {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  align-content: center;
+  border-radius: 999px;
+  background: var(--sa-surface);
+  text-align: center;
+}
+
+.student-app-shell .student-result-score-ring strong {
+  color: var(--sa-ink);
+  font-size: 38px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.student-app-shell .student-result-score-ring span {
+  margin-top: 6px;
+  color: var(--sa-text-3);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.student-app-shell .student-result-stat-grid,
+.student-app-shell .student-result-insight-grid,
+.student-app-shell .student-result-focus-grid {
+  display: grid;
   gap: 12px;
 }
 
-.student-app-shell .results-focus-column {
+.student-app-shell .student-result-stat-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.student-app-shell .student-result-insight-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.student-app-shell .student-result-focus-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.student-app-shell .student-result-stat-card,
+.student-app-shell .student-result-insight-card,
+.student-app-shell .student-result-focus-card {
   border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-md);
+  border-radius: var(--sa-radius-lg);
   background: var(--sa-surface);
-  padding: 14px;
+  padding: 16px;
+  color: var(--sa-ink);
+  box-shadow: var(--sa-shadow-card);
 }
 
-.student-app-shell .results-focus-row {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  border-radius: var(--sa-radius-sm);
-  padding: 8px 10px;
+.student-app-shell .student-result-stat-card {
+  background: var(--sa-surface-2);
 }
 
-.student-app-shell .results-focus-row:hover { background: var(--sa-surface-2); }
+.student-app-shell .student-result-stat-card span,
+.student-app-shell .student-result-insight-card p,
+.student-app-shell .student-result-focus-card p {
+  color: var(--sa-text-2);
+}
 
-.student-app-shell .results-focus-miss { color: var(--sa-text-2); font-size: 12px; font-weight: 750; }
-.student-app-shell .results-focus-score { color: var(--sa-primary); font-weight: 900; }
+.student-app-shell .student-result-stat-card span {
+  display: block;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-app-shell .student-result-stat-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--sa-ink);
+  font-size: 28px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.student-app-shell .student-result-stat-card.is-correct strong {
+  color: var(--sa-ok-deep);
+}
+
+.student-app-shell .student-result-stat-card.is-wrong strong {
+  color: var(--sa-danger);
+}
+
+.student-app-shell .student-result-insight-card strong,
+.student-app-shell .student-result-focus-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--sa-ink);
+  font-size: 22px;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.student-app-shell .student-result-insight-card p,
+.student-app-shell .student-result-focus-card p {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .student-app-shell .student-result-detail-hero,
+  .student-app-shell .student-result-insight-grid,
+  .student-app-shell .student-result-focus-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-app-shell .student-result-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .student-app-shell .student-result-detail-hero {
+    padding: 20px !important;
+  }
+
+  .student-app-shell .student-result-detail-hero h1 {
+    font-size: clamp(30px, 9vw, 38px);
+  }
+
+  .student-app-shell .student-result-score-ring {
+    width: 160px;
+    height: 160px;
+  }
+}
 
 /* ============================================================
    REVIEW WORKSPACE (.lms-review-page / .lms-review-workspace)
@@ -187,7 +672,7 @@
 }
 
 .student-app-shell .lms-review-question-nav button:hover {
-  border-color: color-mix(in srgb, var(--sa-primary) 28%, var(--sa-border));
+  border-color: rgba(var(--sa-primary-rgb), 0.28);
   background: var(--sa-primary-soft);
   color: var(--sa-primary);
 }

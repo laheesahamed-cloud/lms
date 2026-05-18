@@ -819,7 +819,7 @@ export function QuestionsPage() {
       <section className={ui.managementLayout}>
         <AppHeader
           title="Questions module"
-          subtitle="Create, edit, filter, and remove SBA and True/False questions with a cleaner admin workflow."
+          subtitle="Question Bank"
         />
 
         {error ? <div className={ui.feedbackError}>{error}</div> : null}

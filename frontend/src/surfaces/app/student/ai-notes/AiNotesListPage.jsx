@@ -401,17 +401,17 @@ export function AiNotesListPage({
   );
 
   return (
-    <main className={ui.screenShell}>
-      <section className={ui.managementLayout}>
+    <main className={ui.studentScreenShell}>
+      <section className={ui.studentManagementLayout}>
         <AppHeader
           title={headerTitle}
-          subtitle={selectedCourse ? selectedCourse : defaultSubtitle}
+          subtitle="Lesson Notes"
         />
 
         {!selectedCourse ? (
           <StudentPageHero
             title={headerTitle}
-            subtitle={defaultSubtitle}
+            subtitle="Lesson Notes"
             tone="blue"
             metrics={[
               { label: 'Lessons', value: loading ? '-' : notes.length },

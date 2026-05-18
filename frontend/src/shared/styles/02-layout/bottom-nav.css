@@ -24,6 +24,15 @@
   box-shadow: none !important;
 }
 
+@media (min-width: 901px) {
+  .lms-mobile-bottom-nav,
+  .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+
 html[data-lms-runtime] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3,
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3,
 html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
@@ -47,25 +56,33 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 
   width: 100%;
   height: calc(var(--lms-tabbar-row-height, 64px) + env(safe-area-inset-bottom, 0px)) !important;
   min-height: calc(58px + env(safe-area-inset-bottom, 0px));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Light mode default — white glass with soft blue border */
+  border: 1px solid rgba(37, 99, 235, 0.12);
   border-bottom: 0;
   border-radius: 22px 22px 0 0;
-  background: linear-gradient(180deg, #111943 0%, #0c1232 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.94) 100%);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  backdrop-filter: saturate(140%) blur(14px);
+  color: #0c1830;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
   gap: 2px;
   padding: 6px 6px max(6px, env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 18px 36px -18px rgba(14, 21, 56, 0.52), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  box-shadow:
+    0 18px 36px -18px rgba(37, 99, 235, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.7) inset;
   transform: none !important;
 }
 
 :root[data-theme="dark"] .lms-mobile-bottom-nav__inner,
 .student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__inner {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: linear-gradient(180deg, #1a1f3d 0%, #11162f 100%);
-  box-shadow: 0 18px 38px -18px rgba(0, 0, 0, 0.62), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, #0d1428 0%, #080c1c 100%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  color: #ffffff;
+  box-shadow: 0 18px 38px -18px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
 }
 
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 > .lms-mobile-bottom-nav__inner {
@@ -81,7 +98,8 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom
   border-radius: 17px;
   border: 0;
   background: transparent;
-  color: rgba(255, 255, 255, 0.65);
+  /* Light mode default */
+  color: #4d5b78;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -100,6 +118,16 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom
 }
 
 .lms-mobile-bottom-nav__tab:hover {
+  color: #0c1830;
+}
+
+:root[data-theme="dark"] .lms-mobile-bottom-nav__tab,
+.student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__tab {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+:root[data-theme="dark"] .lms-mobile-bottom-nav__tab:hover,
+.student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__tab:hover {
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -108,14 +136,31 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom
 }
 
 .lms-mobile-bottom-nav__tab:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.4);
+  outline: 2px solid rgba(37, 99, 235, 0.5);
   outline-offset: 2px;
 }
 
+:root[data-theme="dark"] .lms-mobile-bottom-nav__tab:focus-visible,
+.student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__tab:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.4);
+}
+
 .lms-mobile-bottom-nav__tab.is-active {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset;
+  /* Light mode active — solid blue tint with deep blue text */
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  box-shadow:
+    0 0 12px rgba(37, 99, 235, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+
+:root[data-theme="dark"] .lms-mobile-bottom-nav__tab.is-active,
+.student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__tab.is-active {
+  background: rgba(56, 189, 248, 0.16);
+  color: #38bdf8;
+  box-shadow:
+    0 0 12px rgba(56, 189, 248, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
 }
 
 .lms-mobile-bottom-nav__icon {
@@ -222,4 +267,13 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom
 
 @media (prefers-reduced-motion: reduce) {
   .lms-mobile-bottom-nav__tab { transition: none; }
+}
+
+/* Violet accent — repaint active tab color when the student picks violet */
+:root[data-student-accent="violet"] .lms-mobile-bottom-nav__tab.is-active {
+  background: rgba(139, 92, 246, 0.18);
+  color: #a78bfa;
+  box-shadow:
+    0 0 12px rgba(139, 92, 246, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
 }
