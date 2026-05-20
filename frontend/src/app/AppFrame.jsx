@@ -19,6 +19,88 @@ function setStyleIfChanged(element, property, value) {
   }
 }
 
+function setCssPropertyIfChanged(element, property, value, priority = '') {
+  if (
+    element.style.getPropertyValue(property) !== value ||
+    element.style.getPropertyPriority(property) !== priority
+  ) {
+    element.style.setProperty(property, value, priority);
+  }
+}
+
+function syncAppScrollContract() {
+  if (typeof document === 'undefined') return;
+
+  if (typeof window.__lmsLockDocumentScroll === 'function') {
+    window.__lmsLockDocumentScroll();
+  } else if (typeof window.__lmsUnlockScroll === 'function') {
+    window.__lmsUnlockScroll();
+  }
+
+  const root = document.getElementById('root');
+  const documentRoots = [document.documentElement, document.body].filter(Boolean);
+
+  documentRoots.forEach((element) => {
+    setCssPropertyIfChanged(element, 'height', PLATFORM.isNative ? '' : '100%', PLATFORM.isNative ? '' : 'important');
+    setCssPropertyIfChanged(element, 'min-height', '100%', 'important');
+    setStyleIfChanged(element, 'maxWidth', '100%');
+    setCssPropertyIfChanged(element, 'overflow-x', 'hidden', 'important');
+    setCssPropertyIfChanged(element, 'overflow-y', PLATFORM.isNative ? 'clip' : 'hidden', 'important');
+    setStyleIfChanged(element, 'overscrollBehavior', 'none');
+    setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #05070d))');
+    setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #05070d))');
+    setStyleIfChanged(element, 'color', '');
+  });
+
+  setStyleIfChanged(document.body, 'position', 'relative');
+  setStyleIfChanged(document.body, 'inset', 'auto');
+  setStyleIfChanged(document.body, 'height', PLATFORM.isNative ? '100%' : '');
+  setStyleIfChanged(document.body, 'minHeight', '100dvh');
+  setStyleIfChanged(document.body, 'paddingLeft', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-left)');
+  setStyleIfChanged(document.body, 'paddingRight', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-right)');
+
+  if (root) {
+    setCssPropertyIfChanged(root, 'height', '100%', 'important');
+    setCssPropertyIfChanged(root, 'min-height', '100%', 'important');
+    setStyleIfChanged(root, 'maxWidth', '100%');
+    setCssPropertyIfChanged(root, 'overflow-x', 'hidden', 'important');
+    setCssPropertyIfChanged(root, 'overflow-y', PLATFORM.isNative ? 'clip' : 'hidden', 'important');
+    setStyleIfChanged(root, 'overscrollBehavior', 'none');
+    setStyleIfChanged(root, 'touchAction', 'pan-y');
+    setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #05070d))');
+    setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #05070d))');
+    setStyleIfChanged(root, 'color', '');
+    setStyleIfChanged(root, 'webkitOverflowScrolling', 'touch');
+  }
+
+  document.querySelectorAll('.lms-app-scroll-root').forEach((element) => {
+    setStyleIfChanged(element, 'width', PLATFORM.isNative ? '100vw' : '');
+    setStyleIfChanged(element, 'maxWidth', PLATFORM.isNative ? '100vw' : '100%');
+    setStyleIfChanged(element, 'marginLeft', '0px');
+    setStyleIfChanged(element, 'marginRight', '0px');
+    setCssPropertyIfChanged(element, 'height', PLATFORM.isNative ? '100%' : '100dvh', 'important');
+    setCssPropertyIfChanged(element, 'min-height', '100dvh', 'important');
+    setCssPropertyIfChanged(element, 'max-height', PLATFORM.isNative ? '100%' : '100dvh', 'important');
+    setCssPropertyIfChanged(element, 'overflow-x', 'hidden', 'important');
+    setCssPropertyIfChanged(element, 'overflow-y', 'auto', 'important');
+    setStyleIfChanged(element, 'overscrollBehaviorX', 'none');
+    setStyleIfChanged(element, 'overscrollBehaviorY', PLATFORM.isNative ? 'contain' : 'auto');
+    setStyleIfChanged(element, 'touchAction', 'pan-y');
+    setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
+  });
+
+  document.querySelectorAll('.portal-shell, .portal-content, .portal-content__frame, .motion-smooth, .lms-route-page, .student-route-page').forEach((element) => {
+    setStyleIfChanged(element, 'height', 'auto');
+    setStyleIfChanged(element, 'minHeight', '100%');
+    setStyleIfChanged(element, 'maxHeight', 'none');
+    setCssPropertyIfChanged(element, 'overflow-x', PLATFORM.isNative ? 'hidden' : 'visible', 'important');
+    setCssPropertyIfChanged(element, 'overflow-y', 'visible', 'important');
+    setStyleIfChanged(element, 'overscrollBehavior', 'none');
+    setStyleIfChanged(element, 'touchAction', 'pan-y');
+    setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
+  });
+}
+
 export function AppFrame() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -133,73 +215,31 @@ export function AppFrame() {
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return;
-    if (typeof window.__lmsLockDocumentScroll === 'function') {
-      window.__lmsLockDocumentScroll();
-    } else if (typeof window.__lmsUnlockScroll === 'function') {
-      window.__lmsUnlockScroll();
-    }
 
-    const root = document.getElementById('root');
-    const documentRoots = [document.documentElement, document.body].filter(Boolean);
+    syncAppScrollContract();
 
-    documentRoots.forEach((element) => {
-      setStyleIfChanged(element, 'minHeight', '100%');
-      setStyleIfChanged(element, 'maxWidth', '100%');
-      setStyleIfChanged(element, 'overflowX', 'hidden');
-      setStyleIfChanged(element, 'overflowY', PLATFORM.isNative ? 'clip' : '');
-      setStyleIfChanged(element, 'overscrollBehavior', 'none');
-      setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #05070d))');
-      setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #05070d))');
-      setStyleIfChanged(element, 'color', '');
+    let frameTwo = 0;
+    const frameOne = window.requestAnimationFrame(() => {
+      syncAppScrollContract();
+      frameTwo = window.requestAnimationFrame(syncAppScrollContract);
     });
+    const timers = [80, 220, 520].map((delay) => window.setTimeout(syncAppScrollContract, delay));
+    const viewport = window.visualViewport;
 
-    setStyleIfChanged(document.body, 'position', 'relative');
-    setStyleIfChanged(document.body, 'inset', 'auto');
-    setStyleIfChanged(document.body, 'height', PLATFORM.isNative ? '100%' : '');
-    setStyleIfChanged(document.body, 'minHeight', '100dvh');
-    setStyleIfChanged(document.body, 'paddingLeft', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-left)');
-    setStyleIfChanged(document.body, 'paddingRight', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-right)');
+    window.addEventListener('resize', syncAppScrollContract, { passive: true });
+    window.addEventListener('orientationchange', syncAppScrollContract, { passive: true });
+    window.addEventListener('pageshow', syncAppScrollContract, { passive: true });
+    viewport?.addEventListener('resize', syncAppScrollContract, { passive: true });
 
-    if (root) {
-      setStyleIfChanged(root, 'minHeight', '100%');
-      setStyleIfChanged(root, 'height', PLATFORM.isNative ? '100%' : '');
-      setStyleIfChanged(root, 'maxWidth', '100%');
-      setStyleIfChanged(root, 'overflowX', 'hidden');
-      setStyleIfChanged(root, 'overflowY', PLATFORM.isNative ? 'clip' : '');
-      setStyleIfChanged(root, 'overscrollBehavior', 'none');
-      setStyleIfChanged(root, 'touchAction', 'pan-y');
-      setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #05070d))');
-      setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #05070d))');
-      setStyleIfChanged(root, 'color', '');
-      setStyleIfChanged(root, 'webkitOverflowScrolling', 'touch');
-    }
-
-    document.querySelectorAll('.lms-app-scroll-root').forEach((element) => {
-      setStyleIfChanged(element, 'width', PLATFORM.isNative ? '100vw' : '');
-      setStyleIfChanged(element, 'maxWidth', PLATFORM.isNative ? '100vw' : '100%');
-      setStyleIfChanged(element, 'marginLeft', '0px');
-      setStyleIfChanged(element, 'marginRight', '0px');
-      setStyleIfChanged(element, 'height', PLATFORM.isNative ? '100%' : '');
-      setStyleIfChanged(element, 'minHeight', '100dvh');
-      setStyleIfChanged(element, 'maxHeight', PLATFORM.isNative ? '100%' : '');
-      setStyleIfChanged(element, 'overflowX', 'hidden');
-      setStyleIfChanged(element, 'overflowY', 'auto');
-      setStyleIfChanged(element, 'overscrollBehaviorX', 'none');
-      setStyleIfChanged(element, 'overscrollBehaviorY', PLATFORM.isNative ? 'contain' : 'auto');
-      setStyleIfChanged(element, 'touchAction', 'pan-y');
-      setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
-    });
-
-    document.querySelectorAll('.portal-shell, .portal-content, .portal-content__frame, .motion-smooth, .lms-route-page, .student-route-page').forEach((element) => {
-      setStyleIfChanged(element, 'height', 'auto');
-      setStyleIfChanged(element, 'minHeight', '100%');
-      setStyleIfChanged(element, 'maxHeight', 'none');
-      setStyleIfChanged(element, 'overflowX', 'hidden');
-      setStyleIfChanged(element, 'overflowY', 'visible');
-      setStyleIfChanged(element, 'overscrollBehavior', 'none');
-      setStyleIfChanged(element, 'touchAction', 'pan-y');
-      setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
-    });
+    return () => {
+      window.cancelAnimationFrame(frameOne);
+      if (frameTwo) window.cancelAnimationFrame(frameTwo);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      window.removeEventListener('resize', syncAppScrollContract);
+      window.removeEventListener('orientationchange', syncAppScrollContract);
+      window.removeEventListener('pageshow', syncAppScrollContract);
+      viewport?.removeEventListener('resize', syncAppScrollContract);
+    };
   }, [location.pathname, location.search]);
 
   if (PLATFORM.isNative) {

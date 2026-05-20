@@ -101,7 +101,7 @@
           }
         }
         root.style.colorScheme = theme;
-        root.style.backgroundColor = isNativeShell ? '#ffffff' : '#05070d';
+        root.style.backgroundColor = isNativeShell ? (theme === 'dark' ? '#02030a' : '#dce6f4') : '#05070d';
       })();
     </script>
     <style>
@@ -116,7 +116,12 @@
       html[data-lms-runtime="native"],
       html[data-lms-runtime="native"] body,
       html[data-lms-runtime="native"] #root {
-        background: #ffffff;
+        background: #dce6f4;
+      }
+      html[data-lms-runtime="native"][data-theme="dark"],
+      html[data-lms-runtime="native"][data-theme="dark"] body,
+      html[data-lms-runtime="native"][data-theme="dark"] #root {
+        background: #02030a;
       }
       #lms-static-boot {
         position: fixed;
@@ -193,6 +198,12 @@
       </div>
     </div>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module">
+      if (/\/mascot-animation-lab(?:\/|$)/.test(window.location.pathname || '')) {
+        import('/src/mascot-preview.jsx');
+      } else {
+        import('/src/main.jsx');
+      }
+    </script>
   </body>
 </html>

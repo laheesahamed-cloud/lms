@@ -1,0 +1,19 @@
+.lms-sidebar-brand {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+}
+
+.lms-sidebar-brand-mark {
+  display: grid !important;
+  place-items: center !important;
+}
+
+.lms-sidebar-brand-mark svg {
+  display: block;
+}
+
+.lms-sidebar-wordmark {
+  min-width: 0;
+  align-content: center;
+}

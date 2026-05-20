@@ -6,7 +6,7 @@ const ACCENT_THEMES = new Set(['erpm', 'codeforge']);
 const STUDENT_ACCENT_KEY = 'lms_student_accent';
 const STUDENT_ACCENTS = new Set(['blue', 'violet']);
 const CHROME_THEME_COLORS = {
-  light: '#F5F6FF',
+  light: '#dce6f4',
   dark: '#05070d',
 };
 let themeTransitionTimer = null;

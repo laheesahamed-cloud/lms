@@ -82,7 +82,7 @@
 
   .lms-topbar h1 {
     max-width: 100% !important;
-    font-size: clamp(17px, 5vw, 20px) !important;
+    font-size: var(--type-size-xl) !important;
     line-height: 1.08 !important;
     letter-spacing: 0 !important;
   }
@@ -133,7 +133,7 @@
   }
 
   .lms-topbar h1 {
-    font-size: 17px !important;
+    font-size: var(--type-size-xl) !important;
   }
 
   .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button) {
@@ -279,16 +279,14 @@ html[data-lms-runtime='native'] {
   -webkit-hyphens: auto !important;
 }
 
-:where(.lms-exam-page, .practice-review-page) :where(.lms-reading-explanation, .lms-review-question-card .lms-reading-explanation) {
-  border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.12) !important;
-  background:
-    linear-gradient(rgba(var(--sa-primary-rgb, 37, 99, 235), 0.04), rgba(var(--sa-primary-rgb, 37, 99, 235), 0.04)),
-    var(--surface-card) !important;
+:where(.lms-exam-page, .practice-review-page) :where(.lms-reading-explanation:not([aria-label="Answer key"]), .lms-review-question-card .lms-reading-explanation) {
+  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 15%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 4%, var(--surface-2, var(--surface-card))) !important;
   color: var(--ink-medium) !important;
 }
 
-:root[data-theme='dark'] :where(.lms-exam-page, .practice-review-page) :where(.lms-reading-explanation, .lms-review-question-card .lms-reading-explanation) {
-  background: rgba(255, 255, 255, 0.045) !important;
+:root[data-theme='dark'] :where(.lms-exam-page, .practice-review-page) :where(.lms-reading-explanation:not([aria-label="Answer key"]), .lms-review-question-card .lms-reading-explanation) {
+  background: color-mix(in srgb, var(--color-primary, #60a5fa) 4%, var(--surface-2, #0b1019)) !important;
   color: rgba(226, 232, 240, 0.78) !important;
 }
 

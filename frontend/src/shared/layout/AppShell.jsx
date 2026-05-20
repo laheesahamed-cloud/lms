@@ -13,7 +13,7 @@ const PLATFORM = detectPlatform();
 const SIDEBAR_COLLAPSE_STORAGE_KEY = 'lms.sidebar.collapsed';
 const shellUi = {
   shell:
-    'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#F5F6FF] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[#05070d]',
+    'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#dce6f4] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[#05070d]',
   shellMobile: '',
   shellQuizFocus: '',
   content:

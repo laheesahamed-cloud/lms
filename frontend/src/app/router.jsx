@@ -83,6 +83,7 @@ const LessonNotesDemoPage = lazyNamed(() => import('../surfaces/website/pages/Le
 const HeadacheNotesDemoPage = lazyNamed(() => import('../surfaces/website/pages/HeadacheNotesDemoPage.jsx'), 'HeadacheNotesDemoPage');
 const PwaPreviewPage = lazyNamed(() => import('../surfaces/website/pages/PwaPreviewPage.jsx'), 'PwaPreviewPage');
 const BrowserTestPage = lazyNamed(() => import('../surfaces/website/pages/BrowserTestPage.jsx'), 'BrowserTestPage');
+const MascotAnimationLabPage = lazyNamed(() => import('../surfaces/website/pages/MascotAnimationLabPage.jsx'), 'MascotAnimationLabPage');
 const GptPage = lazyNamed(() => import('../surfaces/website/pages/GptPage.jsx'), 'GptPage');
 const GeminiPage = lazyNamed(() => import('../surfaces/website/pages/GeminiPage.jsx'), 'GeminiPage');
 const ProfilePage = lazyNamed(() => import('../shared/account/ProfilePage.jsx'), 'ProfilePage');
@@ -524,6 +525,10 @@ export const router = createBrowserRouter([
       {
         path: 'privacy-policy',
         element: withSuspense(<PrivacyPolicyPage />),
+      },
+      {
+        path: 'mascot-animation-lab',
+        element: withSuspense(<MascotAnimationLabPage />),
       },
       {
         path: 'ai',

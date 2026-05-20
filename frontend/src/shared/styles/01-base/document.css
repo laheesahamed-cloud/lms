@@ -1,0 +1,53 @@
+html {
+  font-family: var(--type-font-body, var(--font-body, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif));
+  font-size: 100%;
+  line-height: var(--type-leading-body, 1.58);
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font: var(--type-body, 450 0.875rem / 1.58 var(--font-body, ui-sans-serif, system-ui, sans-serif));
+  letter-spacing: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--type-font-display, var(--font-display, ui-sans-serif, system-ui, sans-serif));
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+p,
+li,
+dd {
+  line-height: var(--type-leading-body, 1.58);
+}
+
+button,
+input,
+textarea,
+select {
+  letter-spacing: 0;
+}
+
+strong,
+b {
+  font-weight: var(--type-weight-bold, 800);
+}
+
+small {
+  font-size: var(--type-size-sm, 0.75rem);
+  line-height: var(--type-leading-normal, 1.45);
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--type-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+}

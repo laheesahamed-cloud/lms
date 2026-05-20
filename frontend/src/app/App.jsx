@@ -1,56 +1,49 @@
-import { Suspense, lazy } from 'react';
-import { AppProviders } from './providers.jsx';
-import { AppErrorBoundary } from './AppErrorBoundary.jsx';
-import { PlatformProvider, usePlatform } from '../shared/platform/PlatformProvider.jsx';
-import { getPlatformConfig } from '../shared/platform/config.js';
-import { AppOnlyBrowserGate } from '../shared/platform/AppOnlyBrowserGate.jsx';
+import { Suspense, lazy, useEffect } from 'react';
 import { BootLoader } from './BootLoader.jsx';
-// Example usage:
-// import HeartFailureNotes, { heartFailureLesson } from '../shared/lessons/HeartFailureNotes.jsx';
 
-const OfflineExperience = lazy(() => import('../shared/pwa/OfflineExperience.jsx').then((module) => ({ default: module.OfflineExperience })));
-const RecoveryRefreshController = lazy(() => import('../shared/pwa/RecoveryRefreshController.jsx').then((module) => ({ default: module.RecoveryRefreshController })));
-const MacChromiumScrollFix = lazy(() => import('../shared/pwa/MacChromiumScrollFix.jsx').then((module) => ({ default: module.MacChromiumScrollFix })));
-const AppRouter = lazy(() => import('./router.jsx').then((module) => ({ default: module.AppRouter })));
+const AppRuntime = lazy(() => import('./AppRuntime.jsx').then((module) => ({ default: module.AppRuntime })));
+const MascotAnimationLabPage = lazy(() => import('../surfaces/website/pages/MascotAnimationLabPage.jsx').then((module) => ({ default: module.MascotAnimationLabPage })));
 
-export function App() {
-  if (getPlatformConfig().blockDirectAppHost) {
-    return <AppOnlyBrowserGate />;
+function isMascotAnimationLabRoute() {
+  if (typeof window === 'undefined') {
+    return false;
   }
 
-  return (
-    <>
-      <BootLoader />
-      <PlatformProvider>
-        <AppProviders>
-          <AppErrorBoundary>
-            <Suspense fallback={null}>
-              <AppRouter />
-            </Suspense>
-          </AppErrorBoundary>
-          <PwaRuntimeEffects />
-          {/*
-            Example lesson-notes usage:
-            <HeartFailureNotes lesson={heartFailureLesson} />
-          */}
-        </AppProviders>
-      </PlatformProvider>
-    </>
-  );
+  const routeText = `${window.location.pathname || ''}${window.location.hash || ''}`;
+  return /\/mascot-animation-lab(?:\/|$)/.test(routeText);
 }
 
-function PwaRuntimeEffects() {
-  const { mountPwaExperiences } = usePlatform();
+function PreviewRuntimeReady() {
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
 
-  if (!mountPwaExperiences) {
-    return null;
+    window.__lmsReactReady = true;
+    window.__lmsRouteReady = true;
+    document.dispatchEvent(new Event('lms:react-ready'));
+    document.dispatchEvent(new CustomEvent('lms:route-ready', {
+      detail: { pathname: window.location.pathname || '/mascot-animation-lab' },
+    }));
+  }, []);
+
+  return null;
+}
+
+export function App() {
+  if (isMascotAnimationLabRoute()) {
+    return (
+      <>
+        <BootLoader />
+        <PreviewRuntimeReady />
+        <Suspense fallback={null}>
+          <MascotAnimationLabPage />
+        </Suspense>
+      </>
+    );
   }
 
   return (
     <Suspense fallback={null}>
-      <RecoveryRefreshController />
-      <MacChromiumScrollFix />
-      <OfflineExperience />
+      <AppRuntime />
     </Suspense>
   );
 }

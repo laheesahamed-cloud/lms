@@ -22,7 +22,7 @@ export const ui = {
   screenShell:
     'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5',
   studentScreenShell:
-    'student-route-page study-hub-page min-h-dvh w-full max-w-full min-w-0 overflow-x-hidden text-ink-strong',
+    'student-route-page min-h-dvh w-full max-w-full min-w-0 overflow-x-hidden text-ink-strong',
   managementLayout:
     'management-layout mx-auto grid w-full max-w-page min-w-0 gap-section max-[520px]:gap-4',
   studentManagementLayout:

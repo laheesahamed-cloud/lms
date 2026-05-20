@@ -7,6 +7,7 @@ import { fetchStudentQuizzes } from '../../../../shared/api/quizAttempts.api.js'
 import { fetchStudyBookmarks } from '../../../../shared/api/studyBookmarks.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
+import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { ImpactStyle, nativeImpact, nativeSuccess, webVibrate } from '../../../../shared/utils/nativeHaptics.js';
 
 const defaultDashboardState = {
@@ -118,40 +119,40 @@ function getQuizTitle(quiz, fallback = 'Focused exam') {
 function getStudyMood({ attempts, readinessScore, streak }) {
   if (readinessScore >= 80) {
     return {
-      label: 'Confidence level',
-      value: 'Clinically dramatic',
-      text: 'Your dashboard is wearing a tiny white coat today.',
+      label: 'Study status',
+      value: 'Exam ready pace',
+      text: 'Your readiness is strong. Keep reviewing weak areas to stay sharp.',
       meter: 92,
     };
   }
   if (streak >= 5) {
     return {
-      label: 'Streak energy',
-      value: 'Suspiciously consistent',
-      text: 'Five-plus active days. The syllabus is starting to look nervous.',
+      label: 'Study status',
+      value: 'Consistent progress',
+      text: 'You have a strong streak. Keep one small task planned for today.',
       meter: 84,
     };
   }
   if (attempts >= 3) {
     return {
-      label: 'Practice mood',
-      value: 'Many tabs, one dream',
-      text: 'You have been attempting things. Academically, that is a personality trait.',
+      label: 'Study status',
+      value: 'Practice in progress',
+      text: 'You have attempted several practice sets. Review mistakes before starting more.',
       meter: 72,
     };
   }
   if (readinessScore > 0) {
     return {
-      label: 'Brain status',
-      value: 'Loading nicely',
-      text: 'Not fully charged yet, but the neurons have clocked in.',
+      label: 'Study status',
+      value: 'Building readiness',
+      text: 'You have started making progress. Finish one focused lesson or quiz next.',
       meter: Math.max(38, readinessScore),
     };
   }
   return {
-    label: 'Dashboard verdict',
-    value: 'Emotionally prepared',
-    text: 'Opening the Study Hub counts as a warm-up set. We take those.',
+    label: 'Study status',
+    value: 'Ready to begin',
+    text: 'Start with one short practice set or one lesson to build today’s progress.',
     meter: 34,
   };
 }
@@ -177,6 +178,12 @@ function Icon({ name }) {
   if (name === 'doc') {
     return <svg {...common}><path d="M6.5 3.5h7.2l3.8 3.8v13.2h-11a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" /><path d="M13.5 3.5v4h4M8.5 12h7M8.5 16h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
   }
+  if (name === 'calendar') {
+    return <svg {...common}><path d="M6.5 4.5h11A2.5 2.5 0 0 1 20 7v10.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5V7a2.5 2.5 0 0 1 2.5-2.5Z" stroke="currentColor" strokeWidth="1.8" /><path d="M8 3v4M16 3v4M4 9h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M8 13h2M14 13h2M8 16h2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
+  }
+  if (name === 'exam') {
+    return <svg {...common}><path d="M7 3.5h8.2l3.3 3.3V20a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 20V5A1.5 1.5 0 0 1 7 3.5Z" stroke="currentColor" strokeWidth="1.8" /><path d="M15 3.5V7h3.5M8.5 12h3.2M8.5 16h2.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="m14 15.4 1.4 1.4 2.8-3.4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  }
   if (name === 'review') {
     return <svg {...common}><path d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v13A1.5 1.5 0 0 1 17 20.5H7A1.5 1.5 0 0 1 5.5 19V6A1.5 1.5 0 0 1 7 4.5Z" stroke="currentColor" strokeWidth="1.8" /><path d="M9 10h6M9 14h4M9 18h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M9.5 3h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
   }
@@ -185,6 +192,9 @@ function Icon({ name }) {
   }
   if (name === 'chart') {
     return <svg {...common}><path d="M5 19V5M5 19h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M9 15v-4M13 15V8M17 15v-7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>;
+  }
+  if (name === 'bookmark') {
+    return <svg {...common}><path d="M7 4.5h10a1 1 0 0 1 1 1v15l-6-3.8-6 3.8v-15a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
   }
   if (name === 'target') {
     return <svg {...common}><circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.8" /><circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" /><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
@@ -218,77 +228,95 @@ function Icon({ name }) {
    motif uses currentColor so light/dark/accent flip automatically.
    ────────────────────────────────────────────────────────────── */
 
-const HERO_MOTIFS = ['sonar', 'dna', 'caduceus', 'aurora', 'ekg'];
+const appAssetBase = import.meta.env.BASE_URL === './' ? '/' : import.meta.env.BASE_URL;
+const dashboardHeroMascotBase = `${appAssetBase.replace(/\/?$/, '/')}temp/mascots/`;
+const DASHBOARD_HERO_MASCOTS = [
+  { key: '2d-brain-dj', image: 'generated/2d/2d-brain-dj.png', label: 'Brain DJ mascot' },
+  { key: '2d-scope-wizard', image: 'generated/2d/2d-microscope-wizard.png', label: 'Scope wizard mascot' },
+  { key: 'hero-break', image: 'generated/hero-brain-coffee.png', label: 'Break return mascot' },
+  { key: 'hero-lesson', image: 'generated/hero-lesson-book.png', label: 'Lesson complete mascot' },
+  { key: '3d-stetho-rocket', image: 'generated/3d-neon/neon-stetho-rocket.png', label: 'Stetho rocket mascot' },
+  { key: '3d-brain-goggles', image: 'generated/3d-neon/neon-brain-goggles.png', label: 'Goggle brain mascot' },
+  { key: '3d-dna-hover', image: 'generated/3d-neon/neon-dna-hoverboard.png', label: 'DNA hover mascot' },
+  { key: '3d-chart-doctor', image: 'generated/3d-neon/neon-tablet-doctor.png', label: 'Chart doctor mascot' },
+  { key: 'vial-stetho', image: 'generated/vibe/vibe-vial-stetho.png', label: 'Vial stetho mascot' },
+  { key: 'focus-brain', image: 'generated/vibe/vibe-headphone-brain.png', label: 'Focus brain mascot' },
+  { key: 'dna-surf', image: 'generated/vibe/vibe-dna-surf.png', label: 'DNA surf mascot' },
+  { key: 'stetho-wave', image: 'generated/dashboard-hero-companion.png', label: 'Stetho wave mascot' },
+];
 
-function pickHeroMotif() {
-  return HERO_MOTIFS[Math.floor(Math.random() * HERO_MOTIFS.length)];
+function pickDashboardHeroMascot() {
+  return DASHBOARD_HERO_MASCOTS[Math.floor(Math.random() * DASHBOARD_HERO_MASCOTS.length)];
 }
 
-function HeroMotif({ variant }) {
-  if (variant === 'sonar') {
+function DashboardHeroMascot({ mascot }) {
+  if (!mascot) return null;
+  const fallbackSrc = `${dashboardHeroMascotBase}generated/dashboard-hero-companion.png`;
+  const handleImageError = (event) => {
+    const image = event.currentTarget;
+    if (image.dataset.fallbackApplied === 'true') {
+      image.hidden = true;
+      return;
+    }
+    image.dataset.fallbackApplied = 'true';
+    image.src = fallbackSrc;
+  };
+
+  return (
+    <span className="study-hero-mascot-random" aria-hidden="true">
+      <span className="study-hero-mascot-random__spark study-hero-mascot-random__spark--one" />
+      <span className="study-hero-mascot-random__spark study-hero-mascot-random__spark--two" />
+      <span className="study-hero-mascot-random__spark study-hero-mascot-random__spark--three" />
+      <span className="study-hero-mascot-random__spark study-hero-mascot-random__spark--four" />
+      <img
+        src={`${dashboardHeroMascotBase}${mascot.image}`}
+        alt=""
+        draggable="false"
+        decoding="async"
+        loading="eager"
+        onError={handleImageError}
+      />
+    </span>
+  );
+}
+
+function QuickActionArt({ type }) {
+  if (type === 'practice') {
     return (
-      <span className="study-hero-motif study-hero-motif--sonar" aria-hidden="true">
-        <span className="study-hero-sonar-ring" />
-        <span className="study-hero-sonar-ring" />
-        <span className="study-hero-sonar-ring" />
-      </span>
-    );
-  }
-  if (variant === 'dna') {
-    return (
-      <svg className="study-hero-motif study-hero-motif--dna" viewBox="0 0 80 120" aria-hidden="true">
-        <g stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round">
-          <path className="study-hero-dna-strand" d="M14 10 Q40 30 14 50 Q-12 70 14 90 Q40 110 14 130" />
-          <path className="study-hero-dna-strand study-hero-dna-strand--b" d="M66 10 Q40 30 66 50 Q92 70 66 90 Q40 110 66 130" />
-          <line x1="20" y1="20" x2="60" y2="20" />
-          <line x1="14" y1="32" x2="66" y2="32" />
-          <line x1="20" y1="44" x2="60" y2="44" />
-          <line x1="14" y1="58" x2="66" y2="58" />
-          <line x1="20" y1="70" x2="60" y2="70" />
-          <line x1="14" y1="84" x2="66" y2="84" />
-          <line x1="20" y1="96" x2="60" y2="96" />
-        </g>
+      <svg className="study-action-art study-action-art--target" viewBox="0 0 120 120" aria-hidden="true">
+        <circle cx="78" cy="64" r="38" />
+        <circle cx="78" cy="64" r="25" />
+        <circle cx="78" cy="64" r="10" fill="currentColor" opacity=".14" />
+        <path d="M15 82c16-18 28-24 43-20 11 3 17 0 25-10" />
+        <path d="M63 52l20 0 0-20" />
+        <path d="M64 51l32-32" />
       </svg>
     );
   }
-  if (variant === 'caduceus') {
+  if (type === 'lesson') {
     return (
-      <svg className="study-hero-motif study-hero-motif--caduceus" viewBox="0 0 200 200" aria-hidden="true">
-        <g stroke="currentColor" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="100" y1="20" x2="100" y2="180" />
-          <path d="M70 40 Q100 60 130 80 Q100 100 70 120 Q100 140 130 160" />
-          <path d="M130 40 Q100 60 70 80 Q100 100 130 120 Q100 140 70 160" />
-          <path d="M80 30 Q100 12 120 30" />
-          <path d="M76 38 Q66 28 56 30" />
-          <path d="M124 38 Q134 28 144 30" />
-        </g>
+      <svg className="study-action-art study-action-art--lesson" viewBox="0 0 120 120" aria-hidden="true">
+        <path d="M27 35c14-4 29-2 43 8v53c-14-9-29-12-43-8z" fill="currentColor" opacity=".08" />
+        <path d="M70 43c12-9 27-11 43-6v53c-15-5-29-3-43 6z" fill="currentColor" opacity=".08" />
+        <path d="M27 35c14-4 29-2 43 8v53c-14-9-29-12-43-8z" />
+        <path d="M70 43c12-9 27-11 43-6v53c-15-5-29-3-43 6z" />
+        <path d="M70 43v53" />
+        <path d="M39 54h18M39 67h22M39 80h16" />
+        <path d="M84 54h18M84 67h14" />
       </svg>
     );
   }
-  if (variant === 'aurora') {
-    return (
-      <span className="study-hero-motif study-hero-motif--aurora" aria-hidden="true">
-        <span className="study-hero-aurora-band" />
-        <span className="study-hero-aurora-band study-hero-aurora-band--b" />
-      </span>
-    );
-  }
-  if (variant === 'ekg') {
-    return (
-      <svg className="study-hero-motif study-hero-motif--ekg" viewBox="0 0 400 80" preserveAspectRatio="none" aria-hidden="true">
-        <path
-          className="study-hero-ekg-trace"
-          d="M0 40 L60 40 L80 40 L92 38 L100 42 L108 12 L120 68 L132 28 L144 40 L200 40 L220 40 L232 36 L242 44 L252 14 L264 64 L276 30 L288 40 L400 40"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-  return null;
+  return (
+    <svg className="study-action-art study-action-art--review" viewBox="0 0 120 120" aria-hidden="true">
+      <rect x="31" y="25" width="58" height="72" rx="9" fill="currentColor" opacity=".08" />
+      <path d="M31 25h43l15 15v57H31z" />
+      <path d="M74 25v16h15" />
+      <path d="M44 52h29M44 65h23M44 78h17" />
+      <circle cx="79" cy="78" r="18" fill="currentColor" opacity=".08" />
+      <path d="M69 78l7 7 16-20" />
+      <path d="M23 39h-7v66h55v-7" />
+    </svg>
+  );
 }
 
 /* Floating dust particles — dark mode atmospheric layer ────────── */
@@ -322,27 +350,6 @@ function DashboardDustLayer() {
   );
 }
 
-/* SVG empty-state illustration for the Question of the Day card ── */
-function QuestionEmptyIllustration() {
-  return (
-    <svg className="study-question-empty-art" viewBox="0 0 120 96" aria-hidden="true">
-      <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M60 78 L20 70 L20 30 L60 38 Z" />
-        <path d="M60 78 L100 70 L100 30 L60 38 Z" />
-        <path d="M60 38 L60 78" />
-        <path d="M28 42 L46 45" />
-        <path d="M28 52 L46 55" />
-        <path d="M28 62 L42 64" />
-        <path d="M74 42 L92 39" />
-        <path d="M74 52 L92 49" />
-        <path d="M74 62 L88 60" />
-        <path d="M60 22 L60 30 M55 25 L65 27 M55 19 L52 17 M65 19 L68 17 M50 22 L48 25 M70 22 L72 25" strokeWidth="1.4" />
-        <circle cx="60" cy="14" r="2.4" fill="currentColor" stroke="none" />
-      </g>
-    </svg>
-  );
-}
-
 function StethoscopeMark() {
   return (
     <svg className="study-hero-mark" viewBox="0 0 180 180" role="img" aria-label="Study progress illustration">
@@ -365,8 +372,8 @@ function StethoscopeMark() {
 function StudyButton({ children, tone = 'primary', icon = null, onClick }) {
   return (
     <button type="button" className={`study-button study-button--${tone}`} onClick={onClick}>
-      <span>{children}</span>
       {icon ? <Icon name={icon} /> : null}
+      <span>{children}</span>
     </button>
   );
 }
@@ -390,13 +397,24 @@ function MetricCard({ label, value, hint, icon, tone, progress = null }) {
 }
 
 function StreakHeatmap({ streak, goalsCompleted }) {
-  const activeCells = Math.min(28, Math.max(Number(streak || 0), Number(goalsCompleted || 0)));
+  const activeDays = Math.min(7, Math.max(Number(streak || 0), Number(goalsCompleted || 0)));
+  const todayIndex = (new Date().getDay() + 6) % 7;
+  const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   return (
-    <div className="study-heatmap" aria-label={`${activeCells} active study days`}>
-      {Array.from({ length: 28 }).map((_, index) => {
-        const active = index >= 28 - activeCells;
-        const intensity = active ? ((index + activeCells) % 3) + 1 : 0;
-        return <span className={`study-heatmap__cell is-${intensity}`} key={index} />;
+    <div className="study-heatmap" aria-label={`${activeDays} active study days this week`}>
+      {labels.map((label, index) => {
+        const active = activeDays > 0 && index >= labels.length - activeDays;
+        const className = [
+          'study-heatmap__cell',
+          active ? 'is-active' : '',
+          index === todayIndex ? 'is-today' : '',
+        ].filter(Boolean).join(' ');
+        return (
+          <span className={className} key={`${label}-${index}`}>
+            <span className="study-heatmap__dot" aria-hidden="true" />
+            <span className="study-heatmap__label">{label}</span>
+          </span>
+        );
       })}
     </div>
   );
@@ -457,10 +475,12 @@ function TopicList({ title, items, emptyText, tone }) {
 function DailyQuestionCard({ question }) {
   const [selectedOptionId, setSelectedOptionId] = useState(null);
   const [answerFeedback, setAnswerFeedback] = useState(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     setSelectedOptionId(null);
     setAnswerFeedback(null);
+    setExpanded(false);
   }, [question?.id]);
 
   if (!question?.questionText || !Array.isArray(question.options) || question.options.length === 0) {
@@ -474,7 +494,7 @@ function DailyQuestionCard({ question }) {
           <span className="study-soft-icon study-soft-icon--indigo"><Icon name="review" /></span>
         </div>
         <div className="study-question-empty">
-          <QuestionEmptyIllustration />
+          <StudyMascot variant="review" mood="review" size="lg" label="Question bank review mascot" />
           <p>A random SBA will appear here once active questions are added to the bank.</p>
         </div>
       </section>
@@ -485,6 +505,7 @@ function DailyQuestionCard({ question }) {
 
   const triggerAnswerFeedback = (option) => {
     const isCorrect = Boolean(option.isCorrect);
+    setExpanded(true);
     setSelectedOptionId(option.id);
 
     if (isCorrect) {
@@ -511,7 +532,7 @@ function DailyQuestionCard({ question }) {
   };
 
   return (
-    <section className="study-card study-question-card">
+    <section className={`study-card study-question-card ${expanded ? 'is-expanded' : 'is-collapsed'}`}>
       <div className="study-card__head">
         <div>
           <span className="study-eyebrow">Question of the day</span>
@@ -538,6 +559,7 @@ function DailyQuestionCard({ question }) {
               type="button"
               className={`study-answer-option ${answerStateClass}`}
               key={option.id}
+              tabIndex={expanded ? 0 : -1}
               onClick={() => triggerAnswerFeedback(option)}
             >
               <span>{option.optionLabel}</span>
@@ -551,6 +573,14 @@ function DailyQuestionCard({ question }) {
           );
         })}
       </div>
+      <button
+        type="button"
+        className="study-question-toggle"
+        aria-expanded={expanded ? 'true' : 'false'}
+        onClick={() => setExpanded((value) => !value)}
+      >
+        {expanded ? 'Hide question' : 'Answer question'}
+      </button>
     </section>
   );
 }
@@ -560,7 +590,7 @@ function StudyMoodCard({ mood, todayLabel }) {
     <section className="study-card study-mood-card" aria-label="Study mood">
       <span className="study-mood-orbit" aria-hidden="true" />
       <div className="study-mood-main">
-        <span className="study-soft-icon study-soft-icon--cyan"><Icon name="spark" /></span>
+        <StudyMascot variant="brain" mood="loading" size="sm" label="Study mood mascot" />
         <div>
           <span className="study-eyebrow">{mood.label}</span>
           <strong>{mood.value}</strong>
@@ -570,7 +600,7 @@ function StudyMoodCard({ mood, todayLabel }) {
       <div className="study-mood-meter" aria-label={`${mood.value}: ${mood.meter}%`}>
         <span style={{ width: `${clampPercent(mood.meter)}%` }} />
       </div>
-      <small>{todayLabel} mood check</small>
+      <small>Based on today’s activity</small>
     </section>
   );
 }
@@ -600,7 +630,35 @@ export function StudentDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
-  const [heroMotif] = useState(pickHeroMotif);
+  const [heroMascot] = useState(pickDashboardHeroMascot);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+
+    const body = document.body;
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    const root = document.documentElement;
+    const routeThemeColors = { light: '#dce6f4', dark: '#02030a' };
+    const appThemeColors = { light: '#dce6f4', dark: '#05070d' };
+    const getTheme = () => (root.dataset.theme === 'dark' ? 'dark' : 'light');
+    const syncRouteThemeColor = () => {
+      metaThemeColor?.setAttribute('content', routeThemeColors[getTheme()]);
+    };
+
+    body.classList.add('study-hub-screen');
+    syncRouteThemeColor();
+
+    const observer = typeof MutationObserver === 'function'
+      ? new MutationObserver(syncRouteThemeColor)
+      : null;
+    observer?.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+
+    return () => {
+      observer?.disconnect();
+      body.classList.remove('study-hub-screen');
+      metaThemeColor?.setAttribute('content', appThemeColors[getTheme()]);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -697,59 +755,71 @@ export function StudentDashboardPage() {
         ? `Your last attempt scored ${clampPercent(latestAttempt.percentage)}%. Review once, then try another focused set.`
         : 'Start with one compact practice set, review the answers, and finish with one lesson.';
 
-  const metrics = [
+  const courseCount = useMemo(() => {
+    const courseNames = new Set(
+      [...studentQuizzes, ...aiNotes]
+        .map((item) => item?.courseTitle || item?.courseName)
+        .filter(Boolean)
+        .map((name) => String(name).trim())
+    );
+    return courseNames.size || dashboard.totalCourses || dashboard.totalQuizzes || studentQuizzes.length || 0;
+  }, [aiNotes, dashboard.totalCourses, dashboard.totalQuizzes, studentQuizzes]);
+
+  const dashboardStats = [
     {
-      label: 'Quizzes',
-      value: studentQuizzes.length || dashboard.totalQuizzes,
-      hint: 'Available sets',
+      label: 'Courses',
+      value: courseCount,
+      hint: 'In progress',
       icon: 'book',
-      tone: 'indigo',
-    },
-    {
-      label: 'Attempts',
-      value: dashboard.totalAttempts,
-      hint: `${dashboard.totalPassed} passed`,
-      icon: 'review',
       tone: 'cyan',
     },
     {
-      label: 'Average',
-      value: `${clampPercent(dashboard.avgScore)}%`,
-      hint: scoreDelta ? `${scoreDelta > 0 ? '+' : ''}${scoreDelta}% this week` : 'Current score',
-      icon: 'chart',
+      label: 'Readiness',
+      value: `${readinessScore}%`,
+      hint: scoreDelta ? `${scoreDelta > 0 ? '+' : ''}${scoreDelta}%` : 'Avg. readiness',
+      icon: 'target',
       tone: 'violet',
-      progress: dashboard.avgScore,
+      progress: readinessScore,
     },
     {
       label: 'Streak',
       value: dashboard.quizDayStreak,
-      hint: plural(dashboard.quizDayStreak, 'active day'),
-      icon: 'spark',
+      hint: dashboard.quizDayStreak > 0 ? plural(dashboard.quizDayStreak, 'active day') : 'Keep it going',
+      icon: 'flame',
       tone: 'amber',
     },
   ];
 
   const quickActions = [
     {
-      label: latestAttemptId ? 'Review answers' : 'Results',
-      hint: latestAttemptId ? 'Open latest explanations' : 'View attempt history',
-      icon: 'review',
-      count: dashboard.recentAttempts.length || dashboard.totalAttempts || 0,
-      onClick: () => navigate(latestAttemptId ? appRoute(`/review/${latestAttemptId}`) : appRoute('/results')),
+      label: 'Exams',
+      icon: 'exam',
+      onClick: () => navigate(appRoute('/exams')),
     },
     {
-      label: inProgressQuiz ? 'Resume set' : 'Practice',
-      hint: inProgressQuiz ? 'Continue active quiz' : 'Start focused exam',
-      icon: 'play',
-      count: inProgressQuiz ? 1 : studentQuizzes.length || dashboard.totalQuizzes || 0,
-      onClick: () => navigate(continueTarget),
+      label: 'Planner',
+      icon: 'calendar',
+      onClick: () => navigate(appRoute('/planner')),
     },
     {
-      label: recommendedNote?.id ? 'Review lesson' : 'Lessons',
-      hint: recommendedNote?.id ? getTopicLabel(recommendedNote, 'Suggested note') : 'Browse study notes',
-      icon: 'book',
-      count: aiNotes.length || bookmarks.length || 0,
-      onClick: () => navigate(recommendedNote?.id ? appRoute(`/ai-notes/${recommendedNote.id}`) : appRoute('/ai-notes')),
+      label: 'Q-Bank',
+      icon: 'target',
+      onClick: () => navigate(appRoute('/quizzes')),
+    },
+    {
+      label: 'Notes',
+      icon: 'doc',
+      onClick: () => navigate(appRoute('/ai-notes')),
+    },
+    {
+      label: 'Bookmarks',
+      icon: 'bookmark',
+      onClick: () => navigate(appRoute('/bookmarks')),
+    },
+    {
+      label: 'Weak areas',
+      icon: 'chart',
+      onClick: () => navigate(weakTopic ? continueTarget : appRoute('/results')),
     },
   ];
 
@@ -852,38 +922,51 @@ export function StudentDashboardPage() {
   }
 
   return (
-    <main className="dashboard-page study-hub-page" data-hero-motif={heroMotif}>
+    <main className="dashboard-page study-hub-page">
       <DashboardDustLayer />
       <div className="study-hub-shell">
         <AppHeader title="Study Hub" subtitle="Daily Focus" />
 
         <section className="study-continue-card" aria-label="Continue studying">
           <div className="study-hero-soft-shape" aria-hidden="true" />
-          <HeroMotif variant={heroMotif} />
-          <span className="study-hero-stetho" aria-hidden="true"><Icon name="stetho" /></span>
+          <DashboardHeroMascot mascot={heroMascot} />
           <div className="study-continue-card__copy">
             <span className="study-eyebrow">Continue where you left off</span>
             <div className="study-hero-name">
-              <span>Hi,&nbsp;</span>
+              <span>Welcome back,&nbsp;</span>
               <strong>{firstName}</strong>
             </div>
-            <p className="study-hero-lead">Next study move - <b>{inProgressQuiz ? 'Practice' : recommendedNote ? 'Lesson' : 'Practice'}</b></p>
+            <p className="study-hero-lead">Next study move - <b>{inProgressQuiz ? 'PRACTICE' : recommendedNote ? 'LESSON' : 'PRACTICE'}</b></p>
             <div className="study-chip-row">
               <span><Icon name="stetho" /> {recommendedQuiz?.courseTitle || weakTopic?.courseTitle || 'Surgery'}</span>
               <span>{recommendedQuiz?.topicName || weakTopic?.topicName || recommendedNote?.topicName || 'Hernia'} · {readinessScore}% ready</span>
             </div>
             <div className="study-hero-actions">
               <StudyButton tone="primary" icon="play" onClick={() => onNavigate(continueTarget)}>{continueLabel}</StudyButton>
-              <button type="button" className="study-square-action" aria-label="Open results" onClick={() => onNavigate(appRoute('/results'))}>
+              <button type="button" className="study-square-action" aria-label="Open exams" onClick={() => onNavigate(appRoute('/quizzes'))}>
                 <Icon name="doc" />
               </button>
             </div>
           </div>
         </section>
 
+        <section className="study-metric-grid" aria-label="Dashboard stats">
+          {dashboardStats.map((metric) => (
+            <MetricCard
+              key={metric.label}
+              label={metric.label}
+              value={metric.value}
+              hint={metric.hint}
+              icon={metric.icon}
+              tone={metric.tone}
+              progress={metric.progress}
+            />
+          ))}
+        </section>
+
         <section className="study-card study-streak-card">
           <div className="study-streak-top">
-            <span className="study-streak-icon"><Icon name="flame" /></span>
+            <span className="study-streak-icon"><StudyMascot variant="streak" mood="streak" size="sm" label="Daily streak mascot" /></span>
             <div>
               <span className="study-eyebrow">Daily streak</span>
               <strong>{dashboard.quizDayStreak > 0 ? plural(dashboard.quizDayStreak, 'day') : 'Start your first streak today'}</strong>
@@ -896,15 +979,30 @@ export function StudentDashboardPage() {
           <StreakHeatmap streak={dashboard.quizDayStreak} goalsCompleted={dashboard.dailyGoalsCompleted} />
           <div className="study-streak-footer">
             <span>Past 4 weeks · <b>{Math.max(dashboard.quizDayStreak, dashboard.dailyGoalsCompleted)}</b> active days</span>
-            <span className="study-heatmap-key"><i /><i /><i /><i /></span>
+            <button type="button" className="study-streak-link" onClick={() => onNavigate(appRoute('/results'))}>
+              View history <span aria-hidden="true">&gt;</span>
+            </button>
           </div>
+        </section>
+
+        <section className="study-section-head study-section-head--quick">
+          <strong>Quick actions</strong>
+        </section>
+
+        <section className="study-action-grid" aria-label="Quick actions">
+          {quickActions.map((action) => (
+            <button type="button" className="study-action-card" key={action.label} onClick={() => onNavigate(null) || action.onClick()}>
+              <span><Icon name={action.icon} /></span>
+              <strong>{action.label}</strong>
+            </button>
+          ))}
         </section>
 
         <div className="study-readiness-stack">
           <section className="study-card study-readiness-card">
             <span className="study-readiness-glow study-readiness-glow--one" aria-hidden="true" />
             <span className="study-readiness-glow study-readiness-glow--two" aria-hidden="true" />
-            <div className="study-readiness-icon"><Icon name="cap" /></div>
+            <div className="study-readiness-icon"><StudyMascot variant="readiness" mood="readiness" size="sm" label="Exam readiness mascot" /></div>
             <div className="study-readiness-copy">
               <div className="study-readiness-meta">
                 <span className="study-eyebrow">Exam readiness</span>
@@ -937,21 +1035,6 @@ export function StudentDashboardPage() {
         </div>
 
         <StudyMoodCard mood={studyMood} todayLabel={todayLabel} />
-
-        <section className="study-section-head">
-          <span className="study-eyebrow">Quick actions</span>
-          <small>3 shortcuts</small>
-        </section>
-
-        <section className="study-action-grid" aria-label="Quick actions">
-          {quickActions.map((action) => (
-            <button type="button" className="study-action-card" key={action.label} onClick={() => onNavigate(null) || action.onClick()}>
-              <span><Icon name={action.icon} /></span>
-              <em>{action.count}</em>
-              <strong>{action.label}</strong>
-            </button>
-          ))}
-        </section>
 
         <section className="study-section-head study-section-head--question">
           <span className="study-eyebrow">Question of the day</span>

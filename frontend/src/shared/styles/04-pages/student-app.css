@@ -81,8 +81,8 @@
   --sa-radius-lg: 22px;
   --sa-radius-xl: 28px;
 
-  --sa-font-display: "Bricolage Grotesque", "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --sa-font-sans: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sa-font-display: var(--type-font-display);
+  --sa-font-sans: var(--type-font-body);
 
   --sa-ease: cubic-bezier(0.32, 0.72, 0.32, 1);
   --sa-dur: 160ms;
@@ -95,11 +95,11 @@
   --sa-page-width-mobile: min(390px, calc(100% - 24px));
   --sa-page-width-compact: min(100% - 18px, 390px);
   --sa-page-width-tablet: min(720px, calc(100% - 32px));
-  --sa-page-width-desktop: min(1080px, calc(100% - 48px));
+  --sa-page-width-desktop: min(880px, calc(100% - 48px));
   --sa-page-padding-top: calc(16px + env(safe-area-inset-top, 0px));
-  --sa-page-padding-bottom: calc(var(--lms-mobile-content-bottom, 92px) + 28px + env(safe-area-inset-bottom, 0px));
+  --sa-page-padding-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 6px);
   --sa-page-padding-compact-top: calc(12px + env(safe-area-inset-top, 0px));
-  --sa-page-padding-compact-bottom: calc(var(--lms-mobile-content-bottom, 92px) + 24px + env(safe-area-inset-bottom, 0px));
+  --sa-page-padding-compact-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 6px);
   --sa-page-padding: var(--sa-page-padding-top) 0 var(--sa-page-padding-bottom);
   --sa-page-padding-compact: var(--sa-page-padding-compact-top) 0 var(--sa-page-padding-compact-bottom);
 
@@ -220,12 +220,17 @@
 
 .lms-sidebar--student-model .lms-sidebar-brand {
   min-height: auto !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
   gap: 12px !important;
   padding: 4px 4px 24px !important;
   border-bottom: 0 !important;
 }
 
 .lms-sidebar--student-model .lms-sidebar-brand-mark {
+  display: grid !important;
+  place-items: center !important;
   width: 40px !important;
   height: 40px !important;
   border-radius: 12px !important;
@@ -233,21 +238,31 @@
   box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
 }
 
+.lms-sidebar--student-model .lms-sidebar-brand-mark svg {
+  display: block;
+}
+
+.lms-sidebar--student-model .lms-sidebar-wordmark {
+  display: grid !important;
+  min-width: 0;
+  align-content: center !important;
+}
+
 .lms-sidebar--student-model .lms-sidebar-brand-name {
   color: var(--student-sidebar-ink) !important;
-  font-family: "Bricolage Grotesque", "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 19px !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.6px !important;
-  line-height: 1 !important;
+  font-family: var(--sa-font-display);
+  font-size: var(--type-size-xl) !important;
+  font-weight: var(--type-weight-bold) !important;
+  letter-spacing: 0 !important;
+  line-height: var(--type-leading-tight) !important;
 }
 
 .lms-sidebar--student-model .lms-sidebar-brand-sub {
   margin-top: 2px;
   color: var(--student-sidebar-muted) !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.2px !important;
+  font-size: var(--type-size-xs) !important;
+  font-weight: var(--type-weight-medium) !important;
+  letter-spacing: 0 !important;
 }
 
 .lms-sidebar--student-model .lms-sidebar-section-label {
@@ -269,9 +284,8 @@
   border-radius: 14px !important;
   background: transparent !important;
   color: var(--student-sidebar-muted) !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.1px !important;
+  font: var(--type-ui) !important;
+  letter-spacing: 0 !important;
   box-shadow: none !important;
   transform: none !important;
 }
@@ -340,7 +354,7 @@
   color: #ffffff;
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.3px;
+  letter-spacing: 0;
 }
 
 .lms-sidebar--student-model .lms-sidebar-student-copy {
@@ -1268,14 +1282,16 @@
    ============================================================ */
 :root[data-theme="dark"] .student-app-shell,
 .student-app-shell[data-theme="dark"] {
-  --sa-bg: linear-gradient(180deg, #050a16 0%, #081333 34%, #061126 72%, #050a16 100%);
-  --sa-bg-grad-1:      #11193a;
-  --sa-bg-grad-2:      #0e1430;
-  --sa-surface:        #0f1730;
-  --sa-surface-2:      #14203c;
-  --sa-surface-raised: #1a2748;
-  --sa-surface-rgb:    15, 23, 48;
-  --sa-surface-2-rgb:  20, 32, 60;
+  --sa-bg:
+    radial-gradient(ellipse at 18% 0%, rgba(37, 99, 235, 0.035) 0%, transparent 42%),
+    linear-gradient(180deg, #02030a 0%, #05070d 34%, #03050b 72%, #02030a 100%);
+  --sa-bg-grad-1:      #0b1019;
+  --sa-bg-grad-2:      #070a11;
+  --sa-surface:        rgba(7, 10, 16, 0.95);
+  --sa-surface-2:      #0b1019;
+  --sa-surface-raised: rgba(10, 14, 22, 0.96);
+  --sa-surface-rgb:    7, 10, 16;
+  --sa-surface-2-rgb:  11, 16, 25;
 
   --sa-ink:      #e6ecf9;
   --sa-ink-deep: #f5f8ff;
@@ -1293,7 +1309,7 @@
   --sa-primary-rgb:  96, 165, 250;
 
   --sa-purple:      #38bdf8;
-  --sa-purple-soft: rgba(56, 189, 248, 0.16);
+  --sa-purple-soft: rgba(56, 189, 248, 0.07);
   --sa-purple-rgb:  56, 189, 248;
 
   --sa-warn:      #f5a84e;
@@ -1395,13 +1411,18 @@
 }
 
 .student-app-shell {
+  position: relative;
   font-family: var(--sa-font-sans);
+  font-size: var(--type-size-base);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-body);
 }
 
 /* Display font everywhere headings live */
 .student-app-shell :where(h1, h2, h3, h4, h5, h6) {
   font-family: var(--sa-font-display);
-  letter-spacing: -0.3px;
+  letter-spacing: 0;
+  text-wrap: balance;
 }
 
 .student-app-shell .main-content,
@@ -1488,11 +1509,30 @@
 
 .student-app-shell .lms-topbar-left {
   min-width: 0;
+  align-items: center;
   gap: 12px;
 }
 
 .student-app-shell .lms-topbar-menu-button {
   display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 0 !important;
+}
+
+.student-app-shell .lms-topbar-menu-button svg,
+.study-hub-topbar .lms-topbar-menu-button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: auto;
+  flex: 0 0 auto;
+}
+
+.study-hub-topbar .lms-topbar-menu-button {
+  display: inline-grid !important;
+  place-items: center !important;
+  line-height: 0 !important;
 }
 
 .student-app-shell.sidebar-hidden .lms-topbar-menu-button,
@@ -1511,10 +1551,10 @@
   overflow: hidden;
   color: var(--sa-ink);
   font-family: var(--sa-font-display);
-  font-size: 26px;
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.6px;
+  font-size: var(--type-size-xl);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-tight);
+  letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
   -webkit-text-fill-color: currentColor;
@@ -1537,16 +1577,29 @@
 }
 
 .student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button, .lms-topbar-center > button) {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  min-height: 42px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
   border-color: var(--sa-border);
-  border-radius: 14px;
+  border-radius: 13px;
   background: transparent;
   color: var(--sa-ink);
   box-shadow: none;
   transition: background var(--sa-dur) var(--sa-ease), border-color var(--sa-dur) var(--sa-ease), color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease);
+}
+
+.student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button, .lms-topbar-center > button) svg {
+  width: 16px;
+  height: 16px;
+}
+
+.student-app-shell .lms-topbar .lms-topbar-menu-button {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  border-radius: 12px !important;
 }
 
 .student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button, .lms-topbar-center > button):hover {
@@ -1562,8 +1615,270 @@
 .student-app-shell .lms-profile-avatar {
   background: var(--sa-grad);
   color: #ffffff;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 900;
+}
+
+.student-app-shell .lms-profile-menu-backdrop,
+.study-hub-topbar .lms-profile-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1190;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: default;
+  -webkit-backdrop-filter: blur(10px) saturate(112%);
+  backdrop-filter: blur(10px) saturate(112%);
+  animation: lmsProfileBackdropIn 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.student-app-shell .lms-profile-menu-backdrop.is-closing,
+.study-hub-topbar .lms-profile-menu-backdrop.is-closing {
+  pointer-events: none;
+  animation: lmsProfileBackdropOut 240ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.student-app-shell .is-profile-avatar-open,
+.study-hub-topbar .is-profile-avatar-open {
+  position: relative !important;
+  z-index: 1202 !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  transform: none !important;
+}
+
+.student-app-shell .is-profile-avatar-open:active,
+.study-hub-topbar .is-profile-avatar-open:active {
+  transform: none !important;
+}
+
+.student-app-shell .lms-topbar-menu-wrap:has(.lms-profile-menu) > button,
+.study-hub-topbar .lms-topbar-menu-wrap:has(.lms-profile-menu) > button {
+  position: relative;
+  z-index: 1201;
+}
+
+.student-app-shell .lms-profile-menu {
+  --profile-menu-trigger-size: 36px;
+  --profile-menu-ink: #0c1830;
+  --profile-menu-muted: #4d5b78;
+  --profile-menu-border: rgba(12, 24, 48, 0.08);
+  --profile-menu-hover: rgba(37, 99, 235, 0.07);
+  --profile-menu-grad: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(56, 189, 248, 0.1));
+  border-color: var(--profile-menu-border) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.62)),
+    var(--profile-menu-grad) !important;
+  color: var(--profile-menu-ink) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 24px 54px -22px rgba(14, 21, 56, 0.28) !important;
+  backdrop-filter: blur(18px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+  animation: lmsProfileMenuTopNavIn 360ms cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  transform-origin: top right;
+  will-change: clip-path, transform, opacity;
+}
+
+.student-app-shell .lms-profile-menu.is-closing {
+  pointer-events: none;
+  animation: lmsProfileMenuTopNavOut 260ms cubic-bezier(0.4, 0, 1, 1) both !important;
+}
+
+.student-app-shell .lms-profile-menu::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(37, 99, 235, 0.13), transparent 38%),
+    radial-gradient(circle at 92% 20%, rgba(56, 189, 248, 0.13), transparent 36%);
+  content: "";
+}
+
+.student-app-shell .lms-profile-menu > * {
+  position: relative;
+  z-index: 1;
+  opacity: 0;
+  transform: translate3d(0, -8px, 0);
+  animation: lmsProfileMenuContentIn 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.student-app-shell .lms-profile-menu > :nth-child(1) { animation-delay: 110ms; }
+.student-app-shell .lms-profile-menu > :nth-child(2) { animation-delay: 150ms; }
+.student-app-shell .lms-profile-menu > :nth-child(3) { animation-delay: 190ms; }
+
+.student-app-shell .lms-profile-menu.is-closing > * {
+  animation: lmsProfileMenuContentOut 140ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation-delay: 0ms;
+}
+
+.student-app-shell .lms-profile-menu :where(button, [role="button"]) {
+  color: var(--profile-menu-muted) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  transition:
+    background var(--sa-dur) var(--sa-ease),
+    border-color var(--sa-dur) var(--sa-ease),
+    color var(--sa-dur) var(--sa-ease) !important;
+}
+
+.student-app-shell .lms-profile-menu :where(button, [role="button"]):is(:hover, :active) {
+  background: transparent !important;
+  color: var(--profile-menu-muted) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.student-app-shell .lms-profile-menu .lms-profile-menu-logout {
+  background: rgba(var(--sa-danger-rgb), 0.1) !important;
+  color: var(--sa-danger-deep, var(--brand-error)) !important;
+}
+
+.student-app-shell .lms-profile-menu .lms-profile-menu-logout:is(:hover, :active) {
+  background: rgba(var(--sa-danger-rgb), 0.14) !important;
+  color: var(--sa-danger-deep, var(--brand-error)) !important;
+}
+
+.student-app-shell .lms-profile-menu .lms-profile-avatar {
+  box-shadow: none !important;
+}
+
+:root[data-theme='dark'] .student-app-shell .lms-profile-menu,
+.student-app-shell[data-theme='dark'] .lms-profile-menu {
+  --profile-menu-ink: #e8eefa;
+  --profile-menu-muted: #aab6d4;
+  --profile-menu-border: rgba(122, 162, 230, 0.14);
+  --profile-menu-hover: rgba(122, 162, 230, 0.08);
+  --profile-menu-grad: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(56, 189, 248, 0.14));
+  background:
+    linear-gradient(180deg, rgba(10, 16, 36, 0.84), rgba(5, 10, 24, 0.72)),
+    var(--profile-menu-grad) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 56px -22px rgba(0, 0, 0, 0.72) !important;
+}
+
+@keyframes lmsProfileMenuTopNavIn {
+  0% {
+    opacity: 1;
+    -webkit-clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round 12px);
+    clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round 12px);
+    transform: translate3d(0, 0, 0) scaleY(1);
+  }
+  36% {
+    opacity: 1;
+    -webkit-clip-path: inset(0 0 22% 18% round 12px 12px 18px 18px);
+    clip-path: inset(0 0 22% 18% round 12px 12px 18px 18px);
+    transform: translate3d(0, 7px, 0) scaleY(1.025);
+  }
+  62% {
+    opacity: 1;
+    -webkit-clip-path: inset(0 0 10% 0 round 16px 16px 24px 24px);
+    clip-path: inset(0 0 10% 0 round 16px 16px 24px 24px);
+    transform: translate3d(0, 3px, 0) scaleY(1.01);
+  }
+  84% {
+    opacity: 1;
+    -webkit-clip-path: inset(0 0 0 0 round 18px);
+    clip-path: inset(0 0 0 0 round 18px);
+    transform: translate3d(0, 1px, 0) scaleY(0.995);
+  }
+  100% {
+    opacity: 1;
+    -webkit-clip-path: inset(0 0 0 0 round 18px);
+    clip-path: inset(0 0 0 0 round 18px);
+    transform: translate3d(0, 0, 0) scaleY(1);
+  }
+}
+
+@keyframes lmsProfileMenuContentIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes lmsProfileMenuTopNavOut {
+  0% {
+    opacity: 1;
+    -webkit-clip-path: inset(0 0 0 0 round 18px);
+    clip-path: inset(0 0 0 0 round 18px);
+    transform: translate3d(0, 0, 0) scaleY(1);
+  }
+  38% {
+    opacity: 1;
+    -webkit-clip-path: inset(0 0 12% 0 round 16px 16px 24px 24px);
+    clip-path: inset(0 0 12% 0 round 16px 16px 24px 24px);
+    transform: translate3d(0, 3px, 0) scaleY(1.01);
+  }
+  72% {
+    opacity: 1;
+    -webkit-clip-path: inset(0 0 26% 22% round 12px 12px 18px 18px);
+    clip-path: inset(0 0 26% 22% round 12px 12px 18px 18px);
+    transform: translate3d(0, 6px, 0) scaleY(1.02);
+  }
+  100% {
+    opacity: 0;
+    -webkit-clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round 12px);
+    clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round 12px);
+    transform: translate3d(0, 0, 0) scaleY(1);
+  }
+}
+
+@keyframes lmsProfileMenuContentOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0);
+  }
+}
+
+@keyframes lmsProfileBackdropIn {
+  from {
+    opacity: 0;
+    -webkit-backdrop-filter: blur(0) saturate(100%);
+    backdrop-filter: blur(0) saturate(100%);
+  }
+  to {
+    opacity: 1;
+    -webkit-backdrop-filter: blur(10px) saturate(112%);
+    backdrop-filter: blur(10px) saturate(112%);
+  }
+}
+
+@keyframes lmsProfileBackdropOut {
+  from {
+    opacity: 1;
+    -webkit-backdrop-filter: blur(10px) saturate(112%);
+    backdrop-filter: blur(10px) saturate(112%);
+  }
+  to {
+    opacity: 0;
+    -webkit-backdrop-filter: blur(0) saturate(100%);
+    backdrop-filter: blur(0) saturate(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-app-shell .lms-profile-menu-backdrop,
+  .study-hub-topbar .lms-profile-menu-backdrop,
+  .student-app-shell .lms-profile-menu,
+  .student-app-shell .lms-profile-menu > * {
+    animation: none !important;
+  }
+
+  .student-app-shell .lms-profile-menu > * {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .student-app-shell .lms-topbar-right,
@@ -1679,10 +1994,8 @@
 
 .student-app-shell :where(.lms-page-header-card h1, .lms-page-header-card h2, .student-page-hero h1, .student-page-hero h2) {
   color: var(--sa-ink);
-  font-family: var(--sa-font-display);
-  font-weight: 800;
-  letter-spacing: -1px;
-  line-height: 0.98;
+  font: var(--type-page-title);
+  letter-spacing: 0;
 }
 
 .student-app-shell :where(.lms-page-header-card p, .student-page-hero p) {
@@ -1824,16 +2137,13 @@
 .lms-app-section-head .lms-app-eyebrow {
   display: block;
   color: var(--sa-text-3);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1px;
-  line-height: 1.2;
+  font: var(--type-label);
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 .lms-app-section-head small {
   color: var(--sa-text-3);
-  font-size: 12px;
-  font-weight: 750;
+  font: var(--type-caption);
 }
 
 /* Soft icon badge — used in cards (e.g., quick actions) */
@@ -2063,15 +2373,16 @@
 }
 
 .student-app-shell .lms-exam-page .lms-reading-explanation:not([aria-label="Answer key"]) {
-  border-color: rgba(var(--sa-primary-rgb), 0.16) !important;
-  background:
-    linear-gradient(rgba(var(--sa-primary-rgb), 0.04), rgba(var(--sa-primary-rgb), 0.04)),
-    var(--sa-surface-2) !important;
+  border-color: color-mix(in srgb, var(--color-primary) 15%, var(--line-soft)) !important;
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--surface-2)) !important;
   box-shadow: none !important;
 }
 
-.student-app-shell .lms-exam-page .lms-reading-incorrect {
-  border-color: rgba(var(--sa-primary-rgb), 0.24) !important;
+.student-app-shell .lms-exam-page .lms-reading-explanation[aria-label="Answer key"] {
+  border-color: color-mix(in srgb, var(--color-success) 24%, var(--line-soft)) !important;
+  border-radius: 14px !important;
+  background: color-mix(in srgb, var(--color-success) 7%, var(--surface-2)) !important;
+  box-shadow: none !important;
 }
 
 .student-app-shell :where(.lms-review-workspace) {
@@ -2121,6 +2432,30 @@
 
 .student-app-shell .lms-exam-page :where(.lms-exam-layout, .lms-exam-grid) {
   width: min(100%, 1520px) !important;
+}
+
+body:has(.student-app-shell.quiz-focus-mode) .lms-app-scroll-root,
+.lms-app-scroll-root:has(.student-app-shell.quiz-focus-mode) {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.student-app-shell.quiz-focus-mode,
+.student-app-shell.quiz-focus-mode .portal-content,
+.student-app-shell.quiz-focus-mode .portal-content__frame,
+.student-app-shell.quiz-focus-mode .portal-content__frame > .min-h-full,
+.student-app-shell.quiz-focus-mode .lms-route-reveal,
+.student-app-shell.quiz-focus-mode .lms-exam-page {
+  height: auto !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 @media (max-width: 1180px) {
@@ -2211,7 +2546,7 @@
     padding: 0 0 8px;
   }
 
-  .student-app-shell .lms-topbar h1 { font-size: 22px; }
+  .student-app-shell .lms-topbar h1 { font-size: var(--type-size-xl); }
   .student-app-shell .lms-topbar p {
     display: block;
     max-width: 100%;
@@ -2244,7 +2579,7 @@
     width: var(--sa-page-width-compact);
   }
 
-  .student-app-shell .lms-topbar h1 { font-size: 20px; }
+  .student-app-shell .lms-topbar h1 { font-size: var(--type-size-xl); }
 }
 
 html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
@@ -2272,8 +2607,8 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   }
 
   .student-app-shell .lms-topbar h1 {
-    font-size: 22px !important;
-    letter-spacing: -0.6px !important;
+    font-size: var(--type-size-xl) !important;
+    letter-spacing: 0 !important;
   }
 
   .student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button) {
@@ -2355,27 +2690,23 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
 .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__eyebrow {
   margin-bottom: 14px !important;
   color: var(--sa-primary) !important;
-  font-size: 11px !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.4px !important;
+  font: var(--type-label) !important;
+  letter-spacing: 0 !important;
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__title {
   max-width: 720px;
   color: var(--sa-ink) !important;
-  font-size: clamp(34px, 5vw, 46px) !important;
-  font-weight: 800 !important;
-  letter-spacing: -1.2px !important;
-  line-height: 0.98 !important;
+  font: var(--type-display) !important;
+  letter-spacing: 0 !important;
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__subtitle {
   max-width: 680px;
   margin-top: 10px !important;
   color: var(--sa-text-2) !important;
-  font-size: 14px !important;
-  font-weight: 650 !important;
-  line-height: 1.5 !important;
+  font: var(--type-body) !important;
+  letter-spacing: 0 !important;
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__metric {
@@ -2389,14 +2720,12 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
 
 .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__metric-value {
   color: var(--sa-ink) !important;
-  font-family: var(--sa-font-display);
-  font-size: 24px !important;
-  font-weight: 800 !important;
+  font: var(--type-metric) !important;
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__metric-label {
   color: var(--sa-text-2) !important;
-  letter-spacing: 0.04em !important;
+  letter-spacing: 0 !important;
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card, .card-surface, .lms-app-card, .lms-alert, .lms-table-shell) {
@@ -2452,9 +2781,8 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
 
 .student-app-shell .lms-route-page:not(.dashboard-page) :where(th) {
   color: var(--sa-text-3);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font: var(--type-label);
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -2488,8 +2816,8 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   }
 
   .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__title {
-    font-size: clamp(32px, 9vw, 40px) !important;
-    letter-spacing: -1px !important;
+    font-size: var(--type-size-3xl) !important;
+    letter-spacing: 0 !important;
   }
 }
 

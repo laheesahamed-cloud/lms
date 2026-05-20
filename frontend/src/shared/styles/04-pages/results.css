@@ -79,7 +79,7 @@
 
 .student-app-shell .student-results-hero__score {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   min-width: 0;
@@ -338,7 +338,7 @@
   }
 
   .student-app-shell .student-results-hero__score {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto auto minmax(0, 1fr);
   }
 }
 
@@ -737,6 +737,16 @@
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+}
+
+.practice-review-page .lms-review-question-card {
+  scroll-margin-top: 96px;
+}
+
+@media (max-width: 760px) {
+  .practice-review-page .lms-review-question-card {
+    scroll-margin-top: 16px;
+  }
 }
 
 .student-app-shell .practice-review-mark {

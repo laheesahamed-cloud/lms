@@ -23,14 +23,16 @@ async function assertExists(filePath, label) {
 await assertExists(distIndex, 'Built frontend index');
 
 const html = await readFile(distIndex, 'utf8');
-const cssMatch = html.match(/href="([^"]*\/assets\/app-[^"]+\.css)"/);
+const cssMatches = [...html.matchAll(/href="([^"]*\/assets\/app-[^"]+\.css)"/g)];
 const jsMatch = html.match(/src="([^"]*\/assets\/app-[^"]+\.js)"/);
 
-if (!cssMatch || !jsMatch) {
-  throw new Error('Built frontend index does not contain the expected versioned app CSS and JS assets.');
+if (!jsMatch) {
+  throw new Error('Built frontend index does not contain the expected versioned app JS asset.');
 }
 
-await assertExists(path.join(repoRoot, cssMatch[1].replace(/^\/lms\//, '')), 'Built app CSS');
+for (const cssMatch of cssMatches) {
+  await assertExists(path.join(repoRoot, cssMatch[1].replace(/^\/lms\//, '')), 'Built app CSS');
+}
 await assertExists(path.join(repoRoot, jsMatch[1].replace(/^\/lms\//, '')), 'Built app JS');
 await copyFile(distIndex, rootIndex);
 

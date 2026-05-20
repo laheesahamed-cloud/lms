@@ -228,20 +228,15 @@
   white-space: normal;
 }
 
-.student-app-shell .lms-exam-page .lms-reading-explanation {
-  border-color: rgba(var(--sa-primary-rgb), 0.16);
-  background:
-    linear-gradient(rgba(var(--sa-primary-rgb), 0.05), rgba(var(--sa-primary-rgb), 0.05)),
-    var(--sa-surface);
+.student-app-shell .lms-exam-page .lms-reading-explanation:not([aria-label="Answer key"]) {
+  border-color: color-mix(in srgb, var(--color-primary) 15%, var(--line-soft));
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--surface-2));
+  box-shadow: none;
 }
 
-:root[data-theme="dark"] .student-app-shell .lms-exam-page .lms-reading-explanation,
-.student-app-shell[data-theme="dark"] .lms-exam-page .lms-reading-explanation {
-  background: rgba(255, 255, 255, 0.045);
-}
-
-.student-app-shell .lms-exam-page .lms-reading-incorrect {
-  border-left-color: rgba(var(--sa-primary-rgb), 0.35);
+:root[data-theme="dark"] .student-app-shell .lms-exam-page .lms-reading-explanation:not([aria-label="Answer key"]),
+.student-app-shell[data-theme="dark"] .lms-exam-page .lms-reading-explanation:not([aria-label="Answer key"]) {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--surface-2));
 }
 
 .lms-exam-page label:has(.lms-reading-answer),

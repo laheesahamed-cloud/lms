@@ -3,6 +3,7 @@ import { detectPlatform } from './detect.js';
 const APP_BASENAME = '/lms';
 const LEGACY_BUILD_BASENAME = '/lms/frontend/dist';
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
+const LOOPBACK_API_BASE_URL = 'http://127.0.0.1:3000/api';
 const NATIVE_DEFAULT_API_BASE_URL = LOCAL_API_BASE_URL;
 
 function splitCsv(value) {
@@ -17,6 +18,10 @@ function splitUrlList(value) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeApiBaseUrl(value) {
+  return String(value || '').trim().replace(/\/+$/, '');
 }
 
 function isPrivateLanHost(hostname) {
@@ -127,7 +132,7 @@ export function resolveApiBaseUrl() {
     const protocol = location.protocol || 'http:';
     const hostname = location.hostname || 'localhost';
     if (hostname === 'localhost') return LOCAL_API_BASE_URL;
-    if (hostname === '127.0.0.1') return 'http://127.0.0.1:3000/api';
+    if (hostname === '127.0.0.1') return LOOPBACK_API_BASE_URL;
     if (isPrivateLanHost(hostname)) return `${protocol}//${hostname}:3000/api`;
     return `${protocol}//${hostname}:3000/api`;
   }
@@ -136,9 +141,24 @@ export function resolveApiBaseUrl() {
 }
 
 export function resolveApiBaseUrls() {
-  const configuredUrls = splitUrlList(import.meta.env.VITE_API_BASE_URLS);
-  const primaryUrl = resolveApiBaseUrl();
-  return Array.from(new Set([primaryUrl, ...configuredUrls]));
+  const configuredUrls = splitUrlList(import.meta.env.VITE_API_BASE_URLS).map(normalizeApiBaseUrl);
+  const primaryUrl = normalizeApiBaseUrl(resolveApiBaseUrl());
+  const platform = detectPlatform();
+  const fallbackUrls = [];
+
+  if (!platform.isNative) {
+    const location = getLocation();
+    const protocol = location?.protocol || 'http:';
+    const hostname = location?.hostname || '';
+
+    if (isPrivateLanHost(hostname)) {
+      fallbackUrls.push(normalizeApiBaseUrl(`${protocol}//${hostname}:3000/api`));
+    }
+
+    fallbackUrls.push(LOOPBACK_API_BASE_URL, LOCAL_API_BASE_URL);
+  }
+
+  return Array.from(new Set([primaryUrl, ...configuredUrls, ...fallbackUrls].filter(Boolean)));
 }
 
 export function getLoginPath(platform = detectPlatform()) {

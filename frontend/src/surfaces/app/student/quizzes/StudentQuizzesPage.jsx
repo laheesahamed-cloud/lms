@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 
 function runWhenIdle(task) {
@@ -755,9 +756,12 @@ function CoursePicker({ courses, onSelect }) {
   return (
     <section className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Course</h2>
-          <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{courses.length} course{courses.length !== 1 ? 's' : ''} available</p>
+        <div className="lms-quiz-mascot-strip">
+          <StudyMascot variant="stetho" mood="happy" size="md" label="Q-Bank study buddy" />
+          <div>
+            <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Course</h2>
+            <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{courses.length} course{courses.length !== 1 ? 's' : ''} available</p>
+          </div>
         </div>
         <span className="rounded-full border border-brand-primary/18 bg-[var(--color-primary-light)] px-3 py-1 text-[10.5px] font-black uppercase text-brand-primary dark:border-sky-300/20 dark:bg-sky-400/10 dark:text-sky-200">
           Course View
@@ -934,6 +938,34 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+
+    const body = document.body;
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    const root = document.documentElement;
+    const routeThemeColors = { light: '#dce6f4', dark: '#02030a' };
+    const appThemeColors = { light: '#dce6f4', dark: '#05070d' };
+    const getTheme = () => (root.dataset.theme === 'dark' ? 'dark' : 'light');
+    const syncRouteThemeColor = () => {
+      metaThemeColor?.setAttribute('content', routeThemeColors[getTheme()]);
+    };
+
+    body.classList.add('student-quiz-night-screen');
+    syncRouteThemeColor();
+
+    const observer = typeof MutationObserver === 'function'
+      ? new MutationObserver(syncRouteThemeColor)
+      : null;
+    observer?.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+
+    return () => {
+      observer?.disconnect();
+      body.classList.remove('student-quiz-night-screen');
+      metaThemeColor?.setAttribute('content', appThemeColors[getTheme()]);
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     let cancelBookmarks = () => {};
     fetchStudentQuizzes()
@@ -1105,7 +1137,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   ];
 
   return (
-    <main className={cx(ui.studentScreenShell, 'student-quiz-map-page')}>
+    <main className={cx(ui.studentScreenShell, 'student-quiz-map-page student-quiz-night-page')}>
       <section className={ui.studentManagementLayout}>
         <AppHeader
           title={isExamPage ? 'Exams' : 'Q-Bank'}
@@ -1118,16 +1150,16 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
         {error && <div className={ui.feedbackError}>{error}</div>}
 
         {loading ? (
-          <div className="grid gap-3">
-            {[1,2,3,4,5].map(i => <div key={i} className={cx(ui.shimmer, 'h-[88px] rounded-xl')}/>)}
+          <div className="lms-quiz-loading-shell">
+            <StudyMascot variant="brain" mood="loading" size="lg" label="Loading question bank" caption="Warming up the neurons." />
+            <div className="grid flex-1 gap-3">
+              {[1,2,3,4,5].map(i => <div key={i} className={cx(ui.shimmer, 'h-[88px] rounded-xl')}/>)}
+            </div>
           </div>
         ) : courseFilter === 'all' ? (
           courseCards.length === 0 ? (
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <rect x="8" y="5" width="28" height="36" rx="5" stroke="currentColor" strokeWidth="1.6" fill="none" opacity=".2"/>
-                <path d="M15 17h18M15 24h18M15 31h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity=".35"/>
-              </svg>
+              <StudyMascot variant="review" mood="review" size="lg" label="Empty Q-Bank review mascot" />
               <p className="m-0 text-center">
                 {isExamPage ? 'No exams available yet.' : 'No question sets available yet.'}
               </p>
@@ -1166,10 +1198,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             />
 
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <rect x="8" y="5" width="28" height="36" rx="5" stroke="currentColor" strokeWidth="1.6" fill="none" opacity=".2"/>
-                <path d="M15 17h18M15 24h18M15 31h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity=".35"/>
-              </svg>
+              <StudyMascot variant="review" mood="review" size="lg" label="No matching Q-Bank sets mascot" />
               <p className="m-0 text-center">No sets match your filters.</p>
             </div>
           </>

@@ -4,6 +4,7 @@ import { fetchStudentDashboard } from '../../../../shared/api/dashboard.api.js';
 import { fetchStudentResults } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 
 function formatDateTime(value) {
@@ -222,6 +223,12 @@ export function ResultsListPage() {
           </div>
 
           <div className="student-results-hero__score">
+            <StudyMascot
+              variant={latestResult && Number(latestPercentage) >= 70 ? 'stetho' : 'review'}
+              mood={latestResult && Number(latestPercentage) >= 70 ? 'correct' : 'review'}
+              size="md"
+              label="Results feedback mascot"
+            />
             <ScoreRing value={averagePercentage} />
             <div className="student-results-hero__trend">
               <div>

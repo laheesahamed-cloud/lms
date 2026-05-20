@@ -5,7 +5,7 @@ import CoreHaptics
 import AudioToolbox
 
 final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
-    private let appBackground = UIColor(red: 0.9607843137, green: 0.9647058824, blue: 1.0, alpha: 1)
+    private let appBackground = UIColor(red: 0.862745098, green: 0.9019607843, blue: 0.9568627451, alpha: 1)
     private var hapticEngine: CHHapticEngine?
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
@@ -26,6 +26,7 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         webView.scrollView.canCancelContentTouches = true
         webView.scrollView.isDirectionalLockEnabled = true
         webView.scrollView.contentInsetAdjustmentBehavior = .never
+        webView.scrollView.scrollIndicatorInsets = .zero
         return webView
     }
 
@@ -43,6 +44,7 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         bridge?.webView?.scrollView.canCancelContentTouches = true
         bridge?.webView?.scrollView.isDirectionalLockEnabled = true
         bridge?.webView?.scrollView.contentInsetAdjustmentBehavior = .never
+        bridge?.webView?.scrollView.scrollIndicatorInsets = .zero
         prepareHapticEngine()
     }
 

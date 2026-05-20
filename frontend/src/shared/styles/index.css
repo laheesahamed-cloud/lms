@@ -35,6 +35,7 @@
 @import "./03-components/tabs.css";
 @import "./03-components/badges.css";
 @import "./03-components/empty-loading-error.css";
+@import "./03-components/study-mascot.css";
 
 @import "./04-pages/courses.css";
 @import "./04-pages/quizzes.css";

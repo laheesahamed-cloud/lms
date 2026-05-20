@@ -164,6 +164,51 @@ function reviewStudyCardClass(tone, extra = '') {
   );
 }
 
+function getPreferredScrollBehavior() {
+  if (typeof window === 'undefined') return 'auto';
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
+function getScrollableReviewRoot() {
+  if (typeof document === 'undefined') return null;
+  const candidates = [
+    document.querySelector('.lms-app-scroll-root'),
+    document.querySelector('.portal-content'),
+    document.scrollingElement,
+    document.documentElement,
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => candidate.scrollHeight > candidate.clientHeight + 2) || null;
+}
+
+function getReviewScrollOffset() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return 14;
+  const header = document.querySelector('.practice-review-header');
+  if (!header || window.innerWidth <= 760) return 14;
+  return Math.min(header.getBoundingClientRect().height + 22, 96);
+}
+
+function scrollReviewTargetIntoView(target, behavior = getPreferredScrollBehavior()) {
+  if (!target || typeof window === 'undefined') return;
+  const scrollRoot = getScrollableReviewRoot();
+  const offset = getReviewScrollOffset();
+
+  if (scrollRoot && scrollRoot !== document.documentElement && scrollRoot !== document.body) {
+    const rootRect = scrollRoot.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    scrollRoot.scrollTo({
+      top: Math.max(scrollRoot.scrollTop + targetRect.top - rootRect.top - offset, 0),
+      behavior,
+    });
+    return;
+  }
+
+  window.scrollTo({
+    top: Math.max(window.scrollY + target.getBoundingClientRect().top - offset, 0),
+    behavior,
+  });
+}
+
 function getQuestionStatusLabel(status) {
   if (status === 'correct') return 'Correct';
   if (status === 'wrong') return 'Wrong';
@@ -417,11 +462,10 @@ export function ReviewWorkspace({
   useEffect(() => {
     if (!activeQuestion) return;
     const target = questionCardRef.current || mainRef.current;
-    if (target && typeof target.scrollIntoView === 'function') {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const frame = window.requestAnimationFrame(() => {
+      scrollReviewTargetIntoView(target);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [activeQuestion]);
 
   if (!safeQuestions.length) {

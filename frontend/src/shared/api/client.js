@@ -18,6 +18,15 @@ function isPrivateLanHost(hostname) {
   return /^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/i.test(hostname);
 }
 
+function isApiFreePreviewRoute() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const routeText = `${window.location.pathname || ''}${window.location.hash || ''}`;
+  return /\/mascot-animation-lab(?:\/|$)/.test(routeText);
+}
+
 export const API_BASE_URL = resolveApiBaseUrl();
 export const API_BASE_URLS = resolveApiBaseUrls();
 
@@ -66,6 +75,7 @@ function redirectToLoginIfNeeded() {
     publicPath === '/register' ||
     publicPath === '/terms' ||
     publicPath === '/privacy-policy' ||
+    publicPath === '/mascot-animation-lab' ||
     publicPath === '/auth/login' ||
     publicPath === '/auth/register' ||
     publicPath === '/auth/forgot-password' ||
@@ -85,6 +95,10 @@ function getNextApiFallbackUrl(currentBaseUrl, triedBaseUrls = []) {
   return API_BASE_URLS.find((url) => !tried.has(url)) || '';
 }
 
+function formatApiBaseUrlList() {
+  return API_BASE_URLS.join(', ');
+}
+
 apiClient.interceptors.response.use(
   (response) => {
     const responseBaseUrl = String(response?.config?.baseURL || '');
@@ -97,6 +111,12 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const requestConfig = error?.config;
+    if (isApiFreePreviewRoute()) {
+      finalizeNetworkActivity(requestConfig);
+      clearServerNotResponding();
+      return Promise.reject(error);
+    }
+
     const currentBaseUrl = String(requestConfig?.baseURL || API_BASE_URL);
     const currentHost =
       typeof window !== 'undefined' && window.location ? window.location.hostname : '';
@@ -200,7 +220,10 @@ export function getErrorMessage(error, fallback = 'Something went wrong') {
   }
 
   if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {
-    return `Cannot reach the LMS API at ${API_BASE_URL}. If you opened the site with a LAN IP, make sure port 3000 is reachable or use localhost on this machine.`;
+    if (isApiFreePreviewRoute()) {
+      return fallback;
+    }
+    return `Cannot reach the LMS API. Tried: ${formatApiBaseUrlList()}. Make sure the API server is running on port 3000.`;
   }
 
   return error?.message || fallback;

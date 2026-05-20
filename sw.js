@@ -1,7 +1,7 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
 const DEFAULT_ICON = '/lms/pwa-icon.svg';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'erpm-lms-shell-20260516-responsive-card-system-v2';
+const CACHE_NAME = 'erpm-lms-shell-20260519-mascot-preview-v1';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',
@@ -13,11 +13,14 @@ const APP_SHELL_URLS = [
   '/lms/pwa-maskable-512.png',
   '/lms/apple-touch-icon.png',
   '/lms/frontend/dist/index.html',
-  '/lms/frontend/dist/assets/app-20260516-responsive-card-system-v2.css',
 ];
 
 function isProtectedPath(pathname) {
   return /^\/lms\/(?:app|admin|dashboard|study|courses|quizzes|exams|results|review|ai-notes|notes|billing|subscriptions|profile)(?:\/|$)/.test(pathname);
+}
+
+function isMascotPreviewPath(pathname) {
+  return /^\/lms\/mascot-animation-lab(?:\/|$)/.test(pathname);
 }
 
 function offlineProtectedResponse() {
@@ -58,6 +61,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
+    if (isMascotPreviewPath(url.pathname)) {
+      event.respondWith(fetch(request, { cache: 'no-store' }));
+      return;
+    }
+
     if (isProtectedPath(url.pathname)) {
       event.respondWith(
         fetch(request, { cache: 'no-store' })

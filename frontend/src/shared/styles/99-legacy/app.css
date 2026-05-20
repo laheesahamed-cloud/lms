@@ -2285,16 +2285,6 @@
     border-radius: var(--lms-native-card-radius) !important;
   }
 
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav {
-    height: var(--bottom-nav-height) !important;
-    min-height: var(--bottom-nav-height) !important;
-    padding-bottom: var(--lms-tabbar-safe-bottom) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav > div {
-    height: var(--lms-tabbar-row-height) !important;
-  }
-
   html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-topbar {
     top: 0 !important;
     z-index: 1200 !important;

@@ -236,7 +236,7 @@ const sidebarUi = {
     'grid size-[38px] shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,#0B1220_0%,#2563EB_55%,#38BDF8_100%)] shadow-[0_8px_20px_rgba(37,99,235,0.16)]',
   brandIconCollapsed: 'min-[901px]:size-[36px]',
   wordmark: 'grid min-w-0 gap-0.5',
-  wordmarkName: 'truncate text-[14.5px] font-extrabold tracking-[-0.01em] text-ink-strong',
+  wordmarkName: 'truncate text-[14.5px] font-extrabold tracking-normal text-ink-strong',
   wordmarkRole: 'truncate text-[10.5px] font-semibold text-ink-soft',
   navLabel:
     'mx-5 mb-1.5 mt-3 text-[9.5px] font-extrabold uppercase tracking-[0.18em] text-ink-muted transition-[opacity,transform] duration-200 ease-out',

@@ -1,0 +1,250 @@
+.study-mascot {
+  --study-mascot-size: 76px;
+  --study-mascot-stroke: #0f766e;
+  --study-mascot-accent: #14b8a6;
+  --study-mascot-accent-2: #60a5fa;
+  --study-mascot-face: #e0f7fb;
+  --study-mascot-cheek: #fecdd3;
+  --study-mascot-brain: #fbcfe8;
+  --study-mascot-brain-line: #be185d;
+  --study-mascot-card: rgba(255, 255, 255, 0.74);
+  --study-mascot-ink: #12343a;
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--study-mascot-size);
+  color: var(--study-mascot-ink);
+}
+
+:root[data-theme="dark"] .study-mascot {
+  --study-mascot-stroke: #67e8f9;
+  --study-mascot-accent: #22d3ee;
+  --study-mascot-accent-2: #93c5fd;
+  --study-mascot-face: #cffafe;
+  --study-mascot-cheek: #f9a8d4;
+  --study-mascot-brain: #f9a8d4;
+  --study-mascot-brain-line: #fdf2f8;
+  --study-mascot-card: rgba(8, 18, 32, 0.72);
+  --study-mascot-ink: #e0faff;
+}
+
+.study-mascot--sm { --study-mascot-size: 52px; }
+.study-mascot--md { --study-mascot-size: 76px; }
+.study-mascot--lg { --study-mascot-size: 104px; }
+
+.study-mascot__svg {
+  width: var(--study-mascot-size);
+  height: var(--study-mascot-size);
+  overflow: visible;
+  filter: drop-shadow(0 14px 18px rgba(15, 23, 42, 0.12));
+}
+
+:root[data-theme="dark"] .study-mascot__svg {
+  filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.34));
+}
+
+.study-mascot__bob {
+  transform-origin: 48px 50px;
+  animation: studyMascotBob 3.4s ease-in-out infinite;
+}
+
+.study-mascot__run {
+  transform-origin: 48px 56px;
+  animation: studyMascotRun 0.8s ease-in-out infinite;
+}
+
+.study-mascot__pulse,
+.study-mascot__flame {
+  transform-origin: 48px 56px;
+  animation: studyMascotPulse 2s ease-in-out infinite;
+}
+
+.study-mascot__head,
+.study-mascot__iv,
+.study-mascot__clipboard {
+  fill: var(--study-mascot-face);
+  stroke: var(--study-mascot-stroke);
+  stroke-width: 3.5;
+}
+
+.study-mascot__tube,
+.study-mascot__arm,
+.study-mascot__leg,
+.study-mascot__scope,
+.study-mascot__ground,
+.study-mascot__ecg,
+.study-mascot__clipboard-line {
+  fill: none;
+  stroke: var(--study-mascot-stroke);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.study-mascot__ear,
+.study-mascot__scope,
+.study-mascot__tiny-card,
+.study-mascot__clip {
+  fill: var(--study-mascot-accent-2);
+  stroke: var(--study-mascot-stroke);
+  stroke-width: 3;
+}
+
+.study-mascot__cheek {
+  fill: var(--study-mascot-cheek);
+  opacity: 0.72;
+}
+
+.study-mascot__eyes circle,
+.study-mascot__eye {
+  fill: #0f172a;
+}
+
+.study-mascot__eyes path,
+.study-mascot__mouth {
+  fill: none;
+  stroke: #0f172a;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.study-mascot__sparkles path {
+  fill: #fde68a;
+  stroke: #f59e0b;
+  stroke-width: 1.5;
+  animation: studyMascotPop 1.9s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.study-mascot__brain {
+  fill: var(--study-mascot-brain);
+  stroke: var(--study-mascot-brain-line);
+  stroke-width: 3.2;
+  stroke-linejoin: round;
+}
+
+.study-mascot__brain-line {
+  fill: none;
+  stroke: var(--study-mascot-brain-line);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.study-mascot__iv-fill {
+  fill: var(--study-mascot-accent);
+  opacity: 0.28;
+}
+
+.study-mascot__flame-outer {
+  fill: #fed7aa;
+  stroke: #fb923c;
+  stroke-width: 3.5;
+}
+
+.study-mascot__flame-inner {
+  fill: #fde68a;
+}
+
+.study-mascot__glasses {
+  fill: rgba(15, 23, 42, 0.88);
+  stroke: rgba(15, 23, 42, 0.88);
+  stroke-width: 2;
+}
+
+.study-mascot__clipboard {
+  fill: var(--study-mascot-card);
+}
+
+.study-mascot__caption {
+  display: block;
+  max-width: 160px;
+  margin-top: -4px;
+  color: var(--study-mascot-ink);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.lms-quiz-mascot-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.lms-quiz-loading-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.54);
+  padding: clamp(14px, 2.4vw, 20px);
+}
+
+:root[data-theme="dark"] .lms-quiz-loading-shell {
+  border-color: rgba(148, 163, 184, 0.14);
+  background: rgba(6, 10, 18, 0.62);
+}
+
+.study-mascot--mood-wrong .study-mascot__bob,
+.study-mascot--review .study-mascot__bob {
+  animation-name: studyMascotRepair;
+}
+
+@keyframes studyMascotBob {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-4px) rotate(1deg); }
+}
+
+@keyframes studyMascotRun {
+  0%, 100% { transform: translateX(-1px) translateY(0) rotate(-1deg); }
+  50% { transform: translateX(2px) translateY(-3px) rotate(2deg); }
+}
+
+@keyframes studyMascotPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.045); }
+}
+
+@keyframes studyMascotPop {
+  0%, 100% { opacity: 0.65; transform: scale(0.86); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes studyMascotRepair {
+  0%, 100% { transform: rotate(-1.4deg); }
+  50% { transform: rotate(1.4deg) translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-mascot__bob,
+  .study-mascot__run,
+  .study-mascot__pulse,
+  .study-mascot__flame,
+  .study-mascot__sparkles path {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .lms-quiz-mascot-strip {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .lms-quiz-mascot-strip .study-mascot {
+    --study-mascot-size: 58px;
+  }
+
+  .lms-quiz-loading-shell {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .lms-quiz-loading-shell > .grid {
+    width: 100%;
+  }
+}

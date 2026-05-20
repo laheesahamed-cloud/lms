@@ -14,68 +14,6 @@ const primaryButton =
   'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand-primary/24 bg-[var(--color-primary-light)] px-4 text-[13px] font-semibold text-brand-primary transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/36 hover:bg-brand-primary/14 disabled:cursor-not-allowed disabled:opacity-55 dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200 dark:hover:bg-sky-400/18';
 const surfaceCard = 'lms-app-card rounded-2xl border border-line-soft bg-surface-card shadow-sm';
 
-const clinicalSteps = [
-  {
-    key: 'concept',
-    title: 'Understand',
-    text: 'Start with the core mechanism before memorising details.',
-  },
-  {
-    key: 'pattern',
-    title: 'Recognize',
-    text: 'Connect signs, labs, and phrasing to a clinical pattern.',
-  },
-  {
-    key: 'apply',
-    title: 'Apply',
-    text: 'Use each lesson as a bridge into SBA-style decisions.',
-  },
-];
-
-function CourseHeroArtwork() {
-  return (
-    <svg className="course-map-medical-art" viewBox="0 0 230 170" fill="none" aria-hidden="true">
-      <path className="course-map-medical-art__grid" d="M24 42h180M24 78h180M24 114h180M58 24v122M100 24v122M142 24v122M184 24v122" />
-      <rect className="course-map-medical-art__panel" x="34" y="34" width="86" height="108" rx="20" />
-      <path className="course-map-medical-art__line" d="M54 62h42M54 82h52M54 102h34" />
-      <path className="course-map-medical-art__ecg" d="M102 92h20l10-26 16 54 12-28h42" />
-      <path className="course-map-medical-art__scope" d="M145 48c0 24 34 24 34 0M145 48V36M179 48V36" />
-      <path className="course-map-medical-art__scope" d="M162 70v18" />
-      <circle className="course-map-medical-art__scope-end" cx="162" cy="108" r="18" />
-      <g className="course-map-medical-art__capsule">
-        <rect x="129" y="126" width="50" height="20" rx="10" transform="rotate(-18 129 126)" />
-        <path d="M153 119l6 18" />
-      </g>
-    </svg>
-  );
-}
-
-function ClinicalStepIcon({ type }) {
-  if (type === 'pattern') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 13h4l2-6 4 12 2-6h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  if (type === 'apply') {
-    return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M6.5 4h11A1.5 1.5 0 0 1 19 5.5v13A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-13A1.5 1.5 0 0 1 6.5 4Z" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8.5 9h7M8.5 13h4M15 14.5l1.5 1.5 3-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M7 4.5h10M8 4.5v5.4a5 5 0 1 0 8 0V4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9 14h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function LessonGlyph({ lesson }) {
   if (lesson.accessLocked) {
     return (
@@ -452,17 +390,13 @@ export function CourseDetailPage() {
             ) : null}
           </div>
 
-          <div className="course-map-hero__body">
+          <div className="course-map-hero__body course-map-hero__body--simple">
             <div className="course-map-hero__copy">
               <span className="course-map-eyebrow">Lesson Map</span>
               <h1>{course.courseTitle}</h1>
               <p>
-                Subjects, topics, and lessons are ordered from broad concepts to clinical application so students can scan the whole course path without opening nested drawers.
+                Follow each subject, scan lesson progress, and continue from the next open lesson.
               </p>
-            </div>
-
-            <div className="course-map-hero__visual">
-              <CourseHeroArtwork />
             </div>
 
             <div className="course-map-progress" aria-label={`${clampPercent(course.progressPercent)} percent complete`}>
@@ -481,19 +415,6 @@ export function CourseDetailPage() {
             ))}
           </div>
 
-          <div className="course-map-clinical-strip" aria-label="Clinical study approach">
-            {clinicalSteps.map((step) => (
-              <div className="course-map-clinical-card" key={step.key}>
-                <span>
-                  <ClinicalStepIcon type={step.key} />
-                </span>
-                <div>
-                  <strong>{step.title}</strong>
-                  <p>{step.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
         </section>
 
         <section className="course-map-shell" aria-label="Course lesson map">
@@ -507,7 +428,7 @@ export function CourseDetailPage() {
 
           <div className="course-map-units">
             {subjects.map((subject, subjectIndex) => (
-              <article className="course-map-unit" key={subject.id}>
+              <article className="course-map-unit course-map-unit--simple" key={subject.id}>
                 <header className="course-map-unit__head">
                   <div className="course-map-unit__title">
                     <span>{subjectIndex + 1}</span>

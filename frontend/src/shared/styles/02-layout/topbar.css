@@ -1,0 +1,17 @@
+.lms-topbar-left {
+  align-items: center;
+}
+
+.lms-topbar-menu-button {
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 0 !important;
+}
+
+.lms-topbar-menu-button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: auto;
+  flex: 0 0 auto;
+}

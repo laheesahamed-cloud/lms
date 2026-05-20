@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchNotifications, markNotificationRead } from '../api/workspace.api.js';
 import { useAuthStore } from '../stores/authStore.js';
@@ -136,7 +136,7 @@ const topbarUi = {
     'lms-topbar glass-card sticky top-3 z-50 mb-3 flex min-h-[66px] min-w-0 flex-wrap items-center justify-between gap-3 overflow-visible rounded-xl px-4 py-2.5 max-[900px]:top-2 max-[900px]:min-h-[58px] max-[900px]:rounded-[16px] max-[900px]:p-2.5 max-[760px]:grid max-[760px]:grid-cols-[minmax(0,1fr)_auto] max-[760px]:items-center max-[760px]:gap-x-2 max-[760px]:gap-y-2 max-[520px]:min-h-[54px] max-[520px]:rounded-[14px] max-[520px]:px-2.5 max-[520px]:py-2',
   left: 'flex min-w-[180px] flex-1 items-center gap-2.5 self-center max-[760px]:min-w-0 max-[520px]:gap-1',
   titleBlock: 'grid min-w-0 max-w-full gap-0.5',
-  title: 'gradient-text m-0 truncate text-[clamp(15px,1.7vw,21px)] font-extrabold leading-[1.15] max-[420px]:text-[15px]',
+  title: 'gradient-text m-0 truncate text-[var(--type-size-xl)] font-bold leading-[var(--type-leading-tight)]',
   subtitle: 'm-0 max-w-[min(420px,36vw)] truncate text-[11px] font-semibold leading-tight text-ink-soft max-[900px]:hidden',
   center: 'flex min-w-0 w-full max-w-[260px] justify-center max-[1280px]:hidden',
   search:
@@ -155,7 +155,7 @@ const topbarUi = {
     'absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full border-2 border-surface-card bg-brand-error px-1 text-[10px] font-extrabold leading-4 text-white',
   profileButton:
     'inline-flex size-9 min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-1 text-left shadow-none transition-[background,border-color,color] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 max-[520px]:size-8 max-[520px]:min-h-8 max-[520px]:min-w-8',
-  menuWrap: 'relative z-[60]',
+  menuWrap: 'lms-topbar-menu-wrap relative z-[60]',
   dropdown:
     'lms-floating-panel motion-smooth absolute right-0 top-[calc(100%+8px)] z-[1200] w-[min(360px,calc(100vw_-_24px))] origin-top-right overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-2xl animate-dropdownIn max-[520px]:fixed max-[520px]:inset-x-3 max-[520px]:top-[70px] max-[520px]:w-auto max-[520px]:origin-top max-[520px]:rounded-[18px]',
   profileDropdown:
@@ -176,7 +176,7 @@ const topbarUi = {
   notificationCopy: 'grid min-w-0 gap-1 [&_p]:m-0 [&_p]:break-words [&_p]:text-xs [&_p]:leading-relaxed [&_p]:text-ink-soft [&_small]:text-[11px] [&_small]:font-semibold [&_small]:text-ink-muted [&_strong]:break-words [&_strong]:text-sm [&_strong]:leading-snug [&_strong]:text-ink-strong',
   dropdownFoot: 'border-t border-line-soft p-2 max-[520px]:p-1.5',
   menuItem:
-    'flex min-h-10 w-full items-center justify-start gap-2.5 rounded-xl border-0 bg-transparent px-3 py-2 text-sm font-semibold text-ink-medium shadow-none transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 hover:text-ink-strong hover:shadow-none active:scale-[0.98]',
+    'flex min-h-10 w-full items-center justify-start gap-2.5 rounded-xl border-0 bg-transparent px-3 py-2 text-sm font-semibold text-ink-medium shadow-none transition-[background,color] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 hover:text-ink-strong hover:shadow-none active:shadow-none',
   dangerItem: 'text-brand-error hover:bg-brand-error/10 hover:text-brand-error',
   emptyState: 'grid gap-1 px-5 py-8 text-center [&_p]:m-0 [&_p]:text-xs [&_p]:text-ink-soft [&_strong]:text-sm [&_strong]:text-ink-strong',
   mobileCopy: 'hidden',
@@ -197,11 +197,14 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [profileClosing, setProfileClosing] = useState(false);
   const notificationRef = useRef(null);
   const profileRef = useRef(null);
+  const profileCloseTimerRef = useRef(null);
+  const profileVisible = profileOpen || profileClosing;
 
   useOutsideDismiss(notificationRef, () => setNotificationsOpen(false));
-  useOutsideDismiss(profileRef, () => setProfileOpen(false));
+  useOutsideDismiss(profileRef, () => closeProfileMenu());
 
   const unreadNotifications = useMemo(() => sortLatestNotifications(notifications.filter((item) => !item.read)), [notifications]);
   const visibleUnreadNotifications = useMemo(() => unreadNotifications.slice(0, 5), [unreadNotifications]);
@@ -209,8 +212,37 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   const settingsPath = user?.role === 'admin' ? rolePath('/settings', user?.role) : '';
   const profilePath = rolePath('/profile', user?.role);
 
-  async function handleLogout() {
+  const closeProfileMenu = useCallback(() => {
+    if (!profileOpen && !profileClosing) {
+      return;
+    }
+
+    window.clearTimeout(profileCloseTimerRef.current);
     setProfileOpen(false);
+    setProfileClosing(true);
+    profileCloseTimerRef.current = window.setTimeout(() => {
+      setProfileClosing(false);
+    }, 280);
+  }, [profileClosing, profileOpen]);
+
+  const openProfileMenu = useCallback(() => {
+    window.clearTimeout(profileCloseTimerRef.current);
+    setProfileClosing(false);
+    setProfileOpen(true);
+    setNotificationsOpen(false);
+  }, []);
+
+  const toggleProfileMenu = useCallback(() => {
+    if (profileOpen) {
+      closeProfileMenu();
+      return;
+    }
+
+    openProfileMenu();
+  }, [closeProfileMenu, openProfileMenu, profileOpen]);
+
+  async function handleLogout() {
+    closeProfileMenu();
     await signOut();
     navigate('/auth/login');
   }
@@ -246,7 +278,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   }
 
   function handleNavigate(path) {
-    setProfileOpen(false);
+    closeProfileMenu();
     navigate(path);
   }
 
@@ -261,6 +293,10 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   useEffect(() => {
     loadNotifications();
   }, [user?.id]);
+
+  useEffect(() => {
+    return () => window.clearTimeout(profileCloseTimerRef.current);
+  }, []);
 
   if (user?.role === 'student') {
     return (
@@ -283,41 +319,45 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
             <div className={topbarUi.menuWrap} ref={profileRef}>
               <button
                 type="button"
-                className="study-avatar study-avatar--profile"
+                className={cx('study-avatar study-avatar--profile', profileVisible && 'is-profile-avatar-open')}
                 aria-label="Open profile menu"
                 aria-expanded={profileOpen ? 'true' : 'false'}
-                onClick={() => {
-                  setProfileOpen((current) => !current);
-                  setNotificationsOpen(false);
-                }}
+                onClick={toggleProfileMenu}
               >
                 <ProfileAvatar user={user} />
               </button>
 
-              {profileOpen ? (
-                <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown)}>
-                  <div className={topbarUi.dropdownHead}>
-                    <ProfileAvatar user={user} size="lg" />
-                    <div>
-                      <strong>{user?.fullName || 'Signed in user'}</strong>
-                      <small>Medical Student</small>
+              {profileVisible ? (
+                <>
+                  <div
+                    className={cx('lms-profile-menu-backdrop', profileClosing && 'is-closing')}
+                    aria-hidden="true"
+                    onClick={closeProfileMenu}
+                  />
+                  <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
+                    <div className={topbarUi.dropdownHead}>
+                      <ProfileAvatar user={user} size="lg" />
+                      <div>
+                        <strong>{user?.fullName || 'Signed in user'}</strong>
+                        <small>Medical Student</small>
+                      </div>
+                    </div>
+
+                    <div className={topbarUi.dropdownSection}>
+                      <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
+                        <ProfileIcon />
+                        <span>Profile</span>
+                      </button>
+                    </div>
+
+                    <div className={topbarUi.dropdownSection}>
+                      <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')} type="button" onClick={handleLogout} disabled={isSigningOut}>
+                        <LogoutIcon />
+                        <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className={topbarUi.dropdownSection}>
-                    <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
-                      <ProfileIcon />
-                      <span>Profile</span>
-                    </button>
-                  </div>
-
-                  <div className={topbarUi.dropdownSection}>
-                    <button className={topbarUi.menuItem} type="button" onClick={handleLogout} disabled={isSigningOut}>
-                      <LogoutIcon />
-                      <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
-                    </button>
-                  </div>
-                </div>
+                </>
               ) : null}
             </div>
           </div>
@@ -381,7 +421,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                     }
                     return !current;
                   });
-                  setProfileOpen(false);
+                  closeProfileMenu();
                 }}
               >
                 <BellIcon />
@@ -463,55 +503,59 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
             </button>
 
             <div className={topbarUi.menuWrap} ref={profileRef}>
-              <button className={topbarUi.profileButton}
+              <button className={cx(topbarUi.profileButton, profileVisible && 'is-profile-avatar-open')}
                 type="button"
                
                 aria-label="Open profile menu"
                 aria-expanded={profileOpen ? 'true' : 'false'}
-                onClick={() => {
-                  setProfileOpen((current) => !current);
-                  setNotificationsOpen(false);
-                }}
+                onClick={toggleProfileMenu}
               >
                 <ProfileAvatar user={user} />
               </button>
 
-              {profileOpen ? (
-                <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown)}>
-                  <div className={topbarUi.dropdownHead}>
-                    <ProfileAvatar user={user} size="lg" />
-                    <div>
-                      <strong>{user?.fullName || 'Signed in user'}</strong>
-                      <small>{user?.role === 'admin' ? 'Administrator' : 'Medical Student'}</small>
+              {profileVisible ? (
+                <>
+                  <div
+                    className={cx('lms-profile-menu-backdrop', profileClosing && 'is-closing')}
+                    aria-hidden="true"
+                    onClick={closeProfileMenu}
+                  />
+                  <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
+                    <div className={topbarUi.dropdownHead}>
+                      <ProfileAvatar user={user} size="lg" />
+                      <div>
+                        <strong>{user?.fullName || 'Signed in user'}</strong>
+                        <small>{user?.role === 'admin' ? 'Administrator' : 'Medical Student'}</small>
+                      </div>
+                    </div>
+
+                    <div className={topbarUi.dropdownSection}>
+                      <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
+                        <ProfileIcon />
+                        <span>Profile</span>
+                      </button>
+
+                      {settingsPath ? (
+                        <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(settingsPath)}>
+                          <SettingsIcon />
+                          <span>Settings</span>
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div className={topbarUi.dropdownSection}>
+                      <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')}
+                        type="button"
+                       
+                        onClick={handleLogout}
+                        disabled={isSigningOut}
+                      >
+                        <LogoutIcon />
+                        <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className={topbarUi.dropdownSection}>
-                    <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
-                      <ProfileIcon />
-                      <span>Profile</span>
-                    </button>
-
-                    {settingsPath ? (
-                      <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(settingsPath)}>
-                        <SettingsIcon />
-                        <span>Settings</span>
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <div className={topbarUi.dropdownSection}>
-                    <button className={topbarUi.menuItem}
-                      type="button"
-                     
-                      onClick={handleLogout}
-                      disabled={isSigningOut}
-                    >
-                      <LogoutIcon />
-                      <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
-                    </button>
-                  </div>
-                </div>
+                </>
               ) : null}
             </div>
           </div>

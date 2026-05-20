@@ -237,12 +237,12 @@ const examNavJumpClass =
   'flex min-h-[46px] items-center justify-between gap-3 rounded-[14px] border border-[var(--exam-jump-border)] bg-[var(--exam-jump-bg)] px-4 text-sm font-bold text-[var(--exam-jump-text)] shadow-none disabled:bg-[var(--exam-jump-disabled-bg)] disabled:text-[var(--exam-jump-disabled-text)]';
 const examExplanationEmptyClass =
   'rounded-[14px] border border-dashed border-[var(--exam-card-border)] bg-[var(--exam-soft-panel)] p-4 text-sm leading-relaxed text-ink-soft [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[14px] [&_strong]:text-ink-strong [&_p]:m-0';
-const examExplanationBodyClass = 'lms-reading-explanation grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,var(--sa-primary)_16%,var(--sa-border))] !bg-[var(--exam-soft-panel)] p-4 text-left text-[14.5px] font-normal leading-[1.66] text-ink-medium shadow-none [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:[text-wrap:pretty]';
-const examWhyIncorrectClass = 'mt-1 grid gap-2 border-t border-[var(--exam-card-border)] pt-3 [&>strong]:text-[13px] [&>strong]:text-ink-strong';
-const examWhyIncorrectItemClass = 'lms-reading-incorrect grid gap-1 border-l-2 border-line-medium pl-3 text-left [&_span]:text-[12.5px] [&_span]:font-bold [&_span]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[13px] [&_p]:font-normal [&_p]:leading-[1.58] [&_p]:text-ink-soft';
+const examExplanationBodyClass = 'lms-reading-explanation grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,var(--color-primary)_15%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--surface-2))] p-4 text-left text-[14.5px] font-normal leading-[1.66] text-ink-medium shadow-none max-[640px]:rounded-xl max-[640px]:p-3 [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:tracking-normal [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.62]';
+const examWhyIncorrectClass = 'mt-1 grid gap-2 rounded-[12px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-2))] p-3 [&>strong]:text-[12px] [&>strong]:font-extrabold [&>strong]:uppercase [&>strong]:tracking-[0.1em] [&>strong]:text-ink-soft';
+const examWhyIncorrectItemClass = 'lms-reading-incorrect grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 border-t border-[color-mix(in_srgb,var(--color-warning)_14%,var(--line-soft))] px-0 py-2 first:border-t-0 max-[640px]:grid-cols-[22px_minmax(0,1fr)] max-[640px]:gap-1.5 max-[640px]:py-1.5 [&_span]:inline-flex [&_span]:size-6 [&_span]:items-center [&_span]:justify-center [&_span]:rounded-full [&_span]:border [&_span]:border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] [&_span]:bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] [&_span]:text-[11px] [&_span]:font-black [&_span]:leading-none [&_span]:text-[#92400e] max-[640px]:[&_span]:size-[22px] max-[640px]:[&_span]:text-[10px] [&_div]:min-w-0 [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[13px] [&_strong]:font-extrabold [&_strong]:leading-snug [&_strong]:text-ink-strong max-[640px]:[&_strong]:text-[12.5px] [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.56] [&_p]:text-ink-medium max-[640px]:[&_p]:text-[13px] max-[640px]:[&_p]:leading-[1.52]';
 const practiceLearningSupportClass = 'mt-4 grid gap-3.5 border-t border-[var(--exam-card-border)] pt-4 min-[901px]:hidden [&_.qtr-popup-trigger]:min-h-12 [&_.qtr-popup-trigger]:rounded-2xl [&_.qtr-popup-trigger]:px-3.5 [&_.qtr-popup-trigger]:py-3 [&_.qtr-popup-trigger__label]:text-sm [&_.qtr-popup-trigger__concept]:max-w-[42vw]';
-const practiceKeyPointsClass = 'grid gap-2';
-const practiceKeyPointClass = 'lms-reading-incorrect border-l-2 border-brand-primary/35 pl-3 text-left text-[13px] font-medium leading-[1.58] text-ink-strong';
+const practiceKeyPointsClass = 'grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,#8b5cf6_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_5%,var(--surface-1))_0%,var(--surface-1)_74%)] p-4 shadow-none';
+const practiceKeyPointClass = 'lms-reading-incorrect rounded-[12px] border border-[color-mix(in_srgb,var(--color-primary)_12%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--surface-2))] px-3 py-2 text-left text-[13px] font-medium leading-[1.58] text-ink-strong';
 const examAnswerListClass = 'mx-auto grid w-[min(100%,900px)] gap-2.5 px-0 pb-2.5 pt-2 max-[700px]:gap-2.5 max-[700px]:pb-4';
 const examAnswerCardClass =
   'flex min-h-[48px] cursor-pointer touch-manipulation items-center gap-2.5 rounded-[14px] border border-[var(--exam-answer-border)] px-3.5 py-2.5 transition-[background,border-color,box-shadow,opacity] duration-150 active:opacity-90 focus-within:ring-2 focus-within:ring-brand-primary/30 hover:border-[var(--exam-answer-hover-border)] hover:shadow-[var(--exam-answer-hover-shadow)] max-[700px]:min-h-[52px] max-[700px]:rounded-[16px] max-[700px]:px-3.5 max-[700px]:py-3';
@@ -281,11 +281,11 @@ const examAnswerLetterSelectedClass = '!border-brand-primary/40 !bg-[var(--color
 const examAnswerLetterCorrectClass = '!border-emerald-500/40 !bg-emerald-500/12 !text-emerald-700 dark:!text-emerald-200 opacity-100';
 const examAnswerLetterWrongClass = '!border-red-500/40 !bg-red-500/12 !text-red-600 dark:!text-red-200 opacity-100';
 const practiceAnswerKeyClass =
-  'lms-reading-explanation mt-1 rounded-[16px] border border-emerald-500/25 bg-emerald-500/8 p-3.5 text-left text-[13.5px] leading-[1.55] text-ink-medium dark:bg-emerald-400/10';
-const practiceAnswerKeyTitleClass = 'mb-2 block text-[11px] font-black uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-200';
+  'lms-reading-explanation mt-1 grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,var(--color-success)_24%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_7%,var(--surface-2))] p-4 text-left text-[13.5px] leading-[1.55] text-ink-medium shadow-none max-[640px]:rounded-xl max-[640px]:p-3';
+const practiceAnswerKeyTitleClass = 'block text-[11px] font-black uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-200';
 const practiceAnswerKeyListClass = 'm-0 grid list-none gap-1.5 p-0';
 const practiceAnswerKeyItemClass = 'grid grid-cols-[auto_minmax(0,1fr)] gap-2';
-const practiceAnswerKeyBadgeClass = 'inline-grid min-w-7 place-items-center rounded-lg border border-emerald-500/28 bg-emerald-500/12 px-2 py-1 text-[12px] font-black text-emerald-700 dark:text-emerald-100';
+const practiceAnswerKeyBadgeClass = 'inline-grid min-w-7 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--color-success)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_12%,var(--surface-2))] px-2 py-1 text-[12px] font-black text-emerald-700 dark:text-emerald-100';
 const practiceAnswerKeyTextClass = 'min-w-0 whitespace-pre-line font-medium text-ink-strong';
 const examMainFooterClass = 'lms-exam-main-footer mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--exam-card-border)] pt-4 max-[700px]:hidden';
 const examMainFooterLeftClass = 'flex flex-wrap gap-2.5';
@@ -408,10 +408,26 @@ function formatDuration(totalSeconds) {
 function scrollQuestionContentIntoView(target, behavior = 'smooth') {
   if (!target || typeof window === 'undefined') return;
 
-  const scrollRoot = document.querySelector('.lms-app-scroll-root');
-  const offset = 12;
+  if (typeof target.scrollIntoView === 'function') {
+    target.scrollIntoView({
+      behavior,
+      block: 'start',
+      inline: 'nearest',
+    });
+    return;
+  }
 
-  if (scrollRoot && scrollRoot.scrollHeight > scrollRoot.clientHeight) {
+  const scrollCandidates = [
+    document.querySelector('.lms-app-scroll-root'),
+    document.querySelector('.portal-content__frame'),
+    document.querySelector('.portal-content'),
+    document.scrollingElement,
+    document.documentElement,
+  ].filter(Boolean);
+  const offset = 12;
+  const scrollRoot = scrollCandidates.find((candidate) => candidate.scrollHeight > candidate.clientHeight + 2);
+
+  if (scrollRoot && scrollRoot !== document.documentElement && scrollRoot !== document.body) {
     const rootRect = scrollRoot.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     scrollRoot.scrollTo({
@@ -582,8 +598,11 @@ function ExplanationRail({
                 <strong>Why other answers are incorrect</strong>
                 {getIncorrectOptionReasons(currentQuestion).map((item) => (
                   <div className={examWhyIncorrectItemClass} key={item.label}>
-                    <span>{item.label}. {item.text}</span>
-                    <p>{item.reason}</p>
+                    <span>{item.label}</span>
+                    <div>
+                      {item.text ? <strong>{item.text}</strong> : null}
+                      <p>{item.reason}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -690,8 +709,11 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
           <strong>Why other answers are incorrect</strong>
           {incorrectReasons.map((item) => (
             <div className={examWhyIncorrectItemClass} key={item.label}>
-              <span>{item.label}. {item.text}</span>
-              <p>{item.reason}</p>
+              <span>{item.label}</span>
+              <div>
+                {item.text ? <strong>{item.text}</strong> : null}
+                <p>{item.reason}</p>
+              </div>
             </div>
           ))}
         </div>

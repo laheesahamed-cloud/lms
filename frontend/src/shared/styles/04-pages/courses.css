@@ -129,6 +129,20 @@
   user-select: none;
 }
 
+.student-app-shell .student-course-card--simple {
+  grid-template-rows: none;
+  gap: 16px;
+  min-height: 112px;
+  padding: 14px 16px !important;
+  background: var(--sa-surface);
+  box-shadow: var(--sa-shadow-card);
+}
+
+.student-app-shell .student-course-card--simple:hover {
+  transform: translateY(-2px);
+  background: var(--sa-surface-2);
+}
+
 .student-app-shell .student-course-card--cardio {
   --course-accent: #e11d48;
   --course-accent-2: #0891b2;
@@ -232,6 +246,15 @@
   color: var(--course-accent);
 }
 
+.student-app-shell .student-course-card--simple .student-course-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border-color: rgba(var(--sa-primary-rgb), 0.18);
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
+}
+
 .student-app-shell .student-course-card__progress-fill {
   background: linear-gradient(90deg, var(--course-accent), var(--course-accent-2));
 }
@@ -241,6 +264,12 @@
   border-radius: 16px;
   background: rgba(var(--course-accent-rgb), 0.1);
   color: var(--course-accent);
+}
+
+.student-app-shell .student-course-card--simple .student-course-card__cta {
+  border-color: rgba(var(--sa-primary-rgb), 0.14);
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
 }
 
 .student-app-shell .student-course-card:hover .student-course-card__cta {
@@ -321,6 +350,10 @@
   grid-template-columns: minmax(0, 1fr) minmax(170px, 250px) minmax(150px, 190px);
   align-items: center;
   gap: clamp(16px, 3vw, 28px);
+}
+
+.student-app-shell .course-map-hero__body--simple {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
 }
 
 .student-app-shell .course-map-hero__copy {
@@ -538,10 +571,19 @@
   overflow: hidden;
 }
 
+.student-app-shell .course-map-unit--simple {
+  border-radius: 18px;
+  box-shadow: var(--sa-shadow-card);
+}
+
 .student-app-shell .course-map-unit__head {
   padding: 16px;
   border-bottom: 1px solid var(--sa-border);
   background: linear-gradient(135deg, rgba(var(--sa-primary-rgb), 0.07), transparent 58%);
+}
+
+.student-app-shell .course-map-unit--simple .course-map-unit__head {
+  background: var(--sa-surface);
 }
 
 .student-app-shell .course-map-unit__title {
@@ -587,8 +629,10 @@
   display: grid;
   grid-template-columns: auto auto;
   align-items: center;
+  justify-content: end;
   gap: 8px 12px;
   min-width: 210px;
+  text-align: right;
 }
 
 .student-app-shell .course-map-unit__progress .h-1\.5 {
@@ -637,7 +681,10 @@
 .student-app-shell .course-map-topic__head > div:last-child {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  min-width: 132px;
+  text-align: right;
 }
 
 .student-app-shell .course-map-topic small {
@@ -652,7 +699,7 @@
 
 .student-app-shell .course-map-lesson-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) 92px 96px;
   align-items: center;
   gap: 10px;
   min-height: 58px;
@@ -678,6 +725,7 @@
   display: grid;
   grid-template-columns: auto 34px minmax(0, 1fr) auto;
   align-items: center;
+  justify-self: stretch;
   gap: 10px;
   min-height: 42px;
   min-width: 0;
@@ -744,6 +792,9 @@
 
 .student-app-shell .course-map-status {
   display: inline-flex;
+  justify-self: end;
+  width: fit-content;
+  max-width: 100%;
   min-height: 28px;
   align-items: center;
   justify-content: center;
@@ -755,6 +806,8 @@
 }
 
 .student-app-shell .course-map-lesson-action {
+  justify-self: end;
+  width: 96px;
   min-width: 96px;
   min-height: 38px;
   border: 1px solid rgba(var(--sa-primary-rgb), 0.18);
@@ -836,13 +889,17 @@
 
   .student-app-shell .course-map-status,
   .student-app-shell .course-map-lesson-action {
-    width: auto;
+    width: fit-content;
+  }
+
+  .student-app-shell .course-map-lesson-action {
+    width: 96px;
   }
 }
 
 @media (max-width: 640px) {
   .student-app-shell .course-map-lesson-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 82px;
     gap: 8px;
   }
 
@@ -866,7 +923,8 @@
   }
 
   .student-app-shell .course-map-lesson-action {
-    min-width: 76px;
+    width: 82px;
+    min-width: 82px;
     padding: 0 9px;
     font-size: 11px;
   }
@@ -909,6 +967,10 @@
 
   .student-app-shell .student-course-card {
     min-height: 0 !important;
+  }
+
+  .student-app-shell .student-course-card--simple {
+    padding: 12px !important;
   }
 
   .student-app-shell .student-course-card__media {

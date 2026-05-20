@@ -19,6 +19,7 @@ function isNoAutoRefreshRoute() {
 
   const routeText = `${window.location.pathname || ''}${window.location.hash || ''}`;
   return /\/ai-notes(?:\/|$)/.test(routeText) ||
+    /\/mascot-animation-lab(?:\/|$)/.test(routeText) ||
     /\/(?:auth\/)?(?:login|register)(?:\/|$)/.test(routeText) ||
     /\/auth\/(?:forgot-password|reset-password)(?:\/|$)/.test(routeText);
 }
@@ -80,6 +81,12 @@ export function RecoveryRefreshController() {
   }, []);
 
   useEffect(() => {
+    if (isNoAutoRefreshRoute()) {
+      clearServerNotResponding();
+      recoveryNeededRef.current = false;
+      return;
+    }
+
     if (!isOnline || serverNotResponding) {
       recoveryNeededRef.current = true;
     }

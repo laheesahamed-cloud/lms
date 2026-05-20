@@ -1,0 +1,18 @@
+html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] {
+  --lms-tabbar-row-height: 50px;
+  --lms-tabbar-safe-bottom: min(env(safe-area-inset-bottom, 0px), 34px);
+  --bottom-nav-height: calc(var(--lms-tabbar-row-height, 50px) + max(var(--lms-tabbar-safe-bottom), 6px) + 8px);
+  --lms-mobile-nav-height: var(--bottom-nav-height);
+  --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 6px);
+}
+
+@media (max-width: 480px) and (min-height: 760px) {
+  html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] {
+    --lms-tabbar-safe-bottom: min(env(safe-area-inset-bottom, 0px), 34px);
+  }
+}
+
+html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] :where(.lms-hero-card, .lms-page-header-card) {
+  min-height: auto !important;
+  border-radius: 17px !important;
+}

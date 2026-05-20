@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   bundledWebRuntime: false,
   ios: {
     contentInset: 'never',
-    backgroundColor: '#05070d',
+    backgroundColor: '#dce6f4',
   },
   android: {
     backgroundColor: '#05070d',
