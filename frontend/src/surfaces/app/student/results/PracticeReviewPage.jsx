@@ -4,14 +4,14 @@ import { fetchPracticeReview } from '../../../../shared/api/quizAttempts.api.js'
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
-import { ui } from '../../../../shared/styles/tailwindClasses.js';
+import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 
 const reviewPageUi = {
   screen:
-    `${ui.studentScreenShell} practice-review-page px-[clamp(18px,2.8vw,30px)] pb-[clamp(18px,2.8vw,30px)] pt-[clamp(10px,1.4vw,18px)] max-[600px]:p-3.5`,
+    cx(ui.studentScreenShell, 'dashboard-page study-hub-page practice-review-page'),
   layout:
-    'mx-auto grid w-[min(100%,1520px)] gap-[18px]',
+    'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[18px]',
   header:
     'practice-review-header sticky top-2.5 z-20 flex items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] px-3 py-2.5 shadow-md backdrop-blur-[14px] dark:border-white/10 dark:bg-[rgba(8,14,26,0.74)] max-[760px]:static max-[760px]:grid max-[760px]:gap-2.5',
   brand:
@@ -105,7 +105,13 @@ export function PracticeReviewPage() {
   }, [quizId, complete]);
 
   if (!data && !error) {
-    return <main className={ui.studentScreenShell}><div className={ui.emptyBox}>Loading practice review...</div></main>;
+    return (
+      <main className={reviewPageUi.screen}>
+        <section className={reviewPageUi.layout}>
+          <div className={ui.emptyBox}>Loading practice review...</div>
+        </section>
+      </main>
+    );
   }
 
   return (

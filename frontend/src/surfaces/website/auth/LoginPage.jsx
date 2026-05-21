@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from 'react';
+import { memo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../../shared/api/client.js';
 import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
@@ -11,6 +11,41 @@ import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../sha
 /* ── Animation keyframes ─────────────────────────────────────────────────────── */
 const ANIM_CSS = `
   :root { --ease-os: cubic-bezier(0.23,1,0.32,1); }
+
+  .lms-login-page {
+    position: relative;
+    isolation: isolate;
+    --lms-login-page-bg: var(--page-background);
+    --lms-auth-panel-bg: var(--page-background);
+    --lms-auth-panel-border: var(--line-soft);
+  }
+  .lms-login-page > * {
+    position: relative;
+    z-index: 1;
+  }
+  .lms-login-page::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  :root:not([data-theme='dark']) .lms-login-page {
+    --lms-login-page-bg:
+      linear-gradient(180deg, #EEF6FF 0%, #F8FBFF 48%, #FFFFFF 100%);
+    --lms-auth-panel-bg:
+      linear-gradient(180deg, rgba(255,255,255,.96) 0%, rgba(244,248,255,.98) 100%);
+    --lms-auth-panel-border: rgba(37,99,235,.12);
+  }
+  :root:not([data-theme='dark']) .lms-login-page::before {
+    background:
+      linear-gradient(90deg, rgba(37,99,235,.045) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(14,165,233,.035) 1px, transparent 1px);
+    background-size: 72px 72px;
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 72%);
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 72%);
+    opacity: .65;
+  }
 
   .lms-brand-panel {
     --lms-brand-bg: linear-gradient(148deg, #04091A 0%, #0A1230 45%, #060D22 100%);
@@ -37,14 +72,14 @@ const ANIM_CSS = `
     --lms-brand-lower-art-opacity: .06;
   }
   :root:not([data-theme='dark']) .lms-brand-panel {
-    --lms-brand-bg: linear-gradient(145deg, #F8FBFF 0%, #EFF6FF 48%, #F7FEFB 100%);
+    --lms-brand-bg: linear-gradient(145deg, #FFFFFF 0%, #EFF6FF 46%, #F4FBFF 100%);
     --lms-brand-title: #0F172A;
-    --lms-brand-strong: #1E293B;
-    --lms-brand-muted: #475569;
-    --lms-brand-soft: #64748B;
-    --lms-brand-card: rgba(255,255,255,.72);
+    --lms-brand-strong: #1D2B44;
+    --lms-brand-muted: #42526D;
+    --lms-brand-soft: #64758E;
+    --lms-brand-card: rgba(255,255,255,.78);
     --lms-brand-card-strong: rgba(255,255,255,.86);
-    --lms-brand-border: rgba(15,23,42,.10);
+    --lms-brand-border: rgba(37,99,235,.13);
     --lms-brand-grid: rgba(37,99,235,.045);
     --lms-brand-monitor-grid: rgba(37,99,235,.10);
     --lms-brand-monitor-line: rgba(2,132,199,.32);
@@ -86,6 +121,17 @@ const ANIM_CSS = `
   @keyframes lmsPortalOut { from{opacity:1;transform:scale(1)} to{opacity:0;transform:scale(.96)} }
   @keyframes lmsGlowPulse { 0%,100%{opacity:.45} 50%{opacity:.8} }
   @keyframes lmsCrossPulse{ 0%,100%{opacity:.7;filter:drop-shadow(0 0 8px rgba(34,211,238,.3))} 50%{opacity:1;filter:drop-shadow(0 0 20px rgba(34,211,238,.65))} }
+  @keyframes lmsGoogleMobileIn {
+    0%   { opacity:0; transform:translate3d(0,12px,0) scale(.98); }
+    68%  { opacity:1; transform:translate3d(0,-2px,0) scale(1.01); }
+    100% { opacity:1; transform:translate3d(0,0,0) scale(1); }
+  }
+  @keyframes lmsGoogleSheen {
+    0%   { transform:translateX(-130%) skewX(-18deg); opacity:0; }
+    26%  { opacity:.55; }
+    72%  { opacity:.45; }
+    100% { transform:translateX(130%) skewX(-18deg); opacity:0; }
+  }
 
   .lms-stagger>*        { opacity:0; animation:lmsUp 400ms var(--ease-os) forwards; }
   .lms-stagger>*:nth-child(1){ animation-delay: 55ms }
@@ -94,6 +140,9 @@ const ANIM_CSS = `
   .lms-stagger>*:nth-child(4){ animation-delay:220ms }
   .lms-stagger>*:nth-child(5){ animation-delay:275ms }
   .lms-stagger>*:nth-child(6){ animation-delay:330ms }
+  .lms-stagger>*:nth-child(7){ animation-delay:385ms }
+  .lms-stagger>*:nth-child(8){ animation-delay:440ms }
+  .lms-stagger>*:nth-child(9){ animation-delay:495ms }
 
   .lms-brand-stagger>*        { opacity:0; animation:lmsSlideIn 520ms var(--ease-os) forwards; }
   .lms-brand-stagger>*:nth-child(1){ animation-delay: 80ms }
@@ -141,6 +190,170 @@ const ANIM_CSS = `
     white-space: nowrap;
     word-break: normal;
   }
+  .lms-login-submit-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .lms-login-label {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    overflow: visible;
+  }
+  .lms-login-word {
+    display: inline-block;
+    transform: translate3d(0,0,0);
+    transition:
+      transform 360ms cubic-bezier(.23,1,.32,1),
+      opacity 260ms cubic-bezier(.23,1,.32,1);
+    will-change: transform;
+  }
+  .lms-submit-btn.is-loading .lms-login-word--enter {
+    transform: translate3d(14px,0,0);
+  }
+  .lms-submit-btn.is-loading .lms-login-word--workspace {
+    transform: translate3d(24px,0,0);
+    transition-delay: 55ms;
+  }
+
+  .lms-google-btn {
+    position: relative;
+    display: inline-flex;
+    min-height: 48px;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(37,99,235,.16);
+    border-radius: var(--radius-md);
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.9), rgba(239,246,255,.82)),
+      rgba(255,255,255,.78);
+    color: #0f172a;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 850;
+    letter-spacing: 0;
+    box-shadow:
+      0 12px 28px -22px rgba(37,99,235,.45),
+      inset 0 1px 0 rgba(255,255,255,.78);
+    -webkit-backdrop-filter: blur(14px) saturate(124%);
+    backdrop-filter: blur(14px) saturate(124%);
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform 170ms var(--ease-os),
+      border-color 170ms var(--ease-os),
+      box-shadow 170ms var(--ease-os),
+      background 170ms var(--ease-os);
+  }
+  .lms-google-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(59,130,246,.12) 46%, transparent 100%);
+    opacity: 0;
+    transform: translateX(-120%);
+    pointer-events: none;
+    transition: opacity 180ms var(--ease-os), transform 460ms var(--ease-os);
+  }
+  .lms-google-btn:hover {
+    border-color: rgba(37,99,235,.28);
+    box-shadow:
+      0 18px 34px -24px rgba(37,99,235,.62),
+      inset 0 1px 0 rgba(255,255,255,.86);
+    transform: translateY(-1px);
+  }
+  .lms-google-btn:hover::before {
+    opacity: 1;
+    transform: translateX(120%);
+  }
+  .lms-google-btn:active {
+    transform: translateY(0) scale(.985);
+  }
+  .lms-google-btn:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 3px;
+  }
+  .lms-google-mark {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(255,255,255,.86);
+    box-shadow: 0 1px 0 rgba(15,23,42,.05);
+    flex-shrink: 0;
+  }
+  .lms-google-btn > span:not(.lms-google-mark) {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .lms-auth-divider {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .lms-auth-divider::before,
+  .lms-auth-divider::after {
+    height: 1px;
+    background: var(--line-soft);
+    content: "";
+  }
+  :root[data-theme='dark'] .lms-google-btn {
+    border-color: rgba(96,165,250,.22);
+    background:
+      linear-gradient(135deg, rgba(15,23,42,.82), rgba(2,6,23,.76)),
+      rgba(15,23,42,.74);
+    color: #e2e8f0;
+    box-shadow:
+      0 18px 34px -26px rgba(96,165,250,.6),
+      inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  :root[data-theme='dark'] .lms-google-btn:hover {
+    border-color: rgba(96,165,250,.36);
+    box-shadow:
+      0 22px 40px -28px rgba(96,165,250,.76),
+      inset 0 1px 0 rgba(255,255,255,.1);
+  }
+
+  @media (max-width: 640px) {
+    .lms-google-btn {
+      min-height: 50px;
+      border-radius: 16px;
+      animation: lmsGoogleMobileIn 520ms var(--ease-os) 220ms both;
+    }
+    .lms-google-btn::after {
+      content: "";
+      position: absolute;
+      top: -35%;
+      bottom: -35%;
+      left: 0;
+      width: 46%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+      transform: translateX(-130%) skewX(-18deg);
+      pointer-events: none;
+      animation: lmsGoogleSheen 1800ms var(--ease-os) 780ms both;
+    }
+    .lms-google-btn:active {
+      transform: translateY(1px) scale(.975);
+    }
+  }
 
   .lms-login-overlay { animation:lmsOverlayIn 160ms var(--ease-os) both; }
   .lms-login-portal  { animation:lmsPortalHold 120ms var(--ease-os) both; transform-origin:center; }
@@ -152,11 +365,15 @@ const ANIM_CSS = `
   .lms-field-wrap:focus-within .lms-field-label { color:#2563eb; transition:color 180ms ease; }
   :root:not([data-theme='dark']) .lms-auth-form-panel {
     background:
-      radial-gradient(ellipse at 84% 8%, rgba(37,99,235,.08), transparent 34%),
-      linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%) !important;
+      linear-gradient(180deg, rgba(255,255,255,.96), rgba(245,249,255,.98)) !important;
+    color: #0f172a;
   }
   :root:not([data-theme='dark']) .lms-login-mobile-logo {
     box-shadow: none !important;
+  }
+  :root:not([data-theme='dark']) .lms-login-topbar {
+    border-bottom: 1px solid rgba(37,99,235,.08);
+    background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,0));
   }
   :root.lms-desktop-mac .lms-login-brand-logo-row {
     padding-top: 46px !important;
@@ -169,10 +386,20 @@ const ANIM_CSS = `
   }
 
   /* ── Right panel: input contrast ── */
+  :root:not([data-theme='dark']) .lms-login-form .lms-field-label {
+    color: #1e293b !important;
+  }
   :root:not([data-theme='dark']) .lms-login-form input {
-    border-color: rgba(15,23,42,.22) !important;
-    background: #F8FAFF !important;
-    color: #0F172A !important;
+    border-color: rgba(37,99,235,.18) !important;
+    background:
+      linear-gradient(180deg, #FFFFFF 0%, #F8FBFF 100%) !important;
+    color: #0B1220 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.92),
+      0 1px 0 rgba(15,23,42,.025) !important;
+  }
+  :root:not([data-theme='dark']) .lms-login-form input::placeholder {
+    color: #94A3B8 !important;
   }
   :root[data-theme='dark'] .lms-login-form input {
     border-color: rgba(148,163,184,.32) !important;
@@ -181,7 +408,9 @@ const ANIM_CSS = `
   }
   .lms-login-form input:focus {
     border-color: #2563EB !important;
-    box-shadow: 0 0 0 3px rgba(37,99,235,.18) !important;
+    box-shadow:
+      0 0 0 4px rgba(37,99,235,.14),
+      0 12px 24px -22px rgba(37,99,235,.72) !important;
     outline: none !important;
   }
   :root[data-theme='dark'] .lms-login-form input:focus {
@@ -206,14 +435,41 @@ const ANIM_CSS = `
     box-shadow: 0 4px 22px rgba(59,130,246,.50), 0 1px 0 rgba(255,255,255,.10) inset !important;
   }
   /* ── Form heading: stronger text contrast ── */
-  :root:not([data-theme='dark']) .lms-login-form h2 { color: #0F172A !important; }
-  :root:not([data-theme='dark']) .lms-login-form .lms-form-sub { color: #475569 !important; }
+  :root:not([data-theme='dark']) .lms-login-form h2 { color: #0B1220 !important; }
+  :root:not([data-theme='dark']) .lms-login-form .lms-form-sub { color: #42526D !important; }
+  :root:not([data-theme='dark']) .lms-auth-divider {
+    color: #64748B;
+  }
+  :root:not([data-theme='dark']) .lms-auth-divider::before,
+  :root:not([data-theme='dark']) .lms-auth-divider::after {
+    background: rgba(37,99,235,.14);
+  }
+  :root:not([data-theme='dark']) .lms-google-btn {
+    border-color: rgba(37,99,235,.18);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.98), rgba(247,251,255,.94)),
+      #FFFFFF;
+    color: #0B1220;
+    box-shadow:
+      0 16px 34px -28px rgba(37,99,235,.58),
+      0 1px 0 rgba(255,255,255,.95) inset,
+      0 0 0 1px rgba(255,255,255,.72) inset;
+  }
+  :root:not([data-theme='dark']) .lms-google-btn:hover {
+    border-color: rgba(37,99,235,.28);
+    background:
+      linear-gradient(180deg, #FFFFFF, #F1F7FF);
+  }
   :root[data-theme='dark'] .lms-login-form h2 { color: #F1F5F9 !important; }
   /* ── Right panel form card elevation ── */
   :root:not([data-theme='dark']) .lms-form-card {
-    background: #fff !important;
-    border-color: rgba(15,23,42,.10) !important;
-    box-shadow: 0 18px 46px rgba(15,23,42,.10), 0 1px 2px rgba(15,23,42,.05) !important;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,253,255,.96)) !important;
+    border-color: rgba(37,99,235,.14) !important;
+    box-shadow:
+      0 24px 70px -42px rgba(30,64,175,.38),
+      0 12px 30px -26px rgba(15,23,42,.28),
+      inset 0 1px 0 rgba(255,255,255,.96) !important;
     animation: none !important;
   }
   :root[data-theme='dark'] .lms-form-card {
@@ -247,7 +503,7 @@ const ANIM_CSS = `
   .lms-form-card { animation: lmsCardBreath   5s   ease-in-out infinite; }
 
   @media (prefers-reduced-motion:reduce) {
-    .lms-float,.lms-glow-pulse,.lms-ecg,.lms-ecg-full,.lms-ecg-dot,.lms-login-ring { animation:none!important; }
+    .lms-float,.lms-glow-pulse,.lms-ecg,.lms-ecg-full,.lms-ecg-dot,.lms-login-ring,.lms-google-btn,.lms-google-btn::after { animation:none!important; }
     .lms-stagger>*,.lms-brand-stagger>*,.lms-login-overlay,.lms-login-portal {
       animation:lmsFade 200ms ease forwards!important; animation-delay:0ms!important;
     }
@@ -698,7 +954,6 @@ function LoginMotionOverlay({ phase = 'loading', rect = null }) {
   );
 }
 
-const SKIP_LOGIN_MOTION = detectPlatform().isNative;
 const PLATFORM = detectPlatform();
 
 function showNativeDocument() {
@@ -738,19 +993,12 @@ export function LoginPage() {
 
   const [status,       setStatus]       = useState({ loading: false, error: '', success: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [loginMotion,  setLoginMotion]  = useState(null);
-  const submitRef = useRef(null);
   const fromParam = new URLSearchParams(location.search).get('from') || '';
   const requestedPath = getSafeForwardPath(fromParam);
 
   async function handleSubmit(e) {
     e.preventDefault();
     const startedAt  = performance.now();
-    const buttonRect = submitRef.current?.getBoundingClientRect();
-    // Skip the GPU-composited zoom animation on native (iOS WKWebView black-screen bug)
-    if (!SKIP_LOGIN_MOTION && buttonRect) {
-      setLoginMotion({ phase: 'loading', rect: { left: buttonRect.left, top: buttonRect.top, width: buttonRect.width, height: buttonRect.height } });
-    }
     const fd = new FormData(e.currentTarget);
     setStatus({ loading: true, error: '', success: '' });
     try {
@@ -774,24 +1022,16 @@ export function LoginPage() {
           error: storageError?.message || String(storageError),
         });
       }
-      setStatus({ loading: false, error: '', success: `Welcome back, ${data.user.fullName}` });
-
       const defaultHome = data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard';
       const nextPath = canonicalizeForwardPathForUser(requestedPath, data.user) || data.redirectPath || defaultHome;
       console.log('ROUTE_TO_DASHBOARD', nextPath);
 
-      if (SKIP_LOGIN_MOTION) {
-        if (PLATFORM.isNative) {
-          await nextPaint();
-          navigate(nextPath, { replace: true });
-        } else {
-          navigate(nextPath, { replace: true });
-        }
+      const remaining = Math.max(0, 360 - (performance.now() - startedAt));
+      if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
+      if (PLATFORM.isNative) {
+        await nextPaint();
+        navigate(nextPath);
       } else {
-        const remaining = Math.max(0, 220 - (performance.now() - startedAt));
-        if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
-        setLoginMotion(cur => cur ? { ...cur, phase: 'success' } : null);
-        await new Promise(r => setTimeout(r, 520));
         navigate(nextPath);
       }
     } catch (err) {
@@ -799,14 +1039,12 @@ export function LoginPage() {
         showNativeDocument();
       }
       setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in'), success: '' });
-      setLoginMotion(null);
     }
   }
 
   return (
-    <main className={ui.authRouteScene} style={{ display: 'flex', minHeight: '100dvh', overflowX: 'hidden', overflowY: 'auto', background: 'var(--page-background)' }}>
+    <main className={cx(ui.authRouteScene, 'lms-login-page')} style={{ display: 'flex', minHeight: '100dvh', overflowX: 'hidden', overflowY: 'auto', background: 'var(--lms-login-page-bg, var(--page-background))' }}>
       <style>{ANIM_CSS}</style>
-      {loginMotion && <LoginMotionOverlay phase={loginMotion.phase} rect={loginMotion.rect}/>}
 
       {/* ── Left: dark brand panel (desktop only) ── */}
       <div className="hidden lg:flex flex-1 min-w-0">
@@ -816,7 +1054,7 @@ export function LoginPage() {
       {/* ── Right: form panel ── */}
       <div
         className="lms-auth-form-panel flex w-full flex-col lg:w-[440px] lg:shrink-0 xl:w-[460px]"
-        style={{ background: 'var(--page-background)', borderLeft: '1px solid var(--line-soft)' }}
+        style={{ background: 'var(--lms-auth-panel-bg, var(--page-background))', borderLeft: '1px solid var(--lms-auth-panel-border, var(--line-soft))' }}
       >
         {/* Top bar: mobile logo + theme toggle */}
         <div className="lms-login-topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 28px', flexShrink: 0 }}>
@@ -862,36 +1100,26 @@ export function LoginPage() {
               </p>
             </div>
 
-            {/* ── Sign in / Create account tabs ── */}
-            <nav
-              aria-label="Authentication pages"
-              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, borderRadius: 14, border: '1px solid var(--line-soft)', background: 'var(--surface-2)', padding: 4 }}
+            <button
+              type="button"
+              className="lms-google-btn"
+              aria-label="Continue with Google"
+              onClick={() => setStatus({ loading: false, error: '', success: 'Google sign-in will be connected later.' })}
             >
-              <NavLink
-                to="/login"
-                className={({ isActive }) =>
-                  `lms-tab-link flex min-h-10 items-center justify-center rounded-[10px] px-3 text-[13px] font-bold no-underline ${
-                    (isActive || location.pathname.endsWith('/auth/login'))
-                      ? 'bg-[var(--surface-card)] text-[var(--ink-strong)] shadow-sm'
-                      : 'text-[var(--ink-soft)] hover:text-[var(--ink-strong)]'
-                  }`
-                }
-              >
-                Sign in
-              </NavLink>
-              <NavLink
-                to="/register"
-                className={({ isActive }) =>
-                  `lms-tab-link flex min-h-10 items-center justify-center rounded-[10px] px-3 text-[13px] font-bold no-underline ${
-                    isActive
-                      ? 'bg-[var(--surface-card)] text-[var(--ink-strong)] shadow-sm'
-                      : 'text-[var(--ink-soft)] hover:text-[var(--ink-strong)]'
-                  }`
-                }
-              >
-                Create account
-              </NavLink>
-            </nav>
+              <span className="lms-google-mark" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" focusable="false">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.85 0-5.27-1.93-6.14-4.52H2.18v2.84C4 20.56 7.73 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.86 14.11A6.63 6.63 0 015.5 12c0-.73.13-1.44.36-2.11V7.05H2.18A10.96 10.96 0 001 12c0 1.77.42 3.45 1.18 4.95l3.68-2.84z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.16-3.16C17.45 2.07 14.97 1 12 1 7.73 1 4 3.44 2.18 7.05l3.68 2.84C6.73 7.31 9.15 5.38 12 5.38z" />
+                </svg>
+              </span>
+              <span>Continue with Google</span>
+            </button>
+
+            <div className="lms-auth-divider" aria-hidden="true">
+              <span>or</span>
+            </div>
 
             {/* ── Feedback banners ── */}
             {status.error   && <div className={ui.feedbackError}>{status.error}</div>}
@@ -971,20 +1199,15 @@ export function LoginPage() {
 
             {/* ── Submit ── */}
             <button
-              ref={submitRef}
               type="submit"
               disabled={status.loading}
-              className={cx(ui.primaryAction, 'lms-submit-btn lms-login-cta w-full rounded-[var(--radius-md)]')}
+              className={cx(ui.primaryAction, 'lms-submit-btn lms-login-cta w-full rounded-[var(--radius-md)]', status.loading && 'is-loading')}
             >
-              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                {status.loading && (
-                  <span
-                    className="lms-login-ring"
-                    style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,.35)', borderTopColor: '#fff', flexShrink: 0 }}
-                    aria-hidden="true"
-                  />
-                )}
-                {status.loading ? 'Signing in...' : 'Enter Workspace'}
+              <span className="lms-login-submit-content">
+                <span className="lms-login-label" aria-label={status.loading ? 'Signing in' : 'Enter Workspace'}>
+                  <span className="lms-login-word lms-login-word--enter">Enter</span>
+                  <span className="lms-login-word lms-login-word--workspace">Workspace</span>
+                </span>
               </span>
             </button>
 

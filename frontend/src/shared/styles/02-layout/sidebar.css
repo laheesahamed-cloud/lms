@@ -17,3 +17,41 @@
   min-width: 0;
   align-content: center;
 }
+
+.lms-sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 810;
+  display: block;
+  border: 0;
+  padding: 0;
+  background: rgba(12, 24, 48, 0.14);
+  cursor: default;
+  -webkit-backdrop-filter: blur(8px) saturate(112%);
+  backdrop-filter: blur(8px) saturate(112%);
+  animation: lmsSidebarOverlayIn 180ms var(--ease-out, ease-out) both;
+}
+
+:root[data-theme="dark"] .lms-sidebar-overlay {
+  background: rgba(2, 6, 23, 0.34);
+}
+
+:root[data-theme="light"] .lms-sidebar-overlay {
+  background: rgba(12, 24, 48, 0.1);
+}
+
+:root[data-low-spec] .lms-sidebar-overlay,
+:root[data-visual-effects="balanced"] .lms-sidebar-overlay {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(12, 24, 48, 0.18);
+}
+
+@keyframes lmsSidebarOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

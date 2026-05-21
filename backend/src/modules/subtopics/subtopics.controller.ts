@@ -1,11 +1,13 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { SubtopicsService } from './subtopics.service';
 import { CreateSubtopicDto } from './dto/create-subtopic.dto';
 import { UpdateSubtopicDto } from './dto/update-subtopic.dto';
 
 @Controller('subtopics')
 @UseGuards(AdminGuard)
+@RequirePermissions('content.manage')
 export class SubtopicsController {
   constructor(private readonly subtopicsService: SubtopicsService) {}
 

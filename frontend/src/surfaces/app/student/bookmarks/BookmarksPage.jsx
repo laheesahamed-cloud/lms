@@ -63,8 +63,8 @@ export function BookmarksPage() {
   }
 
   return (
-    <main className={ui.studentScreenShell}>
-      <section className={ui.studentManagementLayout}>
+    <main className="dashboard-page study-hub-page student-bookmarks-page">
+      <section className="study-hub-shell">
         <AppHeader title="Saved Items" subtitle="Saved Queue" />
 
         {error && <div className={ui.feedbackError}>{error}</div>}

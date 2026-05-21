@@ -561,8 +561,8 @@ export function StudentNotesPage() {
   }
 
   return (
-    <main className={ui.studentScreenShell}>
-      <section className={ui.studentManagementLayout}>
+    <main className="dashboard-page study-hub-page student-notes-page">
+      <section className="study-hub-shell">
         <AppHeader
           title="Notes"
           subtitle="Study Notebook"

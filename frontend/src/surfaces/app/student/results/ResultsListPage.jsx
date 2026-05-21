@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchStudentDashboard } from '../../../../shared/api/dashboard.api.js';
 import { fetchStudentResults } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
+import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
-import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 
 function formatDateTime(value) {
@@ -41,33 +41,6 @@ function getResultQuizTitle(result) {
   return `Exam attempt #${result?.attemptId || '-'}`;
 }
 
-function AttemptsIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <path d="M6.5 4.5h7.25a2 2 0 0 1 2 2v11H6.5a2.25 2.25 0 0 1 0-4.5h9.25" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8.75 8h4.5M8.75 10.75h3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function PassedIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <path d="M6.25 11.4 9.4 14.5 16 7.75" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" opacity=".35" />
-    </svg>
-  );
-}
-
-function AverageIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <path d="M5 15.5 9.25 11.25l2.75 2.5 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M13.75 7.75H17v3.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function scoreTone(score) {
   const pct = Number(score || 0);
   if (pct >= 70) return { color: '#10B981', bg: 'rgba(16,185,129,.12)', track: 'rgba(16,185,129,.18)' };
@@ -75,10 +48,10 @@ function scoreTone(score) {
   return { color: '#EF4444', bg: 'rgba(239,68,68,.12)', track: 'rgba(239,68,68,.18)' };
 }
 
-function ScoreRing({ value = 0, size = 96 }) {
+function ScoreRing({ value = 0, size = 112 }) {
   const pct = Math.min(100, Math.max(0, Math.round(Number(value || 0))));
   const tone = scoreTone(pct);
-  const stroke = 9;
+  const stroke = Math.max(9, Math.round(size * 0.1));
   const radius = (size - stroke * 2) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;
@@ -97,8 +70,8 @@ function ScoreRing({ value = 0, size = 96 }) {
         strokeLinecap="round"
         transform={`rotate(-90 ${center} ${center})`}
       />
-      <text x={center} y={center - 2} textAnchor="middle" fill="var(--ink-strong)" fontSize="24" fontWeight="900">{pct}%</text>
-      <text x={center} y={center + 17} textAnchor="middle" fill="var(--ink-soft)" fontSize="10" fontWeight="800">avg</text>
+      <text x={center} y={center - 2} textAnchor="middle" fill="var(--ink-strong)" fontSize={Math.round(size * 0.24)} fontWeight="900">{pct}%</text>
+      <text x={center} y={center + Math.round(size * 0.16)} textAnchor="middle" fill="var(--ink-soft)" fontSize={Math.round(size * 0.1)} fontWeight="800">avg</text>
     </svg>
   );
 }
@@ -111,9 +84,12 @@ function ScoreSparkline({ results }) {
     .map((result) => Math.min(100, Math.max(0, Number(result.percentage || 0))));
   if (points.length < 2) {
     return (
-      <div className="result-spark-empty">
-        <AverageIcon />
-        <span>Complete more exams to draw your score trend.</span>
+      <div className="result-chart-card" aria-label="Last attempts chart">
+        <span className={ui.eyebrow}>Last attempts</span>
+        <p>Newest performance shape, from left to right.</p>
+        <div className="result-spark-empty">
+          <span>Complete at least two exams to show a trend chart.</span>
+        </div>
       </div>
     );
   }
@@ -127,17 +103,34 @@ function ScoreSparkline({ results }) {
       return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
     })
     .join(' ');
+  const firstScore = points[0];
+  const latestScore = points[points.length - 1];
   return (
-    <svg className="result-sparkline" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0 68 H240" stroke="rgba(148,163,184,.18)" strokeWidth="2" />
-      <path d={d} fill="none" stroke="url(#resultSpark)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-      <defs>
-        <linearGradient id="resultSpark" x1="0" y1="0" x2="240" y2="0">
-          <stop stopColor="#2563EB" />
-          <stop offset="1" stopColor="#0EA5E9" />
-        </linearGradient>
-      </defs>
-    </svg>
+    <div className="result-chart-card" aria-label={`Score trend from ${firstScore}% to ${latestScore}% across ${points.length} recent attempts`}>
+      <span className={ui.eyebrow}>Last attempts</span>
+      <p>Newest performance shape, from left to right.</p>
+      <div className="result-chart-card__plot">
+        <svg className="result-sparkline" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Line chart of recent exam percentages">
+          <path d="M0 73 H240" stroke="rgba(148,163,184,.22)" strokeWidth="2" />
+          <path d={d} fill="none" stroke="url(#resultSpark)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+          <defs>
+            <linearGradient id="resultSpark" x1="0" y1="0" x2="240" y2="0">
+              <stop stopColor="#2563EB" />
+              <stop offset="1" stopColor="#2F73FF" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function ResultStatBox({ value, label, tone }) {
+  return (
+    <article className={`student-results-performance-stat student-results-performance-stat--${tone}`}>
+      <strong>{value}</strong>
+      <small>{label}</small>
+    </article>
   );
 }
 
@@ -159,11 +152,6 @@ export function ResultsListPage() {
   const averagePercentage = totalAttempts
     ? (visibleResults.reduce((sum, result) => sum + Number(result.percentage || 0), 0) / totalAttempts).toFixed(1)
     : '0.0';
-  const focusedQuizTitle = focusQuizId
-    ? results.find((result) => Number(result.quizId) === focusQuizId)?.quizTitle
-    : '';
-  const latestResult = visibleResults[0];
-  const latestPercentage = latestResult ? formatPercentage(latestResult.percentage) : '0';
   const weakTopics = Array.isArray(dashboardInsights?.weakTopics) ? dashboardInsights.weakTopics.slice(0, 3) : [];
   const missedPatterns = Array.isArray(dashboardInsights?.missedPatterns) ? dashboardInsights.missedPatterns.slice(0, 3) : [];
 
@@ -191,81 +179,44 @@ export function ResultsListPage() {
   }
 
   return (
-    <main className={cx(ui.studentScreenShell, 'student-results-page')}>
-      <section className={cx(ui.studentManagementLayout, 'student-results-layout')}>
+    <main className="dashboard-page study-hub-page student-results-page">
+      <section className="study-hub-shell student-results-layout">
+        <AppHeader
+          title="Results"
+          subtitle={focusQuizId ? 'Filtered Results' : 'Performance'}
+        />
+
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
 
         <section className="student-results-hero lms-page-header-card animate-fadePop" aria-label="Results summary">
-          <div className="student-results-hero__copy">
-            <span className={ui.eyebrow}>{focusQuizId ? 'Filtered Attempts' : 'Exam Attempts'}</span>
-            <h1>{focusedQuizTitle ? `${focusedQuizTitle} results` : 'My results'}</h1>
-            <p>
-              {loading
-                ? 'Loading your latest exam attempts.'
-                : totalAttempts
-                  ? `Latest score ${latestPercentage}%. ${passedAttempts} of ${totalAttempts} attempts passed.`
-                  : 'Complete an exam to begin building your result history.'}
-            </p>
-            <div className="student-results-hero__actions">
-              <button type="button" className="lms-app-btn lms-app-btn--primary" onClick={() => navigate('/quizzes')}>
-                Practice
-              </button>
-              {focusQuizId ? (
-                <button type="button" className="lms-app-btn lms-app-btn--ghost" onClick={() => navigate('/results')}>
-                  All results
-                </button>
-              ) : latestResult ? (
-                <button type="button" className="lms-app-btn lms-app-btn--ghost" onClick={() => openAttemptReview(latestResult.attemptId)}>
-                  Review latest
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="student-results-hero__score">
-            <StudyMascot
-              variant={latestResult && Number(latestPercentage) >= 70 ? 'stetho' : 'review'}
-              mood={latestResult && Number(latestPercentage) >= 70 ? 'correct' : 'review'}
-              size="md"
-              label="Results feedback mascot"
-            />
-            <ScoreRing value={averagePercentage} />
-            <div className="student-results-hero__trend">
+          <div className="student-results-hero__score" aria-label="Exam performance trend">
+            <div className="student-results-performance-top">
+              <ScoreRing value={averagePercentage} />
               <div>
-                <span className={ui.eyebrow}>Trend</span>
-                <p>Recent attempt pattern</p>
+                <span className={ui.eyebrow}>Performance</span>
+                <h2>Your exam score trend</h2>
+                <p>
+                  {loading
+                    ? 'Loading your latest score trend.'
+                    : totalAttempts
+                      ? 'Recent performance shape from your exam attempts.'
+                      : 'Complete an exam to start building your score trend.'}
+                </p>
               </div>
-              <ScoreSparkline results={visibleResults} />
             </div>
-          </div>
-        </section>
 
-        <section className="student-results-metrics" aria-label="Results statistics">
-          <article>
-            <span><AttemptsIcon /></span>
-            <div>
-              <strong>{loading ? '...' : totalAttempts}</strong>
-              <small>Attempts</small>
+            <div className="student-results-performance-stats" aria-label="Results statistics">
+              <ResultStatBox value={loading ? '...' : totalAttempts} label="Attempts" tone="attempts" />
+              <ResultStatBox value={loading ? '...' : passedAttempts} label="Passed" tone="passed" />
+              <ResultStatBox value={loading ? '...' : `${averagePercentage}%`} label="Average" tone="average" />
             </div>
-          </article>
-          <article>
-            <span><PassedIcon /></span>
-            <div>
-              <strong>{loading ? '...' : passedAttempts}</strong>
-              <small>Passed</small>
-            </div>
-          </article>
-          <article>
-            <span><AverageIcon /></span>
-            <div>
-              <strong>{loading ? '...' : `${averagePercentage}%`}</strong>
-              <small>Average</small>
-            </div>
-          </article>
+
+            <ScoreSparkline results={visibleResults} />
+          </div>
         </section>
 
         {!loading && (weakTopics.length > 0 || missedPatterns.length > 0) ? (
-          <section className="student-results-focus lms-app-card">
+          <section className="student-results-focus">
             <div className={ui.panelTop}>
               <div>
                 <h2 className={ui.panelTitle}>Focus areas</h2>
@@ -305,7 +256,7 @@ export function ResultsListPage() {
           </section>
         ) : null}
 
-        <section className="student-results-history lms-app-card">
+        <section className="student-results-history">
           <div className={ui.panelTop}>
             <div>
               <h2 className={ui.panelTitle}>Attempt history</h2>
@@ -329,7 +280,7 @@ export function ResultsListPage() {
             </div>
           ) : (
             <>
-            <div className={cx(ui.tableShell, 'max-[640px]:hidden')}>
+            <div className={cx(ui.tableShell, 'max-[820px]:hidden')}>
               <table className={cx(ui.modernTable, 'min-w-[860px]')}>
                 <thead>
                   <tr>

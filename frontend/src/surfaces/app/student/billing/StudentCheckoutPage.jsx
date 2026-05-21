@@ -177,8 +177,8 @@ export function StudentCheckoutPage() {
   }
 
   return (
-    <main className={ui.studentScreenShell}>
-      <section className={ui.studentManagementLayout}>
+    <main className="dashboard-page study-hub-page student-checkout-page">
+      <section className="study-hub-shell">
         <AppHeader
           title="Checkout"
           subtitle="Plan Checkout"

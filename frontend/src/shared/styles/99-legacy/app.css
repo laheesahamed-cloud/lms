@@ -5,12 +5,18 @@
 @layer utilities {
   #app-boot-loader {
     position: fixed;
-    inset: 0;
+    inset:
+      calc(-1 * env(safe-area-inset-top, 0px))
+      0
+      calc(-1 * env(safe-area-inset-bottom, 0px))
+      0;
     z-index: 2147482000;
-    width: 100vw;
-    min-height: 100dvh;
-    background: #050b18;
-    background-color: #050b18;
+    width: 100%;
+    min-height: calc(100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+    background:
+      radial-gradient(circle at 50% 44%, rgba(56, 189, 248, 0.12), transparent 24%),
+      linear-gradient(180deg, #050b18 0%, #02040b 100%);
+    background-color: #02040b;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -25,8 +31,8 @@
     height: 100%;
     min-height: 100dvh;
     overflow: hidden !important;
-    background: #050b18 !important;
-    background-color: #050b18 !important;
+    background: #02040b !important;
+    background-color: #02040b !important;
   }
 
   body.app-booting #root {
@@ -34,14 +40,8 @@
   }
 
   body.app-booting::after {
-    content: '';
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 2147481999;
-    height: max(32px, env(safe-area-inset-bottom, 0px));
-    background: #050b18;
+    display: none !important;
+    content: none !important;
     pointer-events: none;
   }
 
@@ -54,7 +54,10 @@
   }
 
   @supports (height: 100svh) {
-    #app-boot-loader,
+    #app-boot-loader {
+      min-height: calc(100svh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+    }
+
     html:has(body.app-booting),
     body.app-booting,
     body.app-booting #root {
@@ -63,11 +66,26 @@
   }
 
   @supports (height: 100lvh) {
-    #app-boot-loader,
+    #app-boot-loader {
+      min-height: calc(100lvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+    }
+
     html:has(body.app-booting),
     body.app-booting,
     body.app-booting #root {
       min-height: 100lvh;
+    }
+  }
+
+  @supports not (height: 100svh) {
+    #app-boot-loader {
+      min-height: calc(100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+    }
+
+    html:has(body.app-booting),
+    body.app-booting,
+    body.app-booting #root {
+      min-height: 100dvh;
     }
   }
 
@@ -2882,7 +2900,7 @@
 
   :root[data-visual-effects='balanced'] .glass-card,
   :root[data-visual-effects='balanced'] .lms-course-card,
-  :root[data-visual-effects='balanced'] .lms-floating-panel,
+  :root[data-visual-effects='balanced'] .lms-floating-panel:not(.lms-profile-menu),
   :root[data-visual-effects='balanced'] .lms-alert,
   :root[data-visual-effects='balanced'] [class*="backdrop-blur"] {
     backdrop-filter: none !important;

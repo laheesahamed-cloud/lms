@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as bcrypt from 'bcryptjs';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { USER_ROLES, UserRole } from '../auth/role-permissions';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
@@ -10,7 +11,7 @@ type UserRow = RowDataPacket & {
   id: number;
   full_name: string;
   email: string;
-  role: 'admin' | 'student';
+  role: UserRole;
   status: 'active' | 'inactive';
   created_at?: string | null;
 };
@@ -38,9 +39,9 @@ export class UsersService {
       params.push(filters.status);
     }
 
-    if (filters.role === 'admin' || filters.role === 'student') {
+    if (USER_ROLES.includes(filters.role as UserRole)) {
       sql += ' AND role = ?';
-      params.push(filters.role);
+      params.push(filters.role as UserRole);
     }
 
     sql += ` ORDER BY FIELD(status, 'inactive', 'active'), id DESC`;

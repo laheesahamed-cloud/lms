@@ -11,6 +11,8 @@
     "build:backend": "npm run build --prefix backend",
     "migrate:backend": "npm run migrate --prefix backend",
     "build": "npm run build:frontend && npm run build:backend",
+    "test": "node scripts/qa/static-check.mjs",
+    "test:ci": "npm test && npm run build",
     "mobile:preview": "npm run build:frontend",
     "mobile:cap:sync": "npm run cap:sync --prefix frontend",
     "mobile:cap:sync:android": "npm run cap:sync:android --prefix frontend",

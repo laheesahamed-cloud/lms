@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { QuestionsService } from './questions.service';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
 import { BulkUpdateQuestionKeywordsDto } from './dto/bulk-update-question-keywords.dto';
@@ -34,6 +35,7 @@ const workbookUploadOptions = {
 
 @Controller('questions')
 @UseGuards(AdminGuard)
+@RequirePermissions('questions.manage')
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 

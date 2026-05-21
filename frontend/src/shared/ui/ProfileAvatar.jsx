@@ -28,8 +28,8 @@ export function ProfileAvatar({ user, avatarKey = '', size = 'sm', className = '
   const sizeClass = size === 'xl' ? 'size-20 rounded-3xl' : size === 'lg' ? 'size-10 rounded-[14px]' : 'size-[34px] rounded-xl';
 
   return (
-    <span className={`lms-profile-avatar inline-grid shrink-0 place-items-center overflow-hidden border border-white/80 bg-surface-2 shadow-[0_3px_8px_rgba(37,99,235,0.20)] ring-1 ring-[rgba(37,99,235,0.16)] dark:border-white/10 dark:ring-white/10 ${sizeClass} ${className}`} aria-hidden="true">
-      <svg className="block size-full" viewBox="0 0 48 48" focusable="false">
+    <span className={`lms-profile-avatar inline-grid aspect-square shrink-0 place-items-center overflow-hidden border border-white/80 bg-surface-2 leading-none shadow-[0_3px_8px_rgba(37,99,235,0.20)] ring-1 ring-[rgba(37,99,235,0.16)] dark:border-white/10 dark:ring-white/10 ${sizeClass} ${className}`} aria-hidden="true">
+      <svg className="block size-full shrink-0" viewBox="0 0 48 48" preserveAspectRatio="xMidYMid meet" focusable="false">
         <rect width="48" height="48" rx="16" fill={avatar.accent} />
         <circle cx="24" cy="18" r="10.5" fill={avatar.hair} />
         {isLongHair ? <path d="M12 29c1.2-10.8 6.2-17 12-17s10.8 6.2 12 17l-4 4H16l-4-4Z" fill={avatar.hair} /> : null}

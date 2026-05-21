@@ -8,21 +8,45 @@
    RESULTS OVERVIEW
    ============================================================ */
 .student-app-shell .student-results-layout {
-  gap: 14px;
+  --results-section-gap: clamp(16px, 2.4vw, 22px);
+  --results-card-gap: clamp(12px, 2vw, 16px);
+  --results-card-pad: clamp(16px, 2.4vw, 22px);
+  --results-card-radius: var(--sa-radius-lg, 22px);
+  --results-inner-radius: var(--sa-radius-md, 18px);
+  gap: var(--results-section-gap);
 }
 
 .student-app-shell .student-results-page {
   padding-inline: 0 !important;
 }
 
+:root[data-theme="light"] .student-app-shell .student-results-page,
+.student-app-shell[data-theme="light"] .student-results-page {
+  background:
+    radial-gradient(circle at 78% 4%, rgba(37, 99, 235, 0.12), transparent 30%),
+    radial-gradient(circle at 10% 0%, rgba(20, 184, 166, 0.09), transparent 32%),
+    linear-gradient(180deg, #eef4fc 0%, #e4ecf7 46%, #dce6f4 100%) !important;
+  color: #1b2742 !important;
+}
+
 .student-app-shell .student-results-hero {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
-  gap: clamp(16px, 3vw, 26px);
-  min-height: 250px;
+  min-height: 0;
   overflow: hidden;
-  padding: clamp(20px, 3vw, 30px) !important;
+  border: 1px solid rgba(80, 160, 210, 0.22);
+  border-radius: var(--results-card-radius);
+  background:
+    radial-gradient(circle at 96% 8%, rgba(56, 189, 248, 0.18), transparent 36%),
+    radial-gradient(circle at 5% 95%, rgba(20, 184, 166, 0.14), transparent 42%),
+    linear-gradient(145deg, rgba(8, 16, 36, 0.98) 0%, rgba(5, 11, 26, 0.98) 48%, rgba(7, 35, 51, 0.95) 100%);
+  padding: var(--results-card-pad) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 28px 64px -34px rgba(2, 8, 23, 0.8);
+  color: #f8fbff;
 }
 
 .student-app-shell .student-results-hero::before {
@@ -43,24 +67,6 @@
   z-index: 1;
 }
 
-.student-app-shell .student-results-hero__copy {
-  display: grid;
-  align-content: center;
-  gap: 14px;
-  min-width: 0;
-}
-
-.student-app-shell .student-results-hero h1 {
-  max-width: 740px;
-  margin: 0;
-  color: var(--sa-ink);
-  font-family: var(--sa-font-display);
-  font-size: clamp(34px, 5vw, 52px);
-  font-weight: 900;
-  line-height: 0.98;
-  letter-spacing: 0;
-}
-
 .student-app-shell .student-results-hero p {
   max-width: 640px;
   margin: 0;
@@ -70,142 +76,221 @@
   line-height: 1.6;
 }
 
-.student-app-shell .student-results-hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-
 .student-app-shell .student-results-hero__score {
+  position: relative;
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-areas:
+    "top chart"
+    "stats chart";
+  grid-template-columns: minmax(0, 0.9fr) minmax(280px, 1fr);
+  align-content: start;
   align-items: center;
-  gap: 16px;
+  gap: var(--results-card-gap);
   min-width: 0;
-  border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-lg);
-  background: rgba(var(--sa-surface-2-rgb), 0.76);
-  padding: 16px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  color: #f8fbff;
 }
 
-.student-app-shell .student-results-hero__trend {
+.student-app-shell .student-results-hero__score::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent 36%),
+    radial-gradient(circle at 72% 0%, rgba(14, 165, 233, 0.12), transparent 34%);
+  content: "";
+}
+
+.student-app-shell .student-results-hero__score > * {
+  position: relative;
+  z-index: 1;
+}
+
+.student-app-shell .student-results-performance-top {
+  grid-area: top;
   display: grid;
-  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
   min-width: 0;
 }
 
-.student-app-shell .student-results-hero__trend p {
-  margin-top: 3px;
-  font-size: 12px;
-  font-weight: 800;
+.student-app-shell .student-results-performance-top .study-eyebrow,
+.student-app-shell .result-chart-card .study-eyebrow {
+  color: #38bdf8;
+}
+
+.student-app-shell .student-results-performance-top h2 {
+  margin: 5px 0 5px;
+  color: #f8fbff;
+  font-family: var(--sa-font-display);
+  font-size: clamp(20px, 2.4vw, 27px);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.03;
+}
+
+.student-app-shell .student-results-performance-top p {
+  max-width: 22rem;
+  margin: 0;
+  color: rgba(202, 213, 232, 0.78);
+  font-size: clamp(12.5px, 1.6vw, 14px);
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .student-app-shell .result-score-ring {
   flex: 0 0 auto;
-  filter: drop-shadow(0 14px 24px rgba(37, 99, 235, 0.12));
+  width: clamp(74px, 9vw, 92px);
+  height: auto;
+  filter: drop-shadow(0 16px 24px rgba(239, 68, 68, 0.16));
 }
 
 .student-app-shell .result-score-ring text:first-of-type {
-  fill: var(--sa-ink);
+  fill: #eef4ff;
 }
 
 .student-app-shell .result-score-ring text:last-of-type {
-  fill: var(--sa-text-3);
+  fill: rgba(202, 213, 232, 0.72);
+}
+
+.student-app-shell .student-results-performance-stats {
+  grid-area: stats;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  border: 0;
+  padding-block: 0;
+}
+
+.student-app-shell .student-results-performance-stat {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  min-height: 64px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: var(--results-inner-radius);
+  background: rgba(15, 23, 42, 0.26);
+  padding: 12px 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.student-app-shell .student-results-performance-stat--attempts {
+  --results-stat-accent: 96, 165, 250;
+  --results-stat-ink: #93c5fd;
+  background:
+    linear-gradient(135deg, rgba(var(--results-stat-accent), 0.13), rgba(var(--results-stat-accent), 0.035));
+}
+
+.student-app-shell .student-results-performance-stat--passed {
+  --results-stat-accent: 34, 197, 94;
+  --results-stat-ink: #86efac;
+  background:
+    linear-gradient(135deg, rgba(var(--results-stat-accent), 0.13), rgba(var(--results-stat-accent), 0.035));
+}
+
+.student-app-shell .student-results-performance-stat--average {
+  --results-stat-accent: 168, 85, 247;
+  --results-stat-ink: #d8b4fe;
+  background:
+    linear-gradient(135deg, rgba(var(--results-stat-accent), 0.13), rgba(var(--results-stat-accent), 0.035));
+}
+
+.student-app-shell .student-results-performance-stat:first-child {
+  border-left: 1px solid rgba(148, 163, 184, 0.13);
+  padding-left: 14px;
+}
+
+.student-app-shell .student-results-performance-stat strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--results-stat-ink, #f8fbff);
+  font-size: clamp(19px, 3vw, 25px);
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-app-shell .student-results-performance-stat small {
+  margin-top: 5px;
+  color: color-mix(in srgb, var(--results-stat-ink, #f8fbff) 72%, rgba(202, 213, 232, 0.78));
+  font-size: 11.5px;
+  font-weight: 850;
+  line-height: 1.1;
 }
 
 .student-app-shell .result-sparkline {
   display: block;
   width: 100%;
   min-width: 0;
-  height: 78px;
+  height: clamp(70px, 9vw, 92px);
+  overflow: visible;
+}
+
+.student-app-shell .result-chart-card {
+  grid-area: chart;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 136px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: var(--results-inner-radius);
+  background: rgba(15, 23, 42, 0.24);
+  padding: clamp(12px, 2vw, 16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.student-app-shell .result-chart-card p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.9);
+  font-size: clamp(11.5px, 1.5vw, 13px);
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.student-app-shell .result-chart-card__plot {
+  display: block;
+  min-width: 0;
+  margin-top: auto;
 }
 
 .student-app-shell .result-spark-empty {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  min-height: 78px;
-  color: var(--sa-text-2);
-  font-size: 12px;
+  min-height: 70px;
+  color: rgba(148, 163, 184, 0.86);
+  font-size: 13px;
   font-weight: 800;
   line-height: 1.35;
-}
-
-.student-app-shell .result-spark-empty svg {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  color: var(--sa-primary);
-}
-
-.student-app-shell .student-results-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.student-app-shell .student-results-metrics article {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-lg);
-  background: var(--sa-surface);
-  padding: 16px;
-  color: var(--sa-ink);
-  box-shadow: var(--sa-shadow-card);
-}
-
-.student-app-shell .student-results-metrics article > span {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border-radius: 15px;
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
-}
-
-.student-app-shell .student-results-metrics strong {
-  display: block;
-  color: var(--sa-ink);
-  font-size: 24px;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.student-app-shell .student-results-metrics small {
-  display: block;
-  margin-top: 4px;
-  color: var(--sa-text-3);
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  text-transform: uppercase;
 }
 
 .student-app-shell .student-results-focus,
 .student-app-shell .student-results-history {
   display: grid;
-  gap: 14px;
-  border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-lg);
-  background: var(--sa-surface);
-  padding: clamp(16px, 2.4vw, 22px);
+  gap: var(--results-card-gap);
+  border: 1px solid rgba(148, 163, 184, 0.14) !important;
+  border-radius: var(--results-card-radius);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(96, 165, 250, 0.045), transparent 36%),
+    linear-gradient(145deg, rgba(13, 22, 42, 0.82), rgba(6, 10, 20, 0.86)) !important;
+  padding: var(--results-card-pad);
   color: var(--sa-ink);
-  box-shadow: var(--sa-shadow-card);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.025) inset,
+    0 18px 42px -34px rgba(0, 0, 0, 0.9) !important;
 }
 
 .student-app-shell .student-results-focus__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--results-card-gap);
 }
 
 .student-app-shell .student-results-focus__column {
@@ -213,10 +298,16 @@
   align-content: start;
   gap: 10px;
   min-width: 0;
-  border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-md);
-  background: var(--sa-surface-2);
-  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.11);
+  border-radius: var(--results-inner-radius);
+  background: rgba(15, 23, 42, 0.18);
+  padding: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.022);
+}
+
+.student-app-shell .student-results-focus__column + .student-results-focus__column {
+  border-left: 1px solid rgba(148, 163, 184, 0.11);
+  padding-left: 12px;
 }
 
 .student-app-shell .student-results-focus__row {
@@ -226,23 +317,21 @@
   gap: 10px;
   min-height: 58px;
   border: 1px solid transparent;
-  border-radius: var(--sa-radius-sm);
-  background: var(--sa-surface);
-  padding: 10px;
+  border-radius: var(--sa-radius-sm, 14px);
+  background: rgba(255, 255, 255, 0.018);
+  padding: 10px 8px;
   color: var(--sa-ink);
   text-align: left;
   cursor: pointer;
   transition:
-    border-color var(--sa-dur) var(--sa-ease),
     background var(--sa-dur) var(--sa-ease),
     transform var(--sa-dur) var(--sa-ease);
 }
 
 .student-app-shell .student-results-focus__row:hover {
-  border-color: rgba(var(--sa-primary-rgb), 0.22);
   background:
-    linear-gradient(rgba(var(--sa-primary-rgb), 0.05), rgba(var(--sa-primary-rgb), 0.05)),
-    var(--sa-surface);
+    linear-gradient(rgba(var(--sa-primary-rgb), 0.055), rgba(var(--sa-primary-rgb), 0.055));
+  border-color: rgba(var(--sa-primary-rgb), 0.16);
 }
 
 .student-app-shell .student-results-focus__row:active {
@@ -284,6 +373,11 @@
   font-weight: 950;
 }
 
+.student-app-shell .student-results-focus__score {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--sa-danger);
+}
+
 .student-app-shell .student-results-focus__miss {
   background: var(--sa-warn-soft);
   color: var(--sa-warn-deep);
@@ -293,12 +387,233 @@
   display: none;
 }
 
+:root[data-theme="light"] .student-app-shell .student-results-hero,
+.student-app-shell[data-theme="light"] .student-results-hero {
+  border-color: rgba(37, 99, 235, 0.15);
+  background:
+    radial-gradient(circle at 86% 20%, rgba(96, 165, 250, 0.2), transparent 34%),
+    radial-gradient(circle at 96% 92%, rgba(124, 58, 237, 0.13), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(238, 245, 255, 0.94) 100%);
+  color: #1b2742;
+  box-shadow: 0 22px 52px -34px rgba(37, 99, 235, 0.3);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-hero__score,
+.student-app-shell[data-theme="light"] .student-results-hero__score {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: #0c1830;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-hero__score::before,
+.student-app-shell[data-theme="light"] .student-results-hero__score::before {
+  background:
+    linear-gradient(90deg, rgba(37, 99, 235, 0.026), transparent 36%),
+    radial-gradient(circle at 72% 0%, rgba(124, 58, 237, 0.07), transparent 34%);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-top .study-eyebrow,
+:root[data-theme="light"] .student-app-shell .result-chart-card .study-eyebrow,
+.student-app-shell[data-theme="light"] .student-results-performance-top .study-eyebrow,
+.student-app-shell[data-theme="light"] .result-chart-card .study-eyebrow {
+  color: #2563eb;
+  -webkit-text-fill-color: #2563eb;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-top h2,
+.student-app-shell[data-theme="light"] .student-results-performance-top h2 {
+  color: #1b2742;
+  -webkit-text-fill-color: #1b2742;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-top p,
+:root[data-theme="light"] .student-app-shell .result-chart-card p,
+.student-app-shell[data-theme="light"] .student-results-performance-top p,
+.student-app-shell[data-theme="light"] .result-chart-card p {
+  color: #5b6a82;
+  -webkit-text-fill-color: #5f6c86;
+}
+
+:root[data-theme="light"] .student-app-shell .result-score-ring,
+.student-app-shell[data-theme="light"] .result-score-ring {
+  filter: drop-shadow(0 14px 20px rgba(37, 99, 235, 0.12));
+}
+
+:root[data-theme="light"] .student-app-shell .result-score-ring text:first-of-type,
+.student-app-shell[data-theme="light"] .result-score-ring text:first-of-type {
+  fill: #1b2742;
+}
+
+:root[data-theme="light"] .student-app-shell .result-score-ring text:last-of-type,
+.student-app-shell[data-theme="light"] .result-score-ring text:last-of-type {
+  fill: #66758f;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-stat,
+.student-app-shell[data-theme="light"] .student-results-performance-stat {
+  border-color: rgba(80, 116, 166, 0.14);
+  box-shadow: 0 14px 30px -28px rgba(37, 99, 235, 0.28);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-stat--attempts,
+.student-app-shell[data-theme="light"] .student-results-performance-stat--attempts {
+  --results-stat-accent: 37, 99, 235;
+  --results-stat-ink: #1d4ed8;
+  background:
+    linear-gradient(135deg, rgba(var(--results-stat-accent), 0.105), rgba(var(--results-stat-accent), 0.032));
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-stat--passed,
+.student-app-shell[data-theme="light"] .student-results-performance-stat--passed {
+  --results-stat-accent: 22, 163, 74;
+  --results-stat-ink: #15803d;
+  background:
+    linear-gradient(135deg, rgba(var(--results-stat-accent), 0.105), rgba(var(--results-stat-accent), 0.032));
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-stat--average,
+.student-app-shell[data-theme="light"] .student-results-performance-stat--average {
+  --results-stat-accent: 124, 58, 237;
+  --results-stat-ink: #6d28d9;
+  background:
+    linear-gradient(135deg, rgba(var(--results-stat-accent), 0.105), rgba(var(--results-stat-accent), 0.032));
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-stats,
+.student-app-shell[data-theme="light"] .student-results-performance-stats {
+  border-block-color: transparent;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-stat strong,
+.student-app-shell[data-theme="light"] .student-results-performance-stat strong {
+  color: var(--results-stat-ink, #1b2742);
+  -webkit-text-fill-color: var(--results-stat-ink, #1b2742);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-performance-stat small,
+.student-app-shell[data-theme="light"] .student-results-performance-stat small {
+  color: color-mix(in srgb, var(--results-stat-ink, #1b2742) 72%, #66758f);
+  -webkit-text-fill-color: color-mix(in srgb, var(--results-stat-ink, #1b2742) 72%, #66758f);
+}
+
+:root[data-theme="light"] .student-app-shell .result-chart-card,
+.student-app-shell[data-theme="light"] .result-chart-card {
+  border-color: rgba(80, 116, 166, 0.14);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 14px 30px -28px rgba(37, 99, 235, 0.28);
+}
+
+:root[data-theme="light"] .student-app-shell .result-spark-empty,
+.student-app-shell[data-theme="light"] .result-spark-empty {
+  color: #66758f;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-focus,
+:root[data-theme="light"] .student-app-shell .student-results-history,
+.student-app-shell[data-theme="light"] .student-results-focus,
+.student-app-shell[data-theme="light"] .student-results-history {
+  border-color: rgba(37, 99, 235, 0.1) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(96, 165, 250, 0.12), transparent 38%),
+    radial-gradient(circle at 2% 100%, rgba(20, 184, 166, 0.07), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(243, 248, 255, 0.76)) !important;
+  box-shadow: 0 20px 48px -36px rgba(37, 99, 235, 0.28) !important;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-focus__column + .student-results-focus__column,
+.student-app-shell[data-theme="light"] .student-results-focus__column + .student-results-focus__column {
+  border-left-color: rgba(80, 116, 166, 0.14);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-focus__column,
+.student-app-shell[data-theme="light"] .student-results-focus__column {
+  border-color: rgba(80, 116, 166, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-focus__row,
+.student-app-shell[data-theme="light"] .student-results-focus__row {
+  background: rgba(255, 255, 255, 0.42);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-focus__row:hover,
+.student-app-shell[data-theme="light"] .student-results-focus__row:hover {
+  background: rgba(37, 99, 235, 0.052);
+  border-color: rgba(37, 99, 235, 0.16);
+}
+
+.student-app-shell .student-results-history .lms-table-shell {
+  border: 1px solid rgba(148, 163, 184, 0.11) !important;
+  border-radius: var(--results-inner-radius) !important;
+  background: rgba(15, 23, 42, 0.18) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.022) !important;
+}
+
+.student-app-shell .student-results-history table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.student-app-shell .student-results-history thead th {
+  border-top: 0 !important;
+  border-right: 0 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, 0.018) !important;
+  box-shadow: none !important;
+  color: var(--sa-text-3) !important;
+}
+
+.student-app-shell .student-results-history tbody td {
+  border-top: 0 !important;
+  border-right: 0 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.student-app-shell .student-results-history tbody tr:last-child td {
+  border-bottom-color: transparent !important;
+}
+
+.student-app-shell .student-results-history tbody tr:hover {
+  background: rgba(var(--sa-primary-rgb), 0.045) !important;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-history .lms-table-shell,
+.student-app-shell[data-theme="light"] .student-results-history .lms-table-shell {
+  border-color: rgba(80, 116, 166, 0.12) !important;
+  background: rgba(255, 255, 255, 0.58) !important;
+  box-shadow: 0 14px 30px -28px rgba(37, 99, 235, 0.28) !important;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-history thead th,
+.student-app-shell[data-theme="light"] .student-results-history thead th {
+  border-bottom-color: rgba(80, 116, 166, 0.13) !important;
+  background: rgba(255, 255, 255, 0.38) !important;
+  color: #6b7890 !important;
+  -webkit-text-fill-color: #6b7890 !important;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-history tbody td,
+.student-app-shell[data-theme="light"] .student-results-history tbody td {
+  border-bottom-color: rgba(80, 116, 166, 0.1) !important;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-history tbody tr:hover,
+.student-app-shell[data-theme="light"] .student-results-history tbody tr:hover {
+  background: rgba(37, 99, 235, 0.045) !important;
+}
+
 .student-app-shell .student-results-mobile-history__shell {
   overflow: hidden;
-  border: 1px solid var(--sa-border);
-  border-radius: 18px;
-  background: var(--sa-surface);
-  box-shadow: var(--sa-shadow-card);
+  border: 1px solid rgba(148, 163, 184, 0.11);
+  border-radius: var(--results-inner-radius);
+  background: rgba(15, 23, 42, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.022);
 }
 
 .student-app-shell .student-results-mobile-history__head,
@@ -310,8 +625,8 @@
 }
 
 .student-app-shell .student-results-mobile-history__head {
-  border-bottom: 1px solid var(--sa-border);
-  background: var(--sa-surface-2);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.018);
   padding: 10px 12px;
   color: var(--sa-text-3);
   font-size: 10px;
@@ -322,14 +637,46 @@
 
 .student-app-shell .student-results-attempt-list {
   display: grid;
+  gap: 0;
 }
 
 .student-app-shell .student-results-attempt-card {
-  padding: 12px;
+  border-radius: 0;
+  padding: 13px 12px;
 }
 
 .student-app-shell .student-results-attempt-card + .student-results-attempt-card {
-  border-top: 1px solid var(--sa-border-soft);
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.student-app-shell .student-results-attempt-card > button {
+  border-color: rgba(148, 163, 184, 0.14) !important;
+  background: rgba(96, 165, 250, 0.07) !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-mobile-history__head,
+.student-app-shell[data-theme="light"] .student-results-mobile-history__head {
+  border-bottom-color: rgba(80, 116, 166, 0.13);
+  background: rgba(255, 255, 255, 0.38);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-mobile-history__shell,
+.student-app-shell[data-theme="light"] .student-results-mobile-history__shell {
+  border-color: rgba(80, 116, 166, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: 0 14px 30px -28px rgba(37, 99, 235, 0.28);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-attempt-card + .student-results-attempt-card,
+.student-app-shell[data-theme="light"] .student-results-attempt-card + .student-results-attempt-card {
+  border-top-color: rgba(80, 116, 166, 0.1);
+}
+
+:root[data-theme="light"] .student-app-shell .student-results-attempt-card > button,
+.student-app-shell[data-theme="light"] .student-results-attempt-card > button {
+  border-color: rgba(80, 116, 166, 0.14) !important;
+  background: rgba(37, 99, 235, 0.055) !important;
 }
 
 @media (max-width: 900px) {
@@ -338,38 +685,85 @@
   }
 
   .student-app-shell .student-results-hero__score {
-    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "top"
+      "stats"
+      "chart";
+    grid-template-columns: 1fr;
+  }
+
+  .student-app-shell .result-chart-card {
+    min-height: 104px;
+    border-left: 1px solid rgba(148, 163, 184, 0.13);
+    border-top: 1px solid rgba(148, 163, 184, 0.13);
+    padding: clamp(12px, 2vw, 16px);
   }
 }
 
 @media (max-width: 720px) {
-  .student-app-shell .student-results-metrics,
   .student-app-shell .student-results-focus__grid {
     grid-template-columns: 1fr;
+  }
+
+  .student-app-shell .student-results-focus__column + .student-results-focus__column {
+    border-left: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    padding-top: 12px;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 820px) {
+  .student-app-shell .student-results-mobile-history {
+    display: block;
   }
 }
 
 @media (max-width: 640px) {
   .student-app-shell .student-results-hero {
     min-height: 0;
-    padding: 20px !important;
+    border-radius: var(--results-card-radius);
+    padding: 14px !important;
   }
 
   .student-app-shell .student-results-hero h1 {
     font-size: clamp(32px, 9vw, 40px);
   }
 
-  .student-app-shell .student-results-hero__score {
-    grid-template-columns: 1fr;
-    justify-items: center;
+  .student-app-shell .student-results-performance-top {
+    grid-template-columns: minmax(70px, auto) minmax(0, 1fr);
+    gap: 12px;
   }
 
-  .student-app-shell .student-results-hero__trend {
-    width: 100%;
+  .student-app-shell .result-score-ring {
+    width: 72px;
   }
 
-  .student-app-shell .student-results-mobile-history {
-    display: block;
+  .student-app-shell .student-results-performance-stats {
+    gap: 8px;
+    padding-block: 0;
+  }
+
+  .student-app-shell .student-results-performance-stat {
+    min-height: 58px;
+    border-radius: 15px;
+    padding: 10px 9px;
+  }
+
+  .student-app-shell .student-results-performance-stat:first-child {
+    padding-left: 9px;
+  }
+
+  .student-app-shell .student-results-performance-stat small {
+    font-size: 11px;
+  }
+
+  .student-app-shell .result-chart-card {
+    min-height: 96px;
+  }
+
+  .student-app-shell .result-sparkline {
+    height: 72px;
   }
 }
 
@@ -377,21 +771,35 @@
    SINGLE RESULT DETAIL
    ============================================================ */
 .student-app-shell .student-result-detail-layout {
-  gap: 14px;
+  --results-section-gap: clamp(16px, 2.4vw, 22px);
+  --results-card-gap: clamp(12px, 2vw, 16px);
+  --results-card-pad: clamp(16px, 2.4vw, 22px);
+  --results-card-radius: var(--sa-radius-lg, 22px);
+  --results-inner-radius: var(--sa-radius-md, 18px);
+  display: grid;
+  grid-template-columns: 1fr;
+  min-width: 0;
+  gap: var(--results-section-gap);
 }
 
 .student-app-shell .student-result-detail-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: clamp(16px, 3vw, 28px);
+  gap: var(--results-card-gap);
   overflow: hidden;
+  border: 1px solid var(--sa-border) !important;
+  border-radius: var(--results-card-radius) !important;
+  background:
+    radial-gradient(circle at 92% 10%, rgba(var(--sa-primary-rgb), 0.11), transparent 34%),
+    var(--sa-surface) !important;
   padding: clamp(20px, 3vw, 30px) !important;
+  box-shadow: var(--sa-shadow-card);
 }
 
 .student-app-shell .student-result-detail-hero__copy {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -399,9 +807,9 @@
   margin: 0;
   color: var(--sa-ink);
   font-family: var(--sa-font-display);
-  font-size: clamp(30px, 4.5vw, 48px);
+  font-size: clamp(25px, 3.2vw, 38px);
   font-weight: 900;
-  line-height: 1;
+  line-height: 1.05;
   letter-spacing: 0;
 }
 
@@ -415,10 +823,7 @@
 
 .student-app-shell .student-result-detail-note {
   max-width: 700px;
-  border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-md);
-  background: var(--sa-surface-2);
-  padding: 13px 14px;
+  padding: 0;
   color: var(--sa-ink);
   font-size: 14px;
   font-weight: 750;
@@ -433,20 +838,17 @@
 
 .student-app-shell .student-result-score-card {
   display: grid;
+  min-height: 0;
   place-items: center;
-  min-height: 210px;
-  border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-lg);
-  background: var(--sa-surface-2);
 }
 
 .student-app-shell .student-result-score-ring {
   display: grid;
-  width: 180px;
-  height: 180px;
+  width: clamp(96px, 15vw, 132px);
+  height: clamp(96px, 15vw, 132px);
   place-items: center;
   border-radius: 999px;
-  padding: 14px;
+  padding: 10px;
   box-shadow: 0 18px 44px rgba(37, 99, 235, 0.12);
 }
 
@@ -463,7 +865,7 @@
 
 .student-app-shell .student-result-score-ring strong {
   color: var(--sa-ink);
-  font-size: 38px;
+  font-size: clamp(24px, 4vw, 34px);
   font-weight: 950;
   line-height: 1;
 }
@@ -479,34 +881,44 @@
 .student-app-shell .student-result-insight-grid,
 .student-app-shell .student-result-focus-grid {
   display: grid;
-  gap: 12px;
+  gap: var(--results-card-gap);
+  width: 100%;
 }
 
 .student-app-shell .student-result-stat-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--sa-border);
+  border-radius: var(--results-card-radius);
+  background: var(--sa-surface);
+  padding: var(--results-card-pad);
+  box-shadow: var(--sa-shadow-card);
 }
 
 .student-app-shell .student-result-insight-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .student-app-shell .student-result-focus-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .student-app-shell .student-result-stat-card,
 .student-app-shell .student-result-insight-card,
 .student-app-shell .student-result-focus-card {
   border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-lg);
+  border-radius: var(--results-inner-radius);
   background: var(--sa-surface);
-  padding: 16px;
+  padding: var(--results-card-pad);
   color: var(--sa-ink);
   box-shadow: var(--sa-shadow-card);
 }
 
 .student-app-shell .student-result-stat-card {
-  background: var(--sa-surface-2);
+  border: 0;
+  border-radius: var(--sa-radius-sm, 14px);
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
 }
 
 .student-app-shell .student-result-stat-card span,
@@ -558,10 +970,41 @@
   line-height: 1.45;
 }
 
+.student-app-shell .student-result-insight-card,
+.student-app-shell .student-result-focus-card {
+  border-radius: var(--results-card-radius);
+  background:
+    radial-gradient(circle at 96% 0%, rgba(var(--sa-primary-rgb), 0.055), transparent 32%),
+    var(--sa-surface);
+}
+
+:root[data-theme="light"] .student-app-shell .student-result-detail-hero,
+.student-app-shell[data-theme="light"] .student-result-detail-hero,
+:root[data-theme="light"] .student-app-shell .student-result-stat-grid,
+.student-app-shell[data-theme="light"] .student-result-stat-grid,
+:root[data-theme="light"] .student-app-shell .student-result-insight-card,
+.student-app-shell[data-theme="light"] .student-result-insight-card,
+:root[data-theme="light"] .student-app-shell .student-result-focus-card,
+.student-app-shell[data-theme="light"] .student-result-focus-card {
+  border-color: rgba(37, 99, 235, 0.14) !important;
+  background:
+    radial-gradient(circle at 94% 0%, rgba(37, 99, 235, 0.1), transparent 32%),
+    rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 16px 36px -30px rgba(37, 99, 235, 0.3) !important;
+}
+
+:root[data-theme="light"] .student-app-shell .student-result-score-card,
+.student-app-shell[data-theme="light"] .student-result-score-card,
+:root[data-theme="light"] .student-app-shell .student-result-detail-note,
+.student-app-shell[data-theme="light"] .student-result-detail-note,
+:root[data-theme="light"] .student-app-shell .student-result-stat-card,
+.student-app-shell[data-theme="light"] .student-result-stat-card {
+  border-color: transparent;
+  background: transparent;
+}
+
 @media (max-width: 900px) {
-  .student-app-shell .student-result-detail-hero,
-  .student-app-shell .student-result-insight-grid,
-  .student-app-shell .student-result-focus-grid {
+  .student-app-shell .student-result-detail-hero {
     grid-template-columns: 1fr;
   }
 
@@ -576,12 +1019,17 @@
   }
 
   .student-app-shell .student-result-detail-hero h1 {
-    font-size: clamp(30px, 9vw, 38px);
+    font-size: clamp(25px, 8vw, 34px);
+  }
+
+  .student-app-shell .student-result-score-card {
+    justify-items: center;
+    text-align: center;
   }
 
   .student-app-shell .student-result-score-ring {
-    width: 160px;
-    height: 160px;
+    width: 142px;
+    height: 142px;
   }
 }
 

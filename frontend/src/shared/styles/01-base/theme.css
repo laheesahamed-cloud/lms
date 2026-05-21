@@ -1036,6 +1036,14 @@ body,
   -webkit-text-fill-color: #5f6c86 !important;
 }
 
+:root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
+:root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow :where(span, svg),
+:root[data-theme="light"] body.student-quiz-night-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
+:root[data-theme="light"] body.student-quiz-night-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow :where(span, svg) {
+  color: var(--sa-primary, #2563eb) !important;
+  -webkit-text-fill-color: var(--sa-primary, #2563eb) !important;
+}
+
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-topbar-title h1,
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page .study-topbar-title h1,
 :root[data-theme="light"] .dashboard-page.study-hub-page :where(.study-hero-name, .study-hero-name > span, .study-hero-lead b, .study-section-head--quick strong),
@@ -1049,6 +1057,16 @@ body,
 :root[data-theme="light"] .dashboard-page.study-hub-page :where(.study-hero-lead, .study-metric > div > span, .study-metric > div > p, .study-heatmap__label),
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page .study-topbar-title span,
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page :where(p, small, span, .text-ink-soft, .text-ink-muted, .text-slate-400, .text-slate-500) {
+  color: #5f6c86 !important;
+  -webkit-text-fill-color: #5f6c86 !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page .lms-quiz-mascot-strip h2 {
+  color: #1b2742 !important;
+  -webkit-text-fill-color: #1b2742 !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page .lms-quiz-mascot-strip p {
   color: #5f6c86 !important;
   -webkit-text-fill-color: #5f6c86 !important;
 }
@@ -1077,6 +1095,7 @@ body,
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-square-action,
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-readiness-card,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card,
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-todo-card,
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-mood-card,
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-question-card,
@@ -1096,6 +1115,200 @@ body,
   background: rgba(255, 255, 255, 0.9) !important;
   color: #1b2742 !important;
   box-shadow: 0 20px 48px -36px rgba(37, 99, 235, 0.28) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card {
+  background:
+    radial-gradient(circle at 92% 0%, rgba(37, 99, 235, 0.12), transparent 34%),
+    rgba(255, 255, 255, 0.9) !important;
+}
+
+body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card.lms-quiz-course-card--stock {
+  border-color: rgba(var(--quiz-course-accent), 0.2) !important;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(var(--quiz-course-accent), 0.22), transparent 31%),
+    radial-gradient(circle at 100% 86%, rgba(var(--quiz-course-accent-2), 0.2), transparent 42%),
+    linear-gradient(90deg, rgba(5, 12, 22, 0.7) 0%, rgba(10, 14, 24, 0.58) 55%, rgba(16, 18, 30, 0.28) 100%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.12) !important;
+  backdrop-filter: blur(18px) saturate(1.12) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--quiz-course-accent), 0.05) inset,
+    0 18px 42px -34px rgba(var(--quiz-course-accent-2), 0.54) !important;
+}
+
+body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card.lms-quiz-course-card--stock:hover {
+  border-color: rgba(var(--quiz-course-accent), 0.28) !important;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(var(--quiz-course-accent), 0.26), transparent 31%),
+    radial-gradient(circle at 100% 86%, rgba(var(--quiz-course-accent-2), 0.24), transparent 42%),
+    linear-gradient(90deg, rgba(8, 13, 26, 0.76) 0%, rgba(12, 16, 30, 0.6) 55%, rgba(18, 20, 34, 0.3) 100%) !important;
+}
+
+body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card--stock::before {
+  background:
+    linear-gradient(90deg, rgba(5, 12, 28, 0.44) 0%, rgba(5, 12, 28, 0.2) 52%, transparent 74%),
+    radial-gradient(circle at 82% 32%, rgba(255, 255, 255, 0.1), transparent 30%) !important;
+}
+
+body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card__art::before {
+  content: "" !important;
+  position: absolute;
+  inset: 12% 8% 12% 0;
+  z-index: -1;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(var(--quiz-course-accent), 0.22), transparent 66%) !important;
+  filter: blur(12px);
+  opacity: 0.82;
+}
+
+body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .quiz-course-stock-art {
+  filter:
+    hue-rotate(var(--quiz-course-art-hue))
+    drop-shadow(0 18px 18px rgba(var(--quiz-course-accent-2), 0.22))
+    saturate(1.03)
+    contrast(1.02) !important;
+  opacity: 0.98 !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card.lms-quiz-course-card--stock {
+  border-color: rgba(var(--quiz-course-accent-2), 0.12) !important;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(var(--quiz-course-accent), 0.13), transparent 34%),
+    radial-gradient(circle at 100% 86%, rgba(var(--quiz-course-accent-2), 0.1), transparent 44%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.78) 56%, rgba(var(--quiz-course-accent), 0.08) 100%) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 16px 36px -34px rgba(var(--quiz-course-accent-2), 0.24) !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card.lms-quiz-course-card--stock:hover {
+  border-color: rgba(var(--quiz-course-accent-2), 0.18) !important;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(var(--quiz-course-accent), 0.16), transparent 34%),
+    radial-gradient(circle at 100% 86%, rgba(var(--quiz-course-accent-2), 0.12), transparent 44%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 255, 0.84) 56%, rgba(var(--quiz-course-accent), 0.1) 100%) !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card--stock::before {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.08) 52%, transparent 76%),
+    radial-gradient(circle at 82% 32%, rgba(255, 255, 255, 0.36), transparent 34%) !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card__art::before {
+  background: radial-gradient(circle, rgba(var(--quiz-course-accent), 0.12), transparent 68%) !important;
+  opacity: 0.58;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .quiz-course-stock-art {
+  filter:
+    hue-rotate(var(--quiz-course-art-hue))
+    drop-shadow(0 12px 14px rgba(var(--quiz-course-accent-2), 0.14))
+    saturate(0.94)
+    contrast(0.96)
+    brightness(1.03) !important;
+  opacity: 0.9 !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card__bookmark {
+  border-color: rgba(var(--quiz-course-accent-2), 0.15) !important;
+  background: rgba(255, 255, 255, 0.52) !important;
+  color: rgb(var(--quiz-course-accent-2)) !important;
+  -webkit-text-fill-color: rgb(var(--quiz-course-accent-2)) !important;
+  box-shadow: 0 10px 18px -16px rgba(var(--quiz-course-accent-2), 0.28) !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page :where(
+  .lms-page-header-card,
+  .lms-map-hierarchy-guide,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .lms-quiz-loading-shell
+) {
+  border-color: rgba(86, 112, 150, 0.14) !important;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(56, 189, 248, 0.08), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(247, 250, 255, 0.86)) !important;
+  color: #1b2742 !important;
+  box-shadow: 0 18px 42px -34px rgba(37, 99, 235, 0.2) !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page .lms-quiz-course-card--stock .lms-quiz-course-card__copy > span {
+  background: rgba(var(--quiz-course-accent), 0.11) !important;
+  color: rgb(var(--quiz-course-accent-2)) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--quiz-course-accent-2), 0.1) inset,
+    0 10px 18px -16px rgba(var(--quiz-course-accent-2), 0.3) !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-qbank-map-page.student-quiz-night-page :where(.text-ink-muted, .text-ink-soft, p, small) {
+  color: #5f6c86 !important;
+  -webkit-text-fill-color: #5f6c86 !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page .lms-quiz-mascot-strip h2 {
+  color: #1b2742 !important;
+  -webkit-text-fill-color: #1b2742 !important;
+}
+
+:root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page .lms-quiz-mascot-strip p {
+  color: #5f6c86 !important;
+  -webkit-text-fill-color: #5f6c86 !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card__head strong,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row strong {
+  color: #1b2742 !important;
+  -webkit-text-fill-color: #1b2742 !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row small,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row em {
+  color: #5f6c86 !important;
+  -webkit-text-fill-color: #5f6c86 !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row {
+  border-color: rgba(86, 112, 150, 0.14) !important;
+  background: rgba(255, 255, 255, 0.66) !important;
+  color: #1b2742 !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card__head button,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row i {
+  border-color: rgba(37, 99, 235, 0.16) !important;
+  background: rgba(37, 99, 235, 0.09) !important;
+  color: #2563eb !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row__icon {
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #2563eb !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row:first-child .study-plan-row__icon {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #16a34a !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row:nth-child(2) .study-plan-row__icon {
+  background: rgba(124, 58, 237, 0.12) !important;
+  color: #7c3aed !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row:nth-child(3) .study-plan-row__icon {
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #2563eb !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row.is-complete {
+  border-color: rgba(34, 197, 94, 0.2) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row.is-complete i {
+  background: rgba(34, 197, 94, 0.14) !important;
+  color: #16a34a !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-metric {
@@ -1118,28 +1331,44 @@ body,
     rgba(255, 255, 255, 0.88) !important;
 }
 
-:root[data-theme="light"] .dashboard-page.study-hub-page .study-metric > div > strong,
-:root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-top strong,
-:root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-days strong {
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-metric > div > strong {
   color: #0c1830 !important;
   -webkit-text-fill-color: #0c1830 !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-card {
-  border-color: rgba(245, 158, 11, 0.24) !important;
+  border-color: rgba(245, 158, 11, 0.2) !important;
   background:
-    radial-gradient(circle at 12% 8%, rgba(245, 158, 11, 0.18), transparent 36%),
-    linear-gradient(145deg, rgba(255, 248, 235, 0.96), rgba(255, 255, 255, 0.92)) !important;
-  box-shadow: 0 22px 52px -34px rgba(245, 158, 11, 0.28) !important;
+    radial-gradient(circle at 12% 8%, rgba(245, 158, 11, 0.16), transparent 36%),
+    linear-gradient(145deg, rgba(42, 29, 24, 0.86), rgba(8, 12, 22, 0.94)) !important;
+  box-shadow:
+    0 0 0 1px rgba(245, 158, 11, 0.055) inset,
+    0 24px 58px -34px rgba(0, 0, 0, 0.9) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-top strong,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-days strong {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-heatmap {
-  background: rgba(255, 255, 255, 0.52) !important;
+  background: rgba(8, 13, 25, 0.42) !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-heatmap__dot {
-  border-color: rgba(86, 112, 150, 0.32) !important;
-  background: rgba(255, 255, 255, 0.76) !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  background: rgba(15, 23, 42, 0.42) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-heatmap__cell.is-active .study-heatmap__dot {
+  border-color: transparent !important;
+  background: linear-gradient(135deg, #f59e0b, #f97316) !important;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.34) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-heatmap__cell.is-today .study-heatmap__dot {
+  border-color: #f59e0b !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-action-grid > .study-action-card,
@@ -1226,4 +1455,188 @@ body,
 :root[data-theme="light"] body.student-quiz-night-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-nav__label {
   color: #2563eb !important;
   -webkit-text-fill-color: #2563eb !important;
+}
+
+/* Light mode chrome keeps glass where it clarifies an active overlay. */
+:root[data-theme="light"] :where(
+  .lms-sidebar--student-model,
+  .lms-mobile-bottom-nav__inner
+) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:root[data-theme="light"] .lms-sidebar--student-model {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(86, 112, 150, 0.14) !important;
+  box-shadow:
+    0 18px 44px -28px rgba(37, 99, 235, 0.24),
+    0 0 0 1px rgba(255, 255, 255, 0.68) inset !important;
+}
+
+:root[data-theme="light"] .lms-mobile-bottom-nav__inner {
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8fd 100%) !important;
+  color: #0c1830 !important;
+  box-shadow: 0 -10px 28px -22px rgba(37, 99, 235, 0.24) !important;
+}
+
+:root[data-theme="light"] .lms-mobile-top-nav {
+  border-color: rgba(86, 112, 150, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(245, 248, 253, 0.58)),
+    linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(56, 189, 248, 0.06)) !important;
+  box-shadow:
+    0 24px 70px -38px rgba(13, 28, 64, 0.26),
+    0 0 0 1px rgba(255, 255, 255, 0.72) inset !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
+  backdrop-filter: blur(28px) saturate(160%) !important;
+}
+
+:root[data-theme="light"] .lms-mobile-top-nav.lms-mobile-top-nav--plain {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:root[data-theme="light"] .lms-mobile-top-nav--plain::before,
+:root[data-theme="light"] .lms-mobile-top-nav__plain-close {
+  border-color: rgba(86, 112, 150, 0.16) !important;
+  background: rgba(255, 255, 255, 0.46) !important;
+  box-shadow:
+    0 14px 30px -22px rgba(37, 99, 235, 0.26),
+    0 0 0 1px rgba(255, 255, 255, 0.7) inset !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+  backdrop-filter: blur(18px) saturate(150%) !important;
+}
+
+:root[data-theme="light"] :where(.lms-mobile-top-nav-backdrop, .lms-profile-menu-backdrop) {
+  --lms-mobile-top-nav-backdrop-bg: rgba(12, 24, 48, 0.075);
+  --lms-profile-menu-backdrop-bg: rgba(12, 24, 48, 0.075);
+  background: rgba(12, 24, 48, 0.075) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(115%) !important;
+  backdrop-filter: blur(10px) saturate(115%) !important;
+}
+
+:root[data-theme="light"] .student-app-shell :where(
+  .lms-topbar .lms-topbar-menu-button,
+  .lms-topbar .lms-topbar-utility > button,
+  .lms-topbar .lms-topbar-utility > div > button,
+  .lms-topbar .lms-topbar-right > button,
+  .lms-topbar .lms-topbar-right > div > button,
+  .lms-topbar .lms-topbar-center > button
+) {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(86, 112, 150, 0.16) !important;
+  box-shadow: 0 8px 18px -16px rgba(37, 99, 235, 0.28) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:root[data-theme="light"] .student-app-shell :where(
+  .lms-topbar .lms-topbar-menu-button,
+  .lms-topbar .lms-topbar-utility > button,
+  .lms-topbar .lms-topbar-utility > div > button,
+  .lms-topbar .lms-topbar-right > button,
+  .lms-topbar .lms-topbar-right > div > button,
+  .lms-topbar .lms-topbar-center > button
+):hover {
+  background: rgba(224, 236, 255, 0.88) !important;
+  border-color: rgba(37, 99, 235, 0.22) !important;
+}
+
+:root[data-theme="light"] .student-app-shell .lms-profile-avatar {
+  border-color: rgba(255, 255, 255, 0.92) !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 8px 18px -14px rgba(37, 99, 235, 0.38),
+    0 0 0 1px rgba(37, 99, 235, 0.12) !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:root[data-theme="light"] .student-app-shell .is-profile-avatar-open .lms-profile-avatar,
+:root[data-theme="light"] .student-app-shell .is-profile-avatar-open {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+}
+
+:root[data-theme="light"] .student-app-shell :where(.lms-topbar, .study-hub-topbar) .lms-profile-menu.lms-floating-panel,
+:root[data-theme="light"] .student-app-shell :where(.lms-topbar, .study-hub-topbar) .lms-profile-menu {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:where(.student-app-shell, .app-shell) :where(.lms-profile-menu-backdrop),
+.lms-profile-menu-backdrop {
+  z-index: 10045 !important;
+  background: var(--lms-profile-menu-backdrop-bg, rgba(100, 116, 139, 0.14)) !important;
+  -webkit-backdrop-filter:
+    blur(var(--lms-profile-menu-backdrop-blur, 12px))
+    saturate(var(--lms-profile-menu-backdrop-saturate, 108%)) !important;
+  backdrop-filter:
+    blur(var(--lms-profile-menu-backdrop-blur, 12px))
+    saturate(var(--lms-profile-menu-backdrop-saturate, 108%)) !important;
+}
+
+:where(.student-app-shell, .app-shell) :where(.main-content, .portal-content):has(.lms-profile-menu-backdrop) {
+  z-index: 10044 !important;
+}
+
+:root[data-theme="light"] .lms-profile-menu-backdrop {
+  --lms-profile-menu-backdrop-bg: rgba(12, 24, 48, 0.075);
+  --lms-profile-menu-backdrop-blur: 10px;
+  --lms-profile-menu-backdrop-saturate: 115%;
+}
+
+:root[data-theme="dark"] .lms-profile-menu-backdrop {
+  --lms-profile-menu-backdrop-bg: rgba(100, 116, 139, 0.16);
+  --lms-profile-menu-backdrop-blur: 14px;
+  --lms-profile-menu-backdrop-saturate: 108%;
+}
+
+:where(.student-app-shell, .app-shell) :where(.lms-topbar, .study-hub-topbar):has(.lms-profile-menu),
+:where(.lms-topbar, .study-hub-topbar):has(.lms-profile-menu) {
+  z-index: 10060 !important;
+}
+
+:where(.student-app-shell, .app-shell, .lms-topbar, .study-hub-topbar) .lms-profile-menu {
+  z-index: 10061 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:where(.student-app-shell, .app-shell, .lms-topbar, .study-hub-topbar) .lms-profile-menu > div {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+:where(.student-app-shell, .app-shell, .lms-topbar, .study-hub-topbar) .is-profile-avatar-open,
+:where(.student-app-shell, .app-shell, .lms-topbar, .study-hub-topbar) .lms-topbar-menu-wrap:has(.lms-profile-menu) > button {
+  z-index: 10062 !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+
+.study-hub-topbar:has(.lms-profile-menu) > :where(.lms-topbar-menu-button, .study-topbar-title),
+.study-hub-topbar:has(.lms-profile-menu) .study-topbar-actions > :not(.lms-topbar-menu-wrap:has(.lms-profile-menu)),
+.lms-topbar:has(.lms-profile-menu) :where(.lms-topbar-left, .lms-topbar-center),
+.lms-topbar:has(.lms-profile-menu) .lms-topbar-utility > :not(.lms-topbar-menu-wrap:has(.lms-profile-menu)) {
+  opacity: 0.58;
+  filter: blur(8px) saturate(88%);
+  -webkit-filter: blur(8px) saturate(88%);
+  pointer-events: none;
+  transition:
+    opacity 220ms cubic-bezier(0.23, 1, 0.32, 1),
+    filter 220ms cubic-bezier(0.23, 1, 0.32, 1);
 }

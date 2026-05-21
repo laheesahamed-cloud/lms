@@ -12,6 +12,16 @@ function isCorrectOption(option) {
   return ['1', 'true', 'correct', 'yes'].includes(String(value ?? '').trim().toLowerCase());
 }
 
+function normalizeTrueFalseValue(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (value === true || value === 1 || value === '1') return 1;
+  if (value === false || value === 0 || value === '0') return 0;
+  const normalized = String(value).trim().toLowerCase();
+  if (['true', 'correct', 'yes'].includes(normalized)) return 1;
+  if (['false', 'incorrect', 'no'].includes(normalized)) return 0;
+  return null;
+}
+
 const reviewUi = {
   shell:
     'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(240px,300px)_minmax(0,780px)_minmax(240px,300px)] items-start justify-center gap-[18px] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1',
@@ -25,10 +35,10 @@ const reviewUi = {
   mainFocus: 'lms-review-main lms-review-main--focus w-full min-w-0',
   explanationSide:
     'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:col-span-2 max-[900px]:hidden',
-  summaryGrid: 'grid grid-cols-4 gap-2 max-[420px]:gap-1.5',
+  summaryGrid: 'lms-review-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5',
   summaryTile:
-    'grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]',
-  nav: 'grid min-h-0 gap-2.5',
+    'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]',
+  nav: 'lms-review-side-nav grid min-h-0 gap-2.5',
   navHead: 'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft',
   navList: 'lms-review-nav-list grid min-h-0 gap-2 overflow-y-auto pr-1 max-[980px]:max-h-60',
   navItem:
@@ -222,8 +232,9 @@ function getQuestionStatusTone(status) {
 }
 
 function formatBooleanAnswer(value) {
-  if (value === undefined || value === null) return 'Unanswered';
-  return Number(value) === 1 || value === true ? 'True' : 'False';
+  const normalized = normalizeTrueFalseValue(value);
+  if (normalized === null) return 'Unanswered';
+  return normalized === 1 ? 'True' : 'False';
 }
 
 function ReviewStatusChip({ status }) {
@@ -249,7 +260,7 @@ function ReviewOptionLabels({ labels }) {
 
 function ReviewSbaOption({ option, question, displayLabel }) {
   const isCorrect = isCorrectOption(option);
-  const isSelected = question.answerState.selectedIds?.includes(option.id);
+  const isSelected = (question.answerState.selectedIds || []).map(Number).includes(Number(option.id));
   const unanswered = question.answerStatus === 'unanswered';
   const tone = isSelected && !isCorrect ? 'wrong' : isCorrect ? 'correct' : unanswered ? 'unanswered' : 'neutral';
   const labels = [];
@@ -275,10 +286,10 @@ function ReviewSbaOption({ option, question, displayLabel }) {
 }
 
 function ReviewTrueFalseOption({ option, question, displayLabel }) {
-  const studentValue = question.answerState.tfMap?.[option.id];
+  const studentValue = normalizeTrueFalseValue(question.answerState.tfMap?.[option.id]);
   const correctValue = isCorrectOption(option) ? 1 : 0;
-  const answered = studentValue !== undefined;
-  const isCorrect = answered && Number(studentValue) === correctValue;
+  const answered = studentValue !== null;
+  const isCorrect = answered && studentValue === correctValue;
   const tone = !answered ? 'unanswered' : isCorrect ? 'correct' : 'wrong';
 
   return (
@@ -512,7 +523,7 @@ export function ReviewWorkspace({
     <>
     <section className={shellClass}>
       {!focusQuestionOnly ? (
-      <aside className={cx(ui.compactPanelCard, reviewUi.sidebar)}>
+      <aside className={reviewUi.sidebar}>
         {summary ? (
           <div className={reviewUi.summaryGrid}>
             <div className={reviewUi.summaryTile}>

@@ -7,5 +7,6 @@ import { QuizAttemptsService } from './quiz-attempts.service';
   imports: [PlansModule],
   controllers: [QuizAttemptsController],
   providers: [QuizAttemptsService],
+  exports: [QuizAttemptsService],
 })
 export class QuizAttemptsModule {}

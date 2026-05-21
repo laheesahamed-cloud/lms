@@ -24,8 +24,8 @@ export function ResultPage() {
 
   if (!result && !error) {
     return (
-      <main className={cx(ui.studentScreenShell, 'student-result-detail-page')}>
-        <section className={ui.studentManagementLayout}>
+      <main className={cx(ui.studentScreenShell, 'dashboard-page study-hub-page practice-review-page student-result-detail-page')}>
+        <section className="study-hub-shell practice-review-shell student-result-detail-layout">
           <div className={ui.emptyBox}>Loading result...</div>
         </section>
       </main>
@@ -59,12 +59,12 @@ export function ResultPage() {
   }
 
   return (
-      <main className={cx(ui.studentScreenShell, 'student-result-detail-page')}>
-        <section className={cx(ui.studentManagementLayout, 'student-result-detail-layout')}>
+      <main className={cx(ui.studentScreenShell, 'dashboard-page study-hub-page practice-review-page student-result-detail-page')}>
+        <section className="study-hub-shell practice-review-shell student-result-detail-layout">
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
         {result ? (
           <>
-          <section className="student-result-detail-hero lms-page-header-card">
+          <section className="student-result-detail-hero">
             <div className="student-result-detail-hero__copy">
                 <span className={statusPill(isPassed ? 'active' : 'inactive')}>
                   {isPassed ? 'Passed' : 'Needs review'}
@@ -74,9 +74,9 @@ export function ResultPage() {
                   {result.courseTitle}
                   {result.topicDisplay ? ` • ${result.topicDisplay}` : ''}
                 </p>
-                <div className="student-result-detail-note">
+                <p className="student-result-detail-note">
                   {accuracyNote}
-                </div>
+                </p>
                 <div className="student-result-detail-actions">
                   <button className="lms-app-btn lms-app-btn--primary" type="button" onClick={openReviewAnswers}>Review answers</button>
                   <button type="button" className="lms-app-btn lms-app-btn--ghost" onClick={() => navigate('/quizzes')}>Practice</button>
@@ -94,14 +94,14 @@ export function ResultPage() {
               </div>
           </section>
 
-            <div className="student-result-stat-grid">
+            <section className="student-result-stat-grid lms-quiz-set-card" aria-label="Attempt score breakdown">
               <article className="student-result-stat-card"><span>Total</span><strong>{result.totalQuestions}</strong></article>
               <article className="student-result-stat-card is-correct"><span>Correct</span><strong>{result.correctAnswers}</strong></article>
               <article className="student-result-stat-card is-wrong"><span>Wrong</span><strong>{result.wrongAnswers}</strong></article>
               <article className="student-result-stat-card"><span>Unanswered</span><strong>{unanswered}</strong></article>
-            </div>
+            </section>
 
-            <div className="student-result-insight-grid">
+            <section className="student-result-insight-grid" aria-label="Attempt insights">
               <article className="student-result-insight-card">
                 <span className={ui.eyebrow}>Passing mark</span>
                 <strong>{result.passingMarks} / {totalMarks}</strong>
@@ -112,9 +112,9 @@ export function ResultPage() {
                 <strong>{answered} of {result.totalQuestions}</strong>
                 <p>{unanswered > 0 ? `${unanswered} question${unanswered === 1 ? '' : 's'} left unanswered.` : 'Every question was answered.'}</p>
               </article>
-            </div>
+            </section>
 
-            <div className="student-result-focus-grid">
+            <section className="student-result-focus-grid" aria-label="Next focus areas">
               {focusItems.map((item) => (
                 <article className="student-result-focus-card" key={item.label}>
                   <span className={ui.eyebrow}>{item.label}</span>
@@ -122,7 +122,7 @@ export function ResultPage() {
                   <p>{item.text}</p>
                 </article>
               ))}
-            </div>
+            </section>
           </>
         ) : null}
         </section>

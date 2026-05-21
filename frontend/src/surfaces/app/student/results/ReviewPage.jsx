@@ -8,6 +8,7 @@ import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 
 const reviewPageNavClass = 'flex items-center justify-start';
+const reviewPageLayoutClass = 'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[18px]';
 
 export function ReviewPage() {
   const { attemptId } = useParams();
@@ -27,7 +28,13 @@ export function ReviewPage() {
   }, [attemptId]);
 
   if (!data && !error) {
-    return <main className={ui.studentScreenShell}><div className={ui.emptyBox}>Loading review...</div></main>;
+    return (
+      <main className={cx(ui.studentScreenShell, 'dashboard-page study-hub-page lms-review-page')}>
+        <section className={reviewPageLayoutClass}>
+          <div className={ui.emptyBox}>Loading review...</div>
+        </section>
+      </main>
+    );
   }
 
   const summary = data ? data.questions.reduce(
@@ -48,8 +55,8 @@ export function ReviewPage() {
   ) : null;
 
   return (
-      <main className={cx(ui.studentScreenShell, 'lms-review-page')}>
-        <section className={ui.studentManagementLayout}>
+      <main className={cx(ui.studentScreenShell, 'dashboard-page study-hub-page lms-review-page')}>
+        <section className={reviewPageLayoutClass}>
         <AppHeader
           title={data ? `${getQuizNumberLabel(data.attempt)} review` : 'Review answers'}
           subtitle="Answer Review"

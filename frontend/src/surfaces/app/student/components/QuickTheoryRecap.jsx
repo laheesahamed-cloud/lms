@@ -140,6 +140,175 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
   const [fontScale, setFontScale] = useState('md');
   const dialogRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const dragStateRef = useRef({
+    active: false,
+    startY: 0,
+    startX: 0,
+    pointerId: null,
+    scroller: null,
+    dragging: false,
+  });
+
+  function resetPopupDrag() {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    dialog.style.transform = '';
+    dialog.style.opacity = '';
+    dialog.style.transition = '';
+  }
+
+  function closePopup() {
+    resetPopupDrag();
+    setOpen(false);
+  }
+
+  function beginPopupDrag(target, x, y, pointerId, captureTarget = null) {
+    if (!(target instanceof Element)) return;
+    if (target.closest('button, a, input, textarea, select, [role="button"]')) return;
+
+    const scroller = target.closest('.qtr-popup__scroller');
+    if (!target.closest('.qtr-popup__drag-zone, .qtr-popup__head, .qtr-popup__body')) return;
+
+    dragStateRef.current = {
+      active: true,
+      startY: y,
+      startX: x,
+      pointerId,
+      scroller,
+      dragging: false,
+    };
+
+    captureTarget?.setPointerCapture?.(pointerId);
+  }
+
+  function handlePopupPointerDown(e) {
+    beginPopupDrag(e.target, e.clientX, e.clientY, e.pointerId, e.currentTarget);
+  }
+
+  function movePopupDrag(x, y, pointerId, preventDefault) {
+    const state = dragStateRef.current;
+    if (!state.active || state.pointerId !== pointerId) return;
+
+    const deltaY = y - state.startY;
+    const deltaX = Math.abs(x - state.startX);
+    if (deltaY <= 0 || deltaX > deltaY * 1.4) return;
+    if (state.scroller && state.scroller.scrollTop > 1) return;
+
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    preventDefault?.();
+    if (state.scroller) state.scroller.scrollTop = 0;
+
+    if (!state.dragging) {
+      state.dragging = true;
+      dragStateRef.current = state;
+      dialog.style.transition = 'none';
+      dialog.dataset.dragging = 'true';
+    }
+
+    const clampedY = Math.min(deltaY, 220);
+    dialog.style.transform = `translate3d(0, ${clampedY}px, 0)`;
+    dialog.style.opacity = String(Math.max(0.72, 1 - clampedY / 380));
+  }
+
+  function handlePopupPointerMove(e) {
+    movePopupDrag(e.clientX, e.clientY, e.pointerId, () => e.preventDefault());
+  }
+
+  function endPopupDrag(x, y, pointerId, releaseTarget = null) {
+    const state = dragStateRef.current;
+    if (!state.active || state.pointerId !== pointerId) return;
+
+    dragStateRef.current = {
+      active: false,
+      startY: 0,
+      startX: 0,
+      pointerId: null,
+      scroller: null,
+      dragging: false,
+    };
+
+    releaseTarget?.releasePointerCapture?.(pointerId);
+
+    const dialog = dialogRef.current;
+    const deltaY = y - state.startY;
+    if (!dialog) {
+      if (deltaY > 86) closePopup();
+      return;
+    }
+
+    dialog.style.transition = 'transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease';
+    delete dialog.dataset.dragging;
+
+    const deltaX = Math.abs(x - state.startX);
+    if (state.dragging && deltaY > 86 && deltaX <= deltaY * 1.4) {
+      dialog.style.transform = 'translate3d(0, 110%, 0)';
+      dialog.style.opacity = '0.88';
+      window.setTimeout(() => setOpen(false), 120);
+      return;
+    }
+
+    dialog.style.transform = '';
+    dialog.style.opacity = '';
+    window.setTimeout(() => {
+      if (dialogRef.current === dialog) dialog.style.transition = '';
+    }, 200);
+  }
+
+  function handlePopupPointerUp(e) {
+    endPopupDrag(e.clientX, e.clientY, e.pointerId, e.currentTarget);
+  }
+
+  function handlePopupPointerCancel(e) {
+    const state = dragStateRef.current;
+    if (!state.active || state.pointerId !== e.pointerId) return;
+
+    dragStateRef.current = {
+      active: false,
+      startY: 0,
+      startX: 0,
+      pointerId: null,
+      scroller: null,
+      dragging: false,
+    };
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    resetPopupDrag();
+  }
+
+  function handlePopupTouchStart(e) {
+    const touch = e.touches?.[0];
+    if (!touch) return;
+    beginPopupDrag(e.target, touch.clientX, touch.clientY, 'touch');
+  }
+
+  function handlePopupTouchMove(e) {
+    const touch = e.touches?.[0];
+    if (!touch) return;
+    movePopupDrag(touch.clientX, touch.clientY, 'touch', () => {
+      if (e.cancelable) e.preventDefault();
+    });
+  }
+
+  function handlePopupTouchEnd(e) {
+    const touch = e.changedTouches?.[0];
+    if (!touch) return;
+    endPopupDrag(touch.clientX, touch.clientY, 'touch');
+  }
+
+  function handlePopupTouchCancel() {
+    const state = dragStateRef.current;
+    if (!state.active || state.pointerId !== 'touch') return;
+    dragStateRef.current = {
+      active: false,
+      startY: 0,
+      startX: 0,
+      pointerId: null,
+      scroller: null,
+      dragging: false,
+    };
+    resetPopupDrag();
+  }
 
   useEffect(() => {
     if (!open) return undefined;
@@ -148,7 +317,7 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
 
     function onKey(e) {
       if (e.key === 'Escape') {
-        setOpen(false);
+        closePopup();
         return;
       }
 
@@ -173,6 +342,10 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
       document.removeEventListener('keydown', onKey);
       if (previousActive && typeof previousActive.focus === 'function') previousActive.focus();
     };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) resetPopupDrag();
   }, [open]);
 
   const hasRecap = recap && (
@@ -214,21 +387,32 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
       {open ? createPortal(
         <div
           className="qtr-popup-backdrop fixed inset-0 z-[1200] flex items-center justify-center bg-[rgba(15,23,42,0.35)] p-5 backdrop-blur-[3px] animate-qtrBackdropIn dark:bg-[rgba(0,0,0,0.68)] max-[600px]:items-end max-[600px]:p-0"
-          onClick={() => setOpen(false)}
+          onClick={closePopup}
         >
           <div
             ref={dialogRef}
             className={cx(
               `qtr-popup qtr-popup--${fontScale}`,
-              'flex h-[min(78dvh,720px)] max-h-[calc(100dvh-40px)] w-full max-w-[500px] flex-col overflow-hidden rounded-xl border border-brand-primary/20 bg-surface-elevated text-ink-strong shadow-2xl animate-qtrPopupIn ring-1 ring-white/40 dark:border-white/10 dark:bg-[rgba(8,14,26,0.98)] dark:ring-white/10 max-[900px]:max-w-[540px] max-[600px]:h-[min(86dvh,760px)] max-[600px]:max-h-[calc(100dvh-var(--safe-top,0px)-10px)] max-[600px]:max-w-full max-[600px]:rounded-b-none max-[600px]:animate-qtrPopupSheetIn'
+              'flex h-[min(78dvh,720px)] max-h-[calc(100dvh-40px)] w-full max-w-[500px] touch-pan-y flex-col overflow-hidden rounded-xl border border-brand-primary/20 bg-surface-elevated text-ink-strong shadow-2xl animate-qtrPopupIn ring-1 ring-white/40 will-change-transform dark:border-white/10 dark:bg-[rgba(8,14,26,0.98)] dark:ring-white/10 max-[900px]:max-w-[540px] max-[600px]:h-[min(86dvh,760px)] max-[600px]:max-h-[calc(100dvh-var(--safe-top,0px)-10px)] max-[600px]:max-w-full max-[600px]:rounded-b-none max-[600px]:animate-qtrPopupSheetIn'
             )}
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={handlePopupPointerDown}
+            onPointerMove={handlePopupPointerMove}
+            onPointerUp={handlePopupPointerUp}
+            onPointerCancel={handlePopupPointerCancel}
+            onTouchStart={handlePopupTouchStart}
+            onTouchMove={handlePopupTouchMove}
+            onTouchEnd={handlePopupTouchEnd}
+            onTouchCancel={handlePopupTouchCancel}
             tabIndex={-1}
             aria-labelledby="qtr-popup-title"
             aria-modal="true"
             role="dialog"
           >
-            <div className="qtr-popup__head flex shrink-0 items-center justify-between gap-3 border-b border-line-soft bg-surface-elevated px-[18px] py-4 dark:border-white/10 dark:bg-[rgba(10,18,31,0.98)] max-[520px]:flex-col max-[520px]:items-stretch max-[520px]:gap-2.5 max-[520px]:px-4 max-[520px]:py-3">
+            <div className="qtr-popup__drag-zone hidden h-7 shrink-0 items-center justify-center bg-surface-elevated dark:bg-[rgba(10,18,31,0.98)] max-[600px]:flex" aria-hidden="true">
+              <span className="h-1.5 w-11 rounded-full bg-slate-400/45 dark:bg-white/25" />
+            </div>
+            <div className="qtr-popup__head flex shrink-0 cursor-grab items-center justify-between gap-3 border-b border-line-soft bg-surface-elevated px-[18px] py-4 active:cursor-grabbing dark:border-white/10 dark:bg-[rgba(10,18,31,0.98)] max-[520px]:flex-col max-[520px]:items-stretch max-[520px]:gap-2.5 max-[520px]:px-4 max-[520px]:py-3">
               <div className="qtr-popup__head-left flex min-w-0 items-center gap-2.5 max-[520px]:w-full">
                 <span className="qtr-popup__icon shrink-0 text-xl leading-none" aria-hidden="true">⚡</span>
                 <div className="min-w-0">
@@ -269,7 +453,7 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
                   ref={closeButtonRef}
                   type="button"
                  
-                  onClick={() => setOpen(false)}
+                  onClick={closePopup}
                   aria-label="Close theory recap"
                 >
                   ✕

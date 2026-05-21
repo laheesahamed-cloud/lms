@@ -1,11 +1,13 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { PapersService } from './papers.service';
 import { CreatePaperDto } from './dto/create-paper.dto';
 import { UpdatePaperDto } from './dto/update-paper.dto';
 
 @Controller('papers')
 @UseGuards(AdminGuard)
+@RequirePermissions('content.manage')
 export class PapersController {
   constructor(private readonly papersService: PapersService) {}
 

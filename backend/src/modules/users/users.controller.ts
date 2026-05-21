@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -7,6 +8,7 @@ import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 
 @Controller('users')
 @UseGuards(AdminGuard)
+@RequirePermissions('students.manage')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

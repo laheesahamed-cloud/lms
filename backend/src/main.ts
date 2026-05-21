@@ -153,9 +153,7 @@ function rewriteApiBoundary(path: string, method: string) {
     }
     if (resource === 'quiz-attempts') return `/api/quiz-attempts${restPath}`;
     if (resource === 'results') {
-      if (rest[0] === 'review' && rest[1]) return `/api/quiz-attempts/review/${rest[1]}`;
-      if (rest[0]) return `/api/quiz-attempts/result/${rest[0]}`;
-      return '/api/quiz-attempts/results';
+      return `/api/results${restPath}`;
     }
     if (resource === 'practice-review' && rest[0]) return `/api/quiz-attempts/practice-review/${rest[0]}`;
     if (resource === 'subscriptions') {

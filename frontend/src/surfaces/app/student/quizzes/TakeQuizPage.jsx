@@ -7,12 +7,26 @@ import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel } from './quizLabels.js';
-import { ImpactStyle, nativeImpact, nativeTransientHaptic } from '../../../../shared/utils/nativeHaptics.js';
+import { ImpactStyle, nativeImpact, nativeSuccess } from '../../../../shared/utils/nativeHaptics.js';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const PRACTICE_CELEBRATION_CONFETTI = Array.from({ length: 56 }, (_, index) => ({
+  id: index,
+  x: `${(index * 37) % 112 - 6}%`,
+  delay: `${index * 14}ms`,
+  drift: `${((index % 13) - 6) * 9}px`,
+  rotA: `${index * 23}deg`,
+  rotB: `${index * 61}deg`,
+  size: `${5 + (index % 4)}px`,
+  tone: index % 6,
+}));
 
 function normalizeCorrectValue(option) {
   const raw = option?.isCorrect ?? option?.is_correct ?? option?.correct;
+  return normalizeTrueFalseValue(raw);
+}
+
+function normalizeTrueFalseValue(raw) {
   if (raw === true) return 1;
   if (raw === false) return 0;
   if (raw === 1 || raw === 0) return raw;
@@ -20,6 +34,42 @@ function normalizeCorrectValue(option) {
   if (['1', 'true', 'correct', 'yes'].includes(normalized)) return 1;
   if (['0', 'false', 'incorrect', 'no'].includes(normalized)) return 0;
   return null;
+}
+
+function getQuestionType(question) {
+  return question?.questionType || question?.question_type || '';
+}
+
+function isSbaQuestion(question) {
+  return getQuestionType(question) === 'sba';
+}
+
+function normalizeTfAnswerMap(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return Object.entries(raw).reduce((next, [optionId, value]) => {
+    const normalized = normalizeTrueFalseValue(value);
+    if (normalized !== null) next[String(optionId)] = normalized;
+    return next;
+  }, {});
+}
+
+function getTfSelectedValue(answerMap, optionId) {
+  return normalizeTrueFalseValue(normalizeTfAnswerMap(answerMap)[String(optionId)]);
+}
+
+function normalizeAnswersForBackend(answerMap, questions = []) {
+  const normalized = {};
+  for (const question of questions) {
+    const questionId = String(question.id);
+    const value = answerMap?.[question.id] ?? answerMap?.[questionId];
+    if (isSbaQuestion(question)) {
+      if (value !== undefined && value !== null && value !== '') normalized[questionId] = Number(value);
+      continue;
+    }
+    const tfAnswers = normalizeTfAnswerMap(value);
+    if (Object.keys(tfAnswers).length) normalized[questionId] = tfAnswers;
+  }
+  return normalized;
 }
 
 function hasOptionAnswerKey(option) {
@@ -228,10 +278,10 @@ const quizFlashTipClass = 'border border-slate-400/15 bg-[linear-gradient(135deg
 const examQuestionStartAnchorClass = 'scroll-mt-4';
 const examQuestionNavClass = 'lms-exam-question-nav grid grid-cols-[repeat(auto-fill,minmax(34px,1fr))] gap-2 max-[900px]:grid-cols-8 max-[600px]:grid-cols-5';
 const examNavBubbleBaseClass =
-  'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-85';
+  'lms-exam-nav-bubble min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-85';
 const examNavLegendClass = 'lms-exam-nav-legend mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10.5px] font-bold leading-tight text-ink-soft';
 const examNavLegendItemClass = 'inline-flex min-w-0 items-center gap-1 whitespace-nowrap';
-const examNavLegendDotClass = 'inline-block size-2.5 shrink-0 rounded border border-transparent';
+const examNavLegendDotClass = 'lms-exam-nav-legend-dot inline-block size-2.5 shrink-0 rounded border border-transparent';
 const examNavJumpsClass = 'mt-[18px] grid gap-2.5';
 const examNavJumpClass =
   'flex min-h-[46px] items-center justify-between gap-3 rounded-[14px] border border-[var(--exam-jump-border)] bg-[var(--exam-jump-bg)] px-4 text-sm font-bold text-[var(--exam-jump-text)] shadow-none disabled:bg-[var(--exam-jump-disabled-bg)] disabled:text-[var(--exam-jump-disabled-text)]';
@@ -269,24 +319,27 @@ const examTfCopyClass = 'min-w-0 flex-1';
 const examTfActionsClass = 'ml-auto flex shrink-0 justify-end gap-2 max-[600px]:ml-0 max-[600px]:w-full max-[600px]:justify-stretch';
 const examTfToggleClass =
   'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-tf-border)] bg-[var(--exam-tf-bg)] px-4 text-[13px] font-bold text-[var(--exam-tf-text)] shadow-none transition-colors active:opacity-85 max-[600px]:min-h-11 max-[600px]:flex-1';
-const examTfTrueActiveClass = 'border-[color-mix(in_srgb,var(--sa-ok)_26%,var(--sa-border))] bg-[color-mix(in_srgb,var(--sa-ok)_10%,var(--sa-surface))] text-emerald-700 dark:bg-[color-mix(in_srgb,var(--sa-ok)_15%,var(--sa-surface))] dark:text-emerald-200';
-const examTfFalseActiveClass = 'border-[color-mix(in_srgb,var(--sa-danger)_26%,var(--sa-border))] bg-[color-mix(in_srgb,var(--sa-danger)_9%,var(--sa-surface))] text-red-600 dark:bg-[color-mix(in_srgb,var(--sa-danger)_14%,var(--sa-surface))] dark:text-red-200';
+const examTfAnsweredClass = 'border-[var(--exam-answer-selected-border)] shadow-[var(--exam-answer-selected-ring)]';
+const examTfTrueActiveClass = '!border-[color-mix(in_srgb,var(--sa-ok)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_13%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_19%,var(--sa-surface))] dark:!text-emerald-100';
+const examTfFalseActiveClass = '!border-[color-mix(in_srgb,var(--sa-danger)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
+const examTfChoiceCorrectClass = '!border-[color-mix(in_srgb,var(--sa-ok)_34%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_14%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_20%,var(--sa-surface))] dark:!text-emerald-100';
+const examTfChoiceWrongClass = '!border-[color-mix(in_srgb,var(--sa-danger)_34%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
 const examTfRevealClass =
-  'basis-full rounded-[12px] px-3 py-2 text-[13px] font-bold';
-const examTfRevealTrueClass = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-200';
-const examTfRevealFalseClass = 'bg-red-500/10 text-red-600 dark:text-red-200';
+  'basis-full grid grid-cols-2 gap-2 rounded-[12px] border px-3 py-2 text-left max-[600px]:grid-cols-1';
+const examTfRevealTrueClass = 'border-emerald-500/20 bg-emerald-500/8 text-emerald-800 dark:text-emerald-100';
+const examTfRevealFalseClass = 'border-red-500/20 bg-red-500/8 text-red-700 dark:text-red-100';
+const examTfRevealMissingClass = 'border-amber-500/24 bg-amber-500/10 text-amber-800 dark:text-amber-100';
+const examTfRevealItemClass = 'rounded-[10px] border border-black/5 bg-white/65 px-2.5 py-2 dark:border-white/10 dark:bg-white/5';
+const examTfRevealItemCorrectClass = 'border-emerald-500/18 bg-emerald-500/10 text-emerald-800 dark:text-emerald-100';
+const examTfRevealItemWrongClass = 'border-red-500/18 bg-red-500/10 text-red-700 dark:text-red-100';
+const examTfRevealItemMissingClass = 'border-amber-500/20 bg-amber-500/12 text-amber-800 dark:text-amber-100';
+const examTfRevealLabelClass = 'block text-[10px] font-black uppercase leading-none tracking-[0.08em] opacity-70';
+const examTfRevealValueClass = 'mt-1 block text-[13.5px] font-extrabold leading-tight';
 const examAnswerLetterBadgeClass = 'grid size-[30px] shrink-0 place-items-center rounded-lg border-2 text-[12px] font-black transition-[background,border-color,color] duration-150';
 const examAnswerLetterIdleClass = 'border-[var(--exam-answer-border)] bg-transparent text-[var(--exam-answer-text)] opacity-75';
 const examAnswerLetterSelectedClass = '!border-brand-primary/40 !bg-[var(--color-primary-light)] !text-brand-primary opacity-100';
 const examAnswerLetterCorrectClass = '!border-emerald-500/40 !bg-emerald-500/12 !text-emerald-700 dark:!text-emerald-200 opacity-100';
 const examAnswerLetterWrongClass = '!border-red-500/40 !bg-red-500/12 !text-red-600 dark:!text-red-200 opacity-100';
-const practiceAnswerKeyClass =
-  'lms-reading-explanation mt-1 grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,var(--color-success)_24%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_7%,var(--surface-2))] p-4 text-left text-[13.5px] leading-[1.55] text-ink-medium shadow-none max-[640px]:rounded-xl max-[640px]:p-3';
-const practiceAnswerKeyTitleClass = 'block text-[11px] font-black uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-200';
-const practiceAnswerKeyListClass = 'm-0 grid list-none gap-1.5 p-0';
-const practiceAnswerKeyItemClass = 'grid grid-cols-[auto_minmax(0,1fr)] gap-2';
-const practiceAnswerKeyBadgeClass = 'inline-grid min-w-7 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--color-success)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_12%,var(--surface-2))] px-2 py-1 text-[12px] font-black text-emerald-700 dark:text-emerald-100';
-const practiceAnswerKeyTextClass = 'min-w-0 whitespace-pre-line font-medium text-ink-strong';
 const examMainFooterClass = 'lms-exam-main-footer mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--exam-card-border)] pt-4 max-[700px]:hidden';
 const examMainFooterLeftClass = 'flex flex-wrap gap-2.5';
 const examFooterButtonClass =
@@ -374,19 +427,26 @@ function MobileQuizActionBar({
 }
 
 function getExamNavBubbleClass({ active, answered, flagged, review }) {
+  const stateClass = active
+    ? 'is-current'
+    : flagged
+      ? 'is-flagged'
+      : review
+        ? 'is-review'
+        : answered
+          ? 'is-answered'
+          : 'is-idle';
+
   return cx(
     examNavBubbleBaseClass,
-    active && 'border-brand-primary/38 bg-brand-primary/12 text-brand-primary shadow-none',
-    !active && answered && 'border-brand-success/30 bg-brand-success/12 text-brand-success',
-    !active && flagged && 'border-orange-500/25 bg-orange-500/12 text-orange-700 dark:text-orange-200',
-    !active && !answered && !flagged && review && 'border-brand-violet/20 bg-purple-100 text-brand-violet'
+    stateClass
   );
 }
 
 function isAnswered(question, value) {
   if (!question) return false;
-  if (question.questionType === 'sba') return value !== undefined && value !== null && value !== '';
-  return !!value && Object.keys(value).length > 0;
+  if (isSbaQuestion(question)) return value !== undefined && value !== null && value !== '';
+  return Object.keys(normalizeTfAnswerMap(value)).length > 0;
 }
 
 function shuffleArray(items = []) {
@@ -521,28 +581,6 @@ function formatExplanationBlocks(text) {
     .filter(Boolean);
 }
 
-function PracticeAnswerKey({ question, revealed, className = '' }) {
-  if (!revealed) return null;
-  const items = getAnswerKeyItems(question);
-  if (!items.length) return null;
-
-  return (
-    <section className={cx(practiceAnswerKeyClass, className)} aria-label="Answer key">
-      <strong className={practiceAnswerKeyTitleClass}>Answer key</strong>
-      <ul className={practiceAnswerKeyListClass}>
-        {items.map((item, index) => (
-          <li className={practiceAnswerKeyItemClass} key={`${item.label}-${index}`}>
-            <span className={practiceAnswerKeyBadgeClass}>
-              {item.answer ? `${item.label}: ${item.answer}` : item.label}
-            </span>
-            {item.text ? <span className={practiceAnswerKeyTextClass}>{item.text}</span> : null}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function getIncorrectOptionReasons(question) {
   const isTrueFalse = question?.questionType === 'true_false' || question?.question_type === 'true_false';
   return (question?.options || [])
@@ -611,7 +649,7 @@ function ExplanationRail({
         ) : currentQuestionRevealed ? (
           <div className={examExplanationEmptyClass}>
             <strong>Correct answer shown</strong>
-            <p>The answer key is highlighted in the options for this question.</p>
+            <p>The correct choice is highlighted inside the answers.</p>
           </div>
         ) : (
           <div className={examExplanationEmptyClass}>
@@ -624,13 +662,6 @@ function ExplanationRail({
           </div>
         )}
       </section>
-
-      {!isExam ? (
-        <PracticeAnswerKey
-          question={currentQuestion}
-          revealed={currentQuestionRevealed}
-        />
-      ) : null}
 
       {!isExam && currentQuestion?.theoryRecap !== undefined ? (
         <div className="relative mt-2">
@@ -723,7 +754,6 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
 }
 
 function PracticeCelebrationOverlay({ quizTitle }) {
-  const confetti = Array.from({ length: 132 }, (_, index) => index);
   return (
     <div className="practice-celebration" role="status" aria-live="polite" aria-label="Practice complete">
       <div className="practice-celebration__wash" aria-hidden="true">
@@ -732,26 +762,30 @@ function PracticeCelebrationOverlay({ quizTitle }) {
         <span />
       </div>
       <div className="practice-celebration__confetti" aria-hidden="true">
-        {confetti.map((item) => (
+        {PRACTICE_CELEBRATION_CONFETTI.map((item) => (
           <i
-            key={item}
+            key={item.id}
+            className={`practice-celebration__piece practice-celebration__piece--${item.tone}`}
             style={{
-              '--pc-x': `${(item * 29) % 112 - 6}%`,
-              '--pc-delay': `${item * 18}ms`,
-              '--pc-drift': `${((item % 17) - 8) * 10}px`,
-              '--pc-rot-a': `${item * 17}deg`,
-              '--pc-rot-b': `${item * 53}deg`,
-              '--pc-size': `${4 + (item % 5)}px`,
+              '--pc-x': item.x,
+              '--pc-delay': item.delay,
+              '--pc-drift': item.drift,
+              '--pc-rot-a': item.rotA,
+              '--pc-rot-b': item.rotB,
+              '--pc-size': item.size,
             }}
           />
         ))}
       </div>
       <section className="practice-celebration__center">
         <span className="practice-celebration__mark" aria-hidden="true">
-          <span>🎉</span>
+          <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+            <path d="M8.5 17.8 14 23.2 25.8 10.8" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </span>
         <p className="practice-celebration__kicker">Congratulations</p>
         <h2>Finally, we finished.</h2>
+        {quizTitle ? <small>{quizTitle}</small> : null}
       </section>
     </div>
   );
@@ -762,17 +796,7 @@ function wait(ms) {
 }
 
 async function runPracticeCelebrationHaptics() {
-  const start = performance.now();
-  let pulse = 0;
-
-  while (performance.now() - start < 1000) {
-    await nativeTransientHaptic({
-      intensity: 0.35 + ((pulse % 5) * 0.05),
-      sharpness: 0.65 + ((pulse % 5) * 0.05),
-    });
-    await wait(pulse % 5 === 0 ? 36 : 44);
-    pulse += 1;
-  }
+  await nativeSuccess();
 }
 
 export function TakeQuizPage() {
@@ -827,9 +851,9 @@ export function TakeQuizPage() {
         const initial = {};
         shuffledPayload.questions.forEach((q) => {
           if (q.savedAnswer) {
-            initial[q.id] = q.questionType === 'sba'
+            initial[q.id] = isSbaQuestion(q)
               ? q.savedAnswer.selectedIds?.[0] ?? ''
-              : q.savedAnswer.tfMap || {};
+              : normalizeTfAnswerMap(q.savedAnswer.tfMap);
           }
         });
         setAnswers(initial);
@@ -909,9 +933,12 @@ export function TakeQuizPage() {
   function updateTf(questionId, optionId, value) {
     setError('');
     const currentAnswers = answersRef.current || {};
+    const currentQuestionAnswers = normalizeTfAnswerMap(currentAnswers[questionId]);
+    const normalizedValue = normalizeTrueFalseValue(value);
+    if (normalizedValue === null) return;
     const next = {
       ...currentAnswers,
-      [questionId]: { ...(currentAnswers[questionId] || {}), [optionId]: Number(value) },
+      [questionId]: { ...currentQuestionAnswers, [String(optionId)]: normalizedValue },
     };
     answersRef.current = next;
     setAnswers(next);
@@ -922,7 +949,7 @@ export function TakeQuizPage() {
     const latestAnswers = answersRef.current || {};
     setSaving(true);
     try {
-      const payload = currentQuestion.questionType === 'sba'
+      const payload = isSbaQuestion(currentQuestion)
         ? {
             questionId: currentQuestion.id,
             questionIndex: nextIdx,
@@ -933,7 +960,7 @@ export function TakeQuizPage() {
             questionId: currentQuestion.id,
             questionIndex: nextIdx,
             questionType: 'true_false',
-            tfAnswers: latestAnswers[currentQuestion.id] || {},
+            tfAnswers: normalizeTfAnswerMap(latestAnswers[currentQuestion.id]),
       };
       await savePracticeAnswer(quizId, payload);
       return true;
@@ -962,7 +989,7 @@ export function TakeQuizPage() {
     setPracticeCelebrating(true);
     await Promise.all([
       runPracticeCelebrationHaptics(),
-      wait(1000),
+      wait(850),
     ]);
     navigate(`/quizzes/${quizId}/practice-review?complete=1`);
   }
@@ -972,7 +999,9 @@ export function TakeQuizPage() {
     setError('');
     setSaving(true);
     try {
-      const result = await submitExam(quizId, { answers: answersRef.current || answers });
+      const result = await submitExam(quizId, {
+        answers: normalizeAnswersForBackend(answersRef.current || answers, data?.questions || []),
+      });
       navigate(`/results/${result.attemptId}`);
     } catch (e) {
       setError(getErrorMessage(e, 'Unable to submit exam'));
@@ -1099,7 +1128,7 @@ export function TakeQuizPage() {
               <section className={cx(examPanelClass, examProgressPanelClass, quizFlashPanelClass)}>
                 <div className={examQuestionTypeRowClass}>
                   <div className={examCardKickerClass}>Progress</div>
-                  <span className={examChipMiniClass}>{currentQuestion.questionType === 'sba' ? 'SBA' : 'T/F'}</span>
+                  <span className={examChipMiniClass}>{isSbaQuestion(currentQuestion) ? 'SBA' : 'T/F'}</span>
                 </div>
                 <div className={examProgressToplineClass}>
                   <strong className={examProgressCurrentClass}>Question {currentIndex + 1} of {totalQuestions}</strong>
@@ -1137,11 +1166,11 @@ export function TakeQuizPage() {
                 </div>
 
                 <div className={examNavLegendClass}>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-brand-primary')} />Current</span>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-[#4CC46A]')} />Answered</span>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'border-[var(--exam-nav-idle-border)] bg-[var(--exam-progress-track)]')} />Not answered</span>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-purple-400')} />Review</span>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-[#FB923C]')} />Flagged</span>
+                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-current')} />Current</span>
+                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-answered')} />Answered</span>
+                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-idle')} />Not answered</span>
+                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-review')} />Review</span>
+                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-flagged')} />Flagged</span>
                 </div>
 
               </section>
@@ -1150,13 +1179,13 @@ export function TakeQuizPage() {
             <section className={cx(examMainCardClass, quizFlashPanelClass, examQuestionStartAnchorClass)} ref={questionContentRef}>
               <div className={quizFlashQuestionCopyClass}>
                 <div className={examQuestionNumberClass}>
-                  Question {currentIndex + 1} <span aria-hidden="true">·</span> {currentQuestion.questionType === 'sba' ? 'Single best answer' : 'True / False'}
+                  Question {currentIndex + 1} <span aria-hidden="true">·</span> {isSbaQuestion(currentQuestion) ? 'Single best answer' : 'True / False'}
                 </div>
                 {currentQuestion.questionText}
               </div>
 
               <div className={examAnswerListClass}>
-                {currentQuestion.questionType === 'sba' ? (
+                {isSbaQuestion(currentQuestion) ? (
                   currentQuestion.options.map((option, optionIndex) => {
                     const isSelected = Number(answers[currentQuestion.id]) === option.id;
                     const isCorrect = isCorrectOption(option);
@@ -1199,13 +1228,9 @@ export function TakeQuizPage() {
                                   Your answer · {isCorrect ? 'Correct' : 'Incorrect'}
                                 </span>
                               ) : null}
-                              {isCorrect ? (
+                              {isCorrect && !isSelected ? (
                                 <span className={cx(examAnswerStatePillClass, examAnswerStateCorrectClass)}>
                                   Correct answer
-                                </span>
-                              ) : !isSelected ? (
-                                <span className={cx(examAnswerStatePillClass, examAnswerStateWrongClass)}>
-                                  Incorrect
                                 </span>
                               ) : null}
                             </span>
@@ -1218,36 +1243,64 @@ export function TakeQuizPage() {
                 ) : (
                   currentQuestion.options.map((option) => {
                     const correctValue = isCorrectOption(option) ? 1 : 0;
-                    const selectedValue = answers[currentQuestion.id]?.[option.id];
-                    const hasSelectedValue = selectedValue === 1 || selectedValue === 0;
+                    const selectedValue = getTfSelectedValue(answers[currentQuestion.id], option.id);
+                    const hasSelectedValue = selectedValue !== null;
                     const selectedCorrect = hasSelectedValue && Number(selectedValue) === correctValue;
+                    const selectedLabel = hasSelectedValue ? (selectedValue === 1 ? 'True' : 'False') : 'Not answered';
+                    const correctLabel = correctValue === 1 ? 'True' : 'False';
 
                     return (
                       <div className={cx(
                         examTfCardClass,
                         quizFlashAnswerCardClass,
-                        currentQuestionRevealed && (correctValue === 1 ? examAnswerCorrectClass : examAnswerWrongClass)
+                        hasSelectedValue && !currentQuestionRevealed && examTfAnsweredClass,
+                        currentQuestionRevealed && (selectedCorrect ? examAnswerCorrectClass : examAnswerWrongClass)
                       )} key={option.id}>
                         <div className={examTfCopyClass}>
                           <span className={examAnswerCopyClass}>{option.optionText}</span>
                         </div>
                         <div className={examTfActionsClass}>
-                          <button className={cx(examTfToggleClass, selectedValue === 1 && examTfTrueActiveClass)}
+                          <button className={cx(
+                            examTfToggleClass,
+                            !currentQuestionRevealed && selectedValue === 1 && examTfTrueActiveClass,
+                            currentQuestionRevealed && correctValue === 1 && examTfChoiceCorrectClass,
+                            currentQuestionRevealed && selectedValue === 1 && correctValue !== 1 && examTfChoiceWrongClass
+                          )}
                             type="button"
+                            aria-pressed={selectedValue === 1}
                             onClick={() => updateTf(currentQuestion.id, option.id, 1)}
                           >
                             True
                           </button>
-                          <button className={cx(examTfToggleClass, selectedValue === 0 && examTfFalseActiveClass)}
+                          <button className={cx(
+                            examTfToggleClass,
+                            !currentQuestionRevealed && selectedValue === 0 && examTfFalseActiveClass,
+                            currentQuestionRevealed && correctValue === 0 && examTfChoiceCorrectClass,
+                            currentQuestionRevealed && selectedValue === 0 && correctValue !== 0 && examTfChoiceWrongClass
+                          )}
                             type="button"
+                            aria-pressed={selectedValue === 0}
                             onClick={() => updateTf(currentQuestion.id, option.id, 0)}
                           >
                             False
                           </button>
                         </div>
                         {currentQuestionRevealed ? (
-                          <div className={cx(examTfRevealClass, selectedCorrect ? examTfRevealTrueClass : examTfRevealFalseClass)}>
-                            Your answer: {hasSelectedValue ? (selectedValue === 1 ? 'True' : 'False') : 'Not answered'} · Correct answer: {correctValue === 1 ? 'True' : 'False'}
+                          <div className={cx(
+                            examTfRevealClass,
+                            !hasSelectedValue ? examTfRevealMissingClass : selectedCorrect ? examTfRevealTrueClass : examTfRevealFalseClass
+                          )}>
+                            <span className={cx(
+                              examTfRevealItemClass,
+                              !hasSelectedValue ? examTfRevealItemMissingClass : selectedCorrect ? examTfRevealItemCorrectClass : examTfRevealItemWrongClass
+                            )}>
+                              <span className={examTfRevealLabelClass}>Your answer</span>
+                              <strong className={examTfRevealValueClass}>{selectedLabel}</strong>
+                            </span>
+                            <span className={cx(examTfRevealItemClass, examTfRevealItemCorrectClass)}>
+                              <span className={examTfRevealLabelClass}>Correct answer</span>
+                              <strong className={examTfRevealValueClass}>{correctLabel}</strong>
+                            </span>
                           </div>
                         ) : null}
                       </div>
@@ -1255,12 +1308,6 @@ export function TakeQuizPage() {
                   })
                 )}
               </div>
-
-              <PracticeAnswerKey
-                question={currentQuestion}
-                revealed={currentQuestionRevealed}
-                className="min-[901px]:hidden"
-              />
 
               <PracticeInlineLearningSupport
                 currentQuestion={currentQuestion}
@@ -1394,7 +1441,7 @@ export function TakeQuizPage() {
             <section className={cx(examPanelClass, examProgressPanelClass, quizFlashPanelClass)}>
               <div className={examQuestionTypeRowClass}>
                 <div className={examCardKickerClass}>Progress</div>
-                <span className={examChipMiniClass}>{currentQuestion.questionType === 'sba' ? 'SBA' : 'T/F'}</span>
+                <span className={examChipMiniClass}>{isSbaQuestion(currentQuestion) ? 'SBA' : 'T/F'}</span>
               </div>
               <div className={examProgressToplineClass}>
                 <strong className={examProgressCurrentClass}>Question {currentIndex + 1} of {totalQuestions}</strong>
@@ -1437,11 +1484,11 @@ export function TakeQuizPage() {
               </div>
 
               <div className={examNavLegendClass}>
-                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-brand-primary')} />Current</span>
-                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-[#4CC46A]')} />Answered</span>
-                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'border-[var(--exam-nav-idle-border)] bg-[var(--exam-progress-track)]')} />Not answered</span>
-                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-purple-400')} />Review</span>
-                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'bg-[#FB923C]')} />Flagged</span>
+                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-current')} />Current</span>
+                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-answered')} />Answered</span>
+                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-idle')} />Not answered</span>
+                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-review')} />Review</span>
+                <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-flagged')} />Flagged</span>
               </div>
 
             </section>
@@ -1453,7 +1500,7 @@ export function TakeQuizPage() {
             </div>
 
             <div className={examAnswerListClass}>
-              {currentQuestion.questionType === 'sba' ? (
+              {isSbaQuestion(currentQuestion) ? (
                 currentQuestion.options.map((option, optionIndex) => {
                   const isSelected = Number(answers[currentQuestion.id]) === option.id;
                   const letterLabel = DISPLAY_OPTION_LABELS[optionIndex] ?? String(optionIndex + 1);
@@ -1484,29 +1531,38 @@ export function TakeQuizPage() {
                   );
                 })
               ) : (
-                currentQuestion.options.map((option) => (
-                  <div className={cx(examTfCardClass, quizFlashAnswerCardClass)} key={option.id}>
-                    <div className={examTfCopyClass}>
-                      <span className={examAnswerCopyClass}>{option.optionText}</span>
+                currentQuestion.options.map((option) => {
+                  const selectedValue = getTfSelectedValue(answers[currentQuestion.id], option.id);
+                  const hasSelectedValue = selectedValue !== null;
+
+                  return (
+                    <div className={cx(
+                      examTfCardClass,
+                      quizFlashAnswerCardClass,
+                      hasSelectedValue && examTfAnsweredClass
+                    )} key={option.id}>
+                      <div className={examTfCopyClass}>
+                        <span className={examAnswerCopyClass}>{option.optionText}</span>
+                      </div>
+                      <div className={examTfActionsClass}>
+                        <button className={cx(examTfToggleClass, selectedValue === 1 && examTfTrueActiveClass)}
+                          type="button"
+                          aria-pressed={selectedValue === 1}
+                          onClick={() => updateTf(currentQuestion.id, option.id, 1)}
+                        >
+                          True
+                        </button>
+                        <button className={cx(examTfToggleClass, selectedValue === 0 && examTfFalseActiveClass)}
+                          type="button"
+                          aria-pressed={selectedValue === 0}
+                          onClick={() => updateTf(currentQuestion.id, option.id, 0)}
+                        >
+                          False
+                        </button>
+                      </div>
                     </div>
-                    <div className={examTfActionsClass}>
-                      <button className={cx(examTfToggleClass, answers[currentQuestion.id]?.[option.id] === 1 && examTfTrueActiveClass)}
-                        type="button"
-                       
-                        onClick={() => updateTf(currentQuestion.id, option.id, 1)}
-                      >
-                        True
-                      </button>
-                      <button className={cx(examTfToggleClass, answers[currentQuestion.id]?.[option.id] === 0 && examTfFalseActiveClass)}
-                        type="button"
-                       
-                        onClick={() => updateTf(currentQuestion.id, option.id, 0)}
-                      >
-                        False
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

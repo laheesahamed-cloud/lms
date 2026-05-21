@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -33,24 +34,28 @@ export class CoursesController {
 
   @Get()
   @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
   findAll() {
     return this.coursesService.findAll();
   }
 
   @Post()
   @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
   create(@Body() createCourseDto: CreateCourseDto) {
     return this.coursesService.create(createCourseDto);
   }
 
   @Patch(':id')
   @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
   update(@Param('id', ParseIntPipe) id: number, @Body() updateCourseDto: UpdateCourseDto) {
     return this.coursesService.update(id, updateCourseDto);
   }
 
   @Delete(':id')
   @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.coursesService.remove(id);
   }

@@ -47,23 +47,108 @@ const QUIZ_COURSE_TONES = [
   {
     bg: 'bg-brand-primary/10 text-brand-primary dark:bg-sky-400/12 dark:text-sky-100',
     icon: <IcoLayers />,
+    accent: '125, 211, 252',
+    accent2: '96, 165, 250',
+    artHue: '0deg',
   },
   {
-    bg: 'bg-brand-primary/10 text-brand-primary dark:bg-sky-400/12 dark:text-sky-100',
+    bg: 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-300/12 dark:text-emerald-100',
     icon: <IcoBrain />,
+    accent: '134, 239, 172',
+    accent2: '45, 212, 191',
+    artHue: '74deg',
   },
   {
-    bg: 'bg-brand-primary/10 text-brand-primary dark:bg-sky-400/12 dark:text-sky-100',
+    bg: 'bg-violet-500/10 text-violet-700 dark:bg-violet-300/12 dark:text-violet-100',
     icon: <IcoPen />,
+    accent: '216, 180, 254',
+    accent2: '192, 132, 252',
+    artHue: '248deg',
   },
   {
-    bg: 'bg-brand-primary/10 text-brand-primary dark:bg-sky-400/12 dark:text-sky-100',
+    bg: 'bg-amber-500/10 text-amber-700 dark:bg-amber-300/12 dark:text-amber-100',
     icon: <IcoBook />,
+    accent: '253, 186, 116',
+    accent2: '251, 146, 60',
+    artHue: '168deg',
+  },
+  {
+    bg: 'bg-rose-500/10 text-rose-700 dark:bg-rose-300/12 dark:text-rose-100',
+    icon: <IcoTrophy />,
+    accent: '251, 207, 232',
+    accent2: '244, 114, 182',
+    artHue: '214deg',
+  },
+  {
+    bg: 'bg-teal-500/10 text-teal-700 dark:bg-teal-300/12 dark:text-teal-100',
+    icon: <IcoClock />,
+    accent: '153, 246, 228',
+    accent2: '94, 234, 212',
+    artHue: '96deg',
+  },
+  {
+    bg: 'bg-indigo-500/10 text-indigo-700 dark:bg-indigo-300/12 dark:text-indigo-100',
+    icon: <IcoSearch />,
+    accent: '199, 210, 254',
+    accent2: '129, 140, 248',
+    artHue: '282deg',
+  },
+  {
+    bg: 'bg-lime-500/10 text-lime-700 dark:bg-lime-300/12 dark:text-lime-100',
+    icon: <IcoCheck />,
+    accent: '217, 249, 157',
+    accent2: '163, 230, 53',
+    artHue: '52deg',
   },
 ];
 
+const QUIZ_COURSE_STOCK_VISUALS = [
+  {
+    key: 'medicine',
+    image: 'medicine-cutout.png',
+    match: /(medicine|medical|clinical|internal|rheum|cardio|hema|renal|gastro|endo|neuro|resp|micro|pharma)/i,
+  },
+  {
+    key: 'surgery',
+    image: 'surgery-cutout.png',
+    match: /(surgery|surgical|ortho|trauma|operative|anatomy|anaesth|anesth)/i,
+  },
+  {
+    key: 'maternal',
+    image: 'maternal-cutout.png',
+    match: /(gyn|obst|preg|maternal|repro|paed|pediatr|child)/i,
+  },
+  {
+    key: 'systems',
+    image: 'systems-cutout.png',
+    match: /(system|basic|foundation|general|revision|path)/i,
+  },
+];
+
+const quizCourseArtBase = `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}lms-assets/quiz-course-art/`;
+
 function getQuizCourseTone(index) {
   return QUIZ_COURSE_TONES[index % QUIZ_COURSE_TONES.length];
+}
+
+function getQuizCourseStockVisual(name, index = 0) {
+  const text = String(name || '');
+  const matched = QUIZ_COURSE_STOCK_VISUALS.find((item) => item.match.test(text));
+  return matched || QUIZ_COURSE_STOCK_VISUALS[index % QUIZ_COURSE_STOCK_VISUALS.length] || QUIZ_COURSE_STOCK_VISUALS[0];
+}
+
+function CourseStockArt({ visual }) {
+  const src = `${quizCourseArtBase}${visual.image}`;
+  return (
+    <img
+      className="quiz-course-stock-art"
+      src={src}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      draggable="false"
+    />
+  );
 }
 
 function TopicMarkerIcon({ index }) {
@@ -774,28 +859,44 @@ function CoursePicker({ courses, onSelect }) {
           const pct = course.quizzes.length ? Math.round((done / course.quizzes.length) * 100) : 0;
           const status = groupStatus(course.quizzes);
           const courseTone = getQuizCourseTone(courseIdx);
+          const courseVisual = getQuizCourseStockVisual(course.name, courseIdx);
 
           return (
             <button
               key={course.name}
               type="button"
-              className="lms-quiz-card lms-quiz-course-card grid min-h-[112px] gap-3.5 rounded-2xl border border-line-soft bg-surface-card p-4 text-left shadow-sm shadow-slate-950/[0.03] transition-[border-color,background,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-brand-primary/18 hover:bg-surface-2/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:shadow-black/20 dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-xl max-[520px]:p-3.5"
+              className={cx(
+                'lms-quiz-card lms-quiz-course-card lms-quiz-course-card--stock grid min-h-[112px] gap-3.5 rounded-2xl border border-line-soft bg-surface-card p-4 text-left shadow-sm shadow-slate-950/[0.03] transition-[border-color,background,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-brand-primary/18 hover:bg-surface-2/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:shadow-black/20 dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-xl max-[520px]:p-3.5',
+                `lms-quiz-course-card--${courseVisual.key}`,
+              )}
+              style={{
+                '--quiz-course-accent': courseTone.accent,
+                '--quiz-course-accent-2': courseTone.accent2,
+                '--quiz-course-art-hue': courseTone.artHue,
+              }}
               onClick={() => onSelect(course.name)}
               aria-label={`Open ${course.name}, ${pct}% complete`}
             >
-              <div className="flex items-start gap-3">
+              <span className="lms-quiz-course-card__art" aria-hidden="true">
+                <CourseStockArt visual={courseVisual} />
+              </span>
+              <span className="lms-quiz-course-card__bookmark" aria-hidden="true">
+                <IcoBookmark />
+              </span>
+
+              <div className="lms-quiz-course-card__copy flex items-start gap-3">
                 <span className={cx('grid size-10 shrink-0 place-items-center rounded-xl', courseTone.bg)}>
                   {courseTone.icon}
                 </span>
-                <strong className="line-clamp-2 flex-1 pt-0.5 text-[15px] font-extrabold leading-snug text-ink-strong dark:text-white max-[520px]:text-[14px]">{course.name}</strong>
+                <strong className="lms-quiz-course-card__title line-clamp-2 flex-1 pt-0.5 text-[15px] font-extrabold leading-snug text-ink-strong dark:text-white max-[520px]:text-[14px]">{course.name}</strong>
               </div>
 
-              <div className="grid gap-2">
-                <div className="flex items-center justify-between text-[11px] font-bold">
+              <div className="lms-quiz-course-card__stats grid gap-2">
+                <div className="flex items-center justify-between gap-3 text-[11px] font-bold">
                   <span className="text-ink-muted">{course.quizzes.length} sets · {done} done</span>
                   <span className={cx('font-extrabold', status === 'completed' ? 'text-brand-primary dark:text-sky-300' : 'text-ink-strong dark:text-white')}>{pct}%</span>
                 </div>
-                <ProgressBar value={pct} className="h-2" />
+                <ProgressBar value={pct} className="lms-quiz-course-card__progress h-2" />
               </div>
             </button>
           );
@@ -1137,8 +1238,8 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   ];
 
   return (
-    <main className={cx(ui.studentScreenShell, 'student-quiz-map-page student-quiz-night-page')}>
-      <section className={ui.studentManagementLayout}>
+    <main className={cx('dashboard-page study-hub-page student-quiz-map-page student-quiz-night-page', isExamPage ? 'student-exam-map-page' : 'student-qbank-map-page')}>
+      <section className="study-hub-shell">
         <AppHeader
           title={isExamPage ? 'Exams' : 'Q-Bank'}
           subtitle={isExamPage

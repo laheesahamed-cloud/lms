@@ -14,6 +14,62 @@ const primaryButton =
   'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand-primary/24 bg-[var(--color-primary-light)] px-4 text-[13px] font-semibold text-brand-primary transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/36 hover:bg-brand-primary/14 disabled:cursor-not-allowed disabled:opacity-55 dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200 dark:hover:bg-sky-400/18';
 const surfaceCard = 'lms-app-card rounded-2xl border border-line-soft bg-surface-card shadow-sm';
 
+const COURSE_SUBJECT_PALETTES = [
+  { key: 'rose', group: 'warm', match: /(cardio|heart|coronar|arrhythm|myocard)/i, rgb: '214, 91, 145', bg: 'rgba(253, 242, 248, 0.86)', soft: 'rgba(214, 91, 145, 0.13)', border: 'rgba(214, 91, 145, 0.25)', text: '#d65b91' },
+  { key: 'teal', group: 'cool', match: /(ha?emat|blood|transfusion|anaemia|anemia)/i, rgb: '43, 169, 155', bg: 'rgba(240, 253, 250, 0.86)', soft: 'rgba(43, 169, 155, 0.13)', border: 'rgba(43, 169, 155, 0.25)', text: '#2ba99b' },
+  { key: 'sky', group: 'cool', match: /(resp|lung|pulmo|asthma|copd)/i, rgb: '58, 159, 205', bg: 'rgba(240, 249, 255, 0.86)', soft: 'rgba(58, 159, 205, 0.13)', border: 'rgba(58, 159, 205, 0.25)', text: '#3a9fcd' },
+  { key: 'violet', group: 'violet', match: /(neuro|brain|stroke|seizure|parkinson)/i, rgb: '139, 107, 217', bg: 'rgba(245, 243, 255, 0.86)', soft: 'rgba(139, 107, 217, 0.13)', border: 'rgba(139, 107, 217, 0.25)', text: '#8b6bd9' },
+  { key: 'green', group: 'green', match: /(rheum|joint|arthritis|ortho|anatomy|bone)/i, rgb: '53, 168, 107', bg: 'rgba(240, 253, 244, 0.86)', soft: 'rgba(53, 168, 107, 0.13)', border: 'rgba(53, 168, 107, 0.25)', text: '#35a86b' },
+  { key: 'amber', group: 'warm', match: /(endocr|diabet|thyroid|micro|infect|physio)/i, rgb: '201, 151, 52', bg: 'rgba(254, 252, 232, 0.88)', soft: 'rgba(201, 151, 52, 0.14)', border: 'rgba(201, 151, 52, 0.25)', text: '#c99734' },
+  { key: 'indigo', group: 'violet', match: /(renal|kidney|nephro|uro)/i, rgb: '102, 119, 216', bg: 'rgba(238, 242, 255, 0.88)', soft: 'rgba(102, 119, 216, 0.13)', border: 'rgba(102, 119, 216, 0.25)', text: '#6677d8' },
+  { key: 'orange', group: 'warm', match: /(surg|path|trauma|emergency)/i, rgb: '207, 125, 60', bg: 'rgba(255, 247, 237, 0.9)', soft: 'rgba(207, 125, 60, 0.14)', border: 'rgba(207, 125, 60, 0.25)', text: '#cf7d3c' },
+];
+
+function hashSubjectPalette(label) {
+  return [...String(label || 'subject')].reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0);
+}
+
+function getBaseSubjectPalette(label) {
+  const text = String(label || '');
+  return COURSE_SUBJECT_PALETTES.find((palette) => palette.match?.test(text)) ||
+    COURSE_SUBJECT_PALETTES[Math.abs(hashSubjectPalette(text)) % COURSE_SUBJECT_PALETTES.length];
+}
+
+function buildSubjectPaletteMap(subjects) {
+  const assigned = new Map();
+  let previousGroup = '';
+  let previousKey = '';
+
+  subjects.forEach((subject, index) => {
+    let palette = getBaseSubjectPalette(subject.subjectName);
+    if ((palette.group === previousGroup || palette.key === previousKey) && COURSE_SUBJECT_PALETTES.length > 1) {
+      const start = Math.abs(hashSubjectPalette(`${subject.subjectName}-${index}`)) % COURSE_SUBJECT_PALETTES.length;
+      for (let offset = 0; offset < COURSE_SUBJECT_PALETTES.length; offset += 1) {
+        const next = COURSE_SUBJECT_PALETTES[(start + offset) % COURSE_SUBJECT_PALETTES.length];
+        if (next.group !== previousGroup && next.key !== previousKey) {
+          palette = next;
+          break;
+        }
+      }
+    }
+    assigned.set(subject.id, palette);
+    previousGroup = palette.group;
+    previousKey = palette.key;
+  });
+
+  return assigned;
+}
+
+function subjectAccentStyle(palette) {
+  return {
+    '--course-map-accent-rgb': palette.rgb,
+    '--course-map-accent': palette.text,
+    '--course-map-accent-bg': palette.bg,
+    '--course-map-accent-soft': palette.soft,
+    '--course-map-accent-border': palette.border,
+  };
+}
+
 function LessonGlyph({ lesson }) {
   if (lesson.accessLocked) {
     return (
@@ -185,6 +241,7 @@ export function CourseDetailPage() {
   const course = data?.course || null;
   const subjects = data?.subjects || [];
   const continueTarget = useMemo(() => findContinueLesson(subjects), [subjects]);
+  const subjectPalettes = useMemo(() => buildSubjectPaletteMap(subjects), [subjects]);
 
   const overviewStats = useMemo(() => {
     if (!course) return [];
@@ -333,8 +390,8 @@ export function CourseDetailPage() {
 
   if (loading) {
     return (
-      <main className={cx(ui.studentScreenShell, 'min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white')}>
-        <section className={cx(ui.studentManagementLayout, 'max-w-[1180px]')}>
+      <main className="dashboard-page study-hub-page student-course-detail-page min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white">
+        <section className="study-hub-shell max-w-[1180px]">
           <div className="grid gap-4">
             <div className="h-52 rounded-2xl bg-surface-2 dark:bg-white/[0.055]" />
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -349,8 +406,8 @@ export function CourseDetailPage() {
 
   if (!course) {
     return (
-      <main className={cx(ui.studentScreenShell, 'min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white')}>
-        <section className={cx(ui.studentManagementLayout, 'max-w-[1180px]')}>
+      <main className="dashboard-page study-hub-page student-course-detail-page min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white">
+        <section className="study-hub-shell max-w-[1180px]">
           <div className={cx(surfaceCard, 'p-6 text-[14px] text-ink-soft dark:text-slate-300')}>Course details are unavailable.</div>
         </section>
       </main>
@@ -358,8 +415,8 @@ export function CourseDetailPage() {
   }
 
   return (
-    <main className={cx(ui.studentScreenShell, 'lms-course-detail-page lms-course-map-page relative min-h-dvh overflow-hidden bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white')}>
-      <section className={cx(ui.studentManagementLayout, 'relative gap-5')}>
+    <main className="dashboard-page study-hub-page lms-course-detail-page lms-course-map-page relative min-h-dvh overflow-hidden bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white">
+      <section className="study-hub-shell relative gap-5">
         {error ? (
           <div className="rounded-2xl border border-brand-error/20 bg-brand-error/8 px-4 py-3 text-[14px] font-semibold text-brand-error dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100">
             {error}
@@ -428,7 +485,11 @@ export function CourseDetailPage() {
 
           <div className="course-map-units">
             {subjects.map((subject, subjectIndex) => (
-              <article className="course-map-unit course-map-unit--simple" key={subject.id}>
+              <article
+                className="course-map-unit course-map-unit--simple"
+                key={subject.id}
+                style={subjectAccentStyle(subjectPalettes.get(subject.id) || COURSE_SUBJECT_PALETTES[0])}
+              >
                 <header className="course-map-unit__head">
                   <div className="course-map-unit__title">
                     <span>{subjectIndex + 1}</span>
@@ -481,6 +542,7 @@ export function CourseDetailPage() {
                                   lesson.accessLocked && 'is-locked'
                                 )}
                                 key={lesson.id}
+                                style={{ '--course-map-lesson-delay': `${Math.min(lessonIndex, 8) * 90}ms` }}
                               >
                                 <button
                                   type="button"

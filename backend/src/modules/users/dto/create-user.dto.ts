@@ -1,4 +1,5 @@
 import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { USER_ROLES, UserRole } from '../../auth/role-permissions';
 
 export class CreateUserDto {
   @IsString()
@@ -13,8 +14,8 @@ export class CreateUserDto {
   password!: string;
 
   @IsString()
-  @IsIn(['admin', 'student'])
-  role!: 'admin' | 'student';
+  @IsIn(USER_ROLES)
+  role!: UserRole;
 
   @IsOptional()
   @IsString()

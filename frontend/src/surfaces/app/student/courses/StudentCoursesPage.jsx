@@ -133,7 +133,7 @@ function CourseCard({ course, onOpen }) {
       onClick={onOpen}
       aria-label={`Open ${course.courseTitle}`}
       className={cx(
-        'lms-quiz-card lms-quiz-course-card student-course-card student-course-card--simple group grid min-h-[112px] gap-3.5 rounded-2xl border border-line-soft bg-surface-card p-4 text-left shadow-sm shadow-slate-950/[0.03] outline-none transition-[border-color,background,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-brand-primary/18 hover:bg-surface-2/35 hover:shadow-md focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:shadow-black/20 dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-xl max-[520px]:p-3.5',
+        'lms-quiz-card lms-quiz-course-card student-course-card student-course-card--simple group grid min-h-[112px] gap-3.5 rounded-2xl border border-line-soft bg-surface-card p-4 text-left shadow-sm shadow-slate-950/[0.03] outline-none transition-[border-color,background,box-shadow,transform] duration-150 hover:border-brand-primary/18 hover:bg-surface-2/35 hover:shadow-md focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:shadow-black/20 dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-xl max-[520px]:p-3.5',
         `student-course-card--${visual.key}`
       )}
     >
@@ -199,8 +199,8 @@ export function StudentCoursesPage() {
   }, []);
 
   return (
-    <main className={ui.studentScreenShell}>
-      <section className={ui.studentManagementLayout}>
+    <main className="dashboard-page study-hub-page student-courses-page">
+      <section className="study-hub-shell">
         <AppHeader title="Courses" subtitle="Study Library" />
 
         {error ? <div className={ui.feedbackError}>{error}</div> : null}

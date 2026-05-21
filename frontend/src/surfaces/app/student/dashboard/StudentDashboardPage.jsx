@@ -5,6 +5,7 @@ import { listAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudentQuizzes } from '../../../../shared/api/quizAttempts.api.js';
 import { fetchStudyBookmarks } from '../../../../shared/api/studyBookmarks.api.js';
+import { fetchPlannerTasks } from '../../../../shared/api/workspace.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
@@ -82,12 +83,48 @@ function plural(value, singular, pluralLabel = `${singular}s`) {
   return `${value} ${Number(value) === 1 ? singular : pluralLabel}`;
 }
 
+function formatNumber(value) {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(Number(value || 0));
+}
+
 function formatDateLabel(date = new Date()) {
   return new Intl.DateTimeFormat(undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   }).format(date);
+}
+
+function parsePlannerDate(value) {
+  if (!value) return null;
+  const raw = String(value);
+  const datePart = raw.includes('T') ? raw.split('T')[0] : raw;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(datePart)
+    ? new Date(`${datePart}T00:00:00`)
+    : new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function plannerDaysLeft(value) {
+  const dueDate = parsePlannerDate(value);
+  if (!dueDate) return null;
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const target = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  return Math.round((target.getTime() - start.getTime()) / 86400000);
+}
+
+function formatPlannerDaysLeft(value) {
+  const days = plannerDaysLeft(value);
+  if (days === null) return 'No due date';
+  if (days < 0) return `${plural(Math.abs(days), 'day')} overdue`;
+  return `${plural(days, 'day')} left`;
+}
+
+function cleanPlannerTitle(title) {
+  return String(title || '')
+    .replace(/^(Lesson|Q-Bank|Review|Quiz|Practice|Reminder):\s*/i, '')
+    .trim() || 'Planner reminder';
 }
 
 function getFirstName(user) {
@@ -114,6 +151,15 @@ function getTopicLabel(item, fallback = 'General medicine') {
 
 function getQuizTitle(quiz, fallback = 'Focused exam') {
   return quiz?.studentTitle || quiz?.quizTitle || quiz?.title || fallback;
+}
+
+function isSameStudyDay(value, reference = new Date()) {
+  const source = value || null;
+  const date = source ? new Date(source) : null;
+  if (!date || Number.isNaN(date.getTime())) return false;
+  return date.getFullYear() === reference.getFullYear() &&
+    date.getMonth() === reference.getMonth() &&
+    date.getDate() === reference.getDate();
 }
 
 function getStudyMood({ attempts, readinessScore, streak }) {
@@ -154,6 +200,31 @@ function getStudyMood({ attempts, readinessScore, streak }) {
     value: 'Ready to begin',
     text: 'Start with one short practice set or one lesson to build today’s progress.',
     meter: 34,
+  };
+}
+
+function buildDashboardLevelProgress(dashboard) {
+  const explicitXp = Number(dashboard.totalXp ?? dashboard.xp ?? dashboard.experiencePoints ?? 0);
+  const earnedXp = explicitXp > 0
+    ? explicitXp
+    : Math.max(0, Math.round(
+        (Number(dashboard.totalAttempts || 0) * 70) +
+        (Number(dashboard.totalPassed || 0) * 110) +
+        (Number(dashboard.dailyGoalsCompleted || 0) * 55) +
+        (Number(dashboard.quizDayStreak || 0) * 35)
+      ));
+  const level = Math.max(1, Number(dashboard.level || dashboard.studyLevel || Math.floor(earnedXp / 300) + 1));
+  const currentLevelBase = (level - 1) * 300;
+  const nextLevelTarget = level * 300;
+  const levelXp = Math.max(0, earnedXp - currentLevelBase);
+  const nextLevelIn = Math.max(0, nextLevelTarget - earnedXp);
+  const progress = clampPercent((levelXp / 300) * 100);
+
+  return {
+    xp: earnedXp,
+    level,
+    nextLevelIn,
+    progress,
   };
 }
 
@@ -199,6 +270,9 @@ function Icon({ name }) {
   if (name === 'target') {
     return <svg {...common}><circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.8" /><circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" /><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
   }
+  if (name === 'check') {
+    return <svg {...common}><path d="m5 12.5 4 4L19 6.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  }
   if (name === 'spark') {
     return <svg {...common}><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /><path d="M18.5 15.5 19 17l1.5.5L19 18l-.5 1.5L18 18l-1.5-.5L18 17l.5-1.5Z" fill="currentColor" /></svg>;
   }
@@ -215,6 +289,12 @@ function Icon({ name }) {
   }
   if (name === 'stetho') {
     return <svg {...common}><path d="M6 4v6a4 4 0 0 0 8 0V4M5 4h2M13 4h2M10 14v3a4 4 0 0 0 8 0v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><circle cx="18" cy="13" r="2" stroke="currentColor" strokeWidth="1.8" /></svg>;
+  }
+  if (name === 'trophy') {
+    return <svg {...common}><path d="M8 4.5h8v4.8a4 4 0 0 1-8 0V4.5Z" fill="currentColor" opacity=".22" /><path d="M8 5h8v4.5a4 4 0 0 1-8 0V5ZM9.5 18.5h5M12 13.5v5M6.5 20.5h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M8 7H5.5A2.5 2.5 0 0 0 8 11M16 7h2.5A2.5 2.5 0 0 1 16 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  }
+  if (name === 'badge-star') {
+    return <svg {...common} viewBox="0 0 24 24"><path d="M12 2.8 16.6 5l4.9 1.5.8 5.1-.8 5.1-4.9 1.5L12 21.2l-4.6-3-4.9-1.5-.8-5.1.8-5.1L7.4 5 12 2.8Z" fill="currentColor" opacity=".22" /><path d="M12 2.8 16.6 5l4.9 1.5.8 5.1-.8 5.1-4.9 1.5L12 21.2l-4.6-3-4.9-1.5-.8-5.1.8-5.1L7.4 5 12 2.8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="m12 7.5 1.25 2.55 2.82.41-2.04 1.98.48 2.8L12 13.9l-2.52 1.34.49-2.8-2.04-1.98 2.82-.41L12 7.5Z" fill="currentColor" /></svg>;
   }
   if (name === 'arrow') {
     return <svg {...common}><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
@@ -585,9 +665,11 @@ function DailyQuestionCard({ question }) {
   );
 }
 
-function StudyMoodCard({ mood, todayLabel }) {
+function StudyMoodCard({ mood, todayLabel, className = '' }) {
+  const cardClassName = ['study-card study-mood-card', className].filter(Boolean).join(' ');
+
   return (
-    <section className="study-card study-mood-card" aria-label="Study mood">
+    <section className={cardClassName} aria-label="Study mood">
       <span className="study-mood-orbit" aria-hidden="true" />
       <div className="study-mood-main">
         <StudyMascot variant="brain" mood="loading" size="sm" label="Study mood mascot" />
@@ -601,6 +683,43 @@ function StudyMoodCard({ mood, todayLabel }) {
         <span style={{ width: `${clampPercent(mood.meter)}%` }} />
       </div>
       <small>Based on today’s activity</small>
+    </section>
+  );
+}
+
+function StudyPlanCard({ items, onOpenPlanner }) {
+  const icons = ['target', 'review', 'book'];
+  const visibleItems = items.slice(0, 3);
+
+  return (
+    <section className="study-card study-plan-card" aria-label="Study plan">
+      <div className="study-plan-card__head">
+        <div>
+          <span className="study-eyebrow">Study plan</span>
+          <strong>Today's route</strong>
+        </div>
+        <button type="button" onClick={onOpenPlanner}>Planner</button>
+      </div>
+      <div className="study-plan-list">
+        {visibleItems.map((item, index) => (
+          <button
+            type="button"
+            className={`study-plan-row ${item.completed ? 'is-complete' : ''}`}
+            key={item.label || item.title}
+            onClick={item.action}
+          >
+            <span className="study-plan-row__icon"><Icon name={icons[index] || 'calendar'} /></span>
+            <div>
+              <small>{item.label || `Step ${index + 1}`}</small>
+              <strong>{item.title}</strong>
+              <em>{item.detail}</em>
+            </div>
+            <i aria-label={item.completed ? 'Completed' : `Step ${index + 1}`}>
+              {item.completed ? <Icon name="check" /> : index + 1}
+            </i>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -620,6 +739,30 @@ function StudyTodoCard({ todo, onOpen }) {
   );
 }
 
+function StudyLevelSummary({ name, progress }) {
+  return (
+    <section className="study-level-summary" aria-label="Study progress summary">
+      <span className="study-level-summary__icon" aria-hidden="true">
+        <Icon name="trophy" />
+      </span>
+      <div className="study-level-summary__message">
+        <strong>You're doing great, {name}!</strong>
+        <p>Keep your focus high and your future will thank you.</p>
+      </div>
+      <div className="study-level-summary__stats" aria-label="Level statistics">
+        <span>
+          <small>XP</small>
+          <strong>{formatNumber(progress.xp)}</strong>
+        </span>
+        <span>
+          <small>Level</small>
+          <strong>{progress.level}</strong>
+        </span>
+      </div>
+    </section>
+  );
+}
+
 export function StudentDashboardPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -627,6 +770,7 @@ export function StudentDashboardPage() {
   const [studentQuizzes, setStudentQuizzes] = useState([]);
   const [aiNotes, setAiNotes] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
+  const [plannerTasks, setPlannerTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -668,13 +812,15 @@ export function StudentDashboardPage() {
 
     async function loadDashboard() {
       try {
-        const [data, quizzes] = await Promise.all([
+        const [data, quizzes, tasks] = await Promise.all([
           fetchStudentDashboard(),
           fetchStudentQuizzes().catch(() => []),
+          fetchPlannerTasks().catch(() => []),
         ]);
         if (cancelled) return;
         setDashboard(normalizeDashboardState(data));
         setStudentQuizzes(Array.isArray(quizzes) ? quizzes : []);
+        setPlannerTasks(Array.isArray(tasks) ? tasks : []);
         cancelSecondary = runWhenIdle(async () => {
           const [notes, savedItems] = await Promise.all([
             listAiNotes().catch(() => []),
@@ -729,6 +875,7 @@ export function StudentDashboardPage() {
   }, [aiNotes, weakTopic]);
 
   const readinessScore = clampPercent(dashboard.performanceSnapshot?.readinessScore || dashboard.avgScore);
+  const levelProgress = useMemo(() => buildDashboardLevelProgress(dashboard), [dashboard]);
   const scoreDelta = Number(dashboard.performanceSnapshot?.scoreDelta || 0);
   const studyMood = getStudyMood({
     attempts: dashboard.totalAttempts,
@@ -823,68 +970,74 @@ export function StudentDashboardPage() {
     },
   ];
 
+  const completedStudyText = [
+    ...dashboard.dailyGoals.filter((goal) => goal.completed),
+    ...dashboard.adaptivePlan.filter((item) => item.status === 'done'),
+  ].map((item) => [
+    item.key,
+    item.title,
+    item.description,
+    item.actionType,
+    item.progressText,
+  ].filter(Boolean).join(' ').toLowerCase());
+  const hasCompletedStudyItem = (...keywords) => completedStudyText.some((text) =>
+    keywords.some((keyword) => text.includes(keyword))
+  );
+  const practiceFinishedToday = dashboard.recentAttempts.some((attempt) =>
+    isSameStudyDay(attempt.completedAt || attempt.createdAt || attempt.updatedAt)
+  ) || hasCompletedStudyItem('quiz', 'practice', 'question', 'weak_topic');
+  const reviewFinished = hasCompletedStudyItem('review', 'result', 'answers');
+  const lessonFinished = hasCompletedStudyItem('note', 'lesson', 'read');
+
   const planItems = [
     {
       label: 'Practice',
       title: weakTopic ? `Answer questions on ${weakTopic.topicName}` : 'Do one focused practice set',
       detail: weakTopic ? weakTopic.courseTitle : 'Use any short set you can finish today',
+      completed: practiceFinishedToday,
       action: () => navigate(continueTarget),
     },
     {
       label: 'Review',
       title: latestAttemptId ? 'Review your latest answers' : 'Check your results page',
       detail: latestAttemptId ? getTopicLabel(latestAttempt, 'Latest result') : 'Create a result by completing an exam',
+      completed: reviewFinished,
       action: () => navigate(latestAttemptId ? appRoute(`/review/${latestAttemptId}`) : appRoute('/results')),
     },
     {
       label: 'Lesson',
       title: recommendedNote?.title || 'Open one lesson note',
       detail: recommendedNote ? getTopicLabel(recommendedNote, 'Suggested note') : `${bookmarks.length} saved study items`,
+      completed: lessonFinished,
       action: () => navigate(recommendedNote?.id ? appRoute(`/ai-notes/${recommendedNote.id}`) : appRoute('/ai-notes')),
     },
   ];
 
-  const openDailyGoal = dashboard.dailyGoals.find((goal) => !goal.completed) || dashboard.dailyGoals[0] || null;
-  const openAdaptivePlan = dashboard.adaptivePlan.find((item) => item.status !== 'done') || dashboard.adaptivePlan[0] || null;
-  const todoCard = openDailyGoal
+  const nextPlannerTask = [...plannerTasks]
+    .filter((task) => task?.status !== 'done')
+    .sort((a, b) => {
+      const aDays = plannerDaysLeft(a?.dueDate);
+      const bDays = plannerDaysLeft(b?.dueDate);
+      const aOrder = aDays === null ? Number.POSITIVE_INFINITY : aDays;
+      const bOrder = bDays === null ? Number.POSITIVE_INFINITY : bDays;
+      return aOrder - bOrder || Number(b?.id || 0) - Number(a?.id || 0);
+    })[0] || null;
+
+  const todoCard = nextPlannerTask
     ? {
-        eyebrow: openDailyGoal.completed ? 'Plan done' : 'Next to do',
-        title: openDailyGoal.title || 'Today plan',
-        text: openDailyGoal.description || openDailyGoal.progressText || 'Keep today moving.',
-        actionLabel: openDailyGoal.completed ? 'View plan' : 'Do this',
-        route: openDailyGoal.key === 'note_today'
-          ? appRoute('/ai-notes')
-          : openDailyGoal.key === 'weak_topic_today'
-            ? continueTarget
-            : appRoute('/quizzes'),
+        eyebrow: 'Planner reminder',
+        title: cleanPlannerTitle(nextPlannerTask.title),
+        text: `${formatPlannerDaysLeft(nextPlannerTask.dueDate)} · ${nextPlannerTask.description || 'Saved in your planner.'}`,
+        actionLabel: 'Open planner',
+        route: appRoute('/planner'),
       }
-    : openAdaptivePlan
-      ? {
-          eyebrow: 'Study plan',
-          title: openAdaptivePlan.title || 'Next study step',
-          text: openAdaptivePlan.description || 'Follow the next recommended action.',
-          actionLabel: openAdaptivePlan.status === 'done' ? 'View plan' : 'Start',
-          route: openAdaptivePlan.actionType === 'note'
-            ? appRoute('/ai-notes')
-            : openAdaptivePlan.actionType === 'results'
-              ? appRoute('/results')
-              : appRoute('/quizzes'),
-        }
-      : planItems[0]
-        ? {
-            eyebrow: 'Today plan',
-            title: planItems[0].title,
-            text: planItems[0].detail,
-            actionLabel: 'Start',
-            action: planItems[0].action,
-          }
-        : {
-            eyebrow: 'Today plan',
-            title: 'No plans yet',
-            text: 'Create one small target for today.',
-            actionLabel: 'Create one',
-            route: appRoute('/planner'),
-          };
+    : {
+        eyebrow: 'No plans yet',
+        title: 'Add a reminder',
+        text: 'Open Planner to add a reminder and track days left.',
+        actionLabel: 'Add reminder',
+        route: appRoute('/planner'),
+      };
 
   const onNavigate = (route) => {
     void nativeImpact(ImpactStyle.Light);
@@ -927,28 +1080,32 @@ export function StudentDashboardPage() {
       <div className="study-hub-shell">
         <AppHeader title="Study Hub" subtitle="Daily Focus" />
 
-        <section className="study-continue-card" aria-label="Continue studying">
-          <div className="study-hero-soft-shape" aria-hidden="true" />
-          <DashboardHeroMascot mascot={heroMascot} />
-          <div className="study-continue-card__copy">
-            <span className="study-eyebrow">Continue where you left off</span>
-            <div className="study-hero-name">
-              <span>Welcome back,&nbsp;</span>
-              <strong>{firstName}</strong>
+        <div className="study-hero-grid">
+          <section className="study-continue-card" aria-label="Continue studying">
+            <div className="study-hero-soft-shape" aria-hidden="true" />
+            <DashboardHeroMascot mascot={heroMascot} />
+            <div className="study-continue-card__copy">
+              <span className="study-eyebrow">Continue where you left off</span>
+              <div className="study-hero-name">
+                <span>Welcome back,&nbsp;</span>
+                <strong>{firstName}</strong>
+              </div>
+              <p className="study-hero-lead">Next study move - <b>{inProgressQuiz ? 'PRACTICE' : recommendedNote ? 'LESSON' : 'PRACTICE'}</b></p>
+              <div className="study-chip-row">
+                <span><Icon name="stetho" /> {recommendedQuiz?.courseTitle || weakTopic?.courseTitle || 'Surgery'}</span>
+                <span>{recommendedQuiz?.topicName || weakTopic?.topicName || recommendedNote?.topicName || 'Hernia'} · {readinessScore}% ready</span>
+              </div>
+              <div className="study-hero-actions">
+                <StudyButton tone="primary" icon="play" onClick={() => onNavigate(continueTarget)}>{continueLabel}</StudyButton>
+                <button type="button" className="study-square-action" aria-label="Open exams" onClick={() => onNavigate(appRoute('/quizzes'))}>
+                  <Icon name="doc" />
+                </button>
+              </div>
             </div>
-            <p className="study-hero-lead">Next study move - <b>{inProgressQuiz ? 'PRACTICE' : recommendedNote ? 'LESSON' : 'PRACTICE'}</b></p>
-            <div className="study-chip-row">
-              <span><Icon name="stetho" /> {recommendedQuiz?.courseTitle || weakTopic?.courseTitle || 'Surgery'}</span>
-              <span>{recommendedQuiz?.topicName || weakTopic?.topicName || recommendedNote?.topicName || 'Hernia'} · {readinessScore}% ready</span>
-            </div>
-            <div className="study-hero-actions">
-              <StudyButton tone="primary" icon="play" onClick={() => onNavigate(continueTarget)}>{continueLabel}</StudyButton>
-              <button type="button" className="study-square-action" aria-label="Open exams" onClick={() => onNavigate(appRoute('/quizzes'))}>
-                <Icon name="doc" />
-              </button>
-            </div>
-          </div>
-        </section>
+          </section>
+
+          <StudyMoodCard mood={studyMood} todayLabel={todayLabel} className="study-mood-card--desktop" />
+        </div>
 
         <section className="study-metric-grid" aria-label="Dashboard stats">
           {dashboardStats.map((metric) => (
@@ -999,28 +1156,10 @@ export function StudentDashboardPage() {
         </section>
 
         <div className="study-readiness-stack">
-          <section className="study-card study-readiness-card">
-            <span className="study-readiness-glow study-readiness-glow--one" aria-hidden="true" />
-            <span className="study-readiness-glow study-readiness-glow--two" aria-hidden="true" />
-            <div className="study-readiness-icon"><StudyMascot variant="readiness" mood="readiness" size="sm" label="Exam readiness mascot" /></div>
-            <div className="study-readiness-copy">
-              <div className="study-readiness-meta">
-                <span className="study-eyebrow">Exam readiness</span>
-                <span>Target {Math.max(75, readinessScore)}%</span>
-              </div>
-              <div className="study-readiness-card__score">
-                <strong>{readinessScore}</strong>
-                <span>% ready</span>
-              </div>
-              <div className="study-large-rail" aria-hidden="true">
-                <span style={{ width: `${readinessScore}%` }} />
-              </div>
-              <div className="study-readiness-foot">
-                <span>{dashboard.performanceSnapshot?.readinessLabel || 'Keep building'}</span>
-                <span>{readinessScore}% complete</span>
-              </div>
-            </div>
-          </section>
+          <StudyPlanCard
+            items={planItems}
+            onOpenPlanner={() => onNavigate(appRoute('/planner'))}
+          />
 
           <StudyTodoCard
             todo={todoCard}
@@ -1034,7 +1173,7 @@ export function StudentDashboardPage() {
           />
         </div>
 
-        <StudyMoodCard mood={studyMood} todayLabel={todayLabel} />
+        <StudyMoodCard mood={studyMood} todayLabel={todayLabel} className="study-mood-card--mobile" />
 
         <section className="study-section-head study-section-head--question">
           <span className="study-eyebrow">Question of the day</span>
@@ -1042,6 +1181,8 @@ export function StudentDashboardPage() {
         </section>
 
         <DailyQuestionCard question={dashboard.questionOfDay} />
+
+        <StudyLevelSummary name={firstName} progress={levelProgress} />
       </div>
     </main>
   );

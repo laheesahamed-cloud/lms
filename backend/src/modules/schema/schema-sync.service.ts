@@ -38,6 +38,8 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureSubscriptionFeaturesTables(connection);
       await this.ensureSubscriptionRequestTables(connection);
       await this.ensureQuestionTheoryRecapsTable(connection);
+      await this.ensureContentGovernanceTables(connection);
+      await this.ensureUserRoleColumnSupportsStaff(connection);
       await this.ensureStudyActivityEventTypes(connection);
       await this.ensureColumn(connection, 'users', 'avatar_key', "VARCHAR(64) NULL AFTER status");
       await this.ensureColumn(connection, 'users', 'session_expires_at', 'DATETIME NULL AFTER session_token');
@@ -139,6 +141,8 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIndex(connection, 'native_push_tokens', 'idx_native_push_tokens_enabled', 'enabled');
       await this.ensureIndex(connection, 'study_planner_tasks', 'idx_study_planner_user_due', 'user_id, due_date');
       await this.ensureIndex(connection, 'question_review_items', 'idx_question_review_items_status', 'status');
+      await this.ensureIndex(connection, 'content_audit_events', 'idx_content_audit_entity', 'entity_type, entity_id');
+      await this.ensureIndex(connection, 'content_versions', 'idx_content_versions_entity', 'entity_type, entity_id');
       await this.ensureIndex(connection, 'lesson_doubts', 'idx_lesson_doubts_status', 'status');
       await this.backfillPlanSubscriptionColumns(connection);
       await this.seedSubscriptionFeatureCatalog(connection);
@@ -506,6 +510,44 @@ export class SchemaSyncService implements OnModuleInit {
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_question_review_items_status (status),
         INDEX idx_question_review_items_question (question_id)
+      )
+    `);
+  }
+
+  private async ensureUserRoleColumnSupportsStaff(connection: PoolConnection) {
+    try {
+      await connection.execute("ALTER TABLE users MODIFY role VARCHAR(40) NOT NULL DEFAULT 'student'");
+    } catch (error) {
+      this.logger.warn(`Could not widen users.role for staff roles: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async ensureContentGovernanceTables(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS content_audit_events (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        entity_type VARCHAR(40) NOT NULL,
+        entity_id INT NOT NULL,
+        action VARCHAR(60) NOT NULL,
+        actor_id INT NULL,
+        summary VARCHAR(255) NOT NULL,
+        before_json JSON NULL,
+        after_json JSON NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_content_audit_created (created_at)
+      )
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS content_versions (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        entity_type VARCHAR(40) NOT NULL,
+        entity_id INT NOT NULL,
+        version_number INT NOT NULL,
+        snapshot_json JSON NOT NULL,
+        created_by INT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_content_versions_entity_version (entity_type, entity_id, version_number)
       )
     `);
   }

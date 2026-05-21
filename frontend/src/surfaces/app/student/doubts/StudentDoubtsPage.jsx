@@ -16,7 +16,7 @@ export function StudentDoubtsPage() {
   async function load() { setItems(await fetchStudentDoubts()); }
   useEffect(() => { load().catch(() => {}); }, []);
   async function save(event) { event.preventDefault(); await createLessonDoubt({ ...form, lessonId: form.lessonId || null, questionId: form.questionId || null }); setForm({ subject: '', message: '', lessonId: '', questionId: '' }); await load(); }
-  return <main className={ui.studentScreenShell}><section className={ui.studentManagementLayout}>
+  return <main className="dashboard-page study-hub-page student-doubts-page"><section className="study-hub-shell">
     <AppHeader title="Doubt Box" subtitle="Doubt Support" />
     <StudentPageHero
       title="Doubt Box"

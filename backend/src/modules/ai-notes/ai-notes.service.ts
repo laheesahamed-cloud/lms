@@ -64,6 +64,9 @@ type AiNoteRow      = RowDataPacket & {
   course_title?: string | null; topic_name?: string | null; subtopic_name?: string | null; lesson_title?: string | null; lesson_video_url?: string | null;
   effective_course_id?: number | null; effective_topic_id?: number | null; effective_subtopic_id?: number | null;
   effective_is_free?: number | null;
+  lesson_progress_status?: 'not_started' | 'in_progress' | 'completed' | null;
+  lesson_progress_percent?: number | null;
+  lesson_completed_at?: string | null;
 };
 type HierarchyRow = RowDataPacket & { id: number; name: string; };
 type CanvasEngineKey = 'gemini' | 'openai';
@@ -283,15 +286,19 @@ export class AiNotesService {
              COALESCE(n.topic_id, l.topic_id) AS effective_topic_id,
              COALESCE(n.subtopic_id, l.subtopic_id) AS effective_subtopic_id,
              COALESCE(l.is_free, n.is_free) AS effective_is_free,
+             slp.status AS lesson_progress_status,
+             slp.progress_percent AS lesson_progress_percent,
+             slp.completed_at AS lesson_completed_at,
              c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
       FROM ai_illustrated_notes n
       LEFT JOIN lessons  l ON l.id = n.lesson_id
+      LEFT JOIN student_lesson_progress slp ON slp.lesson_id = n.lesson_id AND slp.user_id = ?
       LEFT JOIN courses  c ON c.id = COALESCE(n.course_id, l.course_id)
       LEFT JOIN topics   t ON t.id = COALESCE(n.topic_id, l.topic_id)
       LEFT JOIN subtopics s ON s.id = COALESCE(n.subtopic_id, l.subtopic_id)
       WHERE n.is_public = 1 AND n.note_data IS NOT NULL AND n.status = 'active'
         AND n.engine_key = ?
-      ORDER BY c.course_title ASC, t.topic_name ASC, n.updated_at DESC`, [engineKey]);
+      ORDER BY c.course_title ASC, t.topic_name ASC, n.updated_at DESC`, [student.id, engineKey]);
     return rows.map((row) => this.mapStudentNote(row, hasNotesAccess, accessProfile));
   }
 
@@ -305,13 +312,17 @@ export class AiNotesService {
              COALESCE(n.topic_id, l.topic_id) AS effective_topic_id,
              COALESCE(n.subtopic_id, l.subtopic_id) AS effective_subtopic_id,
              COALESCE(l.is_free, n.is_free) AS effective_is_free,
+             slp.status AS lesson_progress_status,
+             slp.progress_percent AS lesson_progress_percent,
+             slp.completed_at AS lesson_completed_at,
              c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
       FROM ai_illustrated_notes n
       LEFT JOIN lessons  l ON l.id = n.lesson_id
+      LEFT JOIN student_lesson_progress slp ON slp.lesson_id = n.lesson_id AND slp.user_id = ?
       LEFT JOIN courses  c ON c.id = COALESCE(n.course_id, l.course_id)
       LEFT JOIN topics   t ON t.id = COALESCE(n.topic_id, l.topic_id)
       LEFT JOIN subtopics s ON s.id = COALESCE(n.subtopic_id, l.subtopic_id)
-      WHERE n.id = ? AND n.is_public = 1 AND n.status = 'active' AND n.engine_key = ?`, [id, engineKey]);
+      WHERE n.id = ? AND n.is_public = 1 AND n.status = 'active' AND n.engine_key = ?`, [student.id, id, engineKey]);
     if (!rows.length) throw new NotFoundException('Lesson not found');
     return this.mapStudentNote(rows[0], hasNotesAccess, accessProfile);
   }
@@ -326,9 +337,13 @@ export class AiNotesService {
              l.topic_id AS effective_topic_id,
              l.subtopic_id AS effective_subtopic_id,
              l.is_free AS effective_is_free,
+             slp.status AS lesson_progress_status,
+             slp.progress_percent AS lesson_progress_percent,
+             slp.completed_at AS lesson_completed_at,
              c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
       FROM ai_illustrated_notes n
       INNER JOIN lessons l ON l.id = n.lesson_id
+      LEFT JOIN student_lesson_progress slp ON slp.lesson_id = n.lesson_id AND slp.user_id = ?
       INNER JOIN courses c ON c.id = l.course_id
       INNER JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
@@ -338,7 +353,7 @@ export class AiNotesService {
         AND (n.topic_id IS NULL OR n.topic_id = l.topic_id)
         AND (n.subtopic_id IS NULL OR n.subtopic_id = l.subtopic_id OR (n.subtopic_id IS NULL AND l.subtopic_id IS NULL))
       ORDER BY n.updated_at DESC
-      LIMIT 1`, [lessonId, engineKey]);
+      LIMIT 1`, [student.id, lessonId, engineKey]);
     if (!rows.length) throw new NotFoundException('Lesson not found');
     return this.mapStudentNote(rows[0], hasNotesAccess, accessProfile);
   }
@@ -935,6 +950,10 @@ export class AiNotesService {
       topicName:    row.topic_name    ?? null,
       subtopicName: row.subtopic_name ?? null,
       lessonTitle:  row.lesson_title  ?? null,
+      lessonProgressStatus: row.lesson_progress_status || 'not_started',
+      lessonProgressPercent: Number(row.lesson_progress_percent || 0),
+      lessonCompletedAt: row.lesson_completed_at || null,
+      lessonCompleted: row.lesson_progress_status === 'completed',
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

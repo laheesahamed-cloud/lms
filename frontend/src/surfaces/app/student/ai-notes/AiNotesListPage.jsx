@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { listAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
-import { StudentPageHero } from '../components/StudentPageHero.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 
 function runWhenIdle(task) {
   if (typeof window === 'undefined') {
@@ -36,25 +36,48 @@ function useDark() {
 
 // ── Medical subject palette (light + dark) ────────────────────────────────────
 const MED = {
-  cardiology:   { l:{ bg:'#fce7f3', bd:'#f9a8d4', tx:'#9d174d' }, d:{ bg:'rgba(244,114,182,.10)', bd:'rgba(249,168,212,.22)', tx:'#f9a8d4' }, icon:'🫀' },
-  neurology:    { l:{ bg:'#dbeafe', bd:'#93c5fd', tx:'#1e3a5f' }, d:{ bg:'rgba(96,165,250,.10)',  bd:'rgba(147,197,253,.22)', tx:'#93c5fd' }, icon:'🧠' },
-  pharmacology: { l:{ bg:'#ede9fe', bd:'#c4b5fd', tx:'#4a1d96' }, d:{ bg:'rgba(167,139,250,.10)', bd:'rgba(196,181,253,.22)', tx:'#c4b5fd' }, icon:'💊' },
-  pathology:    { l:{ bg:'#fff7ed', bd:'#fdba74', tx:'#7c2d12' }, d:{ bg:'rgba(251,146,60,.10)',  bd:'rgba(253,186,116,.22)', tx:'#fdba74' }, icon:'🔬' },
-  anatomy:      { l:{ bg:'#dcfce7', bd:'#86efac', tx:'#14532d' }, d:{ bg:'rgba(74,222,128,.10)',  bd:'rgba(134,239,172,.22)', tx:'#86efac' }, icon:'🦴' },
-  physiology:   { l:{ bg:'#fef9c3', bd:'#fde68a', tx:'#92400e' }, d:{ bg:'rgba(250,204,21,.10)',  bd:'rgba(253,230,138,.22)', tx:'#fde68a' }, icon:'⚡' },
-  biochemistry: { l:{ bg:'#ccfbf1', bd:'#5eead4', tx:'#134e4a' }, d:{ bg:'rgba(45,212,191,.10)',  bd:'rgba(94,234,212,.22)',  tx:'#5eead4' }, icon:'🧬' },
-  surgery:      { l:{ bg:'#fee2e2', bd:'#fca5a5', tx:'#7f1d1d' }, d:{ bg:'rgba(248,113,113,.10)', bd:'rgba(252,165,165,.22)', tx:'#fca5a5' }, icon:'🏥' },
-  microbiology: { l:{ bg:'#fef3c7', bd:'#fcd34d', tx:'#78350f' }, d:{ bg:'rgba(252,211,77,.10)',  bd:'rgba(252,211,77,.22)',  tx:'#fcd34d' }, icon:'🦠' },
-  pediatrics:   { l:{ bg:'#e0f2fe', bd:'#7dd3fc', tx:'#0c4a6e' }, d:{ bg:'rgba(125,211,252,.10)', bd:'rgba(125,211,252,.22)', tx:'#7dd3fc' }, icon:'👶' },
-  default:      { l:{ bg:'#f1f5f9', bd:'#cbd5e1', tx:'#334155' }, d:{ bg:'rgba(148,163,184,.10)', bd:'rgba(148,163,184,.22)', tx:'#94a3b8' }, icon:'📖' },
+  cardiology:   { l:{ bg:'#fdf2f8', bd:'#f9a8d4', tx:'#d65b91' }, d:{ bg:'rgba(244,114,182,.10)', bd:'rgba(249,168,212,.22)', tx:'#f9a8d4' }, icon:'🫀' },
+  hematology:   { l:{ bg:'#fef2f2', bd:'#fca5a5', tx:'#d85f62' }, d:{ bg:'rgba(248,113,113,.10)', bd:'rgba(252,165,165,.22)', tx:'#fca5a5' }, icon:'🩸' },
+  haematology:  { l:{ bg:'#fef2f2', bd:'#fca5a5', tx:'#d85f62' }, d:{ bg:'rgba(248,113,113,.10)', bd:'rgba(252,165,165,.22)', tx:'#fca5a5' }, icon:'🩸' },
+  rheumatology: { l:{ bg:'#f0fdf4', bd:'#86efac', tx:'#35a86b' }, d:{ bg:'rgba(74,222,128,.10)', bd:'rgba(134,239,172,.22)', tx:'#86efac' }, icon:'🦵' },
+  respiratory:  { l:{ bg:'#ecfeff', bd:'#67e8f9', tx:'#22a6b8' }, d:{ bg:'rgba(34,211,238,.10)', bd:'rgba(103,232,249,.22)', tx:'#67e8f9' }, icon:'🫁' },
+  renal:        { l:{ bg:'#eef2ff', bd:'#a5b4fc', tx:'#6677d8' }, d:{ bg:'rgba(129,140,248,.10)', bd:'rgba(165,180,252,.22)', tx:'#a5b4fc' }, icon:'🫘' },
+  endocrine:    { l:{ bg:'#fff7ed', bd:'#fdba74', tx:'#cf7d3c' }, d:{ bg:'rgba(251,146,60,.10)', bd:'rgba(253,186,116,.22)', tx:'#fdba74' }, icon:'⚕️' },
+  neurology:    { l:{ bg:'#eff6ff', bd:'#93c5fd', tx:'#4f85d8' }, d:{ bg:'rgba(96,165,250,.10)',  bd:'rgba(147,197,253,.22)', tx:'#93c5fd' }, icon:'🧠' },
+  pharmacology: { l:{ bg:'#f5f3ff', bd:'#c4b5fd', tx:'#8b6bd9' }, d:{ bg:'rgba(167,139,250,.10)', bd:'rgba(196,181,253,.22)', tx:'#c4b5fd' }, icon:'💊' },
+  pathology:    { l:{ bg:'#fff7ed', bd:'#fdba74', tx:'#c97c3c' }, d:{ bg:'rgba(251,146,60,.10)',  bd:'rgba(253,186,116,.22)', tx:'#fdba74' }, icon:'🔬' },
+  anatomy:      { l:{ bg:'#f0fdf4', bd:'#86efac', tx:'#3aa96f' }, d:{ bg:'rgba(74,222,128,.10)',  bd:'rgba(134,239,172,.22)', tx:'#86efac' }, icon:'🦴' },
+  physiology:   { l:{ bg:'#fefce8', bd:'#fde68a', tx:'#c99734' }, d:{ bg:'rgba(250,204,21,.10)',  bd:'rgba(253,230,138,.22)', tx:'#fde68a' }, icon:'⚡' },
+  biochemistry: { l:{ bg:'#f0fdfa', bd:'#5eead4', tx:'#2ba99b' }, d:{ bg:'rgba(45,212,191,.10)',  bd:'rgba(94,234,212,.22)',  tx:'#5eead4' }, icon:'🧬' },
+  surgery:      { l:{ bg:'#fef2f2', bd:'#fca5a5', tx:'#d46666' }, d:{ bg:'rgba(248,113,113,.10)', bd:'rgba(252,165,165,.22)', tx:'#fca5a5' }, icon:'🏥' },
+  microbiology: { l:{ bg:'#fffbeb', bd:'#fcd34d', tx:'#c7972b' }, d:{ bg:'rgba(252,211,77,.10)',  bd:'rgba(252,211,77,.22)',  tx:'#fcd34d' }, icon:'🦠' },
+  pediatrics:   { l:{ bg:'#f0f9ff', bd:'#7dd3fc', tx:'#3a9fcd' }, d:{ bg:'rgba(125,211,252,.10)', bd:'rgba(125,211,252,.22)', tx:'#7dd3fc' }, icon:'👶' },
+  default:      { l:{ bg:'#f8fafc', bd:'#cbd5e1', tx:'#7a8ca6' }, d:{ bg:'rgba(148,163,184,.10)', bd:'rgba(148,163,184,.22)', tx:'#94a3b8' }, icon:'📖' },
 };
+
+const FALLBACK_MED = [
+  { l:{ bg:'#fdf2f8', bd:'#f9a8d4', tx:'#d65b91' }, d:{ bg:'rgba(244,114,182,.10)', bd:'rgba(249,168,212,.22)', tx:'#f9a8d4' } },
+  { l:{ bg:'#eff6ff', bd:'#93c5fd', tx:'#4f85d8' }, d:{ bg:'rgba(96,165,250,.10)', bd:'rgba(147,197,253,.22)', tx:'#93c5fd' } },
+  { l:{ bg:'#f0fdf4', bd:'#86efac', tx:'#35a86b' }, d:{ bg:'rgba(74,222,128,.10)', bd:'rgba(134,239,172,.22)', tx:'#86efac' } },
+  { l:{ bg:'#fff7ed', bd:'#fdba74', tx:'#cf7d3c' }, d:{ bg:'rgba(251,146,60,.10)', bd:'rgba(253,186,116,.22)', tx:'#fdba74' } },
+  { l:{ bg:'#f5f3ff', bd:'#c4b5fd', tx:'#8b6bd9' }, d:{ bg:'rgba(167,139,250,.10)', bd:'rgba(196,181,253,.22)', tx:'#c4b5fd' } },
+  { l:{ bg:'#ecfeff', bd:'#67e8f9', tx:'#22a6b8' }, d:{ bg:'rgba(34,211,238,.10)', bd:'rgba(103,232,249,.22)', tx:'#67e8f9' } },
+  { l:{ bg:'#fefce8', bd:'#fde68a', tx:'#c99734' }, d:{ bg:'rgba(250,204,21,.10)', bd:'rgba(253,230,138,.22)', tx:'#fde68a' } },
+  { l:{ bg:'#eef2ff', bd:'#a5b4fc', tx:'#6677d8' }, d:{ bg:'rgba(129,140,248,.10)', bd:'rgba(165,180,252,.22)', tx:'#a5b4fc' } },
+];
+
+function hashSubject(label) {
+  return [...(label || 'general')].reduce((hash, char) => {
+    return ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+  }, 0);
+}
 
 function getMed(label) {
   const l = (label || '').toLowerCase();
   for (const [k, v] of Object.entries(MED)) {
     if (k !== 'default' && l.includes(k)) return v;
   }
-  return MED.default;
+  return FALLBACK_MED[Math.abs(hashSubject(l)) % FALLBACK_MED.length] || MED.default;
 }
 const p = (med, dark) => (dark ? med.d : med.l);
 
@@ -88,14 +111,17 @@ function CourseIcon() {
 function LessonIcon() {
   return <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.55"/><path d="M7 7.5H13M7 10.5H13M7 13.5H10.5" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round"/></svg>;
 }
-function SubjectIcon() {
-  return <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="4" width="14" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.55"/><path d="M6.5 8H13.5M6.5 12H11" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round"/></svg>;
-}
 function BackIcon() {
   return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M9.5 3.5l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 function ChevronIcon({ open }) {
-  return <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .18s' }}><path d="M2.5 4.5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  return <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true" className={cx('student-lessons-category__chevron', open && 'is-open')}><path d="M3 5l3.5 3.5L10 5" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+function CheckIcon() {
+  return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.25 8.2l3.05 3.05 6.45-6.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+function SaveIcon() {
+  return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.6C4.5 2.85 5.1 2.25 5.85 2.25h4.3c.75 0 1.35.6 1.35 1.35v10.15L8 11.65l-3.5 2.1V3.6Z" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 function LockIcon() {
   return (
@@ -111,17 +137,15 @@ function LockIcon() {
 function CourseCard({ course, onClick, isDark }) {
   const subjects = [...course.subjects.values()];
   const count = subjects.reduce((n, s) => n + s.notes.length, 0);
-  const labels = subjects.map(s => s.label).filter(Boolean).slice(0, 3);
-  const moreCount = Math.max(0, subjects.filter(s => s.label).length - labels.length);
 
   return (
     <button
       onClick={onClick}
-      className="lms-student-delight group flex min-h-[180px] w-full cursor-pointer flex-col justify-between rounded-2xl border border-line-soft bg-surface-card text-left shadow-sm outline-none transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-1 hover:border-brand-primary/24 hover:shadow-[0_18px_44px_rgba(0,0,0,0.10)] focus-visible:ring-4 focus-visible:ring-brand-primary/22 dark:border-white/[0.08] dark:bg-[rgba(6,10,18,0.96)]"
+      className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-200 focus-visible:ring-4 focus-visible:ring-brand-primary/22"
     >
-      <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-5">
+      <div className="student-lessons-course-card__top flex items-start justify-between gap-4 px-5 py-5">
         <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary">
+          <span className="student-lessons-course-card__icon grid size-11 shrink-0 place-items-center rounded-xl border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary">
             <CourseIcon />
           </span>
           <div>
@@ -133,188 +157,182 @@ function CourseCard({ course, onClick, isDark }) {
             </div>
           </div>
         </div>
-        <div className="text-right shrink-0">
+        <div className="student-lessons-course-card__count text-right shrink-0">
           <div className="text-[30px] font-extrabold leading-none text-ink-strong">{count}</div>
           <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">lessons</div>
         </div>
-      </div>
-
-      {labels.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-5 pb-4">
-          {labels.map((s, i) => (
-            <span key={i} className="rounded-full border border-line-soft bg-surface-2 px-2.5 py-0.5 text-[10px] font-bold text-ink-medium">
-              {s}
-            </span>
-          ))}
-          {moreCount > 0 && (
-            <span className="text-[10px] font-semibold text-ink-muted">+{moreCount} more</span>
-          )}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between border-t border-line-soft px-5 py-3">
-        <span className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-brand-primary">Open course</span>
-        <span className="text-base font-bold text-ink-muted transition-opacity group-hover:text-brand-primary">›</span>
       </div>
     </button>
   );
 }
 
-// ── Note card ─────────────────────────────────────────────────────────────────
-function NoteCard({ note, onClick, bookmarked, onToggleBookmark, isDark }) {
-  const navigate = useNavigate();
+// ── Lesson text row ───────────────────────────────────────────────────────────
+function LessonTextRow({ note, index, isSaved, onStart, onSave, style }) {
+  const title = note.title || note.lessonTitle || 'Untitled lesson';
+  const statusLabel = note.accessLocked ? 'Locked' : note.isFree ? 'Free lesson' : '';
+  const isCompleted = note.lessonCompleted || note.lessonProgressStatus === 'completed' || Number(note.lessonProgressPercent || 0) >= 100;
 
   return (
-    <div
-      onClick={onClick}
-      className="lms-student-delight group cursor-pointer overflow-hidden rounded-xl border border-line-soft bg-surface-card shadow-sm transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-brand-primary/22 hover:shadow-md dark:border-white/[0.08] dark:bg-white/[0.035]"
-    >
-      <div className="p-4">
-        <div className="mb-2.5 flex items-start gap-2.5">
-          <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary">
-            <LessonIcon />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink-strong">{note.title}</div>
-            {note.lessonTitle && note.lessonTitle !== note.title && (
-              <div className="mt-0.5 truncate text-[11px] font-semibold text-ink-muted">{note.lessonTitle}</div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          {note.isFree && (
-            <span className="rounded-full border border-emerald-500/22 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
-              Free lesson
-            </span>
-          )}
-          {note.subtopicName && (
-            <span className="rounded-full border border-line-soft bg-surface-2 px-2 py-0.5 text-[10px] font-semibold text-ink-medium">
-              {note.subtopicName}
-            </span>
-          )}
-          {note.accessLocked && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-brand-error/20 bg-brand-error/8 px-2 py-0.5 text-[10px] font-semibold text-brand-error">
-              <LockIcon /> Plan access needed
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 border-t border-line-soft px-4 py-2.5">
-        <span className="text-[10.5px] font-bold text-ink-muted transition-colors group-hover:text-brand-primary">
-          {note.accessLocked ? 'Included with selected plans' : 'Open lesson'}
+    <div className={cx('student-lessons-lesson-row', isCompleted && 'is-completed')} style={style}>
+      <strong>{String(index + 1).padStart(2, '0')}.</strong>
+      <button
+        type="button"
+        className="student-lessons-lesson-row__title"
+        onClick={onStart}
+      >
+        <span className="student-lessons-lesson-row__title-line">
+          <span className="student-lessons-lesson-row__title-text">{title}</span>
+          {isCompleted ? (
+            <i className="student-lessons-lesson-row__done" aria-label="Completed">
+              <CheckIcon />
+            </i>
+          ) : null}
         </span>
-        <div className="flex min-w-0 items-center gap-2">
-          {!note.accessLocked && (
-            <button type="button" className="rounded-full border border-line-soft bg-surface-2 px-2 py-1 text-[10px] font-black text-ink-medium transition hover:text-brand-primary"
-              onClick={e => { e.stopPropagation(); navigate(`/flashcards?noteId=${note.id}`); }}
-            >
-              Cards
-            </button>
-          )}
-          <span className="hidden text-[10px] text-ink-muted min-[420px]:inline">{fmtDate(note.updatedAt)}</span>
-          <button type="button" className={cx(
-              'rounded-full border px-2 py-1 text-[10px] font-black transition',
-              bookmarked
-                ? 'border-brand-primary/24 bg-[var(--color-primary-light)] text-brand-primary'
-                : 'border-line-soft bg-surface-2 text-ink-muted hover:text-ink-strong'
-            )}
-            onClick={e => { e.stopPropagation(); onToggleBookmark(note.id); }}
-          >
-            {bookmarked ? 'Saved' : 'Save'}
-          </button>
-        </div>
+        {statusLabel ? <small>{statusLabel}</small> : null}
+      </button>
+      <div className="student-lessons-lesson-row__actions">
+        <button
+          type="button"
+          className="student-lessons-lesson-row__start"
+          onClick={onStart}
+        >
+          Start
+        </button>
+        <button
+          type="button"
+          className={cx('student-lessons-lesson-row__save', isSaved && 'is-saved')}
+          onClick={() => onSave(note.id)}
+          aria-label={isSaved ? `Saved ${title}` : `Save ${title}`}
+        >
+          {isSaved ? <CheckIcon /> : <SaveIcon />}
+          <span>{isSaved ? 'Saved' : 'Save'}</span>
+        </button>
       </div>
     </div>
   );
 }
 
-// ── Course detail (subject accordion) ────────────────────────────────────────
+function LessonHeaderTitle({ label }) {
+  return (
+    <div className="student-lessons-category__title">
+      <h2>{label || 'General'}</h2>
+    </div>
+  );
+}
+
+// ── Course detail (flat lesson cards) ────────────────────────────────────────
 function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBase, isDark }) {
   const navigate = useNavigate();
   const subjects = [...course.subjects.values()];
-  const [open, setOpen] = useState(() => new Set(subjects.map(s => s.label || '__none__')));
   const [activeSubj, setActiveSubj] = useState(null);
+  const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
+  const visibleSubjects = activeSubj ? subjects.filter(s => s.label === activeSubj) : subjects;
+  const visibleNotes = visibleSubjects.flatMap((subject) => subject.notes);
 
-  const filtered = activeSubj ? subjects.filter(s => s.label === activeSubj) : subjects;
+  useEffect(() => {
+    setCollapsedSubjects(new Set());
+  }, [course.label, activeSubj]);
 
-  function toggle(key) {
-    setOpen(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  function toggleSubject(key) {
+    setCollapsedSubjects((current) => {
+      const next = new Set(current);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
   }
 
   return (
-    <div className="space-y-4">
-      {/* Back + subject filter tabs */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line-soft bg-surface-card px-4 py-3 shadow-sm dark:border-white/[0.08] dark:bg-[rgba(6,10,18,0.92)] max-[520px]:px-3 max-[520px]:py-2.5">
-        <button className={cx(ui.secondaryButton, 'min-h-9 px-3 text-[12px]')}
+    <div className="student-lessons-detail space-y-4">
+      <div className="student-lessons-detail-toolbar">
+        <button className={cx(ui.secondaryButton, 'student-lessons-back-button')}
           onClick={onBack}>
-          <BackIcon /> All Courses
+          <BackIcon />
+          <span>Back</span>
         </button>
-        <div className="h-4 w-px bg-line-soft" />
-        <span className="min-w-0 truncate text-[13px] font-extrabold text-ink-strong">{course.label || 'General'}</span>
-        {subjects.length > 1 && (
-          <>
-            <div className="h-4 w-px bg-line-soft" />
-            {subjects.map((s, i) => (
-              <button key={i} className={cx('rounded-xl border px-3 py-1.5 text-[11px] font-bold transition',
-                  activeSubj === s.label
-                    ? 'border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary'
-                    : 'border-line-soft bg-surface-1 text-ink-medium hover:text-ink-strong'
-                )}
-                onClick={() => setActiveSubj(activeSubj === s.label ? null : s.label)}>
-                {s.label || 'General'}
-              </button>
-            ))}
-          </>
-        )}
+        <div className="student-lessons-detail-course-name">
+          {course.label || 'General'}
+        </div>
+        <div className="student-lessons-detail-title">
+          <strong>{visibleNotes.length} {visibleNotes.length === 1 ? 'Lesson' : 'Lessons'}</strong>
+        </div>
       </div>
 
-      {/* Subject accordions */}
-      {filtered.map((subj) => {
-        const key = subj.label || '__none__';
-        const isOpen = open.has(key);
-
-        return (
-          <div key={key}>
-            <button
-              className="flex w-full items-center justify-between rounded-xl border border-line-soft bg-surface-card px-5 py-3.5 text-left shadow-sm transition hover:border-brand-primary/22 dark:border-white/[0.08] dark:bg-[rgba(6,10,18,0.92)]"
-              onClick={() => toggle(key)}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="grid size-9 place-items-center rounded-lg border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary">
-                  <SubjectIcon />
-                </span>
-                <span className="text-[14px] font-extrabold text-ink-strong">
-                  {subj.label || 'General'}
-                </span>
-                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-extrabold text-ink-muted">
-                  {subj.notes.length}
-                </span>
-              </div>
-              <span className="text-ink-muted"><ChevronIcon open={isOpen} /></span>
-            </button>
-
-            {isOpen && (
-              <div className="mt-2.5 grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 max-[900px]:grid-cols-1">
-                {subj.notes.map(note => (
-                  <NoteCard key={note.id} note={note} isDark={isDark}
-                    bookmarked={bookmarkedIds.has(note.id)}
-                    onToggleBookmark={onToggleBookmark}
-                    onClick={() => navigate(`${routeBase}/${note.id}`, {
-                      state: {
-                        returnToPath: `${routeBase}${course.label ? `?course=${encodeURIComponent(course.label)}` : ''}`,
-                        returnTo: 'list',
-                        sourceCourse: course.label || null,
-                      },
-                    })}
-                  />
-                ))}
-              </div>
+      {subjects.length > 1 ? (
+        <div className="student-lessons-filter-bar">
+          <button
+            className={cx(
+              'student-lessons-filter-chip',
+              !activeSubj && 'is-active'
             )}
-          </div>
-        );
-      })}
+            onClick={() => setActiveSubj(null)}
+          >
+            All subjects
+          </button>
+          {subjects.map((s, i) => (
+            <button key={i} className={cx(
+                'student-lessons-filter-chip',
+                activeSubj === s.label && 'is-active'
+              )}
+              onClick={() => setActiveSubj(activeSubj === s.label ? null : s.label)}>
+              {s.label || 'General'}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="student-lessons-category-list">
+        {visibleSubjects.map((subject, subjectIndex) => {
+          const subjectKey = subject.label || `general-${subjectIndex}`;
+          const palette = p(getMed(subject.label), isDark);
+          const isCollapsed = collapsedSubjects.has(subjectKey);
+          return (
+            <section
+              className={cx('student-lessons-category', isCollapsed && 'is-collapsed')}
+              key={subjectKey}
+              style={{
+                '--lesson-topic-bg': palette.bg,
+                '--lesson-topic-border': palette.bd,
+                '--lesson-topic-text': palette.tx,
+              }}
+            >
+              <button
+                type="button"
+                className="student-lessons-category__head"
+                onClick={() => toggleSubject(subjectKey)}
+                aria-expanded={!isCollapsed}
+              >
+                <div>
+                  <LessonHeaderTitle label={subject.label} />
+                </div>
+                <small>
+                  {subject.notes.length} {subject.notes.length === 1 ? 'lesson' : 'lessons'}
+                  <ChevronIcon open={!isCollapsed} />
+                </small>
+              </button>
+
+              <div className="student-lessons-lesson-list-shell" aria-hidden={isCollapsed}>
+                <div className="student-lessons-lesson-list">
+                  {subject.notes.map((note, index) => (
+                    <LessonTextRow key={note.id} note={note} index={index}
+                      isSaved={bookmarkedIds.has(note.id)}
+                      onSave={onToggleBookmark}
+                      style={{ '--lesson-row-delay': `${Math.min(index, 8) * 18}ms` }}
+                      onStart={() => navigate(`${routeBase}/${note.id}`, {
+                        state: {
+                          lessonId: note.lessonId || null,
+                          returnToPath: `${routeBase}${course.label ? `?course=${encodeURIComponent(course.label)}` : ''}`,
+                          returnTo: 'list',
+                          sourceCourse: course.label || null,
+                        },
+                      })}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -361,6 +379,30 @@ export function AiNotesListPage({
     };
   }, [engineKey]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    function handleLessonProgress(event) {
+      const detail = event.detail || {};
+      const completed = detail.status === 'completed' || Number(detail.progressPercent || 0) >= 100;
+      if (!completed) return;
+      const lessonId = Number(detail.lessonId || 0);
+      const aiNoteId = Number(detail.aiNoteId || 0);
+      setNotes((current) => current.map((note) => {
+        const matchesLesson = lessonId > 0 && Number(note.lessonId || 0) === lessonId;
+        const matchesNote = aiNoteId > 0 && Number(note.id || 0) === aiNoteId;
+        if (!matchesLesson && !matchesNote) return note;
+        return {
+          ...note,
+          lessonCompleted: true,
+          lessonProgressStatus: 'completed',
+          lessonProgressPercent: 100,
+        };
+      }));
+    }
+    window.addEventListener('lms:lesson-progress-updated', handleLessonProgress);
+    return () => window.removeEventListener('lms:lesson-progress-updated', handleLessonProgress);
+  }, []);
+
   const filteredNotes = useMemo(() => {
     if (!search.trim()) return notes;
     const q = search.toLowerCase();
@@ -395,34 +437,16 @@ export function AiNotesListPage({
     } catch { /* silent */ }
   }
 
-  const subjectCount = useMemo(
-    () => new Set(notes.map(n => n.topicName).filter(Boolean)).size,
-    [notes]
-  );
-
   return (
-    <main className={ui.studentScreenShell}>
-      <section className={ui.studentManagementLayout}>
+    <main className="dashboard-page study-hub-page student-lessons-page">
+      <section className="study-hub-shell">
         <AppHeader
           title={headerTitle}
           subtitle="Lesson Notes"
         />
 
-        {!selectedCourse ? (
-          <StudentPageHero
-            title={headerTitle}
-            subtitle="Lesson Notes"
-            tone="blue"
-            metrics={[
-              { label: 'Lessons', value: loading ? '-' : notes.length },
-              { label: 'Courses', value: loading ? '-' : hierarchy.length },
-              { label: 'Subjects', value: loading ? '-' : subjectCount },
-            ]}
-          />
-        ) : null}
-
         {/* Search */}
-        <div className="rounded-lg border border-line-soft bg-surface-card p-3 shadow-sm dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] max-[520px]:p-2">
+        <div className="student-lessons-search-card rounded-lg border border-line-soft bg-surface-card p-3 shadow-sm dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] max-[520px]:p-2">
           <div className="relative">
             <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted">
               <SearchIcon />
@@ -472,17 +496,20 @@ export function AiNotesListPage({
               )}
             </div>
           ) : (
-            <section className={cx(ui.panelCard, 'animate-fadePop max-[640px]:border-0 max-[640px]:bg-transparent max-[640px]:p-0 max-[640px]:shadow-none')}>
-              <div className="mb-5 flex flex-wrap items-start justify-between gap-3 max-[640px]:hidden">
-                <div>
-                  <span className={ui.eyebrow}>Lessons</span>
-                  <h2 className="m-0 mt-2 text-[18px] font-extrabold leading-tight text-ink-strong">Choose a course</h2>
+            <section className="student-lessons-hub animate-fadePop">
+              <div className="student-lessons-section-head mb-5 flex flex-wrap items-end justify-between gap-3">
+                <div className="lms-quiz-mascot-strip student-lessons-mascot-strip">
+                  <StudyMascot variant="stetho" mood="lesson" size="md" label="Lessons study buddy" />
+                  <div>
+                    <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Lesson</h2>
+                    <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{filteredNotes.length} lesson{filteredNotes.length !== 1 ? 's' : ''} available</p>
+                  </div>
                 </div>
-                <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-extrabold text-ink-muted">
+                <span className="student-lessons-count-pill rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-extrabold text-ink-muted">
                   {hierarchy.length} {hierarchy.length === 1 ? 'course' : 'courses'}
                 </span>
               </div>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
+              <div className="student-lessons-course-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
                 {hierarchy.map((course, i) => (
                   <CourseCard key={i} course={course} isDark={isDark} onClick={() => selectCourse(course.label)} />
                 ))}
@@ -490,7 +517,7 @@ export function AiNotesListPage({
             </section>
           )
         ) : (
-          <section className={cx(ui.panelCard, 'animate-fadePop max-[640px]:border-0 max-[640px]:bg-transparent max-[640px]:p-0 max-[640px]:shadow-none')}>
+          <section className="animate-fadePop">
             <CourseDetail
               course={activeCourse}
               onBack={() => selectCourse(null)}

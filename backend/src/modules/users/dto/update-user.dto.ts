@@ -1,4 +1,5 @@
 import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { USER_ROLES, UserRole } from '../../auth/role-permissions';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -17,6 +18,6 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['admin', 'student'])
-  role?: 'admin' | 'student';
+  @IsIn(USER_ROLES)
+  role?: UserRole;
 }

@@ -166,6 +166,70 @@ function SmoothCanvasMotion() {
       .lms-ai-note-topbar-inner > * {
         min-width: 0;
       }
+      .lms-ai-note-back-slot {
+        justify-content: flex-start !important;
+      }
+      .lms-ai-note-back-button,
+      .lms-ai-note-action-button {
+        min-height: 38px;
+        white-space: nowrap;
+      }
+      .lms-ai-note-title-block {
+        min-width: 0;
+        overflow: hidden;
+      }
+      .lms-ai-note-topbar-actions {
+        min-width: 0;
+      }
+      .lms-ai-note-control-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .lms-ai-note-progress-inline {
+        display: grid;
+        gap: 5px;
+        width: 100%;
+        border: 1px solid var(--lms-ai-note-progress-border);
+        background: var(--lms-ai-note-progress-bg);
+        border-radius: 12px;
+        padding: 7px 9px;
+      }
+      .lms-ai-note-page {
+        padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+      }
+      .lms-ai-note-reading-dock {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 9998;
+        padding: 10px 24px calc(10px + env(safe-area-inset-bottom, 0px));
+        pointer-events: none;
+      }
+      .lms-ai-note-reading-dock__inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        max-width: 1680px;
+        margin: 0 auto;
+        border: 1px solid var(--lms-ai-note-progress-border);
+        border-radius: 18px;
+        background: color-mix(in srgb, var(--lms-ai-note-progress-bg) 88%, transparent);
+        box-shadow: 0 18px 46px rgba(15, 23, 42, 0.18);
+        padding: 10px;
+        pointer-events: auto;
+        -webkit-backdrop-filter: blur(18px) saturate(1.08);
+        backdrop-filter: blur(18px) saturate(1.08);
+      }
+      .lms-ai-note-progress-inline--floating {
+        min-height: 38px;
+        align-content: center;
+      }
       .lms-canvas-page {
         animation: lmsCanvasFadeUp 320ms cubic-bezier(.16,1,.3,1) both;
         contain: layout paint;
@@ -205,12 +269,38 @@ function SmoothCanvasMotion() {
       }
       @media (max-width: 760px) {
         .lms-ai-note-topbar-inner {
-          grid-template-columns: 1fr !important;
-          align-items: stretch !important;
+          grid-template-columns: minmax(0, 1fr) !important;
+          align-items: center !important;
+          gap: 10px !important;
         }
         .lms-ai-note-topbar-actions {
-          justify-content: flex-start !important;
-          flex-wrap: wrap;
+          display: flex !important;
+          justify-content: stretch !important;
+          gap: 8px !important;
+        }
+        .lms-ai-note-control-row {
+          gap: 7px;
+        }
+        .lms-ai-note-control-row > button,
+        .lms-ai-note-control-row > .theme-toggle,
+        .lms-ai-note-action-button {
+          flex: 1 1 auto;
+        }
+        .lms-ai-note-page {
+          padding-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 96px);
+        }
+        .lms-ai-note-reading-dock {
+          bottom: var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px));
+          padding: 8px 12px 10px;
+        }
+        .lms-ai-note-reading-dock__inner {
+          grid-template-columns: 1fr;
+          gap: 8px;
+          border-radius: 16px;
+          padding: 9px;
+        }
+        .lms-ai-note-reading-dock .lms-ai-note-action-button {
+          width: 100%;
         }
         .lms-ai-canvas-shell {
           grid-template-columns: 1fr !important;
@@ -219,6 +309,15 @@ function SmoothCanvasMotion() {
         .lms-ai-note-left-panel,
         .lms-ai-note-right-panel {
           grid-column: auto;
+        }
+      }
+      @media (max-width: 430px) {
+        .lms-ai-note-topbar-inner {
+          grid-template-columns: 1fr !important;
+          align-items: stretch !important;
+        }
+        .lms-ai-note-back-button {
+          justify-content: center !important;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -477,6 +576,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const navigate  = useNavigate();
   const location  = useLocation();
   const isDark    = useDark();
+  const pageRef   = useRef(null);
   const canvasRef = useRef(null);
 
   const [note,      setNote]      = useState(null);
@@ -505,6 +605,11 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
         setNote(data);
         setLocalData(baseData);
         setVideoUrl(data.videoUrl || '');
+        setLessonCompleted(Boolean(
+          data.lessonCompleted ||
+          data.lessonProgressStatus === 'completed' ||
+          Number(data.lessonProgressPercent || 0) >= 100
+        ));
       }
         recordStudyActivity({ activityType:'ai_note_viewed', itemId:Number(data.id||id||lessonId) }).catch(()=>{});
       })
@@ -514,19 +619,74 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   }, [engineKey, id, lessonId]);
 
   useEffect(() => {
+    let frame = 0;
+    const getScrollCandidates = () => {
+      const pageNode = pageRef.current;
+      const candidates = [
+        document.scrollingElement,
+        document.documentElement,
+        document.body,
+        document.querySelector('.lms-app-scroll-root'),
+        document.querySelector('.portal-content'),
+        document.querySelector('.portal-content__frame'),
+        document.querySelector('.app-content'),
+        document.querySelector('.page-content'),
+      ].filter(Boolean);
+
+      return Array.from(new Set(candidates)).filter((element) => {
+        if (element === document.body || element === document.documentElement || element === document.scrollingElement) {
+          return true;
+        }
+        return !pageNode || element.contains(pageNode) || pageNode.contains(element);
+      });
+    };
+
+    const getScrollState = () => {
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+      const states = getScrollCandidates().map((element) => {
+        const isDocument = element === document.body || element === document.documentElement || element === document.scrollingElement;
+        const scrollTop = isDocument
+          ? (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0)
+          : element.scrollTop;
+        const scrollHeight = isDocument
+          ? Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)
+          : element.scrollHeight;
+        const clientHeight = isDocument ? viewportHeight : element.clientHeight;
+        return {
+          element,
+          scrollTop: Math.max(0, scrollTop || 0),
+          scrollMax: Math.max(0, (scrollHeight || 0) - (clientHeight || 0)),
+        };
+      });
+
+      return states.reduce((best, state) => (state.scrollMax > best.scrollMax ? state : best), {
+        element: document.scrollingElement || document.documentElement,
+        scrollTop: 0,
+        scrollMax: 0,
+      });
+    };
+
     function updateProgress() {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
-      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-      setReadingProgress(Math.min(100, Math.max(0, Math.round((scrollTop / max) * 100))));
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const { scrollTop, scrollMax } = getScrollState();
+        const nextProgress = scrollMax <= 0 ? 0 : Math.round((scrollTop / scrollMax) * 100);
+        setReadingProgress(Math.min(100, Math.max(0, nextProgress)));
+      });
     }
     updateProgress();
+    const appScrollers = getScrollCandidates();
     window.addEventListener('scroll', updateProgress, { passive: true });
     window.addEventListener('resize', updateProgress);
+    appScrollers.forEach((element) => element.addEventListener('scroll', updateProgress, { passive: true }));
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener('scroll', updateProgress);
       window.removeEventListener('resize', updateProgress);
+      appScrollers.forEach((element) => element.removeEventListener('scroll', updateProgress));
     };
-  }, [note?.id]);
+  }, [note?.id, localData?.pages?.length]);
 
   useEffect(() => {
     const key = studentCanvasPersonalStorageKey(note?.id || id || lessonId);
@@ -602,17 +762,34 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     const resolvedLessonId = Number(note?.lessonId || location.state?.lessonId || lessonId || 0);
     setCompletionBusy(true);
     try {
-      if (resolvedLessonId > 0) {
-        await updateStudentLessonProgress(resolvedLessonId, { status: 'completed', progressPercent: 100 });
+      if (!resolvedLessonId) {
+        throw new Error('This lesson is not linked to a course lesson yet.');
       }
+      await updateStudentLessonProgress(resolvedLessonId, { status: 'completed', progressPercent: 100 });
+      setNote((current) => current ? {
+        ...current,
+        lessonCompleted: true,
+        lessonProgressStatus: 'completed',
+        lessonProgressPercent: 100,
+      } : current);
       setLessonCompleted(true);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('lms:lesson-progress-updated', {
+          detail: {
+            lessonId: resolvedLessonId,
+            aiNoteId: Number(note?.id || id || 0),
+            status: 'completed',
+            progressPercent: 100,
+          },
+        }));
+      }
       notify('Lesson marked complete');
     } catch (completeError) {
       notify(getErrorMessage(completeError, 'Unable to mark lesson complete'));
     } finally {
       setCompletionBusy(false);
     }
-  }, [lessonId, location.state?.lessonId, note?.lessonId]);
+  }, [id, lessonId, location.state?.lessonId, note?.id, note?.lessonId]);
 
   const pageBg = 'var(--sa-bg, #eff1fb)';
   const topBg  = isDark?'rgba(5,7,13,.86)':'rgba(255,255,255,.96)';
@@ -623,6 +800,30 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const lessonButtonShadow = isDark
     ? 'inset 0 1px 0 rgba(255,255,255,.08), 0 8px 22px rgba(0,0,0,.18)'
     : 'none';
+  const progressPanelStyle = {
+    '--lms-ai-note-progress-border': topBd,
+    '--lms-ai-note-progress-bg': isDark ? 'rgba(15,20,36,.5)' : 'rgba(255,255,255,.72)',
+  };
+  const progressTrackStyle = {
+    height: 4,
+    overflow: 'hidden',
+    borderRadius: 999,
+    background: isDark ? 'rgba(148,163,184,.16)' : 'rgba(148,163,184,.2)',
+  };
+  const markCompleteStyle = {
+    minHeight: 38,
+    border: `1px solid ${lessonCompleted ? '#10b98155' : '#2563eb55'}`,
+    background: lessonCompleted ? '#10b98122' : (isDark ? 'rgba(96,165,250,.14)' : '#eff6ff'),
+    color: lessonCompleted ? (isDark ? '#a7f3d0' : '#047857') : (isDark ? '#bfdbfe' : '#1d4ed8'),
+    borderRadius: 12,
+    padding: '0 12px',
+    fontSize: 11,
+    fontWeight: 900,
+    cursor: lessonCompleted ? 'default' : 'pointer',
+    opacity: completionBusy ? 0.7 : 1,
+    whiteSpace: 'nowrap',
+    boxShadow: lessonButtonShadow,
+  };
 
   if (loading) return (
     <main style={{ minHeight:'100dvh', background:pageBg }}>
@@ -658,17 +859,12 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   ].filter(Boolean).join(' / ');
 
   return (
-    <main className="lms-ai-note-page select-text [-webkit-user-select:text]" style={{ minHeight:'100dvh', background:pageBg }}>
+    <main ref={pageRef} className="lms-ai-note-page select-text [-webkit-user-select:text]" style={{ minHeight:'100dvh', background:pageBg }}>
       <SmoothCanvasMotion />
       {/* Top bar */}
-      <div className="lms-ai-note-topbar" style={{ position:'sticky', top:0, zIndex:40, background:topBg, borderBottom:`1px solid ${topBd}`, backdropFilter:'blur(12px)' }}>
-        <div className="lms-ai-note-topbar-inner" style={{ display:'grid', gridTemplateColumns:'280px minmax(0,1fr) 280px', alignItems:'center', gap:20, maxWidth:1680, margin:'0 auto', padding:'calc(10px + env(safe-area-inset-top, 0px)) 24px 10px' }}>
-          <div style={{ display:'flex', justifyContent:'flex-end', minWidth:0 }}>
-            <button className="lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'6px 12px', fontSize:12, fontWeight:600, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
-              <BackIcon/> Lessons
-            </button>
-          </div>
-          <div style={{ minWidth:0, overflow:'hidden' }}>
+      <div className="lms-ai-note-topbar" style={{ position:'relative', zIndex:40, background:topBg, borderBottom:`1px solid ${topBd}` }}>
+        <div className="lms-ai-note-topbar-inner" style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr)', alignItems:'center', gap:10, maxWidth:1680, margin:'0 auto', padding:'calc(10px + env(safe-area-inset-top, 0px)) 24px 12px' }}>
+          <div className="lms-ai-note-title-block" style={{ minWidth:0, overflow:'hidden' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
               <div style={{ ...KL, minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#111827', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasTitle}</div>
               {note.isFree ? (
@@ -678,42 +874,68 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
               ) : null}
             </div>
             {canvasContext && <div style={{ fontSize:11, color:isDark?'rgba(200,210,255,.45)':'#9ca3af', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasContext}</div>}
-          </div>
-          <div className="lms-ai-note-topbar-actions" style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:8, minWidth:0 }}>
-            <ThemeToggle />
-            <button className="lms-smooth-action inline-flex items-center justify-center"
-              onClick={() => navigate(`/flashcards?noteId=${note.id || id || lessonId}`)}
-              disabled={isLocked}
-              style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'6px 12px', fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : 1, boxShadow:lessonButtonShadow }}>
-              Flashcards
-            </button>
-            <button className="lms-smooth-action inline-flex items-center justify-center"
-              onClick={toggleEditing}
-              disabled={isLocked}
-              style={{
-                display:'flex',
-                alignItems:'center',
-                gap:6,
-                border:`1px solid ${isEditing ? (isDark ? 'rgba(167,139,250,.42)' : '#7c3aed') : btnBd}`,
-                background:isEditing ? (isDark ? 'linear-gradient(180deg,rgba(167,139,250,.22),rgba(96,165,250,.10))' : '#f5f3ff') : btnBg,
-                borderRadius:12,
-                padding:'6px 12px',
-                fontSize:11,
-                fontWeight:800,
-                color:isEditing ? (isDark ? '#ddd6fe' : '#6d28d9') : btnTx,
-                cursor:'pointer',
-                opacity:isLocked ? 0.4 : 1,
-                boxShadow:isEditing && isDark ? '0 10px 24px rgba(88,28,135,.18), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
-              }}
-            >
-              {isEditing ? 'Done' : 'Personalize'}
-            </button>
+            <div className="lms-ai-note-control-row">
+              <button className="lms-ai-note-back-button lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', fontSize:12, fontWeight:700, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
+                <BackIcon/> Lessons
+              </button>
+              <ThemeToggle />
+              <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
+                onClick={() => navigate(`/flashcards?noteId=${note.id || id || lessonId}`)}
+                disabled={isLocked}
+                style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : 1, boxShadow:lessonButtonShadow }}>
+                Flashcards
+              </button>
+              <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
+                onClick={toggleEditing}
+                disabled={isLocked}
+                style={{
+                  display:'flex',
+                  alignItems:'center',
+                  gap:6,
+                  border:`1px solid ${isEditing ? (isDark ? 'rgba(167,139,250,.42)' : '#7c3aed') : btnBd}`,
+                  background:isEditing ? (isDark ? 'linear-gradient(180deg,rgba(167,139,250,.22),rgba(96,165,250,.10))' : '#f5f3ff') : btnBg,
+                  borderRadius:12,
+                  padding:'0 12px',
+                  fontSize:11,
+                  fontWeight:800,
+                  color:isEditing ? (isDark ? '#ddd6fe' : '#6d28d9') : btnTx,
+                  cursor:'pointer',
+                  opacity:isLocked ? 0.4 : 1,
+                  boxShadow:isEditing && isDark ? '0 10px 24px rgba(88,28,135,.18), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
+                }}
+              >
+                {isEditing ? 'Done' : 'Personalize'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
+      {!isLocked && pages.length > 0 && typeof document !== 'undefined' ? createPortal(
+        <div className="lms-ai-note-reading-dock" style={progressPanelStyle}>
+          <div className="lms-ai-note-reading-dock__inner">
+            <div className="lms-ai-note-progress-inline lms-ai-note-progress-inline--floating">
+              <div
+                aria-label={`Reading progress ${readingProgress}%`}
+                aria-valuemax={100}
+                aria-valuemin={0}
+                aria-valuenow={readingProgress}
+                role="progressbar"
+                style={progressTrackStyle}
+              >
+                <span style={{ display:'block', width:`${readingProgress}%`, height:'100%', borderRadius:'inherit', background:'linear-gradient(90deg,#3b82f6,#6d35df)', transition:'width 120ms linear' }} />
+              </div>
+            </div>
+            <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center" type="button" onClick={markLessonComplete} disabled={completionBusy || lessonCompleted} style={markCompleteStyle}>
+              {completionBusy ? 'Saving...' : lessonCompleted ? 'Done' : 'Mark Complete'}
+            </button>
+          </div>
+        </div>,
+        document.body
+      ) : null}
+
       {/* Body */}
-      <div className="lms-ai-canvas-shell mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:px-4 max-[520px]:gap-3 max-[520px]:px-1.5">
+      <div className="lms-ai-canvas-shell mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:px-4 max-[640px]:px-0 max-[520px]:gap-3">
         <section className="lms-ai-note-main min-w-0">
           <div ref={canvasRef} style={{ position:'relative', minWidth:0, maxWidth:'100%' }}>
             {stickers.map(s => <FloatingSticker key={s.id} s={s} editable={canEdit} onUpdate={updateSticker} onDelete={deleteSticker} canvasRef={canvasRef}/>)}
@@ -767,27 +989,6 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
         onClose={() => setVideoOpen(false)}
         isDark={isDark}
       />
-
-      {!isLocked && (
-        <div style={{ position:'fixed', left:'50%', bottom:'calc(env(safe-area-inset-bottom) + 16px)', transform:'translateX(-50%)', zIndex:45, width:'min(680px, calc(100% - 24px))' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto auto', gap:8, alignItems:'center', border:`1px solid ${topBd}`, background:isDark?'linear-gradient(180deg,rgba(15,20,36,.94),rgba(8,12,24,.94))':'rgba(255,255,255,.94)', borderRadius:18, padding:10, boxShadow:isDark?'0 18px 44px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.08)':'0 18px 44px rgba(15,23,42,.14)', backdropFilter:'blur(14px)' }}>
-            <div style={{ minWidth:0 }}>
-              <div style={{ fontSize:10, fontWeight:900, letterSpacing:'.12em', textTransform:'uppercase', color:isDark?'rgba(200,210,255,.48)':'#64748b' }}>Reading Progress</div>
-              <div style={{ ...KL, fontSize:16, fontWeight:800, color:isDark?'#f8fafc':'#111827', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                {lessonCompleted ? 'Lesson complete' : `${readingProgress}% read`}
-              </div>
-            </div>
-            <button className="lms-smooth-action inline-flex items-center justify-center" type="button" onClick={markLessonComplete} disabled={completionBusy || lessonCompleted}
-              style={{ minHeight:40, border:`1px solid ${lessonCompleted ? '#10b98155' : '#2563eb55'}`, background:lessonCompleted ? '#10b98122' : (isDark ? 'rgba(96,165,250,.14)' : '#eff6ff'), color:lessonCompleted ? (isDark ? '#a7f3d0' : '#047857') : (isDark ? '#bfdbfe' : '#1d4ed8'), borderRadius:12, padding:'0 13px', fontSize:12, fontWeight:900, cursor:'pointer', opacity:completionBusy ? 0.7 : 1 }}>
-              {completionBusy ? 'Saving...' : lessonCompleted ? 'Done' : 'Mark Complete'}
-            </button>
-            <button className="lms-smooth-action inline-flex items-center justify-center" type="button" onClick={() => navigate('/quizzes')}
-              style={{ minHeight:40, border:`1px solid ${btnBd}`, background:btnBg, color:btnTx, borderRadius:12, padding:'0 13px', fontSize:12, fontWeight:900, cursor:'pointer' }}>
-              Practice
-            </button>
-          </div>
-        </div>
-      )}
 
       {toast && (
         <div className="lms-toast" style={{ position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:50 }}>

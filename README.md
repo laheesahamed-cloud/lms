@@ -110,6 +110,15 @@ Both:
 npm run build
 ```
 
+## Debugging docs
+
+Use these when you need to see what exists and where to debug:
+
+- [Project inventory](/Applications/XAMPP/xamppfiles/htdocs/lms/docs/project-inventory.md)
+- [Debugging runbook](/Applications/XAMPP/xamppfiles/htdocs/lms/docs/debugging-runbook.md)
+- [API map](/Applications/XAMPP/xamppfiles/htdocs/lms/docs/api-map.md)
+- [Frontend page map](/Applications/XAMPP/xamppfiles/htdocs/lms/docs/architecture/page-map.md)
+
 ## Notes
 
 - The React UI is served directly from `frontend/dist`.

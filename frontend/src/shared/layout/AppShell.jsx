@@ -266,6 +266,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         user?.role === 'student' && 'student-app-shell',
         user?.role === 'admin' && 'admin-app-shell',
         isSigningOut && 'signing-out',
+        sidebarOpen && 'sidebar-open',
         effectiveSidebarCollapsed && 'sidebar-collapsed',
         tabletOverlayNav && 'tablet-overlay-nav',
         hideGlobalSidebar && 'sidebar-hidden',
@@ -282,6 +283,15 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         <span className={cx(shellUi.ambientGlow, shellUi.ambientGlowTwo)} />
         <span className={shellUi.ambientGrid} />
       </div>
+
+      {sidebarOpen && !hideGlobalSidebar ? (
+        <button
+          type="button"
+          className="lms-sidebar-overlay"
+          aria-label="Close navigation"
+          onClick={() => setSidebarOpen(false)}
+        />
+      ) : null}
 
       {!hideGlobalSidebar ? (
         <AppSidebar

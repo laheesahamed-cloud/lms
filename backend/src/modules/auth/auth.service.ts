@@ -13,13 +13,14 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { isStaffRole, permissionsForRole, UserRole } from './role-permissions';
 
 type UserRow = RowDataPacket & {
   id: number;
   full_name: string;
   email: string;
   password: string;
-  role: 'admin' | 'student';
+  role: UserRole;
   status: 'active' | 'inactive';
   avatar_key?: string | null;
   session_token?: string | null;
@@ -88,7 +89,7 @@ export class AuthService {
     }
 
     const sessionToken = randomBytes(32).toString('hex');
-    const sessionTtlDays = user.role === 'admin' ? ADMIN_SESSION_TTL_DAYS : SESSION_TTL_DAYS;
+    const sessionTtlDays = isStaffRole(user.role) ? ADMIN_SESSION_TTL_DAYS : SESSION_TTL_DAYS;
     await this.db.execute('UPDATE users SET session_token = ?, session_expires_at = ? WHERE id = ?', [
       hashSessionToken(sessionToken),
       createSessionExpiry(sessionTtlDays),
@@ -303,7 +304,7 @@ export class AuthService {
   async requireAdmin(authorization?: string) {
     const user = await this.findUserByToken(this.extractToken(authorization));
 
-    if (user.role !== 'admin' || user.status !== 'active') {
+    if (!isStaffRole(user.role) || user.status !== 'active') {
       throw new UnauthorizedException('Admin access is required');
     }
 
@@ -326,7 +327,7 @@ export class AuthService {
   }
 
   private getRedirectPath(role: string, status: string) {
-    if (role === 'admin') {
+    if (isStaffRole(role)) {
       if (status !== 'active') {
         throw new UnauthorizedException('Your admin account is not active right now');
       }
@@ -510,6 +511,7 @@ ${settings.footer}`;
       fullName: user.full_name,
       email: user.email,
       role: user.role,
+      permissions: permissionsForRole(user.role),
       status: user.status,
       avatarKey: user.avatar_key || '',
       hasActiveSubscription: accessProfile.hasActiveSubscription,

@@ -58,6 +58,7 @@ export async function fetchStudentCourseDetail(courseId) {
 
 export async function updateStudentLessonProgress(lessonId, payload) {
   const response = await apiClient.patch(`/student/courses/lessons/${lessonId}/progress`, payload);
+  clearStudentCoursesCache();
   return response.data;
 }
 

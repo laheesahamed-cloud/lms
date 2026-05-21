@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { fetchNotifications, markNotificationRead } from '../api/workspace.api.js';
 import { useAuthStore } from '../stores/authStore.js';
@@ -177,7 +178,7 @@ const topbarUi = {
   dropdownFoot: 'border-t border-line-soft p-2 max-[520px]:p-1.5',
   menuItem:
     'flex min-h-10 w-full items-center justify-start gap-2.5 rounded-xl border-0 bg-transparent px-3 py-2 text-sm font-semibold text-ink-medium shadow-none transition-[background,color] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 hover:text-ink-strong hover:shadow-none active:shadow-none',
-  dangerItem: 'text-brand-error hover:bg-brand-error/10 hover:text-brand-error',
+  dangerItem: 'text-brand-error',
   emptyState: 'grid gap-1 px-5 py-8 text-center [&_p]:m-0 [&_p]:text-xs [&_p]:text-ink-soft [&_strong]:text-sm [&_strong]:text-ink-strong',
   mobileCopy: 'hidden',
 };
@@ -222,7 +223,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     setProfileClosing(true);
     profileCloseTimerRef.current = window.setTimeout(() => {
       setProfileClosing(false);
-    }, 280);
+    }, 460);
   }, [profileClosing, profileOpen]);
 
   const openProfileMenu = useCallback(() => {
@@ -298,9 +299,24 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     return () => window.clearTimeout(profileCloseTimerRef.current);
   }, []);
 
+  const profileBackdrop = profileVisible ? (
+    <button
+      type="button"
+      className={cx('lms-profile-menu-backdrop', profileClosing && 'is-closing')}
+      aria-label="Close profile menu"
+      onClick={closeProfileMenu}
+    />
+  ) : null;
+  const profileBackdropLayer =
+    profileBackdrop && typeof document !== 'undefined'
+      ? createPortal(profileBackdrop, document.body)
+      : profileBackdrop;
+
   if (user?.role === 'student') {
     return (
       <>
+        {profileBackdropLayer}
+
         <header className={cx('study-hub-topbar', className)}>
           <button type="button" className="study-icon-button lms-topbar-menu-button" aria-label="Toggle navigation" onClick={toggleSidebar}>
             <MenuIcon />
@@ -328,36 +344,28 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
               </button>
 
               {profileVisible ? (
-                <>
-                  <div
-                    className={cx('lms-profile-menu-backdrop', profileClosing && 'is-closing')}
-                    aria-hidden="true"
-                    onClick={closeProfileMenu}
-                  />
-                  <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
-                    <div className={topbarUi.dropdownHead}>
-                      <ProfileAvatar user={user} size="lg" />
-                      <div>
-                        <strong>{user?.fullName || 'Signed in user'}</strong>
-                        <small>Medical Student</small>
-                      </div>
-                    </div>
-
-                    <div className={topbarUi.dropdownSection}>
-                      <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
-                        <ProfileIcon />
-                        <span>Profile</span>
-                      </button>
-                    </div>
-
-                    <div className={topbarUi.dropdownSection}>
-                      <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')} type="button" onClick={handleLogout} disabled={isSigningOut}>
-                        <LogoutIcon />
-                        <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
-                      </button>
+                <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
+                  <div className={topbarUi.dropdownHead}>
+                    <div className="lms-profile-menu-head-copy">
+                      <strong>{user?.fullName || 'Signed in user'}</strong>
+                      <small>Medical Student</small>
                     </div>
                   </div>
-                </>
+
+                  <div className={topbarUi.dropdownSection}>
+                    <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
+                      <ProfileIcon />
+                      <span>Profile</span>
+                    </button>
+                  </div>
+
+                  <div className={topbarUi.dropdownSection}>
+                    <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')} type="button" onClick={handleLogout} disabled={isSigningOut}>
+                      <LogoutIcon />
+                      <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
+                    </button>
+                  </div>
+                </div>
               ) : null}
             </div>
           </div>
@@ -374,6 +382,8 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
 
   return (
     <>
+      {profileBackdropLayer}
+
       <header className={cx(topbarUi.header, className)}>
         <div className={cx('lms-topbar-left', topbarUi.left)}>
           <button className={topbarUi.mobileMenuButton}
@@ -514,48 +524,40 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
               </button>
 
               {profileVisible ? (
-                <>
-                  <div
-                    className={cx('lms-profile-menu-backdrop', profileClosing && 'is-closing')}
-                    aria-hidden="true"
-                    onClick={closeProfileMenu}
-                  />
-                  <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
-                    <div className={topbarUi.dropdownHead}>
-                      <ProfileAvatar user={user} size="lg" />
-                      <div>
-                        <strong>{user?.fullName || 'Signed in user'}</strong>
-                        <small>{user?.role === 'admin' ? 'Administrator' : 'Medical Student'}</small>
-                      </div>
-                    </div>
-
-                    <div className={topbarUi.dropdownSection}>
-                      <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
-                        <ProfileIcon />
-                        <span>Profile</span>
-                      </button>
-
-                      {settingsPath ? (
-                        <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(settingsPath)}>
-                          <SettingsIcon />
-                          <span>Settings</span>
-                        </button>
-                      ) : null}
-                    </div>
-
-                    <div className={topbarUi.dropdownSection}>
-                      <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')}
-                        type="button"
-                       
-                        onClick={handleLogout}
-                        disabled={isSigningOut}
-                      >
-                        <LogoutIcon />
-                        <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
-                      </button>
+                <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
+                  <div className={topbarUi.dropdownHead}>
+                    <div className="lms-profile-menu-head-copy">
+                      <strong>{user?.fullName || 'Signed in user'}</strong>
+                      <small>{user?.role === 'admin' ? 'Administrator' : 'Medical Student'}</small>
                     </div>
                   </div>
-                </>
+
+                  <div className={topbarUi.dropdownSection}>
+                    <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
+                      <ProfileIcon />
+                      <span>Profile</span>
+                    </button>
+
+                    {settingsPath ? (
+                      <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(settingsPath)}>
+                        <SettingsIcon />
+                        <span>Settings</span>
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className={topbarUi.dropdownSection}>
+                    <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')}
+                      type="button"
+                     
+                      onClick={handleLogout}
+                      disabled={isSigningOut}
+                    >
+                      <LogoutIcon />
+                      <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
+                    </button>
+                  </div>
+                </div>
               ) : null}
             </div>
           </div>

@@ -1,50 +1,50 @@
 .study-planner-page {
-  --planner-bg: #06101f;
+  --planner-page-bg:
+    radial-gradient(circle at 82% 6%, rgba(59, 130, 246, 0.18), transparent 30%),
+    radial-gradient(circle at 12% 2%, rgba(20, 184, 166, 0.12), transparent 34%),
+    linear-gradient(180deg, #071426 0%, #050a14 100%);
   --planner-card: rgba(10, 25, 47, 0.78);
   --planner-card-strong: rgba(13, 31, 58, 0.92);
   --planner-line: rgba(142, 202, 230, 0.16);
   --planner-text: #fff7e8;
   --planner-muted: rgba(255, 247, 232, 0.68);
   --planner-soft: rgba(255, 247, 232, 0.46);
-  --planner-cyan: #39dce8;
-  --planner-blue: #2d7ff9;
-  --planner-orange: #f59e42;
-  --planner-red: #d9634a;
+  --planner-blue: #4aa8ff;
+  --planner-blue-deep: #2563eb;
+  --planner-teal: #39dce8;
+  --planner-amber: #f59e42;
   --planner-green: #38d6a4;
+  --planner-red: #f87171;
   min-height: 100dvh;
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 16% 0%, rgba(45, 127, 249, 0.2), transparent 30%),
-    radial-gradient(circle at 86% 12%, rgba(57, 220, 232, 0.12), transparent 28%),
-    linear-gradient(180deg, #071426 0%, #050a14 100%);
+  background: var(--planner-page-bg) !important;
   color: var(--planner-text);
 }
 
 .student-app-shell .study-planner-page.student-route-page {
-  background:
-    radial-gradient(circle at 16% 0%, rgba(45, 127, 249, 0.2), transparent 30%),
-    radial-gradient(circle at 86% 12%, rgba(57, 220, 232, 0.12), transparent 28%),
-    linear-gradient(180deg, #071426 0%, #050a14 100%) !important;
+  background: var(--planner-page-bg) !important;
   color: var(--planner-text) !important;
 }
 
 .study-planner-shell {
   display: grid;
   width: var(--sa-page-width-mobile, min(390px, calc(100% - 24px)));
+  max-width: 1120px;
   margin: 0 auto;
   gap: 14px;
   padding: var(
     --sa-page-padding,
-    calc(16px + env(safe-area-inset-top, 0px)) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 6px)
+    calc(16px + env(safe-area-inset-top, 0px)) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 10px)
   );
 }
 
 .study-planner-page .lms-topbar {
-  border-color: rgba(142, 202, 230, 0.16);
-  background: rgba(6, 16, 31, 0.72);
-  color: var(--planner-text);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
-  backdrop-filter: blur(18px);
+  border-color: var(--planner-line) !important;
+  background: rgba(6, 16, 31, 0.72) !important;
+  color: var(--planner-text) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
 }
 
 .study-planner-page .lms-topbar h1 {
@@ -62,12 +62,8 @@
   color: var(--planner-text) !important;
 }
 
-.planner-top-card,
-.planner-goal-simple,
-.planner-today-card,
-.planner-focus-card,
-.planner-week-simple,
-.planner-suggestion-card {
+.planner-hero-card,
+.planner-panel {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--planner-line);
@@ -75,103 +71,134 @@
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025)),
     var(--planner-card);
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px);
+  box-shadow:
+    0 18px 54px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
 }
 
-.planner-top-card {
+.planner-hero-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 14px;
-  padding: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 0.34fr);
+  align-items: stretch;
+  gap: 18px;
+  padding: 20px;
 }
 
-.planner-actions {
-  grid-column: 1 / -1;
+.planner-hero-copy {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.planner-eyebrow {
+  color: var(--planner-teal);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.planner-hero-copy h1,
+.planner-section-title h2 {
+  margin: 0;
+  color: var(--planner-text);
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.planner-hero-copy h1 {
+  max-width: 720px;
+  font-size: 40px;
+  line-height: 1.04;
+}
+
+.planner-hero-copy p {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--planner-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.planner-hero-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
 }
 
-.planner-actions button,
-.planner-simple-task button,
 .planner-primary,
+.planner-secondary,
+.planner-simple-task > button:not(.planner-step),
+.planner-reminder-form button,
+.planner-reminder-item button,
 .planner-week-simple button {
+  min-height: 44px;
   border: 0;
+  border-radius: 999px;
+  padding: 0 16px;
   font: inherit;
+  font-size: 13px;
+  font-weight: 900;
   cursor: pointer;
-  transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1), opacity 150ms ease, background 150ms ease;
+  transition:
+    transform 150ms cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 150ms ease,
+    background 150ms ease,
+    border-color 150ms ease;
 }
 
-.planner-actions button {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  place-items: center;
+.planner-primary,
+.planner-simple-task > button:not(.planner-step),
+.planner-reminder-form button {
+  background: linear-gradient(135deg, var(--planner-blue), var(--planner-blue-deep));
+  color: #ffffff;
+  box-shadow: 0 14px 34px rgba(45, 127, 249, 0.28);
+}
+
+.planner-secondary,
+.planner-week-simple button,
+.planner-reminder-item button {
   border: 1px solid rgba(142, 202, 230, 0.16);
-  border-radius: 14px;
   background: rgba(255, 255, 255, 0.07);
   color: var(--planner-text);
+  box-shadow: none;
 }
 
-.planner-actions svg,
-.planner-task-icon svg,
-.planner-week-simple button svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.65;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.planner-actions button:active,
-.planner-simple-task button:active,
 .planner-primary:active,
+.planner-secondary:active,
+.planner-simple-task button:active,
+.planner-reminder-form button:active,
+.planner-reminder-item button:active,
 .planner-week-simple button:active {
   transform: scale(0.97);
 }
 
-.planner-top-copy {
+.planner-primary:disabled,
+.planner-simple-task button:disabled,
+.planner-reminder-form button:disabled,
+.planner-reminder-item button:disabled,
+.planner-week-simple button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.planner-hero-side {
   display: grid;
-  align-self: end;
-  gap: 8px;
-}
-
-.planner-top-copy span,
-.planner-section-title span,
-.planner-suggestion-card span {
-  color: var(--planner-cyan);
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.planner-top-copy h1,
-.planner-section-title h2,
-.planner-suggestion-card h2 {
-  margin: 0;
-  color: var(--planner-text);
-  font-size: clamp(26px, 8vw, 42px);
-  font-weight: 950;
-  line-height: 1.02;
-  letter-spacing: 0;
-}
-
-.planner-top-copy p,
-.planner-suggestion-card p {
-  max-width: 42ch;
-  margin: 0;
-  color: var(--planner-muted);
-  font-size: 14px;
-  line-height: 1.5;
+  align-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 80% 0%, rgba(57, 220, 232, 0.16), transparent 42%),
+    rgba(255, 255, 255, 0.045);
+  padding: 14px;
 }
 
 .planner-buddy {
   display: grid;
-  align-self: end;
   justify-items: center;
   gap: 6px;
 }
@@ -187,9 +214,9 @@
   border-radius: 999px;
   background: rgba(57, 220, 232, 0.09);
   color: rgba(236, 254, 255, 0.92);
-  padding: 6px 9px;
+  padding: 6px 10px;
   text-align: center;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 900;
   white-space: nowrap;
 }
@@ -227,98 +254,60 @@
   stroke-width: 3;
 }
 
-.planner-primary {
-  grid-column: 1 / -1;
-  min-height: 48px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--planner-blue), #1f62da);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 950;
-  box-shadow: 0 14px 34px rgba(45, 127, 249, 0.28);
-}
-
-.planner-primary:disabled,
-.planner-simple-task button:disabled,
-.planner-week-simple button:disabled {
-  cursor: wait;
-  opacity: 0.72;
-}
-
-.planner-goal-simple {
+.planner-stat-stack {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.planner-goal-simple > div:first-child,
-.planner-goal-labels {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+.planner-stat-stack div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(142, 202, 230, 0.13);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px;
 }
 
-.planner-goal-simple span {
+.planner-stat-stack span {
   color: var(--planner-muted);
-  font-size: 12px;
-  font-weight: 850;
+  font-size: 11px;
+  font-weight: 750;
 }
 
-.planner-goal-simple strong {
+.planner-stat-stack strong {
   color: var(--planner-text);
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 950;
   line-height: 1;
 }
 
-.planner-goal-bar {
-  position: relative;
-  height: 12px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.planner-goal-bar i {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 32%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--planner-cyan), var(--planner-blue));
-}
-
-.planner-goal-bar b {
-  position: absolute;
-  left: 75%;
-  top: -5px;
-  width: 2px;
-  height: 22px;
-  border-radius: 999px;
-  background: #fff7e8;
-  box-shadow: 0 0 16px rgba(255, 247, 232, 0.7);
-}
-
-.planner-today-card,
-.planner-focus-card,
-.planner-week-simple,
-.planner-suggestion-card {
+.planner-main-grid,
+.planner-bottom-grid {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.planner-panel {
+  display: grid;
+  gap: 14px;
   padding: 16px;
 }
 
 .planner-section-title {
   display: flex;
-  align-items: start;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-.planner-section-title h2,
-.planner-suggestion-card h2 {
+.planner-section-title h2 {
   margin-top: 3px;
   font-size: 20px;
+  line-height: 1.15;
 }
 
 .planner-section-title small {
@@ -326,21 +315,22 @@
   border: 1px solid rgba(57, 220, 232, 0.2);
   border-radius: 999px;
   background: rgba(57, 220, 232, 0.08);
-  color: var(--planner-cyan);
-  padding: 7px 9px;
+  color: var(--planner-teal);
+  padding: 7px 10px;
   font-size: 11px;
   font-weight: 900;
 }
 
 .planner-simple-list,
-.planner-weak-simple {
+.planner-weak-simple,
+.planner-reminder-list {
   display: grid;
   gap: 9px;
 }
 
 .planner-simple-task {
   display: grid;
-  grid-template-columns: 30px 40px minmax(0, 1fr) auto;
+  grid-template-columns: 32px 42px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   min-width: 0;
@@ -358,69 +348,35 @@
 }
 
 .planner-step {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  padding: 0;
   background: rgba(45, 127, 249, 0.16);
   color: #bbd7ff;
   font-size: 13px;
   font-weight: 950;
+  cursor: pointer;
 }
 
 .planner-task-icon {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   background: rgba(57, 220, 232, 0.1);
-  color: var(--planner-cyan);
+  color: var(--planner-teal);
 }
 
-.planner-task-text {
-  min-width: 0;
-}
-
-.planner-task-text span {
-  color: var(--planner-cyan);
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.planner-task-text h3 {
-  margin: 2px 0 0;
-  overflow-wrap: anywhere;
-  color: var(--planner-text);
-  font-size: 15px;
-  font-weight: 950;
-  line-height: 1.14;
-}
-
-.planner-task-text p {
-  margin: 3px 0 0;
-  overflow-wrap: anywhere;
-  color: var(--planner-muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.planner-simple-task > button:not(.planner-step) {
-  min-height: 38px;
-  border-radius: 999px;
-  background: var(--planner-blue);
-  color: #fff;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 950;
-  white-space: nowrap;
-}
-
-.planner-simple-task > button.planner-step {
-  border: 0;
-  cursor: pointer;
-  padding: 0;
-}
-
-.planner-simple-task > button.planner-step:disabled {
-  cursor: default;
+.planner-task-icon svg,
+.planner-week-simple button svg,
+.planner-reminder-form button svg,
+.planner-reminder-item svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .planner-step svg {
@@ -433,6 +389,34 @@
   stroke-linejoin: round;
 }
 
+.planner-task-text {
+  min-width: 0;
+}
+
+.planner-task-text span {
+  color: var(--planner-teal);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.planner-task-text h3 {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--planner-text);
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1.16;
+}
+
+.planner-task-text p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--planner-muted);
+  font-size: 12px;
+  line-height: 1.38;
+}
+
 .planner-simple-task.is-complete {
   border-color: rgba(56, 214, 164, 0.24);
   background: rgba(56, 214, 164, 0.065);
@@ -443,13 +427,144 @@
   color: #a9f5d8;
 }
 
+.planner-reminder-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 10px;
+}
+
+.planner-reminder-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.planner-reminder-form label > span {
+  color: var(--planner-muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.planner-reminder-note,
+.planner-reminder-form button {
+  grid-column: 1 / -1;
+}
+
+.planner-reminder-form input,
+.planner-reminder-form textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(142, 202, 230, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--planner-text);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.planner-reminder-form input {
+  height: 44px;
+  padding: 0 12px;
+}
+
+.planner-reminder-form textarea {
+  min-height: 70px;
+  resize: vertical;
+  padding: 11px 12px;
+  line-height: 1.4;
+}
+
+.planner-reminder-form input::placeholder,
+.planner-reminder-form textarea::placeholder {
+  color: var(--planner-soft);
+}
+
+.planner-reminder-form input:focus,
+.planner-reminder-form textarea:focus {
+  border-color: rgba(57, 220, 232, 0.45);
+  box-shadow: 0 0 0 3px rgba(57, 220, 232, 0.1);
+}
+
+.planner-reminder-form button,
+.planner-week-simple button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.planner-reminder-item {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(142, 202, 230, 0.13);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+}
+
+.planner-reminder-item > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 13px;
+  background: rgba(245, 158, 66, 0.12);
+  color: var(--planner-amber);
+}
+
+.planner-reminder-item strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--planner-text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.planner-reminder-item p {
+  margin: 3px 0 0;
+  color: var(--planner-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.planner-reminder-item button {
+  min-height: 36px;
+  padding: 0 12px;
+  color: var(--planner-green);
+}
+
+.planner-empty-state {
+  display: grid;
+  gap: 5px;
+  border: 1px dashed rgba(142, 202, 230, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 14px;
+}
+
+.planner-empty-state strong {
+  color: var(--planner-text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.planner-empty-state p {
+  margin: 0;
+  color: var(--planner-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
 .planner-message {
   margin: 0;
   border: 1px solid rgba(56, 214, 164, 0.2);
-  border-radius: 14px;
+  border-radius: 16px;
   background: rgba(56, 214, 164, 0.08);
   color: #a9f5d8;
-  padding: 10px 12px;
+  padding: 11px 13px;
   font-size: 12px;
   font-weight: 850;
 }
@@ -474,7 +589,7 @@
 }
 
 .planner-weak-simple i {
-  height: 8px;
+  height: 9px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
@@ -484,7 +599,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--planner-red), var(--planner-orange), var(--planner-cyan));
+  background: linear-gradient(90deg, var(--planner-red), var(--planner-amber), var(--planner-teal));
 }
 
 .planner-plain-note {
@@ -499,24 +614,10 @@
   line-height: 1.45;
 }
 
-.planner-week-simple button {
-  display: inline-flex;
-  min-height: 38px;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid rgba(142, 202, 230, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--planner-cyan);
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 950;
-}
-
 .planner-week-row {
   display: grid;
-  grid-template-columns: repeat(7, minmax(68px, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(7, minmax(76px, 1fr));
+  gap: 8px;
   overflow-x: auto;
   padding-bottom: 2px;
   scrollbar-width: none;
@@ -528,7 +629,7 @@
 
 .planner-week-day {
   display: grid;
-  min-width: 68px;
+  min-width: 76px;
   gap: 5px;
   border: 1px solid rgba(142, 202, 230, 0.14);
   border-radius: 16px;
@@ -536,10 +637,17 @@
   padding: 10px 8px;
 }
 
-.planner-week-day span {
-  color: var(--planner-cyan);
+.planner-week-day span,
+.planner-week-day b {
+  color: var(--planner-teal);
   font-size: 11px;
   font-weight: 950;
+}
+
+.planner-week-day b {
+  color: var(--planner-text);
+  font-size: 16px;
+  line-height: 1;
 }
 
 .planner-week-day strong {
@@ -548,25 +656,18 @@
   font-weight: 900;
 }
 
-.planner-week-day.is-done {
-  border-color: rgba(56, 214, 164, 0.28);
-}
-
 .planner-week-day.is-today {
   border-color: rgba(57, 220, 232, 0.36);
   background: rgba(57, 220, 232, 0.09);
 }
 
 .planner-week-day.is-planned {
-  border-color: rgba(245, 158, 66, 0.2);
+  border-color: rgba(245, 158, 66, 0.22);
+  background: rgba(245, 158, 66, 0.06);
 }
 
 .planner-week-day.is-rest {
-  opacity: 0.68;
-}
-
-.planner-suggestion-card {
-  gap: 6px;
+  opacity: 0.72;
 }
 
 @keyframes planner-buddy-float {
@@ -578,48 +679,90 @@
   }
 }
 
+@media (min-width: 760px) {
+  .study-planner-shell {
+    width: var(--sa-page-width-tablet, min(720px, calc(100% - 32px)));
+  }
+}
+
+@media (min-width: 1080px) {
+  .study-planner-shell {
+    width: var(--sa-page-width-desktop, min(1120px, calc(100% - 48px)));
+  }
+}
+
+@media (max-width: 920px) {
+  .planner-hero-card,
+  .planner-main-grid,
+  .planner-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-hero-side {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+}
+
 @media (max-width: 520px) {
   .study-planner-shell {
     width: var(--sa-page-width-mobile, min(390px, calc(100% - 24px)));
     padding: var(
       --sa-page-padding-compact,
-      calc(12px + env(safe-area-inset-top, 0px)) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 6px)
+      calc(12px + env(safe-area-inset-top, 0px)) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 10px)
     );
   }
 
-  .planner-top-card {
-    grid-template-columns: minmax(0, 1fr) auto;
+  .planner-hero-card,
+  .planner-panel {
     border-radius: 20px;
-    padding: 16px;
+    padding: 14px;
   }
 
-  .planner-top-copy {
-    grid-column: 1 / -1;
+  .planner-hero-copy h1 {
+    font-size: 30px;
+  }
+
+  .planner-hero-actions,
+  .planner-stat-stack {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-hero-actions {
+    display: grid;
+  }
+
+  .planner-primary,
+  .planner-secondary {
+    width: 100%;
+  }
+
+  .planner-hero-side {
+    grid-template-columns: 1fr;
   }
 
   .planner-buddy {
-    grid-column: 1 / -1;
     grid-template-columns: auto minmax(0, 1fr);
-    justify-self: start;
+    justify-items: start;
     align-items: center;
   }
 
   .planner-buddy svg {
-    width: 68px;
-    height: 68px;
-  }
-
-  .planner-top-copy h1 {
-    font-size: clamp(28px, 10vw, 40px);
+    width: 66px;
+    height: 66px;
   }
 
   .planner-simple-task {
-    grid-template-columns: 30px 40px minmax(0, 1fr);
+    grid-template-columns: 32px 42px minmax(0, 1fr);
   }
 
-  .planner-simple-task button {
+  .planner-simple-task > button:not(.planner-step) {
     grid-column: 1 / -1;
     width: 100%;
+  }
+
+  .planner-reminder-form {
+    grid-template-columns: 1fr;
   }
 
   .planner-section-title {
@@ -631,6 +774,15 @@
   .planner-week-simple button {
     align-self: start;
   }
+
+  .planner-reminder-item {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .planner-reminder-item button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
 }
 
 @media (max-width: 360px) {
@@ -639,66 +791,66 @@
   }
 }
 
-@media (min-width: 760px) {
-  .study-planner-shell {
-    width: var(--sa-page-width-tablet, min(720px, calc(100% - 32px)));
-  }
-}
-
-@media (min-width: 1080px) {
-  .study-planner-shell {
-    width: var(--sa-page-width-desktop, min(880px, calc(100% - 48px)));
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .planner-buddy svg {
     animation: none;
   }
 
-  .planner-actions button,
-  .planner-simple-task button,
   .planner-primary,
+  .planner-secondary,
+  .planner-simple-task button,
+  .planner-reminder-form button,
+  .planner-reminder-item button,
   .planner-week-simple button {
     transition: none;
   }
 }
 
-:root[data-theme="light"] .study-planner-page {
-  --planner-bg: #dce6f4;
+:root[data-theme="light"] .study-planner-page,
+.student-app-shell[data-theme="light"] .study-planner-page {
+  --planner-page-bg:
+    radial-gradient(circle at 78% 4%, rgba(37, 99, 235, 0.12), transparent 30%),
+    radial-gradient(circle at 10% 0%, rgba(20, 184, 166, 0.09), transparent 32%),
+    linear-gradient(180deg, #eef4fc 0%, #e4ecf7 46%, #dce6f4 100%);
   --planner-card: rgba(255, 255, 255, 0.9);
   --planner-card-strong: rgba(255, 255, 255, 0.96);
-  --planner-line: rgba(86, 112, 150, 0.15);
+  --planner-line: rgba(80, 116, 166, 0.14);
   --planner-text: #1b2742;
   --planner-muted: #5f6c86;
   --planner-soft: #8793a8;
-  --planner-cyan: #0891b2;
-  --planner-blue: #2563eb;
-  --planner-orange: #d97706;
-  --planner-red: #dc2626;
+  --planner-blue: #4aa8ff;
+  --planner-blue-deep: #2563eb;
+  --planner-teal: #0891b2;
+  --planner-amber: #d97706;
   --planner-green: #059669;
-  background:
-    radial-gradient(circle at 16% 0%, rgba(37, 99, 235, 0.13), transparent 30%),
-    radial-gradient(circle at 86% 12%, rgba(20, 184, 166, 0.1), transparent 28%),
-    linear-gradient(180deg, #eef4fc 0%, #e4ecf7 46%, #dce6f4 100%) !important;
+  --planner-red: #dc2626;
+  background: var(--planner-page-bg) !important;
   color: var(--planner-text) !important;
 }
 
-:root[data-theme="light"] .student-app-shell .study-planner-page.student-route-page {
-  background:
-    radial-gradient(circle at 16% 0%, rgba(37, 99, 235, 0.13), transparent 30%),
-    radial-gradient(circle at 86% 12%, rgba(20, 184, 166, 0.1), transparent 28%),
-    linear-gradient(180deg, #eef4fc 0%, #e4ecf7 46%, #dce6f4 100%) !important;
-  color: var(--planner-text) !important;
+:root[data-theme="light"] .student-app-shell .study-planner-page.student-route-page,
+.student-app-shell[data-theme="light"] .study-planner-page.student-route-page {
+  background: var(--planner-page-bg) !important;
 }
 
 :root[data-theme="light"] .study-planner-page .lms-topbar,
-:root[data-theme="light"] .planner-top-card,
-:root[data-theme="light"] .planner-goal-simple,
-:root[data-theme="light"] .planner-today-card,
-:root[data-theme="light"] .planner-focus-card,
-:root[data-theme="light"] .planner-week-simple,
-:root[data-theme="light"] .planner-suggestion-card {
+.student-app-shell[data-theme="light"] .study-planner-page .lms-topbar {
+  border-color: rgba(80, 116, 166, 0.14) !important;
+  background: rgba(255, 255, 255, 0.84) !important;
+  box-shadow: 0 18px 42px -32px rgba(37, 99, 235, 0.32) !important;
+}
+
+:root[data-theme="light"] .study-planner-page .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button, .lms-topbar-center > button),
+.student-app-shell[data-theme="light"] .study-planner-page .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button, .lms-topbar-center > button) {
+  border-color: rgba(86, 112, 150, 0.16) !important;
+  background: rgba(255, 255, 255, 0.84) !important;
+  color: var(--planner-text) !important;
+}
+
+:root[data-theme="light"] .planner-hero-card,
+:root[data-theme="light"] .planner-panel,
+.student-app-shell[data-theme="light"] .planner-hero-card,
+.student-app-shell[data-theme="light"] .planner-panel {
   border-color: var(--planner-line) !important;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(246, 249, 254, 0.9)),
@@ -706,70 +858,118 @@
   box-shadow: 0 20px 48px -36px rgba(37, 99, 235, 0.28) !important;
 }
 
+:root[data-theme="light"] .planner-hero-side,
+.student-app-shell[data-theme="light"] .planner-hero-side {
+  background:
+    radial-gradient(circle at 84% 0%, rgba(20, 184, 166, 0.12), transparent 42%),
+    rgba(248, 251, 255, 0.72) !important;
+}
+
+:root[data-theme="light"] .planner-simple-task,
+:root[data-theme="light"] .planner-reminder-item,
+:root[data-theme="light"] .planner-empty-state,
+:root[data-theme="light"] .planner-week-day,
+:root[data-theme="light"] .planner-stat-stack div,
+.student-app-shell[data-theme="light"] .planner-simple-task,
+.student-app-shell[data-theme="light"] .planner-reminder-item,
+.student-app-shell[data-theme="light"] .planner-empty-state,
+.student-app-shell[data-theme="light"] .planner-week-day,
+.student-app-shell[data-theme="light"] .planner-stat-stack div {
+  border-color: rgba(80, 116, 166, 0.13) !important;
+  background: rgba(248, 251, 255, 0.82) !important;
+}
+
+:root[data-theme="light"] .planner-reminder-form input,
+:root[data-theme="light"] .planner-reminder-form textarea,
+.student-app-shell[data-theme="light"] .planner-reminder-form input,
+.student-app-shell[data-theme="light"] .planner-reminder-form textarea {
+  border-color: rgba(80, 116, 166, 0.16) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  color: var(--planner-text) !important;
+}
+
 :root[data-theme="light"] .study-planner-page :where(h1, h2, h3, strong),
-:root[data-theme="light"] .study-planner-page .lms-topbar h1 {
+:root[data-theme="light"] .study-planner-page .lms-topbar h1,
+.student-app-shell[data-theme="light"] .study-planner-page :where(h1, h2, h3, strong),
+.student-app-shell[data-theme="light"] .study-planner-page .lms-topbar h1 {
   color: var(--planner-text) !important;
   -webkit-text-fill-color: var(--planner-text) !important;
 }
 
 :root[data-theme="light"] .study-planner-page :where(p, small),
-:root[data-theme="light"] .study-planner-page .lms-topbar p,
-:root[data-theme="light"] .planner-goal-simple span,
+:root[data-theme="light"] .planner-stat-stack span,
 :root[data-theme="light"] .planner-weak-simple p,
-:root[data-theme="light"] .planner-week-day strong {
+:root[data-theme="light"] .planner-week-day strong,
+.student-app-shell[data-theme="light"] .study-planner-page :where(p, small),
+.student-app-shell[data-theme="light"] .planner-stat-stack span,
+.student-app-shell[data-theme="light"] .planner-weak-simple p,
+.student-app-shell[data-theme="light"] .planner-week-day strong {
   color: var(--planner-muted) !important;
   -webkit-text-fill-color: var(--planner-muted) !important;
 }
 
-:root[data-theme="light"] .study-planner-page .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button, .lms-topbar-center > button),
-:root[data-theme="light"] .planner-actions button,
-:root[data-theme="light"] .planner-week-simple button {
+:root[data-theme="light"] .planner-primary,
+:root[data-theme="light"] .planner-simple-task > button:not(.planner-step),
+:root[data-theme="light"] .planner-reminder-form button,
+.student-app-shell[data-theme="light"] .planner-primary,
+.student-app-shell[data-theme="light"] .planner-simple-task > button:not(.planner-step),
+.student-app-shell[data-theme="light"] .planner-reminder-form button {
+  background: linear-gradient(135deg, #4aa8ff 0%, #2563eb 58%, #6d5dfc 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 28px -18px rgba(37, 99, 235, 0.62) !important;
+}
+
+:root[data-theme="light"] .planner-secondary,
+:root[data-theme="light"] .planner-week-simple button,
+:root[data-theme="light"] .planner-reminder-item button,
+.student-app-shell[data-theme="light"] .planner-secondary,
+.student-app-shell[data-theme="light"] .planner-week-simple button,
+.student-app-shell[data-theme="light"] .planner-reminder-item button {
   border-color: rgba(86, 112, 150, 0.16) !important;
   background: rgba(255, 255, 255, 0.84) !important;
   color: var(--planner-text) !important;
 }
 
-:root[data-theme="light"] .planner-simple-task,
-:root[data-theme="light"] .planner-week-day {
-  border-color: rgba(86, 112, 150, 0.14) !important;
-  background: rgba(255, 255, 255, 0.62) !important;
-}
-
-:root[data-theme="light"] .planner-step {
+:root[data-theme="light"] .planner-step,
+.student-app-shell[data-theme="light"] .planner-step {
   background: rgba(37, 99, 235, 0.1) !important;
   color: #2563eb !important;
 }
 
-:root[data-theme="light"] .planner-task-icon {
+:root[data-theme="light"] .planner-task-icon,
+.student-app-shell[data-theme="light"] .planner-task-icon {
   background: rgba(8, 145, 178, 0.1) !important;
-  color: var(--planner-cyan) !important;
+  color: var(--planner-teal) !important;
 }
 
-:root[data-theme="light"] .planner-buddy span,
-:root[data-theme="light"] .planner-section-title small {
-  border-color: rgba(8, 145, 178, 0.18) !important;
-  background: rgba(8, 145, 178, 0.08) !important;
-  color: var(--planner-cyan) !important;
+:root[data-theme="light"] .planner-reminder-item > span,
+.student-app-shell[data-theme="light"] .planner-reminder-item > span {
+  background: rgba(217, 119, 6, 0.1) !important;
+  color: var(--planner-amber) !important;
 }
 
-:root[data-theme="light"] .planner-goal-bar,
-:root[data-theme="light"] .planner-weak-simple i {
-  background: rgba(86, 112, 150, 0.13) !important;
+:root[data-theme="light"] .planner-week-day.is-today,
+.student-app-shell[data-theme="light"] .planner-week-day.is-today {
+  border-color: rgba(8, 145, 178, 0.26) !important;
+  background: rgba(236, 254, 255, 0.86) !important;
 }
 
-:root[data-theme="light"] .planner-goal-bar b {
-  background: #1b2742 !important;
-  box-shadow: 0 0 14px rgba(37, 99, 235, 0.3) !important;
+:root[data-theme="light"] .planner-week-day.is-planned,
+.student-app-shell[data-theme="light"] .planner-week-day.is-planned {
+  border-color: rgba(217, 119, 6, 0.22) !important;
+  background: rgba(255, 251, 235, 0.86) !important;
 }
 
-:root[data-theme="light"] .planner-message {
+:root[data-theme="light"] .planner-message,
+.student-app-shell[data-theme="light"] .planner-message {
   border-color: rgba(5, 150, 105, 0.18) !important;
   background: rgba(5, 150, 105, 0.08) !important;
   color: #047857 !important;
 }
 
-:root[data-theme="light"] .planner-plain-note {
-  border-color: rgba(217, 119, 6, 0.18) !important;
-  background: rgba(217, 119, 6, 0.08) !important;
-  color: #92400e !important;
+:root[data-theme="light"] .planner-plain-note,
+.student-app-shell[data-theme="light"] .planner-plain-note {
+  border-color: rgba(37, 99, 235, 0.15) !important;
+  background: rgba(37, 99, 235, 0.065) !important;
+  color: #1d4ed8 !important;
 }

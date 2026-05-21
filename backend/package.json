@@ -5,6 +5,8 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "test": "npm run build",
+    "test:smoke": "npm run build",
     "migrate": "node scripts/migrate.mjs",
     "push:vapid": "node scripts/generate-vapid-keys.mjs",
     "start": "nest start",

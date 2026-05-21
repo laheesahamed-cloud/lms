@@ -27,7 +27,7 @@ export function StudentNotificationsPage() {
   const unreadItems = useMemo(() => sortLatestNotifications(items.filter((item) => !item.read)), [items]);
   const visibleItems = unreadItems.length ? unreadItems.slice(0, 5) : sortLatestNotifications(items);
 
-  return <main className={ui.studentScreenShell}><section className={ui.studentManagementLayout}>
+  return <main className="dashboard-page study-hub-page student-notifications-page"><section className="study-hub-shell">
     <AppHeader title="Notifications" subtitle="Message Inbox" />
     <section className="grid gap-3">
       {unreadItems.length > 5 ? (

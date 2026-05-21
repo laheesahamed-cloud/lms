@@ -641,9 +641,9 @@ function PickPhase({ notes, loading, error, onStartNote, onStartMixed, starting 
   const courseNames = Object.keys(groups);
 
   return (
-    <main className={ui.studentScreenShell}>
+    <main className="dashboard-page study-hub-page student-flashcards-page">
       <style>{ANIM_CSS}</style>
-      <section className={ui.studentManagementLayout}>
+      <section className="study-hub-shell">
         <AppHeader
           title="Flashcards"
           subtitle="Recall Practice"
@@ -780,9 +780,9 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
   }, []);
 
   return (
-    <main className={ui.studentScreenShell}>
+    <main className="dashboard-page study-hub-page student-flashcards-page">
       <style>{ANIM_CSS}</style>
-      <section className={ui.studentManagementLayout}>
+      <section className="study-hub-shell">
 
         {/* Header */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-1 px-5 py-3.5 shadow-xs fc-fade-up">
@@ -928,9 +928,9 @@ function ResultPhase({ quiz, result, onRetry, onRetryMissed, onBack }) {
   const circumference = 2 * Math.PI * 34;
 
   return (
-    <main className={ui.studentScreenShell}>
+    <main className="dashboard-page study-hub-page student-flashcards-page">
       <style>{ANIM_CSS}</style>
-      <section className={ui.studentManagementLayout}>
+      <section className="study-hub-shell">
         <div className="flex flex-col items-center px-5 py-12 text-center">
 
           <div className="mb-5 grid size-20 place-items-center rounded-2xl fc-scale-in"

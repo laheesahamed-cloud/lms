@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Headers, Post, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { DashboardService } from './dashboard.service';
 import { RecordStudyActivityDto } from './dto/record-study-activity.dto';
 
@@ -9,6 +10,7 @@ export class DashboardController {
 
   @Get('admin')
   @UseGuards(AdminGuard)
+  @RequirePermissions('reports.view')
   getAdminDashboard() {
     return this.dashboardService.getAdminDashboard();
   }

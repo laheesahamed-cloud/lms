@@ -518,8 +518,8 @@ export function StudentBillingPage() {
   }
 
   return (
-    <main className={ui.studentScreenShell}>
-      <section className={ui.studentManagementLayout}>
+    <main className="dashboard-page study-hub-page student-billing-page">
+      <section className="study-hub-shell">
         <AppHeader
           title="Subscriptions"
           subtitle="Plan Access"

@@ -138,9 +138,11 @@
   box-shadow: var(--sa-shadow-card);
 }
 
-.student-app-shell .student-course-card--simple:hover {
-  transform: translateY(-2px);
-  background: var(--sa-surface-2);
+@media (hover: hover) and (pointer: fine) {
+  .student-app-shell .student-course-card--simple:hover {
+    transform: translateY(-2px);
+    background: var(--sa-surface-2);
+  }
 }
 
 .student-app-shell .student-course-card--cardio {
@@ -178,8 +180,10 @@
   --course-accent-2-rgb: 245, 158, 11;
 }
 
-.student-app-shell .student-course-card:hover {
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .student-app-shell .student-course-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .student-app-shell .student-course-card__media {
@@ -272,9 +276,18 @@
   color: var(--sa-primary);
 }
 
-.student-app-shell .student-course-card:hover .student-course-card__cta {
-  border-color: rgba(var(--course-accent-rgb), 0.3);
-  background: rgba(var(--course-accent-rgb), 0.14);
+@media (hover: hover) and (pointer: fine) {
+  .student-app-shell .student-course-card:hover .student-course-card__cta {
+    border-color: rgba(var(--course-accent-rgb), 0.3);
+    background: rgba(var(--course-accent-rgb), 0.14);
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .student-app-shell .student-course-card:hover,
+  .student-app-shell .student-course-card--simple:hover {
+    transform: none !important;
+  }
 }
 
 .student-app-shell .student-course-card .rounded-2xl.border {
@@ -564,6 +577,12 @@
 }
 
 .student-app-shell .course-map-unit {
+  --course-map-accent-rgb: var(--sa-primary-rgb);
+  --course-map-accent: var(--sa-primary);
+  --course-map-accent-bg: var(--sa-surface);
+  --course-map-accent-soft: var(--sa-primary-soft);
+  --course-map-accent-border: rgba(var(--sa-primary-rgb), 0.24);
+  position: relative;
   border: 1px solid var(--sa-border);
   border-radius: 22px;
   background: var(--sa-surface);
@@ -583,7 +602,9 @@
 }
 
 .student-app-shell .course-map-unit--simple .course-map-unit__head {
-  background: var(--sa-surface);
+  background:
+    linear-gradient(135deg, var(--course-map-accent-soft), transparent 62%),
+    var(--sa-surface);
 }
 
 .student-app-shell .course-map-unit__title {
@@ -600,8 +621,8 @@
   height: 42px;
   place-items: center;
   border-radius: 15px;
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
+  background: var(--course-map-accent-soft);
+  color: var(--course-map-accent);
   font-size: 14px;
   font-weight: 950;
 }
@@ -609,7 +630,7 @@
 .student-app-shell .course-map-unit h3,
 .student-app-shell .course-map-topic h4 {
   margin: 0;
-  color: var(--sa-ink);
+  color: var(--course-map-accent, var(--sa-ink));
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -647,19 +668,72 @@
 }
 
 .student-app-shell .course-map-topics {
-  padding: 14px;
+  position: relative;
+  padding: 16px 14px 14px 32px;
+}
+
+.student-app-shell .course-map-topics::before {
+  position: absolute;
+  top: 0;
+  left: 19px;
+  width: 28px;
+  height: 32px;
+  border-bottom: 2px solid rgba(var(--course-map-accent-rgb), 0.28);
+  border-left: 2px solid rgba(var(--course-map-accent-rgb), 0.28);
+  border-bottom-left-radius: 24px;
+  content: "";
+}
+
+:root[data-theme="light"] .student-app-shell .course-map-topics::before,
+.student-app-shell[data-theme="light"] .course-map-topics::before {
+  border-bottom-color: rgba(var(--course-map-accent-rgb), 0.38);
+  border-left-color: rgba(var(--course-map-accent-rgb), 0.38);
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.82));
 }
 
 .student-app-shell .course-map-topic {
+  position: relative;
   border: 1px solid var(--sa-border);
   border-radius: 18px;
-  background: var(--sa-surface-2);
-  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(var(--course-map-accent-rgb), 0.045), transparent 58%),
+    var(--sa-surface-2);
+  border-color: var(--course-map-accent-border);
+  overflow: visible;
+}
+
+.student-app-shell .course-map-topic::before {
+  position: absolute;
+  top: 24px;
+  left: -18px;
+  width: 20px;
+  height: 20px;
+  border-bottom: 2px solid rgba(var(--course-map-accent-rgb), 0.34);
+  border-left: 2px solid rgba(var(--course-map-accent-rgb), 0.34);
+  border-bottom-left-radius: 18px;
+  content: "";
+}
+
+.student-app-shell .course-map-topic::after {
+  position: absolute;
+  top: 40px;
+  left: -4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(var(--course-map-accent-rgb), 0.86);
+  box-shadow: 0 0 8px rgba(var(--course-map-accent-rgb), 0.24);
+  content: "";
+  opacity: 0;
+  animation: courseMapTopicPulse 3.2s linear infinite;
 }
 
 .student-app-shell .course-map-topic__head {
   padding: 13px 14px;
   border-bottom: 1px solid var(--sa-border);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  background: rgba(var(--course-map-accent-rgb), 0.035);
 }
 
 .student-app-shell .course-map-topic__head > div:first-child {
@@ -668,7 +742,7 @@
 
 .student-app-shell .course-map-topic__head > div:first-child span {
   display: block;
-  color: var(--sa-primary);
+  color: var(--course-map-accent);
   font-size: 11px;
   font-weight: 900;
 }
@@ -694,10 +768,24 @@
 }
 
 .student-app-shell .course-map-lessons {
-  padding: 10px;
+  position: relative;
+  padding: 12px 10px 10px 28px;
+}
+
+.student-app-shell .course-map-lessons::before {
+  position: absolute;
+  top: 0;
+  left: 16px;
+  width: 24px;
+  height: 26px;
+  border-bottom: 2px solid rgba(var(--course-map-accent-rgb), 0.24);
+  border-left: 2px solid rgba(var(--course-map-accent-rgb), 0.24);
+  border-bottom-left-radius: 18px;
+  content: "";
 }
 
 .student-app-shell .course-map-lesson-row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 92px 96px;
   align-items: center;
@@ -709,8 +797,40 @@
   background: var(--sa-surface);
 }
 
+.student-app-shell .course-map-lesson-row::before {
+  position: absolute;
+  top: 50%;
+  left: -22px;
+  width: 24px;
+  height: 18px;
+  border-bottom: 2px solid rgba(var(--course-map-accent-rgb), 0.34);
+  border-left: 2px solid rgba(var(--course-map-accent-rgb), 0.34);
+  border-bottom-left-radius: 18px;
+  content: "";
+  transform: translateY(-50%);
+}
+
+.student-app-shell .course-map-lesson-row::after {
+  position: absolute;
+  top: 50%;
+  left: -21px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(var(--course-map-accent-rgb), 0.9);
+  box-shadow: 0 0 8px rgba(var(--course-map-accent-rgb), 0.28);
+  content: "";
+  opacity: 0;
+  transform: translate(-1px, -10px);
+  animation: courseMapLessonPulse 3.2s linear infinite;
+  animation-delay: var(--course-map-lesson-delay, 0ms);
+}
+
 .student-app-shell .course-map-lesson-row.is-active {
-  border-color: rgba(var(--sa-primary-rgb), 0.3);
+  border-color: rgba(var(--course-map-accent-rgb), 0.34);
+  background:
+    linear-gradient(135deg, rgba(var(--course-map-accent-rgb), 0.06), transparent 60%),
+    var(--sa-surface);
 }
 
 .student-app-shell .course-map-lesson-row.is-done {
@@ -723,7 +843,7 @@
 
 .student-app-shell .course-map-lesson-title {
   display: grid;
-  grid-template-columns: auto 34px minmax(0, 1fr) auto;
+  grid-template-columns: 58px 34px minmax(0, 1fr) auto;
   align-items: center;
   justify-self: stretch;
   gap: 10px;
@@ -738,9 +858,11 @@
 }
 
 .student-app-shell .course-map-lesson-title > span:first-child {
+  min-width: 0;
   color: var(--sa-text-3);
   font-size: 12px;
   font-weight: 900;
+  text-align: right;
   white-space: nowrap;
 }
 
@@ -750,8 +872,8 @@
   height: 34px;
   place-items: center;
   border-radius: 13px;
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
+  background: var(--course-map-accent-soft);
+  color: var(--course-map-accent);
 }
 
 .student-app-shell .course-map-lesson-row.is-done .course-map-lesson-glyph {
@@ -824,6 +946,60 @@
 .student-app-shell .course-map-lesson-title:disabled {
   cursor: wait;
   opacity: 0.62;
+}
+
+@keyframes courseMapTopicPulse {
+  0%,
+  34% {
+    opacity: 0;
+    transform: translate(-4px, -14px);
+  }
+  48% {
+    opacity: 0.78;
+    transform: translate(-7px, -6px);
+  }
+  64% {
+    opacity: 0.92;
+    transform: translate(2px, 2px);
+  }
+  82%,
+  100% {
+    opacity: 0;
+    transform: translate(16px, 2px);
+  }
+}
+
+@keyframes courseMapLessonPulse {
+  0%,
+  26% {
+    opacity: 0;
+    transform: translate(-1px, -10px);
+  }
+  40% {
+    opacity: 0.85;
+    transform: translate(-5px, -4px);
+  }
+  56% {
+    opacity: 0.95;
+    transform: translate(2px, 5px);
+  }
+  72% {
+    opacity: 0.74;
+    transform: translate(14px, 5px);
+  }
+  86%,
+  100% {
+    opacity: 0;
+    transform: translate(23px, 5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-app-shell .course-map-topic::after,
+  .student-app-shell .course-map-lesson-row::after {
+    animation: none;
+    opacity: 0.32;
+  }
 }
 
 @media (max-width: 900px) {
@@ -908,7 +1084,7 @@
   }
 
   .student-app-shell .course-map-lesson-title {
-    grid-template-columns: auto 30px minmax(0, 1fr);
+    grid-template-columns: 42px 30px minmax(0, 1fr);
     gap: 8px;
   }
 

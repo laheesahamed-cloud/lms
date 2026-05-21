@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
@@ -12,12 +13,14 @@ export class LessonsController {
 
   @Get('meta')
   @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
   getMeta() {
     return this.lessonsService.getMeta();
   }
 
   @Get('admin')
   @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
   findAdminList(
     @Query('search') search?: string,
     @Query('courseId') courseId?: string,
@@ -82,18 +85,21 @@ export class LessonsController {
 
   @Post()
   @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
   create(@Body() createLessonDto: CreateLessonDto) {
     return this.lessonsService.create(createLessonDto);
   }
 
   @Patch(':id')
   @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
   update(@Param('id', ParseIntPipe) id: number, @Body() updateLessonDto: UpdateLessonDto) {
     return this.lessonsService.update(id, updateLessonDto);
   }
 
   @Delete(':id')
   @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.lessonsService.remove(id);
   }

@@ -514,6 +514,14 @@ export class QuestionsService {
 
       await this.replaceOptions(connection, result.insertId, createQuestionDto.options, createQuestionDto.questionType);
       await this.syncQuestionKeywords(connection, result.insertId, createQuestionDto.keywordsText);
+      await this.recordContentVersion(connection, 'question', result.insertId, this.buildQuestionSnapshot(createQuestionDto));
+      await this.recordContentAudit(connection, {
+        entityType: 'question',
+        entityId: result.insertId,
+        action: 'created',
+        summary: `Question ${result.insertId} created`,
+        after: this.buildQuestionSnapshot(createQuestionDto),
+      });
 
       await connection.commit();
       return { ok: true, id: result.insertId };
@@ -596,6 +604,15 @@ export class QuestionsService {
 
       await this.replaceOptions(connection, id, merged.options, merged.questionType);
       await this.syncQuestionKeywords(connection, id, merged.keywordsText);
+      await this.recordContentVersion(connection, 'question', id, this.buildQuestionSnapshot(merged));
+      await this.recordContentAudit(connection, {
+        entityType: 'question',
+        entityId: id,
+        action: 'updated',
+        summary: `Question ${id} updated`,
+        before: existing,
+        after: this.buildQuestionSnapshot(merged),
+      });
 
       await connection.commit();
       return { ok: true, id };
@@ -608,8 +625,25 @@ export class QuestionsService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    await this.db.execute('DELETE FROM questions WHERE id = ?', [id]);
+    const existing = await this.findOne(id);
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.execute('DELETE FROM questions WHERE id = ?', [id]);
+      await this.recordContentAudit(connection, {
+        entityType: 'question',
+        entityId: id,
+        action: 'deleted',
+        summary: `Question ${id} deleted`,
+        before: existing,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
     return { ok: true, id };
   }
 
@@ -662,6 +696,13 @@ export class QuestionsService {
         `DELETE FROM questions WHERE id IN (${placeholders})`,
         questionIds
       );
+      await this.recordContentAudit(connection, {
+        entityType: 'question',
+        entityId: 0,
+        action: 'bulk_deleted',
+        summary: `${result.affectedRows} question(s) deleted`,
+        before: { questionIds },
+      });
       await connection.commit();
 
       return {
@@ -723,6 +764,14 @@ export class QuestionsService {
           [keywordsText, Number(row.id)]
         );
         await this.syncQuestionKeywords(connection, Number(row.id), keywordsText);
+        await this.recordContentAudit(connection, {
+          entityType: 'question',
+          entityId: Number(row.id),
+          action: 'keywords_updated',
+          summary: `Question ${row.id} keywords updated`,
+          before: { keywordsText: String(row.keywords_text || '') },
+          after: { keywordsText },
+        });
       }
 
       await connection.commit();
@@ -754,6 +803,72 @@ export class QuestionsService {
     if (question.paperId) {
       await this.ensureExists('papers', question.paperId, 'Selected paper was not found');
     }
+  }
+
+  private buildQuestionSnapshot(question: CreateQuestionDto) {
+    return {
+      courseId: question.courseId,
+      subjectId: question.subjectId,
+      topicId: question.topicId ?? null,
+      lessonId: question.lessonId ?? null,
+      paperId: question.paperId ?? null,
+      topicLabel: question.topicLabel || '',
+      category: question.category,
+      questionType: question.questionType,
+      questionText: question.questionText,
+      keywordsText: this.normalizeKeywords(question.keywordsText),
+      explanation: question.explanation || '',
+      status: question.status,
+      options: (question.options || []).map((option) => ({
+        optionLabel: option.optionLabel,
+        optionText: option.optionText,
+        isCorrect: Number(option.isCorrect) === 1 ? 1 : 0,
+        whyIncorrect: option.whyIncorrect || option.why_incorrect || '',
+      })),
+    };
+  }
+
+  private async recordContentVersion(
+    connection: PoolConnection,
+    entityType: string,
+    entityId: number,
+    snapshot: unknown
+  ) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      'SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?',
+      [entityType, entityId]
+    );
+    const versionNumber = Number(rows[0]?.next_version || 1);
+    await connection.execute(
+      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json) VALUES (?, ?, ?, ?)',
+      [entityType, entityId, versionNumber, JSON.stringify(snapshot)]
+    );
+  }
+
+  private async recordContentAudit(
+    connection: PoolConnection,
+    event: {
+      entityType: string;
+      entityId: number;
+      action: string;
+      summary: string;
+      before?: unknown;
+      after?: unknown;
+    }
+  ) {
+    await connection.execute(
+      `INSERT INTO content_audit_events
+        (entity_type, entity_id, action, summary, before_json, after_json)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        event.entityType,
+        event.entityId,
+        event.action,
+        event.summary,
+        event.before === undefined ? null : JSON.stringify(event.before),
+        event.after === undefined ? null : JSON.stringify(event.after),
+      ]
+    );
   }
 
   private async ensureExists(tableName: string, id: number, message: string) {
