@@ -10,6 +10,7 @@ import { fetchAdminReports } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { formatPaymentStatus } from '../../../../shared/utils/paymentStatus.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../../../../shared/utils/userIdentity.js';
 
 const emptyFilters = {
@@ -187,7 +188,7 @@ function buildFinanceReportHtml({ filters, summary, subscriptions, requests, pla
     filters.startDate ? `From ${filters.startDate}` : 'From beginning',
     filters.endDate ? `To ${filters.endDate}` : 'To today',
     filters.search ? `Search: ${filters.search}` : '',
-    filters.paymentStatus ? `Payment: ${filters.paymentStatus}` : '',
+    filters.paymentStatus ? `Payment: ${formatPaymentStatus(filters.paymentStatus)}` : '',
     filters.subscriptionStatus ? `Subscription: ${filters.subscriptionStatus}` : '',
   ].filter(Boolean).join(' | ');
 
@@ -253,7 +254,7 @@ function buildFinanceReportHtml({ filters, summary, subscriptions, requests, pla
     <tbody>${renderRows(subscriptions.slice(0, 24), [
       { render: (row) => getAdminUserIdentifier(row, 'Student') },
       { render: (row) => row.planName || '-' },
-      { render: (row) => row.paymentStatus || '-' },
+      { render: (row) => formatPaymentStatus(row.paymentStatus) },
       { render: (row) => formatOptionalCurrency(row.planCurrency, row.amountPaid) },
       { render: (row) => row.paymentDate || row.createdAt || row.startDate || '-' },
     ])}</tbody>
@@ -432,7 +433,7 @@ export function AdminFinancePage() {
         addCurrencyTotal(activeValueTotals, currency, expected);
       }
 
-      if (!['paid', 'waived'].includes(subscription.paymentStatus)) {
+      if (!['paid', 'waived', 'free_plan'].includes(subscription.paymentStatus)) {
         unpaidSubscriptions += 1;
         addCurrencyTotal(receivableTotals, currency, Math.max(0, expected - amountPaid));
       }
@@ -622,7 +623,7 @@ export function AdminFinancePage() {
                 <option value="paid">Paid</option>
                 <option value="manual">Manual</option>
                 <option value="unpaid">Unpaid</option>
-                <option value="waived">Waived</option>
+                <option value="free_plan">Free Plan</option>
               </select>
             </label>
             <label className={ui.formLabel}>
@@ -679,12 +680,12 @@ export function AdminFinancePage() {
                 <div className={financeUi.row} key={subscription.id}>
                   <div className={financeUi.rowMain}>
                     <strong>{getAdminUserIdentifier(subscription, 'Student')}</strong>
-                    <span>{subscription.planName || 'Subscription'} - {subscription.paymentMethod || subscription.paymentStatus || 'Payment'}</span>
+                    <span>{subscription.planName || 'Subscription'} - {subscription.paymentMethod || formatPaymentStatus(subscription.paymentStatus, 'Payment')}</span>
                     <span>{subscription.paymentReference || getAdminUserSecondaryIdentifier(subscription) || 'No reference'}</span>
                   </div>
                   <div className={financeUi.rowStat}>
                     <strong>{formatOptionalCurrency(subscription.planCurrency, subscription.amountPaid)}</strong>
-                    <span className={statusPill(subscription.paymentStatus)}>{subscription.paymentStatus || 'payment'}</span>
+                    <span className={statusPill(subscription.paymentStatus)}>{formatPaymentStatus(subscription.paymentStatus, 'Payment')}</span>
                     <span>{dateOnly(subscription.paymentDate || subscription.createdAt || subscription.startDate)}</span>
                   </div>
                 </div>
@@ -718,12 +719,12 @@ export function AdminFinancePage() {
               {paymentBreakdown.map((item) => (
                 <div className={financeUi.row} key={item.status}>
                   <div className={financeUi.rowMain}>
-                    <strong>{item.status}</strong>
+                    <strong>{formatPaymentStatus(item.status)}</strong>
                     <span>{item.count} subscription payment record(s)</span>
                   </div>
                   <div className={financeUi.rowStat}>
                     <strong>{formatCurrencyTotals(item.totals)}</strong>
-                    <span className={statusPill(item.status)}>{item.status}</span>
+                    <span className={statusPill(item.status)}>{formatPaymentStatus(item.status)}</span>
                   </div>
                 </div>
               ))}

@@ -84,6 +84,8 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'user_subscriptions', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER receipt_url");
       await this.ensureColumn(connection, 'user_subscriptions', 'course_ids_json', 'TEXT NULL AFTER access_scope');
       await this.ensureColumn(connection, 'user_subscriptions', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
+      await this.ensureFreePlanPaymentStatus(connection);
+      await this.ensureUnlimitedFreePlanDates(connection);
       await this.ensureColumn(connection, 'subscription_requests', 'invoice_id', 'VARCHAR(20) NULL AFTER plan_id');
       await this.ensureColumn(connection, 'subscription_requests', 'payment_method', 'VARCHAR(80) NULL AFTER message');
       await this.ensureColumn(connection, 'subscription_requests', 'payment_reference', 'VARCHAR(191) NULL AFTER payment_method');
@@ -229,7 +231,7 @@ export class SchemaSyncService implements OnModuleInit {
         assigned_by INT NULL,
         notes TEXT NULL,
         status ENUM('active', 'pending', 'expired', 'cancelled') NOT NULL DEFAULT 'active',
-        payment_status ENUM('manual', 'paid', 'unpaid', 'waived') NOT NULL DEFAULT 'manual',
+        payment_status ENUM('manual', 'paid', 'unpaid', 'free_plan') NOT NULL DEFAULT 'manual',
         amount_paid DECIMAL(10, 2) NULL,
         payment_method VARCHAR(80) NULL,
         payment_reference VARCHAR(191) NULL,
@@ -1087,6 +1089,40 @@ export class SchemaSyncService implements OnModuleInit {
 
     await connection.execute(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
     this.logger.log(`Added ${tableName}.${columnName}`);
+  }
+
+  private async ensureFreePlanPaymentStatus(connection: PoolConnection) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `
+        SELECT COLUMN_TYPE
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_subscriptions' AND COLUMN_NAME = 'payment_status'
+        LIMIT 1
+      `
+    );
+    const columnType = String(rows[0]?.COLUMN_TYPE || '');
+    if (columnType.includes("'free_plan'") && !columnType.includes("'waived'")) {
+      return;
+    }
+
+    await connection.execute(
+      "ALTER TABLE user_subscriptions MODIFY payment_status ENUM('manual','paid','unpaid','waived','free_plan') NOT NULL DEFAULT 'manual'"
+    );
+    await connection.execute("UPDATE user_subscriptions SET payment_status = 'free_plan' WHERE payment_status = 'waived'");
+    await connection.execute(
+      "ALTER TABLE user_subscriptions MODIFY payment_status ENUM('manual','paid','unpaid','free_plan') NOT NULL DEFAULT 'manual'"
+    );
+    this.logger.log('Renamed user_subscriptions.payment_status waived to free_plan');
+  }
+
+  private async ensureUnlimitedFreePlanDates(connection: PoolConnection) {
+    await connection.execute(
+      `UPDATE user_subscriptions us
+       INNER JOIN plans p ON p.id = us.plan_id
+       SET us.end_date = '9999-12-31'
+       WHERE us.payment_status = 'free_plan'
+          OR (p.slug = 'free' AND p.price = 0)`
+    );
   }
 
   private async ensureIndex(connection: PoolConnection, tableName: string, indexName: string, columnName: string) {

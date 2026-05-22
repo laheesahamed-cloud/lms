@@ -31,8 +31,8 @@ export class AssignSubscriptionDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['manual', 'paid', 'unpaid', 'waived'])
-  paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'waived';
+  @IsIn(['manual', 'paid', 'unpaid', 'free_plan'])
+  paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'free_plan';
 
   @Type(() => Number)
   @IsNumber()

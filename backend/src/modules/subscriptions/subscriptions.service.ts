@@ -19,7 +19,7 @@ type SubscriptionRow = RowDataPacket & {
   assigned_by: number | null;
   notes: string | null;
   status: 'active' | 'pending' | 'expired' | 'cancelled';
-  payment_status: 'manual' | 'paid' | 'unpaid' | 'waived';
+  payment_status: 'manual' | 'paid' | 'unpaid' | 'free_plan';
   amount_paid: string | number | null;
   payment_method: string | null;
   payment_reference: string | null;
@@ -129,6 +129,8 @@ type SubscriptionCouponRow = RowDataPacket & {
 
 @Injectable()
 export class SubscriptionsService {
+  private readonly unlimitedFreePlanEndDate = '9999-12-31';
+
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly plansService: PlansService,
@@ -211,9 +213,11 @@ export class SubscriptionsService {
     const student = await this.getStudentOrThrow(dto.userId);
     const plan = await this.plansService.findById(dto.planId);
     const startDate = this.normalizeDate(dto.startDate) || this.toDateOnly(new Date());
-    const endDate = this.normalizeDate(dto.endDate) || this.addDays(startDate, Math.max(1, plan.durationDays) - 1);
     const status = dto.status || 'active';
-    const paymentStatus = dto.paymentStatus || 'manual';
+    const paymentStatus = this.isFreePlan(plan) ? 'free_plan' : dto.paymentStatus || 'manual';
+    const endDate = this.isFreePlanAssignment(paymentStatus, plan)
+      ? this.unlimitedFreePlanEndDate
+      : this.normalizeDate(dto.endDate) || this.addDays(startDate, Math.max(1, plan.durationDays) - 1);
     const scope = this.normalizeAccessScope(dto.accessScope, dto.courseIds, dto.lessonIds);
 
     if (endDate < startDate) {
@@ -546,7 +550,8 @@ export class SubscriptionsService {
 
     return {
       currentSubscription: currentRows[0] ? await this.mapSubscription(currentRows[0]) : null,
-      history: await Promise.all(historyRows.map((row) => this.mapSubscription(row))),
+      history: (await Promise.all(historyRows.map((row) => this.mapSubscription(row))))
+        .filter((subscription) => !subscription.isFreePlan),
       availablePlans,
       requests: await this.findStudentRequests(userId),
       payment: await this.settingsService.getStudentPaymentSettings(),
@@ -759,7 +764,7 @@ export class SubscriptionsService {
     const discountAmount = coupon ? coupon.discountAmount : 0;
     const payableAmount = Math.max(0, amount - discountAmount);
     if (payableAmount <= 0) {
-      throw new BadRequestException('Coupon cannot reduce a PayHere checkout to zero. Use manual admin assignment for fully waived access.');
+      throw new BadRequestException('Coupon cannot reduce a PayHere checkout to zero. Use manual admin assignment for Free Plan access.');
     }
 
     const currency = settings.currency || String(plan.currency || 'LKR').toUpperCase();
@@ -967,12 +972,15 @@ export class SubscriptionsService {
     return { ok: true, id };
   }
 
-  async renewSubscription(id: number, dto: { planId: number; startDate?: string; endDate?: string; notes?: string; paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'waived' }, adminId: number) {
+  async renewSubscription(id: number, dto: { planId: number; startDate?: string; endDate?: string; notes?: string; paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'free_plan' }, adminId: number) {
     const existing = await this.getSubscriptionOrThrow(id);
     const plan = await this.plansService.findById(dto.planId);
     const startBase = this.normalizeDate(dto.startDate) || this.addDays(String(existing.end_date), 1);
     const startDate = startBase < this.toDateOnly(new Date()) ? this.toDateOnly(new Date()) : startBase;
-    const endDate = this.normalizeDate(dto.endDate) || this.addDays(startDate, Math.max(1, plan.durationDays) - 1);
+    const paymentStatus = this.isFreePlan(plan) ? 'free_plan' : dto.paymentStatus || 'manual';
+    const endDate = this.isFreePlanAssignment(paymentStatus, plan)
+      ? this.unlimitedFreePlanEndDate
+      : this.normalizeDate(dto.endDate) || this.addDays(startDate, Math.max(1, plan.durationDays) - 1);
     if (endDate < startDate) {
       throw new BadRequestException('End date cannot be earlier than start date');
     }
@@ -983,7 +991,7 @@ export class SubscriptionsService {
       assignedBy: adminId,
       notes: dto.notes || `Renewed from subscription #${id}`,
       status: 'active',
-      paymentStatus: dto.paymentStatus || 'manual',
+      paymentStatus,
       startDate,
       endDate,
       cancelExisting: true,
@@ -1024,7 +1032,7 @@ export class SubscriptionsService {
   }
 
   async updatePayment(id: number, dto: {
-    paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'waived';
+    paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'free_plan';
     amountPaid?: number;
     paymentMethod?: string;
     paymentReference?: string;
@@ -1103,7 +1111,7 @@ export class SubscriptionsService {
     assignedBy: number | null;
     notes?: string;
     status: 'active' | 'pending' | 'expired' | 'cancelled';
-    paymentStatus: 'manual' | 'paid' | 'unpaid' | 'waived';
+    paymentStatus: 'manual' | 'paid' | 'unpaid' | 'free_plan';
     startDate: string;
     endDate: string;
     amountPaid?: number;
@@ -1154,7 +1162,7 @@ export class SubscriptionsService {
           JSON.stringify(input.courseIds || []),
           JSON.stringify(input.lessonIds || []),
           input.startDate,
-          input.endDate,
+          this.isFreePlanPaymentStatus(input.paymentStatus) ? this.unlimitedFreePlanEndDate : input.endDate,
         ]
       );
 
@@ -1445,8 +1453,10 @@ export class SubscriptionsService {
     const endDate = this.dateValueToText(row.end_date);
     const end = new Date(`${endDate}T00:00:00`);
     const today = new Date(`${this.toDateOnly(new Date())}T00:00:00`);
-    const daysRemaining = Math.floor((end.getTime() - today.getTime()) / 86400000) + 1;
-    const computedStatus = row.status === 'active' && daysRemaining <= 0 ? 'expired' : row.status;
+    const rawDaysRemaining = Math.floor((end.getTime() - today.getTime()) / 86400000) + 1;
+    const isFreePlan = this.isFreePlanAssignment(row.payment_status, plan);
+    const daysRemaining = isFreePlan ? null : rawDaysRemaining;
+    const computedStatus = row.status === 'active' && !isFreePlan && rawDaysRemaining <= 0 ? 'expired' : row.status;
 
     return {
       id: Number(row.id),
@@ -1457,6 +1467,8 @@ export class SubscriptionsService {
       status: row.status,
       computedStatus,
       paymentStatus: row.payment_status,
+      isFreePlan,
+      isUnlimitedAccess: isFreePlan,
       amountPaid: row.amount_paid === null || row.amount_paid === undefined ? null : Number(row.amount_paid),
       paymentMethod: String(row.payment_method || ''),
       paymentReference: String(row.payment_reference || ''),
@@ -1468,7 +1480,7 @@ export class SubscriptionsService {
       startDate,
       endDate,
       daysRemaining,
-      isExpiringSoon: computedStatus === 'active' && daysRemaining > 0 && daysRemaining <= 7,
+      isExpiringSoon: !isFreePlan && computedStatus === 'active' && Number(daysRemaining) > 0 && Number(daysRemaining) <= 7,
       createdAt: this.timestampValueToText(row.created_at),
       updatedAt: this.timestampValueToText(row.updated_at),
       studentName: String(row.student_name || ''),
@@ -1493,6 +1505,20 @@ export class SubscriptionsService {
   private normalizePaymentCurrency(value?: string | null) {
     void value;
     return 'LKR';
+  }
+
+  private isFreePlanPaymentStatus(value: unknown) {
+    const status = String(value || '').trim().toLowerCase();
+    return status === 'free_plan' || status === 'free' || status === 'waived';
+  }
+
+  private isFreePlan(plan: { slug?: string; name?: string; effectivePrice?: number }) {
+    return String(plan?.slug || '').toLowerCase() === 'free'
+      || (String(plan?.name || '').trim().toLowerCase() === 'free' && Number(plan?.effectivePrice || 0) <= 0);
+  }
+
+  private isFreePlanAssignment(paymentStatus: unknown, plan: { slug?: string; name?: string; effectivePrice?: number }) {
+    return this.isFreePlanPaymentStatus(paymentStatus) || this.isFreePlan(plan);
   }
 
   private generateCheckoutHash(merchantId: string, orderId: string, amount: string, currency: string, merchantSecret: string) {

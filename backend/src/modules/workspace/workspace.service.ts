@@ -145,15 +145,18 @@ export class WorkspaceService {
         createdAt: row.answered_at || null,
         actionPath: '/doubts',
       })),
-      ...subscriptionRows.map((row) => ({
-        id: `subscription-${String(row.status)}-${String(row.updated_at)}`,
-        kind: 'subscription',
-        title: `${String(row.plan_name || 'Subscription')} ${String(row.status || 'updated')}`,
-        body: `Payment: ${String(row.payment_status || 'manual')}${row.end_date ? ` · Valid until ${String(row.end_date).slice(0, 10)}` : ''}`,
-        read: true,
-        createdAt: row.updated_at || null,
-        actionPath: '/subscriptions',
-      })),
+      ...subscriptionRows.map((row) => {
+        const isFreePlan = this.isFreePlanPaymentStatus(row.payment_status);
+        return {
+          id: `subscription-${String(row.status)}-${String(row.updated_at)}`,
+          kind: 'subscription',
+          title: `${String(row.plan_name || 'Subscription')} ${String(row.status || 'updated')}`,
+          body: `Payment: ${this.formatPaymentStatusLabel(row.payment_status)}${!isFreePlan && row.end_date ? ` · Valid until ${String(row.end_date).slice(0, 10)}` : ''}`,
+          read: true,
+          createdAt: row.updated_at || null,
+          actionPath: '/subscriptions',
+        };
+      }),
       ...weakRows.map((row) => ({
         id: `weak-${String(row.course_title || '')}-${String(row.topic_name || '')}`,
         kind: 'weak-topic',
@@ -168,6 +171,20 @@ export class WorkspaceService {
     return [...announcements, ...derived]
       .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
       .slice(0, 80);
+  }
+
+  private formatPaymentStatusLabel(value: unknown) {
+    const status = String(value || '').trim().toLowerCase();
+    if (this.isFreePlanPaymentStatus(status)) return 'Free Plan';
+    if (!status) return 'Manual';
+    return status
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  private isFreePlanPaymentStatus(value: unknown) {
+    const status = String(value || '').trim().toLowerCase();
+    return status === 'waived' || status === 'free' || status === 'free_plan';
   }
 
   async markNotificationRead(authorization: string | undefined, id: number) {

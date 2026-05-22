@@ -317,7 +317,7 @@ export function cx(...parts) {
 export function statusPill(tone = '') {
   const base =
     'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-[4px] text-[11px] font-bold capitalize tracking-[0.02em] before:size-[6px] before:shrink-0 before:rounded-full before:bg-current before:content-[""]';
-  if (['active', 'pass', 'paid', 'completed'].includes(tone)) {
+  if (['active', 'pass', 'paid', 'completed', 'waived', 'free', 'free_plan'].includes(tone)) {
     return `${base} border-brand-success/22 bg-[var(--color-success-light)] text-brand-success`;
   }
   if (['inactive', 'fail', 'failed', 'cancelled', 'expired'].includes(tone)) {

@@ -9,6 +9,7 @@ import {
 import { fetchUsersSummary } from '../../../../shared/api/users.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { formatPaymentStatus } from '../../../../shared/utils/paymentStatus.js';
 import { getAdminUserIdentifier } from '../../../../shared/utils/userIdentity.js';
 
 const dashboardLayoutClass = 'gap-5';
@@ -238,7 +239,7 @@ function RecentMoney({ subscriptions, requests }) {
         subtitle: subscription.planName || 'Subscription',
         amount: subscription.amountPaid,
         currency: subscription.planCurrency || 'LKR',
-        status: subscription.paymentStatus === 'manual' ? 'manual payment' : subscription.paymentStatus,
+        status: subscription.paymentStatus === 'manual' ? 'Manual payment' : formatPaymentStatus(subscription.paymentStatus),
         createdAt: subscriptionCollectionDate(subscription),
       })),
     ...requests

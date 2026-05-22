@@ -30,6 +30,7 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getSafeExternalUrl } from '../../../../shared/utils/linkSafety.js';
+import { formatPaymentStatus } from '../../../../shared/utils/paymentStatus.js';
 import {
   formatAdminUserIdentifier,
   getAdminUserIdentifier,
@@ -1626,7 +1627,7 @@ export function AdminSubscriptionsPage() {
                     <option value="manual">Manual</option>
                     <option value="paid">Paid</option>
                     <option value="unpaid">Unpaid</option>
-                    <option value="waived">Waived</option>
+                    <option value="free_plan">Free Plan</option>
                   </select>
                 </label>
 
@@ -1781,7 +1782,7 @@ export function AdminSubscriptionsPage() {
                 <option value="manual">Manual</option>
                 <option value="paid">Paid</option>
                 <option value="unpaid">Unpaid</option>
-                <option value="waived">Waived</option>
+                <option value="free_plan">Free Plan</option>
               </select>
               <select className={ui.input} name="expiring" value={subscriptionFilters.expiring} onChange={handleSubscriptionFilterChange}>
                 <option value="">Any expiry</option>
@@ -1844,7 +1845,7 @@ export function AdminSubscriptionsPage() {
                       </td>
                       <td className={ui.tableCell}><span className={statusPill(subscription.computedStatus || subscription.status)}>{subscription.computedStatus || subscription.status}</span></td>
                       <td className={ui.tableCell}>
-                        <span className={statusPill(subscription.paymentStatus)}>{subscription.paymentStatus}</span>
+                        <span className={statusPill(subscription.paymentStatus)}>{formatPaymentStatus(subscription.paymentStatus)}</span>
                         {subscription.amountPaid !== null && subscription.amountPaid !== undefined ? (
                           <div className={ui.tableSubtext}>{subscription.planCurrency} {Number(subscription.amountPaid).toFixed(2)} {subscription.paymentMethod || ''}</div>
                         ) : null}

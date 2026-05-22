@@ -316,7 +316,7 @@ export class UsersService {
 
   private async assignDefaultEntryPlan(userId: number) {
     const [planRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, duration_days
+      `SELECT id
        FROM plans
        WHERE slug = 'free'
        ORDER BY id ASC
@@ -328,9 +328,6 @@ export class UsersService {
     }
 
     const startDate = new Date();
-    const durationDays = Math.max(Number(entryPlan.duration_days || 3650), 1);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + durationDays - 1);
     const toDateOnly = (date: Date) => {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -342,9 +339,9 @@ export class UsersService {
       `
         INSERT INTO user_subscriptions (
           user_id, plan_id, assigned_by, notes, status, payment_status, start_date, end_date
-        ) VALUES (?, ?, NULL, 'Auto-assigned Free plan on admin-created student account', 'active', 'waived', ?, ?)
+        ) VALUES (?, ?, NULL, 'Auto-assigned Free plan on admin-created student account', 'active', 'free_plan', ?, ?)
       `,
-      [userId, Number(entryPlan.id), toDateOnly(startDate), toDateOnly(endDate)]
+      [userId, Number(entryPlan.id), toDateOnly(startDate), '9999-12-31']
     );
   }
 }

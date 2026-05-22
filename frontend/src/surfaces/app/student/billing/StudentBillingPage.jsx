@@ -5,6 +5,7 @@ import { fetchMySubscription, requestSubscription } from '../../../../shared/api
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { formatPaymentStatus } from '../../../../shared/utils/paymentStatus.js';
 
 function featureMessageForKey(featureKey) {
   if (featureKey === 'aiNotes' || featureKey === 'notesCanvasStudyMode') {
@@ -121,12 +122,28 @@ function getPlanEndDate(plan) {
 }
 
 function formatPlanPrice(plan) {
+  if (String(plan?.slug || '').toLowerCase() === 'free' || Number(plan?.effectivePrice || 0) <= 0) {
+    return 'Free';
+  }
   return `${plan.currency} ${Number(plan.effectivePrice || 0).toFixed(2)}`;
 }
 
 function getPlanSummary(plan) {
+  if (String(plan?.slug || '').toLowerCase() === 'free' || Number(plan?.effectivePrice || 0) <= 0) {
+    return 'Unlimited access';
+  }
   const featureCount = Array.isArray(plan?.enabledFeatures) ? plan.enabledFeatures.filter(Boolean).length : 0;
   return `${Number(plan?.durationDays || 0)} days${featureCount ? ` • ${featureCount} features` : ''}`;
+}
+
+function isFreePlanSubscription(subscription) {
+  const status = String(subscription?.paymentStatus || '').trim().toLowerCase();
+  const planName = String(subscription?.planName || '').trim().toLowerCase();
+  return Boolean(subscription?.isFreePlan)
+    || status === 'free_plan'
+    || status === 'free'
+    || status === 'waived'
+    || (planName === 'free' && Number(subscription?.planEffectivePrice || 0) <= 0);
 }
 
 function formatRequestDateTime(value) {
@@ -277,6 +294,7 @@ export function StudentBillingPage() {
   const current = billing.currentSubscription;
   const availablePlans = (Array.isArray(billing.availablePlans) ? billing.availablePlans : []).filter(Boolean);
   const history = (Array.isArray(billing.history) ? billing.history : []).filter(Boolean);
+  const billableHistory = useMemo(() => history.filter((subscription) => !isFreePlanSubscription(subscription)), [history]);
   const requests = (Array.isArray(billing.requests) ? billing.requests : []).filter(Boolean);
   const lockedFeature = location.state?.lockedFeature || '';
   const purchaseScope = location.state?.accessScope || '';
@@ -309,9 +327,10 @@ export function StudentBillingPage() {
       .filter((request) => request?.status === 'pending')
       .map((request) => Number(request.planId))
   ), [requests]);
-  const currentDaysRemaining = Math.max(0, Number(current?.daysRemaining || 0));
+  const currentIsFreePlan = isFreePlanSubscription(current);
+  const currentDaysRemaining = currentIsFreePlan ? 0 : Math.max(0, Number(current?.daysRemaining || 0));
   const currentDurationDays = Math.max(1, Number(current?.planDurationDays || 0));
-  const currentProgressPercent = current
+  const currentProgressPercent = current && !currentIsFreePlan
     ? Math.max(0, Math.min(100, Math.round((currentDaysRemaining / currentDurationDays) * 100)))
     : 0;
 
@@ -438,6 +457,7 @@ export function StudentBillingPage() {
 
   function renderPlanCard(plan, options = {}) {
     const isCurrent = current?.planId === plan.id;
+    const isFreePlan = String(plan?.slug || '').toLowerCase() === 'free' || Number(plan?.effectivePrice || 0) <= 0;
     const isRecommended = recommendedPlanId === plan.id || options.highlight;
     const hasOffer = Boolean(plan.offerEnabled && plan.offerPrice !== null && Number(plan.regularPrice || 0) > Number(plan.effectivePrice || 0));
     const savingsPercent = getSavingsPercent(plan);
@@ -472,14 +492,14 @@ export function StudentBillingPage() {
         <div className={billingUi.planPriceBlock}>
           <div className="flex flex-wrap items-baseline gap-2">
             <strong className={billingUi.planPrice}>{formatPlanPrice(plan)}</strong>
-            <span className="text-xs font-bold text-ink-muted">/ {plan.durationDays} days</span>
+            <span className="text-xs font-bold text-ink-muted">{isFreePlan ? 'Unlimited access' : `/ ${plan.durationDays} days`}</span>
           </div>
           {hasOffer ? (
             <span className="text-xs font-semibold text-ink-muted">
               Regular <span className="line-through">{plan.currency} {Number(plan.regularPrice).toFixed(2)}</span>
             </span>
           ) : null}
-          {isCurrent && planEndDate ? <span className="text-xs font-semibold text-ink-muted">Access until {planEndDate}</span> : null}
+          {isCurrent && !isFreePlan && planEndDate ? <span className="text-xs font-semibold text-ink-muted">Access until {planEndDate}</span> : null}
         </div>
 
         <div className={billingUi.planFeatureList}>
@@ -534,7 +554,7 @@ export function StudentBillingPage() {
           <div className={ui.panelTop}>
             <div>
               <h2 className={ui.panelTitle}>Current subscription</h2>
-              <p className={ui.panelText}>Your active plan, billing window, and currently enabled study features.</p>
+              <p className={ui.panelText}>{currentIsFreePlan ? 'Your Free Plan access is active without payment or expiry details.' : 'Your active plan, billing window, and currently enabled study features.'}</p>
             </div>
           </div>
 
@@ -548,72 +568,90 @@ export function StudentBillingPage() {
                 <div className="flex flex-wrap items-start justify-between gap-4 max-[520px]:gap-3">
                   <div className="min-w-0">
                     <h3 className="mb-1 text-2xl font-extrabold leading-tight text-ink-strong max-[520px]:text-[20px]">{current.planName}</h3>
-                    <p className="m-0 text-[13px] font-semibold text-ink-soft">Your current LMS subscription package</p>
+                    <p className="m-0 text-[13px] font-semibold text-ink-soft">
+                      {currentIsFreePlan ? 'Your LMS Free Plan is active' : 'Your current LMS subscription package'}
+                    </p>
                   </div>
-                  <div className="min-w-[190px] rounded-lg border border-line-soft bg-surface-card/85 px-4 py-3 text-right shadow-xs backdrop-blur max-[640px]:w-full max-[640px]:text-left">
-                    <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Paid amount</span>
-                    <strong className="mt-1 block text-2xl font-extrabold text-brand-primary">
-                      {current.planCurrency} {Number(current.planEffectivePrice).toFixed(2)}
-                    </strong>
-                    {current.planOfferEnabled && current.planOfferPrice !== null ? (
-                      <span className="mt-1 block text-xs font-semibold text-ink-muted">
-                        Regular <span className="line-through">{current.planCurrency} {Number(current.planRegularPrice).toFixed(2)}</span>
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <div className="flex items-end justify-between gap-3 max-[420px]:items-start">
-                    <div>
-                      <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Access remaining</span>
-                      <strong className="mt-1 block text-lg text-ink-strong">
-                        {current.computedStatus === 'expired' ? 'Expired' : `${currentDaysRemaining} day(s) left`}
-                      </strong>
+                  {currentIsFreePlan ? (
+                    <div className="min-w-[190px] rounded-lg border border-brand-success/20 bg-brand-success/10 px-4 py-3 text-right shadow-xs backdrop-blur max-[640px]:w-full max-[640px]:text-left">
+                      <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand-success">Free Plan</span>
+                      <strong className="mt-1 block text-2xl font-extrabold text-brand-success">Unlimited days</strong>
                     </div>
-                    <span className="text-xs font-bold text-ink-muted">{currentProgressPercent}%</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-                    <span
-                      className="block h-full rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
-                      style={{ width: `${currentProgressPercent}%` }}
-                    />
-                  </div>
+                  ) : (
+                    <div className="min-w-[190px] rounded-lg border border-line-soft bg-surface-card/85 px-4 py-3 text-right shadow-xs backdrop-blur max-[640px]:w-full max-[640px]:text-left">
+                      <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Paid amount</span>
+                      <strong className="mt-1 block text-2xl font-extrabold text-brand-primary">
+                        {current.planCurrency} {Number(current.planEffectivePrice).toFixed(2)}
+                      </strong>
+                      {current.planOfferEnabled && current.planOfferPrice !== null ? (
+                        <span className="mt-1 block text-xs font-semibold text-ink-muted">
+                          Regular <span className="line-through">{current.planCurrency} {Number(current.planRegularPrice).toFixed(2)}</span>
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
+
+                {currentIsFreePlan ? (
+                  <div className="rounded-lg border border-brand-success/20 bg-brand-success/8 px-4 py-3">
+                    <strong className="block text-[14px] text-ink-strong">Free Plan access stays active.</strong>
+                    <span className="mt-1 block text-[12px] font-semibold text-ink-soft">No payment, renewal, or countdown is needed for this plan.</span>
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    <div className="flex items-end justify-between gap-3 max-[420px]:items-start">
+                      <div>
+                        <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Access remaining</span>
+                        <strong className="mt-1 block text-lg text-ink-strong">
+                          {current.computedStatus === 'expired' ? 'Expired' : `${currentDaysRemaining} day(s) left`}
+                        </strong>
+                      </div>
+                      <span className="text-xs font-bold text-ink-muted">{currentProgressPercent}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+                      <span
+                        className="block h-full rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
+                        style={{ width: `${currentProgressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3 p-5 max-[760px]:grid-cols-1 max-[520px]:p-4">
-                <div className="hidden rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:grid max-[520px]:grid-cols-2 max-[520px]:gap-3">
-                  <div className="min-w-0 border-r border-line-soft pr-3">
-                    <span className="block text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Start date</span>
-                    <strong className="mt-1 block truncate text-[13px] text-ink-strong">{current.startDate || '-'}</strong>
+              {!currentIsFreePlan ? (
+                <div className="grid grid-cols-3 gap-3 p-5 max-[760px]:grid-cols-1 max-[520px]:p-4">
+                  <div className="hidden rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:grid max-[520px]:grid-cols-2 max-[520px]:gap-3">
+                    <div className="min-w-0 border-r border-line-soft pr-3">
+                      <span className="block text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Start date</span>
+                      <strong className="mt-1 block truncate text-[13px] text-ink-strong">{current.startDate || '-'}</strong>
+                    </div>
+                    <div className="min-w-0 pl-1">
+                      <span className="block text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">End date</span>
+                      <strong className="mt-1 block truncate text-[13px] text-ink-strong">{current.endDate || '-'}</strong>
+                    </div>
                   </div>
-                  <div className="min-w-0 pl-1">
-                    <span className="block text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">End date</span>
-                    <strong className="mt-1 block truncate text-[13px] text-ink-strong">{current.endDate || '-'}</strong>
+                  <div className="rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:hidden">
+                    <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Start date</span>
+                    <strong className="mt-1 block text-sm text-ink-strong">{current.startDate || '-'}</strong>
+                  </div>
+                  <div className="rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:hidden">
+                    <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">End date</span>
+                    <strong className="mt-1 block text-sm text-ink-strong">{current.endDate || '-'}</strong>
+                  </div>
+                  <div className="rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:hidden">
+                    <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Remaining</span>
+                    <strong className="mt-1 block text-sm text-ink-strong">
+                      {current.computedStatus === 'expired' ? 'Expired' : `${Math.max(0, Number(current.daysRemaining || 0))} day(s)`}
+                    </strong>
                   </div>
                 </div>
-                <div className="rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:hidden">
-                  <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Start date</span>
-                  <strong className="mt-1 block text-sm text-ink-strong">{current.startDate || '-'}</strong>
-                </div>
-                <div className="rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:hidden">
-                  <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">End date</span>
-                  <strong className="mt-1 block text-sm text-ink-strong">{current.endDate || '-'}</strong>
-                </div>
-                <div className="rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:hidden">
-                  <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Remaining</span>
-                  <strong className="mt-1 block text-sm text-ink-strong">
-                    {current.computedStatus === 'expired' ? 'Expired' : `${Math.max(0, Number(current.daysRemaining || 0))} day(s)`}
-                  </strong>
-                </div>
-              </div>
+              ) : null}
 
-              {current.computedStatus === 'expired' ? (
+              {!currentIsFreePlan && current.computedStatus === 'expired' ? (
                 <div className="mx-5 rounded-md border border-brand-error/20 bg-brand-error/10 px-3 py-2 text-[13px] font-bold text-brand-error">
                   This subscription has expired.
                 </div>
-              ) : current.isExpiringSoon ? (
+              ) : !currentIsFreePlan && current.isExpiringSoon ? (
                 <div className="mx-5 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[13px] font-bold text-amber-700 dark:text-amber-300 max-[520px]:hidden">
                   Expires in {currentDaysRemaining} day(s). Request renewal early.
                 </div>
@@ -913,83 +951,79 @@ export function StudentBillingPage() {
           ) : null}
         </section>
 
-        <section className={cx(ui.panelCard, 'max-[520px]:p-3.5')}>
-          <div className={ui.panelTop}>
-            <div>
-              <h2 className={ui.panelTitle}>Subscription history</h2>
-              <p className={ui.panelText}>Your recent subscription assignments, renewals, and status changes.</p>
+        {loading || billableHistory.length ? (
+          <section className={cx(ui.panelCard, 'max-[520px]:p-3.5')}>
+            <div className={ui.panelTop}>
+              <div>
+                <h2 className={ui.panelTitle}>Subscription history</h2>
+                <p className={ui.panelText}>Your recent paid package assignments, renewals, and status changes.</p>
+              </div>
             </div>
-          </div>
 
-          <div className={cx(ui.tableShell, billingUi.historyDesktop)}>
-            <table className={ui.modernTable}>
-              <thead>
-                <tr>
-                  <th className={ui.tableHeadCell}>Plan</th>
-                  <th className={ui.tableHeadCell}>Dates</th>
-                  <th className={ui.tableHeadCell}>Status</th>
-                  <th className={ui.tableHeadCell}>Payment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
+            <div className={cx(ui.tableShell, billingUi.historyDesktop)}>
+              <table className={ui.modernTable}>
+                <thead>
                   <tr>
-                    <td colSpan="4" className={ui.tableEmpty}>Loading history...</td>
+                    <th className={ui.tableHeadCell}>Plan</th>
+                    <th className={ui.tableHeadCell}>Dates</th>
+                    <th className={ui.tableHeadCell}>Status</th>
+                    <th className={ui.tableHeadCell}>Payment</th>
                   </tr>
-                ) : null}
-                {!loading && history.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className={ui.tableEmpty}>No subscription history yet.</td>
-                  </tr>
-                ) : null}
-                {!loading && history.map((subscription) => (
-                  <tr key={subscription.id}>
-                    <td className={ui.tableCell}>
-                      <strong>{subscription.planName}</strong>
-                      <div className={ui.tableSubtext}>
-                        {subscription.planCurrency} {Number(subscription.planEffectivePrice).toFixed(2)}
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="4" className={ui.tableEmpty}>Loading history...</td>
+                    </tr>
+                  ) : null}
+                  {!loading && billableHistory.map((subscription) => (
+                    <tr key={subscription.id}>
+                      <td className={ui.tableCell}>
+                        <strong>{subscription.planName}</strong>
+                        <div className={ui.tableSubtext}>
+                          {subscription.planCurrency} {Number(subscription.planEffectivePrice).toFixed(2)}
+                        </div>
+                      </td>
+                      <td className={ui.tableCell}>
+                        <strong>{subscription.startDate}</strong>
+                        <div className={ui.tableSubtext}>Ends {subscription.endDate}</div>
+                      </td>
+                      <td className={ui.tableCell}><span className={statusPill(subscription.status)}>{subscription.status}</span></td>
+                      <td className={ui.tableCell}><span className={statusPill(subscription.paymentStatus)}>{formatPaymentStatus(subscription.paymentStatus)}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {loading ? <div className={cx(ui.tableEmpty, billingUi.historyMobile)}>Loading history...</div> : null}
+            {!loading && billableHistory.length ? (
+              <div className={billingUi.historyMobile}>
+                {billableHistory.map((subscription) => (
+                  <article className="grid gap-3 rounded-xl border border-line-soft bg-surface-card p-3.5 shadow-xs" key={`mobile-history-${subscription.id}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <strong className="block text-[14px] leading-tight text-ink-strong">{subscription.planName}</strong>
+                        <span className="mt-1 block text-[12px] font-bold text-ink-muted">
+                          {subscription.planCurrency} {Number(subscription.planEffectivePrice).toFixed(2)}
+                        </span>
                       </div>
-                    </td>
-                    <td className={ui.tableCell}>
-                      <strong>{subscription.startDate}</strong>
-                      <div className={ui.tableSubtext}>Ends {subscription.endDate}</div>
-                    </td>
-                    <td className={ui.tableCell}><span className={statusPill(subscription.status)}>{subscription.status}</span></td>
-                    <td className={ui.tableCell}><span className={statusPill(subscription.paymentStatus)}>{subscription.paymentStatus}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {loading ? <div className={cx(ui.tableEmpty, billingUi.historyMobile)}>Loading history...</div> : null}
-          {!loading && history.length === 0 ? <div className={cx(ui.tableEmpty, billingUi.historyMobile)}>No subscription history yet.</div> : null}
-          {!loading && history.length ? (
-            <div className={billingUi.historyMobile}>
-              {history.map((subscription) => (
-                <article className="grid gap-3 rounded-xl border border-line-soft bg-surface-card p-3.5 shadow-xs" key={`mobile-history-${subscription.id}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <strong className="block text-[14px] leading-tight text-ink-strong">{subscription.planName}</strong>
-                      <span className="mt-1 block text-[12px] font-bold text-ink-muted">
-                        {subscription.planCurrency} {Number(subscription.planEffectivePrice).toFixed(2)}
-                      </span>
+                      <span className={statusPill(subscription.status)}>{subscription.status}</span>
                     </div>
-                    <span className={statusPill(subscription.status)}>{subscription.status}</span>
-                  </div>
-                  <div className="grid gap-1 rounded-lg border border-line-soft bg-surface-1 px-3 py-2 text-[12px] font-semibold text-ink-soft">
-                    <span><strong className="text-ink-strong">Start:</strong> {subscription.startDate}</span>
-                    <span><strong className="text-ink-strong">Ends:</strong> {subscription.endDate}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-muted">Payment</span>
-                    <span className={statusPill(subscription.paymentStatus)}>{subscription.paymentStatus}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : null}
-        </section>
+                    <div className="grid gap-1 rounded-lg border border-line-soft bg-surface-1 px-3 py-2 text-[12px] font-semibold text-ink-soft">
+                      <span><strong className="text-ink-strong">Start:</strong> {subscription.startDate}</span>
+                      <span><strong className="text-ink-strong">Ends:</strong> {subscription.endDate}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-muted">Payment</span>
+                      <span className={statusPill(subscription.paymentStatus)}>{formatPaymentStatus(subscription.paymentStatus)}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </section>
     </main>
   );

@@ -34,8 +34,8 @@ export class RenewSubscriptionDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['manual', 'paid', 'unpaid', 'waived'])
-  paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'waived';
+  @IsIn(['manual', 'paid', 'unpaid', 'free_plan'])
+  paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'free_plan';
 }
 
 export class CancelSubscriptionDto {
@@ -48,8 +48,8 @@ export class CancelSubscriptionDto {
 export class UpdateSubscriptionPaymentDto {
   @IsString()
   @IsOptional()
-  @IsIn(['manual', 'paid', 'unpaid', 'waived'])
-  paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'waived';
+  @IsIn(['manual', 'paid', 'unpaid', 'free_plan'])
+  paymentStatus?: 'manual' | 'paid' | 'unpaid' | 'free_plan';
 
   @Type(() => Number)
   @IsNumber()
