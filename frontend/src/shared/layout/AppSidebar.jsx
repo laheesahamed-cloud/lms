@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { useThemeStore } from '../stores/themeStore.js';
 import { preloadRouteByPath } from '../../app/router.jsx';
+import { isStaffUser, roleRouteMode } from '../auth/roleAccess.js';
 import { cx } from '../styles/tailwindClasses.js';
 
 /* ── Icon Set (16×16) — standard stroke-based icons ──────────── */
@@ -125,6 +126,16 @@ const Icons = {
       <circle cx="15" cy="13" r="1.25" stroke="currentColor" strokeWidth="1.3"/>
     </svg>
   ),
+  Finance: () => (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M3.5 16.5H16.5" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round"/>
+      <rect x="4" y="9.5" width="2.75" height="7" rx="0.8" stroke="currentColor" strokeWidth="1.4"/>
+      <rect x="8.625" y="6.75" width="2.75" height="9.75" rx="0.8" stroke="currentColor" strokeWidth="1.4"/>
+      <rect x="13.25" y="4" width="2.75" height="12.5" rx="0.8" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M4 6.5C6.5 6.25 8.4 5.45 10.1 4.35C11.35 3.55 12.55 2.85 16 2.75" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M14.25 1.75L16.5 2.75L14.45 4.05" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
   Bookmarks: () => (
     <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
       <path d="M5 2.5H15C15.55 2.5 16 2.95 16 3.5V17.5L10 14.25L4 17.5V3.5C4 2.95 4.45 2.5 5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -161,7 +172,6 @@ const adminLinks = [
   { to: '/courses',       label: 'Courses',       icon: 'Courses'   },
   { to: '/structure',     label: 'Structure',     icon: 'Structure' },
   { to: '/questions',     label: 'Questions',     icon: 'Questions' },
-  { to: '/questions/review', label: 'Review Queue', icon: 'Questions' },
   { to: '/quizzes',       label: 'Assessments',   icon: 'Quizzes'   },
   {
     label: 'AI Tools',
@@ -173,6 +183,7 @@ const adminLinks = [
     ],
   },
   { to: '/subscriptions', label: 'Subscriptions', icon: 'Billing'   },
+  { to: '/finance',       label: 'Finance',       icon: 'Finance'   },
   { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes'   },
   { to: '/users',         label: 'Students',      icon: 'Users'     },
   { to: '/announcements', label: 'Announcements', icon: 'Bell'      },
@@ -198,9 +209,9 @@ const studentLinks = [
 
 const END_EXACT = new Set([
   '/dashboard',
-  '/bookmarks', '/subscriptions', '/exams', '/flashcards',
+  '/bookmarks', '/subscriptions', '/finance', '/exams', '/flashcards',
   '/structure', '/users', '/setup', '/settings', '/announcements',
-  '/reports', '/doubts', '/notifications', '/planner', '/questions/review',
+  '/reports', '/doubts', '/notifications', '/planner',
   '/ai/gemini', '/ai/chatgpt',
 ]);
 
@@ -263,7 +274,7 @@ const sidebarUi = {
   arrow: 'ml-auto flex shrink-0 items-center text-ink-muted transition-transform duration-200',
   arrowOpen: 'rotate-180 text-brand-primary',
   tooltip:
-    'lms-floating-panel pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-[900] hidden -translate-y-1/2 translate-x-[-6px] scale-95 whitespace-nowrap rounded-full border border-line-soft bg-surface-card-elevated px-3.5 py-2 text-[12px] font-extrabold text-ink-strong opacity-0 shadow-xl transition-[transform,opacity] duration-150 before:absolute before:left-[-5px] before:top-1/2 before:size-2.5 before:-translate-y-1/2 before:rotate-45 before:border-b before:border-l before:border-line-soft before:bg-surface-card-elevated before:content-[""] group-hover:translate-x-0 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:scale-100 group-focus-visible:opacity-100 min-[901px]:group-[.is-collapsed]/sidebar:block',
+    'lms-sidebar-tooltip lms-floating-panel pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-[900] hidden -translate-y-1/2 translate-x-[-6px] scale-95 whitespace-nowrap rounded-full border border-line-soft bg-surface-card-elevated px-3.5 py-2 text-[12px] font-extrabold text-ink-strong opacity-0 shadow-xl transition-[transform,opacity] duration-150 before:absolute before:left-[-5px] before:top-1/2 before:size-2.5 before:-translate-y-1/2 before:rotate-45 before:border-b before:border-l before:border-line-soft before:bg-surface-card-elevated before:content-[""] group-hover:translate-x-0 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:scale-100 group-focus-visible:opacity-100 min-[901px]:group-[.is-collapsed]/sidebar:block',
   submenu:
     'ml-4 mt-0.5 flex flex-col gap-0.5 border-l border-brand-primary/18 py-1.5 pl-3',
   submenuItem:
@@ -480,7 +491,8 @@ export function AppSidebar({
 }) {
   const user = useAuthStore((state) => state.user);
   const location = useLocation();
-  const links = prefixLinks(user?.role === 'admin' ? adminLinks : studentLinks, user?.role);
+  const isAdminConsole = isStaffUser(user);
+  const links = prefixLinks(isAdminConsole ? adminLinks : studentLinks, user?.role);
   const isStudent = user?.role === 'student';
   const studentName = user?.fullName || 'Student';
 
@@ -500,6 +512,7 @@ export function AppSidebar({
     <aside
       className={cx(
         'lms-sidebar',
+        isAdminConsole && 'lms-sidebar--admin-model',
         isStudent && 'lms-sidebar--student-model',
         sidebarUi.shell,
         sidebarUi.shellLight,
@@ -530,7 +543,7 @@ export function AppSidebar({
         <div className={cx('lms-sidebar-wordmark', sidebarUi.wordmark, isCollapsed && 'min-[901px]:hidden')}>
           <span className={cx('lms-sidebar-brand-name', sidebarUi.wordmarkName)}>ERPM LMS</span>
           <span className={cx('lms-sidebar-brand-sub', sidebarUi.wordmarkRole)}>
-            {user?.role === 'admin' ? 'Admin Console' : 'Student Portal'}
+            {isAdminConsole ? 'Admin Console' : 'Student Portal'}
           </span>
         </div>
 
@@ -548,7 +561,7 @@ export function AppSidebar({
 
       {/* ── Section label ─────────────────────────────────────────── */}
       <p className={cx('lms-sidebar-section-label', sidebarUi.navLabel, isCollapsed && 'min-[901px]:hidden')}>
-        {user?.role === 'admin' ? 'Navigation' : 'Study'}
+        {isAdminConsole ? 'Navigation' : 'Study'}
       </p>
 
       {/* ── Nav ───────────────────────────────────────────────────── */}
@@ -637,7 +650,7 @@ const MOBILE_TOP_NAV_EXIT_MS = 620;
 function withRolePrefix(path, role) {
   if (!path || path.startsWith('/admin') || path.startsWith('/app')) return path;
   if (path.startsWith('/ai/')) return path;
-  return `${role === 'admin' ? '/admin' : '/app'}${path}`;
+  return `${roleRouteMode(role) === 'admin' ? '/admin' : '/app'}${path}`;
 }
 
 function prefixLinks(items, role) {
@@ -736,14 +749,15 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
   if (!shouldRender || !user) return null;
 
   const role = user.role;
-  const sourceLinks = role === 'admin' ? adminLinks : studentLinks;
+  const isAdminConsole = isStaffUser(user);
+  const sourceLinks = isAdminConsole ? adminLinks : studentLinks;
   const menuLinks =
     role === 'student'
       ? sourceLinks.filter((item) => item.group || !mobileNavPrimaryPaths.has(item.to))
       : sourceLinks;
   const items = prefixLinks(menuLinks, role);
   const isStudentMenu = role === 'student';
-  const title = role === 'admin' ? 'Admin Console' : 'Student Portal';
+  const title = isAdminConsole ? 'Admin Console' : 'Student Portal';
   const geometryStyle = geometry
     ? {
         '--mobile-top-nav-left': `${geometry.left}px`,

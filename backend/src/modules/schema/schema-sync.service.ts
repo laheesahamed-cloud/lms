@@ -208,7 +208,7 @@ export class SchemaSyncService implements OnModuleInit {
         name VARCHAR(255) NOT NULL,
         description TEXT NULL,
         price DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-        currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+        currency VARCHAR(10) NOT NULL DEFAULT 'LKR',
         billing_period VARCHAR(50) NOT NULL DEFAULT 'month',
         duration_days INT NOT NULL DEFAULT 30,
         features_json JSON NULL,

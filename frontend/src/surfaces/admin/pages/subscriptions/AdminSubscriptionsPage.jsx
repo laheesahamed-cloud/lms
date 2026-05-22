@@ -30,6 +30,11 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getSafeExternalUrl } from '../../../../shared/utils/linkSafety.js';
+import {
+  formatAdminUserIdentifier,
+  getAdminUserIdentifier,
+  getAdminUserSecondaryIdentifier,
+} from '../../../../shared/utils/userIdentity.js';
 
 const subscriptionUi = {
   overviewGrid: 'grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2 max-[700px]:grid-cols-1',
@@ -101,7 +106,7 @@ const emptyPlanForm = {
   regularPrice: 0,
   offerPrice: '',
   offerEnabled: false,
-  currency: 'USD',
+  currency: 'LKR',
   durationDays: 30,
   sortOrder: 0,
   recommended: false,
@@ -168,6 +173,26 @@ function parseDateInput(value) {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
+function formatAdminDateTime(value) {
+  const text = String(value || '').trim();
+  if (!text) return '-';
+
+  const hasTime = /\d{1,2}:\d{2}/.test(text);
+  const normalized = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}/.test(text)
+    ? text.replace(/\s+/, 'T')
+    : text;
+  const date = new Date(normalized);
+
+  if (Number.isNaN(date.getTime())) return text;
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    ...(hasTime ? { hour: 'numeric', minute: '2-digit' } : {}),
+  }).format(date);
+}
+
 function addDuration(startDateText, preset) {
   const start = parseDateInput(startDateText);
   const end = new Date(start);
@@ -196,7 +221,7 @@ const planTemplates = [
       regularPrice: 0,
       offerPrice: '',
       offerEnabled: false,
-      currency: 'USD',
+      currency: 'LKR',
       durationDays: 30,
       sortOrder: 1,
       recommended: false,
@@ -218,10 +243,10 @@ const planTemplates = [
       name: 'Standard',
       slug: 'standard',
       description: 'Balanced study access with full revision tools and exam preparation.',
-      regularPrice: 19.99,
-      offerPrice: 14.99,
+      regularPrice: 5290,
+      offerPrice: 3990,
       offerEnabled: true,
-      currency: 'USD',
+      currency: 'LKR',
       durationDays: 30,
       sortOrder: 2,
       recommended: true,
@@ -250,10 +275,10 @@ const planTemplates = [
       name: 'Premium',
       slug: 'premium',
       description: 'Full access plan with AI, analytics, and premium study support.',
-      regularPrice: 29.99,
-      offerPrice: 24.99,
+      regularPrice: 11890,
+      offerPrice: 8990,
       offerEnabled: true,
-      currency: 'USD',
+      currency: 'LKR',
       durationDays: 30,
       sortOrder: 3,
       recommended: false,
@@ -500,12 +525,12 @@ function StudentSearchSelect({ students, value, onChange }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    setQuery(selectedStudent ? `${selectedStudent.fullName} (${selectedStudent.email})` : '');
+    setQuery(selectedStudent ? formatAdminUserIdentifier(selectedStudent) : '');
   }, [selectedStudent]);
 
   const filteredStudents = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle || selectedStudent && query === `${selectedStudent.fullName} (${selectedStudent.email})`) {
+    if (!needle || selectedStudent && query === formatAdminUserIdentifier(selectedStudent)) {
       return students.slice(0, 20);
     }
 
@@ -519,7 +544,7 @@ function StudentSearchSelect({ students, value, onChange }) {
 
   function selectStudent(student) {
     onChange(String(student.id));
-    setQuery(`${student.fullName} (${student.email})`);
+    setQuery(formatAdminUserIdentifier(student));
     setOpen(false);
   }
 
@@ -559,8 +584,8 @@ function StudentSearchSelect({ students, value, onChange }) {
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectStudent(student)}
             >
-              <span className={subscriptionUi.studentOptionName}>{student.fullName}</span>
-              <span className={subscriptionUi.studentOptionEmail}>{student.email}</span>
+              <span className={subscriptionUi.studentOptionName}>{getAdminUserIdentifier(student)}</span>
+              <span className={subscriptionUi.studentOptionEmail}>{getAdminUserSecondaryIdentifier(student) || student.status}</span>
             </button>
           )) : (
             <div className={ui.tableSubtext}>No students match that search.</div>
@@ -607,16 +632,19 @@ export function AdminSubscriptionsPage() {
     loadAll();
   }, []);
 
-  const safePlans = (Array.isArray(plans) ? plans : []).filter(Boolean);
-  const safeSubscriptions = (Array.isArray(subscriptions) ? subscriptions : []).filter(Boolean);
-  const safeRequests = (Array.isArray(requests) ? requests : []).filter(Boolean);
-  const safeCoupons = (Array.isArray(coupons) ? coupons : []).filter(Boolean);
-  const safeAuditEvents = (Array.isArray(auditEvents) ? auditEvents : []).filter(Boolean);
-  const safeStudents = (Array.isArray(meta.students) ? meta.students : []).filter(Boolean);
-  const safeCourses = (Array.isArray(meta.courses) ? meta.courses : []).filter(Boolean);
-  const safeLessons = (Array.isArray(meta.lessons) ? meta.lessons : []).filter(Boolean);
-  const safeFeatures = (Array.isArray(meta.features) ? meta.features : []).filter(Boolean);
-  const safeFeatureCategories = Array.isArray(meta.featureCategories) ? meta.featureCategories : [];
+  const safePlans = useMemo(() => (Array.isArray(plans) ? plans : []).filter(Boolean), [plans]);
+  const safeSubscriptions = useMemo(() => (Array.isArray(subscriptions) ? subscriptions : []).filter(Boolean), [subscriptions]);
+  const safeRequests = useMemo(() => (Array.isArray(requests) ? requests : []).filter(Boolean), [requests]);
+  const safeCoupons = useMemo(() => (Array.isArray(coupons) ? coupons : []).filter(Boolean), [coupons]);
+  const safeAuditEvents = useMemo(() => (Array.isArray(auditEvents) ? auditEvents : []).filter(Boolean), [auditEvents]);
+  const safeStudents = useMemo(() => (Array.isArray(meta.students) ? meta.students : []).filter(Boolean), [meta.students]);
+  const safeCourses = useMemo(() => (Array.isArray(meta.courses) ? meta.courses : []).filter(Boolean), [meta.courses]);
+  const safeLessons = useMemo(() => (Array.isArray(meta.lessons) ? meta.lessons : []).filter(Boolean), [meta.lessons]);
+  const safeFeatures = useMemo(() => (Array.isArray(meta.features) ? meta.features : []).filter(Boolean), [meta.features]);
+  const safeFeatureCategories = useMemo(
+    () => (Array.isArray(meta.featureCategories) ? meta.featureCategories : []),
+    [meta.featureCategories]
+  );
 
   const courseTitleById = useMemo(
     () => new Map(safeCourses.map((course) => [Number(course.id), course.courseTitle])),
@@ -650,8 +678,14 @@ export function AdminSubscriptionsPage() {
     });
   }, [safeSubscriptions, subscriptionFilters]);
 
-  const pendingRequests = safeRequests.filter((request) => request?.status === 'pending');
-  const expiringSoonCount = safeSubscriptions.filter((subscription) => subscription?.isExpiringSoon).length;
+  const pendingRequests = useMemo(
+    () => safeRequests.filter((request) => request?.status === 'pending'),
+    [safeRequests]
+  );
+  const expiringSoonCount = useMemo(
+    () => safeSubscriptions.filter((subscription) => subscription?.isExpiringSoon).length,
+    [safeSubscriptions]
+  );
 
   async function loadAll() {
     setLoading(true);
@@ -839,7 +873,7 @@ export function AdminSubscriptionsPage() {
       regularPrice: plan.regularPrice,
       offerPrice: plan.offerPrice ?? '',
       offerEnabled: Boolean(plan.offerEnabled),
-      currency: plan.currency,
+      currency: 'LKR',
       durationDays: plan.durationDays,
       sortOrder: plan.sortOrder,
       recommended: Boolean(plan.recommended),
@@ -875,7 +909,7 @@ export function AdminSubscriptionsPage() {
         regularPrice: Number(planForm.regularPrice),
         offerPrice: planForm.offerPrice === '' ? null : Number(planForm.offerPrice),
         offerEnabled: Boolean(planForm.offerEnabled),
-        currency: planForm.currency,
+        currency: 'LKR',
         durationDays: Number(planForm.durationDays),
         sortOrder: Number(planForm.sortOrder),
         recommended: Boolean(planForm.recommended),
@@ -1063,32 +1097,36 @@ export function AdminSubscriptionsPage() {
   }
 
   function handleExtend(subscription, days) {
+    const studentIdentifier = getAdminUserIdentifier(subscription);
     runSubscriptionAction(
       `extend-${subscription.id}-${days}`,
       () => extendSubscription(subscription.id, { days, notes: `Quick extension: ${days} days` }),
-      `Extended ${subscription.studentName}'s subscription by ${days} days.`
+      `Extended ${studentIdentifier}'s subscription by ${days} days.`
     );
   }
 
   function handleRenew(subscription) {
+    const studentIdentifier = getAdminUserIdentifier(subscription);
     runSubscriptionAction(
       `renew-${subscription.id}`,
       () => renewSubscription(subscription.id, { planId: subscription.planId, notes: 'Renewed same plan from admin quick action.', paymentStatus: subscription.paymentStatus || 'manual' }),
-      `Renewed ${subscription.studentName}'s subscription.`
+      `Renewed ${studentIdentifier}'s subscription.`
     );
   }
 
   function handleCancel(subscription) {
-    const confirmed = window.confirm(`Cancel ${subscription.studentName}'s ${subscription.planName} subscription?`);
+    const studentIdentifier = getAdminUserIdentifier(subscription);
+    const confirmed = window.confirm(`Cancel ${studentIdentifier}'s ${subscription.planName} subscription?`);
     if (!confirmed) return;
     runSubscriptionAction(
       `cancel-${subscription.id}`,
       () => cancelSubscription(subscription.id, { notes: 'Cancelled from admin subscription table.' }),
-      `Cancelled ${subscription.studentName}'s subscription.`
+      `Cancelled ${studentIdentifier}'s subscription.`
     );
   }
 
   function handlePayment(subscription) {
+    const studentIdentifier = getAdminUserIdentifier(subscription);
     const amount = window.prompt('Amount paid', subscription.amountPaid ?? subscription.planEffectivePrice ?? '');
     if (amount === null) return;
     const method = window.prompt('Payment method', subscription.paymentMethod || 'manual');
@@ -1105,18 +1143,19 @@ export function AdminSubscriptionsPage() {
         paymentReference: reference,
         paymentDate: new Date().toISOString().slice(0, 10),
       }),
-      `Marked ${subscription.studentName}'s payment as paid.`
+      `Marked ${studentIdentifier}'s payment as paid.`
     );
   }
 
   function handleResolveRequest(request, status) {
     const label = status === 'approved' ? 'approve' : 'reject';
-    const confirmed = window.confirm(`${label[0].toUpperCase()}${label.slice(1)} request for ${request.studentName}?`);
+    const studentIdentifier = getAdminUserIdentifier(request);
+    const confirmed = window.confirm(`${label[0].toUpperCase()}${label.slice(1)} request for ${studentIdentifier}?`);
     if (!confirmed) return;
     runSubscriptionAction(
       `request-${request.id}-${status}`,
       () => resolveSubscriptionRequest(request.id, { status, adminNote: status === 'approved' ? 'Approved from admin subscriptions page.' : 'Rejected from admin subscriptions page.' }),
-      status === 'approved' ? `Approved ${request.studentName}'s request.` : `Rejected ${request.studentName}'s request.`
+      status === 'approved' ? `Approved ${studentIdentifier}'s request.` : `Rejected ${studentIdentifier}'s request.`
     );
   }
 
@@ -1420,8 +1459,8 @@ export function AdminSubscriptionsPage() {
                           ) : null}
                         </td>
                         <td className={ui.tableCell}>
-                          <strong>{invoiceLookup.studentName || 'Student'}</strong>
-                          <div className={ui.tableSubtext}>{invoiceLookup.studentEmail || '-'}</div>
+                          <strong>{getAdminUserIdentifier(invoiceLookup, 'Student')}</strong>
+                          <div className={ui.tableSubtext}>{getAdminUserSecondaryIdentifier(invoiceLookup) || '-'}</div>
                         </td>
                         <td className={ui.tableCell}>
                           <strong>{invoiceLookup.planName || '-'}</strong>
@@ -1485,13 +1524,14 @@ export function AdminSubscriptionsPage() {
                   {safeRequests.map((request) => (
                     <tr key={request.id}>
                       <td className={ui.tableCell}>
-                        <strong>{request.studentName}</strong>
-                        <div className={ui.tableSubtext}>{request.studentEmail}</div>
+                        <strong>{getAdminUserIdentifier(request, 'Student')}</strong>
+                        <div className={ui.tableSubtext}>{getAdminUserSecondaryIdentifier(request) || '-'}</div>
                         {request.invoiceId ? <div className={ui.tableSubtext}>Invoice #{request.invoiceId}</div> : null}
                         {request.message ? <div className={ui.tableSubtext}>{request.message}</div> : null}
                         {request.paymentProofDataUrl ? (
                           <div className="mt-2 grid gap-1">
                             <span className={statusPill('paid')}>Bank transfer proof uploaded</span>
+                            <div className={ui.tableSubtext}>Uploaded: {formatAdminDateTime(request.requestedAt)}</div>
                             {request.paymentReference ? <div className={ui.tableSubtext}>Reference: {request.paymentReference}</div> : null}
                             <button type="button" className="justify-self-start border-0 bg-transparent p-0 text-[12px] font-bold text-brand-primary" onClick={() => setProofPreviewRequest(request)}>
                               View slip / screenshot
@@ -1506,7 +1546,7 @@ export function AdminSubscriptionsPage() {
                           <div className={ui.tableSubtext}>Uploaded payment: {request.paymentCurrency || request.planCurrency} {Number(request.paymentAmount).toFixed(2)}</div>
                         ) : null}
                       </td>
-                      <td className={ui.tableCell}>{request.requestedAt || '-'}</td>
+                      <td className={ui.tableCell}>{formatAdminDateTime(request.requestedAt)}</td>
                       <td className={ui.tableCell}><span className={statusPill(request.status)}>{request.status}</span></td>
                       <td className={ui.tableCell}>
                         {request.status === 'pending' ? (
@@ -1519,7 +1559,9 @@ export function AdminSubscriptionsPage() {
                             </button>
                           </div>
                         ) : (
-                          <span className={ui.tableSubtext}>{request.adminNote || request.resolvedByName || '-'}</span>
+                          <span className={ui.tableSubtext}>
+                            {request.adminNote || getAdminUserIdentifier({ email: request.resolvedByEmail, fullName: request.resolvedByName }, '-')}
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -1772,11 +1814,11 @@ export function AdminSubscriptionsPage() {
                       <td colSpan="7" className={ui.tableEmpty}>No subscriptions match the current filters.</td>
                     </tr>
                   ) : null}
-                  {!loading && filteredSubscriptions.map((subscription) => (
-                    <tr key={subscription.id}>
-                      <td className={ui.tableCell}>
-                        <strong>{subscription.studentName}</strong>
-                        <div className={ui.tableSubtext}>{subscription.studentEmail}</div>
+                    {!loading && filteredSubscriptions.map((subscription) => (
+                      <tr key={subscription.id}>
+                        <td className={ui.tableCell}>
+                          <strong>{getAdminUserIdentifier(subscription, 'Student')}</strong>
+                          <div className={ui.tableSubtext}>{getAdminUserSecondaryIdentifier(subscription) || '-'}</div>
                       </td>
                       <td className={ui.tableCell}>
                         <strong>{subscription.planName}</strong>
@@ -1808,7 +1850,9 @@ export function AdminSubscriptionsPage() {
                         ) : null}
                         {subscription.paymentReference ? <div className={ui.tableSubtext}>{subscription.paymentReference}</div> : null}
                       </td>
-                      <td className={ui.tableCell}>{subscription.assignedByName || '-'}</td>
+                      <td className={ui.tableCell}>
+                        {getAdminUserIdentifier({ email: subscription.assignedByEmail, fullName: subscription.assignedByName }, '-')}
+                      </td>
                       <td className={ui.tableCell}>
                         <div className={ui.buttonRow}>
                           <button type="button" className={ui.secondaryAction} disabled={Boolean(actionBusyId)} onClick={() => handleExtend(subscription, 7)}>+7d</button>
@@ -1842,7 +1886,7 @@ export function AdminSubscriptionsPage() {
                   <div>
                     <strong className="text-[13px] text-ink-strong">{event.summary}</strong>
                     <div className={ui.tableSubtext}>
-                      {event.studentName || 'System'} • {event.actorName || 'System'} • {event.createdAt || '-'}
+                      {getAdminUserIdentifier({ email: event.studentEmail, fullName: event.studentName }, 'System')} • {getAdminUserIdentifier({ email: event.actorEmail, fullName: event.actorName }, 'System')} • {formatAdminDateTime(event.createdAt)}
                     </div>
                   </div>
                   <span className={ui.tablePill}>{event.eventType}</span>
@@ -1890,7 +1934,7 @@ export function AdminSubscriptionsPage() {
               </label>
               <label className={ui.formLabel}>
                 Currency
-                <input className={ui.input} name="currency" value={planForm.currency} onChange={handlePlanChange} required />
+                <input className={ui.input} name="currency" value="LKR" readOnly required />
               </label>
               <label className={ui.formLabel}>
                 Duration (days)

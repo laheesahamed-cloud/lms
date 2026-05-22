@@ -360,7 +360,7 @@ export function AdminAiNotesEditorPage({
       setSaveStatus('published — students can see this');
       setTimeout(() => setSaveStatus(''), 3500);
     } catch (err) {
-      console.error('[Publish] save error:', err?.response?.status, err?.response?.data, err?.message);
+      console.error('[Publish] save error:', err?.response?.status, err?.message);
       const msg = getErrorMessage(err, 'Could not save — check server is running');
       setSaveStatus(`save failed: ${msg}`);
     }

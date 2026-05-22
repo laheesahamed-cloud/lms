@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { createUser, deleteUser, fetchUsers, fetchUsersSummary, updateUser, updateUserStatus } from '../../../../shared/api/users.api.js';
@@ -6,12 +6,17 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../../../../shared/utils/userIdentity.js';
 
 const initialFilters = {
   search: '',
   status: '',
   role: '',
 };
+
+function getFilterKey(filters) {
+  return JSON.stringify(filters);
+}
 
 const initialUserForm = {
   fullName: '',
@@ -167,6 +172,8 @@ function UserStatsCard({ summary }) {
 export function UsersPage() {
   const navigate = useNavigate();
   const [filters, setFilters] = useState(initialFilters);
+  const lastLoadedFilterKeyRef = useRef(getFilterKey(initialFilters));
+  const usersRequestIdRef = useRef(0);
   const [users, setUsers] = useState([]);
   const [quickFilter, setQuickFilter] = useState('all');
   const [summary, setSummary] = useState({
@@ -188,6 +195,11 @@ export function UsersPage() {
   }, []);
 
   useEffect(() => {
+    const filterKey = getFilterKey(filters);
+    if (filterKey === lastLoadedFilterKeyRef.current) {
+      return undefined;
+    }
+
     const timeout = window.setTimeout(() => {
       loadUsers(filters);
     }, 260);
@@ -196,16 +208,25 @@ export function UsersPage() {
   }, [filters]);
 
   async function loadUsers(nextFilters = filters) {
+    lastLoadedFilterKeyRef.current = getFilterKey(nextFilters);
+    const requestId = usersRequestIdRef.current + 1;
+    usersRequestIdRef.current = requestId;
     setLoading(true);
 
     try {
       const params = Object.fromEntries(Object.entries(nextFilters).filter(([, value]) => value));
       const data = await fetchUsers(params);
-      setUsers(data);
+      if (usersRequestIdRef.current === requestId) {
+        setUsers(data);
+      }
     } catch (loadError) {
-      showToast(getErrorMessage(loadError, 'Unable to load users'), 'error');
+      if (usersRequestIdRef.current === requestId) {
+        showToast(getErrorMessage(loadError, 'Unable to load users'), 'error');
+      }
     } finally {
-      setLoading(false);
+      if (usersRequestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }
 
@@ -343,7 +364,7 @@ export function UsersPage() {
   }
 
   async function handleDeleteUser(user) {
-    if (!window.confirm(`Delete ${user.fullName}? This cannot be undone.`)) {
+    if (!window.confirm(`Delete ${getAdminUserIdentifier(user)}? This cannot be undone.`)) {
       return;
     }
 
@@ -406,7 +427,7 @@ export function UsersPage() {
                 name="search"
                 value={filters.search}
                 onChange={handleChange}
-                placeholder="Search by name or email"
+                placeholder="Search by email address"
               />
             </label>
 
@@ -540,8 +561,8 @@ export function UsersPage() {
             <table className={ui.modernTable}>
               <thead>
                 <tr>
+                  <th className={ui.tableHeadCell}>Email address</th>
                   <th className={ui.tableHeadCell}>Name</th>
-                  <th className={ui.tableHeadCell}>Email</th>
                   <th className={ui.tableHeadCell}>Role</th>
                   <th className={ui.tableHeadCell}>Status</th>
                   <th className={ui.tableHeadCell}>Created</th>
@@ -559,81 +580,81 @@ export function UsersPage() {
                     <td colSpan="6" className={ui.tableEmpty}>No users found.</td>
                   </tr>
                 ) : null}
-                {!loading && users.map((user) => (
-                  <tr key={user.id}>
-                    <td className={ui.tableCell}><strong>{user.fullName}</strong></td>
-                    <td className={ui.tableCell}>{user.email}</td>
-                    <td className={ui.tableCell}><span className={ui.tablePill}>{user.role}</span></td>
-                    <td className={ui.tableCell}>
-                      <div className={usersPageUi.statusActions}>
-                        <span className={statusPill(user.status)}>
-                          {user.status === 'inactive' ? 'Pending approval' : 'Active'}
-                        </span>
-                        {user.status !== 'active' ? (
-                          <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-success/25 bg-[var(--color-success-light)] px-3 text-xs font-extrabold text-brand-success transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
+                {!loading && users.map((user) => {
+                  const userIdentifier = getAdminUserIdentifier(user);
+                  const userSecondaryIdentifier = getAdminUserSecondaryIdentifier(user);
+
+                  return (
+                    <tr key={user.id}>
+                      <td className={ui.tableCell}><strong>{userIdentifier}</strong></td>
+                      <td className={ui.tableCell}>{userSecondaryIdentifier || '-'}</td>
+                      <td className={ui.tableCell}><span className={ui.tablePill}>{user.role}</span></td>
+                      <td className={ui.tableCell}>
+                        <div className={usersPageUi.statusActions}>
+                          <span className={statusPill(user.status)}>
+                            {user.status === 'inactive' ? 'Pending approval' : 'Active'}
+                          </span>
+                          {user.status !== 'active' ? (
+                            <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-success/25 bg-[var(--color-success-light)] px-3 text-xs font-extrabold text-brand-success transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
+                              type="button"
+                              aria-label={`Approve ${userIdentifier}`}
+                              onClick={() => handleStatusChange(user, 'active')}
+                            >
+                              Approve
+                            </button>
+                          ) : null}
+                          {user.role !== 'admin' && user.status === 'active' ? (
+                            <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
+                              type="button"
+                              aria-label={`Inactivate ${userIdentifier}`}
+                              onClick={() => handleStatusChange(user, 'inactive')}
+                            >
+                              Disable
+                            </button>
+                          ) : null}
+                          {user.status !== 'active' && user.role !== 'admin' ? (
+                            <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
+                              type="button"
+                              aria-label={`Reject ${userIdentifier}`}
+                              onClick={() => handleStatusChange(user, 'inactive')}
+                            >
+                              Reject
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className={ui.tableCell}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</td>
+                      <td className={ui.tableCell}>
+                        <div className={cx(ui.iconRow, usersPageUi.tableActions)}>
+                          {user.role === 'student' ? (
+                            <button className={cx(ui.secondaryAction, usersPageUi.compactRowAction)}
+                              type="button"
+                              onClick={() => navigate(`/users/${user.id}`)}
+                            >
+                              View
+                            </button>
+                          ) : null}
+                          <button className={ui.iconButton}
                             type="button"
-                           
-                            aria-label={`Approve ${user.fullName}`}
-                            onClick={() => handleStatusChange(user, 'active')}
+                            aria-label={`Edit ${userIdentifier}`}
+                            title="Edit user"
+                            onClick={() => handleEditUser(user)}
                           >
-                            Approve
+                            <EditActionIcon />
                           </button>
-                        ) : null}
-                        {user.role !== 'admin' && user.status === 'active' ? (
-                          <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
+                          <button className={ui.dangerIconButton}
                             type="button"
-                           
-                            aria-label={`Inactivate ${user.fullName}`}
-                            onClick={() => handleStatusChange(user, 'inactive')}
+                            aria-label={`Delete ${userIdentifier}`}
+                            title="Delete user"
+                            onClick={() => handleDeleteUser(user)}
                           >
-                            Disable
+                            <DeleteActionIcon />
                           </button>
-                        ) : null}
-                        {user.status !== 'active' && user.role !== 'admin' ? (
-                          <button className={cx('inline-flex min-h-8 items-center justify-center rounded-md border border-brand-error/20 bg-brand-error/10 px-3 text-xs font-extrabold text-brand-error transition hover:-translate-y-0.5', usersPageUi.compactRowAction)}
-                            type="button"
-                           
-                            aria-label={`Reject ${user.fullName}`}
-                            onClick={() => handleStatusChange(user, 'inactive')}
-                          >
-                            Reject
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className={ui.tableCell}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</td>
-                    <td className={ui.tableCell}>
-                      <div className={cx(ui.iconRow, usersPageUi.tableActions)}>
-                        {user.role === 'student' ? (
-                          <button className={cx(ui.secondaryAction, usersPageUi.compactRowAction)}
-                            type="button"
-                            onClick={() => navigate(`/users/${user.id}`)}
-                          >
-                            View
-                          </button>
-                        ) : null}
-                        <button className={ui.iconButton}
-                          type="button"
-                         
-                          aria-label={`Edit ${user.fullName}`}
-                          title="Edit user"
-                          onClick={() => handleEditUser(user)}
-                        >
-                          <EditActionIcon />
-                        </button>
-                        <button className={ui.dangerIconButton}
-                          type="button"
-                         
-                          aria-label={`Delete ${user.fullName}`}
-                          title="Delete user"
-                          onClick={() => handleDeleteUser(user)}
-                        >
-                          <DeleteActionIcon />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

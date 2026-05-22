@@ -100,7 +100,7 @@ function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
       style={{ left:s.x, top:s.y, cursor:editable?'grab':'default', zIndex:20, transform:`rotate(${s.r||0}deg)`, touchAction:editable?'none':'auto' }}>
       {s.type === 'note' ? (
         <div
-          className="rounded-xl border border-amber-300/70 bg-amber-100/95 p-3 text-slate-900 shadow-[0_12px_24px_rgba(120,72,20,.16)]"
+          className="rounded-xl border border-amber-300/70 bg-amber-100/95 p-3 text-slate-700 shadow-[0_12px_24px_rgba(120,72,20,.16)]"
           style={{ width:s.w || 180, minHeight:s.h || 96, ...KL }}
         >
           <div className="absolute left-1/2 top-[-5px] size-3 -translate-x-1/2 rounded-full bg-amber-400 shadow-sm" />
@@ -199,7 +199,7 @@ function SmoothCanvasMotion() {
         padding: 7px 9px;
       }
       .lms-ai-note-page {
-        padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
       }
       .lms-ai-note-reading-dock {
         position: fixed;
@@ -287,11 +287,11 @@ function SmoothCanvasMotion() {
           flex: 1 1 auto;
         }
         .lms-ai-note-page {
-          padding-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 96px);
+          padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
         }
         .lms-ai-note-reading-dock {
-          bottom: var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px));
-          padding: 8px 12px 10px;
+          bottom: 0;
+          padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
         }
         .lms-ai-note-reading-dock__inner {
           grid-template-columns: 1fr;
@@ -359,7 +359,7 @@ function WatchVideoModal({ open, url, onClose, isDark }) {
   const panelBg = isDark ? 'rgba(15,18,31,.98)' : '#ffffff';
   const line = isDark ? 'rgba(255,255,255,.10)' : '#e5e7eb';
   const muted = isDark ? 'rgba(226,232,240,.62)' : '#64748b';
-  const text = isDark ? '#f8fafc' : '#0f172a';
+  const text = isDark ? '#f8fafc' : '#334155';
   return createPortal(
     <div
       className="fixed inset-0 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-lg"
@@ -866,7 +866,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
         <div className="lms-ai-note-topbar-inner" style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr)', alignItems:'center', gap:10, maxWidth:1680, margin:'0 auto', padding:'calc(10px + env(safe-area-inset-top, 0px)) 24px 12px' }}>
           <div className="lms-ai-note-title-block" style={{ minWidth:0, overflow:'hidden' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
-              <div style={{ ...KL, minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#111827', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasTitle}</div>
+              <div style={{ ...KL, minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasTitle}</div>
               {note.isFree ? (
                 <span style={{ flexShrink:0, border:'1px solid rgba(16,185,129,.25)', background:'rgba(16,185,129,.12)', color:isDark?'#86efac':'#047857', borderRadius:999, padding:'2px 8px', fontSize:10, fontWeight:900, textTransform:'uppercase' }}>
                   Free lesson
@@ -943,7 +943,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
             {isLocked ? (
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, minHeight:400, borderRadius:20, border:`1.5px dashed ${topBd}`, background:isDark?'rgba(255,255,255,.02)':'#fff', padding:48, textAlign:'center' }}>
                 <span style={{ color:isDark?'#93c5fd':'#2563eb' }}><LockIcon /></span>
-                <div style={{ fontSize:15, fontWeight:800, color:isDark?'#f0f4ff':'#111827' }}>{note.upgradeLabel||'Plan access needed'}</div>
+                <div style={{ fontSize:15, fontWeight:800, color:isDark?'#f0f4ff':'#374151' }}>{note.upgradeLabel||'Plan access needed'}</div>
                 <div style={{ fontSize:13, color:isDark?'#94a3b8':'#6b7280' }}>{note.lockReason||'This lesson is included with selected subscriptions.'}</div>
                 <button className="inline-flex items-center justify-center" onClick={() => navigate('/subscriptions',{state:{from:location.pathname}})}
                   style={{ background:isDark?'rgba(167,139,250,.14)':'#f5f3ff', color:isDark?'#ddd6fe':'#6d28d9', borderRadius:12, padding:'10px 20px', fontSize:12, fontWeight:800, border:`1px solid ${isDark?'rgba(167,139,250,.28)':'rgba(124,58,237,.24)'}`, cursor:'pointer' }}>View access options</button>

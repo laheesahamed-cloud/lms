@@ -1,4 +1,5 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
@@ -124,110 +125,136 @@ export class DashboardService {
   constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
 
   async getAdminDashboard() {
-    const [[summary]] = await this.db.query<CountRow[]>(
-      `SELECT
-        (SELECT COUNT(*) FROM users) AS users_count,
-        (SELECT COUNT(*) FROM courses) AS courses_count,
-        (SELECT COUNT(*) FROM topics) AS topics_count,
-        (SELECT COUNT(*) FROM quizzes) AS quizzes_count,
-        (SELECT COUNT(*) FROM questions) AS questions_count,
-        (SELECT COUNT(*) FROM lessons) AS lessons_count`
-    );
+    const [
+      summaryResult,
+      userGrowthResult,
+      courseGrowthResult,
+      lessonGrowthResult,
+      quizGrowthResult,
+      questionGrowthResult,
+      attemptResult,
+      recentUsersResult,
+      recentCoursesResult,
+      recentLessonsResult,
+      recentAttemptsResult,
+    ] = await Promise.all([
+      this.db.query<CountRow[]>(
+        `SELECT
+          (SELECT COUNT(*) FROM users) AS users_count,
+          (SELECT COUNT(*) FROM courses) AS courses_count,
+          (SELECT COUNT(*) FROM topics) AS topics_count,
+          (SELECT COUNT(*) FROM quizzes) AS quizzes_count,
+          (SELECT COUNT(*) FROM questions) AS questions_count,
+          (SELECT COUNT(*) FROM lessons) AS lessons_count`
+      ),
+      this.db.query<DailyCountRow[]>(
+        `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+         FROM users
+         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
+         GROUP BY DATE(created_at)
+         ORDER BY DATE(created_at) ASC`
+      ),
+      this.db.query<DailyCountRow[]>(
+        `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+         FROM courses
+         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
+         GROUP BY DATE(created_at)
+         ORDER BY DATE(created_at) ASC`
+      ),
+      this.db.query<DailyCountRow[]>(
+        `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+         FROM lessons
+         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
+         GROUP BY DATE(created_at)
+         ORDER BY DATE(created_at) ASC`
+      ),
+      this.db.query<DailyCountRow[]>(
+        `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+         FROM quizzes
+         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
+         GROUP BY DATE(created_at)
+         ORDER BY DATE(created_at) ASC`
+      ),
+      this.db.query<DailyCountRow[]>(
+        `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
+         FROM questions
+         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
+         GROUP BY DATE(created_at)
+         ORDER BY DATE(created_at) ASC`
+      ),
+      this.db.query<DailyCountRow[]>(
+        `SELECT DATE(COALESCE(submitted_at, created_at)) AS day_key, COUNT(*) AS count_value
+         FROM quiz_attempts
+         WHERE COALESCE(submitted_at, created_at) >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
+         GROUP BY DATE(COALESCE(submitted_at, created_at))
+         ORDER BY DATE(COALESCE(submitted_at, created_at)) ASC`
+      ),
+      this.db.query<ActivityFeedRow[]>(
+        `SELECT
+           'user' AS item_type,
+           id AS item_id,
+           full_name AS title,
+           email AS subtitle,
+           status,
+           created_at
+         FROM users
+         ORDER BY created_at DESC, id DESC
+         LIMIT 4`
+      ),
+      this.db.query<ActivityFeedRow[]>(
+        `SELECT
+           'course' AS item_type,
+           id AS item_id,
+           course_title AS title,
+           course_code AS subtitle,
+           status,
+           created_at
+         FROM courses
+         ORDER BY created_at DESC, id DESC
+         LIMIT 4`
+      ),
+      this.db.query<ActivityFeedRow[]>(
+        `SELECT
+           'lesson' AS item_type,
+           l.id AS item_id,
+           l.lesson_title AS title,
+           CONCAT_WS(' / ', c.course_title, t.topic_name, s.subtopic_name) AS subtitle,
+           l.status,
+           l.created_at
+         FROM lessons l
+         LEFT JOIN courses c ON c.id = l.course_id
+         LEFT JOIN topics t ON t.id = l.topic_id
+         LEFT JOIN subtopics s ON s.id = l.subtopic_id
+         ORDER BY l.created_at DESC, l.id DESC
+         LIMIT 4`
+      ),
+      this.db.query<ActivityFeedRow[]>(
+        `SELECT
+           'attempt' AS item_type,
+           qa.id AS item_id,
+           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS title,
+           CONCAT('Score ', qa.score, '/', qa.total_questions) AS subtitle,
+           qa.pass_status AS status,
+           COALESCE(qa.submitted_at, qa.created_at) AS created_at
+         FROM quiz_attempts qa
+         INNER JOIN quizzes q ON q.id = qa.quiz_id
+         ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
+         LIMIT 6`
+      ),
+    ]);
 
-    const [userGrowthRows] = await this.db.query<DailyCountRow[]>(
-      `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-       FROM users
-       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-       GROUP BY DATE(created_at)
-       ORDER BY DATE(created_at) ASC`
-    );
-    const [courseGrowthRows] = await this.db.query<DailyCountRow[]>(
-      `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-       FROM courses
-       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-       GROUP BY DATE(created_at)
-       ORDER BY DATE(created_at) ASC`
-    );
-    const [lessonGrowthRows] = await this.db.query<DailyCountRow[]>(
-      `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-       FROM lessons
-       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-       GROUP BY DATE(created_at)
-       ORDER BY DATE(created_at) ASC`
-    );
-    const [quizGrowthRows] = await this.db.query<DailyCountRow[]>(
-      `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-       FROM quizzes
-       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-       GROUP BY DATE(created_at)
-       ORDER BY DATE(created_at) ASC`
-    );
-    const [questionGrowthRows] = await this.db.query<DailyCountRow[]>(
-      `SELECT DATE(created_at) AS day_key, COUNT(*) AS count_value
-       FROM questions
-       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-       GROUP BY DATE(created_at)
-       ORDER BY DATE(created_at) ASC`
-    );
-    const [attemptRows] = await this.db.query<DailyCountRow[]>(
-      `SELECT DATE(COALESCE(submitted_at, created_at)) AS day_key, COUNT(*) AS count_value
-       FROM quiz_attempts
-       WHERE COALESCE(submitted_at, created_at) >= DATE_SUB(CURDATE(), INTERVAL 89 DAY)
-       GROUP BY DATE(COALESCE(submitted_at, created_at))
-       ORDER BY DATE(COALESCE(submitted_at, created_at)) ASC`
-    );
-    const [recentUsers] = await this.db.query<ActivityFeedRow[]>(
-      `SELECT
-         'user' AS item_type,
-         id AS item_id,
-         full_name AS title,
-         email AS subtitle,
-         status,
-         created_at
-       FROM users
-       ORDER BY created_at DESC, id DESC
-       LIMIT 4`
-    );
-    const [recentCourses] = await this.db.query<ActivityFeedRow[]>(
-      `SELECT
-         'course' AS item_type,
-         id AS item_id,
-         course_title AS title,
-         course_code AS subtitle,
-         status,
-         created_at
-       FROM courses
-       ORDER BY created_at DESC, id DESC
-       LIMIT 4`
-    );
-    const [recentLessons] = await this.db.query<ActivityFeedRow[]>(
-      `SELECT
-         'lesson' AS item_type,
-         l.id AS item_id,
-         l.lesson_title AS title,
-         CONCAT_WS(' / ', c.course_title, t.topic_name, s.subtopic_name) AS subtitle,
-         l.status,
-         l.created_at
-       FROM lessons l
-       LEFT JOIN courses c ON c.id = l.course_id
-       LEFT JOIN topics t ON t.id = l.topic_id
-       LEFT JOIN subtopics s ON s.id = l.subtopic_id
-       ORDER BY l.created_at DESC, l.id DESC
-       LIMIT 4`
-    );
-    const [recentAttempts] = await this.db.query<ActivityFeedRow[]>(
-      `SELECT
-         'attempt' AS item_type,
-         qa.id AS item_id,
-         COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS title,
-         CONCAT('Score ', qa.score, '/', qa.total_questions) AS subtitle,
-         qa.pass_status AS status,
-         COALESCE(qa.submitted_at, qa.created_at) AS created_at
-       FROM quiz_attempts qa
-       INNER JOIN quizzes q ON q.id = qa.quiz_id
-       ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
-       LIMIT 6`
-    );
+    const [summaryRows] = summaryResult;
+    const [userGrowthRows] = userGrowthResult;
+    const [courseGrowthRows] = courseGrowthResult;
+    const [lessonGrowthRows] = lessonGrowthResult;
+    const [quizGrowthRows] = quizGrowthResult;
+    const [questionGrowthRows] = questionGrowthResult;
+    const [attemptRows] = attemptResult;
+    const [recentUsers] = recentUsersResult;
+    const [recentCourses] = recentCoursesResult;
+    const [recentLessons] = recentLessonsResult;
+    const [recentAttempts] = recentAttemptsResult;
+    const summary = summaryRows[0];
 
     const totals = {
       users: Number(summary?.users_count || 0),
@@ -515,153 +542,170 @@ export class DashboardService {
   async getStudentDashboard(authorization?: string) {
     const student = await this.findActiveStudentByToken(this.extractToken(authorization));
 
-    const [[summary]] = await this.db.execute<CountRow[]>(
-      `SELECT
-        (SELECT COUNT(*) FROM quizzes WHERE status = 'active') AS total_quizzes,
-        (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ?) AS total_attempts,
-        (SELECT AVG(percentage) FROM quiz_attempts WHERE user_id = ? AND status = 'submitted') AS average_percentage,
-        (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ? AND pass_status = 'pass') AS total_passed,
-        (SELECT COUNT(*) FROM smart_notes WHERE user_id = ?) AS total_smart_notes,
-        (SELECT COUNT(*) FROM smart_notes WHERE user_id = ? AND (JSON_LENGTH(infographic_elements) > 0 OR representative_image_data IS NOT NULL)) AS generated_smart_notes`,
-      [student.id, student.id, student.id, student.id, student.id]
-    );
+    const [
+      summaryResult,
+      recentAttemptsResult,
+      topicRowsResult,
+      smartNotesResult,
+      attemptDaysResult,
+      performanceWindowsResult,
+      missedPatternsResult,
+      todayQuizRowsResult,
+      todayNoteRowsResult,
+      questionOfDay,
+    ] = await Promise.all([
+      this.db.execute<CountRow[]>(
+        `SELECT
+          (SELECT COUNT(*) FROM quizzes WHERE status = 'active') AS total_quizzes,
+          (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ?) AS total_attempts,
+          (SELECT AVG(percentage) FROM quiz_attempts WHERE user_id = ? AND status = 'submitted') AS average_percentage,
+          (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ? AND pass_status = 'pass') AS total_passed,
+          (SELECT COUNT(*) FROM smart_notes WHERE user_id = ?) AS total_smart_notes,
+          (SELECT COUNT(*) FROM smart_notes WHERE user_id = ? AND (JSON_LENGTH(infographic_elements) > 0 OR representative_image_data IS NOT NULL)) AS generated_smart_notes`,
+        [student.id, student.id, student.id, student.id, student.id]
+      ),
+      this.db.execute<RecentAttemptRow[]>(
+        `SELECT
+          qa.id,
+          COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
+          c.course_title,
+          t.topic_name,
+          qa.score,
+          qa.total_questions,
+          qa.percentage,
+          qa.pass_status,
+          qa.submitted_at
+        FROM quiz_attempts qa
+        INNER JOIN quizzes q ON q.id = qa.quiz_id
+        LEFT JOIN courses c ON c.id = q.course_id
+        LEFT JOIN topics t ON t.id = q.topic_id
+        WHERE qa.user_id = ?
+        ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
+        LIMIT 5`,
+        [student.id]
+      ),
+      this.db.execute<TopicInsightRow[]>(
+        `SELECT
+          t.topic_name,
+          c.course_title,
+          AVG(qa.percentage) AS average_percentage,
+          COUNT(*) AS attempts_count
+        FROM quiz_attempts qa
+        INNER JOIN quizzes q ON q.id = qa.quiz_id
+        LEFT JOIN topics t ON t.id = q.topic_id
+        LEFT JOIN courses c ON c.id = q.course_id
+        WHERE qa.user_id = ? AND qa.status = 'submitted'
+        GROUP BY q.topic_id, t.topic_name, c.course_title
+        HAVING attempts_count > 0
+        ORDER BY average_percentage ASC, attempts_count DESC`,
+        [student.id]
+      ),
+      this.db.execute<SmartNoteInsightRow[]>(
+        `SELECT
+          id,
+          title,
+          updated_at,
+          CASE
+            WHEN (JSON_LENGTH(infographic_elements) > 0 OR representative_image_data IS NOT NULL) THEN 1
+            ELSE 0
+          END AS has_visual
+        FROM smart_notes
+        WHERE user_id = ?
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 3`,
+        [student.id]
+      ),
+      this.db.execute<AttemptDayRow[]>(
+        `SELECT DISTINCT DATE(COALESCE(submitted_at, created_at)) AS attempt_day
+         FROM quiz_attempts
+         WHERE user_id = ? AND status = 'submitted'
+         ORDER BY attempt_day DESC`,
+        [student.id]
+      ),
+      this.db.execute<PerformanceWindowRow[]>(
+        `SELECT
+           CASE
+             WHEN DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 'last_7'
+             ELSE 'previous_7'
+           END AS window_key,
+           COUNT(*) AS attempts_count,
+           AVG(percentage) AS average_percentage
+         FROM quiz_attempts
+         WHERE user_id = ?
+           AND status = 'submitted'
+           AND DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+         GROUP BY window_key`,
+        [student.id]
+      ),
+      this.db.execute<MissedPatternRow[]>(
+        `SELECT
+           c.course_title,
+           subj.topic_name AS subject_name,
+           sub.subtopic_name AS topic_name,
+           l.lesson_title,
+           qn.question_type,
+           COUNT(*) AS miss_count,
+           MAX(COALESCE(qa.submitted_at, qa.created_at)) AS latest_missed_at
+         FROM student_answers sa
+         INNER JOIN quiz_attempts qa ON qa.id = sa.attempt_id
+         INNER JOIN questions qn ON qn.id = sa.question_id
+         INNER JOIN question_options qo ON qo.id = sa.option_id
+         LEFT JOIN courses c ON c.id = qn.course_id
+         LEFT JOIN topics subj ON subj.id = qn.topic_id
+         LEFT JOIN subtopics sub ON sub.id = qn.subtopic_id
+         LEFT JOIN lessons l ON l.id = qn.lesson_id
+         WHERE qa.user_id = ?
+           AND qa.status = 'submitted'
+           AND COALESCE(qa.submitted_at, qa.created_at) >= DATE_SUB(NOW(), INTERVAL 45 DAY)
+           AND (
+             (qn.question_type = 'sba' AND sa.is_selected = 1 AND qo.is_correct = 0)
+             OR (qn.question_type = 'true_false' AND sa.is_selected <> qo.is_correct)
+           )
+         GROUP BY c.course_title, subj.topic_name, sub.subtopic_name, l.lesson_title, qn.question_type
+         ORDER BY miss_count DESC, latest_missed_at DESC
+         LIMIT 5`,
+        [student.id]
+      ),
+      this.db.execute<RowDataPacket[]>(
+        `SELECT q.id, c.course_title, t.topic_name
+         FROM quiz_attempts qa
+         INNER JOIN quizzes q ON q.id = qa.quiz_id
+         LEFT JOIN courses c ON c.id = q.course_id
+         LEFT JOIN topics t ON t.id = q.topic_id
+         WHERE qa.user_id = ?
+           AND qa.status = 'submitted'
+           AND DATE(COALESCE(qa.submitted_at, qa.created_at)) = CURDATE()
+         ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC`,
+        [student.id]
+      ),
+      this.db.execute<NoteReviewRow[]>(
+        `SELECT DISTINCT
+           n.id,
+           c.course_title,
+           t.topic_name
+         FROM study_activity_events e
+         INNER JOIN ai_illustrated_notes n ON n.id = e.item_id
+         LEFT JOIN courses c ON c.id = n.course_id
+         LEFT JOIN topics t ON t.id = n.topic_id
+         WHERE e.user_id = ?
+           AND e.activity_type = 'ai_note_viewed'
+           AND DATE(e.created_at) = CURDATE()
+         ORDER BY n.id DESC`,
+        [student.id]
+      ),
+      this.getRandomDashboardQuestion(student.id),
+    ]);
 
-    const [recentAttempts] = await this.db.execute<RecentAttemptRow[]>(
-      `SELECT
-        qa.id,
-        COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
-        c.course_title,
-        t.topic_name,
-        qa.score,
-        qa.total_questions,
-        qa.percentage,
-        qa.pass_status,
-        qa.submitted_at
-      FROM quiz_attempts qa
-      INNER JOIN quizzes q ON q.id = qa.quiz_id
-      LEFT JOIN courses c ON c.id = q.course_id
-      LEFT JOIN topics t ON t.id = q.topic_id
-      WHERE qa.user_id = ?
-      ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
-      LIMIT 5`,
-      [student.id]
-    );
-
-    const [topicRows] = await this.db.execute<TopicInsightRow[]>(
-      `SELECT
-        t.topic_name,
-        c.course_title,
-        AVG(qa.percentage) AS average_percentage,
-        COUNT(*) AS attempts_count
-      FROM quiz_attempts qa
-      INNER JOIN quizzes q ON q.id = qa.quiz_id
-      LEFT JOIN topics t ON t.id = q.topic_id
-      LEFT JOIN courses c ON c.id = q.course_id
-      WHERE qa.user_id = ? AND qa.status = 'submitted'
-      GROUP BY q.topic_id, t.topic_name, c.course_title
-      HAVING attempts_count > 0
-      ORDER BY average_percentage ASC, attempts_count DESC`,
-      [student.id]
-    );
-
-    const [smartNotes] = await this.db.execute<SmartNoteInsightRow[]>(
-      `SELECT
-        id,
-        title,
-        updated_at,
-        CASE
-          WHEN (JSON_LENGTH(infographic_elements) > 0 OR representative_image_data IS NOT NULL) THEN 1
-          ELSE 0
-        END AS has_visual
-      FROM smart_notes
-      WHERE user_id = ?
-      ORDER BY updated_at DESC, id DESC
-      LIMIT 3`,
-      [student.id]
-    );
-
-    const [attemptDays] = await this.db.execute<AttemptDayRow[]>(
-      `SELECT DISTINCT DATE(COALESCE(submitted_at, created_at)) AS attempt_day
-       FROM quiz_attempts
-       WHERE user_id = ? AND status = 'submitted'
-       ORDER BY attempt_day DESC`,
-      [student.id]
-    );
-
-    const [performanceWindows] = await this.db.execute<PerformanceWindowRow[]>(
-      `SELECT
-         CASE
-           WHEN DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 'last_7'
-           ELSE 'previous_7'
-         END AS window_key,
-         COUNT(*) AS attempts_count,
-         AVG(percentage) AS average_percentage
-       FROM quiz_attempts
-       WHERE user_id = ?
-         AND status = 'submitted'
-         AND DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
-       GROUP BY window_key`,
-      [student.id]
-    );
-
-    const [missedPatterns] = await this.db.execute<MissedPatternRow[]>(
-      `SELECT
-         c.course_title,
-         subj.topic_name AS subject_name,
-         sub.subtopic_name AS topic_name,
-         l.lesson_title,
-         qn.question_type,
-         COUNT(*) AS miss_count,
-         MAX(COALESCE(qa.submitted_at, qa.created_at)) AS latest_missed_at
-       FROM student_answers sa
-       INNER JOIN quiz_attempts qa ON qa.id = sa.attempt_id
-       INNER JOIN questions qn ON qn.id = sa.question_id
-       INNER JOIN question_options qo ON qo.id = sa.option_id
-       LEFT JOIN courses c ON c.id = qn.course_id
-       LEFT JOIN topics subj ON subj.id = qn.topic_id
-       LEFT JOIN subtopics sub ON sub.id = qn.subtopic_id
-       LEFT JOIN lessons l ON l.id = qn.lesson_id
-       WHERE qa.user_id = ?
-         AND qa.status = 'submitted'
-         AND COALESCE(qa.submitted_at, qa.created_at) >= DATE_SUB(NOW(), INTERVAL 45 DAY)
-         AND (
-           (qn.question_type = 'sba' AND sa.is_selected = 1 AND qo.is_correct = 0)
-           OR (qn.question_type = 'true_false' AND sa.is_selected <> qo.is_correct)
-         )
-       GROUP BY c.course_title, subj.topic_name, sub.subtopic_name, l.lesson_title, qn.question_type
-       ORDER BY miss_count DESC, latest_missed_at DESC
-       LIMIT 5`,
-      [student.id]
-    );
-
-    const [todayQuizRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT q.id, c.course_title, t.topic_name
-       FROM quiz_attempts qa
-       INNER JOIN quizzes q ON q.id = qa.quiz_id
-       LEFT JOIN courses c ON c.id = q.course_id
-       LEFT JOIN topics t ON t.id = q.topic_id
-       WHERE qa.user_id = ?
-         AND qa.status = 'submitted'
-         AND DATE(COALESCE(qa.submitted_at, qa.created_at)) = CURDATE()
-       ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC`,
-      [student.id]
-    );
-
-    const [todayNoteRows] = await this.db.execute<NoteReviewRow[]>(
-      `SELECT DISTINCT
-         n.id,
-         c.course_title,
-         t.topic_name
-       FROM study_activity_events e
-       INNER JOIN ai_illustrated_notes n ON n.id = e.item_id
-       LEFT JOIN courses c ON c.id = n.course_id
-       LEFT JOIN topics t ON t.id = n.topic_id
-       WHERE e.user_id = ?
-         AND e.activity_type = 'ai_note_viewed'
-         AND DATE(e.created_at) = CURDATE()
-       ORDER BY n.id DESC`,
-      [student.id]
-    );
+    const [summaryRows] = summaryResult;
+    const [recentAttempts] = recentAttemptsResult;
+    const [topicRows] = topicRowsResult;
+    const [smartNotes] = smartNotesResult;
+    const [attemptDays] = attemptDaysResult;
+    const [performanceWindows] = performanceWindowsResult;
+    const [missedPatterns] = missedPatternsResult;
+    const [todayQuizRows] = todayQuizRowsResult;
+    const [todayNoteRows] = todayNoteRowsResult;
+    const summary = summaryRows[0];
 
     const totalAttempts = Number(summary?.total_attempts || 0);
     const totalPassed = Number(summary?.total_passed || 0);
@@ -762,8 +806,6 @@ export class DashboardService {
       todayQuizCount: todayQuizRows.length,
       todayNoteCount: todayNoteRows.length,
     });
-    const questionOfDay = await this.getRandomDashboardQuestion(student.id);
-
     return {
       user: {
         id: student.id,
@@ -983,6 +1025,32 @@ export class DashboardService {
   }
 
   private async getRandomDashboardQuestion(studentId: number) {
+    const eligibleQuestionWhere = `
+       q.status = 'active'
+         AND q.question_type = 'sba'
+         AND (
+           SELECT COUNT(*)
+           FROM question_options qo
+           WHERE qo.question_id = q.id
+         ) = 5
+         AND (
+           SELECT COUNT(*)
+           FROM question_options qo
+           WHERE qo.question_id = q.id
+             AND qo.is_correct = 1
+         ) = 1`;
+
+    const [[countRow]] = await this.db.execute<(RowDataPacket & { total_questions: number })[]>(
+      `SELECT COUNT(*) AS total_questions
+       FROM questions q
+       WHERE ${eligibleQuestionWhere}`
+    );
+    const totalQuestions = Number(countRow?.total_questions || 0);
+    if (totalQuestions <= 0) {
+      return null;
+    }
+
+    const offset = this.getDashboardQuestionOffset(studentId, totalQuestions);
     const [questionRows] = await this.db.execute<DashboardQuestionRow[]>(
       `SELECT
          q.id,
@@ -995,22 +1063,10 @@ export class DashboardService {
        LEFT JOIN courses c ON c.id = q.course_id
        LEFT JOIN topics subj ON subj.id = q.topic_id
        LEFT JOIN subtopics sub ON sub.id = q.subtopic_id
-       WHERE q.status = 'active'
-         AND q.question_type = 'sba'
-         AND (
-           SELECT COUNT(*)
-           FROM question_options qo
-           WHERE qo.question_id = q.id
-         ) = 5
-         AND (
-           SELECT COUNT(*)
-           FROM question_options qo
-           WHERE qo.question_id = q.id
-             AND qo.is_correct = 1
-         ) = 1
-       ORDER BY SHA2(CONCAT(CURDATE(), ':', ?, ':', q.id), 256), q.id ASC
-       LIMIT 1`,
-      [studentId]
+       WHERE ${eligibleQuestionWhere}
+       ORDER BY q.id ASC
+       LIMIT 1 OFFSET ?`,
+      [offset]
     );
     const question = questionRows[0];
     if (!question) {
@@ -1039,6 +1095,13 @@ export class DashboardService {
         isCorrect: Number(option.is_correct) === 1,
       })),
     };
+  }
+
+  private getDashboardQuestionOffset(studentId: number, totalQuestions: number) {
+    const today = new Date();
+    const dayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const seed = createHash('sha256').update(`${dayKey}:${studentId}`).digest('hex').slice(0, 12);
+    return parseInt(seed, 16) % totalQuestions;
   }
 
   private extractToken(authorization?: string) {

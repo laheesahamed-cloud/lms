@@ -20,8 +20,8 @@ export class UpdatePaymentSettingsDto {
   merchantSecret?: string;
 
   @IsOptional()
-  @IsIn(['LKR', 'USD'])
-  currency?: 'LKR' | 'USD';
+  @IsIn(['LKR'])
+  currency?: 'LKR';
 
   @IsOptional()
   @IsString()

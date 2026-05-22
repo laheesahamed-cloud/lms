@@ -454,7 +454,7 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
       : 'border-brand-primary/24 bg-[var(--color-primary-light)] text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200 dark:hover:bg-sky-400/18';
 
   const nodeClass = status === 'completed'
-    ? 'border-brand-primary/28 bg-brand-primary text-white shadow-none dark:bg-sky-400 dark:text-slate-950'
+    ? 'border-brand-primary/28 bg-brand-primary text-white shadow-none dark:bg-sky-400 dark:text-slate-700'
     : status === 'in_progress'
       ? 'border-brand-primary/30 bg-brand-primary text-white shadow-none'
       : isLocked

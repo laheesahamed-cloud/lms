@@ -50,6 +50,18 @@ const tableCheckboxClass =
   'size-4 cursor-pointer rounded border-line-medium accent-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20';
 const bulkWarningClass =
   'rounded-lg border border-brand-warning/25 bg-[var(--color-warning-light)] px-4 py-3 text-[13px] leading-relaxed text-ink-medium';
+const questionPreviewButtonClass =
+  'block w-full rounded-lg border-0 bg-transparent p-0 text-left font-inherit text-inherit transition hover:text-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20';
+const detailMetaGridClass = 'grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3';
+const detailMetaCardClass = 'rounded-lg border border-line-soft bg-surface-2 px-3.5 py-3';
+const detailMetaLabelClass = 'block text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted';
+const detailMetaValueClass = 'mt-1 block text-[13px] font-semibold text-ink-strong';
+const detailPanelClass = 'rounded-xl border border-line-soft bg-surface-1 p-4';
+const detailPanelTitleClass = 'mb-2 block text-sm font-extrabold text-ink-strong';
+const detailOptionClass = 'rounded-lg border border-line-soft bg-surface-2 px-3.5 py-3';
+const detailCorrectOptionClass = 'border-brand-success/35 bg-brand-success/10';
+const detailIncorrectOptionClass = 'border-brand-error/25 bg-brand-error/10';
+const detailRecapListClass = 'm-0 grid gap-1.5 pl-5 text-[13px] leading-relaxed text-ink-medium';
 
 const optionLabels = ['A', 'B', 'C', 'D', 'E'];
 
@@ -206,6 +218,11 @@ export function QuestionsPage() {
   const [editingId, setEditingId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingQuestionId, setLoadingQuestionId] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailQuestion, setDetailQuestion] = useState(null);
+  const [detailRecap, setDetailRecap] = useState(null);
+  const [detailLoadingId, setDetailLoadingId] = useState(null);
+  const [detailError, setDetailError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState(() => new Set());
@@ -681,6 +698,40 @@ export function QuestionsPage() {
     }
   }
 
+  async function handleViewQuestion(questionId) {
+    setDetailModalOpen(true);
+    setDetailQuestion(null);
+    setDetailRecap(null);
+    setDetailError('');
+    setDetailLoadingId(questionId);
+
+    try {
+      const [data, recapData] = await Promise.allSettled([
+        fetchQuestion(questionId),
+        fetchTheoryRecap(questionId),
+      ]);
+
+      if (data.status === 'rejected') {
+        throw data.reason;
+      }
+
+      setDetailQuestion(data.value);
+      setDetailRecap(recapData.status === 'fulfilled' ? recapData.value : null);
+    } catch (loadError) {
+      setDetailError(getErrorMessage(loadError, 'Unable to load question details'));
+    } finally {
+      setDetailLoadingId(null);
+    }
+  }
+
+  function closeDetailModal() {
+    setDetailModalOpen(false);
+    setDetailQuestion(null);
+    setDetailRecap(null);
+    setDetailError('');
+    setDetailLoadingId(null);
+  }
+
   async function handleRecapSave(fields) {
     if (!editingId) {
       setRecap(adminFieldsToRecap(fields));
@@ -1019,7 +1070,7 @@ export function QuestionsPage() {
                     </tr>
                   ) : null}
                   {!loading && questions.map((question) => (
-                    <tr key={question.id}>
+                    <tr key={question.id} className="transition hover:bg-surface-2/70">
                       <td className={ui.tableCell}>
                         <input className={tableCheckboxClass}
                           type="checkbox"
@@ -1030,12 +1081,19 @@ export function QuestionsPage() {
                       </td>
                       <td className={ui.tableCell}>#{question.id}</td>
                       <td className={ui.tableCell}>
-                        <strong>{question.questionText.slice(0, 80)}{question.questionText.length > 80 ? '...' : ''}</strong>
-                        <div className={ui.tableSubtext}>
-                          {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.keywordsText ? `Keywords: ${question.keywordsText}` : null]
-                            .filter(Boolean)
-                            .join(' • ')}
-                        </div>
+                        <button
+                          className={questionPreviewButtonClass}
+                          type="button"
+                          onClick={() => handleViewQuestion(question.id)}
+                          aria-label={`Open full details for question #${question.id}`}
+                        >
+                          <strong>{question.questionText.slice(0, 80)}{question.questionText.length > 80 ? '...' : ''}</strong>
+                          <div className={ui.tableSubtext}>
+                            {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.keywordsText ? `Keywords: ${question.keywordsText}` : null]
+                              .filter(Boolean)
+                              .join(' • ')}
+                          </div>
+                        </button>
                       </td>
                       <td className={ui.tableCell}>{question.courseTitle || '-'}</td>
                       <td className={ui.tableCell}>{[question.subjectName, question.topicName, question.lessonTitle].filter(Boolean).join(' / ') || '-'}</td>
@@ -1144,6 +1202,18 @@ export function QuestionsPage() {
           onRecapGenerate={handleRecapGenerate}
           onRecapDelete={handleRecapDelete}
         />
+        <QuestionDetailModal
+          open={detailModalOpen}
+          question={detailQuestion}
+          recap={detailRecap}
+          loading={Boolean(detailLoadingId)}
+          error={detailError}
+          onClose={closeDetailModal}
+          onEdit={(questionId) => {
+            closeDetailModal();
+            handleEditQuestion(questionId);
+          }}
+        />
       </section>
     </main>
   );
@@ -1160,6 +1230,175 @@ const RECAP_ARRAY_FIELDS = [
 
 function arrayToText(arr) {
   return Array.isArray(arr) ? arr.join('\n') : '';
+}
+
+function displayValue(value) {
+  return value === null || value === undefined || value === '' ? '-' : String(value);
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString();
+}
+
+function DetailMeta({ label, value }) {
+  return (
+    <div className={detailMetaCardClass}>
+      <span className={detailMetaLabelClass}>{label}</span>
+      <span className={detailMetaValueClass}>{displayValue(value)}</span>
+    </div>
+  );
+}
+
+function QuestionDetailModal({ open, question, recap, loading, error, onClose, onEdit }) {
+  if (!open) {
+    return null;
+  }
+
+  const normalizedRecap = normalizeTheoryRecap(recap);
+  const options = buildOptions(question?.questionType || 'sba', question?.options || []);
+  const visibleOptions = options.filter((option) => option.optionText || question?.questionType === 'true_false');
+  const correctOption = options.find((option) => Number(option.isCorrect) === 1);
+  const hierarchy = [question?.courseTitle, question?.subjectName, question?.topicName, question?.lessonTitle].filter(Boolean).join(' / ');
+  const recapSections = normalizedRecap
+    ? RECAP_ARRAY_FIELDS.map((field) => ({ ...field, items: normalizeRecapArray(normalizedRecap[field.key]) })).filter((field) => field.items.length > 0)
+    : [];
+
+  return createPortal(
+    <div className={ui.modalBackdrop} onClick={onClose}>
+      <div className={cx(ui.entityModal, 'w-[min(980px,100%)]')} onClick={(event) => event.stopPropagation()}>
+        <div className={ui.entityModalTop}>
+          <div>
+            <h2 className={ui.entityModalTitle}>{question ? `Question #${question.id}` : 'Question details'}</h2>
+            <p className={ui.entityModalText}>Full question view with answers, explanations, and learning notes.</p>
+          </div>
+          <button type="button" className={ui.subtleIconButton} onClick={onClose} aria-label="Close">
+            x
+          </button>
+        </div>
+
+        <div className={cx(ui.modalForm, 'px-6 pb-6 max-[600px]:px-4')}>
+          {loading ? (
+            <div className={ui.tableEmpty}>Loading question details...</div>
+          ) : null}
+
+          {error ? (
+            <div className={ui.feedbackError}>{error}</div>
+          ) : null}
+
+          {!loading && question ? (
+            <div className="grid gap-4">
+              <div className={detailMetaGridClass}>
+                <DetailMeta label="Course" value={question.courseTitle} />
+                <DetailMeta label="Hierarchy" value={hierarchy} />
+                <DetailMeta label="Type" value={question.questionType === 'sba' ? 'SBA' : 'True / False'} />
+                <DetailMeta label="Category" value={question.category} />
+                <DetailMeta label="Status" value={question.status} />
+                <DetailMeta label="Linked quizzes" value={question.quizCount ?? 0} />
+                <DetailMeta label="Created" value={formatDateTime(question.createdAt || question.created_at)} />
+                <DetailMeta label="Updated" value={formatDateTime(question.updatedAt || question.updated_at)} />
+              </div>
+
+              <section className={detailPanelClass}>
+                <strong className={detailPanelTitleClass}>Question</strong>
+                <p className="m-0 whitespace-pre-wrap text-[15px] leading-relaxed text-ink-strong">{question.questionText}</p>
+                {(question.topicLabel || question.keywordsText) ? (
+                  <p className="mb-0 mt-3 text-[13px] leading-relaxed text-ink-soft">
+                    {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.keywordsText ? `Keywords: ${question.keywordsText}` : null]
+                      .filter(Boolean)
+                      .join(' • ')}
+                  </p>
+                ) : null}
+              </section>
+
+              <section className={detailPanelClass}>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <strong className={detailPanelTitleClass}>Answers</strong>
+                  {question.questionType === 'sba' && correctOption ? (
+                    <span className={cx(ui.tablePill, 'bg-brand-success/15 text-brand-success')}>Correct answer: {correctOption.optionLabel}</span>
+                  ) : null}
+                </div>
+                <div className="grid gap-2.5">
+                  {visibleOptions.map((option) => {
+                    const isCorrect = Number(option.isCorrect) === 1;
+                    return (
+                      <div
+                        key={option.optionLabel}
+                        className={cx(detailOptionClass, isCorrect ? detailCorrectOptionClass : detailIncorrectOptionClass)}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <strong className="text-sm text-ink-strong">{option.optionLabel}</strong>
+                          <span className={cx(ui.tablePill, isCorrect ? 'bg-brand-success/15 text-brand-success' : 'bg-brand-error/15 text-brand-error')}>
+                            {question.questionType === 'sba' ? (isCorrect ? 'Correct' : 'Incorrect') : `Answer: ${isCorrect ? 'True' : 'False'}`}
+                          </span>
+                        </div>
+                        <p className="mb-0 mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink-medium">{option.optionText || '-'}</p>
+                        {option.whyIncorrect ? (
+                          <p className="mb-0 mt-2 rounded-lg bg-surface-1 px-3 py-2 text-[13px] leading-relaxed text-ink-soft">
+                            <strong className="text-ink-strong">Why incorrect: </strong>{option.whyIncorrect}
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className={detailPanelClass}>
+                <strong className={detailPanelTitleClass}>Explanation</strong>
+                <p className="m-0 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink-medium">{question.explanation || 'No explanation added yet.'}</p>
+              </section>
+
+              <section className={detailPanelClass}>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <strong className={detailPanelTitleClass}>Theory recap</strong>
+                  {normalizedRecap?.reviewedStatus ? (
+                    <span className={cx(recapBadgeClass, recapBadgeExistsClass)}>{normalizedRecap.reviewedStatus}</span>
+                  ) : null}
+                </div>
+                {normalizedRecap ? (
+                  <div className="grid gap-3">
+                    {normalizedRecap.conceptName ? (
+                      <p className="m-0 text-[13.5px] font-semibold text-ink-strong">{normalizedRecap.conceptName}</p>
+                    ) : null}
+                    {recapSections.map((section) => (
+                      <div key={section.key}>
+                        <strong className="mb-1 block text-[12px] uppercase tracking-[0.08em] text-ink-muted">{section.label}</strong>
+                        <ul className={detailRecapListClass}>
+                          {section.items.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                    {normalizedRecap.mnemonic ? (
+                      <p className="m-0 rounded-lg bg-brand-primary/10 px-3 py-2 text-[13px] leading-relaxed text-ink-medium">
+                        <strong className="text-ink-strong">Mnemonic: </strong>{normalizedRecap.mnemonic}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="m-0 text-[13.5px] text-ink-soft">No theory recap added yet.</p>
+                )}
+              </section>
+
+              <div className={ui.buttonRow}>
+                <button className={ui.primaryAction} type="button" onClick={() => onEdit(question.id)}>
+                  Edit question
+                </button>
+                <button className={ui.secondaryAction} type="button" onClick={onClose}>
+                  Close
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 export function TheoryRecapAdminSection({ recap, loading, saving, generating, error, onSave, onGenerate, onDelete }) {

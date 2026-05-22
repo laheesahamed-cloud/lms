@@ -1,8 +1,10 @@
+import { isStaffUser } from '../auth/roleAccess.js';
+
 const APP_BASENAME = '/lms';
 const LEGACY_BUILD_BASENAME = '/lms/frontend/dist';
 
 const protectedLegacyPathPattern =
-  /^\/(?:dashboard|pending|profile|courses|structure|users|questions|quizzes|exams|subscriptions|billing|bookmarks|notifications|planner|doubts|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
+  /^\/(?:dashboard|pending|profile|courses|structure|users|questions|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|doubts|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 
 function splitPath(path) {
   const hashIndex = path.indexOf('#');
@@ -62,7 +64,7 @@ export function canonicalizeForwardPathForUser(path, user) {
   const { pathname, search, hash } = splitPath(safePath);
   const suffix = `${search}${hash}`;
 
-  if (user.role === 'admin') {
+  if (isStaffUser(user)) {
     if (pathname.startsWith('/app')) return '/admin/dashboard';
     if (pathname.startsWith('/admin')) return safePath;
     if (protectedLegacyPathPattern.test(pathname)) {

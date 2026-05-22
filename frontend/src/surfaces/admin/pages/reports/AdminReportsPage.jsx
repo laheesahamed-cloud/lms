@@ -4,6 +4,7 @@ import { fetchCourses } from '../../../../shared/api/courses.api.js';
 import { fetchUsers } from '../../../../shared/api/users.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../../../../shared/utils/userIdentity.js';
 
 const emptyFilters = {
   startDate: '',
@@ -69,6 +70,10 @@ function csvEscape(value) {
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
+function formatLkr(value) {
+  return `LKR ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function downloadCsv(filename, rows) {
   const csv = rows.map((row) => row.map(csvEscape).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -87,7 +92,7 @@ function buildReportCsvRows(data, filters, selectedCourse, selectedStudent) {
     ['Start Date', filters.startDate || 'All'],
     ['End Date', filters.endDate || 'All'],
     ['Course', selectedCourse?.courseTitle || 'All'],
-    ['Student', selectedStudent ? `${selectedStudent.fullName || selectedStudent.email} (${selectedStudent.email})` : 'All'],
+    ['Student', selectedStudent ? getAdminUserIdentifier(selectedStudent) : 'All'],
     [],
     ['Section', 'Metric', 'Value', 'Notes'],
     ['Summary', 'Students', data.users.students, `${data.users.pending} pending or inactive accounts`],
@@ -110,11 +115,11 @@ function buildReportCsvRows(data, filters, selectedCourse, selectedStudent) {
     ['Subscription Status', 'Count'],
     ...((data.subscriptions?.byStatus || []).map((item) => [item.status, item.count])),
     [],
-    ['Payment Status', 'Count', 'Amount'],
-    ...((data.subscriptions?.payments || []).map((item) => [item.status, item.count, item.amount])),
+    ['Payment Status', 'Count', 'Amount (LKR)'],
+    ...((data.subscriptions?.payments || []).map((item) => [item.status, item.count, Number(item.amount || 0).toFixed(2)])),
     [],
-    ['Inactive Student', 'Email', 'Last Activity'],
-    ...(data.inactiveStudents || []).map((student) => [student.fullName || student.email, student.email, student.lastActivity || 'Never']),
+    ['Inactive Student Email', 'Student Name', 'Last Activity'],
+    ...(data.inactiveStudents || []).map((student) => [getAdminUserIdentifier(student), getAdminUserSecondaryIdentifier(student), student.lastActivity || 'Never']),
   ];
   return rows;
 }
@@ -237,10 +242,10 @@ export function AdminReportsPage() {
               <label className={ui.formLabel}>
                 Student
                 <select className={ui.input} name="userId" value={filters.userId} onChange={handleFilterChange}>
-                  <option value="">All students</option>
-                  {students.map((student) => (
-                    <option value={student.id} key={student.id}>{student.fullName || student.email}</option>
-                  ))}
+                    <option value="">All students</option>
+                    {students.map((student) => (
+                      <option value={student.id} key={student.id}>{getAdminUserIdentifier(student)}</option>
+                    ))}
                 </select>
               </label>
             </div>
@@ -254,7 +259,7 @@ export function AdminReportsPage() {
               <Metric label="Students" value={data.users.students} hint={`${data.users.pending} pending or inactive accounts`} />
               <Metric label="Avg Score" value={`${data.attempts.averageScore}%`} hint={`${data.attempts.total} submitted attempts`} />
               <Metric label="Pass Rate" value={`${data.attempts.passRate}%`} hint="Across all submitted quizzes" />
-              <Metric label="Payments" value={paymentTotal.toLocaleString()} hint="Recorded transaction volume" />
+              <Metric label="Payments" value={formatLkr(paymentTotal)} hint="Recorded transaction volume" />
             </section>
 
             <section className={reportUi.panel}>
@@ -354,7 +359,7 @@ export function AdminReportsPage() {
                       </div>
                       <div className={reportUi.rowStat}>
                         <strong>{item.count}</strong>
-                        <span>{Number(item.amount || 0).toLocaleString()}</span>
+                        <span>{formatLkr(item.amount)}</span>
                       </div>
                     </div>
                   ))}
@@ -364,12 +369,12 @@ export function AdminReportsPage() {
               <article className={reportUi.panel}>
                 <PanelHeader title="Inactive Students" text="Oldest or missing learning activity." />
                 <div className={reportUi.list}>
-                  {data.inactiveStudents.length === 0 ? <div className={ui.emptyBox}>No students found.</div> : data.inactiveStudents.map((student) => (
-                    <div className={reportUi.row} key={student.id}>
-                      <div className={reportUi.rowMain}>
-                        <strong>{student.fullName || student.email}</strong>
-                        <span>{student.email}</span>
-                      </div>
+                    {data.inactiveStudents.length === 0 ? <div className={ui.emptyBox}>No students found.</div> : data.inactiveStudents.map((student) => (
+                      <div className={reportUi.row} key={student.id}>
+                        <div className={reportUi.rowMain}>
+                          <strong>{getAdminUserIdentifier(student)}</strong>
+                          <span>{getAdminUserSecondaryIdentifier(student) || 'No name on file'}</span>
+                        </div>
                       <div className={reportUi.rowStat}>
                         <strong>{student.lastActivity ? new Date(student.lastActivity).toLocaleDateString() : 'Never'}</strong>
                         <span>last activity</span>

@@ -188,8 +188,8 @@
 }
 
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page.student-quiz-night-page .lms-quiz-course-card__title {
-  color: #1b2742 !important;
-  -webkit-text-fill-color: #1b2742 !important;
+  color: #2f3b57 !important;
+  -webkit-text-fill-color: #2f3b57 !important;
 }
 
 .student-app-shell .student-quiz-map-page.student-quiz-night-page .lms-quiz-course-card__stats > div:first-child > span:first-child {
@@ -206,8 +206,8 @@
 }
 
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page.student-quiz-night-page .lms-quiz-course-card__stats > div:first-child > span:last-child {
-  color: #1b2742 !important;
-  -webkit-text-fill-color: #1b2742 !important;
+  color: #2f3b57 !important;
+  -webkit-text-fill-color: #2f3b57 !important;
 }
 
 .student-app-shell .student-quiz-map-page.student-quiz-night-page .lms-quiz-course-card__progress {
@@ -408,7 +408,7 @@
   border-color: rgba(86, 112, 150, 0.16);
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.92));
-  color: #0f172a;
+  color: #334155;
   box-shadow: 0 28px 72px -42px rgba(37, 99, 235, 0.36);
 }
 

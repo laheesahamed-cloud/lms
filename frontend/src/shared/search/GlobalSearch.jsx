@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useDeferredValue, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
+import { isStaffRole, isStaffUser } from '../auth/roleAccess.js';
 import { cx } from '../styles/tailwindClasses.js';
+import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
 
 const searchUi = {
   backdrop:
@@ -146,13 +148,13 @@ export function GlobalSearch({ onClose }) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(0);
   const deferredQuery = useDeferredValue(query);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = isStaffUser(user);
 
   useEffect(() => {
     inputRef.current?.focus();
     let cancelled = false;
     const role = user?.role;
-    const roleIsAdmin = role === 'admin';
+    const roleIsAdmin = isStaffRole(role);
     const roleIsStudent = role === 'student';
 
     if (!roleIsAdmin && !roleIsStudent) {
@@ -262,13 +264,13 @@ export function GlobalSearch({ onClose }) {
             includesQuery(u.status, q)
           )
           .slice(0, 4)
-          .map(u => ({
-            type: 'user',
-            id: u.id,
-            title: u.fullName || u.full_name || u.email || 'Student',
-            sub: [u.email, u.status].filter(Boolean).join(' • '),
-            url: rolePath('/users', isAdmin),
-          }))
+            .map(u => ({
+              type: 'user',
+              id: u.id,
+              title: getAdminUserIdentifier(u, 'Student'),
+              sub: [getAdminUserSecondaryIdentifier(u), u.status].filter(Boolean).join(' • '),
+              url: rolePath('/users', isAdmin),
+            }))
       : [];
 
     return [

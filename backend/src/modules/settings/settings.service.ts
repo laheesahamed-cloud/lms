@@ -74,7 +74,7 @@ export type PayHerePaymentSettings = {
   sandboxMode: boolean;
   merchantId: string;
   merchantSecret: string;
-  currency: 'LKR' | 'USD';
+  currency: 'LKR';
   returnUrl: string;
   cancelUrl: string;
   notifyUrl: string;
@@ -176,7 +176,7 @@ export class SettingsService {
         input.merchantSecret !== undefined
           ? this.normalizeSecretInput(input.merchantSecret) || current.merchantSecret
           : current.merchantSecret,
-      currency: input.currency === 'USD' ? 'USD' : input.currency === 'LKR' ? 'LKR' : current.currency,
+      currency: 'LKR',
       returnUrl: input.returnUrl !== undefined ? this.normalizeOptionalValue(input.returnUrl) : current.returnUrl,
       cancelUrl: input.cancelUrl !== undefined ? this.normalizeOptionalValue(input.cancelUrl) : current.cancelUrl,
       notifyUrl: input.notifyUrl !== undefined ? this.normalizeOptionalValue(input.notifyUrl) : current.notifyUrl,
@@ -500,7 +500,7 @@ export class SettingsService {
   private async getRawPaymentSettings(): Promise<PayHerePaymentSettings> {
     const values = await this.getSettingMap(Object.values(PAYMENT_SETTING_KEYS));
     const encryptedMerchantSecret = values.get(PAYMENT_SETTING_KEYS.merchantSecret) || '';
-    const currency = values.get(PAYMENT_SETTING_KEYS.currency) === 'USD' ? 'USD' : 'LKR';
+    const currency = 'LKR';
 
     return {
       enabled: this.parseBoolean(values.get(PAYMENT_SETTING_KEYS.enabled), false),

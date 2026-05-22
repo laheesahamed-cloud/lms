@@ -32,8 +32,8 @@
 :root:not([data-theme="dark"]) .student-route-page,
 :root:not([data-theme="dark"]) .student-app-shell .student-route-page {
   --sa-bg: linear-gradient(180deg, #eef4fc 0%, #e4ecf7 45%, #dce6f4 100%);
-  --sa-ink: #1b2742;
-  --sa-ink-deep: #121a2f;
+  --sa-ink: #2f3b57;
+  --sa-ink-deep: #26314c;
   --sa-text-2: #5f6c86;
   --sa-text-3: #8d98ad;
 }
@@ -248,6 +248,7 @@
    ============================================================ */
 .study-continue-card {
   position: relative;
+  display: grid;
   min-height: 286px;
   margin-top: 0;
   overflow: hidden;
@@ -417,12 +418,13 @@
   height: auto;
   min-height: 100%;
   align-content: start;
+  max-width: calc(100% - clamp(126px, 17vw, 184px));
   padding-right: 0;
   z-index: 1;
 }
 
 .study-hero-name {
-  max-width: calc(100% - clamp(132px, 19vw, 208px));
+  max-width: 100%;
 }
 
 .study-continue-card .study-eyebrow {
@@ -450,7 +452,10 @@
   letter-spacing: 0;
 }
 
-.study-hero-name > span { color: var(--sa-ink); }
+.study-hero-name > span {
+  color: var(--sa-ink);
+  white-space: nowrap;
+}
 
 .study-hero-name strong {
   background: linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%);
@@ -472,8 +477,8 @@
 .study-hero-lead {
   position: relative;
   z-index: 3;
-  width: max-content;
-  max-width: 300px;
+  width: fit-content;
+  max-width: 100%;
   margin: 18px 0 0;
   overflow: visible;
   color: var(--sa-text-2);
@@ -492,9 +497,10 @@
 .study-chip-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   width: fit-content;
-  max-width: 100%;
+  max-width: min(100%, 430px);
   margin: 18px 0 22px;
   overflow: visible;
   padding-bottom: 2px;
@@ -524,6 +530,7 @@
 
 .study-chip-row span:nth-child(2) {
   max-width: min(100%, 390px);
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -563,7 +570,7 @@
   grid-template-columns: minmax(0, 1fr) 48px;
   gap: 10px;
   align-self: end;
-  margin-top: auto;
+  margin-top: clamp(12px, 2.5vw, 20px);
 }
 
 /* ============================================================
@@ -2454,7 +2461,7 @@
     background:
       radial-gradient(circle at 35% 24%, rgba(255, 255, 255, 0.34), transparent 34%),
       linear-gradient(145deg, #fbbf24, #f97316);
-    color: #2a1200;
+    color: #7a3f12;
     box-shadow: 0 14px 28px -20px rgba(249, 115, 22, 0.8);
   }
 
@@ -3114,6 +3121,12 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
   padding: calc(max(7px, env(safe-area-inset-top, 0px)) + 3px) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 18px);
 }
 
+@media (min-width: 901px) {
+  .student-app-shell .dashboard-page.study-hub-page > .study-hub-shell {
+    padding-top: calc(var(--sidebar-float-gap, 16px) + 18px);
+  }
+}
+
 .study-hub-page .study-hub-topbar {
   grid-template-columns: 52px minmax(0, 1fr) auto;
   gap: 12px;
@@ -3218,6 +3231,44 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
 
 .study-hub-page .study-hero-actions {
   grid-template-columns: minmax(0, 1fr) 40px;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-continue-card,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-continue-card {
+  border-color: rgba(96, 165, 250, 0.18);
+  background:
+    radial-gradient(circle at 84% 18%, rgba(96, 165, 250, 0.2), transparent 34%),
+    radial-gradient(circle at 96% 92%, rgba(167, 139, 250, 0.16), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(236, 245, 255, 0.92) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.72) inset,
+    0 18px 42px -30px rgba(59, 130, 246, 0.34);
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-continue-card .study-eyebrow,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-continue-card .study-eyebrow {
+  color: #3b82f6;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-hero-name,
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-hero-name > span,
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-hero-lead b,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-hero-name,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-hero-name > span,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-hero-lead b {
+  color: #2f3b57;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-hero-lead,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-hero-lead {
+  color: #66738d;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-square-action,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-square-action {
+  border-color: rgba(96, 165, 250, 0.22);
+  background: rgba(255, 255, 255, 0.68);
+  color: #5274f3;
 }
 
 .study-metric-grid {
@@ -3741,7 +3792,6 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
   }
 
   .study-hub-page .study-hero-grid .study-hero-name {
-    max-width: 100%;
     margin-bottom: 6px;
     font-size: clamp(30px, 4.2vw, 36px);
     line-height: 1.03;
@@ -3755,8 +3805,12 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
     margin: 8px 0 10px;
   }
 
+  .study-hub-page .study-hero-grid .study-hero-actions {
+    margin-top: 10px;
+  }
+
   .study-hub-page .study-hero-grid .study-continue-card__copy {
-    max-width: calc(100% - 98px);
+    max-width: calc(100% - 104px);
   }
 
   .study-hub-page .study-hero-grid > .study-mood-card .study-mood-main {
@@ -3784,7 +3838,7 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
 
 @media (min-width: 1080px) {
   .study-hub-page .study-hero-grid {
-    grid-template-columns: minmax(0, 2fr) minmax(230px, 1fr);
+    grid-template-columns: minmax(0, 2.15fr) minmax(220px, 0.85fr);
   }
 
   .study-hub-page .study-hero-grid > .study-continue-card,
@@ -3797,6 +3851,10 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
     height: 286px;
     align-content: center;
     padding: 18px;
+  }
+
+  .study-hub-page .study-hero-grid .study-continue-card__copy {
+    max-width: calc(100% - clamp(138px, 12vw, 178px));
   }
 
   .study-hub-page .study-mood-card--desktop {

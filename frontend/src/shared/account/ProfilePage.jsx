@@ -4,6 +4,7 @@ import { getErrorMessage } from '../api/client.js';
 import { AppHeader } from '../layout/AppHeader.jsx';
 import { PROFILE_AVATARS, ProfileAvatar } from '../ui/ProfileAvatar.jsx';
 import { useAuthStore } from '../stores/authStore.js';
+import { getStaffRoleLabel, isStaffUser } from '../auth/roleAccess.js';
 import { cx, statusPill, ui } from '../styles/tailwindClasses.js';
 
 export function ProfilePage() {
@@ -13,6 +14,7 @@ export function ProfilePage() {
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [profileStatus, setProfileStatus] = useState({ loading: false, error: '', success: '' });
   const [passwordStatus, setPasswordStatus] = useState({ loading: false, error: '', success: '' });
+  const isStaff = isStaffUser(user);
 
   useEffect(() => {
     setProfileForm({ fullName: user?.fullName || '', avatarKey: user?.avatarKey || '' });
@@ -54,7 +56,7 @@ export function ProfilePage() {
             <ProfileAvatar user={user} avatarKey={profileForm.avatarKey} size="xl" />
           </div>
           <div>
-            <span className={ui.eyebrow}>{user?.role === 'admin' ? 'Administrator' : 'Student Profile'}</span>
+            <span className={ui.eyebrow}>{isStaff ? getStaffRoleLabel(user?.role) : 'Student Profile'}</span>
             <h2 className="my-1.5 mb-1 text-[26px] text-ink-strong">{user?.fullName || 'Signed in user'}</h2>
             <p className="m-0 text-ink-soft">{user?.email}</p>
           </div>
@@ -89,7 +91,7 @@ export function ProfilePage() {
 
             <label className="grid gap-[7px] text-[13px] font-bold text-ink-medium">
               Role
-              <input className="cursor-not-allowed bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--line-soft))] text-ink-soft" value={user?.role === 'admin' ? 'Administrator' : 'Medical Student'} readOnly aria-readonly="true" />
+              <input className="cursor-not-allowed bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--line-soft))] text-ink-soft" value={isStaff ? getStaffRoleLabel(user?.role) : 'Medical Student'} readOnly aria-readonly="true" />
             </label>
 
             <div className="grid gap-3">

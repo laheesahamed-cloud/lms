@@ -13,6 +13,10 @@ const emptyForm = {
   status: 'active',
 };
 
+function normalizeCourseStatus(status) {
+  return String(status || '').trim().toLowerCase();
+}
+
 function CourseModal({ open, editingId, form, submitting, error, onClose, onChange, onSubmit, onReset }) {
   if (!open) {
     return null;
@@ -203,28 +207,38 @@ export function CoursesPage() {
               {loading ? <div className={ui.emptyBox}>Loading courses...</div> : null}
               {!loading && courses.length === 0 ? <div className={ui.emptyBox}>No courses found yet.</div> : null}
               {!loading &&
-                courses.map((course) => (
-                  <article className={ui.courseRowCard} key={course.id}>
-                    <div className={ui.courseRowMain}>
-                      <div className={cx(ui.statusDot, course.status === 'active' ? 'bg-brand-success' : 'bg-brand-warning')} />
-                      <div className={ui.courseRowCopy}>
-                        <h3 className={ui.courseRowTitle}>{course.courseTitle}</h3>
-                        <p className={ui.courseRowMeta}>
-                          {course.examType} • {course.courseCode}
-                        </p>
-                        {course.description ? <span className={ui.courseRowText}>{course.description}</span> : null}
-                      </div>
-                    </div>
-                    <div className={ui.iconRow}>
-                      <button type="button" className={ui.iconButton} aria-label={`Edit ${course.courseTitle}`} title="Edit course" onClick={() => startEdit(course)}>
-                        <EditActionIcon />
-                      </button>
-                      <button type="button" className={ui.dangerIconButton} aria-label={`Delete ${course.courseTitle}`} title="Delete course" onClick={() => handleDelete(course.id)}>
-                        <DeleteActionIcon />
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                  courses.map((course) => {
+                    const isActiveCourse = normalizeCourseStatus(course.status) === 'active';
+                    const statusLabel = isActiveCourse ? 'Active course' : 'Inactive course';
+
+                    return (
+                      <article className={ui.courseRowCard} key={course.id}>
+                        <div className={ui.courseRowMain}>
+                          <div
+                            className={cx(ui.statusDot, isActiveCourse ? ui.statusDotActive : ui.statusDotInactive)}
+                            role="status"
+                            aria-label={`${course.courseTitle} is ${isActiveCourse ? 'active' : 'inactive'}`}
+                            title={statusLabel}
+                          />
+                          <div className={ui.courseRowCopy}>
+                            <h3 className={ui.courseRowTitle}>{course.courseTitle}</h3>
+                            <p className={ui.courseRowMeta}>
+                              {course.examType} • {course.courseCode}
+                            </p>
+                            {course.description ? <span className={ui.courseRowText}>{course.description}</span> : null}
+                          </div>
+                        </div>
+                        <div className={ui.iconRow}>
+                          <button type="button" className={ui.iconButton} aria-label={`Edit ${course.courseTitle}`} title="Edit course" onClick={() => startEdit(course)}>
+                            <EditActionIcon />
+                          </button>
+                          <button type="button" className={ui.dangerIconButton} aria-label={`Delete ${course.courseTitle}`} title="Delete course" onClick={() => handleDelete(course.id)}>
+                            <DeleteActionIcon />
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
             </div>
           </section>
         </div>

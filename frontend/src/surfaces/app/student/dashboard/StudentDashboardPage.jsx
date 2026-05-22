@@ -1087,7 +1087,7 @@ export function StudentDashboardPage() {
             <div className="study-continue-card__copy">
               <span className="study-eyebrow">Continue where you left off</span>
               <div className="study-hero-name">
-                <span>Welcome back,&nbsp;</span>
+                <span>Welcome&nbsp;back,&nbsp;</span>
                 <strong>{firstName}</strong>
               </div>
               <p className="study-hero-lead">Next study move - <b>{inProgressQuiz ? 'PRACTICE' : recommendedNote ? 'LESSON' : 'PRACTICE'}</b></p>

@@ -18,6 +18,17 @@
   align-content: center;
 }
 
+@media (min-width: 901px) {
+  .lms-sidebar--admin-model.is-collapsed :where(
+    .lms-sidebar-wordmark,
+    .lms-sidebar-section-label,
+    .lms-sidebar-link-text,
+    .lms-sidebar-tooltip
+  ) {
+    display: none !important;
+  }
+}
+
 .lms-sidebar-overlay {
   position: fixed;
   inset: 0;

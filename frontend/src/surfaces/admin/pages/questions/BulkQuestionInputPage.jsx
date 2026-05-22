@@ -20,6 +20,15 @@ import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 const optionLabels = ['A', 'B', 'C', 'D', 'E'];
 const draftStorageKey = 'lms.bulk-question-draft.v2';
 
+function persistBulkQuestionDraft(payload) {
+  try {
+    window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const bq = {
   shell: 'grid gap-5',
   panel: 'grid gap-4 p-[22px]',
@@ -891,6 +900,8 @@ function HierarchySelectors({ meta, value, onChange, courseRequired = false }) {
 export function BulkQuestionInputPage() {
   const navigate = useNavigate();
   const draftImportRef = useRef(null);
+  const draftSaveTimerRef = useRef(null);
+  const draftPayloadRef = useRef(null);
   const [meta, setMeta] = useState({ courses: [], subjects: [], topics: [], lessons: [], papers: [], keywordSuggestions: [] });
   const [rawInput, setRawInput] = useState('');
   const [inputMode, setInputMode] = useState('text');
@@ -964,8 +975,14 @@ export function BulkQuestionInputPage() {
   }, [toast]);
 
   useEffect(() => {
+    if (draftSaveTimerRef.current) {
+      window.clearTimeout(draftSaveTimerRef.current);
+      draftSaveTimerRef.current = null;
+    }
+
     if (!questions.length && !rawInput.trim()) {
-      return;
+      draftPayloadRef.current = null;
+      return undefined;
     }
 
     const payload = {
@@ -979,8 +996,23 @@ export function BulkQuestionInputPage() {
       queueStatusFilter,
       savedAt: Date.now(),
     };
-    window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+    draftPayloadRef.current = payload;
+
+    draftSaveTimerRef.current = window.setTimeout(() => {
+      persistBulkQuestionDraft(payload);
+      draftSaveTimerRef.current = null;
+    }, 350);
+
+    return undefined;
   }, [applyPerQuestionHierarchy, currentIndex, globalDefaults, inputMode, queueSearch, queueStatusFilter, questions, rawInput]);
+
+  useEffect(() => () => {
+    if (draftSaveTimerRef.current && draftPayloadRef.current) {
+      window.clearTimeout(draftSaveTimerRef.current);
+      draftSaveTimerRef.current = null;
+      persistBulkQuestionDraft(draftPayloadRef.current);
+    }
+  }, []);
 
   const duplicateMap = useMemo(() => {
     const map = new Map();
@@ -1284,7 +1316,7 @@ export function BulkQuestionInputPage() {
       queueStatusFilter,
       savedAt: Date.now(),
     };
-    window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+    persistBulkQuestionDraft(payload);
     if (showMessage) {
       setToast('Bulk import draft saved.');
     }
@@ -1979,8 +2011,8 @@ E) Option E`}
 
             <div className={ui.panelTop}>
               <div>
-                <h2>Step 3: Review Queue and Save</h2>
-                <p>Review large batches one question at a time. The queue shows what is ready, what needs review, and what is already saved.</p>
+                <h2>Step 3: Check and Save</h2>
+                <p>Check large batches one question at a time. The list shows what is ready, what needs fixing, and what is already saved.</p>
               </div>
               <div className={ui.buttonRow}>
                 <button className={ui.primaryAction} type="button" onClick={handleSaveCurrentQuestion} disabled={savingCurrent || savingReady || savingAll || !currentQuestion}>

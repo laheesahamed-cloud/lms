@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { RouteScrollRestoration } from '../shared/routing/RouteScrollRestoration.jsx';
 import { detectPlatform } from '../shared/platform/detect.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { isStaffUser } from '../shared/auth/roleAccess.js';
 
 const PLATFORM = detectPlatform();
 const NATIVE_PUSH_PROMPT_KEY = 'lms_native_push_permission_prompted';
@@ -205,11 +206,11 @@ export function AppFrame() {
     if (/^\/(?:admin|app|auth)(?:\/|$)/.test(location.pathname)) return;
     if (/^\/(?:login|register|terms|privacy-policy|ai|lesson-notes-demo|headache-notes-demo|pwa-preview|browser-test|gpt|gemini)(?:\/|$)/.test(location.pathname)) return;
 
-    const isLegacyProtectedPath = /^\/(?:dashboard|pending|profile|courses|structure|users|questions|quizzes|exams|subscriptions|billing|bookmarks|notifications|planner|doubts|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/.test(location.pathname);
+    const isLegacyProtectedPath = /^\/(?:dashboard|pending|profile|courses|structure|users|questions|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|doubts|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/.test(location.pathname);
     if (!isLegacyProtectedPath) return;
 
     const cleanPath = location.pathname === '/billing' ? '/subscriptions' : location.pathname;
-    const prefix = user.role === 'admin' ? '/admin' : '';
+    const prefix = isStaffUser(user) ? '/admin' : '';
     navigate(`${prefix}${cleanPath}${location.search}${location.hash}`, { replace: true });
   }, [isAuthenticated, isHydrating, location.hash, location.pathname, location.search, navigate, user?.role, user?.status]);
 

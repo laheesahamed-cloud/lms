@@ -30,7 +30,7 @@ if (typeof document !== 'undefined' && !document.getElementById('canvas-study-st
 
 const noteCanvasUi = {
   highlight:
-    'break-words rounded-[3px] px-1 font-semibold not-italic text-slate-900 dark:text-white',
+    'break-words rounded-[3px] px-1 font-semibold not-italic text-slate-700 dark:text-white',
   boldTerm: 'break-words font-bold text-blue-700 dark:text-[#ff8a80]',
   editInput:
     "block w-full rounded-[5px] border border-transparent bg-transparent px-0.5 py-px font-['Patrick_Hand',cursive] text-[inherit] leading-[inherit] text-[inherit] shadow-none outline-none transition placeholder:opacity-45 hover:border-indigo-500/10 hover:bg-white/20 focus:border-indigo-500/25 focus:bg-white/28 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.08)] dark:hover:border-indigo-300/10 dark:hover:bg-white/[0.025] dark:focus:border-indigo-300/20 dark:focus:bg-white/[0.045]",
@@ -49,7 +49,7 @@ const noteCanvasUi = {
     "min-w-0 max-w-full break-words rounded-md border border-blue-700/15 bg-blue-700/[0.08] px-2.5 py-1 font-['Patrick_Hand',cursive] text-[13px] leading-[1.5] text-[#1e3a5f] dark:border-white/10 dark:bg-white/[0.06] dark:text-[rgba(220,230,255,0.92)]",
   wrapOuter: 'relative',
   canvas:
-    "relative mx-auto w-full max-w-[1120px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-[#fffdf8] bg-[radial-gradient(circle,rgba(87,69,39,0.055)_1.2px,transparent_1.2px)] bg-[length:22px_22px] font-['Patrick_Hand',cursive] text-[#1f2937] shadow-[0_14px_38px_rgba(91,64,35,0.10),0_2px_8px_rgba(15,23,42,0.04)] dark:border-white/10 dark:bg-[#0d0f1a] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.055)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_8px_40px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)] max-[640px]:max-w-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:shadow-none max-[640px]:dark:shadow-none print:max-w-full print:rounded-none print:shadow-none",
+    "relative mx-auto w-full max-w-[1120px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-[#fffdf8] bg-[radial-gradient(circle,rgba(87,69,39,0.055)_1.2px,transparent_1.2px)] bg-[length:22px_22px] font-['Patrick_Hand',cursive] text-[#3b465f] shadow-[0_14px_38px_rgba(91,64,35,0.10),0_2px_8px_rgba(15,23,42,0.04)] dark:border-white/10 dark:bg-[#0d0f1a] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.055)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_8px_40px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)] max-[640px]:max-w-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:shadow-none max-[640px]:dark:shadow-none print:max-w-full print:rounded-none print:shadow-none",
   editable: '!overflow-visible',
   overviewWrap: 'relative z-[4] flex justify-center',
   overviewBadge:
@@ -62,9 +62,9 @@ const noteCanvasUi = {
   leafMark:
     'inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-100/75 text-[25px] shadow-[0_8px_18px_rgba(16,185,129,0.12)] dark:border-emerald-300/20 dark:bg-emerald-300/10',
   title:
-    "m-0 min-w-0 flex-1 break-words font-['Patrick_Hand',cursive] text-[38px] font-bold leading-[1.05] text-slate-950 dark:text-[#f0f4ff] dark:[text-shadow:0_0_26px_rgba(160,180,255,0.16)] max-[520px]:w-full max-[520px]:text-[30px]",
+    "m-0 min-w-0 flex-1 break-words font-['Patrick_Hand',cursive] text-[38px] font-bold leading-[1.05] text-slate-700 dark:text-[#f0f4ff] dark:[text-shadow:0_0_26px_rgba(160,180,255,0.16)] max-[520px]:w-full max-[520px]:text-[30px]",
   titleReadOnly:
-    "flex w-full items-center justify-center bg-transparent px-0 py-0 text-center font-['Patrick_Hand',cursive] text-[42px] font-bold leading-[1.02] text-slate-950 shadow-none dark:text-[#f5f8ff] max-[520px]:text-[34px]",
+    "flex w-full items-center justify-center bg-transparent px-0 py-0 text-center font-['Patrick_Hand',cursive] text-[42px] font-bold leading-[1.02] text-slate-700 shadow-none dark:text-[#f5f8ff] max-[520px]:text-[34px]",
   titleMedicalIcon:
     'flex size-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/22 bg-sky-300/10 text-sky-200 shadow-[0_0_18px_rgba(96,165,250,0.18)] max-[520px]:size-9 max-[520px]:rounded-xl [&_svg]:size-7 max-[520px]:[&_svg]:size-5',
   subtitle:
@@ -120,7 +120,7 @@ const noteCanvasUi = {
   imageFitButtonOverlay:
     'min-h-[24px] px-2 text-white/74 hover:bg-white/12 hover:text-white',
   imageFitButtonOn:
-    '!bg-primary !text-white shadow-sm dark:!bg-sky-400 dark:!text-slate-950',
+    '!bg-primary !text-white shadow-sm dark:!bg-sky-400 dark:!text-slate-700',
   imagePlaceholder:
     'flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-md border-2 border-dashed border-indigo-500/30 bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_5%,var(--surface-2,#f8fafc))] font-sans text-[13px] text-ink-muted transition hover:bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_10%,var(--surface-2,#f8fafc))]',
   imageCaption: 'mx-2.5 mb-2 mt-1.5 text-center font-sans text-xs italic text-ink-muted',
@@ -153,7 +153,7 @@ const noteCanvasUi = {
   sectionHeading: 'flex items-center gap-2.5 px-3.5 pb-0 pt-3 max-[520px]:px-2.5',
   diagramIcon: 'size-[46px] shrink-0 drop-shadow-[0_0_6px_rgba(160,200,255,0.25)] [&_svg]:size-full',
   headingText:
-    "m-0 inline-flex w-fit max-w-full break-words rounded-md px-2.5 py-0.5 font-['Plus_Jakarta_Sans',sans-serif] text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-900 dark:text-[#f0f4ff]",
+    "m-0 inline-flex w-fit max-w-full break-words rounded-md px-2.5 py-0.5 font-['Plus_Jakarta_Sans',sans-serif] text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-700 dark:text-[#f0f4ff]",
   sectionExtras: 'mt-1 flex flex-col gap-1.5',
   callout:
     "flex min-w-0 items-start gap-2 break-words rounded-lg border border-black/[0.05] bg-amber-50/70 px-3 py-2 font-['Patrick_Hand',cursive] text-[14.5px] leading-[1.52] text-slate-700 dark:!border-[rgba(180,200,255,0.18)] dark:bg-white/[0.055] dark:text-[#c8d8ff] max-[520px]:text-[15px]",
@@ -177,14 +177,14 @@ const noteCanvasUi = {
     "mb-2.5 flex items-center gap-1.5 font-['Patrick_Hand',cursive] text-[13px] font-bold uppercase tracking-[0.8px] text-slate-600 dark:text-[rgba(200,220,255,0.7)]",
   keyPointsList: 'flex flex-wrap gap-2',
   keyChip:
-    "max-w-full break-words rounded-lg border border-black/[0.05] px-3 py-1.5 font-['Patrick_Hand',cursive] text-[14px] font-bold text-slate-900 shadow-[0_1px_4px_rgba(91,64,35,0.08)] dark:text-[#e5ecff] dark:shadow-[0_2px_8px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.05)] max-[520px]:text-[14.5px]",
+    "max-w-full break-words rounded-lg border border-black/[0.05] px-3 py-1.5 font-['Patrick_Hand',cursive] text-[14px] font-bold text-slate-700 shadow-[0_1px_4px_rgba(91,64,35,0.08)] dark:text-[#e5ecff] dark:shadow-[0_2px_8px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.05)] max-[520px]:text-[14.5px]",
   keyChipEdit: 'cursor-text focus:outline focus:outline-2 focus:outline-white/50',
   summary:
     'relative mx-5 mb-5 overflow-hidden rounded-[14px] border border-cyan-600/20 px-5 py-4 shadow-[0_2px_10px_rgba(91,64,35,0.055)] dark:border-white/10 dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] max-[520px]:mx-2 max-[520px]:px-3',
   summaryLabel:
     "mb-2 flex items-center gap-1.5 font-['Patrick_Hand',cursive] text-xs font-bold uppercase tracking-[0.8px] text-blue-700/65 dark:text-[rgba(150,180,255,0.7)]",
   footer:
-    'border-t border-black/[0.06] px-[22px] py-2.5 text-right text-[10px] tracking-[0.3px] text-black/25 dark:border-t-white/[0.06] dark:text-white/20',
+    'border-t border-black/[0.06] px-[22px] py-2.5 text-right text-[10px] tracking-[0.3px] text-slate-500/55 dark:border-t-white/[0.06] dark:text-white/20',
   toolbar:
     'absolute right-3 top-3 z-[60] flex max-w-[760px] flex-wrap items-center gap-1.5 rounded-xl border border-line-soft bg-white/78 px-3 py-2 shadow-[0_12px_30px_rgba(15,23,42,0.10)] backdrop-blur-[14px] dark:border-[rgba(145,170,255,0.16)] dark:bg-[rgba(8,12,24,0.82)] dark:shadow-[0_16px_36px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] max-[820px]:left-3',
   toolbarLabel: 'whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-muted dark:text-sky-100/58',
@@ -197,7 +197,7 @@ const noteCanvasUi = {
   layoutButtonOn:
     'border-[color-mix(in_srgb,var(--color-primary,#2563eb)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_12%,transparent)] text-primary dark:!border-sky-300/36 dark:!bg-sky-300/14 dark:!text-sky-100',
   popup:
-    'absolute left-0 top-[calc(100%+6px)] z-[300] rounded-[14px] border border-line-soft bg-surface-1 p-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.13)] dark:border-white/[0.08] dark:bg-[#111827]',
+    'absolute left-0 top-[calc(100%+6px)] z-[300] rounded-[14px] border border-line-soft bg-surface-1 p-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.13)] dark:border-white/[0.08] dark:bg-[#374151]',
   stickerPicker: 'grid w-[228px] grid-cols-6 gap-[5px]',
   stickerButton:
     'flex size-[34px] cursor-pointer items-center justify-center rounded-lg border border-line-soft bg-surface-2 text-lg transition hover:scale-110 hover:bg-[color-mix(in_srgb,var(--color-primary)_10%,var(--surface-2))]',
@@ -222,7 +222,7 @@ const noteCanvasUi = {
   smartArrangeFab:
     'absolute bottom-4 right-4 z-[55] inline-flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-white/90 px-3.5 py-2 font-sans text-[11px] font-extrabold text-violet-700 shadow-[0_10px_28px_rgba(88,28,135,0.14)] backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-violet-50 dark:border-violet-300/20 dark:bg-slate-950/85 dark:text-violet-100 dark:hover:bg-violet-500/15',
   focusBtn:
-    "inline-flex items-center gap-1.5 rounded-lg border border-slate-300/60 bg-white/60 px-2.5 py-1 font-['Plus_Jakarta_Sans',sans-serif] text-[11px] font-semibold text-slate-600 backdrop-blur-sm transition hover:bg-white hover:text-slate-900 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
+    "inline-flex items-center gap-1.5 rounded-lg border border-slate-300/60 bg-white/60 px-2.5 py-1 font-['Plus_Jakarta_Sans',sans-serif] text-[11px] font-semibold text-slate-600 backdrop-blur-sm transition hover:bg-white hover:text-slate-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
   focusBtnOn:
     '!border-violet-400/50 !bg-violet-100/90 !text-violet-700 dark:!border-violet-400/30 dark:!bg-violet-500/15 dark:!text-violet-200',
   lightboxBackdrop:
@@ -276,7 +276,7 @@ function highlightMarkStyle(color, theme) {
   const isDark = theme === 'dark';
   return {
     backgroundColor: colorWithAlpha(color, isDark ? '56' : '3A'),
-    color: isDark ? '#f8fbff' : '#0f172a',
+    color: isDark ? '#f8fbff' : '#334155',
     boxShadow: 'none',
     textDecoration: 'none',
     textShadow: isDark ? '0 1px 0 rgba(0,0,0,0.24)' : 'none',
@@ -1702,7 +1702,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
             </div>
             <label className={cx(noteCanvasUi.sectionButton, noteCanvasUi.fontColorButton)} title="Heading text color">
               <span style={{ fontWeight:800, color: headingColor || 'var(--ink-strong)' }}>A</span>
-              <input className="shrink-0" type="color" value={headingColor || '#0f172a'} onChange={e => onSectionChange('headingColor', e.target.value)}
+              <input className="shrink-0" type="color" value={headingColor || '#334155'} onChange={e => onSectionChange('headingColor', e.target.value)}
                 style={{ position:'absolute', inset:0, opacity:0, cursor:'pointer', width:'100%', height:'100%' }}/>
             </label>
             <button className={cx(noteCanvasUi.sectionButton, span === 'half' && noteCanvasUi.sectionButtonOn)}

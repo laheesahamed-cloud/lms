@@ -23,7 +23,7 @@
   --sa-surface-2-rgb:  243, 246, 252;
 
   /* Ink — deep navy text on pastel */
-  --sa-ink:      #0c1830;
+  --sa-ink:      #26314c;
   --sa-ink-deep: #050b1a;
   --sa-text-2:   #4d5b78;
   --sa-text-3:   #8a96b5;
@@ -74,6 +74,17 @@
   --sa-shadow-card-hover: 0 1px 0 rgba(15, 20, 48, 0.03), 0 18px 42px rgba(37, 99, 235, 0.1);
   --sa-shadow-cta:        0 10px 24px -8px rgba(37, 99, 235, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   --sa-shadow-warn:       0 6px 14px -4px rgba(240, 138, 44, 0.5);
+  --sa-card-bg:
+    linear-gradient(145deg, rgba(var(--sa-surface-rgb), 0.94), rgba(var(--sa-surface-2-rgb), 0.88));
+  --sa-card-bg-hover:
+    linear-gradient(145deg, rgba(var(--sa-surface-rgb), 0.98), rgba(var(--sa-surface-2-rgb), 0.92));
+  --sa-feature-card-bg:
+    radial-gradient(circle at 86% 20%, rgba(var(--sa-primary-rgb), 0.16), transparent 34%),
+    radial-gradient(circle at 96% 92%, rgba(var(--sa-purple-rgb), 0.1), transparent 42%),
+    linear-gradient(145deg, rgba(var(--sa-surface-rgb), 0.96), rgba(var(--sa-surface-2-rgb), 0.92));
+  --sa-soft-tile-bg:
+    linear-gradient(135deg, rgba(var(--sa-primary-rgb), 0.07), rgba(var(--sa-purple-rgb), 0.04)),
+    rgba(var(--sa-surface-rgb), 0.7);
 
   --sa-radius-xs: 10px;
   --sa-radius-sm: 14px;
@@ -88,6 +99,8 @@
   --sa-dur: 160ms;
   --sidebar-float-gap: 16px;
   --sidebar-shell-gap: 16px;
+  --sidebar-w: 224px;
+  --sidebar-w-collapsed: 68px;
   --sa-stage-inline-pad: 14px;
 
   /* Student route shell — the dashboard and every app page share this
@@ -156,7 +169,7 @@
   --brand-primary-soft:  #e0ecff;
   --brand-gradient-primary: var(--sa-grad);
   --brand-gradient-vivid:   var(--sa-grad);
-  --brand-gradient-hero:    linear-gradient(135deg, #0c1830 0%, #2563eb 55%, #38bdf8 100%);
+  --brand-gradient-hero:    linear-gradient(135deg, #26314c 0%, #2563eb 55%, #38bdf8 100%);
   --brand-shadow-soft: 0 6px 20px rgba(37, 99, 235, 0.14);
   --brand-shadow-md:   0 10px 28px rgba(37, 99, 235, 0.18);
   --brand-shadow-lg:   0 18px 44px rgba(37, 99, 235, 0.2);
@@ -199,7 +212,7 @@
 }
 
 .lms-sidebar--student-model {
-  --student-sidebar-ink:    #0c1830;
+  --student-sidebar-ink:    #26314c;
   --student-sidebar-muted:  #4d5b78;
   --student-sidebar-faint:  #8a96b5;
   --student-sidebar-border: rgba(12, 24, 48, 0.06);
@@ -210,6 +223,7 @@
   background: rgba(255, 255, 255, 0.7) !important;
   border-color: var(--student-sidebar-border) !important;
   box-shadow: 0 20px 40px -20px rgba(14, 21, 56, 0.12) !important;
+  transition-property: transform, box-shadow, border-color, background-color !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -387,17 +401,19 @@
     top: var(--sidebar-float-gap, 16px) !important;
     bottom: var(--sidebar-float-gap, 16px) !important;
     left: var(--sidebar-float-gap, 16px) !important;
-    width: 248px !important;
+    width: var(--sidebar-w, 224px) !important;
     height: auto !important;
     min-height: 0 !important;
     max-height: calc(100dvh - (var(--sidebar-float-gap, 16px) * 2)) !important;
-    padding: 22px 18px !important;
+    padding: 20px 14px !important;
     border: 1px solid var(--student-sidebar-border) !important;
     border-radius: 24px !important;
+    overflow: hidden !important;
+    isolation: isolate;
   }
 
   .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed {
-    width: var(--sidebar-w-collapsed) !important;
+    width: var(--sidebar-w-collapsed, 68px) !important;
     padding: 14px 8px !important;
   }
 
@@ -420,10 +436,20 @@
     height: 48px !important;
     min-height: 48px !important;
     padding: 0 !important;
+    gap: 0 !important;
   }
 
   .lms-sidebar--student-model.is-collapsed .lms-sidebar-link.nav-active-glow::before {
     display: none;
+  }
+
+  .lms-sidebar--student-model.is-collapsed .lms-sidebar-link-icon {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    margin: 0 auto !important;
+    place-items: center !important;
   }
 }
 
@@ -446,12 +472,19 @@
 @media (min-width: 901px) {
   .student-app-shell {
     --sa-stage-inline-pad: 22px;
-    --sa-page-padding-top: calc(var(--sidebar-float-gap, 16px) + 29px);
+    --sa-page-padding-top: calc(var(--sidebar-float-gap, 16px) + 24px);
   }
 
-  .student-app-shell.tablet-overlay-nav.sidebar-open .main-content {
-    margin-left: min(var(--sidebar-w, 340px), 340px) !important;
-    width: calc(100% - min(var(--sidebar-w, 340px), 340px)) !important;
+  .student-app-shell:not(.compact-focus-mode):not(.tablet-overlay-nav) .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w, 224px) + var(--sidebar-shell-gap, 16px)) !important;
+  }
+
+  .student-app-shell.sidebar-collapsed:not(.compact-focus-mode):not(.tablet-overlay-nav) .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w-collapsed, 68px) + var(--sidebar-shell-gap, 16px)) !important;
   }
 }
 
@@ -711,7 +744,7 @@
   }
 
   .lms-mobile-top-nav__brand strong {
-    color: #0c1830;
+    color: #26314c;
     font-family: "Bricolage Grotesque", "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     font-size: 18px;
     font-weight: 800;
@@ -729,7 +762,7 @@
   .lms-mobile-top-nav__close {
     border: 1px solid rgba(255, 255, 255, 0.30);
     background: rgba(255, 255, 255, 0.30);
-    color: #0c1830;
+    color: #26314c;
     box-shadow: none;
     transition: transform 150ms ease-out, background 150ms ease-out;
     touch-action: manipulation;
@@ -754,7 +787,7 @@
     border: 1px solid rgba(255, 255, 255, 0.42);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.42);
-    color: #0c1830;
+    color: #26314c;
     box-shadow: 0 8px 22px rgba(13, 28, 64, 0.08);
     opacity: 0;
     transform: translate3d(0, -6px, 0) scale(0.96);
@@ -883,7 +916,7 @@
   .lms-mobile-top-nav__item:focus-visible {
     border-color: rgba(37, 99, 235, 0.10);
     background: rgba(255, 255, 255, 0.24);
-    color: #0c1830;
+    color: #26314c;
     outline: none;
   }
 
@@ -894,7 +927,7 @@
   .lms-mobile-top-nav__item.is-active {
     border-color: rgba(37, 99, 235, 0.12);
     background: rgba(37, 99, 235, 0.10);
-    color: #0c1830;
+    color: #26314c;
     box-shadow: none;
   }
 
@@ -1356,6 +1389,17 @@
   --sa-shadow-card-hover: 0 0 0 1px rgba(191, 219, 254, 0.045), 0 18px 40px rgba(2, 6, 18, 0.32);
   --sa-shadow-cta:        0 10px 24px -8px rgba(96, 165, 250, 0.5), inset 0 1px 0 rgba(255,255,255,.14);
   --sa-shadow-warn:       0 6px 14px -4px rgba(245, 168, 78, 0.4);
+  --sa-card-bg:
+    linear-gradient(145deg, rgba(var(--sa-surface-rgb), 0.92), rgba(var(--sa-surface-2-rgb), 0.84));
+  --sa-card-bg-hover:
+    linear-gradient(145deg, rgba(12, 18, 32, 0.98), rgba(var(--sa-surface-2-rgb), 0.9));
+  --sa-feature-card-bg:
+    radial-gradient(circle at 86% 20%, rgba(var(--sa-primary-rgb), 0.16), transparent 34%),
+    radial-gradient(circle at 96% 92%, rgba(var(--sa-purple-rgb), 0.1), transparent 42%),
+    linear-gradient(145deg, rgba(var(--sa-surface-rgb), 0.94), rgba(var(--sa-surface-2-rgb), 0.9));
+  --sa-soft-tile-bg:
+    linear-gradient(135deg, rgba(var(--sa-primary-rgb), 0.1), rgba(var(--sa-purple-rgb), 0.055)),
+    rgba(var(--sa-surface-2-rgb), 0.72);
 
   /* Global token rebind, dark variant */
   --surface-0: var(--sa-bg);
@@ -1696,8 +1740,7 @@
   animation: lmsProfileBackdropIn 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
-.student-app-shell .main-content:has(.lms-profile-menu-backdrop),
-.student-app-shell .portal-content:has(.lms-profile-menu-backdrop) {
+body.lms-profile-menu-open .student-app-shell :where(.main-content, .portal-content) {
   z-index: 10044 !important;
 }
 
@@ -1723,9 +1766,9 @@
   animation: lmsProfileBackdropOut 340ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
-.student-app-shell .lms-topbar:has(.lms-profile-menu),
-.student-app-shell .study-hub-topbar:has(.lms-profile-menu),
-.study-hub-topbar:has(.lms-profile-menu) {
+.student-app-shell .lms-topbar.is-profile-menu-open,
+.student-app-shell .study-hub-topbar.is-profile-menu-open,
+.study-hub-topbar.is-profile-menu-open {
   z-index: 10060 !important;
 }
 
@@ -1743,15 +1786,15 @@
   transform: none !important;
 }
 
-.student-app-shell .lms-topbar-menu-wrap:has(.lms-profile-menu) > button,
-.study-hub-topbar .lms-topbar-menu-wrap:has(.lms-profile-menu) > button {
+.student-app-shell .lms-topbar-menu-wrap.is-profile-menu-open > button,
+.study-hub-topbar .lms-topbar-menu-wrap.is-profile-menu-open > button {
   position: relative;
   z-index: 10062;
 }
 
 .student-app-shell .lms-profile-menu {
   --profile-menu-trigger-size: 36px;
-  --profile-menu-ink: #0c1830;
+  --profile-menu-ink: #26314c;
   --profile-menu-muted: #4d5b78;
   --profile-menu-border: rgba(12, 24, 48, 0.08);
   --profile-menu-hover: rgba(37, 99, 235, 0.07);
@@ -1898,8 +1941,7 @@
   animation: lmsProfileBackdropIn 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
-.app-shell .main-content:has(.lms-profile-menu-backdrop),
-.app-shell .portal-content:has(.lms-profile-menu-backdrop) {
+body.lms-profile-menu-open .app-shell :where(.main-content, .portal-content) {
   z-index: 10044 !important;
 }
 
@@ -1922,10 +1964,10 @@
   --lms-profile-menu-backdrop-saturate: 108%;
 }
 
-.app-shell .lms-topbar:has(.lms-profile-menu),
-.app-shell .study-hub-topbar:has(.lms-profile-menu),
-.lms-topbar:has(.lms-profile-menu),
-.study-hub-topbar:has(.lms-profile-menu) {
+.app-shell .lms-topbar.is-profile-menu-open,
+.app-shell .study-hub-topbar.is-profile-menu-open,
+.lms-topbar.is-profile-menu-open,
+.study-hub-topbar.is-profile-menu-open {
   z-index: 10060 !important;
 }
 
@@ -1945,9 +1987,9 @@
   transform: none !important;
 }
 
-.app-shell .lms-topbar-menu-wrap:has(.lms-profile-menu) > button,
-.lms-topbar .lms-topbar-menu-wrap:has(.lms-profile-menu) > button,
-.study-hub-topbar .lms-topbar-menu-wrap:has(.lms-profile-menu) > button {
+.app-shell .lms-topbar-menu-wrap.is-profile-menu-open > button,
+.lms-topbar .lms-topbar-menu-wrap.is-profile-menu-open > button,
+.study-hub-topbar .lms-topbar-menu-wrap.is-profile-menu-open > button {
   position: relative;
   z-index: 10062;
 }
@@ -1956,7 +1998,7 @@
 .lms-topbar .lms-profile-menu,
 .study-hub-topbar .lms-profile-menu {
   --profile-menu-trigger-size: 36px;
-  --profile-menu-ink: #0c1830;
+  --profile-menu-ink: #26314c;
   --profile-menu-muted: #4d5b78;
   --profile-menu-border: rgba(12, 24, 48, 0.08);
   --profile-menu-grad: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(56, 189, 248, 0.1));
@@ -2307,12 +2349,16 @@
 .student-app-shell :where(.glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .lms-app-card) {
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-lg);
-  background: var(--sa-surface);
+  background: var(--sa-card-bg);
   color: var(--sa-ink);
   box-shadow: var(--sa-shadow-card);
 }
 
-.student-app-shell :where(.bg-surface-1, .bg-surface-card, .bg-surface-card-elevated) {
+.student-app-shell :where(.bg-surface-card, .bg-surface-card-elevated) {
+  background: var(--sa-card-bg);
+}
+
+.student-app-shell :where(.bg-surface-1) {
   background-color: var(--sa-surface);
 }
 
@@ -2323,13 +2369,14 @@
 .student-app-shell :where([class*="rounded-xl"][class*="border"], [class*="rounded-2xl"][class*="border"]) {
   border-color: var(--sa-border);
   border-radius: var(--sa-radius-lg);
-  background-color: var(--sa-surface);
+  background: var(--sa-card-bg);
   color: var(--sa-ink);
   box-shadow: var(--sa-shadow-card);
 }
 
 .student-app-shell :where([class*="rounded-xl"][class*="border"]:hover, [class*="rounded-2xl"][class*="border"]:hover) {
   border-color: rgba(var(--sa-primary-rgb), 0.22);
+  background: var(--sa-card-bg-hover);
 }
 
 .student-app-shell :where(.glass-card, .card-surface, .lms-app-card):hover {
@@ -2337,7 +2384,7 @@
 }
 
 .lms-app-card--padded { padding: 20px; }
-.lms-app-card--soft   { background: var(--sa-surface-2); }
+.lms-app-card--soft   { background: var(--sa-soft-tile-bg); }
 .lms-app-card--xl     { border-radius: var(--sa-radius-xl); }
 
 /* Page hero */
@@ -2346,7 +2393,7 @@
   overflow: hidden;
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-xl);
-  background: var(--sa-surface);
+  background: var(--sa-feature-card-bg);
   color: var(--sa-ink);
   box-shadow: var(--sa-shadow-card);
 }
@@ -2418,7 +2465,7 @@
 .student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card) {
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-lg);
-  background: var(--sa-surface);
+  background: var(--sa-card-bg);
   color: var(--sa-ink);
   box-shadow: var(--sa-shadow-card);
   transition: border-color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease), box-shadow var(--sa-dur) var(--sa-ease);
@@ -2426,6 +2473,7 @@
 
 .student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):hover {
   border-color: rgba(var(--sa-primary-rgb), 0.22);
+  background: var(--sa-card-bg-hover);
   box-shadow: var(--sa-shadow-card-hover);
 }
 
@@ -2468,7 +2516,7 @@
 
 .lms-app-btn--ghost {
   border-color: var(--sa-border);
-  background: var(--sa-surface);
+  background: var(--sa-card-bg);
   color: var(--sa-primary);
 }
 
@@ -2578,7 +2626,7 @@
 .student-app-shell :where(.lms-table-shell) {
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-lg);
-  background: var(--sa-surface);
+  background: var(--sa-card-bg);
   box-shadow: var(--sa-shadow-card);
 }
 .student-app-shell :where(table th) {
@@ -2610,7 +2658,7 @@
 .student-app-shell :where(.lms-floating-panel) {
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-lg);
-  background: var(--sa-surface);
+  background: var(--sa-card-bg);
   color: var(--sa-ink);
   box-shadow: 0 24px 70px rgba(14, 21, 56, 0.18);
 }
@@ -2623,11 +2671,13 @@
 .student-app-shell :where(
   .lms-page-header-card,
   .student-page-hero,
-  .lms-course-detail-hero
+  .lms-course-detail-hero,
+  .student-results-hero,
+  .planner-hero-card
 ) {
   border-color: var(--sa-border) !important;
   border-radius: var(--sa-radius-xl) !important;
-  background: var(--sa-surface) !important;
+  background: var(--sa-feature-card-bg) !important;
   color: var(--sa-ink) !important;
   box-shadow: var(--sa-shadow-card) !important;
 }
@@ -2644,9 +2694,18 @@
 .student-app-shell.student-app-shell .lms-quiz-course-card,
 .student-app-shell.student-app-shell .lms-quiz-subject-card,
 .student-app-shell.student-app-shell .lms-quiz-topic-card,
-.student-app-shell.student-app-shell .lms-quiz-set-card {
+.student-app-shell.student-app-shell .lms-quiz-set-card,
+.student-app-shell.student-app-shell .student-lessons-search-card,
+.student-app-shell.student-app-shell .student-lessons-course-card,
+.student-app-shell.student-app-shell .student-lessons-detail-toolbar,
+.student-app-shell.student-app-shell .student-lessons-category__head,
+.student-app-shell.student-app-shell .student-lessons-lesson-list-shell,
+.student-app-shell.student-app-shell .student-lessons-lesson-row,
+.student-app-shell.student-app-shell .student-results-focus,
+.student-app-shell.student-app-shell .student-results-history,
+.student-app-shell.student-app-shell .planner-panel {
   border-color: var(--sa-border) !important;
-  background: var(--sa-surface) !important;
+  background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
   box-shadow: var(--sa-shadow-card) !important;
 }
@@ -2667,10 +2726,19 @@
   .lms-exam-header,
   .lms-exam-main-card,
   .lms-exam-sidebar > section,
-  .lms-exam-explainer > section
+  .lms-exam-explainer > section,
+  .student-lessons-search-card,
+  .student-lessons-course-card,
+  .student-lessons-detail-toolbar,
+  .student-lessons-category__head,
+  .student-lessons-lesson-list-shell,
+  .student-lessons-lesson-row,
+  .student-results-focus,
+  .student-results-history,
+  .planner-panel
 ) {
   border-color: var(--sa-border) !important;
-  background: var(--sa-surface) !important;
+  background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
   box-shadow: var(--sa-shadow-card) !important;
 }
@@ -2694,10 +2762,15 @@
 }
 
 .student-app-shell :where(
-  .bg-surface-0,
-  .bg-surface-1,
   .bg-surface-card,
   .bg-surface-card-elevated
+) {
+  background: var(--sa-card-bg) !important;
+}
+
+.student-app-shell :where(
+  .bg-surface-0,
+  .bg-surface-1
 ) {
   background-color: var(--sa-surface) !important;
 }
@@ -2723,8 +2796,8 @@
 
 .student-app-shell .lms-exam-layout {
   --exam-shell-bg: transparent !important;
-  --exam-card-bg: var(--sa-surface) !important;
-  --exam-main-bg: var(--sa-surface) !important;
+  --exam-card-bg: var(--sa-card-bg) !important;
+  --exam-main-bg: var(--sa-card-bg) !important;
   --exam-card-border: var(--sa-border) !important;
   --exam-card-shadow: var(--sa-shadow-card) !important;
   --exam-header-chip-bg: var(--sa-surface-2) !important;
@@ -2736,10 +2809,10 @@
   --exam-soft-panel: var(--sa-surface-2) !important;
   --exam-stat-bg: var(--sa-surface-2) !important;
   --exam-stat-border: var(--sa-border) !important;
-  --exam-nav-idle-bg: var(--sa-surface) !important;
+  --exam-nav-idle-bg: var(--sa-card-bg) !important;
   --exam-nav-idle-border: var(--sa-border) !important;
   --exam-nav-idle-text: var(--sa-ink) !important;
-  --exam-jump-bg: var(--sa-surface) !important;
+  --exam-jump-bg: var(--sa-card-bg) !important;
   --exam-jump-border: var(--sa-border) !important;
   --exam-jump-text: var(--sa-primary) !important;
   --exam-chip-primary-bg: var(--sa-primary-soft) !important;
@@ -2754,7 +2827,7 @@
   --exam-tf-bg: var(--sa-surface-2) !important;
   --exam-tf-border: var(--sa-border) !important;
   --exam-tf-text: var(--sa-ink) !important;
-  --exam-footer-btn-bg: var(--sa-surface) !important;
+  --exam-footer-btn-bg: var(--sa-card-bg) !important;
   --exam-footer-btn-border: var(--sa-border) !important;
   --exam-footer-btn-text: var(--sa-ink) !important;
 }
@@ -2795,7 +2868,7 @@
 .student-app-shell .lms-review-question-card,
 .student-app-shell .lms-review-explanation-side > section {
   border: 1px solid var(--sa-border) !important;
-  background: var(--sa-surface) !important;
+  background: var(--sa-card-bg) !important;
   box-shadow: var(--sa-shadow-card) !important;
 }
 
@@ -2821,8 +2894,7 @@
   width: min(100%, 1520px) !important;
 }
 
-body:has(.student-app-shell.quiz-focus-mode) .lms-app-scroll-root,
-.lms-app-scroll-root:has(.student-app-shell.quiz-focus-mode) {
+body.student-quiz-focus-screen .lms-app-scroll-root {
   height: 100dvh !important;
   min-height: 100dvh !important;
   max-height: 100dvh !important;
@@ -3040,7 +3112,7 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   padding: 24px;
   border-radius: var(--sa-radius-xl) !important;
   border-color: rgba(37, 99, 235, 0.18) !important;
-  background: var(--sa-surface) !important;
+  background: var(--sa-feature-card-bg) !important;
   box-shadow:
     0 0 0 1px rgba(37, 99, 235, 0.04),
     0 18px 40px -12px rgba(37, 99, 235, 0.2) !important;
@@ -3119,10 +3191,10 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   letter-spacing: 0 !important;
 }
 
-.student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card, .card-surface, .lms-app-card, .lms-alert, .lms-table-shell) {
+.student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card, .card-surface, .lms-app-card, .lms-table-shell) {
   border: 1px solid var(--sa-border) !important;
   border-radius: var(--sa-radius-lg) !important;
-  background: var(--sa-surface) !important;
+  background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
   box-shadow: var(--sa-shadow-card) !important;
 }
@@ -3139,7 +3211,11 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   box-shadow: var(--sa-shadow-card-hover) !important;
 }
 
-.student-app-shell .lms-route-page:not(.dashboard-page) :where(.bg-surface-glass-strong, .bg-surface-glass-subtle, .bg-surface-1, .bg-surface-card, .bg-surface-card-elevated) {
+.student-app-shell .lms-route-page:not(.dashboard-page) :where(.bg-surface-glass-strong, .bg-surface-glass-subtle, .bg-surface-card, .bg-surface-card-elevated) {
+  background: var(--sa-card-bg) !important;
+}
+
+.student-app-shell .lms-route-page:not(.dashboard-page) :where(.bg-surface-1) {
   background: var(--sa-surface) !important;
 }
 
@@ -3183,7 +3259,7 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
 
 .student-app-shell .lms-route-page:not(.dashboard-page) :where(.rounded-lg.border, .rounded-xl.border, .rounded-2xl.border) {
   border-color: var(--sa-border) !important;
-  background: var(--sa-surface) !important;
+  background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
 }
 
@@ -3542,6 +3618,12 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   .lms-quiz-subject-card,
   .lms-quiz-topic-card,
   .lms-quiz-set-card,
+  .student-lessons-course-card,
+  .student-lessons-lesson-row,
+  .student-results-focus,
+  .student-results-history,
+  .planner-hero-card,
+  .planner-panel,
   .results-performance-board,
   .results-focus-board
 ) {
@@ -3549,7 +3631,6 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
     transform    220ms cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow   220ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 180ms ease;
-  will-change: transform;
 }
 
 .student-app-shell :where(
@@ -3561,11 +3642,18 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   .lms-quiz-subject-card,
   .lms-quiz-topic-card,
   .lms-quiz-set-card,
+  .student-lessons-course-card,
+  .student-lessons-lesson-row,
+  .student-results-focus,
+  .student-results-history,
+  .planner-hero-card,
+  .planner-panel,
   .results-performance-board,
   .results-focus-board
 ):hover {
   transform: translateY(-2px);
   border-color: rgba(var(--sa-primary-rgb), 0.28) !important;
+  background: var(--sa-card-bg-hover) !important;
   box-shadow:
     0 1px 0 rgba(0, 0, 0, 0.04),
     0 16px 36px -14px rgba(var(--sa-primary-rgb), 0.22) !important;
@@ -3580,6 +3668,12 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   .lms-quiz-subject-card,
   .lms-quiz-topic-card,
   .lms-quiz-set-card,
+  .student-lessons-course-card,
+  .student-lessons-lesson-row,
+  .student-results-focus,
+  .student-results-history,
+  .planner-hero-card,
+  .planner-panel,
   .results-performance-board,
   .results-focus-board
 ):hover,
@@ -3592,6 +3686,12 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   .lms-quiz-subject-card,
   .lms-quiz-topic-card,
   .lms-quiz-set-card,
+  .student-lessons-course-card,
+  .student-lessons-lesson-row,
+  .student-results-focus,
+  .student-results-history,
+  .planner-hero-card,
+  .planner-panel,
   .results-performance-board,
   .results-focus-board
 ):hover {
@@ -3704,8 +3804,8 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   padding-inline: 0 !important;
 }
 
-body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)),
-body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) :where(
+body.student-assessment-screen,
+body.student-assessment-screen :where(
   .student-app-shell,
   .main-content,
   .portal-content,
@@ -3716,15 +3816,15 @@ body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-r
   background: var(--sa-bg) !important;
 }
 
-:root[data-theme="dark"] body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) {
+:root[data-theme="dark"] body.student-assessment-screen {
   background: #02030a !important;
 }
 
-:root:not([data-theme="dark"]) body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) {
+:root:not([data-theme="dark"]) body.student-assessment-screen {
   background: linear-gradient(180deg, #eef4fc 0%, #e4ecf7 45%, #dce6f4 100%) !important;
 }
 
-body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) :where(
+body.student-assessment-screen :where(
   .app-shell,
   .portal-shell,
   .portal-content,
@@ -3736,7 +3836,7 @@ body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-r
   background: var(--sa-bg, #02030a) !important;
 }
 
-body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model {
+body.student-assessment-screen .lms-sidebar--student-model {
   --student-sidebar-ink: #f8fbff;
   --student-sidebar-muted: #aeb9d4;
   --student-sidebar-faint: #7481a1;
@@ -3752,24 +3852,24 @@ body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-r
     0 24px 60px -42px rgba(0, 0, 0, 0.9) !important;
 }
 
-body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong) {
+body.student-assessment-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong) {
   color: #f8fbff !important;
   -webkit-text-fill-color: #f8fbff !important;
 }
 
-body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link) {
+body.student-assessment-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link) {
   color: #aeb9d4 !important;
   -webkit-text-fill-color: #aeb9d4 !important;
 }
 
-body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
-body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow :where(span, svg) {
+body.student-assessment-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
+body.student-assessment-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow :where(span, svg) {
   color: var(--sa-primary, #60a5fa) !important;
   -webkit-text-fill-color: var(--sa-primary, #60a5fa) !important;
 }
 
-:root[data-theme="light"] body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model {
-  --student-sidebar-ink: #0c1830;
+:root[data-theme="light"] body.student-assessment-screen .lms-sidebar--student-model {
+  --student-sidebar-ink: #26314c;
   --student-sidebar-muted: #5f6c86;
   --student-sidebar-faint: #8793a8;
   --student-sidebar-border: rgba(86, 112, 150, 0.14);
@@ -3777,21 +3877,21 @@ body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-r
   --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.13), rgba(56, 189, 248, 0.12));
   border-color: rgba(86, 112, 150, 0.14) !important;
   background: rgba(255, 255, 255, 0.88) !important;
-  color: #0c1830 !important;
+  color: #26314c !important;
   box-shadow: 0 22px 54px -42px rgba(37, 99, 235, 0.34) !important;
 }
 
-:root[data-theme="light"] body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong) {
-  color: #0c1830 !important;
-  -webkit-text-fill-color: #0c1830 !important;
+:root[data-theme="light"] body.student-assessment-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong) {
+  color: #26314c !important;
+  -webkit-text-fill-color: #26314c !important;
 }
 
-:root[data-theme="light"] body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link) {
+:root[data-theme="light"] body.student-assessment-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link) {
   color: #5f6c86 !important;
   -webkit-text-fill-color: #5f6c86 !important;
 }
 
-:root:not([data-theme="dark"]) body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) :where(
+:root:not([data-theme="dark"]) body.student-assessment-screen :where(
   .app-shell,
   .portal-shell,
   .portal-content,
@@ -3803,8 +3903,8 @@ body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-r
   background: linear-gradient(180deg, #eef4fc 0%, #e4ecf7 45%, #dce6f4 100%) !important;
 }
 
-:root:not([data-theme="dark"]) body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
-:root:not([data-theme="dark"]) body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page, .student-result-detail-page)) .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow :where(span, svg) {
+:root:not([data-theme="dark"]) body.student-assessment-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
+:root:not([data-theme="dark"]) body.student-assessment-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow :where(span, svg) {
   color: var(--sa-primary, #2563eb) !important;
   -webkit-text-fill-color: var(--sa-primary, #2563eb) !important;
 }
@@ -3851,7 +3951,7 @@ body:has(.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-r
 .student-app-shell .lms-review-sidebar > :where(.lms-review-summary-grid, .lms-review-side-nav) {
   border: 1px solid var(--sa-border) !important;
   border-radius: var(--sa-radius-lg) !important;
-  background: var(--sa-surface) !important;
+  background: var(--sa-card-bg) !important;
   box-shadow: var(--sa-shadow-card) !important;
 }
 

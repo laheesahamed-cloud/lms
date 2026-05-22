@@ -815,7 +815,7 @@
   --planner-card: rgba(255, 255, 255, 0.9);
   --planner-card-strong: rgba(255, 255, 255, 0.96);
   --planner-line: rgba(80, 116, 166, 0.14);
-  --planner-text: #1b2742;
+  --planner-text: #2f3b57;
   --planner-muted: #5f6c86;
   --planner-soft: #8793a8;
   --planner-blue: #4aa8ff;
@@ -972,4 +972,70 @@
   border-color: rgba(37, 99, 235, 0.15) !important;
   background: rgba(37, 99, 235, 0.065) !important;
   color: #1d4ed8 !important;
+}
+
+/* Dashboard parity: keep planner behavior, reuse the Study Hub shell. */
+.student-app-shell .study-planner-page {
+  --planner-page-bg: var(--sa-bg);
+  --planner-card: var(--sa-surface);
+  --planner-card-strong: var(--sa-surface-raised);
+  --planner-line: var(--sa-border);
+  --planner-text: var(--sa-ink);
+  --planner-muted: var(--sa-text-2);
+  --planner-soft: var(--sa-text-3);
+  --planner-blue: var(--sa-primary);
+  --planner-blue-deep: var(--sa-primary-deep);
+  --planner-teal: var(--sa-purple);
+  --planner-amber: var(--sa-warn);
+  --planner-green: var(--sa-ok);
+  --planner-red: var(--sa-danger);
+  background: var(--sa-bg) !important;
+  color: var(--sa-ink) !important;
+}
+
+.student-app-shell .study-planner-page .lms-topbar {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.student-app-shell .planner-hero-card {
+  border-color: var(--sa-border) !important;
+  background: var(--sa-feature-card-bg) !important;
+  box-shadow: var(--sa-shadow-card) !important;
+}
+
+.student-app-shell .planner-panel {
+  border-color: var(--sa-border) !important;
+  background: var(--sa-card-bg) !important;
+  box-shadow: var(--sa-shadow-card) !important;
+}
+
+.student-app-shell .planner-hero-side,
+.student-app-shell .planner-stat-stack article,
+.student-app-shell .planner-step,
+.student-app-shell .planner-reminder-item,
+.student-app-shell .planner-week-day {
+  border-color: var(--sa-border-soft) !important;
+  background: var(--sa-soft-tile-bg) !important;
+  box-shadow: none !important;
+}
+
+.student-app-shell .planner-primary,
+.student-app-shell .planner-simple-task > button:not(.planner-step),
+.student-app-shell .planner-reminder-form button {
+  background: var(--sa-grad) !important;
+  color: #ffffff !important;
+  box-shadow: var(--sa-shadow-cta) !important;
+}
+
+.student-app-shell .planner-secondary,
+.student-app-shell .planner-week-simple button,
+.student-app-shell .planner-reminder-item button {
+  border-color: var(--sa-border) !important;
+  background: var(--sa-card-bg) !important;
+  color: var(--sa-ink) !important;
+  box-shadow: var(--sa-shadow-card) !important;
 }

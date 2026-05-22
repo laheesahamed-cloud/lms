@@ -240,11 +240,11 @@ export const ui = {
 
   // ── Toasts ────────────────────────────────────────────────
   toastContainer:
-    'fixed inset-0 z-[140] grid pointer-events-none',
+    'fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+16px)] z-[140] flex justify-center px-4 pointer-events-none',
   toastContainerCenter:
-    'place-items-center p-6',
+    'items-start',
   toast:
-    'lms-alert inline-flex min-w-[min(420px,calc(100%_-_32px))] max-w-[540px] items-center gap-2.5 rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated px-[18px] py-3.5 text-[13px] font-bold text-ink-strong shadow-xl animate-toastSlideUp',
+    'lms-alert inline-flex min-w-[min(420px,calc(100%_-_32px))] max-w-[540px] items-center gap-2.5 rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated px-[18px] py-3.5 text-[13px] font-bold text-ink-strong shadow-xl animate-slideDownFade',
   toastSuccess:
     'border-brand-success/18 bg-[color-mix(in_srgb,var(--surface-glass-strong)_84%,var(--color-success-light))]',
   toastError:
@@ -279,6 +279,10 @@ export const ui = {
     'line-clamp-2 overflow-hidden text-[12.5px] leading-normal text-ink-soft [-webkit-box-orient:vertical] [display:-webkit-box]',
   statusDot:
     'mt-1.5 size-2.5 shrink-0 rounded-full bg-ink-muted shadow-[0_0_0_5px_color-mix(in_srgb,var(--surface-2)_90%,transparent)]',
+  statusDotActive:
+    '!bg-brand-success !shadow-[0_0_0_5px_var(--color-success-light),0_0_14px_color-mix(in_srgb,var(--color-success)_32%,transparent)]',
+  statusDotInactive:
+    '!bg-brand-warning !shadow-[0_0_0_5px_var(--color-warning-light)]',
   lessonSnippet:
     'inline-block max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap max-[520px]:max-w-full max-[520px]:whitespace-normal',
   lessonNotebookContent:

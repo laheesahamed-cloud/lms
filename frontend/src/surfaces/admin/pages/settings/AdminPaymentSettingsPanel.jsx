@@ -25,7 +25,7 @@ function toForm(data) {
     sandboxMode: data?.sandboxMode !== false,
     merchantId: data?.merchantId || '',
     merchantSecret: '',
-    currency: data?.currency === 'USD' ? 'USD' : 'LKR',
+    currency: 'LKR',
     returnUrl: data?.returnUrl || '',
     cancelUrl: data?.cancelUrl || '',
     notifyUrl: data?.notifyUrl || '',
@@ -70,7 +70,7 @@ export function AdminPaymentSettingsPanel() {
     setStatus((current) => ({ ...current, saving: true, error: '', success: '' }));
 
     try {
-      const payload = { ...form };
+      const payload = { ...form, currency: 'LKR' };
       if (!payload.merchantSecret.trim()) {
         delete payload.merchantSecret;
       }
@@ -153,7 +153,6 @@ export function AdminPaymentSettingsPanel() {
                 Currency
                 <select className={ui.input} value={form.currency} onChange={(event) => patchForm({ currency: event.target.value })}>
                   <option value="LKR">LKR</option>
-                  <option value="USD">USD</option>
                 </select>
               </label>
               <label className={ui.formLabel}>

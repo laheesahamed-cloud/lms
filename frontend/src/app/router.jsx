@@ -5,6 +5,7 @@ import { AppRouteError } from './AppRouteError.jsx';
 import { AppErrorBoundary } from './AppErrorBoundary.jsx';
 import { AppFrame } from './AppFrame.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { isStaffUser, roleRouteMode } from '../shared/auth/roleAccess.js';
 import { shouldPreloadRoutes } from '../shared/utils/performanceProfile.js';
 import { detectPlatform } from '../shared/platform/detect.js';
 import { getRouterBasename, normalizeLegacyBuildPath } from '../shared/platform/config.js';
@@ -44,9 +45,9 @@ const AdminDashboardPage = lazyNamed(() => import('../surfaces/admin/pages/dashb
 const QuizzesPage = lazyNamed(() => import('../surfaces/admin/pages/quizzes/QuizzesPage.jsx'), 'QuizzesPage');
 const QuizBuilderPage = lazyNamed(() => import('../surfaces/admin/pages/quizzes/QuizBuilderPage.jsx'), 'QuizBuilderPage');
 const AdminSubscriptionsPage = lazyNamed(() => import('../surfaces/admin/pages/subscriptions/AdminSubscriptionsPage.jsx'), 'AdminSubscriptionsPage');
+const AdminFinancePage = lazyNamed(() => import('../surfaces/admin/pages/finance/AdminFinancePage.jsx'), 'AdminFinancePage');
 const QuestionsPage = lazyNamed(() => import('../surfaces/admin/pages/questions/QuestionsPage.jsx'), 'QuestionsPage');
 const BulkQuestionInputPage = lazyNamed(() => import('../surfaces/admin/pages/questions/BulkQuestionInputPage.jsx'), 'BulkQuestionInputPage');
-const QuestionReviewPage = lazyNamed(() => import('../surfaces/admin/pages/questions/QuestionReviewPage.jsx'), 'QuestionReviewPage');
 const StructurePage = lazyNamed(() => import('../surfaces/admin/pages/structure/StructurePage.jsx'), 'StructurePage');
 const UsersPage = lazyNamed(() => import('../surfaces/admin/pages/users/UsersPage.jsx'), 'UsersPage');
 const AdminStudentDetailPage = lazyNamed(() => import('../surfaces/admin/pages/users/AdminStudentDetailPage.jsx'), 'AdminStudentDetailPage');
@@ -102,10 +103,10 @@ const roleRoutePreloaders = {
     ['/structure', StructurePage.preload],
     ['/questions', QuestionsPage.preload],
     ['/questions/bulk', BulkQuestionInputPage.preload],
-    ['/questions/review', QuestionReviewPage.preload],
     ['/quizzes', QuizzesPage.preload],
     ['/quizzes/new', QuizBuilderPage.preload],
     ['/subscriptions', AdminSubscriptionsPage.preload],
+    ['/finance', AdminFinancePage.preload],
     ['/ai-notes', AdminAiNotesListPage.preload],
     ['/users', UsersPage.preload],
     ['/announcements', AdminAnnouncementsPage.preload],
@@ -136,7 +137,8 @@ export function preloadRouteByPath(path, role = useAuthStore.getState().user?.ro
   }
 
   const cleanPath = path.replace(/^\/(?:admin|app|student)(?=\/|$)/, '') || '/dashboard';
-  const preload = roleRoutePreloaders[role]?.get(cleanPath) || commonRoutePreloaders.get(cleanPath);
+  const preloadRole = roleRouteMode(role);
+  const preload = roleRoutePreloaders[preloadRole]?.get(cleanPath) || commonRoutePreloaders.get(cleanPath);
   if (typeof preload === 'function') {
     preload().catch(() => {});
   }
@@ -214,11 +216,11 @@ function withLayoutSuspense(element) {
 
 function RoleSwitch({ admin, student }) {
   const user = useAuthStore((state) => state.user);
-  return user?.role === 'admin' ? admin : student;
+  return isStaffUser(user) ? admin : student;
 }
 
 function roleHomePath(user) {
-  if (user?.role === 'admin') return '/admin/dashboard';
+  if (isStaffUser(user)) return '/admin/dashboard';
   if (user?.role === 'student' && user.status !== 'active') return '/pending';
   return '/dashboard';
 }
@@ -226,7 +228,7 @@ function roleHomePath(user) {
 function prefixRolePath(path, user) {
   const normalized = path && path !== '/' ? path : '/dashboard';
   const cleanPath = normalized.replace(/^\/(?:admin|student|app)(?=\/|$)/, '') || '/dashboard';
-  const prefix = user?.role === 'admin' ? '/admin' : '';
+  const prefix = isStaffUser(user) ? '/admin' : '';
   return `${prefix}${cleanPath}`;
 }
 
@@ -300,10 +302,6 @@ const adminPanelRoutes = [
     element: withSuspense(<BulkQuestionInputPage />),
   },
   {
-    path: 'questions/review',
-    element: withSuspense(<QuestionReviewPage />),
-  },
-  {
     path: 'quizzes',
     element: withSuspense(<QuizzesPage />),
   },
@@ -318,6 +316,14 @@ const adminPanelRoutes = [
   {
     path: 'subscriptions',
     element: withSuspense(<AdminSubscriptionsPage />),
+  },
+  {
+    path: 'finance',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['subscriptions.manage', 'reports.view']}>
+        <AdminFinancePage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'ai-notes',
@@ -706,14 +712,6 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: 'questions/review',
-            element: (
-              <ProtectedRoute role="admin">
-                {withSuspense(<QuestionReviewPage />)}
-              </ProtectedRoute>
-            ),
-          },
-          {
             path: 'quizzes',
             element: (
               <ProtectedRoute>
@@ -780,6 +778,14 @@ export const router = createBrowserRouter([
                   admin={withSuspense(<AdminSubscriptionsPage />)}
                   student={withSuspense(<StudentBillingPage />)}
                 />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'finance',
+            element: (
+              <ProtectedRoute role="admin" requiredPermissions={['subscriptions.manage', 'reports.view']}>
+                {withSuspense(<AdminFinancePage />)}
               </ProtectedRoute>
             ),
           },

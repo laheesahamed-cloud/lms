@@ -15,6 +15,7 @@ Optimization should protect the existing look and feel. Do not redesign screens,
 - Minimize unnecessary re-renders, timers, intervals, observers, and animation loops.
 - Keep image, asset, and bundle usage reasonable.
 - Preserve all existing features unless the user asks to remove something.
+- Avoid adding new code unless there is no better option; optimization should first reuse, simplify, remove waste, or tune existing code before introducing new logic.
 
 ## What Optimize Does Not Mean
 
@@ -90,4 +91,3 @@ For API health:
 curl http://localhost:3000/api/health
 curl http://localhost:3000/api/health/ready
 ```
-

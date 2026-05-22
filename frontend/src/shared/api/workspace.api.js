@@ -16,10 +16,6 @@ export const deletePlannerTask = (id) => apiClient.delete(`/student/planner/${id
 
 export const fetchAdminReports = (params) => apiClient.get('/admin/reports', { params }).then((r) => r.data);
 
-export const fetchQuestionReviewItems = (params) => apiClient.get('/admin/question-review', { params }).then((r) => r.data);
-export const createQuestionReviewItem = (payload) => apiClient.post('/admin/question-review', payload).then((r) => r.data);
-export const updateQuestionReviewItem = (id, payload) => apiClient.patch(`/admin/question-review/${id}`, payload).then((r) => r.data);
-
 export const fetchStudentDoubts = () => apiClient.get('/student/doubts').then((r) => r.data);
 export const createLessonDoubt = (payload) => apiClient.post('/student/doubts', payload).then((r) => r.data);
 export const fetchAdminDoubts = (params) => apiClient.get('/admin/lesson-doubts', { params }).then((r) => r.data);

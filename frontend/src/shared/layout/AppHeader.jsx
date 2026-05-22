@@ -6,7 +6,9 @@ import { useAuthStore } from '../stores/authStore.js';
 import { ProfileAvatar } from '../ui/ProfileAvatar.jsx';
 import { ThemeToggle } from './ThemeToggle.jsx';
 import { HeaderInstallAction } from './HeaderInstallAction.jsx';
+import { getStaffRoleLabel, isStaffUser, roleRouteMode } from '../auth/roleAccess.js';
 import { cx, ui } from '../styles/tailwindClasses.js';
+import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
 
 function BellIcon() {
   return (
@@ -186,7 +188,7 @@ const topbarUi = {
 function rolePath(path, role) {
   if (!path) return '';
   if (path.startsWith('/admin') || path.startsWith('/app')) return path;
-  return `${role === 'admin' ? '/admin' : '/app'}${path}`;
+  return `${roleRouteMode(role) === 'admin' ? '/admin' : '/app'}${path}`;
 }
 
 export function AppHeader({ title, subtitle, actions = null, className = '' }) {
@@ -209,9 +211,16 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
 
   const unreadNotifications = useMemo(() => sortLatestNotifications(notifications.filter((item) => !item.read)), [notifications]);
   const visibleUnreadNotifications = useMemo(() => unreadNotifications.slice(0, 5), [unreadNotifications]);
+  const isStaff = isStaffUser(user);
 
-  const settingsPath = user?.role === 'admin' ? rolePath('/settings', user?.role) : '';
+  const settingsPath = isStaff ? rolePath('/settings', user?.role) : '';
   const profilePath = rolePath('/profile', user?.role);
+  const profilePrimary = isStaff
+    ? getAdminUserIdentifier(user, 'Signed in user')
+    : user?.fullName || 'Signed in user';
+  const profileSecondary = isStaff
+    ? getAdminUserSecondaryIdentifier(user) || getStaffRoleLabel(user?.role)
+    : 'Medical Student';
 
   const closeProfileMenu = useCallback(() => {
     if (!profileOpen && !profileClosing) {
@@ -296,6 +305,12 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   }, [user?.id]);
 
   useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    document.body.classList.toggle('lms-profile-menu-open', profileVisible);
+    return () => document.body.classList.remove('lms-profile-menu-open');
+  }, [profileVisible]);
+
+  useEffect(() => {
     return () => window.clearTimeout(profileCloseTimerRef.current);
   }, []);
 
@@ -317,7 +332,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       <>
         {profileBackdropLayer}
 
-        <header className={cx('study-hub-topbar', className)}>
+        <header className={cx('study-hub-topbar', profileVisible && 'is-profile-menu-open', className)}>
           <button type="button" className="study-icon-button lms-topbar-menu-button" aria-label="Toggle navigation" onClick={toggleSidebar}>
             <MenuIcon />
           </button>
@@ -332,7 +347,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
               <SearchIcon />
             </button>
 
-            <div className={topbarUi.menuWrap} ref={profileRef}>
+            <div className={cx(topbarUi.menuWrap, profileVisible && 'is-profile-menu-open')} ref={profileRef}>
               <button
                 type="button"
                 className={cx('study-avatar study-avatar--profile', profileVisible && 'is-profile-avatar-open')}
@@ -347,8 +362,8 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                 <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
                   <div className={topbarUi.dropdownHead}>
                     <div className="lms-profile-menu-head-copy">
-                      <strong>{user?.fullName || 'Signed in user'}</strong>
-                      <small>Medical Student</small>
+                      <strong>{profilePrimary}</strong>
+                      <small>{profileSecondary}</small>
                     </div>
                   </div>
 
@@ -384,7 +399,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     <>
       {profileBackdropLayer}
 
-      <header className={cx(topbarUi.header, className)}>
+      <header className={cx(topbarUi.header, profileVisible && 'is-profile-menu-open', className)}>
         <div className={cx('lms-topbar-left', topbarUi.left)}>
           <button className={topbarUi.mobileMenuButton}
             type="button"
@@ -512,7 +527,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
               <SearchIcon />
             </button>
 
-            <div className={topbarUi.menuWrap} ref={profileRef}>
+            <div className={cx(topbarUi.menuWrap, profileVisible && 'is-profile-menu-open')} ref={profileRef}>
               <button className={cx(topbarUi.profileButton, profileVisible && 'is-profile-avatar-open')}
                 type="button"
                
@@ -527,8 +542,8 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                 <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
                   <div className={topbarUi.dropdownHead}>
                     <div className="lms-profile-menu-head-copy">
-                      <strong>{user?.fullName || 'Signed in user'}</strong>
-                      <small>{user?.role === 'admin' ? 'Administrator' : 'Medical Student'}</small>
+                      <strong>{profilePrimary}</strong>
+                      <small>{profileSecondary}</small>
                     </div>
                   </div>
 

@@ -171,7 +171,7 @@ const examThemeLightVars = {
   '--exam-answer-selected-border': 'rgba(37,99,235,0.55)',
   '--exam-answer-selected-ring': '0 0 0 3px rgba(37,99,235,0.10)',
   '--exam-answer-radio': '#C3CFDF',
-  '--exam-answer-text': '#223A5E',
+  '--exam-answer-text': '#3b4b68',
   '--exam-tf-bg': '#F8FAFC',
   '--exam-tf-border': '#D7E0EE',
   '--exam-tf-text': 'var(--ink-medium)',

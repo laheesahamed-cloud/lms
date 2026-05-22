@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../utils/routeForwarding.js';
+import { isStaffUser, userHasPermissions } from './roleAccess.js';
 
 const gateUi = {
   screenShell:
@@ -26,12 +27,12 @@ function getSafeFromPath(location) {
 }
 
 function getRoleHome(user) {
-  if (user?.role === 'admin') return '/admin/dashboard';
+  if (isStaffUser(user)) return '/admin/dashboard';
   if (user?.role === 'student' && user.status !== 'active') return '/pending';
   return '/dashboard';
 }
 
-export function ProtectedRoute({ children, role, allowPending = false, requiredFeature = '' }) {
+export function ProtectedRoute({ children, role, allowPending = false, requiredFeature = '', requiredPermissions = [] }) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -46,7 +47,15 @@ export function ProtectedRoute({ children, role, allowPending = false, requiredF
     return <Navigate to={`/auth/login?from=${encodeURIComponent(from)}`} replace />;
   }
 
-  if (role && user.role !== role) {
+  if (role === 'admin' && !isStaffUser(user)) {
+    return <Navigate to={getRoleHome(user)} replace />;
+  }
+
+  if (role && role !== 'admin' && user.role !== role) {
+    return <Navigate to={getRoleHome(user)} replace />;
+  }
+
+  if (role === 'admin' && requiredPermissions.length && !userHasPermissions(user, requiredPermissions)) {
     return <Navigate to={getRoleHome(user)} replace />;
   }
 

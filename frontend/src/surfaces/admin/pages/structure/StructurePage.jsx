@@ -43,16 +43,20 @@ const structureUi = {
     'grid min-w-0 grid-cols-3 items-stretch gap-6 max-[1180px]:grid-cols-2 max-[980px]:grid-cols-1',
   column:
     'flex min-h-[620px] min-w-0 flex-col gap-4 rounded-2xl p-6 max-[820px]:min-h-0 max-[820px]:p-5',
-  levelOneColumn: 'min-h-0 p-4',
+  levelOneColumn: 'min-h-0 gap-2.5 rounded-xl p-3',
   columnHead:
     'mb-0 flex min-h-[88px] items-start justify-between gap-4 max-[820px]:flex-wrap [&>div]:min-w-0 [&_h2]:my-2 [&_h2]:text-xl [&_h2]:leading-tight [&_p]:m-0 [&_p]:text-[0.92rem] [&_p]:leading-normal [&_p]:text-ink-soft',
+  levelOneHead:
+    'min-h-0 items-center gap-3 [&_h2]:my-0.5 [&_h2]:text-[1rem] [&_p]:text-[0.76rem] [&_p]:leading-snug',
   columnAddButton: 'shrink-0 self-start min-w-[88px] max-[820px]:w-full',
-  levelOneAddButton: 'min-h-[32px] min-w-0 rounded-[var(--radius-sm)] px-3 text-xs max-[820px]:w-auto',
+  levelOneAddButton: 'min-h-[30px] min-w-0 self-center rounded-[var(--radius-sm)] px-3 text-xs max-[820px]:w-auto',
   columnMeta:
     'rounded-[18px] border border-line-soft bg-surface-glass-subtle p-4 text-[0.92rem] leading-normal text-ink-soft',
+  levelOneMeta:
+    'w-fit rounded-full px-3 py-1 text-[0.72rem] font-semibold leading-tight',
   list: 'flex flex-1 flex-col content-start gap-4',
   levelOneList:
-    'flex-row flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden pb-1 max-[820px]:flex-wrap max-[820px]:overflow-x-visible',
+    'flex-row flex-nowrap gap-2 overflow-x-auto overflow-y-hidden pb-0.5 max-[820px]:flex-wrap max-[820px]:overflow-x-visible',
   node:
     'flex min-h-[88px] items-center gap-4 rounded-xl border border-line-soft bg-surface-glass-subtle p-4 shadow-[0_14px_30px_rgba(15,23,42,0.06)] transition max-[820px]:flex-wrap max-[820px]:items-start',
   nodeSelectable:
@@ -60,7 +64,7 @@ const structureUi = {
   nodeSelected:
     'border-brand-primary/35 bg-[linear-gradient(135deg,rgba(37,99,235,0.14),rgba(6,182,212,0.08))] shadow-[0_14px_30px_rgba(15,23,42,0.06),inset_0_0_0_1px_rgba(37,99,235,0.14)]',
   levelOneNode:
-    'min-h-10 min-w-[178px] flex-none gap-2.5 rounded-full px-3 py-2 shadow-none max-[820px]:min-w-[min(100%,220px)]',
+    'min-h-9 min-w-[152px] flex-none gap-2 rounded-full px-2.5 py-1.5 shadow-none max-[820px]:min-w-[min(100%,190px)]',
   status:
     'w-2.5 shrink-0 self-stretch rounded-full bg-slate-400/40',
   statusActive: 'bg-[linear-gradient(180deg,#06b6d4,#2563eb)]',
@@ -69,7 +73,7 @@ const structureUi = {
   nodeBody:
     'grid min-w-0 flex-1 content-center gap-1 text-left [&_span]:text-[0.86rem] [&_span]:leading-normal [&_span]:text-ink-soft [&_strong]:text-base [&_strong]:font-bold [&_strong]:leading-snug',
   levelOneBody:
-    'gap-0 [&_span]:truncate [&_span]:text-[0.72rem] [&_strong]:truncate [&_strong]:text-[0.82rem]',
+    'gap-0 [&_span]:truncate [&_span]:text-[0.68rem] [&_strong]:truncate [&_strong]:text-[0.76rem]',
   nodeActions:
     'flex shrink-0 items-center justify-end gap-2 max-[820px]:w-full',
   levelOneActions: 'hidden',
@@ -127,7 +131,7 @@ function HierarchyColumn({
 }) {
   return (
     <section className={cx(ui.panelCard, structureUi.column, compact && structureUi.levelOneColumn)}>
-      <div className={structureUi.columnHead}>
+      <div className={cx(structureUi.columnHead, compact && structureUi.levelOneHead)}>
         <div>
           <span className={ui.eyebrow}>{eyebrow}</span>
           <h2>{title}</h2>
@@ -138,7 +142,7 @@ function HierarchyColumn({
         </button>
       </div>
 
-      <div className={structureUi.columnMeta}>{countLabel}</div>
+      <div className={cx(structureUi.columnMeta, compact && structureUi.levelOneMeta)}>{countLabel}</div>
 
       <div className={cx(structureUi.list, compact && structureUi.levelOneList)}>
         {loading ? <div className={ui.emptyBox}>Loading {title.toLowerCase()}...</div> : null}

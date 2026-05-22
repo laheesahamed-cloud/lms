@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AppSidebar, MobileBottomNav, MobileTopNav } from './AppSidebar.jsx';
 import { GlobalSearch } from '../search/GlobalSearch.jsx';
@@ -6,6 +6,7 @@ import { detectPlatform } from '../platform/detect.js';
 import { shouldUseOverlayNavigation } from '../platform/config.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { preloadRouteByPath } from '../../app/router.jsx';
+import { isStaffUser, roleRouteMode } from '../auth/roleAccess.js';
 import { getRoutePreloadLimit } from '../utils/performanceProfile.js';
 import { cx } from '../styles/tailwindClasses.js';
 
@@ -65,6 +66,7 @@ const studentWarmRoutes = [
 
 export function AppShell({ children, desktopSidebarToggle = false, desktopSidebarHiddenByDefault = false }) {
   const location = useLocation();
+  const warmedRouteKeysRef = useRef(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [tabletOverlayNav, setTabletOverlayNav] = useState(() => {
@@ -94,9 +96,11 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     /^\/(?:app\/)?study\/lesson\/[^/]+$/.test(location.pathname);
   const isReviewFocusRoute = /^\/(?:app\/)?review\/[^/]+$/.test(location.pathname);
   const isPracticeReviewFocusRoute = /^\/(?:app\/)?quizzes\/[^/]+\/practice-review$/.test(location.pathname);
+  const isStudentResultDetailRoute = /^\/(?:app\/)?results\/[^/]+$/.test(location.pathname);
   const isQuestionBankRoute = /^\/questions(?:\/|$)/.test(location.pathname);
   const isQuizBuilderRoute = /^\/quizzes\/new$/.test(location.pathname) || /^\/quizzes\/[^/]+\/edit$/.test(location.pathname);
   const isCompactFocusMode = isQuizFocusMode || isReviewFocusRoute || isPracticeReviewFocusRoute;
+  const isAssessmentShellRoute = isCompactFocusMode || isStudentResultDetailRoute;
   const isFocusMode = isCompactFocusMode || isAiNoteReaderRoute;
   const isCollapsedDesktop = desktopSidebarToggle && sidebarCollapsed && !tabletOverlayNav;
   const effectiveSidebarCollapsed = isCollapsedDesktop;
@@ -212,6 +216,25 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   }, [desktopSidebarToggle, isQuestionBankRoute, isQuizBuilderRoute, location.pathname]);
 
   useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const classStates = [
+      ['student-assessment-screen', user?.role === 'student' && isAssessmentShellRoute],
+      ['student-quiz-focus-screen', user?.role === 'student' && isQuizFocusMode],
+    ];
+
+    classStates.forEach(([className, enabled]) => {
+      document.body.classList.toggle(className, Boolean(enabled));
+    });
+
+    return () => {
+      classStates.forEach(([className]) => document.body.classList.remove(className));
+    };
+  }, [isAssessmentShellRoute, isQuizFocusMode, user?.role]);
+
+  useEffect(() => {
     if (!user?.role || typeof window === 'undefined') {
       return;
     }
@@ -221,8 +244,10 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
       return;
     }
 
-    const targets = (user.role === 'admin' ? adminWarmRoutes : studentWarmRoutes)
+    const routeMode = roleRouteMode(user.role);
+    const targets = (routeMode === 'admin' ? adminWarmRoutes : studentWarmRoutes)
       .filter((path) => path !== location.pathname)
+      .filter((path) => !warmedRouteKeysRef.current.has(`${user.role}:${path}`))
       .slice(0, preloadLimit);
 
     const timers = [];
@@ -231,7 +256,10 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         const delay = PLATFORM.isNative
           ? index * (PLATFORM.isPhone ? 260 : 80)
           : index * 160;
-        timers.push(window.setTimeout(() => preloadRouteByPath(path, user.role), delay));
+        timers.push(window.setTimeout(() => {
+          warmedRouteKeysRef.current.add(`${user.role}:${path}`);
+          preloadRouteByPath(path, user.role);
+        }, delay));
       });
     };
 
@@ -264,7 +292,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         shellUi.shellMobile,
         'group/shell',
         user?.role === 'student' && 'student-app-shell',
-        user?.role === 'admin' && 'admin-app-shell',
+        isStaffUser(user) && 'admin-app-shell',
         isSigningOut && 'signing-out',
         sidebarOpen && 'sidebar-open',
         effectiveSidebarCollapsed && 'sidebar-collapsed',

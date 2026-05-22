@@ -96,13 +96,13 @@
 
 .study-mascot__eyes circle,
 .study-mascot__eye {
-  fill: #0f172a;
+  fill: #334155;
 }
 
 .study-mascot__eyes path,
 .study-mascot__mouth {
   fill: none;
-  stroke: #0f172a;
+  stroke: #334155;
   stroke-width: 3.2;
   stroke-linecap: round;
   stroke-linejoin: round;

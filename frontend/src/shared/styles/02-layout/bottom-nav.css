@@ -68,7 +68,7 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.94) 100%);
   -webkit-backdrop-filter: saturate(140%) blur(14px);
   backdrop-filter: saturate(140%) blur(14px);
-  color: #0c1830;
+  color: #26314c;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
@@ -166,7 +166,7 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
 }
 
 .lms-mobile-bottom-nav__tab:hover {
-  color: #0c1830;
+  color: #26314c;
 }
 
 :root[data-theme="dark"] .lms-mobile-bottom-nav__tab,

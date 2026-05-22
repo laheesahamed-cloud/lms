@@ -393,14 +393,17 @@ export class WorkspaceService {
         LIMIT 8
       `, hardQuestionParams),
       this.db.execute<RowDataPacket[]>(`
-        SELECT u.id, u.full_name, u.email, MAX(COALESCE(qa.submitted_at, sae.created_at, slp.updated_at)) AS last_activity
-        FROM users u
-        LEFT JOIN quiz_attempts qa ON qa.user_id = u.id
-        LEFT JOIN study_activity_events sae ON sae.user_id = u.id
-        LEFT JOIN student_lesson_progress slp ON slp.user_id = u.id
-        WHERE ${inactiveWhere.join(' AND ')}
-        GROUP BY u.id, u.full_name, u.email
-        ORDER BY last_activity IS NULL DESC, last_activity ASC
+        SELECT inactive.id, inactive.full_name, inactive.email, inactive.last_activity
+        FROM (
+          SELECT u.id, u.full_name, u.email, MAX(COALESCE(qa.submitted_at, sae.created_at, slp.updated_at)) AS last_activity
+          FROM users u
+          LEFT JOIN quiz_attempts qa ON qa.user_id = u.id
+          LEFT JOIN study_activity_events sae ON sae.user_id = u.id
+          LEFT JOIN student_lesson_progress slp ON slp.user_id = u.id
+          WHERE ${inactiveWhere.join(' AND ')}
+          GROUP BY u.id, u.full_name, u.email
+        ) inactive
+        ORDER BY inactive.last_activity IS NULL DESC, inactive.last_activity ASC
         LIMIT 10
       `, inactiveParams),
       this.db.execute<RowDataPacket[]>(`
@@ -462,7 +465,7 @@ export class WorkspaceService {
         GROUP BY status
       `, subscriptionStatusParams),
       this.db.execute<RowDataPacket[]>(`
-        SELECT status, COUNT(*) AS count_value, SUM(amount) AS amount_total
+        SELECT status, 'LKR' AS currency, COUNT(*) AS count_value, SUM(amount) AS amount_total
         FROM payment_transactions pt
         WHERE ${paymentStatusWhere.join(' AND ')}
         GROUP BY status
@@ -532,6 +535,7 @@ export class WorkspaceService {
         })),
         payments: paymentStatus[0].map((row) => ({
           status: String(row.status || 'unknown'),
+          currency: String(row.currency || 'LKR'),
           count: Number(row.count_value || 0),
           amount: Number(row.amount_total || 0),
         })),

@@ -30,11 +30,12 @@ type SubscriptionRow = RowDataPacket & {
   lesson_ids_json: string | null;
   start_date: string;
   end_date: string;
-  created_at?: string | null;
-  updated_at?: string | null;
+  created_at?: string | Date | null;
+  updated_at?: string | Date | null;
   student_name?: string | null;
   student_email?: string | null;
   assigned_by_name?: string | null;
+  assigned_by_email?: string | null;
   plan_name?: string | null;
   plan_regular_price?: string | number | null;
   plan_offer_price?: string | number | null;
@@ -52,8 +53,8 @@ type SubscriptionRequestRow = RowDataPacket & {
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   message: string | null;
   admin_note: string | null;
-  requested_at: string;
-  resolved_at: string | null;
+  requested_at: string | Date;
+  resolved_at: string | Date | null;
   resolved_by: number | null;
   subscription_id: number | null;
   payment_method: string | null;
@@ -74,6 +75,7 @@ type SubscriptionRequestRow = RowDataPacket & {
   plan_offer_enabled?: number | null;
   plan_currency?: string | null;
   resolved_by_name?: string | null;
+  resolved_by_email?: string | null;
 };
 
 type SubscriptionAuditRow = RowDataPacket & {
@@ -85,9 +87,11 @@ type SubscriptionAuditRow = RowDataPacket & {
   event_type: string;
   summary: string;
   details_json: string | null;
-  created_at: string;
+  created_at: string | Date;
   actor_name?: string | null;
+  actor_email?: string | null;
   student_name?: string | null;
+  student_email?: string | null;
 };
 
 type PaymentTransactionRow = RowDataPacket & {
@@ -185,6 +189,7 @@ export class SubscriptionsService {
          student.full_name AS student_name,
          student.email AS student_email,
          admin.full_name AS assigned_by_name,
+         admin.email AS assigned_by_email,
          plans.name AS plan_name,
          plans.regular_price AS plan_regular_price,
          plans.offer_price AS plan_offer_price,
@@ -240,7 +245,7 @@ export class SubscriptionsService {
       userId: student.id,
       actorId: assignedBy,
       eventType: 'assigned',
-      summary: `Assigned ${plan.name} to ${student.fullName}`,
+      summary: `Assigned ${plan.name} to ${student.email}`,
       details: { planId: plan.id, startDate, endDate, paymentStatus, ...scope },
     });
 
@@ -279,7 +284,7 @@ export class SubscriptionsService {
       userId: student.id,
       actorId: student.id,
       eventType: 'request_created',
-      summary: `${student.fullName} requested ${plan.name}`,
+      summary: `${student.email} requested ${plan.name}`,
       details: { planId: plan.id, ...scope },
     });
 
@@ -350,7 +355,7 @@ export class SubscriptionsService {
       userId: student.id,
       actorId: student.id,
       eventType: 'manual_payment_uploaded',
-      summary: `${student.fullName} uploaded bank transfer proof for ${plan.name}`,
+      summary: `${student.email} uploaded bank transfer proof for ${plan.name}`,
       details: { planId: plan.id, amount, currency, invoiceId, paymentReference: dto.paymentReference || '', proofFileName: savedProof.fileName, ...scope },
     });
 
@@ -426,7 +431,8 @@ export class SubscriptionsService {
          plans.offer_price AS plan_offer_price,
          plans.offer_enabled AS plan_offer_enabled,
          plans.currency AS plan_currency,
-         admin.full_name AS resolved_by_name
+         admin.full_name AS resolved_by_name,
+         admin.email AS resolved_by_email
        FROM subscription_requests sr
        INNER JOIN users student ON student.id = sr.user_id
        INNER JOIN plans ON plans.id = sr.plan_id
@@ -589,14 +595,14 @@ export class SubscriptionsService {
         studentEmail: String(row.student_email || ''),
         planName: String(row.plan_name || ''),
         amount: Number(row.amount || 0),
-        currency: String(row.currency || 'LKR'),
+        currency: this.normalizePaymentCurrency(row.currency),
         couponCode: String(row.coupon_code || ''),
         discountAmount: Number(row.discount_amount || 0),
         orderNote: String(row.order_note || ''),
         payherePaymentId: String(row.payhere_payment_id || ''),
         paymentMethod: String(row.payment_method || ''),
-        createdAt: row.created_at || null,
-        updatedAt: row.updated_at || null,
+        createdAt: this.timestampValueToText(row.created_at),
+        updatedAt: this.timestampValueToText(row.updated_at),
       };
     }
 
@@ -624,13 +630,13 @@ export class SubscriptionsService {
         studentEmail: String(row.student_email || ''),
         planName: String(row.plan_name || ''),
         amount: row.payment_amount === null || row.payment_amount === undefined ? null : Number(row.payment_amount),
-        currency: String(row.payment_currency || 'LKR'),
+        currency: this.normalizePaymentCurrency(row.payment_currency),
         paymentReference: String(row.payment_reference || ''),
         paymentProofName: String(row.payment_proof_name || ''),
         paymentProofMime: String(row.payment_proof_mime || ''),
         paymentProofDataUrl: String(row.payment_proof_data_url || ''),
-        requestedAt: row.requested_at || null,
-        resolvedAt: row.resolved_at || null,
+        requestedAt: this.timestampValueToText(row.requested_at),
+        resolvedAt: this.timestampValueToText(row.resolved_at),
         adminNote: String(row.admin_note || ''),
       };
     }
@@ -1064,7 +1070,9 @@ export class SubscriptionsService {
       `SELECT
          sae.*,
          actor.full_name AS actor_name,
-         student.full_name AS student_name
+         actor.email AS actor_email,
+         student.full_name AS student_name,
+         student.email AS student_email
        FROM subscription_audit_events sae
        LEFT JOIN users actor ON actor.id = sae.actor_id
        LEFT JOIN users student ON student.id = sae.user_id
@@ -1081,9 +1089,11 @@ export class SubscriptionsService {
       eventType: String(row.event_type || ''),
       summary: String(row.summary || ''),
       actorName: String(row.actor_name || ''),
+      actorEmail: String(row.actor_email || ''),
       studentName: String(row.student_name || ''),
+      studentEmail: String(row.student_email || ''),
       details: this.parseDetails(row.details_json),
-      createdAt: row.created_at || null,
+      createdAt: this.timestampValueToText(row.created_at),
     }));
   }
 
@@ -1282,10 +1292,11 @@ export class SubscriptionsService {
       status: row.status,
       message: String(row.message || ''),
       adminNote: String(row.admin_note || ''),
-      requestedAt: row.requested_at || null,
-      resolvedAt: row.resolved_at || null,
+      requestedAt: this.timestampValueToText(row.requested_at),
+      resolvedAt: this.timestampValueToText(row.resolved_at),
       resolvedBy: row.resolved_by ? Number(row.resolved_by) : null,
       resolvedByName: String(row.resolved_by_name || ''),
+      resolvedByEmail: String(row.resolved_by_email || ''),
       subscriptionId: row.subscription_id ? Number(row.subscription_id) : null,
       paymentMethod: String(row.payment_method || ''),
       paymentReference: String(row.payment_reference || ''),
@@ -1301,7 +1312,7 @@ export class SubscriptionsService {
       studentName: String(row.student_name || ''),
       studentEmail: String(row.student_email || ''),
       planName: String(row.plan_name || ''),
-      planCurrency: String(row.plan_currency || 'USD'),
+      planCurrency: this.normalizePaymentCurrency(row.plan_currency),
       planRegularPrice: regularPrice,
       planOfferPrice: offerPrice,
       planOfferEnabled: offerEnabled,
@@ -1370,6 +1381,24 @@ export class SubscriptionsService {
     return String(value || '').slice(0, 10);
   }
 
+  private timestampValueToText(value: string | Date | null | undefined) {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return null;
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      const hours = String(value.getHours()).padStart(2, '0');
+      const minutes = String(value.getMinutes()).padStart(2, '0');
+      const seconds = String(value.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+
+    const text = String(value).trim();
+    return text || null;
+  }
+
   private normalizeAccessScope(
     accessScope?: 'all' | 'courses' | 'lessons',
     courseIds: number[] = [],
@@ -1431,7 +1460,7 @@ export class SubscriptionsService {
       amountPaid: row.amount_paid === null || row.amount_paid === undefined ? null : Number(row.amount_paid),
       paymentMethod: String(row.payment_method || ''),
       paymentReference: String(row.payment_reference || ''),
-      paymentDate: row.payment_date || null,
+      paymentDate: row.payment_date ? this.dateValueToText(row.payment_date) : null,
       receiptUrl: String(row.receipt_url || ''),
       accessScope: row.access_scope || 'all',
       courseIds: this.parseIdList(row.course_ids_json),
@@ -1440,24 +1469,30 @@ export class SubscriptionsService {
       endDate,
       daysRemaining,
       isExpiringSoon: computedStatus === 'active' && daysRemaining > 0 && daysRemaining <= 7,
-      createdAt: row.created_at || null,
-      updatedAt: row.updated_at || null,
+      createdAt: this.timestampValueToText(row.created_at),
+      updatedAt: this.timestampValueToText(row.updated_at),
       studentName: String(row.student_name || ''),
       studentEmail: String(row.student_email || ''),
       assignedByName: String(row.assigned_by_name || ''),
+      assignedByEmail: String(row.assigned_by_email || ''),
       planName: String(row.plan_name || plan.name),
       planPrice: Number(row.plan_regular_price ?? plan.regularPrice ?? 0),
       planRegularPrice: Number(row.plan_regular_price ?? plan.regularPrice ?? 0),
       planOfferPrice: row.plan_offer_price === null || row.plan_offer_price === undefined ? plan.offerPrice : Number(row.plan_offer_price),
       planOfferEnabled: row.plan_offer_enabled === null || row.plan_offer_enabled === undefined ? plan.offerEnabled : Number(row.plan_offer_enabled) === 1,
       planEffectivePrice: plan.effectivePrice,
-      planCurrency: String(row.plan_currency || plan.currency || 'USD'),
+      planCurrency: this.normalizePaymentCurrency(row.plan_currency || plan.currency),
       planDurationDays: Number(row.plan_duration_days || plan.durationDays || 0),
       planRecommended: row.plan_recommended === null || row.plan_recommended === undefined ? plan.recommended : Number(row.plan_recommended) === 1,
       planFeatures: plan.features,
       enabledFeatures: plan.enabledFeatures,
       featureKeys: plan.featureKeys,
     };
+  }
+
+  private normalizePaymentCurrency(value?: string | null) {
+    void value;
+    return 'LKR';
   }
 
   private generateCheckoutHash(merchantId: string, orderId: string, amount: string, currency: string, merchantSecret: string) {
