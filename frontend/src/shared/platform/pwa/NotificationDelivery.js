@@ -6,4 +6,4 @@ export {
   isIosSafariPwaCapable,
   isPushNotificationSupported,
   isStandalonePwa,
-} from '../../utils/pushNotifications.js';
+} from '../web/NotificationDelivery.js';

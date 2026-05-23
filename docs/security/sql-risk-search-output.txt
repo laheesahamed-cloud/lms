@@ -1,0 +1,691 @@
+COMMAND: rg -n -e "\.query\(" -e "\.execute\(" -e "`.*\$\{" -e "sql \+=" -e "where\.push" -e "where\.join" -e "fields\.join" -e "ORDER BY" -e "WHERE \$\{" -e "FROM \$\{" -e "SET \$\{" -e "IN \(\$\{" -e "LIMIT \$\{" -e "OFFSET \$\{" backend/src -g "*.ts"
+
+backend/src/common/utils/ai-provider.utils.ts:109:  return `v1:${iv.toString('base64')}:${tag.toString('base64')}:${encrypted.toString('base64')}`;
+backend/src/common/utils/ai-provider.utils.ts:145:    return `${normalized.slice(0, 2)}***`;
+backend/src/common/utils/ai-provider.utils.ts:148:  return `${normalized.slice(0, 4)}••••${normalized.slice(-4)}`;
+backend/src/modules/subtopics/subtopics.service.ts:27:      sql += ' WHERE topic_id = ?';
+backend/src/modules/subtopics/subtopics.service.ts:31:    sql += ' ORDER BY subtopic_name ASC';
+backend/src/modules/subtopics/subtopics.service.ts:56:    await this.db.execute(
+backend/src/modules/subtopics/subtopics.service.ts:74:    await this.db.execute('DELETE FROM subtopics WHERE id = ?', [id]);
+backend/src/modules/schema/schema-sync.service.ts:175:      await connection.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, Number(row.id)]);
+backend/src/modules/schema/schema-sync.service.ts:179:      this.logger.warn(`Hashed ${rows.length} legacy plaintext user password(s).`);
+backend/src/modules/schema/schema-sync.service.ts:184:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:194:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:208:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:227:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:257:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:278:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:311:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:326:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:342:    await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:349:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:367:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:387:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:410:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:426:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:439:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:462:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:483:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:501:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:522:      await connection.execute("ALTER TABLE users MODIFY role VARCHAR(40) NOT NULL DEFAULT 'student'");
+backend/src/modules/schema/schema-sync.service.ts:524:      this.logger.warn(`Could not widen users.role for staff roles: ${error instanceof Error ? error.message : String(error)}`);
+backend/src/modules/schema/schema-sync.service.ts:529:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:544:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:559:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:580:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:590:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:611:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:632:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:648:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:675:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:684:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:697:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:711:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:725:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:752:    await connection.execute(`
+backend/src/modules/schema/schema-sync.service.ts:772:      'SELECT id, name, price, regular_price, slug, sort_order FROM plans ORDER BY id ASC'
+backend/src/modules/schema/schema-sync.service.ts:776:      const slug = String(row.slug || '').trim() || this.slugify(String(row.name || `plan-${row.id}`));
+backend/src/modules/schema/schema-sync.service.ts:782:      await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:791:      await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:816:        await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:897:    await connection.execute('DELETE FROM subscription_plan_features WHERE plan_id = ?', [planId]);
+backend/src/modules/schema/schema-sync.service.ts:900:      await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:912:      `SELECT id FROM plans WHERE slug IS NULL OR slug NOT IN (${placeholders})`,
+backend/src/modules/schema/schema-sync.service.ts:921:    await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:922:      `DELETE FROM user_subscriptions WHERE plan_id IN (${oldPlanPlaceholders})`,
+backend/src/modules/schema/schema-sync.service.ts:926:    await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:927:      `DELETE FROM subscription_plan_features WHERE plan_id IN (${oldPlanPlaceholders})`,
+backend/src/modules/schema/schema-sync.service.ts:930:    await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:931:      `DELETE FROM plans WHERE id IN (${oldPlanPlaceholders})`,
+backend/src/modules/schema/schema-sync.service.ts:944:      'SELECT id, slug, name, features_json FROM plans ORDER BY sort_order ASC, id ASC'
+backend/src/modules/schema/schema-sync.service.ts:975:          await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:1000:        await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:1024:        await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:1038:        await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:1093:    await connection.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+backend/src/modules/schema/schema-sync.service.ts:1094:    this.logger.log(`Added ${tableName}.${columnName}`);
+backend/src/modules/schema/schema-sync.service.ts:1111:    await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:1114:    await connection.execute("UPDATE user_subscriptions SET payment_status = 'free_plan' WHERE payment_status = 'waived'");
+backend/src/modules/schema/schema-sync.service.ts:1115:    await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:1122:    await connection.execute(
+backend/src/modules/schema/schema-sync.service.ts:1152:    await connection.execute(`ALTER TABLE ${table} ADD INDEX ${index} (${columns})`);
+backend/src/modules/schema/schema-sync.service.ts:1153:    this.logger.log(`Added index ${indexName} on ${tableName}.${columnNames}`);
+backend/src/modules/push-notifications/native-push.sender.ts:103:      const client = http2.connect(`https://${host}`);
+backend/src/modules/push-notifications/native-push.sender.ts:117:        ':path': `/3/device/${token}`,
+backend/src/modules/push-notifications/native-push.sender.ts:118:        authorization: `bearer ${this.createApnsJwt(settings)}`,
+backend/src/modules/push-notifications/native-push.sender.ts:138:          error: statusCode >= 200 && statusCode < 300 ? undefined : responseBody || `APNs HTTP ${statusCode}`,
+backend/src/modules/push-notifications/native-push.sender.ts:180:    return this.postJson(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, body, {
+backend/src/modules/push-notifications/native-push.sender.ts:181:      authorization: `Bearer ${accessToken}`,
+backend/src/modules/push-notifications/native-push.sender.ts:202:      authorization: `key=${serverKey}`,
+backend/src/modules/push-notifications/native-push.sender.ts:253:      this.logger.warn(`Unable to read FCM service account: ${error?.message || error}`);
+backend/src/modules/push-notifications/native-push.sender.ts:299:      this.logger.warn(`Unable to read APNs private key: ${error?.message || error}`);
+backend/src/modules/push-notifications/native-push.sender.ts:323:    const signingInput = `${encodedHeader}.${encodedPayload}`;
+backend/src/modules/push-notifications/native-push.sender.ts:327:    return `${signingInput}.${this.base64Url(sign.sign(privateKey))}`;
+backend/src/modules/push-notifications/native-push.sender.ts:336:        path: `${target.pathname}${target.search}`,
+backend/src/modules/push-notifications/native-push.sender.ts:353:            error: statusCode >= 200 && statusCode < 300 ? undefined : responseBody || `HTTP ${statusCode}`,
+backend/src/modules/push-notifications/native-push.sender.ts:369:        path: `${target.pathname}${target.search}`,
+backend/src/modules/push-notifications/native-push.sender.ts:382:            reject(new Error(responseBody || `OAuth HTTP ${response.statusCode}`));
+backend/src/modules/topics/topics.service.ts:51:      sql += ' WHERE t.course_id = ?';
+backend/src/modules/topics/topics.service.ts:55:    sql += `
+backend/src/modules/topics/topics.service.ts:57:      ORDER BY t.topic_name ASC
+backend/src/modules/topics/topics.service.ts:93:      'SELECT subtopic_name FROM subtopics WHERE topic_id = ? ORDER BY subtopic_name ASC',
+backend/src/modules/topics/topics.service.ts:144:      await connection.execute(
+backend/src/modules/topics/topics.service.ts:180:      await connection.execute('DELETE FROM subtopics WHERE topic_id = ?', [id]);
+backend/src/modules/topics/topics.service.ts:181:      await connection.execute('DELETE FROM topics WHERE id = ?', [id]);
+backend/src/modules/topics/topics.service.ts:212:    await connection.execute('DELETE FROM subtopics WHERE topic_id = ?', [topicId]);
+backend/src/modules/topics/topics.service.ts:215:      await connection.execute(
+backend/src/modules/questions/questions.service.ts:142:      sql += ' AND (q.question_text LIKE ? OR q.keywords_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
+backend/src/modules/questions/questions.service.ts:143:      const like = `%${filters.search.trim()}%`;
+backend/src/modules/questions/questions.service.ts:148:      sql += ' AND q.status = ?';
+backend/src/modules/questions/questions.service.ts:153:      sql += ' AND q.question_type = ?';
+backend/src/modules/questions/questions.service.ts:158:      sql += " AND (q.question_category = ? OR (q.question_category IS NULL AND q.category = ?))";
+backend/src/modules/questions/questions.service.ts:163:      sql += ' AND q.course_id = ?';
+backend/src/modules/questions/questions.service.ts:168:      sql += ' AND q.topic_id = ?';
+backend/src/modules/questions/questions.service.ts:173:      sql += ' AND q.subtopic_id = ?';
+backend/src/modules/questions/questions.service.ts:178:      sql += ' AND q.lesson_id = ?';
+backend/src/modules/questions/questions.service.ts:183:      sql += ' AND q.paper_id = ?';
+backend/src/modules/questions/questions.service.ts:188:      sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
+backend/src/modules/questions/questions.service.ts:191:    sql += ' ORDER BY q.id DESC';
+backend/src/modules/questions/questions.service.ts:199:      "SELECT id, course_title FROM courses WHERE status = 'active' ORDER BY course_title ASC"
+backend/src/modules/questions/questions.service.ts:202:      "SELECT id, course_id, topic_name FROM topics WHERE status = 'active' ORDER BY topic_name ASC"
+backend/src/modules/questions/questions.service.ts:210:        ORDER BY s.subtopic_name ASC
+backend/src/modules/questions/questions.service.ts:218:        ORDER BY lesson_title ASC
+backend/src/modules/questions/questions.service.ts:226:        ORDER BY year DESC, paper_title ASC
+backend/src/modules/questions/questions.service.ts:311:        ORDER BY option_label ASC, id ASC
+backend/src/modules/questions/questions.service.ts:356:        row[`option_${label.toLowerCase()}_text`] = String(option?.option_text || '');
+backend/src/modules/questions/questions.service.ts:357:        row[`option_${label.toLowerCase()}_correct`] = Number(option?.is_correct) === 1 ? 1 : 0;
+backend/src/modules/questions/questions.service.ts:358:        row[`option_${label.toLowerCase()}_why_incorrect`] = String(option?.why_incorrect || '');
+backend/src/modules/questions/questions.service.ts:403:        errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'Invalid row'}`);
+backend/src/modules/questions/questions.service.ts:418:        errors.push(`Row ${item.rowNumber}: ${error instanceof Error ? error.message : 'Unable to import row'}`);
+backend/src/modules/questions/questions.service.ts:480:      return `"${cell.replace(/"/g, '""')}"`;
+backend/src/modules/questions/questions.service.ts:524:        summary: `Question ${result.insertId} created`,
+backend/src/modules/questions/questions.service.ts:571:      await connection.execute(
+backend/src/modules/questions/questions.service.ts:614:        summary: `Question ${id} updated`,
+backend/src/modules/questions/questions.service.ts:634:      await connection.execute('DELETE FROM questions WHERE id = ?', [id]);
+backend/src/modules/questions/questions.service.ts:639:        summary: `Question ${id} deleted`,
+backend/src/modules/questions/questions.service.ts:667:      `SELECT id FROM questions WHERE id IN (${placeholders})`,
+backend/src/modules/questions/questions.service.ts:679:        WHERE qq.question_id IN (${placeholders})
+backend/src/modules/questions/questions.service.ts:690:      await connection.execute(`DELETE FROM question_quizzes WHERE question_id IN (${placeholders})`, questionIds);
+backend/src/modules/questions/questions.service.ts:691:      await connection.execute(`DELETE FROM question_theory_recaps WHERE question_id IN (${placeholders})`, questionIds);
+backend/src/modules/questions/questions.service.ts:692:      await connection.execute(`DELETE FROM question_keyword_map WHERE question_id IN (${placeholders})`, questionIds);
+backend/src/modules/questions/questions.service.ts:693:      await connection.execute(`DELETE FROM question_options WHERE question_id IN (${placeholders})`, questionIds);
+backend/src/modules/questions/questions.service.ts:694:      await connection.execute(`DELETE FROM question_reports WHERE question_id IN (${placeholders})`, questionIds);
+backend/src/modules/questions/questions.service.ts:695:      await connection.execute(`DELETE FROM practice_answers WHERE question_id IN (${placeholders})`, questionIds);
+backend/src/modules/questions/questions.service.ts:696:      await connection.execute(`DELETE FROM student_answers WHERE question_id IN (${placeholders})`, questionIds);
+backend/src/modules/questions/questions.service.ts:698:        `DELETE FROM questions WHERE id IN (${placeholders})`,
+backend/src/modules/questions/questions.service.ts:705:        summary: `${result.affectedRows} question(s) deleted`,
+backend/src/modules/questions/questions.service.ts:744:      `SELECT id, keywords_text FROM questions WHERE id IN (${placeholders})`,
+backend/src/modules/questions/questions.service.ts:764:        await connection.execute(
+backend/src/modules/questions/questions.service.ts:773:          summary: `Question ${row.id} keywords updated`,
+backend/src/modules/questions/questions.service.ts:844:    await connection.execute(
+backend/src/modules/questions/questions.service.ts:861:    await connection.execute(
+backend/src/modules/questions/questions.service.ts:878:    const [rows] = await this.db.execute<RowDataPacket[]>(`SELECT id FROM ${table} WHERE id = ? LIMIT 1`, [id]);
+backend/src/modules/questions/questions.service.ts:924:        throw new BadRequestException(`Please choose True or False for statement ${invalid.optionLabel}`);
+backend/src/modules/questions/questions.service.ts:930:    await connection.execute('DELETE FROM question_options WHERE question_id = ?', [questionId]);
+backend/src/modules/questions/questions.service.ts:942:      await connection.execute(
+backend/src/modules/questions/questions.service.ts:1003:      sql += ' AND (q.question_text LIKE ? OR q.keywords_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
+backend/src/modules/questions/questions.service.ts:1004:      const like = `%${filters.search.trim()}%`;
+backend/src/modules/questions/questions.service.ts:1009:      sql += ' AND q.status = ?';
+backend/src/modules/questions/questions.service.ts:1014:      sql += ' AND q.question_type = ?';
+backend/src/modules/questions/questions.service.ts:1019:      sql += " AND (q.question_category = ? OR (q.question_category IS NULL AND q.category = ?))";
+backend/src/modules/questions/questions.service.ts:1024:      sql += ' AND q.course_id = ?';
+backend/src/modules/questions/questions.service.ts:1029:      sql += ' AND q.topic_id = ?';
+backend/src/modules/questions/questions.service.ts:1034:      sql += ' AND q.subtopic_id = ?';
+backend/src/modules/questions/questions.service.ts:1039:      sql += ' AND q.lesson_id = ?';
+backend/src/modules/questions/questions.service.ts:1044:      sql += ' AND q.paper_id = ?';
+backend/src/modules/questions/questions.service.ts:1049:      sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
+backend/src/modules/questions/questions.service.ts:1052:    sql += ' ORDER BY q.id DESC';
+backend/src/modules/questions/questions.service.ts:1066:      `SELECT id, question_id, option_label, option_text, is_correct, why_incorrect FROM question_options WHERE question_id IN (${placeholders}) ORDER BY question_id, option_label`,
+backend/src/modules/questions/questions.service.ts:1170:      throw new Error(`Course "${courseName}" was not found`);
+backend/src/modules/questions/questions.service.ts:1178:      throw new Error(`Subject "${subjectName}" was not found under course "${courseName}"`);
+backend/src/modules/questions/questions.service.ts:1189:      throw new Error(`Topic "${topicName}" was not found under subject "${subjectName}"`);
+backend/src/modules/questions/questions.service.ts:1201:      throw new Error(`Lesson "${lessonTitle}" was not found for the selected hierarchy`);
+backend/src/modules/questions/questions.service.ts:1208:      throw new Error(`Paper "${paperTitle}" was not found`);
+backend/src/modules/questions/questions.service.ts:1213:      optionText: String(row[`option_${label.toLowerCase()}_text`] || '').trim(),
+backend/src/modules/questions/questions.service.ts:1214:      isCorrect: this.parseImportBoolean(row[`option_${label.toLowerCase()}_correct`]),
+backend/src/modules/questions/questions.service.ts:1215:      whyIncorrect: String(row[`option_${label.toLowerCase()}_why_incorrect`] || '').trim(),
+backend/src/modules/questions/questions.service.ts:1240:    throw new Error(`Category "${value || '(blank)'}" is invalid. Use ai, mock or past_paper`);
+backend/src/modules/questions/questions.service.ts:1247:    throw new Error(`Question type "${value || '(blank)'}" is invalid. Use sba or true_false`);
+backend/src/modules/questions/questions.service.ts:1254:    throw new Error(`Status "${value}" is invalid. Use active or inactive`);
+backend/src/modules/questions/questions.service.ts:1284:      'SELECT keyword_name FROM question_keywords ORDER BY keyword_name ASC'
+backend/src/modules/questions/questions.service.ts:1292:    await connection.execute('DELETE FROM question_keyword_map WHERE question_id = ?', [questionId]);
+backend/src/modules/questions/questions.service.ts:1295:      await connection.execute(
+backend/src/modules/questions/questions.service.ts:1309:      await connection.execute(
+backend/src/modules/study-bookmarks/study-bookmarks.service.ts:44:       ORDER BY b.created_at DESC, b.id DESC`,
+backend/src/modules/study-bookmarks/study-bookmarks.service.ts:70:      await this.db.execute('DELETE FROM study_bookmarks WHERE id = ?', [rows[0].id]);
+backend/src/modules/push-notifications/push-notifications.service.ts:56:       ORDER BY updated_at DESC
+backend/src/modules/push-notifications/push-notifications.service.ts:73:    await this.db.execute(
+backend/src/modules/push-notifications/push-notifications.service.ts:130:      await this.db.execute(
+backend/src/modules/push-notifications/push-notifications.service.ts:135:      await this.db.execute(
+backend/src/modules/push-notifications/push-notifications.service.ts:154:    await this.db.execute(
+backend/src/modules/push-notifications/push-notifications.service.ts:185:      await this.db.execute(
+backend/src/modules/push-notifications/push-notifications.service.ts:190:      await this.db.execute(
+backend/src/modules/push-notifications/push-notifications.service.ts:241:        tag: `announcement-${Date.now()}`,
+backend/src/modules/push-notifications/push-notifications.service.ts:266:      where.push(`npt.user_id IN (${sqlPlaceholders(audience.userIds)})`);
+backend/src/modules/push-notifications/push-notifications.service.ts:269:      where.push('u.role = ?');
+backend/src/modules/push-notifications/push-notifications.service.ts:277:       WHERE ${where.join(' AND ')}`,
+backend/src/modules/push-notifications/push-notifications.service.ts:362:    await this.db.execute(
+backend/src/modules/questions/questions.controller.ts:102:    response.setHeader('Content-Disposition', `attachment; filename="questions-export-${Date.now()}.csv"`);
+backend/src/modules/quizzes/quizzes.service.ts:116:      sql += ' AND (COALESCE(NULLIF(quizzes.admin_name, \'\'), quizzes.quiz_title) LIKE ? OR COALESCE(NULLIF(quizzes.student_title, \'\'), quizzes.quiz_title) LIKE ? OR quizzes.quiz_title LIKE ?)';
+backend/src/modules/quizzes/quizzes.service.ts:117:      const like = `%${filters.search.trim()}%`;
+backend/src/modules/quizzes/quizzes.service.ts:122:      sql += ' AND quizzes.course_id = ?';
+backend/src/modules/quizzes/quizzes.service.ts:128:        sql += ' AND quizzes.is_general = 1';
+backend/src/modules/quizzes/quizzes.service.ts:130:        sql += ' AND quizzes.topic_id = ? AND quizzes.is_general = 0';
+backend/src/modules/quizzes/quizzes.service.ts:136:      sql += ' AND quizzes.status = ?';
+backend/src/modules/quizzes/quizzes.service.ts:140:    sql += ' ORDER BY quizzes.id DESC';
+backend/src/modules/quizzes/quizzes.service.ts:148:      "SELECT id, course_title FROM courses WHERE status = 'active' ORDER BY course_title ASC"
+backend/src/modules/quizzes/quizzes.service.ts:151:      "SELECT id, course_id, topic_name FROM topics WHERE status = 'active' ORDER BY topic_name ASC"
+backend/src/modules/quizzes/quizzes.service.ts:159:        ORDER BY s.subtopic_name ASC
+backend/src/modules/quizzes/quizzes.service.ts:167:        ORDER BY lesson_title ASC
+backend/src/modules/quizzes/quizzes.service.ts:175:        ORDER BY year DESC, paper_title ASC
+backend/src/modules/quizzes/quizzes.service.ts:218:            ORDER BY q.id DESC
+backend/src/modules/quizzes/quizzes.service.ts:326:        ORDER BY sort_order ASC, question_id ASC
+backend/src/modules/quizzes/quizzes.service.ts:429:      await connection.execute(
+backend/src/modules/quizzes/quizzes.service.ts:499:    await this.db.execute('DELETE FROM quizzes WHERE id = ?', [id]);
+backend/src/modules/quizzes/quizzes.service.ts:534:    await connection.execute('DELETE FROM question_quizzes WHERE quiz_id = ?', [quizId]);
+backend/src/modules/quizzes/quizzes.service.ts:537:      await connection.execute(
+backend/src/modules/quizzes/quizzes.service.ts:566:      await connection.execute(
+backend/src/modules/quizzes/quizzes.service.ts:571:      await connection.execute('DELETE FROM question_keyword_map WHERE question_id = ?', [questionId]);
+backend/src/modules/quizzes/quizzes.service.ts:573:        await connection.execute(
+backend/src/modules/quizzes/quizzes.service.ts:584:        await connection.execute(
+backend/src/modules/quizzes/quizzes.service.ts:621:      'SELECT keyword_name FROM question_keywords ORDER BY keyword_name ASC'
+backend/src/modules/quizzes/quizzes.service.ts:690:       ORDER BY qq.sort_order ASC, q.id ASC`,
+backend/src/modules/quizzes/quizzes.service.ts:701:       FROM question_options WHERE question_id IN (${placeholders})
+backend/src/modules/quizzes/quizzes.service.ts:702:       ORDER BY question_id, option_label ASC`,
+backend/src/modules/quizzes/quizzes.service.ts:710:       WHERE question_id IN (${placeholders})`,
+backend/src/health.controller.ts:26:    await this.db.query('SELECT 1');
+backend/src/modules/users/users.service.ts:32:      sql += ' AND (full_name LIKE ? OR email LIKE ?)';
+backend/src/modules/users/users.service.ts:33:      const like = `%${filters.search.trim()}%`;
+backend/src/modules/users/users.service.ts:38:      sql += ' AND status = ?';
+backend/src/modules/users/users.service.ts:43:      sql += ' AND role = ?';
+backend/src/modules/users/users.service.ts:47:    sql += ` ORDER BY FIELD(status, 'inactive', 'active'), id DESC`;
+backend/src/modules/users/users.service.ts:90:         ORDER BY us.end_date DESC, us.id DESC
+backend/src/modules/users/users.service.ts:100:         ORDER BY qa.submitted_at DESC, qa.id DESC
+backend/src/modules/users/users.service.ts:125:         ORDER BY created_at DESC
+backend/src/modules/users/users.service.ts:255:    await this.db.execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+backend/src/modules/users/users.service.ts:279:    await this.db.execute('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+backend/src/modules/users/users.service.ts:299:    await this.db.execute('DELETE FROM users WHERE id = ?', [id]);
+backend/src/modules/users/users.service.ts:322:       ORDER BY id ASC
+backend/src/modules/users/users.service.ts:335:      return `${year}-${month}-${day}`;
+backend/src/modules/users/users.service.ts:338:    await this.db.execute(
+backend/src/modules/courses/courses.service.ts:79:      'SELECT id, course_title, course_code, description, exam_type, status, created_at FROM courses ORDER BY course_title ASC'
+backend/src/modules/courses/courses.service.ts:106:    await this.db.execute(
+backend/src/modules/courses/courses.service.ts:126:    await this.db.execute('DELETE FROM courses WHERE id = ?', [id]);
+backend/src/modules/courses/courses.service.ts:140:       ORDER BY course_title ASC`
+backend/src/modules/courses/courses.service.ts:220:    await this.db.execute(
+backend/src/modules/courses/courses.service.ts:280:       WHERE status = 'active' AND course_id IN (${placeholders})
+backend/src/modules/courses/courses.service.ts:281:       ORDER BY topic_name ASC`,
+backend/src/modules/courses/courses.service.ts:288:       WHERE s.status = 'active' AND t.course_id IN (${placeholders})
+backend/src/modules/courses/courses.service.ts:289:       ORDER BY s.subtopic_name ASC`,
+backend/src/modules/courses/courses.service.ts:295:       WHERE status = 'active' AND course_id IN (${placeholders})
+backend/src/modules/courses/courses.service.ts:296:       ORDER BY lesson_title ASC, id ASC`,
+backend/src/modules/courses/courses.service.ts:302:       WHERE user_id = ? AND course_id IN (${placeholders})`,
+backend/src/modules/courses/courses.service.ts:341:          id: `subject-${subject.id}-general`,
+backend/src/modules/lessons/lessons.service.ts:77:      "SELECT id, course_title, status FROM courses ORDER BY course_title ASC"
+backend/src/modules/lessons/lessons.service.ts:80:      "SELECT id, course_id, topic_name, status FROM topics ORDER BY topic_name ASC"
+backend/src/modules/lessons/lessons.service.ts:83:      "SELECT id, topic_id, subtopic_name, status FROM subtopics ORDER BY subtopic_name ASC"
+backend/src/modules/lessons/lessons.service.ts:119:      params.push(`%${filters.search.trim()}%`);
+backend/src/modules/lessons/lessons.service.ts:142:    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+backend/src/modules/lessons/lessons.service.ts:164:      ORDER BY l.created_at DESC, l.id DESC`,
+backend/src/modules/lessons/lessons.service.ts:195:      ORDER BY l.created_at DESC, l.id DESC`
+backend/src/modules/lessons/lessons.service.ts:229:        ORDER BY start_offset ASC, id ASC
+backend/src/modules/lessons/lessons.service.ts:275:    await this.db.execute(
+backend/src/modules/lessons/lessons.service.ts:299:    await this.db.execute('DELETE FROM lesson_annotations WHERE id = ? AND lesson_id = ? AND user_id = ?', [
+backend/src/modules/lessons/lessons.service.ts:334:    await this.db.execute(
+backend/src/modules/lessons/lessons.service.ts:361:    await this.db.execute('DELETE FROM lessons WHERE id = ?', [id]);
+backend/src/modules/lessons/lessons.service.ts:632:    return plain.length > 180 ? `${plain.slice(0, 177)}...` : plain;
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:165:            ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:192:        ORDER BY q.id DESC
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:252:        ORDER BY qa.id DESC
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:347:      await connection.execute(
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:355:          await connection.execute(
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:367:          await connection.execute(
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:374:      await connection.execute(
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:441:      await connection.execute(
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:549:      await this.db.execute(
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:734:        ORDER BY qq.sort_order ASC, q.id ASC
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:748:        WHERE question_id IN (${placeholders})
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:749:        ORDER BY question_id, option_label ASC
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:759:       WHERE question_id IN (${placeholders})`,
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:819:        ORDER BY option_label ASC
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:875:      await this.db.execute('DELETE FROM practice_answers WHERE practice_session_id = ?', [session.id]);
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:876:      await this.db.execute(
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:910:        ORDER BY id DESC
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:1049:      await connection.execute(
+backend/src/modules/quiz-attempts/quiz-attempts.service.ts:1069:      await connection.execute(
+backend/src/main.ts:29:    .find((part) => part.startsWith(`${name}=`))
+backend/src/main.ts:93:    `connect-src ${cspJoin(["'self'", ...runtimeOrigins, ...localDevSources, ...nativeSources])}`,
+backend/src/main.ts:94:    `script-src ${cspJoin(["'self'", ...nativeSources])}`,
+backend/src/main.ts:95:    `frame-src ${cspJoin(["'self'", ...nativeSources])}`,
+backend/src/main.ts:96:    `img-src ${cspJoin(["'self'", 'data:', 'blob:', ...runtimeOrigins, ...localDevSources])}`,
+backend/src/main.ts:97:    `style-src ${cspJoin(["'self'", "'unsafe-inline'", ...nativeSources])}`,
+backend/src/main.ts:132:    throw new Error(`Production configuration is not safe to start:\n- ${failures.join('\n- ')}`);
+backend/src/main.ts:206:  const restPath = rest.length ? `/${rest.join('/')}` : '';
+backend/src/main.ts:212:    if (resource === 'dashboard') return `/api/dashboard/admin${restPath}`;
+backend/src/main.ts:215:      return `/api/ai-notes/admin${restPath}`;
+backend/src/main.ts:217:    if (resource === 'announcements') return `/api/announcements/admin${restPath}`;
+backend/src/main.ts:218:    if (resource === 'reports') return `/api/reports/admin${restPath}`;
+backend/src/main.ts:219:    if (resource === 'question-review') return `/api/question-review/admin${restPath}`;
+backend/src/main.ts:220:    if (resource === 'lesson-doubts') return `/api/lesson-doubts/admin${restPath}`;
+backend/src/main.ts:221:    if (resource === 'push') return `/api/push/admin${restPath}`;
+backend/src/main.ts:224:      if (rest[0] === 'requests' && rest[2] === 'resolve') return `/api/subscriptions/requests/${rest[1]}/resolve`;
+backend/src/main.ts:226:        return `/api/subscriptions/${rest[0]}/${rest[1]}`;
+backend/src/main.ts:228:      return `/api/subscriptions/admin${restPath}`;
+backend/src/main.ts:231:      return method === 'GET' && !rest.length ? '/api/plans/admin' : `/api/plans${restPath}`;
+backend/src/main.ts:234:      return method === 'GET' && !rest.length ? '/api/lessons/admin' : `/api/lessons${restPath}`;
+backend/src/main.ts:237:      return `/api/${resource}${restPath}`;
+backend/src/main.ts:247:      if (rest[0] === 'lessons' && rest[2] === 'progress') return `/api/courses/student/lessons/${rest[1]}/progress`;
+backend/src/main.ts:248:      return `/api/courses/student${restPath}`;
+backend/src/main.ts:250:    if (resource === 'lessons') return `/api/lessons/student${restPath}`;
+backend/src/main.ts:252:      if (rest[0] === 'lesson' && rest[1]) return `/api/ai-notes/student/lesson/${rest[1]}`;
+backend/src/main.ts:253:      return `/api/ai-notes${restPath}`;
+backend/src/main.ts:256:      if (rest[0] && rest[1] === 'cards') return `/api/quizzes/${rest[0]}/cards`;
+backend/src/main.ts:257:      return rest.length ? `/api/quiz-attempts/quiz/${rest[0]}` : '/api/quiz-attempts/quizzes';
+backend/src/main.ts:259:    if (resource === 'quiz-attempts') return `/api/quiz-attempts${restPath}`;
+backend/src/main.ts:261:      return `/api/results${restPath}`;
+backend/src/main.ts:263:    if (resource === 'practice-review' && rest[0]) return `/api/quiz-attempts/practice-review/${rest[0]}`;
+backend/src/main.ts:269:      return `/api/subscriptions${restPath}`;
+backend/src/main.ts:271:    if (resource === 'bookmarks') return `/api/study-bookmarks${restPath}`;
+backend/src/main.ts:272:    if (resource === 'notifications') return `/api/notifications${restPath}`;
+backend/src/main.ts:273:    if (resource === 'planner') return `/api/study-planner${restPath}`;
+backend/src/main.ts:274:    if (resource === 'doubts') return `/api/lesson-doubts${restPath}`;
+backend/src/main.ts:275:    if (resource === 'push') return `/api/push${restPath}`;
+backend/src/main.ts:276:    if (resource === 'theory-recap') return `/api/theory-recap${restPath}`;
+backend/src/main.ts:286:  req.url = `${targetPath}${query}`;
+backend/src/main.ts:361:        req.headers.authorization = `Bearer ${decodeURIComponent(cookieToken)}`;
+backend/src/main.ts:434:    const key = `${ip}:${path}`;
+backend/src/main.ts:502:    const key = `${userId}:${ip}:${method}:${normalizedPath}`;
+backend/src/main.ts:573:    callback(new Error(`CORS blocked for origin: ${origin}`), false);
+backend/src/modules/ai/ai.service.ts:129:      throw new BadGatewayException(`${AI_PROVIDER_LABELS[provider.providerKey]} returned an empty response`);
+backend/src/modules/ai/ai.service.ts:236:      throw new BadGatewayException(`${AI_PROVIDER_LABELS[provider.providerKey]} returned an empty explanation`);
+backend/src/modules/ai/ai.service.ts:294:      throw new BadGatewayException(`${AI_PROVIDER_LABELS[provider.providerKey]} returned an empty response`);
+backend/src/modules/ai/ai.service.ts:320:      .map((opt) => `${opt.optionLabel}. ${opt.optionText}`)
+backend/src/modules/ai/ai.service.ts:324:      .map((opt) => `${opt.optionLabel}. ${opt.optionText}${opt.isCorrect === 1 ? ' [CORRECT]' : ''}`)
+backend/src/modules/ai/ai.service.ts:334:      `Question type: ${input.questionType === 'sba' ? 'Single Best Answer (SBA)' : 'True/False'}`,
+backend/src/modules/ai/ai.service.ts:335:      `Category: ${input.category || 'mock'}`,
+backend/src/modules/ai/ai.service.ts:336:      `Course: ${input.course || 'Not specified'}`,
+backend/src/modules/ai/ai.service.ts:337:      `Subject: ${input.subject || 'Not specified'}`,
+backend/src/modules/ai/ai.service.ts:338:      `Topic: ${input.topic || 'Not specified'}`,
+backend/src/modules/ai/ai.service.ts:339:      `Lesson: ${input.lesson || 'Not specified'}`,
+backend/src/modules/ai/ai.service.ts:341:      `Question:\n${input.questionText}`,
+backend/src/modules/ai/ai.service.ts:343:      `Options:\n${allOptions}`,
+backend/src/modules/ai/ai.service.ts:345:      `Correct answer(s): ${correctAnswers || 'Not provided'}`,
+backend/src/modules/ai/ai.service.ts:347:      input.explanation ? `Explanation:\n${input.explanation}` : '',
+backend/src/modules/ai/ai.service.ts:378:          return `${label}. ${option.optionText} [ANSWER: ${answer}]${existing ? ' [already has reason]' : ''}`;
+backend/src/modules/ai/ai.service.ts:389:        `Question:\n${input.questionText}`,
+backend/src/modules/ai/ai.service.ts:391:        `Statements:\n${statements}`,
+backend/src/modules/ai/ai.service.ts:393:        input.explanation ? `Main explanation:\n${input.explanation}` : '',
+backend/src/modules/ai/ai.service.ts:410:        return `${label}. ${option.optionText}${isCorrect ? ' [CORRECT - DO NOT EXPLAIN AS WRONG]' : ''}${existing ? ' [already has explanation]' : ''}`;
+backend/src/modules/ai/ai.service.ts:422:      `Question:\n${input.questionText}`,
+backend/src/modules/ai/ai.service.ts:424:      `Correct answer label: ${correctLabel}`,
+backend/src/modules/ai/ai.service.ts:426:      `Options:\n${options}`,
+backend/src/modules/ai/ai.service.ts:428:      input.explanation ? `Main explanation:\n${input.explanation}` : '',
+backend/src/modules/ai/ai.service.ts:445:        return `${label}. ${option.optionText}${isCorrect ? ' [CORRECT]' : ''}`;
+backend/src/modules/ai/ai.service.ts:457:      `Question type: ${input.questionType === 'true_false' ? 'True/False' : 'Single Best Answer (SBA)'}`,
+backend/src/modules/ai/ai.service.ts:458:      `Course: ${input.course || 'Not specified'}`,
+backend/src/modules/ai/ai.service.ts:459:      `Subject: ${input.subject || 'Not specified'}`,
+backend/src/modules/ai/ai.service.ts:460:      `Topic: ${input.topic || 'Not specified'}`,
+backend/src/modules/ai/ai.service.ts:461:      `Lesson: ${input.lesson || 'Not specified'}`,
+backend/src/modules/ai/ai.service.ts:463:      `Question:\n${input.questionText}`,
+backend/src/modules/ai/ai.service.ts:465:      `Correct answer label: ${correctLabel}`,
+backend/src/modules/ai/ai.service.ts:467:      `Options:\n${options}`,
+backend/src/modules/ai/ai.service.ts:485:      dto.course?.trim() ? `course: ${dto.course.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:486:      dto.subject?.trim() ? `subject: ${dto.subject.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:487:      dto.topic?.trim() ? `topic: ${dto.topic.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:488:      dto.lesson?.trim() ? `lesson: ${dto.lesson.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:492:      dto.course?.trim() ? `course ${dto.course.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:493:      dto.subject?.trim() ? `subject ${dto.subject.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:494:      dto.topic?.trim() ? `topic ${dto.topic.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:495:      dto.lesson?.trim() ? `lesson ${dto.lesson.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:499:      `Create ${dto.questionType === 'sba' ? 'SBA' : 'True/False'} questions related to clinical and theoretical knowledge for a medical student.`,
+backend/src/modules/ai/ai.service.ts:500:      topicContext.length > 0 ? `Focus the questions on ${topicContext.join(', ')}.` : '',
+backend/src/modules/ai/ai.service.ts:504:      `Keep the difficulty at ${dto.difficulty} level.`,
+backend/src/modules/ai/ai.service.ts:563:      `Generate exactly ${dto.numberOfQuestions} question(s).`,
+backend/src/modules/ai/ai.service.ts:564:      `Question type: ${dto.questionType}.`,
+backend/src/modules/ai/ai.service.ts:565:      `Difficulty: ${dto.difficulty}.`,
+backend/src/modules/ai/ai.service.ts:566:      `Category: ${dto.category}.`,
+backend/src/modules/ai/ai.service.ts:580:      `Automatic LMS prompt context: ${automaticMedicalPrompt}`,
+backend/src/modules/ai/ai.service.ts:582:      dto.instruction?.trim() ? `Additional free-text instruction from admin: ${dto.instruction.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:591:      dto.course?.trim() ? `course: ${dto.course.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:592:      dto.subject?.trim() ? `subject: ${dto.subject.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:593:      dto.topic?.trim() ? `topic: ${dto.topic.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:594:      dto.subtopic?.trim() ? `subtopic: ${dto.subtopic.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:595:      dto.lessonTitle?.trim() ? `current lesson title: ${dto.lessonTitle.trim()}` : '',
+backend/src/modules/ai/ai.service.ts:609:      `Source lesson content:\n${dto.lessonContent.trim()}`,
+backend/src/modules/ai/ai.service.ts:628:      throw new BadGatewayException(`${AI_PROVIDER_LABELS[providerKey]} returned malformed JSON`);
+backend/src/modules/ai/ai.service.ts:632:      throw new BadGatewayException(`${AI_PROVIDER_LABELS[providerKey]} response did not include any quiz items`);
+backend/src/modules/ai/ai.service.ts:642:      throw new BadGatewayException(`${AI_PROVIDER_LABELS[providerKey]} returned malformed lesson JSON`);
+backend/src/modules/ai/ai.service.ts:647:      throw new BadGatewayException(`${AI_PROVIDER_LABELS[providerKey]} did not return beautified lesson content`);
+backend/src/modules/ai/ai.service.ts:661:      throw new BadGatewayException(`${AI_PROVIDER_LABELS[providerKey]} returned malformed JSON`);
+backend/src/modules/ai/ai.service.ts:676:        `${provider.providerLabel} is selected as the active AI provider, but it has no API key saved in admin settings.`
+backend/src/modules/ai/ai.service.ts:706:        throw new BadGatewayException(`${provider.providerLabel} did not respond within ${AI_REQUEST_TIMEOUT_MS / 1000} seconds. Try again or switch to a faster model.`);
+backend/src/modules/ai/ai.service.ts:709:        throw new BadGatewayException(`${provider.providerLabel} connection was interrupted. Check your internet connection and try again.`);
+backend/src/modules/ai/ai.service.ts:722:        Authorization: `Bearer ${provider.apiKey}`,
+backend/src/modules/ai/ai.service.ts:943:        ORDER BY updated_at DESC, id DESC
+backend/src/modules/ai/ai.service.ts:983:        ORDER BY is_active DESC, updated_at DESC, id DESC
+backend/src/modules/ai/ai.service.ts:1009:        Authorization: `Bearer ${provider.apiKey}`,
+backend/src/modules/ai/ai.service.ts:1148:      throw new BadGatewayException(`Generated item ${index + 1} is missing question_text`);
+backend/src/modules/ai/ai.service.ts:1168:        throw new BadGatewayException(`Generated SBA item ${index + 1} must contain exactly 5 options`);
+backend/src/modules/ai/ai.service.ts:1174:        throw new BadGatewayException(`Generated SBA item ${index + 1} is missing correct_answer`);
+backend/src/modules/ai/ai.service.ts:1202:      throw new BadGatewayException(`Generated True/False item ${index + 1} must contain exactly 5 statements`);
+backend/src/modules/ai/ai.service.ts:1207:      throw new BadGatewayException(`Generated True/False item ${index + 1} contains a statement with an invalid true/false value`);
+backend/src/modules/ai/ai.service.ts:1272:      return `${providerLabel} could not be reached while calling ${modelName || providerKey}. Check the internet connection, firewall, proxy, DNS, or custom base URL.`;
+backend/src/modules/ai/ai.service.ts:1276:      return `${providerLabel} rejected the credential. Update the API key in admin settings, then try again.`;
+backend/src/modules/ai/ai.service.ts:1280:      return `${providerLabel} denied this request. Check account access, project permissions, model availability, or provider billing.`;
+backend/src/modules/ai/ai.service.ts:1284:      return `${providerLabel} rate limits or quota were hit. Wait a moment or review the provider account usage.`;
+backend/src/modules/ai/ai.service.ts:1288:      return `${providerLabel} cannot find the model "${modelName}". Update the model value in admin settings.`;
+backend/src/modules/ai/ai.service.ts:1291:    return `${providerLabel} request failed: ${rawMessage}`;
+backend/src/database/sql-safety.ts:10:    throw new BadRequestException(`${label} is not allowed`);
+backend/src/database/sql-safety.ts:15:    throw new BadRequestException(`${label} is invalid`);
+backend/src/database/sql-safety.ts:18:  return parts.map((part) => `\`${part}\``).join('.');
+backend/src/database/sql-safety.ts:25:    throw new BadRequestException(`${label} is not allowed`);
+backend/src/modules/dashboard/dashboard.service.ts:155:         ORDER BY DATE(created_at) ASC`
+backend/src/modules/dashboard/dashboard.service.ts:162:         ORDER BY DATE(created_at) ASC`
+backend/src/modules/dashboard/dashboard.service.ts:169:         ORDER BY DATE(created_at) ASC`
+backend/src/modules/dashboard/dashboard.service.ts:176:         ORDER BY DATE(created_at) ASC`
+backend/src/modules/dashboard/dashboard.service.ts:183:         ORDER BY DATE(created_at) ASC`
+backend/src/modules/dashboard/dashboard.service.ts:190:         ORDER BY DATE(COALESCE(submitted_at, created_at)) ASC`
+backend/src/modules/dashboard/dashboard.service.ts:201:         ORDER BY created_at DESC, id DESC
+backend/src/modules/dashboard/dashboard.service.ts:213:         ORDER BY created_at DESC, id DESC
+backend/src/modules/dashboard/dashboard.service.ts:228:         ORDER BY l.created_at DESC, l.id DESC
+backend/src/modules/dashboard/dashboard.service.ts:241:         ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
+backend/src/modules/dashboard/dashboard.service.ts:519:        id: `${row.item_type}-${row.item_id}`,
+backend/src/modules/dashboard/dashboard.service.ts:538:    const label = delta > 0 ? `+${delta}% vs previous period` : `${delta}% vs previous period`;
+backend/src/modules/dashboard/dashboard.service.ts:583:        ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
+backend/src/modules/dashboard/dashboard.service.ts:600:        ORDER BY average_percentage ASC, attempts_count DESC`,
+backend/src/modules/dashboard/dashboard.service.ts:614:        ORDER BY updated_at DESC, id DESC
+backend/src/modules/dashboard/dashboard.service.ts:622:         ORDER BY attempt_day DESC`,
+backend/src/modules/dashboard/dashboard.service.ts:665:         ORDER BY miss_count DESC, latest_missed_at DESC
+backend/src/modules/dashboard/dashboard.service.ts:678:         ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC`,
+backend/src/modules/dashboard/dashboard.service.ts:693:         ORDER BY n.id DESC`,
+backend/src/modules/dashboard/dashboard.service.ts:773:        progressText: `${Math.min(todayQuizRows.length, 1)}/1 done`,
+backend/src/modules/dashboard/dashboard.service.ts:780:        progressText: `${Math.min(todayNoteRows.length, 1)}/1 done`,
+backend/src/modules/dashboard/dashboard.service.ts:784:        title: weakestTopic ? `Revisit ${weakestTopic.topicName}` : 'Revisit a weak topic',
+backend/src/modules/dashboard/dashboard.service.ts:786:          ? `Focus on your weakest topic in ${weakestTopic.courseTitle}.`
+backend/src/modules/dashboard/dashboard.service.ts:789:        progressText: weakestTopic ? `${weakestTopicReviewedToday ? 1 : 0}/1 done` : 'Locked',
+backend/src/modules/dashboard/dashboard.service.ts:874:    await this.db.execute(
+backend/src/modules/dashboard/dashboard.service.ts:949:          : scoreDelta > 3 ? `+${scoreDelta} pts vs last week`
+backend/src/modules/dashboard/dashboard.service.ts:950:            : scoreDelta < -3 ? `${scoreDelta} pts vs last week`
+backend/src/modules/dashboard/dashboard.service.ts:1001:        title: weakestTopic ? `Practice ${weakestTopic.topicName}` : 'Practice your next quiz',
+backend/src/modules/dashboard/dashboard.service.ts:1003:          ? `${weakestTopic.courseTitle} is the clearest place to gain points right now.`
+backend/src/modules/dashboard/dashboard.service.ts:1010:        title: weakestTopic ? `Review ${weakestTopic.topicName}` : recommendedNoteTitle || 'Review one lesson',
+backend/src/modules/dashboard/dashboard.service.ts:1046:       WHERE ${eligibleQuestionWhere}`
+backend/src/modules/dashboard/dashboard.service.ts:1066:       WHERE ${eligibleQuestionWhere}
+backend/src/modules/dashboard/dashboard.service.ts:1067:       ORDER BY q.id ASC
+backend/src/modules/dashboard/dashboard.service.ts:1080:       ORDER BY option_label ASC, id ASC`,
+backend/src/modules/dashboard/dashboard.service.ts:1102:    const dayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+backend/src/modules/dashboard/dashboard.service.ts:1103:    const seed = createHash('sha256').update(`${dayKey}:${studentId}`).digest('hex').slice(0, 12);
+backend/src/modules/dashboard/dashboard.service.ts:1160:    const latestAttemptDay = new Date(`${normalizedDays[0]}T00:00:00`);
+backend/src/modules/dashboard/dashboard.service.ts:1174:      const currentDay = new Date(`${normalizedDays[index]}T00:00:00`);
+backend/src/modules/dashboard/dashboard.service.ts:1229:    return `${courseTitle.trim().toLowerCase()}::${topicName.trim().toLowerCase()}`;
+backend/src/modules/smart-notes/smart-notes.service.ts:72:       FROM smart_notes WHERE user_id = ? ORDER BY updated_at DESC`,
+backend/src/modules/smart-notes/smart-notes.service.ts:117:    await this.db.execute(`UPDATE smart_notes SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`, values);
+backend/src/modules/smart-notes/smart-notes.service.ts:123:    await this.db.execute('DELETE FROM smart_notes WHERE id = ? AND user_id = ?', [id, user.id]);
+backend/src/modules/smart-notes/smart-notes.service.ts:150:    await this.db.execute(
+backend/src/modules/smart-notes/smart-notes.service.ts:198:        id: el.id || `el_${result.length}`,
+backend/src/modules/smart-notes/smart-notes.service.ts:235:    const bullets = lines.slice(0, 6).map((l) => `• ${l.replace(/^[•\-*]\s*/, '')}`).join('\n');
+backend/src/modules/smart-notes/smart-notes.service.ts:322:    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:20:        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:75:          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:82:              contents: [{ parts: [{ text: `Create a clean medical educational illustration about: ${topic}. Style: white background, labeled anatomical diagram, textbook quality, soft clinical colors, no borders.` }] }],
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:87:          console.error(`[SmartNotes] ${model} HTTP ${res.status}`);
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:93:          console.log(`[SmartNotes] Native image OK (${model})`);
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:94:          return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:96:        console.error(`[SmartNotes] ${model} returned no image part`);
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:98:        console.error(`[SmartNotes] ${model} error:`, err instanceof Error ? err.message : String(err));
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:111:        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:127:      return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgMatch[0])}`;
+backend/src/modules/smart-notes/smart-notes-image-api.service.ts:171:    return `Draw a clean medical educational SVG diagram of: ${topic}
+backend/src/modules/papers/papers.service.ts:37:      sql += ' AND (p.paper_title LIKE ? OR p.keywords_text LIKE ?)';
+backend/src/modules/papers/papers.service.ts:38:      const like = `%${filters.search.trim()}%`;
+backend/src/modules/papers/papers.service.ts:43:      sql += ' AND p.status = ?';
+backend/src/modules/papers/papers.service.ts:47:    sql += ' ORDER BY p.year DESC, p.id DESC';
+backend/src/modules/papers/papers.service.ts:99:    await this.db.execute(
+backend/src/modules/papers/papers.service.ts:126:    await this.db.execute('DELETE FROM papers WHERE id = ?', [id]);
+backend/src/modules/theory-recap/theory-recap.service.ts:67:      await this.db.execute(
+backend/src/modules/theory-recap/theory-recap.service.ts:104:      await this.db.execute(
+backend/src/modules/theory-recap/theory-recap.service.ts:138:      `SELECT option_label, option_text, is_correct FROM question_options WHERE question_id = ? ORDER BY option_label ASC`,
+backend/src/modules/theory-recap/theory-recap.service.ts:180:    await this.db.execute('DELETE FROM question_theory_recaps WHERE question_id = ?', [questionId]);
+backend/src/modules/setup/setup.service.ts:93:          ? `${missingTables.length} required database table(s) are missing.`
+backend/src/modules/setup/setup.service.ts:116:      const [rows] = await this.db.query<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM ${table}`);
+backend/src/modules/setup/setup.service.ts:142:        value: `${activeAdminCount} active admin${activeAdminCount === 1 ? '' : 's'}`,
+backend/src/modules/setup/setup.service.ts:163:        value: `${aiProviderCount} saved provider${aiProviderCount === 1 ? '' : 's'}`,
+backend/src/modules/setup/setup.service.ts:176:      `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (${placeholders})`,
+backend/src/modules/subscriptions/subscriptions.service.ts:146:       ORDER BY FIELD(status, 'active', 'inactive'), full_name ASC`
+backend/src/modules/subscriptions/subscriptions.service.ts:154:       ORDER BY course_title ASC`
+backend/src/modules/subscriptions/subscriptions.service.ts:161:       ORDER BY c.course_title ASC, l.lesson_title ASC`
+backend/src/modules/subscriptions/subscriptions.service.ts:206:       ORDER BY us.created_at DESC, us.id DESC`
+backend/src/modules/subscriptions/subscriptions.service.ts:252:      summary: `Assigned ${plan.name} to ${student.email}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:291:      summary: `${student.email} requested ${plan.name}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:325:      dto.billingName ? `Billing name: ${String(dto.billingName).trim()}` : '',
+backend/src/modules/subscriptions/subscriptions.service.ts:326:      dto.billingEmail ? `Billing email: ${String(dto.billingEmail).trim()}` : '',
+backend/src/modules/subscriptions/subscriptions.service.ts:327:      dto.phone ? `Phone: ${String(dto.phone).trim()}` : '',
+backend/src/modules/subscriptions/subscriptions.service.ts:328:      dto.couponCode ? `Coupon: ${String(dto.couponCode).trim().toUpperCase()}` : '',
+backend/src/modules/subscriptions/subscriptions.service.ts:362:      summary: `${student.email} uploaded bank transfer proof for ${plan.name}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:394:    const fileName = `${invoiceId}.${extension}`;
+backend/src/modules/subscriptions/subscriptions.service.ts:400:      publicPath: `/uploads/payment-proofs/${fileName}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:434:      await connection.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:442:      await connection.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:473:       ORDER BY FIELD(sr.status, 'pending', 'approved', 'rejected', 'cancelled'), sr.requested_at DESC, sr.id DESC`
+backend/src/modules/subscriptions/subscriptions.service.ts:494:        notes: adminNote || `Approved upgrade request #${requestId}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:515:        summary: `Approved request for ${plan.name}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:529:    await this.db.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:553:       ORDER BY FIELD(us.status, 'active', 'pending', 'expired', 'cancelled'), us.end_date DESC, us.id DESC
+backend/src/modules/subscriptions/subscriptions.service.ts:573:       ORDER BY us.created_at DESC, us.id DESC
+backend/src/modules/subscriptions/subscriptions.service.ts:594:       ORDER BY status ASC, updated_at DESC, id DESC`
+backend/src/modules/subscriptions/subscriptions.service.ts:704:      summary: `Created coupon ${payload.code}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:714:    await this.db.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:743:      summary: `Updated coupon ${payload.code}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:752:    await this.db.execute('DELETE FROM subscription_coupons WHERE id = ?', [id]);
+backend/src/modules/subscriptions/subscriptions.service.ts:756:      summary: `Deleted coupon ${coupon.code}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:804:    const returnUrl = settings.returnUrl || `${baseFrontendUrl}/lms/#/subscriptions?payment=return&order_id=${encodeURIComponent(orderId)}`;
+backend/src/modules/subscriptions/subscriptions.service.ts:805:    const cancelUrl = settings.cancelUrl || `${baseFrontendUrl}/lms/#/subscriptions?payment=cancel&order_id=${encodeURIComponent(orderId)}`;
+backend/src/modules/subscriptions/subscriptions.service.ts:806:    const notifyUrl = settings.notifyUrl || `${this.resolveApiPublicUrl()}/subscriptions/payhere/notify`;
+backend/src/modules/subscriptions/subscriptions.service.ts:815:    await this.db.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:842:      summary: `Started PayHere checkout for ${plan.name}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:872:          `${settings.checkoutTitle || 'ERPM LMS subscription'} - ${plan.name}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:873:          coupon?.code ? `(${coupon.code})` : '',
+backend/src/modules/subscriptions/subscriptions.service.ts:874:          checkoutInput.message ? `- ${String(checkoutInput.message).slice(0, 80)}` : '',
+backend/src/modules/subscriptions/subscriptions.service.ts:911:      await this.db.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:940:        notes: `Activated by verified PayHere payment ${String(body.payment_id || orderId).trim()}.`,
+backend/src/modules/subscriptions/subscriptions.service.ts:954:      await this.db.execute('UPDATE payment_transactions SET subscription_id = ? WHERE id = ?', [subscriptionId, transaction.id]);
+backend/src/modules/subscriptions/subscriptions.service.ts:956:        await this.db.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:965:        summary: `Verified PayHere payment for ${plan.name}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:971:        eventType: verified ? `payhere_payment_${nextStatus}` : 'payhere_payment_invalid',
+backend/src/modules/subscriptions/subscriptions.service.ts:972:        summary: verified ? `PayHere payment marked ${nextStatus}` : 'PayHere notification failed verification',
+backend/src/modules/subscriptions/subscriptions.service.ts:983:    await this.db.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:989:      [cleanDays, notes ? `\nExtended ${cleanDays} day(s): ${notes.trim()}` : `\nExtended ${cleanDays} day(s).`, id]
+backend/src/modules/subscriptions/subscriptions.service.ts:997:      summary: `Extended subscription by ${cleanDays} day(s)`,
+backend/src/modules/subscriptions/subscriptions.service.ts:1021:      notes: dto.notes || `Renewed from subscription #${id}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:1034:      summary: `Renewed subscription with ${plan.name}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:1043:    await this.db.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:1048:      [notes ? `\nCancelled: ${notes.trim()}` : '\nCancelled by admin.', id]
+backend/src/modules/subscriptions/subscriptions.service.ts:1073:    await this.db.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:1116:       ORDER BY sae.created_at DESC, sae.id DESC
+backend/src/modules/subscriptions/subscriptions.service.ts:1161:        await connection.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:1222:       ORDER BY FIELD(sr.status, 'pending', 'approved', 'rejected', 'cancelled'), sr.requested_at DESC, sr.id DESC
+backend/src/modules/subscriptions/subscriptions.service.ts:1297:    await this.db.execute(
+backend/src/modules/subscriptions/subscriptions.service.ts:1392:    const date = new Date(`${input}T00:00:00`);
+backend/src/modules/subscriptions/subscriptions.service.ts:1404:    return `${year}-${month}-${day}`;
+backend/src/modules/subscriptions/subscriptions.service.ts:1408:    const date = new Date(`${dateText}T00:00:00`);
+backend/src/modules/subscriptions/subscriptions.service.ts:1432:      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+backend/src/modules/subscriptions/subscriptions.service.ts:1483:    const end = new Date(`${endDate}T00:00:00`);
+backend/src/modules/subscriptions/subscriptions.service.ts:1484:    const today = new Date(`${this.toDateOnly(new Date())}T00:00:00`);
+backend/src/modules/subscriptions/subscriptions.service.ts:1554:    return this.md5(`${merchantId}${orderId}${amount}${currency}${this.md5(merchantSecret)}`);
+backend/src/modules/subscriptions/subscriptions.service.ts:1565:    return this.md5(`${merchantId}${orderId}${amount}${currency}${statusCode}${this.md5(merchantSecret)}`);
+backend/src/modules/subscriptions/subscriptions.service.ts:1696:    return `${frontendUrl}/api`;
+backend/src/modules/ai-notes/ai-notes.service.ts:171:      ORDER BY n.updated_at DESC`, [engineKey]);
+backend/src/modules/ai-notes/ai-notes.service.ts:235:      await this.db.execute(`UPDATE ai_illustrated_notes SET ${fields.join(', ')} WHERE id = ?`, values);
+backend/src/modules/ai-notes/ai-notes.service.ts:257:      await this.db.execute(
+backend/src/modules/ai-notes/ai-notes.service.ts:274:    await this.db.execute('DELETE FROM ai_illustrated_notes WHERE id = ? AND is_public = 1 AND engine_key = ?', [id, engineKey]);
+backend/src/modules/ai-notes/ai-notes.service.ts:301:      ORDER BY c.course_title ASC, t.topic_name ASC, n.updated_at DESC`, [student.id, engineKey]);
+backend/src/modules/ai-notes/ai-notes.service.ts:355:      ORDER BY n.updated_at DESC
+backend/src/modules/ai-notes/ai-notes.service.ts:365:      "SELECT id, course_title AS name FROM courses WHERE status = 'active' ORDER BY course_title ASC");
+backend/src/modules/ai-notes/ai-notes.service.ts:373:        ? "SELECT id, topic_name AS name FROM topics WHERE course_id = ? AND status = 'active' ORDER BY topic_name ASC"
+backend/src/modules/ai-notes/ai-notes.service.ts:374:        : "SELECT id, topic_name AS name FROM topics WHERE status = 'active' ORDER BY topic_name ASC",
+backend/src/modules/ai-notes/ai-notes.service.ts:384:        ? "SELECT id, subtopic_name AS name FROM subtopics WHERE topic_id = ? AND status = 'active' ORDER BY subtopic_name ASC"
+backend/src/modules/ai-notes/ai-notes.service.ts:385:        : "SELECT id, subtopic_name AS name FROM subtopics WHERE status = 'active' ORDER BY subtopic_name ASC",
+backend/src/modules/ai-notes/ai-notes.service.ts:395:       WHERE lesson_id IS NOT NULL AND is_public = 1 AND engine_key = ? ORDER BY updated_at DESC`,
+backend/src/modules/ai-notes/ai-notes.service.ts:405:        ? "SELECT id, lesson_title AS name FROM lessons WHERE subtopic_id = ? AND status = 'active' ORDER BY lesson_title ASC"
+backend/src/modules/ai-notes/ai-notes.service.ts:406:        : "SELECT id, lesson_title AS name FROM lessons WHERE status = 'active' ORDER BY lesson_title ASC",
+backend/src/modules/ai-notes/ai-notes.service.ts:459:      throw new ServiceUnavailableException(`No API key found for the active Lessons provider (${provider.providerLabel}). Go to Admin → Settings → AI, edit the active provider, paste the API key, and save.`);
+backend/src/modules/ai-notes/ai-notes.service.ts:480:          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+backend/src/modules/ai-notes/ai-notes.service.ts:494:          const errStr = `${model}: HTTP ${res.status}${detail ? ` — ${detail}` : ''}`;
+backend/src/modules/ai-notes/ai-notes.service.ts:496:          console.warn(`[AiNotes] ${errStr}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:501:        if (!raw) { errors.push(`${model}: empty response`); continue; }
+backend/src/modules/ai-notes/ai-notes.service.ts:502:        console.log(`[AiNotes] Generated canvas with ${model}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:512:        errors.push(`${model}: ${isTimeout ? `timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)` : msg}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:513:        console.warn(`[AiNotes] ${model} failed:`, msg);
+backend/src/modules/ai-notes/ai-notes.service.ts:517:    if (!canvas) throw new ServiceUnavailableException(`All models failed: ${errors.join(' | ')}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:532:          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`,
+backend/src/modules/ai-notes/ai-notes.service.ts:546:          errors.push(`${model}: HTTP ${res.status}${detail ? ` — ${detail}` : ''}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:551:        if (!raw) { errors.push(`${model}: empty response`); continue; }
+backend/src/modules/ai-notes/ai-notes.service.ts:558:        errors.push(`${model}: ${isTimeout ? `timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)` : msg}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:562:    throw new ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:605:          ? `OpenAI generation timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)`
+backend/src/modules/ai-notes/ai-notes.service.ts:608:            : `OpenAI generation failed: ${message}`
+backend/src/modules/ai-notes/ai-notes.service.ts:624:        Authorization: `Bearer ${provider.apiKey}`,
+backend/src/modules/ai-notes/ai-notes.service.ts:651:      throw new ServiceUnavailableException(`OpenAI generation failed: ${message}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:674:        throw new ServiceUnavailableException(`${provider.providerLabel} returned an empty completion`);
+backend/src/modules/ai-notes/ai-notes.service.ts:691:          ? `${provider.providerLabel} lesson generation timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)`
+backend/src/modules/ai-notes/ai-notes.service.ts:693:            ? `${provider.providerLabel} could not be reached. Check internet, VPN/proxy/firewall, DNS, or custom base URL.`
+backend/src/modules/ai-notes/ai-notes.service.ts:694:            : `${provider.providerLabel} lesson generation failed: ${message}`
+backend/src/modules/ai-notes/ai-notes.service.ts:715:        Authorization: `Bearer ${provider.apiKey}`,
+backend/src/modules/ai-notes/ai-notes.service.ts:742:      throw new ServiceUnavailableException(`${provider.providerLabel} generation failed: ${message}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:769:      throw new ServiceUnavailableException(`${provider.providerLabel} generation failed: ${message}`);
+backend/src/modules/ai-notes/ai-notes.service.ts:791:         ORDER BY is_active DESC, updated_at DESC, id DESC
+backend/src/modules/ai-notes/ai-notes.service.ts:811:         ORDER BY is_active DESC, updated_at DESC
+backend/src/modules/ai-notes/ai-notes.service.ts:854:        ORDER BY is_active DESC, updated_at DESC, id DESC
+backend/src/modules/ai-notes/ai-notes.service.ts:1183:    return `PART ${idx + 1}`;
+backend/src/modules/settings/settings.service.ts:427:    await this.db.execute(
+backend/src/modules/settings/settings.service.ts:480:      message: `${AI_PROVIDER_LABELS[providerKey]} accepted the API key.`,
+backend/src/modules/settings/settings.service.ts:530:    await this.db.execute(
+backend/src/modules/settings/settings.service.ts:548:      await this.db.execute(`UPDATE ai_provider_configs SET is_active = 0 WHERE id = ?`, [id]);
+backend/src/modules/settings/settings.service.ts:563:    await this.db.execute(`DELETE FROM ai_provider_configs WHERE id = ?`, [id]);
+backend/src/modules/settings/settings.service.ts:596:        WHERE setting_key IN (${placeholders})
+backend/src/modules/settings/settings.service.ts:795:    return digits ? `https://wa.me/${digits}` : '';
+backend/src/modules/settings/settings.service.ts:812:    await this.db.execute(
+backend/src/modules/settings/settings.service.ts:838:        ORDER BY is_active DESC, updated_at DESC, id DESC
+backend/src/modules/settings/settings.service.ts:927:    await this.db.execute(`UPDATE ai_provider_configs SET is_active = 0`);
+backend/src/modules/settings/settings.service.ts:928:    await this.db.execute(
+backend/src/modules/settings/settings.service.ts:945:        ORDER BY updated_at DESC, id DESC
+backend/src/modules/settings/settings.service.ts:981:        Authorization: `Bearer ${apiKey}`,
+backend/src/modules/settings/settings.service.ts:995:        Authorization: `Bearer ${apiKey}`,
+backend/src/modules/settings/settings.service.ts:1022:    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+backend/src/modules/settings/settings.service.ts:1039:      return `${providerLabel} rejected the API key.`;
+backend/src/modules/settings/settings.service.ts:1043:      return `${providerLabel} denied access for this API key.`;
+backend/src/modules/settings/settings.service.ts:1047:      return `${providerLabel} rate limit or quota was hit while testing the key.`;
+backend/src/modules/settings/settings.service.ts:1050:    return `${providerLabel} key test failed with status ${statusCode}.`;
+backend/src/modules/settings/settings.service.ts:1063:      return `${providerLabel} could not be reached. Check internet, VPN/proxy/firewall, DNS, or provider availability.`;
+backend/src/modules/settings/settings.service.ts:1067:      return `${providerLabel} did not respond in time. Try again or choose a faster model/provider.`;
+backend/src/modules/settings/settings.service.ts:1070:    return `${providerLabel} connection test failed: ${message}`;
+backend/src/modules/plans/plans.service.ts:127:      await connection.execute(
+backend/src/modules/plans/plans.service.ts:185:    await this.db.execute('DELETE FROM subscription_plan_features WHERE plan_id = ?', [id]);
+backend/src/modules/plans/plans.service.ts:186:    await this.db.execute('DELETE FROM plans WHERE id = ?', [id]);
+backend/src/modules/plans/plans.service.ts:230:    await this.db.execute(
+backend/src/modules/plans/plans.service.ts:301:      sql += " AND status = 'active'";
+backend/src/modules/plans/plans.service.ts:305:      sql += ' AND id = ?';
+backend/src/modules/plans/plans.service.ts:309:    sql += ` ORDER BY sort_order ASC, FIELD(status, 'active', 'inactive'), regular_price ASC, id ASC`;
+backend/src/modules/plans/plans.service.ts:333:      sql += " AND status = 'active'";
+backend/src/modules/plans/plans.service.ts:335:    sql += ' ORDER BY FIELD(category, ?, ?, ?, ?, ?, ?, ?), feature_name ASC';
+backend/src/modules/plans/plans.service.ts:365:        WHERE plan_id IN (${placeholders})
+backend/src/modules/plans/plans.service.ts:444:      `SELECT id FROM subscription_features WHERE id IN (${placeholders})`,
+backend/src/modules/plans/plans.service.ts:461:        `SELECT id FROM plans WHERE slug = ? ${currentPlanId ? 'AND id <> ?' : ''} LIMIT 1`,
+backend/src/modules/plans/plans.service.ts:468:      slug = `${baseSlug}-${suffix}`;
+backend/src/modules/plans/plans.service.ts:473:    await connection.execute('DELETE FROM subscription_plan_features WHERE plan_id = ?', [planId]);
+backend/src/modules/plans/plans.service.ts:476:      await connection.execute(
+backend/src/modules/plans/plans.service.ts:490:        `SELECT feature_name FROM subscription_features WHERE id IN (${placeholders}) ORDER BY feature_name ASC`,
+backend/src/modules/plans/plans.service.ts:496:    await connection.execute(
+backend/src/modules/auth/auth.service.ts:98:    await this.db.execute('UPDATE users SET session_token = ?, session_expires_at = ? WHERE id = ?', [
+backend/src/modules/auth/auth.service.ts:168:      await this.db.execute('UPDATE users SET session_token = NULL, session_expires_at = NULL WHERE session_token = ?', [hashSessionToken(token)]);
+backend/src/modules/auth/auth.service.ts:199:    await this.db.execute(
+backend/src/modules/auth/auth.service.ts:208:    const resetPath = `/auth/reset-password?token=${resetToken}`;
+backend/src/modules/auth/auth.service.ts:209:    const resetUrl = `${smtpSettings.publicUrl.replace(/\/+$/, '')}${resetPath}`;
+backend/src/modules/auth/auth.service.ts:219:          this.logger.warn(`Password reset email failed for user ${user.id}: ${errorCode}`);
+backend/src/modules/auth/auth.service.ts:260:    await this.db.execute(
+backend/src/modules/auth/auth.service.ts:286:    await this.db.execute('UPDATE users SET full_name = ?, avatar_key = ? WHERE id = ?', [fullName, avatarKey, user.id]);
+backend/src/modules/auth/auth.service.ts:313:    await this.db.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, user.id]);
+backend/src/modules/auth/auth.service.ts:390:      `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (${placeholders})`,
+backend/src/modules/auth/auth.service.ts:435:      from: `"${settings.fromName.replace(/"/g, '')}" <${settings.fromEmail}>`,
+backend/src/modules/auth/auth.service.ts:446:    return `${settings.heading}
+backend/src/modules/auth/auth.service.ts:549:       ORDER BY us.end_date DESC, us.id DESC
+backend/src/modules/auth/auth.service.ts:646:       ORDER BY id ASC
+backend/src/modules/auth/auth.service.ts:659:      return `${year}-${month}-${day}`;
+backend/src/modules/auth/auth.service.ts:662:    await this.db.execute(
+backend/src/modules/plans/subscription-catalog.ts:167:        slug: `custom-${courseAccessKey}-${contentKey}-${durationKey}`,
+backend/src/modules/plans/subscription-catalog.ts:168:        name: `${courseAccessLabels[courseAccessKey]} - ${contentLabels[contentKey]} - ${durations[durationKey].label}`,
+backend/src/modules/plans/subscription-catalog.ts:169:        description: `${courseAccessLabels[courseAccessKey]} custom plan with ${contentLabels[contentKey].toLowerCase()} for ${durations[durationKey].label.toLowerCase()}.`,
+backend/src/modules/workspace/workspace.service.ts:54:      ORDER BY a.created_at DESC
+backend/src/modules/workspace/workspace.service.ts:77:        console.warn(`Announcement push failed: ${error?.message || error}`);
+backend/src/modules/workspace/workspace.service.ts:86:    await this.db.execute(
+backend/src/modules/workspace/workspace.service.ts:95:    await this.db.execute('DELETE FROM announcement_reads WHERE announcement_id = ?', [id]);
+backend/src/modules/workspace/workspace.service.ts:96:    await this.db.execute('DELETE FROM announcements WHERE id = ?', [id]);
+backend/src/modules/workspace/workspace.service.ts:110:        ORDER BY a.created_at DESC
+backend/src/modules/workspace/workspace.service.ts:130:       ORDER BY answered_at DESC
+backend/src/modules/workspace/workspace.service.ts:139:       ORDER BY us.updated_at DESC, us.id DESC
+backend/src/modules/workspace/workspace.service.ts:152:       ORDER BY average_percentage ASC, latest_at DESC
+backend/src/modules/workspace/workspace.service.ts:159:        id: `doubt-${row.id}`,
+backend/src/modules/workspace/workspace.service.ts:161:        title: `Reply: ${String(row.subject || 'Your doubt')}`,
+backend/src/modules/workspace/workspace.service.ts:170:          id: `subscription-${String(row.status)}-${String(row.updated_at)}`,
+backend/src/modules/workspace/workspace.service.ts:172:          title: `${String(row.plan_name || 'Subscription')} ${String(row.status || 'updated')}`,
+backend/src/modules/workspace/workspace.service.ts:173:          body: `Payment: ${this.formatPaymentStatusLabel(row.payment_status)}${!isFreePlan && row.end_date ? ` · Valid until ${String(row.end_date).slice(0, 10)}` : ''}`,
+backend/src/modules/workspace/workspace.service.ts:180:        id: `weak-${String(row.course_title || '')}-${String(row.topic_name || '')}`,
+backend/src/modules/workspace/workspace.service.ts:182:        title: `Review ${String(row.topic_name || 'a weak topic')}`,
+backend/src/modules/workspace/workspace.service.ts:183:        body: `${String(row.course_title || 'Course')} is averaging ${Number(row.average_percentage || 0).toFixed(1)}%. Add one focused practice round today.`,
+backend/src/modules/workspace/workspace.service.ts:211:    await this.db.execute(
+backend/src/modules/workspace/workspace.service.ts:221:      `SELECT * FROM study_planner_tasks WHERE user_id = ? ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC`,
+backend/src/modules/workspace/workspace.service.ts:243:       ORDER BY average_percentage ASC, attempts DESC
+backend/src/modules/workspace/workspace.service.ts:262:      key: `weak-${index}-${String(row.topic_name || 'general')}`,
+backend/src/modules/workspace/workspace.service.ts:263:      title: `Review ${String(row.topic_name || 'weak topic')}`,
+backend/src/modules/workspace/workspace.service.ts:264:      description: `${String(row.course_title || 'Course')} average is ${Number(row.average_percentage || 0).toFixed(1)}%. Revisit notes, then do practice questions.`,
+backend/src/modules/workspace/workspace.service.ts:273:        description: `${Number(wrongRows[0].wrong_questions || 0)} questions have recent wrong-answer signals. Review explanations before another full quiz.`,
+backend/src/modules/workspace/workspace.service.ts:334:    await this.db.execute(
+backend/src/modules/workspace/workspace.service.ts:335:      `UPDATE study_planner_tasks SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`,
+backend/src/modules/workspace/workspace.service.ts:343:    await this.db.execute('DELETE FROM study_planner_tasks WHERE id = ? AND user_id = ?', [id, student.id]);
+backend/src/modules/workspace/workspace.service.ts:428:         WHERE ${attemptWhere.join(' AND ')}`,
+backend/src/modules/workspace/workspace.service.ts:434:         WHERE ${lessonWhere.join(' AND ')}`,
+backend/src/modules/workspace/workspace.service.ts:444:        WHERE ${hardQuestionWhere.join(' AND ')}
+backend/src/modules/workspace/workspace.service.ts:446:        ORDER BY wrong_count DESC
+backend/src/modules/workspace/workspace.service.ts:457:          WHERE ${inactiveWhere.join(' AND ')}
+backend/src/modules/workspace/workspace.service.ts:460:        ORDER BY inactive.last_activity IS NULL DESC, inactive.last_activity ASC
+backend/src/modules/workspace/workspace.service.ts:473:          WHERE ${activityQuizWhere.join(' AND ')}
+backend/src/modules/workspace/workspace.service.ts:477:          ${filters.courseId ? 'WHERE 1=0' : `WHERE ${activityStudyWhere.join(' AND ')}`}
+backend/src/modules/workspace/workspace.service.ts:480:        ORDER BY day_key ASC
+backend/src/modules/workspace/workspace.service.ts:494:        WHERE ${quizPerformanceWhere.join(' AND ')}
+backend/src/modules/workspace/workspace.service.ts:496:        ORDER BY attempts DESC, average_percentage ASC
+backend/src/modules/workspace/workspace.service.ts:510:        WHERE ${courseFunnelWhere.join(' AND ')}
+backend/src/modules/workspace/workspace.service.ts:512:        ORDER BY students_started DESC, c.course_title ASC
+backend/src/modules/workspace/workspace.service.ts:518:        WHERE ${subscriptionStatusWhere.join(' AND ')}
+backend/src/modules/workspace/workspace.service.ts:524:        WHERE ${paymentStatusWhere.join(' AND ')}
+backend/src/modules/workspace/workspace.service.ts:644:        ORDER BY FIELD(qri.status, 'draft', 'reviewing', 'rejected', 'approved'), qri.created_at DESC
+backend/src/modules/workspace/workspace.service.ts:670:    await this.db.execute(
+backend/src/modules/workspace/workspace.service.ts:684:      `SELECT d.*, l.lesson_title FROM lesson_doubts d LEFT JOIN lessons l ON l.id = d.lesson_id WHERE d.user_id = ? ORDER BY d.created_at DESC LIMIT 100`,
+backend/src/modules/workspace/workspace.service.ts:721:        ORDER BY FIELD(d.status, 'open', 'answered', 'closed'), d.created_at DESC
+backend/src/modules/workspace/workspace.service.ts:735:    await this.db.execute(
+backend/src/modules/workspace/workspace.service.ts:757:      where.push(`DATE(${safeColumn}) >= ?`);
+backend/src/modules/workspace/workspace.service.ts:761:      where.push(`DATE(${safeColumn}) <= ?`);
+backend/src/modules/workspace/workspace.service.ts:772:    where.push(`${safeColumn} >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)`);
+backend/src/modules/workspace/workspace.service.ts:778:    where.push(`${safeColumn} = ?`);
+backend/src/modules/workspace/workspace.service.ts:785:    where.push(`${safeColumn} = ?`);
+backend/src/modules/workspace/workspace.service.ts:806:    if (!text) throw new BadRequestException(`${label} is required`);
+backend/src/modules/auth/auth.controller.ts:109:    return token ? `Bearer ${decodeURIComponent(token)}` : undefined;

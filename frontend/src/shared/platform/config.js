@@ -5,6 +5,7 @@ const LEGACY_BUILD_BASENAME = '/lms/frontend/dist';
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
 const LOOPBACK_API_BASE_URL = 'http://127.0.0.1:3000/api';
 const NATIVE_DEFAULT_API_BASE_URL = LOCAL_API_BASE_URL;
+const SAME_ORIGIN_API_BASE_URL = '/api';
 
 function splitCsv(value) {
   return String(value || '')
@@ -134,7 +135,7 @@ export function resolveApiBaseUrl() {
     if (hostname === 'localhost') return LOCAL_API_BASE_URL;
     if (hostname === '127.0.0.1') return LOOPBACK_API_BASE_URL;
     if (isPrivateLanHost(hostname)) return `${protocol}//${hostname}:3000/api`;
-    return `${protocol}//${hostname}:3000/api`;
+    return SAME_ORIGIN_API_BASE_URL;
   }
 
   return LOCAL_API_BASE_URL;
@@ -150,12 +151,15 @@ export function resolveApiBaseUrls() {
     const location = getLocation();
     const protocol = location?.protocol || 'http:';
     const hostname = location?.hostname || '';
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
 
     if (isPrivateLanHost(hostname)) {
       fallbackUrls.push(normalizeApiBaseUrl(`${protocol}//${hostname}:3000/api`));
     }
 
-    fallbackUrls.push(LOOPBACK_API_BASE_URL, LOCAL_API_BASE_URL);
+    if (import.meta.env.DEV || isLocalHost || isPrivateLanHost(hostname)) {
+      fallbackUrls.push(LOOPBACK_API_BASE_URL, LOCAL_API_BASE_URL);
+    }
   }
 
   return Array.from(new Set([primaryUrl, ...configuredUrls, ...fallbackUrls].filter(Boolean)));

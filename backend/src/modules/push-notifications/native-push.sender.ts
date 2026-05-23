@@ -7,6 +7,22 @@ import * as https from 'https';
 
 type NativePlatform = 'ios' | 'android' | 'unknown';
 
+type ApnsRuntimeSettings = {
+  keyId: string;
+  teamId: string;
+  bundleId: string;
+  useSandbox: boolean;
+  privateKeyPath: string;
+  privateKey: string;
+};
+
+type FcmRuntimeSettings = {
+  projectId: string;
+  serverKey: string;
+  serviceAccountPath: string;
+  serviceAccountJson: string;
+};
+
 export type NativePushPayload = {
   title: string;
   body: string;
@@ -26,14 +42,16 @@ export class NativePushSender {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly getApnsRuntimeSettings?: () => Promise<ApnsRuntimeSettings>,
+    private readonly getFcmRuntimeSettings?: () => Promise<FcmRuntimeSettings>
   ) {}
 
-  isConfigured() {
-    return this.isApnsConfigured() || this.isFcmConfigured();
+  async isConfigured() {
+    return (await this.isApnsConfigured()) || this.isFcmConfigured();
   }
 
-  isConfiguredFor(platform: NativePlatform) {
+  async isConfiguredFor(platform: NativePlatform) {
     if (platform === 'ios') return this.isApnsConfigured();
     if (platform === 'android') return this.isFcmConfigured();
     return false;
@@ -45,28 +63,29 @@ export class NativePushSender {
     return { ok: false, error: 'Unsupported native push platform' };
   }
 
-  private isApnsConfigured() {
+  private async isApnsConfigured() {
+    const settings = await this.resolveApnsSettings();
     return Boolean(
-      this.configService.get<string>('APNS_KEY_ID') &&
-      this.configService.get<string>('APNS_TEAM_ID') &&
-      this.configService.get<string>('APNS_BUNDLE_ID') &&
-      this.getApnsPrivateKey()
+      settings.keyId &&
+      settings.teamId &&
+      settings.bundleId &&
+      this.getApnsPrivateKey(settings)
     );
   }
 
-  private isFcmConfigured() {
+  private async isFcmConfigured() {
+    const settings = await this.resolveFcmSettings();
     return Boolean(
-      this.configService.get<string>('FCM_PROJECT_ID') &&
-      (this.getFcmServiceAccount() || this.configService.get<string>('FCM_SERVER_KEY'))
+      settings.projectId &&
+      (this.getFcmServiceAccount(settings) || settings.serverKey)
     );
   }
 
   private async sendApns(token: string, payload: NativePushPayload): Promise<NativePushSendResult> {
-    if (!this.isApnsConfigured()) return { ok: false, error: 'APNs is not configured' };
+    const settings = await this.resolveApnsSettings();
+    if (!(await this.isApnsConfigured())) return { ok: false, error: 'APNs is not configured' };
 
-    const bundleId = String(this.configService.get<string>('APNS_BUNDLE_ID'));
-    const useSandbox = String(this.configService.get<string>('APNS_USE_SANDBOX') || '').toLowerCase() === 'true';
-    const host = useSandbox ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
+    const host = settings.useSandbox ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
     const body = JSON.stringify({
       aps: {
         alert: {
@@ -96,8 +115,8 @@ export class NativePushSender {
       const request = client.request({
         ':method': 'POST',
         ':path': `/3/device/${token}`,
-        authorization: `bearer ${this.createApnsJwt()}`,
-        'apns-topic': bundleId,
+        authorization: `bearer ${this.createApnsJwt(settings)}`,
+        'apns-topic': settings.bundleId,
         'apns-push-type': 'alert',
         'apns-priority': '10',
         'content-type': 'application/json',
@@ -125,14 +144,15 @@ export class NativePushSender {
   }
 
   private async sendFcm(token: string, payload: NativePushPayload): Promise<NativePushSendResult> {
-    if (!this.isFcmConfigured()) return { ok: false, error: 'FCM is not configured' };
+    const settings = await this.resolveFcmSettings();
+    if (!(await this.isFcmConfigured())) return { ok: false, error: 'FCM is not configured' };
 
-    const legacyServerKey = this.configService.get<string>('FCM_SERVER_KEY');
+    const legacyServerKey = settings.serverKey;
     if (legacyServerKey) {
       return this.sendFcmLegacy(token, payload, legacyServerKey);
     }
 
-    const projectId = String(this.configService.get<string>('FCM_PROJECT_ID'));
+    const projectId = settings.projectId;
     const accessToken = await this.getFcmAccessToken();
     const body = JSON.stringify({
       message: {
@@ -189,7 +209,7 @@ export class NativePushSender {
       return this.fcmAccessToken.value;
     }
 
-    const account = this.getFcmServiceAccount();
+    const account = this.getFcmServiceAccount(await this.resolveFcmSettings());
     if (!account?.client_email || !account?.private_key) {
       throw new Error('FCM service account is missing client_email or private_key');
     }
@@ -222,9 +242,9 @@ export class NativePushSender {
     return token;
   }
 
-  private getFcmServiceAccount(): any {
-    const inlineJson = this.configService.get<string>('FCM_SERVICE_ACCOUNT_JSON');
-    const filePath = this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS');
+  private getFcmServiceAccount(settings: FcmRuntimeSettings): any {
+    const inlineJson = settings.serviceAccountJson;
+    const filePath = settings.serviceAccountPath;
 
     try {
       if (inlineJson) return JSON.parse(inlineJson);
@@ -236,31 +256,63 @@ export class NativePushSender {
     return null;
   }
 
-  private getApnsPrivateKey() {
-    const inlineKey = this.configService.get<string>('APNS_PRIVATE_KEY');
-    const filePath = this.configService.get<string>('APNS_PRIVATE_KEY_PATH');
-    if (inlineKey) return inlineKey.replace(/\\n/g, '\n');
-    if (!filePath) return '';
+  private async resolveFcmSettings(): Promise<FcmRuntimeSettings> {
+    if (this.getFcmRuntimeSettings) {
+      const settings = await this.getFcmRuntimeSettings();
+      if (settings.projectId || settings.serverKey || settings.serviceAccountJson || settings.serviceAccountPath) {
+        return settings;
+      }
+    }
+
+    return {
+      projectId: String(this.configService.get<string>('FCM_PROJECT_ID') || '').trim(),
+      serverKey: String(this.configService.get<string>('FCM_SERVER_KEY') || '').trim(),
+      serviceAccountPath: String(this.configService.get<string>('FCM_SERVICE_ACCOUNT_PATH') || this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS') || '').trim(),
+      serviceAccountJson: String(this.configService.get<string>('FCM_SERVICE_ACCOUNT_JSON') || '').trim(),
+    };
+  }
+
+  private async resolveApnsSettings(): Promise<ApnsRuntimeSettings> {
+    if (this.getApnsRuntimeSettings) {
+      const settings = await this.getApnsRuntimeSettings();
+      if (settings.keyId || settings.teamId || settings.privateKey || settings.privateKeyPath) {
+        return settings;
+      }
+    }
+
+    return {
+      keyId: String(this.configService.get<string>('APNS_KEY_ID') || '').trim(),
+      teamId: String(this.configService.get<string>('APNS_TEAM_ID') || '').trim(),
+      bundleId: String(this.configService.get<string>('APNS_BUNDLE_ID') || 'com.erpm.medical.lms').trim(),
+      useSandbox: String(this.configService.get<string>('APNS_USE_SANDBOX') || '').toLowerCase() === 'true',
+      privateKeyPath: String(this.configService.get<string>('APNS_PRIVATE_KEY_PATH') || '').trim(),
+      privateKey: String(this.configService.get<string>('APNS_PRIVATE_KEY') || '').replace(/\\n/g, '\n').trim(),
+    };
+  }
+
+  private getApnsPrivateKey(settings: ApnsRuntimeSettings) {
+    if (settings.privateKey) return settings.privateKey.replace(/\\n/g, '\n');
+    if (!settings.privateKeyPath) return '';
     try {
-      return readFileSync(filePath, 'utf8');
+      return readFileSync(settings.privateKeyPath, 'utf8');
     } catch (error: any) {
       this.logger.warn(`Unable to read APNs private key: ${error?.message || error}`);
       return '';
     }
   }
 
-  private createApnsJwt() {
+  private createApnsJwt(settings: ApnsRuntimeSettings) {
     const now = Math.floor(Date.now() / 1000);
     return this.signJwt(
       {
         alg: 'ES256',
-        kid: String(this.configService.get<string>('APNS_KEY_ID')),
+        kid: settings.keyId,
       },
       {
-        iss: String(this.configService.get<string>('APNS_TEAM_ID')),
+        iss: settings.teamId,
         iat: now,
       },
-      this.getApnsPrivateKey(),
+      this.getApnsPrivateKey(settings),
       'SHA256'
     );
   }

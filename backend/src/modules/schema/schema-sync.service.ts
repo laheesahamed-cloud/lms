@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as bcrypt from 'bcryptjs';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { sqlIdentifier, sqlPlaceholders } from '../../database/sql-safety';
 import { DEFAULT_PLAN_BLUEPRINTS, DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
 
 @Injectable()
@@ -58,6 +59,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'questions', 'paper_id', 'INT NULL AFTER lesson_id');
       await this.ensureColumn(connection, 'questions', 'keywords_text', 'TEXT NULL AFTER question_text');
       await this.ensureColumn(connection, 'questions', 'question_category', "VARCHAR(20) NULL AFTER category");
+      await this.ensureQuestionCategoryColumns(connection);
       await this.ensureColumn(connection, 'question_options', 'why_incorrect', 'TEXT NULL AFTER is_correct');
       await this.ensureColumn(connection, 'quizzes', 'subtopic_id', 'INT NULL AFTER topic_id');
       await this.ensureColumn(connection, 'quizzes', 'lesson_id', 'INT NULL AFTER subtopic_id');
@@ -524,6 +526,17 @@ export class SchemaSyncService implements OnModuleInit {
     }
   }
 
+  private async ensureQuestionCategoryColumns(connection: PoolConnection) {
+    try {
+      await connection.execute("ALTER TABLE questions MODIFY category VARCHAR(20) NOT NULL DEFAULT 'mock'");
+      await connection.execute("UPDATE questions SET category = 'past' WHERE category = 'past_paper'");
+      await connection.execute("ALTER TABLE questions MODIFY question_category VARCHAR(20) NOT NULL DEFAULT 'mock'");
+      await connection.execute("UPDATE questions SET question_category = 'past_paper' WHERE question_category = 'past'");
+    } catch (error) {
+      this.logger.warn(`Could not widen question category columns: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   private async ensureContentGovernanceTables(connection: PoolConnection) {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS content_audit_events (
@@ -905,7 +918,7 @@ export class SchemaSyncService implements OnModuleInit {
 
   private async removeNonDefaultPlans(connection: PoolConnection) {
     const defaultSlugs = DEFAULT_PLAN_BLUEPRINTS.map((plan) => plan.slug);
-    const placeholders = defaultSlugs.map(() => '?').join(',');
+    const placeholders = sqlPlaceholders(defaultSlugs);
 
     const [oldPlanRows] = await connection.execute<RowDataPacket[]>(
       `SELECT id FROM plans WHERE slug IS NULL OR slug NOT IN (${placeholders})`,
@@ -916,7 +929,7 @@ export class SchemaSyncService implements OnModuleInit {
       return;
     }
 
-    const oldPlanPlaceholders = oldPlanIds.map(() => '?').join(',');
+    const oldPlanPlaceholders = sqlPlaceholders(oldPlanIds);
     await connection.execute(
       `DELETE FROM user_subscriptions WHERE plan_id IN (${oldPlanPlaceholders})`,
       oldPlanIds
@@ -1073,6 +1086,8 @@ export class SchemaSyncService implements OnModuleInit {
   }
 
   private async ensureColumn(connection: PoolConnection, tableName: string, columnName: string, definition: string) {
+    const table = sqlIdentifier(tableName, undefined, 'schema table');
+    const column = sqlIdentifier(columnName, undefined, 'schema column');
     const [rows] = await connection.execute<RowDataPacket[]>(
       `
         SELECT COLUMN_NAME
@@ -1087,7 +1102,7 @@ export class SchemaSyncService implements OnModuleInit {
       return;
     }
 
-    await connection.execute(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+    await connection.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
     this.logger.log(`Added ${tableName}.${columnName}`);
   }
 
@@ -1125,7 +1140,13 @@ export class SchemaSyncService implements OnModuleInit {
     );
   }
 
-  private async ensureIndex(connection: PoolConnection, tableName: string, indexName: string, columnName: string) {
+  private async ensureIndex(connection: PoolConnection, tableName: string, indexName: string, columnNames: string) {
+    const table = sqlIdentifier(tableName, undefined, 'schema table');
+    const index = sqlIdentifier(indexName, undefined, 'schema index');
+    const columns = columnNames
+      .split(',')
+      .map((columnName) => sqlIdentifier(columnName.trim(), undefined, 'schema column'))
+      .join(', ');
     const [rows] = await connection.execute<RowDataPacket[]>(
       `
         SELECT INDEX_NAME
@@ -1140,7 +1161,7 @@ export class SchemaSyncService implements OnModuleInit {
       return;
     }
 
-    await connection.execute(`ALTER TABLE ${tableName} ADD INDEX ${indexName} (${columnName})`);
-    this.logger.log(`Added index ${indexName} on ${tableName}.${columnName}`);
+    await connection.execute(`ALTER TABLE ${table} ADD INDEX ${index} (${columns})`);
+    this.logger.log(`Added index ${indexName} on ${tableName}.${columnNames}`);
   }
 }

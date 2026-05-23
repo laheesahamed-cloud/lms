@@ -5,8 +5,9 @@ import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import * as nodemailer from 'nodemailer';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { sqlPlaceholders } from '../../database/sql-safety';
 import { decryptSecret } from '../../common/utils/ai-provider.utils';
-import { ADMIN_SESSION_TTL_DAYS, SESSION_TTL_DAYS, createSessionExpiry, extractBearerToken, hashSessionToken } from './auth-token.util';
+import { ADMIN_SESSION_TTL_DAYS, SESSION_TTL_DAYS, createSessionExpiry, extractBearerToken, hashSessionToken, isValidSessionTokenFormat } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -81,11 +82,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const submittedPassword = loginDto.password.trim();
+    const submittedPassword = loginDto.password;
     const passwordMatches = await bcrypt.compare(submittedPassword, user.password).catch(() => false);
 
     if (!passwordMatches) {
       throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (isStaffRole(user.role) && user.status !== 'active') {
+      throw new UnauthorizedException('Your admin account is not active right now');
     }
 
     const sessionToken = randomBytes(32).toString('hex');
@@ -158,14 +163,21 @@ export class AuthService {
   }
 
   async logout(authorization?: string) {
-    const token = this.extractToken(authorization);
-    const user = await this.findUserByToken(token);
-
-    await this.db.execute('UPDATE users SET session_token = NULL, session_expires_at = NULL WHERE id = ?', [user.id]);
+    const token = extractBearerToken(authorization);
+    if (isValidSessionTokenFormat(token)) {
+      await this.db.execute('UPDATE users SET session_token = NULL, session_expires_at = NULL WHERE session_token = ?', [hashSessionToken(token)]);
+    }
 
     return {
       ok: true,
     };
+  }
+
+  private canExposeDevResetToken(shouldSendEmail: boolean) {
+    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+    const exposeDevResetToken =
+      String(this.configService.get<string>('EXPOSE_DEV_RESET_TOKEN') || '').toLowerCase() === 'true';
+    return nodeEnv !== 'production' && !shouldSendEmail && exposeDevResetToken;
   }
 
   async requestPasswordReset(forgotPasswordDto: ForgotPasswordDto) {
@@ -196,13 +208,15 @@ export class AuthService {
     const resetPath = `/auth/reset-password?token=${resetToken}`;
     const resetUrl = `${smtpSettings.publicUrl.replace(/\/+$/, '')}${resetPath}`;
     const shouldSendEmail = smtpSettings.enabled && smtpSettings.configured;
+    const canExposeLocalResetLink = this.canExposeDevResetToken(shouldSendEmail);
     const emailSent = shouldSendEmail
       ? await this.sendPasswordResetEmail({
           to: user.email,
           resetUrl,
           settings: smtpSettings,
         }).catch((error) => {
-          this.logger.warn(`Password reset email failed for user ${user.id}: ${error?.message || error}`);
+          const errorCode = String(error?.code || error?.responseCode || error?.name || 'email_error');
+          this.logger.warn(`Password reset email failed for user ${user.id}: ${errorCode}`);
           return false;
         })
       : false;
@@ -213,10 +227,12 @@ export class AuthService {
         ? 'Password reset email sent. Check your inbox.'
         : shouldSendEmail
           ? 'If an account exists for that email, a reset link is ready.'
-          : 'Password reset link created.',
+          : canExposeLocalResetLink
+            ? 'Password reset link created.'
+            : 'If an account exists for that email, a reset link is ready.',
       emailSent,
-      resetToken: emailSent || shouldSendEmail ? undefined : resetToken,
-      resetPath: emailSent || shouldSendEmail ? undefined : resetPath,
+      resetToken: canExposeLocalResetLink ? resetToken : undefined,
+      resetPath: canExposeLocalResetLink ? resetPath : undefined,
       expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
     };
   }
@@ -286,7 +302,7 @@ export class AuthService {
       throw new BadRequestException('New passwords do not match');
     }
 
-    const currentPassword = changePasswordDto.currentPassword.trim();
+    const currentPassword = changePasswordDto.currentPassword;
     const passwordMatches = await bcrypt.compare(currentPassword, user.password).catch(() => false);
 
     if (!passwordMatches) {
@@ -369,7 +385,7 @@ export class AuthService {
 
   private async getPasswordResetSmtpSettings() {
     const keys = Object.values(SMTP_SETTING_KEYS);
-    const placeholders = keys.map(() => '?').join(', ');
+    const placeholders = sqlPlaceholders(keys);
     const [rows] = await this.db.execute<SettingRow[]>(
       `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (${placeholders})`,
       keys

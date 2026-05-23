@@ -5,27 +5,16 @@ function getDeliveryLoader(platform = detectPlatform()) {
     return () => import('./native/NotificationDelivery.js');
   }
 
-  if (platform.isPwa) {
-    return () => import('./pwa/NotificationDelivery.js');
-  }
-
   return () => import('./web/NotificationDelivery.js');
-}
-
-function isWebPushRuntime(platform = detectPlatform()) {
-  return !platform.isNative && !platform.isDesktopApp;
 }
 
 export const notificationDelivery = {
   isPushNotificationSupported() {
-    const platform = detectPlatform();
-    if (platform.isNative) return true;
-    return isWebPushRuntime(platform) && typeof window !== 'undefined' && 'Notification' in window;
+    return detectPlatform().isNative;
   },
 
   isIosDevice() {
-    const platform = detectPlatform();
-    return isWebPushRuntime(platform) && platform.isIos;
+    return detectPlatform().isNative && detectPlatform().isIos;
   },
 
   isStandalonePwa() {
@@ -33,14 +22,11 @@ export const notificationDelivery = {
   },
 
   isIosSafariPwaCapable() {
-    const platform = detectPlatform();
-    return isWebPushRuntime(platform) && platform.isIos && !isStandalonePwaDisplay();
+    return false;
   },
 
   getNotificationPermission() {
-    if (!isWebPushRuntime()) return 'native';
-    if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
-    return Notification.permission;
+    return detectPlatform().isNative ? 'native' : 'unsupported';
   },
 
   async enablePhonePushNotifications(options) {

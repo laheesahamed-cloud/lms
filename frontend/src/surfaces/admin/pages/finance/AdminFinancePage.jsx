@@ -129,6 +129,16 @@ function formatGatewayAmount(row) {
   return formatCurrency(row?.currency || PAYMENT_CURRENCY, row?.amount || 0);
 }
 
+function isFreePlanSubscription(subscription) {
+  const paymentStatus = String(subscription?.paymentStatus || '').trim().toLowerCase();
+  const planName = String(subscription?.planName || '').trim().toLowerCase();
+  return Boolean(subscription?.isFreePlan)
+    || paymentStatus === 'free_plan'
+    || paymentStatus === 'free'
+    || paymentStatus === 'waived'
+    || (planName === 'free' && toNumber(subscription?.planEffectivePrice) <= 0);
+}
+
 function formatCouponDiscount(coupon) {
   return coupon.discountType === 'percent'
     ? `${coupon.discountValue}%`
@@ -146,6 +156,10 @@ function dateOnly(value) {
   const date = parseDate(value);
   if (!date) return '-';
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function paymentRecordDate(record) {
+  return record.paymentDate || record.resolvedAt || record.createdAt || record.requestedAt || record.startDate;
 }
 
 function isWithinRange(value, startDate, endDate) {
@@ -233,8 +247,8 @@ function buildFinanceReportHtml({ filters, summary, subscriptions, requests, pla
   </header>
   <section class="metrics">
     <div class="metric"><span>Collected</span><strong>${escapeHtml(formatCurrencyTotals(summary.collectedTotals))}</strong></div>
-    <div class="metric"><span>Receivable</span><strong>${escapeHtml(formatCurrencyTotals(summary.receivableTotals))}</strong></div>
-    <div class="metric"><span>Active value</span><strong>${escapeHtml(formatCurrencyTotals(summary.activeValueTotals))}</strong></div>
+    <div class="metric"><span>Manual Payments</span><strong>${escapeHtml(formatCurrencyTotals(summary.receivableTotals))}</strong></div>
+    <div class="metric"><span>Total Amount</span><strong>${escapeHtml(formatCurrencyTotals(summary.activeValueTotals))}</strong></div>
     <div class="metric"><span>Pending invoices</span><strong>${summary.pendingRequests}</strong></div>
   </section>
   <h2>Plan Revenue</h2>
@@ -416,6 +430,7 @@ export function AdminFinancePage() {
     const activeValueTotals = {};
     let paidSubscriptions = 0;
     let unpaidSubscriptions = 0;
+    let activePaidSubscriptions = 0;
     let expiringSoon = 0;
 
     filteredSubscriptions.forEach((subscription) => {
@@ -431,6 +446,9 @@ export function AdminFinancePage() {
 
       if (status === 'active') {
         addCurrencyTotal(activeValueTotals, currency, expected);
+        if (!isFreePlanSubscription(subscription)) {
+          activePaidSubscriptions += 1;
+        }
       }
 
       if (!['paid', 'waived', 'free_plan'].includes(subscription.paymentStatus)) {
@@ -460,6 +478,7 @@ export function AdminFinancePage() {
       pendingRequestTotals,
       paidSubscriptions,
       unpaidSubscriptions,
+      activePaidSubscriptions,
       pendingRequests: pendingRequests.length,
       expiringSoon,
     };
@@ -511,16 +530,39 @@ export function AdminFinancePage() {
       .sort((a, b) => b.total - a.total || String(a.name).localeCompare(String(b.name)));
   }, [filteredSubscriptions, plans]);
 
-  const recentPaidSubscriptions = useMemo(() => {
-    return [...filteredSubscriptions]
+  const recentPaymentRecords = useMemo(() => {
+    const approvedBankTransferRequests = filteredRequests
+      .filter((request) => request.status === 'approved')
+      .filter((request) => request.paymentProofDataUrl || request.paymentMethod || toNumber(request.paymentAmount) > 0)
+      .map((request) => ({
+        ...request,
+        id: request.subscriptionId || request.id,
+        recordKey: `request-${request.id}`,
+        paymentStatus: 'bank_transfer',
+        amountPaid: request.paymentAmount ?? request.planEffectivePrice ?? 0,
+        planCurrency: request.paymentCurrency || request.planCurrency || PAYMENT_CURRENCY,
+        paymentMethod: 'Bank Transfer',
+        paymentReference: request.paymentReference || (request.invoiceId ? `Invoice #${request.invoiceId}` : ''),
+        paymentDate: request.resolvedAt || request.requestedAt,
+      }));
+    const bankTransferSubscriptionIds = new Set(
+      approvedBankTransferRequests
+        .map((request) => Number(request.subscriptionId))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    );
+    const subscriptionRecords = [...filteredSubscriptions]
       .filter((subscription) => subscription.paymentStatus === 'paid' || toNumber(subscription.amountPaid) > 0)
-      .sort((a, b) => (parseDate(getSubscriptionDate(b))?.getTime() || 0) - (parseDate(getSubscriptionDate(a))?.getTime() || 0))
+      .filter((subscription) => !bankTransferSubscriptionIds.has(Number(subscription.id)))
+      .map((subscription) => ({ ...subscription, recordKey: `subscription-${subscription.id}` }));
+
+    return [...subscriptionRecords, ...approvedBankTransferRequests]
+      .sort((a, b) => (parseDate(paymentRecordDate(b))?.getTime() || 0) - (parseDate(paymentRecordDate(a))?.getTime() || 0))
       .slice(0, 12);
-  }, [filteredSubscriptions]);
+  }, [filteredRequests, filteredSubscriptions]);
 
   const pendingInvoices = useMemo(() => {
     return [...filteredRequests]
-      .filter((request) => request.status === 'pending' || request.invoiceId || request.paymentProofDataUrl)
+      .filter((request) => request.status === 'pending')
       .sort((a, b) => (parseDate(b.requestedAt)?.getTime() || 0) - (parseDate(a.requestedAt)?.getTime() || 0))
       .slice(0, 10);
   }, [filteredRequests]);
@@ -555,7 +597,7 @@ export function AdminFinancePage() {
     const html = buildFinanceReportHtml({
       filters,
       summary,
-      subscriptions: recentPaidSubscriptions,
+      subscriptions: recentPaymentRecords,
       requests: pendingInvoices,
       planRows,
       paymentRows: reportPayments,
@@ -644,8 +686,8 @@ export function AdminFinancePage() {
 
         <section className={financeUi.summaryList}>
           <Metric label="Collected" value={formatCurrencyTotals(summary.collectedTotals)} hint={`${summary.paidSubscriptions} payment record(s)`} />
-          <Metric label="Receivable" value={formatCurrencyTotals(summary.receivableTotals)} hint={`${summary.unpaidSubscriptions} unpaid or manual record(s)`} />
-          <Metric label="Active Value" value={formatCurrencyTotals(summary.activeValueTotals)} hint={`${filteredSubscriptions.filter((item) => (item.computedStatus || item.status) === 'active').length} active subscription(s)`} />
+          <Metric label="Manual Payments" value={formatCurrencyTotals(summary.receivableTotals)} hint={`${summary.unpaidSubscriptions} manual or pending record(s)`} />
+          <Metric label="Total Amount" value={formatCurrencyTotals(summary.activeValueTotals)} hint={`${summary.activePaidSubscriptions} active subscription(s)`} />
           <Metric label="Pending Invoices" value={summary.pendingRequests} hint={formatCurrencyTotals(summary.pendingRequestTotals)} />
         </section>
 
@@ -673,11 +715,11 @@ export function AdminFinancePage() {
           </article>
 
           <article className={financeUi.panel}>
-            <PanelHeader title="Recent Payments" text="Latest paid or amount-bearing subscriptions." />
+            <PanelHeader title="Recent Payments" text="Approved card, bank transfer, and manual records." />
             <div className={financeUi.list}>
-              {recentPaidSubscriptions.length === 0 ? <div className={ui.emptyBox}>No recent paid subscriptions match these filters.</div> : null}
-              {recentPaidSubscriptions.map((subscription) => (
-                <div className={financeUi.row} key={subscription.id}>
+              {recentPaymentRecords.length === 0 ? <div className={ui.emptyBox}>No approved payments match these filters.</div> : null}
+              {recentPaymentRecords.map((subscription) => (
+                <div className={financeUi.row} key={subscription.recordKey || subscription.id}>
                   <div className={financeUi.rowMain}>
                     <strong>{getAdminUserIdentifier(subscription, 'Student')}</strong>
                     <span>{subscription.planName || 'Subscription'} - {subscription.paymentMethod || formatPaymentStatus(subscription.paymentStatus, 'Payment')}</span>
@@ -686,7 +728,7 @@ export function AdminFinancePage() {
                   <div className={financeUi.rowStat}>
                     <strong>{formatOptionalCurrency(subscription.planCurrency, subscription.amountPaid)}</strong>
                     <span className={statusPill(subscription.paymentStatus)}>{formatPaymentStatus(subscription.paymentStatus, 'Payment')}</span>
-                    <span>{dateOnly(subscription.paymentDate || subscription.createdAt || subscription.startDate)}</span>
+                    <span>{dateOnly(paymentRecordDate(subscription))}</span>
                   </div>
                 </div>
               ))}

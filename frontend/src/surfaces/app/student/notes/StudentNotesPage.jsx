@@ -97,14 +97,16 @@ function buildAnnotatedHtml(plainText, annotations) {
     html += escapeHtml(plainText.slice(cursor, start));
 
     const annotatedText = escapeHtml(plainText.slice(start, end));
+    const annotationId = Number.isInteger(Number(annotation.id)) ? String(Number(annotation.id)) : '';
+    const annotationColor = /^#[0-9a-f]{6}$/i.test(String(annotation.color || ''))
+      ? String(annotation.color)
+      : (annotation.type === 'note' ? '#c7d2fe' : '#fff59d');
     const noteMarker =
       annotation.type === 'note'
-        ? `<button type="button" class="ml-1.5 min-h-6 rounded-full border border-indigo-500/20 bg-indigo-200/90 px-2 py-0.5 text-[10.5px] font-extrabold text-indigo-800 shadow-none" data-annotation-id="${annotation.id}" title="Open note">Note</button>`
+        ? `<button type="button" class="ml-1.5 min-h-6 rounded-full border border-indigo-500/20 bg-indigo-200/90 px-2 py-0.5 text-[10.5px] font-extrabold text-indigo-800 shadow-none" data-annotation-id="${annotationId}" title="Open note">Note</button>`
         : '';
 
-    html += `<mark class="${annotationMarkBaseClass} ${annotationMarkToneClass[annotation.type] || annotationMarkToneClass.highlight}" data-annotation-id="${annotation.id}" style="--annotation-color: ${
-      annotation.color || (annotation.type === 'note' ? '#c7d2fe' : '#fff59d')
-    }">${annotatedText}${noteMarker}</mark>`;
+    html += `<mark class="${annotationMarkBaseClass} ${annotationMarkToneClass[annotation.type] || annotationMarkToneClass.highlight}" data-annotation-id="${annotationId}" style="--annotation-color: ${annotationColor}">${annotatedText}${noteMarker}</mark>`;
 
     cursor = end;
   }

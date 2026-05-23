@@ -5,6 +5,12 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;');
 }
 
+function redactSensitiveValue(value) {
+  return String(value || '')
+    .replace(/([?&](?:token|session|password|secret|api[_-]?key|authorization)=)[^&#\s]+/gi, '$1[redacted]')
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [redacted]');
+}
+
 function isNativeRuntime() {
   if (typeof window === 'undefined') return false;
   return window.location?.protocol === 'capacitor:' ||
@@ -21,7 +27,7 @@ function shouldShowOverlay() {
 function showOverlay(title, body) {
   if (!shouldShowOverlay() || typeof document === 'undefined') return;
 
-  const content = `${title}:\n${body}`;
+  const content = redactSensitiveValue(`${title}:\n${body}`);
   const existing = document.getElementById('lms-native-error-overlay');
   const overlay = existing || document.createElement('pre');
   overlay.id = 'lms-native-error-overlay';

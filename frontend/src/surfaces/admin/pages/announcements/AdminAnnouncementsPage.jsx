@@ -21,7 +21,7 @@ export function AdminAnnouncementsPage() {
     try {
       editingId ? await updateAnnouncement(editingId, form) : await createAnnouncement(form);
       setForm(emptyForm); setEditingId(null); await load();
-      setMessage(editingId ? 'Announcement updated.' : 'Announcement published. In-app notification is created and phone push is sent to enabled devices.');
+      setMessage(editingId ? 'Announcement updated.' : 'Announcement published. In-app notification is created and native app notification is sent to enabled devices.');
     } catch (error) { setMessage(getErrorMessage(error, 'Unable to save announcement')); }
   }
 
@@ -31,7 +31,7 @@ export function AdminAnnouncementsPage() {
       {message ? <div className={message.startsWith('Unable') ? ui.feedbackError : ui.feedbackSuccess}>{message}</div> : null}
       <section className={ui.panelCard}>
         <div className={ui.infoCard}>
-          Published announcements create app notifications automatically. If users enabled phone notifications, the same announcement is also delivered through Web Push.
+          Published announcements create app notifications automatically. If users enabled native notifications, the same announcement is also delivered to the installed app.
         </div>
         <form className={ui.stackForm} onSubmit={save}>
           <div className={ui.formGrid}>

@@ -6,6 +6,7 @@ import { AdminPaymentSettingsPanel } from './AdminPaymentSettingsPanel.jsx';
 import { AdminSmtpSettingsPanel } from './AdminSmtpSettingsPanel.jsx';
 import { AdminThemeSettingsPanel } from './AdminThemeSettingsPanel.jsx';
 import { AdminNotificationSettingsPanel } from './AdminNotificationSettingsPanel.jsx';
+import { AdminApiRecoverySettingsPanel } from './AdminApiRecoverySettingsPanel.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
 const settingsCategories = [
@@ -41,8 +42,15 @@ const settingsCategories = [
     id: 'notifications',
     label: 'Notifications',
     title: 'Notifications',
-    description: 'Check Web Push setup, review active phone subscribers, and send a native phone notification.',
+    description: 'Send in-app/native notifications and configure iOS APNs plus Android FCM.',
     panel: <AdminNotificationSettingsPanel />,
+  },
+  {
+    id: 'api-recovery',
+    label: 'API Recovery',
+    title: 'API recovery',
+    description: 'Tune automatic timeout recovery for slow LMS API responses on this browser.',
+    panel: <AdminApiRecoverySettingsPanel />,
   },
   {
     id: 'themes',

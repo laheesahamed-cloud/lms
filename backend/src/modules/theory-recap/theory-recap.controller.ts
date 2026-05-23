@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { TheoryRecapService } from './theory-recap.service';
 import { UpsertTheoryRecapDto } from './dto/upsert-theory-recap.dto';
 
@@ -20,6 +21,7 @@ export class TheoryRecapController {
   }
 
   @Put('question/:questionId')
+  @RequirePermissions('content.manage')
   async upsert(
     @Param('questionId', ParseIntPipe) questionId: number,
     @Body() dto: UpsertTheoryRecapDto,
@@ -30,6 +32,7 @@ export class TheoryRecapController {
   }
 
   @Post('question/:questionId/generate')
+  @RequirePermissions('ai.manage')
   async generate(
     @Param('questionId', ParseIntPipe) questionId: number,
     @Headers('authorization') authorization?: string
@@ -39,6 +42,7 @@ export class TheoryRecapController {
   }
 
   @Post('question/:questionId/regenerate')
+  @RequirePermissions('ai.manage')
   async regenerate(
     @Param('questionId', ParseIntPipe) questionId: number,
     @Headers('authorization') authorization?: string
@@ -49,6 +53,7 @@ export class TheoryRecapController {
   }
 
   @Delete('question/:questionId')
+  @RequirePermissions('content.manage')
   async deleteRecap(
     @Param('questionId', ParseIntPipe) questionId: number,
     @Headers('authorization') authorization?: string
@@ -58,6 +63,7 @@ export class TheoryRecapController {
   }
 
   @Post('bulk-generate')
+  @RequirePermissions('ai.manage')
   async bulkGenerate(
     @Body() body: { questionIds: number[] },
     @Headers('authorization') authorization?: string

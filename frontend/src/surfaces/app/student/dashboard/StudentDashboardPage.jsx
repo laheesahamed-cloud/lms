@@ -1086,10 +1086,9 @@ export function StudentDashboardPage() {
             <DashboardHeroMascot mascot={heroMascot} />
             <div className="study-continue-card__copy">
               <span className="study-eyebrow">Continue where you left off</span>
-              <div className="study-hero-name">
-                <span>Welcome&nbsp;back,&nbsp;</span>
-                <strong>{firstName}</strong>
-              </div>
+            <div className="study-hero-name" title={`Welcome back, ${firstName}`}>
+              <strong className="study-hero-name-nowrap">Welcome back,&nbsp;{firstName}</strong>
+            </div>
               <p className="study-hero-lead">Next study move - <b>{inProgressQuiz ? 'PRACTICE' : recommendedNote ? 'LESSON' : 'PRACTICE'}</b></p>
               <div className="study-chip-row">
                 <span><Icon name="stetho" /> {recommendedQuiz?.courseTitle || weakTopic?.courseTitle || 'Surgery'}</span>

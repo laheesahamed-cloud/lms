@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { sqlIdentifier, sqlPlaceholders } from '../../database/sql-safety';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
 import { BulkUpdateQuestionKeywordsDto } from './dto/bulk-update-question-keywords.dto';
 import { CreateQuestionDto, QuestionOptionDto } from './dto/create-question.dto';
@@ -61,6 +62,7 @@ type ExportQuestionRow = QuestionRow & {
 };
 
 const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E'] as const;
+const QUESTION_LOOKUP_TABLES = ['courses', 'topics', 'subtopics', 'lessons', 'papers'] as const;
 
 const IMPORT_COLUMNS = [
   'question_id',
@@ -660,7 +662,7 @@ export class QuestionsService {
       throw new BadRequestException('Please select at least one question');
     }
 
-    const placeholders = questionIds.map(() => '?').join(',');
+    const placeholders = sqlPlaceholders(questionIds);
     const [questionRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT id FROM questions WHERE id IN (${placeholders})`,
       questionIds
@@ -737,7 +739,7 @@ export class QuestionsService {
       throw new BadRequestException('Please enter at least one keyword');
     }
 
-    const placeholders = questionIds.map(() => '?').join(',');
+    const placeholders = sqlPlaceholders(questionIds);
     const [questionRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT id, keywords_text FROM questions WHERE id IN (${placeholders})`,
       questionIds
@@ -872,7 +874,8 @@ export class QuestionsService {
   }
 
   private async ensureExists(tableName: string, id: number, message: string) {
-    const [rows] = await this.db.execute<RowDataPacket[]>(`SELECT id FROM ${tableName} WHERE id = ? LIMIT 1`, [id]);
+    const table = sqlIdentifier(tableName, QUESTION_LOOKUP_TABLES, 'question lookup table');
+    const [rows] = await this.db.execute<RowDataPacket[]>(`SELECT id FROM ${table} WHERE id = ? LIMIT 1`, [id]);
     if (rows.length === 0) {
       throw new BadRequestException(message);
     }
@@ -1058,7 +1061,7 @@ export class QuestionsService {
       return map;
     }
 
-    const placeholders = questionIds.map(() => '?').join(',');
+    const placeholders = sqlPlaceholders(questionIds);
     const [rows] = await this.db.execute<OptionRow[]>(
       `SELECT id, question_id, option_label, option_text, is_correct, why_incorrect FROM question_options WHERE question_id IN (${placeholders}) ORDER BY question_id, option_label`,
       questionIds

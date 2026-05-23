@@ -427,6 +427,26 @@
   max-width: 100%;
 }
 
+.study-hero-name-nowrap {
+  display: inline-block !important;
+  flex-wrap: nowrap !important;
+  align-items: baseline !important;
+  gap: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: fit-content !important;
+}
+
+.study-hero-name-nowrap,
+.study-hero-name-nowrap > span,
+.study-hero-name-nowrap > strong {
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+}
+
 .study-continue-card .study-eyebrow {
   position: relative;
   z-index: 3;
@@ -443,18 +463,22 @@
 /* Greeting — "Hi, laheez" */
 .study-hero-name {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
   gap: 0;
   margin-bottom: 8px;
   color: var(--sa-ink);
   font: var(--type-display);
   letter-spacing: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .study-hero-name > span {
   color: var(--sa-ink);
-  white-space: nowrap;
+  white-space: nowrap !important;
 }
 
 .study-hero-name strong {
@@ -463,6 +487,7 @@
   -webkit-background-clip: text;
   color: transparent;
   font: inherit;
+  white-space: nowrap !important;
   -webkit-text-fill-color: transparent;
 }
 
@@ -3791,11 +3816,11 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
     height: 112px;
   }
 
-  .study-hub-page .study-hero-grid .study-hero-name {
-    margin-bottom: 6px;
-    font-size: clamp(30px, 4.2vw, 36px);
-    line-height: 1.03;
-  }
+.study-hub-page .study-hero-grid .study-hero-name {
+  margin-bottom: 6px;
+  font-size: clamp(30px, 4.2vw, 36px);
+  line-height: 1.03;
+}
 
   .study-hub-page .study-hero-grid .study-hero-lead {
     margin-top: 8px;
@@ -3833,6 +3858,13 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
 
   .study-hub-page .study-mood-card--mobile {
     display: none;
+  }
+}
+
+@media (max-width: 540px) {
+  .study-hub-page .study-hero-name-nowrap {
+    font-size: clamp(22px, 7vw, 30px) !important;
+    line-height: 1.02 !important;
   }
 }
 

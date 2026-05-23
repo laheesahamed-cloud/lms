@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { sqlPlaceholders } from '../../database/sql-safety';
 import {
   AI_PROVIDER_LABELS,
   AI_PROVIDER_MODE_OPTIONS,
@@ -69,6 +70,22 @@ const SMTP_SETTING_KEYS = {
   footer: 'smtp_reset_footer',
 } as const;
 
+const APNS_SETTING_KEYS = {
+  keyId: 'apns_key_id',
+  teamId: 'apns_team_id',
+  bundleId: 'apns_bundle_id',
+  useSandbox: 'apns_use_sandbox',
+  privateKeyPath: 'apns_private_key_path',
+  privateKey: 'apns_private_key',
+} as const;
+
+const FCM_SETTING_KEYS = {
+  projectId: 'fcm_project_id',
+  serverKey: 'fcm_server_key',
+  serviceAccountPath: 'fcm_service_account_path',
+  serviceAccountJson: 'fcm_service_account_json',
+} as const;
+
 export type PayHerePaymentSettings = {
   enabled: boolean;
   sandboxMode: boolean;
@@ -99,6 +116,22 @@ export type SmtpSettings = {
   intro: string;
   buttonLabel: string;
   footer: string;
+};
+
+export type ApnsSettings = {
+  keyId: string;
+  teamId: string;
+  bundleId: string;
+  useSandbox: boolean;
+  privateKeyPath: string;
+  privateKey: string;
+};
+
+export type FcmSettings = {
+  projectId: string;
+  serverKey: string;
+  serviceAccountPath: string;
+  serviceAccountJson: string;
 };
 
 @Injectable()
@@ -154,6 +187,26 @@ export class SettingsService {
       ok: true,
       ...this.serializeSmtpSettings(settings),
       note: 'SMTP credentials are stored encrypted in the LMS database. Password reset emails are sent only when SMTP is enabled and configured.',
+    };
+  }
+
+  async getApnsSettings() {
+    const settings = await this.getRawApnsSettings();
+
+    return {
+      ok: true,
+      ...this.serializeApnsSettings(settings),
+      note: 'APNs credentials are stored encrypted in the LMS database. Use sandbox for simulator/debug builds and production for TestFlight/App Store builds.',
+    };
+  }
+
+  async getFcmSettings() {
+    const settings = await this.getRawFcmSettings();
+
+    return {
+      ok: true,
+      ...this.serializeFcmSettings(settings),
+      note: 'FCM credentials are stored encrypted in the LMS database. Use a Firebase service account JSON for current FCM HTTP v1 delivery.',
     };
   }
 
@@ -268,6 +321,57 @@ export class SettingsService {
     ]);
 
     return this.getSmtpSettings();
+  }
+
+  async updateApnsSettings(input: Partial<ApnsSettings>) {
+    const current = await this.getRawApnsSettings();
+    const next: ApnsSettings = {
+      keyId: input.keyId !== undefined ? this.normalizeOptionalValue(input.keyId) : current.keyId,
+      teamId: input.teamId !== undefined ? this.normalizeOptionalValue(input.teamId) : current.teamId,
+      bundleId: input.bundleId !== undefined ? this.normalizeOptionalValue(input.bundleId) || 'com.erpm.medical.lms' : current.bundleId,
+      useSandbox: input.useSandbox ?? current.useSandbox,
+      privateKeyPath: input.privateKeyPath !== undefined ? this.normalizeOptionalValue(input.privateKeyPath) : current.privateKeyPath,
+      privateKey:
+        input.privateKey !== undefined
+          ? this.normalizeSecretInput(input.privateKey) || current.privateKey
+          : current.privateKey,
+    };
+
+    await Promise.all([
+      this.saveSettingValue(APNS_SETTING_KEYS.keyId, next.keyId),
+      this.saveSettingValue(APNS_SETTING_KEYS.teamId, next.teamId),
+      this.saveSettingValue(APNS_SETTING_KEYS.bundleId, next.bundleId),
+      this.saveSettingValue(APNS_SETTING_KEYS.useSandbox, next.useSandbox ? 'true' : 'false'),
+      this.saveSettingValue(APNS_SETTING_KEYS.privateKeyPath, next.privateKeyPath),
+      this.saveSettingValue(APNS_SETTING_KEYS.privateKey, this.encryptSecret(next.privateKey)),
+    ]);
+
+    return this.getApnsSettings();
+  }
+
+  async updateFcmSettings(input: Partial<FcmSettings>) {
+    const current = await this.getRawFcmSettings();
+    const next: FcmSettings = {
+      projectId: input.projectId !== undefined ? this.normalizeOptionalValue(input.projectId) : current.projectId,
+      serverKey:
+        input.serverKey !== undefined
+          ? this.normalizeSecretInput(input.serverKey) || current.serverKey
+          : current.serverKey,
+      serviceAccountPath: input.serviceAccountPath !== undefined ? this.normalizeOptionalValue(input.serviceAccountPath) : current.serviceAccountPath,
+      serviceAccountJson:
+        input.serviceAccountJson !== undefined
+          ? this.normalizeSecretInput(input.serviceAccountJson) || current.serviceAccountJson
+          : current.serviceAccountJson,
+    };
+
+    await Promise.all([
+      this.saveSettingValue(FCM_SETTING_KEYS.projectId, next.projectId),
+      this.saveSettingValue(FCM_SETTING_KEYS.serverKey, this.encryptSecret(next.serverKey)),
+      this.saveSettingValue(FCM_SETTING_KEYS.serviceAccountPath, next.serviceAccountPath),
+      this.saveSettingValue(FCM_SETTING_KEYS.serviceAccountJson, this.encryptSecret(next.serviceAccountJson)),
+    ]);
+
+    return this.getFcmSettings();
   }
 
   async getAiProviderSettings() {
@@ -484,7 +588,7 @@ export class SettingsService {
       return new Map<string, string>();
     }
 
-    const placeholders = settingKeys.map(() => '?').join(', ');
+    const placeholders = sqlPlaceholders(settingKeys);
     const [rows] = await this.db.execute<SettingRow[]>(
       `
         SELECT setting_key, setting_value
@@ -544,6 +648,43 @@ export class SettingsService {
     };
   }
 
+  async getRawApnsSettings(): Promise<ApnsSettings> {
+    const values = await this.getSettingMap(Object.values(APNS_SETTING_KEYS));
+    const encryptedPrivateKey = values.get(APNS_SETTING_KEYS.privateKey) || '';
+
+    return {
+      keyId: values.get(APNS_SETTING_KEYS.keyId) || String(this.configService.get<string>('APNS_KEY_ID') || '').trim(),
+      teamId: values.get(APNS_SETTING_KEYS.teamId) || String(this.configService.get<string>('APNS_TEAM_ID') || '').trim(),
+      bundleId: values.get(APNS_SETTING_KEYS.bundleId) || String(this.configService.get<string>('APNS_BUNDLE_ID') || 'com.erpm.medical.lms').trim(),
+      useSandbox: this.parseBoolean(
+        values.get(APNS_SETTING_KEYS.useSandbox) || this.configService.get<string>('APNS_USE_SANDBOX'),
+        true
+      ),
+      privateKeyPath: values.get(APNS_SETTING_KEYS.privateKeyPath) || String(this.configService.get<string>('APNS_PRIVATE_KEY_PATH') || '').trim(),
+      privateKey: encryptedPrivateKey
+        ? this.decryptSecret(encryptedPrivateKey)
+        : String(this.configService.get<string>('APNS_PRIVATE_KEY') || '').replace(/\\n/g, '\n').trim(),
+    };
+  }
+
+  async getRawFcmSettings(): Promise<FcmSettings> {
+    const values = await this.getSettingMap(Object.values(FCM_SETTING_KEYS));
+    const encryptedServerKey = values.get(FCM_SETTING_KEYS.serverKey) || '';
+    const encryptedServiceAccountJson = values.get(FCM_SETTING_KEYS.serviceAccountJson) || '';
+
+    return {
+      projectId: values.get(FCM_SETTING_KEYS.projectId) || String(this.configService.get<string>('FCM_PROJECT_ID') || '').trim(),
+      serverKey: encryptedServerKey
+        ? this.decryptSecret(encryptedServerKey)
+        : String(this.configService.get<string>('FCM_SERVER_KEY') || '').trim(),
+      serviceAccountPath: values.get(FCM_SETTING_KEYS.serviceAccountPath) ||
+        String(this.configService.get<string>('FCM_SERVICE_ACCOUNT_PATH') || this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS') || '').trim(),
+      serviceAccountJson: encryptedServiceAccountJson
+        ? this.decryptSecret(encryptedServiceAccountJson)
+        : String(this.configService.get<string>('FCM_SERVICE_ACCOUNT_JSON') || '').trim(),
+    };
+  }
+
   private serializeSmtpSettings(settings: SmtpSettings) {
     return {
       enabled: settings.enabled,
@@ -562,6 +703,32 @@ export class SettingsService {
       hasPassword: Boolean(settings.password),
       maskedPassword: settings.password ? maskSecret(settings.password) : '',
       configured: Boolean(settings.host && settings.port && settings.username && settings.password && settings.fromEmail),
+    };
+  }
+
+  private serializeApnsSettings(settings: ApnsSettings) {
+    return {
+      keyId: settings.keyId,
+      teamId: settings.teamId,
+      bundleId: settings.bundleId,
+      useSandbox: settings.useSandbox,
+      privateKeyPath: settings.privateKeyPath,
+      hasPrivateKey: Boolean(settings.privateKey),
+      maskedPrivateKey: settings.privateKey ? maskSecret(settings.privateKey.replace(/\s+/g, '')) : '',
+      configured: Boolean(settings.keyId && settings.teamId && settings.bundleId && (settings.privateKey || settings.privateKeyPath)),
+    };
+  }
+
+  private serializeFcmSettings(settings: FcmSettings) {
+    return {
+      projectId: settings.projectId,
+      privateKeyPath: settings.serviceAccountPath,
+      serviceAccountPath: settings.serviceAccountPath,
+      hasServerKey: Boolean(settings.serverKey),
+      maskedServerKey: settings.serverKey ? maskSecret(settings.serverKey) : '',
+      hasServiceAccountJson: Boolean(settings.serviceAccountJson),
+      maskedServiceAccountJson: settings.serviceAccountJson ? maskSecret(settings.serviceAccountJson.replace(/\s+/g, '')) : '',
+      configured: Boolean(settings.projectId && (settings.serviceAccountJson || settings.serviceAccountPath || settings.serverKey)),
     };
   }
 

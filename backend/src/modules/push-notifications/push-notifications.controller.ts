@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Headers, Post, Put } from '@nestjs/common';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { PushNotificationsService } from './push-notifications.service';
 
 @Controller('push')
@@ -16,6 +17,7 @@ export class PushNotificationsController {
   }
 
   @Get('admin/status')
+  @RequirePermissions('notifications.manage')
   getAdminStatus(@Headers('authorization') authorization?: string) {
     return this.pushNotificationsService.getAdminStatus(authorization);
   }
@@ -50,6 +52,7 @@ export class PushNotificationsController {
   }
 
   @Post('admin/send')
+  @RequirePermissions('notifications.manage')
   sendAdminNotification(@Headers('authorization') authorization: string | undefined, @Body() body: any) {
     return this.pushNotificationsService.sendAdminNotification(authorization, body);
   }

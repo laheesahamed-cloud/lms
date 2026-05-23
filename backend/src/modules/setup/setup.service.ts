@@ -5,6 +5,7 @@ import { constants } from 'fs';
 import { join } from 'path';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { sqlIdentifier, sqlPlaceholders } from '../../database/sql-safety';
 
 type SetupStatus = 'ok' | 'warning' | 'error';
 
@@ -111,7 +112,8 @@ export class SetupService {
     }
 
     try {
-      const [rows] = await this.db.query<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM \`${name}\``);
+      const table = sqlIdentifier(name, REQUIRED_TABLES.map(([tableName]) => tableName), 'setup table');
+      const [rows] = await this.db.query<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM ${table}`);
       return { name, label, present: true, count: Number(rows[0]?.total || 0) };
     } catch {
       return { name, label, present: true, count: null };
@@ -169,7 +171,7 @@ export class SetupService {
       return new Map<string, string>();
     }
 
-    const placeholders = keys.map(() => '?').join(', ');
+    const placeholders = sqlPlaceholders(keys);
     const [rows] = await this.db.query<SettingRow[]>(
       `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (${placeholders})`,
       keys

@@ -5,7 +5,11 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "test": "npm run build",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "npm run build && npm run test:unit && npm run test:e2e",
+    "test:unit": "cd .. && node scripts/qa/sql-injection-regression.mjs && node scripts/qa/auth-regression.mjs && node scripts/qa/access-control-regression.mjs && node scripts/qa/secrets-regression.mjs && node scripts/qa/owasp-regression.mjs",
+    "test:e2e": "ts-node --project tsconfig.test.json test/security.e2e.ts",
+    "test:security": "npm run test:unit && npm run test:e2e",
     "test:smoke": "npm run build",
     "migrate": "node scripts/migrate.mjs",
     "push:vapid": "node scripts/generate-vapid-keys.mjs",
@@ -34,11 +38,16 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@types/node": "^22.14.1",
+    "@types/supertest": "^7.2.0",
+    "eslint": "^10.4.0",
+    "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.59.4"
   }
 }

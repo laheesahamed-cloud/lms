@@ -1,5 +1,6 @@
 import { Body, Controller, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { AiService } from './ai.service';
 import { GenerateAiQuizDto } from './dto/generate-ai-quiz.dto';
 import { BeautifyLessonDto } from './dto/beautify-lesson.dto';
@@ -8,6 +9,7 @@ import { GenerateExplanationDto } from './dto/generate-explanation.dto';
 
 @Controller('ai')
 @UseGuards(AdminGuard)
+@RequirePermissions('ai.manage')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 

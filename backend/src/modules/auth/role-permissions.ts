@@ -12,6 +12,10 @@ export const PERMISSIONS = [
   'questions.manage',
   'quizzes.manage',
   'subscriptions.manage',
+  'plans.manage',
+  'settings.manage',
+  'ai.manage',
+  'notifications.manage',
   'reports.view',
   'support.manage',
 ] as const;
@@ -20,11 +24,11 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   admin: [...PERMISSIONS],
-  content_editor: ['admin.access', 'content.manage', 'questions.manage', 'quizzes.manage', 'reports.view'],
+  content_editor: ['admin.access', 'content.manage', 'questions.manage', 'quizzes.manage', 'ai.manage', 'reports.view'],
   reviewer: ['admin.access', 'content.review', 'questions.manage', 'reports.view'],
   tutor: ['admin.access', 'content.review', 'reports.view', 'support.manage'],
-  finance: ['admin.access', 'subscriptions.manage', 'reports.view'],
-  support: ['admin.access', 'students.manage', 'support.manage', 'reports.view'],
+  finance: ['admin.access', 'subscriptions.manage', 'plans.manage', 'reports.view'],
+  support: ['admin.access', 'students.manage', 'notifications.manage', 'support.manage', 'reports.view'],
   student: [],
 };
 

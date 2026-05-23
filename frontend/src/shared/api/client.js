@@ -7,8 +7,15 @@ import { getLoginPath, resolveApiBaseUrl, resolveApiBaseUrls } from '../platform
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
-const REQUEST_TIMEOUT_MS = detectPlatform().isNative ? 3500 : 15000;
+const DEFAULT_REQUEST_TIMEOUT_MS = detectPlatform().isNative ? 10000 : 30000;
+const API_RECOVERY_STORAGE_KEY = 'lms_api_recovery_settings';
 let unauthorizedHandler = null;
+
+function redactSensitiveValue(value) {
+  return String(value || '')
+    .replace(/([?&](?:token|session|password|secret|api[_-]?key|authorization)=)[^&#\s]+/gi, '$1[redacted]')
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [redacted]');
+}
 
 export function setUnauthorizedHandler(handler) {
   unauthorizedHandler = typeof handler === 'function' ? handler : null;
@@ -30,10 +37,92 @@ function isApiFreePreviewRoute() {
 export const API_BASE_URL = resolveApiBaseUrl();
 export const API_BASE_URLS = resolveApiBaseUrls();
 
+function clampNumber(value, fallback, min, max) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, numeric));
+}
+
+function getStoredApiRecoverySettings() {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  try {
+    return JSON.parse(window.localStorage.getItem(API_RECOVERY_STORAGE_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function getEnvNumber(name, fallback) {
+  return import.meta.env[name] === undefined ? fallback : Number(import.meta.env[name]);
+}
+
+export function getApiRecoverySettings() {
+  const stored = getStoredApiRecoverySettings();
+  const timeoutMs = clampNumber(
+    stored.timeoutMs ?? getEnvNumber('VITE_API_REQUEST_TIMEOUT_MS', DEFAULT_REQUEST_TIMEOUT_MS),
+    DEFAULT_REQUEST_TIMEOUT_MS,
+    1000,
+    120000
+  );
+  const timeoutRetryCount = clampNumber(
+    stored.timeoutRetryCount ?? getEnvNumber('VITE_API_TIMEOUT_RETRY_COUNT', 2),
+    2,
+    0,
+    5
+  );
+  const retryDelayMs = clampNumber(
+    stored.retryDelayMs ?? getEnvNumber('VITE_API_TIMEOUT_RETRY_DELAY_MS', 500),
+    500,
+    0,
+    10000
+  );
+  const retryWriteRequests =
+    stored.retryWriteRequests === undefined
+      ? import.meta.env.VITE_API_TIMEOUT_RETRY_WRITES !== 'false'
+      : Boolean(stored.retryWriteRequests);
+
+  return {
+    timeoutMs,
+    timeoutRetryCount,
+    retryDelayMs,
+    retryWriteRequests,
+  };
+}
+
+export function saveApiRecoverySettings(settings) {
+  if (typeof window === 'undefined') {
+    return getApiRecoverySettings();
+  }
+
+  const normalized = {
+    timeoutMs: clampNumber(settings?.timeoutMs, DEFAULT_REQUEST_TIMEOUT_MS, 1000, 120000),
+    timeoutRetryCount: clampNumber(settings?.timeoutRetryCount, 2, 0, 5),
+    retryDelayMs: clampNumber(settings?.retryDelayMs, 500, 0, 10000),
+    retryWriteRequests: Boolean(settings?.retryWriteRequests),
+  };
+  window.localStorage.setItem(API_RECOVERY_STORAGE_KEY, JSON.stringify(normalized));
+  apiClient.defaults.timeout = normalized.timeoutMs;
+  return normalized;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function canRetryTimeoutRequest(config, settings) {
+  const method = String(config?.method || 'get').toLowerCase();
+  return settings.retryWriteRequests || ['get', 'head', 'options'].includes(method);
+}
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
-  timeout: REQUEST_TIMEOUT_MS,
+  timeout: getApiRecoverySettings().timeoutMs,
 });
 
 function finalizeNetworkActivity(config) {
@@ -46,6 +135,10 @@ function finalizeNetworkActivity(config) {
 }
 
 apiClient.interceptors.request.use((config) => {
+  if (config.timeout === DEFAULT_REQUEST_TIMEOUT_MS || config.timeout === apiClient.defaults.timeout) {
+    config.timeout = getApiRecoverySettings().timeoutMs;
+  }
+
   if (!config.__skipNetworkActivity) {
     beginNetworkActivity();
     config.__networkActivityStarted = true;
@@ -136,6 +229,27 @@ apiClient.interceptors.response.use(
 
     finalizeNetworkActivity(requestConfig);
 
+    if (error?.code === 'ECONNABORTED' && requestConfig) {
+      const recoverySettings = getApiRecoverySettings();
+      const timeoutRetryCount = Number(requestConfig.__timeoutRetryCount || 0);
+
+      if (
+        timeoutRetryCount < recoverySettings.timeoutRetryCount &&
+        canRetryTimeoutRequest(requestConfig, recoverySettings)
+      ) {
+        if (recoverySettings.retryDelayMs > 0) {
+          await wait(recoverySettings.retryDelayMs);
+        }
+
+        return apiClient.request({
+          ...requestConfig,
+          timeout: Math.min(Number(requestConfig.timeout || recoverySettings.timeoutMs) * 2, 120000),
+          __timeoutRetryCount: timeoutRetryCount + 1,
+          __networkActivityFinalized: false,
+        });
+      }
+    }
+
     if (nextApiFallbackUrl) {
       return apiClient.request({
         ...requestConfig,
@@ -190,9 +304,9 @@ apiClient.interceptors.response.use(
     if (status === 401 && !isAuthPageRequest && !isRoleScopeMismatch) {
       console.log('AUTH_CHECK_RESULT', {
         stage: 'api_unauthorized',
-        url: requestUrl,
+        url: redactSensitiveValue(requestUrl),
         status,
-        message: normalizedMessage,
+        message: redactSensitiveValue(normalizedMessage),
         hasToken: Boolean(getAuthToken()),
       });
       clearStoredAuth();
@@ -216,7 +330,7 @@ export function getErrorMessage(error, fallback = 'Something went wrong') {
   }
 
   if (error?.code === 'ECONNABORTED') {
-    return `The LMS API at ${API_BASE_URL} is taking too long to respond.`;
+    return `The LMS API at ${API_BASE_URL} is taking too long to respond after automatic recovery.`;
   }
 
   if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {

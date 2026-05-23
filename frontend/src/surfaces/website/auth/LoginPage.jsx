@@ -1007,24 +1007,16 @@ export function LoginPage() {
       }
 
       const data = await signIn({ email: String(fd.get('email') || ''), password: String(fd.get('password') || '') });
-      console.log('LOGIN_SUCCESS', {
-        role: data.user?.role,
-        status: data.user?.status,
-        hasSessionToken: Boolean(data.sessionToken),
-        native: PLATFORM.isNative,
-      });
       clearServerNotResponding();
       try {
         window.sessionStorage.setItem('lms_recent_auth_success', String(Date.now()));
       } catch (storageError) {
         console.log('AUTH_CHECK_RESULT', {
           stage: 'recent_auth_marker_unavailable',
-          error: storageError?.message || String(storageError),
         });
       }
       const defaultHome = data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard';
       const nextPath = canonicalizeForwardPathForUser(requestedPath, data.user) || data.redirectPath || defaultHome;
-      console.log('ROUTE_TO_DASHBOARD', nextPath);
 
       const remaining = Math.max(0, 360 - (performance.now() - startedAt));
       if (remaining > 0) await new Promise(r => setTimeout(r, remaining));

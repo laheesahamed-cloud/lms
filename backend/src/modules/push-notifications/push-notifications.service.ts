@@ -2,9 +2,10 @@ import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
-import * as webPush from 'web-push';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { sqlPlaceholders } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
+import { SettingsService } from '../settings/settings.service';
 import { NativePushSender } from './native-push.sender';
 
 type DeliveryMode = 'inside' | 'outside' | 'both';
@@ -20,33 +21,29 @@ type PushPayload = {
   data?: Record<string, unknown>;
 };
 
-type PushSubscriptionInput = {
-  endpoint?: string;
-  keys?: {
-    p256dh?: string;
-    auth?: string;
-  };
-};
-
 @Injectable()
 export class PushNotificationsService {
   private readonly logger = new Logger(PushNotificationsService.name);
-  private webPushConfigured = false;
   private readonly nativePushSender: NativePushSender;
 
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly authService: AuthService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly settingsService: SettingsService
   ) {
-    this.nativePushSender = new NativePushSender(this.configService, this.logger);
-    this.configureWebPush();
+    this.nativePushSender = new NativePushSender(
+      this.configService,
+      this.logger,
+      () => this.settingsService.getRawApnsSettings(),
+      () => this.settingsService.getRawFcmSettings()
+    );
   }
 
   getPublicConfig() {
     return {
-      enabled: this.webPushConfigured,
-      publicKey: this.configService.get<string>('VAPID_PUBLIC_KEY') || '',
+      enabled: false,
+      publicKey: '',
     };
   }
 
@@ -63,7 +60,7 @@ export class PushNotificationsService {
 
     return {
       supported: true,
-      vapidEnabled: this.webPushConfigured,
+      vapidEnabled: false,
       deliveryMode: this.normalizeDeliveryMode(rows[0]?.delivery_mode || 'outside'),
       outsideEnabled: Boolean(rows[0]?.enabled),
       nativeEnabled: await this.hasEnabledNativeToken(user.id),
@@ -101,16 +98,18 @@ export class PushNotificationsService {
     const stats = rows[0] || {};
     const nativeStats = nativeRows[0] || {};
     return {
-      vapidEnabled: this.webPushConfigured,
-      publicKeyConfigured: Boolean(this.configService.get<string>('VAPID_PUBLIC_KEY')),
-      privateKeyConfigured: Boolean(this.configService.get<string>('VAPID_PRIVATE_KEY')),
-      subject: this.configService.get<string>('VAPID_SUBJECT') || 'mailto:admin@example.com',
+      vapidEnabled: false,
+      publicKeyConfigured: false,
+      privateKeyConfigured: false,
+      subject: '',
       totalSubscriptions: Number(stats.totalSubscriptions || 0),
       activeSubscriptions: Number(stats.activeSubscriptions || 0),
       phoneSubscriptions: Number(stats.phoneSubscriptions || 0),
       insideOnlySubscriptions: Number(stats.insideOnlySubscriptions || 0),
       phoneUsers: Number(stats.phoneUsers || 0),
-      nativePushConfigured: this.nativePushSender.isConfigured(),
+      nativePushConfigured: await this.nativePushSender.isConfigured(),
+      iosNativePushConfigured: await this.nativePushSender.isConfiguredFor('ios'),
+      androidNativePushConfigured: await this.nativePushSender.isConfiguredFor('android'),
       nativePushUsers: Number(nativeStats.nativePushUsers || 0),
       nativePushTokens: Number(nativeStats.activeNativeTokens || 0),
       defaultIcon: '/lms/pwa-icon.svg',
@@ -119,39 +118,8 @@ export class PushNotificationsService {
   }
 
   async subscribe(authorization: string | undefined, input: any, userAgent?: string) {
-    const user = await this.authService.requireAuthenticatedUser(authorization);
-    const subscription = this.normalizeSubscription(input?.subscription || input);
-    const deliveryMode = this.normalizeDeliveryMode(input?.deliveryMode || 'outside');
-    const endpointHash = this.hashEndpoint(subscription.endpoint);
-
-    const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO push_subscriptions
-        (user_id, endpoint_hash, endpoint, p256dh, auth, user_agent, delivery_mode, enabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-        user_id = VALUES(user_id),
-        endpoint = VALUES(endpoint),
-        p256dh = VALUES(p256dh),
-        auth = VALUES(auth),
-        user_agent = VALUES(user_agent),
-        delivery_mode = VALUES(delivery_mode),
-        enabled = VALUES(enabled),
-        last_error = NULL,
-        failed_at = NULL,
-        updated_at = CURRENT_TIMESTAMP`,
-      [
-        user.id,
-        endpointHash,
-        subscription.endpoint,
-        subscription.keys.p256dh,
-        subscription.keys.auth,
-        String(userAgent || '').slice(0, 500),
-        deliveryMode,
-        deliveryMode === 'inside' ? 0 : 1,
-      ]
-    );
-
-    return { ok: true, id: result.insertId || undefined, deliveryMode };
+    await this.authService.requireAuthenticatedUser(authorization);
+    return { ok: false, reason: 'Web push is disabled. Use native app notifications.' };
   }
 
   async unsubscribe(authorization: string | undefined, input: any) {
@@ -277,73 +245,17 @@ export class PushNotificationsService {
   }
 
   async sendToAudience(payload: PushPayload, audience: { targetRole?: string; userIds?: number[] } = {}) {
-    if (!this.webPushConfigured && !this.nativePushSender.isConfigured()) {
-      this.logger.warn('Skipping push send because neither VAPID nor native push credentials are configured.');
-      return { ok: false, sent: 0, failed: 0, reason: 'Push credentials are not configured' };
-    }
-
-    const params: Array<string | number> = [];
-    const where = [`ps.enabled = 1`, `ps.delivery_mode IN ('outside','both')`];
-
-    if (audience.userIds?.length) {
-      where.push(`ps.user_id IN (${audience.userIds.map(() => '?').join(',')})`);
-      params.push(...audience.userIds);
-    } else if (audience.targetRole && audience.targetRole !== 'all') {
-      where.push('u.role = ?');
-      params.push(audience.targetRole);
-    }
-
-    let sent = 0;
-    let failed = 0;
-
-    if (this.webPushConfigured) {
-      const [rows] = await this.db.execute<RowDataPacket[]>(
-        `SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth
-         FROM push_subscriptions ps
-         INNER JOIN users u ON u.id = ps.user_id
-         WHERE ${where.join(' AND ')}`,
-        params
-      );
-
-      await Promise.all(rows.map(async (row) => {
-        try {
-          await webPush.sendNotification(
-            {
-              endpoint: String(row.endpoint),
-              keys: {
-                p256dh: String(row.p256dh),
-                auth: String(row.auth),
-              },
-            },
-            JSON.stringify(this.withDefaults(payload))
-          );
-          sent += 1;
-        } catch (error: any) {
-          failed += 1;
-          const statusCode = Number(error?.statusCode || 0);
-          const message = String(error?.message || 'Push delivery failed').slice(0, 500);
-          await this.db.execute(
-            `UPDATE push_subscriptions
-             SET enabled = CASE WHEN ? IN (404, 410) THEN 0 ELSE enabled END,
-                 last_error = ?,
-                 failed_at = CURRENT_TIMESTAMP,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?`,
-            [statusCode, message, Number(row.id)]
-          );
-        }
-      }));
+    if (!(await this.nativePushSender.isConfigured())) {
+      this.logger.warn('Skipping native push send because native push credentials are not configured.');
+      return { ok: false, sent: 0, failed: 0, reason: 'Native push credentials are not configured' };
     }
 
     const nativeResult = await this.sendNativeToAudience(payload, audience);
-    sent += nativeResult.sent;
-    failed += nativeResult.failed;
-
-    return { ok: failed === 0, sent, failed };
+    return { ok: nativeResult.failed === 0, sent: nativeResult.sent, failed: nativeResult.failed };
   }
 
   private async sendNativeToAudience(payload: PushPayload, audience: { targetRole?: string; userIds?: number[] } = {}) {
-    if (!this.nativePushSender.isConfigured()) {
+    if (!(await this.nativePushSender.isConfigured())) {
       return { sent: 0, failed: 0 };
     }
 
@@ -351,7 +263,7 @@ export class PushNotificationsService {
     const where = [`npt.enabled = 1`, `npt.delivery_mode IN ('outside','both')`];
 
     if (audience.userIds?.length) {
-      where.push(`npt.user_id IN (${audience.userIds.map(() => '?').join(',')})`);
+      where.push(`npt.user_id IN (${sqlPlaceholders(audience.userIds)})`);
       params.push(...audience.userIds);
     } else if (audience.targetRole && audience.targetRole !== 'all') {
       where.push('u.role = ?');
@@ -387,32 +299,6 @@ export class PushNotificationsService {
     }));
 
     return { sent, failed };
-  }
-
-  private configureWebPush() {
-    const publicKey = this.configService.get<string>('VAPID_PUBLIC_KEY');
-    const privateKey = this.configService.get<string>('VAPID_PRIVATE_KEY');
-    const subject = this.configService.get<string>('VAPID_SUBJECT') || 'mailto:admin@example.com';
-
-    if (!publicKey || !privateKey) {
-      this.webPushConfigured = false;
-      return;
-    }
-
-    webPush.setVapidDetails(subject, publicKey, privateKey);
-    this.webPushConfigured = true;
-  }
-
-  private normalizeSubscription(subscription: PushSubscriptionInput) {
-    const endpoint = String(subscription?.endpoint || '').trim();
-    const p256dh = String(subscription?.keys?.p256dh || '').trim();
-    const auth = String(subscription?.keys?.auth || '').trim();
-
-    if (!endpoint || !p256dh || !auth) {
-      throw new BadRequestException('Invalid push subscription');
-    }
-
-    return { endpoint, keys: { p256dh, auth } };
   }
 
   private normalizePayload(input: any): PushPayload {

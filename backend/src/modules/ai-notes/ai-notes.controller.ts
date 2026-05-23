@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Headers, HttpCode, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
 import { Allow, IsIn, IsInt, IsOptional, IsString, IsUrl, MaxLength, MinLength, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { AiNotesService } from './ai-notes.service';
 
 class GenerateDto {
@@ -86,57 +87,68 @@ export class AiNotesController {
 
   // ── Admin routes ─────────────────────────────────────────
   @Post('generate')
+  @RequirePermissions('ai.manage')
   @HttpCode(200)
   generate(@Body() dto: GenerateDto, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
     return this.svc.generate(dto.text, token(auth), engine(engineKey, this.svc));
   }
 
   @Get('admin')
+  @RequirePermissions('content.manage')
   adminList(@Query('engine') engineKey: string, @Headers('authorization') auth: string) {
     return this.svc.adminList(token(auth), engine(engineKey, this.svc));
   }
 
   @Post('admin')
+  @RequirePermissions('content.manage')
   adminCreate(@Body() dto: CreateNoteDto, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
     return this.svc.adminCreate(dto.title, dto.rawText, dto.courseId, dto.topicId, dto.subtopicId, dto.lessonId, dto.isFree, dto.videoUrl, token(auth), engine(engineKey, this.svc));
   }
 
   @Get('admin/lesson-canvases')
+  @RequirePermissions('content.manage')
   getLessonCanvases(@Query('engine') engineKey: string, @Headers('authorization') auth: string) {
     return this.svc.getLessonCanvases(token(auth), engine(engineKey, this.svc));
   }
 
   @Get('admin/hierarchy/courses')
+  @RequirePermissions('content.manage')
   getCourses(@Headers('authorization') auth: string) {
     return this.svc.getCourses(token(auth));
   }
 
   @Get('admin/hierarchy/topics')
+  @RequirePermissions('content.manage')
   getTopics(@Query('courseId') courseId: string, @Headers('authorization') auth: string) {
     return this.svc.getTopics(courseId ? Number(courseId) : undefined, token(auth));
   }
 
   @Get('admin/hierarchy/subtopics')
+  @RequirePermissions('content.manage')
   getSubtopics(@Query('topicId') topicId: string, @Headers('authorization') auth: string) {
     return this.svc.getSubtopics(topicId ? Number(topicId) : undefined, token(auth));
   }
 
   @Get('admin/hierarchy/lessons')
+  @RequirePermissions('content.manage')
   getLessons(@Query('subtopicId') subtopicId: string, @Headers('authorization') auth: string) {
     return this.svc.getLessons(subtopicId ? Number(subtopicId) : undefined, token(auth));
   }
 
   @Get('admin/:id')
+  @RequirePermissions('content.manage')
   adminFindOne(@Param('id', ParseIntPipe) id: number, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
     return this.svc.adminFindOne(id, token(auth), engine(engineKey, this.svc));
   }
 
   @Patch('admin/:id')
+  @RequirePermissions('content.manage')
   adminUpdate(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateNoteDto, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
     return this.svc.adminUpdate(id, dto, token(auth), engine(engineKey, this.svc));
   }
 
   @Delete('admin/:id')
+  @RequirePermissions('content.manage')
   adminRemove(@Param('id', ParseIntPipe) id: number, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
     return this.svc.adminRemove(id, token(auth), engine(engineKey, this.svc));
   }

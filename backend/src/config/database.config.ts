@@ -1,7 +1,7 @@
 export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5174',
-  bodyLimit: process.env.BODY_LIMIT || '75mb',
+  bodyLimit: process.env.BODY_LIMIT || '8mb',
   database: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '3306', 10),

@@ -8,6 +8,7 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
+import { getQuizTitleText } from './quizLabels.js';
 
 function runWhenIdle(task) {
   if (typeof window === 'undefined') { task(); return () => {}; }
@@ -839,70 +840,201 @@ function QuizFilterPanel({
 
 function CoursePicker({ courses, onSelect }) {
   return (
-    <section className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="lms-quiz-mascot-strip">
-          <StudyMascot variant="stetho" mood="happy" size="md" label="Q-Bank study buddy" />
+    <section className="student-lessons-hub animate-fadePop">
+      <div className="student-lessons-section-head mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div className="lms-quiz-mascot-strip student-lessons-mascot-strip">
+          <StudyMascot variant="stetho" mood="lesson" size="md" label="Q-Bank study buddy" />
           <div>
-            <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Course</h2>
-            <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{courses.length} course{courses.length !== 1 ? 's' : ''} available</p>
+            <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Lesson</h2>
+            <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{courses.reduce((sum, course) => sum + course.quizzes.length, 0)} quiz set{courses.reduce((sum, course) => sum + course.quizzes.length, 0) !== 1 ? 's' : ''} available</p>
           </div>
         </div>
-        <span className="rounded-full border border-brand-primary/18 bg-[var(--color-primary-light)] px-3 py-1 text-[10.5px] font-black uppercase text-brand-primary dark:border-sky-300/20 dark:bg-sky-400/10 dark:text-sky-200">
-          Course View
+        <span className="student-lessons-count-pill rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-extrabold text-ink-muted">
+          {courses.length} {courses.length === 1 ? 'course' : 'courses'}
         </span>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-3 max-[520px]:grid-cols-1 max-[520px]:gap-2">
-        {courses.map((course, courseIdx) => {
-          const done = course.quizzes.filter(isQuizDone).length;
-          const pct = course.quizzes.length ? Math.round((done / course.quizzes.length) * 100) : 0;
-          const status = groupStatus(course.quizzes);
-          const courseTone = getQuizCourseTone(courseIdx);
-          const courseVisual = getQuizCourseStockVisual(course.name, courseIdx);
-
+      <div className="student-lessons-course-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
+        {courses.map((course) => {
+          const subjects = new Set(course.quizzes.map(q => q.subjectName || (q.isGeneral ? 'General / Full Course Revision' : 'General')).filter(Boolean));
           return (
             <button
               key={course.name}
               type="button"
-              className={cx(
-                'lms-quiz-card lms-quiz-course-card lms-quiz-course-card--stock grid min-h-[112px] gap-3.5 rounded-2xl border border-line-soft bg-surface-card p-4 text-left shadow-sm shadow-slate-950/[0.03] transition-[border-color,background,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-brand-primary/18 hover:bg-surface-2/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:shadow-black/20 dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-xl max-[520px]:p-3.5',
-                `lms-quiz-course-card--${courseVisual.key}`,
-              )}
-              style={{
-                '--quiz-course-accent': courseTone.accent,
-                '--quiz-course-accent-2': courseTone.accent2,
-                '--quiz-course-art-hue': courseTone.artHue,
-              }}
               onClick={() => onSelect(course.name)}
-              aria-label={`Open ${course.name}, ${pct}% complete`}
+              className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-200 focus-visible:ring-4 focus-visible:ring-brand-primary/22"
             >
-              <span className="lms-quiz-course-card__art" aria-hidden="true">
-                <CourseStockArt visual={courseVisual} />
-              </span>
-              <span className="lms-quiz-course-card__bookmark" aria-hidden="true">
-                <IcoBookmark />
-              </span>
-
-              <div className="lms-quiz-course-card__copy flex items-start gap-3">
-                <span className={cx('grid size-10 shrink-0 place-items-center rounded-xl', courseTone.bg)}>
-                  {courseTone.icon}
-                </span>
-                <strong className="lms-quiz-course-card__title line-clamp-2 flex-1 pt-0.5 text-[15px] font-extrabold leading-snug text-ink-strong dark:text-white max-[520px]:text-[14px]">{course.name}</strong>
-              </div>
-
-              <div className="lms-quiz-course-card__stats grid gap-2">
-                <div className="flex items-center justify-between gap-3 text-[11px] font-bold">
-                  <span className="text-ink-muted">{course.quizzes.length} sets · {done} done</span>
-                  <span className={cx('font-extrabold', status === 'completed' ? 'text-brand-primary dark:text-sky-300' : 'text-ink-strong dark:text-white')}>{pct}%</span>
+              <div className="student-lessons-course-card__top flex items-start justify-between gap-4 px-5 py-5">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="student-lessons-course-card__icon grid size-11 shrink-0 place-items-center rounded-xl border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary">
+                    <IcoBook />
+                  </span>
+                  <div>
+                    <div className="line-clamp-2 text-[15px] font-extrabold leading-snug text-ink-strong">
+                      {course.name || 'General'}
+                    </div>
+                    <div className="mt-1 text-[11px] font-semibold text-ink-muted">
+                      {subjects.size} subject{subjects.size !== 1 ? 's' : ''}
+                    </div>
+                  </div>
                 </div>
-                <ProgressBar value={pct} className="lms-quiz-course-card__progress h-2" />
+                <div className="student-lessons-course-card__count text-right shrink-0">
+                  <div className="text-[30px] font-extrabold leading-none text-ink-strong">{course.quizzes.length}</div>
+                  <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">sets</div>
+                </div>
               </div>
             </button>
           );
         })}
       </div>
     </section>
+  );
+}
+
+function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark }) {
+  const title = getQuizTitleText(quiz) || quiz.quizTitle || 'Untitled quiz';
+  const statusLabel = quiz.accessLocked ? 'Locked' : quiz.isFree ? 'Free quiz' : quiz.isFree === false ? 'Premium' : '';
+  const completed = isQuizDone(quiz);
+
+  return (
+    <div className={cx('student-lessons-lesson-row', completed && 'is-completed')} style={{ '--lesson-row-delay': `${Math.min(index, 8) * 18}ms` }}>
+      <strong>{String(index + 1).padStart(2, '0')}.</strong>
+      <button type="button" className="student-lessons-lesson-row__title" onClick={onStart}>
+        <span className="student-lessons-lesson-row__title-line">
+          <span className="student-lessons-lesson-row__title-text">{title}</span>
+          {completed ? (
+            <i className="student-lessons-lesson-row__done" aria-label="Completed">
+              <IcoCheck />
+            </i>
+          ) : null}
+        </span>
+        {statusLabel ? <small>{statusLabel}</small> : null}
+      </button>
+      <div className="student-lessons-lesson-row__actions">
+        <button type="button" className="student-lessons-lesson-row__start" onClick={onStart}>
+          Start
+        </button>
+        <button
+          type="button"
+          className={cx('student-lessons-lesson-row__save', bookmarked && 'is-saved')}
+          onClick={(event) => onBookmark(event, quiz.id)}
+          aria-label={bookmarked ? `Saved ${title}` : `Save ${title}`}
+        >
+          {bookmarked ? <IcoCheck /> : <IcoBookmark />}
+          <span>{bookmarked ? 'Saved' : 'Save'}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, navigate, pageMode }) {
+  const isExamPage = pageMode === 'exam';
+  const [activeSubject, setActiveSubject] = useState(null);
+  const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
+  const subjects = useMemo(() => {
+    const map = new Map();
+    sortQuizzesByHierarchy(quizzes).forEach((quiz) => {
+      const label = quiz.subjectName || (quiz.isGeneral ? 'General / Full Course Revision' : 'General');
+      if (!map.has(label)) map.set(label, []);
+      map.get(label).push(quiz);
+    });
+    return [...map.entries()].map(([label, items]) => ({ label, quizzes: items }));
+  }, [quizzes]);
+  const visibleSubjects = activeSubject ? subjects.filter(subject => subject.label === activeSubject) : subjects;
+
+  useEffect(() => {
+    setCollapsedSubjects(new Set());
+  }, [courseName, activeSubject]);
+
+  function toggleSubject(key) {
+    setCollapsedSubjects((current) => {
+      const next = new Set(current);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  function startQuiz(quiz) {
+    const canOpenMode = isExamPage ? quiz.canExamMode !== false : quiz.canPracticeMode !== false;
+    if (canOpenMode) {
+      navigate(`/quizzes/${quiz.id}?mode=${isExamPage ? 'exam' : 'practice'}`);
+      return;
+    }
+    onAccessNeeded({
+      ...quiz,
+      accessFeature: isExamPage ? 'examMode' : 'practiceMode',
+      accessMessage: quiz.accessMessage || `This premium ${isExamPage ? 'exam' : 'practice set'} is included with selected plans.`,
+    });
+  }
+
+  return (
+    <div className="student-lessons-detail space-y-4">
+      <div className="student-lessons-detail-toolbar">
+        <button className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
+          <IcoChevron />
+          <span>Back</span>
+        </button>
+        <div className="student-lessons-detail-course-name">
+          {courseName || 'General'}
+        </div>
+        <div className="student-lessons-detail-title">
+          <strong>{quizzes.length} {quizzes.length === 1 ? 'Quiz' : 'Quizzes'}</strong>
+        </div>
+      </div>
+
+      {subjects.length > 1 ? (
+        <div className="student-lessons-filter-bar">
+          <button className={cx('student-lessons-filter-chip', !activeSubject && 'is-active')} onClick={() => setActiveSubject(null)}>
+            All subjects
+          </button>
+          {subjects.map((subject) => (
+            <button
+              key={subject.label}
+              className={cx('student-lessons-filter-chip', activeSubject === subject.label && 'is-active')}
+              onClick={() => setActiveSubject(activeSubject === subject.label ? null : subject.label)}
+            >
+              {subject.label || 'General'}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="student-lessons-category-list">
+        {visibleSubjects.map((subject, subjectIndex) => {
+          const subjectKey = subject.label || `general-${subjectIndex}`;
+          const isCollapsed = collapsedSubjects.has(subjectKey);
+          return (
+            <section className={cx('student-lessons-category', isCollapsed && 'is-collapsed')} key={subjectKey}>
+              <button type="button" className="student-lessons-category__head" onClick={() => toggleSubject(subjectKey)} aria-expanded={!isCollapsed}>
+                <div className="student-lessons-category__title">
+                  <h2>{subject.label || 'General'}</h2>
+                </div>
+                <small>
+                  {subject.quizzes.length} {subject.quizzes.length === 1 ? 'quiz' : 'quizzes'}
+                  <IcoChevron />
+                </small>
+              </button>
+
+              <div className="student-lessons-lesson-list-shell" aria-hidden={isCollapsed}>
+                <div className="student-lessons-lesson-list">
+                  {subject.quizzes.map((quiz, index) => (
+                    <QuizLessonRow
+                      key={quiz.id}
+                      quiz={quiz}
+                      index={index}
+                      bookmarked={bookmarkedIds.has(quiz.id)}
+                      onBookmark={onBookmark}
+                      onStart={() => startQuiz(quiz)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -1238,7 +1370,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   ];
 
   return (
-    <main className={cx('dashboard-page study-hub-page student-quiz-map-page student-quiz-night-page', isExamPage ? 'student-exam-map-page' : 'student-qbank-map-page')}>
+    <main className={cx('dashboard-page study-hub-page student-lessons-page student-quiz-map-page student-quiz-night-page', isExamPage ? 'student-exam-map-page' : 'student-qbank-map-page')}>
       <section className="study-hub-shell">
         <AppHeader
           title={isExamPage ? 'Exams' : 'Q-Bank'}
@@ -1250,12 +1382,28 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
 
         {error && <div className={ui.feedbackError}>{error}</div>}
 
+        <div className="student-lessons-search-card rounded-lg border border-line-soft bg-surface-card p-3 shadow-sm dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] max-[520px]:p-2">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted">
+              <IcoSearch />
+            </span>
+            <input
+              className={cx(ui.input, 'pl-10 pr-11 max-[520px]:min-h-10 max-[520px]:text-[13px]')}
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              placeholder={isExamPage ? 'Search exams, topics, courses...' : 'Search quizzes, topics, courses...'}
+            />
+            {search ? (
+              <button className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-[13px] font-black text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong" onClick={() => setSearch('')} aria-label="Clear quiz search">x</button>
+            ) : null}
+          </div>
+        </div>
+
         {loading ? (
-          <div className="lms-quiz-loading-shell">
-            <StudyMascot variant="brain" mood="loading" size="lg" label="Loading question bank" caption="Warming up the neurons." />
-            <div className="grid flex-1 gap-3">
-              {[1,2,3,4,5].map(i => <div key={i} className={cx(ui.shimmer, 'h-[88px] rounded-xl')}/>)}
-            </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className={cx(ui.skeletonCard, 'h-[160px] max-[520px]:h-[132px]')} />
+            ))}
           </div>
         ) : courseFilter === 'all' ? (
           courseCards.length === 0 ? (
@@ -1269,89 +1417,35 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             <CoursePicker courses={courseCards} onSelect={handleSelectCourse} />
           )
         ) : grouped.size === 0 ? (
-          <>
-            <SelectedCourseHeader
+          <section className="animate-fadePop">
+            <QuizLessonDetail
               courseName={courseFilter}
+              quizzes={visible}
               onBack={handleBackToCourses}
-              total={total}
-              completed={completed}
-              subjectCount={visibleSubjects.length}
-              topicCount={scopedTopicCount}
+              bookmarkedIds={bookmarkedIds}
+              onBookmark={handleBookmark}
+              onAccessNeeded={setAccessPromptQuiz}
+              navigate={navigate}
               pageMode={pageMode}
             />
-            <QuizFilterPanel
-              isExamPage={isExamPage}
-              search={search}
-              onSearchChange={setSearch}
-              searchSuggestions={searchSuggestions}
-              statusItems={statusItems}
-              statusFilter={statusFilter}
-              onStatusChange={setStatusFilter}
-              visibleSubjects={visibleSubjects}
-              subjectFilter={subjectFilter}
-              onSubjectChange={(value) => {
-                setSubjectFilter(value);
-                setTopicFilter('all');
-              }}
-              visibleTopics={visibleTopics}
-              topicFilter={topicFilter}
-              onTopicChange={setTopicFilter}
-            />
-
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
               <StudyMascot variant="review" mood="review" size="lg" label="No matching Q-Bank sets mascot" />
               <p className="m-0 text-center">No sets match your filters.</p>
             </div>
-          </>
+          </section>
         ) : (
-          <>
-            <SelectedCourseHeader
+          <section className="animate-fadePop">
+            <QuizLessonDetail
               courseName={courseFilter}
+              quizzes={visible}
               onBack={handleBackToCourses}
-              total={total}
-              completed={completed}
-              subjectCount={visibleSubjects.length}
-              topicCount={scopedTopicCount}
+              bookmarkedIds={bookmarkedIds}
+              onBookmark={handleBookmark}
+              onAccessNeeded={setAccessPromptQuiz}
+              navigate={navigate}
               pageMode={pageMode}
             />
-            <QuizFilterPanel
-              isExamPage={isExamPage}
-              search={search}
-              onSearchChange={setSearch}
-              searchSuggestions={searchSuggestions}
-              statusItems={statusItems}
-              statusFilter={statusFilter}
-              onStatusChange={setStatusFilter}
-              visibleSubjects={visibleSubjects}
-              subjectFilter={subjectFilter}
-              onSubjectChange={(value) => {
-                setSubjectFilter(value);
-                setTopicFilter('all');
-              }}
-              visibleTopics={visibleTopics}
-              topicFilter={topicFilter}
-              onTopicChange={setTopicFilter}
-            />
-
-            <div className="grid gap-4">
-              <MapHierarchyGuide pageMode={pageMode} />
-              <div className="grid gap-5 max-[520px]:gap-4">
-                {[...grouped.entries()].map(([course, qs], idx) => (
-                  <CourseGroup
-                    key={course}
-                    course={course}
-                    quizzes={qs}
-                    groupIndex={idx}
-                    bookmarkedIds={bookmarkedIds}
-                    onBookmark={handleBookmark}
-                    onAccessNeeded={setAccessPromptQuiz}
-                    navigate={navigate}
-                    pageMode={pageMode}
-                  />
-                ))}
-              </div>
-            </div>
-          </>
+          </section>
         )}
       </section>
 

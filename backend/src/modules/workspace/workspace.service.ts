@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { allowedSqlFragment } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 
@@ -17,6 +18,24 @@ type AdminReportFilters = {
   courseId: number | null;
   userId: number | null;
 };
+
+const ADMIN_REPORT_FILTER_COLUMNS = [
+  'COALESCE(qa.submitted_at, qa.created_at)',
+  'qa.user_id',
+  'q.course_id',
+  'slp.updated_at',
+  'slp.user_id',
+  'slp.course_id',
+  'sae.created_at',
+  'sae.user_id',
+  'COALESCE(q.course_id, quiz.course_id)',
+  'u.id',
+  'c.id',
+  'us.updated_at',
+  'us.user_id',
+  'pt.created_at',
+  'pt.user_id',
+] as const;
 
 @Injectable()
 export class WorkspaceService {
@@ -288,15 +307,33 @@ export class WorkspaceService {
     const student = await this.authService.requireStudent(authorization);
     const [rows] = await this.db.execute<RowDataPacket[]>('SELECT id FROM study_planner_tasks WHERE id = ? AND user_id = ? LIMIT 1', [id, student.id]);
     if (!rows[0]) throw new NotFoundException('Planner task not found');
-    const title = input?.title !== undefined ? this.requiredString(input.title, 'Task title') : null;
-    const description = input?.description !== undefined ? this.optionalString(input.description) : null;
-    const dueDate = input?.dueDate !== undefined ? this.optionalDate(input.dueDate) : null;
-    const status = input?.status === 'done' ? 'done' : input?.status === 'todo' ? 'todo' : null;
+    const updates: string[] = [];
+    const values: any[] = [];
+    if (input?.title !== undefined) {
+      updates.push('title = ?');
+      values.push(this.requiredString(input.title, 'Task title'));
+    }
+    if (input?.description !== undefined) {
+      updates.push('description = ?');
+      values.push(this.optionalString(input.description));
+    }
+    if (input?.dueDate !== undefined) {
+      updates.push('due_date = ?');
+      values.push(this.optionalDate(input.dueDate));
+    }
+    if (input?.status !== undefined) {
+      const status = input.status === 'done' ? 'done' : input.status === 'todo' ? 'todo' : null;
+      if (!status) throw new BadRequestException('Planner task status is invalid');
+      updates.push('status = ?');
+      values.push(status);
+    }
+    if (!updates.length) {
+      return { ok: true, id };
+    }
+    values.push(id, student.id);
     await this.db.execute(
-      `UPDATE study_planner_tasks
-       SET title = COALESCE(?, title), description = ?, due_date = ?, status = COALESCE(?, status)
-       WHERE id = ? AND user_id = ?`,
-      [title, description, dueDate, status, id, student.id]
+      `UPDATE study_planner_tasks SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`,
+      values
     );
     return { ok: true, id };
   }
@@ -715,12 +752,13 @@ export class WorkspaceService {
   }
 
   private appendDateFilter(where: string[], params: any[], column: string, filters: AdminReportFilters) {
+    const safeColumn = allowedSqlFragment(column, ADMIN_REPORT_FILTER_COLUMNS, 'admin report date column');
     if (filters.startDate) {
-      where.push(`DATE(${column}) >= ?`);
+      where.push(`DATE(${safeColumn}) >= ?`);
       params.push(filters.startDate);
     }
     if (filters.endDate) {
-      where.push(`DATE(${column}) <= ?`);
+      where.push(`DATE(${safeColumn}) <= ?`);
       params.push(filters.endDate);
     }
   }
@@ -730,18 +768,21 @@ export class WorkspaceService {
       this.appendDateFilter(where, params, column, filters);
       return;
     }
-    where.push(`${column} >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)`);
+    const safeColumn = allowedSqlFragment(column, ADMIN_REPORT_FILTER_COLUMNS, 'admin report activity date column');
+    where.push(`${safeColumn} >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)`);
   }
 
   private appendUserFilter(where: string[], params: any[], column: string, filters: AdminReportFilters) {
     if (!filters.userId) return;
-    where.push(`${column} = ?`);
+    const safeColumn = allowedSqlFragment(column, ADMIN_REPORT_FILTER_COLUMNS, 'admin report user column');
+    where.push(`${safeColumn} = ?`);
     params.push(filters.userId);
   }
 
   private appendCourseFilter(where: string[], params: any[], column: string, filters: AdminReportFilters) {
     if (!filters.courseId) return;
-    where.push(`${column} = ?`);
+    const safeColumn = allowedSqlFragment(column, ADMIN_REPORT_FILTER_COLUMNS, 'admin report course column');
+    where.push(`${safeColumn} = ?`);
     params.push(filters.courseId);
   }
 

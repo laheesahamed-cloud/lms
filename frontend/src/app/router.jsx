@@ -5,7 +5,7 @@ import { AppRouteError } from './AppRouteError.jsx';
 import { AppErrorBoundary } from './AppErrorBoundary.jsx';
 import { AppFrame } from './AppFrame.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { isStaffUser, roleRouteMode } from '../shared/auth/roleAccess.js';
+import { isStaffUser, roleRouteMode, userHasPermissions } from '../shared/auth/roleAccess.js';
 import { shouldPreloadRoutes } from '../shared/utils/performanceProfile.js';
 import { detectPlatform } from '../shared/platform/detect.js';
 import { getRouterBasename, normalizeLegacyBuildPath } from '../shared/platform/config.js';
@@ -214,9 +214,15 @@ function withLayoutSuspense(element) {
   );
 }
 
-function RoleSwitch({ admin, student }) {
+function RoleSwitch({ admin, student, adminPermissions = [] }) {
   const user = useAuthStore((state) => state.user);
-  return isStaffUser(user) ? admin : student;
+  if (isStaffUser(user)) {
+    if (adminPermissions.length && !userHasPermissions(user, adminPermissions)) {
+      return <Navigate to={getRoleHome(user)} replace />;
+    }
+    return admin;
+  }
+  return student;
 }
 
 function roleHomePath(user) {
@@ -279,43 +285,83 @@ const adminPanelRoutes = [
   },
   {
     path: 'courses',
-    element: withSuspense(<CoursesPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
+        <CoursesPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'structure',
-    element: withSuspense(<StructurePage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
+        <StructurePage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'users',
-    element: withSuspense(<UsersPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['students.manage']}>
+        <UsersPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'users/:userId',
-    element: withSuspense(<AdminStudentDetailPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['students.manage']}>
+        <AdminStudentDetailPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'questions',
-    element: withSuspense(<QuestionsPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['questions.manage']}>
+        <QuestionsPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'questions/bulk',
-    element: withSuspense(<BulkQuestionInputPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['questions.manage']}>
+        <BulkQuestionInputPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'quizzes',
-    element: withSuspense(<QuizzesPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['quizzes.manage']}>
+        <QuizzesPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'quizzes/new',
-    element: withSuspense(<QuizBuilderPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['quizzes.manage']}>
+        <QuizBuilderPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'quizzes/:quizId/edit',
-    element: withSuspense(<QuizBuilderPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['quizzes.manage']}>
+        <QuizBuilderPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'subscriptions',
-    element: withSuspense(<AdminSubscriptionsPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['subscriptions.manage']}>
+        <AdminSubscriptionsPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'finance',
@@ -327,31 +373,59 @@ const adminPanelRoutes = [
   },
   {
     path: 'ai-notes',
-    element: withSuspense(<AdminAiNotesListPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
+        <AdminAiNotesListPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'ai-notes/:id',
-    element: withSuspense(<AdminAiNotesEditorPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
+        <AdminAiNotesEditorPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'announcements',
-    element: withSuspense(<AdminAnnouncementsPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['notifications.manage']}>
+        <AdminAnnouncementsPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'reports',
-    element: withSuspense(<AdminReportsPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['reports.view']}>
+        <AdminReportsPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'doubts',
-    element: withSuspense(<AdminDoubtsPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['support.manage']}>
+        <AdminDoubtsPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'setup',
-    element: withSuspense(<AdminSetupPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
+        <AdminSetupPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: 'settings',
-    element: withSuspense(<AdminSettingsPage />),
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
+        <AdminSettingsPage />
+      </ProtectedRoute>
+    ),
   },
 ];
 
@@ -659,6 +733,7 @@ export const router = createBrowserRouter([
                 <RoleSwitch
                   admin={withSuspense(<CoursesPage />)}
                   student={withSuspense(<StudentCoursesPage />)}
+                  adminPermissions={['content.manage']}
                 />
               </ProtectedRoute>
             ),
@@ -674,7 +749,7 @@ export const router = createBrowserRouter([
           {
             path: 'structure',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
                 {withSuspense(<StructurePage />)}
               </ProtectedRoute>
             ),
@@ -682,7 +757,7 @@ export const router = createBrowserRouter([
           {
             path: 'users',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['students.manage']}>
                 {withSuspense(<UsersPage />)}
               </ProtectedRoute>
             ),
@@ -690,7 +765,7 @@ export const router = createBrowserRouter([
           {
             path: 'users/:userId',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['students.manage']}>
                 {withSuspense(<AdminStudentDetailPage />)}
               </ProtectedRoute>
             ),
@@ -698,7 +773,7 @@ export const router = createBrowserRouter([
           {
             path: 'questions',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['questions.manage']}>
                 {withSuspense(<QuestionsPage />)}
               </ProtectedRoute>
             ),
@@ -706,7 +781,7 @@ export const router = createBrowserRouter([
           {
             path: 'questions/bulk',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['questions.manage']}>
                 {withSuspense(<BulkQuestionInputPage />)}
               </ProtectedRoute>
             ),
@@ -718,6 +793,7 @@ export const router = createBrowserRouter([
                 <RoleSwitch
                   admin={withSuspense(<QuizzesPage />)}
                   student={withSuspense(<StudentQuizzesPage pageMode="practice" />)}
+                  adminPermissions={['quizzes.manage']}
                 />
               </ProtectedRoute>
             ),
@@ -733,7 +809,7 @@ export const router = createBrowserRouter([
           {
             path: 'quizzes/new',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['quizzes.manage']}>
                 {withSuspense(<QuizBuilderPage />)}
               </ProtectedRoute>
             ),
@@ -741,7 +817,7 @@ export const router = createBrowserRouter([
           {
             path: 'quizzes/:quizId/edit',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['quizzes.manage']}>
                 {withSuspense(<QuizBuilderPage />)}
               </ProtectedRoute>
             ),
@@ -777,6 +853,7 @@ export const router = createBrowserRouter([
                 <RoleSwitch
                   admin={withSuspense(<AdminSubscriptionsPage />)}
                   student={withSuspense(<StudentBillingPage />)}
+                  adminPermissions={['subscriptions.manage']}
                 />
               </ProtectedRoute>
             ),
@@ -824,6 +901,7 @@ export const router = createBrowserRouter([
                 <RoleSwitch
                   admin={withSuspense(<AdminDoubtsPage />)}
                   student={withSuspense(<StudentDoubtsPage />)}
+                  adminPermissions={['support.manage']}
                 />
               </ProtectedRoute>
             ),
@@ -859,6 +937,7 @@ export const router = createBrowserRouter([
                 <RoleSwitch
                   admin={withSuspense(<AdminAiNotesListPage />)}
                   student={withSuspense(<AiNotesListPage />)}
+                  adminPermissions={['content.manage']}
                 />
               </ProtectedRoute>
             ),
@@ -870,6 +949,7 @@ export const router = createBrowserRouter([
                 <RoleSwitch
                   admin={withSuspense(<AdminAiNotesEditorPage />)}
                   student={withSuspense(<AiNotesPage />)}
+                  adminPermissions={['content.manage']}
                 />
               </ProtectedRoute>
             ),
@@ -901,7 +981,7 @@ export const router = createBrowserRouter([
           {
             path: 'announcements',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['notifications.manage']}>
                 {withSuspense(<AdminAnnouncementsPage />)}
               </ProtectedRoute>
             ),
@@ -909,7 +989,7 @@ export const router = createBrowserRouter([
           {
             path: 'reports',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['reports.view']}>
                 {withSuspense(<AdminReportsPage />)}
               </ProtectedRoute>
             ),
@@ -917,7 +997,7 @@ export const router = createBrowserRouter([
           {
             path: 'setup',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
                 {withSuspense(<AdminSetupPage />)}
               </ProtectedRoute>
             ),
@@ -925,7 +1005,7 @@ export const router = createBrowserRouter([
           {
             path: 'settings',
             element: (
-              <ProtectedRoute role="admin">
+              <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
                 {withSuspense(<AdminSettingsPage />)}
               </ProtectedRoute>
             ),

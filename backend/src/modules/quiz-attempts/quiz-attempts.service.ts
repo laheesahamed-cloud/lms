@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { sqlPlaceholders } from '../../database/sql-safety';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { PlansService } from '../plans/plans.service';
 import { SavePracticeDto } from './dto/save-practice.dto';
@@ -739,7 +740,7 @@ export class QuizAttemptsService {
     }
 
     const ids = questionRows.map((row) => row.id);
-    const placeholders = ids.map(() => '?').join(',');
+    const placeholders = sqlPlaceholders(ids);
     const [optionRows] = await this.db.execute<OptionRow[]>(
       `
         SELECT id, question_id, option_label, option_text, is_correct, why_incorrect

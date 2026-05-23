@@ -19,90 +19,234 @@ function getStatusLabel(status) {
   return status === 'active' ? 'Active' : 'Draft';
 }
 
-function QuizTable({ title, subtitle, quizzes, loading, emptyLabel, onEdit, onView, onDelete, deletingId }) {
+function getQuizTitle(quiz) {
+  return quiz.adminName || quiz.quizTitle || quiz.studentTitle || `Quiz #${quiz.id}`;
+}
+
+function getQuizSubtitle(quiz) {
+  return quiz.studentTitle && quiz.studentTitle !== getQuizTitle(quiz) ? quiz.studentTitle : quiz.quizDescription;
+}
+
+function getCourseLabel(quiz) {
+  return quiz.courseTitle || 'General Library';
+}
+
+function getSubjectLabel(quiz) {
+  if (quiz.isGeneral === 1) {
+    return 'General / Full Course';
+  }
+  return quiz.subjectName || 'Unmapped Subject';
+}
+
+function getTopicLabel(quiz) {
+  return quiz.topicName || quiz.lessonTitle || 'No lesson map link';
+}
+
+function buildQuizMap(quizzes) {
+  const courseMap = new Map();
+
+  quizzes.forEach((quiz) => {
+    const courseKey = getCourseLabel(quiz);
+    const subjectKey = getSubjectLabel(quiz);
+    const topicKey = getTopicLabel(quiz);
+
+    if (!courseMap.has(courseKey)) {
+      courseMap.set(courseKey, {
+        name: courseKey,
+        total: 0,
+        active: 0,
+        draft: 0,
+        subjects: new Map(),
+      });
+    }
+
+    const course = courseMap.get(courseKey);
+    course.total += 1;
+    if (quiz.status === 'active') {
+      course.active += 1;
+    } else {
+      course.draft += 1;
+    }
+
+    if (!course.subjects.has(subjectKey)) {
+      course.subjects.set(subjectKey, {
+        name: subjectKey,
+        total: 0,
+        topics: new Map(),
+      });
+    }
+
+    const subject = course.subjects.get(subjectKey);
+    subject.total += 1;
+
+    if (!subject.topics.has(topicKey)) {
+      subject.topics.set(topicKey, {
+        name: topicKey,
+        quizzes: [],
+      });
+    }
+
+    subject.topics.get(topicKey).quizzes.push(quiz);
+  });
+
+  return Array.from(courseMap.values()).map((course) => ({
+    ...course,
+    subjects: Array.from(course.subjects.values()).map((subject) => ({
+      ...subject,
+      topics: Array.from(subject.topics.values()),
+    })),
+  }));
+}
+
+function QuizMapRow({ quiz, index, onEdit, onView, onDelete, deletingId }) {
+  const title = getQuizTitle(quiz);
+  const subtitle = getQuizSubtitle(quiz);
+
   return (
-    <section className={cx(ui.panelCard, 'grid gap-3')}>
+    <article className="relative pl-8 max-[640px]:pl-7">
+      <span className={cx(
+        'absolute left-[2px] top-1/2 z-[1] grid size-6 -translate-y-1/2 place-items-center rounded-full border text-[10px] font-black',
+        quiz.status === 'active'
+          ? 'border-emerald-400/35 bg-emerald-500 text-white'
+          : 'border-amber-400/35 bg-amber-400 text-white'
+      )}>
+        {index + 1}
+      </span>
+      <div className="rounded-2xl border border-line-soft bg-surface-card px-3 py-2.5 transition hover:border-brand-primary/22 hover:bg-surface-2/50 dark:border-sky-300/12 dark:bg-white/[0.035] dark:hover:border-sky-400/18">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 max-[640px]:grid-cols-1">
+          <button
+            type="button"
+            className="grid min-w-0 grid-cols-[38px_minmax(0,1fr)] items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16"
+            onClick={() => onView(quiz.id)}
+          >
+            <span className="grid size-[38px] place-items-center rounded-2xl border border-brand-primary/18 bg-brand-primary/8 text-[12px] font-black text-brand-primary dark:border-sky-300/20 dark:bg-sky-400/10 dark:text-sky-200">
+              Q
+            </span>
+            <span className="min-w-0">
+              <span className="mb-1 flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex h-5 items-center rounded px-1.5 text-[9.5px] font-black uppercase leading-none text-brand-primary bg-brand-primary/7 dark:bg-sky-400/10 dark:text-sky-300">
+                  {Number(quiz.totalQuestions || 0)} Questions
+                </span>
+                <span className={statusPill(quiz.status)}>
+                  {getStatusLabel(quiz.status)}
+                </span>
+              </span>
+              <strong className="block truncate text-[14px] font-extrabold leading-snug text-ink-strong dark:text-slate-100">{title}</strong>
+              {subtitle ? (
+                <span className="mt-0.5 block truncate text-[11.5px] leading-snug text-ink-soft dark:text-slate-500">{subtitle}</span>
+              ) : null}
+            </span>
+          </button>
+
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[640px]:justify-start max-[640px]:pl-[50px]">
+            <button type="button" className="inline-flex min-h-9 items-center justify-center rounded-full border border-line-medium bg-surface-2 px-3 text-xs font-extrabold text-ink-medium transition hover:-translate-y-0.5 hover:text-ink-strong" onClick={() => onView(quiz.id)}>
+              View
+            </button>
+            <button className={ui.iconButton}
+              type="button"
+              aria-label={`Edit quiz ${title}`}
+              title="Edit quiz"
+              onClick={() => onEdit(quiz.id)}
+            >
+              <EditActionIcon />
+            </button>
+            <button className={ui.dangerIconButton}
+              type="button"
+              aria-label={`Delete quiz ${title}`}
+              title="Delete quiz"
+              onClick={() => onDelete(quiz)}
+              disabled={deletingId === quiz.id}
+            >
+              <DeleteActionIcon />
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function QuizMap({ quizzes, loading, onEdit, onView, onDelete, deletingId }) {
+  const groupedCourses = useMemo(() => buildQuizMap(quizzes), [quizzes]);
+
+  return (
+    <section className={cx(ui.panelCard, 'grid gap-4')}>
       <div className={ui.panelTop}>
         <div>
-          <h2 className={ui.panelTitle}>{title}</h2>
-          <p className={ui.panelText}>{subtitle}</p>
+          <h2 className={ui.panelTitle}>Quiz Lesson Map</h2>
+          <p className={ui.panelText}>Quizzes are grouped like the lesson map: course, subject, topic, then quiz set.</p>
         </div>
       </div>
 
-      <div className={ui.tableShell}>
-        <table className={ui.modernTable}>
-          <thead>
-            <tr>
-              <th className={ui.tableHeadCell}>Quiz</th>
-              <th className={ui.tableHeadCell}>Course</th>
-              <th className={ui.tableHeadCell}>Subject / Topic</th>
-              <th className={ui.tableHeadCell}>Questions</th>
-              <th className={ui.tableHeadCell}>Status</th>
-              <th className={ui.tableHeadCell}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="6" className={ui.tableEmpty}>Loading quizzes...</td>
-              </tr>
-            ) : null}
-            {!loading && quizzes.length === 0 ? (
-              <tr>
-                <td colSpan="6" className={ui.tableEmpty}>{emptyLabel}</td>
-              </tr>
-            ) : null}
-            {!loading && quizzes.map((quiz) => (
-              <tr key={quiz.id}>
-                <td className={ui.tableCell}>
-                  <strong>{quiz.adminName || quiz.quizTitle}</strong>
-                  <div className={ui.tableSubtext}>
-                    {quiz.studentTitle || quiz.quizTitle}
+      {loading ? (
+        <div className="rounded-3xl border border-dashed border-line-medium bg-surface-2/50 px-5 py-8 text-center text-sm font-bold text-ink-soft">
+          Loading quizzes...
+        </div>
+      ) : null}
+
+      {!loading && groupedCourses.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-line-medium bg-surface-2/50 px-5 py-8 text-center text-sm font-bold text-ink-soft">
+          No quizzes found for the selected filters.
+        </div>
+      ) : null}
+
+      <div className="grid gap-4">
+        {!loading && groupedCourses.map((course, courseIndex) => (
+          <article key={course.name} className="overflow-hidden rounded-[24px] border border-line-soft bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(14,165,233,0.03)),var(--surface-1)] shadow-sm dark:border-sky-300/12 dark:bg-white/[0.035]">
+            <header className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line-soft px-4 py-4 max-[720px]:grid-cols-[42px_minmax(0,1fr)] max-[720px]:[&>div:last-child]:col-span-2">
+              <span className="grid size-12 place-items-center rounded-2xl border border-brand-primary/18 bg-brand-primary/10 text-sm font-black text-brand-primary dark:border-sky-300/20 dark:bg-sky-400/10 dark:text-sky-200 max-[720px]:size-10">
+                {courseIndex + 1}
+              </span>
+              <div className="min-w-0">
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-ink-soft">Course</span>
+                <h3 className="truncate text-[18px] font-black text-ink-strong dark:text-slate-100">{course.name}</h3>
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] font-black uppercase tracking-[0.05em] text-ink-soft max-[720px]:justify-start">
+                <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1">{course.total} quizzes</span>
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-emerald-700 dark:text-emerald-300">{course.active} active</span>
+                <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-amber-700 dark:text-amber-300">{course.draft} draft</span>
+              </div>
+            </header>
+
+            <div className="grid gap-4 p-4">
+              {course.subjects.map((subject) => (
+                <section key={subject.name} className="rounded-[22px] border border-line-soft bg-surface-card p-4 dark:border-sky-300/10 dark:bg-white/[0.03]">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-ink-soft">Subject</span>
+                      <h4 className="text-[15px] font-black text-ink-strong dark:text-slate-100">{subject.name}</h4>
+                    </div>
+                    <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-black text-ink-soft">{subject.total} quizzes</span>
                   </div>
-                  {quiz.quizDescription ? <div className={ui.tableSubtext}>{quiz.quizDescription}</div> : null}
-                </td>
-                <td className={ui.tableCell}>{quiz.courseTitle || '-'}</td>
-                <td className={ui.tableCell}>
-                  {[quiz.isGeneral === 1 ? 'General / Full Course' : quiz.subjectName || '-', quiz.topicName || null, quiz.lessonTitle || null]
-                    .filter(Boolean)
-                    .join(' • ')}
-                </td>
-                <td className={ui.tableCell}>{quiz.totalQuestions}</td>
-                <td className={ui.tableCell}>
-                  <span className={statusPill(quiz.status)}>
-                    {getStatusLabel(quiz.status)}
-                  </span>
-                </td>
-                <td className={ui.tableCell}>
-                  <div className={ui.iconRow}>
-                    <button type="button" className="inline-flex min-h-8 items-center justify-center rounded-md border border-line-medium bg-surface-2 px-3 text-xs font-extrabold text-ink-medium transition hover:-translate-y-0.5 hover:text-ink-strong" onClick={() => onView(quiz.id)}>
-                      View
-                    </button>
-                    <button className={ui.iconButton}
-                      type="button"
-                     
-                      aria-label={`Edit quiz ${quiz.adminName || quiz.quizTitle}`}
-                      title="Edit quiz"
-                      onClick={() => onEdit(quiz.id)}
-                    >
-                      <EditActionIcon />
-                    </button>
-                    <button className={ui.dangerIconButton}
-                      type="button"
-                     
-                      aria-label={`Delete quiz ${quiz.adminName || quiz.quizTitle}`}
-                      title="Delete quiz"
-                      onClick={() => onDelete(quiz)}
-                      disabled={deletingId === quiz.id}
-                    >
-                      <DeleteActionIcon />
-                    </button>
+
+                  <div className="grid gap-4">
+                    {subject.topics.map((topic) => (
+                      <div key={topic.name} className="relative">
+                        <div className="mb-2 ml-8 flex items-center gap-2 max-[640px]:ml-7">
+                          <span className="size-2 rounded-full bg-brand-primary/70" />
+                          <span className="text-[12px] font-black uppercase tracking-[0.08em] text-ink-soft">{topic.name}</span>
+                        </div>
+                        <div className="relative grid gap-2 before:absolute before:left-[13px] before:top-0 before:h-full before:w-px before:bg-line-soft max-[640px]:before:left-[12px]">
+                          {topic.quizzes.map((quiz, index) => (
+                            <QuizMapRow
+                              key={quiz.id}
+                              quiz={quiz}
+                              index={index}
+                              onEdit={onEdit}
+                              onView={onView}
+                              onDelete={onDelete}
+                              deletingId={deletingId}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </section>
+              ))}
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   );
@@ -288,24 +432,9 @@ export function QuizzesPage() {
           </form>
         </section>
 
-        <QuizTable
-          title="Active Quizzes"
-          subtitle="Active Quizzes"
-          quizzes={activeQuizzes}
+        <QuizMap
+          quizzes={quizzes}
           loading={loading}
-          emptyLabel="No active quizzes found."
-          onEdit={(id) => navigate(`/quizzes/${id}/edit`)}
-          onView={(id) => navigate(`/quizzes/${id}/edit`)}
-          onDelete={handleDelete}
-          deletingId={deletingId}
-        />
-
-        <QuizTable
-          title="Draft Quizzes"
-          subtitle="Draft Quizzes"
-          quizzes={draftQuizzes}
-          loading={loading}
-          emptyLabel="No draft quizzes found."
           onEdit={(id) => navigate(`/quizzes/${id}/edit`)}
           onView={(id) => navigate(`/quizzes/${id}/edit`)}
           onDelete={handleDelete}

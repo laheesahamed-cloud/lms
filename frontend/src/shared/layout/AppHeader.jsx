@@ -6,7 +6,7 @@ import { useAuthStore } from '../stores/authStore.js';
 import { ProfileAvatar } from '../ui/ProfileAvatar.jsx';
 import { ThemeToggle } from './ThemeToggle.jsx';
 import { HeaderInstallAction } from './HeaderInstallAction.jsx';
-import { getStaffRoleLabel, isStaffUser, roleRouteMode } from '../auth/roleAccess.js';
+import { getStaffRoleLabel, isStaffUser, roleRouteMode, userHasPermission } from '../auth/roleAccess.js';
 import { cx, ui } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
 
@@ -213,7 +213,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   const visibleUnreadNotifications = useMemo(() => unreadNotifications.slice(0, 5), [unreadNotifications]);
   const isStaff = isStaffUser(user);
 
-  const settingsPath = isStaff ? rolePath('/settings', user?.role) : '';
+  const settingsPath = isStaff && userHasPermission(user, 'settings.manage') ? rolePath('/settings', user?.role) : '';
   const profilePath = rolePath('/profile', user?.role);
   const profilePrimary = isStaff
     ? getAdminUserIdentifier(user, 'Signed in user')

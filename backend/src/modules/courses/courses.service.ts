@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { sqlPlaceholders } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
 import { PlansService } from '../plans/plans.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -272,7 +273,7 @@ export class CoursesService {
 
     const accessProfile = await this.getLessonAccessProfile(userId);
 
-    const placeholders = courseIds.map(() => '?').join(',');
+    const placeholders = sqlPlaceholders(courseIds);
     const [subjectRows] = await this.db.execute<SubjectRow[]>(
       `SELECT id, course_id, topic_name, status
        FROM topics

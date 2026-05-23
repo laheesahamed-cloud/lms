@@ -358,7 +358,7 @@ export class SubscriptionsService {
       requestId: result.insertId,
       userId: student.id,
       actorId: student.id,
-      eventType: 'manual_payment_uploaded',
+      eventType: 'bank_transfer_uploaded',
       summary: `${student.email} uploaded bank transfer proof for ${plan.name}`,
       details: { planId: plan.id, amount, currency, invoiceId, paymentReference: dto.paymentReference || '', proofFileName: savedProof.fileName, ...scope },
     });
@@ -384,6 +384,9 @@ export class SubscriptionsService {
     if (!buffer.length || buffer.length > 3_500_000) {
       throw new BadRequestException('Payment proof is too large. Please upload a smaller screenshot or PDF');
     }
+    if (!this.hasValidPaymentProofSignature(buffer, mimeType)) {
+      throw new BadRequestException('Payment proof file contents do not match the selected file type');
+    }
 
     const uploadDir = join(process.cwd(), 'uploads', 'payment-proofs');
     await mkdir(uploadDir, { recursive: true });
@@ -396,6 +399,32 @@ export class SubscriptionsService {
       mimeType,
       publicPath: `/uploads/payment-proofs/${fileName}`,
     };
+  }
+
+  private hasValidPaymentProofSignature(buffer: Buffer, mimeType: string) {
+    if (mimeType === 'application/pdf') {
+      return buffer.subarray(0, 5).toString('ascii') === '%PDF-';
+    }
+    if (mimeType === 'image/png') {
+      return buffer.length >= 8 &&
+        buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47 &&
+        buffer[4] === 0x0d &&
+        buffer[5] === 0x0a &&
+        buffer[6] === 0x1a &&
+        buffer[7] === 0x0a;
+    }
+    if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
+      return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    }
+    if (mimeType === 'image/webp') {
+      return buffer.length >= 12 &&
+        buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+        buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+    }
+    return false;
   }
 
   private async generateInvoiceId() {
@@ -863,44 +892,49 @@ export class SubscriptionsService {
     const statusCode = String(body.status_code || '').trim();
     const md5sig = String(body.md5sig || '').trim().toUpperCase();
 
-    if (!settings.merchantSecret || !orderId) {
-      return { ok: false };
+    this.assertPayHereNotificationPayload({ merchantId, orderId, payhereAmount, payhereCurrency, statusCode, md5sig });
+
+    if (!settings.merchantId || !settings.merchantSecret) {
+      throw new BadRequestException('PayHere is not configured');
     }
 
     const localSig = this.generateNotificationHash(merchantId, orderId, payhereAmount, payhereCurrency, statusCode, settings.merchantSecret);
     const transaction = await this.findPaymentTransaction(orderId);
-    const verified =
-      Boolean(transaction) &&
-      merchantId === settings.merchantId &&
-      transaction.currency === payhereCurrency &&
-      this.formatAmount(Number(transaction.amount)) === this.formatAmount(Number(payhereAmount)) &&
-      localSig === md5sig;
-    const nextStatus = verified ? this.mapPayHereStatus(statusCode) : 'invalid';
-    let subscriptionId = transaction?.subscription_id ? Number(transaction.subscription_id) : null;
-
-    if (transaction) {
-      await this.db.execute(
-        `
-          UPDATE payment_transactions
-          SET status = ?,
-              payhere_payment_id = ?,
-              payment_method = ?,
-              md5sig = ?,
-              raw_notify_json = ?
-          WHERE id = ?
-        `,
-        [
-          nextStatus,
-          String(body.payment_id || '').trim() || null,
-          String(body.method || '').trim() || null,
-          md5sig || null,
-          JSON.stringify(body || {}),
-          transaction.id,
-        ]
-      );
+    if (!transaction ||
+        merchantId !== settings.merchantId ||
+        transaction.currency !== payhereCurrency ||
+        this.formatAmount(Number(transaction.amount)) !== this.formatAmount(Number(payhereAmount)) ||
+        localSig !== md5sig) {
+      throw new BadRequestException('PayHere notification verification failed');
     }
 
-    if (verified && nextStatus === 'paid' && transaction && !subscriptionId && settings.autoActivatePaidSubscriptions) {
+    const nextStatus = this.mapPayHereStatus(statusCode);
+    if (nextStatus === 'paid' && (transaction.status === 'paid' || transaction.subscription_id)) {
+      throw new BadRequestException('PayHere notification was already processed');
+    }
+    let subscriptionId = transaction?.subscription_id ? Number(transaction.subscription_id) : null;
+
+    await this.db.execute(
+      `
+        UPDATE payment_transactions
+        SET status = ?,
+            payhere_payment_id = ?,
+            payment_method = ?,
+            md5sig = ?,
+            raw_notify_json = ?
+        WHERE id = ?
+      `,
+      [
+        nextStatus,
+        String(body.payment_id || '').trim() || null,
+        String(body.method || '').trim() || null,
+        md5sig || null,
+        JSON.stringify(body || {}),
+        transaction.id,
+      ]
+    );
+
+    if (nextStatus === 'paid' && !subscriptionId && settings.autoActivatePaidSubscriptions) {
       const plan = await this.plansService.findById(Number(transaction.plan_id));
       const startDate = this.toDateOnly(new Date());
       const endDate = this.addDays(startDate, Math.max(1, plan.durationDays) - 1);
@@ -936,11 +970,11 @@ export class SubscriptionsService {
         summary: `Verified PayHere payment for ${plan.name}`,
         details: { orderId, paymentId: body.payment_id || '', amount: payhereAmount, currency: payhereCurrency, couponCode: transaction.coupon_code || '', discountAmount: transaction.discount_amount || 0, accessScope: transaction.access_scope || 'all', courseIds: this.parseIdList(transaction.course_ids_json), lessonIds: this.parseIdList(transaction.lesson_ids_json) },
       });
-    } else if (transaction) {
+    } else {
       await this.logAudit({
         userId: Number(transaction.user_id),
-        eventType: verified ? `payhere_payment_${nextStatus}` : 'payhere_payment_invalid',
-        summary: verified ? `PayHere payment marked ${nextStatus}` : 'PayHere notification failed verification',
+        eventType: `payhere_payment_${nextStatus}`,
+        summary: `PayHere payment marked ${nextStatus}`,
         details: { orderId, statusCode, paymentId: body.payment_id || '', amount: payhereAmount, currency: payhereCurrency },
       });
     }
@@ -1639,6 +1673,31 @@ export class SubscriptionsService {
     if (statusCode === '-1') return 'cancelled';
     if (statusCode === '-3') return 'chargedback';
     return 'failed';
+  }
+
+  private assertPayHereNotificationPayload(input: {
+    merchantId: string;
+    orderId: string;
+    payhereAmount: string;
+    payhereCurrency: string;
+    statusCode: string;
+    md5sig: string;
+  }) {
+    if (!input.merchantId || !input.orderId || !input.payhereAmount || !input.payhereCurrency || !input.statusCode || !input.md5sig) {
+      throw new BadRequestException('PayHere notification payload is incomplete');
+    }
+    if (!/^\d+(?:\.\d{1,2})?$/.test(input.payhereAmount)) {
+      throw new BadRequestException('PayHere notification amount is invalid');
+    }
+    if (!/^[A-Z]{3}$/.test(input.payhereCurrency)) {
+      throw new BadRequestException('PayHere notification currency is invalid');
+    }
+    if (!['2', '0', '-1', '-2', '-3'].includes(input.statusCode)) {
+      throw new BadRequestException('PayHere notification status is invalid');
+    }
+    if (!/^[a-f0-9]{32}$/i.test(input.md5sig)) {
+      throw new BadRequestException('PayHere notification signature is invalid');
+    }
   }
 
   private splitName(fullName: string) {

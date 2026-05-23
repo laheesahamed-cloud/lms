@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { fetchAdminPushStatus, sendAdminPushNotification } from '../../../../shared/api/pushNotifications.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { detectPlatform } from '../../../../shared/platform/detect.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { AdminApnsSettingsPanel } from './AdminApnsSettingsPanel.jsx';
+import { AdminFcmSettingsPanel } from './AdminFcmSettingsPanel.jsx';
 
 const emptyPushForm = {
   title: 'ERPM LMS',
@@ -24,7 +25,6 @@ export function AdminNotificationSettingsPanel() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const isNativeApp = detectPlatform().isNative;
 
   async function loadStatus() {
     setStatus(await fetchAdminPushStatus());
@@ -44,8 +44,8 @@ export function AdminNotificationSettingsPanel() {
       await loadStatus().catch(() => {});
       if (result.ok) {
         const appPart = result.inAppCreated ? '1 app notification created' : 'No app notification created';
-        const phonePart = `${result.sent || 0} phone device${result.sent === 1 ? '' : 's'} reached`;
-        setMessage(`${appPart}. ${phonePart}.`);
+        const nativePart = `${result.sent || 0} native device${result.sent === 1 ? '' : 's'} reached`;
+        setMessage(`${appPart}. ${nativePart}.`);
       } else {
         setError(result.reason || `Sent ${result.sent || 0}, failed ${result.failed || 0}.`);
       }
@@ -56,39 +56,43 @@ export function AdminNotificationSettingsPanel() {
     }
   }
 
-  const vapidReady = Boolean(status?.vapidEnabled);
   const nativeReady = Boolean(status?.nativePushConfigured);
-  const phoneReady = isNativeApp ? nativeReady : vapidReady;
-  const requiresPhonePush = form.deliveryType === 'outside' || form.deliveryType === 'both';
+  const iosReady = Boolean(status?.iosNativePushConfigured);
+  const androidReady = Boolean(status?.androidNativePushConfigured);
+  const requiresNativePush = form.deliveryType === 'outside' || form.deliveryType === 'both';
 
   return (
     <div className="grid gap-4">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,190px),1fr))] gap-3">
-        <div className={cx('rounded-xl border px-4 py-3', statusTone(phoneReady))}>
-          <strong className="block text-[22px] font-black leading-none">{phoneReady ? 'Ready' : 'Setup needed'}</strong>
-          <span className="mt-1 block text-xs font-bold">{isNativeApp ? 'Native push status' : 'VAPID status'}</span>
+        <div className={cx('rounded-xl border px-4 py-3', statusTone(nativeReady))}>
+          <strong className="block text-[22px] font-black leading-none">{nativeReady ? 'Ready' : 'Setup needed'}</strong>
+          <span className="mt-1 block text-xs font-bold">Native push status</span>
+        </div>
+        <div className={cx('rounded-xl border px-4 py-3', statusTone(iosReady))}>
+          <strong className="block text-[22px] font-black leading-none">{iosReady ? 'Ready' : 'Setup needed'}</strong>
+          <span className="mt-1 block text-xs font-bold">iOS push</span>
+        </div>
+        <div className={cx('rounded-xl border px-4 py-3', statusTone(androidReady))}>
+          <strong className="block text-[22px] font-black leading-none">{androidReady ? 'Ready' : 'Setup needed'}</strong>
+          <span className="mt-1 block text-xs font-bold">Android push</span>
         </div>
         <div className="rounded-xl border border-line-soft bg-surface-card px-4 py-3">
-          <strong className="block text-[22px] font-black leading-none text-ink-strong">{isNativeApp ? status?.nativePushUsers ?? 0 : status?.phoneUsers ?? 0}</strong>
-          <span className="mt-1 block text-xs font-bold text-ink-muted">{isNativeApp ? 'Users with native push' : 'Users with phone push'}</span>
+          <strong className="block text-[22px] font-black leading-none text-ink-strong">{status?.nativePushUsers ?? 0}</strong>
+          <span className="mt-1 block text-xs font-bold text-ink-muted">Users with native push</span>
         </div>
         <div className="rounded-xl border border-line-soft bg-surface-card px-4 py-3">
-          <strong className="block text-[22px] font-black leading-none text-ink-strong">{isNativeApp ? status?.nativePushTokens ?? 0 : status?.phoneSubscriptions ?? 0}</strong>
+          <strong className="block text-[22px] font-black leading-none text-ink-strong">{status?.nativePushTokens ?? 0}</strong>
           <span className="mt-1 block text-xs font-bold text-ink-muted">Active devices</span>
         </div>
       </div>
 
       <div className={ui.infoCard}>
-        {isNativeApp
-          ? 'The admin chooses the delivery type for each message. App notifications appear inside the LMS notification page. Device alerts are sent only to users who enabled native notifications in the installed app.'
-          : 'The admin chooses the delivery type for each message. App notifications appear inside the LMS notification page. Phone notifications use Web Push and only reach users who enabled phone notifications on their device.'}
+        Notifications have two delivery paths: in-app notifications inside the LMS, and native app notifications for installed iOS/Android apps.
       </div>
 
-      {!phoneReady ? (
+      {!nativeReady ? (
         <div className={ui.warningFeedback}>
-          {isNativeApp
-            ? 'Enable Push Notifications in Apple Developer/Xcode, add Firebase google-services.json for Android, and configure backend APNs/FCM credentials before sending native device alerts.'
-            : <>Generate VAPID keys with <code>npm run push:vapid --prefix backend</code>, then set <code>VAPID_PUBLIC_KEY</code>, <code>VAPID_PRIVATE_KEY</code>, and <code>VAPID_SUBJECT</code> in the backend environment.</>}
+          Configure APNs for iOS and FCM for Android before sending native app notifications.
         </div>
       ) : null}
 
@@ -122,9 +126,9 @@ export function AdminNotificationSettingsPanel() {
               value={form.deliveryType}
               onChange={(event) => setForm((current) => ({ ...current, deliveryType: event.target.value }))}
             >
-              <option value="both">App + phone notification</option>
-              <option value="inside">Inside app only</option>
-              <option value="outside">Phone notification only</option>
+              <option value="both">In-app + native notification</option>
+              <option value="inside">In-app only</option>
+              <option value="outside">Native notification only</option>
             </select>
           </label>
           <label className={ui.formLabel}>
@@ -152,7 +156,7 @@ export function AdminNotificationSettingsPanel() {
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
 
         <div className={ui.buttonRow}>
-          <button className={ui.primaryAction} disabled={busy || (requiresPhonePush && !phoneReady)}>
+          <button className={ui.primaryAction} disabled={busy || (requiresNativePush && !nativeReady)}>
             {busy ? 'Sending...' : 'Send notification'}
           </button>
           <button type="button" className={ui.secondaryAction} onClick={loadStatus} disabled={busy}>
@@ -160,6 +164,22 @@ export function AdminNotificationSettingsPanel() {
           </button>
         </div>
       </form>
+
+      <section className="grid gap-4 rounded-lg border border-line-soft bg-surface-1 p-4">
+        <div>
+          <h3 className="m-0 text-base font-black text-ink-strong">iOS push settings</h3>
+          <p className="m-0 mt-1 text-[12.5px] leading-relaxed text-ink-soft">APNs credentials for native iPhone and iPad notifications.</p>
+        </div>
+        <AdminApnsSettingsPanel />
+      </section>
+
+      <section className="grid gap-4 rounded-lg border border-line-soft bg-surface-1 p-4">
+        <div>
+          <h3 className="m-0 text-base font-black text-ink-strong">Android push settings</h3>
+          <p className="m-0 mt-1 text-[12.5px] leading-relaxed text-ink-soft">Firebase Cloud Messaging credentials for native Android notifications.</p>
+        </div>
+        <AdminFcmSettingsPanel />
+      </section>
     </div>
   );
 }

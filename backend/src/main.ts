@@ -1,10 +1,8 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
 const express = require('express') as any;
 const { json, urlencoded } = express;
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require('path');
 import { AppModule } from './app.module';
 import { AuthService } from './modules/auth/auth.service';
@@ -30,6 +28,14 @@ function extractCookieValue(cookieHeader: string | undefined, name: string) {
     ?.slice(name.length + 1) || '';
 }
 
+function isUnsafeMethod(method: string) {
+  return !['GET', 'HEAD', 'OPTIONS'].includes(String(method || 'GET').toUpperCase());
+}
+
+function hasSessionCookie(cookieHeader: string | undefined) {
+  return Boolean(extractCookieValue(cookieHeader, 'lms_session'));
+}
+
 function isLocalOrigin(origin: string) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 }
@@ -42,8 +48,91 @@ function isCapacitorOrigin(origin: string) {
   return /^(capacitor|ionic):\/\/localhost$/i.test(origin);
 }
 
-function isAllowedOrigin(origin: string, configuredFrontendUrl: string, allowLanOrigins: boolean) {
-  return origin === configuredFrontendUrl ||
+function splitUrlList(value: string | undefined) {
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function toOrigin(value: string | undefined) {
+  const clean = String(value || '').trim();
+  if (!clean) return '';
+
+  try {
+    return new URL(clean).origin;
+  } catch {
+    return '';
+  }
+}
+
+function cspJoin(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean))).join(' ');
+}
+
+function getConfiguredFrontendOrigins(configService: ConfigService) {
+  return Array.from(new Set([
+    configService.get<string>('frontendUrl'),
+    configService.get<string>('FRONTEND_URL'),
+    configService.get<string>('APP_PUBLIC_URL'),
+    ...splitUrlList(configService.get<string>('FRONTEND_URLS')),
+  ].map(toOrigin).filter(Boolean)));
+}
+
+function buildContentSecurityPolicy(frontendOrigins: string[], apiOrigin: string, allowLanOrigins: boolean) {
+  const runtimeOrigins = Array.from(new Set([...frontendOrigins, apiOrigin].filter(Boolean)));
+  const nativeSources = ['capacitor://localhost', 'ionic://localhost'];
+  const localDevSources = allowLanOrigins
+    ? ['http:', 'http://localhost:*', 'http://127.0.0.1:*']
+    : [];
+
+  return [
+    "default-src 'none'",
+    `connect-src ${cspJoin(["'self'", ...runtimeOrigins, ...localDevSources, ...nativeSources])}`,
+    `script-src ${cspJoin(["'self'", ...nativeSources])}`,
+    `frame-src ${cspJoin(["'self'", ...nativeSources])}`,
+    `img-src ${cspJoin(["'self'", 'data:', 'blob:', ...runtimeOrigins, ...localDevSources])}`,
+    `style-src ${cspJoin(["'self'", "'unsafe-inline'", ...nativeSources])}`,
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join('; ');
+}
+
+function assertProductionConfig(configService: ConfigService, frontendOrigins: string[], allowLanOrigins: boolean) {
+  const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
+  if (nodeEnv !== 'production') return;
+
+  const failures: string[] = [];
+  const hasPublicFrontendOrigin = frontendOrigins.some((origin) =>
+    !isLocalOrigin(origin) && !isPrivateLanOrigin(origin)
+  );
+  const settingsEncryptionKey = String(configService.get<string>('SETTINGS_ENCRYPTION_KEY') || '').trim();
+  const dbPassword = String(configService.get<string>('database.password') || '').trim();
+
+  if (!hasPublicFrontendOrigin) {
+    failures.push('Set FRONTEND_URL or FRONTEND_URLS to the live HTTPS frontend origin before production startup.');
+  }
+
+  if (allowLanOrigins) {
+    failures.push('ALLOW_LAN_ORIGINS must be false in production.');
+  }
+
+  if (settingsEncryptionKey.length < 32 || /^change-this/i.test(settingsEncryptionKey)) {
+    failures.push('SETTINGS_ENCRYPTION_KEY must be a long random production secret.');
+  }
+
+  if (!dbPassword) {
+    failures.push('DB_PASSWORD must be set for the production database user.');
+  }
+
+  if (failures.length) {
+    throw new Error(`Production configuration is not safe to start:\n- ${failures.join('\n- ')}`);
+  }
+}
+
+function isAllowedOrigin(origin: string, configuredFrontendOrigins: string[], allowLanOrigins: boolean) {
+  return configuredFrontendOrigins.includes(origin) ||
     isCapacitorOrigin(origin) ||
     (allowLanOrigins && (isLocalOrigin(origin) || isPrivateLanOrigin(origin)));
 }
@@ -70,6 +159,20 @@ function extractRouteItemId(path: string) {
 
 function getRequestIp(req: any) {
   return String(req.ip || req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+}
+
+function getAuthRateLimitPolicy(path: string) {
+  const normalizedPath = normalizeRateLimitPath(path.replace(/\?.*$/, ''));
+  if (normalizedPath === '/api/auth/login') {
+    return { windowMs: 15 * 60_000, maxRequests: 8 };
+  }
+  if (normalizedPath === '/api/auth/forgot-password') {
+    return { windowMs: 60 * 60_000, maxRequests: 5 };
+  }
+  if (normalizedPath === '/api/auth/reset-password') {
+    return { windowMs: 15 * 60_000, maxRequests: 10 };
+  }
+  return { windowMs: 60_000, maxRequests: 20 };
 }
 
 function updateContentDeviceAudit(userId: string, ip: string, userAgent: string) {
@@ -181,14 +284,17 @@ function rewriteRequestUrl(req: any, targetPath: string) {
   req.url = `${targetPath}${query}`;
 }
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
+export async function configureApp(app: INestApplication) {
   const configService = app.get(ConfigService);
   const authService = app.get(AuthService);
-  const bodyLimit = configService.get<string>('bodyLimit') || configService.get<string>('BODY_LIMIT') || '75mb';
+  const bodyLimit = configService.get<string>('bodyLimit') || configService.get<string>('BODY_LIMIT') || '8mb';
   const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
   const allowLanOrigins = configService.get<string>('ALLOW_LAN_ORIGINS') === 'true' || nodeEnv !== 'production';
+  const configuredFrontendOrigins = getConfiguredFrontendOrigins(configService);
+  const configuredApiOrigin = toOrigin(configService.get<string>('API_PUBLIC_URL')) || toOrigin(configService.get<string>('APP_PUBLIC_URL'));
+  assertProductionConfig(configService, configuredFrontendOrigins, allowLanOrigins);
   const uploadsRoot = path.join(process.cwd(), 'uploads');
+  const contentSecurityPolicy = buildContentSecurityPolicy(configuredFrontendOrigins, configuredApiOrigin, allowLanOrigins);
 
   app.use('/uploads/payment-proofs', (_req: any, res: any) => {
     res.status(404).json({ message: 'File not found' });
@@ -196,9 +302,11 @@ async function bootstrap() {
 
   app.use('/uploads', express.static(uploadsRoot, {
     index: false,
+    dotfiles: 'deny',
     setHeaders: (res: any) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Content-Disposition', 'attachment');
     },
   }));
 
@@ -210,7 +318,7 @@ async function bootstrap() {
     res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'none'; connect-src 'self' http://localhost:3000 http://127.0.0.1:3000 http://192.168.0.117:3000 http://192.168.2.189:3000 http://172.20.10.2:3000 capacitor://localhost ionic://localhost; script-src 'self' capacitor://localhost ionic://localhost; frame-src 'self' capacitor://localhost ionic://localhost; img-src 'self' data: blob: http://192.168.0.117:3000 http://192.168.2.189:3000 http://172.20.10.2:3000; style-src 'self' 'unsafe-inline' capacitor://localhost ionic://localhost; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+      contentSecurityPolicy
     );
     res.removeHeader('X-Powered-By');
     next();
@@ -248,15 +356,15 @@ async function bootstrap() {
       const cookieToken = extractCookieValue(req.headers?.cookie, 'lms_session');
       if (cookieToken) {
         req.headers.authorization = `Bearer ${decodeURIComponent(cookieToken)}`;
+        req.lmsAuthFromCookie = true;
       }
     }
     next();
   });
 
-  const configuredFrontendUrl = configService.get<string>('frontendUrl') || 'http://localhost:5174';
   app.use((req: any, res: any, next: any) => {
     const origin = String(req.headers?.origin || '');
-    if (origin && isAllowedOrigin(origin, configuredFrontendUrl, allowLanOrigins)) {
+    if (origin && isAllowedOrigin(origin, configuredFrontendOrigins, allowLanOrigins)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
@@ -277,12 +385,25 @@ async function bootstrap() {
 
   app.use((req: any, res: any, next: any) => {
     const method = String(req.method || 'GET').toUpperCase();
-    const unsafeMethod = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+    const unsafeMethod = isUnsafeMethod(method);
     const origin = String(req.headers?.origin || '');
+    const secFetchSite = String(req.headers?.['sec-fetch-site'] || '').toLowerCase();
 
-    if (unsafeMethod && origin && !isAllowedOrigin(origin, configuredFrontendUrl, allowLanOrigins)) {
+    if (unsafeMethod && origin && !isAllowedOrigin(origin, configuredFrontendOrigins, allowLanOrigins)) {
       res.status(403).json({ message: 'Request origin is not allowed' });
       return;
+    }
+
+    if (unsafeMethod && (req.lmsAuthFromCookie || hasSessionCookie(req.headers?.cookie))) {
+      if (!origin && secFetchSite && !['same-origin', 'same-site', 'none'].includes(secFetchSite)) {
+        res.status(403).json({ message: 'Cross-site cookie request was blocked' });
+        return;
+      }
+
+      if (origin && !isAllowedOrigin(origin, configuredFrontendOrigins, allowLanOrigins)) {
+        res.status(403).json({ message: 'Cross-site cookie request was blocked' });
+        return;
+      }
     }
 
     next();
@@ -303,8 +424,9 @@ async function bootstrap() {
       return;
     }
 
-    const windowMs = 60_000;
-    const maxRequests = path.startsWith('/api/auth/') ? 20 : isAdminPath ? 40 : 10;
+    const authPolicy = path.startsWith('/api/auth/') ? getAuthRateLimitPolicy(path) : null;
+    const windowMs = authPolicy?.windowMs || 60_000;
+    const maxRequests = authPolicy?.maxRequests || (isAdminPath ? 40 : 10);
     const ip = String(req.ip || req.socket?.remoteAddress || 'unknown');
     const key = `${ip}:${path}`;
     const now = Date.now();
@@ -440,7 +562,7 @@ async function bootstrap() {
       return;
     }
 
-    if (isAllowedOrigin(origin, configuredFrontendUrl, allowLanOrigins)) {
+    if (isAllowedOrigin(origin, configuredFrontendOrigins, allowLanOrigins)) {
       callback(null, true);
       return;
     }
@@ -460,8 +582,16 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     })
   );
+}
+
+export async function bootstrap() {
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  await configureApp(app);
+  const configService = app.get(ConfigService);
 
   await app.listen(configService.get<number>('port') || 3000, '0.0.0.0');
 }
 
-bootstrap();
+if (require.main === module) {
+  bootstrap();
+}

@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { WorkspaceService } from './workspace.service';
 
 @Controller()
@@ -6,16 +7,19 @@ export class WorkspaceController {
   constructor(private readonly workspaceService: WorkspaceService) {}
 
   @Get('announcements/admin')
+  @RequirePermissions('notifications.manage')
   listAdminAnnouncements(@Headers('authorization') authorization?: string) {
     return this.workspaceService.listAdminAnnouncements(authorization);
   }
 
   @Post('announcements/admin')
+  @RequirePermissions('notifications.manage')
   createAnnouncement(@Headers('authorization') authorization: string | undefined, @Body() body: any) {
     return this.workspaceService.createAnnouncement(authorization, body);
   }
 
   @Patch('announcements/admin/:id')
+  @RequirePermissions('notifications.manage')
   updateAnnouncement(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -25,6 +29,7 @@ export class WorkspaceController {
   }
 
   @Delete('announcements/admin/:id')
+  @RequirePermissions('notifications.manage')
   deleteAnnouncement(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
     return this.workspaceService.deleteAnnouncement(authorization, id);
   }
@@ -69,6 +74,7 @@ export class WorkspaceController {
   }
 
   @Get('reports/admin')
+  @RequirePermissions('reports.view')
   getAdminReports(
     @Headers('authorization') authorization?: string,
     @Query('startDate') startDate?: string,
@@ -80,16 +86,19 @@ export class WorkspaceController {
   }
 
   @Get('question-review/admin')
+  @RequirePermissions('content.review')
   listQuestionReviewItems(@Headers('authorization') authorization?: string, @Query('status') status?: string) {
     return this.workspaceService.listQuestionReviewItems(authorization, status);
   }
 
   @Post('question-review/admin')
+  @RequirePermissions('content.review')
   createQuestionReviewItem(@Headers('authorization') authorization: string | undefined, @Body() body: any) {
     return this.workspaceService.createQuestionReviewItem(authorization, body);
   }
 
   @Patch('question-review/admin/:id')
+  @RequirePermissions('content.review')
   updateQuestionReviewItem(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -109,11 +118,13 @@ export class WorkspaceController {
   }
 
   @Get('lesson-doubts/admin')
+  @RequirePermissions('support.manage')
   listAdminDoubts(@Headers('authorization') authorization?: string, @Query('status') status?: string) {
     return this.workspaceService.listAdminDoubts(authorization, status);
   }
 
   @Patch('lesson-doubts/admin/:id')
+  @RequirePermissions('support.manage')
   answerDoubt(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,

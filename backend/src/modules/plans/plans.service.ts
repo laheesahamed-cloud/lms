@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { sqlPlaceholders } from '../../database/sql-safety';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { CreateSubscriptionFeatureDto } from './dto/create-subscription-feature.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
@@ -356,7 +357,7 @@ export class PlansService {
       return map;
     }
 
-    const placeholders = planIds.map(() => '?').join(',');
+    const placeholders = sqlPlaceholders(planIds);
     const [rows] = await this.db.execute<PlanFeatureMapRow[]>(
       `
         SELECT plan_id, feature_id, is_enabled
@@ -438,7 +439,7 @@ export class PlansService {
       return [];
     }
 
-    const placeholders = cleaned.map(() => '?').join(',');
+    const placeholders = sqlPlaceholders(cleaned);
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `SELECT id FROM subscription_features WHERE id IN (${placeholders})`,
       cleaned
@@ -484,7 +485,7 @@ export class PlansService {
   private async refreshSinglePlanFeatureJson(connection: PoolConnection, planId: number, featureIds: number[]) {
     let featureNames: string[] = [];
     if (featureIds.length > 0) {
-      const placeholders = featureIds.map(() => '?').join(',');
+      const placeholders = sqlPlaceholders(featureIds);
       const [rows] = await connection.execute<RowDataPacket[]>(
         `SELECT feature_name FROM subscription_features WHERE id IN (${placeholders}) ORDER BY feature_name ASC`,
         featureIds

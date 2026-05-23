@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Patch, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Patch, Post, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { SESSION_TTL_DAYS } from './auth-token.util';
@@ -20,12 +20,11 @@ export class AuthController {
   async login(
     @Body() loginDto: LoginDto,
     @Headers('x-lms-native') nativeHeader: string | undefined,
-    @Query('native') nativeQuery: string | undefined,
     @Res({ passthrough: true }) response: any
   ) {
     const result = await this.authService.login(loginDto);
     this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
-    if (this.shouldExposeSessionToken(nativeHeader, nativeQuery)) {
+    if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;
     }
     const { sessionToken: _sessionToken, ...safeResult } = result;
@@ -36,12 +35,11 @@ export class AuthController {
   async register(
     @Body() registerDto: RegisterDto,
     @Headers('x-lms-native') nativeHeader: string | undefined,
-    @Query('native') nativeQuery: string | undefined,
     @Res({ passthrough: true }) response: any
   ) {
     const result = await this.authService.register(registerDto);
     this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
-    if (this.shouldExposeSessionToken(nativeHeader, nativeQuery)) {
+    if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;
     }
     const { sessionToken: _sessionToken, ...safeResult } = result;
@@ -54,9 +52,9 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Headers('authorization') authorization: string | undefined, @Res({ passthrough: true }) response: any) {
+  async logout(@Headers('authorization') authorization: string | undefined, @Headers('cookie') cookie: string | undefined, @Res({ passthrough: true }) response: any) {
     this.clearSessionCookie(response);
-    return this.authService.logout(authorization);
+    return this.authService.logout(authorization || this.authorizationFromCookie(cookie));
   }
 
   @Post('forgot-password')
@@ -98,7 +96,16 @@ export class AuthController {
     });
   }
 
-  private shouldExposeSessionToken(...signals: Array<string | undefined>) {
-    return signals.some((signal) => /^(1|true|native|ios|android)$/i.test(String(signal || '').trim()));
+  private shouldExposeSessionToken(nativeHeader: string | undefined) {
+    return /^(1|true|native|ios|android)$/i.test(String(nativeHeader || '').trim());
+  }
+
+  private authorizationFromCookie(cookieHeader?: string) {
+    const token = String(cookieHeader || '')
+      .split(';')
+      .map((part) => part.trim())
+      .find((part) => part.startsWith('lms_session='))
+      ?.slice('lms_session='.length) || '';
+    return token ? `Bearer ${decodeURIComponent(token)}` : undefined;
   }
 }

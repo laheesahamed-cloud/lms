@@ -1,10 +1,14 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get, Headers, Inject, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from './database/database.tokens';
 
 @Controller('health')
 export class HealthController {
-  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Pool,
+    private readonly configService: ConfigService
+  ) {}
 
   @Get()
   check() {
@@ -35,7 +39,8 @@ export class HealthController {
   }
 
   @Get('metrics')
-  async metrics() {
+  async metrics(@Headers('x-health-token') healthToken?: string) {
+    this.requireMetricsAccess(healthToken);
     const [rows] = await this.db.execute<RowDataPacket[]>(`
       SELECT
         (SELECT COUNT(*) FROM users) AS users,
@@ -64,5 +69,17 @@ export class HealthController {
       },
       timestamp: new Date().toISOString(),
     };
+  }
+
+  private requireMetricsAccess(healthToken?: string) {
+    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+    if (nodeEnv !== 'production') return;
+
+    const configuredToken = this.configService.get<string>('HEALTH_METRICS_TOKEN') ||
+      this.configService.get<string>('healthMetricsToken') ||
+      '';
+    if (!configuredToken || healthToken !== configuredToken) {
+      throw new UnauthorizedException('Metrics access is restricted');
+    }
   }
 }

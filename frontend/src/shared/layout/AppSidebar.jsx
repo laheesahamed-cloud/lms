@@ -4,7 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { useThemeStore } from '../stores/themeStore.js';
 import { preloadRouteByPath } from '../../app/router.jsx';
-import { isStaffUser, roleRouteMode } from '../auth/roleAccess.js';
+import { isStaffUser, roleRouteMode, userHasPermissions } from '../auth/roleAccess.js';
 import { cx } from '../styles/tailwindClasses.js';
 
 /* ── Icon Set (16×16) — standard stroke-based icons ──────────── */
@@ -169,28 +169,29 @@ function ChevronIcon() {
 /* ── Nav data ─────────────────────────────────────────────────── */
 const adminLinks = [
   { to: '/dashboard',     label: 'Command',       icon: 'Dashboard' },
-  { to: '/courses',       label: 'Courses',       icon: 'Courses'   },
-  { to: '/structure',     label: 'Structure',     icon: 'Structure' },
-  { to: '/questions',     label: 'Questions',     icon: 'Questions' },
-  { to: '/quizzes',       label: 'Assessments',   icon: 'Quizzes'   },
+  { to: '/courses',       label: 'Courses',       icon: 'Courses', requiredPermissions: ['content.manage'] },
+  { to: '/structure',     label: 'Structure',     icon: 'Structure', requiredPermissions: ['content.manage'] },
+  { to: '/questions',     label: 'Questions',     icon: 'Questions', requiredPermissions: ['questions.manage'] },
+  { to: '/quizzes',       label: 'Assessments',   icon: 'Quizzes', requiredPermissions: ['quizzes.manage'] },
   {
     label: 'AI Tools',
     icon: 'AI',
     group: true,
+    requiredPermissions: ['ai.manage'],
     children: [
-      { to: '/ai/gemini',   label: 'Gemini AI'  },
-      { to: '/ai/chatgpt',  label: 'ChatGPT AI' },
+      { to: '/ai/gemini',   label: 'Gemini AI', requiredPermissions: ['ai.manage'] },
+      { to: '/ai/chatgpt',  label: 'ChatGPT AI', requiredPermissions: ['ai.manage'] },
     ],
   },
-  { to: '/subscriptions', label: 'Subscriptions', icon: 'Billing'   },
-  { to: '/finance',       label: 'Finance',       icon: 'Finance'   },
-  { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes'   },
-  { to: '/users',         label: 'Students',      icon: 'Users'     },
-  { to: '/announcements', label: 'Announcements', icon: 'Bell'      },
-  { to: '/reports',       label: 'Reports',       icon: 'Results'   },
-  { to: '/doubts',        label: 'Doubts',        icon: 'Notes'     },
-  { to: '/setup',         label: 'Setup',         icon: 'Setup'     },
-  { to: '/settings',      label: 'Settings',      icon: 'Settings'  },
+  { to: '/subscriptions', label: 'Subscriptions', icon: 'Billing', requiredPermissions: ['subscriptions.manage'] },
+  { to: '/finance',       label: 'Finance',       icon: 'Finance', requiredPermissions: ['subscriptions.manage', 'reports.view'] },
+  { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes', requiredPermissions: ['content.manage'] },
+  { to: '/users',         label: 'Students',      icon: 'Users', requiredPermissions: ['students.manage'] },
+  { to: '/announcements', label: 'Announcements', icon: 'Bell', requiredPermissions: ['notifications.manage'] },
+  { to: '/reports',       label: 'Reports',       icon: 'Results', requiredPermissions: ['reports.view'] },
+  { to: '/doubts',        label: 'Doubts',        icon: 'Notes', requiredPermissions: ['support.manage'] },
+  { to: '/setup',         label: 'Setup',         icon: 'Setup', requiredPermissions: ['settings.manage'] },
+  { to: '/settings',      label: 'Settings',      icon: 'Settings', requiredPermissions: ['settings.manage'] },
 ];
 
 const studentLinks = [
@@ -492,7 +493,7 @@ export function AppSidebar({
   const user = useAuthStore((state) => state.user);
   const location = useLocation();
   const isAdminConsole = isStaffUser(user);
-  const links = prefixLinks(isAdminConsole ? adminLinks : studentLinks, user?.role);
+  const links = prefixLinks(filterLinksByAccess(isAdminConsole ? adminLinks : studentLinks, user), user?.role);
   const isStudent = user?.role === 'student';
   const studentName = user?.fullName || 'Student';
 
@@ -651,6 +652,31 @@ function withRolePrefix(path, role) {
   if (!path || path.startsWith('/admin') || path.startsWith('/app')) return path;
   if (path.startsWith('/ai/')) return path;
   return `${roleRouteMode(role) === 'admin' ? '/admin' : '/app'}${path}`;
+}
+
+function canAccessNavItem(item, user) {
+  const requiredPermissions = item.requiredPermissions || [];
+  return requiredPermissions.length === 0 || userHasPermissions(user, requiredPermissions);
+}
+
+function filterLinksByAccess(items, user) {
+  return items
+    .map((item) => {
+      if (item.children) {
+        const children = item.children.filter((child) => canAccessNavItem(child, user));
+        return {
+          ...item,
+          children,
+        };
+      }
+
+      return item;
+    })
+    .filter((item) => {
+      if (!canAccessNavItem(item, user)) return false;
+      if (item.children) return item.children.length > 0;
+      return true;
+    });
 }
 
 function prefixLinks(items, role) {

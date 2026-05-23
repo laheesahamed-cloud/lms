@@ -20,6 +20,16 @@ export async function fetchSmtpSettings() {
   return response.data;
 }
 
+export async function fetchApnsSettings() {
+  const response = await apiClient.get('/admin/settings/apns');
+  return response.data;
+}
+
+export async function fetchFcmSettings() {
+  const response = await apiClient.get('/admin/settings/fcm');
+  return response.data;
+}
+
 export async function fetchPublicSettings() {
   const response = await apiClient.get('/settings/public', { __suppressServerStatus: true });
   return response.data;
@@ -47,6 +57,16 @@ export async function updatePaymentSettings(payload) {
 
 export async function updateSmtpSettings(payload) {
   const response = await apiClient.put('/admin/settings/smtp', payload);
+  return response.data;
+}
+
+export async function updateApnsSettings(payload) {
+  const response = await apiClient.put('/admin/settings/apns', payload);
+  return response.data;
+}
+
+export async function updateFcmSettings(payload) {
+  const response = await apiClient.put('/admin/settings/fcm', payload);
   return response.data;
 }
 

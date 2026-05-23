@@ -1,5 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { sqlPlaceholders } from '../../database/sql-safety';
+import { AuthService } from '../auth/auth.service';
 
 type CardQuestionRow = RowDataPacket & { id: number; question_text: string; explanation: string | null; question_type: string };
 type CardOptionRow  = RowDataPacket & { id: number; question_id: number; option_label: string; option_text: string; is_correct: number; why_incorrect: string | null };
@@ -17,6 +19,17 @@ type CardTheoryRecapRow = RowDataPacket & {
   treatment: string | null;
   key_points: string | null;
   mnemonic: string | null;
+};
+type QuizAccessScopeRow = RowDataPacket & {
+  feature_key: string | null;
+  plan_slug: string | null;
+  access_scope: 'all' | 'courses' | 'lessons' | null;
+  course_ids_json: string | null;
+};
+type QuizAccessProfile = {
+  hasAnyPaidQuizAccess: boolean;
+  hasFullAccess: boolean;
+  courseIds: Set<number>;
 };
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { CreateQuizDto } from './dto/create-quiz.dto';
@@ -59,7 +72,10 @@ const DEFAULT_PASSING_MARKS = 45;
 
 @Injectable()
 export class QuizzesService {
-  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Pool,
+    private readonly authService: AuthService,
+  ) {}
 
   private resolvePassingMarks(value: number | null | undefined) {
     const numeric = Number(value || 0);
@@ -653,12 +669,18 @@ export class QuizzesService {
     };
   }
 
-  async getCards(quizId: number) {
+  async getCards(authorization: string | undefined, quizId: number) {
+    const student = await this.authService.requireStudent(authorization);
     const [quizRows] = await this.db.execute<RowDataPacket[]>(
-      "SELECT id, COALESCE(NULLIF(student_title, ''), quiz_title) AS quiz_title FROM quizzes WHERE id = ? AND status = 'active' LIMIT 1",
+      "SELECT id, course_id, is_free, COALESCE(NULLIF(student_title, ''), quiz_title) AS quiz_title FROM quizzes WHERE id = ? AND status = 'active' LIMIT 1",
       [quizId],
     );
     if (!quizRows[0]) throw new NotFoundException('Quiz not found');
+    await this.ensureStudentCanAccessQuiz(student.id, {
+      id: Number(quizRows[0].id),
+      course_id: Number(quizRows[0].course_id),
+      is_free: Number(quizRows[0].is_free),
+    });
 
     const [questionRows] = await this.db.execute<CardQuestionRow[]>(
       `SELECT q.id, q.question_text, q.explanation, q.question_type
@@ -673,7 +695,7 @@ export class QuizzesService {
     }
 
     const ids = questionRows.map((r) => r.id);
-    const placeholders = ids.map(() => '?').join(',');
+    const placeholders = sqlPlaceholders(ids);
     const [optionRows] = await this.db.execute<CardOptionRow[]>(
       `SELECT id, question_id, option_label, option_text, is_correct, why_incorrect
        FROM question_options WHERE question_id IN (${placeholders})
@@ -727,5 +749,77 @@ export class QuizzesService {
     }));
 
     return { quizTitle: String(quizRows[0].quiz_title), cards };
+  }
+
+  private async ensureStudentCanAccessQuiz(userId: number, quiz: { id: number; course_id: number; is_free: number }) {
+    if (Number(quiz.is_free) === 1) {
+      return;
+    }
+
+    const accessProfile = await this.getQuizAccessProfile(userId);
+    if (accessProfile.hasFullAccess || accessProfile.courseIds.has(Number(quiz.course_id))) {
+      return;
+    }
+
+    throw new BadRequestException('This quiz is included with selected course plans');
+  }
+
+  private async getQuizAccessProfile(userId: number): Promise<QuizAccessProfile> {
+    const [rows] = await this.db.execute<QuizAccessScopeRow[]>(
+      `
+        SELECT sf.feature_key, plans.slug AS plan_slug, us.access_scope, us.course_ids_json
+        FROM user_subscriptions us
+        INNER JOIN plans ON plans.id = us.plan_id
+        INNER JOIN subscription_plan_features spf
+          ON spf.plan_id = us.plan_id
+         AND spf.is_enabled = 1
+        INNER JOIN subscription_features sf
+          ON sf.id = spf.feature_id
+         AND sf.status = 'active'
+        WHERE us.user_id = ?
+          AND us.status = 'active'
+          AND us.start_date <= CURDATE()
+          AND us.end_date >= CURDATE()
+          AND sf.feature_key IN ('question_bank_full', 'question_bank_limited', 'practice_mode', 'exam_mode')
+      `,
+      [userId]
+    );
+
+    const profile: QuizAccessProfile = {
+      hasAnyPaidQuizAccess: rows.length > 0,
+      hasFullAccess: false,
+      courseIds: new Set<number>(),
+    };
+
+    for (const row of rows) {
+      const courseIds = this.parseIdList(row.course_ids_json);
+      const scope = this.resolveEffectiveAccessScope(row, courseIds);
+      if (scope === 'all' && courseIds.length === 0) {
+        profile.hasFullAccess = true;
+      } else if (scope === 'courses') {
+        courseIds.forEach((id) => profile.courseIds.add(id));
+      }
+    }
+
+    return profile;
+  }
+
+  private parseIdList(raw: string | null) {
+    try {
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private resolveEffectiveAccessScope(row: QuizAccessScopeRow, courseIds: number[]) {
+    const planSlug = String(row.plan_slug || '').trim();
+    if (planSlug.startsWith('custom-single-') || planSlug.startsWith('custom-multi-')) {
+      return 'courses';
+    }
+    return row.access_scope || (courseIds.length ? 'courses' : 'all');
   }
 }

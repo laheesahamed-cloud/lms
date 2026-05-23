@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
+import { RequirePermissions } from '../auth/permissions.decorator';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { CreateSubscriptionFeatureDto } from './dto/create-subscription-feature.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
@@ -19,30 +20,35 @@ export class PlansController {
   }
 
   @Get('admin')
+  @RequirePermissions('plans.manage')
   async findAdminAll(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.plansService.findAll();
   }
 
   @Get('features')
+  @RequirePermissions('plans.manage')
   async featureCatalog(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.plansService.getFeatureCatalog();
   }
 
   @Post()
+  @RequirePermissions('plans.manage')
   async create(@Headers('authorization') authorization: string | undefined, @Body() dto: CreatePlanDto) {
     await this.authService.requireAdmin(authorization);
     return this.plansService.create(dto);
   }
 
   @Post('features')
+  @RequirePermissions('plans.manage')
   async createFeature(@Headers('authorization') authorization: string | undefined, @Body() dto: CreateSubscriptionFeatureDto) {
     await this.authService.requireAdmin(authorization);
     return this.plansService.createFeature(dto);
   }
 
   @Patch(':id')
+  @RequirePermissions('plans.manage')
   async update(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -53,6 +59,7 @@ export class PlansController {
   }
 
   @Patch('features/:id')
+  @RequirePermissions('plans.manage')
   async updateFeature(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -63,6 +70,7 @@ export class PlansController {
   }
 
   @Delete(':id')
+  @RequirePermissions('plans.manage')
   async remove(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
     await this.authService.requireAdmin(authorization);
     return this.plansService.remove(id);

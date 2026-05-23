@@ -8,6 +8,10 @@ export function extractBearerToken(authorization?: string) {
   return token || '';
 }
 
+export function isValidSessionTokenFormat(token: string) {
+  return /^[a-f0-9]{64}$/i.test(String(token || '').trim());
+}
+
 export function hashSessionToken(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }

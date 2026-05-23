@@ -1,5 +1,7 @@
-import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, ParseIntPipe, Patch, Post, Put, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import { isStaffRole, roleHasPermission } from '../auth/role-permissions';
 import { AssignSubscriptionDto } from './dto/assign-subscription.dto';
 import { ManualPaymentRequestDto } from './dto/manual-payment-request.dto';
 import { RequestSubscriptionDto } from './dto/request-subscription.dto';
@@ -16,6 +18,7 @@ export class SubscriptionsController {
   ) {}
 
   @Get('admin/meta')
+  @RequirePermissions('subscriptions.manage')
   async getAdminMeta(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.subscriptionsService.getAdminMeta();
@@ -24,37 +27,48 @@ export class SubscriptionsController {
   @Get()
   async defaultList(@Headers('authorization') authorization?: string) {
     const user = await this.authService.requireAuthenticatedUser(authorization);
-    if (user.role === 'admin') {
+    if (isStaffRole(user.role)) {
+      if (user.status !== 'active') {
+        throw new UnauthorizedException('Admin access is required');
+      }
+      if (!roleHasPermission(user.role, 'subscriptions.manage')) {
+        throw new ForbiddenException('Your role does not have permission for this action');
+      }
       return this.subscriptionsService.findAdminList();
     }
     return this.subscriptionsService.getStudentBilling(user.id);
   }
 
   @Get('admin')
+  @RequirePermissions('subscriptions.manage')
   async findAdminList(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.subscriptionsService.findAdminList();
   }
 
   @Get('admin/requests')
+  @RequirePermissions('subscriptions.manage')
   async findAdminRequests(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.subscriptionsService.findAdminRequests();
   }
 
   @Get('admin/audit')
+  @RequirePermissions('subscriptions.manage')
   async findAuditEvents(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.subscriptionsService.findAuditEvents();
   }
 
   @Get('admin/coupons')
+  @RequirePermissions('subscriptions.manage')
   async findCoupons(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.subscriptionsService.findCoupons();
   }
 
   @Get('admin/invoices/:invoiceId')
+  @RequirePermissions('subscriptions.manage')
   async findInvoice(
     @Headers('authorization') authorization: string | undefined,
     @Param('invoiceId') invoiceId: string
@@ -64,12 +78,14 @@ export class SubscriptionsController {
   }
 
   @Post('admin/coupons')
+  @RequirePermissions('subscriptions.manage')
   async createCoupon(@Headers('authorization') authorization: string | undefined, @Body() dto: SubscriptionCouponDto) {
     const admin = await this.authService.requireAdmin(authorization);
     return this.subscriptionsService.createCoupon(dto, admin.id);
   }
 
   @Put('admin/coupons/:id')
+  @RequirePermissions('subscriptions.manage')
   async updateCoupon(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -80,6 +96,7 @@ export class SubscriptionsController {
   }
 
   @Delete('admin/coupons/:id')
+  @RequirePermissions('subscriptions.manage')
   async deleteCoupon(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number
@@ -89,6 +106,7 @@ export class SubscriptionsController {
   }
 
   @Post('assign')
+  @RequirePermissions('subscriptions.manage')
   async assign(@Headers('authorization') authorization: string | undefined, @Body() dto: AssignSubscriptionDto) {
     const admin = await this.authService.requireAdmin(authorization);
     return this.subscriptionsService.assign(dto, admin.id);
@@ -118,6 +136,7 @@ export class SubscriptionsController {
   }
 
   @Patch('requests/:id/resolve')
+  @RequirePermissions('subscriptions.manage')
   async resolveRequest(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -128,6 +147,7 @@ export class SubscriptionsController {
   }
 
   @Patch(':id/extend')
+  @RequirePermissions('subscriptions.manage')
   async extend(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -138,6 +158,7 @@ export class SubscriptionsController {
   }
 
   @Patch(':id/renew')
+  @RequirePermissions('subscriptions.manage')
   async renew(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -148,6 +169,7 @@ export class SubscriptionsController {
   }
 
   @Patch(':id/cancel')
+  @RequirePermissions('subscriptions.manage')
   async cancel(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
@@ -158,6 +180,7 @@ export class SubscriptionsController {
   }
 
   @Patch(':id/payment')
+  @RequirePermissions('subscriptions.manage')
   async updatePayment(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
