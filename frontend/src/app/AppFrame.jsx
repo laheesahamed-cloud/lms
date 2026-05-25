@@ -48,8 +48,8 @@ function syncAppScrollContract() {
     setCssPropertyIfChanged(element, 'overflow-x', 'hidden', 'important');
     setCssPropertyIfChanged(element, 'overflow-y', PLATFORM.isNative ? 'clip' : 'hidden', 'important');
     setStyleIfChanged(element, 'overscrollBehavior', 'none');
-    setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #05070d))');
-    setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #05070d))');
+    setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #0f1720))');
+    setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #0f1720))');
     setStyleIfChanged(element, 'color', '');
   });
 
@@ -68,8 +68,8 @@ function syncAppScrollContract() {
     setCssPropertyIfChanged(root, 'overflow-y', PLATFORM.isNative ? 'clip' : 'hidden', 'important');
     setStyleIfChanged(root, 'overscrollBehavior', 'none');
     setStyleIfChanged(root, 'touchAction', 'pan-y');
-    setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #05070d))');
-    setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #05070d))');
+    setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #0f1720))');
+    setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #0f1720))');
     setStyleIfChanged(root, 'color', '');
     setStyleIfChanged(root, 'webkitOverflowScrolling', 'touch');
   }
@@ -206,7 +206,7 @@ export function AppFrame() {
     if (/^\/(?:admin|app|auth)(?:\/|$)/.test(location.pathname)) return;
     if (/^\/(?:login|register|terms|privacy-policy|ai|lesson-notes-demo|headache-notes-demo|pwa-preview|browser-test|gpt|gemini)(?:\/|$)/.test(location.pathname)) return;
 
-    const isLegacyProtectedPath = /^\/(?:dashboard|pending|profile|courses|structure|users|questions|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|doubts|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/.test(location.pathname);
+    const isLegacyProtectedPath = /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|doubts|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/.test(location.pathname);
     if (!isLegacyProtectedPath) return;
 
     const cleanPath = location.pathname === '/billing' ? '/subscriptions' : location.pathname;

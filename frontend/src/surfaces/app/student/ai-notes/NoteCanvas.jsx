@@ -79,7 +79,7 @@ const noteCanvasUi = {
   sectionGrid: 'grid min-w-0 grid-cols-2 gap-0.5 px-5 py-2 max-[640px]:grid-cols-1 max-[520px]:px-2',
   sectionGridOne: '!grid-cols-1 [&>*]:col-span-1',
   section:
-    'group/canvas-card relative min-w-0 break-inside-avoid overflow-hidden rounded-[14px] border border-[#eadfce] bg-white/[0.72] shadow-[0_2px_10px_rgba(91,64,35,0.055)] hover:-translate-y-[3px] hover:shadow-[0_8px_24px_rgba(91,64,35,0.12),0_2px_8px_rgba(15,23,42,0.04)] transition-[transform,box-shadow] duration-200 dark:border-white/10 dark:bg-white/[0.045] dark:shadow-[0_2px_12px_rgba(0,0,0,0.35)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.3)] dark:backdrop-blur',
+    'group/canvas-card relative min-w-0 break-inside-avoid overflow-hidden rounded-[14px] border border-[#eadfce] bg-white/[0.72] shadow-[0_2px_10px_rgba(91,64,35,0.055)] hover:-translate-y-[3px] hover:shadow-[0_8px_24px_rgba(91,64,35,0.12),0_2px_8px_rgba(15,23,42,0.04)] transition-[transform,box-shadow] duration-200 dark:border-white/10 dark:bg-white/[0.045] dark:shadow-[0_2px_12px_rgba(2,6,12,0.35)] dark:hover:shadow-[0_8px_32px_rgba(2,6,12,0.58),0_2px_8px_rgba(2,6,12,0.28)] dark:backdrop-blur',
   cardMedicalIcon:
     'pointer-events-none absolute right-2.5 top-2.5 z-[4] flex size-7 items-center justify-center rounded-full border bg-white/42 opacity-65 shadow-[0_4px_12px_rgba(15,23,42,0.08)] dark:bg-slate-950/20 max-[520px]:right-2 max-[520px]:top-2 max-[520px]:size-6 [&_svg]:size-[16px] max-[520px]:[&_svg]:size-[14px]',
   imageSection: '',

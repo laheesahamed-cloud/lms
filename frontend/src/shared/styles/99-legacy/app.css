@@ -400,7 +400,7 @@
     --safe-left: var(--lms-safe-left);
     --app-bg: var(--page-background);
     --app-light-bg: var(--page-background);
-    --app-dark-bg: #05070d;
+    --app-dark-bg: #0f1720;
     --lms-tabbar-bg: #fff;
     --lms-tabbar-content-shift: 0px;
     --lms-tabbar-row-height: 64px;
@@ -415,7 +415,7 @@
 
   :root[data-theme='dark'] {
     --app-bg: var(--page-background);
-    --lms-tabbar-bg: #05070d;
+    --lms-tabbar-bg: #0f1720;
   }
 
   * {
@@ -432,21 +432,21 @@
     min-height: 100%;
     max-width: 100%;
     overflow-x: hidden;
-    background: var(--app-bg, #05070d);
-    background-color: var(--app-bg, #05070d);
+    background: var(--app-bg, #0f1720);
+    background-color: var(--app-bg, #0f1720);
   }
 
   html {
-    background: var(--app-bg, #05070d);
-    background-color: var(--app-bg, #05070d);
+    background: var(--app-bg, #0f1720);
+    background-color: var(--app-bg, #0f1720);
     scroll-behavior: smooth;
   }
 
   body {
     min-height: 100dvh;
     max-width: 100%;
-    background: var(--app-bg, #05070d);
-    background-color: var(--app-bg, #05070d);
+    background: var(--app-bg, #0f1720);
+    background-color: var(--app-bg, #0f1720);
     overscroll-behavior: none;
     position: relative;
     padding-left: env(safe-area-inset-left);
@@ -464,8 +464,8 @@
     max-width: 100%;
     min-height: 100dvh;
     overflow-x: hidden;
-    background: var(--app-bg, #05070d);
-    background-color: var(--app-bg, #05070d);
+    background: var(--app-bg, #0f1720);
+    background-color: var(--app-bg, #0f1720);
   }
 
   .app-shell {
@@ -550,8 +550,8 @@
   .app-shell .portal-content,
   .app-shell .portal-content__frame,
   .app-shell .lms-route-page {
-    background: var(--app-bg, #05070d);
-    background-color: var(--app-bg, #05070d);
+    background: var(--app-bg, #0f1720);
+    background-color: var(--app-bg, #0f1720);
   }
 
   .app-safe-top-spacer {
@@ -644,8 +644,8 @@
   :root[data-theme='dark'] .bottom-navbar,
   :root[data-theme='dark'] .mobile-nav,
   :root[data-theme='dark'] .tab-bar {
-    background: #05070d;
-    background-color: #05070d;
+    background: #0f1720;
+    background-color: #0f1720;
     border-top-color: rgba(255, 255, 255, 0.12);
     box-shadow: 0 -2px 14px rgba(0, 0, 0, 0.28);
   }
@@ -817,22 +817,22 @@
       linear-gradient(180deg, rgba(248, 250, 252, 0.74), transparent 46%);
   }
   :root[data-theme='dark'] .lms-sidebar {
-    background: rgba(0, 2, 6, 0.985);
+    background: rgba(16, 24, 34, 0.94);
   }
   :root[data-theme='dark'] .lms-sidebar::before {
     opacity: 0.18;
     background:
-      linear-gradient(180deg, rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.20) 48%, transparent 100%);
+      linear-gradient(180deg, rgba(23, 35, 48, 0.58), rgba(18, 28, 38, 0.2) 48%, transparent 100%);
   }
   :root[data-theme='dark'] .glass-card {
     background:
-      linear-gradient(160deg, rgba(30, 41, 59, 0.22), rgba(8, 15, 25, 0.96) 58%, rgba(5, 10, 18, 0.98)),
+      linear-gradient(160deg, rgba(30, 41, 59, 0.22), rgba(18, 28, 38, 0.94) 58%, rgba(14, 22, 31, 0.96)),
       var(--surface-card);
-    border-color: rgba(148, 163, 184, 0.15);
+    border-color: rgba(203, 213, 225, 0.13);
     box-shadow:
       0 1px 1px rgba(255, 255, 255, 0.035) inset,
-      0 12px 36px rgba(0, 0, 0, 0.42),
-      0 2px 8px rgba(0, 0, 0, 0.26);
+      0 12px 36px rgba(2, 6, 12, 0.34),
+      0 2px 8px rgba(2, 6, 12, 0.22);
   }
 
   /* Interactive card hover lift */
@@ -866,8 +866,8 @@
   }
 
   :root[data-theme='dark'] .lms-student-delight:hover {
-    border-color: rgba(125, 211, 252, 0.18);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.38);
+    border-color: rgba(203, 213, 225, 0.2);
+    box-shadow: 0 16px 40px rgba(2, 6, 12, 0.34);
   }
 
   :root[data-theme='dark'] .lms-course-detail-page .bg-surface-card,
@@ -895,9 +895,9 @@
   }
   :root[data-theme='dark'] .card-interactive:hover {
     box-shadow:
-      0 18px 48px rgba(0, 0, 0, 0.50),
-      0 4px 14px rgba(59, 130, 246, 0.07);
-    border-color: rgba(59, 130, 246, 0.16);
+      0 18px 48px rgba(2, 6, 12, 0.4),
+      0 4px 14px rgba(96, 165, 250, 0.04);
+    border-color: rgba(203, 213, 225, 0.18);
   }
 
   /* ── Card variants ─────────────────────────────────────── */
@@ -1032,7 +1032,7 @@
     color: var(--ink-medium);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.06) inset,
-      0 24px 64px rgba(0, 0, 0, 0.66),
+      0 24px 64px rgba(2, 6, 12, 0.56),
       0 8px 24px rgba(37, 99, 235, 0.08);
   }
 
@@ -1593,8 +1593,8 @@
     min-height: 100% !important;
     max-width: 100% !important;
     overflow-x: hidden !important;
-    background: var(--app-bg, #05070d) !important;
-    background-color: var(--app-bg, #05070d) !important;
+    background: var(--app-bg, #0f1720) !important;
+    background-color: var(--app-bg, #0f1720) !important;
   }
 
   body {
@@ -1604,8 +1604,8 @@
     min-height: 100dvh;
     overflow-x: hidden !important;
     overscroll-behavior: none !important;
-    background: var(--app-bg, #05070d) !important;
-    background-color: var(--app-bg, #05070d) !important;
+    background: var(--app-bg, #0f1720) !important;
+    background-color: var(--app-bg, #0f1720) !important;
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
@@ -1615,8 +1615,8 @@
     min-height: 100%;
     max-width: 100%;
     overflow-x: hidden !important;
-    background: var(--app-bg, #05070d) !important;
-    background-color: var(--app-bg, #05070d) !important;
+    background: var(--app-bg, #0f1720) !important;
+    background-color: var(--app-bg, #0f1720) !important;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -2627,10 +2627,10 @@
 
   :root[data-theme='dark'] .lms-sidebar {
     background:
-      linear-gradient(180deg, rgba(3,6,12,0.99), rgba(0,0,0,0.99)),
-      #000;
-    border-color: rgba(148,163,184,0.13);
-    box-shadow: 1px 0 0 rgba(148,163,184,0.12), 18px 0 42px rgba(0,0,0,0.42);
+      linear-gradient(180deg, rgba(23,35,48,0.92), rgba(16,24,34,0.96)),
+      var(--surface-1);
+    border-color: var(--line-soft);
+    box-shadow: 1px 0 0 rgba(203,213,225,0.12), 18px 0 42px rgba(2,6,12,0.34);
   }
 
   @media (min-width: 901px) {
@@ -2784,8 +2784,8 @@
   }
 
   :root[data-theme='dark'] .auth-login-visual {
-    background: #000;
-    box-shadow: 0 30px 90px rgba(0,0,0,0.72);
+    background: var(--surface-1);
+    box-shadow: 0 30px 82px rgba(2,6,12,0.56);
   }
 
   :root[data-theme='dark'] .auth-login-shell {
@@ -2851,7 +2851,7 @@
   }
   :root[data-low-spec] .lp,
   .lp.lp-motion-disabled {
-    background: #02030a !important;
+    background: #0d141c !important;
   }
   :root[data-low-spec] .lp *,
   :root[data-low-spec] .lp *::before,
@@ -2865,7 +2865,7 @@
   .lp.lp-motion-disabled .lp-hero {
     background:
       radial-gradient(ellipse at 70% 20%, rgba(29, 78, 216, 0.07), transparent 34%),
-      linear-gradient(180deg, #02030a 0%, #05070f 68%, #02030a 100%) !important;
+      linear-gradient(180deg, #0d141c 0%, #111a23 68%, #0d141c 100%) !important;
   }
   :root[data-low-spec] .lp-hero-orb,
   :root[data-low-spec] .lp-depth-dot,
@@ -2930,7 +2930,7 @@
 
   :root[data-visual-effects='balanced'] .lp,
   :root[data-visual-effects='balanced'] .lp.lp-motion-disabled {
-    background: #02030a !important;
+    background: #0d141c !important;
   }
 
   :root[data-visual-effects='balanced'] .lp *,
@@ -2942,7 +2942,7 @@
   :root[data-visual-effects='balanced'] .lp-hero {
     background:
       radial-gradient(ellipse at 72% 18%, rgba(14, 165, 233, 0.09), transparent 34%),
-      linear-gradient(180deg, #02030a 0%, #05070f 68%, #02030a 100%) !important;
+      linear-gradient(180deg, #0d141c 0%, #111a23 68%, #0d141c 100%) !important;
   }
 
   :root[data-visual-effects='balanced'] .lp-hcard,
@@ -3112,8 +3112,8 @@
     width: 100vw !important;
     max-width: 100vw !important;
     overflow-x: hidden !important;
-    background: var(--app-bg, #05070d) !important;
-    background-color: var(--app-bg, #05070d) !important;
+    background: var(--app-bg, #0f1720) !important;
+    background-color: var(--app-bg, #0f1720) !important;
   }
 
   html[data-lms-runtime="native"] .native-app-frame {
@@ -3130,8 +3130,8 @@
     border: 0 !important;
     outline: 0 !important;
     box-shadow: none !important;
-    background: var(--app-bg, #05070d) !important;
-    background-color: var(--app-bg, #05070d) !important;
+    background: var(--app-bg, #0f1720) !important;
+    background-color: var(--app-bg, #0f1720) !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     overscroll-behavior-x: none !important;

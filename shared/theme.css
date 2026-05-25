@@ -227,43 +227,43 @@
 }
 
 /* ============================================================
-   Dark Mode — Clinical Night
+   Dark Mode — Neutral Night
    ============================================================ */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  color: #DDE5F0;
+  color: #EEF3F8;
 
-  --surface-0: #010205;
-  --surface-1: #030711;
-  --surface-2: #060B17;
-  --surface-3: #0C1220;
-  --surface-4: #131C2C;
+  --surface-0: #0F1720;
+  --surface-1: #121C26;
+  --surface-2: #172330;
+  --surface-3: #1D2B3A;
+  --surface-4: #263749;
 
-  --surface-card:          rgba(5, 8, 16, 0.97);
-  --surface-card-elevated: rgba(8, 13, 22, 0.99);
-  --surface-glass:         rgba(4, 7, 14, 0.92);
-  --surface-glass-strong:  rgba(3, 6, 12, 0.99);
-  --surface-glass-subtle:  rgba(7, 11, 19, 0.88);
+  --surface-card:          rgba(18, 28, 38, 0.94);
+  --surface-card-elevated: rgba(23, 35, 48, 0.95);
+  --surface-glass:         rgba(18, 28, 38, 0.78);
+  --surface-glass-strong:  rgba(18, 28, 38, 0.9);
+  --surface-glass-subtle:  rgba(23, 35, 48, 0.66);
 
   /* ── Borders — subtle, barely-there ─────────────────────── */
-  --line-soft:   rgba(148, 163, 184, 0.13);
-  --line-medium: rgba(148, 163, 184, 0.20);
-  --line-strong: rgba(191, 219, 254, 0.28);
+  --line-soft:   rgba(203, 213, 225, 0.13);
+  --line-medium: rgba(203, 213, 225, 0.20);
+  --line-strong: rgba(203, 213, 225, 0.28);
   --color-border-soft: var(--line-soft);
   --color-border-medium: var(--line-medium);
   --color-border-strong: var(--line-strong);
 
   /* ── Text — clear and readable on dark ─────────────────── */
-  --ink-strong: #DDE5F0;
-  --ink-medium: #B8C8DB;
-  --ink-soft:   #7A8FA8;
-  --ink-muted:  #50647A;
+  --ink-strong: #EEF3F8;
+  --ink-medium: #CBD6E3;
+  --ink-soft:   #A3AFBD;
+  --ink-muted:  #8491A3;
 
   /* ── Colors — slightly lighter for dark bg contrast ─────── */
   --color-primary:       #38BDF8;
   --color-primary-hover: #7DD3FC;
-  --color-primary-light: rgba(56, 189, 248, 0.13);
-  --color-primary-glow:  rgba(56, 189, 248, 0.32);
+  --color-primary-light: rgba(56, 189, 248, 0.10);
+  --color-primary-glow:  rgba(56, 189, 248, 0.18);
 
   --color-secondary:       #A78BFA;
   --color-secondary-light: rgba(167, 139, 250, 0.13);
@@ -294,40 +294,40 @@
   --color-error-bg:      rgba(220, 38, 38, 0.18);
 
   /* ── Shadows — deep, with blue glow ─────────────────────── */
-  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.40);
-  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.24);
-  --shadow-md: 0 12px 36px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.26);
-  --shadow-lg: 0 20px 54px rgba(0, 0, 0, 0.50), 0 4px 14px rgba(59, 130, 246, 0.06);
-  --shadow-xl: 0 26px 70px rgba(0, 0, 0, 0.58), 0 8px 22px rgba(59, 130, 246, 0.08);
-  --shadow-2xl: 0 32px 88px rgba(0, 0, 0, 0.66), 0 12px 30px rgba(59, 130, 246, 0.09);
-  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 8px 24px rgba(37, 99, 235, 0.22), 0 14px 36px rgba(0, 0, 0, 0.36);
+  --shadow-xs: 0 1px 3px rgba(2, 6, 12, 0.32);
+  --shadow-sm: 0 4px 14px rgba(2, 6, 12, 0.28), 0 1px 3px rgba(2, 6, 12, 0.2);
+  --shadow-md: 0 12px 36px rgba(2, 6, 12, 0.34), 0 2px 8px rgba(2, 6, 12, 0.22);
+  --shadow-lg: 0 20px 54px rgba(2, 6, 12, 0.4), 0 4px 14px rgba(96, 165, 250, 0.04);
+  --shadow-xl: 0 26px 70px rgba(2, 6, 12, 0.46), 0 8px 22px rgba(96, 165, 250, 0.05);
+  --shadow-2xl: 0 32px 88px rgba(2, 6, 12, 0.52), 0 12px 30px rgba(96, 165, 250, 0.06);
+  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.12), 0 8px 24px rgba(37, 99, 235, 0.14), 0 14px 36px rgba(2, 6, 12, 0.32);
   --shadow-soft: var(--shadow-xl);
   --shadow-lift: var(--shadow-lg);
 
-  /* ── Page Background — deep medical blue-black with ambient glows ── */
+  /* ── Page Background — layered neutral, not pure black ── */
   --page-background:
-    radial-gradient(ellipse at 18% 0%, rgba(37, 99, 235, 0.07) 0%, transparent 46%),
-    radial-gradient(ellipse at 84% 9%, rgba(13, 148, 136, 0.052) 0%, transparent 42%),
-    radial-gradient(ellipse at 52% 97%, rgba(67, 56, 202, 0.038) 0%, transparent 50%),
-    linear-gradient(165deg, #010308 0%, #010206 44%, #000204 100%);
+    radial-gradient(ellipse at 18% -14%, rgba(148, 163, 184, 0.085) 0%, rgba(148, 163, 184, 0.026) 34%, transparent 58%),
+    radial-gradient(ellipse at 88% -6%, rgba(71, 85, 105, 0.075) 0%, rgba(71, 85, 105, 0.022) 32%, transparent 56%),
+    radial-gradient(ellipse at 54% 112%, rgba(96, 113, 135, 0.045) 0%, transparent 48%),
+    linear-gradient(180deg, #111A23 0%, #0F1720 48%, #0D141C 100%);
   --app-bg: var(--page-background);
-  --app-bg-solid: #05070d;
+  --app-bg-solid: #0F1720;
 
   /* ── Sidebar ─────────────────────────────────────────────── */
-  --sidebar-bg:     rgba(0, 0, 0, 0.99);
-  --sidebar-border: rgba(148, 163, 184, 0.16);
+  --sidebar-bg:     rgba(16, 24, 34, 0.92);
+  --sidebar-border: rgba(203, 213, 225, 0.13);
 
   /* ── Inputs ─────────────────────────────────────────────── */
-  --input-bg:           rgba(8, 15, 25, 0.96);
-  --input-border:       rgba(148, 163, 184, 0.20);
-  --input-focus-shadow: 0 0 0 3px rgba(56, 189, 248, 0.24);
+  --input-bg:           rgba(23, 35, 48, 0.88);
+  --input-border:       rgba(203, 213, 225, 0.20);
+  --input-focus-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
 
   /* ── Card tokens ─────────────────────────────────────────── */
   --card-bg:     var(--surface-card);
   --card-border: var(--line-soft);
   --card-shadow: var(--shadow-md);
 
-  --topbar-bg:         rgba(2, 5, 10, 0.99);
+  --topbar-bg:         rgba(18, 28, 38, 0.86);
   --btn-secondary-bg:  var(--surface-glass-subtle);
   --btn-secondary-text: var(--ink-medium);
 }
@@ -367,15 +367,15 @@
 :root[data-theme='dark'][data-accent-theme='erpm'] {
   --color-primary:       #3B82F6;
   --color-primary-hover: #60A5FA;
-  --color-primary-light: rgba(59, 130, 246, 0.13);
-  --color-primary-glow:  rgba(59, 130, 246, 0.28);
-  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.16), 0 0 24px rgba(59, 130, 246, 0.28), 0 14px 36px rgba(0,0,0,.36);
-  --input-focus-shadow: 0 0 0 3px rgba(59,130,246,.26);
+  --color-primary-light: rgba(59, 130, 246, 0.11);
+  --color-primary-glow:  rgba(59, 130, 246, 0.18);
+  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.12), 0 0 24px rgba(59, 130, 246, 0.16), 0 14px 36px rgba(2, 6, 12, .34);
+  --input-focus-shadow: 0 0 0 3px rgba(59,130,246,.18);
   --page-background:
-    radial-gradient(ellipse at 18% 0%, rgba(37, 99, 235, 0.07) 0%, transparent 46%),
-    radial-gradient(ellipse at 84% 9%, rgba(13, 148, 136, 0.052) 0%, transparent 42%),
-    radial-gradient(ellipse at 52% 97%, rgba(67, 56, 202, 0.038) 0%, transparent 50%),
-    linear-gradient(165deg, #010308 0%, #010206 44%, #000204 100%);
+    radial-gradient(ellipse at 18% -14%, rgba(148, 163, 184, 0.085) 0%, rgba(148, 163, 184, 0.026) 34%, transparent 58%),
+    radial-gradient(ellipse at 88% -6%, rgba(71, 85, 105, 0.075) 0%, rgba(71, 85, 105, 0.022) 32%, transparent 56%),
+    radial-gradient(ellipse at 54% 112%, rgba(96, 113, 135, 0.045) 0%, transparent 48%),
+    linear-gradient(180deg, #111A23 0%, #0F1720 48%, #0D141C 100%);
 }
 
 /* ── Codeforge Accent Theme ───────────────────────────────── */
@@ -408,10 +408,12 @@
 :root[data-theme='dark'][data-accent-theme='codeforge'] {
   --color-primary:       #38BDF8;
   --color-primary-hover: #7DD3FC;
-  --color-primary-light: rgba(56, 189, 248, 0.13);
-  --color-primary-glow:  rgba(56, 189, 248, 0.32);
-  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 8px 24px rgba(37, 99, 235, 0.22);
-  --input-focus-shadow: 0 0 0 3px rgba(56, 189, 248, 0.24);
+  --color-primary-light: rgba(56, 189, 248, 0.10);
+  --color-primary-glow:  rgba(56, 189, 248, 0.18);
+  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.12), 0 8px 24px rgba(37, 99, 235, 0.14);
+  --input-focus-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
   --page-background:
-    linear-gradient(135deg, #000102 0%, #010308 48%, #000000 100%);
+    radial-gradient(ellipse at 18% -14%, rgba(148, 163, 184, 0.085) 0%, rgba(148, 163, 184, 0.026) 34%, transparent 58%),
+    radial-gradient(ellipse at 88% -6%, rgba(71, 85, 105, 0.075) 0%, rgba(71, 85, 105, 0.022) 32%, transparent 56%),
+    linear-gradient(180deg, #111A23 0%, #0F1720 48%, #0D141C 100%);
 }

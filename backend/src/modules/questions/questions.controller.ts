@@ -50,19 +50,31 @@ export class QuestionsController {
     @Query('lessonId') lessonId?: string,
     @Query('paperId') paperId?: string,
     @Query('category') category?: string,
-    @Query('unclassified') unclassified?: string
+    @Query('unclassified') unclassified?: string,
+    @Query('keywords') keywords?: string,
+    @Query('usage') usage?: string,
+    @Query('ids') ids?: string,
+    @Query('excludeIds') excludeIds?: string,
+    @Query('limit') limit?: string,
+    @Query('random') random?: string
   ) {
     return this.questionsService.findAll({
       search,
       status,
       type,
       category,
+      keywords,
+      usage,
       courseId: courseId ? Number(courseId) : undefined,
       subjectId: subjectId ? Number(subjectId) : undefined,
       topicId: topicId ? Number(topicId) : undefined,
       lessonId: lessonId ? Number(lessonId) : undefined,
       paperId: paperId ? Number(paperId) : undefined,
       unclassified: unclassified === '1' || unclassified === 'true',
+      ids: this.parseIdList(ids),
+      excludeIds: this.parseIdList(excludeIds),
+      limit: this.parseLimit(limit),
+      random: random === '1' || random === 'true',
     });
   }
 
@@ -172,5 +184,24 @@ export class QuestionsController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.questionsService.remove(id);
+  }
+
+  private parseIdList(raw?: string) {
+    return Array.from(
+      new Set(
+        String(raw || '')
+          .split(',')
+          .map((value) => Number(value.trim()))
+          .filter((value) => Number.isInteger(value) && value > 0)
+      )
+    );
+  }
+
+  private parseLimit(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      return undefined;
+    }
+    return Math.min(Math.max(Math.trunc(value), 1), 200);
   }
 }

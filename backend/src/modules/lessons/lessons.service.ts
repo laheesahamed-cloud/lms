@@ -643,4 +643,5 @@ export class LessonsService {
       .replace(/[ \t]{2,}/g, ' ')
       .trim();
   }
+
 }

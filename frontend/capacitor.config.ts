@@ -10,13 +10,13 @@ const config: CapacitorConfig = {
     backgroundColor: '#dce6f4',
   },
   android: {
-    backgroundColor: '#05070d',
+    backgroundColor: '#0f1720',
   },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
       launchShowDuration: 0,
-      backgroundColor: '#05070d',
+      backgroundColor: '#0f1720',
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],

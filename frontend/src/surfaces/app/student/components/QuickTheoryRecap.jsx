@@ -362,7 +362,7 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
   return (
     <>
       <button className={cx(
-          'qtr-popup-trigger flex w-full cursor-pointer items-center gap-2 rounded-md border border-brand-primary/25 bg-brand-primary-light px-3 py-2.5 text-left [font:inherit] text-ink-strong transition hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--surface-elevated))] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-45 dark:border-brand-primary/25 dark:bg-brand-primary/12 dark:hover:bg-brand-primary/18 max-[520px]:gap-2.5',
+          'qtr-popup-trigger flex w-full cursor-pointer items-start gap-2.5 rounded-md border border-brand-primary/25 bg-brand-primary-light px-3 py-2.5 text-left [font:inherit] text-ink-strong transition hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--surface-elevated))] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-45 dark:border-brand-primary/25 dark:bg-brand-primary/12 dark:hover:bg-brand-primary/18 max-[520px]:gap-2.5',
           !hasRecap && 'qtr-popup-trigger--empty opacity-45'
         )}
         type="button"
@@ -377,23 +377,25 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
         disabled={!hasRecap}
         title={hasRecap ? 'Open Quick Theory Recap' : 'No quick theory recap available'}
       >
-        <span className="qtr-popup-trigger__icon shrink-0 text-base text-brand-primary" aria-hidden="true">⚡</span>
-        <span className="qtr-popup-trigger__label min-w-0 flex-1 whitespace-normal text-[13.5px] font-semibold leading-snug text-ink-strong max-[520px]:text-[12.5px]">Quick review recap</span>
-        {recap?.conceptName ? (
-          <span className="qtr-popup-trigger__concept max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] font-medium text-ink-soft max-[520px]:max-w-[96px] max-[520px]:text-[10.5px]">{recap.conceptName}</span>
-        ) : null}
+        <span className="qtr-popup-trigger__icon mt-0.5 shrink-0 text-base text-brand-primary" aria-hidden="true">⚡</span>
+        <span className="qtr-popup-trigger__copy grid min-w-0 flex-1 gap-0.5">
+          <span className="qtr-popup-trigger__label min-w-0 whitespace-normal text-[13.5px] font-extrabold leading-snug text-ink-strong max-[520px]:text-[12.5px]">Quick theory recap</span>
+          {recap?.conceptName ? (
+            <span className="qtr-popup-trigger__concept min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] font-medium text-ink-soft max-[520px]:text-[10.5px]">{recap.conceptName}</span>
+          ) : null}
+        </span>
       </button>
 
       {open ? createPortal(
         <div
-          className="qtr-popup-backdrop fixed inset-0 z-[1200] flex items-center justify-center bg-[rgba(15,23,42,0.35)] p-5 backdrop-blur-[3px] animate-qtrBackdropIn dark:bg-[rgba(0,0,0,0.68)] max-[600px]:items-end max-[600px]:p-0"
+          className="qtr-popup-backdrop fixed inset-0 z-[1200] flex items-center justify-center bg-[rgba(15,23,42,0.35)] p-5 backdrop-blur-[3px] animate-qtrBackdropIn dark:bg-[rgba(15,23,32,0.72)] max-[600px]:items-end max-[600px]:p-0"
           onClick={closePopup}
         >
           <div
             ref={dialogRef}
             className={cx(
               `qtr-popup qtr-popup--${fontScale}`,
-              'flex h-[min(78dvh,720px)] max-h-[calc(100dvh-40px)] w-full max-w-[500px] touch-pan-y flex-col overflow-hidden rounded-xl border border-brand-primary/20 bg-surface-elevated text-ink-strong shadow-2xl animate-qtrPopupIn ring-1 ring-white/40 will-change-transform dark:border-white/10 dark:bg-[rgba(8,14,26,0.98)] dark:ring-white/10 max-[900px]:max-w-[540px] max-[600px]:h-[min(86dvh,760px)] max-[600px]:max-h-[calc(100dvh-var(--safe-top,0px)-10px)] max-[600px]:max-w-full max-[600px]:rounded-b-none max-[600px]:animate-qtrPopupSheetIn'
+              'flex h-[min(78dvh,720px)] max-h-[calc(100dvh-40px)] w-full max-w-[500px] touch-pan-y flex-col overflow-hidden rounded-xl border border-brand-primary/20 bg-surface-elevated text-ink-strong shadow-2xl animate-qtrPopupIn ring-1 ring-white/40 will-change-transform dark:border-white/10 dark:bg-[rgba(23,35,48,0.96)] dark:ring-white/10 max-[900px]:max-w-[540px] max-[600px]:h-[min(86dvh,760px)] max-[600px]:max-h-[calc(100dvh-var(--safe-top,0px)-10px)] max-[600px]:max-w-full max-[600px]:rounded-b-none max-[600px]:animate-qtrPopupSheetIn'
             )}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={handlePopupPointerDown}

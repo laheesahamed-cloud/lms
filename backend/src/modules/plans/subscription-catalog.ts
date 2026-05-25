@@ -30,13 +30,11 @@ export const DEFAULT_SUBSCRIPTION_FEATURES: SubscriptionFeatureSeed[] = [
   { featureKey: 'results_tracking', featureName: 'Results tracking', description: 'Shows quiz results and review history.', category: 'Exams & Practice' },
   { featureKey: 'report_question', featureName: 'Report question', description: 'Lets students report issues with questions.', category: 'Exams & Practice' },
   { featureKey: 'notes_canvas_study_mode', featureName: 'Lessons study mode', description: 'Unlocks interactive lessons and AI study sheets.', category: 'Lessons & Study Tools' },
-  { featureKey: 'download_materials', featureName: 'Download materials', description: 'Allows downloads when supported by the LMS.', category: 'Lessons & Study Tools' },
   { featureKey: 'progress_tracking_basic', featureName: 'Basic progress tracking', description: 'Basic progress visibility inside the LMS.', category: 'Analytics' },
   { featureKey: 'progress_tracking_advanced', featureName: 'Advanced progress tracking', description: 'Deeper progress insights and trends.', category: 'Analytics' },
   { featureKey: 'performance_analytics', featureName: 'Performance analytics', description: 'Advanced dashboard analytics for students.', category: 'Analytics' },
   { featureKey: 'weak_area_analysis', featureName: 'Weak area analysis', description: 'Highlights weaker subjects and topics.', category: 'Analytics' },
   { featureKey: 'ai_quiz_generator', featureName: 'AI quiz generator', description: 'Unlocks AI-assisted quiz generation tools.', category: 'AI Tools' },
-  { featureKey: 'certificates', featureName: 'Certificates', description: 'Enables certificates when available.', category: 'Support / Extras' },
   { featureKey: 'priority_support', featureName: 'Priority support', description: 'Marks the plan for faster support handling.', category: 'Support / Extras' },
   { featureKey: 'future_premium_tools', featureName: 'Future premium tools', description: 'Placeholder bucket for future premium releases.', category: 'Support / Extras' },
 ];
@@ -56,7 +54,6 @@ const lessonFeatureKeys = [
   ...baseFeatureKeys,
   'lessons_access_full',
   'notes_canvas_study_mode',
-  'download_materials',
 ];
 const fullPrepFeatureKeys = [
   ...new Set([

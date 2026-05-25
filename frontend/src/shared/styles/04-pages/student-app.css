@@ -488,15 +488,41 @@
   }
 }
 
-:root[data-theme='dark'] .lms-sidebar--student-model {
-  --student-sidebar-ink:    #e8eefa;
-  --student-sidebar-muted:  #aab6d4;
-  --student-sidebar-faint:  #6c7a9d;
-  --student-sidebar-border: rgba(122, 162, 230, 0.12);
-  --student-sidebar-hover:  rgba(122, 162, 230, 0.07);
-  --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(56, 189, 248, 0.18));
-  background: rgba(10, 16, 36, 0.82) !important;
-  box-shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.7) !important;
+:root[data-theme='dark'] .lms-sidebar--student-model,
+.student-app-shell[data-theme='dark'] .lms-sidebar--student-model {
+  --student-sidebar-ink: #eef3f8;
+  --student-sidebar-muted: #a3afbd;
+  --student-sidebar-faint: #8491a3;
+  --student-sidebar-border: rgba(203, 213, 225, 0.13);
+  --student-sidebar-hover: rgba(203, 213, 225, 0.08);
+  --student-sidebar-active: linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(56, 189, 248, 0.08));
+  background:
+    linear-gradient(180deg, rgba(23, 35, 48, 0.9), rgba(16, 24, 34, 0.94)) !important;
+  border-color: rgba(203, 213, 225, 0.13) !important;
+  color: #eef3f8 !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+    0 24px 56px -42px rgba(2, 6, 12, 0.62) !important;
+}
+
+:root[data-theme='dark'] .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong),
+.student-app-shell[data-theme='dark'] .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+
+:root[data-theme='dark'] .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link),
+.student-app-shell[data-theme='dark'] .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link) {
+  color: #aeb9d4 !important;
+  -webkit-text-fill-color: #aeb9d4 !important;
+}
+
+:root[data-theme='dark'] .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
+:root[data-theme='dark'] .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow :where(span, svg),
+.student-app-shell[data-theme='dark'] .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
+.student-app-shell[data-theme='dark'] .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow :where(span, svg) {
+  color: var(--sa-primary, #60a5fa) !important;
+  -webkit-text-fill-color: var(--sa-primary, #60a5fa) !important;
 }
 
 @media (max-width: 900px) {
@@ -1001,14 +1027,13 @@
   }
 
   :root[data-theme='dark'] .lms-mobile-top-nav {
-    border-color: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(203, 213, 225, 0.13) !important;
     background:
-      linear-gradient(180deg, rgba(10, 16, 36, 0.70), rgba(5, 10, 24, 0.50)) !important;
+      linear-gradient(180deg, rgba(23, 35, 48, 0.82), rgba(18, 28, 38, 0.72)) !important;
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.08),
       inset 0 26px 48px rgba(255, 255, 255, 0.035),
-      0 30px 96px rgba(0, 0, 0, 0.40),
-      0 0 74px rgba(56, 189, 248, 0.08) !important;
+      0 30px 88px rgba(2, 6, 12, 0.36) !important;
   }
 
   :root[data-theme='dark'] .lms-mobile-top-nav--plain {
@@ -1018,23 +1043,22 @@
   }
 
   :root[data-theme='dark'] .lms-mobile-top-nav--plain::before {
-    border-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(203, 213, 225, 0.13);
     background:
-      linear-gradient(180deg, rgba(10, 16, 36, 0.58), rgba(5, 10, 24, 0.34));
+      linear-gradient(180deg, rgba(23, 35, 48, 0.72), rgba(18, 28, 38, 0.54));
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.08),
       inset 0 22px 42px rgba(255, 255, 255, 0.035),
-      0 24px 56px rgba(0, 0, 0, 0.38),
-      0 0 50px rgba(56, 189, 248, 0.08);
+      0 24px 56px rgba(2, 6, 12, 0.34);
   }
 
   :root[data-theme='dark'] .lms-mobile-top-nav::after {
     background: linear-gradient(
       to bottom,
-      rgba(5, 10, 24, 0) 0%,
-      rgba(5, 10, 24, 0.34) 36%,
-      rgba(5, 10, 24, 0.76) 74%,
-      rgba(5, 10, 24, 0.92) 100%
+      rgba(16, 24, 34, 0) 0%,
+      rgba(16, 24, 34, 0.34) 36%,
+      rgba(16, 24, 34, 0.76) 74%,
+      rgba(16, 24, 34, 0.92) 100%
     );
   }
 
@@ -1045,12 +1069,12 @@
   :root[data-theme='dark'] .lms-mobile-top-nav__brand strong,
   :root[data-theme='dark'] .lms-mobile-top-nav__close,
   :root[data-theme='dark'] .lms-mobile-top-nav__plain-close {
-    color: #e8eefa;
+    color: #eef3f8;
   }
 
   :root[data-theme='dark'] .lms-mobile-top-nav__brand span,
   :root[data-theme='dark'] .lms-mobile-top-nav__group-label {
-    color: #aab6d4;
+    color: #a3afbd;
   }
 
   :root[data-theme='dark'] .lms-mobile-top-nav__item,
@@ -1062,15 +1086,15 @@
   }
 
   :root[data-theme='dark'] .lms-mobile-top-nav__item {
-    color: #aab6d4;
+    color: #a3afbd;
   }
 
   :root[data-theme='dark'] .lms-mobile-top-nav__item:hover,
   :root[data-theme='dark'] .lms-mobile-top-nav__item:focus-visible,
   :root[data-theme='dark'] .lms-mobile-top-nav__item.is-active {
-    border-color: rgba(122, 162, 230, 0.16);
+    border-color: rgba(203, 213, 225, 0.14);
     background: rgba(255, 255, 255, 0.075);
-    color: #e8eefa;
+    color: #eef3f8;
   }
 
   :root[data-theme='light'] .lms-mobile-top-nav-backdrop {
@@ -1334,34 +1358,32 @@
    ============================================================ */
 :root[data-theme="dark"] .student-app-shell,
 .student-app-shell[data-theme="dark"] {
-  --sa-bg:
-    radial-gradient(ellipse at 18% 0%, rgba(37, 99, 235, 0.035) 0%, transparent 42%),
-    linear-gradient(180deg, #02030a 0%, #05070d 34%, #03050b 72%, #02030a 100%);
-  --sa-bg-grad-1:      #0b1019;
-  --sa-bg-grad-2:      #070a11;
-  --sa-surface:        rgba(7, 10, 16, 0.95);
-  --sa-surface-2:      #0b1019;
-  --sa-surface-raised: rgba(10, 14, 22, 0.96);
-  --sa-surface-rgb:    7, 10, 16;
-  --sa-surface-2-rgb:  11, 16, 25;
+  --sa-bg:            var(--app-bg);
+  --sa-bg-grad-1:     #172330;
+  --sa-bg-grad-2:     #0f1720;
+  --sa-surface:       rgba(18, 28, 38, 0.94);
+  --sa-surface-2:     #172330;
+  --sa-surface-raised: rgba(23, 35, 48, 0.95);
+  --sa-surface-rgb:   18, 28, 38;
+  --sa-surface-2-rgb: 23, 35, 48;
 
-  --sa-ink:      #e6ecf9;
-  --sa-ink-deep: #f5f8ff;
-  --sa-text-2:   #a4b1cf;
-  --sa-text-3:   #6c7a9d;
+  --sa-ink:      #eef3f8;
+  --sa-ink-deep: #f8fafc;
+  --sa-text-2:   #a3afbd;
+  --sa-text-3:   #8491a3;
 
-  --sa-border:        rgba(122, 162, 230, 0.14);
-  --sa-border-soft:   rgba(122, 162, 230, 0.08);
-  --sa-border-strong: rgba(122, 162, 230, 0.22);
-  --sa-border-rgb:    122, 162, 230;
+  --sa-border:        rgba(203, 213, 225, 0.13);
+  --sa-border-soft:   rgba(203, 213, 225, 0.09);
+  --sa-border-strong: rgba(203, 213, 225, 0.2);
+  --sa-border-rgb:    203, 213, 225;
 
   --sa-primary:      #60a5fa;
   --sa-primary-deep: #93c5fd;
-  --sa-primary-soft: rgba(96, 165, 250, 0.16);
+  --sa-primary-soft: rgba(96, 165, 250, 0.12);
   --sa-primary-rgb:  96, 165, 250;
 
   --sa-purple:      #38bdf8;
-  --sa-purple-soft: rgba(56, 189, 248, 0.07);
+  --sa-purple-soft: rgba(56, 189, 248, 0.055);
   --sa-purple-rgb:  56, 189, 248;
 
   --sa-warn:      #f5a84e;
@@ -1379,27 +1401,30 @@
   --sa-ok-rgb:  52, 211, 153;
 
   --sa-grad:      linear-gradient(135deg, #3b82f6 0%, #38bdf8 60%, #818cf8 100%);
-  --sa-grad-soft: linear-gradient(135deg, rgba(96, 165, 250, 0.18) 0%, rgba(56, 189, 248, 0.18) 100%);
+  --sa-grad-soft: linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(56, 189, 248, 0.09) 100%);
   --sa-grad-warm: linear-gradient(135deg, rgba(245, 168, 78, 0.14) 0%, rgba(245, 168, 78, 0.22) 100%);
 
   --app-bg: var(--sa-bg);
   --page-background: var(--sa-bg);
 
-  --sa-shadow-card:       0 0 0 1px rgba(191, 219, 254, 0.025), 0 10px 24px rgba(2, 6, 18, 0.24);
-  --sa-shadow-card-hover: 0 0 0 1px rgba(191, 219, 254, 0.045), 0 18px 40px rgba(2, 6, 18, 0.32);
+  --sa-shadow-card:       inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 16px 36px -26px rgba(2, 6, 12, 0.62);
+  --sa-shadow-card-hover: inset 0 1px 0 rgba(255, 255, 255, 0.058), 0 22px 50px -30px rgba(2, 6, 12, 0.7);
   --sa-shadow-cta:        0 10px 24px -8px rgba(96, 165, 250, 0.5), inset 0 1px 0 rgba(255,255,255,.14);
   --sa-shadow-warn:       0 6px 14px -4px rgba(245, 168, 78, 0.4);
   --sa-card-bg:
-    linear-gradient(145deg, rgba(var(--sa-surface-rgb), 0.92), rgba(var(--sa-surface-2-rgb), 0.84));
+    linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01) 38%, rgba(148, 163, 184, 0.018)),
+    linear-gradient(145deg, rgba(22, 34, 46, 0.92), rgba(18, 28, 38, 0.94) 56%, rgba(14, 22, 31, 0.96));
   --sa-card-bg-hover:
-    linear-gradient(145deg, rgba(12, 18, 32, 0.98), rgba(var(--sa-surface-2-rgb), 0.9));
+    linear-gradient(145deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018) 42%, rgba(148, 163, 184, 0.028)),
+    linear-gradient(145deg, rgba(25, 38, 51, 0.94), rgba(18, 28, 38, 0.96));
   --sa-feature-card-bg:
-    radial-gradient(circle at 86% 20%, rgba(var(--sa-primary-rgb), 0.16), transparent 34%),
-    radial-gradient(circle at 96% 92%, rgba(var(--sa-purple-rgb), 0.1), transparent 42%),
-    linear-gradient(145deg, rgba(var(--sa-surface-rgb), 0.94), rgba(var(--sa-surface-2-rgb), 0.9));
+    radial-gradient(circle at 86% 20%, rgba(148, 163, 184, 0.07), transparent 34%),
+    radial-gradient(circle at 96% 92%, rgba(96, 113, 135, 0.05), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 42%),
+    linear-gradient(145deg, rgba(22, 34, 46, 0.92), rgba(18, 28, 38, 0.96));
   --sa-soft-tile-bg:
-    linear-gradient(135deg, rgba(var(--sa-primary-rgb), 0.1), rgba(var(--sa-purple-rgb), 0.055)),
-    rgba(var(--sa-surface-2-rgb), 0.72);
+    linear-gradient(135deg, rgba(148, 163, 184, 0.055), rgba(96, 113, 135, 0.035)),
+    rgba(23, 35, 48, 0.72);
 
   /* Global token rebind, dark variant */
   --surface-0: var(--sa-bg);
@@ -1409,26 +1434,26 @@
   --surface-4: rgba(255, 255, 255, 0.05);
   --surface-card: var(--sa-surface);
   --surface-card-elevated: var(--sa-surface-raised);
-  --surface-glass: rgba(22,26,46,.78);
-  --surface-glass-strong: rgba(22,26,46,.92);
-  --surface-glass-subtle: rgba(22,26,46,.62);
+  --surface-glass: rgba(18, 28, 38, 0.78);
+  --surface-glass-strong: rgba(18, 28, 38, 0.9);
+  --surface-glass-subtle: rgba(23, 35, 48, 0.66);
 
   --line-soft: var(--sa-border);
   --line-medium: var(--sa-border-strong);
-  --line-strong: rgba(255, 255, 255, 0.22);
+  --line-strong: rgba(203, 213, 225, 0.28);
   --color-border-soft: var(--sa-border);
   --color-border-medium: var(--sa-border-strong);
-  --color-border-strong: rgba(255, 255, 255, 0.22);
+  --color-border-strong: rgba(203, 213, 225, 0.28);
 
   --ink-strong: var(--sa-ink);
-  --ink-medium: #d8defc;
+  --ink-medium: #cbd6e3;
   --ink-soft: var(--sa-text-2);
   --ink-muted: var(--sa-text-3);
 
   --color-primary: var(--sa-primary);
   --color-primary-hover: var(--sa-primary-deep);
   --color-primary-light: var(--sa-primary-soft);
-  --color-primary-glow: rgba(96,165,250,.26);
+  --color-primary-glow: rgba(96,165,250,.18);
   --color-secondary: var(--sa-purple);
   --color-secondary-light: var(--sa-purple-soft);
   --color-accent: var(--sa-purple);
@@ -1438,14 +1463,14 @@
   --brand-primary-mid:   #60a5fa;
   --brand-primary-end:   #38bdf8;
   --brand-primary-solid: #60a5fa;
-  --brand-primary-soft:  rgba(96,165,250,.16);
+  --brand-primary-soft:  rgba(96,165,250,.12);
   --brand-gradient-primary: var(--sa-grad);
   --brand-gradient-vivid:   var(--sa-grad);
-  --brand-gradient-hero:    linear-gradient(135deg, #050a1a 0%, #2563eb 55%, #38bdf8 100%);
-  --brand-shadow-soft: 0 6px 20px rgba(96,165,250,.18);
-  --brand-shadow-md:   0 10px 28px rgba(96,165,250,.22);
-  --brand-shadow-lg:   0 18px 44px rgba(96,165,250,.26);
-  --brand-glow:        0 0 20px rgba(96,165,250,.28), 0 0 44px rgba(56,189,248,.18);
+  --brand-gradient-hero:    linear-gradient(135deg, #172330 0%, #2563eb 62%, #38bdf8 100%);
+  --brand-shadow-soft: 0 6px 20px rgba(96,165,250,.14);
+  --brand-shadow-md:   0 10px 28px rgba(96,165,250,.16);
+  --brand-shadow-lg:   0 18px 44px rgba(96,165,250,.18);
+  --brand-glow:        0 0 20px rgba(96,165,250,.18), 0 0 44px rgba(56,189,248,.1);
 
   --color-success: var(--sa-ok);
   --color-success-light: var(--sa-ok-soft);
@@ -1457,9 +1482,9 @@
   --shadow-xs: var(--sa-shadow-card);
   --shadow-sm: var(--sa-shadow-card);
   --shadow-md: var(--sa-shadow-card-hover);
-  --shadow-lg: 0 24px 60px rgba(0,0,0,.4);
-  --shadow-xl: 0 28px 80px rgba(0,0,0,.45);
-  --shadow-2xl: 0 32px 100px rgba(5,12,32,.5);
+  --shadow-lg: 0 24px 60px rgba(2, 6, 12, 0.38);
+  --shadow-xl: 0 28px 80px rgba(2, 6, 12, 0.42);
+  --shadow-2xl: 0 32px 100px rgba(2, 6, 12, 0.48);
   --shadow-glow: var(--brand-glow);
   --card-shadow: var(--sa-shadow-card);
 
@@ -1725,47 +1750,6 @@
   border-radius: inherit !important;
 }
 
-.student-app-shell .lms-profile-menu-backdrop,
-.study-hub-topbar .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-blur: 12px;
-  --lms-profile-menu-backdrop-saturate: 108%;
-  position: fixed;
-  inset: 0;
-  z-index: 10045;
-  border: 0;
-  background: var(--lms-profile-menu-backdrop-bg, rgba(100, 116, 139, 0.14)) !important;
-  cursor: default;
-  -webkit-backdrop-filter: blur(var(--lms-profile-menu-backdrop-blur)) saturate(var(--lms-profile-menu-backdrop-saturate)) !important;
-  backdrop-filter: blur(var(--lms-profile-menu-backdrop-blur)) saturate(var(--lms-profile-menu-backdrop-saturate)) !important;
-  animation: lmsProfileBackdropIn 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-
-body.lms-profile-menu-open .student-app-shell :where(.main-content, .portal-content) {
-  z-index: 10044 !important;
-}
-
-:root[data-theme='light'] .student-app-shell .lms-profile-menu-backdrop,
-:root[data-theme='light'] .study-hub-topbar .lms-profile-menu-backdrop,
-.student-app-shell[data-theme='light'] .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-bg: rgba(12, 24, 48, 0.075);
-  --lms-profile-menu-backdrop-blur: 10px;
-  --lms-profile-menu-backdrop-saturate: 115%;
-}
-
-:root[data-theme='dark'] .student-app-shell .lms-profile-menu-backdrop,
-:root[data-theme='dark'] .study-hub-topbar .lms-profile-menu-backdrop,
-.student-app-shell[data-theme='dark'] .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-bg: rgba(100, 116, 139, 0.16);
-  --lms-profile-menu-backdrop-blur: 14px;
-  --lms-profile-menu-backdrop-saturate: 108%;
-}
-
-.student-app-shell .lms-profile-menu-backdrop.is-closing,
-.study-hub-topbar .lms-profile-menu-backdrop.is-closing {
-  pointer-events: none;
-  animation: lmsProfileBackdropOut 340ms cubic-bezier(0.4, 0, 1, 1) both;
-}
-
 .student-app-shell .lms-topbar.is-profile-menu-open,
 .student-app-shell .study-hub-topbar.is-profile-menu-open,
 .study-hub-topbar.is-profile-menu-open {
@@ -1779,6 +1763,7 @@ body.lms-profile-menu-open .student-app-shell :where(.main-content, .portal-cont
   filter: none !important;
   -webkit-filter: none !important;
   transform: none !important;
+  opacity: 0 !important;
 }
 
 .student-app-shell .is-profile-avatar-open:active,
@@ -1794,6 +1779,7 @@ body.lms-profile-menu-open .student-app-shell :where(.main-content, .portal-cont
 
 .student-app-shell .lms-profile-menu {
   --profile-menu-trigger-size: 36px;
+  --profile-menu-trigger-radius: 12px;
   --profile-menu-ink: #26314c;
   --profile-menu-muted: #4d5b78;
   --profile-menu-border: rgba(12, 24, 48, 0.08);
@@ -1809,14 +1795,14 @@ body.lms-profile-menu-open .student-app-shell :where(.main-content, .portal-cont
     0 24px 54px -22px rgba(14, 21, 56, 0.28) !important;
   backdrop-filter: blur(18px) saturate(140%) !important;
   -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
-  animation: lmsProfileMenuTopNavIn 360ms cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  animation: lmsProfileMenuTopNavIn 780ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
   transform-origin: top right;
   will-change: clip-path, transform, opacity;
 }
 
 .student-app-shell .lms-profile-menu.is-closing {
   pointer-events: none;
-  animation: lmsProfileMenuTopNavOut 360ms cubic-bezier(0.4, 0, 1, 1) 80ms both !important;
+  animation: lmsProfileMenuTopNavOut 620ms cubic-bezier(0.64, 0, 0.78, 0) both !important;
 }
 
 .student-app-shell .lms-profile-menu::before {
@@ -1906,62 +1892,22 @@ body.lms-profile-menu-open .student-app-shell :where(.main-content, .portal-cont
 
 :root[data-theme='dark'] .student-app-shell .lms-profile-menu,
 .student-app-shell[data-theme='dark'] .lms-profile-menu {
-  --profile-menu-ink: #e8eefa;
-  --profile-menu-muted: #aab6d4;
-  --profile-menu-border: rgba(122, 162, 230, 0.14);
-  --profile-menu-hover: rgba(122, 162, 230, 0.08);
-  --profile-menu-grad: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(56, 189, 248, 0.14));
+  --profile-menu-ink: #eef3f8;
+  --profile-menu-muted: #a3afbd;
+  --profile-menu-border: rgba(203, 213, 225, 0.13);
+  --profile-menu-hover: rgba(203, 213, 225, 0.08);
+  --profile-menu-grad: linear-gradient(135deg, rgba(148, 163, 184, 0.08), rgba(96, 113, 135, 0.05));
   background:
-    linear-gradient(180deg, rgba(10, 16, 36, 0.84), rgba(5, 10, 24, 0.72)),
+    linear-gradient(180deg, rgba(23, 35, 48, 0.88), rgba(18, 28, 38, 0.82)),
     var(--profile-menu-grad) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 24px 56px -22px rgba(0, 0, 0, 0.72) !important;
+    0 24px 56px -24px rgba(2, 6, 12, 0.62) !important;
 }
 
 .student-app-shell .lms-profile-menu::before,
 .study-hub-topbar .lms-profile-menu::before {
   content: none !important;
-}
-
-/* Shared profile dropdown/backdrop behavior for every app page. */
-.app-shell .lms-profile-menu-backdrop,
-.lms-topbar .lms-profile-menu-backdrop,
-.study-hub-topbar .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-blur: 12px;
-  --lms-profile-menu-backdrop-saturate: 108%;
-  position: fixed;
-  inset: 0;
-  z-index: 10045;
-  border: 0;
-  background: var(--lms-profile-menu-backdrop-bg, rgba(100, 116, 139, 0.14)) !important;
-  cursor: default;
-  -webkit-backdrop-filter: blur(var(--lms-profile-menu-backdrop-blur)) saturate(var(--lms-profile-menu-backdrop-saturate)) !important;
-  backdrop-filter: blur(var(--lms-profile-menu-backdrop-blur)) saturate(var(--lms-profile-menu-backdrop-saturate)) !important;
-  animation: lmsProfileBackdropIn 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-
-body.lms-profile-menu-open .app-shell :where(.main-content, .portal-content) {
-  z-index: 10044 !important;
-}
-
-.app-shell .lms-profile-menu-backdrop.is-closing,
-.lms-topbar .lms-profile-menu-backdrop.is-closing,
-.study-hub-topbar .lms-profile-menu-backdrop.is-closing {
-  pointer-events: none;
-  animation: lmsProfileBackdropOut 340ms cubic-bezier(0.4, 0, 1, 1) both;
-}
-
-:root[data-theme='light'] :where(.app-shell, .lms-topbar, .study-hub-topbar) .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-bg: rgba(12, 24, 48, 0.075);
-  --lms-profile-menu-backdrop-blur: 10px;
-  --lms-profile-menu-backdrop-saturate: 115%;
-}
-
-:root[data-theme='dark'] :where(.app-shell, .lms-topbar, .study-hub-topbar) .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-bg: rgba(100, 116, 139, 0.16);
-  --lms-profile-menu-backdrop-blur: 14px;
-  --lms-profile-menu-backdrop-saturate: 108%;
 }
 
 .app-shell .lms-topbar.is-profile-menu-open,
@@ -1979,6 +1925,7 @@ body.lms-profile-menu-open .app-shell :where(.main-content, .portal-content) {
   filter: none !important;
   -webkit-filter: none !important;
   transform: none !important;
+  opacity: 0 !important;
 }
 
 .app-shell .is-profile-avatar-open:active,
@@ -1998,6 +1945,7 @@ body.lms-profile-menu-open .app-shell :where(.main-content, .portal-content) {
 .lms-topbar .lms-profile-menu,
 .study-hub-topbar .lms-profile-menu {
   --profile-menu-trigger-size: 36px;
+  --profile-menu-trigger-radius: 12px;
   --profile-menu-ink: #26314c;
   --profile-menu-muted: #4d5b78;
   --profile-menu-border: rgba(12, 24, 48, 0.08);
@@ -2014,29 +1962,29 @@ body.lms-profile-menu-open .app-shell :where(.main-content, .portal-content) {
   box-shadow: var(--profile-menu-shadow) !important;
   -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
   backdrop-filter: blur(18px) saturate(145%) !important;
-  animation: lmsProfileMenuTopNavIn 360ms cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  animation: lmsProfileMenuTopNavIn 780ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
   transform-origin: top right;
   will-change: clip-path, transform, opacity;
 }
 
 :root[data-theme='dark'] :where(.app-shell, .lms-topbar, .study-hub-topbar) .lms-profile-menu {
   --profile-menu-ink: #e8eefa;
-  --profile-menu-muted: #aab6d4;
-  --profile-menu-border: rgba(122, 162, 230, 0.14);
-  --profile-menu-grad: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(56, 189, 248, 0.14));
+  --profile-menu-muted: #a3afbd;
+  --profile-menu-border: rgba(203, 213, 225, 0.13);
+  --profile-menu-grad: linear-gradient(135deg, rgba(148, 163, 184, 0.08), rgba(96, 113, 135, 0.05));
   --profile-menu-bg:
-    linear-gradient(180deg, rgba(10, 16, 36, 0.84), rgba(5, 10, 24, 0.72)),
+    linear-gradient(180deg, rgba(23, 35, 48, 0.88), rgba(18, 28, 38, 0.82)),
     var(--profile-menu-grad);
   --profile-menu-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 24px 56px -22px rgba(0, 0, 0, 0.72);
+    0 24px 56px -24px rgba(2, 6, 12, 0.62);
 }
 
 .app-shell .lms-profile-menu.is-closing,
 .lms-topbar .lms-profile-menu.is-closing,
 .study-hub-topbar .lms-profile-menu.is-closing {
   pointer-events: none;
-  animation: lmsProfileMenuTopNavOut 360ms cubic-bezier(0.4, 0, 1, 1) 80ms both !important;
+  animation: lmsProfileMenuTopNavOut 620ms cubic-bezier(0.64, 0, 0.78, 0) both !important;
 }
 
 .app-shell .lms-profile-menu::before,
@@ -2188,35 +2136,147 @@ body.lms-profile-menu-open .app-shell :where(.main-content, .portal-content) {
   text-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
+body.lms-profile-menu-open > .lms-profile-menu {
+  --profile-menu-ink: #26314c;
+  --profile-menu-muted: #4d5b78;
+  overflow: hidden;
+  border: 1px solid rgba(86, 112, 150, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 250, 255, 0.88)),
+    linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(56, 189, 248, 0.1)) !important;
+  color: var(--profile-menu-ink) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 24px 54px -22px rgba(14, 21, 56, 0.3) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+  backdrop-filter: blur(18px) saturate(145%) !important;
+  transform-origin: top right !important;
+  animation: lmsProfileMenuTopNavIn 780ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+  will-change: clip-path, transform, opacity;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu.is-closing {
+  pointer-events: none;
+  animation: lmsProfileMenuTopNavOut 620ms cubic-bezier(0.64, 0, 0.78, 0) both !important;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu > * {
+  position: relative;
+  z-index: 1;
+  opacity: 0;
+  transform: translate3d(0, -8px, 0);
+  animation: lmsProfileMenuContentIn 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu > :nth-child(1) { animation-delay: 150ms; }
+body.lms-profile-menu-open > .lms-profile-menu > :nth-child(2) { animation-delay: 185ms; }
+body.lms-profile-menu-open > .lms-profile-menu > :nth-child(3) { animation-delay: 220ms; }
+
+body.lms-profile-menu-open > .lms-profile-menu.is-closing > * {
+  animation: lmsProfileMenuContentOut 180ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation-delay: 0ms;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu :where(button, [role="button"]) {
+  justify-content: space-between !important;
+  color: var(--profile-menu-muted) !important;
+  box-shadow: none !important;
+  text-align: right !important;
+  transform: none !important;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu :where(button, [role="button"]) span {
+  margin-left: auto;
+  text-align: right;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu .lms-profile-menu-logout span {
+  color: var(--sa-danger-deep, var(--brand-error)) !important;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
+  text-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+:root[data-theme='dark'] body.lms-profile-menu-open > .lms-profile-menu {
+  --profile-menu-ink: #eef3f8;
+  --profile-menu-muted: #cbd6e3;
+  border-color: rgba(203, 213, 225, 0.14) !important;
+  background:
+    linear-gradient(180deg, rgba(23, 35, 48, 0.92), rgba(18, 28, 38, 0.88)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 56px -24px rgba(2, 6, 12, 0.62) !important;
+}
+
+.lms-profile-avatar-floating {
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #26314c;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 16px 34px -18px rgba(14, 21, 56, 0.38);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(0.96);
+  animation: lmsProfileAvatarFloatIn 240ms cubic-bezier(0.23, 1, 0.32, 1) 70ms both;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.lms-profile-avatar-floating .lms-profile-avatar {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  box-shadow: none !important;
+}
+
+.lms-profile-avatar-floating.is-closing {
+  animation: lmsProfileAvatarFloatOut 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+:root[data-theme='dark'] .lms-profile-avatar-floating {
+  border-color: rgba(203, 213, 225, 0.16);
+  background: rgba(23, 35, 48, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 36px -18px rgba(2, 6, 12, 0.62);
+}
+
 @keyframes lmsProfileMenuTopNavIn {
   0% {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round 12px);
-    clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round 12px);
+    -webkit-clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round var(--profile-menu-trigger-radius, 12px));
+    clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round var(--profile-menu-trigger-radius, 12px));
     transform: translate3d(0, 0, 0) scaleY(1);
   }
   36% {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 22% 18% round 12px 12px 18px 18px);
-    clip-path: inset(0 0 22% 18% round 12px 12px 18px 18px);
-    transform: translate3d(0, 7px, 0) scaleY(1.025);
+    -webkit-clip-path: inset(0 0 18% 18% round var(--profile-menu-trigger-radius, 12px) var(--profile-menu-trigger-radius, 12px) 18px 18px);
+    clip-path: inset(0 0 18% 18% round var(--profile-menu-trigger-radius, 12px) var(--profile-menu-trigger-radius, 12px) 18px 18px);
+    transform: translate3d(0, 7px, 0) scaleY(1.03);
   }
-  62% {
+  58% {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 10% 0 round 16px 16px 24px 24px);
-    clip-path: inset(0 0 10% 0 round 16px 16px 24px 24px);
-    transform: translate3d(0, 3px, 0) scaleY(1.01);
+    -webkit-clip-path: inset(0 0 18% 0 round var(--profile-menu-trigger-radius, 12px) 28px 28px 28px);
+    clip-path: inset(0 0 18% 0 round var(--profile-menu-trigger-radius, 12px) 28px 28px 28px);
+    transform: translate3d(0, 4px, 0) scaleY(1.01);
   }
-  84% {
+  82% {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 0 0 round 18px);
-    clip-path: inset(0 0 0 0 round 18px);
-    transform: translate3d(0, 1px, 0) scaleY(0.995);
+    -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
+    clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
+    transform: translate3d(0, 2px, 0) scaleY(0.995);
   }
   100% {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 0 0 round 18px);
-    clip-path: inset(0 0 0 0 round 18px);
+    -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
+    clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
     transform: translate3d(0, 0, 0) scaleY(1);
   }
 }
@@ -2235,27 +2295,49 @@ body.lms-profile-menu-open .app-shell :where(.main-content, .portal-content) {
 @keyframes lmsProfileMenuTopNavOut {
   0% {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 0 0 round 18px);
-    clip-path: inset(0 0 0 0 round 18px);
+    -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
+    clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
     transform: translate3d(0, 0, 0) scaleY(1);
   }
-  38% {
+  28% {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 12% 0 round 16px 16px 24px 24px);
-    clip-path: inset(0 0 12% 0 round 16px 16px 24px 24px);
-    transform: translate3d(0, 3px, 0) scaleY(1.01);
+    -webkit-clip-path: inset(0 0 18% 0 round var(--profile-menu-trigger-radius, 12px) 28px 28px 28px);
+    clip-path: inset(0 0 18% 0 round var(--profile-menu-trigger-radius, 12px) 28px 28px 28px);
+    transform: translate3d(0, 4px, 0) scaleY(1.01);
   }
-  72% {
+  64% {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 26% 22% round 12px 12px 18px 18px);
-    clip-path: inset(0 0 26% 22% round 12px 12px 18px 18px);
-    transform: translate3d(0, 6px, 0) scaleY(1.02);
+    -webkit-clip-path: inset(0 0 18% 18% round var(--profile-menu-trigger-radius, 12px) var(--profile-menu-trigger-radius, 12px) 18px 18px);
+    clip-path: inset(0 0 18% 18% round var(--profile-menu-trigger-radius, 12px) var(--profile-menu-trigger-radius, 12px) 18px 18px);
+    transform: translate3d(0, 7px, 0) scaleY(1.03);
   }
   100% {
     opacity: 0;
-    -webkit-clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round 12px);
-    clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round 12px);
+    -webkit-clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round var(--profile-menu-trigger-radius, 12px));
+    clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round var(--profile-menu-trigger-radius, 12px));
     transform: translate3d(0, 0, 0) scaleY(1);
+  }
+}
+
+@keyframes lmsProfileAvatarFloatIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes lmsProfileAvatarFloatOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.96);
   }
 }
 
@@ -3120,10 +3202,10 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
 
 :root[data-theme="dark"] .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero,
 .student-app-shell[data-theme="dark"] .lms-route-page:not(.dashboard-page) .student-page-hero {
-  border-color: rgba(56, 189, 248, 0.2) !important;
+  border-color: rgba(var(--sa-border-rgb), 0.18) !important;
   box-shadow:
-    0 0 0 1px rgba(56,189,248,.06),
-    0 24px 56px -12px rgba(0,0,0,.7) !important;
+    0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 24px 56px -18px rgba(2, 6, 12, 0.54) !important;
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero::after {
@@ -3144,8 +3226,8 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
 .student-app-shell[data-theme="dark"] .lms-route-page:not(.dashboard-page) .student-page-hero::after {
   background: radial-gradient(
     circle at center,
-    rgba(56,189,248,.18) 0%,
-    rgba(99,102,241,.1) 55%,
+    rgba(148, 163, 184, 0.075) 0%,
+    rgba(96, 113, 135, 0.048) 55%,
     transparent 75%
   ) !important;
 }
@@ -3504,28 +3586,28 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
 .student-app-shell[data-theme="dark"][data-student-accent="violet"] {
   --sa-primary:      #6c83ff;
   --sa-primary-deep: #8a9cff;
-  --sa-primary-soft: rgba(108,131,255,.16);
+  --sa-primary-soft: rgba(108,131,255,.12);
   --sa-primary-rgb:  108,131,255;
 
   --sa-purple:      #a78bfa;
-  --sa-purple-soft: rgba(167,139,250,.16);
+  --sa-purple-soft: rgba(167,139,250,.1);
   --sa-purple-rgb:  167,139,250;
 
   --sa-grad:      linear-gradient(135deg, #6c83ff 0%, #a78bfa 100%);
-  --sa-grad-soft: linear-gradient(135deg, rgba(108,131,255,.18) 0%, rgba(167,139,250,.2) 100%);
+  --sa-grad-soft: linear-gradient(135deg, rgba(108,131,255,.12) 0%, rgba(167,139,250,.1) 100%);
 
   --brand-primary-start: #6c83ff;
   --brand-primary-mid:   #8a9cff;
   --brand-primary-end:   #a78bfa;
   --brand-primary-solid: #6c83ff;
-  --brand-primary-soft:  rgba(108,131,255,.16);
-  --brand-gradient-hero: linear-gradient(135deg, #050714 0%, #6c83ff 60%, #a78bfa 100%);
-  --brand-shadow-soft: 0 6px 20px rgba(108,131,255,.20);
-  --brand-shadow-md:   0 10px 28px rgba(108,131,255,.24);
-  --brand-shadow-lg:   0 18px 44px rgba(108,131,255,.28);
-  --brand-glow:        0 0 20px rgba(108,131,255,.32), 0 0 44px rgba(167,139,250,.18);
+  --brand-primary-soft:  rgba(108,131,255,.12);
+  --brand-gradient-hero: linear-gradient(135deg, #172330 0%, #6c83ff 62%, #a78bfa 100%);
+  --brand-shadow-soft: 0 6px 20px rgba(108,131,255,.14);
+  --brand-shadow-md:   0 10px 28px rgba(108,131,255,.16);
+  --brand-shadow-lg:   0 18px 44px rgba(108,131,255,.18);
+  --brand-glow:        0 0 20px rgba(108,131,255,.18), 0 0 44px rgba(167,139,250,.1);
 
-  --color-primary-glow: rgba(108,131,255,.28);
+  --color-primary-glow: rgba(108,131,255,.18);
 
   --sa-shadow-cta: 0 10px 24px -8px rgba(108,131,255,.55), inset 0 1px 0 rgba(255,255,255,.12);
 }
@@ -3569,8 +3651,7 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
     0 18px 40px -12px rgba(var(--sa-primary-rgb), 0.2) !important;
 }
 
-/* Dark mode: stronger cyan border + a soft cyan glow shadow
-   (instead of pure black which disappears on the dark bg). */
+/* Dark mode: quiet border and neutral lift on the dark stage. */
 :root[data-theme="dark"] .student-app-shell .student-route-page:not(.dashboard-page) :where(
   .lms-page-header-card,
   .lms-hero-card,
@@ -3587,11 +3668,10 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   .student-courses-hero,
   .lms-course-detail-hero
 ) {
-  border-color: rgba(var(--sa-primary-rgb), 0.32) !important;
+  border-color: rgba(var(--sa-border-rgb), 0.18) !important;
   box-shadow:
-    0 0 0 1px rgba(var(--sa-primary-rgb), 0.1),
-    0 24px 56px -12px rgba(0, 0, 0, 0.55),
-    0 0 32px -6px rgba(var(--sa-primary-rgb), 0.18) !important;
+    0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 24px 56px -18px rgba(2, 6, 12, 0.54) !important;
 }
 
 /* Phone — softer radius on small screens */
@@ -3695,10 +3775,10 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   .results-performance-board,
   .results-focus-board
 ):hover {
-  border-color: rgba(var(--sa-primary-rgb), 0.32) !important;
+  border-color: rgba(var(--sa-border-rgb), 0.22) !important;
   box-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.5),
-    0 18px 38px -14px rgba(var(--sa-primary-rgb), 0.2) !important;
+    0 1px 0 rgba(255, 255, 255, 0.035),
+    0 18px 38px -16px rgba(2, 6, 12, 0.58) !important;
 }
 
 .student-app-shell :where(
@@ -3817,7 +3897,8 @@ body.student-assessment-screen :where(
 }
 
 :root[data-theme="dark"] body.student-assessment-screen {
-  background: #02030a !important;
+  background: var(--app-bg) !important;
+  background-color: var(--app-bg-solid) !important;
 }
 
 :root:not([data-theme="dark"]) body.student-assessment-screen {
@@ -3833,39 +3914,8 @@ body.student-assessment-screen :where(
   .lms-app-scroll-root,
   .lms-route-reveal
 ) {
-  background: var(--sa-bg, #02030a) !important;
-}
-
-body.student-assessment-screen .lms-sidebar--student-model {
-  --student-sidebar-ink: #f8fbff;
-  --student-sidebar-muted: #aeb9d4;
-  --student-sidebar-faint: #7481a1;
-  --student-sidebar-border: rgba(148, 163, 184, 0.16);
-  --student-sidebar-hover: rgba(96, 165, 250, 0.1);
-  --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.26), rgba(56, 189, 248, 0.18));
-  background:
-    linear-gradient(180deg, rgba(10, 18, 35, 0.94), rgba(5, 9, 19, 0.92)) !important;
-  border-color: rgba(148, 163, 184, 0.16) !important;
-  color: #f8fbff !important;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.02) inset,
-    0 24px 60px -42px rgba(0, 0, 0, 0.9) !important;
-}
-
-body.student-assessment-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong) {
-  color: #f8fbff !important;
-  -webkit-text-fill-color: #f8fbff !important;
-}
-
-body.student-assessment-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link) {
-  color: #aeb9d4 !important;
-  -webkit-text-fill-color: #aeb9d4 !important;
-}
-
-body.student-assessment-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
-body.student-assessment-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow :where(span, svg) {
-  color: var(--sa-primary, #60a5fa) !important;
-  -webkit-text-fill-color: var(--sa-primary, #60a5fa) !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 :root[data-theme="light"] body.student-assessment-screen .lms-sidebar--student-model {

@@ -20,6 +20,7 @@ function TrashIcon() { return <svg width="12" height="12" viewBox="0 0 12 12" fi
 const TYPE_FILTERS = [
   { key: 'all',  label: 'All' },
   { key: 'quiz', label: 'Quizzes' },
+  { key: 'question', label: 'Questions' },
   { key: 'note', label: 'Lessons' },
 ];
 
@@ -48,10 +49,12 @@ export function BookmarksPage() {
   }
 
   const quizCount = items.filter(i => i.itemType === 'quiz').length;
+  const questionCount = items.filter(i => i.itemType === 'question').length;
   const noteCount = items.filter(i => i.itemType === 'note' || i.itemType === 'ai_note').length;
 
   const visible = items.filter(item => {
     if (filter === 'quiz') return item.itemType === 'quiz';
+    if (filter === 'question') return item.itemType === 'question';
     if (filter === 'note') return item.itemType === 'note' || item.itemType === 'ai_note';
     return true;
   });
@@ -59,6 +62,7 @@ export function BookmarksPage() {
 
   function openItem(item) {
     if (item.itemType === 'quiz') navigate(`/quizzes/${item.itemId}?mode=practice`);
+    else if (item.itemType === 'question') navigate(item.quizId ? `/quizzes/${item.quizId}?mode=practice` : '/quizzes');
     else navigate(`/ai-notes/${item.itemId}`);
   }
 
@@ -72,16 +76,16 @@ export function BookmarksPage() {
         <StudentPageHero
           title="Saved Items"
           subtitle="Saved Queue"
-          tone="violet"
           metrics={[
             { label: 'Total Saved', value: items.length },
             { label: 'Practice', value: quizCount },
+            { label: 'Questions', value: questionCount },
             { label: 'Lessons', value: noteCount },
             { label: 'Showing', value: activeCount },
           ]}
         />
 
-        <div className="grid grid-cols-[repeat(4,minmax(0,1fr))] gap-3 max-[780px]:grid-cols-2" aria-label="Bookmark summary">
+        <div className="grid grid-cols-[repeat(5,minmax(0,1fr))] gap-3 max-[980px]:grid-cols-3 max-[780px]:grid-cols-2" aria-label="Bookmark summary">
           <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
             <span className="block text-2xl font-extrabold text-ink-strong">{items.length}</span>
             <small className="mt-0.5 block text-[11px] text-ink-muted">Total saved</small>
@@ -89,6 +93,10 @@ export function BookmarksPage() {
           <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
             <span className="block text-2xl font-extrabold text-ink-strong">{quizCount}</span>
             <small className="mt-0.5 block text-[11px] text-ink-muted">Quizzes</small>
+          </div>
+          <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
+            <span className="block text-2xl font-extrabold text-ink-strong">{questionCount}</span>
+            <small className="mt-0.5 block text-[11px] text-ink-muted">Questions</small>
           </div>
           <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
             <span className="block text-2xl font-extrabold text-ink-strong">{noteCount}</span>
@@ -115,7 +123,7 @@ export function BookmarksPage() {
             >
               <span>{f.label}</span>
               <small className={cx('ml-2 rounded-full px-2 py-0.5 text-[11px]', filter === f.key ? 'bg-white/60 text-brand-primary dark:bg-white/10 dark:text-sky-100' : 'bg-brand-primary-light text-brand-primary')}>
-                {f.key === 'quiz' ? quizCount : f.key === 'note' ? noteCount : items.length}
+                {f.key === 'quiz' ? quizCount : f.key === 'question' ? questionCount : f.key === 'note' ? noteCount : items.length}
               </small>
             </button>
           ))}
@@ -135,7 +143,7 @@ export function BookmarksPage() {
             </div>
             <h3 className="m-0 text-xl font-extrabold text-ink-strong">{items.length === 0 ? 'Your queue is ready when you are' : 'Nothing in this view'}</h3>
             <p className="m-0 max-w-[340px] text-sm leading-relaxed text-ink-soft">{items.length === 0
-              ? 'Nothing saved yet. Hit "Save" on any quiz or lesson to build your revision queue.'
+              ? 'Nothing saved yet. Hit "Save" on any quiz, question, or lesson to build your revision queue.'
               : 'No items match this filter.'
             }</p>
             <button className={ui.primaryAction} type="button" onClick={() => navigate('/quizzes')}>
@@ -146,16 +154,17 @@ export function BookmarksPage() {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[520px]:gap-3">
             {visible.map(item => {
               const isQuiz = item.itemType === 'quiz';
+              const isQuestion = item.itemType === 'question';
               return (
                 <article
                   key={`${item.itemType}-${item.itemId}`}
                   className="group relative flex min-h-[104px] cursor-pointer items-center gap-3 overflow-hidden rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs transition hover:-translate-y-0.5 hover:border-line-medium hover:shadow-md"
                   onClick={() => openItem(item)}
                 >
-                  <div className={cx('grid size-11 shrink-0 place-items-center rounded-md border', isQuiz ? 'border-violet-500/20 bg-violet-500/10 text-violet-600' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600')}>{isQuiz ? <QuizIcon/> : <NoteIcon/>}</div>
+                  <div className={cx('grid size-11 shrink-0 place-items-center rounded-md border', isQuiz || isQuestion ? 'border-violet-500/20 bg-violet-500/10 text-violet-600' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600')}>{isQuiz || isQuestion ? <QuizIcon/> : <NoteIcon/>}</div>
                   <div className="min-w-0 flex-1">
-                    <div className={cx('mb-1 inline-flex rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.05em]', isQuiz ? 'bg-violet-500/10 text-violet-600' : 'bg-emerald-500/10 text-emerald-600')}>{isQuiz ? 'Practice quiz' : 'Lesson'}</div>
-                    <div className="truncate text-[13.5px] font-semibold text-ink-strong">{item.title || `${isQuiz ? 'Quiz' : 'Lesson'} #${item.itemId}`}</div>
+                    <div className={cx('mb-1 inline-flex rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.05em]', isQuiz || isQuestion ? 'bg-violet-500/10 text-violet-600' : 'bg-emerald-500/10 text-emerald-600')}>{isQuestion ? 'Question' : isQuiz ? 'Practice quiz' : 'Lesson'}</div>
+                    <div className="truncate text-[13.5px] font-semibold text-ink-strong">{item.title || `${isQuestion ? 'Question' : isQuiz ? 'Quiz' : 'Lesson'} #${item.itemId}`}</div>
                     {(item.courseTitle || item.topicName) && (
                       <div className="mt-0.5 truncate text-[11.5px] text-ink-muted">
                         {[item.courseTitle, item.topicName].filter(Boolean).join(' › ')}
@@ -168,10 +177,10 @@ export function BookmarksPage() {
                       type="button"
                      
                       onClick={() => openItem(item)}
-                      title={isQuiz ? 'Practice' : 'Read'}
-                      aria-label={isQuiz ? 'Open saved quiz' : 'Open saved lesson'}
+                      title={isQuestion ? 'Open question' : isQuiz ? 'Practice' : 'Read'}
+                      aria-label={isQuestion ? 'Open saved question' : isQuiz ? 'Open saved quiz' : 'Open saved lesson'}
                     >
-                      {isQuiz ? <PlayIcon/> : <ReadIcon/>}
+                      {isQuiz || isQuestion ? <PlayIcon/> : <ReadIcon/>}
                     </button>
                     <button className={ui.dangerIconButton}
                       type="button"

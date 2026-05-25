@@ -37,7 +37,7 @@ function showOverlay(title, body) {
     'margin:0',
     'padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)',
     'color:#fecaca',
-    'background:#05070d',
+    'background:#0f1720',
     'z-index:2147483647',
     'position:fixed',
     'inset:0',

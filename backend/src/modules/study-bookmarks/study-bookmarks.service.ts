@@ -6,12 +6,14 @@ import { ToggleStudyBookmarkDto } from './dto/toggle-study-bookmark.dto';
 type BookmarkRow = RowDataPacket & {
   id: number;
   user_id: number;
-  item_type: 'quiz' | 'ai_note';
+  item_type: 'quiz' | 'ai_note' | 'question';
   item_id: number;
   created_at: string | null;
   quiz_title?: string | null;
   note_title?: string | null;
   note_engine_key?: string | null;
+  question_text?: string | null;
+  question_quiz_id?: number | null;
   course_title?: string | null;
   topic_name?: string | null;
 };
@@ -31,8 +33,15 @@ export class StudyBookmarksService {
          COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
          n.title AS note_title,
          n.engine_key AS note_engine_key,
-         COALESCE(qc.course_title, nc.course_title) AS course_title,
-         COALESCE(qt.topic_name, nt.topic_name) AS topic_name
+         LEFT(qn.question_text, 180) AS question_text,
+         (
+           SELECT MIN(qq.quiz_id)
+           FROM question_quizzes qq
+           INNER JOIN quizzes linked_quiz ON linked_quiz.id = qq.quiz_id AND linked_quiz.status = 'active'
+           WHERE qq.question_id = qn.id
+         ) AS question_quiz_id,
+         COALESCE(qc.course_title, nc.course_title, qnc.course_title) AS course_title,
+         COALESCE(qt.topic_name, nt.topic_name, qnt.topic_name) AS topic_name
        FROM study_bookmarks b
        LEFT JOIN quizzes q ON b.item_type = 'quiz' AND q.id = b.item_id
        LEFT JOIN courses qc ON qc.id = q.course_id
@@ -40,6 +49,9 @@ export class StudyBookmarksService {
        LEFT JOIN ai_illustrated_notes n ON b.item_type = 'ai_note' AND n.id = b.item_id
        LEFT JOIN courses nc ON nc.id = n.course_id
        LEFT JOIN topics nt ON nt.id = n.topic_id
+       LEFT JOIN questions qn ON b.item_type = 'question' AND qn.id = b.item_id
+       LEFT JOIN courses qnc ON qnc.id = qn.course_id
+       LEFT JOIN topics qnt ON qnt.id = qn.topic_id
        WHERE b.user_id = ?
        ORDER BY b.created_at DESC, b.id DESC`,
       [userId]
@@ -50,8 +62,13 @@ export class StudyBookmarksService {
       userId: row.user_id,
       itemType: row.item_type,
       itemId: row.item_id,
-      title: row.item_type === 'quiz' ? String(row.quiz_title || 'Quiz') : String(row.note_title || 'AI Note'),
+      title: row.item_type === 'quiz'
+        ? String(row.quiz_title || 'Quiz')
+        : row.item_type === 'question'
+          ? String(row.question_text || `Question #${row.item_id}`)
+          : String(row.note_title || 'AI Note'),
       engineKey: row.item_type === 'ai_note' ? String(row.note_engine_key || 'gemini') : null,
+      quizId: row.item_type === 'question' && row.question_quiz_id ? Number(row.question_quiz_id) : null,
       courseTitle: String(row.course_title || ''),
       topicName: String(row.topic_name || ''),
       createdAt: row.created_at || null,
@@ -79,7 +96,7 @@ export class StudyBookmarksService {
     return { ok: true, saved: true };
   }
 
-  private async assertTargetExists(itemType: 'quiz' | 'ai_note', itemId: number) {
+  private async assertTargetExists(itemType: 'quiz' | 'ai_note' | 'question', itemId: number) {
     if (itemType === 'quiz') {
       const [rows] = await this.db.execute<RowDataPacket[]>(
         "SELECT id FROM quizzes WHERE id = ? AND status = 'active' LIMIT 1",
@@ -87,6 +104,17 @@ export class StudyBookmarksService {
       );
       if (rows.length === 0) {
         throw new BadRequestException('Quiz not found');
+      }
+      return;
+    }
+
+    if (itemType === 'question') {
+      const [rows] = await this.db.execute<RowDataPacket[]>(
+        "SELECT id FROM questions WHERE id = ? AND status = 'active' LIMIT 1",
+        [itemId]
+      );
+      if (rows.length === 0) {
+        throw new BadRequestException('Question not found');
       }
       return;
     }

@@ -838,15 +838,19 @@ function QuizFilterPanel({
   );
 }
 
-function CoursePicker({ courses, onSelect }) {
+function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
+  const isExamPage = pageMode === 'exam';
+  const totalSets = courses.reduce((sum, course) => sum + course.quizzes.length, 0);
+  const setLabel = isExamPage ? 'exam set' : 'practice set';
+
   return (
     <section className="student-lessons-hub animate-fadePop">
       <div className="student-lessons-section-head mb-5 flex flex-wrap items-end justify-between gap-3">
         <div className="lms-quiz-mascot-strip student-lessons-mascot-strip">
-          <StudyMascot variant="stetho" mood="lesson" size="md" label="Q-Bank study buddy" />
+          <StudyMascot variant="stetho" mood="lesson" size="md" label={isExamPage ? 'Exam navigator mascot' : 'Q-Bank study buddy'} />
           <div>
-            <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Lesson</h2>
-            <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{courses.reduce((sum, course) => sum + course.quizzes.length, 0)} quiz set{courses.reduce((sum, course) => sum + course.quizzes.length, 0) !== 1 ? 's' : ''} available</p>
+            <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Course</h2>
+            <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{totalSets} {setLabel}{totalSets !== 1 ? 's' : ''} available</p>
           </div>
         </div>
         <span className="student-lessons-count-pill rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-extrabold text-ink-muted">
@@ -880,7 +884,7 @@ function CoursePicker({ courses, onSelect }) {
                 </div>
                 <div className="student-lessons-course-card__count text-right shrink-0">
                   <div className="text-[30px] font-extrabold leading-none text-ink-strong">{course.quizzes.length}</div>
-                  <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">sets</div>
+                  <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{isExamPage ? 'exams' : 'sets'}</div>
                 </div>
               </div>
             </button>
@@ -891,10 +895,12 @@ function CoursePicker({ courses, onSelect }) {
   );
 }
 
-function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark }) {
-  const title = getQuizTitleText(quiz) || quiz.quizTitle || 'Untitled quiz';
-  const statusLabel = quiz.accessLocked ? 'Locked' : quiz.isFree ? 'Free quiz' : quiz.isFree === false ? 'Premium' : '';
+function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode = 'practice' }) {
+  const isExamPage = pageMode === 'exam';
+  const title = getQuizTitleText(quiz) || quiz.quizTitle || `Untitled ${isExamPage ? 'exam' : 'practice set'}`;
+  const statusLabel = quiz.accessLocked ? 'Locked' : quiz.isFree ? (isExamPage ? 'Free exam' : 'Free practice') : quiz.isFree === false ? 'Premium' : '';
   const completed = isQuizDone(quiz);
+  const startLabel = isExamPage ? 'Start exam' : 'Start practice';
 
   return (
     <div className={cx('student-lessons-lesson-row', completed && 'is-completed')} style={{ '--lesson-row-delay': `${Math.min(index, 8) * 18}ms` }}>
@@ -912,7 +918,7 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark }) {
       </button>
       <div className="student-lessons-lesson-row__actions">
         <button type="button" className="student-lessons-lesson-row__start" onClick={onStart}>
-          Start
+          {startLabel}
         </button>
         <button
           type="button"
@@ -930,6 +936,8 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark }) {
 
 function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, navigate, pageMode }) {
   const isExamPage = pageMode === 'exam';
+  const setLabel = isExamPage ? 'Exam Set' : 'Practice Set';
+  const setLabelLower = setLabel.toLowerCase();
   const [activeSubject, setActiveSubject] = useState(null);
   const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
   const subjects = useMemo(() => {
@@ -979,7 +987,7 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
           {courseName || 'General'}
         </div>
         <div className="student-lessons-detail-title">
-          <strong>{quizzes.length} {quizzes.length === 1 ? 'Quiz' : 'Quizzes'}</strong>
+          <strong>{quizzes.length} {setLabel}{quizzes.length === 1 ? '' : 's'}</strong>
         </div>
       </div>
 
@@ -1011,7 +1019,7 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
                   <h2>{subject.label || 'General'}</h2>
                 </div>
                 <small>
-                  {subject.quizzes.length} {subject.quizzes.length === 1 ? 'quiz' : 'quizzes'}
+                  {subject.quizzes.length} {setLabelLower}{subject.quizzes.length === 1 ? '' : 's'}
                   <IcoChevron />
                 </small>
               </button>
@@ -1026,6 +1034,7 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
                       bookmarked={bookmarkedIds.has(quiz.id)}
                       onBookmark={onBookmark}
                       onStart={() => startQuiz(quiz)}
+                      pageMode={pageMode}
                     />
                   ))}
                 </div>
@@ -1176,14 +1185,13 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     const body = document.body;
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     const root = document.documentElement;
-    const routeThemeColors = { light: '#dce6f4', dark: '#02030a' };
-    const appThemeColors = { light: '#dce6f4', dark: '#05070d' };
+    const dashboardThemeColors = { light: '#dce6f4', dark: '#0f1720' };
     const getTheme = () => (root.dataset.theme === 'dark' ? 'dark' : 'light');
     const syncRouteThemeColor = () => {
-      metaThemeColor?.setAttribute('content', routeThemeColors[getTheme()]);
+      metaThemeColor?.setAttribute('content', dashboardThemeColors[getTheme()]);
     };
 
-    body.classList.add('student-quiz-night-screen');
+    body.classList.remove('student-quiz-night-screen');
     syncRouteThemeColor();
 
     const observer = typeof MutationObserver === 'function'
@@ -1194,7 +1202,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     return () => {
       observer?.disconnect();
       body.classList.remove('student-quiz-night-screen');
-      metaThemeColor?.setAttribute('content', appThemeColors[getTheme()]);
+      metaThemeColor?.setAttribute('content', dashboardThemeColors[getTheme()]);
     };
   }, []);
 
@@ -1370,13 +1378,13 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   ];
 
   return (
-    <main className={cx('dashboard-page study-hub-page student-lessons-page student-quiz-map-page student-quiz-night-page', isExamPage ? 'student-exam-map-page' : 'student-qbank-map-page')}>
+    <main className={cx('dashboard-page study-hub-page student-lessons-page student-quiz-map-page', isExamPage ? 'student-exam-map-page' : 'student-qbank-map-page')}>
       <section className="study-hub-shell">
         <AppHeader
           title={isExamPage ? 'Exams' : 'Q-Bank'}
           subtitle={isExamPage
-            ? 'Timed Exams'
-            : 'Practice Bank'
+            ? 'Timed exam sets'
+            : 'Practice question sets'
           }
         />
 
@@ -1394,7 +1402,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
               placeholder={isExamPage ? 'Search exams, topics, courses...' : 'Search quizzes, topics, courses...'}
             />
             {search ? (
-              <button className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-[13px] font-black text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong" onClick={() => setSearch('')} aria-label="Clear quiz search">x</button>
+              <button className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-[13px] font-black text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong" onClick={() => setSearch('')} aria-label="Clear search">x</button>
             ) : null}
           </div>
         </div>
@@ -1408,13 +1416,13 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
         ) : courseFilter === 'all' ? (
           courseCards.length === 0 ? (
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
-              <StudyMascot variant="review" mood="review" size="lg" label="Empty Q-Bank review mascot" />
+              <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'Empty exams mascot' : 'Empty Q-Bank mascot'} />
               <p className="m-0 text-center">
                 {isExamPage ? 'No exams available yet.' : 'No question sets available yet.'}
               </p>
             </div>
           ) : (
-            <CoursePicker courses={courseCards} onSelect={handleSelectCourse} />
+            <CoursePicker courses={courseCards} onSelect={handleSelectCourse} pageMode={pageMode} />
           )
         ) : grouped.size === 0 ? (
           <section className="animate-fadePop">
@@ -1429,7 +1437,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
               pageMode={pageMode}
             />
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
-              <StudyMascot variant="review" mood="review" size="lg" label="No matching Q-Bank sets mascot" />
+              <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'No matching exams mascot' : 'No matching Q-Bank sets mascot'} />
               <p className="m-0 text-center">No sets match your filters.</p>
             </div>
           </section>

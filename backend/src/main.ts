@@ -175,6 +175,11 @@ function getAuthRateLimitPolicy(path: string) {
   return { windowMs: 60_000, maxRequests: 20 };
 }
 
+function getConfigNumber(configService: ConfigService, key: string, fallback: number) {
+  const value = Number(configService.get<string>(key));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 function updateContentDeviceAudit(userId: string, ip: string, userAgent: string) {
   const now = Date.now();
   const windowMs = 15 * 60_000;
@@ -214,7 +219,7 @@ function rewriteApiBoundary(path: string, method: string) {
     }
     if (resource === 'announcements') return `/api/announcements/admin${restPath}`;
     if (resource === 'reports') return `/api/reports/admin${restPath}`;
-    if (resource === 'question-review') return `/api/question-review/admin${restPath}`;
+    if (resource === 'question-reports') return `/api/question-reports/admin${restPath}`;
     if (resource === 'lesson-doubts') return `/api/lesson-doubts/admin${restPath}`;
     if (resource === 'push') return `/api/push/admin${restPath}`;
     if (resource === 'subscriptions') {
@@ -270,6 +275,7 @@ function rewriteApiBoundary(path: string, method: string) {
     if (resource === 'notifications') return `/api/notifications${restPath}`;
     if (resource === 'planner') return `/api/study-planner${restPath}`;
     if (resource === 'doubts') return `/api/lesson-doubts${restPath}`;
+    if (resource === 'question-reports') return `/api/question-reports${restPath}`;
     if (resource === 'push') return `/api/push${restPath}`;
     if (resource === 'theory-recap') return `/api/theory-recap${restPath}`;
   }
@@ -409,7 +415,7 @@ export async function configureApp(app: INestApplication) {
     next();
   });
 
-  app.use((req: any, res: any, next: any) => {
+  app.use(async (req: any, res: any, next: any) => {
     const path = String(req.path || req.url || '');
     const isAdminPath = path.startsWith('/api/admin/');
     const isSensitivePath =
@@ -425,10 +431,24 @@ export async function configureApp(app: INestApplication) {
     }
 
     const authPolicy = path.startsWith('/api/auth/') ? getAuthRateLimitPolicy(path) : null;
+    let rateLimitUser: any = null;
+    if (!authPolicy && req.headers?.authorization) {
+      try {
+        rateLimitUser = await authService.requireAdmin(req.headers.authorization);
+        req.lmsUser = rateLimitUser;
+      } catch {
+        rateLimitUser = null;
+      }
+    }
+
     const windowMs = authPolicy?.windowMs || 60_000;
-    const maxRequests = authPolicy?.maxRequests || (isAdminPath ? 40 : 10);
-    const ip = String(req.ip || req.socket?.remoteAddress || 'unknown');
-    const key = `${ip}:${path}`;
+    const adminMaxRequests = getConfigNumber(configService, 'ADMIN_RATE_LIMIT_PER_MINUTE', 240);
+    const maxRequests = authPolicy?.maxRequests || (rateLimitUser ? adminMaxRequests : (isAdminPath ? 60 : 10));
+    const method = String(req.method || 'GET').toUpperCase();
+    const ip = getRequestIp(req);
+    const normalizedPath = normalizeRateLimitPath(path);
+    const actorKey = rateLimitUser?.id ? `admin:${rateLimitUser.id}` : `ip:${ip}`;
+    const key = `${actorKey}:${method}:${normalizedPath}`;
     const now = Date.now();
     const bucket = rateLimitBuckets.get(key);
 
@@ -440,6 +460,18 @@ export async function configureApp(app: INestApplication) {
 
     bucket.count += 1;
     if (bucket.count > maxRequests) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+      res.setHeader('Retry-After', String(retryAfterSeconds));
+      console.warn(JSON.stringify({
+        event: 'api_rate_limited',
+        actor: rateLimitUser?.id ? `admin:${rateLimitUser.id}` : 'anonymous',
+        method,
+        path: normalizedPath,
+        count: bucket.count,
+        maxRequests,
+        retryAfterSeconds,
+        ip,
+      }));
       res.status(429).json({ message: 'Too many requests. Please wait a moment and try again.' });
       return;
     }
@@ -460,7 +492,7 @@ export async function configureApp(app: INestApplication) {
 
     try {
       if (isAdminBoundary) {
-        const admin = await authService.requireAdmin(req.headers?.authorization);
+        const admin = req.lmsUser || await authService.requireAdmin(req.headers?.authorization);
         req.lmsUser = admin;
       } else {
         const student = await authService.requireStudent(req.headers?.authorization);

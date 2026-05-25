@@ -1,0 +1,496 @@
+diff --git a/frontend/src/shared/styles/04-pages/dashboard.css b/frontend/src/shared/styles/04-pages/dashboard.css
+index 4726312..f8b2e0e 100644
+--- a/frontend/src/shared/styles/04-pages/dashboard.css
++++ b/frontend/src/shared/styles/04-pages/dashboard.css
+@@ -2746,6 +2746,7 @@
+ }
+ 
+ .study-hub-shell > .study-continue-card,
++.study-hub-shell > .study-reminder-first-grid,
+ .study-hub-shell > .study-streak-card,
+ .study-hub-shell > .study-readiness-stack,
+ .study-hub-shell > .study-section-head,
+@@ -2755,7 +2756,8 @@
+   animation: study-fade-up 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+ }
+ 
+-.study-hub-shell > .study-continue-card           { animation-delay:  40ms; }
++.study-hub-shell > .study-continue-card,
++.study-hub-shell > .study-reminder-first-grid     { animation-delay:  40ms; }
+ .study-hub-shell > .study-streak-card             { animation-delay: 130ms; }
+ .study-hub-shell > .study-readiness-stack         { animation-delay: 210ms; }
+ .study-hub-shell > .study-section-head            { animation-delay: 280ms; }
+@@ -2863,6 +2865,7 @@
+   .study-hero-name strong,
+   .study-large-rail span,
+   .study-hub-shell > .study-continue-card,
++  .study-hub-shell > .study-reminder-first-grid,
+   .study-hub-shell > .study-streak-card,
+   .study-hub-shell > .study-readiness-stack,
+   .study-hub-shell > .study-section-head,
+@@ -3727,10 +3730,247 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
+   }
+ }
+ 
++/* ============================================================
++   REMINDER MAP FIRST
++   Replaces the old hero card with a planner-first weekly map.
++   ============================================================ */
++.study-reminder-first-grid {
++  display: grid;
++  grid-column: 1 / -1;
++  grid-template-columns: minmax(0, 1fr);
++  gap: 14px;
++  align-items: stretch;
++}
++
++.study-reminder-map-card {
++  display: grid;
++  gap: 14px;
++  padding: 16px;
++  overflow: hidden;
++  border-color: rgba(96, 165, 250, 0.16);
++  background:
++    radial-gradient(circle at 92% 0%, rgba(96, 165, 250, 0.16), transparent 36%),
++    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(238, 244, 252, 0.9));
++}
++
++:root[data-theme="dark"] .study-reminder-map-card,
++.student-app-shell[data-theme="dark"] .study-reminder-map-card {
++  border-color: rgba(148, 163, 184, 0.16);
++  background:
++    radial-gradient(circle at 92% 0%, rgba(96, 165, 250, 0.1), transparent 34%),
++    linear-gradient(145deg, rgba(13, 22, 42, 0.84), rgba(6, 10, 20, 0.9));
++}
++
++.study-reminder-map__head,
++.study-reminder-map__footer {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 12px;
++  min-width: 0;
++}
++
++.study-reminder-map__head > div,
++.study-reminder-map__footer > span {
++  min-width: 0;
++}
++
++.study-reminder-map__head strong {
++  display: block;
++  margin-top: 3px;
++  color: var(--sa-ink);
++  font-size: 22px;
++  font-weight: 950;
++  line-height: 1.1;
++}
++
++.study-reminder-map__head button,
++.study-reminder-map__footer button {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 7px;
++  min-height: 40px;
++  flex: 0 0 auto;
++  border: 1px solid rgba(var(--sa-primary-rgb), 0.24);
++  border-radius: 14px;
++  background: rgba(var(--sa-primary-rgb), 0.1);
++  color: var(--sa-primary);
++  cursor: pointer;
++  font-size: 12px;
++  font-weight: 900;
++  padding: 0 12px;
++}
++
++.study-reminder-map__head button svg {
++  width: 16px;
++  height: 16px;
++}
++
++.study-reminder-map__grid {
++  display: grid;
++  grid-template-columns: repeat(7, minmax(64px, 1fr));
++  gap: 8px;
++  overflow-x: auto;
++  padding-bottom: 2px;
++  scrollbar-width: none;
++}
++
++.study-reminder-map__grid::-webkit-scrollbar {
++  display: none;
++}
++
++.study-reminder-day {
++  position: relative;
++  display: grid;
++  min-width: 64px;
++  min-height: 86px;
++  gap: 5px;
++  justify-items: start;
++  border: 1px solid rgba(86, 112, 150, 0.15);
++  border-radius: 16px;
++  background: rgba(255, 255, 255, 0.54);
++  color: var(--sa-text-2);
++  cursor: pointer;
++  padding: 10px 9px;
++  text-align: left;
++}
++
++:root[data-theme="dark"] .study-reminder-day,
++.student-app-shell[data-theme="dark"] .study-reminder-day {
++  border-color: rgba(148, 163, 184, 0.14);
++  background: rgba(15, 23, 42, 0.5);
++}
++
++.study-reminder-day span,
++.study-reminder-day b,
++.study-reminder-day strong {
++  position: relative;
++  z-index: 1;
++}
++
++.study-reminder-day span {
++  color: var(--sa-primary);
++  font-size: 11px;
++  font-weight: 950;
++  line-height: 1;
++}
++
++.study-reminder-day b {
++  color: var(--sa-ink);
++  font-size: 21px;
++  font-weight: 950;
++  line-height: 1;
++}
++
++.study-reminder-day strong {
++  color: var(--sa-text-2);
++  font-size: 11px;
++  font-weight: 900;
++  line-height: 1.15;
++}
++
++.study-reminder-day i {
++  position: absolute;
++  top: 8px;
++  right: 8px;
++  display: grid;
++  width: 20px;
++  height: 20px;
++  place-items: center;
++  border-radius: 999px;
++  background: #f59e0b;
++  color: #111827;
++  font-size: 11px;
++  font-style: normal;
++  font-weight: 950;
++  line-height: 1;
++  box-shadow: 0 0 18px rgba(245, 158, 11, 0.3);
++}
++
++.study-reminder-day.is-today {
++  border-color: rgba(var(--sa-primary-rgb), 0.34);
++  background: rgba(var(--sa-primary-rgb), 0.1);
++}
++
++.study-reminder-day.is-marked {
++  border-color: rgba(245, 158, 11, 0.38);
++  background:
++    radial-gradient(circle at 88% 16%, rgba(245, 158, 11, 0.18), transparent 36%),
++    rgba(245, 158, 11, 0.08);
++}
++
++.study-reminder-day.is-marked strong {
++  color: var(--sa-warn-deep, #f59e0b);
++}
++
++.study-reminder-map__footer {
++  min-height: 40px;
++  border-top: 1px solid rgba(var(--sa-border-rgb), 0.12);
++  padding-top: 12px;
++}
++
++.study-reminder-map__footer span {
++  overflow: hidden;
++  color: var(--sa-text-2);
++  font-size: 12px;
++  font-weight: 800;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++
++.study-reminder-map__footer button {
++  min-height: 36px;
++}
++
++@media (max-width: 380px) {
++  .study-reminder-map-card {
++    padding: 14px;
++  }
++
++  .study-reminder-map__head,
++  .study-reminder-map__footer {
++    align-items: flex-start;
++    flex-direction: column;
++  }
++
++  .study-reminder-map__footer span {
++    white-space: normal;
++  }
++}
++
++@media (min-width: 760px) {
++  .study-reminder-first-grid {
++    grid-template-columns: minmax(0, 2fr) minmax(210px, 1fr);
++  }
++
++  .study-reminder-first-grid > .study-reminder-map-card,
++  .study-reminder-first-grid > .study-mood-card {
++    grid-column: auto !important;
++  }
++
++  .study-reminder-first-grid > .study-mood-card {
++    min-height: 238px;
++    align-content: center;
++    margin-top: 0;
++  }
++}
++
++@media (min-width: 1080px) {
++  .study-reminder-first-grid {
++    grid-template-columns: minmax(0, 2.15fr) minmax(220px, 0.85fr);
++  }
++
++  .study-reminder-first-grid > .study-reminder-map-card,
++  .study-reminder-first-grid > .study-mood-card {
++    grid-column: auto !important;
++  }
++}
++
+ /* ============================================================
+    HERO + MOOD SPLIT
+-   Desktop keeps the welcome hero at 2/3 and adds the mood card at 1/3.
+-   Mobile stays stacked so the hero copy and mascot have breathing room.
++   Desktop keeps the legacy welcome hero styles available for older
++   markup, while the dashboard now starts with the reminder map.
+    ============================================================ */
+ .study-hub-page .study-hero-grid {
+   display: grid;
+diff --git a/frontend/src/surfaces/app/student/dashboard/StudentDashboardPage.jsx b/frontend/src/surfaces/app/student/dashboard/StudentDashboardPage.jsx
+index d9e4622..a4a3a21 100644
+--- a/frontend/src/surfaces/app/student/dashboard/StudentDashboardPage.jsx
++++ b/frontend/src/surfaces/app/student/dashboard/StudentDashboardPage.jsx
+@@ -105,6 +105,24 @@ function parsePlannerDate(value) {
+   return Number.isNaN(date.getTime()) ? null : date;
+ }
+ 
++function isoFromDate(date) {
++  const year = date.getFullYear();
++  const month = String(date.getMonth() + 1).padStart(2, '0');
++  const day = String(date.getDate()).padStart(2, '0');
++  return `${year}-${month}-${day}`;
++}
++
++function addDays(date, amount) {
++  const next = new Date(date);
++  next.setDate(next.getDate() + amount);
++  return next;
++}
++
++function plannerDateKey(value) {
++  const date = parsePlannerDate(value);
++  return date ? isoFromDate(date) : '';
++}
++
+ function plannerDaysLeft(value) {
+   const dueDate = parsePlannerDate(value);
+   if (!dueDate) return null;
+@@ -117,6 +135,7 @@ function plannerDaysLeft(value) {
+ function formatPlannerDaysLeft(value) {
+   const days = plannerDaysLeft(value);
+   if (days === null) return 'No due date';
++  if (days < -30) return 'Overdue';
+   if (days < 0) return `${plural(Math.abs(days), 'day')} overdue`;
+   return `${plural(days, 'day')} left`;
+ }
+@@ -127,6 +146,32 @@ function cleanPlannerTitle(title) {
+     .trim() || 'Planner reminder';
+ }
+ 
++function buildReminderMapDays(tasks, startDate = new Date()) {
++  const activeTasks = Array.isArray(tasks)
++    ? tasks.filter((task) => task?.status !== 'done')
++    : [];
++  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
++  const startKey = isoFromDate(start);
++
++  return Array.from({ length: 7 }, (_, index) => {
++    const date = addDays(start, index);
++    const key = isoFromDate(date);
++    const dueTasks = activeTasks.filter((task) => {
++      const taskKey = plannerDateKey(task?.dueDate);
++      if (!taskKey) return false;
++      return index === 0 ? taskKey <= startKey : taskKey === key;
++    });
++    return {
++      key,
++      day: new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date),
++      date: new Intl.DateTimeFormat(undefined, { day: 'numeric' }).format(date),
++      dueCount: dueTasks.length,
++      title: dueTasks[0] ? cleanPlannerTitle(dueTasks[0].title) : '',
++      isToday: index === 0,
++    };
++  });
++}
++
+ function getFirstName(user) {
+   const source = user?.fullName || user?.name || user?.email || '';
+   const name = String(source).trim().split(/\s+/)[0];
+@@ -739,6 +784,56 @@ function StudyTodoCard({ todo, onOpen }) {
+   );
+ }
+ 
++function ReminderMapCard({ days, nextTask, reminderCount, onOpenPlanner }) {
++  return (
++    <section className="study-card study-reminder-map-card" aria-label="Reminder map">
++      <div className="study-reminder-map__head">
++        <div>
++          <span className="study-eyebrow">Next 7 days</span>
++          <strong>Reminder map</strong>
++        </div>
++        <button type="button" onClick={onOpenPlanner}>
++          <Icon name="calendar" />
++          <span>{reminderCount ? `${reminderCount} saved` : 'Planner'}</span>
++        </button>
++      </div>
++      <div className="study-reminder-map__grid">
++        {days.map((item) => {
++          const stateClass = [
++            item.isToday ? 'is-today' : '',
++            item.dueCount ? 'is-marked' : '',
++          ].filter(Boolean).join(' ');
++          const label = item.dueCount
++            ? `${item.day} ${item.date}: ${item.dueCount} reminder${item.dueCount === 1 ? '' : 's'}`
++            : `${item.day} ${item.date}: no reminders`;
++
++          return (
++            <button
++              type="button"
++              className={`study-reminder-day ${stateClass}`}
++              key={item.key}
++              onClick={onOpenPlanner}
++              aria-label={label}
++              title={item.title || label}
++            >
++              <span>{item.day}</span>
++              <b>{item.date}</b>
++              <strong>{item.dueCount ? `${item.dueCount} due` : item.isToday ? 'Today' : 'Free'}</strong>
++              {item.dueCount ? <i aria-hidden="true">{item.dueCount}</i> : null}
++            </button>
++          );
++        })}
++      </div>
++      <div className="study-reminder-map__footer">
++        <span>{nextTask ? `${formatPlannerDaysLeft(nextTask.dueDate)} · ${cleanPlannerTitle(nextTask.title)}` : 'No saved reminders'}</span>
++        <button type="button" onClick={onOpenPlanner}>
++          {nextTask ? 'Open planner' : 'Add reminder'}
++        </button>
++      </div>
++    </section>
++  );
++}
++
+ function StudyLevelSummary({ name, progress }) {
+   return (
+     <section className="study-level-summary" aria-label="Study progress summary">
+@@ -774,7 +869,6 @@ export function StudentDashboardPage() {
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState('');
+   const [reloadKey, setReloadKey] = useState(0);
+-  const [heroMascot] = useState(pickDashboardHeroMascot);
+ 
+   useEffect(() => {
+     if (typeof document === 'undefined') return undefined;
+@@ -890,17 +984,6 @@ export function StudentDashboardPage() {
+       : recommendedNote?.id
+         ? appRoute(`/ai-notes/${recommendedNote.id}`)
+         : appRoute('/quizzes');
+-  const continueLabel = inProgressQuiz ? 'Resume practice' : nextQuizId ? 'Start practice' : recommendedNote?.id ? 'Review lesson' : 'Open quizzes';
+-  const continueTitle = inProgressQuiz || recommendedQuiz
+-    ? getQuizTitle(inProgressQuiz || recommendedQuiz)
+-    : recommendedNote?.title || 'Build today\'s study rhythm';
+-  const continueText = inProgressQuiz
+-    ? `Next question ${Number(inProgressQuiz.lastQuestionIndex || 0) + 1}. Keep the set moving while it is fresh.`
+-    : weakTopic
+-      ? `${weakTopic.topicName} is the best place to gain marks today.`
+-      : latestAttempt
+-        ? `Your last attempt scored ${clampPercent(latestAttempt.percentage)}%. Review once, then try another focused set.`
+-        : 'Start with one compact practice set, review the answers, and finish with one lesson.';
+ 
+   const courseCount = useMemo(() => {
+     const courseNames = new Set(
+@@ -1022,6 +1105,14 @@ export function StudentDashboardPage() {
+       const bOrder = bDays === null ? Number.POSITIVE_INFINITY : bDays;
+       return aOrder - bOrder || Number(b?.id || 0) - Number(a?.id || 0);
+     })[0] || null;
++  const openPlannerTasks = useMemo(
++    () => plannerTasks.filter((task) => task?.status !== 'done'),
++    [plannerTasks]
++  );
++  const reminderMapDays = useMemo(
++    () => buildReminderMapDays(openPlannerTasks),
++    [openPlannerTasks]
++  );
+ 
+   const todoCard = nextPlannerTask
+     ? {
+@@ -1080,29 +1171,13 @@ export function StudentDashboardPage() {
+       <div className="study-hub-shell">
+         <AppHeader title="Study Hub" subtitle="Daily Focus" />
+ 
+-        <div className="study-hero-grid">
+-          <section className="study-continue-card" aria-label="Continue studying">
+-            <div className="study-hero-soft-shape" aria-hidden="true" />
+-            <DashboardHeroMascot mascot={heroMascot} />
+-            <div className="study-continue-card__copy">
+-              <span className="study-eyebrow">Continue where you left off</span>
+-            <div className="study-hero-name" title={`Welcome back, ${firstName}`}>
+-              <strong className="study-hero-name-nowrap">Welcome back,&nbsp;{firstName}</strong>
+-            </div>
+-              <p className="study-hero-lead">Next study move - <b>{inProgressQuiz ? 'PRACTICE' : recommendedNote ? 'LESSON' : 'PRACTICE'}</b></p>
+-              <div className="study-chip-row">
+-                <span><Icon name="stetho" /> {recommendedQuiz?.courseTitle || weakTopic?.courseTitle || 'Surgery'}</span>
+-                <span>{recommendedQuiz?.topicName || weakTopic?.topicName || recommendedNote?.topicName || 'Hernia'} · {readinessScore}% ready</span>
+-              </div>
+-              <div className="study-hero-actions">
+-                <StudyButton tone="primary" icon="play" onClick={() => onNavigate(continueTarget)}>{continueLabel}</StudyButton>
+-                <button type="button" className="study-square-action" aria-label="Open exams" onClick={() => onNavigate(appRoute('/quizzes'))}>
+-                  <Icon name="doc" />
+-                </button>
+-              </div>
+-            </div>
+-          </section>
+-
++        <div className="study-reminder-first-grid">
++          <ReminderMapCard
++            days={reminderMapDays}
++            nextTask={nextPlannerTask}
++            reminderCount={openPlannerTasks.length}
++            onOpenPlanner={() => onNavigate(appRoute('/planner'))}
++          />
+           <StudyMoodCard mood={studyMood} todayLabel={todayLabel} className="study-mood-card--desktop" />
+         </div>
+ 
+@@ -1179,7 +1254,9 @@ export function StudentDashboardPage() {
+           <small>Tap an answer</small>
+         </section>
+ 
+-        <DailyQuestionCard question={dashboard.questionOfDay} />
++        <DailyQuestionCard
++          question={dashboard.questionOfDay}
++        />
+ 
+         <StudyLevelSummary name={firstName} progress={levelProgress} />
+       </div>

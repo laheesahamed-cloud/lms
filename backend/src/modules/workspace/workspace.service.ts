@@ -603,77 +603,72 @@ export class WorkspaceService {
     };
   }
 
-  async listQuestionReviewItems(authorization?: string, status?: string) {
+  async createQuestionReport(authorization: string | undefined, input: any) {
+    const student = await this.authService.requireStudent(authorization);
+    const questionId = Number(input?.questionId);
+    if (!Number.isInteger(questionId) || questionId <= 0) {
+      throw new BadRequestException('Question ID is required');
+    }
+    const reason = this.optionalString(input?.reason) || 'Student reported this question';
+    const comment = this.optionalString(input?.comment);
+    const [questionRows] = await this.db.execute<RowDataPacket[]>(
+      "SELECT id FROM questions WHERE id = ? AND status = 'active' LIMIT 1",
+      [questionId]
+    );
+    if (!questionRows[0]) throw new NotFoundException('Question not found');
+
+    const [result] = await this.db.execute<ResultSetHeader>(
+      `INSERT INTO question_reports (question_id, user_id, reason, comment, status)
+       VALUES (?, ?, ?, ?, 'open')`,
+      [questionId, student.id, reason.slice(0, 120), comment]
+    );
+    return { ok: true, id: result.insertId, questionId };
+  }
+
+  async listQuestionReports(authorization?: string, status?: string) {
     await this.authService.requireAdmin(authorization);
     const params: any[] = [];
     let where = 'WHERE 1=1';
-    if (['draft', 'reviewing', 'approved', 'rejected'].includes(String(status || ''))) {
-      where += ' AND qri.status = ?';
+    if (['open', 'resolved', 'rejected'].includes(String(status || ''))) {
+      where += ' AND qr.status = ?';
       params.push(status);
     }
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `
         SELECT
-          qri.*,
-          LEFT(q.question_text, 180) AS question_text,
-          q.question_text AS full_question_text,
-          q.explanation,
-          q.keywords_text,
+          qr.*,
+          q.question_text,
           q.question_type,
-          COALESCE(os.option_count, 0) AS option_count,
-          COALESCE(os.correct_count, 0) AS correct_count,
-          COALESCE(dupes.duplicate_count, 0) AS duplicate_count,
-          u.full_name AS created_by_name,
-          reviewer.full_name AS reviewed_by_name
-        FROM question_review_items qri
-        LEFT JOIN questions q ON q.id = qri.question_id
-        LEFT JOIN (
-          SELECT question_id, COUNT(*) AS option_count, SUM(is_correct = 1) AS correct_count
-          FROM question_options
-          GROUP BY question_id
-        ) os ON os.question_id = q.id
-        LEFT JOIN (
-          SELECT LOWER(TRIM(question_text)) AS question_key, COUNT(*) AS duplicate_count
-          FROM questions
-          GROUP BY LOWER(TRIM(question_text))
-          HAVING COUNT(*) > 1
-        ) dupes ON dupes.question_key = LOWER(TRIM(q.question_text))
-        LEFT JOIN users u ON u.id = qri.created_by
-        LEFT JOIN users reviewer ON reviewer.id = qri.reviewed_by
+          c.course_title,
+          t.topic_name,
+          u.full_name,
+          u.email,
+          (
+            SELECT GROUP_CONCAT(DISTINCT qq.quiz_id ORDER BY qq.quiz_id SEPARATOR ', ')
+            FROM question_quizzes qq
+            WHERE qq.question_id = qr.question_id
+          ) AS quiz_ids
+        FROM question_reports qr
+        INNER JOIN questions q ON q.id = qr.question_id
+        INNER JOIN users u ON u.id = qr.user_id
+        LEFT JOIN courses c ON c.id = q.course_id
+        LEFT JOIN topics t ON t.id = q.topic_id
         ${where}
-        ORDER BY FIELD(qri.status, 'draft', 'reviewing', 'rejected', 'approved'), qri.created_at DESC
+        ORDER BY FIELD(qr.status, 'open', 'rejected', 'resolved'), qr.created_at DESC
         LIMIT 100
       `,
       params
     );
-    return rows.map(this.mapQuestionReviewItem);
+    return rows.map(this.mapQuestionReport);
   }
 
-  async createQuestionReviewItem(authorization: string | undefined, input: any) {
-    const admin = await this.authService.requireAdmin(authorization);
-    const title = this.requiredString(input?.title, 'Review title');
-    const source = ['ai', 'import', 'manual', 'report'].includes(input?.source) ? input.source : 'manual';
-    const status = ['draft', 'reviewing', 'approved', 'rejected'].includes(input?.status) ? input.status : 'draft';
-    const questionId = input?.questionId ? Number(input.questionId) : null;
-    const notes = this.optionalString(input?.notes);
-    const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO question_review_items (question_id, source, title, notes, status, created_by) VALUES (?, ?, ?, ?, ?, ?)`,
-      [questionId, source, title, notes, status, admin.id]
-    );
-    return { ok: true, id: result.insertId };
-  }
-
-  async updateQuestionReviewItem(authorization: string | undefined, id: number, input: any) {
-    const admin = await this.authService.requireAdmin(authorization);
-    const status = ['draft', 'reviewing', 'approved', 'rejected'].includes(input?.status) ? input.status : null;
-    const notes = input?.notes !== undefined ? this.optionalString(input.notes) : null;
+  async updateQuestionReport(authorization: string | undefined, id: number, input: any) {
+    await this.authService.requireAdmin(authorization);
+    const status = ['open', 'resolved', 'rejected'].includes(input?.status) ? input.status : null;
+    if (!status) throw new BadRequestException('Report status is invalid');
     await this.db.execute(
-      `UPDATE question_review_items
-       SET status = COALESCE(?, status), notes = COALESCE(?, notes),
-           reviewed_by = CASE WHEN ? IN ('approved','rejected') THEN ? ELSE reviewed_by END,
-           reviewed_at = CASE WHEN ? IN ('approved','rejected') THEN NOW() ELSE reviewed_at END
-       WHERE id = ?`,
-      [status, notes, status, admin.id, status, id]
+      `UPDATE question_reports SET status = ? WHERE id = ?`,
+      [status, id]
     );
     return { ok: true, id };
   }
@@ -730,14 +725,11 @@ export class WorkspaceService {
     const admin = await this.authService.requireAdmin(authorization);
     const reply = this.optionalString(input?.reply);
     const status = ['open', 'answered', 'closed'].includes(input?.status) ? input.status : (reply ? 'answered' : 'closed');
-    const faqAnswer = input?.faqAnswer !== undefined ? this.optionalString(input.faqAnswer) : null;
-    const convertedToFaq = input?.convertedToFaq === true ? 1 : 0;
     await this.db.execute(
       `UPDATE lesson_doubts
-       SET reply = ?, status = ?, faq_answer = COALESCE(?, faq_answer), converted_to_faq = GREATEST(converted_to_faq, ?),
-           answered_by = ?, answered_at = NOW()
+       SET reply = ?, status = ?, answered_by = ?, answered_at = NOW()
        WHERE id = ?`,
-      [reply, status, faqAnswer, convertedToFaq, admin.id, id]
+      [reply, status, admin.id, id]
     );
     return { ok: true, id };
   }
@@ -841,68 +833,23 @@ export class WorkspaceService {
     };
   }
 
-  private mapQuestionReviewItem(row: RowDataPacket) {
-    const quality = this.buildQuestionQualitySignals(row);
+  private mapQuestionReport(row: RowDataPacket) {
     return {
       id: Number(row.id),
-      questionId: row.question_id ? Number(row.question_id) : null,
-      source: String(row.source || 'manual'),
-      title: String(row.title || ''),
-      notes: String(row.notes || ''),
-      status: String(row.status || 'draft'),
+      questionId: Number(row.question_id || 0),
+      userId: Number(row.user_id || 0),
+      fullName: String(row.full_name || ''),
+      email: String(row.email || ''),
+      reason: String(row.reason || ''),
+      comment: String(row.comment || ''),
+      status: String(row.status || 'open'),
       questionText: String(row.question_text || ''),
-      createdByName: String(row.created_by_name || ''),
-      reviewedByName: String(row.reviewed_by_name || ''),
-      reviewedAt: row.reviewed_at || null,
+      questionType: String(row.question_type || ''),
+      courseTitle: String(row.course_title || ''),
+      topicName: String(row.topic_name || ''),
+      quizIds: String(row.quiz_ids || ''),
       createdAt: row.created_at || null,
-      duplicateCount: Number(row.duplicate_count || 0),
-      qualityFlags: quality.flags,
-      explanationScore: quality.explanationScore,
-      reviewTags: quality.tags,
-    };
-  }
-
-  private buildQuestionQualitySignals(row: RowDataPacket) {
-    const questionText = String(row.full_question_text || row.question_text || '').trim();
-    const explanation = String(row.explanation || '').trim();
-    const keywords = String(row.keywords_text || '').trim();
-    const questionType = String(row.question_type || '');
-    const optionCount = Number(row.option_count || 0);
-    const correctCount = Number(row.correct_count || 0);
-    const duplicateCount = Number(row.duplicate_count || 0);
-    const flags: string[] = [];
-    const tags: string[] = [];
-
-    if (!questionText) flags.push('Missing linked question');
-    if (duplicateCount > 1) flags.push('Possible duplicate');
-    if (questionText && questionText.length < 35) flags.push('Question too short');
-    if (!explanation) flags.push('Missing explanation');
-    if (explanation && explanation.length < 80) flags.push('Thin explanation');
-    if (!keywords) flags.push('Needs source/keywords');
-    if (optionCount < 2) flags.push('Missing answer options');
-    if (questionType === 'sba' && correctCount !== 1) flags.push('SBA needs exactly one answer');
-    if (questionType === 'true_false' && optionCount < 3) flags.push('True/false needs statements');
-
-    if (questionText && /image|diagram|x-ray|ecg|ct|mri|figure|photo/i.test(questionText)) {
-      tags.push('needs image');
-    }
-    if (!keywords) tags.push('needs source');
-    if (/except|least|not true|incorrect/i.test(questionText)) tags.push('ambiguous wording');
-    if (duplicateCount > 1) tags.push('duplicate');
-    if (!explanation || explanation.length < 80) tags.push('explanation review');
-
-    const explanationScore = Math.max(0, Math.min(100,
-      (explanation ? 35 : 0) +
-      Math.min(35, Math.floor(explanation.length / 8)) +
-      (keywords ? 15 : 0) +
-      (optionCount >= 4 ? 10 : 0) +
-      (correctCount > 0 ? 5 : 0)
-    ));
-
-    return {
-      flags,
-      tags: [...new Set(tags)],
-      explanationScore,
+      updatedAt: row.updated_at || null,
     };
   }
 
@@ -920,8 +867,6 @@ export class WorkspaceService {
       subject: String(row.subject || ''),
       message: String(row.message || ''),
       reply: String(row.reply || ''),
-      faqAnswer: String(row.faq_answer || ''),
-      convertedToFaq: Number(row.converted_to_faq || 0) === 1,
       status: String(row.status || 'open'),
       answeredByName: String(row.answered_by_name || ''),
       answeredAt: row.answered_at || null,

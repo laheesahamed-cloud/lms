@@ -40,7 +40,6 @@ const featureKeyAliases = {
   aiTools: ['ai_quiz_generator'],
   aiQuizGenerator: ['ai_quiz_generator'],
   resultsTracking: ['results_tracking'],
-  downloadMaterials: ['download_materials'],
   reportQuestion: ['report_question'],
   pastPaperAccess: ['past_paper_access'],
   mockPaperAccess: ['mock_paper_access'],

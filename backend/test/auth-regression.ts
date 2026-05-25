@@ -21,8 +21,10 @@ class MockPool {
     this.queries.push({ sql, params });
     const normalizedSql = sql.replace(/\s+/g, ' ').trim();
 
-    if (normalizedSql.startsWith('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ?')) {
-      return [[this.user].filter(Boolean) as T, []];
+    if (normalizedSql.startsWith('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE LOWER(TRIM(email)) = ?')) {
+      const email = String(params[0] || '');
+      const userEmail = String(this.user?.email || '').trim().toLowerCase();
+      return [(this.user && userEmail === email ? [this.user] : []) as T, []];
     }
 
     if (normalizedSql.startsWith('UPDATE users SET session_token = ?, session_expires_at = ? WHERE id = ?')) {
@@ -93,6 +95,14 @@ async function testLoginCreatesHashedSession() {
   assert.notEqual(user.session_token, result.sessionToken);
 }
 
+async function testLoginNormalizesEmailCaseAndWhitespace() {
+  const { service, user, password } = await createService('student');
+  user.email = 'Test@Example.COM';
+  const result = await service.login({ email: '  TEST@example.com  ', password });
+  assert.equal(result.ok, true);
+  assert.equal(user.session_token, hashSessionToken(result.sessionToken));
+}
+
 async function testLogoutInvalidatesEvenExpiredSession() {
   const { service, user, password } = await createService('student');
   const result = await service.login({ email: user.email, password });
@@ -128,6 +138,7 @@ async function testInactiveStaffCannotCreateSession() {
 
 async function main() {
   await testLoginCreatesHashedSession();
+  await testLoginNormalizesEmailCaseAndWhitespace();
   await testLogoutInvalidatesEvenExpiredSession();
   await testLogoutWithoutTokenIsIdempotent();
   await testExpiredSessionIsUnauthorized();

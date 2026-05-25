@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createQuiz, fetchQuiz, fetchQuizzesMeta, updateQuiz } from '../../../../shared/api/quizzes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { bulkUpdateQuestionKeywords } from '../../../../shared/api/questions.api.js';
+import { bulkUpdateQuestionKeywords, fetchQuestions } from '../../../../shared/api/questions.api.js';
 import {
   generateQuestionExplanation,
   generateWhyIncorrectExplanations,
@@ -44,6 +44,7 @@ const defaultForm = {
   examModeOnly: false,
   isGeneral: false,
   subtopic: '',
+  blueprint: { sections: [] },
   questionIds: [],
 };
 
@@ -59,6 +60,9 @@ const defaultFilters = {
   keywords: '',
   search: '',
 };
+
+const QUESTION_POOL_LIMIT = 120;
+const QUESTION_RANDOM_DRAW_DEFAULT = 10;
 
 const bulkInputSample = `Question 1. A 45-year-old woman has exertional chest pain relieved by rest. What is the most likely diagnosis?
 A. Pericarditis
@@ -240,10 +244,10 @@ function normalizeQuizMeta(payload = {}) {
       questionType: String(question.questionType ?? question.question_type ?? '').trim(),
       questionText: String(question.questionText ?? question.question_text ?? '').trim(),
       keywordsText: String(question.keywordsText ?? question.keywords_text ?? '').trim(),
-      usageCount: Number(question.usageCount ?? question.usage_count ?? 0),
+      usageCount: Number(question.usageCount ?? question.quizCount ?? question.quiz_count ?? question.usage_count ?? 0),
       usedInAnyQuiz:
         usedQuestionIds.has(toId(question.id)) ||
-        Number(question.usageCount ?? question.usage_count ?? 0) > 0 ||
+        Number(question.usageCount ?? question.quizCount ?? question.quiz_count ?? question.usage_count ?? 0) > 0 ||
         question.usedInAnyQuiz === true,
       courseTitle: String(question.courseTitle ?? question.course_title ?? '').trim(),
       subjectName: String(question.subjectName ?? question.subject_name ?? '').trim(),
@@ -252,6 +256,130 @@ function normalizeQuizMeta(payload = {}) {
       paperTitle: String(question.paperTitle ?? question.paper_title ?? '').trim(),
     })).filter((question) => question.id),
   };
+}
+
+function normalizeQuestionRows(rows = []) {
+  return normalizeQuizMeta({ questions: Array.isArray(rows) ? rows : [] }).questions;
+}
+
+function mergeQuestionRowsIntoMeta(current, rows = []) {
+  const incoming = Array.isArray(rows) ? rows : [];
+  const byId = new Map(current.questions.map((question) => [question.id, question]));
+  incoming.forEach((question) => {
+    if (question?.id) byId.set(question.id, question);
+  });
+
+  const categorySet = new Set(current.categories || []);
+  const typeSet = new Set(current.questionTypes || []);
+  const keywordSet = new Set(current.keywordSuggestions || []);
+
+  incoming.forEach((question) => {
+    if (question.category) categorySet.add(question.category);
+    if (question.questionType) typeSet.add(question.questionType);
+    String(question.keywordsText || '')
+      .split(',')
+      .map((keyword) => keyword.trim())
+      .filter(Boolean)
+      .forEach((keyword) => keywordSet.add(keyword));
+  });
+
+  return {
+    ...current,
+    categories: Array.from(categorySet).filter(Boolean).sort((left, right) => left.localeCompare(right)),
+    questionTypes: Array.from(typeSet).filter(Boolean).sort((left, right) => left.localeCompare(right)),
+    keywordSuggestions: Array.from(keywordSet).filter(Boolean).sort((left, right) => left.localeCompare(right)),
+    questions: Array.from(byId.values()),
+  };
+}
+
+function createBlueprintSection(overrides = {}) {
+  return {
+    id: overrides.id || `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: overrides.title || '',
+    targetCount: Number(overrides.targetCount || 10),
+    courseId: overrides.courseId ? String(overrides.courseId) : '',
+    subjectId: overrides.subjectId ? String(overrides.subjectId) : '',
+    topicId: overrides.topicId ? String(overrides.topicId) : '',
+    lessonId: overrides.lessonId ? String(overrides.lessonId) : '',
+    paperId: overrides.paperId ? String(overrides.paperId) : '',
+    category: overrides.category ? String(overrides.category) : '',
+    questionType: overrides.questionType ? String(overrides.questionType) : '',
+  };
+}
+
+function normalizeBlueprint(raw = {}) {
+  const sections = Array.isArray(raw?.sections) ? raw.sections : [];
+  return {
+    sections: sections.map((section, index) => createBlueprintSection({
+      id: section.id || `section-${index + 1}`,
+      title: section.title || `Section ${String.fromCharCode(65 + Math.min(index, 25))}`,
+      targetCount: Math.min(Math.max(Number(section.targetCount || 0), 0), 500),
+      courseId: section.courseId,
+      subjectId: section.subjectId,
+      topicId: section.topicId,
+      lessonId: section.lessonId,
+      paperId: section.paperId,
+      category: section.category,
+      questionType: section.questionType,
+    })),
+  };
+}
+
+function getBlueprintValue(section, key, fallback = '') {
+  return section?.[key] ? String(section[key]) : String(fallback || '');
+}
+
+function buildBlueprintFilters(section, form) {
+  return {
+    ...defaultFilters,
+    courseId: getBlueprintValue(section, 'courseId', form.courseId),
+    subjectId: getBlueprintValue(section, 'subjectId', form.subjectId),
+    topicId: getBlueprintValue(section, 'topicId', form.topicId),
+    lessonId: getBlueprintValue(section, 'lessonId', form.lessonId),
+    paperId: getBlueprintValue(section, 'paperId', form.paperId),
+    category: getBlueprintValue(section, 'category'),
+    questionType: getBlueprintValue(section, 'questionType'),
+    questionUsage: 'unused',
+  };
+}
+
+function questionMatchesBlueprintSection(question, section, form) {
+  const filters = buildBlueprintFilters(section, form);
+  if (filters.courseId && String(question.courseId || '') !== String(filters.courseId)) return false;
+  if (filters.subjectId && String(question.subjectId || '') !== String(filters.subjectId)) return false;
+  if (filters.topicId && String(question.topicId || '') !== String(filters.topicId)) return false;
+  if (filters.lessonId && String(question.lessonId || '') !== String(filters.lessonId)) return false;
+  if (filters.paperId && String(question.paperId || '') !== String(filters.paperId)) return false;
+  if (filters.category && String(question.category || '') !== String(filters.category)) return false;
+  if (filters.questionType && String(question.questionType || '') !== String(filters.questionType)) return false;
+  return true;
+}
+
+function buildQuestionPoolParams(filters, options = {}) {
+  const loadingIds = Array.isArray(options.ids) && options.ids.length > 0;
+  const params = {
+    status: 'active',
+    limit: options.limit || QUESTION_POOL_LIMIT,
+  };
+
+  if (!loadingIds && filters.search?.trim()) params.search = filters.search.trim();
+  if (!loadingIds && filters.courseId) params.courseId = filters.courseId;
+  if (!loadingIds && filters.subjectId) params.subjectId = filters.subjectId;
+  if (!loadingIds && filters.topicId) params.topicId = filters.topicId;
+  if (!loadingIds && filters.lessonId) params.lessonId = filters.lessonId;
+  if (!loadingIds && filters.paperId) params.paperId = filters.paperId;
+  if (!loadingIds && filters.category) params.category = filters.category;
+  if (!loadingIds && filters.questionType) params.type = filters.questionType;
+  if (!loadingIds && filters.keywords?.trim()) params.keywords = filters.keywords.trim();
+  if (!loadingIds && (filters.questionUsage === 'unused' || filters.questionUsage === 'used')) params.usage = filters.questionUsage;
+  if (options.random) params.random = '1';
+  if (loadingIds) {
+    params.ids = options.ids.join(',');
+    params.limit = Math.min(Math.max(options.ids.length, 1), 200);
+  }
+  if (options.excludeIds?.length) params.excludeIds = options.excludeIds.join(',');
+
+  return params;
 }
 
 function BuilderSection({ eyebrow, title, description, children, actions }) {
@@ -998,10 +1126,14 @@ export function QuizBuilderPage() {
   const [form, setForm] = useState(defaultForm);
   const [filters, setFilters] = useState(defaultFilters);
   const [loading, setLoading] = useState(true);
+  const [questionLoading, setQuestionLoading] = useState(false);
+  const [visibleQuestionIds, setVisibleQuestionIds] = useState(null);
+  const [randomDrawCount, setRandomDrawCount] = useState(QUESTION_RANDOM_DRAW_DEFAULT);
   const [saving, setSaving] = useState(false);
   const [applyingTags, setApplyingTags] = useState(false);
   const [error, setError] = useState('');
   const [questionTab, setQuestionTab] = useState('existing');
+  const [blueprintToast, setBlueprintToast] = useState('');
   const [bulkRawInput, setBulkRawInput] = useState('');
   const [bulkInputMode, setBulkInputMode] = useState('text');
   const [bulkQuestions, setBulkQuestions] = useState([]);
@@ -1030,11 +1162,12 @@ export function QuizBuilderPage() {
     async function load() {
       try {
         const [metaPayload, quizPayload] = await Promise.all([
-          fetchQuizzesMeta({ includeQuestions: true }),
+          fetchQuizzesMeta(),
           isEditing ? fetchQuiz(Number(quizId)) : Promise.resolve(null),
         ]);
 
         setMeta(normalizeQuizMeta(metaPayload));
+        let initialFilters = defaultFilters;
 
         if (quizPayload) {
           const nextForm = {
@@ -1059,20 +1192,35 @@ export function QuizBuilderPage() {
             examModeOnly: quizPayload.examModeOnly === 1,
             isGeneral: quizPayload.isGeneral === 1,
             subtopic: quizPayload.subtopic || '',
+            blueprint: normalizeBlueprint(quizPayload.blueprint),
             questionIds: quizPayload.questionIds || [],
           };
 
           setForm(nextForm);
-          setFilters((current) => ({
-            ...current,
+          initialFilters = {
+            ...defaultFilters,
             courseId: nextForm.courseId,
             subjectId: nextForm.subjectId,
             topicId: nextForm.topicId,
             lessonId: nextForm.lessonId,
             paperId: nextForm.paperId,
             category: nextForm.category,
+          };
+          setFilters((current) => ({
+            ...current,
+            ...initialFilters,
           }));
+
+          if (nextForm.questionIds.length > 0) {
+            await loadQuestionPool(defaultFilters, {
+              ids: nextForm.questionIds,
+              mergeOnly: true,
+              silent: true,
+            });
+          }
         }
+
+        await loadQuestionPool(initialFilters, { silent: true });
       } catch (loadError) {
         setError(getErrorMessage(loadError, 'Unable to load quiz builder'));
       } finally {
@@ -1112,6 +1260,12 @@ export function QuizBuilderPage() {
   }, [bulkToast]);
 
   useEffect(() => {
+    if (!blueprintToast) return undefined;
+    const timeout = window.setTimeout(() => setBlueprintToast(''), 3200);
+    return () => window.clearTimeout(timeout);
+  }, [blueprintToast]);
+
+  useEffect(() => {
     if (!bulkRawInput.trim() && !bulkQuestions.length) return;
     saveBulkDraft({ quiet: true });
   }, [bulkCurrentIndex, bulkGlobalDefaults, bulkInputMode, bulkQueueSearch, bulkQueueStatusFilter, bulkQuestions, bulkRawInput]);
@@ -1120,6 +1274,26 @@ export function QuizBuilderPage() {
     if (bulkRawInput.trim() || bulkQuestions.length) return;
     setBulkGlobalDefaults(resolveQuizBulkDefaults(form, filters.questionType));
   }, [bulkQuestions.length, bulkRawInput, filters.questionType, form]);
+
+  useEffect(() => {
+    if (loading) return undefined;
+    const timeout = window.setTimeout(() => {
+      loadQuestionPool(filters);
+    }, 260);
+    return () => window.clearTimeout(timeout);
+  }, [
+    filters.category,
+    filters.courseId,
+    filters.keywords,
+    filters.lessonId,
+    filters.paperId,
+    filters.questionType,
+    filters.questionUsage,
+    filters.search,
+    filters.subjectId,
+    filters.topicId,
+    loading,
+  ]);
 
   const visibleSubjects = useMemo(
     () => filterByCourse(meta.subjects, form.courseId),
@@ -1171,12 +1345,18 @@ export function QuizBuilderPage() {
   }, [meta.categories]);
 
   const bulkDefaults = bulkGlobalDefaults;
+  const visibleQuestionIdSet = useMemo(
+    () => (visibleQuestionIds ? new Set(visibleQuestionIds) : null),
+    [visibleQuestionIds]
+  );
 
   const filteredQuestions = useMemo(() => {
     const searchNeedle = filters.search.trim().toLowerCase();
     const keywordNeedle = filters.keywords.trim().toLowerCase();
 
     return meta.questions.filter((question) => {
+      if (visibleQuestionIdSet && !visibleQuestionIdSet.has(question.id)) return false;
+
       const selectedInCurrentQuiz = form.questionIds.includes(question.id);
       const usedForUsageFilter = question.usedInAnyQuiz || selectedInCurrentQuiz;
 
@@ -1212,12 +1392,35 @@ export function QuizBuilderPage() {
 
       return true;
     });
-  }, [filters, form.questionIds, meta.questions]);
+  }, [filters, form.questionIds, meta.questions, visibleQuestionIdSet]);
 
   const selectedQuestions = useMemo(() => {
     const byId = new Map(meta.questions.map((question) => [question.id, question]));
     return form.questionIds.map((id) => byId.get(id)).filter(Boolean);
   }, [form.questionIds, meta.questions]);
+
+  const blueprintSections = useMemo(
+    () => normalizeBlueprint(form.blueprint).sections,
+    [form.blueprint]
+  );
+
+  const blueprintStats = useMemo(() => blueprintSections.map((section) => {
+    const selectedCount = selectedQuestions.filter((question) => questionMatchesBlueprintSection(question, section, form)).length;
+    const targetCount = Math.max(Number(section.targetCount || 0), 0);
+    return {
+      id: section.id,
+      selectedCount,
+      targetCount,
+      missingCount: Math.max(targetCount - selectedCount, 0),
+      overCount: Math.max(selectedCount - targetCount, 0),
+    };
+  }), [blueprintSections, form, selectedQuestions]);
+
+  const blueprintTotals = useMemo(() => blueprintStats.reduce((total, item) => ({
+    selectedCount: total.selectedCount + item.selectedCount,
+    targetCount: total.targetCount + item.targetCount,
+    missingCount: total.missingCount + item.missingCount,
+  }), { selectedCount: 0, targetCount: 0, missingCount: 0 }), [blueprintStats]);
 
   const isCourseWide = Boolean(form.courseId) && (!form.subjectId || form.isGeneral);
   const totalMarks = selectedQuestions.length;
@@ -1241,6 +1444,7 @@ export function QuizBuilderPage() {
       displayTitleMode: nextForm.displayTitleMode === 'title' ? 'title' : 'number',
       quizTitle: nextForm.studentTitle.trim(),
       quizDescription: nextForm.quizDescription,
+      blueprint: normalizeBlueprint(nextForm.blueprint),
       timeLimit: Number(nextForm.timeLimit),
       hideTimeLimit: nextForm.hideTimeLimit ? 1 : 0,
       passingMarks: Number(nextForm.passingMarks),
@@ -1319,6 +1523,31 @@ export function QuizBuilderPage() {
     await updateQuiz(Number(quizId), buildQuizPayload({ ...form, questionIds: nextQuestionIds }));
   }
 
+  async function loadQuestionPool(nextFilters = filters, options = {}) {
+    if (!options.silent) {
+      setQuestionLoading(true);
+    }
+
+    try {
+      const rows = await fetchQuestions(buildQuestionPoolParams(nextFilters, options));
+      const questions = normalizeQuestionRows(rows);
+      setMeta((current) => mergeQuestionRowsIntoMeta(current, questions));
+
+      if (!options.mergeOnly) {
+        setVisibleQuestionIds(questions.map((question) => question.id));
+      }
+
+      return questions;
+    } catch (loadError) {
+      setError(getErrorMessage(loadError, 'Unable to load question pool'));
+      return [];
+    } finally {
+      if (!options.silent) {
+        setQuestionLoading(false);
+      }
+    }
+  }
+
   function syncHierarchyFilters(next) {
     setFilters((current) => ({
       ...current,
@@ -1390,6 +1619,136 @@ export function QuizBuilderPage() {
     });
   }
 
+  function getBlueprintHierarchyOptions(section) {
+    const courseId = getBlueprintValue(section, 'courseId', form.courseId);
+    const subjectId = getBlueprintValue(section, 'subjectId', form.subjectId);
+    const topicId = getBlueprintValue(section, 'topicId', form.topicId);
+
+    return {
+      subjects: meta.subjects.filter((subject) => !courseId || String(subject.courseId) === String(courseId)),
+      topics: meta.topics.filter((topic) =>
+        (!courseId || String(topic.courseId) === String(courseId)) &&
+        (!subjectId || String(topic.subjectId) === String(subjectId))
+      ),
+      lessons: meta.lessons.filter((lesson) =>
+        (!courseId || String(lesson.courseId) === String(courseId)) &&
+        (!subjectId || String(lesson.subjectId) === String(subjectId)) &&
+        (!topicId || String(lesson.topicId || '') === String(topicId))
+      ),
+    };
+  }
+
+  function patchBlueprintSection(sectionId, patch) {
+    setForm((current) => {
+      const sections = normalizeBlueprint(current.blueprint).sections;
+      return {
+        ...current,
+        blueprint: {
+          sections: sections.map((section) => (
+            section.id === sectionId ? { ...section, ...patch } : section
+          )),
+        },
+      };
+    });
+  }
+
+  function handleBlueprintSectionChange(sectionId, event) {
+    const { name, value } = event.target;
+    const patch = { [name]: name === 'targetCount' ? Math.min(Math.max(Number(value || 0), 0), 500) : value };
+
+    if (name === 'courseId') {
+      patch.subjectId = '';
+      patch.topicId = '';
+      patch.lessonId = '';
+    }
+    if (name === 'subjectId') {
+      patch.topicId = '';
+      patch.lessonId = '';
+    }
+    if (name === 'topicId') {
+      patch.lessonId = '';
+    }
+
+    patchBlueprintSection(sectionId, patch);
+  }
+
+  function addBlueprintSection() {
+    setForm((current) => {
+      const sections = normalizeBlueprint(current.blueprint).sections;
+      return {
+        ...current,
+        blueprint: {
+          sections: [
+            ...sections,
+            createBlueprintSection({
+              title: `Section ${String.fromCharCode(65 + Math.min(sections.length, 25))}`,
+              targetCount: 10,
+              courseId: current.courseId,
+              subjectId: current.subjectId,
+              topicId: current.topicId,
+              lessonId: current.lessonId,
+              paperId: current.paperId,
+              category: current.category,
+            }),
+          ],
+        },
+      };
+    });
+  }
+
+  function removeBlueprintSection(sectionId) {
+    setForm((current) => ({
+      ...current,
+      blueprint: {
+        sections: normalizeBlueprint(current.blueprint).sections.filter((section) => section.id !== sectionId),
+      },
+    }));
+  }
+
+  async function drawMissingForBlueprintSection(section) {
+    const stats = blueprintStats.find((item) => item.id === section.id);
+    const missingCount = Math.max(Number(stats?.missingCount || section.targetCount || 0), 0);
+
+    if (missingCount <= 0) {
+      setBlueprintToast(`${section.title || 'This section'} already meets its target.`);
+      return;
+    }
+
+    setQuestionLoading(true);
+    setError('');
+
+    try {
+      const sectionFilters = buildBlueprintFilters(section, form);
+      const questions = await loadQuestionPool(sectionFilters, {
+        random: true,
+        limit: Math.min(missingCount * 3, 200),
+        excludeIds: form.questionIds,
+        mergeOnly: true,
+        silent: true,
+      });
+      const selectedIds = new Set(form.questionIds);
+      const candidates = questions
+        .filter((question) => !selectedIds.has(question.id) && questionMatchesBlueprintSection(question, section, form))
+        .slice(0, missingCount);
+
+      if (candidates.length === 0) {
+        setError(`No unused questions matched ${section.title || 'this section'}'s blueprint filters.`);
+        return;
+      }
+
+      setVisibleQuestionIds((current) => Array.from(new Set([...(current || []), ...candidates.map((question) => question.id)])));
+      setForm((current) => ({
+        ...current,
+        questionIds: Array.from(new Set([...current.questionIds, ...candidates.map((question) => question.id)])),
+      }));
+      setBlueprintToast(`${candidates.length} question${candidates.length === 1 ? '' : 's'} added for ${section.title || 'section target'}.`);
+    } catch (drawError) {
+      setError(getErrorMessage(drawError, 'Unable to draw questions for this blueprint section'));
+    } finally {
+      setQuestionLoading(false);
+    }
+  }
+
   function addQuestion(questionId) {
     setForm((current) => (
       current.questionIds.includes(questionId)
@@ -1418,6 +1777,46 @@ export function QuizBuilderPage() {
       ...current,
       questionIds: Array.from(new Set([...current.questionIds, ...filteredQuestions.map((question) => question.id)])),
     }));
+  }
+
+  async function addRandomQuestionPool() {
+    const drawCount = Math.min(Math.max(Number(randomDrawCount) || QUESTION_RANDOM_DRAW_DEFAULT, 1), 200);
+    setQuestionLoading(true);
+    setError('');
+
+    try {
+      const questions = await loadQuestionPool(filters, {
+        random: true,
+        limit: Math.min(drawCount * 3, 200),
+        excludeIds: form.questionIds,
+        mergeOnly: true,
+        silent: true,
+      });
+      const selectedIds = new Set(form.questionIds);
+      const candidates = questions.filter((question) => {
+        const usedForUsageFilter = question.usedInAnyQuiz || selectedIds.has(question.id);
+        if (selectedIds.has(question.id)) return false;
+        if (filters.questionUsage === 'unused' && usedForUsageFilter) return false;
+        if (filters.questionUsage === 'used' && !usedForUsageFilter) return false;
+        if (filters.questionUsage === 'used_in_this_quiz') return false;
+        return true;
+      }).slice(0, drawCount);
+
+      if (candidates.length === 0) {
+        setError('No random questions matched the current pool filters.');
+        return;
+      }
+
+      setVisibleQuestionIds((current) => Array.from(new Set([...(current || []), ...candidates.map((question) => question.id)])));
+      setForm((current) => ({
+        ...current,
+        questionIds: Array.from(new Set([...current.questionIds, ...candidates.map((question) => question.id)])),
+      }));
+    } catch (randomError) {
+      setError(getErrorMessage(randomError, 'Unable to draw random questions'));
+    } finally {
+      setQuestionLoading(false);
+    }
   }
 
   function removeAllQuestions() {
@@ -2265,6 +2664,156 @@ export function QuizBuilderPage() {
               ))}
             </div>
 
+            <BuilderSection
+              eyebrow="Blueprint"
+              title="Section Builder + Targets"
+              description="Plan the assessment mix before publishing. Each section can target a count, hierarchy slice, category, and question type, then draw missing questions from the bank."
+              actions={(
+                <button type="button" className={ui.primaryAction} onClick={addBlueprintSection}>
+                  Add Section
+                </button>
+              )}
+            >
+              {blueprintToast ? <div className={ui.feedbackSuccess}>{blueprintToast}</div> : null}
+
+              <div className={qb.summary}>
+                <article className={qb.summaryCard}>
+                  <span className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-soft">Sections</span>
+                  <strong className="text-[22px] leading-none text-ink-strong">{blueprintSections.length}</strong>
+                  <p className="m-0 text-[12.5px] text-ink-soft">Saved with this assessment blueprint.</p>
+                </article>
+                <article className={cx(qb.summaryCard, qb.summaryAccent)}>
+                  <span className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-soft">Target coverage</span>
+                  <strong className="text-[22px] leading-none text-ink-strong">{blueprintTotals.selectedCount}/{blueprintTotals.targetCount}</strong>
+                  <p className="m-0 text-[12.5px] text-ink-soft">{blueprintTotals.missingCount > 0 ? `${blueprintTotals.missingCount} question(s) still missing.` : 'All targets covered.'}</p>
+                </article>
+              </div>
+
+              {blueprintSections.length === 0 ? (
+                <div className={qb.empty}>No blueprint sections yet. Add sections like Anatomy, Physiology, Past Paper, or Mock Review.</div>
+              ) : (
+                <div className={qb.checklist}>
+                  {blueprintSections.map((section, index) => {
+                    const options = getBlueprintHierarchyOptions(section);
+                    const stats = blueprintStats.find((item) => item.id === section.id) || { selectedCount: 0, targetCount: 0, missingCount: 0 };
+
+                    return (
+                      <article key={section.id} className={cx(qb.checklistItem, 'gap-3')}>
+                        <div className={qb.panelTop}>
+                          <div>
+                            <h3 className={qb.panelTitle}>Section {index + 1}</h3>
+                            <p className={qb.panelText}>
+                              {stats.selectedCount}/{stats.targetCount} matched selected questions
+                              {stats.missingCount > 0 ? ` • ${stats.missingCount} missing` : ' • target covered'}
+                            </p>
+                          </div>
+                          <div className={ui.buttonRow}>
+                            <button
+                              type="button"
+                              className={ui.secondaryAction}
+                              onClick={() => drawMissingForBlueprintSection(section)}
+                              disabled={questionLoading || stats.missingCount <= 0}
+                            >
+                              Draw Missing
+                            </button>
+                            <button type="button" className={ui.dangerAction} onClick={() => removeBlueprintSection(section.id)}>
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className={qb.gridFour}>
+                          <label className={ui.formLabel}>
+                            Section title
+                            <input
+                              className={ui.input}
+                              name="title"
+                              value={section.title}
+                              onChange={(event) => handleBlueprintSectionChange(section.id, event)}
+                              placeholder="Section A"
+                            />
+                          </label>
+
+                          <label className={ui.formLabel}>
+                            Target questions
+                            <input
+                              className={ui.input}
+                              type="number"
+                              min="0"
+                              max="500"
+                              name="targetCount"
+                              value={section.targetCount}
+                              onChange={(event) => handleBlueprintSectionChange(section.id, event)}
+                            />
+                          </label>
+
+                          <label className={ui.formLabel}>
+                            Course
+                            <select className={ui.input} name="courseId" value={section.courseId} onChange={(event) => handleBlueprintSectionChange(section.id, event)}>
+                              <option value="">Use quiz course</option>
+                              {meta.courses.map((course) => (
+                                <option key={course.id} value={course.id}>{course.courseTitle}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label className={ui.formLabel}>
+                            Subject
+                            <select className={ui.input} name="subjectId" value={section.subjectId} onChange={(event) => handleBlueprintSectionChange(section.id, event)}>
+                              <option value="">Any subject</option>
+                              {options.subjects.map((subject) => (
+                                <option key={subject.id} value={subject.id}>{subject.subjectName}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label className={ui.formLabel}>
+                            Topic
+                            <select className={ui.input} name="topicId" value={section.topicId} onChange={(event) => handleBlueprintSectionChange(section.id, event)}>
+                              <option value="">Any topic</option>
+                              {options.topics.map((topic) => (
+                                <option key={topic.id} value={topic.id}>{topic.topicName}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label className={ui.formLabel}>
+                            Lesson
+                            <select className={ui.input} name="lessonId" value={section.lessonId} onChange={(event) => handleBlueprintSectionChange(section.id, event)}>
+                              <option value="">Any lesson</option>
+                              {options.lessons.map((lesson) => (
+                                <option key={lesson.id} value={lesson.id}>{lesson.lessonTitle}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label className={ui.formLabel}>
+                            Category
+                            <select className={ui.input} name="category" value={section.category} onChange={(event) => handleBlueprintSectionChange(section.id, event)}>
+                              <option value="">Any category</option>
+                              {quizCategoryOptions.map((category) => (
+                                <option key={category} value={category}>{formatOptionLabel(category)}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label className={ui.formLabel}>
+                            Question Type
+                            <select className={ui.input} name="questionType" value={section.questionType} onChange={(event) => handleBlueprintSectionChange(section.id, event)}>
+                              <option value="">Any type</option>
+                              {meta.questionTypes.map((questionType) => (
+                                <option key={questionType} value={questionType}>{formatOptionLabel(questionType)}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </BuilderSection>
+
             {questionTab === 'existing' ? (
             <BuilderSection
               eyebrow="Step 3"
@@ -2388,20 +2937,47 @@ export function QuizBuilderPage() {
                   <div className={qb.panelTop}>
                     <div>
                       <h3 className={qb.panelTitle}>Available Questions</h3>
-                      <p className={qb.panelText}>{filteredQuestions.length} of {meta.questions.length} question(s) match the current filters.</p>
+                      <p className={qb.panelText}>
+                        {questionLoading
+                          ? 'Loading question pool...'
+                          : `${filteredQuestions.length} visible from ${visibleQuestionIds?.length ?? meta.questions.length} server-loaded question(s). ${meta.questions.length} cached.`}
+                      </p>
                     </div>
-                    <button className={ui.secondaryAction}
-                      type="button"
-                     
-                      onClick={addAllFilteredQuestions}
-                      disabled={filteredQuestions.length === 0}
-                    >
-                      Add All Filtered
-                    </button>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <label className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-line-soft bg-surface-2 px-3 text-xs font-extrabold text-ink-medium">
+                        Draw
+                        <input
+                          className="w-16 rounded-md border border-line-soft bg-surface-1 px-2 py-1 text-xs text-ink-strong"
+                          type="number"
+                          min="1"
+                          max="200"
+                          value={randomDrawCount}
+                          onChange={(event) => setRandomDrawCount(event.target.value)}
+                        />
+                      </label>
+                      <button
+                        className={ui.secondaryAction}
+                        type="button"
+                        onClick={addRandomQuestionPool}
+                        disabled={questionLoading}
+                      >
+                        Random Draw
+                      </button>
+                      <button
+                        className={ui.secondaryAction}
+                        type="button"
+                        onClick={addAllFilteredQuestions}
+                        disabled={filteredQuestions.length === 0}
+                      >
+                        Add All Filtered
+                      </button>
+                    </div>
                   </div>
 
                   <div className={qb.list}>
-                    {filteredQuestions.length === 0 ? (
+                    {questionLoading ? (
+                      <div className={qb.empty}>Loading matching questions from the server...</div>
+                    ) : filteredQuestions.length === 0 ? (
                       <div className={qb.empty}>No questions match the current filters.</div>
                     ) : (
                       filteredQuestions.map((question) => (

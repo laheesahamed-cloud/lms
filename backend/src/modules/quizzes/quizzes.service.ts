@@ -53,6 +53,7 @@ type QuizRow = RowDataPacket & {
   display_title_mode: 'number' | 'title' | null;
   quiz_title: string;
   quiz_description: string | null;
+  blueprint_json: string | null;
   total_questions: number;
   total_marks: number;
   time_limit: number;
@@ -175,6 +176,22 @@ export class QuizzesService {
         ORDER BY year DESC, paper_title ASC
       `
     );
+    const [categoryRows] = await this.db.execute<RowDataPacket[]>(
+      `
+        SELECT DISTINCT COALESCE(NULLIF(question_category, ''), category) AS category
+        FROM questions
+        WHERE status = 'active'
+        ORDER BY category ASC
+      `
+    );
+    const [questionTypeRows] = await this.db.execute<RowDataPacket[]>(
+      `
+        SELECT DISTINCT question_type
+        FROM questions
+        WHERE status = 'active'
+        ORDER BY question_type ASC
+      `
+    );
     const includeQuestions = options?.includeQuestions === true;
     const usageRows = includeQuestions
       ? (await this.db.execute<RowDataPacket[]>(
@@ -223,11 +240,15 @@ export class QuizzesService {
     const keywordSuggestions = await this.getKeywordSuggestions(questionRows);
 
     const categories = Array.from(new Set(
-      questionRows.map((row) => String(row.category || '').trim()).filter(Boolean)
+      (categoryRows.length ? categoryRows : questionRows)
+        .map((row) => String(row.category || '').trim())
+        .filter(Boolean)
     )).sort((left, right) => left.localeCompare(right));
 
     const questionTypes = Array.from(new Set(
-      questionRows.map((row) => String(row.question_type || '').trim()).filter(Boolean)
+      (questionTypeRows.length ? questionTypeRows : questionRows)
+        .map((row) => String(row.question_type || '').trim())
+        .filter(Boolean)
     )).sort((left, right) => left.localeCompare(right));
 
     return {
@@ -348,8 +369,8 @@ export class QuizzesService {
         `
           INSERT INTO quizzes (
             course_id, topic_id, subtopic_id, lesson_id, paper_id, category, collection_tags, is_free, subtopic, is_general, exam_mode_only, admin_name, student_title, display_title_mode, quiz_title,
-            quiz_description, total_questions, total_marks, time_limit, hide_time_limit, passing_marks, hide_passing_marks, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            quiz_description, blueprint_json, total_questions, total_marks, time_limit, hide_time_limit, passing_marks, hide_passing_marks, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           createQuizDto.courseId,
@@ -368,6 +389,7 @@ export class QuizzesService {
           this.resolveDisplayTitleMode(createQuizDto.displayTitleMode),
           this.resolveStudentTitle(createQuizDto),
           (createQuizDto.quizDescription || '').trim(),
+          this.stringifyBlueprint(createQuizDto.blueprint),
           totalQuestions,
           totalMarks,
           createQuizDto.timeLimit,
@@ -409,6 +431,7 @@ export class QuizzesService {
       displayTitleMode: this.resolveDisplayTitleMode(updateQuizDto.displayTitleMode ?? existing.displayTitleMode),
       quizTitle: updateQuizDto.quizTitle ?? existing.studentTitle ?? existing.quizTitle,
       quizDescription: updateQuizDto.quizDescription ?? existing.quizDescription ?? '',
+      blueprint: updateQuizDto.blueprint ?? existing.blueprint ?? null,
       timeLimit: updateQuizDto.timeLimit ?? existing.timeLimit,
       hideTimeLimit: updateQuizDto.hideTimeLimit ?? (existing.hideTimeLimit === 1 ? 1 : 0),
       passingMarks: updateQuizDto.passingMarks ?? this.resolvePassingMarks(existing.passingMarks),
@@ -445,6 +468,7 @@ export class QuizzesService {
             display_title_mode = ?,
             quiz_title = ?,
             quiz_description = ?,
+            blueprint_json = ?,
             total_questions = ?,
             total_marks = ?,
             time_limit = ?,
@@ -471,6 +495,7 @@ export class QuizzesService {
           this.resolveDisplayTitleMode(merged.displayTitleMode),
           this.resolveStudentTitle(merged),
           (merged.quizDescription || '').trim(),
+          this.stringifyBlueprint(merged.blueprint),
           totalQuestions,
           totalMarks,
           merged.timeLimit,
@@ -616,6 +641,62 @@ export class QuizzesService {
     return value === 'title' ? 'title' : 'number';
   }
 
+  private optionalPositiveId(value: unknown) {
+    const numeric = Number(value);
+    return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+  }
+
+  private normalizeBlueprintPayload(blueprint: unknown) {
+    if (!blueprint || typeof blueprint !== 'object') {
+      return { sections: [] };
+    }
+
+    const rawSections = Array.isArray((blueprint as { sections?: unknown[] }).sections)
+      ? (blueprint as { sections: unknown[] }).sections
+      : [];
+
+    const sections = rawSections.slice(0, 30).map((rawSection, index) => {
+      const section = rawSection && typeof rawSection === 'object'
+        ? rawSection as Record<string, unknown>
+        : {};
+      const targetCount = Number(section.targetCount);
+
+      return {
+        id: String(section.id || `section-${index + 1}`).trim().slice(0, 80) || `section-${index + 1}`,
+        title: String(section.title || `Section ${index + 1}`).trim().slice(0, 120),
+        targetCount: Number.isFinite(targetCount) ? Math.min(Math.max(Math.trunc(targetCount), 0), 500) : 0,
+        courseId: this.optionalPositiveId(section.courseId),
+        subjectId: this.optionalPositiveId(section.subjectId),
+        topicId: this.optionalPositiveId(section.topicId),
+        lessonId: this.optionalPositiveId(section.lessonId),
+        paperId: this.optionalPositiveId(section.paperId),
+        category: String(section.category || '').trim().slice(0, 80),
+        questionType: ['sba', 'true_false'].includes(String(section.questionType || ''))
+          ? String(section.questionType)
+          : '',
+      };
+    });
+
+    return { sections };
+  }
+
+  private stringifyBlueprint(blueprint: unknown) {
+    const normalized = this.normalizeBlueprintPayload(blueprint);
+    return normalized.sections.length > 0 ? JSON.stringify(normalized) : null;
+  }
+
+  private parseBlueprint(raw?: string | null) {
+    if (!raw) {
+      return { sections: [] };
+    }
+
+    try {
+      return this.normalizeBlueprintPayload(JSON.parse(raw));
+    } catch {
+      return { sections: [] };
+    }
+  }
+
   private async getKeywordSuggestions(questionRows: RowDataPacket[]) {
     const [keywordRows] = await this.db.execute<RowDataPacket[]>(
       'SELECT keyword_name FROM question_keywords ORDER BY keyword_name ASC'
@@ -653,6 +734,7 @@ export class QuizzesService {
       displayTitleMode: this.resolveDisplayTitleMode(row.display_title_mode),
       quizTitle: String(row.student_title || row.quiz_title || ''),
       quizDescription: row.quiz_description || '',
+      blueprint: this.parseBlueprint(row.blueprint_json),
       totalQuestions: Number(row.total_questions || 0),
       totalMarks: Number(row.total_marks || 0),
       timeLimit: Number(row.time_limit || 0),

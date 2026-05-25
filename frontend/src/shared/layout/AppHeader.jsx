@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { fetchNotifications, markNotificationRead } from '../api/workspace.api.js';
@@ -9,6 +9,8 @@ import { HeaderInstallAction } from './HeaderInstallAction.jsx';
 import { getStaffRoleLabel, isStaffUser, roleRouteMode, userHasPermission } from '../auth/roleAccess.js';
 import { cx, ui } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
+
+const PROFILE_MENU_EXIT_MS = 180;
 
 function BellIcon() {
   return (
@@ -85,7 +87,9 @@ function LogoutIcon() {
 function useOutsideDismiss(ref, onDismiss) {
   useEffect(() => {
     function handlePointerDown(event) {
-      if (!ref.current || ref.current.contains(event.target)) {
+      const refs = Array.isArray(ref) ? ref : [ref];
+      const activeRefs = refs.filter((item) => item.current);
+      if (!activeRefs.length || activeRefs.some((item) => item.current.contains(event.target))) {
         return;
       }
       onDismiss();
@@ -203,11 +207,16 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   const [profileClosing, setProfileClosing] = useState(false);
   const notificationRef = useRef(null);
   const profileRef = useRef(null);
+  const profileButtonRef = useRef(null);
+  const profileAvatarLayerRef = useRef(null);
+  const profileMenuRef = useRef(null);
   const profileCloseTimerRef = useRef(null);
+  const [profileMenuStyle, setProfileMenuStyle] = useState(null);
+  const [profileAvatarStyle, setProfileAvatarStyle] = useState(null);
   const profileVisible = profileOpen || profileClosing;
 
   useOutsideDismiss(notificationRef, () => setNotificationsOpen(false));
-  useOutsideDismiss(profileRef, () => closeProfileMenu());
+  useOutsideDismiss([profileRef, profileAvatarLayerRef, profileMenuRef], () => closeProfileMenu());
 
   const unreadNotifications = useMemo(() => sortLatestNotifications(notifications.filter((item) => !item.read)), [notifications]);
   const visibleUnreadNotifications = useMemo(() => unreadNotifications.slice(0, 5), [unreadNotifications]);
@@ -232,7 +241,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     setProfileClosing(true);
     profileCloseTimerRef.current = window.setTimeout(() => {
       setProfileClosing(false);
-    }, 460);
+    }, PROFILE_MENU_EXIT_MS);
   }, [profileClosing, profileOpen]);
 
   const openProfileMenu = useCallback(() => {
@@ -307,12 +316,68 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
     document.body.classList.toggle('lms-profile-menu-open', profileVisible);
-    return () => document.body.classList.remove('lms-profile-menu-open');
-  }, [profileVisible]);
+    document.body.classList.toggle('lms-profile-menu-closing', profileClosing);
+    return () => {
+      document.body.classList.remove('lms-profile-menu-open');
+      document.body.classList.remove('lms-profile-menu-closing');
+    };
+  }, [profileClosing, profileVisible]);
 
   useEffect(() => {
     return () => window.clearTimeout(profileCloseTimerRef.current);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!profileVisible || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    function updateProfileMenuPosition() {
+      const trigger = profileButtonRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const gap = 8;
+      const edge = 12;
+      const width = Math.min(320, Math.max(240, viewportWidth - edge * 2));
+      const compact = viewportWidth <= 520;
+      const triggerSize = Math.round(Math.max(rect.width, rect.height));
+      const triggerRadius = parseFloat(window.getComputedStyle(trigger).borderTopLeftRadius) || 12;
+      const top = compact
+        ? Math.min(Math.max(rect.bottom + gap, 68), viewportHeight - edge)
+        : Math.min(rect.bottom + gap, viewportHeight - edge);
+
+      setProfileAvatarStyle({
+        position: 'fixed',
+        top: `${Math.round(rect.top)}px`,
+        left: `${Math.round(rect.left)}px`,
+        width: `${triggerSize}px`,
+        height: `${triggerSize}px`,
+        borderRadius: `${Math.round(triggerRadius)}px`,
+        zIndex: 10082,
+      });
+      setProfileMenuStyle({
+        position: 'fixed',
+        top: `${Math.max(edge, top)}px`,
+        left: compact ? `${edge}px` : 'auto',
+        right: compact ? `${edge}px` : `${Math.max(edge, viewportWidth - rect.right)}px`,
+        width: compact ? 'auto' : `${width}px`,
+        '--profile-menu-trigger-size': `${triggerSize}px`,
+        '--profile-menu-trigger-radius': `${Math.round(triggerRadius)}px`,
+        zIndex: 10080,
+      });
+    }
+
+    updateProfileMenuPosition();
+    window.addEventListener('resize', updateProfileMenuPosition, { passive: true });
+    window.addEventListener('scroll', updateProfileMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateProfileMenuPosition);
+      window.removeEventListener('scroll', updateProfileMenuPosition, true);
+    };
+  }, [profileVisible]);
 
   const profileBackdrop = profileVisible ? (
     <button
@@ -326,11 +391,69 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     profileBackdrop && typeof document !== 'undefined'
       ? createPortal(profileBackdrop, document.body)
       : profileBackdrop;
+  const profileAvatarLayer = profileVisible ? (
+    <button
+      ref={profileAvatarLayerRef}
+      type="button"
+      className={cx('lms-profile-avatar-floating', profileClosing && 'is-closing')}
+      style={profileAvatarStyle || undefined}
+      aria-label="Close profile menu"
+      aria-expanded={profileOpen ? 'true' : 'false'}
+      onClick={toggleProfileMenu}
+    >
+      <ProfileAvatar user={user} />
+    </button>
+  ) : null;
+  const profileAvatarPortal =
+    profileAvatarLayer && typeof document !== 'undefined'
+      ? createPortal(profileAvatarLayer, document.body)
+      : profileAvatarLayer;
+  const profileMenu = profileVisible ? (
+    <div
+      ref={profileMenuRef}
+      className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}
+      style={profileMenuStyle || undefined}
+    >
+      <div className={topbarUi.dropdownHead}>
+        <div className="lms-profile-menu-head-copy">
+          <strong>{profilePrimary}</strong>
+          <small>{profileSecondary}</small>
+        </div>
+      </div>
+
+      <div className={topbarUi.dropdownSection}>
+        <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
+          <ProfileIcon />
+          <span>Profile</span>
+        </button>
+
+        {settingsPath ? (
+          <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(settingsPath)}>
+            <SettingsIcon />
+            <span>Settings</span>
+          </button>
+        ) : null}
+      </div>
+
+      <div className={topbarUi.dropdownSection}>
+        <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')} type="button" onClick={handleLogout} disabled={isSigningOut}>
+          <LogoutIcon />
+          <span>{isSigningOut ? 'Signing out...' : 'Log out'}</span>
+        </button>
+      </div>
+    </div>
+  ) : null;
+  const profileMenuLayer =
+    profileMenu && typeof document !== 'undefined'
+      ? createPortal(profileMenu, document.body)
+      : profileMenu;
 
   if (user?.role === 'student') {
     return (
       <>
         {profileBackdropLayer}
+        {profileAvatarPortal}
+        {profileMenuLayer}
 
         <header className={cx('study-hub-topbar', profileVisible && 'is-profile-menu-open', className)}>
           <button type="button" className="study-icon-button lms-topbar-menu-button" aria-label="Toggle navigation" onClick={toggleSidebar}>
@@ -349,6 +472,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
 
             <div className={cx(topbarUi.menuWrap, profileVisible && 'is-profile-menu-open')} ref={profileRef}>
               <button
+                ref={profileButtonRef}
                 type="button"
                 className={cx('study-avatar study-avatar--profile', profileVisible && 'is-profile-avatar-open')}
                 aria-label="Open profile menu"
@@ -358,30 +482,6 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                 <ProfileAvatar user={user} />
               </button>
 
-              {profileVisible ? (
-                <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
-                  <div className={topbarUi.dropdownHead}>
-                    <div className="lms-profile-menu-head-copy">
-                      <strong>{profilePrimary}</strong>
-                      <small>{profileSecondary}</small>
-                    </div>
-                  </div>
-
-                  <div className={topbarUi.dropdownSection}>
-                    <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
-                      <ProfileIcon />
-                      <span>Profile</span>
-                    </button>
-                  </div>
-
-                  <div className={topbarUi.dropdownSection}>
-                    <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')} type="button" onClick={handleLogout} disabled={isSigningOut}>
-                      <LogoutIcon />
-                      <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
-                    </button>
-                  </div>
-                </div>
-              ) : null}
             </div>
           </div>
 
@@ -398,6 +498,8 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   return (
     <>
       {profileBackdropLayer}
+      {profileAvatarPortal}
+      {profileMenuLayer}
 
       <header className={cx(topbarUi.header, profileVisible && 'is-profile-menu-open', className)}>
         <div className={cx('lms-topbar-left', topbarUi.left)}>
@@ -528,7 +630,8 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
             </button>
 
             <div className={cx(topbarUi.menuWrap, profileVisible && 'is-profile-menu-open')} ref={profileRef}>
-              <button className={cx(topbarUi.profileButton, profileVisible && 'is-profile-avatar-open')}
+              <button ref={profileButtonRef}
+                className={cx(topbarUi.profileButton, profileVisible && 'is-profile-avatar-open')}
                 type="button"
                
                 aria-label="Open profile menu"
@@ -538,42 +641,6 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                 <ProfileAvatar user={user} />
               </button>
 
-              {profileVisible ? (
-                <div className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}>
-                  <div className={topbarUi.dropdownHead}>
-                    <div className="lms-profile-menu-head-copy">
-                      <strong>{profilePrimary}</strong>
-                      <small>{profileSecondary}</small>
-                    </div>
-                  </div>
-
-                  <div className={topbarUi.dropdownSection}>
-                    <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
-                      <ProfileIcon />
-                      <span>Profile</span>
-                    </button>
-
-                    {settingsPath ? (
-                      <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(settingsPath)}>
-                        <SettingsIcon />
-                        <span>Settings</span>
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <div className={topbarUi.dropdownSection}>
-                    <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')}
-                      type="button"
-                     
-                      onClick={handleLogout}
-                      disabled={isSigningOut}
-                    >
-                      <LogoutIcon />
-                      <span>{isSigningOut ? 'Signing out…' : 'Log out'}</span>
-                    </button>
-                  </div>
-                </div>
-              ) : null}
             </div>
           </div>
         </div>

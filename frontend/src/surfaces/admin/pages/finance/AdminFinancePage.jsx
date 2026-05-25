@@ -139,6 +139,24 @@ function isFreePlanSubscription(subscription) {
     || (planName === 'free' && toNumber(subscription?.planEffectivePrice) <= 0);
 }
 
+function isManualPayment(subscription) {
+  return String(subscription?.paymentStatus || '').trim().toLowerCase() === 'manual';
+}
+
+function isPaidPayment(subscription) {
+  return String(subscription?.paymentStatus || '').trim().toLowerCase() === 'paid';
+}
+
+function financePaymentAmount(subscription) {
+  if (hasNumber(subscription?.amountPaid) && toNumber(subscription.amountPaid) > 0) {
+    return toNumber(subscription.amountPaid);
+  }
+  if (isManualPayment(subscription) || isPaidPayment(subscription)) {
+    return toNumber(subscription?.planEffectivePrice);
+  }
+  return 0;
+}
+
 function formatCouponDiscount(coupon) {
   return coupon.discountType === 'percent'
     ? `${coupon.discountValue}%`
@@ -247,7 +265,7 @@ function buildFinanceReportHtml({ filters, summary, subscriptions, requests, pla
   </header>
   <section class="metrics">
     <div class="metric"><span>Collected</span><strong>${escapeHtml(formatCurrencyTotals(summary.collectedTotals))}</strong></div>
-    <div class="metric"><span>Manual Payments</span><strong>${escapeHtml(formatCurrencyTotals(summary.receivableTotals))}</strong></div>
+    <div class="metric"><span>Manual Payments</span><strong>${escapeHtml(formatCurrencyTotals(summary.manualPaymentTotals))}</strong></div>
     <div class="metric"><span>Total Amount</span><strong>${escapeHtml(formatCurrencyTotals(summary.activeValueTotals))}</strong></div>
     <div class="metric"><span>Pending invoices</span><strong>${summary.pendingRequests}</strong></div>
   </section>
@@ -426,22 +444,27 @@ export function AdminFinancePage() {
 
   const summary = useMemo(() => {
     const collectedTotals = {};
-    const receivableTotals = {};
+    const manualPaymentTotals = {};
     const activeValueTotals = {};
     let paidSubscriptions = 0;
-    let unpaidSubscriptions = 0;
+    let manualSubscriptions = 0;
     let activePaidSubscriptions = 0;
     let expiringSoon = 0;
 
     filteredSubscriptions.forEach((subscription) => {
       const currency = subscription.planCurrency || PAYMENT_CURRENCY;
       const expected = toNumber(subscription.planEffectivePrice);
-      const amountPaid = toNumber(subscription.amountPaid);
+      const amountPaid = financePaymentAmount(subscription);
       const status = subscription.computedStatus || subscription.status;
 
-      if (amountPaid > 0) {
+      if (amountPaid > 0 && !isManualPayment(subscription)) {
         paidSubscriptions += 1;
         addCurrencyTotal(collectedTotals, currency, amountPaid);
+      }
+
+      if (isManualPayment(subscription)) {
+        manualSubscriptions += 1;
+        addCurrencyTotal(manualPaymentTotals, currency, amountPaid || expected);
       }
 
       if (status === 'active') {
@@ -449,11 +472,6 @@ export function AdminFinancePage() {
         if (!isFreePlanSubscription(subscription)) {
           activePaidSubscriptions += 1;
         }
-      }
-
-      if (!['paid', 'waived', 'free_plan'].includes(subscription.paymentStatus)) {
-        unpaidSubscriptions += 1;
-        addCurrencyTotal(receivableTotals, currency, Math.max(0, expected - amountPaid));
       }
 
       if (subscription.isExpiringSoon) {
@@ -473,11 +491,11 @@ export function AdminFinancePage() {
 
     return {
       collectedTotals,
-      receivableTotals,
+      manualPaymentTotals,
       activeValueTotals,
       pendingRequestTotals,
       paidSubscriptions,
-      unpaidSubscriptions,
+      manualSubscriptions,
       activePaidSubscriptions,
       pendingRequests: pendingRequests.length,
       expiringSoon,
@@ -490,7 +508,7 @@ export function AdminFinancePage() {
       const key = subscription.paymentStatus || 'unknown';
       const current = statuses.get(key) || { status: key, count: 0, totals: {} };
       current.count += 1;
-      addCurrencyTotal(current.totals, subscription.planCurrency || PAYMENT_CURRENCY, hasNumber(subscription.amountPaid) ? subscription.amountPaid : 0);
+      addCurrencyTotal(current.totals, subscription.planCurrency || PAYMENT_CURRENCY, financePaymentAmount(subscription));
       statuses.set(key, current);
     });
     return Array.from(statuses.values()).sort((a, b) => b.count - a.count);
@@ -505,7 +523,7 @@ export function AdminFinancePage() {
       let active = 0;
       planSubscriptions.forEach((subscription) => {
         const expected = toNumber(subscription.planEffectivePrice || plan.effectivePrice);
-        const amountPaid = toNumber(subscription.amountPaid);
+        const amountPaid = financePaymentAmount(subscription);
         if (amountPaid > 0) {
           paid += 1;
           addCurrencyTotal(collectedTotals, subscription.planCurrency || plan.currency || PAYMENT_CURRENCY, amountPaid);
@@ -551,9 +569,14 @@ export function AdminFinancePage() {
         .filter((id) => Number.isFinite(id) && id > 0)
     );
     const subscriptionRecords = [...filteredSubscriptions]
-      .filter((subscription) => subscription.paymentStatus === 'paid' || toNumber(subscription.amountPaid) > 0)
+      .filter((subscription) => isPaidPayment(subscription) || isManualPayment(subscription) || toNumber(subscription.amountPaid) > 0)
       .filter((subscription) => !bankTransferSubscriptionIds.has(Number(subscription.id)))
-      .map((subscription) => ({ ...subscription, recordKey: `subscription-${subscription.id}` }));
+      .map((subscription) => ({
+        ...subscription,
+        recordKey: `subscription-${subscription.id}`,
+        amountPaid: financePaymentAmount(subscription),
+        paymentMethod: subscription.paymentMethod || (isManualPayment(subscription) ? 'Manual assignment' : subscription.paymentMethod),
+      }));
 
     return [...subscriptionRecords, ...approvedBankTransferRequests]
       .sort((a, b) => (parseDate(paymentRecordDate(b))?.getTime() || 0) - (parseDate(paymentRecordDate(a))?.getTime() || 0))
@@ -686,7 +709,7 @@ export function AdminFinancePage() {
 
         <section className={financeUi.summaryList}>
           <Metric label="Collected" value={formatCurrencyTotals(summary.collectedTotals)} hint={`${summary.paidSubscriptions} payment record(s)`} />
-          <Metric label="Manual Payments" value={formatCurrencyTotals(summary.receivableTotals)} hint={`${summary.unpaidSubscriptions} manual or pending record(s)`} />
+          <Metric label="Manual Payments" value={formatCurrencyTotals(summary.manualPaymentTotals)} hint={`${summary.manualSubscriptions} assigned manual record(s)`} />
           <Metric label="Total Amount" value={formatCurrencyTotals(summary.activeValueTotals)} hint={`${summary.activePaidSubscriptions} active subscription(s)`} />
           <Metric label="Pending Invoices" value={summary.pendingRequests} hint={formatCurrencyTotals(summary.pendingRequestTotals)} />
         </section>

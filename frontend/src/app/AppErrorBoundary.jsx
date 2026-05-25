@@ -25,11 +25,11 @@ export class AppErrorBoundary extends Component {
     const message = this.state.error?.message || 'The screen could not be rendered.';
 
     const native = PLATFORM.isNative;
-    const pageBackground = native ? '#05070d' : 'var(--app-bg, var(--page-background, #ffffff))';
-    const panelBackground = native ? '#0b1220' : '#ffffff';
-    const borderColor = native ? 'rgba(148, 163, 184, 0.22)' : '#dbe3ef';
-    const titleColor = native ? '#e5eefb' : '#0f172a';
-    const bodyColor = native ? '#b8c4d6' : '#475569';
+    const pageBackground = native ? '#0f1720' : 'var(--app-bg, var(--page-background, #ffffff))';
+    const panelBackground = native ? '#172330' : '#ffffff';
+    const borderColor = native ? 'rgba(203, 213, 225, 0.2)' : '#dbe3ef';
+    const titleColor = native ? '#eef3f8' : '#0f172a';
+    const bodyColor = native ? '#cbd6e3' : '#475569';
 
     return (
       <main

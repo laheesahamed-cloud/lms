@@ -110,7 +110,7 @@ select,
 :root[data-theme='dark'] option,
 :root[data-theme='dark'] optgroup {
   color: var(--ink-strong);
-  background-color: #08101B;
+  background-color: var(--surface-2);
 }
 
 button, input, textarea, select { font: inherit; }

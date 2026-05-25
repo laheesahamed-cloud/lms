@@ -35,7 +35,7 @@ const studyUi = {
   keyChip:
     'inline-flex items-center rounded-[14px] bg-[color-mix(in_srgb,var(--study-accent)_15%,white)] px-4 py-2.5 text-[15px] font-bold leading-normal text-ink-strong animate-fadePop dark:bg-[color-mix(in_srgb,var(--study-accent)_16%,rgba(255,255,255,0.05))] dark:text-[#eaf1ff]',
   controls:
-    'sticky bottom-0 z-[8] -mx-1.5 mt-0 flex flex-wrap items-center justify-center gap-3 border-t border-slate-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0.96))] px-4 pb-[calc(14px_+_env(safe-area-inset-bottom,0px))] pt-3.5 backdrop-blur-[14px] dark:border-slate-400/10 dark:bg-[linear-gradient(180deg,rgba(0,0,0,0.72),rgba(0,0,0,0.96))] max-[640px]:justify-stretch [&_button]:min-w-[140px] max-[640px]:[&_button]:flex-[1_1_160px]',
+    'sticky bottom-0 z-[8] -mx-1.5 mt-0 flex flex-wrap items-center justify-center gap-3 border-t border-slate-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0.96))] px-4 pb-[calc(14px_+_env(safe-area-inset-bottom,0px))] pt-3.5 backdrop-blur-[14px] dark:border-slate-400/10 dark:bg-[linear-gradient(180deg,rgba(23,35,48,0.84),rgba(18,28,38,0.96))] max-[640px]:justify-stretch [&_button]:min-w-[140px] max-[640px]:[&_button]:flex-[1_1_160px]',
 };
 
 function RichText({ text }) {

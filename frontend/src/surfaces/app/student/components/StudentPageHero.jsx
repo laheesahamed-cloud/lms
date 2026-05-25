@@ -1,26 +1,9 @@
 import { cx } from '../../../../shared/styles/tailwindClasses.js';
 
-const heroTone = {
-  blue: {
-    accent: 'text-brand-primary',
-    chip: 'border-brand-primary/18 bg-brand-primary/8 text-brand-primary dark:border-sky-300/16 dark:bg-sky-400/10 dark:text-sky-100',
-    mark: 'text-brand-primary/45 dark:text-sky-200/40',
-  },
-  teal: {
-    accent: 'text-brand-primary',
-    chip: 'border-brand-primary/18 bg-brand-primary/8 text-brand-primary dark:border-sky-300/16 dark:bg-sky-400/10 dark:text-sky-100',
-    mark: 'text-brand-primary/45 dark:text-sky-200/40',
-  },
-  violet: {
-    accent: 'text-brand-primary',
-    chip: 'border-brand-primary/18 bg-brand-primary/8 text-brand-primary dark:border-sky-300/16 dark:bg-sky-400/10 dark:text-sky-100',
-    mark: 'text-brand-primary/45 dark:text-sky-200/40',
-  },
-  amber: {
-    accent: 'text-brand-primary',
-    chip: 'border-brand-primary/18 bg-brand-primary/8 text-brand-primary dark:border-sky-300/16 dark:bg-sky-400/10 dark:text-sky-100',
-    mark: 'text-brand-primary/45 dark:text-sky-200/40',
-  },
+const dashboardHeroTheme = {
+  accent: 'text-brand-primary',
+  chip: 'border-brand-primary/18 bg-brand-primary/8 text-brand-primary dark:border-sky-300/16 dark:bg-sky-400/10 dark:text-sky-100',
+  mark: 'text-brand-primary/45 dark:text-sky-200/40',
 };
 
 function HeroMark() {
@@ -42,10 +25,9 @@ export function StudentPageHero({
   title,
   subtitle,
   metrics = [],
-  tone = 'blue',
   className = '',
 }) {
-  const theme = heroTone[tone] || heroTone.blue;
+  const theme = dashboardHeroTheme;
   const visibleMetrics = metrics.filter(Boolean).slice(0, 4);
 
   return (

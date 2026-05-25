@@ -81,11 +81,11 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 
 :root[data-theme="dark"] .lms-mobile-bottom-nav__inner,
 .student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__inner {
   border-color: transparent;
-  background: linear-gradient(180deg, #0d1428 0%, #080c1c 100%);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  color: #ffffff;
-  box-shadow: 0 18px 38px -18px rgba(0, 0, 0, 0.7);
+  background: linear-gradient(180deg, rgba(23, 35, 48, 0.94) 0%, rgba(16, 24, 34, 0.96) 100%);
+  -webkit-backdrop-filter: saturate(118%) blur(12px);
+  backdrop-filter: saturate(118%) blur(12px);
+  color: var(--ink-strong, #eef3f8);
+  box-shadow: 0 18px 38px -20px rgba(2, 6, 12, 0.58);
 }
 
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 > .lms-mobile-bottom-nav__inner {

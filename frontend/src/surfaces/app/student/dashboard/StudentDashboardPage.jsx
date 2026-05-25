@@ -782,8 +782,8 @@ export function StudentDashboardPage() {
     const body = document.body;
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     const root = document.documentElement;
-    const routeThemeColors = { light: '#dce6f4', dark: '#02030a' };
-    const appThemeColors = { light: '#dce6f4', dark: '#05070d' };
+    const routeThemeColors = { light: '#dce6f4', dark: '#0f1720' };
+    const appThemeColors = { light: '#dce6f4', dark: '#0f1720' };
     const getTheme = () => (root.dataset.theme === 'dark' ? 'dark' : 'light');
     const syncRouteThemeColor = () => {
       metaThemeColor?.setAttribute('content', routeThemeColors[getTheme()]);
@@ -1086,9 +1086,10 @@ export function StudentDashboardPage() {
             <DashboardHeroMascot mascot={heroMascot} />
             <div className="study-continue-card__copy">
               <span className="study-eyebrow">Continue where you left off</span>
-            <div className="study-hero-name" title={`Welcome back, ${firstName}`}>
-              <strong className="study-hero-name-nowrap">Welcome back,&nbsp;{firstName}</strong>
-            </div>
+              <div className="study-hero-name" title={`Welcome back, ${firstName}`}>
+                <span className="study-hero-greeting">Welcome back,</span>
+                <strong className="study-hero-name-nowrap">{firstName}</strong>
+              </div>
               <p className="study-hero-lead">Next study move - <b>{inProgressQuiz ? 'PRACTICE' : recommendedNote ? 'LESSON' : 'PRACTICE'}</b></p>
               <div className="study-chip-row">
                 <span><Icon name="stetho" /> {recommendedQuiz?.courseTitle || weakTopic?.courseTitle || 'Surgery'}</span>

@@ -172,6 +172,7 @@ const adminLinks = [
   { to: '/courses',       label: 'Courses',       icon: 'Courses', requiredPermissions: ['content.manage'] },
   { to: '/structure',     label: 'Structure',     icon: 'Structure', requiredPermissions: ['content.manage'] },
   { to: '/questions',     label: 'Questions',     icon: 'Questions', requiredPermissions: ['questions.manage'] },
+  { to: '/question-reports', label: 'Q Reports',  icon: 'Questions', requiredPermissions: ['content.review'] },
   { to: '/quizzes',       label: 'Assessments',   icon: 'Quizzes', requiredPermissions: ['quizzes.manage'] },
   {
     label: 'AI Tools',
@@ -212,6 +213,7 @@ const END_EXACT = new Set([
   '/dashboard',
   '/bookmarks', '/subscriptions', '/finance', '/exams', '/flashcards',
   '/structure', '/users', '/setup', '/settings', '/announcements',
+  '/question-reports',
   '/reports', '/doubts', '/notifications', '/planner',
   '/ai/gemini', '/ai/chatgpt',
 ]);

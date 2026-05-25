@@ -66,6 +66,9 @@ export class CreateQuizDto {
   @IsString()
   quizDescription?: string;
 
+  @IsOptional()
+  blueprint?: Record<string, unknown> | null;
+
   @IsInt()
   @Min(1)
   timeLimit!: number;

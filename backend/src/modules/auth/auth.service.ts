@@ -71,9 +71,10 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
+    const email = loginDto.email.trim().toLowerCase();
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1',
-      [loginDto.email.trim()]
+      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
+      [email]
     );
 
     const user = rows[0];
@@ -183,7 +184,7 @@ export class AuthService {
   async requestPasswordReset(forgotPasswordDto: ForgotPasswordDto) {
     const email = forgotPasswordDto.email.trim().toLowerCase();
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, email FROM users WHERE email = ? LIMIT 1',
+      'SELECT id, email FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
       [email]
     );
 
@@ -509,7 +510,6 @@ ${settings.footer}`;
           examMode: true,
           aiQuizGenerator: true,
           resultsTracking: true,
-          downloadMaterials: true,
           notesCanvasStudyMode: true,
           performanceAnalytics: true,
           weakAreaAnalysis: true,
@@ -564,7 +564,6 @@ ${settings.footer}`;
           examMode: false,
           aiQuizGenerator: false,
           resultsTracking: false,
-          downloadMaterials: false,
           notesCanvasStudyMode: false,
           performanceAnalytics: false,
           weakAreaAnalysis: false,
@@ -625,7 +624,6 @@ ${settings.footer}`;
       examMode: has('exam_mode'),
       aiQuizGenerator: has('ai_quiz_generator'),
       resultsTracking: has('results_tracking'),
-      downloadMaterials: has('download_materials'),
       notesCanvasStudyMode: has('notes_canvas_study_mode'),
       performanceAnalytics: has('performance_analytics'),
       weakAreaAnalysis: has('weak_area_analysis'),

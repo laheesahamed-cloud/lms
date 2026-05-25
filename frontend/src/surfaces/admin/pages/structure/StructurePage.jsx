@@ -77,6 +77,24 @@ const structureUi = {
   nodeActions:
     'flex shrink-0 items-center justify-end gap-2 max-[820px]:w-full',
   levelOneActions: 'hidden',
+  tableStack: 'grid min-w-0 gap-4',
+  tablePanel: 'grid min-w-0 gap-3 rounded-xl p-4 max-[640px]:p-3',
+  tableHeader:
+    'flex min-w-0 items-center justify-between gap-3 max-[640px]:grid max-[640px]:grid-cols-1 [&_h2]:m-0 [&_h2]:text-base [&_h2]:font-extrabold [&_p]:m-0 [&_p]:mt-1 [&_p]:text-xs [&_p]:leading-normal [&_p]:text-ink-soft',
+  tableHeaderCopy: 'min-w-0',
+  tableMeta: 'inline-flex min-h-7 w-fit items-center rounded-full border border-line-soft bg-surface-glass-subtle px-3 text-[11px] font-bold text-ink-soft',
+  table: 'w-full min-w-[780px] border-collapse',
+  tableRow:
+    'transition-[background,color] duration-150 ease-[var(--ease-out)] hover:bg-surface-2/70',
+  tableRowSelectable: 'cursor-pointer',
+  tableRowSelected:
+    'bg-[linear-gradient(90deg,rgba(37,99,235,0.16),rgba(20,184,166,0.08))]',
+  tableCellName: 'grid min-w-0 gap-1 [&_strong]:truncate [&_strong]:text-sm [&_strong]:font-extrabold [&_span]:truncate [&_span]:text-xs [&_span]:text-ink-muted',
+  tableStatus:
+    'inline-flex min-h-7 w-fit items-center gap-2 rounded-full border border-line-soft bg-surface-glass-subtle px-2.5 text-[11px] font-extrabold capitalize text-ink-soft',
+  tableStatusDot: 'size-2 rounded-full bg-slate-400/70',
+  tableStatusDotActive: 'bg-brand-primary shadow-[0_0_0_3px_rgba(37,99,235,0.12)]',
+  tableActions: 'flex min-w-[84px] justify-end gap-2',
 };
 
 function countActive(items) {
@@ -110,7 +128,23 @@ function SparkleIcon() {
   return <svg width="11" height="11" viewBox="0 0 14 14" fill="none" style={{ display:'inline-block', verticalAlign:'middle' }}><path d="M7 1L8.5 5H13L9.5 7.5L11 12L7 9.5L3 12L4.5 7.5L1 5H5.5L7 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/></svg>;
 }
 
-function HierarchyColumn({
+function EditIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M9.5 1.5 12.5 4.5 5 12H2V9L9.5 1.5Z" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M2.25 3.5h9.5M5.25 1.75h3.5M5 5.25v5M9 5.25v5M3.35 3.5l.45 7.5a1.25 1.25 0 0 0 1.25 1.18h3.9A1.25 1.25 0 0 0 10.2 11l.45-7.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function HierarchyTable({
   eyebrow,
   title,
   description,
@@ -126,60 +160,101 @@ function HierarchyColumn({
   onDelete,
   getTitle,
   getMeta,
+  getInfo,
   getExtraAction,
-  compact = false,
 }) {
   return (
-    <section className={cx(ui.panelCard, structureUi.column, compact && structureUi.levelOneColumn)}>
-      <div className={cx(structureUi.columnHead, compact && structureUi.levelOneHead)}>
-        <div>
+    <section className={cx(ui.panelCard, structureUi.tablePanel)}>
+      <div className={structureUi.tableHeader}>
+        <div className={structureUi.tableHeaderCopy}>
           <span className={ui.eyebrow}>{eyebrow}</span>
           <h2>{title}</h2>
           <p>{description}</p>
         </div>
-        <button type="button" className={cx(ui.panelAddButton, structureUi.columnAddButton, compact && structureUi.levelOneAddButton)} onClick={onAction}>
+        <button type="button" className={cx(ui.panelAddButton, structureUi.columnAddButton)} onClick={onAction}>
           {actionLabel}
         </button>
       </div>
 
-      <div className={cx(structureUi.columnMeta, compact && structureUi.levelOneMeta)}>{countLabel}</div>
+      <div className={structureUi.tableMeta}>{countLabel}</div>
 
-      <div className={cx(structureUi.list, compact && structureUi.levelOneList)}>
-        {loading ? <div className={ui.emptyBox}>Loading {title.toLowerCase()}...</div> : null}
-        {!loading && items.length === 0 ? <div className={ui.emptyBox}>{emptyLabel}</div> : null}
-        {items.map((item) => (
-          <article
-            key={item.id}
-            className={cx(
-              structureUi.node,
-              compact && structureUi.levelOneNode,
-              selectedId === item.id && structureUi.nodeSelected,
-              onSelect && structureUi.nodeSelectable
-            )}
-            onClick={onSelect ? () => onSelect(item.id) : undefined}
-          >
-            <div
-              className={cx(
-                structureUi.status,
-                compact && structureUi.levelOneStatus,
-                item.status === 'active' ? structureUi.statusActive : structureUi.statusInactive
-              )}
-            />
-            <div className={cx(structureUi.nodeBody, compact && structureUi.levelOneBody)}>
-              <strong>{getTitle(item)}</strong>
-              <span>{getMeta(item)}</span>
-            </div>
-            <div className={cx(structureUi.nodeActions, compact && structureUi.levelOneActions)}>
-              {getExtraAction ? getExtraAction(item) : null}
-              <button type="button" className={ui.squareIconButton} onClick={(event) => onEdit(item, event)} aria-label={`Edit ${title}`}>
-                E
-              </button>
-              <button type="button" className={ui.squareDangerIconButton} onClick={(event) => onDelete(item, event)} aria-label={`Delete ${title}`}>
-                D
-              </button>
-            </div>
-          </article>
-        ))}
+      <div className={ui.tableShell}>
+        <table className={structureUi.table}>
+          <thead>
+            <tr>
+              <th className={ui.tableHeadCell}>Status</th>
+              <th className={ui.tableHeadCell}>{title.slice(0, -1) || title}</th>
+              <th className={ui.tableHeadCell}>Info</th>
+              <th className={cx(ui.tableHeadCell, 'text-right')}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td className={ui.tableCell} colSpan={4}>
+                  <div className={ui.tableEmpty}>Loading {title.toLowerCase()}...</div>
+                </td>
+              </tr>
+            ) : null}
+            {!loading && items.length === 0 ? (
+              <tr>
+                <td className={ui.tableCell} colSpan={4}>
+                  <div className={ui.tableEmpty}>{emptyLabel}</div>
+                </td>
+              </tr>
+            ) : null}
+            {!loading && items.map((item) => {
+              const isSelected = selectedId === item.id;
+              const rowLabel = getTitle(item);
+              return (
+                <tr
+                  key={item.id}
+                  className={cx(
+                    structureUi.tableRow,
+                    onSelect && structureUi.tableRowSelectable,
+                    isSelected && structureUi.tableRowSelected
+                  )}
+                  onClick={onSelect ? () => onSelect(item.id) : undefined}
+                  aria-selected={isSelected ? 'true' : undefined}
+                >
+                  <td className={ui.tableCell}>
+                    <span className={structureUi.tableStatus}>
+                      <span className={cx(structureUi.tableStatusDot, item.status === 'active' && structureUi.tableStatusDotActive)} aria-hidden="true" />
+                      {item.status || 'active'}
+                    </span>
+                  </td>
+                  <td className={ui.tableCell}>
+                    <button
+                      type="button"
+                      className={cx(structureUi.tableCellName, 'w-full border-0 bg-transparent p-0 text-left text-ink-strong')}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (onSelect) onSelect(item.id);
+                      }}
+                    >
+                      <strong>{rowLabel}</strong>
+                      <span>{getMeta(item)}</span>
+                    </button>
+                  </td>
+                  <td className={ui.tableCell}>
+                    <span className={ui.tableSubtext}>{getInfo ? getInfo(item) : getMeta(item)}</span>
+                  </td>
+                  <td className={cx(ui.tableCell, 'text-right')}>
+                    <div className={structureUi.tableActions}>
+                      {getExtraAction ? getExtraAction(item) : null}
+                      <button type="button" className={ui.squareIconButton} onClick={(event) => onEdit(item, event)} aria-label={`Edit ${rowLabel}`}>
+                        <EditIcon />
+                      </button>
+                      <button type="button" className={ui.squareDangerIconButton} onClick={(event) => onDelete(item, event)} aria-label={`Delete ${rowLabel}`}>
+                        <DeleteIcon />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </section>
   );
@@ -613,8 +688,8 @@ export function StructurePage() {
           </div>
         </section>
 
-        <div className={structureUi.levelOne}>
-          <HierarchyColumn
+        <div className={structureUi.tableStack}>
+          <HierarchyTable
             eyebrow="Level 1"
             title="Courses"
             description="Top-level medical programs and exam pathways."
@@ -630,12 +705,10 @@ export function StructurePage() {
             onDelete={handleCourseDelete}
             getTitle={(course) => course.courseTitle}
             getMeta={(course) => `${course.examType} • ${course.courseCode}`}
-            compact
+            getInfo={(course) => course.description || `${course.status === 'active' ? 'Available' : 'Hidden'} course`}
           />
-        </div>
 
-        <div className={structureUi.gridThree}>
-          <HierarchyColumn
+          <HierarchyTable
             eyebrow="Level 2"
             title="Subjects"
             description={selectedCourse ? `Linked to ${selectedCourse.courseTitle}` : 'Choose a course first to manage subjects.'}
@@ -650,10 +723,11 @@ export function StructurePage() {
             onEdit={openSubjectEdit}
             onDelete={handleSubjectDelete}
             getTitle={(subject) => subject.topicName}
-            getMeta={(subject) => `${subject.subtopicCount || 0} topics`}
+            getMeta={() => selectedCourse ? selectedCourse.courseTitle : 'No course selected'}
+            getInfo={(subject) => `${subject.subtopicCount || 0} topic${Number(subject.subtopicCount || 0) === 1 ? '' : 's'}`}
           />
 
-          <HierarchyColumn
+          <HierarchyTable
             eyebrow="Level 3"
             title="Topics"
             description={selectedSubject ? `Linked to ${selectedSubject.topicName}` : 'Choose a subject first to manage topics.'}
@@ -668,10 +742,11 @@ export function StructurePage() {
             onEdit={openTopicEdit}
             onDelete={handleTopicDelete}
             getTitle={(topic) => topic.subtopicName}
-            getMeta={() => 'Linked to selected subject'}
+            getMeta={() => selectedSubject ? selectedSubject.topicName : 'No subject selected'}
+            getInfo={() => selectedCourse ? selectedCourse.courseTitle : 'Select a course'}
           />
 
-          <HierarchyColumn
+          <HierarchyTable
             eyebrow="Level 4"
             title="Lessons"
             description={selectedTopic ? `Lessons inside ${selectedTopic.subtopicName}` : 'Choose a topic first to manage lessons.'}
@@ -690,10 +765,15 @@ export function StructurePage() {
             onDelete={handleLessonDelete}
             getTitle={(lesson) => lesson.title}
             getMeta={(lesson) => lesson.status === 'active' ? 'Published' : 'Inactive'}
-            getExtraAction={() => (
+            getInfo={() => selectedTopic ? selectedTopic.subtopicName : 'No topic selected'}
+            getExtraAction={(lesson) => (
               <button className={cx(ui.squareIconButton, 'text-brand-primary border-brand-primary')}
                 type="button"
-               
+                onClick={(event) => {
+                  event.stopPropagation();
+                  navigate(`/ai-notes/${lesson.id}`);
+                }}
+                aria-label={`Open ${lesson.title}`}
                 title="Open lesson"
               >
                 <SparkleIcon/>

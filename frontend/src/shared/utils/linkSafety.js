@@ -1,6 +1,6 @@
 const INTERNAL_ROUTE_PATTERNS = [
   /^\/$/,
-  /^\/(?:login|register|pending|profile|dashboard|courses|structure|users|questions|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|doubts|flashcards|notes|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$|\?|#)/,
+  /^\/(?:login|register|pending|profile|dashboard|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|doubts|flashcards|notes|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$|\?|#)/,
   /^\/auth\/(?:login|register|forgot-password|reset-password)(?:$|\?|#)/,
   /^\/ai(?:\/(?:gemini|chatgpt))?(?:$|\?|#)/,
   /^\/study\/lesson\/[^/?#]+(?:$|\?|#)/,

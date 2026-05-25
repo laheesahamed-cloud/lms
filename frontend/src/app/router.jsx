@@ -47,6 +47,7 @@ const QuizBuilderPage = lazyNamed(() => import('../surfaces/admin/pages/quizzes/
 const AdminSubscriptionsPage = lazyNamed(() => import('../surfaces/admin/pages/subscriptions/AdminSubscriptionsPage.jsx'), 'AdminSubscriptionsPage');
 const AdminFinancePage = lazyNamed(() => import('../surfaces/admin/pages/finance/AdminFinancePage.jsx'), 'AdminFinancePage');
 const QuestionsPage = lazyNamed(() => import('../surfaces/admin/pages/questions/QuestionsPage.jsx'), 'QuestionsPage');
+const AdminQuestionReportsPage = lazyNamed(() => import('../surfaces/admin/pages/questions/AdminQuestionReportsPage.jsx'), 'AdminQuestionReportsPage');
 const BulkQuestionInputPage = lazyNamed(() => import('../surfaces/admin/pages/questions/BulkQuestionInputPage.jsx'), 'BulkQuestionInputPage');
 const StructurePage = lazyNamed(() => import('../surfaces/admin/pages/structure/StructurePage.jsx'), 'StructurePage');
 const UsersPage = lazyNamed(() => import('../surfaces/admin/pages/users/UsersPage.jsx'), 'UsersPage');
@@ -783,6 +784,14 @@ export const router = createBrowserRouter([
             element: (
               <ProtectedRoute role="admin" requiredPermissions={['questions.manage']}>
                 {withSuspense(<BulkQuestionInputPage />)}
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'question-reports',
+            element: (
+              <ProtectedRoute role="admin" requiredPermissions={['content.review']}>
+                {withSuspense(<AdminQuestionReportsPage />)}
               </ProtectedRoute>
             ),
           },

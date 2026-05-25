@@ -21,7 +21,6 @@ export function StudentDoubtsPage() {
     <StudentPageHero
       title="Doubt Box"
       subtitle="Doubt Support"
-      tone="teal"
       metrics={[
         { label: 'Questions', value: items.length },
         { label: 'Open', value: items.filter((item) => item.status !== 'resolved' && item.status !== 'closed').length },

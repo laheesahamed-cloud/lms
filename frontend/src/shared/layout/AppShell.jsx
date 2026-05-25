@@ -12,9 +12,10 @@ import { cx } from '../styles/tailwindClasses.js';
 
 const PLATFORM = detectPlatform();
 const SIDEBAR_COLLAPSE_STORAGE_KEY = 'lms.sidebar.collapsed';
+const SIDEBAR_AUTO_COLLAPSE_QUERY = '(min-width: 901px) and (max-width: 1180px)';
 const shellUi = {
   shell:
-    'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#dce6f4] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[#05070d]',
+    'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#dce6f4] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[var(--app-bg-solid)]',
   shellMobile: '',
   shellQuizFocus: '',
   content:
@@ -72,6 +73,10 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const [tabletOverlayNav, setTabletOverlayNav] = useState(() => {
     return shouldUseOverlayNavigation(detectPlatform());
   });
+  const [autoCollapseSidebar, setAutoCollapseSidebar] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia?.(SIDEBAR_AUTO_COLLAPSE_QUERY)?.matches || false;
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === 'undefined') {
       return desktopSidebarHiddenByDefault;
@@ -102,7 +107,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const isCompactFocusMode = isQuizFocusMode || isReviewFocusRoute || isPracticeReviewFocusRoute;
   const isAssessmentShellRoute = isCompactFocusMode || isStudentResultDetailRoute;
   const isFocusMode = isCompactFocusMode || isAiNoteReaderRoute;
-  const isCollapsedDesktop = desktopSidebarToggle && sidebarCollapsed && !tabletOverlayNav;
+  const isCollapsedDesktop = (autoCollapseSidebar || (desktopSidebarToggle && sidebarCollapsed)) && !tabletOverlayNav;
   const effectiveSidebarCollapsed = isCollapsedDesktop;
   const hideGlobalSidebar = isFocusMode;
 
@@ -152,6 +157,24 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [tabletOverlayNav]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const collapseMedia = window.matchMedia?.(SIDEBAR_AUTO_COLLAPSE_QUERY);
+    const updateAutoCollapse = () => {
+      setAutoCollapseSidebar(Boolean(collapseMedia?.matches));
+    };
+
+    updateAutoCollapse();
+    collapseMedia?.addEventListener?.('change', updateAutoCollapse);
+    window.addEventListener('resize', updateAutoCollapse);
+
+    return () => {
+      collapseMedia?.removeEventListener?.('change', updateAutoCollapse);
+      window.removeEventListener('resize', updateAutoCollapse);
+    };
+  }, []);
 
   useEffect(() => {
     if (!sidebarOpen || hideGlobalSidebar || typeof document === 'undefined') {

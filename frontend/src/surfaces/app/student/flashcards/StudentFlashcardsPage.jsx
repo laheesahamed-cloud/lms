@@ -65,16 +65,159 @@ function shuffle(arr) {
 
 function plainText(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
 
+const FLASHCARD_SESSION_PREFIX = 'lms.flashcards.session.';
+const FLASHCARD_REVIEW_STATS_KEY = 'lms.flashcards.reviewStats.v1';
+const FLASHCARD_BAD_IDS_KEY = 'lms.flashcards.badIds.v1';
+
 function cleanStudyText(value) {
   return plainText(value)
     .replace(/={2,}/g, '')
     .replace(/\*\*/g, '')
+    .replace(/\[EXAM TRAP\]/gi, 'Exam trap:')
+    .replace(/\[HIGH YIELD\]/gi, '')
+    .replace(/\[KEY POINT\]/gi, '')
     .replace(/^\(?\d+[\).:-]?\s*/, '')
     .replace(/^[-•]\s*/, '')
     .replace(/^→\s*/, '')
     .replace(/\s*:\s*/g, ': ')
     .replace(/\s*;\s*/g, '; ')
     .trim();
+}
+
+function isInteractiveElement(target) {
+  return Boolean(target?.closest?.('button, a, input, textarea, select, [role="button"], [contenteditable="true"]'));
+}
+
+function isNestedControl(target) {
+  return Boolean(target?.closest?.('button, a, input, textarea, select, [contenteditable="true"]'));
+}
+
+function cardStorageId(card) {
+  return String(card?.id || card?.questionText || '');
+}
+
+function cardSignature(cards) {
+  return (cards || []).map(cardStorageId).join('|');
+}
+
+function flashcardSessionKey(quiz) {
+  return `${FLASHCARD_SESSION_PREFIX}${quiz?.id || 'deck'}`;
+}
+
+function readFlashcardSession(quiz, cards) {
+  if (typeof window === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(flashcardSessionKey(quiz)) || 'null');
+    if (!parsed || parsed.signature !== cardSignature(cards)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeFlashcardSession(quiz, cards, data) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(flashcardSessionKey(quiz), JSON.stringify({
+      signature: cardSignature(cards),
+      ...data,
+      updatedAt: new Date().toISOString(),
+    }));
+  } catch {
+    // Local progress is helpful, not required.
+  }
+}
+
+function clearFlashcardSession(quiz) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(flashcardSessionKey(quiz));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function readReviewStats() {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(FLASHCARD_REVIEW_STATS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function readBadCardIds() {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const ids = JSON.parse(window.localStorage.getItem(FLASHCARD_BAD_IDS_KEY) || '[]');
+    return new Set(Array.isArray(ids) ? ids : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function reportBadCard(card) {
+  if (typeof window === 'undefined') return false;
+  const id = cardStorageId(card);
+  if (!id) return false;
+
+  try {
+    const ids = readBadCardIds();
+    ids.add(id);
+    window.localStorage.setItem(FLASHCARD_BAD_IDS_KEY, JSON.stringify([...ids]));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function recordFlashcardReview(card, wasKnown) {
+  if (typeof window === 'undefined') return;
+  const id = cardStorageId(card);
+  if (!id) return;
+
+  try {
+    const stats = readReviewStats();
+    const previous = stats[id] || {};
+    const intervalDays = wasKnown
+      ? Math.min(Math.max(Number(previous.intervalDays) || 1, 1) * 2, 30)
+      : 1;
+    const now = Date.now();
+
+    stats[id] = {
+      id,
+      questionText: card.questionText,
+      context: card.context,
+      questionType: card.questionType,
+      attempts: (Number(previous.attempts) || 0) + 1,
+      correct: (Number(previous.correct) || 0) + (wasKnown ? 1 : 0),
+      learning: (Number(previous.learning) || 0) + (wasKnown ? 0 : 1),
+      intervalDays,
+      lastReviewedAt: new Date(now).toISOString(),
+      dueAt: new Date(now + intervalDays * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    window.localStorage.setItem(FLASHCARD_REVIEW_STATS_KEY, JSON.stringify(stats));
+  } catch {
+    // Review scheduling should never block the study flow.
+  }
+}
+
+function reviewStatus(card, stats = readReviewStats()) {
+  const row = stats[cardStorageId(card)];
+  if (!row) return { state: 'new', score: 1 };
+
+  const dueAt = row.dueAt ? Date.parse(row.dueAt) : 0;
+  const isDue = dueAt && dueAt <= Date.now();
+  const correct = Number(row.correct) || 0;
+  const learning = Number(row.learning) || 0;
+  const attempts = Number(row.attempts) || 0;
+  const weak = learning > correct || (attempts > 1 && correct / attempts < 0.6);
+
+  if (isDue && weak) return { state: 'due weak', score: 5 };
+  if (isDue) return { state: 'due', score: 4 };
+  if (weak) return { state: 'weak', score: 3 };
+  return { state: 'reviewed', score: 0 };
 }
 
 function dedupeLines(lines) {
@@ -85,6 +228,16 @@ function dedupeLines(lines) {
     seen.add(key);
     return true;
   });
+}
+
+function isLowSignalLine(line) {
+  const text = cleanStudyText(line);
+  const normalized = text.toLowerCase();
+  if (text.length < 5) return true;
+  if (/^(note|important|remember|summary|overview|introduction|definition|key point|high yield)[:.]?$/i.test(text)) return true;
+  if (/^(read|see|refer to|discuss|learn|understand)\b/i.test(text)) return true;
+  if (/^(page|slide|chapter|lesson)\s+\d+/i.test(text)) return true;
+  return normalized.split(/\s+/).length <= 2 && /^(types?|causes?|features?|symptoms?|management|treatment|diagnosis|summary|overview)$/.test(normalized);
 }
 
 function notePages(note) {
@@ -110,11 +263,20 @@ function inferCardType(heading) {
 function readableTopic(heading, hierarchy) {
   const lesson = cleanStudyText(hierarchy?.lesson || '');
   const clean = cleanStudyText(heading)
-    .replace(/\b(definition of|types of|classification of|causes of|management of|treatment of|investigations? for|diagnosis of|complications? of|clinical features? of|features of|pathophysiology of|mechanism of)\b/gi, '')
+    .replace(/\b(definition of|types of|classification of|causes of|management of|treatment of|investigations? for|diagnosis of|complications? of|clinical features? of|features of|pathophysiology of|mechanism of|overview of|summary of|key points? for)\b/gi, '')
     .replace(/^(the |a |an )/i, '')
     .trim();
   const generic = /^(definition|overview|introduction|clinical features?|features?|symptoms?|signs?|causes?|etiology|aetiology|risk factors?|pathophysiology|mechanism|classification|types?|investigations?|diagnosis|workup|management|treatment|complications?|prognosis|summary|key points?|exam points?|important points?)(\s*(and|\/|&)\s*(definition|classification|overview|clinical features?|features?|symptoms?|signs?|causes?|etiology|aetiology|risk factors?|pathophysiology|mechanism|types?|investigations?|diagnosis|workup|management|treatment|complications?|prognosis|summary|key points?|exam points?|important points?))*$/i.test(clean);
   return (lesson && generic) ? lesson : (clean || lesson || 'this lesson');
+}
+
+function isVagueHeading(heading, hierarchy) {
+  const text = cleanStudyText(heading).toLowerCase();
+  const lesson = lessonTopic(hierarchy).toLowerCase();
+  if (!text) return true;
+  if (/^(introduction|overview|summary|recap|conclusion|learning objectives?|objectives?|contents?|notes?)$/.test(text)) return true;
+  if (lesson && text === lesson) return false;
+  return false;
 }
 
 function lessonTopic(hierarchy, fallback = '') {
@@ -125,84 +287,46 @@ function headingHas(heading, pattern) {
   return pattern.test(cleanStudyText(heading).toLowerCase());
 }
 
-function pickTemplate(templates, seed) {
-  return templates[Math.abs(seed) % templates.length];
-}
-
-function buildQuestion(heading, type, hierarchy, seed = 0) {
+function conciseFocus(heading, hierarchy) {
   const topic = readableTopic(heading, hierarchy);
   const lesson = lessonTopic(hierarchy, topic);
-  const focus = cleanStudyText(heading || CARD_TYPE[type]?.label || 'key points').toLowerCase();
-  const capFocus = focus.charAt(0).toUpperCase() + focus.slice(1);
-  const hasDefinition = headingHas(heading, /\bdefinition|overview|introduction\b/);
+  const normalizedTopic = topic.toLowerCase();
+  const normalizedLesson = lesson.toLowerCase();
+
+  if (!normalizedTopic || normalizedTopic === 'this lesson') return lesson;
+  if (normalizedTopic === normalizedLesson) return lesson;
+  if (normalizedTopic.includes(normalizedLesson)) return topic;
+  if (normalizedLesson.includes(normalizedTopic) && normalizedTopic.length < 8) return lesson;
+  return topic;
+}
+
+function buildQuestion(heading, type, hierarchy) {
+  const focus = conciseFocus(heading, hierarchy);
+  const lesson = lessonTopic(hierarchy, focus);
+  const hasDefinition = headingHas(heading, /\bdefinition|overview|introduction|what is\b/);
   const hasClassification = headingHas(heading, /\bclassification|types?|categories\b/);
+
   if (hasDefinition && hasClassification) {
-    const combined = [
-      `What is ${lesson}, and how is it classified?`,
-      `Define ${lesson} and list its main classification.`,
-      `What are the definition and classification of ${lesson}?`,
-    ];
-    return pickTemplate(combined, seed);
+    return `Define ${lesson} and classify it.`;
   }
 
-  const templates = {
-    definition: [
-      `What is ${topic}?`,
-      `Define ${topic} in exam-ready terms.`,
-      `What does ${topic} mean in clinical practice?`,
-    ],
-    mechanism: [
-      `What is the pathophysiology of ${topic}?`,
-      `Why does ${topic} happen? Explain the key mechanism.`,
-      `What is the pathophysiological sequence in ${topic}?`,
-    ],
-    features: [
-      `What are the clinical features of ${topic}?`,
-      `How does ${topic} usually present?`,
-      `What symptoms and signs suggest ${topic}?`,
-    ],
-    management: [
-      `What is the management of ${topic}?`,
-      `How do you treat ${topic}?`,
-      `What are the initial and follow-up management steps for ${topic}?`,
-    ],
-    classification: [
-      `How is ${topic} classified?`,
-      `What are the main types or categories of ${topic}?`,
-      `What classification system is used for ${topic}?`,
-    ],
-    causes: [
-      `What are the causes of ${topic}?`,
-      `What etiologies should be considered for ${topic}?`,
-      `What risk factors are linked to ${topic}?`,
-    ],
-    diagnosis: [
-      `What investigations are used for ${topic}?`,
-      `How is ${topic} diagnosed?`,
-      `What tests or workup are used for ${topic}?`,
-    ],
-    complications: [
-      `What are the complications of ${topic}?`,
-      `What outcomes or sequelae should be remembered for ${topic}?`,
-      `What should you monitor for after ${topic}?`,
-    ],
-    keypoints: [
-      `What exam facts should you remember about ${lesson}?`,
-      `Which facts about ${lesson} are most likely to be tested?`,
-      `What are the must-know clinical points for ${lesson}?`,
-    ],
-    summary: [
-      `Give a structured summary of ${lesson}.`,
-      `How would you explain ${lesson} as a clinical overview?`,
-      `What is the core clinical picture of ${lesson}?`,
-    ],
-    explain: [
-      `Explain ${capFocus} in ${lesson}.`,
-      `What should you know about ${focus} for ${lesson}?`,
-      `What are the important points about ${focus} in ${lesson}?`,
-    ],
+  const prompts = {
+    definition: `What is ${focus}?`,
+    mechanism: `What is the key mechanism or pathophysiology of ${focus}?`,
+    features: `A patient may have ${focus}. Which clinical features support this?`,
+    management: `A patient has ${focus}. What is the management plan?`,
+    classification: `How is ${focus} classified?`,
+    causes: `What causes or risk factors are linked to ${focus}?`,
+    diagnosis: `A patient may have ${focus}. What investigations or diagnostic steps are most useful?`,
+    complications: `What complications should you watch for in ${focus}?`,
+    keypoints: `What should you remember about ${lesson}?`,
+    summary: `Summarize ${lesson} in a structured way.`,
+    explain: focus.toLowerCase() === lesson.toLowerCase()
+      ? `What are the most important facts about ${lesson}?`
+      : `What are the important facts about ${focus} in ${lesson}?`,
   };
-  return pickTemplate(templates[type] || templates.explain, seed);
+
+  return prompts[type] || prompts.explain;
 }
 
 function answerPriority(type, line) {
@@ -221,11 +345,19 @@ function answerPriority(type, line) {
   return index === -1 ? priority.length + 1 : index;
 }
 
+function trimAnswerLine(line) {
+  const clean = cleanStudyText(line);
+  if (clean.length <= 220) return clean;
+  const sentenceEnd = clean.slice(0, 220).search(/[.!?](?=\s|$)/);
+  if (sentenceEnd >= 80) return clean.slice(0, sentenceEnd + 1);
+  return `${clean.slice(0, 217).trim()}...`;
+}
+
 function formatAnswerBullets(type, bullets, callout = '') {
   const cleaned = dedupeLines(
     [...(bullets || []), callout]
-      .map(cleanStudyText)
-      .filter((line) => line.length >= 3)
+      .map(trimAnswerLine)
+      .filter((line) => !isLowSignalLine(line))
   );
 
   return cleaned
@@ -240,13 +372,61 @@ function formatAnswerText(lines, fallback = '') {
   return answerLines.join('\n');
 }
 
-function buildMnemonicQuestion(acronym, context, seed = 0) {
-  const templates = [
-    `Memory trick time: in ${context}, what does ${acronym} stand for?`,
-    `Quick mnemonic check for ${context}: what is ${acronym}?`,
-    `Want the mnemonic for ${context}? What does ${acronym} expand to?`,
-  ];
-  return pickTemplate(templates, seed);
+function cardDifficulty(type, answerBullets, answerText = '') {
+  const wordCount = plainText(answerText || answerBullets?.join(' ')).split(/\s+/).filter(Boolean).length;
+  if (type === 'mnemonic' || type === 'definition') return 'Easy';
+  if (type === 'mechanism' || type === 'diagnosis' || type === 'management' || wordCount > 70) return 'Hard';
+  return 'Medium';
+}
+
+function cardQualityScore(card) {
+  const question = cleanStudyText(card?.questionText);
+  const answer = cleanStudyText(card?.answerText || card?.answerBullets?.join(' '));
+  let score = 100;
+
+  if (question.length < 18) score -= 35;
+  if (answer.length < 18) score -= 45;
+  if (answer.length > 900) score -= 15;
+  if (/^(what is|explain|summarize) this lesson\??$/i.test(question)) score -= 50;
+  if (question.toLowerCase() === answer.toLowerCase()) score -= 60;
+  if ((card.answerBullets || []).length > 8) score -= 10;
+  if (isLowSignalLine(answer)) score -= 40;
+
+  return Math.max(0, score);
+}
+
+function finalizeDeck(cards) {
+  const badIds = readBadCardIds();
+  const seen = new Set();
+
+  return cards
+    .map((card) => ({ ...card, qualityScore: cardQualityScore(card) }))
+    .filter((card) => !badIds.has(cardStorageId(card)))
+    .filter((card) => card.qualityScore >= 55)
+    .filter((card) => {
+      const key = cleanStudyText(`${card.questionText} ${card.answerText}`).toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function prioritizeCards(cards) {
+  const stats = readReviewStats();
+  return [...cards]
+    .map((card) => ({ card, status: reviewStatus(card, stats), tie: Math.random() }))
+    .sort((a, b) => (b.status.score - a.status.score) || (a.tie - b.tie))
+    .map((item) => item.card);
+}
+
+function noteIdFromStoredCardId(id) {
+  const first = String(id || '').split('-')[0];
+  const parsed = Number(first);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildMnemonicQuestion(acronym, context) {
+  return `In ${context}, what does ${acronym} stand for?`;
 }
 
 function buildLessonCards(note) {
@@ -267,20 +447,24 @@ function buildLessonCards(note) {
       const callout  = cleanStudyText(sec.callout);
       const mnemonic = cleanStudyText(sec.mnemonic);
 
-      if (bullets.length || callout) {
+      if ((bullets.length || callout) && !isVagueHeading(heading, hierarchy)) {
         const type = inferCardType(heading);
         const answerBullets = formatAnswerBullets(type, bullets, callout);
-        cards.push({
-          id:           `${note.id ?? pi}-${pi}-${si}`,
-          questionType: type,
-          questionText: buildQuestion(heading, type, hierarchy, pi * 10 + si),
-          answerBullets,
-          answerText:   formatAnswerText(answerBullets, callout),
-          callout:      callout && !answerBullets.includes(callout) ? callout : '',
-          mnemonic:     '',
-          context:      heading,
-          hierarchy,
-        });
+        if (answerBullets.length) {
+          const answerText = formatAnswerText(answerBullets, callout);
+          cards.push({
+            id:           `${note.id ?? pi}-${pi}-${si}`,
+            questionType: type,
+            questionText: buildQuestion(heading, type, hierarchy),
+            answerBullets,
+            answerText,
+            callout:      callout && !answerBullets.includes(callout) ? callout : '',
+            mnemonic:     '',
+            difficulty:   cardDifficulty(type, answerBullets, answerText),
+            context:      heading,
+            hierarchy,
+          });
+        }
       }
 
       // Separate mnemonic card when acronym found
@@ -294,11 +478,12 @@ function buildLessonCards(note) {
           cards.push({
             id:           `${note.id ?? pi}-${pi}-${si}-mn`,
             questionType: 'mnemonic',
-            questionText: buildMnemonicQuestion(acronym, mnemonicContext, pi * 10 + si),
+            questionText: buildMnemonicQuestion(acronym, mnemonicContext),
             answerBullets: [],
             answerText:   mnemonic,
             callout:      '',
             mnemonic,
+            difficulty:   'Easy',
             context:      mnemonicContext,
             hierarchy,
           });
@@ -306,41 +491,25 @@ function buildLessonCards(note) {
       }
     });
 
-    const kps = (page.key_points || []).map(cleanStudyText).filter(Boolean);
-    if (kps.length >= 2) {
-      const title = cleanStudyText(page.title) || note.lessonTitle || note.title || 'this lesson';
-      const answerBullets = formatAnswerBullets('keypoints', kps);
-      cards.push({
-        id:           `${note.id ?? pi}-${pi}-kp`,
-        questionType: 'keypoints',
-        questionText: buildQuestion(title, 'keypoints', hierarchy, pi),
-        answerBullets,
-        answerText:   formatAnswerText(answerBullets),
-        callout:      '',
-        mnemonic:     '',
-        context:      title,
-        hierarchy,
-      });
-    }
-
     const sum = cleanStudyText(page.summary_box);
     if (sum) {
       const title = cleanStudyText(page.title) || note.lessonTitle || note.title || 'this topic';
       cards.push({
         id:           `${note.id ?? pi}-${pi}-sum`,
         questionType: 'summary',
-        questionText: buildQuestion(title, 'summary', hierarchy, pi),
+        questionText: buildQuestion(title, 'summary', hierarchy),
         answerBullets: [],
         answerText:   sum,
         callout:      '',
         mnemonic:     '',
+        difficulty:   cardDifficulty('summary', [], sum),
         context:      title,
         hierarchy,
       });
     }
   });
 
-  return cards;
+  return finalizeDeck(cards);
 }
 
 function buildCourseGroups(notes, filter) {
@@ -460,6 +629,42 @@ function CardTypeBadge({ type }) {
   );
 }
 
+function DifficultyBadge({ level }) {
+  const styles = {
+    Easy:   { color: '#059669', bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.22)' },
+    Medium: { color: '#D97706', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.22)' },
+    Hard:   { color: '#DC2626', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.22)' },
+  }[level] || { color: '#64748B', bg: 'rgba(100,116,139,0.10)', border: 'rgba(100,116,139,0.22)' };
+
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold"
+      style={{ background: styles.bg, color: styles.color, border: `1px solid ${styles.border}` }}
+    >
+      {level || 'Medium'}
+    </span>
+  );
+}
+
+function ReviewStatusBadge({ card }) {
+  const status = reviewStatus(card);
+  if (status.state === 'new' || status.state === 'reviewed') return null;
+
+  const isWeak = status.state.includes('weak');
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold"
+      style={{
+        background: isWeak ? 'rgba(244,63,94,0.10)' : 'rgba(59,130,246,0.10)',
+        color: isWeak ? '#E11D48' : '#2563EB',
+        border: `1px solid ${isWeak ? 'rgba(244,63,94,0.22)' : 'rgba(59,130,246,0.22)'}`,
+      }}
+    >
+      {isWeak ? 'Needs Review' : 'Due'}
+    </span>
+  );
+}
+
 /* ─────────────────────────────────────────
    ANSWER BLOCK (back face)
 ───────────────────────────────────────── */
@@ -515,6 +720,9 @@ function AnswerBlock({ card }) {
    PICK PHASE
 ───────────────────────────────────────── */
 function LessonCard({ note, onStart, starting }) {
+  const navigate = useNavigate();
+  const isLocked = Boolean(note.accessLocked);
+
   return (
     <div className="flex flex-col gap-2.5 rounded-xl border border-line-soft bg-surface-1 p-4 shadow-xs
       transition-[transform,box-shadow] duration-150 ease-out
@@ -536,10 +744,10 @@ function LessonCard({ note, onStart, starting }) {
             hover:-translate-y-0.5 active:scale-[0.97]
             disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
           style={{ background: 'rgba(59,130,246,0.09)', borderColor: 'rgba(59,130,246,0.22)', color: '#3B82F6' }}
-          onClick={() => onStart(note)}
-          disabled={starting || note.accessLocked}
+          onClick={() => isLocked ? navigate('/billing') : onStart(note)}
+          disabled={starting}
         >
-          {note.accessLocked ? 'Plan access needed' : starting ? 'Loading…' : 'Start'}
+          {isLocked ? 'Upgrade' : starting ? 'Loading...' : 'Start'}
         </button>
       </div>
     </div>
@@ -635,10 +843,13 @@ function CourseAccordion({ courseName, subjects, onStartNote, onStartMixed, star
   );
 }
 
-function PickPhase({ notes, loading, error, onStartNote, onStartMixed, starting }) {
+function PickPhase({ notes, loading, error, onStartNote, onStartMixed, onStartDueReview, starting }) {
   const [filter, setFilter] = useState('');
   const groups      = buildCourseGroups(notes, filter);
   const courseNames = Object.keys(groups);
+  const reviewRows = Object.values(readReviewStats());
+  const dueCount = reviewRows.filter((row) => row?.dueAt && Date.parse(row.dueAt) <= Date.now()).length;
+  const weakCount = reviewRows.filter((row) => (Number(row.learning) || 0) > (Number(row.correct) || 0)).length;
 
   return (
     <main className="dashboard-page study-hub-page student-flashcards-page">
@@ -652,7 +863,6 @@ function PickPhase({ notes, loading, error, onStartNote, onStartMixed, starting 
         <StudentPageHero
           title="Flashcards"
           subtitle="Recall Practice"
-          tone="violet"
           metrics={[
             { label: 'Lessons', value: loading ? '-' : notes.length },
             { label: 'Courses', value: loading ? '-' : courseNames.length },
@@ -678,6 +888,26 @@ function PickPhase({ notes, loading, error, onStartNote, onStartMixed, starting 
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-1 px-4 py-3 shadow-xs fc-fade-up fc-d1">
+          <div>
+            <strong className="block text-[13px] font-extrabold text-ink-strong">Smart review</strong>
+            <span className="text-[12px] font-semibold text-ink-muted">
+              {dueCount || weakCount
+                ? `${dueCount} due · ${weakCount} needs review`
+                : 'Mark cards during study to build a review deck.'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="inline-flex min-h-9 items-center justify-center rounded-full border px-3.5 text-[12px] font-extrabold transition-[transform,opacity] hover:-translate-y-0.5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+            style={{ background: 'rgba(16,185,129,0.09)', borderColor: 'rgba(16,185,129,0.22)', color: '#059669' }}
+            disabled={starting || (!dueCount && !weakCount)}
+            onClick={() => onStartDueReview(notes)}
+          >
+            Review due
+          </button>
         </div>
 
         {/* Search */}
@@ -737,32 +967,57 @@ function PickPhase({ notes, loading, error, onStartNote, onStartMixed, starting 
    SESSION PHASE
 ───────────────────────────────────────── */
 function SessionPhase({ quiz, cards, onDone, onBack }) {
-  const [idx,      setIdx]      = useState(0);
+  const savedSession = readFlashcardSession(quiz, cards);
+  const initialIndex = Math.min(Math.max(Number(savedSession?.idx) || 0, 0), Math.max(cards.length - 1, 0));
+  const [idx,      setIdx]      = useState(initialIndex);
   const [flipped,  setFlipped]  = useState(false);
-  const [known,    setKnown]    = useState(new Set());
-  const [learning, setLearning] = useState(new Set());
+  const [known,    setKnown]    = useState(() => new Set((savedSession?.known || []).filter((i) => Number.isInteger(i) && i < cards.length)));
+  const [learning, setLearning] = useState(() => new Set((savedSession?.learning || []).filter((i) => Number.isInteger(i) && i < cards.length)));
+  const [advancing, setAdvancing] = useState(false);
+  const [reportedIds, setReportedIds] = useState(() => readBadCardIds());
 
   const flippedRef = useRef(false);
+  const advancingRef = useRef(false);
   const advanceRef = useRef(null);
+  const pointerRef = useRef({ x: 0, y: 0, moved: false });
 
   useEffect(() => { flippedRef.current = flipped; }, [flipped]);
+  useEffect(() => { advancingRef.current = advancing; }, [advancing]);
+
+  useEffect(() => {
+    writeFlashcardSession(quiz, cards, {
+      idx,
+      known: [...known],
+      learning: [...learning],
+    });
+  }, [cards, idx, known, learning, quiz]);
 
   const card     = cards[idx];
   const progress = ((idx + 1) / cards.length) * 100;
 
-  function flip() { setFlipped(f => !f); }
+  function flip() {
+    if (advancingRef.current) return;
+    setFlipped(f => !f);
+  }
 
   function advance(wasKnown) {
+    if (!flippedRef.current || advancingRef.current) return;
+    advancingRef.current = true;
+    setAdvancing(true);
     const newKnown    = wasKnown  ? new Set([...known,    idx]) : known;
     const newLearning = !wasKnown ? new Set([...learning, idx]) : learning;
+    recordFlashcardReview(card, wasKnown);
     setKnown(newKnown);
     setLearning(newLearning);
     setFlipped(false);
     setTimeout(() => {
       if (idx + 1 >= cards.length) {
+        clearFlashcardSession(quiz);
         onDone({ cards, knownIds: newKnown, learningIds: newLearning });
       } else {
         setIdx(i => i + 1);
+        advancingRef.current = false;
+        setAdvancing(false);
       }
     }, 160);
   }
@@ -770,7 +1025,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
 
   useEffect(() => {
     function onKey(e) {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.defaultPrevented || isInteractiveElement(e.target)) return;
       if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
       if (flippedRef.current && e.key === 'ArrowRight') advanceRef.current(true);
       if (flippedRef.current && e.key === 'ArrowLeft')  advanceRef.current(false);
@@ -778,6 +1033,32 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  function handleCardPointerDown(event) {
+    pointerRef.current = { x: event.clientX, y: event.clientY, moved: false };
+  }
+
+  function handleCardPointerMove(event) {
+    const dx = Math.abs(event.clientX - pointerRef.current.x);
+    const dy = Math.abs(event.clientY - pointerRef.current.y);
+    if (dx > 8 || dy > 8) {
+      pointerRef.current.moved = true;
+    }
+  }
+
+  function handleCardClick(event) {
+    if (pointerRef.current.moved || isNestedControl(event.target)) return;
+    flip();
+  }
+
+  function handleReportCard(event) {
+    event.stopPropagation();
+    if (reportBadCard(card)) {
+      setReportedIds(readBadCardIds());
+    }
+  }
+
+  const isReported = reportedIds.has(cardStorageId(card));
 
   return (
     <main className="dashboard-page study-hub-page student-flashcards-page">
@@ -819,20 +1100,35 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
 
         {/* Card */}
         <div
-          className="mx-auto mb-5 min-h-[420px] w-full max-w-[800px] cursor-pointer [perspective:1400px] fc-scale-in fc-d2 max-[600px]:min-h-[360px]"
-          onClick={flip}
+          className="mx-auto mb-5 min-h-[420px] w-full max-w-[800px] cursor-pointer touch-pan-y [perspective:1400px] fc-scale-in fc-d2 max-[600px]:min-h-[360px]"
+          onPointerDown={handleCardPointerDown}
+          onPointerMove={handleCardPointerMove}
+          onClick={handleCardClick}
           role="button"
           tabIndex={0}
-          aria-label={flipped ? 'Card showing answer — press Space to flip' : 'Press Space to reveal answer'}
-          onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); } }}
+          aria-label={flipped ? 'Card showing answer. Press Space to return to the question.' : 'Card showing question. Press Space to reveal answer.'}
+          onKeyDown={e => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              flip();
+            }
+          }}
         >
           <div className="relative min-h-[420px] w-full transition-transform duration-500 [transform-style:preserve-3d] max-[600px]:min-h-[360px]"
             style={{ transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
 
             {/* FRONT */}
-            <div className="fc-card-front-bg absolute inset-0 flex flex-col gap-4 overflow-y-auto rounded-2xl border border-line-soft p-8 shadow-lg [backface-visibility:hidden] max-[600px]:p-5">
+            <div
+              className="fc-card-front-bg absolute inset-0 flex flex-col gap-4 overflow-y-auto rounded-2xl border border-line-soft p-8 shadow-lg [backface-visibility:hidden] max-[600px]:p-5"
+              aria-hidden={flipped}
+            >
               <div className="flex items-center justify-between gap-3">
-                <CardTypeBadge type={card.questionType}/>
+                <div className="flex flex-wrap items-center gap-2">
+                  <CardTypeBadge type={card.questionType}/>
+                  <DifficultyBadge level={card.difficulty}/>
+                  <ReviewStatusBadge card={card}/>
+                </div>
                 <span className="text-[11px] font-bold text-ink-muted opacity-60">{idx + 1} / {cards.length}</span>
               </div>
 
@@ -856,7 +1152,10 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
             </div>
 
             {/* BACK */}
-            <div className="fc-card-back-bg absolute inset-0 flex flex-col gap-4 overflow-y-auto rounded-2xl border border-line-soft p-8 shadow-lg [backface-visibility:hidden] [transform:rotateY(180deg)] max-[600px]:p-5">
+            <div
+              className="fc-card-back-bg absolute inset-0 flex flex-col gap-4 overflow-y-auto rounded-2xl border border-line-soft p-8 shadow-lg [backface-visibility:hidden] [transform:rotateY(180deg)] max-[600px]:p-5"
+              aria-hidden={!flipped}
+            >
               <div className="flex items-center justify-between gap-3">
                 <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold tracking-wide uppercase"
                   style={{ background: 'rgba(16,185,129,0.10)', color: '#10B981', border: '1px solid rgba(16,185,129,0.22)' }}>
@@ -873,9 +1172,19 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
                 <AnswerBlock card={card}/>
               </div>
 
-              <p className="m-0 text-center text-[11px] font-semibold text-ink-muted">
-                How well did you recall this?
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <button
+                  type="button"
+                  className="inline-flex min-h-8 items-center rounded-full border border-line-soft bg-surface-2 px-3 text-[11px] font-extrabold text-ink-muted transition hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-45"
+                  onClick={handleReportCard}
+                  disabled={isReported}
+                >
+                  {isReported ? 'Reported' : 'Report bad card'}
+                </button>
+                <p className="m-0 text-[11px] font-semibold text-ink-muted">
+                  How well did you recall this?
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -891,7 +1200,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
               transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
               disabled:cursor-not-allowed disabled:opacity-40"
             style={{ background: 'rgba(245,158,11,0.09)', borderColor: 'rgba(245,158,11,0.22)', color: '#D97706' }}
-            onClick={() => advance(false)} disabled={!flipped}>
+            onClick={() => advance(false)} disabled={!flipped || advancing}>
             <IcReview/> Still Learning
           </button>
           <button
@@ -899,7 +1208,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
               transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
               disabled:cursor-not-allowed disabled:opacity-40"
             style={{ background: 'rgba(16,185,129,0.09)', borderColor: 'rgba(16,185,129,0.22)', color: '#059669' }}
-            onClick={() => advance(true)} disabled={!flipped}>
+            onClick={() => advance(true)} disabled={!flipped || advancing}>
             <IcKnow/> Know It
           </button>
         </div>
@@ -1031,7 +1340,7 @@ export function StudentFlashcardsPage() {
     setError('');
     try {
       const fullNote = note.noteData ? note : await getAiNote(note.id);
-      const cards = buildLessonCards(fullNote);
+      const cards = prioritizeCards(buildLessonCards(fullNote));
       if (cards.length === 0) {
         setError('This lesson does not have enough note content for flashcards yet.');
         setPhase('pick');
@@ -1067,7 +1376,7 @@ export function StudentFlashcardsPage() {
       const fullNotes = await Promise.all(
         sampleNotes.map((note) => note.noteData ? Promise.resolve(note) : getAiNote(note.id))
       );
-      const cards = shuffle(fullNotes.flatMap((note) => buildLessonCards(note))).slice(0, 60);
+      const cards = prioritizeCards(fullNotes.flatMap((note) => buildLessonCards(note))).slice(0, 60);
       if (cards.length === 0) {
         setError('These lessons do not have enough note content for mixed flashcards yet.');
         setPhase('pick');
@@ -1089,13 +1398,71 @@ export function StudentFlashcardsPage() {
     }
   }
 
+  async function loadDueCards(selectedNotes) {
+    const stats = readReviewStats();
+    const targetIds = new Set(
+      Object.entries(stats)
+        .filter(([, row]) => {
+          const due = row?.dueAt && Date.parse(row.dueAt) <= Date.now();
+          const weak = (Number(row?.learning) || 0) > (Number(row?.correct) || 0);
+          return due || weak;
+        })
+        .map(([id]) => id)
+    );
+
+    if (!targetIds.size) {
+      setError('No due or weak flashcards yet. Study a lesson first.');
+      return;
+    }
+
+    const noteIds = new Set([...targetIds].map(noteIdFromStoredCardId).filter(Boolean));
+    const reviewNotes = (selectedNotes || [])
+      .filter((note) => !note.accessLocked && noteIds.has(Number(note.id)));
+
+    if (!reviewNotes.length) {
+      setError('Your due cards are not available in the current lessons list.');
+      return;
+    }
+
+    setStarting(true);
+    setError('');
+    try {
+      const fullNotes = await Promise.all(
+        reviewNotes.map((note) => note.noteData ? Promise.resolve(note) : getAiNote(note.id))
+      );
+      const cards = prioritizeCards(fullNotes.flatMap((note) => buildLessonCards(note)))
+        .filter((card) => targetIds.has(cardStorageId(card)))
+        .slice(0, 60);
+
+      if (!cards.length) {
+        setError('No due cards could be rebuilt from the current lesson content.');
+        setPhase('pick');
+        return;
+      }
+
+      setActiveQuiz({
+        id: `due-${Date.now()}`,
+        quizTitle: 'Due Flashcards',
+        sourceNoteId: null,
+      });
+      setActiveCards(cards);
+      setPhase('session');
+      navigate('/flashcards?mode=due', { replace: true });
+    } catch (e) {
+      setError(getErrorMessage(e, 'Unable to load due flashcards'));
+      setPhase('pick');
+    } finally {
+      setStarting(false);
+    }
+  }
+
   function handleDone(res) {
     setResult(res);
     setPhase('result');
   }
 
   function handleRetry() {
-    setActiveCards(shuffle([...activeCards]));
+    setActiveCards(prioritizeCards([...activeCards]));
     setPhase('session');
   }
 
@@ -1141,6 +1508,7 @@ export function StudentFlashcardsPage() {
       error={error}
       onStartNote={loadLessonCards}
       onStartMixed={loadMixedCards}
+      onStartDueReview={loadDueCards}
       starting={starting}
     />
   );

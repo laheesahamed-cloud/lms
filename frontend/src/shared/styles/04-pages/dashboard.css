@@ -18,11 +18,9 @@
 .student-app-shell[data-theme="dark"] .dashboard-page,
 :root[data-theme="dark"] .student-route-page,
 .student-app-shell[data-theme="dark"] .student-route-page {
-  --sa-bg:
-    radial-gradient(ellipse at 18% 0%, rgba(37, 99, 235, 0.035) 0%, transparent 42%),
-    linear-gradient(180deg, #02030a 0%, #05070d 34%, #03050b 72%, #02030a 100%);
-  --sa-surface:   rgba(7, 10, 16, 0.95);
-  --sa-surface-2: #0b1019;
+  --sa-bg: var(--app-bg);
+  --sa-surface: rgba(12, 18, 28, 0.9);
+  --sa-surface-2: #111c2c;
   background: var(--sa-bg) !important;
 }
 
@@ -234,13 +232,13 @@
 .student-app-shell[data-theme="dark"] .study-action-card,
 .student-app-shell[data-theme="dark"] .study-error-card,
 .student-app-shell[data-theme="dark"] .study-loading-card {
-  border-color: rgba(148, 163, 184, 0.12);
+  border-color: rgba(203, 213, 225, 0.13);
   background:
-    linear-gradient(145deg, rgba(12, 17, 28, 0.97), rgba(6, 9, 17, 0.96)),
+    linear-gradient(145deg, rgba(22, 34, 46, 0.92), rgba(18, 28, 38, 0.94)),
     var(--sa-surface);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.025) inset,
-    0 18px 42px -34px rgba(0, 0, 0, 0.88);
+    0 18px 42px -34px rgba(2, 6, 12, 0.62);
 }
 
 /* ============================================================
@@ -428,7 +426,7 @@
 }
 
 .study-hero-name-nowrap {
-  display: inline-block !important;
+  display: block !important;
   flex-wrap: nowrap !important;
   align-items: baseline !important;
   gap: 0 !important;
@@ -460,25 +458,28 @@
   white-space: nowrap;
 }
 
-/* Greeting — "Hi, laheez" */
+/* Greeting — two-line welcome and name */
 .study-hero-name {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: baseline;
-  gap: 0;
+  display: grid;
+  align-items: start;
+  gap: 4px;
   margin-bottom: 8px;
   color: var(--sa-ink);
   font: var(--type-display);
   letter-spacing: 0;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
-.study-hero-name > span {
+.study-hero-greeting {
+  display: block;
   color: var(--sa-ink);
-  white-space: nowrap !important;
+  font-size: 0.54em;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .study-hero-name strong {
@@ -1539,8 +1540,8 @@
 :root[data-theme="dark"] .study-level-summary,
 .student-app-shell[data-theme="dark"] .study-level-summary {
   border-color: rgba(148, 163, 184, 0.13);
-  background: rgba(10, 14, 24, 0.86);
-  box-shadow: none;
+  background: var(--sa-card-bg);
+  box-shadow: var(--sa-shadow-card);
 }
 
 :root[data-theme="dark"] .study-level-summary__icon,
@@ -3066,77 +3067,45 @@
    home screen around the reference dark dashboard.
    ============================================================ */
 body.study-hub-screen {
-  background: #02030a !important;
+  background: var(--app-bg) !important;
+  background-color: var(--app-bg-solid) !important;
 }
 
 body.study-hub-screen :where(.app-shell, .portal-shell, .portal-content, .portal-content__frame) {
-  background: #02030a !important;
-}
-
-body.study-hub-screen .lms-sidebar--student-model {
-  --student-sidebar-ink: #f8fbff;
-  --student-sidebar-muted: #aeb9d4;
-  --student-sidebar-faint: #7481a1;
-  --student-sidebar-border: rgba(148, 163, 184, 0.16);
-  --student-sidebar-hover: rgba(96, 165, 250, 0.1);
-  --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.26), rgba(56, 189, 248, 0.18));
-  background:
-    linear-gradient(180deg, rgba(10, 18, 35, 0.94), rgba(5, 9, 19, 0.92)) !important;
-  border-color: rgba(148, 163, 184, 0.16) !important;
-  color: #f8fbff !important;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.02) inset,
-    0 24px 60px -42px rgba(0, 0, 0, 0.9) !important;
-}
-
-body.study-hub-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong) {
-  color: #f8fbff !important;
-  -webkit-text-fill-color: #f8fbff !important;
-}
-
-body.study-hub-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link) {
-  color: #aeb9d4 !important;
-  -webkit-text-fill-color: #aeb9d4 !important;
-}
-
-body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow {
-  color: var(--sa-primary, #60a5fa) !important;
-  -webkit-text-fill-color: var(--sa-primary, #60a5fa) !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page,
 :root[data-theme="dark"] .dashboard-page.study-hub-page,
 .student-app-shell .dashboard-page.study-hub-page,
 .study-hub-page {
-  --sa-bg:
-    radial-gradient(circle at 70% 18%, rgba(37, 99, 235, 0.12) 0%, transparent 33%),
-    radial-gradient(circle at 18% 0%, rgba(20, 184, 166, 0.07) 0%, transparent 34%),
-    linear-gradient(180deg, #02030a 0%, #060b18 48%, #02040b 100%);
-  --sa-surface: rgba(10, 16, 31, 0.8);
-  --sa-surface-2: rgba(14, 23, 43, 0.82);
-  --sa-surface-raised: rgba(15, 23, 42, 0.86);
-  --sa-surface-rgb: 10, 16, 31;
-  --sa-surface-2-rgb: 14, 23, 43;
-  --sa-ink: #f8fbff;
-  --sa-ink-deep: #ffffff;
-  --sa-text-2: #aeb9d4;
-  --sa-text-3: #7481a1;
-  --sa-border: rgba(148, 163, 184, 0.18);
-  --sa-border-soft: rgba(148, 163, 184, 0.12);
-  --sa-border-strong: rgba(148, 163, 184, 0.26);
-  --sa-border-rgb: 148, 163, 184;
+  --sa-bg: var(--app-bg);
+  --sa-surface: rgba(12, 18, 28, 0.9);
+  --sa-surface-2: rgba(17, 28, 44, 0.88);
+  --sa-surface-raised: rgba(15, 23, 35, 0.93);
+  --sa-surface-rgb: 12, 18, 28;
+  --sa-surface-2-rgb: 17, 28, 44;
+  --sa-ink: #eef3f8;
+  --sa-ink-deep: #f8fafc;
+  --sa-text-2: #a3afbd;
+  --sa-text-3: #8491a3;
+  --sa-border: rgba(203, 213, 225, 0.13);
+  --sa-border-soft: rgba(203, 213, 225, 0.09);
+  --sa-border-strong: rgba(203, 213, 225, 0.2);
+  --sa-border-rgb: 203, 213, 225;
   --sa-primary: #60a5fa;
   --sa-primary-deep: #3b82f6;
-  --sa-primary-soft: rgba(96, 165, 250, 0.16);
+  --sa-primary-soft: rgba(96, 165, 250, 0.12);
   --sa-primary-rgb: 96, 165, 250;
   --sa-purple: #a78bfa;
-  --sa-purple-soft: rgba(167, 139, 250, 0.16);
+  --sa-purple-soft: rgba(167, 139, 250, 0.08);
   --sa-purple-rgb: 167, 139, 250;
   --sa-warn: #f59e0b;
   --sa-warn-soft: rgba(245, 158, 11, 0.16);
   --sa-warn-deep: #fbbf24;
   --sa-warn-rgb: 245, 158, 11;
-  --sa-shadow-card: 0 24px 58px -36px rgba(0, 0, 0, 0.86);
+  --sa-shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 18px 44px -30px rgba(2, 6, 12, 0.64);
   background: var(--sa-bg) !important;
   color: var(--sa-ink);
 }
@@ -3161,13 +3130,13 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
 }
 
 .study-hub-page .study-topbar-title h1 {
-  color: #f8fbff;
+  color: var(--sa-ink);
   font-size: var(--type-size-xl);
   line-height: var(--type-leading-tight);
 }
 
 .study-hub-page .study-topbar-title span {
-  color: #818baa;
+  color: var(--sa-text-3);
   font-size: 11px;
 }
 
@@ -3175,13 +3144,13 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
   width: 42px;
   height: 42px;
   min-width: 42px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 1px solid var(--sa-border);
   border-radius: 14px;
-  background: rgba(12, 20, 39, 0.76);
-  color: #f8fbff;
+  background: rgba(31, 42, 56, 0.76);
+  color: var(--sa-ink);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.025) inset,
-    0 14px 30px -22px rgba(0, 0, 0, 0.86);
+    0 14px 30px -22px rgba(2, 6, 12, 0.62);
 }
 
 .study-hub-page .study-avatar--profile {
@@ -3197,10 +3166,10 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
   background:
     radial-gradient(circle at 86% 22%, rgba(96, 165, 250, 0.22), transparent 34%),
     radial-gradient(circle at 96% 92%, rgba(124, 58, 237, 0.22), transparent 42%),
-    linear-gradient(145deg, rgba(13, 20, 39, 0.88) 0%, rgba(5, 9, 20, 0.96) 100%);
+    var(--sa-card-bg);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
-    0 24px 62px -34px rgba(0, 0, 0, 0.9);
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 22px 54px -36px rgba(3, 9, 20, 0.78);
 }
 
 .study-hub-page .study-continue-card__copy {
@@ -3240,7 +3209,7 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
 
 .study-hub-page .study-square-action {
   border-color: rgba(148, 163, 184, 0.24);
-  background: rgba(12, 20, 39, 0.72);
+  background: var(--sa-soft-tile-bg);
   color: #60a5fa;
 }
 
@@ -3317,20 +3286,20 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
   padding: 9px;
   background:
     radial-gradient(circle at 18% 20%, rgba(34, 197, 94, 0.12), transparent 45%),
-    rgba(13, 22, 42, 0.7);
-  box-shadow: 0 18px 42px -32px rgba(0, 0, 0, 0.9);
+    var(--sa-soft-tile-bg);
+  box-shadow: 0 18px 42px -32px rgba(3, 9, 20, 0.74);
 }
 
 .study-hub-page .study-metric--violet {
   background:
     radial-gradient(circle at 18% 20%, rgba(167, 139, 250, 0.18), transparent 45%),
-    rgba(13, 22, 42, 0.7);
+    var(--sa-soft-tile-bg);
 }
 
 .study-hub-page .study-metric--amber {
   background:
     radial-gradient(circle at 18% 20%, rgba(96, 165, 250, 0.16), transparent 45%),
-    rgba(13, 22, 42, 0.7);
+    var(--sa-soft-tile-bg);
 }
 
 .study-hub-page .study-metric__icon {
@@ -3412,10 +3381,11 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
   border-radius: 22px;
   background:
     radial-gradient(circle at 12% 8%, rgba(245, 158, 11, 0.16), transparent 36%),
-    linear-gradient(145deg, rgba(42, 29, 24, 0.86), rgba(8, 12, 22, 0.94));
+    linear-gradient(145deg, rgba(44, 38, 32, 0.56), rgba(25, 38, 54, 0.78)),
+    var(--sa-card-bg);
   box-shadow:
-    0 0 0 1px rgba(245, 158, 11, 0.055) inset,
-    0 24px 58px -34px rgba(0, 0, 0, 0.9);
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 22px 54px -36px rgba(245, 158, 11, 0.34);
 }
 
 .study-hub-page .study-streak-top {
@@ -3516,6 +3486,87 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
   padding: 0;
 }
 
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-streak-card,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-streak-card {
+  border-color: rgba(96, 165, 250, 0.18);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(245, 158, 11, 0.14), transparent 36%),
+    radial-gradient(circle at 92% 0%, rgba(96, 165, 250, 0.13), transparent 44%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(238, 246, 255, 0.92));
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.72) inset,
+    0 18px 42px -30px rgba(59, 130, 246, 0.28);
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-streak-top .study-eyebrow,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-streak-top .study-eyebrow {
+  color: #b45309;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-streak-top strong,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-streak-top strong {
+  color: #26314c;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-streak-days strong,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-streak-days strong {
+  color: #b45309;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-streak-days span,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-streak-days span {
+  color: rgba(148, 92, 24, 0.62);
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-heatmap,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-heatmap {
+  border: 1px solid rgba(96, 165, 250, 0.1);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-heatmap__dot,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-heatmap__dot {
+  border-color: rgba(148, 163, 184, 0.34);
+  background: rgba(241, 245, 249, 0.74);
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-heatmap__cell.is-active .study-heatmap__dot,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-heatmap__cell.is-active .study-heatmap__dot {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  box-shadow: 0 10px 18px -12px rgba(217, 119, 6, 0.72);
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-heatmap__cell.is-today .study-heatmap__dot,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-heatmap__cell.is-today .study-heatmap__dot {
+  border-color: rgba(180, 83, 9, 0.48);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12);
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-heatmap__label,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-heatmap__label {
+  color: #7f8cac;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-heatmap__cell.is-today .study-heatmap__label,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-heatmap__cell.is-today .study-heatmap__label {
+  color: #b45309;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-streak-footer,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-streak-footer {
+  color: #66738d;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-streak-footer b,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-streak-footer b {
+  color: #b45309;
+}
+
+:root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-streak-link,
+:root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-streak-link {
+  color: #5274f3;
+}
+
 .study-hub-page .study-section-head--quick {
   margin: 16px 0 8px;
 }
@@ -3558,8 +3609,10 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
   padding: 7px 8px !important;
   border: 1px solid rgba(96, 165, 250, 0.18) !important;
   border-radius: 16px !important;
-  background: rgba(13, 22, 42, 0.74) !important;
-  box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.9) !important;
+  background: var(--sa-soft-tile-bg) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 16px 34px -28px rgba(3, 9, 20, 0.74) !important;
   scroll-snap-align: start;
   text-align: left !important;
 }
@@ -3572,7 +3625,7 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
 :root[data-theme="dark"] .study-hub-page .study-action-grid > .study-action-card:nth-child(3),
 :root[data-theme="dark"] .student-app-shell .study-hub-page .study-action-grid > .study-action-card:nth-child(2),
 :root[data-theme="dark"] .student-app-shell .study-hub-page .study-action-grid > .study-action-card:nth-child(3) {
-  background: rgba(13, 22, 42, 0.74) !important;
+  background: var(--sa-soft-tile-bg) !important;
 }
 
 .study-hub-page .study-action-grid > .study-action-card > span {
@@ -3629,16 +3682,14 @@ body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-g
 .study-hub-page .study-mood-card,
 .study-hub-page .study-question-card {
   border-color: rgba(148, 163, 184, 0.14);
-  background:
-    linear-gradient(145deg, rgba(13, 22, 42, 0.82), rgba(6, 10, 20, 0.86)),
-    rgba(13, 22, 42, 0.72);
+  background: var(--sa-card-bg);
 }
 
 body.study-hub-screen .lms-mobile-bottom-nav__inner {
   border: 1px solid rgba(148, 163, 184, 0.12) !important;
   border-bottom: 0 !important;
   background:
-    linear-gradient(180deg, rgba(13, 22, 42, 0.96), rgba(7, 12, 25, 0.96)) !important;
+    linear-gradient(180deg, rgba(31, 46, 64, 0.92), rgba(20, 31, 46, 0.94)) !important;
   color: #f8fbff !important;
   box-shadow:
     0 -1px 0 rgba(255, 255, 255, 0.04) inset,
@@ -3725,6 +3776,14 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
   .study-hub-page .study-question-card {
     grid-column: 1 / -1;
   }
+
+  .study-hub-page .study-question-card {
+    min-height: 300px;
+  }
+
+  .study-hub-page .study-question-card.is-collapsed .study-question-text {
+    max-height: 10.25em;
+  }
 }
 
 /* ============================================================
@@ -3761,8 +3820,7 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
   border-color: rgba(148, 163, 184, 0.14);
   background:
     radial-gradient(circle at 92% 0%, rgba(96, 165, 250, 0.14), transparent 34%),
-    linear-gradient(145deg, rgba(13, 22, 42, 0.82), rgba(6, 10, 20, 0.86)),
-    rgba(13, 22, 42, 0.72);
+    var(--sa-card-bg);
 }
 
 .study-hub-page .study-plan-row {

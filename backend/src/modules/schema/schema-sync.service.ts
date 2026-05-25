@@ -29,7 +29,6 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensurePushSubscriptionsTable(connection);
       await this.ensureNativePushTokensTable(connection);
       await this.ensureStudyPlannerTasksTable(connection);
-      await this.ensureQuestionReviewItemsTable(connection);
       await this.ensureLessonDoubtsTable(connection);
       await this.ensureSystemSettingsTable(connection);
       await this.ensureAiProviderConfigsTable(connection);
@@ -70,6 +69,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'quizzes', 'admin_name', 'VARCHAR(255) NULL AFTER exam_mode_only');
       await this.ensureColumn(connection, 'quizzes', 'student_title', 'VARCHAR(255) NULL AFTER admin_name');
       await this.ensureColumn(connection, 'quizzes', 'display_title_mode', "VARCHAR(20) NOT NULL DEFAULT 'number' AFTER student_title");
+      await this.ensureColumn(connection, 'quizzes', 'blueprint_json', 'LONGTEXT NULL AFTER quiz_description');
       await this.ensureColumn(connection, 'lessons', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER video_url');
       await this.ensureColumn(connection, 'ai_illustrated_notes', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_public');
       await this.ensureColumn(connection, 'plans', 'slug', 'VARCHAR(160) NULL AFTER name');
@@ -101,8 +101,6 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'subscription_requests', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
       await this.ensureColumn(connection, 'lesson_doubts', 'question_id', 'INT NULL AFTER lesson_id');
       await this.ensureColumn(connection, 'lesson_doubts', 'context_type', "ENUM('lesson','question','general') NOT NULL DEFAULT 'general' AFTER question_id");
-      await this.ensureColumn(connection, 'lesson_doubts', 'faq_answer', 'TEXT NULL AFTER reply');
-      await this.ensureColumn(connection, 'lesson_doubts', 'converted_to_faq', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER faq_answer');
       await this.ensureColumn(connection, 'payment_transactions', 'invoice_id', 'VARCHAR(20) NULL AFTER order_id');
       await this.ensureColumn(connection, 'payment_transactions', 'coupon_code', 'VARCHAR(40) NULL AFTER currency');
       await this.ensureColumn(connection, 'payment_transactions', 'discount_amount', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00 AFTER coupon_code');
@@ -189,6 +187,9 @@ export class SchemaSyncService implements OnModuleInit {
         student_title = COALESCE(NULLIF(TRIM(student_title), ''), quiz_title),
         quiz_title = COALESCE(NULLIF(TRIM(student_title), ''), NULLIF(TRIM(quiz_title), ''), NULLIF(TRIM(admin_name), ''))
     `);
+    await connection.execute(
+      "ALTER TABLE study_bookmarks MODIFY item_type ENUM('quiz', 'ai_note', 'question') NOT NULL"
+    ).catch(() => undefined);
   }
 
   private async ensurePapersTable(connection: PoolConnection) {
@@ -494,26 +495,6 @@ export class SchemaSyncService implements OnModuleInit {
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_study_planner_user_due (user_id, due_date),
         INDEX idx_study_planner_status (status)
-      )
-    `);
-  }
-
-  private async ensureQuestionReviewItemsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS question_review_items (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        question_id INT NULL,
-        source ENUM('ai','import','manual','report') NOT NULL DEFAULT 'manual',
-        title VARCHAR(220) NOT NULL,
-        notes TEXT NULL,
-        status ENUM('draft','reviewing','approved','rejected') NOT NULL DEFAULT 'draft',
-        created_by INT NULL,
-        reviewed_by INT NULL,
-        reviewed_at DATETIME NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_question_review_items_status (status),
-        INDEX idx_question_review_items_question (question_id)
       )
     `);
   }

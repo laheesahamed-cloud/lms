@@ -46,10 +46,10 @@ const lpSectionTitleClass = 'm-0 mb-3.5 text-[clamp(26px,3vw,40px)] font-black l
 const lpSectionTextClass = 'm-0 text-[15px] leading-relaxed text-white/50';
 const lpPlanGridClass = 'grid grid-cols-3 gap-4 max-[860px]:grid-cols-1';
 const lpRootClass =
-  'lp lp-v3 landing-page dark-page group/lp isolate overflow-x-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(37,99,235,0.12),transparent_38%),linear-gradient(180deg,#02030A_0%,#05070F_42%,#010208_100%)] text-white';
+  'lp lp-v3 landing-page dark-page group/lp isolate overflow-x-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(37,99,235,0.12),transparent_38%),linear-gradient(180deg,#0F1720_0%,#111A23_42%,#0D141C_100%)] text-white';
 const lpShellClass = 'lp-shell mx-auto w-[min(1180px,calc(100%_-_40px))]';
 const lpNavClass =
-  'lp-nav fixed inset-x-0 top-0 z-[20000] border-b border-transparent bg-transparent shadow-none transition-[background,border-color,box-shadow] duration-200 [&.lp-nav--scrolled]:border-white/10 [&.lp-nav--scrolled]:bg-[#020310]/95 [&.lp-nav--scrolled]:shadow-[0_4px_22px_rgba(0,0,0,0.28)]';
+  'lp-nav fixed inset-x-0 top-0 z-[20000] border-b border-transparent bg-transparent shadow-none transition-[background,border-color,box-shadow] duration-200 [&.lp-nav--scrolled]:border-white/10 [&.lp-nav--scrolled]:bg-[#0F1720]/95 [&.lp-nav--scrolled]:shadow-[0_4px_22px_rgba(2,6,12,0.24)]';
 const lpNavInnerClass = 'flex h-[62px] items-center gap-8 max-[640px]:gap-3';
 const lpNavBrandClass = 'flex shrink-0 items-center gap-2.5 text-white no-underline';
 const lpNavCrossClass = 'flex size-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#2563EB,#7C3AED)] text-xl font-bold text-white';
@@ -57,7 +57,7 @@ const lpNavNameClass = '[&_strong]:block [&_strong]:text-sm [&_strong]:font-extr
 const lpNavLinksClass = 'lp-nav-links flex flex-1 justify-center gap-7 max-[860px]:hidden [&_a]:text-[13.5px] [&_a]:font-medium [&_a]:text-white/60 [&_a]:no-underline [&_a]:transition-colors hover:[&_a]:text-white';
 const lpNavCtaClass = 'lp-nav-cta flex shrink-0 gap-2 max-[860px]:[&_a:first-child]:hidden';
 const lpNavHamburgerClass = 'lp-nav-hamburger flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.07] text-white/75 hover:bg-white/[0.12] hover:text-white transition duration-150 min-[860px]:hidden';
-const lpMobileMenuClass = 'fixed inset-0 z-[19999] flex flex-col bg-[#020310]/[0.98] px-5 pt-[78px] pb-[max(32px,calc(env(safe-area-inset-bottom,0px)+20px))] backdrop-blur-xl min-[860px]:hidden overflow-y-auto';
+const lpMobileMenuClass = 'fixed inset-0 z-[19999] flex flex-col bg-[#0F1720]/[0.98] px-5 pt-[78px] pb-[max(32px,calc(env(safe-area-inset-bottom,0px)+20px))] backdrop-blur-xl min-[860px]:hidden overflow-y-auto';
 const lpMobileNavLinkClass = 'flex cursor-pointer items-center rounded-xl px-4 py-[14px] text-[17px] font-bold text-white/70 no-underline transition-colors hover:bg-white/[0.06] hover:text-white';
 const lpButtonClass =
   'inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-5 py-[9px] text-[13.5px] font-bold no-underline transition-[transform,box-shadow,background-color,border-color,color,opacity,filter] duration-[160ms] ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97]';
@@ -70,7 +70,7 @@ const lpButtonGhostLightClass = 'border border-white/20 bg-white/10 text-white h
 const lpButtonOutlineDarkClass = 'border border-white/20 bg-transparent text-white/75 hover:bg-white/[0.06] hover:text-white';
 const lpButtonBlockClass = 'w-full justify-center';
 const lpHeroClass =
-  'lp-hero relative overflow-hidden bg-[radial-gradient(ellipse_at_74%_18%,rgba(14,165,233,0.14),transparent_35%),radial-gradient(ellipse_at_18%_76%,rgba(16,185,129,0.08),transparent_30%),linear-gradient(180deg,#02030A_0%,#05070F_66%,#02030A_100%)] pt-[calc(104px+env(safe-area-inset-top,0px))] pb-10 [--lp-dot-a-y:0px] [--lp-dot-b-y:0px] [--lp-dot-c-y:0px] [--lp-path-y:0px] [--lp-grid-y:0px] [--lp-orb-a-y:0px] [--lp-orb-b-y:0px] [--lp-orb-c-y:0px] [contain:layout_paint_style] max-[860px]:pt-[calc(92px+env(safe-area-inset-top,0px))] max-[860px]:pb-10 max-[640px]:pt-[calc(82px+env(safe-area-inset-top,0px))] max-[640px]:pb-9';
+  'lp-hero relative overflow-hidden bg-[radial-gradient(ellipse_at_74%_18%,rgba(14,165,233,0.14),transparent_35%),radial-gradient(ellipse_at_18%_76%,rgba(16,185,129,0.08),transparent_30%),linear-gradient(180deg,#0F1720_0%,#111A23_66%,#0F1720_100%)] pt-[calc(104px+env(safe-area-inset-top,0px))] pb-10 [--lp-dot-a-y:0px] [--lp-dot-b-y:0px] [--lp-dot-c-y:0px] [--lp-path-y:0px] [--lp-grid-y:0px] [--lp-orb-a-y:0px] [--lp-orb-b-y:0px] [--lp-orb-c-y:0px] [contain:layout_paint_style] max-[860px]:pt-[calc(92px+env(safe-area-inset-top,0px))] max-[860px]:pb-10 max-[640px]:pt-[calc(82px+env(safe-area-inset-top,0px))] max-[640px]:pb-9';
 const lpHeroBgClass = 'absolute inset-0 z-0 overflow-hidden pointer-events-none [contain:paint] translate-z-0';
 const lpHeroBgGridClass =
   'absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.032)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.032)_1px,transparent_1px)] bg-[length:60px_60px] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_40%,black,transparent)] [transform:translate3d(0,var(--lp-grid-y),0)]';
@@ -89,9 +89,9 @@ const lpPathMapClass =
 const lpPathBaseClass = 'lp-path-base fill-none stroke-sky-200/16 stroke-[1.15] [stroke-linecap:round] [stroke-linejoin:round]';
 const lpPathTraceClass =
   'lp-path-trace fill-none stroke-[#7DD3FC] stroke-[2.2] opacity-[0.86] drop-shadow-[0_0_6px_rgba(125,211,252,0.45)] [stroke-dasharray:220_1480] [stroke-dashoffset:0] [stroke-linecap:round] [stroke-linejoin:round] [.lp-motion-ready_&]:animate-lpPathTrace [body.app-booting_&]:![animation-play-state:paused] motion-reduce:![animation:none] motion-reduce:![stroke-dasharray:none] motion-reduce:![stroke-dashoffset:0] motion-reduce:!opacity-45';
-const lpPathNodeClass = 'fill-[#02030A] stroke-sky-300/34 stroke-[1.2]';
+const lpPathNodeClass = 'fill-[#0F1720] stroke-sky-300/34 stroke-[1.2]';
 const lpHeroInnerClass = 'lp-hero-inner relative z-[1] grid grid-cols-[minmax(0,0.98fr)_minmax(420px,1.02fr)] items-center gap-12 max-[1120px]:grid-cols-[minmax(0,0.98fr)_minmax(400px,1.02fr)] max-[1024px]:gap-8 max-[860px]:grid-cols-1 max-[860px]:gap-8';
-const lpHeroCopyClass = cx(lpRevealClass, 'lp-hero-copy group/herocopy relative z-[1] min-w-0 !translate-y-0 !scale-100 !opacity-100 !transition-none before:absolute before:inset-[-24px_-16px] before:z-[-1] before:rounded-[28px] before:bg-[radial-gradient(ellipse_at_35%_45%,rgba(2,3,10,0.58),transparent_72%)] before:pointer-events-none max-[860px]:text-center');
+const lpHeroCopyClass = cx(lpRevealClass, 'lp-hero-copy group/herocopy relative z-[1] min-w-0 !translate-y-0 !scale-100 !opacity-100 !transition-none before:absolute before:inset-[-24px_-16px] before:z-[-1] before:rounded-[28px] before:bg-[radial-gradient(ellipse_at_35%_45%,rgba(15,23,32,0.52),transparent_72%)] before:pointer-events-none max-[860px]:text-center');
 const lpHeroStaggerBaseClass =
   'translate-y-0 opacity-100 transition-[opacity,transform] duration-[300ms] ease-[cubic-bezier(0.23,1,0.32,1)] group-[.is-revealed]/herocopy:translate-y-0 group-[.is-revealed]/herocopy:opacity-100 motion-reduce:!translate-y-0 motion-reduce:!opacity-100 motion-reduce:!transition-none';
 const lpHeroKickerClass = cx('lp-hero-kicker mb-5 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-3.5 py-1.5 text-[12.5px] font-semibold uppercase tracking-[0.06em] text-blue-400 animate-slideDownFade group-[.is-revealed]/herocopy:delay-[50ms]', lpHeroStaggerBaseClass);
@@ -102,9 +102,9 @@ const lpHeroSubClass = cx('lp-hero-sub mb-7 max-w-[520px] text-base leading-[1.6
 const lpHeroActionsClass = cx('lp-hero-actions mb-7 flex flex-wrap gap-3 animate-slideUpFade [animation-delay:210ms] max-[860px]:justify-center max-[640px]:mx-auto max-[640px]:grid max-[640px]:w-full max-[640px]:max-w-[320px] max-[640px]:grid-cols-1 max-[640px]:gap-2.5 max-[640px]:[&>a]:w-full max-[640px]:[&>a]:justify-center group-[.is-revealed]/herocopy:delay-[320ms]', lpHeroStaggerBaseClass);
 const lpHeroTrustClass = cx('lp-hero-trust flex flex-nowrap gap-2 overflow-x-auto animate-slideUpFade [animation-delay:280ms] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-[860px]:flex-wrap max-[860px]:justify-center max-[640px]:mx-auto max-[640px]:max-w-[320px] group-[.is-revealed]/herocopy:delay-[410ms]', lpHeroStaggerBaseClass);
 const lpTrustPillClass = 'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/[0.12] bg-white/[0.07] px-3 py-[5px] text-[11.5px] font-medium text-white/60 transition-colors duration-150 hover:border-white/20 hover:text-white/80 max-[420px]:px-2.5 max-[420px]:text-[10.5px]';
-const lpHeroCardsClass = cx(lpRevealClass, 'lp-hero-cards group/herocards relative z-[2] grid grid-cols-2 grid-rows-[auto_auto] gap-3.5 rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.075),rgba(255,255,255,0.028)),rgba(2,6,23,0.84)] p-4 shadow-[0_30px_90px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.10)] [animation:scaleIn_420ms_cubic-bezier(0.16,1,0.3,1)_both,lpFloatA_7.4s_ease-in-out_900ms_infinite] [contain:layout_paint] max-[860px]:mx-auto max-[860px]:max-w-[560px] max-[860px]:[animation:scaleIn_420ms_cubic-bezier(0.16,1,0.3,1)_both] max-[640px]:grid-cols-1 max-[640px]:gap-3 max-[640px]:rounded-[24px] max-[640px]:p-3 max-[480px]:gap-2.5 motion-reduce:!animate-none motion-reduce:![animation:none]');
+const lpHeroCardsClass = cx(lpRevealClass, 'lp-hero-cards group/herocards relative z-[2] grid grid-cols-2 grid-rows-[auto_auto] gap-3.5 rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.075),rgba(255,255,255,0.028)),rgba(2,6,23,0.84)] p-4 shadow-[0_30px_90px_rgba(2,6,12,0.3),inset_0_1px_0_rgba(255,255,255,0.10)] [animation:scaleIn_420ms_cubic-bezier(0.16,1,0.3,1)_both,lpFloatA_7.4s_ease-in-out_900ms_infinite] [contain:layout_paint] max-[860px]:mx-auto max-[860px]:max-w-[560px] max-[860px]:[animation:scaleIn_420ms_cubic-bezier(0.16,1,0.3,1)_both] max-[640px]:grid-cols-1 max-[640px]:gap-3 max-[640px]:rounded-[24px] max-[640px]:p-3 max-[480px]:gap-2.5 motion-reduce:!animate-none motion-reduce:![animation:none]');
 const lpPreviewCardClass =
-  'lp-hcard relative isolate overflow-hidden rounded-2xl border border-white/[0.075] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025)),#03050D] shadow-[0_14px_32px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-1px_0_rgba(0,0,0,0.18)] transition-[box-shadow,border-color,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-white/[0.11] hover:shadow-[0_18px_40px_rgba(2,6,23,0.22),0_0_0_1px_rgba(96,165,250,0.08),inset_0_1px_0_rgba(255,255,255,0.13),inset_0_-1px_0_rgba(0,0,0,0.22)] active:scale-[0.99] [contain:layout_paint]';
+  'lp-hcard relative isolate overflow-hidden rounded-2xl border border-white/[0.075] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025)),#121C26] shadow-[0_14px_32px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-1px_0_rgba(0,0,0,0.18)] transition-[box-shadow,border-color,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-white/[0.11] hover:shadow-[0_18px_40px_rgba(2,6,23,0.22),0_0_0_1px_rgba(96,165,250,0.08),inset_0_1px_0_rgba(255,255,255,0.13),inset_0_-1px_0_rgba(0,0,0,0.22)] active:scale-[0.99] [contain:layout_paint]';
 const lpPreviewCanvasMotionClass =
   'group-[.is-revealed]/herocards:translate-y-0 motion-reduce:!animate-none [body.app-booting_&]:![animation-play-state:paused]';
 const lpPreviewQuizMotionClass =
@@ -120,32 +120,32 @@ const lpAltSectionClass = 'bg-[linear-gradient(180deg,rgba(0,0,0,0.2),rgba(0,0,0
 const lpCardGrid3Class = 'grid grid-cols-3 gap-4 max-[1024px]:grid-cols-2 max-[640px]:grid-cols-1 max-[640px]:gap-3';
 const lpFeatureBentoClass = 'lp-feature-grid grid grid-cols-3 gap-4 max-[1024px]:grid-cols-2 max-[640px]:grid-cols-1 max-[640px]:gap-3';
 const lpFeatureCardClass =
-  cx(lpRevealClass, 'relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#03050D] px-[22px] py-6 shadow-[0_12px_26px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1.5 hover:border-[color-mix(in_srgb,var(--fc)_30%,transparent)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.038))] hover:shadow-[0_24px_56px_rgba(2,6,23,0.28)] [contain:layout_paint]');
+  cx(lpRevealClass, 'relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#121C26] px-[22px] py-6 shadow-[0_12px_26px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1.5 hover:border-[color-mix(in_srgb,var(--fc)_30%,transparent)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.038))] hover:shadow-[0_24px_56px_rgba(2,6,23,0.28)] [contain:layout_paint]');
 const lpFeatureIconClass = 'mb-3 flex size-[46px] items-center justify-center rounded-xl bg-[var(--fb)] text-[var(--fc)]';
 const lpFeatureTagClass = 'mb-2.5 inline-block rounded-full bg-[var(--fb)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--fc)]';
 const lpHowGridClass = 'lp-how-grid relative grid grid-cols-3 gap-5 max-[860px]:grid-cols-1 max-[860px]:gap-3.5 max-[640px]:gap-3';
 const lpHowCardClass =
-  cx(lpRevealClass, 'relative rounded-[18px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#03050D] px-6 pb-[26px] pt-7 text-left shadow-[0_12px_28px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.04))]');
+  cx(lpRevealClass, 'relative rounded-[18px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#121C26] px-6 pb-[26px] pt-7 text-left shadow-[0_12px_28px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.04))]');
 const lpHowIconClass = 'mb-[18px] flex size-[50px] items-center justify-center rounded-[14px] border border-[color-mix(in_srgb,var(--hic)_30%,transparent)] bg-[color-mix(in_srgb,var(--hic)_14%,rgba(255,255,255,0.04))] text-[var(--hic)]';
 const lpHowNumClass = 'mb-2.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-white/20';
 const lpHowArrowClass = 'absolute -right-[17px] top-10 z-[2] text-white/20 max-[860px]:hidden';
-const lpCompareWrapClass = cx(lpRevealClass, 'lp-compare-wrap mx-auto grid max-w-[700px] grid-cols-2 overflow-hidden rounded-2xl border border-white/10 bg-[#02030A] shadow-[0_18px_42px_rgba(0,0,0,0.3)] max-[860px]:grid-cols-1');
-const lpCompareUsClass = 'bg-[linear-gradient(135deg,rgba(37,99,235,0.15),rgba(124,58,237,0.10)),#03050D]';
-const lpCompareThemClass = 'bg-[#03040A]';
+const lpCompareWrapClass = cx(lpRevealClass, 'lp-compare-wrap mx-auto grid max-w-[700px] grid-cols-2 overflow-hidden rounded-2xl border border-white/10 bg-[#0F1720] shadow-[0_18px_42px_rgba(2,6,12,0.28)] max-[860px]:grid-cols-1');
+const lpCompareUsClass = 'bg-[linear-gradient(135deg,rgba(37,99,235,0.15),rgba(124,58,237,0.10)),#121C26]';
+const lpCompareThemClass = 'bg-[#121C26]';
 const lpCompareHeadUsClass = 'bg-[linear-gradient(90deg,#2563EB,#7C3AED)] px-5 py-3.5 text-[13px] font-extrabold text-white';
 const lpCompareHeadThemClass = 'bg-white/[0.06] px-5 py-3.5 text-[13px] font-bold text-white/40';
 const lpCompareRowClass = 'flex items-center gap-[9px] border-t border-white/[0.06] px-5 py-[9px] text-[12.5px]';
 const lpTestimonialGridClass = 'lp-testimonial-viewport relative overflow-hidden py-1';
 const lpTestimonialTrackClass = 'lp-testimonial-track flex w-max gap-4';
 const lpTestimonialCardClass =
-  cx(lpRevealClass, 'lp-testimonial-card w-[min(360px,calc(100vw-64px))] shrink-0 rounded-2xl border border-white/[0.06] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#03050D] p-6 shadow-[0_12px_26px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1 hover:border-white/10 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(255,255,255,0.035))]');
+  cx(lpRevealClass, 'lp-testimonial-card w-[min(360px,calc(100vw-64px))] shrink-0 rounded-2xl border border-white/[0.06] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#121C26] p-6 shadow-[0_12px_26px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1 hover:border-white/10 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(255,255,255,0.035))]');
 const lpFaqGridClass = 'lp-faq-grid grid grid-cols-2 gap-4 max-[860px]:grid-cols-1';
 const lpFaqItemClass =
-  cx(lpRevealClass, 'overflow-hidden rounded-[18px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#03050D] shadow-[0_12px_26px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-0.5 hover:border-white/10 open:border-blue-300/20 open:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.035))]');
+  cx(lpRevealClass, 'overflow-hidden rounded-[18px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#121C26] shadow-[0_12px_26px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-0.5 hover:border-white/10 open:border-blue-300/20 open:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.035))]');
 const lpFaqSummaryClass = 'flex cursor-pointer list-none items-center justify-between gap-4 px-[22px] py-5 text-[15px] font-bold text-white [&::-webkit-details-marker]:hidden';
 const lpFaqPlusClass = 'inline-flex size-7 shrink-0 items-center justify-center rounded-[10px] bg-white/[0.06] text-blue-300 transition duration-200 group-open:rotate-180 group-open:bg-blue-600/20 group-open:text-white';
 const lpCtaSectionClass = 'lp-cta-section py-24 [content-visibility:auto] [contain-intrinsic-size:520px]';
-const lpCtaBoxClass = cx(lpRevealClass, 'lp-cta-box relative overflow-hidden rounded-3xl border border-white/[0.06] bg-[linear-gradient(135deg,rgba(37,99,235,0.16),rgba(124,58,237,0.12)),linear-gradient(180deg,#050711,#010208)] px-14 py-16 text-center shadow-[0_18px_40px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.08)] max-[860px]:px-6 max-[860px]:py-10');
+const lpCtaBoxClass = cx(lpRevealClass, 'lp-cta-box relative overflow-hidden rounded-3xl border border-white/[0.06] bg-[linear-gradient(135deg,rgba(37,99,235,0.16),rgba(124,58,237,0.12)),linear-gradient(180deg,#050711,#0D141C)] px-14 py-16 text-center shadow-[0_18px_40px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.08)] max-[860px]:px-6 max-[860px]:py-10');
 const lpCtaActionsClass = 'flex flex-wrap justify-center gap-3';
 const lpCtaOrbAClass = 'lp-cta-orb lp-cta-orb--a absolute -left-[60px] -top-20 size-[350px] translate-x-2 -translate-y-1.5 rounded-full bg-blue-600 opacity-25 blur-[46px] [.lp-motion-ready_&]:animate-lpCtaDriftA [body.app-booting_&]:![animation-play-state:paused] motion-reduce:hidden';
 const lpCtaOrbBClass = 'lp-cta-orb lp-cta-orb--b absolute -bottom-[60px] -right-10 size-[280px] -translate-x-1.5 translate-y-1 rounded-full bg-violet-600 opacity-25 blur-[46px] [.lp-motion-ready_&]:animate-lpCtaDriftB [body.app-booting_&]:![animation-play-state:paused] motion-reduce:hidden';
@@ -868,7 +868,7 @@ export function LandingPage() {
               <article key={plan.name}
                        className={cx(
                          lpRevealClass,
-                         'relative flex flex-col gap-3.5 rounded-[18px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#03050D] p-7 shadow-[0_12px_28px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1 hover:border-white/10 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(255,255,255,0.035))]',
+                         'relative flex flex-col gap-3.5 rounded-[18px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#121C26] p-7 shadow-[0_12px_28px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1 hover:border-white/10 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.065),rgba(255,255,255,0.035))]',
                          plan.accent === 'growth' && cx(lpFeaturedPlanMotionClass, 'overflow-hidden border-indigo-400/45 bg-[linear-gradient(160deg,rgba(37,99,235,0.18),rgba(124,58,237,0.12)),#02040B] shadow-[0_0_0_1px_rgba(99,102,241,0.25),0_16px_48px_rgba(37,99,235,0.15)]')
                        )}
                        data-reveal style={{'--reveal-delay':`${i*0.08}s`}}>
@@ -947,7 +947,7 @@ export function LandingPage() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-white/[0.06] bg-[#02030A] py-10 max-[640px]:py-8">
+      <footer className="border-t border-white/[0.06] bg-[#0F1720] py-10 max-[640px]:py-8">
         <div className={lpShellClass}>
           <div className="mb-7 flex flex-wrap items-start justify-between gap-8 max-[640px]:flex-col max-[640px]:gap-6">
             <div className="max-w-[260px] max-[640px]:max-w-none">

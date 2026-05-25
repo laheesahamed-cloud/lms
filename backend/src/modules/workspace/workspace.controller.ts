@@ -85,26 +85,25 @@ export class WorkspaceController {
     return this.workspaceService.getAdminReports(authorization, { startDate, endDate, courseId, userId });
   }
 
-  @Get('question-review/admin')
-  @RequirePermissions('content.review')
-  listQuestionReviewItems(@Headers('authorization') authorization?: string, @Query('status') status?: string) {
-    return this.workspaceService.listQuestionReviewItems(authorization, status);
+  @Post('question-reports')
+  createQuestionReport(@Headers('authorization') authorization: string | undefined, @Body() body: any) {
+    return this.workspaceService.createQuestionReport(authorization, body);
   }
 
-  @Post('question-review/admin')
+  @Get('question-reports/admin')
   @RequirePermissions('content.review')
-  createQuestionReviewItem(@Headers('authorization') authorization: string | undefined, @Body() body: any) {
-    return this.workspaceService.createQuestionReviewItem(authorization, body);
+  listQuestionReports(@Headers('authorization') authorization?: string, @Query('status') status?: string) {
+    return this.workspaceService.listQuestionReports(authorization, status);
   }
 
-  @Patch('question-review/admin/:id')
+  @Patch('question-reports/admin/:id')
   @RequirePermissions('content.review')
-  updateQuestionReviewItem(
+  updateQuestionReport(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: any
   ) {
-    return this.workspaceService.updateQuestionReviewItem(authorization, id, body);
+    return this.workspaceService.updateQuestionReport(authorization, id, body);
   }
 
   @Get('lesson-doubts')

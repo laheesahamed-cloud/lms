@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
+import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
+import { getErrorMessage } from '../../../../shared/api/client.js';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
@@ -34,7 +37,7 @@ const reviewUi = {
   main: 'lms-review-main min-w-0',
   mainFocus: 'lms-review-main lms-review-main--focus w-full min-w-0',
   explanationSide:
-    'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:col-span-2 max-[900px]:hidden',
+    'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:hidden',
   summaryGrid: 'lms-review-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5',
   summaryTile:
     'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]',
@@ -64,17 +67,19 @@ const reviewUi = {
   optionLabels: 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start',
   optionText: 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15px] font-medium leading-[1.48] text-ink-strong max-[640px]:text-sm max-[640px]:leading-[1.45]',
   explanation:
-    'mt-0 grid gap-3 rounded-[14px] border border-[color-mix(in_srgb,var(--color-primary)_15%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--surface-2))] p-4 shadow-none max-[640px]:rounded-xl max-[640px]:p-3',
+    'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_5%,var(--surface-2))_0%,var(--surface-2)_58%,color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))_100%)] p-4 shadow-[0_14px_34px_color-mix(in_srgb,var(--color-primary)_7%,transparent)] max-[640px]:rounded-[16px] max-[640px]:p-3.5',
+  incorrectExplanation:
+    'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-[color-mix(in_srgb,var(--color-warning)_24%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-warning)_7%,var(--surface-2))_0%,var(--surface-2)_62%,color-mix(in_srgb,var(--color-warning)_4%,var(--surface-1))_100%)] p-4 shadow-[0_14px_34px_color-mix(in_srgb,var(--color-warning)_8%,transparent)] max-[640px]:rounded-[16px] max-[640px]:p-3.5',
   explanationEmpty:
     'grid gap-1 rounded-[16px] border border-dashed border-line-soft bg-surface-2 p-4 text-sm leading-relaxed text-ink-soft [&_strong]:text-ink-strong',
   explanationHeader:
-    'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start [&_h3]:m-0 [&_h3]:text-[12px] [&_h3]:font-extrabold [&_h3]:uppercase [&_h3]:tracking-[0.11em] [&_h3]:text-ink-soft max-[640px]:[&_h3]:text-[11px]',
-  explanationGrid: 'grid grid-cols-1 gap-3',
+    'flex items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] pb-2.5 max-[640px]:flex-col max-[640px]:items-start [&_h3]:m-0 [&_h3]:text-[12px] [&_h3]:font-extrabold [&_h3]:uppercase [&_h3]:tracking-[0.11em] [&_h3]:text-ink-soft max-[640px]:[&_h3]:text-[11px]',
+  explanationGrid: 'grid grid-cols-1 gap-3.5',
   explanationCopy:
-    'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.62]',
-  studyList: 'm-0 grid list-none gap-[5px] p-0',
+    'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15px] [&_p]:font-normal [&_p]:leading-[1.72] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.66]',
+  studyList: 'm-0 grid list-none gap-2 p-0',
   incorrectList:
-    'overflow-hidden rounded-[12px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-2))]',
+    'overflow-hidden rounded-[14px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-2))]',
   incorrectItem:
     'grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 border-t border-[color-mix(in_srgb,var(--color-warning)_14%,var(--line-soft))] px-2.5 py-2 first:border-t-0 max-[640px]:grid-cols-[22px_minmax(0,1fr)] max-[640px]:gap-1.5 max-[640px]:px-2 max-[640px]:py-1.5',
   incorrectBadge:
@@ -168,7 +173,7 @@ function reviewOptionIconClass(tone) {
 
 function reviewStudyCardClass(tone, extra = '') {
   return cx(
-    'relative grid gap-2 rounded-[14px] border border-line-soft bg-surface-1 px-3.5 py-3 transition-colors hover:border-line-medium [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.07em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.58] [&_p]:text-ink-strong max-[640px]:[&_p]:text-sm',
+    'lms-key-points-card relative grid gap-3 rounded-[18px] border border-line-soft bg-surface-1 px-4 py-3.5 shadow-[0_12px_28px_color-mix(in_srgb,#8b5cf6_7%,transparent)] transition-colors hover:border-line-medium [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.62] [&_p]:text-ink-strong max-[640px]:rounded-[16px] max-[640px]:px-3.5 max-[640px]:[&_p]:text-sm',
     studyCardToneClass[tone],
     extra
   );
@@ -266,7 +271,7 @@ function ReviewSbaOption({ option, question, displayLabel }) {
   const labels = [];
 
   if (isSelected) labels.push({ text: 'Your Answer', tone: isCorrect ? 'correct' : 'wrong' });
-  if (isCorrect) labels.push({ text: 'Correct Answer', tone: 'correct' });
+  if (isCorrect) labels.push({ text: 'Correct', tone: 'correct' });
   if (isSelected && !isCorrect) labels.push({ text: 'Wrong', tone: 'wrong' });
   if (unanswered && isCorrect) labels.push({ text: 'Unanswered', tone: 'unanswered' });
 
@@ -304,7 +309,7 @@ function ReviewTrueFalseOption({ option, question, displayLabel }) {
         <ReviewOptionLabels
           labels={[
             { text: `Your Answer: ${formatBooleanAnswer(studentValue)}`, tone: answered ? (isCorrect ? 'correct' : 'wrong') : 'unanswered' },
-            { text: `Correct Answer: ${formatBooleanAnswer(correctValue)}`, tone: 'correct' },
+            { text: `Correct: ${formatBooleanAnswer(correctValue)}`, tone: 'correct' },
           ]}
         />
       </div>
@@ -358,6 +363,45 @@ function hasTheoryRecap(recap) {
   ));
 }
 
+function ReviewStudySupport({ question }) {
+  const hasRecap = question?.theoryRecap !== undefined;
+  const hasStudyCard = hasTheoryRecap(question?.theoryRecap);
+
+  if (!hasRecap && !hasStudyCard) return null;
+
+  return (
+    <div className="lms-study-support-stack grid gap-3">
+      {hasRecap ? (
+        <div className={reviewUi.recapAction}>
+          <TheoryRecapPopupTrigger
+            recap={question.theoryRecap}
+            context="review"
+            revealed={true}
+          />
+        </div>
+      ) : null}
+      {hasStudyCard ? (
+        <article className={reviewStudyCardClass('theory')}>
+          <h4>Key Points</h4>
+          {question.theoryRecap.conceptName ? <p><strong>{question.theoryRecap.conceptName}</strong></p> : null}
+          {question.theoryRecap.keyPoints?.length ? (
+            <ul className={reviewUi.studyList}>
+              {question.theoryRecap.keyPoints.slice(0, 4).map((point, index) => (
+                <li
+                  className="relative rounded-[12px] border border-[color-mix(in_srgb,#8b5cf6_12%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_4%,var(--surface-2))] py-2 pl-8 pr-3 text-[13px] leading-[1.48] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-sm"
+                  key={`${index}-${point.slice(0, 16)}`}
+                >
+                  {point}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </article>
+      ) : null}
+    </div>
+  );
+}
+
 function ReviewExplanation({ question }) {
   const isTrueFalse = question?.questionType === 'true_false' || question?.question_type === 'true_false';
   const explanationBlocks = String(question.explanation || '')
@@ -383,60 +427,42 @@ function ReviewExplanation({ question }) {
       : 'Explanation';
 
   return (
-    <section className={reviewUi.explanation}>
-      <div className={reviewUi.explanationHeader}>
-        <h3>{explanationTitle}</h3>
-      </div>
-      <div className={reviewUi.explanationGrid}>
-        {explanationBlocks.length ? (
-          <div className={reviewUi.explanationCopy}>
-            {explanationBlocks.map((block, index) => (
-              <p key={`${index}-${block.slice(0, 16)}`}>{block}</p>
-            ))}
+    <div className="grid gap-3">
+      {explanationBlocks.length ? (
+        <section className={reviewUi.explanation} aria-label="Answer explanation">
+          <div className={reviewUi.explanationHeader}>
+            <h3>Explanation</h3>
           </div>
-        ) : null}
-        {question.theoryRecap !== undefined ? (
-          <div className={reviewUi.recapAction}>
-            <TheoryRecapPopupTrigger
-              recap={question.theoryRecap}
-              context="review"
-              revealed={true}
-            />
+          <div className={reviewUi.explanationGrid}>
+            <div className={reviewUi.explanationCopy}>
+              {explanationBlocks.map((block, index) => (
+                <p key={`${index}-${block.slice(0, 16)}`}>{block}</p>
+              ))}
+            </div>
           </div>
-        ) : null}
-        {hasTheoryRecap(question.theoryRecap) ? (
-          <article className={reviewStudyCardClass('theory')}>
-            <h4>Key Points</h4>
-            {question.theoryRecap.conceptName ? <p><strong>{question.theoryRecap.conceptName}</strong></p> : null}
-            {question.theoryRecap.keyPoints?.length ? (
-              <ul className={reviewUi.studyList}>
-                {question.theoryRecap.keyPoints.slice(0, 4).map((point, index) => (
-                  <li
-                    className="relative pl-[15px] text-[13px] leading-[1.45] text-ink-strong before:absolute before:left-1 before:top-0 before:font-extrabold before:leading-[1.55] before:text-brand-primary before:content-['›'] max-[640px]:text-sm"
-                    key={`${index}-${point.slice(0, 16)}`}
-                  >
-                    {point}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </article>
-        ) : null}
-        {incorrectReasons.length ? (
-          <div className={reviewUi.incorrectList} aria-label="Why other options are incorrect">
-            {incorrectReasons.map((item) => (
-              <div className={reviewUi.incorrectItem} key={item.label}>
-                <span className={reviewUi.incorrectBadge}>{item.label}</span>
-                <div className={reviewUi.incorrectCopy}>
-                  <strong>{item.text}</strong>
-                  <p>{item.reason}</p>
+        </section>
+      ) : null}
+      {incorrectReasons.length ? (
+        <section className={reviewUi.incorrectExplanation} aria-label="Why other answers are incorrect">
+          <div className={reviewUi.explanationHeader}>
+            <h3>{explanationBlocks.length ? 'Why other answers are incorrect' : explanationTitle}</h3>
+          </div>
+          <div className={reviewUi.explanationGrid}>
+            <div className={reviewUi.incorrectList}>
+              {incorrectReasons.map((item) => (
+                <div className={reviewUi.incorrectItem} key={item.label}>
+                  <span className={reviewUi.incorrectBadge}>{item.label}</span>
+                  <div className={reviewUi.incorrectCopy}>
+                    <strong>{item.text}</strong>
+                    <p>{item.reason}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        ) : null}
-      </div>
-    </section>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
@@ -458,6 +484,9 @@ export function ReviewWorkspace({
   focusQuestionOnly = false,
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [savedQuestionIds, setSavedQuestionIds] = useState(() => new Set());
+  const [questionActionBusy, setQuestionActionBusy] = useState(false);
+  const [questionActionError, setQuestionActionError] = useState('');
   const mainRef = useRef(null);
   const questionCardRef = useRef(null);
   const safeQuestions = Array.isArray(questions) ? questions : [];
@@ -479,11 +508,25 @@ export function ReviewWorkspace({
     return () => window.cancelAnimationFrame(frame);
   }, [activeQuestion]);
 
+  useEffect(() => {
+    fetchStudyBookmarks()
+      .then((items) => {
+        setSavedQuestionIds(new Set(
+          (Array.isArray(items) ? items : [])
+            .filter((item) => item.itemType === 'question')
+            .map((item) => Number(item.itemId))
+            .filter(Boolean)
+        ));
+      })
+      .catch(() => {});
+  }, []);
+
   if (!safeQuestions.length) {
     return <div className={ui.emptyBox}>No review questions available.</div>;
   }
 
   const hasExplanation = hasReviewExplanation(activeQuestion);
+  const activeQuestionSaved = savedQuestionIds.has(Number(activeQuestion.id));
   const showBubbleNavigator = navigatorVariant === 'bubbles';
   const shellClass = focusQuestionOnly
     ? reviewUi.shellFocus
@@ -518,6 +561,45 @@ export function ReviewWorkspace({
       </div>
     </nav>
   );
+
+  async function toggleActiveQuestionBookmark() {
+    if (!activeQuestion) return;
+    setQuestionActionBusy(true);
+    setQuestionActionError('');
+    try {
+      const result = await toggleStudyBookmark({ itemType: 'question', itemId: activeQuestion.id });
+      setSavedQuestionIds((current) => {
+        const next = new Set(current);
+        if (result.saved) next.add(activeQuestion.id);
+        else next.delete(activeQuestion.id);
+        return next;
+      });
+    } catch (error) {
+      setQuestionActionError(getErrorMessage(error, 'Unable to update question bookmark'));
+    } finally {
+      setQuestionActionBusy(false);
+    }
+  }
+
+  async function reportActiveQuestion() {
+    if (!activeQuestion) return;
+    const comment = window.prompt('Tell admin what is wrong with this question. You can leave it blank if you only want to flag it.');
+    if (comment === null) return;
+    setQuestionActionBusy(true);
+    setQuestionActionError('');
+    try {
+      await createQuestionReport({
+        questionId: activeQuestion.id,
+        reason: 'Student reported question',
+        comment: comment.trim() || `Student reported question #${activeQuestion.id}`,
+      });
+      window.alert(`Question #${activeQuestion.id} was reported to admin.`);
+    } catch (error) {
+      setQuestionActionError(getErrorMessage(error, 'Unable to report question'));
+    } finally {
+      setQuestionActionBusy(false);
+    }
+  }
 
   return (
     <>
@@ -600,6 +682,15 @@ export function ReviewWorkspace({
       <section className={focusQuestionOnly ? reviewUi.mainFocus : reviewUi.main} ref={mainRef}>
         <article className={reviewUi.questionCard} ref={questionCardRef}>
           <p className={reviewUi.questionText}>{activeQuestion.questionText}</p>
+          <div className="flex flex-wrap gap-2">
+            <button className={reviewSecondaryButtonClass} type="button" onClick={toggleActiveQuestionBookmark} disabled={questionActionBusy}>
+              {activeQuestionSaved ? 'Saved question' : 'Save question'}
+            </button>
+            <button className={reviewSecondaryButtonClass} type="button" onClick={reportActiveQuestion} disabled={questionActionBusy}>
+              Report question
+            </button>
+          </div>
+          {questionActionError ? <div className={ui.feedbackError}>{questionActionError}</div> : null}
 
           <div className={reviewUi.questionHead}>
             <div className={reviewUi.questionMeta}>
@@ -613,8 +704,11 @@ export function ReviewWorkspace({
 
           <ReviewAnswerGrid question={activeQuestion} />
 
-          <div className={focusQuestionOnly ? '' : 'min-[901px]:hidden'}>
+          <div className="grid gap-3">
             {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty />}
+            <div className={focusQuestionOnly ? '' : 'min-[1181px]:hidden'}>
+              <ReviewStudySupport question={activeQuestion} />
+            </div>
           </div>
 
           {questionNavigation}
@@ -623,7 +717,7 @@ export function ReviewWorkspace({
 
       {!focusQuestionOnly ? (
         <aside className={reviewUi.explanationSide}>
-          {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty />}
+          <ReviewStudySupport question={activeQuestion} />
         </aside>
       ) : null}
     </section>

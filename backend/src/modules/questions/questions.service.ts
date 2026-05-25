@@ -45,12 +45,18 @@ type QuestionFilters = {
   status?: string;
   type?: string;
   category?: string;
+  keywords?: string;
+  usage?: string;
   courseId?: number;
   subjectId?: number;
   topicId?: number;
   lessonId?: number;
   paperId?: number;
   unclassified?: boolean;
+  ids?: number[];
+  excludeIds?: number[];
+  limit?: number;
+  random?: boolean;
 };
 
 type ExportQuestionRow = QuestionRow & {
@@ -138,10 +144,28 @@ export class QuestionsService {
     `;
     const params: Array<string | number> = [];
 
+    const ids = Array.from(new Set(filters.ids || [])).filter((id) => Number.isInteger(id) && id > 0);
+    const excludeIds = Array.from(new Set(filters.excludeIds || [])).filter((id) => Number.isInteger(id) && id > 0);
+
+    if (ids.length > 0) {
+      sql += ` AND q.id IN (${sqlPlaceholders(ids)})`;
+      params.push(...ids);
+    }
+
+    if (excludeIds.length > 0) {
+      sql += ` AND q.id NOT IN (${sqlPlaceholders(excludeIds)})`;
+      params.push(...excludeIds);
+    }
+
     if (filters.search?.trim()) {
       sql += ' AND (q.question_text LIKE ? OR q.keywords_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
       const like = `%${filters.search.trim()}%`;
       params.push(like, like, like, like, like);
+    }
+
+    if (filters.keywords?.trim()) {
+      sql += ' AND q.keywords_text LIKE ?';
+      params.push(`%${filters.keywords.trim()}%`);
     }
 
     if (filters.status === 'active' || filters.status === 'inactive') {
@@ -188,7 +212,20 @@ export class QuestionsService {
       sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
     }
 
-    sql += ' ORDER BY q.id DESC';
+    if (filters.usage === 'unused') {
+      sql += ' AND COALESCE(qql.quiz_count, 0) = 0';
+    }
+
+    if (filters.usage === 'used') {
+      sql += ' AND COALESCE(qql.quiz_count, 0) > 0';
+    }
+
+    sql += filters.random ? ' ORDER BY RAND()' : ' ORDER BY q.id DESC';
+
+    if (filters.limit && filters.limit > 0) {
+      sql += ' LIMIT ?';
+      params.push(Math.min(Math.trunc(filters.limit), 200));
+    }
 
     const [rows] = await this.db.execute<QuestionRow[]>(sql, params);
     return rows.map((row) => this.mapQuestionSummary(row));
