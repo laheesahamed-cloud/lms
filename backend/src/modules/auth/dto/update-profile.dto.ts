@@ -1,4 +1,5 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsString()
@@ -8,4 +9,10 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   avatarKey?: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  userId?: number;
 }

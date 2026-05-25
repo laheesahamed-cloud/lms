@@ -247,6 +247,19 @@ body.lms-profile-menu-closing :where(.lms-sidebar) {
   transition: none !important;
 }
 
+body.lms-profile-menu-open :where(.management-layout, .study-hub-shell) > :not(.lms-topbar):not(.study-hub-topbar),
+body.lms-profile-menu-closing :where(.management-layout, .study-hub-shell) > :not(.lms-topbar):not(.study-hub-topbar),
+body.lms-profile-menu-open .study-hub-topbar.is-profile-menu-open > :where(.lms-topbar-menu-button, .study-topbar-title),
+body.lms-profile-menu-open .study-hub-topbar.is-profile-menu-open .study-topbar-actions > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
+body.lms-profile-menu-open .lms-topbar.is-profile-menu-open :where(.lms-topbar-left, .lms-topbar-center),
+body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-utility > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
+body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-right > :not(.lms-topbar-utility):not(.lms-topbar-menu-wrap.is-profile-menu-open) {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
 .lms-profile-menu-backdrop {
   z-index: 10055 !important;
   background: var(--lms-profile-menu-backdrop-bg, rgba(12, 24, 48, 0.14)) !important;

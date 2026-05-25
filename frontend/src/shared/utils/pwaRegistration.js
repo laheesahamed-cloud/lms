@@ -1,3 +1,7 @@
+const SW_RELOAD_THROTTLE_KEY = 'lms_sw_reloaded_at';
+const SW_RELOAD_THROTTLE_MS = 10_000;
+let registrationListenerInstalled = false;
+
 function isAuthRoute() {
   const path = window.location.pathname || '';
   return /\/(?:auth\/)?(?:login|register)(?:\/|$)/.test(path) ||
@@ -5,8 +9,29 @@ function isAuthRoute() {
 }
 
 function hasRecentAuthSuccess() {
-  const timestamp = Number(window.sessionStorage.getItem('lms_recent_auth_success') || 0);
-  return timestamp > 0 && Date.now() - timestamp < 15000;
+  try {
+    const timestamp = Number(window.sessionStorage.getItem('lms_recent_auth_success') || 0);
+    return timestamp > 0 && Date.now() - timestamp < 15_000;
+  } catch {
+    return false;
+  }
+}
+
+function wasServiceWorkerReloadRecent() {
+  try {
+    const timestamp = Number(window.sessionStorage.getItem(SW_RELOAD_THROTTLE_KEY) || 0);
+    return timestamp > 0 && Date.now() - timestamp < SW_RELOAD_THROTTLE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markServiceWorkerReload() {
+  try {
+    window.sessionStorage.setItem(SW_RELOAD_THROTTLE_KEY, String(Date.now()));
+  } catch {
+    // If storage is unavailable, still allow the reload; controllerchange is rare.
+  }
 }
 
 export function installPwaRegistration() {
@@ -14,6 +39,11 @@ export function installPwaRegistration() {
     return;
   }
 
+  if (registrationListenerInstalled) {
+    return;
+  }
+
+  registrationListenerInstalled = true;
   window.addEventListener('load', () => {
     import('./pushNotifications.js')
       .then(({ registerLmsServiceWorker }) => registerLmsServiceWorker())
@@ -21,12 +51,12 @@ export function installPwaRegistration() {
       .catch(() => {});
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (window.sessionStorage.getItem('lms_sw_reloaded') === '1') return;
+      if (wasServiceWorkerReloadRecent()) return;
       if (isAuthRoute() || hasRecentAuthSuccess()) return;
-      window.sessionStorage.setItem('lms_sw_reloaded', '1');
+      markServiceWorkerReload();
       window.location.reload();
     });
-  });
+  }, { once: true });
 }
 
 export function uninstallPwaRegistration() {

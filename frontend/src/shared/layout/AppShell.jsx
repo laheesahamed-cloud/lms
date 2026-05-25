@@ -25,8 +25,6 @@ const shellUi = {
   shellQuizFocus: '',
   content:
     'main-content app-content page-content portal-content relative z-[1] min-h-[100dvh] min-w-0 overflow-x-hidden overflow-y-visible pb-[var(--lms-mobile-content-bottom)] [-webkit-overflow-scrolling:touch] min-[901px]:ml-[calc(var(--sidebar-w)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w)_-_var(--sidebar-shell-gap))] min-[901px]:pb-6 max-[900px]:ml-0 max-[900px]:w-full max-[900px]:pt-0',
-  contentCollapsed:
-    'min-[901px]:ml-[calc(var(--sidebar-w-collapsed)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w-collapsed)_-_var(--sidebar-shell-gap))]',
   contentAiFocus: '',
   contentCompactFocus:
     'min-[901px]:!ml-0 min-[901px]:!w-full',
@@ -73,6 +71,7 @@ const studentWarmRoutes = [
 export function AppShell({ children, desktopSidebarToggle = false, desktopSidebarHiddenByDefault = false }) {
   const location = useLocation();
   const warmedRouteKeysRef = useRef(new Set());
+  const resizeFrameRef = useRef(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isMobileNav, setIsMobileNav] = useState(() => {
@@ -141,17 +140,33 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   }, [desktopSidebarToggle, isFocusMode, isMobileNav]);
 
   useEffect(() => {
-    function handleResize() {
+    function syncNavigationMode() {
       const nextIsMobile = shouldUseMobileNavigation();
-      setIsMobileNav(nextIsMobile);
+      setIsMobileNav((current) => (current === nextIsMobile ? current : nextIsMobile));
       if (!nextIsMobile) setSidebarOpen(false);
     }
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-    handleResize();
+
+    function scheduleNavigationModeSync() {
+      if (resizeFrameRef.current) {
+        return;
+      }
+
+      resizeFrameRef.current = window.requestAnimationFrame(() => {
+        resizeFrameRef.current = null;
+        syncNavigationMode();
+      });
+    }
+
+    window.addEventListener('resize', scheduleNavigationModeSync, { passive: true });
+    window.addEventListener('orientationchange', scheduleNavigationModeSync, { passive: true });
+    syncNavigationMode();
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      window.removeEventListener('resize', scheduleNavigationModeSync);
+      window.removeEventListener('orientationchange', scheduleNavigationModeSync);
+      if (resizeFrameRef.current) {
+        window.cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
     };
   }, []);
 

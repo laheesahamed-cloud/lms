@@ -7,6 +7,12 @@ export class RequestSubscriptionDto {
   @Min(1)
   planId!: number;
 
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  userId?: number;
+
   @IsString()
   @IsOptional()
   @MaxLength(1000)

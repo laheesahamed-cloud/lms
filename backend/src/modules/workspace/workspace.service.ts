@@ -201,7 +201,10 @@ export class WorkspaceService {
   async listPlannerTasks(authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT * FROM study_planner_tasks WHERE user_id = ? ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC`,
+      `SELECT id, title, description, due_date, status, created_at
+       FROM study_planner_tasks
+       WHERE user_id = ?
+       ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC`,
       [student.id]
     );
     return rows.map(this.mapPlannerTask);

@@ -7,10 +7,28 @@ import { ProfileAvatar } from '../ui/ProfileAvatar.jsx';
 import { ThemeToggle } from './ThemeToggle.jsx';
 import { HeaderInstallAction } from './HeaderInstallAction.jsx';
 import { getStaffRoleLabel, isStaffUser, roleRouteMode, userHasPermission } from '../auth/roleAccess.js';
-import { cx, ui } from '../styles/tailwindClasses.js';
+import { cx } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
 
 const PROFILE_MENU_EXIT_MS = 220;
+
+function areStyleObjectsEqual(current, next) {
+  if (current === next) return true;
+  if (!current || !next) return false;
+  const currentKeys = Object.keys(current);
+  const nextKeys = Object.keys(next);
+  if (currentKeys.length !== nextKeys.length) return false;
+  return currentKeys.every((key) => current[key] === next[key]);
+}
+
+function updateStyleIfChanged(ref, setter, nextStyle) {
+  if (areStyleObjectsEqual(ref.current, nextStyle)) {
+    return;
+  }
+
+  ref.current = nextStyle;
+  setter(nextStyle);
+}
 
 function BellIcon() {
   return (
@@ -84,8 +102,12 @@ function LogoutIcon() {
   );
 }
 
-function useOutsideDismiss(ref, onDismiss) {
+function useOutsideDismiss(ref, onDismiss, enabled = true) {
   useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+
     function handlePointerDown(event) {
       const refs = Array.isArray(ref) ? ref : [ref];
       const activeRefs = refs.filter((item) => item.current);
@@ -107,7 +129,7 @@ function useOutsideDismiss(ref, onDismiss) {
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [ref, onDismiss]);
+  }, [enabled, ref, onDismiss]);
 }
 
 function formatNotificationTime(value) {
@@ -211,12 +233,12 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   const profileAvatarLayerRef = useRef(null);
   const profileMenuRef = useRef(null);
   const profileCloseTimerRef = useRef(null);
+  const profilePositionFrameRef = useRef(null);
+  const profileMenuStyleRef = useRef(null);
+  const profileAvatarStyleRef = useRef(null);
   const [profileMenuStyle, setProfileMenuStyle] = useState(null);
   const [profileAvatarStyle, setProfileAvatarStyle] = useState(null);
   const profileVisible = profileOpen || profileClosing;
-
-  useOutsideDismiss(notificationRef, () => setNotificationsOpen(false));
-  useOutsideDismiss([profileRef, profileAvatarLayerRef, profileMenuRef], () => closeProfileMenu());
 
   const unreadNotifications = useMemo(() => sortLatestNotifications(notifications.filter((item) => !item.read)), [notifications]);
   const visibleUnreadNotifications = useMemo(() => unreadNotifications.slice(0, 5), [unreadNotifications]);
@@ -250,6 +272,21 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     setProfileOpen(true);
     setNotificationsOpen(false);
   }, []);
+
+  const closeNotificationsMenu = useCallback(() => {
+    setNotificationsOpen(false);
+  }, []);
+
+  const profileDismissRefs = useMemo(
+    () => [profileRef, profileAvatarLayerRef, profileMenuRef],
+    []
+  );
+  const dismissProfileMenu = useCallback(() => {
+    closeProfileMenu();
+  }, [closeProfileMenu]);
+
+  useOutsideDismiss(notificationRef, closeNotificationsMenu, notificationsOpen);
+  useOutsideDismiss(profileDismissRefs, dismissProfileMenu, profileVisible);
 
   const toggleProfileMenu = useCallback(() => {
     if (profileOpen) {
@@ -324,7 +361,12 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   }, [profileClosing, profileVisible]);
 
   useEffect(() => {
-    return () => window.clearTimeout(profileCloseTimerRef.current);
+    return () => {
+      window.clearTimeout(profileCloseTimerRef.current);
+      if (profilePositionFrameRef.current) {
+        window.cancelAnimationFrame(profilePositionFrameRef.current);
+      }
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -349,7 +391,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
         ? Math.min(Math.max(rect.bottom + gap, 68), viewportHeight - edge)
         : Math.min(rect.bottom + gap, viewportHeight - edge);
 
-      setProfileAvatarStyle({
+      updateStyleIfChanged(profileAvatarStyleRef, setProfileAvatarStyle, {
         position: 'fixed',
         top: `${Math.round(rect.top)}px`,
         left: `${Math.round(rect.left)}px`,
@@ -358,7 +400,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
         borderRadius: `${Math.round(triggerRadius)}px`,
         zIndex: 10082,
       });
-      setProfileMenuStyle({
+      updateStyleIfChanged(profileMenuStyleRef, setProfileMenuStyle, {
         position: 'fixed',
         top: `${Math.max(edge, top)}px`,
         left: compact ? `${edge}px` : 'auto',
@@ -370,12 +412,27 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       });
     }
 
+    function scheduleProfileMenuPositionUpdate() {
+      if (profilePositionFrameRef.current) {
+        return;
+      }
+
+      profilePositionFrameRef.current = window.requestAnimationFrame(() => {
+        profilePositionFrameRef.current = null;
+        updateProfileMenuPosition();
+      });
+    }
+
     updateProfileMenuPosition();
-    window.addEventListener('resize', updateProfileMenuPosition, { passive: true });
-    window.addEventListener('scroll', updateProfileMenuPosition, true);
+    window.addEventListener('resize', scheduleProfileMenuPositionUpdate, { passive: true });
+    window.addEventListener('scroll', scheduleProfileMenuPositionUpdate, { capture: true, passive: true });
     return () => {
-      window.removeEventListener('resize', updateProfileMenuPosition);
-      window.removeEventListener('scroll', updateProfileMenuPosition, true);
+      window.removeEventListener('resize', scheduleProfileMenuPositionUpdate);
+      window.removeEventListener('scroll', scheduleProfileMenuPositionUpdate, true);
+      if (profilePositionFrameRef.current) {
+        window.cancelAnimationFrame(profilePositionFrameRef.current);
+        profilePositionFrameRef.current = null;
+      }
     };
   }, [profileVisible]);
 

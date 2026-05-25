@@ -302,13 +302,6 @@ apiClient.interceptors.response.use(
       /(?:admin|student) access is required/i.test(normalizedMessage);
 
     if (status === 401 && !isAuthPageRequest && !isRoleScopeMismatch) {
-      console.log('AUTH_CHECK_RESULT', {
-        stage: 'api_unauthorized',
-        url: redactSensitiveValue(requestUrl),
-        status,
-        message: redactSensitiveValue(normalizedMessage),
-        hasToken: Boolean(getAuthToken()),
-      });
       clearStoredAuth();
       unauthorizedHandler?.();
       redirectToLoginIfNeeded();

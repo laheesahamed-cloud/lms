@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { WorkspaceService } from './workspace.service';
 
@@ -96,9 +96,31 @@ export class WorkspaceController {
     return this.workspaceService.listQuestionReports(authorization, status);
   }
 
+  @Get('question-review/admin')
+  @RequirePermissions('content.review')
+  listLegacyQuestionReview(@Headers('authorization') authorization?: string, @Query('status') status?: string) {
+    return this.workspaceService.listQuestionReports(authorization, status);
+  }
+
+  @Post('question-review/admin')
+  @RequirePermissions('content.review')
+  createLegacyQuestionReview() {
+    throw new BadRequestException('Use question reports for student-submitted question review items');
+  }
+
   @Patch('question-reports/admin/:id')
   @RequirePermissions('content.review')
   updateQuestionReport(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any
+  ) {
+    return this.workspaceService.updateQuestionReport(authorization, id, body);
+  }
+
+  @Patch('question-review/admin/:id')
+  @RequirePermissions('content.review')
+  updateLegacyQuestionReview(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: any

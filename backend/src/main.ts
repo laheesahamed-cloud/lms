@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'crypto';
 const express = require('express') as any;
 const { json, urlencoded } = express;
 const path = require('path');
@@ -10,6 +11,8 @@ import { AuthService } from './modules/auth/auth.service';
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 const contentRateLimitBuckets = new Map<string, { count: number; resetAt: number; warnedAt: number }>();
 const contentDeviceBuckets = new Map<string, { resetAt: number; ips: Set<string>; agents: Set<string> }>();
+const SECURITY_BUCKET_PRUNE_INTERVAL_MS = 60_000;
+let lastSecurityBucketPruneAt = 0;
 const AUDITABLE_PATH_PATTERNS = [
   /^\/api\/auth\/login$/,
   /^\/api\/auth\/forgot-password$/,
@@ -159,6 +162,31 @@ function extractRouteItemId(path: string) {
 
 function getRequestIp(req: any) {
   return String(req.ip || req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+}
+
+function pruneExpiringBucketMap<T extends { resetAt: number }>(map: Map<string, T>, now: number) {
+  for (const [key, bucket] of map) {
+    if (bucket.resetAt <= now) {
+      map.delete(key);
+    }
+  }
+}
+
+function pruneSecurityBuckets(now = Date.now()) {
+  if (now - lastSecurityBucketPruneAt < SECURITY_BUCKET_PRUNE_INTERVAL_MS) {
+    return;
+  }
+
+  lastSecurityBucketPruneAt = now;
+  pruneExpiringBucketMap(rateLimitBuckets, now);
+  pruneExpiringBucketMap(contentRateLimitBuckets, now);
+  pruneExpiringBucketMap(contentDeviceBuckets, now);
+}
+
+function stableRequestActor(value: string) {
+  const clean = String(value || '').trim();
+  if (!clean) return '';
+  return createHash('sha256').update(clean).digest('hex').slice(0, 16);
 }
 
 function getAuthRateLimitPolicy(path: string) {
@@ -448,6 +476,7 @@ export async function configureApp(app: INestApplication) {
     const actorKey = rateLimitUser?.id ? `admin:${rateLimitUser.id}` : `ip:${ip}`;
     const key = `${actorKey}:${method}:${normalizedPath}`;
     const now = Date.now();
+    pruneSecurityBuckets(now);
     const bucket = rateLimitBuckets.get(key);
 
     if (!bucket || bucket.resetAt <= now) {
@@ -521,12 +550,20 @@ export async function configureApp(app: INestApplication) {
     const method = String(req.method || 'GET').toUpperCase();
     const ip = getRequestIp(req);
     const userAgent = String(req.headers?.['user-agent'] || '');
-    const userId = String(req.lmsUser?.id || 'anonymous');
+    const authenticatedUserId = req.lmsUser?.id ? String(req.lmsUser.id) : '';
+    const authorizationFingerprint = stableRequestActor(String(req.headers?.authorization || ''));
+    const actorKey = authenticatedUserId
+      ? `user:${authenticatedUserId}`
+      : authorizationFingerprint
+        ? `auth:${authorizationFingerprint}`
+        : 'anonymous';
+    const userId = authenticatedUserId || 'anonymous';
     const normalizedPath = normalizeRateLimitPath(path);
     const now = Date.now();
+    pruneSecurityBuckets(now);
     const windowMs = 60_000;
     const maxRequests = method === 'GET' ? 70 : 100;
-    const key = `${userId}:${ip}:${method}:${normalizedPath}`;
+    const key = `${actorKey}:${ip}:${method}:${normalizedPath}`;
     const bucket = contentRateLimitBuckets.get(key);
 
     if (!bucket || bucket.resetAt <= now) {
@@ -538,6 +575,7 @@ export async function configureApp(app: INestApplication) {
         console.warn(JSON.stringify({
           event: 'content_rapid_access_warning',
           userId,
+          actor: authenticatedUserId ? `user:${authenticatedUserId}` : actorKey === 'anonymous' ? 'anonymous' : 'authenticated-token',
           method,
           path: normalizedPath,
           count: bucket.count,
@@ -549,6 +587,7 @@ export async function configureApp(app: INestApplication) {
         console.warn(JSON.stringify({
           event: 'content_rate_limited',
           userId,
+          actor: authenticatedUserId ? `user:${authenticatedUserId}` : actorKey === 'anonymous' ? 'anonymous' : 'authenticated-token',
           method,
           path: normalizedPath,
           count: bucket.count,
@@ -559,7 +598,7 @@ export async function configureApp(app: INestApplication) {
       }
     }
 
-    if (userId !== 'anonymous') {
+    if (authenticatedUserId) {
       updateContentDeviceAudit(userId, ip, userAgent);
     }
 

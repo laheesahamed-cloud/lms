@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class UpdateStudentLessonProgressDto {
@@ -9,4 +10,10 @@ export class UpdateStudentLessonProgressDto {
   @Min(0)
   @Max(100)
   progressPercent?: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  userId?: number;
 }

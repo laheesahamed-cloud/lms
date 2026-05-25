@@ -1,4 +1,5 @@
-import { IsArray, IsIn, IsInt, IsObject, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
 
 export class SavePracticeDto {
   @IsInt()
@@ -19,4 +20,10 @@ export class SavePracticeDto {
   @IsOptional()
   @IsObject()
   tfAnswers?: Record<string, number | string>;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  userId?: number;
 }

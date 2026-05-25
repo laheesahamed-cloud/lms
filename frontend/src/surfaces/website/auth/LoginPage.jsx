@@ -989,10 +989,8 @@ export function LoginPage() {
       clearServerNotResponding();
       try {
         window.sessionStorage.setItem('lms_recent_auth_success', String(Date.now()));
-      } catch (storageError) {
-        console.log('AUTH_CHECK_RESULT', {
-          stage: 'recent_auth_marker_unavailable',
-        });
+      } catch {
+        // Recent-login reload protection is helpful, but storage can be unavailable.
       }
       const defaultHome = data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard';
       const nextPath = canonicalizeForwardPathForUser(requestedPath, data.user) || data.redirectPath || defaultHome;

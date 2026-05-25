@@ -904,7 +904,7 @@ export class QuizAttemptsService {
   private async getLatestPracticeSession(userId: number, quizId: number): Promise<PracticeSessionRecord | null> {
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `
-        SELECT *
+        SELECT id, status, last_question_index
         FROM practice_sessions
         WHERE user_id = ? AND quiz_id = ?
         ORDER BY id DESC

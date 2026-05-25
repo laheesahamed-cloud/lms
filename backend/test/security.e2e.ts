@@ -450,7 +450,7 @@ class SecurityE2eDb {
       return [[] as T, []];
     }
 
-    if (normalized.includes('SELECT * FROM study_planner_tasks WHERE user_id = ?')) {
+    if (normalized.includes('FROM study_planner_tasks') && normalized.includes('WHERE user_id = ?')) {
       return [[{
         id: 30,
         user_id: Number(params[0]),
@@ -1096,7 +1096,7 @@ async function testStudentWorkspaceOwnership() {
     .get('/api/study-planner')
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(plannerListResponse.status, 200);
-  expectUserScopedCall(/SELECT \* FROM study_planner_tasks WHERE user_id = \?/i, 100, 'planner list must query by authenticated student');
+  expectUserScopedCall(/FROM study_planner_tasks\s+WHERE user_id = \?/i, 100, 'planner list must query by authenticated student');
 
   db.reset();
   const plannerCreateResponse = await request(app.getHttpServer())
