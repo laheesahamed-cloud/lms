@@ -187,9 +187,9 @@ const practiceQuizOptionInteractiveClass =
 const practiceQuizOptionSelectedClass =
   'is-selected border-[color-mix(in_srgb,var(--color-primary)_38%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_7%,var(--surface-1)),color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent),0_12px_28px_-24px_color-mix(in_srgb,var(--color-primary)_38%,transparent)]';
 const practiceQuizOptionCorrectClass =
-  'border-[color-mix(in_srgb,var(--color-success)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_10%,var(--surface-1))] shadow-none';
+  'border-[color-mix(in_srgb,var(--color-success)_38%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-success)_12%,var(--surface-1)),color-mix(in_srgb,var(--color-success)_5%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-success)_9%,transparent)]';
 const practiceQuizOptionWrongClass =
-  'border-[color-mix(in_srgb,var(--color-error)_32%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_9%,var(--surface-1))] shadow-none';
+  'border-[color-mix(in_srgb,var(--color-error)_40%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-error)_10%,var(--surface-1)),color-mix(in_srgb,var(--color-error)_4%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-error)_8%,transparent)]';
 const practiceQuizOptionUnansweredClass =
   'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_6%,var(--surface-1))] shadow-[0_0_0_1px_color-mix(in_srgb,#d97706_12%,transparent)]';
 const practiceQuizTfActionsClass = 'flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start';
@@ -399,9 +399,9 @@ const mobileQuizIconButtonClass =
   'grid min-h-11 place-items-center rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] text-[13px] font-extrabold text-[var(--exam-footer-btn-text)] disabled:opacity-45';
 const mobileQuizPrimaryClass =
   'min-h-11 rounded-xl border border-brand-primary/35 bg-[var(--color-primary-light)] px-3 text-[13px] font-extrabold text-brand-primary disabled:opacity-55';
-const questionUtilityRowClass = 'lms-question-utility-row mt-4 flex items-center justify-start gap-2 border-t border-line-soft pt-3 max-[700px]:pt-2.5';
+const questionUtilityRowClass = 'lms-question-utility-row mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-line-soft pt-3 max-[700px]:justify-start max-[700px]:pt-2.5';
 const questionUtilityButtonClass =
-  'inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[var(--sa-border)] bg-[var(--sa-surface)] text-ink-soft shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_26%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] hover:text-brand-primary active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
+  'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--sa-border)] bg-[var(--sa-surface)] px-3.5 text-xs font-extrabold text-ink-soft shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_26%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] hover:text-brand-primary active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[520px]:flex-1';
 const quizUnifiedMainCardClass =
   'lms-review-question-card grid w-full justify-self-stretch gap-[16px] p-[22px_24px] max-[640px]:gap-3.5 max-[640px]:p-3.5';
 const quizUnifiedAnswerCardClass =
@@ -569,6 +569,7 @@ function QuestionUtilityActions({
         aria-label={bookmarked ? 'Saved question' : 'Save question'}
       >
         <IcoBookmark filled={bookmarked} />
+        <span>{bookmarked ? 'Saved question' : 'Save question'}</span>
       </button>
       <button
         className={questionUtilityButtonClass}
@@ -579,6 +580,7 @@ function QuestionUtilityActions({
         aria-label="Report question"
       >
         <IcoReport />
+        <span>Report question</span>
       </button>
     </div>
   );
@@ -1356,24 +1358,6 @@ export function TakeQuizPage() {
               <article className={cx(practiceQuizQuestionCardClass, examQuestionStartAnchorClass)} ref={questionContentRef}>
                 <p className={practiceQuizQuestionTextClass}>{currentQuestion.questionText}</p>
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    className={practiceQuizSecondaryButtonClass}
-                    type="button"
-                    onClick={toggleBookmarkCurrentQuestion}
-                    disabled={questionActionBusy}
-                  >
-                    {currentQuestionBookmarked ? 'Saved question' : 'Save question'}
-                  </button>
-                  <button
-                    className={practiceQuizSecondaryButtonClass}
-                    type="button"
-                    onClick={reportCurrentQuestion}
-                    disabled={questionActionBusy}
-                  >
-                    Report question
-                  </button>
-                </div>
 
                 <div className={practiceQuizQuestionHeadClass}>
                   <div className={practiceQuizQuestionMetaClass}>
@@ -1531,6 +1515,14 @@ export function TakeQuizPage() {
                   currentQuestion={currentQuestion}
                   revealed={currentQuestionRevealed}
                   className="max-[1180px]:grid min-[1181px]:hidden"
+                />
+
+
+                <QuestionUtilityActions
+                  bookmarked={currentQuestionBookmarked}
+                  busy={questionActionBusy}
+                  onBookmark={toggleBookmarkCurrentQuestion}
+                  onReport={reportCurrentQuestion}
                 />
 
                 <nav className={practiceQuizQuestionNavClass} aria-label="Practice question navigation">

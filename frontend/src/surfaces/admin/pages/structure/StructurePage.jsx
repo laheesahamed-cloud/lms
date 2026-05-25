@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createCourse, deleteCourse, fetchCourses, updateCourse } from '../../../../shared/api/courses.api.js';
 import { createTopic, deleteTopic, fetchTopic, fetchTopics, updateTopic } from '../../../../shared/api/topics.api.js';
@@ -262,6 +262,7 @@ function HierarchyTable({
 
 export function StructurePage() {
   const navigate = useNavigate();
+  const feedbackTimerRef = useRef(null);
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
@@ -294,6 +295,10 @@ export function StructurePage() {
     topic: false,
     lesson: false,
   });
+
+  useEffect(() => (
+    () => window.clearTimeout(feedbackTimerRef.current)
+  ), []);
 
   useEffect(() => {
     loadCourses();
@@ -385,9 +390,11 @@ export function StructurePage() {
   }
 
   function flashMessage(next) {
+    window.clearTimeout(feedbackTimerRef.current);
     setFeedback(next);
-    window.setTimeout(() => {
+    feedbackTimerRef.current = window.setTimeout(() => {
       setFeedback((current) => (current === next ? { error: '', success: '' } : current));
+      feedbackTimerRef.current = null;
     }, 2400);
   }
 

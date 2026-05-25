@@ -117,6 +117,8 @@ export function AdminAiNotesEditorPage({
   const navigate  = useNavigate();
   const bookRef   = useRef(null);
   const saveTimer = useRef(null);
+  const saveStatusTimer = useRef(null);
+  const exportMsgTimer = useRef(null);
 
   const [note,       setNote]       = useState(null);
   const [linkedLessonId, setLinkedLessonId] = useState(null);
@@ -144,6 +146,14 @@ export function AdminAiNotesEditorPage({
   const [status,      setStatus]     = useState('active');
   const [isFree,      setIsFree]     = useState(false);
   const [metaSaving,  setMetaSaving] = useState(false);
+
+  useEffect(() => (
+    () => {
+      clearTimeout(saveTimer.current);
+      clearTimeout(saveStatusTimer.current);
+      clearTimeout(exportMsgTimer.current);
+    }
+  ), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,6 +215,22 @@ export function AdminAiNotesEditorPage({
     loadDropdowns();
   }, [note]);
 
+  const clearSaveStatusLater = useCallback((delay) => {
+    clearTimeout(saveStatusTimer.current);
+    saveStatusTimer.current = setTimeout(() => {
+      setSaveStatus('');
+      saveStatusTimer.current = null;
+    }, delay);
+  }, []);
+
+  const clearExportMsgLater = useCallback((delay) => {
+    clearTimeout(exportMsgTimer.current);
+    exportMsgTimer.current = setTimeout(() => {
+      setExportMsg('');
+      exportMsgTimer.current = null;
+    }, delay);
+  }, []);
+
   const scheduleSave = useCallback((patch) => {
     clearTimeout(saveTimer.current);
     setSaveStatus('saving…');
@@ -224,12 +250,12 @@ export function AdminAiNotesEditorPage({
           });
         }
         setSaveStatus('saved');
-        setTimeout(() => setSaveStatus(''), 2000);
+        clearSaveStatusLater(2000);
       } catch (err) {
         setSaveStatus(`save failed: ${getErrorMessage(err, 'Could not save')}`);
       }
     }, 800);
-  }, [engineKey, id, isFree, linkedLessonId, rawText, selCourse, selSubtopic, selTopic, status, title, videoUrl]);
+  }, [clearSaveStatusLater, engineKey, id, isFree, linkedLessonId, rawText, selCourse, selSubtopic, selTopic, status, title, videoUrl]);
 
   function handleTitleChange(e) {
     setTitle(e.target.value);
@@ -296,7 +322,7 @@ export function AdminAiNotesEditorPage({
         isFree: isFree ? 1 : 0,
       }, undefined, { engine: engineKey });
       setSaveStatus('settings saved');
-      setTimeout(() => setSaveStatus(''), 2000);
+      clearSaveStatusLater(2000);
     } catch (err) {
       setSaveStatus(`save failed: ${getErrorMessage(err, 'Could not save settings')}`);
     }
@@ -329,7 +355,7 @@ export function AdminAiNotesEditorPage({
       await adminUpdateAiNote(Number(id), { title: firstTitle, rawText, noteData: cleanData, lessonId: lessonId ?? null, videoUrl: cleanVideoUrl(videoUrl) }, { timeout: 60000 }, { engine: engineKey });
       setSavedData(cleanData);
       setSaveStatus('generated and saved');
-      setTimeout(() => setSaveStatus(''), 3500);
+      clearSaveStatusLater(3500);
     } catch (err) {
       const msg = err?.response?.data?.message
         || (err?.code === 'ECONNABORTED' ? 'Request timed out — try again.' : null)
@@ -358,7 +384,7 @@ export function AdminAiNotesEditorPage({
       setNoteData(cleanData);
       setSavedData(cleanData);
       setSaveStatus('published — students can see this');
-      setTimeout(() => setSaveStatus(''), 3500);
+      clearSaveStatusLater(3500);
     } catch (err) {
       console.error('[Publish] save error:', err?.response?.status || 'unknown');
       const msg = getErrorMessage(err, 'Could not save — check server is running');
@@ -425,7 +451,7 @@ export function AdminAiNotesEditorPage({
       a.click();
       setExportMsg('PNG saved!');
     } catch { setExportMsg('Export failed'); }
-    finally { setTimeout(() => setExportMsg(''), 2500); }
+    finally { clearExportMsgLater(2500); }
   }
 
   function handlePageDataChange(idx, newPageData) {

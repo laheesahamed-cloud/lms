@@ -499,7 +499,6 @@ export class AiNotesService {
         const json = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
         const raw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
         if (!raw) { errors.push(`${model}: empty response`); continue; }
-        console.log(`[AiNotes] Generated canvas with ${model}`);
         // Strip markdown code fences if model wrapped the JSON
         const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
         const parsed = JSON.parse(jsonStr);

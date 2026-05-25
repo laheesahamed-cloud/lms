@@ -1609,10 +1609,14 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
   const flippedRef = useRef(false);
   const advancingRef = useRef(false);
   const advanceRef = useRef(null);
+  const advanceTimerRef = useRef(null);
   const pointerRef = useRef({ x: 0, y: 0, moved: false });
 
   useEffect(() => { flippedRef.current = flipped; }, [flipped]);
   useEffect(() => { advancingRef.current = advancing; }, [advancing]);
+  useEffect(() => (
+    () => window.clearTimeout(advanceTimerRef.current)
+  ), []);
 
   useEffect(() => {
     writeFlashcardSession(quiz, cards, {
@@ -1641,7 +1645,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
     setKnown(newKnown);
     setLearning(newLearning);
     setFlipped(false);
-    setTimeout(() => {
+    advanceTimerRef.current = window.setTimeout(() => {
       if (idx + 1 >= cards.length) {
         clearFlashcardSession(quiz);
         onDone({ cards, knownIds: newKnown, learningIds: newLearning });
@@ -1650,6 +1654,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
         advancingRef.current = false;
         setAdvancing(false);
       }
+      advanceTimerRef.current = null;
     }, 160);
   }
   advanceRef.current = advance;

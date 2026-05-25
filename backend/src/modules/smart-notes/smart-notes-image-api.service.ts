@@ -90,7 +90,6 @@ export class SmartNotesImageApiService {
         const json = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> } }> };
         const part = json?.candidates?.[0]?.content?.parts?.find((p) => p?.inlineData?.data);
         if (part?.inlineData?.data) {
-          console.log(`[SmartNotes] Native image OK (${model})`);
           return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
         }
         console.error(`[SmartNotes] ${model} returned no image part`);
@@ -123,7 +122,6 @@ export class SmartNotesImageApiService {
       const text = json?.candidates?.[0]?.content?.parts?.find((p) => typeof p?.text === 'string')?.text?.trim() || '';
       const svgMatch = text.match(/<svg[\s\S]*?<\/svg>/i);
       if (!svgMatch) return null;
-      console.log('[SmartNotes] SVG illustration generated');
       return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgMatch[0])}`;
     } catch {
       return null;
