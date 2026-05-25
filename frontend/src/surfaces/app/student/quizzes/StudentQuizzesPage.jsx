@@ -314,7 +314,7 @@ function QBankRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, nav
 
   return (
     <article
-      className="grid min-h-[74px] cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 bg-transparent px-4 py-3.5 text-left transition-colors hover:bg-surface-2/55 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:hover:bg-white/[0.035] max-[540px]:min-h-[76px] max-[540px]:gap-2 max-[540px]:px-3 max-[540px]:py-3"
+      className="grid min-h-[92px] cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-4 bg-transparent px-5 py-4 text-left transition-colors hover:bg-surface-2/55 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:hover:bg-white/[0.035] max-[540px]:min-h-[88px] max-[540px]:gap-3.5 max-[540px]:px-3.5 max-[540px]:py-3.5"
       role="button"
       tabIndex={0}
       onClick={openQuiz}
@@ -326,18 +326,18 @@ function QBankRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, nav
       }}
       title={!canOpenMode ? accessMessage : `Open ${quizDisplay.primary}`}
     >
-      <div className="flex min-w-0 items-start gap-3 max-[540px]:gap-2.5">
+      <div className="flex min-w-0 items-start gap-3.5 max-[540px]:gap-3">
         {quizDisplay.badge ? (
           <span className="inline-flex h-8 shrink-0 items-center rounded-lg border border-line-soft bg-surface-2 px-2.5 text-[10px] font-black uppercase leading-none text-ink-muted dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-slate-400 max-[540px]:h-7 max-[540px]:rounded-md max-[540px]:px-2 max-[540px]:text-[9px]">
             {quizDisplay.badge}
           </span>
         ) : null}
-        <div className="grid min-w-0 flex-1 gap-1.5">
-            <h3 className="m-0 line-clamp-2 min-w-0 text-[14px] font-extrabold leading-snug text-ink-strong dark:text-white max-[540px]:text-[13px]">{quizDisplay.primary}</h3>
+        <div className="grid min-w-0 flex-1 gap-2">
+            <h3 className="m-0 line-clamp-2 min-w-0 text-[15px] font-extrabold leading-[1.48] text-ink-strong dark:text-white max-[540px]:text-[14px] max-[540px]:leading-[1.45]">{quizDisplay.primary}</h3>
             {quizDisplay.secondary ? (
-              <p className="m-0 line-clamp-2 text-[12px] font-semibold leading-snug text-ink-muted dark:text-slate-400 max-[540px]:text-[11px]">{quizDisplay.secondary}</p>
+              <p className="m-0 line-clamp-2 text-[13px] font-semibold leading-[1.45] text-ink-muted dark:text-slate-400 max-[540px]:text-[12px]">{quizDisplay.secondary}</p>
             ) : null}
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] font-semibold leading-4 text-ink-muted dark:text-slate-500 max-[540px]:gap-1 max-[540px]:text-[10px]">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-semibold leading-4 text-ink-muted dark:text-slate-500 max-[540px]:gap-1.5 max-[540px]:text-[10px]">
             {isDone ? (
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-2 py-0.5 font-black text-brand-primary">
                   <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-brand-primary/12 text-[9px] leading-none" aria-hidden="true">✓</span>
