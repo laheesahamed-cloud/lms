@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { recordStudyActivity } from '../../../../shared/api/dashboard.api.js';
 import { updateStudentLessonProgress } from '../../../../shared/api/courses.api.js';
 import { getVideoEmbed, getVideoThumbnail } from '../../../../shared/utils/videoEmbed.js';
+import { detectPlatform } from '../../../../shared/platform/detect.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { NoteCanvas } from './NoteCanvas.jsx';
 
@@ -42,6 +43,143 @@ function useDark() {
 const ICONS_LIB = ['☆','💡','📚','🌿','📅','🏷️','💬','✅','⚠️','❓','🔄','📌','🩺','💊','🧬','🔬'];
 const DECOS_LIB = ['✦','✧','♡','☁','〰','🌿','🍃','✿','✾','❋','◆','◇'];
 const STICKERS  = ['⭐','🔥','💡','🏆','✅','⚠️','❤️','👍','🧠','📚','📌','❗','❓','🚀','✏️','✨','⏰','🚩','🎯','💊','🧬','🔬','🩺','📊'];
+const DRAW_COLORS = ['#1f2937', '#2563eb', '#7c3aed', '#dc2626', '#047857', '#f59e0b'];
+const DRAW_WIDTHS = [3, 5, 8];
+
+function clampNumber(value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.max(min, Math.min(max, number));
+}
+
+function normalizeStrokePressure(event) {
+  const pressure = Number(event?.pressure);
+  if (!Number.isFinite(pressure) || pressure <= 0) {
+    return event?.pointerType === 'mouse' ? 0.62 : 0.78;
+  }
+  return clampNumber(pressure, 0.24, 1);
+}
+
+function isStylusPointerEvent(event) {
+  const pointerType = String(event?.pointerType || event?.nativeEvent?.pointerType || '').toLowerCase();
+  if (pointerType === 'pen' || pointerType === 'stylus') return true;
+
+  const width = Number(event?.width) || 0;
+  const height = Number(event?.height) || 0;
+  const pressure = Number(event?.pressure) || 0;
+  const tiltX = Number(event?.tiltX) || 0;
+  const tiltY = Number(event?.tiltY) || 0;
+  const hasFineTipGeometry = width > 0 && height > 0 && Math.max(width, height) <= 12;
+  const hasStylusSignal = Math.abs(tiltX) > 0 || Math.abs(tiltY) > 0 || pressure > 0.52;
+
+  return pointerType === 'touch' && hasFineTipGeometry && hasStylusSignal;
+}
+
+function strokePointDistance(a, b) {
+  return Math.hypot((Number(a?.x) || 0) - (Number(b?.x) || 0), (Number(a?.y) || 0) - (Number(b?.y) || 0));
+}
+
+function shouldKeepStrokePoint(points, point) {
+  const last = points[points.length - 1];
+  if (!last) return true;
+  const distance = strokePointDistance(last, point);
+  const pressureDelta = Math.abs((Number(last.pressure) || 0.7) - (Number(point.pressure) || 0.7));
+  return distance >= 0.0014 || pressureDelta >= 0.08;
+}
+
+function simplifyStrokePoints(points = []) {
+  if (points.length <= 2) return points;
+  const refined = [points[0]];
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const current = points[i];
+    const last = refined[refined.length - 1];
+    const pressureDelta = Math.abs((Number(last?.pressure) || 0.7) - (Number(current?.pressure) || 0.7));
+    if (strokePointDistance(last, current) >= 0.0011 || pressureDelta >= 0.06) {
+      refined.push(current);
+    }
+  }
+  refined.push(points[points.length - 1]);
+  return refined.slice(-2200);
+}
+
+function canvasPoint(point, width, height) {
+  return {
+    x: clampNumber(point?.x, 0, 1) * width,
+    y: clampNumber(point?.y, 0, 1) * height,
+    pressure: clampNumber(point?.pressure ?? 0.72, 0.24, 1),
+  };
+}
+
+function pressureStrokeWidth(baseWidth, pressure) {
+  return Math.max(1, baseWidth * (0.72 + clampNumber(pressure, 0.24, 1) * 0.5));
+}
+
+function midPoint(a, b) {
+  return {
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+    pressure: (a.pressure + b.pressure) / 2,
+  };
+}
+
+function drawSmoothStroke(ctx, stroke, width, height) {
+  const rawPoints = Array.isArray(stroke?.points) ? stroke.points : [];
+  if (rawPoints.length < 1) return;
+
+  const points = rawPoints.map(point => canvasPoint(point, width, height));
+  const baseWidth = Math.max(1, Number(stroke?.width) || 4);
+  const color = stroke?.color || '#1f2937';
+
+  ctx.save();
+  ctx.globalAlpha = Number(stroke?.opacity) || 0.96;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (points.length === 1) {
+    const point = points[0];
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, pressureStrokeWidth(baseWidth, point.pressure) / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (points.length === 2) {
+    const [start, end] = points;
+    ctx.lineWidth = pressureStrokeWidth(baseWidth, (start.pressure + end.pressure) / 2);
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  for (let i = 1; i < points.length; i += 1) {
+    const previous = points[i - 1];
+    const current = points[i];
+    const beforePrevious = points[i - 2] || previous;
+    const start = i === 1 ? previous : midPoint(beforePrevious, previous);
+    const end = midPoint(previous, current);
+    ctx.lineWidth = pressureStrokeWidth(baseWidth, (previous.pressure + current.pressure) / 2);
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.quadraticCurveTo(previous.x, previous.y, end.x, end.y);
+    ctx.stroke();
+  }
+
+  const last = points[points.length - 1];
+  const beforeLast = points[points.length - 2];
+  const lastStart = midPoint(beforeLast, last);
+  ctx.lineWidth = pressureStrokeWidth(baseWidth, last.pressure);
+  ctx.beginPath();
+  ctx.moveTo(lastStart.x, lastStart.y);
+  ctx.quadraticCurveTo(last.x, last.y, last.x, last.y);
+  ctx.stroke();
+  ctx.restore();
+}
 function getMCQTag(note) {
   const t = `${note?.title||''} ${note?.courseTitle||''} ${note?.topicName||''}`.toLowerCase();
   if (/cardiac|heart|coronar|arrhythm|myocard/.test(t)) return { tag:'Cardiology',   c:'#9d174d', bg:'#fce7f3' };
@@ -54,6 +192,42 @@ function getMCQTag(note) {
 
 function studentCanvasPersonalStorageKey(noteId) {
   return noteId ? `lms.studentCanvas.personal.${noteId}` : '';
+}
+
+function normalizePersonalLayer(saved) {
+  if (Array.isArray(saved)) return { stickers:saved, strokes:[] };
+  if (!saved || typeof saved !== 'object') return { stickers:[], strokes:[] };
+  return {
+    stickers:Array.isArray(saved.stickers) ? saved.stickers : [],
+    strokes:Array.isArray(saved.strokes) ? saved.strokes.filter(stroke => Array.isArray(stroke?.points) && stroke.points.length > 0) : [],
+  };
+}
+
+function PenIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M8.7 1.8l3.5 3.5-6.9 6.9-3.7.6.6-3.7 6.5-7.3z" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round"/>
+      <path d="M7.6 3.2l3.2 3.2" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function UndoIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M5.2 4H9a3.2 3.2 0 1 1 0 6.4H4.4" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/>
+      <path d="M5.4 1.8L3.1 4l2.3 2.2" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function TrashIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M2.4 3.7h9.2M5.2 2.2h3.6M4 3.7l.5 7.2c.04.56.5 1 1.06 1h2.88c.56 0 1.02-.44 1.06-1l.5-7.2" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5.8 5.7v3.8M8.2 5.7v3.8" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/>
+    </svg>
+  );
 }
 
 // ── Floating sticker ──────────────────────────────────────────────────────────
@@ -124,6 +298,164 @@ function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
     </div>
   );
 }
+
+const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
+  parentRef,
+  editable,
+  drawMode,
+  strokes,
+  penColor,
+  penWidth,
+  stylusOnly = true,
+  onCommitStroke,
+}) {
+  const canvasEl = useRef(null);
+  const currentStrokeRef = useRef(null);
+  const strokesRef = useRef(strokes);
+
+  const drawAll = useCallback((items = strokesRef.current) => {
+    const canvas = canvasEl.current;
+    const host = parentRef.current;
+    if (!canvas || !host) return;
+    const rect = host.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+    const targetWidth = Math.round(width * dpr);
+    const targetHeight = Math.round(height * dpr);
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    items.forEach((stroke) => drawSmoothStroke(ctx, stroke, width, height));
+  }, [parentRef]);
+
+  useEffect(() => {
+    strokesRef.current = strokes;
+    drawAll(strokes);
+  }, [drawAll, strokes]);
+
+  useEffect(() => {
+    const host = parentRef.current;
+    if (!host) return undefined;
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => drawAll()) : null;
+    observer?.observe(host);
+    window.addEventListener('resize', drawAll);
+    drawAll();
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', drawAll);
+    };
+  }, [drawAll, parentRef]);
+
+  function pointFromEvent(event) {
+    const rect = parentRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: clampNumber((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1),
+      y: clampNumber((event.clientY - rect.top) / Math.max(1, rect.height), 0, 1),
+      pressure: normalizeStrokePressure(event),
+      tiltX: Number(event.tiltX) || 0,
+      tiltY: Number(event.tiltY) || 0,
+      twist: Number(event.twist) || 0,
+      pointerType: String(event.pointerType || ''),
+      t: Math.round(event.timeStamp || performance.now?.() || Date.now()),
+    };
+  }
+
+  function appendPointToCurrentStroke(event) {
+    const stroke = currentStrokeRef.current;
+    if (!stroke) return false;
+    const point = pointFromEvent(event);
+    if (!point || !shouldKeepStrokePoint(stroke.points, point)) return false;
+    stroke.points.push(point);
+    if (stroke.points.length > 2200) stroke.points.splice(0, stroke.points.length - 2200);
+    return true;
+  }
+
+  function onPointerDown(event) {
+    if (!editable || !drawMode) return;
+    if (stylusOnly && !isStylusPointerEvent(event)) return;
+    const point = pointFromEvent(event);
+    if (!point) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    currentStrokeRef.current = {
+      id: `stroke-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      color: penColor,
+      width: penWidth,
+      opacity: 0.98,
+      points: [point],
+    };
+    drawAll([...strokesRef.current, currentStrokeRef.current]);
+  }
+
+  function onPointerMove(event) {
+    if (!editable || !drawMode || !currentStrokeRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const events = typeof event.getCoalescedEvents === 'function'
+      ? event.getCoalescedEvents()
+      : [event];
+    let changed = false;
+    events.forEach(pointerEvent => {
+      changed = appendPointToCurrentStroke(pointerEvent) || changed;
+    });
+
+    if (changed) {
+      drawAll([...strokesRef.current, currentStrokeRef.current]);
+    }
+  }
+
+  function finishStroke(event) {
+    const stroke = currentStrokeRef.current;
+    if (!stroke) return;
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    currentStrokeRef.current = null;
+    try {
+      if (event?.pointerId != null) event.currentTarget?.releasePointerCapture?.(event.pointerId);
+    } catch {
+      /* pointer may already be released */
+    }
+
+    const points = simplifyStrokePoints(stroke.points);
+    if (points.length > 0) {
+      onCommitStroke({ ...stroke, points });
+    }
+  }
+
+  return (
+    <canvas
+      ref={canvasEl}
+      className="lms-student-drawing-layer"
+      aria-label="Personal writing canvas"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={finishStroke}
+      onPointerCancel={finishStroke}
+      style={{
+        position:'absolute',
+        inset:0,
+        zIndex:drawMode && editable ? 32 : 18,
+        pointerEvents:drawMode && editable ? 'auto' : 'none',
+        touchAction:drawMode && editable ? (stylusOnly ? 'pan-y pinch-zoom' : 'none') : 'auto',
+        cursor:drawMode && editable ? 'crosshair' : 'default',
+        WebkitTouchCallout:'none',
+        WebkitUserSelect:'none',
+        userSelect:'none',
+      }}
+    />
+  );
+});
 
 const CanvasPage = memo(function CanvasPage({ pageData, index, note, topBd, isDark }) {
   const data = useMemo(() => ({
@@ -475,7 +807,25 @@ function WatchVideoPanel({ videoUrl, onOpenVideo, isDark }) {
 }
 
 // ── Right panel ───────────────────────────────────────────────────────────────
-function RightPanel({ onStickerAdd, onNoteAdd, note, isDark, isEditing, videoUrl, onOpenVideo }) {
+function RightPanel({
+  onStickerAdd,
+  onNoteAdd,
+  note,
+  isDark,
+  isEditing,
+  videoUrl,
+  onOpenVideo,
+  nativeWritingEnabled,
+  drawMode,
+  penColor,
+  penWidth,
+  strokeCount,
+  onToggleDraw,
+  onPenColorChange,
+  onPenWidthChange,
+  onUndoStroke,
+  onClearStrokes,
+}) {
   const [stickerOpen, setStickerOpen] = useState(false);
   const navigate = useNavigate();
   const mcq = getMCQTag(note);
@@ -535,15 +885,110 @@ function RightPanel({ onStickerAdd, onNoteAdd, note, isDark, isEditing, videoUrl
           {stickerOpen && <StickerPicker onPick={onStickerAdd} onClose={() => setStickerOpen(false)} />}
         </div>
       </>)}
+      {nativeWritingEnabled && C(<>
+        {L('Pencil / S Pen')}
+        <button
+          className="mb-3 inline-flex w-full items-center justify-center gap-2"
+          type="button"
+          onClick={onToggleDraw}
+          disabled={!isEditing}
+          aria-pressed={drawMode}
+          style={{
+            minHeight:42,
+            border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.45)' : '#2563eb') : bd}`,
+            borderRadius:12,
+            background:drawMode ? (isDark ? 'rgba(96,165,250,.16)' : '#eff6ff') : (isDark?'rgba(255,255,255,.04)':'#f9fafb'),
+            color:drawMode ? (isDark ? '#bfdbfe' : '#1d4ed8') : (isDark?'rgba(226,232,240,.86)':'#374151'),
+            cursor:isEditing ? 'pointer' : 'not-allowed',
+            opacity:isEditing ? 1 : 0.55,
+            fontSize:12,
+            fontWeight:900,
+          }}
+        >
+          <PenIcon />
+          {drawMode ? 'Pencil / S Pen On' : 'Use Pencil / S Pen'}
+        </button>
+        <div style={{ display:'grid', gap:10 }}>
+          <div>
+            <div style={{ fontFamily:'sans-serif', fontSize:10, fontWeight:800, color:lbl, marginBottom:6 }}>Pen color</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:7 }}>
+              {DRAW_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => onPenColorChange(color)}
+                  aria-label={`Use pen color ${color}`}
+                  aria-pressed={penColor === color}
+                  style={{
+                    width:30,
+                    height:30,
+                    borderRadius:9,
+                    border:penColor === color ? `3px solid ${isDark ? '#f8fafc' : '#111827'}` : `1px solid ${bd}`,
+                    background:color,
+                    cursor:'pointer',
+                    boxShadow:penColor === color ? '0 0 0 2px rgba(96,165,250,.35)' : 'none',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontFamily:'sans-serif', fontSize:10, fontWeight:800, color:lbl, marginBottom:6 }}>Pen width</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
+              {DRAW_WIDTHS.map((width) => (
+                <button
+                  key={width}
+                  type="button"
+                  onClick={() => onPenWidthChange(width)}
+                  aria-pressed={penWidth === width}
+                  style={{
+                    minHeight:34,
+                    border:`1px solid ${penWidth === width ? (isDark ? 'rgba(167,139,250,.5)' : '#7c3aed') : bd}`,
+                    borderRadius:10,
+                    background:penWidth === width ? (isDark ? 'rgba(167,139,250,.14)' : '#f5f3ff') : 'transparent',
+                    cursor:'pointer',
+                  }}
+                >
+                  <span style={{ display:'block', height:width, borderRadius:99, background:penColor, margin:'0 auto', width:'68%' }} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
+            <button
+              type="button"
+              onClick={onUndoStroke}
+              disabled={!strokeCount}
+              className="inline-flex items-center justify-center gap-1.5"
+              style={{ minHeight:36, border:`1px solid ${bd}`, borderRadius:10, background:'transparent', color:isDark?'rgba(226,232,240,.82)':'#475569', cursor:strokeCount?'pointer':'not-allowed', opacity:strokeCount?1:.45, fontSize:11, fontWeight:800 }}
+            >
+              <UndoIcon /> Undo
+            </button>
+            <button
+              type="button"
+              onClick={onClearStrokes}
+              disabled={!strokeCount}
+              className="inline-flex items-center justify-center gap-1.5"
+              style={{ minHeight:36, border:`1px solid ${strokeCount ? 'rgba(220,38,38,.32)' : bd}`, borderRadius:10, background:strokeCount ? (isDark?'rgba(220,38,38,.09)':'#fef2f2') : 'transparent', color:strokeCount ? (isDark?'#fca5a5':'#b91c1c') : lbl, cursor:strokeCount?'pointer':'not-allowed', opacity:strokeCount?1:.45, fontSize:11, fontWeight:800 }}
+            >
+              <TrashIcon /> Clear
+            </button>
+          </div>
+        </div>
+      </>)}
       <div style={{ borderRadius:16, border:isDark?'1px solid rgba(251,191,36,.2)':'1px solid #fde68a', background:isDark?'rgba(251,191,36,.05)':'#fffbeb', padding:'13px 15px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5 }}>
           <span>💡</span>
           <span style={{ fontSize:9, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:isDark?'#fbbf24':'#92400e', fontFamily:'sans-serif' }}>Revision Tip</span>
         </div>
         <p style={{ ...KL, fontSize:11.5, lineHeight:1.6, color:isDark?'#fde68a':'#78350f', margin:0 }}>
-          {isEditing
-            ? 'Personalize mode lets you move stickers and write your own sticky notes. The instructor lesson stays protected.'
-            : 'Use Personalize when you want to pin icons or add your own sticky notes.'}
+          {nativeWritingEnabled
+            ? (isEditing
+              ? 'Personalize mode lets you move stickers, write sticky notes, and draw on the lesson with Apple Pencil or S Pen. The instructor lesson stays protected.'
+              : 'Use Personalize when you want to pin icons, add notes, or write on the lesson canvas with Apple Pencil or S Pen.')
+            : (isEditing
+              ? 'Personalize mode lets you move stickers and write your own sticky notes. The instructor lesson stays protected.'
+              : 'Use Personalize when you want to pin icons or add your own sticky notes.')}
         </p>
       </div>
     </div>
@@ -576,6 +1021,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const navigate  = useNavigate();
   const location  = useLocation();
   const isDark    = useDark();
+  const platform  = useMemo(() => detectPlatform(), []);
   const pageRef   = useRef(null);
   const canvasRef = useRef(null);
 
@@ -584,8 +1030,12 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const [error,     setError]     = useState('');
   const [localData, setLocalData] = useState(null);
   const [stickers,  setStickers]  = useState([]);
+  const [strokes,   setStrokes]   = useState([]);
   const [toast,     setToast]     = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [drawMode,  setDrawMode]  = useState(false);
+  const [penColor,  setPenColor]  = useState(DRAW_COLORS[1]);
+  const [penWidth,  setPenWidth]  = useState(DRAW_WIDTHS[1]);
   const [videoUrl,  setVideoUrl]  = useState('');
   const [videoOpen, setVideoOpen] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
@@ -594,8 +1044,15 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const sidRef = useRef(0);
   const saveTimerRef = useRef(null);
 
+  const nativeWritingEnabled = true;
   const notify = msg => { setToast(msg); setTimeout(() => setToast(null), 2200); };
-  const toggleEditing = useCallback(() => setIsEditing(v => !v), []);
+  const toggleEditing = useCallback(() => {
+    setIsEditing(v => {
+      const next = !v;
+      if (!next) setDrawMode(false);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -693,23 +1150,26 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     if (!key || typeof window === 'undefined') return;
     try {
       const saved = window.localStorage.getItem(key);
-      setStickers(saved ? JSON.parse(saved) : []);
+      const personalLayer = normalizePersonalLayer(saved ? JSON.parse(saved) : null);
+      setStickers(personalLayer.stickers);
+      setStrokes(personalLayer.strokes);
     } catch {
       setStickers([]);
+      setStrokes([]);
     }
-  }, [id, lessonId, note?.id]);
+  }, [id, lessonId, nativeWritingEnabled, note?.id]);
 
   useEffect(() => () => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
   }, []);
 
-  const savePersonalItems = useCallback((nextItems) => {
+  const savePersonalItems = useCallback((nextLayer) => {
     const key = studentCanvasPersonalStorageKey(note?.id || id || lessonId);
     if (!key || typeof window === 'undefined') return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       const write = () => {
-        try { window.localStorage.setItem(key, JSON.stringify(nextItems)); } catch { /* personal overlay is optional */ }
+        try { window.localStorage.setItem(key, JSON.stringify(nextLayer)); } catch { /* personal overlay is optional */ }
       };
       if (typeof window.requestIdleCallback === 'function') {
         window.requestIdleCallback(write, { timeout:800 });
@@ -728,11 +1188,11 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     }
     setStickers(ss => {
       const next = [...ss, { id:`st${++sidRef.current}`, type:'emoji', emoji, x:40+Math.random()*160, y:40+Math.random()*80, r:Math.round(Math.random()*16-8) }];
-      savePersonalItems(next);
+      savePersonalItems({ stickers:next, strokes });
       return next;
     });
     notify(`${emoji} pinned`);
-  }, [isEditing, savePersonalItems]);
+  }, [isEditing, savePersonalItems, strokes]);
   const addStickyNote = useCallback(() => {
     if (!isEditing) {
       notify('Click Personalize first to add sticky notes');
@@ -740,21 +1200,49 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     }
     setStickers(ss => {
       const next = [...ss, { id:`st${++sidRef.current}`, type:'note', text:'My note', x:54+Math.random()*130, y:70+Math.random()*90, r:Math.round(Math.random()*8-4), w:180, h:96 }];
-      savePersonalItems(next);
+      savePersonalItems({ stickers:next, strokes });
       return next;
     });
     notify('Sticky note added');
-  }, [isEditing, savePersonalItems]);
+  }, [isEditing, savePersonalItems, strokes]);
   const updateSticker = useCallback(upd => setStickers(ss => {
     const next = ss.map(s => s.id===upd.id?upd:s);
-    savePersonalItems(next);
+    savePersonalItems({ stickers:next, strokes });
     return next;
-  }), [savePersonalItems]);
+  }), [savePersonalItems, strokes]);
   const deleteSticker = useCallback(sid => setStickers(ss => {
     const next = ss.filter(s => s.id!==sid);
-    savePersonalItems(next);
+    savePersonalItems({ stickers:next, strokes });
     return next;
-  }), [savePersonalItems]);
+  }), [savePersonalItems, strokes]);
+  const commitStroke = useCallback((stroke) => {
+    if (!nativeWritingEnabled) return;
+    setStrokes(current => {
+      const next = [...current, stroke].slice(-250);
+      savePersonalItems({ stickers, strokes:next });
+      return next;
+    });
+  }, [nativeWritingEnabled, savePersonalItems, stickers]);
+  const undoStroke = useCallback(() => {
+    setStrokes(current => {
+      const next = current.slice(0, -1);
+      savePersonalItems({ stickers, strokes:next });
+      return next;
+    });
+  }, [savePersonalItems, stickers]);
+  const clearStrokes = useCallback(() => {
+    setStrokes([]);
+    savePersonalItems({ stickers, strokes:[] });
+    notify('Canvas writing cleared');
+  }, [savePersonalItems, stickers]);
+  const toggleDrawMode = useCallback(() => {
+    if (!nativeWritingEnabled) return;
+    if (!isEditing) {
+      notify('Click Personalize first');
+      return;
+    }
+    setDrawMode(value => !value);
+  }, [isEditing, nativeWritingEnabled]);
   const openVideo = useCallback(() => {
     setVideoOpen(true);
   }, []);
@@ -851,6 +1339,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const isLocked = Boolean(note.accessLocked);
   const pages    = localData?.pages || [];
   const canEdit  = isEditing && !isLocked;
+  const canDraw  = nativeWritingEnabled && canEdit;
   const canvasTitle = cleanCanvasLabel(note.lessonTitle || note.title, 'Lesson');
   const canvasContext = [
     cleanCanvasLabel(note.courseTitle),
@@ -906,6 +1395,37 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
               >
                 {isEditing ? 'Done' : 'Personalize'}
               </button>
+              {nativeWritingEnabled && (
+                <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
+                  onClick={() => {
+                    if (!isEditing) {
+                      setIsEditing(true);
+                      setDrawMode(true);
+                      return;
+                    }
+                    setDrawMode(value => !value);
+                  }}
+                  disabled={isLocked}
+                  aria-pressed={drawMode}
+                  style={{
+                    display:'flex',
+                    alignItems:'center',
+                    gap:6,
+                    border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.46)' : '#2563eb') : btnBd}`,
+                    background:drawMode ? (isDark ? 'rgba(96,165,250,.16)' : '#eff6ff') : btnBg,
+                    borderRadius:12,
+                    padding:'0 12px',
+                    fontSize:11,
+                    fontWeight:900,
+                    color:drawMode ? (isDark ? '#bfdbfe' : '#1d4ed8') : btnTx,
+                    cursor:'pointer',
+                    opacity:isLocked ? 0.4 : 1,
+                    boxShadow:drawMode && isDark ? '0 10px 24px rgba(37,99,235,.16), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
+                  }}
+                >
+                  <PenIcon /> {drawMode ? 'Stop Pen' : 'Pencil / S Pen'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -934,10 +1454,102 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
         document.body
       ) : null}
 
+      {!isLocked && nativeWritingEnabled && (
+        <button
+          className="lms-ai-note-write-fab lms-smooth-action inline-flex items-center justify-center"
+          type="button"
+          onClick={() => {
+            if (!isEditing) {
+              setIsEditing(true);
+              setDrawMode(true);
+              return;
+            }
+            setDrawMode(value => !value);
+          }}
+          aria-pressed={drawMode}
+          style={{
+            position:'fixed',
+            right:'max(16px, var(--lms-safe-right, 0px))',
+            bottom:'calc(var(--lms-mobile-content-bottom, 68px) + 16px)',
+            zIndex:88,
+            display:'inline-flex',
+            alignItems:'center',
+            justifyContent:'center',
+            gap:8,
+            minHeight:46,
+            padding:'0 16px',
+            border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.52)' : '#2563eb') : btnBd}`,
+            borderRadius:999,
+            background:drawMode ? (isDark ? 'linear-gradient(180deg,rgba(96,165,250,.24),rgba(37,99,235,.16))' : '#eff6ff') : (isDark ? 'rgba(15,23,42,.92)' : '#ffffff'),
+            color:drawMode ? (isDark ? '#dbeafe' : '#1d4ed8') : btnTx,
+            boxShadow:isDark ? '0 18px 40px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.12)' : '0 18px 40px rgba(15,23,42,.18)',
+            fontSize:12,
+            fontWeight:900,
+            cursor:'pointer',
+            WebkitTapHighlightColor:'transparent',
+          }}
+        >
+          <PenIcon /> {drawMode ? 'Stop Pen' : 'Pencil / S Pen'}
+        </button>
+      )}
+
       {/* Body */}
       <div className="lms-ai-canvas-shell mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:px-4 max-[640px]:px-0 max-[520px]:gap-3">
         <section className="lms-ai-note-main min-w-0">
           <div ref={canvasRef} style={{ position:'relative', minWidth:0, maxWidth:'100%' }}>
+            {!isLocked && pages.length > 0 && nativeWritingEnabled && (
+              <button
+                className="lms-ai-note-canvas-write-button lms-smooth-action inline-flex items-center justify-center"
+                type="button"
+                onClick={() => {
+                  if (!isEditing) {
+                    setIsEditing(true);
+                    setDrawMode(true);
+                    return;
+                  }
+                  setDrawMode(value => !value);
+                }}
+                aria-pressed={drawMode}
+                style={{
+                  position:'sticky',
+                  top:'calc(var(--lms-safe-top, 0px) + 12px)',
+                  left:'100%',
+                  zIndex:70,
+                  width:'max-content',
+                  transform:'translateX(calc(-100% - 12px))',
+                  display:'inline-flex',
+                  alignItems:'center',
+                  justifyContent:'center',
+                  gap:8,
+                  minHeight:42,
+                  marginBottom:-42,
+                  padding:'0 14px',
+                  border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.52)' : '#2563eb') : btnBd}`,
+                  borderRadius:999,
+                  background:drawMode ? (isDark ? 'linear-gradient(180deg,rgba(96,165,250,.26),rgba(37,99,235,.16))' : '#eff6ff') : (isDark ? 'rgba(15,23,42,.94)' : '#ffffff'),
+                  color:drawMode ? (isDark ? '#dbeafe' : '#1d4ed8') : btnTx,
+                  boxShadow:isDark ? '0 16px 34px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.12)' : '0 16px 34px rgba(15,23,42,.16)',
+                  fontSize:12,
+                  fontWeight:900,
+                  cursor:'pointer',
+                  WebkitTapHighlightColor:'transparent',
+                }}
+              >
+                <PenIcon /> {drawMode ? 'Stop Pen' : 'Pencil / S Pen'}
+              </button>
+            )}
+            {nativeWritingEnabled && (
+              <PersonalDrawingLayer
+                parentRef={canvasRef}
+                editable={canDraw}
+                drawMode={drawMode}
+                strokes={strokes}
+                penColor={penColor}
+                penWidth={penWidth}
+                stylusOnly
+                onCommitStroke={commitStroke}
+              />
+            )}
             {stickers.map(s => <FloatingSticker key={s.id} s={s} editable={canEdit} onUpdate={updateSticker} onDelete={deleteSticker} canvasRef={canvasRef}/>)}
 
             {isLocked ? (
@@ -979,6 +1591,16 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
             videoUrl={videoUrl}
             onNoteAdd={addStickyNote}
             onOpenVideo={openVideo}
+            nativeWritingEnabled={nativeWritingEnabled}
+            drawMode={drawMode}
+            penColor={penColor}
+            penWidth={penWidth}
+            strokeCount={strokes.length}
+            onToggleDraw={toggleDrawMode}
+            onPenColorChange={setPenColor}
+            onPenWidthChange={setPenWidth}
+            onUndoStroke={undoStroke}
+            onClearStrokes={clearStrokes}
           />
         </aside>
       </div>

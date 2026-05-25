@@ -97,6 +97,10 @@
 
   --sa-ease: cubic-bezier(0.32, 0.72, 0.32, 1);
   --sa-dur: 160ms;
+  --lms-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --lms-ease-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
+  --lms-sidebar-duration: 380ms;
+  --lms-dropdown-duration: 220ms;
   --sidebar-float-gap: 16px;
   --sidebar-shell-gap: 16px;
   --sidebar-w: 224px;
@@ -212,6 +216,10 @@
 }
 
 .lms-sidebar--student-model {
+  --sidebar-float-gap: 16px;
+  --sidebar-shell-gap: 16px;
+  --sidebar-w: 224px;
+  --sidebar-w-collapsed: 68px;
   --student-sidebar-ink:    #26314c;
   --student-sidebar-muted:  #4d5b78;
   --student-sidebar-faint:  #8a96b5;
@@ -260,6 +268,12 @@
   display: grid !important;
   min-width: 0;
   align-content: center !important;
+  max-width: 142px;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 220ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .lms-sidebar--student-model .lms-sidebar-brand-name {
@@ -347,6 +361,12 @@
   color: inherit !important;
   font-size: 14px !important;
   font-weight: inherit !important;
+  max-width: 132px;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 200ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .lms-sidebar--student-model .lms-sidebar-student-footer {
@@ -356,6 +376,12 @@
   margin-top: 16px;
   padding: 16px 4px 0;
   border-top: 1px solid var(--student-sidebar-border);
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 220ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+    border-color var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .lms-sidebar--student-model .lms-sidebar-student-avatar {
@@ -410,6 +436,13 @@
     border-radius: 24px !important;
     overflow: hidden !important;
     isolation: isolate;
+    contain: layout paint;
+    backface-visibility: hidden;
+    will-change: transform, opacity;
+    transition:
+      width var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      opacity 260ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
   }
 
   .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed {
@@ -424,7 +457,10 @@
   }
 
   .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed .lms-sidebar-wordmark {
-    display: none !important;
+    max-width: 0;
+    opacity: 0;
+    transform: translate3d(-6px, 0, 0);
+    pointer-events: none;
   }
 
   .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed .lms-sidebar-brand-mark {
@@ -437,6 +473,22 @@
     min-height: 48px !important;
     padding: 0 !important;
     gap: 0 !important;
+  }
+
+  .lms-sidebar--student-model.is-collapsed .lms-sidebar-link-text,
+  .lms-sidebar--student-model.is-collapsed .lms-sidebar-student-copy {
+    max-width: 0;
+    opacity: 0;
+    transform: translate3d(-6px, 0, 0);
+    pointer-events: none;
+  }
+
+  .lms-sidebar--student-model.is-collapsed .lms-sidebar-student-footer {
+    justify-content: center;
+    gap: 0;
+    opacity: 0.92;
+    transform: translate3d(0, -2px, 0);
+    border-top-color: transparent;
   }
 
   .lms-sidebar--student-model.is-collapsed .lms-sidebar-link.nav-active-glow::before {
@@ -475,13 +527,18 @@
     --sa-page-padding-top: calc(var(--sidebar-float-gap, 16px) + 24px);
   }
 
-  .student-app-shell:not(.compact-focus-mode):not(.tablet-overlay-nav) .main-content {
+  .student-app-shell:not(.compact-focus-mode) .main-content {
     margin-left: 0 !important;
     width: 100% !important;
     padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w, 224px) + var(--sidebar-shell-gap, 16px)) !important;
+    transition:
+      padding-left var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      width var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
+    will-change: padding-left;
   }
 
-  .student-app-shell.sidebar-collapsed:not(.compact-focus-mode):not(.tablet-overlay-nav) .main-content {
+  .student-app-shell.sidebar-collapsed:not(.compact-focus-mode) .main-content {
     margin-left: 0 !important;
     width: 100% !important;
     padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w-collapsed, 68px) + var(--sidebar-shell-gap, 16px)) !important;
@@ -1793,16 +1850,16 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
     0 24px 54px -22px rgba(14, 21, 56, 0.28) !important;
-  backdrop-filter: blur(18px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
-  animation: lmsProfileMenuTopNavIn 780ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation: lmsProfilePopoverIn var(--lms-popover-motion, 220ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
   transform-origin: top right;
-  will-change: clip-path, transform, opacity;
+  will-change: transform, opacity;
 }
 
 .student-app-shell .lms-profile-menu.is-closing {
   pointer-events: none;
-  animation: lmsProfileMenuTopNavOut 620ms cubic-bezier(0.64, 0, 0.78, 0) both !important;
+  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 190ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
 .student-app-shell .lms-profile-menu::before {
@@ -1819,9 +1876,9 @@
 .student-app-shell .lms-profile-menu > * {
   position: relative;
   z-index: 1;
-  opacity: 0;
-  transform: translate3d(0, -8px, 0);
-  animation: lmsProfileMenuContentIn 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  opacity: 1;
+  transform: none;
+  animation: none !important;
 }
 
 .student-app-shell .lms-profile-menu > :nth-child(1) { animation-delay: 110ms; }
@@ -1829,7 +1886,7 @@
 .student-app-shell .lms-profile-menu > :nth-child(3) { animation-delay: 190ms; }
 
 .student-app-shell .lms-profile-menu.is-closing > * {
-  animation: lmsProfileMenuContentOut 160ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: none !important;
   animation-delay: 0ms;
 }
 
@@ -1960,11 +2017,11 @@
   background: var(--profile-menu-bg) !important;
   color: var(--profile-menu-ink) !important;
   box-shadow: var(--profile-menu-shadow) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
-  backdrop-filter: blur(18px) saturate(145%) !important;
-  animation: lmsProfileMenuTopNavIn 780ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  animation: lmsProfilePopoverIn var(--lms-popover-motion, 220ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
   transform-origin: top right;
-  will-change: clip-path, transform, opacity;
+  will-change: transform, opacity;
 }
 
 :root[data-theme='dark'] :where(.app-shell, .lms-topbar, .study-hub-topbar) .lms-profile-menu {
@@ -1984,7 +2041,7 @@
 .lms-topbar .lms-profile-menu.is-closing,
 .study-hub-topbar .lms-profile-menu.is-closing {
   pointer-events: none;
-  animation: lmsProfileMenuTopNavOut 620ms cubic-bezier(0.64, 0, 0.78, 0) both !important;
+  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 190ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
 .app-shell .lms-profile-menu::before,
@@ -1998,9 +2055,9 @@
 .study-hub-topbar .lms-profile-menu > * {
   position: relative;
   z-index: 1;
-  opacity: 0;
-  transform: translate3d(0, -8px, 0);
-  animation: lmsProfileMenuContentIn 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  opacity: 1;
+  transform: none;
+  animation: none !important;
 }
 
 .app-shell .lms-profile-menu > :nth-child(1),
@@ -2024,7 +2081,7 @@
 .app-shell .lms-profile-menu.is-closing > *,
 .lms-topbar .lms-profile-menu.is-closing > *,
 .study-hub-topbar .lms-profile-menu.is-closing > * {
-  animation: lmsProfileMenuContentOut 160ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: none !important;
   animation-delay: 0ms;
 }
 
@@ -2148,24 +2205,24 @@ body.lms-profile-menu-open > .lms-profile-menu {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.76),
     0 24px 54px -22px rgba(14, 21, 56, 0.3) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
-  backdrop-filter: blur(18px) saturate(145%) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
   transform-origin: top right !important;
-  animation: lmsProfileMenuTopNavIn 780ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
-  will-change: clip-path, transform, opacity;
+  animation: lmsProfilePopoverIn var(--lms-popover-motion, 220ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
+  will-change: transform, opacity;
 }
 
 body.lms-profile-menu-open > .lms-profile-menu.is-closing {
   pointer-events: none;
-  animation: lmsProfileMenuTopNavOut 620ms cubic-bezier(0.64, 0, 0.78, 0) both !important;
+  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 190ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
 body.lms-profile-menu-open > .lms-profile-menu > * {
   position: relative;
   z-index: 1;
-  opacity: 0;
-  transform: translate3d(0, -8px, 0);
-  animation: lmsProfileMenuContentIn 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  opacity: 1;
+  transform: none;
+  animation: none !important;
 }
 
 body.lms-profile-menu-open > .lms-profile-menu > :nth-child(1) { animation-delay: 150ms; }
@@ -2173,7 +2230,7 @@ body.lms-profile-menu-open > .lms-profile-menu > :nth-child(2) { animation-delay
 body.lms-profile-menu-open > .lms-profile-menu > :nth-child(3) { animation-delay: 220ms; }
 
 body.lms-profile-menu-open > .lms-profile-menu.is-closing > * {
-  animation: lmsProfileMenuContentOut 180ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: none !important;
   animation-delay: 0ms;
 }
 
@@ -2220,11 +2277,11 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
     0 16px 34px -18px rgba(14, 21, 56, 0.38);
-  -webkit-backdrop-filter: blur(18px) saturate(145%);
-  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   opacity: 0;
-  transform: translate3d(0, 0, 0) scale(0.96);
-  animation: lmsProfileAvatarFloatIn 240ms cubic-bezier(0.23, 1, 0.32, 1) 70ms both;
+  transform: translate3d(0, 0, 0) scale(0.98);
+  animation: lmsProfileAvatarFloatIn 190ms cubic-bezier(0.22, 1, 0.36, 1) both;
   pointer-events: auto;
   touch-action: manipulation;
 }
@@ -2237,7 +2294,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 }
 
 .lms-profile-avatar-floating.is-closing {
-  animation: lmsProfileAvatarFloatOut 180ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: lmsProfileAvatarFloatOut 170ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 :root[data-theme='dark'] .lms-profile-avatar-floating {
@@ -2249,35 +2306,13 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 }
 
 @keyframes lmsProfileMenuTopNavIn {
-  0% {
-    opacity: 1;
-    -webkit-clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round var(--profile-menu-trigger-radius, 12px));
-    clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round var(--profile-menu-trigger-radius, 12px));
-    transform: translate3d(0, 0, 0) scaleY(1);
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0) scale(0.98);
   }
-  36% {
+  to {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 18% 18% round var(--profile-menu-trigger-radius, 12px) var(--profile-menu-trigger-radius, 12px) 18px 18px);
-    clip-path: inset(0 0 18% 18% round var(--profile-menu-trigger-radius, 12px) var(--profile-menu-trigger-radius, 12px) 18px 18px);
-    transform: translate3d(0, 7px, 0) scaleY(1.03);
-  }
-  58% {
-    opacity: 1;
-    -webkit-clip-path: inset(0 0 18% 0 round var(--profile-menu-trigger-radius, 12px) 28px 28px 28px);
-    clip-path: inset(0 0 18% 0 round var(--profile-menu-trigger-radius, 12px) 28px 28px 28px);
-    transform: translate3d(0, 4px, 0) scaleY(1.01);
-  }
-  82% {
-    opacity: 1;
-    -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
-    clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
-    transform: translate3d(0, 2px, 0) scaleY(0.995);
-  }
-  100% {
-    opacity: 1;
-    -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
-    clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
-    transform: translate3d(0, 0, 0) scaleY(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -2293,36 +2328,20 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 }
 
 @keyframes lmsProfileMenuTopNavOut {
-  0% {
+  from {
     opacity: 1;
-    -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
-    clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
-    transform: translate3d(0, 0, 0) scaleY(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
-  28% {
-    opacity: 1;
-    -webkit-clip-path: inset(0 0 18% 0 round var(--profile-menu-trigger-radius, 12px) 28px 28px 28px);
-    clip-path: inset(0 0 18% 0 round var(--profile-menu-trigger-radius, 12px) 28px 28px 28px);
-    transform: translate3d(0, 4px, 0) scaleY(1.01);
-  }
-  64% {
-    opacity: 1;
-    -webkit-clip-path: inset(0 0 18% 18% round var(--profile-menu-trigger-radius, 12px) var(--profile-menu-trigger-radius, 12px) 18px 18px);
-    clip-path: inset(0 0 18% 18% round var(--profile-menu-trigger-radius, 12px) var(--profile-menu-trigger-radius, 12px) 18px 18px);
-    transform: translate3d(0, 7px, 0) scaleY(1.03);
-  }
-  100% {
+  to {
     opacity: 0;
-    -webkit-clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round var(--profile-menu-trigger-radius, 12px));
-    clip-path: inset(0 0 calc(100% - var(--profile-menu-trigger-size)) calc(100% - var(--profile-menu-trigger-size)) round var(--profile-menu-trigger-radius, 12px));
-    transform: translate3d(0, 0, 0) scaleY(1);
+    transform: translate3d(0, -4px, 0) scale(0.98);
   }
 }
 
 @keyframes lmsProfileAvatarFloatIn {
   from {
     opacity: 0;
-    transform: translate3d(0, -4px, 0) scale(0.96);
+    transform: translate3d(0, -4px, 0) scale(0.98);
   }
   to {
     opacity: 1;
@@ -2337,7 +2356,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   }
   to {
     opacity: 0;
-    transform: translate3d(0, -4px, 0) scale(0.96);
+    transform: translate3d(0, -4px, 0) scale(0.98);
   }
 }
 
@@ -2355,26 +2374,18 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 @keyframes lmsProfileBackdropIn {
   from {
     opacity: 0;
-    -webkit-backdrop-filter: blur(0) saturate(100%);
-    backdrop-filter: blur(0) saturate(100%);
   }
   to {
     opacity: 1;
-    -webkit-backdrop-filter: blur(var(--lms-profile-menu-backdrop-blur, 10px)) saturate(var(--lms-profile-menu-backdrop-saturate, 112%));
-    backdrop-filter: blur(var(--lms-profile-menu-backdrop-blur, 10px)) saturate(var(--lms-profile-menu-backdrop-saturate, 112%));
   }
 }
 
 @keyframes lmsProfileBackdropOut {
   from {
     opacity: 1;
-    -webkit-backdrop-filter: blur(var(--lms-profile-menu-backdrop-blur, 10px)) saturate(var(--lms-profile-menu-backdrop-saturate, 112%));
-    backdrop-filter: blur(var(--lms-profile-menu-backdrop-blur, 10px)) saturate(var(--lms-profile-menu-backdrop-saturate, 112%));
   }
   to {
     opacity: 0;
-    -webkit-backdrop-filter: blur(0) saturate(100%);
-    backdrop-filter: blur(0) saturate(100%);
   }
 }
 
@@ -2936,8 +2947,9 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 }
 
 .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) {
-  grid-template-columns: minmax(240px, 300px) minmax(0, 780px) minmax(240px, 300px) !important;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1040px) minmax(220px, 280px) !important;
   justify-content: center;
+  gap: clamp(16px, 2vw, 24px) !important;
 }
 
 .student-app-shell .lms-review-main {
@@ -2964,7 +2976,12 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 .student-app-shell .lms-review-question-nav button {
   width: auto !important;
   height: auto !important;
-  min-width: 0 !important;
+  min-width: min(112px, 100%) !important;
+  min-height: 44px !important;
+  padding-inline: 18px !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  touch-action: manipulation;
 }
 
 .student-app-shell .lms-review-question-nav {
@@ -3443,180 +3460,6 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
 }
 
 /* ============================================================
-   STUDENT ACCENT PICKER — small theme switch in the sidebar
-   ============================================================ */
-.lms-student-accent-picker {
-  display: grid;
-  gap: 8px;
-  margin: 12px 4px 4px;
-  padding: 12px 12px 14px;
-  border-radius: 14px;
-  background: var(--sa-surface-2);
-  border: 1px solid var(--sa-border-soft);
-}
-
-.lms-student-accent-picker__label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--sa-text-3);
-}
-
-.lms-student-accent-picker__row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.lms-student-accent-swatch {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 6px 9px;
-  border: 1px solid var(--sa-border);
-  border-radius: 10px;
-  background: var(--sa-surface);
-  color: var(--sa-text-2);
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    border-color var(--sa-dur, 160ms) var(--sa-ease, ease),
-    color        var(--sa-dur, 160ms) var(--sa-ease, ease),
-    background   var(--sa-dur, 160ms) var(--sa-ease, ease),
-    transform    var(--sa-dur, 160ms) var(--sa-ease, ease);
-}
-
-.lms-student-accent-swatch:hover {
-  border-color: rgba(var(--sa-primary-rgb), 0.24);
-  color: var(--sa-ink);
-}
-
-.lms-student-accent-swatch:focus-visible {
-  outline: 2px solid var(--sa-primary);
-  outline-offset: 2px;
-}
-
-.lms-student-accent-swatch.is-active {
-  border-color: rgba(var(--sa-primary-rgb), 0.38);
-  background:
-    linear-gradient(rgba(var(--sa-primary-rgb), 0.06), rgba(var(--sa-primary-rgb), 0.06)),
-    var(--sa-surface);
-  color: var(--sa-ink);
-}
-
-.lms-student-accent-swatch__color {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.22);
-}
-
-.lms-student-accent-swatch__text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lms-student-accent-swatch__check {
-  flex-shrink: 0;
-  color: var(--sa-primary);
-}
-
-.lms-student-accent-swatch:active {
-  transform: scale(0.98);
-}
-
-/* ============================================================
-   STUDENT ACCENT — "violet" overrides
-   Activated when <html data-student-accent="violet">.
-   Reverts the primary/grad/secondary tokens to the legacy violet
-   palette so students can switch back if preferred.
-   Light + dark mode both supported. Other tokens unchanged.
-   ============================================================ */
-
-:root[data-student-accent="violet"] .student-app-shell {
-  --sa-primary:      #3d5afe;
-  --sa-primary-deep: #2336cc;
-  --sa-primary-soft: #e5e9ff;
-  --sa-primary-rgb:  61, 90, 254;
-
-  --sa-purple:      #8b5cf6;
-  --sa-purple-rgb:  139, 92, 246;
-  --sa-purple-soft: #f0e7ff;
-
-  --sa-grad:      linear-gradient(135deg, #3d5afe 0%, #8b5cf6 100%);
-  --sa-grad-soft: linear-gradient(135deg, #e5e9ff 0%, #f0e7ff 100%);
-
-  --brand-primary-start: #3d5afe;
-  --brand-primary-mid:   #5b71fe;
-  --brand-primary-end:   #8b5cf6;
-  --brand-primary-solid: #3d5afe;
-  --brand-primary-soft:  #e5e9ff;
-  --brand-gradient-hero: linear-gradient(135deg, #0e1538 0%, #3d5afe 60%, #8b5cf6 100%);
-  --brand-shadow-soft: 0 6px 20px rgba(61, 90, 254, 0.16);
-  --brand-shadow-md:   0 10px 28px rgba(61, 90, 254, 0.20);
-  --brand-shadow-lg:   0 18px 44px rgba(61, 90, 254, 0.22);
-  --brand-glow:        0 0 20px rgba(61, 90, 254, 0.26), 0 0 44px rgba(139, 92, 246, 0.12);
-
-  --color-primary-glow: rgba(61, 90, 254, 0.24);
-
-  --sa-shadow-cta: 0 10px 24px -8px rgba(61, 90, 254, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-}
-
-:root[data-student-accent="violet"] .lms-sidebar--student-model {
-  --student-sidebar-active: linear-gradient(135deg, rgba(61, 90, 254, 0.1), rgba(139, 92, 246, 0.1));
-  --student-sidebar-grad:   linear-gradient(135deg, #3d5afe 0%, #8b5cf6 100%);
-}
-
-:root[data-student-accent="violet"] .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow::before {
-  background: linear-gradient(180deg, #3d5afe, #8b5cf6) !important;
-}
-
-:root[data-theme="dark"][data-student-accent="violet"] .student-app-shell,
-.student-app-shell[data-theme="dark"][data-student-accent="violet"] {
-  --sa-primary:      #6c83ff;
-  --sa-primary-deep: #8a9cff;
-  --sa-primary-soft: rgba(108,131,255,.12);
-  --sa-primary-rgb:  108,131,255;
-
-  --sa-purple:      #a78bfa;
-  --sa-purple-soft: rgba(167,139,250,.1);
-  --sa-purple-rgb:  167,139,250;
-
-  --sa-grad:      linear-gradient(135deg, #6c83ff 0%, #a78bfa 100%);
-  --sa-grad-soft: linear-gradient(135deg, rgba(108,131,255,.12) 0%, rgba(167,139,250,.1) 100%);
-
-  --brand-primary-start: #6c83ff;
-  --brand-primary-mid:   #8a9cff;
-  --brand-primary-end:   #a78bfa;
-  --brand-primary-solid: #6c83ff;
-  --brand-primary-soft:  rgba(108,131,255,.12);
-  --brand-gradient-hero: linear-gradient(135deg, #172330 0%, #6c83ff 62%, #a78bfa 100%);
-  --brand-shadow-soft: 0 6px 20px rgba(108,131,255,.14);
-  --brand-shadow-md:   0 10px 28px rgba(108,131,255,.16);
-  --brand-shadow-lg:   0 18px 44px rgba(108,131,255,.18);
-  --brand-glow:        0 0 20px rgba(108,131,255,.18), 0 0 44px rgba(167,139,250,.1);
-
-  --color-primary-glow: rgba(108,131,255,.18);
-
-  --sa-shadow-cta: 0 10px 24px -8px rgba(108,131,255,.55), inset 0 1px 0 rgba(255,255,255,.12);
-}
-
-:root[data-theme="dark"][data-student-accent="violet"] .lms-sidebar--student-model {
-  --student-sidebar-active: linear-gradient(135deg, rgba(61,90,254,.22), rgba(139,92,246,.18));
-}
-
-/* ============================================================
    PAGE UNIFICATION LAYER
    Extends the dashboard's premium look (border glow, hover lift,
    staggered entrance) to every other student page so the LMS
@@ -3971,13 +3814,20 @@ body.student-assessment-screen :where(
   gap: clamp(16px, 2vw, 22px) !important;
 }
 
-.student-app-shell .lms-exam-page .lms-exam-grid,
-.student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) {
+.student-app-shell .lms-exam-page .lms-exam-grid {
   width: 100% !important;
   max-width: 1680px !important;
   grid-template-columns: minmax(230px, 300px) minmax(0, 980px) minmax(230px, 300px) !important;
   justify-content: center !important;
   gap: clamp(16px, 2vw, 22px) !important;
+}
+
+.student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) {
+  width: 100% !important;
+  max-width: 1680px !important;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1040px) minmax(220px, 280px) !important;
+  justify-content: center !important;
+  gap: clamp(16px, 2vw, 24px) !important;
 }
 
 .student-app-shell .lms-review-workspace,
@@ -4043,6 +3893,13 @@ body.student-assessment-screen :where(
 
   .student-app-shell .lms-review-sidebar {
     max-height: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .student-app-shell .lms-review-question-nav button {
+    width: 100% !important;
+    min-width: 0 !important;
   }
 }
 

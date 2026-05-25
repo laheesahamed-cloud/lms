@@ -106,16 +106,7 @@ export function shouldUseOverlayNavigation(platform = detectPlatform()) {
   if (typeof window === 'undefined') return false;
 
   if (window.innerWidth <= 900) return true;
-  if (platform.isWebsite) return false;
-  if (platform.isPhone) return true;
-
-  const tabletLandscape = window.matchMedia?.(
-    '(min-width: 901px) and (max-width: 1366px) and (orientation: landscape)'
-  )?.matches;
-  const coarsePointer = window.matchMedia?.('(pointer: coarse), (any-pointer: coarse)')?.matches;
-  const hasTouch = Number(navigator.maxTouchPoints || 0) > 0;
-
-  return Boolean(platform.isTablet || (tabletLandscape && (hasTouch || coarsePointer)));
+  return Boolean(platform.isPhone && (platform.isPwa || platform.isNative));
 }
 
 export function resolveApiBaseUrl() {

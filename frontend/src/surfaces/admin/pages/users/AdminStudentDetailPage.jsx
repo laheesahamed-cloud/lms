@@ -37,14 +37,12 @@ export function AdminStudentDetailPage() {
                 <Stat label="Completed lessons" value={`${data.progress.completedLessons}/${data.progress.trackedLessons}`} />
                 <Stat label="Average progress" value={`${data.progress.averageProgress}%`} />
                 <Stat label="Quiz attempts" value={data.attempts.length} />
-                <Stat label="Open doubts" value={data.doubts.filter((d) => d.status === 'open').length} />
               </div>
             </section>
             <section className={ui.dashboardGrid}>
               <div className={ui.panelCard}><div className={ui.panelTop}><div><h2>Subscriptions</h2><p>Recent access records.</p></div></div>{data.subscriptions.length ? data.subscriptions.map((s) => <p key={s.id} className={ui.alert}><strong>{s.planName}</strong> · {s.status} · ends {s.endDate}</p>) : <div className={ui.emptyBox}>No subscriptions found.</div>}</div>
               <div className={ui.panelCard}><div className={ui.panelTop}><div><h2>Recent quizzes</h2><p>Latest submitted exam attempts.</p></div></div>{data.attempts.length ? data.attempts.map((a) => <p key={a.id} className={ui.alert}><strong>{a.quizTitle}</strong> · {a.score}% · {a.passStatus}</p>) : <div className={ui.emptyBox}>No attempts yet.</div>}</div>
               <div className={ui.panelCard}><div className={ui.panelTop}><div><h2>Bookmarks</h2><p>Saved study items.</p></div></div>{data.bookmarks.length ? data.bookmarks.map((b) => <p key={b.itemType} className={ui.alert}>{b.itemType}: <strong>{b.total}</strong></p>) : <div className={ui.emptyBox}>No bookmarks yet.</div>}</div>
-              <div className={ui.panelCard}><div className={ui.panelTop}><div><h2>Doubts</h2><p>Latest lesson questions.</p></div></div>{data.doubts.length ? data.doubts.map((d) => <p key={d.id} className={ui.alert}><strong>{d.subject}</strong> · {d.status}</p>) : <div className={ui.emptyBox}>No doubts yet.</div>}</div>
             </section>
           </>
         ) : null}

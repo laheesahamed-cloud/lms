@@ -605,17 +605,44 @@ function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
 /* ══════════════════════════════════════════════════════════════
    INLINE EDIT FIELDS
 ══════════════════════════════════════════════════════════════ */
-function EField({ value, onChange, placeholder, className, style, ...props }) {
+function stopCanvasInputGesture(event) {
+  event.stopPropagation();
+}
+
+function EField({ value, onChange, placeholder, className, style, onPointerDown, onTouchStart, ...props }) {
   return (
     <input className={cx(noteCanvasUi.editInput, className)} type="text" value={value || ''} onChange={e => onChange(e.target.value)}
-      placeholder={placeholder} style={style} {...props}/>
+      placeholder={placeholder}
+      data-lms-canvas-input="true"
+      onPointerDown={event => {
+        stopCanvasInputGesture(event);
+        onPointerDown?.(event);
+      }}
+      onTouchStart={event => {
+        stopCanvasInputGesture(event);
+        onTouchStart?.(event);
+      }}
+      style={{ touchAction: 'manipulation', WebkitUserSelect: 'text', userSelect: 'text', ...style }}
+      {...props}/>
   );
 }
-function EArea({ value, onChange, placeholder, className, style, minRows = 2 }) {
+function EArea({ value, onChange, placeholder, className, style, minRows = 2, onPointerDown, onTouchStart, ...props }) {
   const rows = Math.max(minRows, (value || '').split('\n').length + 1);
   return (
     <textarea className={cx(noteCanvasUi.editArea, className)} value={value || ''} onChange={e => onChange(e.target.value)}
-      placeholder={placeholder} rows={rows} style={style}/>
+      placeholder={placeholder}
+      rows={rows}
+      data-lms-canvas-input="true"
+      onPointerDown={event => {
+        stopCanvasInputGesture(event);
+        onPointerDown?.(event);
+      }}
+      onTouchStart={event => {
+        stopCanvasInputGesture(event);
+        onTouchStart?.(event);
+      }}
+      style={{ touchAction: 'manipulation', WebkitUserSelect: 'text', userSelect: 'text', ...style }}
+      {...props}/>
   );
 }
 
@@ -1138,13 +1165,18 @@ function UserSticker({ sticker, editable, selected, onSelect, onUpdate, onDelete
   }
   function onPointerMove(e) {
     if (!drag.current) return;
+    e.stopPropagation();
+    e.preventDefault();
     const { sx, sy, ox, oy, rect } = drag.current;
     drag.current.moved = true;
     const nx = Math.max(0, Math.min(rect.width  - sticker.size, ox + e.clientX - sx));
     const ny = Math.max(0, Math.min(rect.height - sticker.size, oy + e.clientY - sy));
     onUpdate({ ...sticker, x: nx, y: ny });
   }
-  function onPointerUp() {
+  function onPointerUp(e) {
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
+    if (e?.pointerId != null) ref.current?.releasePointerCapture?.(e.pointerId);
     if (drag.current && !drag.current.moved) onSelect(sticker.id);
     drag.current = null;
   }
@@ -1152,11 +1184,15 @@ function UserSticker({ sticker, editable, selected, onSelect, onUpdate, onDelete
   return (
     <div
       ref={ref}
+      data-lms-canvas-sticker="true"
       className={cx(noteCanvasUi.userSticker, selected && editable && noteCanvasUi.userStickerSelected)}
       style={{ left: sticker.x, top: sticker.y, width: sticker.size, height: sticker.size,
                fontSize: sticker.size * 0.72, transform: `rotate(${sticker.rotation || 0}deg)`,
-               cursor: editable ? 'grab' : 'default' }}
-      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
+               cursor: editable ? 'grab' : 'default',
+               touchAction: 'none',
+               WebkitUserSelect: 'none',
+               userSelect: 'none' }}
+      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
     >
       {emoji}
       {selected && editable && (
@@ -1573,7 +1609,7 @@ function SectionInlineImage({ image, editable, onChange, onAddRequest, onOpenIma
   );
 }
 
-function MasonryItem({ children, span = 'half', columns = 2, editable = false, index, draggingIndex, onDragStart, onDragOver, onDrop, onDragEnd }) {
+function MasonryItem({ children, span = 'half', columns = 2, editable = false, dragEnabled = editable, index, draggingIndex, onDragStart, onDragOver, onDrop, onDragEnd }) {
   const ref = useRef(null);
   const [rowSpan, setRowSpan] = useState(1);
 
@@ -1624,19 +1660,20 @@ function MasonryItem({ children, span = 'half', columns = 2, editable = false, i
     <div
       ref={ref}
       className="ncv-item"
-      draggable={editable}
-      onDragStart={e => onDragStart?.(e, index)}
-      onDragOver={e => onDragOver?.(e, index)}
-      onDrop={e => onDrop?.(e, index)}
-      onDragEnd={onDragEnd}
-      title={editable ? 'Drag card to move it' : undefined}
+      draggable={dragEnabled}
+      onDragStart={dragEnabled ? e => onDragStart?.(e, index) : undefined}
+      onDragOver={dragEnabled ? e => onDragOver?.(e, index) : undefined}
+      onDrop={dragEnabled ? e => onDrop?.(e, index) : undefined}
+      onDragEnd={dragEnabled ? onDragEnd : undefined}
+      title={dragEnabled ? 'Drag card to move it' : undefined}
       style={{
         gridColumn: colSpan,
         gridRowEnd: `span ${rowSpan}`,
         alignSelf: 'start',
         minWidth: 0,
-        cursor: editable ? 'grab' : undefined,
+        cursor: dragEnabled ? 'grab' : undefined,
         opacity: draggingIndex === index ? 0.45 : undefined,
+        touchAction: editable && !dragEnabled ? 'manipulation' : undefined,
       }}
     >
       {children}
@@ -2248,7 +2285,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   } : {};
 
   return (
-    <div className={noteCanvasUi.wrapOuter}>
+    <div className={cx(noteCanvasUi.wrapOuter, 'lms-ai-canvas-editor', editable && 'is-editable')}>
 
       <input className="shrink-0" ref={addImgRef}     type="file" accept="image/*" style={{ display:'none' }} onChange={handleAddImage}/>
       <input className="shrink-0" ref={replaceImgRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleReplaceImage}/>
@@ -2279,7 +2316,8 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
 
       <div
         ref={setRefs}
-        className={cx(noteCanvasUi.canvas, editable && noteCanvasUi.editable, focusMode && 'focus-canvas')}
+        className={cx(noteCanvasUi.canvas, 'lms-ai-canvas-surface', editable && noteCanvasUi.editable, focusMode && 'focus-canvas')}
+        data-lms-note-canvas="true"
         style={canvasStyle}
         onClick={handleCanvasClick}
       >
@@ -2360,6 +2398,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     span={section.span || 'half'}
                     columns={columnCount}
                     editable={editable}
+                    dragEnabled={editable && !isMobileCanvas}
                     index={i}
                     draggingIndex={draggingIndex}
                     onDragStart={handleCardDragStart}
@@ -2390,6 +2429,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                     span={section.span || 'full'}
                     columns={columnCount}
                     editable={editable}
+                    dragEnabled={editable && !isMobileCanvas}
                     index={i}
                     draggingIndex={draggingIndex}
                     onDragStart={handleCardDragStart}
@@ -2419,6 +2459,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                   span={!editable && i === firstTextSectionIndex ? 'full' : section.span || 'half'}
                   columns={columnCount}
                   editable={editable}
+                  dragEnabled={editable && !isMobileCanvas}
                   index={i}
                   draggingIndex={draggingIndex}
                   onDragStart={handleCardDragStart}

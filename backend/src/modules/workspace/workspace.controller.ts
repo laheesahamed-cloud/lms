@@ -106,29 +106,4 @@ export class WorkspaceController {
     return this.workspaceService.updateQuestionReport(authorization, id, body);
   }
 
-  @Get('lesson-doubts')
-  listStudentDoubts(@Headers('authorization') authorization?: string) {
-    return this.workspaceService.listStudentDoubts(authorization);
-  }
-
-  @Post('lesson-doubts')
-  createDoubt(@Headers('authorization') authorization: string | undefined, @Body() body: any) {
-    return this.workspaceService.createDoubt(authorization, body);
-  }
-
-  @Get('lesson-doubts/admin')
-  @RequirePermissions('support.manage')
-  listAdminDoubts(@Headers('authorization') authorization?: string, @Query('status') status?: string) {
-    return this.workspaceService.listAdminDoubts(authorization, status);
-  }
-
-  @Patch('lesson-doubts/admin/:id')
-  @RequirePermissions('support.manage')
-  answerDoubt(
-    @Headers('authorization') authorization: string | undefined,
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: any
-  ) {
-    return this.workspaceService.answerDoubt(authorization, id, body);
-  }
 }

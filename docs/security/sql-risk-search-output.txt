@@ -286,7 +286,6 @@ backend/src/main.ts:215:      return `/api/ai-notes/admin${restPath}`;
 backend/src/main.ts:217:    if (resource === 'announcements') return `/api/announcements/admin${restPath}`;
 backend/src/main.ts:218:    if (resource === 'reports') return `/api/reports/admin${restPath}`;
 backend/src/main.ts:219:    if (resource === 'question-review') return `/api/question-review/admin${restPath}`;
-backend/src/main.ts:220:    if (resource === 'lesson-doubts') return `/api/lesson-doubts/admin${restPath}`;
 backend/src/main.ts:221:    if (resource === 'push') return `/api/push/admin${restPath}`;
 backend/src/main.ts:224:      if (rest[0] === 'requests' && rest[2] === 'resolve') return `/api/subscriptions/requests/${rest[1]}/resolve`;
 backend/src/main.ts:226:        return `/api/subscriptions/${rest[0]}/${rest[1]}`;
@@ -308,7 +307,6 @@ backend/src/main.ts:269:      return `/api/subscriptions${restPath}`;
 backend/src/main.ts:271:    if (resource === 'bookmarks') return `/api/study-bookmarks${restPath}`;
 backend/src/main.ts:272:    if (resource === 'notifications') return `/api/notifications${restPath}`;
 backend/src/main.ts:273:    if (resource === 'planner') return `/api/study-planner${restPath}`;
-backend/src/main.ts:274:    if (resource === 'doubts') return `/api/lesson-doubts${restPath}`;
 backend/src/main.ts:275:    if (resource === 'push') return `/api/push${restPath}`;
 backend/src/main.ts:276:    if (resource === 'theory-recap') return `/api/theory-recap${restPath}`;
 backend/src/main.ts:286:  req.url = `${targetPath}${query}`;
@@ -644,8 +642,6 @@ backend/src/modules/workspace/workspace.service.ts:110:        ORDER BY a.create
 backend/src/modules/workspace/workspace.service.ts:130:       ORDER BY answered_at DESC
 backend/src/modules/workspace/workspace.service.ts:139:       ORDER BY us.updated_at DESC, us.id DESC
 backend/src/modules/workspace/workspace.service.ts:152:       ORDER BY average_percentage ASC, latest_at DESC
-backend/src/modules/workspace/workspace.service.ts:159:        id: `doubt-${row.id}`,
-backend/src/modules/workspace/workspace.service.ts:161:        title: `Reply: ${String(row.subject || 'Your doubt')}`,
 backend/src/modules/workspace/workspace.service.ts:170:          id: `subscription-${String(row.status)}-${String(row.updated_at)}`,
 backend/src/modules/workspace/workspace.service.ts:172:          title: `${String(row.plan_name || 'Subscription')} ${String(row.status || 'updated')}`,
 backend/src/modules/workspace/workspace.service.ts:173:          body: `Payment: ${this.formatPaymentStatusLabel(row.payment_status)}${!isFreePlan && row.end_date ? ` · Valid until ${String(row.end_date).slice(0, 10)}` : ''}`,
@@ -679,7 +675,6 @@ backend/src/modules/workspace/workspace.service.ts:518:        WHERE ${subscript
 backend/src/modules/workspace/workspace.service.ts:524:        WHERE ${paymentStatusWhere.join(' AND ')}
 backend/src/modules/workspace/workspace.service.ts:644:        ORDER BY FIELD(qri.status, 'draft', 'reviewing', 'rejected', 'approved'), qri.created_at DESC
 backend/src/modules/workspace/workspace.service.ts:670:    await this.db.execute(
-backend/src/modules/workspace/workspace.service.ts:684:      `SELECT d.*, l.lesson_title FROM lesson_doubts d LEFT JOIN lessons l ON l.id = d.lesson_id WHERE d.user_id = ? ORDER BY d.created_at DESC LIMIT 100`,
 backend/src/modules/workspace/workspace.service.ts:721:        ORDER BY FIELD(d.status, 'open', 'answered', 'closed'), d.created_at DESC
 backend/src/modules/workspace/workspace.service.ts:735:    await this.db.execute(
 backend/src/modules/workspace/workspace.service.ts:757:      where.push(`DATE(${safeColumn}) >= ?`);

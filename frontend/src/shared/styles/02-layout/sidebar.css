@@ -1,3 +1,10 @@
+.app-shell {
+  --lms-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --lms-ease-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
+  --lms-sidebar-duration: 380ms;
+  --lms-dropdown-duration: 220ms;
+}
+
 .lms-sidebar-brand {
   display: flex !important;
   flex-direction: row !important;
@@ -19,13 +26,53 @@
 }
 
 @media (min-width: 901px) {
-  .lms-sidebar--admin-model.is-collapsed :where(
+  .lms-sidebar--admin-model :where(
     .lms-sidebar-wordmark,
     .lms-sidebar-section-label,
     .lms-sidebar-link-text,
     .lms-sidebar-tooltip
   ) {
-    display: none !important;
+    transition:
+      opacity 220ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
+  }
+
+  .lms-sidebar--admin-model .lms-sidebar-wordmark,
+  .lms-sidebar--admin-model .lms-sidebar-link-text {
+    max-width: 150px;
+  }
+
+  .lms-sidebar--admin-model.is-collapsed :where(
+    .lms-sidebar-wordmark,
+    .lms-sidebar-section-label,
+    .lms-sidebar-link-text
+  ) {
+    max-width: 0;
+    opacity: 0;
+    transform: translate3d(-6px, 0, 0);
+    pointer-events: none;
+  }
+}
+
+@media (min-width: 901px) {
+  .app-shell:not(.mobile-top-nav-mode) .main-content {
+    transition:
+      transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
+    contain: paint;
+    will-change: transform;
+  }
+
+  .app-shell:not(.mobile-top-nav-mode) .lms-sidebar:not(.is-overlay-nav) {
+    transition-duration: var(--lms-sidebar-duration, 380ms) !important;
+    transition-timing-function: var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
+    backface-visibility: hidden;
+    contain: layout paint;
+    transform: translate3d(0, 0, 0);
+    will-change: transform, opacity;
+  }
+
+  .app-shell:not(.mobile-top-nav-mode) .lms-sidebar:not(.is-overlay-nav).is-collapsed {
+    opacity: 0.985;
   }
 }
 
@@ -41,6 +88,15 @@
   -webkit-backdrop-filter: blur(8px) saturate(112%);
   backdrop-filter: blur(8px) saturate(112%);
   animation: lmsSidebarOverlayIn 180ms var(--ease-out, ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .main-content,
+  .app-shell .lms-sidebar {
+    transition: none !important;
+    animation: none !important;
+    will-change: auto !important;
+  }
 }
 
 :root[data-theme="dark"] .lms-sidebar-overlay {

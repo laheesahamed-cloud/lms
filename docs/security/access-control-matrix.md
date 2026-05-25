@@ -30,7 +30,6 @@ This backend is deny-by-default for private data: routes either remain intention
 | `GET/POST /api/quiz-attempts*`, `GET /api/results*` | Active student | Attempts, results, practice sessions, and reviews are scoped to current `user_id`. |
 | `GET/POST /api/study-bookmarks*` | Active student | Bookmark list/toggle is scoped to current `user_id`. |
 | `GET/POST/PATCH/DELETE /api/study-planner*` | Active student | Planner task queries include current `user_id`. |
-| `GET/POST /api/lesson-doubts` | Active student | Doubts are listed/created for current `user_id`. |
 | `GET/POST /api/subscriptions/me`, `/request`, `/payhere/initiate`, `/manual-payment/request` | Active student | Billing and requests use current student id only. |
 | `GET/PUT/POST/DELETE /api/push/settings`, `/subscribe`, `/native-token` | Authenticated user | Push preferences and tokens are scoped to current user/device. |
 
@@ -50,7 +49,6 @@ This backend is deny-by-default for private data: routes either remain intention
 | `ai.manage` | AI generation endpoints | `admin`, `content_editor` |
 | `notifications.manage` | Announcement and push-notification admin sends/status | `admin`, `support` |
 | `reports.view` | Admin dashboard/reports | `admin`, `content_editor`, `reviewer`, `tutor`, `finance`, `support` |
-| `support.manage` | Admin doubt support queue/replies | `admin`, `tutor`, `support` |
 
 ## Regression coverage
 

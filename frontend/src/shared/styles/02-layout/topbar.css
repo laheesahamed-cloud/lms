@@ -15,3 +15,7 @@
   margin: auto;
   flex: 0 0 auto;
 }
+
+.mobile-top-nav-mode :where(.lms-topbar, .study-hub-topbar) .lms-topbar-menu-button {
+  display: inline-flex !important;
+}

@@ -62,5 +62,3 @@ Date: 2026-05-23
 | `/api/study-planner*` | GET/POST/PATCH/DELETE | Service student auth | Student | `user_id = ?` on tasks | `security.e2e.ts` | None known |
 | `/api/reports/admin` | GET | Global `PermissionGuard`, service admin auth | `reports.view` | Admin report scope | `security.e2e.ts` | Dynamic filters reviewed with allow-listed columns |
 | `/api/question-review/admin*` | GET/POST/PATCH | Global `PermissionGuard`, service admin auth | `content.review` | Admin review scope | `security.e2e.ts` | None known |
-| `/api/lesson-doubts` | GET/POST | Service student auth | Student | `d.user_id = ?` for list/create | `security.e2e.ts` | Student update/delete routes do not exist; admin answer remains permission-gated |
-| `/api/lesson-doubts/admin*` | GET/PATCH | Global `PermissionGuard`, service admin auth | `support.manage` | Admin support scope | `security.e2e.ts` | None known |

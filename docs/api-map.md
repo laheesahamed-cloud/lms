@@ -79,7 +79,6 @@ This is a compact map of the API. Use it to find which backend module owns a fai
 | GET | `/api/reports/admin` | `WorkspaceController` |
 | GET/POST/PATCH | `/api/question-review/admin` | `WorkspaceController` |
 | GET/POST/PATCH/DELETE | `/api/announcements/admin` | `WorkspaceController` |
-| GET/PATCH | `/api/lesson-doubts/admin` | `WorkspaceController` |
 | GET/PUT | `/api/settings/*` | `SettingsController` |
 | GET | `/api/setup` | `SetupController` |
 
@@ -106,7 +105,6 @@ This is a compact map of the API. Use it to find which backend module owns a fai
 | GET | `/api/notifications` | `WorkspaceController` |
 | POST | `/api/notifications/:id/read` | `WorkspaceController` |
 | GET/POST/PATCH/DELETE | `/api/study-planner` | `WorkspaceController` |
-| GET/POST | `/api/lesson-doubts` | `WorkspaceController` |
 | GET/PUT/POST/DELETE | `/api/theory-recap/*` | `TheoryRecapController` |
 
 ## Push
@@ -118,4 +116,3 @@ This is a compact map of the API. Use it to find which backend module owns a fai
 | POST/DELETE | `/api/push/subscribe` | `PushNotificationsController` |
 | POST/DELETE | `/api/push/native-token` | `PushNotificationsController` |
 | POST | `/api/push/admin/send` | `PushNotificationsController` |
-

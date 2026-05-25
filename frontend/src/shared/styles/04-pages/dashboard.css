@@ -1862,7 +1862,10 @@
     padding-bottom 220ms var(--sa-ease);
 }
 
-.study-question-card .study-card__head { display: none; }
+.study-question-card .study-card__head {
+  display: flex;
+  margin-bottom: 12px;
+}
 
 .study-question-card.is-collapsed {
   max-height: none;
@@ -2552,64 +2555,6 @@
   .study-answer-option {
     transition: none;
   }
-}
-
-/* ============================================================
-   VIOLET ACCENT — repaint hardcoded cyan dashboard accents
-   when <html data-student-accent="violet">.
-   ============================================================ */
-:root[data-student-accent="violet"] .study-continue-card {
-  border-color: rgba(139, 92, 246, 0.16);
-  box-shadow: none;
-}
-
-:root[data-student-accent="violet"] .study-hero-soft-shape {
-  background: radial-gradient(
-    circle at center,
-    rgba(139, 92, 246, 0.18) 0%,
-    rgba(99, 102, 241, 0.1) 55%,
-    transparent 75%
-  );
-}
-
-:root[data-student-accent="violet"] .study-hero-mascot-random::before {
-  background:
-    radial-gradient(circle at 48% 48%, rgba(139, 92, 246, 0.24), transparent 58%),
-    radial-gradient(circle at 60% 44%, rgba(56, 189, 248, 0.16), transparent 68%);
-}
-
-:root[data-student-accent="violet"] .study-hero-name strong {
-  background: linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-:root[data-student-accent="violet"] .study-readiness-card {
-  border-color: rgba(139,92,246,.2);
-  background: linear-gradient(140deg,#1a1240 0%,#14123a 60%,#0e0c2b 100%);
-  box-shadow:
-    0 0 0 1px rgba(139,92,246,.08),
-    0 18px 40px -14px rgba(4,8,24,.45);
-}
-
-:root[data-student-accent="violet"] .study-readiness-glow--one {
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.22), transparent 65%);
-}
-:root[data-student-accent="violet"] .study-readiness-glow--two {
-  background: radial-gradient(circle, rgba(108, 131, 255, 0.2), transparent 65%);
-}
-
-:root[data-student-accent="violet"] .study-large-rail span {
-  background: linear-gradient(90deg, #6c83ff, #a78bfa);
-}
-
-:root[data-student-accent="violet"] .study-action-card:nth-child(2) > span {
-  background: rgba(108, 131, 255, 0.16);
-  color: #6c83ff;
-}
-:root[data-student-accent="violet"] .study-action-card:nth-child(2) em {
-  color: #6c83ff;
 }
 
 /* ============================================================
@@ -3667,7 +3612,6 @@ body.study-hub-screen :where(.app-shell, .portal-shell, .portal-content, .portal
 
 .study-hub-page .study-readiness-stack,
 .study-hub-page .study-mood-card,
-.study-hub-page .study-section-head--question,
 .study-hub-page .study-question-card {
   margin-top: 18px;
 }

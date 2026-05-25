@@ -158,6 +158,9 @@ function financePaymentAmount(subscription) {
 }
 
 function formatCouponDiscount(coupon) {
+  if (coupon.couponMode === 'package') {
+    return 'Package only';
+  }
   return coupon.discountType === 'percent'
     ? `${coupon.discountValue}%`
     : formatCurrency(PAYMENT_CURRENCY, coupon.discountValue || 0);
@@ -726,7 +729,7 @@ export function AdminFinancePage() {
                   <div className={financeUi.rowMain}>
                     <strong>{request.invoiceId ? `Invoice #${request.invoiceId}` : `Request #${request.id}`}</strong>
                     <span>{getAdminUserIdentifier(request, 'Student')} - {request.planName || 'Subscription'}</span>
-                    <span>{request.paymentProofDataUrl ? 'Payment proof uploaded' : request.paymentReference || 'Awaiting finance details'}</span>
+                    <span>{request.couponCode ? `Coupon ${request.couponCode} applied` : request.paymentProofDataUrl ? 'Payment proof uploaded' : request.paymentReference || 'Awaiting finance details'}</span>
                   </div>
                   <div className={financeUi.rowStat}>
                     <strong>{formatCurrency(request.paymentCurrency || request.planCurrency || PAYMENT_CURRENCY, request.paymentAmount ?? request.planEffectivePrice ?? 0)}</strong>
@@ -817,7 +820,7 @@ export function AdminFinancePage() {
                 <div className={financeUi.row} key={coupon.id}>
                   <div className={financeUi.rowMain}>
                     <strong>{coupon.code}</strong>
-                    <span>{coupon.label || (coupon.discountType === 'percent' ? `${coupon.discountValue}% off` : `${formatCurrency(PAYMENT_CURRENCY, coupon.discountValue || 0)} off`)}</span>
+                    <span>{coupon.label || (coupon.couponMode === 'package' ? 'Package-only coupon' : `${formatCouponDiscount(coupon)} off`)}</span>
                   </div>
                   <div className={financeUi.rowStat}>
                     <strong>{coupon.redemptionCount}{coupon.maxRedemptions ? ` / ${coupon.maxRedemptions}` : ''}</strong>

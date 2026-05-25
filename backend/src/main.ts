@@ -220,7 +220,6 @@ function rewriteApiBoundary(path: string, method: string) {
     if (resource === 'announcements') return `/api/announcements/admin${restPath}`;
     if (resource === 'reports') return `/api/reports/admin${restPath}`;
     if (resource === 'question-reports') return `/api/question-reports/admin${restPath}`;
-    if (resource === 'lesson-doubts') return `/api/lesson-doubts/admin${restPath}`;
     if (resource === 'push') return `/api/push/admin${restPath}`;
     if (resource === 'subscriptions') {
       if (rest[0] === 'assign') return '/api/subscriptions/assign';
@@ -274,7 +273,6 @@ function rewriteApiBoundary(path: string, method: string) {
     if (resource === 'bookmarks') return `/api/study-bookmarks${restPath}`;
     if (resource === 'notifications') return `/api/notifications${restPath}`;
     if (resource === 'planner') return `/api/study-planner${restPath}`;
-    if (resource === 'doubts') return `/api/lesson-doubts${restPath}`;
     if (resource === 'question-reports') return `/api/question-reports${restPath}`;
     if (resource === 'push') return `/api/push${restPath}`;
     if (resource === 'theory-recap') return `/api/theory-recap${restPath}`;

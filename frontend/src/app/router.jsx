@@ -56,7 +56,6 @@ const AdminSettingsPage = lazyNamed(() => import('../surfaces/admin/pages/settin
 const AdminSetupPage = lazyNamed(() => import('../surfaces/admin/pages/setup/AdminSetupPage.jsx'), 'AdminSetupPage');
 const AdminAnnouncementsPage = lazyNamed(() => import('../surfaces/admin/pages/announcements/AdminAnnouncementsPage.jsx'), 'AdminAnnouncementsPage');
 const AdminReportsPage = lazyNamed(() => import('../surfaces/admin/pages/reports/AdminReportsPage.jsx'), 'AdminReportsPage');
-const AdminDoubtsPage = lazyNamed(() => import('../surfaces/admin/pages/doubts/AdminDoubtsPage.jsx'), 'AdminDoubtsPage');
 const StudentDashboardPage = lazyNamed(() => import('../surfaces/app/student/dashboard/StudentDashboardPage.jsx'), 'StudentDashboardPage');
 const StudentCoursesPage = lazyNamed(() => import('../surfaces/app/student/courses/StudentCoursesPage.jsx'), 'StudentCoursesPage');
 const CourseDetailPage = lazyNamed(() => import('../surfaces/app/student/courses/CourseDetailPage.jsx'), 'CourseDetailPage');
@@ -65,7 +64,6 @@ const StudentCheckoutPage = lazyNamed(() => import('../surfaces/app/student/bill
 const BookmarksPage = lazyNamed(() => import('../surfaces/app/student/bookmarks/BookmarksPage.jsx'), 'BookmarksPage');
 const StudentNotificationsPage = lazyNamed(() => import('../surfaces/app/student/notifications/StudentNotificationsPage.jsx'), 'StudentNotificationsPage');
 const StudyPlannerPage = lazyNamed(() => import('../surfaces/app/student/planner/StudyPlannerPage.jsx'), 'StudyPlannerPage');
-const StudentDoubtsPage = lazyNamed(() => import('../surfaces/app/student/doubts/StudentDoubtsPage.jsx'), 'StudentDoubtsPage');
 const StudentFlashcardsPage = lazyNamed(() => import('../surfaces/app/student/flashcards/StudentFlashcardsPage.jsx'), 'StudentFlashcardsPage');
 const StudentNotesPage = lazyNamed(() => import('../surfaces/app/student/notes/StudentNotesPage.jsx'), 'StudentNotesPage');
 const AiNotesPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
@@ -112,7 +110,6 @@ const roleRoutePreloaders = {
     ['/users', UsersPage.preload],
     ['/announcements', AdminAnnouncementsPage.preload],
     ['/reports', AdminReportsPage.preload],
-    ['/doubts', AdminDoubtsPage.preload],
     ['/setup', AdminSetupPage.preload],
     ['/settings', AdminSettingsPage.preload],
   ]),
@@ -121,7 +118,6 @@ const roleRoutePreloaders = {
     ['/courses', StudentCoursesPage.preload],
     ['/notifications', StudentNotificationsPage.preload],
     ['/planner', StudyPlannerPage.preload],
-    ['/doubts', StudentDoubtsPage.preload],
     ['/ai-notes', AiNotesListPage.preload],
     ['/flashcards', StudentFlashcardsPage.preload],
     ['/quizzes', StudentQuizzesPage.preload],
@@ -405,14 +401,6 @@ const adminPanelRoutes = [
     ),
   },
   {
-    path: 'doubts',
-    element: withSuspense(
-      <ProtectedRoute role="admin" requiredPermissions={['support.manage']}>
-        <AdminDoubtsPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
     path: 'setup',
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
@@ -502,10 +490,6 @@ const studentPanelRoutes = [
   {
     path: 'planner',
     element: withSuspense(<StudyPlannerPage />),
-  },
-  {
-    path: 'doubts',
-    element: withSuspense(<StudentDoubtsPage />),
   },
   {
     path: 'flashcards',
@@ -900,18 +884,6 @@ export const router = createBrowserRouter([
             element: (
               <ProtectedRoute role="student">
                 {withSuspense(<StudyPlannerPage />)}
-              </ProtectedRoute>
-            ),
-          },
-          {
-            path: 'doubts',
-            element: (
-              <ProtectedRoute>
-                <RoleSwitch
-                  admin={withSuspense(<AdminDoubtsPage />)}
-                  student={withSuspense(<StudentDoubtsPage />)}
-                  adminPermissions={['support.manage']}
-                />
               </ProtectedRoute>
             ),
           },

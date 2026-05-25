@@ -1,0 +1,763 @@
+/* ============================================================
+   Launch responsive guard
+   Final-pass invariants for safe areas, shell gutters, and dead-space
+   cleanup across student/admin routes before production builds.
+   ============================================================ */
+
+:root {
+  --lms-safe-top: env(safe-area-inset-top, 0px);
+  --lms-safe-right: env(safe-area-inset-right, 0px);
+  --lms-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --lms-safe-left: env(safe-area-inset-left, 0px);
+  --lms-motion-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --lms-motion-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
+  --lms-sidebar-motion: 400ms var(--lms-motion-soft);
+  --lms-popover-motion: 220ms var(--lms-motion-soft);
+  --lms-popover-exit-motion: 190ms var(--lms-motion-soft-exit);
+  --lms-live-gutter-x: clamp(12px, 2.2vw, 28px);
+  --lms-live-gutter-y: clamp(12px, 1.8vw, 24px);
+  --lms-live-mobile-gutter-x: max(12px, var(--lms-safe-left), var(--lms-safe-right));
+  --lms-live-card-radius: clamp(16px, 3vw, 22px);
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 100%;
+  overflow-x: hidden !important;
+  background: var(--app-bg, var(--page-background, #dce6f4));
+}
+
+body {
+  margin: 0;
+  touch-action: pan-y;
+}
+
+.lms-app-scroll-root,
+.app-shell,
+.portal-shell,
+.main-content,
+.portal-content,
+.portal-content__frame,
+.lms-route-page {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: clip !important;
+  background: var(--app-bg, var(--page-background, #dce6f4));
+}
+
+@supports not (overflow: clip) {
+  .lms-app-scroll-root,
+  .app-shell,
+  .portal-shell,
+  .main-content,
+  .portal-content,
+  .portal-content__frame,
+  .lms-route-page {
+    overflow-x: hidden !important;
+  }
+}
+
+.app-shell,
+.main-content,
+.portal-content__frame {
+  min-height: 100dvh;
+}
+
+.app-shell {
+  --lms-ease-soft: var(--lms-motion-soft);
+  --lms-ease-soft-exit: var(--lms-motion-soft-exit);
+  --lms-sidebar-duration: 400ms;
+  --lms-dropdown-duration: 220ms;
+}
+
+.portal-content__frame {
+  width: 100%;
+}
+
+.app-safe-top-spacer {
+  height: 0 !important;
+  min-height: 0 !important;
+  flex-basis: 0 !important;
+}
+
+@media (min-width: 901px) {
+  .app-shell > .main-content {
+    transition:
+      transform var(--lms-sidebar-motion),
+      background-color 160ms ease-out !important;
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    contain: paint;
+    will-change: transform;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav) {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+    transition:
+      width var(--lms-sidebar-motion),
+      transform var(--lms-sidebar-motion),
+      opacity 240ms var(--lms-motion-soft),
+      border-color 180ms ease-out,
+      background-color 180ms ease-out !important;
+    backface-visibility: hidden;
+    contain: layout paint;
+    will-change: transform, opacity;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed {
+    transform: translate3d(-2px, 0, 0) scale(0.995);
+    opacity: 0.995;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav) :where(
+    .lms-sidebar-wordmark,
+    .lms-sidebar-section-label,
+    .lms-sidebar-link-text,
+    .lms-sidebar-link-arrow,
+    .lms-sidebar-student-copy
+  ) {
+    overflow: hidden;
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    transition:
+      opacity 180ms var(--lms-motion-soft),
+      transform 320ms var(--lms-motion-soft) !important;
+    will-change: opacity, transform;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-wordmark {
+    display: grid !important;
+    max-width: 150px;
+    max-height: 48px;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-link-text {
+    display: block !important;
+    max-width: 150px;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-link-arrow {
+    display: flex !important;
+    max-width: 18px;
+  }
+
+  .lms-sidebar--admin-model:not(.is-overlay-nav) .lms-sidebar-section-label {
+    display: block !important;
+    max-height: 24px;
+    overflow: hidden;
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    transition:
+      opacity 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-student-footer {
+    max-height: 82px;
+    overflow: hidden;
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    transition:
+      opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .app-shell.sidebar-collapsed:not(.mobile-top-nav-mode):not(.compact-focus-mode):not(.sidebar-hidden) > .main-content {
+    transform: translate3d(calc(var(--sidebar-w-collapsed, 68px) - var(--sidebar-w, 224px)), 0, 0);
+  }
+
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed :where(
+    .lms-sidebar-wordmark,
+    .lms-sidebar-section-label,
+    .lms-sidebar-link-text,
+    .lms-sidebar-link-arrow,
+    .lms-sidebar-student-copy
+  ) {
+    max-width: 0 !important;
+    opacity: 0 !important;
+    transform: translate3d(-8px, 0, 0);
+    pointer-events: none;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-link {
+    gap: 0 !important;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-wordmark {
+    max-height: 0 !important;
+  }
+
+  .lms-sidebar--admin-model:not(.is-overlay-nav).is-collapsed .lms-sidebar-section-label {
+    max-height: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    opacity: 0 !important;
+    transform: translate3d(-6px, 0, 0);
+    pointer-events: none;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-student-footer {
+    max-height: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border-top-color: transparent !important;
+    opacity: 0 !important;
+    transform: translate3d(-6px, 0, 0);
+    pointer-events: none;
+  }
+}
+
+@media (min-width: 901px) and (prefers-reduced-motion: reduce) {
+  .app-shell > .main-content,
+  .lms-sidebar:not(.is-overlay-nav),
+  .lms-sidebar:not(.is-overlay-nav) :where(
+    .lms-sidebar-wordmark,
+    .lms-sidebar-section-label,
+    .lms-sidebar-link-text,
+    .lms-sidebar-link-arrow,
+    .lms-sidebar-student-footer,
+    .lms-sidebar-student-copy
+  ) {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    will-change: auto !important;
+  }
+}
+
+/* Avatar/profile popover: one smooth portal animation, no duplicated blur layer. */
+body.lms-profile-menu-open :where(.app-shell)::after,
+body.lms-profile-menu-closing :where(.app-shell)::after {
+  content: none !important;
+  animation: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+body.lms-profile-menu-open :where(.lms-sidebar),
+body.lms-profile-menu-closing :where(.lms-sidebar) {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+.lms-profile-menu-backdrop {
+  z-index: 10055 !important;
+  background: var(--lms-profile-menu-backdrop-bg, rgba(12, 24, 48, 0.14)) !important;
+  animation: lmsProfileBackdropSmoothIn var(--lms-popover-motion) both !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  will-change: opacity;
+}
+
+.lms-profile-menu-backdrop.is-closing {
+  pointer-events: none !important;
+  animation: lmsProfileBackdropSmoothOut var(--lms-popover-exit-motion) both !important;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu {
+  transform-origin: top right !important;
+  animation: lmsProfilePopoverIn var(--lms-popover-motion) both !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  backface-visibility: hidden;
+  contain: layout paint;
+  will-change: opacity, transform;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu.is-closing {
+  pointer-events: none !important;
+  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion) both !important;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu > * {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+body.lms-profile-menu-open > .lms-profile-menu.is-closing > * {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+body.lms-profile-menu-open > .lms-profile-avatar-floating {
+  animation: lmsProfileAvatarSmoothIn 190ms var(--lms-motion-soft) both !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  backface-visibility: hidden;
+  will-change: opacity, transform;
+}
+
+body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
+  animation: lmsProfileAvatarSmoothOut 170ms var(--lms-motion-soft-exit) both !important;
+}
+
+@media (max-width: 520px) {
+  body.lms-profile-menu-open > .lms-profile-menu {
+    transform-origin: top center !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lms-profile-menu-backdrop,
+  body.lms-profile-menu-open > .lms-profile-menu,
+  body.lms-profile-menu-open > .lms-profile-menu > *,
+  body.lms-profile-menu-open > .lms-profile-avatar-floating {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+    will-change: auto !important;
+  }
+}
+
+@keyframes lmsProfilePopoverIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes lmsProfilePopoverOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.98);
+  }
+}
+
+@keyframes lmsProfileAvatarSmoothIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes lmsProfileAvatarSmoothOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.98);
+  }
+}
+
+@keyframes lmsProfileBackdropSmoothIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lmsProfileBackdropSmoothOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.student-app-shell {
+  --sa-page-width-mobile: min(390px, calc(100vw - 24px));
+  --sa-page-width-compact: min(390px, calc(100vw - 18px));
+  --sa-page-width-tablet: min(760px, calc(100vw - 32px));
+  --sa-page-width-desktop: min(1180px, calc(100% - 48px));
+  --sa-page-padding-top: max(var(--lms-live-gutter-y), var(--lms-safe-top));
+  --sa-page-padding-bottom: calc(var(--lms-mobile-content-bottom, 92px) + 10px + var(--lms-safe-bottom));
+}
+
+@media (min-width: 901px) {
+  .student-app-shell {
+    --sa-page-padding-top: var(--sidebar-float-gap, 16px);
+    --sa-page-padding-bottom: clamp(24px, 3vw, 40px);
+  }
+
+  .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode):not(:has(:is(.lms-exam-page, .practice-review-page, .lms-review-page, .student-notes-page))) {
+    --sidebar-w: 212px;
+    --sidebar-shell-gap: clamp(24px, 2.4vw, 36px);
+    --sa-page-width-desktop: min(1080px, calc(100% - 56px));
+  }
+
+  .student-app-shell:not(.compact-focus-mode) .main-content {
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w, 224px) + var(--sidebar-shell-gap, 16px)) !important;
+    padding-right: var(--lms-live-gutter-x) !important;
+  }
+
+  .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode):not(:has(:is(.lms-exam-page, .practice-review-page, .lms-review-page, .student-notes-page))) .main-content {
+    padding-right: clamp(18px, 2vw, 32px) !important;
+  }
+
+  .student-app-shell.sidebar-collapsed:not(.compact-focus-mode) .main-content {
+    padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w, 224px) + var(--sidebar-shell-gap, 16px)) !important;
+    transform: translate3d(calc(var(--sidebar-w-collapsed, 68px) - var(--sidebar-w, 224px)), 0, 0) !important;
+  }
+
+  .student-app-shell .dashboard-page.study-hub-page > .study-hub-shell,
+  .student-app-shell .student-route-page > .study-hub-shell,
+  .student-app-shell .dashboard-page > .study-hub-shell,
+  .student-app-shell .management-layout {
+    width: min(1180px, 100%) !important;
+    max-width: min(1180px, 100%) !important;
+    margin-inline: auto !important;
+  }
+
+  .student-app-shell .dashboard-page.study-hub-page > .study-hub-shell,
+  .student-app-shell .dashboard-page > .study-hub-shell {
+    padding-top: var(--sidebar-float-gap, 16px) !important;
+  }
+
+  .student-app-shell .study-hub-topbar {
+    margin-top: 0 !important;
+  }
+
+  .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode):not(:has(:is(.lms-exam-page, .practice-review-page, .lms-review-page, .student-notes-page))) :where(
+    .dashboard-page.study-hub-page > .study-hub-shell,
+    .student-route-page > .study-hub-shell,
+    .dashboard-page > .study-hub-shell,
+    .management-layout
+  ) {
+    width: min(1080px, 100%) !important;
+    max-width: min(1080px, 100%) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .main-content {
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .student-app-shell .dashboard-page,
+  .student-app-shell .student-route-page,
+  .student-app-shell .lms-route-page {
+    padding-left: max(0px, var(--lms-safe-left)) !important;
+    padding-right: max(0px, var(--lms-safe-right)) !important;
+  }
+
+  .student-app-shell .study-hub-shell,
+  .student-app-shell .management-layout {
+    width: min(100% - 24px, 760px) !important;
+    max-width: min(100% - 24px, 760px) !important;
+    padding-top: max(10px, var(--lms-safe-top)) !important;
+    padding-bottom: calc(var(--lms-mobile-content-bottom, 92px) + 12px + var(--lms-safe-bottom)) !important;
+  }
+
+  .student-app-shell .study-hub-topbar {
+    margin-bottom: 12px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .student-app-shell .study-hub-shell,
+  .student-app-shell .management-layout {
+    width: min(100% - 18px, 390px) !important;
+    max-width: min(100% - 18px, 390px) !important;
+    padding-top: max(8px, var(--lms-safe-top)) !important;
+  }
+
+  .student-app-shell :where(.study-card, .study-continue-card, .study-action-card, .glass-card, .lms-page-header-card, .lms-hero-card, .lms-course-card, .student-course-card, .lms-quiz-card, .lms-review-question-card, .lms-exam-main-card) {
+    border-radius: var(--lms-live-card-radius) !important;
+  }
+}
+
+.admin-app-shell .lms-route-page {
+  padding-left: max(var(--lms-live-gutter-x), var(--lms-safe-left)) !important;
+  padding-right: max(var(--lms-live-gutter-x), var(--lms-safe-right)) !important;
+}
+
+.admin-app-shell .management-layout {
+  width: min(1220px, 100%) !important;
+  max-width: min(1220px, 100%) !important;
+}
+
+@media (max-width: 760px) {
+  .admin-app-shell .lms-route-page {
+    padding-left: max(12px, var(--lms-safe-left)) !important;
+    padding-right: max(12px, var(--lms-safe-right)) !important;
+    padding-bottom: calc(var(--lms-mobile-content-bottom, 92px) + var(--lms-safe-bottom)) !important;
+  }
+}
+
+:where(.glass-card, .lms-table-shell, .lms-page-header-card, .lms-hero-card, .lms-course-card, .student-course-card, .lms-quiz-card, .lms-review-question-card, .lms-exam-main-card) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+:where(.lms-table-shell, .overflow-x-auto, [class*="overflow-x-auto"]) {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  :where(.lms-topbar, .study-hub-topbar) {
+    max-width: 100% !important;
+  }
+
+  :where(.lms-topbar-actions, .study-topbar-actions, .lms-topbar-utility) {
+    min-width: 0 !important;
+  }
+
+  :where(button, a, input, select, textarea, [role="button"]) {
+    scroll-margin-top: calc(var(--lms-safe-top) + 12px);
+  }
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"],
+html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] {
+  --lms-tabbar-safe-bottom: max(var(--lms-safe-bottom), 10px);
+  --lms-mobile-content-bottom: calc(var(--bottom-nav-height, 74px) + 12px);
+}
+
+/* Quiz-taking pages: wider, centered, and padded without going full-bleed. */
+.student-app-shell.quiz-focus-mode .lms-exam-page,
+.student-app-shell.quiz-focus-mode .practice-review-page,
+.student-app-shell.compact-focus-mode .practice-review-page,
+.student-app-shell.compact-focus-mode .lms-review-page {
+  padding-inline: clamp(16px, 3vw, 42px) !important;
+  padding-top: clamp(12px, 1.7vw, 22px) !important;
+  padding-bottom: clamp(22px, 3vw, 40px) !important;
+}
+
+.student-app-shell.quiz-focus-mode .lms-exam-page .lms-exam-layout,
+.student-app-shell.quiz-focus-mode .practice-review-page > .practice-review-shell,
+.student-app-shell.quiz-focus-mode .lms-review-page > .practice-review-shell,
+.student-app-shell.compact-focus-mode .practice-review-page > .practice-review-shell,
+.student-app-shell.compact-focus-mode .lms-review-page > .practice-review-shell {
+  width: min(1560px, 100%) !important;
+  max-width: 1560px !important;
+  margin-inline: auto !important;
+  gap: clamp(16px, 2vw, 24px) !important;
+}
+
+.student-app-shell.quiz-focus-mode .lms-exam-page .lms-exam-grid {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1120px) minmax(220px, 280px) !important;
+  gap: clamp(16px, 2vw, 24px) !important;
+  justify-content: center !important;
+}
+
+.student-app-shell.quiz-focus-mode .lms-review-workspace:not(.lms-review-workspace--focus),
+.student-app-shell.compact-focus-mode .lms-review-workspace:not(.lms-review-workspace--focus) {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1040px) minmax(220px, 280px) !important;
+  gap: clamp(16px, 2vw, 24px) !important;
+  justify-content: center !important;
+}
+
+.student-app-shell.quiz-focus-mode .lms-exam-main-card,
+.student-app-shell.quiz-focus-mode .lms-review-question-card,
+.student-app-shell.compact-focus-mode .lms-review-question-card {
+  padding: clamp(24px, 3vw, 44px) !important;
+}
+
+.student-app-shell.quiz-focus-mode :where(.lms-reading-question) {
+  max-width: 82ch !important;
+}
+
+.student-app-shell.quiz-focus-mode :where(.lms-review-options-grid) {
+  gap: 12px !important;
+}
+
+.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) .lms-answer-card {
+  position: relative;
+  min-width: 0;
+}
+
+.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) .lms-answer-card.is-selected {
+  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 44%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-primary, #2563eb) 8%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-primary, #2563eb) 7%, var(--surface-1, #fff)), color-mix(in srgb, var(--color-primary, #2563eb) 3%, var(--surface-1, #fff))) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-primary, #2563eb) 10%, transparent),
+    0 16px 30px -26px color-mix(in srgb, var(--color-primary, #2563eb) 46%, transparent) !important;
+}
+
+.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) .lms-answer-card.is-selected::before {
+  content: "";
+  position: absolute;
+  inset-block: 12px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(180deg, var(--brand-primary-start, #3b82f6), var(--brand-primary-end, #2563eb));
+}
+
+:root[data-theme="dark"] .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) .lms-answer-card.is-selected {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-primary, #60a5fa) 14%, transparent), transparent 44%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-primary, #60a5fa) 10%, var(--surface-1, #0b1019)), color-mix(in srgb, var(--color-primary, #60a5fa) 5%, var(--surface-1, #0b1019))) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-primary, #60a5fa) 15%, transparent),
+    0 18px 34px -28px color-mix(in srgb, var(--color-primary, #60a5fa) 58%, transparent) !important;
+}
+
+.student-app-shell .lms-assessment-btn {
+  display: inline-flex !important;
+  min-height: 44px !important;
+  min-width: min(112px, 100%) !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border-radius: 14px !important;
+  padding: 0 18px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  text-align: center !important;
+  white-space: normal !important;
+  touch-action: manipulation;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--ease-out, ease-out),
+    border-color 160ms var(--ease-out, ease-out),
+    color 160ms var(--ease-out, ease-out),
+    box-shadow 160ms var(--ease-out, ease-out),
+    transform 160ms var(--ease-out, ease-out) !important;
+}
+
+.student-app-shell .lms-assessment-btn--secondary {
+  border-color: var(--sa-border, var(--line-soft)) !important;
+  background: color-mix(in srgb, var(--surface-card, var(--surface-1)) 88%, transparent) !important;
+  color: var(--sa-ink, var(--ink-strong)) !important;
+  box-shadow: none !important;
+}
+
+.student-app-shell .lms-assessment-btn--primary {
+  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 34%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 13%, var(--surface-card, var(--surface-1))) !important;
+  color: var(--color-primary, #2563eb) !important;
+  box-shadow: 0 10px 22px -18px color-mix(in srgb, var(--color-primary, #2563eb) 56%, transparent) !important;
+}
+
+.student-app-shell .lms-assessment-btn--flagged {
+  border-color: color-mix(in srgb, var(--color-warning, #d97706) 34%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
+  background: color-mix(in srgb, var(--color-warning, #d97706) 12%, var(--surface-card, var(--surface-1))) !important;
+  color: #b45309 !important;
+}
+
+:root[data-theme="dark"] .student-app-shell .lms-assessment-btn--flagged {
+  color: #fbbf24 !important;
+}
+
+.student-app-shell .lms-assessment-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.student-app-shell .lms-assessment-btn--secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 26%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 7%, var(--surface-card, var(--surface-1))) !important;
+  color: var(--color-primary, #2563eb) !important;
+}
+
+.student-app-shell .lms-assessment-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 17%, var(--surface-card, var(--surface-1))) !important;
+}
+
+.student-app-shell .lms-assessment-btn:focus-visible {
+  outline: 0 !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--surface-0, #fff) 90%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--color-primary, #2563eb) 28%, transparent) !important;
+}
+
+.student-app-shell .lms-assessment-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+
+.student-app-shell .lms-assessment-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.52 !important;
+  transform: none !important;
+}
+
+.student-app-shell .lms-review-bubble-legend,
+.student-app-shell .lms-exam-nav-legend {
+  align-items: center !important;
+}
+
+.student-app-shell .lms-review-bubble-legend > span,
+.student-app-shell .lms-exam-nav-legend > span {
+  align-items: center !important;
+  gap: 6px !important;
+  line-height: 1.2 !important;
+}
+
+@media (max-width: 1320px) {
+  .student-app-shell.quiz-focus-mode .lms-exam-page .lms-exam-grid,
+  .student-app-shell.quiz-focus-mode .lms-review-workspace:not(.lms-review-workspace--focus),
+  .student-app-shell.compact-focus-mode .lms-review-workspace:not(.lms-review-workspace--focus) {
+    grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .student-app-shell.quiz-focus-mode .lms-exam-page,
+  .student-app-shell.quiz-focus-mode .practice-review-page,
+  .student-app-shell.compact-focus-mode .practice-review-page,
+  .student-app-shell.compact-focus-mode .lms-review-page {
+    padding-inline: clamp(16px, 3.8vw, 28px) !important;
+  }
+
+  .student-app-shell.quiz-focus-mode .lms-exam-page .lms-exam-grid,
+  .student-app-shell.quiz-focus-mode .lms-review-workspace:not(.lms-review-workspace--focus),
+  .student-app-shell.compact-focus-mode .lms-review-workspace:not(.lms-review-workspace--focus) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .student-app-shell.quiz-focus-mode .lms-exam-page,
+  .student-app-shell.quiz-focus-mode .practice-review-page,
+  .student-app-shell.compact-focus-mode .practice-review-page,
+  .student-app-shell.compact-focus-mode .lms-review-page {
+    padding-inline: max(14px, var(--lms-safe-left), var(--lms-safe-right)) !important;
+    padding-top: max(10px, var(--lms-safe-top)) !important;
+    padding-bottom: calc(var(--lms-mobile-content-bottom, 92px) + 12px + var(--lms-safe-bottom)) !important;
+  }
+
+  .student-app-shell.quiz-focus-mode .lms-exam-main-card,
+  .student-app-shell.quiz-focus-mode .lms-review-question-card,
+  .student-app-shell.compact-focus-mode .lms-review-question-card {
+    padding: 16px !important;
+  }
+
+  .student-app-shell .lms-review-question-nav .lms-assessment-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .student-app-shell.quiz-focus-mode .lms-exam-page,
+  .student-app-shell.quiz-focus-mode .practice-review-page,
+  .student-app-shell.compact-focus-mode .practice-review-page,
+  .student-app-shell.compact-focus-mode .lms-review-page {
+    padding-inline: max(12px, var(--lms-safe-left), var(--lms-safe-right)) !important;
+  }
+}

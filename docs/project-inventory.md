@@ -62,7 +62,7 @@ Plain `/api/` is not a route. Use a specific endpoint such as `/api/health`.
 | AI | Quiz/explanation/theory generation | `backend/src/modules/ai/` |
 | AI Notes | Lesson note/canvas generation and reading | `backend/src/modules/ai-notes/` |
 | Smart Notes | Student smart-note processing | `backend/src/modules/smart-notes/` |
-| Workspace | Announcements, notifications, planner, reports, doubts, question review | `backend/src/modules/workspace/` |
+| Workspace | Announcements, notifications, planner, reports, question review | `backend/src/modules/workspace/` |
 | Push | Web/native push subscription and sending | `backend/src/modules/push-notifications/` |
 | Settings | General, payment, SMTP, AI provider config | `backend/src/modules/settings/` |
 | Setup | Schema/setup diagnostics | `backend/src/modules/setup/` |
@@ -73,7 +73,7 @@ Plain `/api/` is not a route. Use a specific endpoint such as `/api/health`.
 | Surface | Important Pages |
 | --- | --- |
 | Website | `LandingPage`, `LoginPage`, `RegisterPage`, policy pages, AI demo pages |
-| Student | `StudentDashboardPage`, `StudentCoursesPage`, `CourseDetailPage`, `AiNotesPage`, `StudentQuizzesPage`, `TakeQuizPage`, results pages, billing, planner, doubts |
+| Student | `StudentDashboardPage`, `StudentCoursesPage`, `CourseDetailPage`, `AiNotesPage`, `StudentQuizzesPage`, `TakeQuizPage`, results pages, billing, planner |
 | Admin | `AdminDashboardPage`, `CoursesPage`, `StructurePage`, `UsersPage`, `QuestionsPage`, `QuizBuilderPage`, subscriptions, AI notes, reports, settings |
 | Shared | `AppHeader`, auth store/gates, API clients, profile avatar, theme/platform styles |
 
@@ -90,7 +90,7 @@ For route-by-route details, use `docs/architecture/page-map.md`.
 | Subscriptions | `plans`, `user_subscriptions`, `subscription_requests`, `payment_transactions`, `subscription_audit_events` |
 | Student activity | `study_activity_events`, `student_lesson_progress`, `study_bookmarks` |
 | Content governance | `question_review_items`, `content_audit_events`, `content_versions` |
-| Notifications/workspace | `announcements`, `announcement_reads`, `study_planner_tasks`, `lesson_doubts` |
+| Notifications/workspace | `announcements`, `announcement_reads`, `study_planner_tasks` |
 | AI notes | `ai_illustrated_notes`, `smart_notes`, `question_theory_recaps` |
 
 ## New Production Foundations
@@ -105,4 +105,3 @@ For route-by-route details, use `docs/architecture/page-map.md`.
 | Content audit/version schema | `backend/src/modules/schema/schema-sync.service.ts` |
 | Question audit/version writes | `backend/src/modules/questions/questions.service.ts` |
 | Health/readiness/metrics | `backend/src/health.controller.ts` |
-

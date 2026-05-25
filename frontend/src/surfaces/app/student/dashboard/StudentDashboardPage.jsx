@@ -1175,11 +1175,6 @@ export function StudentDashboardPage() {
 
         <StudyMoodCard mood={studyMood} todayLabel={todayLabel} className="study-mood-card--mobile" />
 
-        <section className="study-section-head study-section-head--question">
-          <span className="study-eyebrow">Question of the day</span>
-          <small>Tap an answer</small>
-        </section>
-
         <DailyQuestionCard question={dashboard.questionOfDay} />
 
         <StudyLevelSummary name={firstName} progress={levelProgress} />

@@ -29,7 +29,6 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensurePushSubscriptionsTable(connection);
       await this.ensureNativePushTokensTable(connection);
       await this.ensureStudyPlannerTasksTable(connection);
-      await this.ensureLessonDoubtsTable(connection);
       await this.ensureSystemSettingsTable(connection);
       await this.ensureAiProviderConfigsTable(connection);
       await this.ensureSmartNotesTable(connection);
@@ -93,14 +92,14 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'subscription_requests', 'payment_reference', 'VARCHAR(191) NULL AFTER payment_method');
       await this.ensureColumn(connection, 'subscription_requests', 'payment_amount', 'DECIMAL(10, 2) NULL AFTER payment_reference');
       await this.ensureColumn(connection, 'subscription_requests', 'payment_currency', 'VARCHAR(10) NULL AFTER payment_amount');
-      await this.ensureColumn(connection, 'subscription_requests', 'payment_proof_name', 'VARCHAR(255) NULL AFTER payment_currency');
+      await this.ensureColumn(connection, 'subscription_requests', 'coupon_code', 'VARCHAR(40) NULL AFTER payment_currency');
+      await this.ensureColumn(connection, 'subscription_requests', 'discount_amount', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00 AFTER coupon_code');
+      await this.ensureColumn(connection, 'subscription_requests', 'payment_proof_name', 'VARCHAR(255) NULL AFTER discount_amount');
       await this.ensureColumn(connection, 'subscription_requests', 'payment_proof_mime', 'VARCHAR(80) NULL AFTER payment_proof_name');
       await this.ensureColumn(connection, 'subscription_requests', 'payment_proof_data_url', 'LONGTEXT NULL AFTER payment_proof_mime');
       await this.ensureColumn(connection, 'subscription_requests', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER payment_proof_data_url");
       await this.ensureColumn(connection, 'subscription_requests', 'course_ids_json', 'TEXT NULL AFTER access_scope');
       await this.ensureColumn(connection, 'subscription_requests', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
-      await this.ensureColumn(connection, 'lesson_doubts', 'question_id', 'INT NULL AFTER lesson_id');
-      await this.ensureColumn(connection, 'lesson_doubts', 'context_type', "ENUM('lesson','question','general') NOT NULL DEFAULT 'general' AFTER question_id");
       await this.ensureColumn(connection, 'payment_transactions', 'invoice_id', 'VARCHAR(20) NULL AFTER order_id');
       await this.ensureColumn(connection, 'payment_transactions', 'coupon_code', 'VARCHAR(40) NULL AFTER currency');
       await this.ensureColumn(connection, 'payment_transactions', 'discount_amount', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00 AFTER coupon_code');
@@ -108,6 +107,8 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'payment_transactions', 'access_scope', "ENUM('all','courses','lessons') NOT NULL DEFAULT 'all' AFTER order_note");
       await this.ensureColumn(connection, 'payment_transactions', 'course_ids_json', 'TEXT NULL AFTER access_scope');
       await this.ensureColumn(connection, 'payment_transactions', 'lesson_ids_json', 'TEXT NULL AFTER course_ids_json');
+      await this.ensureColumn(connection, 'subscription_coupons', 'coupon_mode', "ENUM('discount','package') NOT NULL DEFAULT 'discount' AFTER label");
+      await this.ensureColumn(connection, 'subscription_coupons', 'plan_ids_json', 'TEXT NULL AFTER discount_value');
       await this.ensureColumn(connection, 'question_quizzes', 'sort_order', 'INT NOT NULL DEFAULT 0');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_practice', 'TINYINT(1) NOT NULL DEFAULT 1');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_exam', 'TINYINT(1) NOT NULL DEFAULT 0');
@@ -145,7 +146,6 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIndex(connection, 'question_review_items', 'idx_question_review_items_status', 'status');
       await this.ensureIndex(connection, 'content_audit_events', 'idx_content_audit_entity', 'entity_type, entity_id');
       await this.ensureIndex(connection, 'content_versions', 'idx_content_versions_entity', 'entity_type, entity_id');
-      await this.ensureIndex(connection, 'lesson_doubts', 'idx_lesson_doubts_status', 'status');
       await this.backfillPlanSubscriptionColumns(connection);
       await this.seedSubscriptionFeatureCatalog(connection);
       await this.seedDefaultPlans(connection);
@@ -261,8 +261,10 @@ export class SchemaSyncService implements OnModuleInit {
         id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         code VARCHAR(40) NOT NULL,
         label VARCHAR(120) NULL,
+        coupon_mode ENUM('discount','package') NOT NULL DEFAULT 'discount',
         discount_type ENUM('percent', 'fixed') NOT NULL DEFAULT 'percent',
         discount_value DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+        plan_ids_json TEXT NULL,
         status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
         starts_at DATE NULL,
         expires_at DATE NULL,
@@ -548,27 +550,6 @@ export class SchemaSyncService implements OnModuleInit {
     `);
   }
 
-  private async ensureLessonDoubtsTable(connection: PoolConnection) {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS lesson_doubts (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        lesson_id INT NULL,
-        subject VARCHAR(220) NOT NULL,
-        message TEXT NOT NULL,
-        reply TEXT NULL,
-        status ENUM('open','answered','closed') NOT NULL DEFAULT 'open',
-        answered_by INT NULL,
-        answered_at DATETIME NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_lesson_doubts_user (user_id),
-        INDEX idx_lesson_doubts_lesson (lesson_id),
-        INDEX idx_lesson_doubts_status (status)
-      )
-    `);
-  }
-
   private async ensureSystemSettingsTable(connection: PoolConnection) {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS system_settings (
@@ -727,6 +708,8 @@ export class SchemaSyncService implements OnModuleInit {
         payment_reference VARCHAR(191) NULL,
         payment_amount DECIMAL(10, 2) NULL,
         payment_currency VARCHAR(10) NULL,
+        coupon_code VARCHAR(40) NULL,
+        discount_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
         payment_proof_name VARCHAR(255) NULL,
         payment_proof_mime VARCHAR(80) NULL,
         payment_proof_data_url LONGTEXT NULL,

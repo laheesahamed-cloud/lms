@@ -136,10 +136,73 @@ function hasQuestionAnswerKey(question) {
 }
 
 const examCardKickerClass = 'text-[11px] font-extrabold uppercase tracking-[0.08em] text-brand-primary';
-const examScreenShellClass = `${ui.studentScreenShell} lms-exam-page px-[clamp(12px,2vw,24px)] pb-[clamp(18px,2.8vw,30px)] pt-[clamp(10px,1.4vw,18px)] max-[700px]:pb-28 max-[600px]:p-3.5 max-[600px]:pb-28`;
-const examLayoutClass = 'lms-exam-layout mx-auto grid w-full max-w-none gap-[18px] bg-[var(--exam-shell-bg)] pb-2.5';
-const practiceScreenShellClass = `${ui.studentScreenShell} dashboard-page study-hub-page lms-exam-page practice-review-page practice-quiz-page max-[700px]:pb-28`;
-const practiceLayoutClass = 'study-hub-shell practice-review-shell lms-exam-layout mx-auto grid w-full max-w-none min-w-0 grid-cols-1 gap-[18px] bg-transparent pb-2.5';
+const examScreenShellClass = `${ui.studentScreenShell} lms-exam-page px-[clamp(16px,3vw,42px)] pb-[clamp(22px,3vw,36px)] pt-[clamp(12px,1.7vw,22px)] max-[700px]:pb-28 max-[600px]:px-3.5 max-[600px]:pb-28 max-[600px]:pt-3.5`;
+const examLayoutClass = 'lms-exam-layout mx-auto grid w-full max-w-[1560px] gap-[clamp(16px,2vw,24px)] bg-[var(--exam-shell-bg)] pb-2.5';
+const practiceQuizScreenShellClass = `${ui.studentScreenShell} dashboard-page study-hub-page lms-review-page practice-review-page`;
+const practiceQuizLayoutClass = 'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]';
+const practiceQuizWorkspaceClass =
+  'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
+const practiceQuizSidebarClass =
+  'lms-review-sidebar sticky top-6 grid max-h-[calc(100dvh-48px)] gap-3.5 overflow-hidden max-[900px]:static max-[900px]:max-h-none max-[900px]:overflow-visible';
+const practiceQuizMainClass = 'lms-review-main min-w-0';
+const practiceQuizAsideClass =
+  'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:hidden';
+const practiceQuizSummaryGridClass = 'lms-review-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5';
+const practiceQuizSummaryTileClass =
+  'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]';
+const practiceQuizSideNavClass =
+  'lms-review-side-nav grid min-h-0 gap-2.5 rounded-[18px] border border-line-soft bg-surface-1 p-3.5 shadow-none';
+const practiceQuizNavHeadClass =
+  'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft';
+const practiceQuizBubbleNavClass = 'lms-review-bubble-nav grid grid-cols-5 gap-2';
+const practiceQuizBubbleClass =
+  'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-80';
+const practiceQuizBubbleActiveClass = 'border-brand-primary/38 bg-brand-primary/12 text-brand-primary shadow-none';
+const practiceQuizBubbleAnsweredClass = 'border-brand-success/30 bg-brand-success/12 text-brand-success';
+const practiceQuizBubbleSavedClass = 'border-[color-mix(in_srgb,#8b5cf6_30%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_12%,var(--surface-2))] text-brand-violet';
+const practiceQuizBubbleFlaggedClass = 'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_12%,var(--surface-2))] text-[#b45309]';
+const practiceQuizBubbleLegendClass =
+  'lms-review-bubble-legend mt-3 grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] items-center gap-2 text-[10.5px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded-full [&_i]:border [&_span]:inline-flex [&_span]:min-h-5 [&_span]:min-w-0 [&_span]:items-center [&_span]:gap-1.5 [&_span]:whitespace-nowrap';
+const practiceQuizQuestionCardClass = 'lms-review-question-card grid gap-[clamp(16px,2vw,22px)] p-[clamp(24px,3vw,40px)] max-[640px]:gap-3.5 max-[640px]:p-4';
+const practiceQuizQuestionTextClass =
+  'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[15.5px] max-[640px]:leading-[1.6]';
+const practiceQuizQuestionHeadClass = 'flex min-h-0 items-center justify-between gap-2 max-[640px]:flex-col max-[640px]:items-start';
+const practiceQuizQuestionMetaClass = 'flex flex-wrap items-center gap-1.5';
+const practiceQuizQuestionNumberClass = 'text-[10.5px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft';
+const practiceQuizQuestionNavClass =
+  'lms-review-question-nav flex items-center justify-between gap-2.5 border-t border-line-soft pt-4 max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:gap-2';
+const practiceQuizQuestionNavActionsClass =
+  'flex items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-1 max-[640px]:[&_button]:w-full';
+const practiceQuizPositionClass = 'text-xs font-extrabold text-ink-soft';
+const practiceQuizOptionsGridClass = 'lms-review-options-grid grid gap-3 max-[640px]:gap-2.5';
+const practiceQuizOptionToplineClass = 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start';
+const practiceQuizOptionLeadClass = 'flex min-w-0 flex-auto items-start gap-2';
+const practiceQuizOptionTextClass =
+  'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15px] font-medium leading-[1.48] text-ink-strong max-[640px]:text-sm max-[640px]:leading-[1.45]';
+const practiceQuizOptionLabelsClass = 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start';
+const practiceQuizOptionCardClass =
+  'lms-answer-card group/answer relative grid gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,box-shadow,transform] duration-150 ease-out focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
+const practiceQuizOptionInteractiveClass =
+  'cursor-pointer touch-manipulation hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.997]';
+const practiceQuizOptionSelectedClass =
+  'is-selected border-[color-mix(in_srgb,var(--color-primary)_38%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_7%,var(--surface-1)),color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent),0_12px_28px_-24px_color-mix(in_srgb,var(--color-primary)_38%,transparent)]';
+const practiceQuizOptionCorrectClass =
+  'border-[color-mix(in_srgb,var(--color-success)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_10%,var(--surface-1))] shadow-none';
+const practiceQuizOptionWrongClass =
+  'border-[color-mix(in_srgb,var(--color-error)_32%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_9%,var(--surface-1))] shadow-none';
+const practiceQuizOptionUnansweredClass =
+  'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_6%,var(--surface-1))] shadow-[0_0_0_1px_color-mix(in_srgb,#d97706_12%,transparent)]';
+const practiceQuizTfActionsClass = 'flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start';
+const practiceQuizTfToggleClass =
+  'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-4 text-[13px] font-bold text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-colors active:opacity-85 max-[600px]:min-h-11 max-[600px]:flex-1';
+const practiceQuizTfTrueActiveClass = '!border-[color-mix(in_srgb,var(--sa-ok)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_13%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_19%,var(--sa-surface))] dark:!text-emerald-100';
+const practiceQuizTfFalseActiveClass = '!border-[color-mix(in_srgb,var(--sa-danger)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
+const practiceQuizTfChoiceCorrectClass = '!border-[color-mix(in_srgb,var(--sa-ok)_34%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_14%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_20%,var(--sa-surface))] dark:!text-emerald-100';
+const practiceQuizTfChoiceWrongClass = '!border-[color-mix(in_srgb,var(--sa-danger)_34%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
+const practiceQuizSecondaryButtonClass =
+  'lms-assessment-btn lms-assessment-btn--secondary min-h-11 rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-sm font-bold text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
+const practiceQuizPrimaryButtonClass =
+  'lms-assessment-btn lms-assessment-btn--primary min-h-11 rounded-xl border border-brand-primary/30 bg-[var(--color-primary-light)] px-[18px] text-sm font-bold text-brand-primary shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
 const examThemeLightVars = {
   '--exam-shell-bg': 'radial-gradient(circle at top left, rgba(59,130,246,0.10), transparent 24%), radial-gradient(circle at top right, rgba(124,58,237,0.08), transparent 20%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,247,255,0.95))',
   '--exam-card-bg': 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(246,249,255,0.92))',
@@ -252,17 +315,14 @@ const examHeaderIconClass = 'inline-grid place-items-center text-ink-soft';
 const examHeaderEndClass =
   'min-h-9 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold text-[var(--exam-end-text)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60';
 const practiceHeaderEndClass = 'border-brand-primary/22 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200';
-const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(240px,300px)_minmax(0,980px)_minmax(240px,300px)] items-start justify-center gap-[18px] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
-const practiceGridClass = 'lms-review-workspace';
+const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(220px,280px)_minmax(0,1120px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
 const examSidebarClass = 'lms-exam-sidebar grid gap-[18px]';
-const examExplainerClass = 'lms-exam-explainer col-start-3 col-span-1 grid self-start gap-[18px] max-[1180px]:hidden';
 const examPanelClass =
   'border border-[var(--exam-card-border)] bg-[var(--exam-card-bg)] p-[18px] shadow-[var(--exam-card-shadow)]';
 const examProgressPanelClass =
   'relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] before:content-[""]';
 const examMainCardClass =
-  'lms-exam-main-card grid min-h-[540px] grid-rows-[auto_auto_auto] border border-[var(--exam-card-border)] bg-[var(--exam-main-bg)] p-[clamp(20px,3vw,36px)] shadow-[var(--exam-card-shadow)] max-[600px]:min-h-[auto]';
-const examQuestionNumberClass = 'sr-only';
+  'lms-exam-main-card grid min-h-[540px] grid-rows-[auto_auto_auto] border border-[var(--exam-card-border)] bg-[var(--exam-main-bg)] p-[clamp(24px,3.2vw,44px)] shadow-[var(--exam-card-shadow)] max-[600px]:min-h-[auto] max-[600px]:p-4';
 const examCardHeadClass = 'mb-4 flex items-start justify-between gap-3 text-ink-strong [&_strong]:block [&_strong]:text-[15px] [&_strong]:font-extrabold';
 const examQuestionTypeRowClass = 'mb-2 flex items-center justify-between gap-2';
 const examChipMiniClass =
@@ -273,13 +333,8 @@ const examProgressPercentClass = 'text-[13px] text-ink-soft';
 const examProgressBarClass = 'h-[7px] overflow-hidden rounded-full border border-[var(--exam-card-border)] bg-[var(--exam-progress-track)]';
 const examProgressFillClass = 'block h-full rounded-[inherit] bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] shadow-none';
 const quizFlashPanelClass = 'rounded-[22px] backdrop-blur-md max-[600px]:rounded-[18px]';
-const quizFlashQuestionCopyClass = 'lms-reading-question m-0 max-w-[76ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[15.5px] max-[640px]:leading-[1.6]';
-const quizFlashAnswerCardClass =
-  'rounded-[18px] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(247,249,255,0.88))] dark:bg-[linear-gradient(180deg,rgba(17,27,44,0.94),rgba(10,18,31,0.98))]';
-const quizFlashSelectedAnswerClass = 'bg-[linear-gradient(180deg,rgba(239,246,255,0.98),rgba(230,240,255,0.92))]';
+const quizFlashQuestionCopyClass = 'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[15.5px] max-[640px]:leading-[1.6]';
 const quizFlashFooterButtonClass = 'rounded-xl';
-const quizFlashNextButtonClass = 'shadow-none';
-const quizFlashTipClass = 'border border-slate-400/15 bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(124,58,237,0.06))]';
 const examQuestionStartAnchorClass = 'scroll-mt-4';
 const examQuestionNavClass = 'lms-exam-question-nav grid grid-cols-[repeat(auto-fill,minmax(34px,1fr))] gap-2 max-[900px]:grid-cols-8 max-[600px]:grid-cols-5';
 const examNavBubbleBaseClass =
@@ -287,11 +342,6 @@ const examNavBubbleBaseClass =
 const examNavLegendClass = 'lms-exam-nav-legend mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10.5px] font-bold leading-tight text-ink-soft';
 const examNavLegendItemClass = 'inline-flex min-w-0 items-center gap-1 whitespace-nowrap';
 const examNavLegendDotClass = 'lms-exam-nav-legend-dot inline-block size-2.5 shrink-0 rounded border border-transparent';
-const examNavJumpsClass = 'mt-[18px] grid gap-2.5';
-const examNavJumpClass =
-  'flex min-h-[46px] items-center justify-between gap-3 rounded-[14px] border border-[var(--exam-jump-border)] bg-[var(--exam-jump-bg)] px-4 text-sm font-bold text-[var(--exam-jump-text)] shadow-none disabled:bg-[var(--exam-jump-disabled-bg)] disabled:text-[var(--exam-jump-disabled-text)]';
-const examExplanationEmptyClass =
-  'rounded-[14px] border border-dashed border-[var(--exam-card-border)] bg-[var(--exam-soft-panel)] p-4 text-sm leading-relaxed text-ink-soft [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[14px] [&_strong]:text-ink-strong [&_p]:m-0';
 const practiceLearningSupportClass = 'mt-0 grid gap-3 pt-0';
 const quizReviewExplanationClass =
   'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_5%,var(--surface-2))_0%,var(--surface-2)_58%,color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))_100%)] p-4 shadow-[0_14px_34px_color-mix(in_srgb,var(--color-primary)_7%,transparent)] max-[640px]:rounded-[16px] max-[640px]:p-3.5';
@@ -317,52 +367,11 @@ const quizReviewStudyCardClass =
 const practiceKeyPointsClass = 'lms-quiz-key-points-card grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,#8b5cf6_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_5%,var(--surface-1))_0%,var(--surface-1)_74%)] p-4 shadow-none';
 const practiceKeyPointClass = 'lms-reading-incorrect rounded-[12px] border border-[color-mix(in_srgb,var(--color-primary)_12%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--surface-2))] px-3 py-2 text-left text-[13px] font-medium leading-[1.58] text-ink-strong';
 const examAnswerListClass = 'lms-review-options-grid grid gap-2.5';
-const examAnswerCardClass =
-  'flex min-h-[48px] cursor-pointer touch-manipulation items-center gap-2.5 rounded-[14px] border border-[var(--exam-answer-border)] px-3.5 py-2.5 transition-[background,border-color,box-shadow,opacity] duration-150 active:opacity-90 focus-within:ring-2 focus-within:ring-brand-primary/30 hover:border-[var(--exam-answer-hover-border)] hover:shadow-[var(--exam-answer-hover-shadow)] max-[700px]:min-h-[52px] max-[700px]:rounded-[16px] max-[700px]:px-3.5 max-[700px]:py-3';
-const examAnswerSelectedClass = 'border-[var(--exam-answer-selected-border)] shadow-[var(--exam-answer-selected-ring)]';
-const examAnswerCorrectClass =
-  'border-[color-mix(in_srgb,var(--sa-ok)_30%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_10%,var(--sa-surface))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--sa-ok)_10%,transparent)] dark:!bg-[color-mix(in_srgb,var(--sa-ok)_16%,var(--sa-surface))]';
-const examAnswerWrongClass =
-  'border-[color-mix(in_srgb,var(--sa-danger)_30%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_9%,var(--sa-surface))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--sa-danger)_9%,transparent)] dark:!bg-[color-mix(in_srgb,var(--sa-danger)_15%,var(--sa-surface))]';
-const examAnswerContentClass = 'flex w-full min-w-0 items-center justify-start gap-2.5';
-const examAnswerTextStackClass = 'grid min-w-0 flex-1 gap-1';
-const examAnswerStateRowClass = 'flex flex-wrap items-center gap-1.5';
-const examAnswerStatePillClass = 'inline-flex min-h-6 items-center rounded-full border px-2.5 text-[11px] font-extrabold leading-none';
-const examAnswerStateCorrectClass = 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200';
-const examAnswerStateWrongClass = 'border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-200';
-const examAnswerRadioClass =
-  'relative size-5 shrink-0 rounded-full border-2 border-[var(--exam-answer-radio)] after:absolute after:inset-[3px] after:scale-0 after:rounded-full after:bg-brand-primary after:transition-transform after:content-[""]';
-const examAnswerRadioSelectedClass = 'border-brand-primary after:scale-100';
-const examAnswerRadioCorrectClass = 'border-brand-success after:bg-brand-success';
-const examAnswerRadioWrongClass = 'border-brand-error after:bg-brand-error';
-const examAnswerCopyClass = 'lms-reading-answer block min-w-0 flex-1 whitespace-pre-line text-left text-[14.5px] font-medium leading-[1.45] text-[var(--exam-answer-text)] max-[600px]:leading-[1.48]';
-const examTfCardClass =
-  'flex min-h-[48px] flex-wrap items-center gap-2.5 rounded-[14px] border border-[var(--exam-answer-border)] px-3.5 py-2.5 max-[700px]:min-h-[52px] max-[700px]:rounded-[16px] max-[700px]:py-3';
-const examTfCopyClass = 'flex min-w-0 flex-1 items-center gap-2.5';
 const examTfActionsClass = 'flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start';
 const examTfToggleClass =
   'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-tf-border)] bg-[var(--exam-tf-bg)] px-4 text-[13px] font-bold text-[var(--exam-tf-text)] shadow-none transition-colors active:opacity-85 max-[600px]:min-h-11 max-[600px]:flex-1';
-const examTfAnsweredClass = 'border-[var(--exam-answer-selected-border)] shadow-[var(--exam-answer-selected-ring)]';
 const examTfTrueActiveClass = '!border-[color-mix(in_srgb,var(--sa-ok)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_13%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_19%,var(--sa-surface))] dark:!text-emerald-100';
 const examTfFalseActiveClass = '!border-[color-mix(in_srgb,var(--sa-danger)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
-const examTfChoiceCorrectClass = '!border-[color-mix(in_srgb,var(--sa-ok)_34%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_14%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_20%,var(--sa-surface))] dark:!text-emerald-100';
-const examTfChoiceWrongClass = '!border-[color-mix(in_srgb,var(--sa-danger)_34%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
-const examTfRevealClass =
-  'basis-full grid grid-cols-2 gap-2 rounded-[12px] border px-3 py-2 text-left max-[600px]:grid-cols-1';
-const examTfRevealTrueClass = 'border-emerald-500/20 bg-emerald-500/8 text-emerald-800 dark:text-emerald-100';
-const examTfRevealFalseClass = 'border-red-500/20 bg-red-500/8 text-red-700 dark:text-red-100';
-const examTfRevealMissingClass = 'border-amber-500/24 bg-amber-500/10 text-amber-800 dark:text-amber-100';
-const examTfRevealItemClass = 'rounded-[10px] border border-black/5 bg-white/65 px-2.5 py-2 dark:border-white/10 dark:bg-white/5';
-const examTfRevealItemCorrectClass = 'border-emerald-500/18 bg-emerald-500/10 text-emerald-800 dark:text-emerald-100';
-const examTfRevealItemWrongClass = 'border-red-500/18 bg-red-500/10 text-red-700 dark:text-red-100';
-const examTfRevealItemMissingClass = 'border-amber-500/20 bg-amber-500/12 text-amber-800 dark:text-amber-100';
-const examTfRevealLabelClass = 'block text-[10px] font-black uppercase leading-none tracking-[0.08em] opacity-70';
-const examTfRevealValueClass = 'mt-1 block text-[13.5px] font-extrabold leading-tight';
-const examAnswerLetterBadgeClass = 'grid size-[30px] shrink-0 place-items-center rounded-lg border-2 text-[12px] font-black transition-[background,border-color,color] duration-150';
-const examAnswerLetterIdleClass = 'border-[var(--exam-answer-border)] bg-transparent text-[var(--exam-answer-text)] opacity-75';
-const examAnswerLetterSelectedClass = '!border-brand-primary/40 !bg-[var(--color-primary-light)] !text-brand-primary opacity-100';
-const examAnswerLetterCorrectClass = '!border-emerald-500/40 !bg-emerald-500/12 !text-emerald-700 dark:!text-emerald-200 opacity-100';
-const examAnswerLetterWrongClass = '!border-red-500/40 !bg-red-500/12 !text-red-600 dark:!text-red-200 opacity-100';
 const examMainFooterClass = 'lms-exam-main-footer flex items-center justify-between gap-2.5 rounded-[18px] border border-line-soft bg-surface-2 p-2.5 max-[700px]:hidden [&>*]:min-w-0 [&>div]:flex [&>div]:flex-wrap [&>div]:items-center [&>div]:gap-2.5';
 const examMainFooterLeftClass = 'flex flex-wrap gap-2.5';
 const examFooterButtonClass =
@@ -390,24 +399,15 @@ const mobileQuizIconButtonClass =
   'grid min-h-11 place-items-center rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] text-[13px] font-extrabold text-[var(--exam-footer-btn-text)] disabled:opacity-45';
 const mobileQuizPrimaryClass =
   'min-h-11 rounded-xl border border-brand-primary/35 bg-[var(--color-primary-light)] px-3 text-[13px] font-extrabold text-brand-primary disabled:opacity-55';
-const questionMiniActionClass =
-  'min-h-11 rounded-xl border border-[var(--sa-border)] bg-[var(--sa-surface)] px-[18px] text-sm font-bold text-[var(--sa-ink)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
-const questionCardActionRowClass = 'mt-3 flex flex-wrap items-center gap-2 max-[700px]:hidden';
 const questionUtilityRowClass = 'lms-question-utility-row mt-4 flex items-center justify-start gap-2 border-t border-line-soft pt-3 max-[700px]:pt-2.5';
 const questionUtilityButtonClass =
   'inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[var(--sa-border)] bg-[var(--sa-surface)] text-ink-soft shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_26%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] hover:text-brand-primary active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
 const quizUnifiedMainCardClass =
   'lms-review-question-card grid w-full justify-self-stretch gap-[16px] p-[22px_24px] max-[640px]:gap-3.5 max-[640px]:p-3.5';
 const quizUnifiedAnswerCardClass =
-  'relative grid gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-shadow';
+  'lms-answer-card group/answer relative grid cursor-pointer touch-manipulation gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,box-shadow,transform] duration-150 ease-out hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.997] focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
 const quizUnifiedAnswerSelectedClass =
-  'border-[color-mix(in_srgb,var(--color-primary)_36%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_8%,var(--surface-1))] shadow-none';
-const quizUnifiedAnswerCorrectClass =
-  'border-[color-mix(in_srgb,var(--color-success)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_10%,var(--surface-1))] shadow-none';
-const quizUnifiedAnswerWrongClass =
-  'border-[color-mix(in_srgb,var(--color-error)_32%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_9%,var(--surface-1))] shadow-none';
-const quizUnifiedAnswerUnansweredClass =
-  'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_6%,var(--surface-1))] shadow-[0_0_0_1px_color-mix(in_srgb,#d97706_12%,transparent)]';
+  'is-selected border-[color-mix(in_srgb,var(--color-primary)_38%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_7%,var(--surface-1)),color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent),0_12px_28px_-24px_color-mix(in_srgb,var(--color-primary)_38%,transparent)]';
 const quizUnifiedFooterButtonClass =
   'min-h-11 rounded-xl border border-[var(--sa-border)] bg-[var(--sa-surface)] px-[18px] text-sm font-bold text-[var(--sa-ink)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
 const quizUnifiedPrimaryFooterButtonClass =
@@ -416,7 +416,6 @@ const quizReviewOptionToplineClass = 'flex items-center justify-between gap-2.5 
 const quizReviewOptionLeadClass = 'flex min-w-0 flex-auto items-start gap-2';
 const quizReviewOptionTextClass = 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15px] font-medium leading-[1.48] text-ink-strong max-[640px]:text-sm max-[640px]:leading-[1.45]';
 const quizReviewOptionLabelsClass = 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start';
-const quizReviewQuestionTextClass = quizFlashQuestionCopyClass;
 const quizReviewChipToneClass = {
   correct: 'border-[color-mix(in_srgb,var(--color-success)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_12%,var(--surface-2))] text-brand-success',
   wrong: 'border-[color-mix(in_srgb,var(--color-error)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_11%,var(--surface-2))] text-brand-error',
@@ -424,7 +423,7 @@ const quizReviewChipToneClass = {
   neutral: 'border-line-soft bg-surface-2 text-ink-soft',
 };
 const quizReviewOptionIconToneClass = {
-  selected: 'border-brand-primary/45 bg-brand-primary/15 text-brand-primary shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_10%,transparent)]',
+  selected: 'border-[color-mix(in_srgb,var(--color-primary)_42%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_10%,var(--surface-1))] text-brand-primary shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent)]',
   correct: 'border-[color-mix(in_srgb,var(--color-success)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-success)_18%,transparent)] text-brand-success shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-success)_12%,transparent)]',
   wrong: 'border-[color-mix(in_srgb,var(--color-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-error)_18%,transparent)] text-brand-error shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-error)_12%,transparent)]',
   unanswered: 'border-[color-mix(in_srgb,#d97706_30%,transparent)] bg-[color-mix(in_srgb,#d97706_14%,transparent)] text-[#b45309]',
@@ -442,6 +441,25 @@ function quizReviewOptionIconClass(tone = 'neutral') {
   return cx(
     'inline-grid size-6 shrink-0 place-items-center rounded-full border text-xs font-extrabold',
     quizReviewOptionIconToneClass[tone] || quizReviewOptionIconToneClass.neutral
+  );
+}
+
+function PracticeSummaryTile({ label, value, tone = '' }) {
+  return (
+    <div className={cx(practiceQuizSummaryTileClass, tone)}>
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function getPracticeQuizBubbleClass({ active, answered, flagged, saved }) {
+  return cx(
+    practiceQuizBubbleClass,
+    active && practiceQuizBubbleActiveClass,
+    !active && answered && practiceQuizBubbleAnsweredClass,
+    !active && saved && practiceQuizBubbleSavedClass,
+    !active && flagged && practiceQuizBubbleFlaggedClass
   );
 }
 
@@ -757,36 +775,6 @@ function hasTheoryRecap(recap) {
   ));
 }
 
-function ExplanationRail({
-  isExam,
-  currentQuestion,
-  currentQuestionRevealed,
-}) {
-  return (
-    <aside className={examExplainerClass}>
-      {!isExam ? (
-        <PracticeStudySupport
-          currentQuestion={currentQuestion}
-          revealed={currentQuestionRevealed}
-        />
-      ) : (
-        <section className={cx(examPanelClass, quizFlashPanelClass)}>
-          <div className={examCardHeadClass}>
-            <div>
-              <div className={examCardKickerClass}>Explanation</div>
-              <strong>Available after submission</strong>
-            </div>
-          </div>
-          <div className={examExplanationEmptyClass}>
-            <strong>Explanation stays hidden</strong>
-            <p>Exam mode keeps explanations and correct answers hidden until you submit the paper.</p>
-          </div>
-        </section>
-      )}
-    </aside>
-  );
-}
-
 function PracticeStudySupport({ currentQuestion, revealed = true, className = '' }) {
   const hasRecap = currentQuestion?.theoryRecap !== undefined;
   const hasStudyCard = revealed && hasTheoryRecap(currentQuestion?.theoryRecap);
@@ -958,6 +946,7 @@ export function TakeQuizPage() {
   const [practiceCelebrating, setPracticeCelebrating] = useState(false);
   const [questionActionBusy, setQuestionActionBusy] = useState(false);
   const questionContentRef = useRef(null);
+  const hasSkippedInitialPracticeScrollRef = useRef(false);
   const answersRef = useRef({});
 
   useEffect(() => {
@@ -1042,7 +1031,15 @@ export function TakeQuizPage() {
   const examDurationSeconds = isExam ? Math.max(Number(data?.quiz?.timeLimit || 0) * 60, 0) : 0;
 
   useEffect(() => {
+    hasSkippedInitialPracticeScrollRef.current = false;
+  }, [quizId, mode]);
+
+  useEffect(() => {
     if (!data || !currentQuestion) return;
+    if (!isExam && !hasSkippedInitialPracticeScrollRef.current) {
+      hasSkippedInitialPracticeScrollRef.current = true;
+      return;
+    }
 
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     window.requestAnimationFrame(() => {
@@ -1051,7 +1048,7 @@ export function TakeQuizPage() {
         prefersReducedMotion ? 'auto' : 'smooth'
       );
     });
-  }, [currentIndex, currentQuestion?.id, data]);
+  }, [currentIndex, currentQuestion?.id, data, isExam]);
 
   useEffect(() => {
     if (!isExam || !Number.isFinite(secondsRemaining) || secondsRemaining <= 0) return undefined;
@@ -1227,9 +1224,6 @@ export function TakeQuizPage() {
     void nativeImpact(ImpactStyle.Light);
   }
 
-  const firstFlaggedIndex = data?.questions?.findIndex((question) => flaggedQuestionIds.has(question.id)) ?? -1;
-  const firstUnansweredIndex = data?.questions?.findIndex((question) => !isAnswered(question, answers[question.id])) ?? -1;
-
   const blockSize = 10;
   const examBlocks = useMemo(() => {
     if (!totalQuestions) return [];
@@ -1274,9 +1268,11 @@ export function TakeQuizPage() {
   );
 
   if (!isExam) {
+    const questionTypeLabel = isSbaQuestion(currentQuestion) ? 'SBA' : 'True / False';
+
     return (
-      <main className={practiceScreenShellClass}>
-        <section className={practiceLayoutClass} style={examThemeVars}>
+      <main className={practiceQuizScreenShellClass}>
+        <section className={practiceQuizLayoutClass}>
           <ExamModeHeader
             title={data.quiz.quizTitle}
             quizLabel={getQuizNumberLabel(data.quiz)}
@@ -1296,311 +1292,306 @@ export function TakeQuizPage() {
 
           {error ? <div className={ui.feedbackError}>{error}</div> : null}
 
-          <div className={cx(examGridClass, practiceGridClass)}>
-            <aside className={examSidebarClass}>
-              <section className={cx(examPanelClass, examProgressPanelClass, quizFlashPanelClass)}>
-                <div className={examQuestionTypeRowClass}>
-                  <div className={examCardKickerClass}>Progress</div>
-                  <span className={examChipMiniClass}>{isSbaQuestion(currentQuestion) ? 'SBA' : 'T/F'}</span>
+          <section className={practiceQuizWorkspaceClass}>
+            <aside className={practiceQuizSidebarClass}>
+              <div className={practiceQuizSummaryGridClass}>
+                <PracticeSummaryTile label="Total" value={totalQuestions} />
+                <PracticeSummaryTile label="Answered" value={answeredCount} />
+                <PracticeSummaryTile label="Current" value={currentIndex + 1} />
+                <PracticeSummaryTile label="Progress" value={`${progressPercent}%`} />
+              </div>
+
+              <section className={practiceQuizSideNavClass} aria-label="Practice progress">
+                <div className={practiceQuizNavHeadClass}>
+                  <h3>Progress</h3>
+                  <span>{progressPercent}% complete</span>
                 </div>
-                <div className={examProgressToplineClass}>
-                  <strong className={examProgressCurrentClass}>Question {currentIndex + 1} of {totalQuestions}</strong>
-                  <span className={examProgressPercentClass}>{progressPercent}% complete</span>
+                <div className="h-2 overflow-hidden rounded-full bg-surface-3">
+                  <span
+                    className="block h-full rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
+                    style={{ width: `${progressPercent}%` }}
+                  />
                 </div>
-                <div className={examProgressBarClass}>
-                  <span className={examProgressFillClass} style={{ width: `${progressPercent}%` }} />
-                </div>
+                <p className="m-0 text-xs font-semibold leading-relaxed text-ink-soft">
+                  Question {currentIndex + 1} of {totalQuestions} / {questionTypeLabel}
+                </p>
               </section>
 
-              <section className={cx(examPanelClass, quizFlashPanelClass)}>
-                <div className={examCardHeadClass}>
-                  <div>
-                    <div className={examCardKickerClass}>Question navigator</div>
-                    <strong>Move through practice</strong>
-                  </div>
+              <section className={practiceQuizSideNavClass} aria-label="Question navigator">
+                <div className={practiceQuizNavHeadClass}>
+                  <h3>Question List</h3>
+                  <span>{totalQuestions} total</span>
                 </div>
 
-                <div className={examQuestionNavClass}>
+                <div className={practiceQuizBubbleNavClass}>
                   {data.questions.map((question, index) => (
-                    <button className={getExamNavBubbleClass({
+                    <button
+                      className={getPracticeQuizBubbleClass({
                         active: index === currentIndex,
                         answered: isAnswered(question, answers[question.id]),
                         flagged: flaggedQuestionIds.has(question.id),
-                        review: bookmarkedQuestionIds.has(question.id),
+                        saved: bookmarkedQuestionIds.has(question.id),
                       })}
                       key={question.id}
                       type="button"
-                     
                       onClick={() => goTo(index)}
+                      title={`Question ${index + 1}`}
                     >
                       {index + 1}
                     </button>
                   ))}
                 </div>
 
-                <div className={examNavLegendClass}>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-current')} />Current</span>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-answered')} />Answered</span>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-idle')} />Not answered</span>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-review')} />Review</span>
-                  <span className={examNavLegendItemClass}><i className={cx(examNavLegendDotClass, 'is-flagged')} />Flagged</span>
+                <div className={practiceQuizBubbleLegendClass}>
+                  <span><i className="border-brand-primary/30 bg-brand-primary/30" />Current</span>
+                  <span><i className="border-brand-success/30 bg-brand-success/30" />Answered</span>
+                  <span><i className="border-[var(--exam-nav-idle-border)] bg-[var(--exam-progress-track)]" />New</span>
+                  <span><i className="border-[color-mix(in_srgb,#8b5cf6_30%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_30%,transparent)]" />Saved</span>
+                  <span><i className="border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_30%,transparent)]" />Flagged</span>
                 </div>
-
               </section>
             </aside>
 
-          <section className={cx(examMainCardClass, quizFlashPanelClass, examQuestionStartAnchorClass, quizUnifiedMainCardClass)} ref={questionContentRef}>
-            <div className={examQuestionNumberClass}>
-              Question {currentIndex + 1} <span aria-hidden="true">·</span> {isSbaQuestion(currentQuestion) ? 'Single best answer' : 'True / False'}
-            </div>
-            <p className={quizReviewQuestionTextClass}>{currentQuestion.questionText}</p>
+            <section className={practiceQuizMainClass}>
+              <article className={cx(practiceQuizQuestionCardClass, examQuestionStartAnchorClass)} ref={questionContentRef}>
+                <p className={practiceQuizQuestionTextClass}>{currentQuestion.questionText}</p>
 
-            <div className={examAnswerListClass}>
-              {isSbaQuestion(currentQuestion) ? (
-                currentQuestion.options.map((option, optionIndex) => {
-                  const isSelected = Number(answers[currentQuestion.id]) === option.id;
-                  const isCorrect = isCorrectOption(option);
-                  const isWrong = currentQuestionRevealed && isSelected && !isCorrect;
-                  const optionTone = currentQuestionRevealed && isCorrect
-                    ? 'correct'
-                    : isWrong
-                      ? 'wrong'
-                      : isSelected
-                        ? 'selected'
-                        : 'neutral';
-                  const letterLabel = getOptionDisplayLabel(option, optionIndex);
-
-                  return (
-                    <label
-                      className={cx(
-                        quizUnifiedAnswerCardClass,
-                        optionTone === 'selected' && quizUnifiedAnswerSelectedClass,
-                        optionTone === 'correct' && quizUnifiedAnswerCorrectClass,
-                        optionTone === 'wrong' && quizUnifiedAnswerWrongClass
-                      )}
-                      key={option.id}
-                    >
-                      <input
-                        className="sr-only"
-                        type="radio"
-                        name={`q-${currentQuestion.id}`}
-                        checked={isSelected}
-                        onChange={() => updateSba(currentQuestion.id, option.id)}
-                      />
-                      <span className={quizReviewOptionToplineClass}>
-                        <span className={quizReviewOptionLeadClass}>
-                          <span className={quizReviewOptionIconClass(optionTone)} aria-hidden="true">{letterLabel}</span>
-                          <span className={quizReviewOptionTextClass}>{option.optionText}</span>
-                        </span>
-                        {currentQuestionRevealed ? (
-                          <span className={quizReviewOptionLabelsClass}>
-                            {isSelected ? (
-                              <span className={quizReviewChipClass(isCorrect ? 'correct' : 'wrong')}>
-                                Your Answer
-                              </span>
-                            ) : null}
-                            {isCorrect ? (
-                              <span className={quizReviewChipClass('correct')}>
-                                Correct
-                              </span>
-                            ) : null}
-                          </span>
-                        ) : null}
-                      </span>
-                    </label>
-                  );
-                })
-              ) : (
-                currentQuestion.options.map((option, optionIndex) => {
-                  const correctValue = isCorrectOption(option) ? 1 : 0;
-                  const selectedValue = getTfSelectedValue(answers[currentQuestion.id], option.id);
-                  const hasSelectedValue = selectedValue !== null;
-                  const selectedCorrect = hasSelectedValue && Number(selectedValue) === correctValue;
-                  const selectedLabel = hasSelectedValue ? (selectedValue === 1 ? 'True' : 'False') : 'Not answered';
-                  const correctLabel = correctValue === 1 ? 'True' : 'False';
-                  const letterLabel = getOptionDisplayLabel(option, optionIndex);
-                  const answerTone = currentQuestionRevealed
-                    ? !hasSelectedValue
-                      ? 'unanswered'
-                      : selectedCorrect
-                        ? 'correct'
-                        : 'wrong'
-                    : hasSelectedValue
-                      ? 'selected'
-                      : 'neutral';
-
-                  return (
-                    <div className={cx(
-                      quizUnifiedAnswerCardClass,
-                      answerTone === 'selected' && quizUnifiedAnswerSelectedClass,
-                      answerTone === 'correct' && quizUnifiedAnswerCorrectClass,
-                      answerTone === 'wrong' && quizUnifiedAnswerWrongClass,
-                      answerTone === 'unanswered' && quizUnifiedAnswerUnansweredClass
-                    )} key={option.id}>
-                      <div className={quizReviewOptionToplineClass}>
-                        <div className={quizReviewOptionLeadClass}>
-                          <span className={quizReviewOptionIconClass(answerTone)} aria-hidden="true">
-                            {letterLabel}
-                          </span>
-                          <span className={quizReviewOptionTextClass}>{option.optionText}</span>
-                        </div>
-                        {currentQuestionRevealed ? (
-                          <span className={quizReviewOptionLabelsClass}>
-                            <span className={quizReviewChipClass(selectedCorrect ? 'correct' : hasSelectedValue ? 'wrong' : 'unanswered')}>
-                              Your Answer: {selectedLabel}
-                            </span>
-                            <span className={quizReviewChipClass('correct')}>
-                              Correct: {correctLabel}
-                            </span>
-                          </span>
-                        ) : null}
-                      </div>
-                        <div className={examTfActionsClass}>
-                          <button className={cx(
-                            examTfToggleClass,
-                            !currentQuestionRevealed && selectedValue === 1 && examTfTrueActiveClass,
-                            currentQuestionRevealed && correctValue === 1 && examTfChoiceCorrectClass,
-                            currentQuestionRevealed && selectedValue === 1 && correctValue !== 1 && examTfChoiceWrongClass
-                          )}
-                            type="button"
-                            aria-pressed={selectedValue === 1}
-                            onClick={() => updateTf(currentQuestion.id, option.id, 1)}
-                          >
-                            True
-                          </button>
-                          <button className={cx(
-                            examTfToggleClass,
-                            !currentQuestionRevealed && selectedValue === 0 && examTfFalseActiveClass,
-                            currentQuestionRevealed && correctValue === 0 && examTfChoiceCorrectClass,
-                            currentQuestionRevealed && selectedValue === 0 && correctValue !== 0 && examTfChoiceWrongClass
-                          )}
-                            type="button"
-                            aria-pressed={selectedValue === 0}
-                            onClick={() => updateTf(currentQuestion.id, option.id, 0)}
-                          >
-                            False
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              <PracticeInlineLearningSupport
-                currentQuestion={currentQuestion}
-                currentQuestionRevealed={currentQuestionRevealed}
-                className="mt-4"
-                showStudySupport={false}
-              />
-
-              {currentQuestionRevealed ? (
-                <PracticeStudySupport
-                  currentQuestion={currentQuestion}
-                  revealed={true}
-                  className="mt-4 max-[1180px]:grid min-[1181px]:hidden"
-                />
-              ) : null}
-
-              <div className={examMainFooterClass}>
-                <div className={examMainFooterLeftClass}>
-                  <button className={cx(quizUnifiedFooterButtonClass)}
-                    type="button"
-                    onClick={() => goTo(currentIndex - 1)}
-                    disabled={currentIndex === 0 || saving}
-                  >
-                    Previous
-                  </button>
-
-                  <button className={cx(quizUnifiedFooterButtonClass)}
-                    type="button"
-                    onClick={revealCurrentAnswer}
-                    disabled={currentQuestionRevealed || !currentQuestionCanReveal}
-                  >
-                    {currentQuestionRevealed ? 'Explanation shown' : currentQuestionCanReveal ? 'Show answer and explanation' : 'Available after review'}
-                  </button>
-
+                <div className="flex flex-wrap gap-2">
                   <button
-                    className={cx(examFooterIconButtonClass, quizFlashFooterButtonClass, currentQuestionFlagged && examFooterFlagActiveClass)}
+                    className={practiceQuizSecondaryButtonClass}
                     type="button"
-                    onClick={toggleFlagCurrentQuestion}
-                    title={currentQuestionFlagged ? 'Remove flag' : 'Flag question'}
-                    aria-label={currentQuestionFlagged ? 'Remove flag' : 'Flag question'}
+                    onClick={toggleBookmarkCurrentQuestion}
+                    disabled={questionActionBusy}
                   >
-                    <IcoFlag filled={currentQuestionFlagged} />
+                    {currentQuestionBookmarked ? 'Saved question' : 'Save question'}
+                  </button>
+                  <button
+                    className={practiceQuizSecondaryButtonClass}
+                    type="button"
+                    onClick={reportCurrentQuestion}
+                    disabled={questionActionBusy}
+                  >
+                    Report question
                   </button>
                 </div>
 
-                {currentIndex < totalQuestions - 1 ? (
-                  <button className={cx(quizUnifiedPrimaryFooterButtonClass, examFooterNextClass)}
-                    type="button"
-                   
-                    onClick={() => goTo(currentIndex + 1)}
-                    disabled={saving || practiceCelebrating}
-                  >
-                    {saving ? 'Saving…' : 'Next'}
-                  </button>
-                ) : (
-                  <button className={cx(quizUnifiedPrimaryFooterButtonClass, examFooterNextClass)}
-                    type="button"
-                   
-                    onClick={finishPractice}
-                    disabled={saving || practiceCelebrating}
-                  >
-                    Finish practice
-                  </button>
-                )}
-              </div>
+                <div className={practiceQuizQuestionHeadClass}>
+                  <div className={practiceQuizQuestionMetaClass}>
+                    <span className={practiceQuizQuestionNumberClass}>Question {currentIndex + 1} of {totalQuestions}</span>
+                    <span className={quizReviewChipClass('neutral')}>{questionTypeLabel}</span>
+                    {currentQuestionRevealed ? <span className={quizReviewChipClass('correct')}>Explanation shown</span> : null}
+                  </div>
+                  <span className={quizReviewChipClass(currentQuestionAnswered ? 'neutral' : 'unanswered')}>
+                    {currentQuestionAnswered ? 'Answered' : 'Unanswered'}
+                  </span>
+                </div>
 
-              {!currentQuestionRevealed ? (
+                <div className={practiceQuizOptionsGridClass}>
+                  {isSbaQuestion(currentQuestion) ? (
+                    currentQuestion.options.map((option, optionIndex) => {
+                      const isSelected = Number(answers[currentQuestion.id]) === option.id;
+                      const isCorrect = isCorrectOption(option);
+                      const isWrong = currentQuestionRevealed && isSelected && !isCorrect;
+                      const optionTone = currentQuestionRevealed && isCorrect
+                        ? 'correct'
+                        : isWrong
+                          ? 'wrong'
+                          : isSelected
+                            ? 'selected'
+                            : 'neutral';
+                      const letterLabel = getOptionDisplayLabel(option, optionIndex);
+
+                      return (
+                        <label
+                          className={cx(
+                            practiceQuizOptionCardClass,
+                            practiceQuizOptionInteractiveClass,
+                            optionTone === 'selected' && practiceQuizOptionSelectedClass,
+                            optionTone === 'correct' && practiceQuizOptionCorrectClass,
+                            optionTone === 'wrong' && practiceQuizOptionWrongClass
+                          )}
+                          key={option.id}
+                        >
+                          <input
+                            className="sr-only"
+                            type="radio"
+                            name={`q-${currentQuestion.id}`}
+                            checked={isSelected}
+                            onChange={() => updateSba(currentQuestion.id, option.id)}
+                          />
+                          <span className={practiceQuizOptionToplineClass}>
+                            <span className={practiceQuizOptionLeadClass}>
+                              <span className={quizReviewOptionIconClass(optionTone)} aria-hidden="true">{letterLabel}</span>
+                              <span className={practiceQuizOptionTextClass}>{option.optionText}</span>
+                            </span>
+                            {currentQuestionRevealed ? (
+                              <span className={practiceQuizOptionLabelsClass}>
+                                {isSelected ? (
+                                  <span className={quizReviewChipClass(isCorrect ? 'correct' : 'wrong')}>
+                                    Your Answer
+                                  </span>
+                                ) : null}
+                                {isCorrect ? (
+                                  <span className={quizReviewChipClass('correct')}>
+                                    Correct
+                                  </span>
+                                ) : null}
+                              </span>
+                            ) : null}
+                          </span>
+                        </label>
+                      );
+                    })
+                  ) : (
+                    currentQuestion.options.map((option, optionIndex) => {
+                      const correctValue = isCorrectOption(option) ? 1 : 0;
+                      const selectedValue = getTfSelectedValue(answers[currentQuestion.id], option.id);
+                      const hasSelectedValue = selectedValue !== null;
+                      const selectedCorrect = hasSelectedValue && Number(selectedValue) === correctValue;
+                      const selectedLabel = hasSelectedValue ? (selectedValue === 1 ? 'True' : 'False') : 'Not answered';
+                      const correctLabel = correctValue === 1 ? 'True' : 'False';
+                      const letterLabel = getOptionDisplayLabel(option, optionIndex);
+                      const answerTone = currentQuestionRevealed
+                        ? !hasSelectedValue
+                          ? 'unanswered'
+                          : selectedCorrect
+                            ? 'correct'
+                            : 'wrong'
+                        : hasSelectedValue
+                          ? 'selected'
+                          : 'neutral';
+
+                      return (
+                        <div className={cx(
+                          practiceQuizOptionCardClass,
+                          answerTone === 'selected' && practiceQuizOptionSelectedClass,
+                          answerTone === 'correct' && practiceQuizOptionCorrectClass,
+                          answerTone === 'wrong' && practiceQuizOptionWrongClass,
+                          answerTone === 'unanswered' && practiceQuizOptionUnansweredClass
+                        )} key={option.id}>
+                          <div className={practiceQuizOptionToplineClass}>
+                            <div className={practiceQuizOptionLeadClass}>
+                              <span className={quizReviewOptionIconClass(answerTone)} aria-hidden="true">
+                                {letterLabel}
+                              </span>
+                              <span className={practiceQuizOptionTextClass}>{option.optionText}</span>
+                            </div>
+                            {currentQuestionRevealed ? (
+                              <span className={practiceQuizOptionLabelsClass}>
+                                <span className={quizReviewChipClass(selectedCorrect ? 'correct' : hasSelectedValue ? 'wrong' : 'unanswered')}>
+                                  Your Answer: {selectedLabel}
+                                </span>
+                                <span className={quizReviewChipClass('correct')}>
+                                  Correct: {correctLabel}
+                                </span>
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className={practiceQuizTfActionsClass}>
+                            <button
+                              className={cx(
+                                practiceQuizTfToggleClass,
+                                !currentQuestionRevealed && selectedValue === 1 && practiceQuizTfTrueActiveClass,
+                                currentQuestionRevealed && correctValue === 1 && practiceQuizTfChoiceCorrectClass,
+                                currentQuestionRevealed && selectedValue === 1 && correctValue !== 1 && practiceQuizTfChoiceWrongClass
+                              )}
+                              type="button"
+                              aria-pressed={selectedValue === 1}
+                              onClick={() => updateTf(currentQuestion.id, option.id, 1)}
+                            >
+                              True
+                            </button>
+                            <button
+                              className={cx(
+                                practiceQuizTfToggleClass,
+                                !currentQuestionRevealed && selectedValue === 0 && practiceQuizTfFalseActiveClass,
+                                currentQuestionRevealed && correctValue === 0 && practiceQuizTfChoiceCorrectClass,
+                                currentQuestionRevealed && selectedValue === 0 && correctValue !== 0 && practiceQuizTfChoiceWrongClass
+                              )}
+                              type="button"
+                              aria-pressed={selectedValue === 0}
+                              onClick={() => updateTf(currentQuestion.id, option.id, 0)}
+                            >
+                              False
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <PracticeInlineLearningSupport
+                  currentQuestion={currentQuestion}
+                  currentQuestionRevealed={currentQuestionRevealed}
+                  showStudySupport={false}
+                />
+
                 <PracticeStudySupport
                   currentQuestion={currentQuestion}
-                  revealed={false}
-                  className="mt-4 max-[700px]:hidden max-[1180px]:grid min-[1181px]:hidden"
+                  revealed={currentQuestionRevealed}
+                  className="max-[1180px]:grid min-[1181px]:hidden"
                 />
-              ) : null}
 
-              <QuestionUtilityActions
-                bookmarked={currentQuestionBookmarked}
-                busy={questionActionBusy}
-                onBookmark={toggleBookmarkCurrentQuestion}
-                onReport={reportCurrentQuestion}
-              />
+                <nav className={practiceQuizQuestionNavClass} aria-label="Practice question navigation">
+                  <span className={practiceQuizPositionClass}>Question {currentIndex + 1} / {totalQuestions}</span>
+                  <div className={practiceQuizQuestionNavActionsClass}>
+                    <button
+                      className={practiceQuizSecondaryButtonClass}
+                      type="button"
+                      onClick={() => goTo(currentIndex - 1)}
+                      disabled={currentIndex === 0 || saving}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      className={practiceQuizSecondaryButtonClass}
+                      type="button"
+                      onClick={revealCurrentAnswer}
+                      disabled={currentQuestionRevealed || !currentQuestionCanReveal}
+                    >
+                      {currentQuestionRevealed ? 'Explanation shown' : currentQuestionCanReveal ? 'Show answer' : 'Available after review'}
+                    </button>
+                    <button
+                      className={cx(practiceQuizSecondaryButtonClass, currentQuestionFlagged && 'lms-assessment-btn--flagged')}
+                      type="button"
+                      onClick={toggleFlagCurrentQuestion}
+                      disabled={saving || practiceCelebrating}
+                    >
+                      <IcoFlag filled={currentQuestionFlagged} />
+                      {currentQuestionFlagged ? 'Flagged' : 'Flag'}
+                    </button>
+                    {currentIndex < totalQuestions - 1 ? (
+                      <button
+                        className={practiceQuizPrimaryButtonClass}
+                        type="button"
+                        onClick={() => goTo(currentIndex + 1)}
+                        disabled={saving || practiceCelebrating}
+                      >
+                        {saving ? 'Saving...' : 'Next'}
+                      </button>
+                    ) : (
+                      <button
+                        className={practiceQuizPrimaryButtonClass}
+                        type="button"
+                        onClick={finishPractice}
+                        disabled={saving || practiceCelebrating}
+                      >
+                        Finish practice
+                      </button>
+                    )}
+                  </div>
+                </nav>
+              </article>
             </section>
 
-            <ExplanationRail
-              isExam={false}
-              currentQuestion={currentQuestion}
-              currentQuestionRevealed={currentQuestionRevealed}
-            />
-          </div>
-
-          <MobileQuizActionBar
-            isExam={false}
-            currentIndex={currentIndex}
-            totalQuestions={totalQuestions}
-            progressPercent={progressPercent}
-            saving={saving || practiceCelebrating}
-            currentQuestionFlagged={currentQuestionFlagged}
-            currentQuestionBookmarked={currentQuestionBookmarked}
-            currentQuestionRevealed={currentQuestionRevealed}
-            canRevealAnswers={currentQuestionCanReveal}
-            onPrevious={() => goTo(currentIndex - 1)}
-            onReveal={revealCurrentAnswer}
-            onFlag={toggleFlagCurrentQuestion}
-            onBookmark={toggleBookmarkCurrentQuestion}
-            onReport={reportCurrentQuestion}
-            onNext={() => goTo(currentIndex + 1)}
-            onFinish={finishPractice}
-          />
-
-          {!currentQuestionRevealed ? (
-            <PracticeStudySupport
-              currentQuestion={currentQuestion}
-              revealed={false}
-              className="hidden max-[700px]:grid"
-            />
-          ) : null}
+            <aside className={practiceQuizAsideClass}>
+              <PracticeStudySupport
+                currentQuestion={currentQuestion}
+                revealed={currentQuestionRevealed}
+              />
+            </aside>
+          </section>
 
           {practiceCelebrating ? <PracticeCelebrationOverlay quizTitle={data?.quiz?.quizTitle} /> : null}
         </section>

@@ -38,7 +38,6 @@
 @import "./03-components/study-mascot.css";
 
 @import "./04-pages/courses.css";
-@import "./04-pages/quizzes.css";
 @import "./04-pages/lessons.css";
 @import "./04-pages/results.css";
 @import "./04-pages/profile.css";
@@ -69,6 +68,7 @@
 @import "./02-layout/bottom-nav.css";
 @import "./04-pages/dashboard.css";
 @import "./01-base/theme.css";
+@import "./06-utilities/launch-responsive.css";
 
 @config "../../../tailwind.config.js";
 @source "../../**/*.{js,jsx,ts,tsx}";

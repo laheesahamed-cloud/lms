@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getAiNote, listAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
-import { StudentPageHero } from '../components/StudentPageHero.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
 /* ─────────────────────────────────────────
@@ -68,6 +66,12 @@ function plainText(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
 const FLASHCARD_SESSION_PREFIX = 'lms.flashcards.session.';
 const FLASHCARD_REVIEW_STATS_KEY = 'lms.flashcards.reviewStats.v1';
 const FLASHCARD_BAD_IDS_KEY = 'lms.flashcards.badIds.v1';
+const FLASHCARD_DECK_STATS_KEY = 'lms.flashcards.deckStats.v1';
+const DAY_MS = 24 * 60 * 60 * 1000;
+const LEARNING_STEP_MS = 10 * 60 * 1000;
+const HARD_STEP_MS = 30 * 60 * 1000;
+const DAILY_NEW_CARD_LIMIT = 20;
+const QUICK_SESSION_LIMIT = 10;
 
 function cleanStudyText(value) {
   return plainText(value)
@@ -156,6 +160,46 @@ function readBadCardIds() {
   }
 }
 
+function readDeckStatsCache() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(FLASHCARD_DECK_STATS_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function deckStatsCacheKey(note) {
+  return `${note?.id || 'deck'}:${note?.updatedAt || ''}`;
+}
+
+function getCachedDeckStats(note, cache = readDeckStatsCache()) {
+  const row = cache[deckStatsCacheKey(note)];
+  const cardCount = Number(row?.cardCount);
+  if (!Number.isFinite(cardCount)) return null;
+  return {
+    cardCount,
+    loading: false,
+    unavailable: false,
+    countedAt: row?.countedAt || '',
+  };
+}
+
+function writeDeckStatsCacheEntry(note, cardCount) {
+  if (typeof window === 'undefined') return;
+  try {
+    const cache = readDeckStatsCache();
+    cache[deckStatsCacheKey(note)] = {
+      cardCount,
+      countedAt: new Date().toISOString(),
+    };
+    window.localStorage.setItem(FLASHCARD_DECK_STATS_KEY, JSON.stringify(cache));
+  } catch {
+    // Deck counts are only a convenience for the browser list.
+  }
+}
+
 function reportBadCard(card) {
   if (typeof window === 'undefined') return false;
   const id = cardStorageId(card);
@@ -171,18 +215,193 @@ function reportBadCard(card) {
   }
 }
 
-function recordFlashcardReview(card, wasKnown) {
+function startOfToday(time = Date.now()) {
+  const date = new Date(time);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function parseDueTime(row) {
+  const dueAt = row?.dueAt ? Date.parse(row.dueAt) : 0;
+  return Number.isFinite(dueAt) ? dueAt : 0;
+}
+
+function getCardReviewRow(card, stats = readReviewStats()) {
+  return stats[cardStorageId(card)] || null;
+}
+
+function isLearningRow(row) {
+  if (!row) return false;
+  if (row.state === 'learning' || row.state === 'relearning') return true;
+  const attempts = Number(row.attempts) || 0;
+  const repetitions = Number(row.repetitions) || 0;
+  return attempts > 0 && repetitions < 2 && (Number(row.learning) || 0) > 0;
+}
+
+function isWeakReviewRow(row) {
+  if (!row) return false;
+  const attempts = Number(row.attempts) || 0;
+  const correct = Number(row.correct) || 0;
+  const learning = Number(row.learning) || 0;
+  const successRate = attempts ? correct / attempts : 1;
+  return row.lastRating === 'again' ||
+    row.lastRating === 'hard' ||
+    (Number(row.lapses) || 0) > 0 ||
+    learning > correct ||
+    (attempts > 1 && successRate < 0.6);
+}
+
+function getCardSchedule(card, stats = readReviewStats(), now = Date.now()) {
+  const row = getCardReviewRow(card, stats);
+  if (!row) {
+    return {
+      state: 'new',
+      label: 'New',
+      score: 3,
+      dueAt: 0,
+      isNew: true,
+      isDue: false,
+      isOverdue: false,
+      isLearning: false,
+      isWeak: false,
+      isNotDue: false,
+    };
+  }
+
+  const dueAt = parseDueTime(row);
+  const today = startOfToday(now);
+  const isLearning = isLearningRow(row);
+  const isWeak = isWeakReviewRow(row);
+  const isDue = Boolean(dueAt && dueAt <= now);
+  const isOverdue = Boolean(dueAt && dueAt < today);
+
+  if (isOverdue) {
+    return { state: 'overdue', label: 'Overdue', score: 8, dueAt, isNew: false, isDue: true, isOverdue: true, isLearning, isWeak, isNotDue: false };
+  }
+  if (isDue && isLearning) {
+    return { state: 'learning-due', label: 'Learning', score: 6, dueAt, isNew: false, isDue: true, isOverdue: false, isLearning: true, isWeak, isNotDue: false };
+  }
+  if (isDue) {
+    return { state: isWeak ? 'weak-due' : 'due', label: isWeak ? 'Needs practice' : 'Due', score: isWeak ? 7 : 5, dueAt, isNew: false, isDue: true, isOverdue: false, isLearning: false, isWeak, isNotDue: false };
+  }
+  if (isLearning) {
+    return { state: 'learning', label: 'Learning', score: 4, dueAt, isNew: false, isDue: false, isOverdue: false, isLearning: true, isWeak, isNotDue: true };
+  }
+  if (isWeak) {
+    return { state: 'weak', label: 'Needs practice', score: 4, dueAt, isNew: false, isDue: false, isOverdue: false, isLearning: false, isWeak: true, isNotDue: true };
+  }
+  return { state: 'not-due', label: 'Coming later', score: 0, dueAt, isNew: false, isDue: false, isOverdue: false, isLearning: false, isWeak: false, isNotDue: true };
+}
+
+function uniqueCards(cards) {
+  const seen = new Set();
+  return (cards || []).filter((card) => {
+    const id = cardStorageId(card);
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function intervalLabel(dueAt) {
+  if (!dueAt) return '';
+  const diff = dueAt - Date.now();
+  if (diff <= 0) return 'ready now';
+  const minutes = Math.ceil(diff / (60 * 1000));
+  if (minutes < 60) return `in ${minutes} min`;
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 24) return `in ${hours} hr`;
+  const days = Math.ceil(hours / 24);
+  return `in ${days} day${days === 1 ? '' : 's'}`;
+}
+
+function formatLastReviewed(value) {
+  const time = value ? Date.parse(value) : 0;
+  if (!Number.isFinite(time) || !time) return 'Not reviewed';
+  const diff = Date.now() - time;
+  if (diff < 60 * 60 * 1000) return 'Reviewed today';
+  if (diff < DAY_MS) return 'Reviewed today';
+  const days = Math.floor(diff / DAY_MS);
+  if (days === 1) return 'Reviewed yesterday';
+  if (days < 7) return `Reviewed ${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `Reviewed ${weeks} wk${weeks === 1 ? '' : 's'} ago`;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(time));
+}
+
+function scheduleFromRating(previous, rating, now = Date.now()) {
+  const oldEase = Number(previous?.ease) || 2.5;
+  const oldInterval = Number(previous?.intervalDays) || 0;
+  const oldRepetitions = Number(previous?.repetitions) || 0;
+  const easeDelta = {
+    again: -0.2,
+    hard: -0.15,
+    good: 0,
+    easy: 0.15,
+  }[rating] ?? 0;
+  const ease = Math.max(1.3, Math.min(3.2, oldEase + easeDelta));
+
+  if (rating === 'again') {
+    return {
+      state: 'relearning',
+      intervalDays: 0,
+      dueAt: new Date(now + LEARNING_STEP_MS).toISOString(),
+      ease,
+      repetitions: 0,
+      remembered: false,
+    };
+  }
+
+  if (rating === 'hard') {
+    const isEarlyLearning = !previous || isLearningRow(previous) || oldRepetitions < 2;
+    return {
+      state: isEarlyLearning ? 'learning' : 'review',
+      intervalDays: isEarlyLearning ? 0 : Math.max(1, Math.round(Math.max(oldInterval, 1) * 1.2)),
+      dueAt: new Date(now + (isEarlyLearning ? HARD_STEP_MS : Math.max(1, Math.round(Math.max(oldInterval, 1) * 1.2)) * DAY_MS)).toISOString(),
+      ease,
+      repetitions: Math.max(oldRepetitions, 1),
+      remembered: false,
+    };
+  }
+
+  if (rating === 'easy') {
+    const intervalDays = Math.max(4, Math.round(Math.max(oldInterval || 2, 2) * ease * 1.35));
+    return {
+      state: 'review',
+      intervalDays,
+      dueAt: new Date(now + intervalDays * DAY_MS).toISOString(),
+      ease,
+      repetitions: oldRepetitions + 1,
+      remembered: true,
+    };
+  }
+
+  const graduated = previous && !isLearningRow(previous) && oldRepetitions >= 1;
+  const intervalDays = graduated ? Math.max(2, Math.round(Math.max(oldInterval, 1) * ease)) : 1;
+  return {
+    state: graduated ? 'review' : 'learning',
+    intervalDays,
+    dueAt: new Date(now + intervalDays * DAY_MS).toISOString(),
+    ease,
+    repetitions: oldRepetitions + 1,
+    remembered: true,
+  };
+}
+
+function recordFlashcardReview(card, ratingOrKnown) {
   if (typeof window === 'undefined') return;
   const id = cardStorageId(card);
   if (!id) return;
 
   try {
+    const rating = typeof ratingOrKnown === 'boolean'
+      ? (ratingOrKnown ? 'good' : 'again')
+      : (ratingOrKnown || 'good');
     const stats = readReviewStats();
     const previous = stats[id] || {};
-    const intervalDays = wasKnown
-      ? Math.min(Math.max(Number(previous.intervalDays) || 1, 1) * 2, 30)
-      : 1;
     const now = Date.now();
+    const next = scheduleFromRating(previous, rating, now);
+    const remembered = Boolean(next.remembered);
 
     stats[id] = {
       id,
@@ -190,11 +409,16 @@ function recordFlashcardReview(card, wasKnown) {
       context: card.context,
       questionType: card.questionType,
       attempts: (Number(previous.attempts) || 0) + 1,
-      correct: (Number(previous.correct) || 0) + (wasKnown ? 1 : 0),
-      learning: (Number(previous.learning) || 0) + (wasKnown ? 0 : 1),
-      intervalDays,
+      correct: (Number(previous.correct) || 0) + (remembered ? 1 : 0),
+      learning: (Number(previous.learning) || 0) + (remembered ? 0 : 1),
+      lapses: (Number(previous.lapses) || 0) + (rating === 'again' ? 1 : 0),
+      intervalDays: next.intervalDays,
+      ease: next.ease,
+      repetitions: next.repetitions,
+      state: next.state,
+      lastRating: rating,
       lastReviewedAt: new Date(now).toISOString(),
-      dueAt: new Date(now + intervalDays * 24 * 60 * 60 * 1000).toISOString(),
+      dueAt: next.dueAt,
     };
 
     window.localStorage.setItem(FLASHCARD_REVIEW_STATS_KEY, JSON.stringify(stats));
@@ -204,20 +428,7 @@ function recordFlashcardReview(card, wasKnown) {
 }
 
 function reviewStatus(card, stats = readReviewStats()) {
-  const row = stats[cardStorageId(card)];
-  if (!row) return { state: 'new', score: 1 };
-
-  const dueAt = row.dueAt ? Date.parse(row.dueAt) : 0;
-  const isDue = dueAt && dueAt <= Date.now();
-  const correct = Number(row.correct) || 0;
-  const learning = Number(row.learning) || 0;
-  const attempts = Number(row.attempts) || 0;
-  const weak = learning > correct || (attempts > 1 && correct / attempts < 0.6);
-
-  if (isDue && weak) return { state: 'due weak', score: 5 };
-  if (isDue) return { state: 'due', score: 4 };
-  if (weak) return { state: 'weak', score: 3 };
-  return { state: 'reviewed', score: 0 };
+  return getCardSchedule(card, stats);
 }
 
 function dedupeLines(lines) {
@@ -419,10 +630,201 @@ function prioritizeCards(cards) {
     .map((item) => item.card);
 }
 
+function dueQueueRank(status) {
+  if (status.isOverdue) return 0;
+  if (status.isDue && !status.isLearning) return 1;
+  if (status.isDue && status.isLearning) return 2;
+  if (status.isWeak) return 3;
+  return 9;
+}
+
+function selectQueueCards(cards, queueType, limit = 60) {
+  const stats = readReviewStats();
+  const entries = uniqueCards(cards).map((card, index) => ({
+    card,
+    index,
+    status: getCardSchedule(card, stats),
+    row: getCardReviewRow(card, stats),
+  }));
+
+  const filtered = entries.filter(({ status }) => {
+    if (queueType === 'due') return status.isDue || (status.isWeak && !status.isNew);
+    if (queueType === 'new') return status.isNew;
+    if (queueType === 'weak') return status.isWeak && !status.isNew;
+    if (queueType === 'quick') return status.isDue || status.isWeak || status.isNew;
+    return true;
+  });
+
+  const sorter = (a, b) => {
+    if (queueType === 'due') {
+      return (dueQueueRank(a.status) - dueQueueRank(b.status)) ||
+        ((a.status.dueAt || Number.MAX_SAFE_INTEGER) - (b.status.dueAt || Number.MAX_SAFE_INTEGER)) ||
+        (a.index - b.index);
+    }
+    if (queueType === 'new') return a.index - b.index;
+    if (queueType === 'weak') {
+      const aMisses = Number(a.row?.learning || 0) + Number(a.row?.lapses || 0);
+      const bMisses = Number(b.row?.learning || 0) + Number(b.row?.lapses || 0);
+      return (bMisses - aMisses) || (a.index - b.index);
+    }
+    if (queueType === 'quick') {
+      return (dueQueueRank(a.status) - dueQueueRank(b.status)) ||
+        (b.status.score - a.status.score) ||
+        (a.index - b.index);
+    }
+    return (b.status.score - a.status.score) || (a.index - b.index);
+  };
+
+  return filtered.sort(sorter).slice(0, limit).map((entry) => entry.card);
+}
+
 function noteIdFromStoredCardId(id) {
   const first = String(id || '').split('-')[0];
   const parsed = Number(first);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildInitialDeckStats(notes) {
+  const cache = readDeckStatsCache();
+  return (notes || []).reduce((acc, note) => {
+    const cached = getCachedDeckStats(note, cache);
+    if (cached) acc[note.id] = cached;
+    return acc;
+  }, {});
+}
+
+function getNoteReviewCounts(note, reviewStats = readReviewStats()) {
+  const noteId = Number(note?.id);
+  const rows = Object.entries(reviewStats || {})
+    .filter(([cardId]) => noteIdFromStoredCardId(cardId) === noteId)
+    .map(([, row]) => row || {});
+
+  const now = Date.now();
+  const today = startOfToday(now);
+  const counts = rows.reduce((acc, row) => {
+    const dueAt = parseDueTime(row);
+    const learning = isLearningRow(row);
+    const weak = isWeakReviewRow(row);
+    const lastReviewedAt = row?.lastReviewedAt ? Date.parse(row.lastReviewedAt) : 0;
+
+    if (learning) {
+      acc.learning += 1;
+      if (dueAt && dueAt <= now) acc.learningDue += 1;
+    } else if (dueAt && dueAt < today) {
+      acc.overdue += 1;
+    } else if (dueAt && dueAt <= now) {
+      acc.due += 1;
+    } else if (dueAt > now) {
+      acc.notDue += 1;
+    }
+
+    if (weak) acc.weak += 1;
+    acc.attempts += Number(row.attempts) || 0;
+    acc.correct += Number(row.correct) || 0;
+    if (lastReviewedAt && (!acc.lastReviewedAt || lastReviewedAt > acc.lastReviewedAt)) acc.lastReviewedAt = lastReviewedAt;
+    if (dueAt > now && (!acc.nextDueAt || dueAt < acc.nextDueAt)) acc.nextDueAt = dueAt;
+    return acc;
+  }, {
+    due: 0,
+    overdue: 0,
+    learning: 0,
+    learningDue: 0,
+    weak: 0,
+    notDue: 0,
+    attempts: 0,
+    correct: 0,
+    lastReviewedAt: 0,
+    nextDueAt: 0,
+  });
+
+  return {
+    reviewedCount: rows.length,
+    dueCount: counts.due,
+    overdueCount: counts.overdue,
+    learningCount: counts.learning,
+    learningDueCount: counts.learningDue,
+    weakCount: counts.weak,
+    notDueCount: counts.notDue,
+    lastReviewedAt: counts.lastReviewedAt ? new Date(counts.lastReviewedAt).toISOString() : '',
+    accuracy: counts.attempts ? (counts.correct / counts.attempts) * 100 : null,
+    nextDueAt: counts.nextDueAt,
+    reviewCount: counts.overdue + counts.due + counts.learningDue,
+  };
+}
+
+function hasDeckCardCount(stat) {
+  return Number.isFinite(Number(stat?.cardCount));
+}
+
+function getDeckMetrics(note, deckStats = {}, reviewStats = readReviewStats()) {
+  const stat = deckStats[note?.id] || {};
+  const cardCount = hasDeckCardCount(stat) ? Number(stat.cardCount) : null;
+  const review = getNoteReviewCounts(note, reviewStats);
+  const newCount = cardCount === null ? null : Math.max(cardCount - review.reviewedCount, 0);
+
+  return {
+    cardCount,
+    cardCountPending: Boolean(stat.loading) || (!note?.accessLocked && !hasDeckCardCount(stat) && !stat.unavailable),
+    newCount,
+    dueCount: review.dueCount,
+    overdueCount: review.overdueCount,
+    learningCount: review.learningCount,
+    learningDueCount: review.learningDueCount,
+    weakCount: review.weakCount,
+    notDueCount: review.notDueCount,
+    reviewCount: review.reviewCount,
+    reviewedCount: review.reviewedCount,
+    lastReviewedAt: review.lastReviewedAt,
+    accuracy: review.accuracy,
+    availableToday: review.reviewCount + Math.min(newCount || 0, DAILY_NEW_CARD_LIMIT),
+    nextDueAt: review.nextDueAt,
+  };
+}
+
+function summarizeDeckMetrics(notes, deckStats = {}, reviewStats = readReviewStats()) {
+  return (notes || []).reduce((acc, note) => {
+    const metrics = getDeckMetrics(note, deckStats, reviewStats);
+    if (metrics.cardCount === null) {
+      acc.cardsUnknown += note.accessLocked ? 0 : 1;
+    } else {
+      acc.cards += metrics.cardCount;
+      acc.cardsKnown += 1;
+    }
+    if (metrics.newCount === null) {
+      acc.newUnknown += note.accessLocked ? 0 : 1;
+    } else {
+      acc.new += metrics.newCount;
+      acc.newKnown += 1;
+    }
+    acc.due += metrics.dueCount;
+    acc.overdue += metrics.overdueCount;
+    acc.learning += metrics.learningCount;
+    acc.learningDue += metrics.learningDueCount;
+    acc.weak += metrics.weakCount;
+    acc.notDue += metrics.notDueCount;
+    acc.reviewed += metrics.reviewedCount;
+    acc.review += metrics.reviewCount;
+    acc.availableToday += metrics.availableToday;
+    if (metrics.nextDueAt && (!acc.nextDueAt || metrics.nextDueAt < acc.nextDueAt)) acc.nextDueAt = metrics.nextDueAt;
+    return acc;
+  }, {
+    cards: 0,
+    cardsKnown: 0,
+    cardsUnknown: 0,
+    new: 0,
+    newKnown: 0,
+    newUnknown: 0,
+    due: 0,
+    overdue: 0,
+    learning: 0,
+    learningDue: 0,
+    weak: 0,
+    notDue: 0,
+    reviewed: 0,
+    review: 0,
+    availableToday: 0,
+    nextDueAt: 0,
+  });
 }
 
 function buildMnemonicQuestion(acronym, context) {
@@ -512,30 +914,6 @@ function buildLessonCards(note) {
   return finalizeDeck(cards);
 }
 
-function buildCourseGroups(notes, filter) {
-  const filtered = filter
-    ? notes.filter(n => {
-        const q = filter.toLowerCase();
-        return (
-          (n.lessonTitle || n.title || '').toLowerCase().includes(q) ||
-          (n.courseTitle  || '').toLowerCase().includes(q) ||
-          (n.topicName    || '').toLowerCase().includes(q) ||
-          (n.subtopicName || '').toLowerCase().includes(q)
-        );
-      })
-    : notes;
-
-  const groups = {};
-  filtered.forEach(note => {
-    const c = note.courseTitle || 'General';
-    const s = note.topicName   || 'Other';
-    if (!groups[c])    groups[c]    = {};
-    if (!groups[c][s]) groups[c][s] = [];
-    groups[c][s].push(note);
-  });
-  return groups;
-}
-
 /* ─────────────────────────────────────────
    ICONS
 ───────────────────────────────────────── */
@@ -546,24 +924,6 @@ function IcFlip() {
         stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
       <path d="M10.5 3l.5 1.6-1.6.4M3.5 11l-.5-1.6 1.6-.4"
         stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-function IcCards() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-      <rect x="1" y="4" width="11" height="8.5" rx="2" stroke="currentColor" strokeWidth="1.4" fill="none"/>
-      <rect x="3" y="2.5" width="11" height="8.5" rx="2" stroke="currentColor" strokeWidth="1.2" fill="none" opacity=".36"/>
-    </svg>
-  );
-}
-
-function IcChevron({ open }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
-      style={{ transition: 'transform 0.22s cubic-bezier(0.23,1,0.32,1)', transform: open ? 'rotate(180deg)' : 'none' }}>
-      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -648,19 +1008,28 @@ function DifficultyBadge({ level }) {
 
 function ReviewStatusBadge({ card }) {
   const status = reviewStatus(card);
-  if (status.state === 'new' || status.state === 'reviewed') return null;
+  const styles = {
+    new: ['New', '#2563EB', 'rgba(37,99,235,0.10)', 'rgba(37,99,235,0.22)'],
+    overdue: ['Overdue', '#E11D48', 'rgba(244,63,94,0.10)', 'rgba(244,63,94,0.22)'],
+    'learning-due': ['Learning', '#D97706', 'rgba(245,158,11,0.10)', 'rgba(245,158,11,0.22)'],
+    learning: ['Learning', '#D97706', 'rgba(245,158,11,0.10)', 'rgba(245,158,11,0.22)'],
+    'weak-due': ['Needs practice', '#E11D48', 'rgba(244,63,94,0.10)', 'rgba(244,63,94,0.22)'],
+    weak: ['Needs practice', '#E11D48', 'rgba(244,63,94,0.10)', 'rgba(244,63,94,0.22)'],
+    due: ['Due now', '#2563EB', 'rgba(37,99,235,0.10)', 'rgba(37,99,235,0.22)'],
+    'not-due': ['Coming later', '#059669', 'rgba(16,185,129,0.10)', 'rgba(16,185,129,0.22)'],
+  };
+  const [label, color, bg, border] = styles[status.state] || styles['not-due'];
 
-  const isWeak = status.state.includes('weak');
   return (
     <span
       className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold"
       style={{
-        background: isWeak ? 'rgba(244,63,94,0.10)' : 'rgba(59,130,246,0.10)',
-        color: isWeak ? '#E11D48' : '#2563EB',
-        border: `1px solid ${isWeak ? 'rgba(244,63,94,0.22)' : 'rgba(59,130,246,0.22)'}`,
+        background: bg,
+        color,
+        border: `1px solid ${border}`,
       }}
     >
-      {isWeak ? 'Needs Review' : 'Due'}
+      {label}
     </span>
   );
 }
@@ -719,245 +1088,506 @@ function AnswerBlock({ card }) {
 /* ─────────────────────────────────────────
    PICK PHASE
 ───────────────────────────────────────── */
-function LessonCard({ note, onStart, starting }) {
-  const navigate = useNavigate();
-  const isLocked = Boolean(note.accessLocked);
+function formatDeckCount(value, pending = false) {
+  if (pending) return '...';
+  if (value === null || value === undefined) return '0';
+  return value;
+}
+
+const DECK_TABLE_COLUMNS = '104px minmax(0,1fr) minmax(132px,.42fr) 74px 88px';
+
+function metricPercent(metrics) {
+  const total = Number(metrics?.cardCount) || 0;
+  if (!total) return 0;
+  return Math.min(100, Math.round(((metrics?.reviewedCount || 0) / total) * 100));
+}
+
+function deckTitle(note) {
+  return note.lessonTitle || note.title || 'Untitled lesson';
+}
+
+function deckContextLine(note) {
+  return [note.courseTitle || 'General', note.topicName, note.subtopicName]
+    .filter(Boolean)
+    .join(' / ');
+}
+
+function deckStatus(note, metrics) {
+  if (note.accessLocked) return { label: 'Locked', tone: 'slate' };
+  if (Number(metrics.overdueCount) > 0 || Number(metrics.reviewCount) > 0) return { label: 'Due', tone: 'sky' };
+  if (Number(metrics.learningCount) > 0) return { label: 'Learning', tone: 'amber' };
+  if (Number(metrics.weakCount) > 0) return { label: 'Flagged', tone: 'rose' };
+  if (Number(metrics.newCount) > 0) return { label: 'New', tone: 'emerald' };
+  if (Number(metrics.notDueCount) > 0) return { label: 'Completed', tone: 'brand' };
+  return { label: 'Ready', tone: 'slate' };
+}
+
+function deckDueLabel(metrics) {
+  if (Number(metrics.overdueCount) > 0) return `${metrics.overdueCount} overdue`;
+  if (Number(metrics.reviewCount) > 0) return `${metrics.reviewCount} due`;
+  if (Number(metrics.learningDueCount) > 0) return `${metrics.learningDueCount} learning`;
+  if (Number(metrics.weakCount) > 0) return `${metrics.weakCount} flagged`;
+  if (Number(metrics.newCount) > 0) return `${metrics.newCount} new`;
+  if (metrics.nextDueAt) return intervalLabel(metrics.nextDueAt);
+  if (Number(metrics.notDueCount) > 0) return 'caught up';
+  return 'ready';
+}
+
+function deckActionLabel(note, metrics) {
+  if (note.accessLocked) return 'Unlock';
+  if (Number(metrics.reviewCount) > 0 || Number(metrics.overdueCount) > 0) return 'Review';
+  if (Number(metrics.weakCount) > 0) return 'Practice';
+  if (Number(metrics.newCount) > 0) return 'Practice';
+  return 'Browse';
+}
+
+function formatCardsCount(metrics) {
+  return formatDeckCount(metrics.cardCount, metrics.cardCountPending);
+}
+
+function DeckChip({ label, tone = 'slate' }) {
+  const tones = {
+    brand: 'border-brand-primary/20 bg-brand-primary/10 text-brand-primary',
+    sky: 'border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+    amber: 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    emerald: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    rose: 'border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+    slate: 'border-line-soft bg-surface-1 text-ink-muted',
+  };
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-line-soft bg-surface-1 p-4 shadow-xs
-      transition-[transform,box-shadow] duration-150 ease-out
-      hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-md">
-      <h3 className="m-0 line-clamp-2 text-[13.5px] font-extrabold leading-snug text-ink-strong">
-        {note.lessonTitle || note.title}
-      </h3>
-      {note.subtopicName && (
-        <p className="m-0 text-[11px] font-semibold text-ink-muted">{note.subtopicName}</p>
-      )}
-      <div className="mt-auto flex items-center gap-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-bold text-ink-soft opacity-60">
-          <IcCards/>Lesson deck
-        </span>
-        <button
-          type="button"
-          className="ml-auto inline-flex min-h-8 items-center justify-center rounded-full border px-3.5
-            text-[12px] font-extrabold transition-[transform,opacity] duration-150 ease-out
-            hover:-translate-y-0.5 active:scale-[0.97]
-            disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
-          style={{ background: 'rgba(59,130,246,0.09)', borderColor: 'rgba(59,130,246,0.22)', color: '#3B82F6' }}
-          onClick={() => isLocked ? navigate('/billing') : onStart(note)}
-          disabled={starting}
-        >
-          {isLocked ? 'Upgrade' : starting ? 'Loading...' : 'Start'}
-        </button>
-      </div>
-    </div>
+    <span className={cx('inline-flex min-h-6 items-center justify-center rounded-md border px-2 text-[10.5px] font-extrabold leading-none', tones[tone] || tones.slate)}>
+      {label}
+    </span>
   );
 }
 
-function SubjectSection({ subjectName, notes, onStartNote, onStartMixed, starting }) {
+function SummaryPill({ label, value }) {
   return (
-    <div className="border-b border-line-soft/60 last:border-b-0">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-2.5" style={{ background: 'var(--surface-2)' }}>
-        <span className="text-[10.5px] font-black uppercase tracking-[0.09em] text-ink-muted">
-          {subjectName}
-          <span className="ml-2 font-bold opacity-55">({notes.length})</span>
-        </span>
-        <button
-          type="button"
-          className="inline-flex min-h-7 items-center justify-center rounded-full border px-3 text-[11px] font-extrabold text-brand-primary transition-[transform,opacity] hover:-translate-y-0.5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-          style={{ background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.20)' }}
-          onClick={() => onStartMixed(notes, `${subjectName} Mixed Flashcards`)}
-          disabled={starting || notes.every((note) => note.accessLocked)}
-        >
-          Mix {subjectName}
-        </button>
-      </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))] gap-3 p-4">
-        {notes.map(note => (
-          <LessonCard key={note.id} note={note} onStart={onStartNote} starting={starting}/>
-        ))}
-      </div>
-    </div>
+    <span className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-line-soft bg-surface-1 px-2.5 text-[11px] font-extrabold text-ink-muted dark:border-white/[0.07] dark:bg-white/[0.03]">
+      <span>{label}</span>
+      <strong className="text-[12px] tabular-nums text-ink-strong">{value}</strong>
+    </span>
   );
 }
 
-function CourseAccordion({ courseName, subjects, onStartNote, onStartMixed, starting }) {
-  const [open, setOpen] = useState(true);
-  const lessonCount  = Object.values(subjects).reduce((n, arr) => n + arr.length, 0);
-  const subjectCount = Object.keys(subjects).length;
-  const courseNotes = Object.values(subjects).flat();
+function FlashcardCompactHeader({
+  summary,
+  loading,
+  starting,
+  onStartDueReview,
+  onStartNewCards,
+  onStartAllCards,
+  onStartQuick,
+}) {
+  const knownCards = formatDeckCount(summary.cards, summary.cardsUnknown > 0);
+  const newCards = formatDeckCount(summary.new, summary.newUnknown > 0);
 
   return (
-    <div className="mb-4 overflow-hidden rounded-2xl border border-line-soft bg-surface-1 shadow-xs">
-      <div
-        className="flex w-full items-center gap-3 px-5 py-4 text-left
-          transition-[background] duration-150 hover:bg-surface-2/50
-          focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"
-      >
-        <button
-          type="button"
-          aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left"
-          onClick={() => setOpen(v => !v)}
-        >
-          <span
-          className="grid size-9 shrink-0 place-items-center rounded-xl text-[14px] font-extrabold"
-          style={{ background: 'rgba(59,130,246,0.10)', color: '#3B82F6' }}
-          aria-hidden="true"
-          >
-            {courseName.slice(0, 2).toUpperCase()}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-[15px] font-extrabold text-ink-strong">{courseName}</div>
-            <div className="text-xs font-semibold text-ink-muted">
-              {subjectCount} subject{subjectCount !== 1 ? 's' : ''} · {lessonCount} lesson{lessonCount !== 1 ? 's' : ''}
-            </div>
-          </div>
-          <IcChevron open={open}/>
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border px-3.5 text-[12px] font-extrabold text-brand-primary transition-[transform,opacity] hover:-translate-y-0.5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 max-[520px]:w-full"
-          style={{ background: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.22)' }}
-          onClick={() => onStartMixed(courseNotes, `${courseName} Mixed Flashcards`)}
-          disabled={starting || courseNotes.every((note) => note.accessLocked)}
-        >
-          Mix course
-        </button>
-      </div>
-      {open && (
-        <div className="border-t border-line-soft/60">
-          {Object.entries(subjects).map(([subj, notes]) => (
-            <SubjectSection
-              key={subj}
-              subjectName={subj}
-              notes={notes}
-              onStartNote={onStartNote}
-              onStartMixed={onStartMixed}
-              starting={starting}
-            />
-          ))}
+    <header className="flex flex-wrap items-end justify-between gap-3 fc-fade-up">
+      <div className="min-w-0">
+        <h1 className="m-0 text-[26px] font-black leading-tight text-ink-strong max-[520px]:text-[23px]">Flashcards</h1>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <SummaryPill label="Due" value={summary.review} />
+          <SummaryPill label="New" value={newCards} />
+          <SummaryPill label="Learning" value={summary.learning} />
+          <SummaryPill label="Completed" value={summary.notDue} />
+          <SummaryPill label="Cards" value={knownCards} />
         </div>
+      </div>
+
+      <div className="flex flex-wrap justify-end gap-2 max-[640px]:w-full max-[640px]:justify-start">
+        <button
+          type="button"
+          className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded-lg border border-brand-primary/28 bg-brand-primary/10 px-3 text-[12px] font-extrabold text-brand-primary transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:bg-brand-primary/14 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={starting || loading || !summary.review}
+          onClick={onStartDueReview}
+        >
+          Start Due Review
+        </button>
+        <button
+          type="button"
+          className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded-lg border border-line-soft bg-surface-1 px-3 text-[12px] font-extrabold text-ink-strong transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:border-brand-primary/20 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={starting || loading || !Number(summary.new)}
+          onClick={onStartNewCards}
+        >
+          New
+        </button>
+        <button
+          type="button"
+          className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded-lg border border-line-soft bg-surface-1 px-3 text-[12px] font-extrabold text-ink-strong transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:border-brand-primary/20 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={starting || loading || (!summary.cards && !summary.cardsUnknown)}
+          onClick={onStartQuick}
+        >
+          Quick 10
+        </button>
+        <button
+          type="button"
+          className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded-lg border border-line-soft bg-surface-1 px-3 text-[12px] font-extrabold text-ink-strong transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:border-brand-primary/20 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={starting || loading || (!summary.cards && !summary.cardsUnknown)}
+          onClick={onStartAllCards}
+        >
+          Browse All
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function DeckProgress({ metrics }) {
+  return (
+    <span className="block h-1.5 overflow-hidden rounded-full bg-surface-3" aria-label={`${metricPercent(metrics)} percent reviewed`}>
+      <span
+        className="block h-full rounded-full bg-brand-primary transition-[width] duration-300"
+        style={{ width: `${metricPercent(metrics)}%` }}
+      />
+    </span>
+  );
+}
+
+function FlashcardDeckDesktopRow({ note, metrics, starting, onStartNote, onUnlock }) {
+  const status = deckStatus(note, metrics);
+  const actionLabel = deckActionLabel(note, metrics);
+  const cardCount = formatCardsCount(metrics);
+  const lastReviewed = metrics.reviewedCount ? formatLastReviewed(metrics.lastReviewedAt) : '';
+  const disabled = starting || (!note.accessLocked && metrics.cardCount === 0 && !metrics.cardCountPending);
+  const handleAction = () => note.accessLocked ? onUnlock() : onStartNote(note);
+
+  return (
+    <div
+      role="row"
+      className={cx(
+        'grid min-h-[54px] items-center gap-3 border-t border-line-soft px-4 py-2 text-[13px] transition-[background,border-color] duration-150 hover:bg-surface-2/45 dark:border-white/[0.07] dark:hover:bg-white/[0.045]',
+        disabled && 'opacity-60'
       )}
+      style={{ gridTemplateColumns: DECK_TABLE_COLUMNS }}
+    >
+      <div role="cell"><DeckChip label={status.label} tone={status.tone} /></div>
+      <div role="cell" className="min-w-0">
+        <div className="truncate text-[13.5px] font-extrabold leading-tight text-ink-strong">{deckTitle(note)}</div>
+        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] font-semibold leading-tight text-ink-muted">
+          <span className="max-w-full truncate">{deckContextLine(note)}</span>
+          {lastReviewed ? <span className="shrink-0 text-ink-muted/80">{lastReviewed}</span> : null}
+        </div>
+      </div>
+      <div role="cell" className="min-w-0">
+        <div className="truncate text-[12px] font-extrabold text-ink-medium">{deckDueLabel(metrics)}</div>
+        <div className="mt-1 max-w-[130px]"><DeckProgress metrics={metrics} /></div>
+      </div>
+      <div role="cell" className="text-right text-[12px] font-black tabular-nums text-ink-strong">{cardCount}</div>
+      <div role="cell">
+        <button
+          type="button"
+          className="inline-flex min-h-9 w-full touch-manipulation items-center justify-center rounded-lg border border-brand-primary/22 bg-brand-primary/10 px-3 text-[12px] font-extrabold text-brand-primary transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:bg-brand-primary/14 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={disabled}
+          onClick={handleAction}
+        >
+          {actionLabel}
+        </button>
+      </div>
     </div>
   );
 }
 
-function PickPhase({ notes, loading, error, onStartNote, onStartMixed, onStartDueReview, starting }) {
-  const [filter, setFilter] = useState('');
-  const groups      = buildCourseGroups(notes, filter);
-  const courseNames = Object.keys(groups);
-  const reviewRows = Object.values(readReviewStats());
-  const dueCount = reviewRows.filter((row) => row?.dueAt && Date.parse(row.dueAt) <= Date.now()).length;
-  const weakCount = reviewRows.filter((row) => (Number(row.learning) || 0) > (Number(row.correct) || 0)).length;
+function FlashcardDeckMobileRow({ note, metrics, starting, onStartNote, onUnlock }) {
+  const status = deckStatus(note, metrics);
+  const actionLabel = deckActionLabel(note, metrics);
+  const cardCount = formatCardsCount(metrics);
+  const disabled = starting || (!note.accessLocked && metrics.cardCount === 0 && !metrics.cardCountPending);
+  const handleAction = () => note.accessLocked ? onUnlock() : onStartNote(note);
 
   return (
-    <main className="dashboard-page study-hub-page student-flashcards-page">
-      <style>{ANIM_CSS}</style>
-      <section className="study-hub-shell">
-        <AppHeader
-          title="Flashcards"
-          subtitle="Recall Practice"
-        />
+    <div className={cx('grid gap-2 border-t border-line-soft px-3 py-2.5 transition-colors duration-150 hover:bg-surface-2/45 dark:border-white/[0.07] dark:hover:bg-white/[0.045]', disabled && 'opacity-60')}>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+        <DeckChip label={status.label} tone={status.tone} />
+        <h3 className="m-0 min-w-0 truncate text-[13.5px] font-black leading-tight text-ink-strong">{deckTitle(note)}</h3>
+        <button
+          type="button"
+          className="inline-flex min-h-8 touch-manipulation items-center justify-center rounded-lg border border-brand-primary/22 bg-brand-primary/10 px-2.5 text-[11.5px] font-extrabold text-brand-primary transition-[background,border-color,transform,opacity] hover:bg-brand-primary/14 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={disabled}
+          onClick={handleAction}
+        >
+          {actionLabel}
+        </button>
+      </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_88px] items-center gap-3 pl-16 max-[420px]:pl-0">
+        <p className="m-0 min-w-0 truncate text-[11.5px] font-semibold text-ink-muted">
+          {deckContextLine(note)} · {deckDueLabel(metrics)} · {cardCount} cards
+        </p>
+        <DeckProgress metrics={metrics} />
+      </div>
+    </div>
+  );
+}
 
-        <StudentPageHero
-          title="Flashcards"
-          subtitle="Recall Practice"
-          metrics={[
-            { label: 'Lessons', value: loading ? '-' : notes.length },
-            { label: 'Courses', value: loading ? '-' : courseNames.length },
-            { label: 'Modes', value: '2' },
-          ]}
-        />
+function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, reviewStats, onStartNote, onUnlock }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-line-soft bg-surface-card shadow-none fc-fade-up fc-d3 dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line-soft px-4 py-3 dark:border-white/[0.07] max-[640px]:px-3">
+        <div>
+          <h2 id="flashcard-list-title" className="m-0 text-[16px] font-black leading-tight text-ink-strong">Lessons</h2>
+          <p className="m-0 mt-0.5 text-[12px] font-semibold text-ink-muted">
+            {notes.length ? `${notes.length} lesson${notes.length === 1 ? '' : 's'} shown` : 'Browse available lessons'}
+          </p>
+        </div>
+      </div>
 
-        {error && <div className={cx(ui.feedbackError, 'mb-4 fc-fade-up')}>{error}</div>}
-
-        {/* How-to strip */}
-        <div className="mb-5 grid grid-cols-3 gap-3 rounded-xl border border-line-soft bg-surface-1 p-3 shadow-xs fc-fade-up max-[720px]:grid-cols-1">
-          {[
-            ['Pick a lesson',  'Browse by course and subject. Each lesson generates focused Q&A cards.'],
-            ['Mix a topic',     'Use Mix on a course or subject to practice random cards from many lessons.'],
-            ['Recall first',   "Form your answer mentally before flipping — that's where learning happens."],
-          ].map(([title, desc], i) => (
-            <div key={title} className="flex items-start gap-3 rounded-lg bg-surface-2 px-3.5 py-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg text-sm font-extrabold"
-                style={{ background: 'rgba(59,130,246,0.10)', color: '#3B82F6' }} aria-hidden="true">{i + 1}</span>
-              <div>
-                <strong className="block text-[13px] font-extrabold text-ink-strong">{title}</strong>
-                <span className="text-[12px] leading-relaxed text-ink-soft">{desc}</span>
+      {loading ? (
+        <div>
+          <div className="hidden min-[1041px]:grid">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="grid min-h-[54px] items-center gap-3 border-t border-line-soft px-4 py-2 dark:border-white/[0.07]" style={{ gridTemplateColumns: DECK_TABLE_COLUMNS }}>
+                <div className={ui.shimmer} style={{ height: 24, borderRadius: 8 }} />
+                <div className={ui.shimmer} style={{ height: 16, borderRadius: 999 }} />
+                <div className={ui.shimmer} style={{ height: 14, borderRadius: 999 }} />
+                <div className={ui.shimmer} style={{ height: 18, borderRadius: 999 }} />
+                <div className={ui.shimmer} style={{ height: 36, borderRadius: 10 }} />
               </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-1 px-4 py-3 shadow-xs fc-fade-up fc-d1">
-          <div>
-            <strong className="block text-[13px] font-extrabold text-ink-strong">Smart review</strong>
-            <span className="text-[12px] font-semibold text-ink-muted">
-              {dueCount || weakCount
-                ? `${dueCount} due · ${weakCount} needs review`
-                : 'Mark cards during study to build a review deck.'}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="inline-flex min-h-9 items-center justify-center rounded-full border px-3.5 text-[12px] font-extrabold transition-[transform,opacity] hover:-translate-y-0.5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
-            style={{ background: 'rgba(16,185,129,0.09)', borderColor: 'rgba(16,185,129,0.22)', color: '#059669' }}
-            disabled={starting || (!dueCount && !weakCount)}
-            onClick={() => onStartDueReview(notes)}
-          >
-            Review due
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="mb-5 flex min-h-11 items-center gap-2.5 rounded-xl border border-line-soft bg-surface-1 px-3 shadow-xs
-          transition-[border-color,box-shadow] duration-150
-          focus-within:border-brand-primary/40 focus-within:ring-4 focus-within:ring-brand-primary/10 fc-fade-up fc-d1">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ opacity: .4 }} aria-hidden="true">
-            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
-            <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-          </svg>
-          <input
-            className="min-w-0 flex-1 border-0 bg-transparent text-[13.5px] font-semibold text-ink-strong outline-none placeholder:text-ink-muted"
-            placeholder="Search by lesson, subject, or course…"
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            aria-label="Search flashcard lessons"
-          />
-          {filter && (
-            <button type="button"
-              className="grid size-5 shrink-0 place-items-center rounded-full bg-surface-3 text-ink-muted transition hover:text-ink-strong"
-              onClick={() => setFilter('')} aria-label="Clear search">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-              </svg>
-            </button>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="grid gap-4">
-            {[1, 2].map(i => <div key={i} className={ui.shimmer} style={{ height: 120, borderRadius: 16 }}/>)}
-          </div>
-        ) : courseNames.length === 0 ? (
-          <div className={ui.emptyBox}>
-            <p>{notes.length === 0 ? 'No flashcard decks available yet.' : 'No lessons match your search.'}</p>
-          </div>
-        ) : (
-          <div className="fc-fade-up fc-d2">
-            {courseNames.map(course => (
-              <CourseAccordion
-                key={course}
-                courseName={course}
-                subjects={groups[course]}
-                onStartNote={onStartNote}
-                onStartMixed={onStartMixed}
-                starting={starting}
-              />
             ))}
           </div>
-        )}
+          <div className="min-[1041px]:hidden">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="grid min-h-[56px] gap-2 border-t border-line-soft px-3 py-2.5 dark:border-white/[0.07]">
+                <div className="grid grid-cols-[54px_minmax(0,1fr)_70px] gap-2">
+                  <div className={ui.shimmer} style={{ height: 24, borderRadius: 8 }} />
+                  <div className={ui.shimmer} style={{ height: 16, borderRadius: 999 }} />
+                  <div className={ui.shimmer} style={{ height: 32, borderRadius: 10 }} />
+                </div>
+                <div className={ui.shimmer} style={{ height: 12, width: '70%', borderRadius: 999 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : notes.length === 0 ? (
+        <div className="grid min-h-[220px] place-items-center px-6 py-10 text-center">
+          <div className="max-w-[420px]">
+            <h3 className="m-0 text-[20px] font-black text-ink-strong">
+              {allCount === 0 ? 'No flashcard decks available yet.' : 'No decks match those filters.'}
+            </h3>
+            <p className="m-0 mt-2 text-[14px] font-semibold leading-relaxed text-ink-muted">
+              {allCount === 0
+                ? 'Flashcards will appear here when lessons publish practice cards.'
+                : 'Try All, Due, or clear the search to return to your full study set.'}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div role="table" aria-label="Flashcard decks" className="hidden min-[1041px]:block">
+            <div
+              role="row"
+              className="grid items-center gap-3 bg-surface-1/70 px-4 py-2 text-[10.5px] font-black uppercase tracking-normal text-ink-muted dark:bg-white/[0.025]"
+              style={{ gridTemplateColumns: DECK_TABLE_COLUMNS }}
+            >
+              {['Queue', 'Lesson', 'Progress', 'Cards', 'Action'].map((label) => (
+                <div key={label} role="columnheader">{label}</div>
+              ))}
+            </div>
+            {notes.map((note) => {
+              const metrics = getDeckMetrics(note, deckStats, reviewStats);
+              return (
+                <FlashcardDeckDesktopRow
+                  key={note.id}
+                  note={note}
+                  metrics={metrics}
+                  starting={starting}
+                  onStartNote={onStartNote}
+                  onUnlock={onUnlock}
+                />
+              );
+            })}
+          </div>
+
+          <div className="min-[1041px]:hidden">
+            {notes.map((note) => {
+              const metrics = getDeckMetrics(note, deckStats, reviewStats);
+              return (
+                <FlashcardDeckMobileRow
+                  key={note.id}
+                  note={note}
+                  metrics={metrics}
+                  starting={starting}
+                  onStartNote={onStartNote}
+                  onUnlock={onUnlock}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function matchesDeckFilter(note, filter) {
+  if (!filter) return true;
+  const q = filter.toLowerCase();
+  return (
+    (note.lessonTitle || note.title || '').toLowerCase().includes(q) ||
+    (note.courseTitle  || '').toLowerCase().includes(q) ||
+    (note.topicName    || '').toLowerCase().includes(q) ||
+    (note.subtopicName || '').toLowerCase().includes(q)
+  );
+}
+
+function matchesStatusFilter(note, statusFilter, deckStats, reviewStats) {
+  if (statusFilter === 'all') return true;
+  const metrics = getDeckMetrics(note, deckStats, reviewStats);
+  if (statusFilter === 'due') return metrics.reviewCount > 0 || metrics.overdueCount > 0;
+  if (statusFilter === 'new') return Number(metrics.newCount) > 0;
+  if (statusFilter === 'learning') return metrics.learningCount > 0;
+  if (statusFilter === 'weak') return metrics.weakCount > 0;
+  if (statusFilter === 'mastered') return metrics.notDueCount > 0 && metrics.reviewCount === 0 && metrics.learningCount === 0;
+  return true;
+}
+
+function sortDeckNotes(notes, sortMode, deckStats, reviewStats) {
+  const withMetrics = (notes || []).map((note) => ({
+    note,
+    metrics: getDeckMetrics(note, deckStats, reviewStats),
+  }));
+
+  const sorters = {
+    urgent: (a, b) =>
+      (b.metrics.reviewCount - a.metrics.reviewCount) ||
+      (b.metrics.overdueCount - a.metrics.overdueCount) ||
+      (b.metrics.learningDueCount - a.metrics.learningDueCount) ||
+      ((b.metrics.newCount || 0) - (a.metrics.newCount || 0)),
+    newest: (a, b) => Date.parse(b.note.updatedAt || b.note.createdAt || 0) - Date.parse(a.note.updatedAt || a.note.createdAt || 0),
+    weakest: (a, b) => (b.metrics.weakCount - a.metrics.weakCount) || (b.metrics.reviewCount - a.metrics.reviewCount),
+    course: (a, b) =>
+      `${a.note.courseTitle || ''} ${a.note.topicName || ''} ${a.note.lessonTitle || a.note.title || ''}`
+        .localeCompare(`${b.note.courseTitle || ''} ${b.note.topicName || ''} ${b.note.lessonTitle || b.note.title || ''}`),
+  };
+
+  return withMetrics.sort(sorters[sortMode] || sorters.urgent).map((item) => item.note);
+}
+
+function FilterChip({ active, children, onClick }) {
+  return (
+    <button
+      type="button"
+      className={cx(
+        'inline-flex min-h-8 touch-manipulation items-center justify-center rounded-lg border px-2.5 text-[11.5px] font-extrabold transition-[background,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18',
+        active
+          ? 'border-brand-primary/28 bg-brand-primary/10 text-brand-primary'
+          : 'border-line-soft bg-surface-1 text-ink-muted hover:border-brand-primary/18 hover:text-ink-strong'
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PickPhase({
+  notes,
+  loading,
+  error,
+  onStartNote,
+  onStartMixed,
+  onStartDueReview,
+  onStartNewCards,
+  onStartQuickSession,
+  starting,
+  deckStats,
+}) {
+  const navigate = useNavigate();
+  const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortMode, setSortMode] = useState('urgent');
+  const reviewStats = readReviewStats();
+  const summary = summarizeDeckMetrics(notes, deckStats, reviewStats);
+  const visibleNotes = useMemo(() => {
+    const filtered = (notes || [])
+      .filter((note) => matchesDeckFilter(note, filter))
+      .filter((note) => matchesStatusFilter(note, statusFilter, deckStats, reviewStats));
+    return sortDeckNotes(filtered, sortMode, deckStats, reviewStats);
+  }, [deckStats, filter, notes, reviewStats, sortMode, statusFilter]);
+
+  return (
+    <main className="dashboard-page study-hub-page student-flashcards-page min-h-dvh">
+      <style>{ANIM_CSS}</style>
+      <section className="study-hub-shell grid max-w-[1080px] gap-4">
+
+        {error && <div className={cx(ui.feedbackError, 'fc-fade-up')}>{error}</div>}
+
+        <FlashcardCompactHeader
+          summary={summary}
+          loading={loading}
+          starting={starting}
+          onStartDueReview={() => onStartDueReview(notes)}
+          onStartNewCards={() => onStartNewCards(notes)}
+          onStartAllCards={() => onStartMixed(notes, 'All Flashcards')}
+          onStartQuick={() => onStartQuickSession(notes)}
+        />
+
+        <section className="grid gap-3 fc-fade-up fc-d2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-h-10 min-w-[min(100%,320px)] flex-1 items-center gap-2 rounded-lg border border-line-soft bg-surface-1 px-3 transition-[border-color,box-shadow] duration-150 focus-within:border-brand-primary/35 focus-within:ring-4 focus-within:ring-brand-primary/10">
+              <svg width="16" height="16" viewBox="0 0 14 14" fill="none" className="shrink-0 text-ink-muted" aria-hidden="true">
+                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              <input
+                className="min-w-0 flex-1 border-0 bg-transparent text-[15px] font-semibold text-ink-strong outline-none placeholder:text-ink-muted"
+                placeholder="Search lessons"
+                value={filter}
+                onChange={e => setFilter(e.target.value)}
+                aria-label="Search flashcard lessons"
+              />
+              {filter && (
+                <button type="button"
+                  className="grid size-7 shrink-0 place-items-center rounded-md bg-surface-3 text-ink-muted transition hover:text-ink-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"
+                  onClick={() => setFilter('')} aria-label="Clear search">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                    <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            <label className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-line-soft bg-surface-1 px-3 text-[12px] font-extrabold text-ink-muted">
+              Sort
+              <select
+                className="border-0 bg-transparent text-[12px] font-extrabold text-ink-strong outline-none"
+                value={sortMode}
+                onChange={(event) => setSortMode(event.target.value)}
+              >
+                <option value="urgent">Most urgent</option>
+                <option value="newest">Newest</option>
+                <option value="weakest">Weakest</option>
+                <option value="course">Course / lesson</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Filter flashcards by status">
+            {[
+              ['all', 'All'],
+              ['due', 'Due'],
+              ['new', 'New'],
+              ['learning', 'Learning'],
+              ['weak', 'Flagged'],
+              ['mastered', 'Mastered'],
+            ].map(([value, label]) => (
+              <FilterChip key={value} active={statusFilter === value} onClick={() => setStatusFilter(value)}>
+                {label}
+              </FilterChip>
+            ))}
+          </div>
+        </section>
+
+        <FlashcardDeckList
+          notes={visibleNotes}
+          loading={loading}
+          allCount={notes.length}
+          starting={starting}
+          deckStats={deckStats}
+          reviewStats={reviewStats}
+          onStartNote={onStartNote}
+          onUnlock={() => navigate('/billing')}
+        />
       </section>
     </main>
   );
@@ -1000,13 +1630,14 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
     setFlipped(f => !f);
   }
 
-  function advance(wasKnown) {
+  function advance(rating) {
     if (!flippedRef.current || advancingRef.current) return;
     advancingRef.current = true;
     setAdvancing(true);
-    const newKnown    = wasKnown  ? new Set([...known,    idx]) : known;
-    const newLearning = !wasKnown ? new Set([...learning, idx]) : learning;
-    recordFlashcardReview(card, wasKnown);
+    const remembered = rating === 'good' || rating === 'easy';
+    const newKnown    = remembered ? new Set([...known, idx]) : known;
+    const newLearning = !remembered ? new Set([...learning, idx]) : learning;
+    recordFlashcardReview(card, rating);
     setKnown(newKnown);
     setLearning(newLearning);
     setFlipped(false);
@@ -1027,8 +1658,12 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
     function onKey(e) {
       if (e.defaultPrevented || isInteractiveElement(e.target)) return;
       if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
-      if (flippedRef.current && e.key === 'ArrowRight') advanceRef.current(true);
-      if (flippedRef.current && e.key === 'ArrowLeft')  advanceRef.current(false);
+      if (flippedRef.current && e.key === 'ArrowRight') advanceRef.current('good');
+      if (flippedRef.current && e.key === 'ArrowLeft')  advanceRef.current('again');
+      if (flippedRef.current && e.key === '1') advanceRef.current('again');
+      if (flippedRef.current && e.key === '2') advanceRef.current('hard');
+      if (flippedRef.current && e.key === '3') advanceRef.current('good');
+      if (flippedRef.current && e.key === '4') advanceRef.current('easy');
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1191,31 +1826,47 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
 
         {/* Actions */}
         <div
-          className="mb-3 flex flex-wrap justify-center gap-3 transition-[opacity,transform] duration-200 max-[520px]:grid max-[520px]:grid-cols-1"
+          className="mb-3 grid grid-cols-4 justify-center gap-2 transition-[opacity,transform] duration-200 max-[720px]:grid-cols-2 max-[420px]:grid-cols-1"
           style={{ opacity: flipped ? 1 : 0, pointerEvents: flipped ? 'auto' : 'none', transform: flipped ? 'translateY(0)' : 'translateY(4px)' }}
           aria-hidden={!flipped}
         >
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-6 text-sm font-extrabold
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
+              transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
+              disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ background: 'rgba(244,63,94,0.09)', borderColor: 'rgba(244,63,94,0.22)', color: '#E11D48' }}
+            onClick={() => advance('again')} disabled={!flipped || advancing}>
+            Again
+          </button>
+          <button
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
               disabled:cursor-not-allowed disabled:opacity-40"
             style={{ background: 'rgba(245,158,11,0.09)', borderColor: 'rgba(245,158,11,0.22)', color: '#D97706' }}
-            onClick={() => advance(false)} disabled={!flipped || advancing}>
-            <IcReview/> Still Learning
+            onClick={() => advance('hard')} disabled={!flipped || advancing}>
+            <IcReview/> Hard
           </button>
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-6 text-sm font-extrabold
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
               disabled:cursor-not-allowed disabled:opacity-40"
             style={{ background: 'rgba(16,185,129,0.09)', borderColor: 'rgba(16,185,129,0.22)', color: '#059669' }}
-            onClick={() => advance(true)} disabled={!flipped || advancing}>
-            <IcKnow/> Know It
+            onClick={() => advance('good')} disabled={!flipped || advancing}>
+            <IcKnow/> Good
+          </button>
+          <button
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
+              transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
+              disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ background: 'rgba(37,99,235,0.09)', borderColor: 'rgba(37,99,235,0.22)', color: '#2563EB' }}
+            onClick={() => advance('easy')} disabled={!flipped || advancing}>
+            Easy
           </button>
         </div>
 
         <p className="text-center text-xs font-semibold text-ink-muted">
           {flipped ? (
-            <><kbd className="rounded bg-surface-2 px-1.5 py-0.5">←</kbd> Still Learning &nbsp;·&nbsp; <kbd className="rounded bg-surface-2 px-1.5 py-0.5">→</kbd> Know It</>
+            <><kbd className="rounded bg-surface-2 px-1.5 py-0.5">1</kbd> Again &nbsp;·&nbsp; <kbd className="rounded bg-surface-2 px-1.5 py-0.5">2</kbd> Hard &nbsp;·&nbsp; <kbd className="rounded bg-surface-2 px-1.5 py-0.5">3</kbd> Good &nbsp;·&nbsp; <kbd className="rounded bg-surface-2 px-1.5 py-0.5">4</kbd> Easy</>
           ) : (
             <><kbd className="rounded bg-surface-2 px-1.5 py-0.5">Space</kbd> or <kbd className="rounded bg-surface-2 px-1.5 py-0.5">Enter</kbd> to flip</>
           )}
@@ -1310,12 +1961,14 @@ export function StudentFlashcardsPage() {
   const navigate       = useNavigate();
   const [searchParams] = useSearchParams();
   const autoNoteId     = searchParams.get('noteId') ? Number(searchParams.get('noteId')) : null;
+  const deckCountLoadingRef = useRef(new Set());
 
   const [phase,    setPhase]    = useState('pick');
   const [notes,    setNotes]    = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
   const [starting, setStarting] = useState(false);
+  const [deckStats, setDeckStats] = useState({});
 
   const [activeQuiz,  setActiveQuiz]  = useState(null);
   const [activeCards, setActiveCards] = useState([]);
@@ -1324,6 +1977,7 @@ export function StudentFlashcardsPage() {
   useEffect(() => {
     listAiNotes()
       .then(rows => {
+        setDeckStats(buildInitialDeckStats(rows));
         setNotes(rows);
         if (autoNoteId) {
           const match = rows.find(n => n.id === autoNoteId);
@@ -1335,12 +1989,103 @@ export function StudentFlashcardsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!notes.length) return undefined;
+    let cancelled = false;
+    const pending = notes
+      .filter((note) => !note.accessLocked)
+      .filter((note) => !hasDeckCardCount(deckStats[note.id]))
+      .filter((note) => !deckStats[note.id]?.unavailable)
+      .filter((note) => !deckCountLoadingRef.current.has(note.id));
+
+    if (!pending.length) return undefined;
+
+    async function loadDeckCounts() {
+      const queue = [...pending];
+      const workerCount = Math.min(3, queue.length);
+
+      await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (queue.length && !cancelled) {
+          const note = queue.shift();
+          if (!note) return;
+
+          deckCountLoadingRef.current.add(note.id);
+          setDeckStats((current) => ({
+            ...current,
+            [note.id]: {
+              ...(current[note.id] || {}),
+              loading: true,
+              unavailable: false,
+            },
+          }));
+
+          try {
+            const fullNote = note.noteData ? note : await getAiNote(note.id);
+            const cardCount = buildLessonCards(fullNote).length;
+            writeDeckStatsCacheEntry(note, cardCount);
+            if (cancelled) return;
+            setDeckStats((current) => ({
+              ...current,
+              [note.id]: {
+                cardCount,
+                loading: false,
+                unavailable: false,
+                countedAt: new Date().toISOString(),
+              },
+            }));
+          } catch {
+            if (!cancelled) {
+              setDeckStats((current) => ({
+                ...current,
+                [note.id]: {
+                  ...(current[note.id] || {}),
+                  loading: false,
+                  unavailable: true,
+                },
+              }));
+            }
+          } finally {
+            deckCountLoadingRef.current.delete(note.id);
+          }
+        }
+      }));
+    }
+
+    loadDeckCounts();
+    return () => {
+      cancelled = true;
+    };
+  }, [notes]);
+
+  async function buildCardsFromNotes(selectedNotes, maxNotes = 18) {
+    const unlockedNotes = (Array.isArray(selectedNotes) ? selectedNotes : []).filter((note) => !note.accessLocked);
+    if (!unlockedNotes.length) return [];
+    const sampleNotes = unlockedNotes.slice(0, maxNotes);
+    const fullNotes = await Promise.all(
+      sampleNotes.map((note) => note.noteData ? Promise.resolve(note) : getAiNote(note.id))
+    );
+    return uniqueCards(fullNotes.flatMap((note) => buildLessonCards(note)));
+  }
+
+  function openFlashcardSession(cards, title, mode = 'mixed') {
+    if (!cards.length) return false;
+    setActiveQuiz({
+      id: `${mode}-${Date.now()}`,
+      quizTitle: title,
+      sourceNoteId: null,
+    });
+    setActiveCards(cards);
+    setPhase('session');
+    navigate(`/flashcards?mode=${mode}`, { replace: true });
+    return true;
+  }
+
   async function loadLessonCards(note) {
     setStarting(true);
     setError('');
     try {
       const fullNote = note.noteData ? note : await getAiNote(note.id);
-      const cards = prioritizeCards(buildLessonCards(fullNote));
+      const cards = selectQueueCards(buildLessonCards(fullNote), 'all', 80);
       if (cards.length === 0) {
         setError('This lesson does not have enough note content for flashcards yet.');
         setPhase('pick');
@@ -1372,11 +2117,7 @@ export function StudentFlashcardsPage() {
     setStarting(true);
     setError('');
     try {
-      const sampleNotes = shuffle(unlockedNotes).slice(0, 12);
-      const fullNotes = await Promise.all(
-        sampleNotes.map((note) => note.noteData ? Promise.resolve(note) : getAiNote(note.id))
-      );
-      const cards = prioritizeCards(fullNotes.flatMap((note) => buildLessonCards(note))).slice(0, 60);
+      const cards = selectQueueCards(await buildCardsFromNotes(shuffle(unlockedNotes), 12), 'all', 60);
       if (cards.length === 0) {
         setError('These lessons do not have enough note content for mixed flashcards yet.');
         setPhase('pick');
@@ -1400,18 +2141,15 @@ export function StudentFlashcardsPage() {
 
   async function loadDueCards(selectedNotes) {
     const stats = readReviewStats();
-    const targetIds = new Set(
-      Object.entries(stats)
-        .filter(([, row]) => {
-          const due = row?.dueAt && Date.parse(row.dueAt) <= Date.now();
-          const weak = (Number(row?.learning) || 0) > (Number(row?.correct) || 0);
-          return due || weak;
-        })
-        .map(([id]) => id)
-    );
+    const targetIds = new Set(Object.entries(stats)
+      .filter(([, row]) => {
+        const dueAt = parseDueTime(row);
+        return Boolean(dueAt && dueAt <= Date.now());
+      })
+      .map(([id]) => id));
 
     if (!targetIds.size) {
-      setError('No due or weak flashcards yet. Study a lesson first.');
+      setError('No due flashcards yet. Learn new cards or preview a deck first.');
       return;
     }
 
@@ -1427,12 +2165,8 @@ export function StudentFlashcardsPage() {
     setStarting(true);
     setError('');
     try {
-      const fullNotes = await Promise.all(
-        reviewNotes.map((note) => note.noteData ? Promise.resolve(note) : getAiNote(note.id))
-      );
-      const cards = prioritizeCards(fullNotes.flatMap((note) => buildLessonCards(note)))
-        .filter((card) => targetIds.has(cardStorageId(card)))
-        .slice(0, 60);
+      const cards = selectQueueCards(await buildCardsFromNotes(reviewNotes, 24), 'due', 60)
+        .filter((card) => targetIds.has(cardStorageId(card)));
 
       if (!cards.length) {
         setError('No due cards could be rebuilt from the current lesson content.');
@@ -1456,13 +2190,51 @@ export function StudentFlashcardsPage() {
     }
   }
 
+  async function loadNewCards(selectedNotes) {
+    setStarting(true);
+    setError('');
+    try {
+      const cards = selectQueueCards(await buildCardsFromNotes(selectedNotes, 18), 'new', DAILY_NEW_CARD_LIMIT);
+      if (!cards.length) {
+        setError('No new flashcards are available right now.');
+        setPhase('pick');
+        return;
+      }
+      openFlashcardSession(cards, 'New Flashcards', 'new');
+    } catch (e) {
+      setError(getErrorMessage(e, 'Unable to load new flashcards'));
+      setPhase('pick');
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function loadQuickSession(selectedNotes) {
+    setStarting(true);
+    setError('');
+    try {
+      const cards = selectQueueCards(await buildCardsFromNotes(selectedNotes, 18), 'quick', QUICK_SESSION_LIMIT);
+      if (!cards.length) {
+        setError('No cards are available for a quick session yet.');
+        setPhase('pick');
+        return;
+      }
+      openFlashcardSession(cards, 'Quick 10-card Session', 'quick');
+    } catch (e) {
+      setError(getErrorMessage(e, 'Unable to load quick session'));
+      setPhase('pick');
+    } finally {
+      setStarting(false);
+    }
+  }
+
   function handleDone(res) {
     setResult(res);
     setPhase('result');
   }
 
   function handleRetry() {
-    setActiveCards(prioritizeCards([...activeCards]));
+    setActiveCards(selectQueueCards([...activeCards], 'all', activeCards.length));
     setPhase('session');
   }
 
@@ -1509,7 +2281,10 @@ export function StudentFlashcardsPage() {
       onStartNote={loadLessonCards}
       onStartMixed={loadMixedCards}
       onStartDueReview={loadDueCards}
+      onStartNewCards={loadNewCards}
+      onStartQuickSession={loadQuickSession}
       starting={starting}
+      deckStats={deckStats}
     />
   );
 }

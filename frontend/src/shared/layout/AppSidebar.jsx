@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
-import { useThemeStore } from '../stores/themeStore.js';
 import { preloadRouteByPath } from '../../app/router.jsx';
 import { isStaffUser, roleRouteMode, userHasPermissions } from '../auth/roleAccess.js';
 import { cx } from '../styles/tailwindClasses.js';
@@ -190,7 +189,6 @@ const adminLinks = [
   { to: '/users',         label: 'Students',      icon: 'Users', requiredPermissions: ['students.manage'] },
   { to: '/announcements', label: 'Announcements', icon: 'Bell', requiredPermissions: ['notifications.manage'] },
   { to: '/reports',       label: 'Reports',       icon: 'Results', requiredPermissions: ['reports.view'] },
-  { to: '/doubts',        label: 'Doubts',        icon: 'Notes', requiredPermissions: ['support.manage'] },
   { to: '/setup',         label: 'Setup',         icon: 'Setup', requiredPermissions: ['settings.manage'] },
   { to: '/settings',      label: 'Settings',      icon: 'Settings', requiredPermissions: ['settings.manage'] },
 ];
@@ -200,7 +198,6 @@ const studentLinks = [
   { to: '/courses',       label: 'Courses',       icon: 'Courses'    },
   { to: '/planner',       label: 'Planner',       icon: 'Results'    },
   { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes'    },
-  { to: '/doubts',        label: 'Doubts',        icon: 'Notes'      },
   { to: '/flashcards',    label: 'Flashcards',    icon: 'Flashcards' },
   { to: '/quizzes',       label: 'Q-Bank',        icon: 'Quizzes'    },
   { to: '/exams',         label: 'Exams',         icon: 'Exams'      },
@@ -214,7 +211,7 @@ const END_EXACT = new Set([
   '/bookmarks', '/subscriptions', '/finance', '/exams', '/flashcards',
   '/structure', '/users', '/setup', '/settings', '/announcements',
   '/question-reports',
-  '/reports', '/doubts', '/notifications', '/planner',
+  '/reports', '/notifications', '/planner',
   '/ai/gemini', '/ai/chatgpt',
 ]);
 
@@ -235,7 +232,7 @@ function getInitials(user) {
 
 const sidebarUi = {
   shell:
-    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[transform,width,box-shadow,border-color] duration-[300ms] ease-[var(--ease-smooth)] [height:100dvh] [min-height:100dvh] will-change-[transform,width] shadow-[1px_0_0_var(--line-soft),var(--shadow-sm)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[22px]',
+    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[transform,opacity,border-color] duration-[var(--lms-sidebar-duration,380ms)] ease-[var(--lms-ease-soft,cubic-bezier(0.22,1,0.36,1))] [contain:layout_paint] [height:100dvh] [min-height:100dvh] will-change-[transform,opacity] shadow-[1px_0_0_var(--line-soft),var(--shadow-sm)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[22px]',
   shellLight:
     '',
   open: 'max-[900px]:translate-x-0',
@@ -386,8 +383,8 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
         aria-expanded={isGroupOpen || flyoutOpen}
       >
         <span className={cx('lms-sidebar-link-icon', sidebarUi.icon, isActive && sidebarUi.iconActive, isCollapsed && sidebarUi.iconCollapsed)}><IconComp /></span>
-        <span className={cx('lms-sidebar-link-text', sidebarUi.label, isCollapsed && 'min-[901px]:hidden')}>{item.label}</span>
-        <span className={cx(sidebarUi.arrow, isGroupOpen && !isCollapsed && sidebarUi.arrowOpen, isCollapsed && 'min-[901px]:hidden')} aria-hidden="true"><ChevronIcon /></span>
+        <span className={cx('lms-sidebar-link-text', sidebarUi.label)}>{item.label}</span>
+        <span className={cx('lms-sidebar-link-arrow', sidebarUi.arrow, isGroupOpen && !isCollapsed && sidebarUi.arrowOpen)} aria-hidden="true"><ChevronIcon /></span>
         <span className={sidebarUi.tooltip} aria-hidden="true">{item.label}</span>
       </button>
 
@@ -415,70 +412,6 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
       {isCollapsed && flyoutOpen && (
         <FlyoutPanel group={item} onClose={() => setFlyoutOpen(false)} />
       )}
-    </div>
-  );
-}
-
-/* ── Student accent picker (blue / violet) ────────────────────── */
-function StudentAccentPicker() {
-  const studentAccent = useThemeStore((state) => state.studentAccent);
-  const setStudentAccent = useThemeStore((state) => state.setStudentAccent);
-
-  const options = [
-    {
-      key: 'blue',
-      label: 'Study Blue',
-      swatch: 'linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)',
-    },
-    {
-      key: 'violet',
-      label: 'Violet',
-      swatch: 'linear-gradient(135deg, #3d5afe 0%, #8b5cf6 100%)',
-    },
-  ];
-
-  return (
-    <div className="lms-student-accent-picker" role="radiogroup" aria-label="Sidebar color theme">
-      <span className="lms-student-accent-picker__label">Theme</span>
-      <div className="lms-student-accent-picker__row">
-        {options.map((opt) => {
-          const isActive = studentAccent === opt.key;
-          return (
-            <button
-              key={opt.key}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              aria-label={`Switch to ${opt.label} theme`}
-              title={opt.label}
-              className={cx(
-                'lms-student-accent-swatch',
-                isActive && 'is-active'
-              )}
-              onClick={() => setStudentAccent(opt.key)}
-            >
-              <span
-                className="lms-student-accent-swatch__color"
-                style={{ background: opt.swatch }}
-                aria-hidden="true"
-              />
-              <span className="lms-student-accent-swatch__text">{opt.label}</span>
-              {isActive && (
-                <svg
-                  className="lms-student-accent-swatch__check"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path d="M2.5 6.2 5 8.7l4.5-5.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -543,7 +476,7 @@ export function AppSidebar({
           </svg>
         </div>
 
-        <div className={cx('lms-sidebar-wordmark', sidebarUi.wordmark, isCollapsed && 'min-[901px]:hidden')}>
+        <div className={cx('lms-sidebar-wordmark', sidebarUi.wordmark)}>
           <span className={cx('lms-sidebar-brand-name', sidebarUi.wordmarkName)}>ERPM LMS</span>
           <span className={cx('lms-sidebar-brand-sub', sidebarUi.wordmarkRole)}>
             {isAdminConsole ? 'Admin Console' : 'Student Portal'}
@@ -563,7 +496,7 @@ export function AppSidebar({
       </div>
 
       {/* ── Section label ─────────────────────────────────────────── */}
-      <p className={cx('lms-sidebar-section-label', sidebarUi.navLabel, isCollapsed && 'min-[901px]:hidden')}>
+      <p className={cx('lms-sidebar-section-label', sidebarUi.navLabel)}>
         {isAdminConsole ? 'Navigation' : 'Study'}
       </p>
 
@@ -606,7 +539,7 @@ export function AppSidebar({
               {({ isActive }) => (
                 <>
                   <span className={cx('lms-sidebar-link-icon', sidebarUi.icon, isActive && sidebarUi.iconActive, isCollapsed && sidebarUi.iconCollapsed)}><IconComp /></span>
-                  <span className={cx('lms-sidebar-link-text', sidebarUi.label, isCollapsed && 'min-[901px]:hidden')}>{item.label}</span>
+                  <span className={cx('lms-sidebar-link-text', sidebarUi.label)}>{item.label}</span>
                   <span className={sidebarUi.tooltip} aria-hidden="true">{item.label}</span>
                 </>
               )}
@@ -615,9 +548,7 @@ export function AppSidebar({
         })}
       </nav>
 
-      {isStudent && !isCollapsed && <StudentAccentPicker />}
-
-      {isStudent && !isCollapsed && (
+      {isStudent && (
         <div className="lms-sidebar-student-footer">
           <div className="lms-sidebar-student-avatar" aria-hidden="true">{getInitials(user)}</div>
           <div className="lms-sidebar-student-copy">
@@ -729,11 +660,11 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
     if (!shouldRender || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
 
     function syncGeometry() {
-      const trigger = document.querySelector('.student-app-shell .lms-topbar-menu-button, .study-hub-topbar .lms-topbar-menu-button');
+      const trigger = document.querySelector('.app-shell .lms-topbar-menu-button, .study-hub-topbar .lms-topbar-menu-button');
       if (!trigger) return;
 
       const triggerRect = trigger.getBoundingClientRect();
-      const shell = trigger.closest('.study-hub-shell, .management-layout, .lms-route-page, .student-app-shell');
+      const shell = trigger.closest('.study-hub-shell, .management-layout, .lms-route-page, .student-app-shell, .admin-app-shell');
       const shellRect = shell?.getBoundingClientRect();
       const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 390;
       const viewportPadding = viewportWidth <= 380 ? 9 : 12;
@@ -798,7 +729,7 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
 
   const panel = (
     <div
-      className={cx('lms-mobile-top-nav-layer min-[901px]:hidden', isClosing && 'is-closing')}
+      className={cx('lms-mobile-top-nav-layer', isClosing && 'is-closing')}
       style={geometryStyle}
     >
       <button

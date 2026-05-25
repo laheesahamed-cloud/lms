@@ -123,14 +123,6 @@ export class WorkspaceService {
       return announcements;
     }
 
-    const [doubtRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, subject, reply, status, answered_at
-       FROM lesson_doubts
-       WHERE user_id = ? AND status IN ('answered','closed') AND answered_at IS NOT NULL
-       ORDER BY answered_at DESC
-       LIMIT 5`,
-      [user.id]
-    );
     const [subscriptionRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT us.status, us.payment_status, us.end_date, p.name AS plan_name, us.updated_at
        FROM user_subscriptions us
@@ -155,15 +147,6 @@ export class WorkspaceService {
     );
 
     const derived = [
-      ...doubtRows.map((row) => ({
-        id: `doubt-${row.id}`,
-        kind: 'doubt',
-        title: `Reply: ${String(row.subject || 'Your doubt')}`,
-        body: String(row.reply || 'Your doubt has been updated.'),
-        read: true,
-        createdAt: row.answered_at || null,
-        actionPath: '/doubts',
-      })),
       ...subscriptionRows.map((row) => {
         const isFreePlan = this.isFreePlanPaymentStatus(row.payment_status);
         return {
@@ -673,67 +656,6 @@ export class WorkspaceService {
     return { ok: true, id };
   }
 
-  async listStudentDoubts(authorization?: string) {
-    const student = await this.authService.requireStudent(authorization);
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT d.*, l.lesson_title FROM lesson_doubts d LEFT JOIN lessons l ON l.id = d.lesson_id WHERE d.user_id = ? ORDER BY d.created_at DESC LIMIT 100`,
-      [student.id]
-    );
-    return rows.map(this.mapDoubt);
-  }
-
-  async createDoubt(authorization: string | undefined, input: any) {
-    const student = await this.authService.requireStudent(authorization);
-    const subject = this.requiredString(input?.subject, 'Subject');
-    const message = this.requiredString(input?.message, 'Message');
-    const lessonId = input?.lessonId ? Number(input.lessonId) : null;
-    const questionId = input?.questionId ? Number(input.questionId) : null;
-    const contextType = questionId ? 'question' : lessonId ? 'lesson' : 'general';
-    const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO lesson_doubts (user_id, lesson_id, question_id, context_type, subject, message) VALUES (?, ?, ?, ?, ?, ?)`,
-      [student.id, lessonId, questionId, contextType, subject, message]
-    );
-    return { ok: true, id: result.insertId };
-  }
-
-  async listAdminDoubts(authorization?: string, status?: string) {
-    await this.authService.requireAdmin(authorization);
-    const params: any[] = [];
-    let where = 'WHERE 1=1';
-    if (['open', 'answered', 'closed'].includes(String(status || ''))) {
-      where += ' AND d.status = ?';
-      params.push(status);
-    }
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `
-        SELECT d.*, u.full_name, u.email, l.lesson_title, LEFT(q.question_text, 160) AS question_text, admin.full_name AS answered_by_name
-        FROM lesson_doubts d
-        INNER JOIN users u ON u.id = d.user_id
-        LEFT JOIN lessons l ON l.id = d.lesson_id
-        LEFT JOIN questions q ON q.id = d.question_id
-        LEFT JOIN users admin ON admin.id = d.answered_by
-        ${where}
-        ORDER BY FIELD(d.status, 'open', 'answered', 'closed'), d.created_at DESC
-        LIMIT 150
-      `,
-      params
-    );
-    return rows.map(this.mapDoubt);
-  }
-
-  async answerDoubt(authorization: string | undefined, id: number, input: any) {
-    const admin = await this.authService.requireAdmin(authorization);
-    const reply = this.optionalString(input?.reply);
-    const status = ['open', 'answered', 'closed'].includes(input?.status) ? input.status : (reply ? 'answered' : 'closed');
-    await this.db.execute(
-      `UPDATE lesson_doubts
-       SET reply = ?, status = ?, answered_by = ?, answered_at = NOW()
-       WHERE id = ?`,
-      [reply, status, admin.id, id]
-    );
-    return { ok: true, id };
-  }
-
   private normalizeAdminReportFilters(input: AdminReportFilterInput): AdminReportFilters {
     return {
       startDate: this.optionalDate(input.startDate) || '',
@@ -853,24 +775,4 @@ export class WorkspaceService {
     };
   }
 
-  private mapDoubt(row: RowDataPacket) {
-    return {
-      id: Number(row.id),
-      userId: Number(row.user_id || 0),
-      fullName: String(row.full_name || ''),
-      email: String(row.email || ''),
-      lessonId: row.lesson_id ? Number(row.lesson_id) : null,
-      lessonTitle: String(row.lesson_title || ''),
-      questionId: row.question_id ? Number(row.question_id) : null,
-      questionText: String(row.question_text || ''),
-      contextType: String(row.context_type || 'general'),
-      subject: String(row.subject || ''),
-      message: String(row.message || ''),
-      reply: String(row.reply || ''),
-      status: String(row.status || 'open'),
-      answeredByName: String(row.answered_by_name || ''),
-      answeredAt: row.answered_at || null,
-      createdAt: row.created_at || null,
-    };
-  }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { fetchMySubscription, initiatePayHereCheckout, requestManualPayment } from '../../../../shared/api/subscriptions.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -110,6 +110,12 @@ export function StudentCheckoutPage() {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
+  function goBackToPlans() {
+    navigate('/subscriptions', {
+      state: { fromCheckout: true },
+    });
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     if (!plan) return;
@@ -119,7 +125,6 @@ export function StudentCheckoutPage() {
     try {
       const checkout = await initiatePayHereCheckout({
         planId: plan.id,
-        couponCode: couponCode.trim() || undefined,
         message: customSelectionNote || undefined,
         accessScope,
         courseIds: accessScope === 'courses' ? courseIds : [],
@@ -156,6 +161,7 @@ export function StudentCheckoutPage() {
       const proofDataUrl = await readProofFile(proofFile);
       const result = await requestManualPayment({
         planId: plan.id,
+        couponCode: couponCode.trim() || undefined,
         paymentReference: paymentReference.trim() || undefined,
         proofFileName: proofFile.name,
         proofMimeType: proofFile.type,
@@ -165,9 +171,12 @@ export function StudentCheckoutPage() {
         courseIds: accessScope === 'courses' ? courseIds : [],
         lessonIds: accessScope === 'lessons' ? lessonIds : [],
       });
-      setSuccess(`Payment proof uploaded. Invoice #${result?.invoiceId || 'created'} is waiting for admin approval.`);
+      setSuccess(result?.couponCode
+        ? `Payment proof uploaded. Invoice #${result.invoiceId || 'created'} is waiting for admin approval. Coupon ${result.couponCode} applied; bank transfer amount is ${result.currency || plan.currency} ${result.amount}.`
+        : `Payment proof uploaded. Invoice #${result?.invoiceId || 'created'} is waiting for admin approval.`);
       setProofFile(null);
       setPaymentReference('');
+      setCouponCode('');
       await load();
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Unable to upload bank transfer proof'));
@@ -182,7 +191,11 @@ export function StudentCheckoutPage() {
         <AppHeader
           title="Checkout"
           subtitle="Plan Checkout"
-          actions={<Link className={ui.secondaryAction} to="/subscriptions">Back to plans</Link>}
+          actions={(
+            <button className={cx(ui.secondaryAction, 'whitespace-nowrap')} type="button" onClick={goBackToPlans}>
+              Back to plans
+            </button>
+          )}
         />
 
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
@@ -246,14 +259,10 @@ export function StudentCheckoutPage() {
                   <div className={ui.panelTop}>
                     <div>
                       <h2>Billing information</h2>
-                      <p>These details are sent with your PayHere order.</p>
+                      <p>These details are sent with your PayHere order. Coupon codes are available for bank transfers only.</p>
                     </div>
                   </div>
                   <form className={ui.stackForm} onSubmit={handleSubmit}>
-                    <label className={ui.formLabel}>
-                      Coupon code
-                      <input className={ui.input} value={couponCode} onChange={(event) => setCouponCode(event.target.value)} placeholder="Optional coupon code" autoComplete="off" />
-                    </label>
                     <div className={ui.formGrid}>
                       <label className={ui.formLabel}>
                         Full name
@@ -284,7 +293,7 @@ export function StudentCheckoutPage() {
                       <button className={ui.primaryAction} type="submit" disabled={submitting || !billing.payment?.enabled || !billing.payment?.configured}>
                         {submitting ? 'Creating order...' : 'Continue to PayHere'}
                       </button>
-                      <button className={ui.secondaryAction} type="button" onClick={() => navigate('/subscriptions')} disabled={submitting}>
+                      <button className={ui.secondaryAction} type="button" onClick={goBackToPlans} disabled={submitting}>
                         Change plan
                       </button>
                     </div>
@@ -305,6 +314,10 @@ export function StudentCheckoutPage() {
                       Your package will activate only after the admin verifies this payment proof.
                     </div>
                     <label className={ui.formLabel}>
+                      Coupon code
+                      <input className={ui.input} value={couponCode} onChange={(event) => setCouponCode(event.target.value)} placeholder="Optional bank transfer coupon" autoComplete="off" />
+                    </label>
+                    <label className={ui.formLabel}>
                       Reference or transaction ID
                       <input className={ui.input} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Optional bank reference" autoComplete="off" />
                     </label>
@@ -322,7 +335,7 @@ export function StudentCheckoutPage() {
                       <button className={ui.primaryAction} type="submit" disabled={manualSubmitting || submitting}>
                         {manualSubmitting ? 'Uploading proof...' : 'Upload proof for admin approval'}
                       </button>
-                      <button className={ui.secondaryAction} type="button" onClick={() => navigate('/subscriptions')} disabled={manualSubmitting}>
+                      <button className={ui.secondaryAction} type="button" onClick={goBackToPlans} disabled={manualSubmitting}>
                         Change plan
                       </button>
                     </div>

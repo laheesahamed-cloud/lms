@@ -1819,7 +1819,6 @@ body.lms-profile-menu-open :where(.management-layout, .study-hub-shell)
   body.study-hub-screen .lms-sidebar--student-model:not(.is-overlay-nav) > :where(
     .lms-sidebar-brand,
     .lms-sidebar-nav,
-    .lms-student-accent-picker,
     .lms-sidebar-student-footer
   ) {
     position: relative;
@@ -2241,7 +2240,6 @@ body.lms-profile-menu-open :where(.management-layout, .study-hub-shell)
   body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) .lms-sidebar--student-model:not(.is-overlay-nav) > :where(
     .lms-sidebar-brand,
     .lms-sidebar-nav,
-    .lms-student-accent-picker,
     .lms-sidebar-student-footer
   ) {
     position: relative;
@@ -2473,34 +2471,34 @@ body.lms-profile-menu-open :where(.lms-profile-menu-backdrop) {
 }
 
 body.lms-profile-menu-open > .lms-profile-menu {
-  animation: lmsProfileMenuTopNavIn 220ms cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  animation: lmsProfileMenuSoftIn var(--lms-dropdown-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
+  will-change: opacity, transform;
 }
 
 body.lms-profile-menu-open > .lms-profile-menu > * {
-  animation: lmsProfileMenuContentIn 120ms cubic-bezier(0.23, 1, 0.32, 1) 40ms both !important;
+  animation: lmsProfileMenuContentIn 170ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) 55ms both !important;
 }
 
 body.lms-profile-menu-open > .lms-profile-menu.is-closing {
   pointer-events: none !important;
-  animation: lmsProfileMenuQuickOut 140ms cubic-bezier(0.4, 0, 1, 1) both !important;
+  animation: lmsProfileMenuSoftOut 200ms var(--lms-ease-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
 body.lms-profile-menu-open > .lms-profile-menu.is-closing > * {
-  opacity: 1 !important;
-  transform: none !important;
-  animation: none !important;
+  animation: lmsProfileMenuContentOut 150ms var(--lms-ease-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
+  animation-delay: 0ms !important;
 }
 
 body.lms-profile-menu-open > .lms-profile-avatar-floating {
-  animation: lmsProfileAvatarFloatIn 150ms cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  animation: lmsProfileAvatarFloatIn 190ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
 }
 
 body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
-  animation: lmsProfileAvatarFloatOut 140ms cubic-bezier(0.4, 0, 1, 1) both !important;
+  animation: lmsProfileAvatarFloatOut 180ms var(--lms-ease-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
 .lms-profile-menu-backdrop.is-closing {
-  animation: lmsProfileBackdropOut 140ms cubic-bezier(0.4, 0, 1, 1) both !important;
+  animation: lmsProfileBackdropOut 180ms var(--lms-ease-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
 body.lms-profile-menu-open :where(.student-app-shell, .app-shell) :where(.lms-topbar.is-profile-menu-open, .study-hub-topbar.is-profile-menu-open),
@@ -2801,7 +2799,22 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-side
   -webkit-text-fill-color: var(--ink-soft) !important;
 }
 
-@keyframes lmsProfileMenuQuickOut {
+@keyframes lmsProfileMenuSoftIn {
+  from {
+    opacity: 0;
+    -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
+    clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
+    transform: translate3d(0, -4px, 0) scale(0.982);
+  }
+  to {
+    opacity: 1;
+    -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
+    clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes lmsProfileMenuSoftOut {
   from {
     opacity: 1;
     -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
@@ -2812,6 +2825,6 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-side
     opacity: 0;
     -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
     clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
-    transform: translate3d(0, -3px, 0) scale(0.985);
+    transform: translate3d(0, -4px, 0) scale(0.982);
   }
 }

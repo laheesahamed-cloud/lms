@@ -14,7 +14,7 @@ Residual risks are medium/low operational hardening items: in-memory rate limits
 
 | Priority | OWASP area | Risk | Status |
 | --- | --- | --- | --- |
-| Critical | A01 Broken Access Control | Student/admin route boundaries and object ownership must be enforced server-side. Prior hardening added role/permission checks, route-boundary rewrites, and student ownership checks for lessons, quizzes, subscriptions, bookmarks, planner tasks, doubts, and notes. | Mitigated with regression coverage |
+| Critical | A01 Broken Access Control | Student/admin route boundaries and object ownership must be enforced server-side. Prior hardening added role/permission checks, route-boundary rewrites, and student ownership checks for lessons, quizzes, subscriptions, bookmarks, planner tasks, and notes. | Mitigated with regression coverage |
 | Critical | A03 Injection | Raw SQL, dynamic `IN` clauses, and report filters can become exploitable if identifiers/fragments are interpolated from request input. Prior hardening added parameterized queries and SQL helper allow-lists. | Mitigated with regression coverage |
 | High | A01 Broken Access Control | Inactive staff sessions could still pass permission-only routes or the default subscriptions route after a staff account was deactivated. | Fixed: global permission guard and subscription default route now reject inactive staff sessions |
 | High | A07 Auth/session flaws | Admin-created or admin-reset passwords accepted 6-character passwords while self-service auth required stronger passwords. | Fixed: admin user create/update now require 10+ chars with uppercase, lowercase, and number |

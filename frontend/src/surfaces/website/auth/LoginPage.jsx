@@ -164,25 +164,27 @@ const ANIM_CSS = `
     white-space: nowrap;
     word-break: normal;
     -webkit-tap-highlight-color: transparent;
-    transition: transform 160ms var(--ease-os), box-shadow 160ms var(--ease-os), filter 160ms var(--ease-os);
+    transition: box-shadow 180ms var(--ease-os), filter 180ms var(--ease-os);
   }
   .lms-submit-btn::before {
     content: "";
     position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.22) 48%, transparent 100%);
+    top: -35%;
+    bottom: -35%;
+    left: -55%;
+    width: 46%;
+    background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,.16) 30%, rgba(255,255,255,.46) 50%, rgba(255,255,255,.16) 70%, transparent 100%);
     opacity: 0;
-    transform: translateX(-120%);
-    transition: opacity 160ms var(--ease-os), transform 420ms var(--ease-os);
+    transform: translateX(-140%) skewX(-18deg);
+    transition: opacity 180ms var(--ease-os), transform 680ms cubic-bezier(.23,1,.32,1);
     pointer-events: none;
   }
   .lms-submit-btn:not(:disabled):hover  {
-    transform: translateY(-1.5px) !important;
-    filter: saturate(1.04);
-    box-shadow: 0 10px 28px rgba(37,99,235,.34), 0 1px 0 rgba(255,255,255,.16) inset !important;
+    filter: saturate(1.03);
+    box-shadow: 0 7px 24px rgba(37,99,235,.42), 0 1px 0 rgba(255,255,255,.16) inset !important;
   }
-  .lms-submit-btn:not(:disabled):hover::before { opacity: 1; transform: translateX(120%); }
-  .lms-submit-btn:not(:disabled):active { transform: translateY(0) scale(.985) !important; }
+  .lms-submit-btn:not(:disabled):hover::before { opacity: 1; transform: translateX(430%) skewX(-18deg); }
+  .lms-submit-btn:not(:disabled):active { filter: brightness(.98); }
   .lms-submit-btn > span {
     position: relative;
     z-index: 1;
@@ -190,34 +192,11 @@ const ANIM_CSS = `
     white-space: nowrap;
     word-break: normal;
   }
-  .lms-login-submit-content {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-  .lms-login-label {
+  .lms-login-button-label {
     display: inline-flex;
     min-width: 0;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    overflow: visible;
-  }
-  .lms-login-word {
-    display: inline-block;
-    transform: translate3d(0,0,0);
-    transition:
-      transform 360ms cubic-bezier(.23,1,.32,1),
-      opacity 260ms cubic-bezier(.23,1,.32,1);
-    will-change: transform;
-  }
-  .lms-submit-btn.is-loading .lms-login-word--enter {
-    transform: translate3d(14px,0,0);
-  }
-  .lms-submit-btn.is-loading .lms-login-word--workspace {
-    transform: translate3d(24px,0,0);
-    transition-delay: 55ms;
   }
 
   .lms-google-btn {
@@ -427,8 +406,7 @@ const ANIM_CSS = `
     letter-spacing: .01em !important;
   }
   .lms-login-cta:not(:disabled):hover {
-    background: linear-gradient(135deg, #1E40AF 0%, #1D4ED8 50%, #2563EB 100%) !important;
-    box-shadow: 0 10px 32px rgba(37,99,235,.55), 0 1px 0 rgba(255,255,255,.14) inset !important;
+    background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #3B82F6 100%) !important;
   }
   :root[data-theme='dark'] .lms-login-cta {
     background: linear-gradient(135deg, #2563EB 0%, #3B82F6 55%, #60A5FA 100%) !important;
@@ -509,6 +487,7 @@ const ANIM_CSS = `
     }
     .lms-meter-fill { animation:none!important; transform:scaleX(1)!important; }
     .lms-form-card  { animation:none!important; transform:none!important; }
+    .lms-submit-btn::before { opacity:0!important; transform:none!important; transition:none!important; }
   }
 `;
 
@@ -1193,13 +1172,10 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={status.loading}
-              className={cx(ui.primaryAction, 'lms-submit-btn lms-login-cta w-full rounded-[var(--radius-md)]', status.loading && 'is-loading')}
+              className={cx(ui.primaryAction, 'lms-submit-btn lms-login-cta w-full rounded-[var(--radius-md)]')}
             >
-              <span className="lms-login-submit-content">
-                <span className="lms-login-label" aria-label={status.loading ? 'Signing in' : 'Enter Workspace'}>
-                  <span className="lms-login-word lms-login-word--enter">Enter</span>
-                  <span className="lms-login-word lms-login-word--workspace">Workspace</span>
-                </span>
+              <span className="lms-login-button-label">
+                {status.loading ? 'Signing in...' : 'Sign in'}
               </span>
             </button>
 

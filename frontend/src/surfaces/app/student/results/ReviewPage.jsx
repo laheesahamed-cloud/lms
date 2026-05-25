@@ -2,13 +2,81 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchAttemptReview } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 
-const reviewPageNavClass = 'flex items-center justify-start';
-const reviewPageLayoutClass = 'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[18px]';
+const reviewPageUi = {
+  screen:
+    cx(ui.studentScreenShell, 'dashboard-page study-hub-page lms-review-page practice-review-page'),
+  layout:
+    'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]',
+  header:
+    'practice-review-header sticky top-2.5 z-20 flex items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] px-3 py-2.5 shadow-md backdrop-blur-[14px] dark:border-white/10 dark:bg-[rgba(8,14,26,0.74)] max-[760px]:static max-[760px]:grid max-[760px]:gap-2.5',
+  brand:
+    'flex min-w-0 items-center gap-3',
+  mark:
+    'grid size-10 shrink-0 place-items-center rounded-[13px] border border-line-soft bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_18%,var(--surface-card)),color-mix(in_srgb,var(--color-teal)_12%,var(--surface-card)))] text-brand-primary shadow-sm dark:border-white/10',
+  titleWrap:
+    'min-w-0',
+  title:
+    'm-0 truncate text-[17px] font-bold leading-tight text-ink-strong',
+  subtitle:
+    'mt-0.5 block max-w-[min(680px,52vw)] truncate text-xs text-ink-soft max-[760px]:max-w-full',
+  actions:
+    'flex min-w-0 flex-nowrap items-center justify-end gap-2 max-[760px]:w-full max-[760px]:justify-start max-[420px]:gap-1.5',
+  scoreChip:
+    'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-[13px] border border-line-soft bg-surface-glass-subtle px-3 text-sm text-ink-medium shadow-xs dark:border-white/10 max-[420px]:min-h-9 max-[420px]:px-2.5 max-[420px]:text-[12px]',
+  scoreValue:
+    'text-base font-bold text-ink-strong max-[420px]:text-sm',
+  actionButton:
+    'inline-flex min-h-10 shrink-0 items-center justify-center rounded-[13px] border px-4 text-sm font-semibold transition-[background,border-color,color,opacity] duration-150 active:opacity-85 max-[420px]:min-h-9 max-[420px]:px-3 max-[420px]:text-[12px]',
+  actionSecondary:
+    'border-line-soft bg-surface-glass-subtle text-ink-medium hover:border-brand-primary/22 hover:bg-brand-primary/7 hover:text-brand-primary dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-200',
+};
+
+function ReviewHeader({ attempt, onBack }) {
+  const quizLabel = getQuizNumberLabel(attempt);
+  const quizTitle = getQuizTitleText(attempt, 'Answer review');
+  const topicName = attempt?.topicName || attempt?.topicDisplay || attempt?.subjectName || 'Review workspace';
+  const percentage = Number(attempt?.percentage || 0);
+  const hasScore = Number.isFinite(percentage);
+
+  return (
+    <header className={reviewPageUi.header}>
+      <div className={reviewPageUi.brand}>
+        <span className={reviewPageUi.mark} aria-hidden="true">
+          <svg width="23" height="23" viewBox="0 0 23 23" fill="none">
+            <rect x="3" y="3" width="17" height="17" rx="5" fill="url(#attempt-review-mark)" />
+            <path d="M7.2 12.2 10.2 15.1 16 8.3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <defs>
+              <linearGradient id="attempt-review-mark" x1="3" y1="3" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#2563EB" />
+                <stop offset="1" stopColor="#0EA5E9" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </span>
+        <div className={reviewPageUi.titleWrap}>
+          <h1 className={reviewPageUi.title}>{quizLabel} review</h1>
+          <span className={reviewPageUi.subtitle}>{quizTitle} - {topicName}</span>
+        </div>
+      </div>
+
+      <div className={reviewPageUi.actions}>
+        {hasScore ? (
+          <div className={reviewPageUi.scoreChip} aria-label={`Score ${Math.round(percentage)} percent`}>
+            <span>Score</span>
+            <strong className={reviewPageUi.scoreValue}>{Math.round(percentage)}%</strong>
+          </div>
+        ) : null}
+        <button type="button" className={`${reviewPageUi.actionButton} ${reviewPageUi.actionSecondary}`} onClick={onBack}>
+          Back to results
+        </button>
+      </div>
+    </header>
+  );
+}
 
 export function ReviewPage() {
   const { attemptId } = useParams();
@@ -29,8 +97,8 @@ export function ReviewPage() {
 
   if (!data && !error) {
     return (
-      <main className={cx(ui.studentScreenShell, 'dashboard-page study-hub-page lms-review-page')}>
-        <section className={reviewPageLayoutClass}>
+      <main className={reviewPageUi.screen}>
+        <section className={reviewPageUi.layout}>
           <div className={ui.emptyBox}>Loading review...</div>
         </section>
       </main>
@@ -55,17 +123,9 @@ export function ReviewPage() {
   ) : null;
 
   return (
-      <main className={cx(ui.studentScreenShell, 'dashboard-page study-hub-page lms-review-page')}>
-        <section className={reviewPageLayoutClass}>
-        <AppHeader
-          title={data ? `${getQuizNumberLabel(data.attempt)} review` : 'Review answers'}
-          subtitle="Answer Review"
-        />
-        <div className={reviewPageNavClass}>
-          <button type="button" className={ui.secondaryAction} onClick={() => navigate(-1)}>
-            Back to results
-          </button>
-        </div>
+      <main className={reviewPageUi.screen}>
+        <section className={reviewPageUi.layout}>
+        {data ? <ReviewHeader attempt={data.attempt} onBack={() => navigate(-1)} /> : null}
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
         {data ? (
           <ReviewWorkspace

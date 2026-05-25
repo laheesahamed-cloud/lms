@@ -27,7 +27,7 @@ function normalizeTrueFalseValue(value) {
 
 const reviewUi = {
   shell:
-    'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(240px,300px)_minmax(0,780px)_minmax(240px,300px)] items-start justify-center gap-[18px] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1',
+    'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1',
   shellThree:
     '',
   shellFocus:
@@ -40,7 +40,7 @@ const reviewUi = {
     'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:hidden',
   summaryGrid: 'lms-review-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5',
   summaryTile:
-    'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]',
+    'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]',
   nav: 'lms-review-side-nav grid min-h-0 gap-2.5',
   navHead: 'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft',
   navList: 'lms-review-nav-list grid min-h-0 gap-2 overflow-y-auto pr-1 max-[980px]:max-h-60',
@@ -51,17 +51,17 @@ const reviewUi = {
   navItemIndex: 'text-xs font-extrabold tracking-[0.02em] text-brand-primary',
   navItemText:
     'line-clamp-2 overflow-hidden text-[13px] leading-[1.35] text-ink-strong [-webkit-box-orient:vertical] [display:-webkit-box]',
-  questionCard: 'lms-review-question-card grid gap-[16px] p-[22px_24px] max-[640px]:gap-3.5 max-[640px]:p-3.5',
-  questionText: 'lms-reading-question m-0 max-w-[76ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[15.5px] max-[640px]:leading-[1.6]',
+  questionCard: 'lms-review-question-card grid gap-[clamp(16px,2vw,22px)] p-[clamp(24px,3vw,40px)] max-[640px]:gap-3.5 max-[640px]:p-4',
+  questionText: 'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[15.5px] max-[640px]:leading-[1.6]',
   questionHead: 'flex min-h-0 items-center justify-between gap-2 max-[640px]:flex-col max-[640px]:items-start',
   questionMeta: 'flex flex-wrap items-center gap-1.5',
   questionNumber: 'text-[10.5px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft',
   questionNav:
     'lms-review-question-nav flex items-center justify-between gap-2.5 border-t border-line-soft pt-4 max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:gap-2',
   questionNavActions:
-    'flex items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-2 max-[640px]:[&_button]:w-full',
+    'flex min-w-0 flex-wrap items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-1 max-[640px]:[&_button]:w-full',
   position: 'text-xs font-extrabold text-ink-soft',
-  optionsGrid: 'lms-review-options-grid grid gap-2.5',
+  optionsGrid: 'lms-review-options-grid grid gap-3 max-[640px]:gap-2.5',
   optionTopline: 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start',
   optionLead: 'flex min-w-0 flex-auto items-start gap-2',
   optionLabels: 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start',
@@ -95,15 +95,17 @@ const reviewUi = {
   bubbleWrong: 'border-brand-error/30 bg-brand-error/12 text-brand-error',
   bubbleUnanswered: 'border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-[var(--exam-nav-idle-text)]',
   bubbleLegend:
-    'mt-3 grid grid-cols-4 items-center gap-1.5 text-[10.5px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded [&_i]:border [&_span]:inline-flex [&_span]:min-w-0 [&_span]:items-center [&_span]:gap-1 [&_span]:whitespace-nowrap',
+    'lms-review-bubble-legend mt-3 grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] items-center gap-2 text-[10.5px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded-full [&_i]:border [&_span]:inline-flex [&_span]:min-h-5 [&_span]:min-w-0 [&_span]:items-center [&_span]:gap-1.5 [&_span]:whitespace-nowrap',
   recapAction:
     'relative w-full max-w-none flex-none [&_.qtr-popup-trigger]:min-h-11 [&_.qtr-popup-trigger]:rounded-xl [&_.qtr-popup-trigger]:px-3 [&_.qtr-popup-trigger]:py-2.5 [&_.qtr-popup-trigger__label]:text-[13px] max-[640px]:w-full max-[640px]:max-w-none max-[640px]:[&_.qtr-popup-trigger]:min-h-12 max-[640px]:[&_.qtr-popup-trigger]:rounded-2xl max-[640px]:[&_.qtr-popup-trigger__concept]:max-w-[42vw]',
+  questionActions:
+    'flex flex-wrap items-center gap-2.5 max-[520px]:grid max-[520px]:grid-cols-1 max-[520px]:[&_button]:w-full',
 };
 
 const reviewSecondaryButtonClass =
-  'min-h-11 rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-sm font-bold text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
+  'lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-center text-sm font-bold leading-tight text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/28 hover:bg-brand-primary/8 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
 const reviewPrimaryButtonClass =
-  'min-h-11 rounded-xl border border-brand-primary/30 bg-[var(--color-primary-light)] px-[18px] text-sm font-bold text-brand-primary shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55';
+  'lms-assessment-btn lms-assessment-btn--primary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center rounded-xl border border-brand-primary/30 bg-[var(--color-primary-light)] px-[18px] text-center text-sm font-bold leading-tight text-brand-primary shadow-none transition-[background,border-color,opacity] duration-150 hover:bg-brand-primary/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
 
 const summaryTileToneClass = {
   correct:
@@ -682,7 +684,7 @@ export function ReviewWorkspace({
       <section className={focusQuestionOnly ? reviewUi.mainFocus : reviewUi.main} ref={mainRef}>
         <article className={reviewUi.questionCard} ref={questionCardRef}>
           <p className={reviewUi.questionText}>{activeQuestion.questionText}</p>
-          <div className="flex flex-wrap gap-2">
+          <div className={reviewUi.questionActions}>
             <button className={reviewSecondaryButtonClass} type="button" onClick={toggleActiveQuestionBookmark} disabled={questionActionBusy}>
               {activeQuestionSaved ? 'Saved question' : 'Save question'}
             </button>

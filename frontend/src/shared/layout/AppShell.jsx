@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom';
 import { AppSidebar, MobileBottomNav, MobileTopNav } from './AppSidebar.jsx';
 import { GlobalSearch } from '../search/GlobalSearch.jsx';
 import { detectPlatform } from '../platform/detect.js';
-import { shouldUseOverlayNavigation } from '../platform/config.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { preloadRouteByPath } from '../../app/router.jsx';
 import { isStaffUser, roleRouteMode } from '../auth/roleAccess.js';
@@ -11,8 +10,14 @@ import { getRoutePreloadLimit } from '../utils/performanceProfile.js';
 import { cx } from '../styles/tailwindClasses.js';
 
 const PLATFORM = detectPlatform();
-const SIDEBAR_COLLAPSE_STORAGE_KEY = 'lms.sidebar.collapsed';
-const SIDEBAR_AUTO_COLLAPSE_QUERY = '(min-width: 901px) and (max-width: 1180px)';
+const SIDEBAR_MOBILE_QUERY = '(max-width: 900px)';
+
+function shouldUseMobileNavigation(platform = detectPlatform()) {
+  if (typeof window === 'undefined') return false;
+  const widthIsMobile = window.matchMedia?.(SIDEBAR_MOBILE_QUERY)?.matches || window.innerWidth <= 900;
+  return widthIsMobile || ((platform.isPwa || platform.isNative) && platform.isPhone);
+}
+
 const shellUi = {
   shell:
     'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#dce6f4] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[var(--app-bg-solid)]',
@@ -70,24 +75,10 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const warmedRouteKeysRef = useRef(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [tabletOverlayNav, setTabletOverlayNav] = useState(() => {
-    return shouldUseOverlayNavigation(detectPlatform());
-  });
-  const [autoCollapseSidebar, setAutoCollapseSidebar] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia?.(SIDEBAR_AUTO_COLLAPSE_QUERY)?.matches || false;
+  const [isMobileNav, setIsMobileNav] = useState(() => {
+    return shouldUseMobileNavigation();
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === 'undefined') {
-      return desktopSidebarHiddenByDefault;
-    }
-    try {
-      const saved = window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
-      if (saved === 'true') return true;
-      if (saved === 'false') return false;
-    } catch {
-      return desktopSidebarHiddenByDefault;
-    }
     return desktopSidebarHiddenByDefault;
   });
   const isSigningOut = useAuthStore((state) => state.isSigningOut);
@@ -102,14 +93,13 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const isReviewFocusRoute = /^\/(?:app\/)?review\/[^/]+$/.test(location.pathname);
   const isPracticeReviewFocusRoute = /^\/(?:app\/)?quizzes\/[^/]+\/practice-review$/.test(location.pathname);
   const isStudentResultDetailRoute = /^\/(?:app\/)?results\/[^/]+$/.test(location.pathname);
-  const isQuestionBankRoute = /^\/questions(?:\/|$)/.test(location.pathname);
-  const isQuizBuilderRoute = /^\/quizzes\/new$/.test(location.pathname) || /^\/quizzes\/[^/]+\/edit$/.test(location.pathname);
   const isCompactFocusMode = isQuizFocusMode || isReviewFocusRoute || isPracticeReviewFocusRoute;
   const isAssessmentShellRoute = isCompactFocusMode || isStudentResultDetailRoute;
   const isFocusMode = isCompactFocusMode || isAiNoteReaderRoute;
-  const isCollapsedDesktop = (autoCollapseSidebar || (desktopSidebarToggle && sidebarCollapsed)) && !tabletOverlayNav;
+  const isCollapsedDesktop = desktopSidebarToggle && sidebarCollapsed;
   const effectiveSidebarCollapsed = isCollapsedDesktop;
   const hideGlobalSidebar = isFocusMode;
+  const useMobileTopNav = isMobileNav && !hideGlobalSidebar;
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
 
@@ -136,7 +126,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         return;
       }
 
-      if (window.innerWidth <= 900 || tabletOverlayNav) {
+      if (isMobileNav) {
         setSidebarOpen((current) => !current);
         return;
       }
@@ -148,31 +138,20 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
 
     window.addEventListener('lms:toggle-sidebar', handleToggleSidebar);
     return () => window.removeEventListener('lms:toggle-sidebar', handleToggleSidebar);
-  }, [desktopSidebarToggle, isFocusMode, tabletOverlayNav]);
+  }, [desktopSidebarToggle, isFocusMode, isMobileNav]);
 
   useEffect(() => {
     function handleResize() {
-      if (window.innerWidth > 900 && !tabletOverlayNav) setSidebarOpen(false);
+      const nextIsMobile = shouldUseMobileNavigation();
+      setIsMobileNav(nextIsMobile);
+      if (!nextIsMobile) setSidebarOpen(false);
     }
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [tabletOverlayNav]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    const collapseMedia = window.matchMedia?.(SIDEBAR_AUTO_COLLAPSE_QUERY);
-    const updateAutoCollapse = () => {
-      setAutoCollapseSidebar(Boolean(collapseMedia?.matches));
-    };
-
-    updateAutoCollapse();
-    collapseMedia?.addEventListener?.('change', updateAutoCollapse);
-    window.addEventListener('resize', updateAutoCollapse);
-
+    window.addEventListener('orientationchange', handleResize);
+    handleResize();
     return () => {
-      collapseMedia?.removeEventListener?.('change', updateAutoCollapse);
-      window.removeEventListener('resize', updateAutoCollapse);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
     };
   }, []);
 
@@ -196,47 +175,6 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     document.addEventListener('pointerdown', handleOutsidePointer, true);
     return () => document.removeEventListener('pointerdown', handleOutsidePointer, true);
   }, [hideGlobalSidebar, sidebarOpen]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const tabletMedia = window.matchMedia('(min-width: 901px) and (max-width: 1366px) and (orientation: landscape)');
-    const pointerMedia = window.matchMedia('(pointer: coarse), (any-pointer: coarse)');
-    const updateTabletOverlay = () => {
-      const next = shouldUseOverlayNavigation(detectPlatform());
-      setTabletOverlayNav(next);
-      if (!next) setSidebarOpen(false);
-    };
-
-    updateTabletOverlay();
-    tabletMedia.addEventListener?.('change', updateTabletOverlay);
-    pointerMedia.addEventListener?.('change', updateTabletOverlay);
-    window.addEventListener('resize', updateTabletOverlay);
-    window.addEventListener('orientationchange', updateTabletOverlay);
-
-    return () => {
-      tabletMedia.removeEventListener?.('change', updateTabletOverlay);
-      pointerMedia.removeEventListener?.('change', updateTabletOverlay);
-      window.removeEventListener('resize', updateTabletOverlay);
-      window.removeEventListener('orientationchange', updateTabletOverlay);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    try {
-      window.localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, String(sidebarCollapsed));
-    } catch {
-      // Sidebar preference persistence is optional in embedded WebViews.
-    }
-  }, [sidebarCollapsed]);
-
-  useEffect(() => {
-    if ((isQuestionBankRoute || isQuizBuilderRoute) && desktopSidebarToggle) {
-      setSidebarCollapsed(true);
-    }
-  }, [desktopSidebarToggle, isQuestionBankRoute, isQuizBuilderRoute, location.pathname]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -319,7 +257,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         isSigningOut && 'signing-out',
         sidebarOpen && 'sidebar-open',
         effectiveSidebarCollapsed && 'sidebar-collapsed',
-        tabletOverlayNav && 'tablet-overlay-nav',
+        useMobileTopNav && 'mobile-top-nav-mode',
         hideGlobalSidebar && 'sidebar-hidden',
         isAiNoteReaderRoute && 'exam-focus-mode',
         isAiNoteReaderRoute && 'ai-note-focus-mode',
@@ -335,20 +273,11 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         <span className={shellUi.ambientGrid} />
       </div>
 
-      {sidebarOpen && !hideGlobalSidebar ? (
-        <button
-          type="button"
-          className="lms-sidebar-overlay"
-          aria-label="Close navigation"
-          onClick={() => setSidebarOpen(false)}
-        />
-      ) : null}
-
-      {!hideGlobalSidebar ? (
+      {!hideGlobalSidebar && !useMobileTopNav ? (
         <AppSidebar
           isOpen={sidebarOpen}
           isCollapsed={effectiveSidebarCollapsed}
-          isOverlayNav={tabletOverlayNav}
+          isOverlayNav={false}
           isExamFocusMode={isFocusMode}
           onClose={() => setSidebarOpen(false)}
           onSearchOpen={openSearch}
@@ -356,7 +285,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
       ) : null}
 
       <MobileTopNav
-        isOpen={sidebarOpen}
+        isOpen={useMobileTopNav && sidebarOpen}
         isExamFocusMode={isFocusMode}
         onClose={() => setSidebarOpen(false)}
       />
@@ -370,9 +299,8 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
       <main
         className={cx(
           shellUi.content,
-          effectiveSidebarCollapsed && !hideGlobalSidebar && shellUi.contentCollapsed,
           isAiNoteReaderRoute && shellUi.contentAiFocus,
-          (hideGlobalSidebar || tabletOverlayNav) && shellUi.contentCompactFocus,
+          (hideGlobalSidebar || useMobileTopNav) && shellUi.contentCompactFocus,
           isQuizFocusMode && shellUi.contentQuizFocus,
           isSigningOut && shellUi.contentSigningOut,
         )}

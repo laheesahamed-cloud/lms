@@ -84,7 +84,7 @@ for (const [file, permissions] of [
   ['backend/src/modules/subscriptions/subscriptions.controller.ts', ['subscriptions.manage']],
   ['backend/src/modules/push-notifications/push-notifications.controller.ts', ['notifications.manage']],
   ['backend/src/modules/ai/ai.controller.ts', ['ai.manage']],
-  ['backend/src/modules/workspace/workspace.controller.ts', ['notifications.manage', 'support.manage', 'reports.view']],
+  ['backend/src/modules/workspace/workspace.controller.ts', ['notifications.manage', 'reports.view']],
 ]) {
   const source = readProjectFile(file);
   if (!source.includes('RequirePermissions')) {

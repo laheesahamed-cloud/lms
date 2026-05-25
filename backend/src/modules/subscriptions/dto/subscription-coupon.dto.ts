@@ -12,13 +12,26 @@ export class SubscriptionCouponDto {
   label?: string;
 
   @IsString()
+  @IsIn(['discount', 'package'])
+  @IsOptional()
+  couponMode?: 'discount' | 'package';
+
+  @IsString()
   @IsIn(['percent', 'fixed'])
+  @IsOptional()
   discountType!: 'percent' | 'fixed';
 
   @Type(() => Number)
   @IsNumber()
   @Min(0)
+  @IsOptional()
   discountValue!: number;
+
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @IsOptional()
+  planIds?: number[];
 
   @IsString()
   @IsIn(['active', 'inactive'])

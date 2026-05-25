@@ -10,7 +10,7 @@ import { getStaffRoleLabel, isStaffUser, roleRouteMode, userHasPermission } from
 import { cx, ui } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
 
-const PROFILE_MENU_EXIT_MS = 180;
+const PROFILE_MENU_EXIT_MS = 220;
 
 function BellIcon() {
   return (

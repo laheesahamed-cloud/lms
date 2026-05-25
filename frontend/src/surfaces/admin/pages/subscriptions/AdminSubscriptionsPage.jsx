@@ -144,8 +144,10 @@ const emptyAssignForm = {
 const emptyCouponForm = {
   code: '',
   label: '',
+  couponMode: 'discount',
   discountType: 'percent',
   discountValue: '',
+  planIds: [],
   status: 'active',
   startsAt: '',
   expiresAt: '',
@@ -648,6 +650,10 @@ export function AdminSubscriptionsPage() {
     () => new Map(safeCourses.map((course) => [Number(course.id), course.courseTitle])),
     [safeCourses]
   );
+  const planNameById = useMemo(
+    () => new Map(safePlans.map((plan) => [Number(plan.id), plan.name])),
+    [safePlans]
+  );
   const lessonTitleById = useMemo(
     () => new Map(safeLessons.map((lesson) => [Number(lesson.id), `${lesson.courseTitle} - ${lesson.lessonTitle}`])),
     [safeLessons]
@@ -803,6 +809,11 @@ export function AdminSubscriptionsPage() {
     setCouponForm((current) => ({ ...current, [name]: value }));
   }
 
+  function handleCouponPlanChange(event) {
+    const planIds = Array.from(event.target.selectedOptions, (option) => Number(option.value)).filter(Boolean);
+    setCouponForm((current) => ({ ...current, planIds }));
+  }
+
   function resetCouponForm() {
     setEditingCouponId(null);
     setCouponForm(emptyCouponForm);
@@ -813,8 +824,10 @@ export function AdminSubscriptionsPage() {
     setCouponForm({
       code: coupon.code || '',
       label: coupon.label || '',
+      couponMode: coupon.couponMode || 'discount',
       discountType: coupon.discountType || 'percent',
       discountValue: coupon.discountValue ?? '',
+      planIds: Array.isArray(coupon.planIds) ? coupon.planIds.map((planId) => Number(planId)).filter(Boolean) : [],
       status: coupon.status || 'active',
       startsAt: coupon.startsAt ? String(coupon.startsAt).slice(0, 10) : '',
       expiresAt: coupon.expiresAt ? String(coupon.expiresAt).slice(0, 10) : '',
@@ -1039,8 +1052,10 @@ export function AdminSubscriptionsPage() {
       const payload = {
         code: couponForm.code,
         label: couponForm.label,
+        couponMode: couponForm.couponMode,
         discountType: couponForm.discountType,
-        discountValue: Number(couponForm.discountValue),
+        discountValue: couponForm.couponMode === 'package' ? 0 : Number(couponForm.discountValue),
+        planIds: couponForm.couponMode === 'package' ? couponForm.planIds : [],
         status: couponForm.status,
         startsAt: couponForm.startsAt || undefined,
         expiresAt: couponForm.expiresAt || undefined,
@@ -1157,25 +1172,32 @@ export function AdminSubscriptionsPage() {
     );
   }
 
+  const manageToolsVisible = subscriptionView === 'manage';
+
   return (
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
         <AppHeader
-          title={subscriptionView === 'manage' ? 'Manage Packages' : 'Subscriptions'}
-          subtitle={subscriptionView === 'manage'
+          title={manageToolsVisible ? 'Manage Packages' : 'Subscriptions'}
+          subtitle={manageToolsVisible
             ? 'Package Controls'
             : 'Payment Review'}
           actions={(
             <div className={ui.buttonRow}>
-              {subscriptionView === 'manage' ? (
+              <button
+                type="button"
+                className={manageToolsVisible ? ui.secondaryAction : ui.primaryAction}
+                aria-expanded={manageToolsVisible}
+                onClick={() => setSubscriptionView(manageToolsVisible ? 'students' : 'manage')}
+              >
+                {manageToolsVisible ? 'Hide manage' : 'Manage'}
+              </button>
+              {manageToolsVisible ? (
                 <>
-                  <button type="button" className={ui.secondaryAction} onClick={() => setSubscriptionView('students')}>Student view</button>
                   <button type="button" className={ui.primaryAction} onClick={handleOpenCreatePlan}>Add Plan</button>
                   <button type="button" className={ui.secondaryAction} onClick={handleOpenCreateFeature}>Add Feature</button>
                 </>
-              ) : (
-                <button type="button" className={ui.primaryAction} onClick={() => setSubscriptionView('manage')}>Manage</button>
-              )}
+              ) : null}
             </div>
           )}
         />
@@ -1185,14 +1207,14 @@ export function AdminSubscriptionsPage() {
 
         <section className={subscriptionUi.overviewGrid}>
           <article className={subscriptionUi.overviewCard}>
-            <span className={subscriptionUi.overviewLabel}>{subscriptionView === 'manage' ? 'Plans' : 'Students'}</span>
-            <strong className={subscriptionUi.overviewValue}>{subscriptionView === 'manage' ? safePlans.length : safeStudents.length}</strong>
-            <p className={subscriptionUi.overviewText}>{subscriptionView === 'manage' ? 'Subscription plans currently configured in the LMS.' : 'Student accounts available for subscription assignment.'}</p>
+            <span className={subscriptionUi.overviewLabel}>{manageToolsVisible ? 'Plans' : 'Students'}</span>
+            <strong className={subscriptionUi.overviewValue}>{manageToolsVisible ? safePlans.length : safeStudents.length}</strong>
+            <p className={subscriptionUi.overviewText}>{manageToolsVisible ? 'Subscription plans currently configured in the LMS.' : 'Student accounts available for subscription assignment.'}</p>
           </article>
           <article className={subscriptionUi.overviewCard}>
-            <span className={subscriptionUi.overviewLabel}>{subscriptionView === 'manage' ? 'Features' : 'Pending Requests'}</span>
-            <strong className={subscriptionUi.overviewValue}>{subscriptionView === 'manage' ? safeFeatures.length : pendingRequests.length}</strong>
-            <p className={subscriptionUi.overviewText}>{subscriptionView === 'manage' ? 'Master features available for checkbox-based plan allocation.' : 'Student requests waiting for admin decision.'}</p>
+            <span className={subscriptionUi.overviewLabel}>{manageToolsVisible ? 'Features' : 'Pending Requests'}</span>
+            <strong className={subscriptionUi.overviewValue}>{manageToolsVisible ? safeFeatures.length : pendingRequests.length}</strong>
+            <p className={subscriptionUi.overviewText}>{manageToolsVisible ? 'Master features available for checkbox-based plan allocation.' : 'Student requests waiting for admin decision.'}</p>
           </article>
           <article className={subscriptionUi.overviewCard}>
             <span className={subscriptionUi.overviewLabel}>Active Subs</span>
@@ -1206,7 +1228,7 @@ export function AdminSubscriptionsPage() {
           </article>
         </section>
 
-        {subscriptionView === 'manage' ? (
+        {manageToolsVisible ? (
           <>
         <div className={subscriptionUi.adminGrid}>
           <section className={cx(ui.panelCard, subscriptionUi.featureEditor)}>
@@ -1305,7 +1327,7 @@ export function AdminSubscriptionsPage() {
           <div className={ui.panelTop}>
             <div>
               <h2>Subscription coupons</h2>
-              <p>Create coupon codes students can enter before PayHere checkout.</p>
+              <p>Create bank transfer coupons that either reduce money or apply only to selected packages.</p>
             </div>
           </div>
 
@@ -1320,16 +1342,36 @@ export function AdminSubscriptionsPage() {
                 <input className={ui.input} name="label" value={couponForm.label} onChange={handleCouponChange} placeholder="New student offer" />
               </label>
               <label className={ui.formLabel}>
-                Discount type
-                <select className={ui.input} name="discountType" value={couponForm.discountType} onChange={handleCouponChange}>
-                  <option value="percent">Percent</option>
-                  <option value="fixed">Fixed amount</option>
+                Coupon mode
+                <select className={ui.input} name="couponMode" value={couponForm.couponMode} onChange={handleCouponChange}>
+                  <option value="discount">Reduce money</option>
+                  <option value="package">Package only</option>
                 </select>
               </label>
-              <label className={ui.formLabel}>
-                Discount value
-                <input className={ui.input} type="number" min="0" step="0.01" name="discountValue" value={couponForm.discountValue} onChange={handleCouponChange} placeholder="25" required />
-              </label>
+              {couponForm.couponMode === 'discount' ? (
+                <>
+                  <label className={ui.formLabel}>
+                    Discount type
+                    <select className={ui.input} name="discountType" value={couponForm.discountType} onChange={handleCouponChange}>
+                      <option value="percent">Percent</option>
+                      <option value="fixed">Fixed amount</option>
+                    </select>
+                  </label>
+                  <label className={ui.formLabel}>
+                    Discount value
+                    <input className={ui.input} type="number" min="0" step="0.01" name="discountValue" value={couponForm.discountValue} onChange={handleCouponChange} placeholder="25" required />
+                  </label>
+                </>
+              ) : (
+                <label className={ui.formLabel}>
+                  Packages
+                  <select className={ui.input} name="planIds" value={couponForm.planIds.map(String)} onChange={handleCouponPlanChange} multiple required>
+                    {safePlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>{plan.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label className={ui.formLabel}>
                 Starts
                 <input className={ui.input} type="date" name="startsAt" value={couponForm.startsAt} onChange={handleCouponChange} />
@@ -1371,7 +1413,7 @@ export function AdminSubscriptionsPage() {
                   <thead>
                     <tr>
                       <th className={ui.tableHeadCell}>Code</th>
-                      <th className={ui.tableHeadCell}>Discount</th>
+                      <th className={ui.tableHeadCell}>Mode</th>
                       <th className={ui.tableHeadCell}>Window</th>
                       <th className={ui.tableHeadCell}>Usage</th>
                       <th className={ui.tableHeadCell}>Status</th>
@@ -1386,7 +1428,14 @@ export function AdminSubscriptionsPage() {
                           {coupon.label ? <div className={ui.tableSubtext}>{coupon.label}</div> : null}
                         </td>
                         <td className={ui.tableCell}>
-                          {coupon.discountType === 'percent' ? `${Number(coupon.discountValue).toFixed(2)}%` : `Fixed ${Number(coupon.discountValue).toFixed(2)}`}
+                          <strong>{coupon.couponMode === 'package' ? 'Package only' : 'Reduce money'}</strong>
+                          <div className={ui.tableSubtext}>
+                            {coupon.couponMode === 'package'
+                              ? (Array.isArray(coupon.planIds) && coupon.planIds.length
+                                ? coupon.planIds.map((planId) => planNameById.get(Number(planId)) || `Plan #${planId}`).join(', ')
+                                : 'No package selected')
+                              : (coupon.discountType === 'percent' ? `${Number(coupon.discountValue).toFixed(2)}% off` : `Fixed ${Number(coupon.discountValue).toFixed(2)} off`)}
+                          </div>
                         </td>
                         <td className={ui.tableCell}>
                           <strong>{coupon.startsAt ? String(coupon.startsAt).slice(0, 10) : 'Now'}</strong>
@@ -1540,6 +1589,13 @@ export function AdminSubscriptionsPage() {
                       <td className={ui.tableCell}>
                         <strong>{request.planName}</strong>
                         <div className={ui.tableSubtext}>{request.planCurrency} {Number(request.planEffectivePrice).toFixed(2)}</div>
+                        {request.couponCode ? (
+                          <div className={ui.tableSubtext}>
+                            {Number(request.discountAmount || 0) > 0
+                              ? `Coupon ${request.couponCode}: -${request.paymentCurrency || request.planCurrency} ${Number(request.discountAmount || 0).toFixed(2)}`
+                              : `Coupon ${request.couponCode} applied`}
+                          </div>
+                        ) : null}
                         {request.paymentAmount !== null && request.paymentAmount !== undefined ? (
                           <div className={ui.tableSubtext}>Uploaded payment: {request.paymentCurrency || request.planCurrency} {Number(request.paymentAmount).toFixed(2)}</div>
                         ) : null}

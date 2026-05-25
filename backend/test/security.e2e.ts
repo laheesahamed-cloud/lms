@@ -442,10 +442,6 @@ class SecurityE2eDb {
       return [{ insertId: 1, affectedRows: 1 } as T, []];
     }
 
-    if (normalized.includes('FROM lesson_doubts') && normalized.includes('WHERE user_id = ? AND status IN')) {
-      return [[] as T, []];
-    }
-
     if (normalized.includes('FROM user_subscriptions us') && normalized.includes('LEFT JOIN plans p')) {
       return [[] as T, []];
     }
@@ -482,28 +478,6 @@ class SecurityE2eDb {
 
     if (normalized.includes('DELETE FROM study_planner_tasks WHERE id = ? AND user_id = ?')) {
       return [{ affectedRows: 1 } as T, []];
-    }
-
-    if (normalized.includes('SELECT d.*, l.lesson_title FROM lesson_doubts d') && normalized.includes('WHERE d.user_id = ?')) {
-      return [[{
-        id: 40,
-        user_id: Number(params[0]),
-        lesson_id: 10,
-        question_id: null,
-        context_type: 'lesson',
-        subject: 'Owned doubt',
-        message: 'My own doubt',
-        reply: '',
-        status: 'open',
-        created_at: null,
-        updated_at: null,
-        answered_at: null,
-        lesson_title: 'Accessible lesson',
-      }] as T, []];
-    }
-
-    if (normalized.includes('INSERT INTO lesson_doubts')) {
-      return [{ insertId: 41, affectedRows: 1 } as T, []];
     }
 
     if (normalized.includes('FROM ai_illustrated_notes n')) {
@@ -1159,7 +1133,6 @@ async function testStudentWorkspaceOwnership() {
     .set('Authorization', auth(TOKENS.studentA));
   assert.equal(notificationsResponse.status, 200);
   expectUserScopedCall(/announcement_reads ar ON ar\.announcement_id = a\.id AND ar\.user_id = \?/i, 100, 'notification read join must use authenticated user id');
-  expectUserScopedCall(/FROM lesson_doubts WHERE user_id = \?/i, 100, 'derived doubt notifications must use authenticated user id');
   expectUserScopedCall(/FROM user_subscriptions us LEFT JOIN plans p/i, 100, 'derived subscription notifications must use authenticated user id');
   expectUserScopedCall(/FROM quiz_attempts qa INNER JOIN quizzes q/i, 100, 'derived weak-topic notifications must use authenticated user id');
 
@@ -1172,29 +1145,6 @@ async function testStudentWorkspaceOwnership() {
   assert(markReadCall, 'notification read marker must be inserted');
   assert.deepEqual(markReadCall.params, [77, 100]);
 
-  db.reset();
-  const doubtListResponse = await request(app.getHttpServer())
-    .get('/api/lesson-doubts')
-    .set('Authorization', auth(TOKENS.studentA));
-  assert.equal(doubtListResponse.status, 200);
-  expectUserScopedCall(/FROM lesson_doubts d LEFT JOIN lessons l/i, 100, 'doubt list must query by authenticated student id');
-
-  db.reset();
-  const doubtCreateResponse = await request(app.getHttpServer())
-    .post('/api/lesson-doubts')
-    .set('Authorization', auth(TOKENS.studentA))
-    .send({ lessonId: 10, subject: 'Owned doubt', message: 'Please explain', userId: 200 });
-  assert.equal(doubtCreateResponse.status, 201);
-  const doubtInsertCall = expectUserScopedCall(/INSERT INTO lesson_doubts/i, 100, 'doubt create must write authenticated student id');
-  assert.equal(doubtInsertCall.params[0], 100);
-
-  db.reset();
-  const studentAdminDoubtResponse = await request(app.getHttpServer())
-    .patch('/api/lesson-doubts/admin/40')
-    .set('Authorization', auth(TOKENS.studentA))
-    .send({ reply: 'tamper', status: 'answered' });
-  assert.equal(studentAdminDoubtResponse.status, 403);
-  assert(!db.findCall(/UPDATE lesson_doubts/i), 'students must not update doubts through admin route');
 }
 
 async function testHealthProfileAndPublicCatalogRoutes() {
@@ -1438,8 +1388,6 @@ async function testRemainingAdminPermissionBoundaries() {
     ['get', '/api/question-review/admin'],
     ['post', '/api/question-review/admin', { questionId: 1, reason: 'Blocked' }],
     ['patch', '/api/question-review/admin/1', { status: 'resolved' }],
-    ['get', '/api/lesson-doubts/admin'],
-    ['patch', '/api/lesson-doubts/admin/1', { reply: 'Blocked', status: 'answered' }],
   ];
 
   for (const [method, path, body] of staffBlockedRoutes) {

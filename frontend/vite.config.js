@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-const buildVersion = '20260523-quiz-map-v1';
+const buildVersion = '20260525-quiz-card-selected-v1';
 const isCapacitorBuild = Boolean(process.env.CAPACITOR_BUILD || process.env.VITE_LMS_BUILD_TARGET === 'native');
 const isDesktopBuild = process.env.VITE_LMS_BUILD_TARGET === 'desktop';
 const shouldEmitSourceMaps = process.env.VITE_SOURCEMAP === 'true';

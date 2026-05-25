@@ -61,6 +61,8 @@ type SubscriptionRequestRow = RowDataPacket & {
   payment_reference: string | null;
   payment_amount: string | number | null;
   payment_currency: string | null;
+  coupon_code: string | null;
+  discount_amount: string | number | null;
   payment_proof_name: string | null;
   payment_proof_mime: string | null;
   payment_proof_data_url: string | null;
@@ -116,8 +118,10 @@ type SubscriptionCouponRow = RowDataPacket & {
   id: number;
   code: string;
   label: string | null;
+  coupon_mode: 'discount' | 'package' | null;
   discount_type: 'percent' | 'fixed';
   discount_value: string | number;
+  plan_ids_json: string | null;
   status: 'active' | 'inactive';
   starts_at: string | null;
   expires_at: string | null;
@@ -329,22 +333,31 @@ export class SubscriptionsService {
     ].filter(Boolean);
 
     const amount = Number(plan.effectivePrice || 0);
+    const coupon = await this.resolveCouponForCheckout(dto.couponCode, amount, plan.id);
+    const discountAmount = coupon ? coupon.discountAmount : 0;
+    const payableAmount = Number(this.formatAmount(Math.max(0, amount - discountAmount)));
+    if (coupon && payableAmount <= 0) {
+      throw new BadRequestException('Coupon cannot reduce a bank transfer payment to zero. Please contact admin for manual access.');
+    }
     const currency = String(plan.currency || 'LKR').toUpperCase();
     const invoiceId = await this.generateInvoiceId();
     const savedProof = await this.savePaymentProofFile(invoiceId, proofDataUrl);
     const [result] = await this.db.execute<ResultSetHeader>(
       `INSERT INTO subscription_requests (
          user_id, plan_id, invoice_id, message, payment_method, payment_reference, payment_amount, payment_currency,
-         payment_proof_name, payment_proof_mime, payment_proof_data_url, access_scope, course_ids_json, lesson_ids_json, status
-       ) VALUES (?, ?, ?, ?, 'bank_transfer', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+         coupon_code, discount_amount, payment_proof_name, payment_proof_mime, payment_proof_data_url,
+         access_scope, course_ids_json, lesson_ids_json, status
+       ) VALUES (?, ?, ?, ?, 'bank_transfer', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
         student.id,
         plan.id,
         invoiceId,
         messageParts.join('\n'),
         String(dto.paymentReference || '').trim() || null,
-        amount,
+        payableAmount,
         currency,
+        coupon?.code || null,
+        discountAmount,
         savedProof.fileName,
         savedProof.mimeType || proofMimeType || null,
         savedProof.publicPath,
@@ -360,10 +373,20 @@ export class SubscriptionsService {
       actorId: student.id,
       eventType: 'bank_transfer_uploaded',
       summary: `${student.email} uploaded bank transfer proof for ${plan.name}`,
-      details: { planId: plan.id, amount, currency, invoiceId, paymentReference: dto.paymentReference || '', proofFileName: savedProof.fileName, ...scope },
+      details: { planId: plan.id, amount: payableAmount, originalAmount: amount, discountAmount, couponCode: coupon?.code || '', currency, invoiceId, paymentReference: dto.paymentReference || '', proofFileName: savedProof.fileName, ...scope },
     });
 
-    return { ok: true, id: result.insertId, invoiceId };
+    return {
+      ok: true,
+      id: result.insertId,
+      invoiceId,
+      amount: this.formatAmount(payableAmount),
+      originalAmount: this.formatAmount(amount),
+      discountAmount: this.formatAmount(discountAmount),
+      couponCode: coupon?.code || '',
+      couponMode: coupon?.couponMode || '',
+      currency,
+    };
   }
 
   private async savePaymentProofFile(invoiceId: string, proofDataUrl: string) {
@@ -506,6 +529,13 @@ export class SubscriptionsService {
         cancelExisting: true,
       });
 
+      if (request.couponCode) {
+        await this.db.execute(
+          'UPDATE subscription_coupons SET redemption_count = redemption_count + 1 WHERE code = ?',
+          [request.couponCode]
+        );
+      }
+
       await this.logAudit({
         subscriptionId,
         requestId,
@@ -513,7 +543,7 @@ export class SubscriptionsService {
         actorId: adminId,
         eventType: 'request_approved',
         summary: `Approved request for ${plan.name}`,
-        details: { planId: request.planId, startDate, endDate, paymentMethod: request.paymentMethod || '', paymentReference: request.paymentReference || '', accessScope: request.accessScope, courseIds: request.courseIds, lessonIds: request.lessonIds },
+        details: { planId: request.planId, startDate, endDate, paymentMethod: request.paymentMethod || '', paymentReference: request.paymentReference || '', couponCode: request.couponCode || '', discountAmount: request.discountAmount || 0, accessScope: request.accessScope, courseIds: request.courseIds, lessonIds: request.lessonIds },
       });
     } else {
       await this.logAudit({
@@ -665,6 +695,8 @@ export class SubscriptionsService {
         planName: String(row.plan_name || ''),
         amount: row.payment_amount === null || row.payment_amount === undefined ? null : Number(row.payment_amount),
         currency: this.normalizePaymentCurrency(row.payment_currency),
+        couponCode: String(row.coupon_code || ''),
+        discountAmount: Number(row.discount_amount || 0),
         paymentReference: String(row.payment_reference || ''),
         paymentProofName: String(row.payment_proof_name || ''),
         paymentProofMime: String(row.payment_proof_mime || ''),
@@ -683,14 +715,16 @@ export class SubscriptionsService {
     const [result] = await this.db.execute<ResultSetHeader>(
       `
         INSERT INTO subscription_coupons (
-          code, label, discount_type, discount_value, status, starts_at, expires_at, max_redemptions
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          code, label, coupon_mode, discount_type, discount_value, plan_ids_json, status, starts_at, expires_at, max_redemptions
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         payload.code,
         payload.label,
+        payload.couponMode,
         payload.discountType,
         payload.discountValue,
+        JSON.stringify(payload.planIds),
         payload.status,
         payload.startsAt || null,
         payload.expiresAt || null,
@@ -716,8 +750,10 @@ export class SubscriptionsService {
         UPDATE subscription_coupons
         SET code = ?,
             label = ?,
+            coupon_mode = ?,
             discount_type = ?,
             discount_value = ?,
+            plan_ids_json = ?,
             status = ?,
             starts_at = ?,
             expires_at = ?,
@@ -727,8 +763,10 @@ export class SubscriptionsService {
       [
         payload.code,
         payload.label,
+        payload.couponMode,
         payload.discountType,
         payload.discountValue,
+        JSON.stringify(payload.planIds),
         payload.status,
         payload.startsAt || null,
         payload.expiresAt || null,
@@ -772,6 +810,10 @@ export class SubscriptionsService {
     courseIds?: number[];
     lessonIds?: number[];
   } = {}) {
+    if (this.normalizeCouponCode(checkoutInput.couponCode)) {
+      throw new BadRequestException('Coupon codes are available for bank transfers only.');
+    }
+
     const student = await this.getStudentOrThrow(userId);
     const plan = await this.plansService.findById(planId);
     const settings = await this.settingsService.getPayHereCheckoutSettings();
@@ -789,12 +831,8 @@ export class SubscriptionsService {
     }
     const scope = this.normalizeAccessScope(checkoutInput.accessScope, checkoutInput.courseIds, checkoutInput.lessonIds);
 
-    const coupon = await this.resolveCouponForCheckout(checkoutInput.couponCode, amount);
-    const discountAmount = coupon ? coupon.discountAmount : 0;
-    const payableAmount = Math.max(0, amount - discountAmount);
-    if (payableAmount <= 0) {
-      throw new BadRequestException('Coupon cannot reduce a PayHere checkout to zero. Use manual admin assignment for Free Plan access.');
-    }
+    const discountAmount = 0;
+    const payableAmount = amount;
 
     const currency = settings.currency || String(plan.currency || 'LKR').toUpperCase();
     const invoiceId = await this.generateInvoiceId();
@@ -826,7 +864,7 @@ export class SubscriptionsService {
         plan.id,
         payableAmount,
         currency,
-        coupon?.code || null,
+        null,
         discountAmount,
         String(checkoutInput.message || '').trim() || null,
         scope.accessScope,
@@ -840,7 +878,7 @@ export class SubscriptionsService {
       actorId: student.id,
       eventType: 'payhere_checkout_initiated',
       summary: `Started PayHere checkout for ${plan.name}`,
-      details: { planId: plan.id, invoiceId, orderId, amount: amountFormatted, originalAmount: this.formatAmount(amount), discountAmount, couponCode: coupon?.code || '', currency, sandboxMode: settings.sandboxMode, billingName, billingEmail, orderNote: checkoutInput.message || '', ...scope },
+      details: { planId: plan.id, invoiceId, orderId, amount: amountFormatted, originalAmount: this.formatAmount(amount), discountAmount, couponCode: '', currency, sandboxMode: settings.sandboxMode, billingName, billingEmail, orderNote: checkoutInput.message || '', ...scope },
     });
 
     return {
@@ -853,7 +891,7 @@ export class SubscriptionsService {
       amount: amountFormatted,
       originalAmount: this.formatAmount(amount),
       discountAmount: this.formatAmount(discountAmount),
-      couponCode: coupon?.code || '',
+      couponCode: '',
       currency,
       fields: {
         merchant_id: settings.merchantId,
@@ -870,7 +908,6 @@ export class SubscriptionsService {
         order_id: orderId,
         items: [
           `${settings.checkoutTitle || 'ERPM LMS subscription'} - ${plan.name}`,
-          coupon?.code ? `(${coupon.code})` : '',
           checkoutInput.message ? `- ${String(checkoutInput.message).slice(0, 80)}` : '',
         ].filter(Boolean).join(' '),
         currency,
@@ -1344,6 +1381,8 @@ export class SubscriptionsService {
       paymentReference: String(row.payment_reference || ''),
       paymentAmount: row.payment_amount === null || row.payment_amount === undefined ? null : Number(row.payment_amount),
       paymentCurrency: String(row.payment_currency || ''),
+      couponCode: String(row.coupon_code || ''),
+      discountAmount: Number(row.discount_amount || 0),
       paymentProofName: String(row.payment_proof_name || ''),
       paymentProofMime: String(row.payment_proof_mime || ''),
       paymentProofDataUrl: String(row.payment_proof_data_url || ''),
@@ -1583,13 +1622,18 @@ export class SubscriptionsService {
     if (!code) {
       throw new BadRequestException('Coupon code is required');
     }
+    const couponMode = dto.couponMode === 'package' ? 'package' : 'discount';
     const discountType = dto.discountType === 'fixed' ? 'fixed' : 'percent';
     const discountValue = Number(dto.discountValue || 0);
-    if (!Number.isFinite(discountValue) || discountValue <= 0) {
+    if (couponMode === 'discount' && (!Number.isFinite(discountValue) || discountValue <= 0)) {
       throw new BadRequestException('Coupon discount must be greater than zero');
     }
-    if (discountType === 'percent' && discountValue > 100) {
+    if (couponMode === 'discount' && discountType === 'percent' && discountValue > 100) {
       throw new BadRequestException('Percent coupon cannot exceed 100%');
+    }
+    const planIds = this.cleanIdList(Array.isArray(dto.planIds) ? dto.planIds : []);
+    if (couponMode === 'package' && planIds.length === 0) {
+      throw new BadRequestException('Select at least one package for a package coupon');
     }
 
     const startsAt = this.normalizeDate(dto.startsAt);
@@ -1601,8 +1645,10 @@ export class SubscriptionsService {
     return {
       code,
       label: String(dto.label || '').trim() || null,
+      couponMode,
       discountType,
-      discountValue,
+      discountValue: couponMode === 'package' ? 0 : discountValue,
+      planIds: couponMode === 'package' ? planIds : [],
       status: dto.status === 'inactive' ? 'inactive' : 'active',
       startsAt,
       expiresAt,
@@ -1617,7 +1663,7 @@ export class SubscriptionsService {
       .replace(/[^A-Z0-9_-]/g, '');
   }
 
-  private async resolveCouponForCheckout(code: string | undefined, amount: number) {
+  private async resolveCouponForCheckout(code: string | undefined, amount: number, planId: number) {
     const normalizedCode = this.normalizeCouponCode(code);
     if (!normalizedCode) return null;
 
@@ -1642,11 +1688,21 @@ export class SubscriptionsService {
       throw new BadRequestException('Coupon code has reached its usage limit');
     }
 
+    const couponMode = coupon.coupon_mode === 'package' ? 'package' : 'discount';
+    const planIds = this.parseIdList(coupon.plan_ids_json);
+    if (couponMode === 'package' && !planIds.includes(Number(planId))) {
+      throw new BadRequestException('Coupon code is not valid for this package');
+    }
+
     const value = Number(coupon.discount_value || 0);
-    const discountAmount = coupon.discount_type === 'fixed' ? Math.min(amount, value) : Math.min(amount, amount * (value / 100));
+    const discountAmount = couponMode === 'discount'
+      ? (coupon.discount_type === 'fixed' ? Math.min(amount, value) : Math.min(amount, amount * (value / 100)))
+      : 0;
     return {
       code: String(coupon.code || '').trim(),
+      couponMode,
       discountAmount: Number(this.formatAmount(discountAmount)),
+      planIds,
     };
   }
 
@@ -1655,8 +1711,10 @@ export class SubscriptionsService {
       id: Number(row.id),
       code: String(row.code || ''),
       label: String(row.label || ''),
+      couponMode: row.coupon_mode === 'package' ? 'package' : 'discount',
       discountType: row.discount_type,
       discountValue: Number(row.discount_value || 0),
+      planIds: this.parseIdList(row.plan_ids_json),
       status: row.status,
       startsAt: row.starts_at || '',
       expiresAt: row.expires_at || '',

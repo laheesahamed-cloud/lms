@@ -1,7 +1,7 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
 const DEFAULT_ICON = '/lms/pwa-icon.svg';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'erpm-lms-shell-20260523-profile-layer-final-v1';
+const CACHE_NAME = 'erpm-lms-shell-20260525-quiz-card-selected-v1';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',

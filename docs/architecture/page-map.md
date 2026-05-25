@@ -61,7 +61,6 @@ Student app routes exist under `/app/*` and are intended to map to `app.mydomain
 | `/app/bookmarks` | Bookmarks | `frontend/src/surfaces/app/student/bookmarks/BookmarksPage.jsx` |
 | `/app/notifications` | Notifications | `frontend/src/surfaces/app/student/notifications/StudentNotificationsPage.jsx` |
 | `/app/planner` | Study planner | `frontend/src/surfaces/app/student/planner/StudyPlannerPage.jsx` |
-| `/app/doubts` | Student doubts | `frontend/src/surfaces/app/student/doubts/StudentDoubtsPage.jsx` |
 | `/app/subscriptions` | Billing/subscription | `frontend/src/surfaces/app/student/billing/StudentBillingPage.jsx` |
 | `/app/subscriptions/checkout/:planId` | Checkout | `frontend/src/surfaces/app/student/billing/StudentCheckoutPage.jsx` |
 
@@ -85,7 +84,6 @@ Student app routes exist under `/app/*` and are intended to map to `app.mydomain
 | `/admin/ai-notes/:id` | AI note editor | `frontend/src/surfaces/admin/pages/ai-notes/AdminAiNotesEditorPage.jsx` |
 | `/admin/announcements` | Announcements | `frontend/src/surfaces/admin/pages/announcements/AdminAnnouncementsPage.jsx` |
 | `/admin/reports` | Reports | `frontend/src/surfaces/admin/pages/reports/AdminReportsPage.jsx` |
-| `/admin/doubts` | Doubt management | `frontend/src/surfaces/admin/pages/doubts/AdminDoubtsPage.jsx` |
 | `/admin/setup` | Setup | `frontend/src/surfaces/admin/pages/setup/AdminSetupPage.jsx` |
 | `/admin/settings` | Settings | `frontend/src/surfaces/admin/pages/settings/AdminSettingsPage.jsx` |
 
@@ -112,4 +110,3 @@ These exist so old links do not break.
 | `/dashboard`, `/courses`, etc. | Legacy role-switched routes that redirect or render the appropriate role page. |
 | `/student/*` | Old student prefix. Redirects by role. |
 | `/billing` | Redirects to `/subscriptions`. |
-

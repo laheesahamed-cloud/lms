@@ -81,7 +81,7 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const [[subscriptionRows], [attemptRows], [progressRows], [bookmarkRows], [doubtRows]] = await Promise.all([
+    const [[subscriptionRows], [attemptRows], [progressRows], [bookmarkRows]] = await Promise.all([
       this.db.execute<RowDataPacket[]>(
         `SELECT us.*, p.name AS plan_name
          FROM user_subscriptions us
@@ -118,14 +118,6 @@ export class UsersService {
          GROUP BY item_type`,
         [id]
       ),
-      this.db.execute<RowDataPacket[]>(
-        `SELECT id, subject, status, created_at
-         FROM lesson_doubts
-         WHERE user_id = ?
-         ORDER BY created_at DESC
-         LIMIT 5`,
-        [id]
-      ),
     ]);
 
     const progress = progressRows[0] || {};
@@ -158,12 +150,6 @@ export class UsersService {
       bookmarks: bookmarkRows.map((row) => ({
         itemType: String(row.item_type || ''),
         total: Number(row.total || 0),
-      })),
-      doubts: doubtRows.map((row) => ({
-        id: Number(row.id),
-        subject: String(row.subject || ''),
-        status: String(row.status || ''),
-        createdAt: row.created_at || null,
       })),
     };
   }
