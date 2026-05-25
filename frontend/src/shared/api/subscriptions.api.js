@@ -30,6 +30,13 @@ export async function fetchSubscriptionInvoice(invoiceId) {
   return response.data;
 }
 
+export async function fetchSubscriptionPaymentProof(invoiceId) {
+  const response = await apiClient.get(`/admin/subscriptions/payment-proofs/${encodeURIComponent(invoiceId)}`, {
+    responseType: 'blob',
+  });
+  return response.data;
+}
+
 export async function createSubscriptionCoupon(payload) {
   const response = await apiClient.post('/admin/subscriptions/coupons', payload);
   return response.data;

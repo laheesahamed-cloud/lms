@@ -1,8 +1,8 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
-import { mkdir, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { mkdir, readFile, writeFile } from 'fs/promises';
+import { basename, join } from 'path';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { PlansService } from '../plans/plans.service';
@@ -422,6 +422,81 @@ export class SubscriptionsService {
       mimeType,
       publicPath: `/uploads/payment-proofs/${fileName}`,
     };
+  }
+
+  async getPaymentProofFile(invoiceId: string) {
+    const normalizedInvoiceId = String(invoiceId || '').trim();
+    if (!normalizedInvoiceId || !/^[A-Za-z0-9_-]+$/.test(normalizedInvoiceId)) {
+      throw new BadRequestException('Invalid invoice ID');
+    }
+
+    const [rows] = await this.db.execute<SubscriptionRequestRow[]>(
+      `SELECT invoice_id, payment_proof_name, payment_proof_mime, payment_proof_data_url
+       FROM subscription_requests
+       WHERE invoice_id = ?
+       LIMIT 1`,
+      [normalizedInvoiceId]
+    );
+    const request = rows[0];
+    if (!request?.payment_proof_data_url) {
+      throw new NotFoundException('Payment proof was not uploaded');
+    }
+
+    const storedProof = String(request.payment_proof_data_url || '').trim();
+    const dataUrlMatch = storedProof.match(/^data:(image\/(?:png|jpe?g|webp)|application\/pdf);base64,(.+)$/i);
+    if (dataUrlMatch) {
+      const mimeType = dataUrlMatch[1].toLowerCase();
+      const buffer = Buffer.from(dataUrlMatch[2], 'base64');
+      if (!buffer.length || !this.hasValidPaymentProofSignature(buffer, mimeType)) {
+        throw new NotFoundException('Payment proof file is unavailable');
+      }
+      return {
+        buffer,
+        mimeType,
+        fileName: this.safeDownloadFileName(request.payment_proof_name, `payment-proof-${normalizedInvoiceId}.${this.extensionForMimeType(mimeType)}`),
+      };
+    }
+
+    if (!storedProof.startsWith('/uploads/payment-proofs/')) {
+      throw new NotFoundException('Payment proof file is unavailable');
+    }
+
+    const storedFileName = basename(storedProof);
+    const filePath = join(process.cwd(), 'uploads', 'payment-proofs', storedFileName);
+    const buffer = await readFile(filePath).catch(() => null);
+    if (!buffer?.length) {
+      throw new NotFoundException('Payment proof file is unavailable');
+    }
+
+    const mimeType = String(request.payment_proof_mime || this.mimeTypeForFileName(storedFileName)).toLowerCase();
+    return {
+      buffer,
+      mimeType,
+      fileName: this.safeDownloadFileName(request.payment_proof_name, storedFileName),
+    };
+  }
+
+  private extensionForMimeType(mimeType: string) {
+    if (mimeType.includes('pdf')) return 'pdf';
+    if (mimeType.includes('png')) return 'png';
+    if (mimeType.includes('webp')) return 'webp';
+    return 'jpg';
+  }
+
+  private mimeTypeForFileName(fileName: string) {
+    const lower = String(fileName || '').toLowerCase();
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  private safeDownloadFileName(preferredName: string | null | undefined, fallbackName: string) {
+    const safeName = String(preferredName || fallbackName || 'payment-proof')
+      .replace(/[^\w.\- ]+/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return safeName || fallbackName || 'payment-proof';
   }
 
   private hasValidPaymentProofSignature(buffer: Buffer, mimeType: string) {

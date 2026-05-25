@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getAiNote, listAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
+import { fetchStudentLessons } from '../../../../shared/api/lessons.api.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
 /* ─────────────────────────────────────────
@@ -71,7 +72,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const LEARNING_STEP_MS = 10 * 60 * 1000;
 const HARD_STEP_MS = 30 * 60 * 1000;
 const DAILY_NEW_CARD_LIMIT = 20;
-const QUICK_SESSION_LIMIT = 10;
 
 function cleanStudyText(value) {
   return plainText(value)
@@ -687,6 +687,17 @@ function noteIdFromStoredCardId(id) {
 function buildInitialDeckStats(notes) {
   const cache = readDeckStatsCache();
   return (notes || []).reduce((acc, note) => {
+    if (isLessonPlaceholder(note)) return acc;
+    const serverCardCount = Number(note.cardCount);
+    if (Number.isFinite(serverCardCount)) {
+      acc[note.id] = {
+        cardCount: serverCardCount,
+        loading: false,
+        unavailable: false,
+        countedAt: note.updatedAt || new Date().toISOString(),
+      };
+      return acc;
+    }
     const cached = getCachedDeckStats(note, cache);
     if (cached) acc[note.id] = cached;
     return acc;
@@ -758,13 +769,18 @@ function hasDeckCardCount(stat) {
 
 function getDeckMetrics(note, deckStats = {}, reviewStats = readReviewStats()) {
   const stat = deckStats[note?.id] || {};
-  const cardCount = hasDeckCardCount(stat) ? Number(stat.cardCount) : null;
+  const serverCardCount = Number(note?.cardCount);
+  const cardCount = hasDeckCardCount(stat)
+    ? Number(stat.cardCount)
+    : Number.isFinite(serverCardCount)
+      ? serverCardCount
+      : null;
   const review = getNoteReviewCounts(note, reviewStats);
   const newCount = cardCount === null ? null : Math.max(cardCount - review.reviewedCount, 0);
 
   return {
     cardCount,
-    cardCountPending: Boolean(stat.loading) || (!note?.accessLocked && !hasDeckCardCount(stat) && !stat.unavailable),
+    cardCountPending: Boolean(stat.loading) || (!hasDeckCardCount(stat) && !Number.isFinite(serverCardCount) && !stat.unavailable),
     newCount,
     dueCount: review.dueCount,
     overdueCount: review.overdueCount,
@@ -779,52 +795,6 @@ function getDeckMetrics(note, deckStats = {}, reviewStats = readReviewStats()) {
     availableToday: review.reviewCount + Math.min(newCount || 0, DAILY_NEW_CARD_LIMIT),
     nextDueAt: review.nextDueAt,
   };
-}
-
-function summarizeDeckMetrics(notes, deckStats = {}, reviewStats = readReviewStats()) {
-  return (notes || []).reduce((acc, note) => {
-    const metrics = getDeckMetrics(note, deckStats, reviewStats);
-    if (metrics.cardCount === null) {
-      acc.cardsUnknown += note.accessLocked ? 0 : 1;
-    } else {
-      acc.cards += metrics.cardCount;
-      acc.cardsKnown += 1;
-    }
-    if (metrics.newCount === null) {
-      acc.newUnknown += note.accessLocked ? 0 : 1;
-    } else {
-      acc.new += metrics.newCount;
-      acc.newKnown += 1;
-    }
-    acc.due += metrics.dueCount;
-    acc.overdue += metrics.overdueCount;
-    acc.learning += metrics.learningCount;
-    acc.learningDue += metrics.learningDueCount;
-    acc.weak += metrics.weakCount;
-    acc.notDue += metrics.notDueCount;
-    acc.reviewed += metrics.reviewedCount;
-    acc.review += metrics.reviewCount;
-    acc.availableToday += metrics.availableToday;
-    if (metrics.nextDueAt && (!acc.nextDueAt || metrics.nextDueAt < acc.nextDueAt)) acc.nextDueAt = metrics.nextDueAt;
-    return acc;
-  }, {
-    cards: 0,
-    cardsKnown: 0,
-    cardsUnknown: 0,
-    new: 0,
-    newKnown: 0,
-    newUnknown: 0,
-    due: 0,
-    overdue: 0,
-    learning: 0,
-    learningDue: 0,
-    weak: 0,
-    notDue: 0,
-    reviewed: 0,
-    review: 0,
-    availableToday: 0,
-    nextDueAt: 0,
-  });
 }
 
 function buildMnemonicQuestion(acronym, context) {
@@ -1085,280 +1055,357 @@ function AnswerBlock({ card }) {
   );
 }
 
-/* ─────────────────────────────────────────
-   PICK PHASE
-───────────────────────────────────────── */
-function formatDeckCount(value, pending = false) {
-  if (pending) return '...';
-  if (value === null || value === undefined) return '0';
-  return value;
-}
-
-const DECK_TABLE_COLUMNS = '104px minmax(0,1fr) minmax(132px,.42fr) 74px 88px';
-
-function metricPercent(metrics) {
-  const total = Number(metrics?.cardCount) || 0;
-  if (!total) return 0;
-  return Math.min(100, Math.round(((metrics?.reviewedCount || 0) / total) * 100));
-}
-
 function deckTitle(note) {
   return note.lessonTitle || note.title || 'Untitled lesson';
 }
 
-function deckContextLine(note) {
-  return [note.courseTitle || 'General', note.topicName, note.subtopicName]
-    .filter(Boolean)
-    .join(' / ');
+function isLessonPlaceholder(note) {
+  return note?.kind === 'lesson-placeholder';
 }
 
-function deckStatus(note, metrics) {
-  if (note.accessLocked) return { label: 'Locked', tone: 'slate' };
-  if (Number(metrics.overdueCount) > 0 || Number(metrics.reviewCount) > 0) return { label: 'Due', tone: 'sky' };
-  if (Number(metrics.learningCount) > 0) return { label: 'Learning', tone: 'amber' };
-  if (Number(metrics.weakCount) > 0) return { label: 'Flagged', tone: 'rose' };
-  if (Number(metrics.newCount) > 0) return { label: 'New', tone: 'emerald' };
-  if (Number(metrics.notDueCount) > 0) return { label: 'Completed', tone: 'brand' };
-  return { label: 'Ready', tone: 'slate' };
+function hierarchyLabel(value, fallback) {
+  return plainText(value) || fallback;
 }
 
-function deckDueLabel(metrics) {
-  if (Number(metrics.overdueCount) > 0) return `${metrics.overdueCount} overdue`;
-  if (Number(metrics.reviewCount) > 0) return `${metrics.reviewCount} due`;
-  if (Number(metrics.learningDueCount) > 0) return `${metrics.learningDueCount} learning`;
-  if (Number(metrics.weakCount) > 0) return `${metrics.weakCount} flagged`;
-  if (Number(metrics.newCount) > 0) return `${metrics.newCount} new`;
-  if (metrics.nextDueAt) return intervalLabel(metrics.nextDueAt);
-  if (Number(metrics.notDueCount) > 0) return 'caught up';
-  return 'ready';
+function firstFiniteNumber(...values) {
+  for (const value of values) {
+    const number = Number(value);
+    if (Number.isFinite(number)) return number;
+  }
+  return null;
 }
 
-function deckActionLabel(note, metrics) {
-  if (note.accessLocked) return 'Unlock';
-  if (Number(metrics.reviewCount) > 0 || Number(metrics.overdueCount) > 0) return 'Review';
-  if (Number(metrics.weakCount) > 0) return 'Practice';
-  if (Number(metrics.newCount) > 0) return 'Practice';
-  return 'Browse';
+function hierarchyOrder(note, level) {
+  const fields = {
+    course: [
+      note.courseSortOrder, note.courseOrder, note.course_sort_order, note.course_order,
+    ],
+    subject: [
+      note.subjectSortOrder, note.topicSortOrder, note.subjectOrder, note.topicOrder,
+      note.topic_sort_order, note.topic_order,
+    ],
+    topic: [
+      note.subtopicSortOrder, note.subtopicOrder, note.subtopic_sort_order, note.subtopic_order,
+    ],
+    lesson: [
+      note.lessonSortOrder, note.lessonOrder, note.lesson_sort_order, note.lesson_order,
+    ],
+  }[level] || [];
+
+  return firstFiniteNumber(...fields);
 }
 
-function formatCardsCount(metrics) {
-  return formatDeckCount(metrics.cardCount, metrics.cardCountPending);
+function hierarchyCompare(a, b, level, aLabel, bLabel, { compareLabels = true } = {}) {
+  const aOrder = hierarchyOrder(a, level);
+  const bOrder = hierarchyOrder(b, level);
+  if (aOrder !== null && bOrder !== null && aOrder !== bOrder) return aOrder - bOrder;
+  if (aOrder !== null && bOrder === null) return -1;
+  if (aOrder === null && bOrder !== null) return 1;
+  if (!compareLabels) return 0;
+  return aLabel.localeCompare(bLabel, undefined, { numeric: true, sensitivity: 'base' });
 }
 
-function DeckChip({ label, tone = 'slate' }) {
+function noteHierarchy(note) {
+  return {
+    course: hierarchyLabel(note.courseTitle, 'General'),
+    subject: hierarchyLabel(note.subjectTitle || note.topicName, 'General subject'),
+    topic: hierarchyLabel(note.subtopicName, 'General topic'),
+    lesson: hierarchyLabel(deckTitle(note), 'Untitled lesson'),
+  };
+}
+
+function lessonToFlashcardPlaceholder(lesson) {
+  return {
+    kind: 'lesson-placeholder',
+    id: `lesson-${lesson.id}`,
+    lessonId: lesson.id,
+    courseId: lesson.courseId,
+    topicId: lesson.topicId,
+    subtopicId: lesson.subtopicId,
+    lessonTitle: lesson.lessonTitle,
+    title: lesson.lessonTitle,
+    courseTitle: lesson.courseTitle,
+    topicName: lesson.topicName,
+    subtopicName: lesson.subtopicName,
+    isFree: Number(lesson.isFree) === 1,
+    canAccess: lesson.canAccess,
+    accessLocked: lesson.accessLocked,
+    lockReason: lesson.lockReason,
+    createdAt: lesson.createdAt,
+    updatedAt: lesson.updatedAt,
+    noteData: null,
+  };
+}
+
+function mergeNotesWithLessons(notes, lessons) {
+  const noteByLessonId = new Map(
+    (notes || [])
+      .filter((note) => note.lessonId)
+      .map((note) => [String(note.lessonId), note])
+  );
+  const merged = [...(notes || [])];
+
+  (lessons || []).forEach((lesson) => {
+    if (!noteByLessonId.has(String(lesson.id))) {
+      merged.push(lessonToFlashcardPlaceholder(lesson));
+    }
+  });
+
+  return merged;
+}
+
+function compareHierarchyNotes(a, b) {
+  const ah = noteHierarchy(a);
+  const bh = noteHierarchy(b);
+  const aCreated = Date.parse(a.createdAt || a.updatedAt || 0) || 0;
+  const bCreated = Date.parse(b.createdAt || b.updatedAt || 0) || 0;
+  const aLessonId = Number(a.lessonId || 0);
+  const bLessonId = Number(b.lessonId || 0);
+
+  return hierarchyCompare(a, b, 'course', ah.course, bh.course) ||
+    hierarchyCompare(a, b, 'subject', ah.subject, bh.subject) ||
+    hierarchyCompare(a, b, 'topic', ah.topic, bh.topic) ||
+    hierarchyCompare(a, b, 'lesson', ah.lesson, bh.lesson, { compareLabels: false }) ||
+    (aLessonId && bLessonId && aLessonId !== bLessonId ? aLessonId - bLessonId : 0) ||
+    (aCreated - bCreated) ||
+    ah.lesson.localeCompare(bh.lesson, undefined, { numeric: true, sensitivity: 'base' }) ||
+    ((Number(a.id) || 0) - (Number(b.id) || 0));
+}
+
+function hierarchyKey(value, fallback) {
+  return hierarchyLabel(value, fallback).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function createDeckNode(type, label, depth, key) {
+  return {
+    type,
+    label,
+    depth,
+    key,
+    children: [],
+    childMap: new Map(),
+    notes: [],
+    newCount: 0,
+    learnCount: 0,
+    dueCount: 0,
+    totalCount: 0,
+    unknownCards: 0,
+    lockedCount: 0,
+  };
+}
+
+function addDeckCounts(node, note, metrics) {
+  node.notes.push(note);
+  if (isLessonPlaceholder(note)) {
+    node.lockedCount += note.accessLocked ? 1 : 0;
+    return;
+  }
+  node.newCount += Number(metrics.newCount) || 0;
+  node.learnCount += Number(metrics.learningCount) || 0;
+  node.dueCount += (Number(metrics.dueCount) || 0) + (Number(metrics.overdueCount) || 0);
+  node.lockedCount += note.accessLocked ? 1 : 0;
+  if (metrics.cardCount === null) {
+    node.unknownCards += 1;
+  } else {
+    node.totalCount += Number(metrics.cardCount) || 0;
+  }
+}
+
+function getDeckChild(parent, key, label, type, depth) {
+  if (!parent.childMap.has(key)) {
+    const child = createDeckNode(type, label, depth, key);
+    parent.childMap.set(key, child);
+    parent.children.push(child);
+  }
+  return parent.childMap.get(key);
+}
+
+function buildDeckTree(notes, deckStats, reviewStats) {
+  const root = createDeckNode('root', 'Flashcards', -1, 'root');
+  sortDeckNotes(notes).forEach((note) => {
+    const labels = noteHierarchy(note);
+    const metrics = getDeckMetrics(note, deckStats, reviewStats);
+    const courseKey = `course:${note.courseId || note.course_id || hierarchyKey(labels.course, 'general')}`;
+    const subjectKey = `${courseKey}/subject:${note.subjectId || note.subject_id || note.topicId || note.topic_id || hierarchyKey(labels.subject, 'general-subject')}`;
+    const topicKey = `${subjectKey}/topic:${note.subtopicId || note.subtopic_id || hierarchyKey(labels.topic, 'general-topic')}`;
+    const lessonKey = `${topicKey}/lesson:${note.lessonId || note.lesson_id || note.id || hierarchyKey(labels.lesson, 'untitled-lesson')}`;
+    const course = getDeckChild(root, courseKey, labels.course, 'course', 0);
+    const subject = getDeckChild(course, subjectKey, labels.subject, 'subject', 1);
+    const topic = getDeckChild(subject, topicKey, labels.topic, 'topic', 2);
+    const lesson = getDeckChild(topic, lessonKey, labels.lesson, 'lesson', 3);
+
+    [root, course, subject, topic, lesson].forEach((node) => addDeckCounts(node, note, metrics));
+  });
+  return root.children;
+}
+
+function hasDeckContent(node) {
+  return (
+    node.totalCount > 0 ||
+    node.unknownCards > 0 ||
+    node.lockedCount > 0 ||
+    node.notes.some(isLessonPlaceholder) ||
+    node.children.some(hasDeckContent)
+  );
+}
+
+function flattenDeckTree(nodes) {
+  return nodes.flatMap((node) => {
+    if (!hasDeckContent(node)) return [];
+    return [node, ...flattenDeckTree(node.children)];
+  });
+}
+
+function formatDeckMetric(value, unknown = false) {
+  if (unknown && value > 0) return `${value}+`;
+  if (unknown && value === 0) return '...';
+  return String(value || 0);
+}
+
+function CountCell({ value, unknown = false, tone }) {
   const tones = {
-    brand: 'border-brand-primary/20 bg-brand-primary/10 text-brand-primary',
-    sky: 'border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300',
-    amber: 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    emerald: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-    rose: 'border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300',
-    slate: 'border-line-soft bg-surface-1 text-ink-muted',
+    new: 'text-sky-700 dark:text-sky-300',
+    learn: 'text-amber-700 dark:text-amber-300',
+    due: 'text-brand-primary',
+    total: 'text-ink-muted',
+  };
+  return (
+    <span className={cx('inline-flex min-w-8 justify-end rounded-md px-1.5 py-0.5 text-right text-[12px] font-black tabular-nums', tones[tone])}>
+      {formatDeckMetric(value, unknown)}
+    </span>
+  );
+}
+
+function FlashcardLockMark() {
+  return (
+    <span
+      className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-amber-400/32 bg-amber-400/14 text-amber-700 shadow-[0_5px_12px_rgba(245,158,11,0.12)] dark:border-amber-300/28 dark:bg-amber-300/14 dark:text-amber-300"
+      title="Locked"
+      aria-hidden="true"
+    >
+      <svg width="11" height="11" viewBox="0 0 14 14" fill="none" focusable="false">
+        <rect x="2.8" y="6" width="8.4" height="5.5" rx="1.45" stroke="currentColor" strokeWidth="1.45" />
+        <path d="M4.8 6V4.65A2.2 2.2 0 0 1 7 2.45a2.2 2.2 0 0 1 2.2 2.2V6" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" />
+        <path d="M7 8.15v1.25" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+
+function FlashcardDeckRow({ node, starting, onStartScope, onUnlock }) {
+  const unlockedNotes = node.notes.filter((note) => !note.accessLocked);
+  const hasStudyNotes = unlockedNotes.some((note) => !isLessonPlaceholder(note));
+  const disabled = starting || (!hasStudyNotes && !node.lockedCount);
+  const isLesson = node.type === 'lesson';
+  const labelPrefix = {
+    course: 'Course',
+    subject: 'Subject',
+    topic: 'Topic',
+    lesson: 'Lesson',
+  }[node.type] || 'Deck';
+  const rowPadding = {
+    course: 'py-2.5',
+    subject: 'py-2',
+    topic: 'py-1.5',
+    lesson: 'py-1.5',
+  }[node.type] || 'py-2';
+  const rowTone = {
+    course: 'border-line-medium/80 bg-surface-1/55 dark:bg-white/[0.025]',
+    subject: 'bg-surface-card',
+    topic: 'bg-surface-card/80',
+    lesson: 'bg-transparent',
+  }[node.type] || '';
+  const handleActivate = () => {
+    if (disabled) return;
+    if (!hasStudyNotes && node.lockedCount) {
+      onUnlock();
+      return;
+    }
+    onStartScope(unlockedNotes.filter((note) => !isLessonPlaceholder(note)), node.label);
+  };
+  const handleKeyDown = (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    handleActivate();
   };
 
   return (
-    <span className={cx('inline-flex min-h-6 items-center justify-center rounded-md border px-2 text-[10.5px] font-extrabold leading-none', tones[tone] || tones.slate)}>
-      {label}
-    </span>
-  );
-}
-
-function SummaryPill({ label, value }) {
-  return (
-    <span className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-line-soft bg-surface-1 px-2.5 text-[11px] font-extrabold text-ink-muted dark:border-white/[0.07] dark:bg-white/[0.03]">
-      <span>{label}</span>
-      <strong className="text-[12px] tabular-nums text-ink-strong">{value}</strong>
-    </span>
-  );
-}
-
-function FlashcardCompactHeader({
-  summary,
-  loading,
-  starting,
-  onStartDueReview,
-  onStartNewCards,
-  onStartAllCards,
-  onStartQuick,
-}) {
-  const knownCards = formatDeckCount(summary.cards, summary.cardsUnknown > 0);
-  const newCards = formatDeckCount(summary.new, summary.newUnknown > 0);
-
-  return (
-    <header className="flex flex-wrap items-end justify-between gap-3 fc-fade-up">
-      <div className="min-w-0">
-        <h1 className="m-0 text-[26px] font-black leading-tight text-ink-strong max-[520px]:text-[23px]">Flashcards</h1>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <SummaryPill label="Due" value={summary.review} />
-          <SummaryPill label="New" value={newCards} />
-          <SummaryPill label="Learning" value={summary.learning} />
-          <SummaryPill label="Completed" value={summary.notDue} />
-          <SummaryPill label="Cards" value={knownCards} />
-        </div>
-      </div>
-
-      <div className="flex flex-wrap justify-end gap-2 max-[640px]:w-full max-[640px]:justify-start">
-        <button
-          type="button"
-          className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded-lg border border-brand-primary/28 bg-brand-primary/10 px-3 text-[12px] font-extrabold text-brand-primary transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:bg-brand-primary/14 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={starting || loading || !summary.review}
-          onClick={onStartDueReview}
-        >
-          Start Due Review
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded-lg border border-line-soft bg-surface-1 px-3 text-[12px] font-extrabold text-ink-strong transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:border-brand-primary/20 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={starting || loading || !Number(summary.new)}
-          onClick={onStartNewCards}
-        >
-          New
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded-lg border border-line-soft bg-surface-1 px-3 text-[12px] font-extrabold text-ink-strong transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:border-brand-primary/20 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={starting || loading || (!summary.cards && !summary.cardsUnknown)}
-          onClick={onStartQuick}
-        >
-          Quick 10
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-9 touch-manipulation items-center justify-center rounded-lg border border-line-soft bg-surface-1 px-3 text-[12px] font-extrabold text-ink-strong transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:border-brand-primary/20 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={starting || loading || (!summary.cards && !summary.cardsUnknown)}
-          onClick={onStartAllCards}
-        >
-          Browse All
-        </button>
-      </div>
-    </header>
-  );
-}
-
-function DeckProgress({ metrics }) {
-  return (
-    <span className="block h-1.5 overflow-hidden rounded-full bg-surface-3" aria-label={`${metricPercent(metrics)} percent reviewed`}>
-      <span
-        className="block h-full rounded-full bg-brand-primary transition-[width] duration-300"
-        style={{ width: `${metricPercent(metrics)}%` }}
-      />
-    </span>
-  );
-}
-
-function FlashcardDeckDesktopRow({ note, metrics, starting, onStartNote, onUnlock }) {
-  const status = deckStatus(note, metrics);
-  const actionLabel = deckActionLabel(note, metrics);
-  const cardCount = formatCardsCount(metrics);
-  const lastReviewed = metrics.reviewedCount ? formatLastReviewed(metrics.lastReviewedAt) : '';
-  const disabled = starting || (!note.accessLocked && metrics.cardCount === 0 && !metrics.cardCountPending);
-  const handleAction = () => note.accessLocked ? onUnlock() : onStartNote(note);
-
-  return (
-    <div
-      role="row"
+    <tr
+      tabIndex={disabled ? -1 : 0}
+      role="button"
+      aria-disabled={disabled}
+      aria-label={`${labelPrefix} ${node.label}. New ${node.newCount}, Learn ${node.learnCount}, Due ${node.dueCount}.${hasStudyNotes ? ' Start studying.' : node.lockedCount ? ' Locked.' : ' No flashcards yet.'}`}
+      onClick={handleActivate}
+      onKeyDown={handleKeyDown}
       className={cx(
-        'grid min-h-[54px] items-center gap-3 border-t border-line-soft px-4 py-2 text-[13px] transition-[background,border-color] duration-150 hover:bg-surface-2/45 dark:border-white/[0.07] dark:hover:bg-white/[0.045]',
-        disabled && 'opacity-60'
+        'group border-t border-line-soft text-[12px] outline-none transition-[background,border-color] duration-150 dark:border-white/[0.07]',
+        rowTone,
+        !disabled && 'cursor-pointer hover:bg-surface-2/55 focus-visible:bg-surface-2/70 focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-brand-primary/12 dark:hover:bg-white/[0.045]',
+        disabled && 'cursor-not-allowed opacity-55'
       )}
-      style={{ gridTemplateColumns: DECK_TABLE_COLUMNS }}
     >
-      <div role="cell"><DeckChip label={status.label} tone={status.tone} /></div>
-      <div role="cell" className="min-w-0">
-        <div className="truncate text-[13.5px] font-extrabold leading-tight text-ink-strong">{deckTitle(note)}</div>
-        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] font-semibold leading-tight text-ink-muted">
-          <span className="max-w-full truncate">{deckContextLine(note)}</span>
-          {lastReviewed ? <span className="shrink-0 text-ink-muted/80">{lastReviewed}</span> : null}
-        </div>
-      </div>
-      <div role="cell" className="min-w-0">
-        <div className="truncate text-[12px] font-extrabold text-ink-medium">{deckDueLabel(metrics)}</div>
-        <div className="mt-1 max-w-[130px]"><DeckProgress metrics={metrics} /></div>
-      </div>
-      <div role="cell" className="text-right text-[12px] font-black tabular-nums text-ink-strong">{cardCount}</div>
-      <div role="cell">
-        <button
-          type="button"
-          className="inline-flex min-h-9 w-full touch-manipulation items-center justify-center rounded-lg border border-brand-primary/22 bg-brand-primary/10 px-3 text-[12px] font-extrabold text-brand-primary transition-[background,border-color,transform,opacity] hover:-translate-y-px hover:bg-brand-primary/14 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={disabled}
-          onClick={handleAction}
+      <th scope="row" className={cx('min-w-0 px-2 text-left align-middle sm:px-3', rowPadding)}>
+        <div
+          className="flex min-w-0 items-center gap-2"
+          style={{ paddingLeft: `calc(${node.depth} * clamp(14px, 2.25vw, 26px))` }}
         >
-          {actionLabel}
-        </button>
-      </div>
+          {node.depth > 0 ? (
+            <span className="h-px w-4 shrink-0 rounded-full bg-line-medium/75" aria-hidden="true" />
+          ) : null}
+          <span className={cx(
+            'min-w-0 truncate leading-tight',
+            isLesson ? 'text-[12.5px] font-bold text-ink-medium' : 'text-[13px] font-black text-ink-strong'
+          )}>
+            {node.label}
+          </span>
+          {!hasStudyNotes && node.lockedCount ? (
+            <FlashcardLockMark />
+          ) : !hasStudyNotes && isLesson ? (
+            <span className="shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[10px] font-black leading-none text-ink-muted">
+              No cards
+            </span>
+          ) : null}
+        </div>
+      </th>
+      <td className={cx('px-2 text-right align-middle', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
+      <td className={cx('px-2 text-right align-middle', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
+      <td className={cx('px-2 text-right align-middle', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
+    </tr>
+  );
+}
+
+function FlashcardDeckLoading() {
+  return (
+    <div role="status" aria-label="Loading flashcard deck hierarchy">
+      {[1, 2, 3, 4, 5].map(i => (
+        <div
+          key={i}
+          className="grid min-h-[42px] grid-cols-[minmax(0,1fr)_56px_56px_56px] items-center gap-2 border-t border-line-soft px-3 py-2 dark:border-white/[0.07] max-[520px]:grid-cols-[minmax(0,1fr)_48px_48px_48px]"
+        >
+          <div className={ui.shimmer} style={{ height: 13, width: `${70 - i * 7}%`, marginLeft: i > 1 ? 16 : 0, borderRadius: 999 }} />
+          <div className={ui.shimmer} style={{ height: 16, borderRadius: 8 }} />
+          <div className={ui.shimmer} style={{ height: 16, borderRadius: 8 }} />
+          <div className={ui.shimmer} style={{ height: 16, borderRadius: 8 }} />
+        </div>
+      ))}
     </div>
   );
 }
 
-function FlashcardDeckMobileRow({ note, metrics, starting, onStartNote, onUnlock }) {
-  const status = deckStatus(note, metrics);
-  const actionLabel = deckActionLabel(note, metrics);
-  const cardCount = formatCardsCount(metrics);
-  const disabled = starting || (!note.accessLocked && metrics.cardCount === 0 && !metrics.cardCountPending);
-  const handleAction = () => note.accessLocked ? onUnlock() : onStartNote(note);
-
-  return (
-    <div className={cx('grid gap-2 border-t border-line-soft px-3 py-2.5 transition-colors duration-150 hover:bg-surface-2/45 dark:border-white/[0.07] dark:hover:bg-white/[0.045]', disabled && 'opacity-60')}>
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-        <DeckChip label={status.label} tone={status.tone} />
-        <h3 className="m-0 min-w-0 truncate text-[13.5px] font-black leading-tight text-ink-strong">{deckTitle(note)}</h3>
-        <button
-          type="button"
-          className="inline-flex min-h-8 touch-manipulation items-center justify-center rounded-lg border border-brand-primary/22 bg-brand-primary/10 px-2.5 text-[11.5px] font-extrabold text-brand-primary transition-[background,border-color,transform,opacity] hover:bg-brand-primary/14 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={disabled}
-          onClick={handleAction}
-        >
-          {actionLabel}
-        </button>
-      </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_88px] items-center gap-3 pl-16 max-[420px]:pl-0">
-        <p className="m-0 min-w-0 truncate text-[11.5px] font-semibold text-ink-muted">
-          {deckContextLine(note)} · {deckDueLabel(metrics)} · {cardCount} cards
-        </p>
-        <DeckProgress metrics={metrics} />
-      </div>
-    </div>
+function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, reviewStats, onStartScope, onUnlock }) {
+  const rows = useMemo(
+    () => flattenDeckTree(buildDeckTree(notes, deckStats, reviewStats)),
+    [deckStats, notes, reviewStats]
   );
-}
+  const headerClass = 'px-3 py-2 text-[10.5px] font-black uppercase tracking-normal text-ink-muted';
 
-function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, reviewStats, onStartNote, onUnlock }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-line-soft bg-surface-card shadow-none fc-fade-up fc-d3 dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line-soft px-4 py-3 dark:border-white/[0.07] max-[640px]:px-3">
-        <div>
-          <h2 id="flashcard-list-title" className="m-0 text-[16px] font-black leading-tight text-ink-strong">Lessons</h2>
-          <p className="m-0 mt-0.5 text-[12px] font-semibold text-ink-muted">
-            {notes.length ? `${notes.length} lesson${notes.length === 1 ? '' : 's'} shown` : 'Browse available lessons'}
-          </p>
-        </div>
-      </div>
+    <section className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-none fc-fade-up fc-d3 dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
+      <h2 id="flashcard-list-title" className="sr-only">Flashcard decks</h2>
 
       {loading ? (
-        <div>
-          <div className="hidden min-[1041px]:grid">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="grid min-h-[54px] items-center gap-3 border-t border-line-soft px-4 py-2 dark:border-white/[0.07]" style={{ gridTemplateColumns: DECK_TABLE_COLUMNS }}>
-                <div className={ui.shimmer} style={{ height: 24, borderRadius: 8 }} />
-                <div className={ui.shimmer} style={{ height: 16, borderRadius: 999 }} />
-                <div className={ui.shimmer} style={{ height: 14, borderRadius: 999 }} />
-                <div className={ui.shimmer} style={{ height: 18, borderRadius: 999 }} />
-                <div className={ui.shimmer} style={{ height: 36, borderRadius: 10 }} />
-              </div>
-            ))}
-          </div>
-          <div className="min-[1041px]:hidden">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="grid min-h-[56px] gap-2 border-t border-line-soft px-3 py-2.5 dark:border-white/[0.07]">
-                <div className="grid grid-cols-[54px_minmax(0,1fr)_70px] gap-2">
-                  <div className={ui.shimmer} style={{ height: 24, borderRadius: 8 }} />
-                  <div className={ui.shimmer} style={{ height: 16, borderRadius: 999 }} />
-                  <div className={ui.shimmer} style={{ height: 32, borderRadius: 10 }} />
-                </div>
-                <div className={ui.shimmer} style={{ height: 12, width: '70%', borderRadius: 999 }} />
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : notes.length === 0 ? (
+        <FlashcardDeckLoading />
+      ) : rows.length === 0 ? (
         <div className="grid min-h-[220px] place-items-center px-6 py-10 text-center">
           <div className="max-w-[420px]">
             <h3 className="m-0 text-[20px] font-black text-ink-strong">
@@ -1372,48 +1419,36 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
           </div>
         </div>
       ) : (
-        <>
-          <div role="table" aria-label="Flashcard decks" className="hidden min-[1041px]:block">
-            <div
-              role="row"
-              className="grid items-center gap-3 bg-surface-1/70 px-4 py-2 text-[10.5px] font-black uppercase tracking-normal text-ink-muted dark:bg-white/[0.025]"
-              style={{ gridTemplateColumns: DECK_TABLE_COLUMNS }}
-            >
-              {['Queue', 'Lesson', 'Progress', 'Cards', 'Action'].map((label) => (
-                <div key={label} role="columnheader">{label}</div>
-              ))}
-            </div>
-            {notes.map((note) => {
-              const metrics = getDeckMetrics(note, deckStats, reviewStats);
-              return (
-                <FlashcardDeckDesktopRow
-                  key={note.id}
-                  note={note}
-                  metrics={metrics}
-                  starting={starting}
-                  onStartNote={onStartNote}
-                  onUnlock={onUnlock}
-                />
-              );
-            })}
-          </div>
-
-          <div className="min-[1041px]:hidden">
-            {notes.map((note) => {
-              const metrics = getDeckMetrics(note, deckStats, reviewStats);
-              return (
-                <FlashcardDeckMobileRow
-                  key={note.id}
-                  note={note}
-                  metrics={metrics}
-                  starting={starting}
-                  onStartNote={onStartNote}
-                  onUnlock={onUnlock}
-                />
-              );
-            })}
-          </div>
-        </>
+        <table className="w-full table-fixed border-collapse text-left">
+          <caption className="sr-only">
+            Anki-style flashcard deck hierarchy ordered by LMS course, subject, topic, and lesson.
+          </caption>
+          <colgroup>
+            <col />
+            <col className="w-[56px] max-[520px]:w-[48px]" />
+            <col className="w-[56px] max-[520px]:w-[48px]" />
+            <col className="w-[56px] max-[520px]:w-[48px]" />
+          </colgroup>
+          <thead className="bg-surface-1/70 dark:bg-white/[0.025]">
+            <tr>
+              <th scope="col" className={cx(headerClass, 'text-left')}>Deck</th>
+              <th scope="col" className={cx(headerClass, 'text-right text-sky-700 dark:text-sky-300')}>New</th>
+              <th scope="col" className={cx(headerClass, 'text-right text-amber-700 dark:text-amber-300')}>Learn</th>
+              <th scope="col" className={cx(headerClass, 'text-right text-brand-primary')}>Due</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((node) => (
+              <FlashcardDeckRow
+                key={node.key}
+                node={node}
+                starting={starting}
+                onStartScope={onStartScope}
+                onUnlock={onUnlock}
+              />
+            ))}
+          </tbody>
+        </table>
       )}
     </section>
   );
@@ -1425,6 +1460,7 @@ function matchesDeckFilter(note, filter) {
   return (
     (note.lessonTitle || note.title || '').toLowerCase().includes(q) ||
     (note.courseTitle  || '').toLowerCase().includes(q) ||
+    (note.subjectTitle || '').toLowerCase().includes(q) ||
     (note.topicName    || '').toLowerCase().includes(q) ||
     (note.subtopicName || '').toLowerCase().includes(q)
   );
@@ -1441,26 +1477,8 @@ function matchesStatusFilter(note, statusFilter, deckStats, reviewStats) {
   return true;
 }
 
-function sortDeckNotes(notes, sortMode, deckStats, reviewStats) {
-  const withMetrics = (notes || []).map((note) => ({
-    note,
-    metrics: getDeckMetrics(note, deckStats, reviewStats),
-  }));
-
-  const sorters = {
-    urgent: (a, b) =>
-      (b.metrics.reviewCount - a.metrics.reviewCount) ||
-      (b.metrics.overdueCount - a.metrics.overdueCount) ||
-      (b.metrics.learningDueCount - a.metrics.learningDueCount) ||
-      ((b.metrics.newCount || 0) - (a.metrics.newCount || 0)),
-    newest: (a, b) => Date.parse(b.note.updatedAt || b.note.createdAt || 0) - Date.parse(a.note.updatedAt || a.note.createdAt || 0),
-    weakest: (a, b) => (b.metrics.weakCount - a.metrics.weakCount) || (b.metrics.reviewCount - a.metrics.reviewCount),
-    course: (a, b) =>
-      `${a.note.courseTitle || ''} ${a.note.topicName || ''} ${a.note.lessonTitle || a.note.title || ''}`
-        .localeCompare(`${b.note.courseTitle || ''} ${b.note.topicName || ''} ${b.note.lessonTitle || b.note.title || ''}`),
-  };
-
-  return withMetrics.sort(sorters[sortMode] || sorters.urgent).map((item) => item.note);
+function sortDeckNotes(notes) {
+  return [...(notes || [])].sort(compareHierarchyNotes);
 }
 
 function FilterChip({ active, children, onClick }) {
@@ -1468,7 +1486,7 @@ function FilterChip({ active, children, onClick }) {
     <button
       type="button"
       className={cx(
-        'inline-flex min-h-8 touch-manipulation items-center justify-center rounded-lg border px-2.5 text-[11.5px] font-extrabold transition-[background,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18',
+        'inline-flex min-h-8 shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-lg border px-2.5 text-[11.5px] font-extrabold transition-[background,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18',
         active
           ? 'border-brand-primary/28 bg-brand-primary/10 text-brand-primary'
           : 'border-line-soft bg-surface-1 text-ink-muted hover:border-brand-primary/18 hover:text-ink-strong'
@@ -1484,26 +1502,20 @@ function PickPhase({
   notes,
   loading,
   error,
-  onStartNote,
-  onStartMixed,
-  onStartDueReview,
-  onStartNewCards,
-  onStartQuickSession,
+  onStartScope,
   starting,
   deckStats,
 }) {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortMode, setSortMode] = useState('urgent');
   const reviewStats = readReviewStats();
-  const summary = summarizeDeckMetrics(notes, deckStats, reviewStats);
   const visibleNotes = useMemo(() => {
     const filtered = (notes || [])
       .filter((note) => matchesDeckFilter(note, filter))
       .filter((note) => matchesStatusFilter(note, statusFilter, deckStats, reviewStats));
-    return sortDeckNotes(filtered, sortMode, deckStats, reviewStats);
-  }, [deckStats, filter, notes, reviewStats, sortMode, statusFilter]);
+    return sortDeckNotes(filtered);
+  }, [deckStats, filter, notes, reviewStats, statusFilter]);
 
   return (
     <main className="dashboard-page study-hub-page student-flashcards-page min-h-dvh">
@@ -1511,16 +1523,6 @@ function PickPhase({
       <section className="study-hub-shell grid max-w-[1080px] gap-4">
 
         {error && <div className={cx(ui.feedbackError, 'fc-fade-up')}>{error}</div>}
-
-        <FlashcardCompactHeader
-          summary={summary}
-          loading={loading}
-          starting={starting}
-          onStartDueReview={() => onStartDueReview(notes)}
-          onStartNewCards={() => onStartNewCards(notes)}
-          onStartAllCards={() => onStartMixed(notes, 'All Flashcards')}
-          onStartQuick={() => onStartQuickSession(notes)}
-        />
 
         <section className="grid gap-3 fc-fade-up fc-d2">
           <div className="flex flex-wrap items-center gap-2">
@@ -1546,20 +1548,6 @@ function PickPhase({
                 </button>
               )}
             </div>
-
-            <label className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-line-soft bg-surface-1 px-3 text-[12px] font-extrabold text-ink-muted">
-              Sort
-              <select
-                className="border-0 bg-transparent text-[12px] font-extrabold text-ink-strong outline-none"
-                value={sortMode}
-                onChange={(event) => setSortMode(event.target.value)}
-              >
-                <option value="urgent">Most urgent</option>
-                <option value="newest">Newest</option>
-                <option value="weakest">Weakest</option>
-                <option value="course">Course / lesson</option>
-              </select>
-            </label>
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Filter flashcards by status">
@@ -1585,7 +1573,7 @@ function PickPhase({
           starting={starting}
           deckStats={deckStats}
           reviewStats={reviewStats}
-          onStartNote={onStartNote}
+          onStartScope={onStartScope}
           onUnlock={() => navigate('/billing')}
         />
       </section>
@@ -1980,12 +1968,16 @@ export function StudentFlashcardsPage() {
   const [result,      setResult]      = useState(null);
 
   useEffect(() => {
-    listAiNotes()
-      .then(rows => {
-        setDeckStats(buildInitialDeckStats(rows));
-        setNotes(rows);
+    Promise.all([
+      listAiNotes(),
+      fetchStudentLessons().catch(() => []),
+    ])
+      .then(([noteRows, lessonRows]) => {
+        const mergedRows = mergeNotesWithLessons(noteRows, lessonRows);
+        setDeckStats(buildInitialDeckStats(mergedRows));
+        setNotes(mergedRows);
         if (autoNoteId) {
-          const match = rows.find(n => n.id === autoNoteId);
+          const match = mergedRows.find(n => Number(n.id) === autoNoteId);
           if (match) loadLessonCards(match);
         }
       })
@@ -1999,6 +1991,7 @@ export function StudentFlashcardsPage() {
     let cancelled = false;
     const pending = notes
       .filter((note) => !note.accessLocked)
+      .filter((note) => !isLessonPlaceholder(note))
       .filter((note) => !hasDeckCardCount(deckStats[note.id]))
       .filter((note) => !deckStats[note.id]?.unavailable)
       .filter((note) => !deckCountLoadingRef.current.has(note.id));
@@ -2063,7 +2056,9 @@ export function StudentFlashcardsPage() {
   }, [notes]);
 
   async function buildCardsFromNotes(selectedNotes, maxNotes = 18) {
-    const unlockedNotes = (Array.isArray(selectedNotes) ? selectedNotes : []).filter((note) => !note.accessLocked);
+    const unlockedNotes = (Array.isArray(selectedNotes) ? selectedNotes : [])
+      .filter((note) => !note.accessLocked)
+      .filter((note) => !isLessonPlaceholder(note));
     if (!unlockedNotes.length) return [];
     const sampleNotes = unlockedNotes.slice(0, maxNotes);
     const fullNotes = await Promise.all(
@@ -2112,121 +2107,29 @@ export function StudentFlashcardsPage() {
     }
   }
 
-  async function loadMixedCards(selectedNotes, title = 'Mixed Flashcards') {
-    const unlockedNotes = (Array.isArray(selectedNotes) ? selectedNotes : []).filter((note) => !note.accessLocked);
+  async function loadHierarchyScopeCards(selectedNotes, title = 'Flashcards') {
+    const unlockedNotes = (Array.isArray(selectedNotes) ? selectedNotes : [])
+      .filter((note) => !note.accessLocked)
+      .filter((note) => !isLessonPlaceholder(note));
     if (!unlockedNotes.length) {
-      setError('No available lessons are ready for this mixed deck.');
+      setError('No available lessons are ready in this deck.');
       return;
     }
 
     setStarting(true);
     setError('');
     try {
-      const cards = selectQueueCards(await buildCardsFromNotes(shuffle(unlockedNotes), 12), 'all', 60);
-      if (cards.length === 0) {
-        setError('These lessons do not have enough note content for mixed flashcards yet.');
+      const cards = await buildCardsFromNotes(unlockedNotes, unlockedNotes.length);
+      const queue = selectQueueCards(cards, 'quick', 80);
+      const studyCards = queue.length ? queue : selectQueueCards(cards, 'all', 80);
+      if (!studyCards.length) {
+        setError('This deck does not have enough note content for flashcards yet.');
         setPhase('pick');
         return;
       }
-      setActiveQuiz({
-        id: `mixed-${Date.now()}`,
-        quizTitle: title,
-        sourceNoteId: null,
-      });
-      setActiveCards(cards);
-      setPhase('session');
-      navigate('/flashcards?mode=mixed', { replace: true });
+      openFlashcardSession(studyCards, `${title} Flashcards`, 'deck');
     } catch (e) {
-      setError(getErrorMessage(e, 'Unable to load mixed flashcards'));
-      setPhase('pick');
-    } finally {
-      setStarting(false);
-    }
-  }
-
-  async function loadDueCards(selectedNotes) {
-    const stats = readReviewStats();
-    const targetIds = new Set(Object.entries(stats)
-      .filter(([, row]) => {
-        const dueAt = parseDueTime(row);
-        return Boolean(dueAt && dueAt <= Date.now());
-      })
-      .map(([id]) => id));
-
-    if (!targetIds.size) {
-      setError('No due flashcards yet. Learn new cards or preview a deck first.');
-      return;
-    }
-
-    const noteIds = new Set([...targetIds].map(noteIdFromStoredCardId).filter(Boolean));
-    const reviewNotes = (selectedNotes || [])
-      .filter((note) => !note.accessLocked && noteIds.has(Number(note.id)));
-
-    if (!reviewNotes.length) {
-      setError('Your due cards are not available in the current lessons list.');
-      return;
-    }
-
-    setStarting(true);
-    setError('');
-    try {
-      const cards = selectQueueCards(await buildCardsFromNotes(reviewNotes, 24), 'due', 60)
-        .filter((card) => targetIds.has(cardStorageId(card)));
-
-      if (!cards.length) {
-        setError('No due cards could be rebuilt from the current lesson content.');
-        setPhase('pick');
-        return;
-      }
-
-      setActiveQuiz({
-        id: `due-${Date.now()}`,
-        quizTitle: 'Due Flashcards',
-        sourceNoteId: null,
-      });
-      setActiveCards(cards);
-      setPhase('session');
-      navigate('/flashcards?mode=due', { replace: true });
-    } catch (e) {
-      setError(getErrorMessage(e, 'Unable to load due flashcards'));
-      setPhase('pick');
-    } finally {
-      setStarting(false);
-    }
-  }
-
-  async function loadNewCards(selectedNotes) {
-    setStarting(true);
-    setError('');
-    try {
-      const cards = selectQueueCards(await buildCardsFromNotes(selectedNotes, 18), 'new', DAILY_NEW_CARD_LIMIT);
-      if (!cards.length) {
-        setError('No new flashcards are available right now.');
-        setPhase('pick');
-        return;
-      }
-      openFlashcardSession(cards, 'New Flashcards', 'new');
-    } catch (e) {
-      setError(getErrorMessage(e, 'Unable to load new flashcards'));
-      setPhase('pick');
-    } finally {
-      setStarting(false);
-    }
-  }
-
-  async function loadQuickSession(selectedNotes) {
-    setStarting(true);
-    setError('');
-    try {
-      const cards = selectQueueCards(await buildCardsFromNotes(selectedNotes, 18), 'quick', QUICK_SESSION_LIMIT);
-      if (!cards.length) {
-        setError('No cards are available for a quick session yet.');
-        setPhase('pick');
-        return;
-      }
-      openFlashcardSession(cards, 'Quick 10-card Session', 'quick');
-    } catch (e) {
-      setError(getErrorMessage(e, 'Unable to load quick session'));
+      setError(getErrorMessage(e, 'Unable to load this flashcard deck'));
       setPhase('pick');
     } finally {
       setStarting(false);
@@ -2283,11 +2186,7 @@ export function StudentFlashcardsPage() {
       notes={notes}
       loading={loading}
       error={error}
-      onStartNote={loadLessonCards}
-      onStartMixed={loadMixedCards}
-      onStartDueReview={loadDueCards}
-      onStartNewCards={loadNewCards}
-      onStartQuickSession={loadQuickSession}
+      onStartScope={loadHierarchyScopeCards}
       starting={starting}
       deckStats={deckStats}
     />

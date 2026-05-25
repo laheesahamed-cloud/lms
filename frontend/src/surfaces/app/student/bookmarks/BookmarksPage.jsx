@@ -6,23 +6,51 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { StudentPageHero } from '../components/StudentPageHero.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
-function BookmarkIcon({ filled }) {
-  return filled
-    ? <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5h8a1 1 0 0 1 1 1v9.5l-5-3-5 3V2.5a1 1 0 0 1 1-1z"/></svg>
-    : <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 1.5h8a1 1 0 0 1 1 1v9.5l-5-3-5 3V2.5a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>;
-}
-function NoteIcon()  { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="1.5" width="9" height="11" rx="2" stroke="currentColor" strokeWidth="1.4" fill="none"/><path d="M4.5 5h4M4.5 7h4M4.5 9h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M11 3.5h1.5A1 1 0 0 1 13.5 4.5v9a1 1 0 0 1-1 1H5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>; }
-function QuizIcon() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" fill="none"/><path d="M5.5 7a2.5 2.5 0 1 1 3.5 2.3c-.4.2-.75.6-.75 1.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="8" cy="12" r=".8" fill="currentColor"/></svg>; }
-function PlayIcon()  { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 2l7 4-7 4V2z" fill="currentColor"/></svg>; }
-function ReadIcon()  { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M3.5 4h5M3.5 6h5M3.5 8h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>; }
 function TrashIcon() { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3h8M4.5 1.75h3M4 3v6.25m4-6.25v6.25M3 3l.4 6.2A1 1 0 0 0 4.4 10h3.2a1 1 0 0 0 1-.8L9 3" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
 const TYPE_FILTERS = [
   { key: 'all',  label: 'All' },
   { key: 'quiz', label: 'Quizzes' },
+  { key: 'exam', label: 'Exams' },
   { key: 'question', label: 'Questions' },
-  { key: 'note', label: 'Lessons' },
+  { key: 'note', label: 'Notes' },
 ];
+
+function isExamBookmark(item) {
+  return item.itemType === 'quiz' && (item.examModeOnly === true || Number(item.examModeOnly) === 1);
+}
+
+function getItemMeta(item) {
+  const isExam = isExamBookmark(item);
+  const isQuiz = item.itemType === 'quiz' && !isExam;
+  const isQuestion = item.itemType === 'question';
+  const label = isQuestion ? 'Question' : isExam ? 'Exam' : isQuiz ? 'Quiz' : 'Note';
+  const action = isQuestion ? 'Open' : isExam ? 'Start exam' : isQuiz ? 'Practice' : 'Open';
+  const fallbackTitle = `${label} #${item.itemId}`;
+
+  return { isExam, isQuiz, isQuestion, label, action, title: item.title || fallbackTitle };
+}
+
+function getContextLine(item, title) {
+  const titleKey = String(title || '').trim().toLowerCase();
+  const seen = new Set();
+  return [item.courseTitle, item.topicName]
+    .map((part) => String(part || '').trim())
+    .filter((part) => {
+      const key = part.toLowerCase();
+      if (!key || key === titleKey || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(' / ');
+}
+
+function formatSavedDate(value) {
+  if (!value) return 'Bookmarked';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Bookmarked';
+  return `Bookmarked ${new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)}`;
+}
 
 export function BookmarksPage() {
   const navigate  = useNavigate();
@@ -48,20 +76,21 @@ export function BookmarksPage() {
     }
   }
 
-  const quizCount = items.filter(i => i.itemType === 'quiz').length;
+  const quizCount = items.filter(i => i.itemType === 'quiz' && !isExamBookmark(i)).length;
+  const examCount = items.filter(isExamBookmark).length;
   const questionCount = items.filter(i => i.itemType === 'question').length;
   const noteCount = items.filter(i => i.itemType === 'note' || i.itemType === 'ai_note').length;
 
   const visible = items.filter(item => {
-    if (filter === 'quiz') return item.itemType === 'quiz';
+    if (filter === 'quiz') return item.itemType === 'quiz' && !isExamBookmark(item);
+    if (filter === 'exam') return isExamBookmark(item);
     if (filter === 'question') return item.itemType === 'question';
     if (filter === 'note') return item.itemType === 'note' || item.itemType === 'ai_note';
     return true;
   });
-  const activeCount = visible.length;
 
   function openItem(item) {
-    if (item.itemType === 'quiz') navigate(`/quizzes/${item.itemId}?mode=practice`);
+    if (item.itemType === 'quiz') navigate(`/quizzes/${item.itemId}?mode=${isExamBookmark(item) ? 'exam' : 'practice'}`);
     else if (item.itemType === 'question') navigate(item.quizId ? `/quizzes/${item.quizId}?mode=practice` : '/quizzes');
     else navigate(`/ai-notes/${item.itemId}`);
   }
@@ -69,44 +98,21 @@ export function BookmarksPage() {
   return (
     <main className="dashboard-page study-hub-page student-bookmarks-page">
       <section className="study-hub-shell">
-        <AppHeader title="Saved Items" subtitle="Saved Queue" />
+        <AppHeader title="Saved" subtitle="Bookmarks" />
 
         {error && <div className={ui.feedbackError}>{error}</div>}
 
         <StudentPageHero
-          title="Saved Items"
-          subtitle="Saved Queue"
+          title="Saved items"
+          subtitle="Your bookmarked notes, questions, quizzes, and exams in one clean place."
           metrics={[
-            { label: 'Total Saved', value: items.length },
-            { label: 'Practice', value: quizCount },
+            { label: 'Bookmarked', value: items.length },
+            { label: 'Quizzes', value: quizCount },
+            { label: 'Exams', value: examCount },
             { label: 'Questions', value: questionCount },
-            { label: 'Lessons', value: noteCount },
-            { label: 'Showing', value: activeCount },
+            { label: 'Notes', value: noteCount },
           ]}
         />
-
-        <div className="grid grid-cols-[repeat(5,minmax(0,1fr))] gap-3 max-[980px]:grid-cols-3 max-[780px]:grid-cols-2" aria-label="Bookmark summary">
-          <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
-            <span className="block text-2xl font-extrabold text-ink-strong">{items.length}</span>
-            <small className="mt-0.5 block text-[11px] text-ink-muted">Total saved</small>
-          </div>
-          <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
-            <span className="block text-2xl font-extrabold text-ink-strong">{quizCount}</span>
-            <small className="mt-0.5 block text-[11px] text-ink-muted">Quizzes</small>
-          </div>
-          <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
-            <span className="block text-2xl font-extrabold text-ink-strong">{questionCount}</span>
-            <small className="mt-0.5 block text-[11px] text-ink-muted">Questions</small>
-          </div>
-          <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
-            <span className="block text-2xl font-extrabold text-ink-strong">{noteCount}</span>
-            <small className="mt-0.5 block text-[11px] text-ink-muted">Lessons</small>
-          </div>
-          <div className="rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs">
-            <span className="block text-2xl font-extrabold text-ink-strong">{activeCount}</span>
-            <small className="mt-0.5 block text-[11px] text-ink-muted">Showing now</small>
-          </div>
-        </div>
 
         <div className="flex flex-wrap gap-2 rounded-lg border border-line-soft bg-surface-glass-strong p-2 shadow-xs">
           {TYPE_FILTERS.map(f => (
@@ -123,15 +129,15 @@ export function BookmarksPage() {
             >
               <span>{f.label}</span>
               <small className={cx('ml-2 rounded-full px-2 py-0.5 text-[11px]', filter === f.key ? 'bg-white/60 text-brand-primary dark:bg-white/10 dark:text-sky-100' : 'bg-brand-primary-light text-brand-primary')}>
-                {f.key === 'quiz' ? quizCount : f.key === 'question' ? questionCount : f.key === 'note' ? noteCount : items.length}
+                {f.key === 'quiz' ? quizCount : f.key === 'exam' ? examCount : f.key === 'question' ? questionCount : f.key === 'note' ? noteCount : items.length}
               </small>
             </button>
           ))}
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[520px]:gap-3">
-            {[1,2,3,4,5,6].map(i => <div key={i} className={cx(ui.shimmer, 'min-h-[104px] rounded-lg border border-line-soft bg-surface-1')} />)}
+          <div className="grid gap-2.5">
+            {[1,2,3,4,5,6].map(i => <div key={i} className={cx(ui.shimmer, 'min-h-[86px] rounded-lg border border-line-soft bg-surface-1')} />)}
           </div>
         ) : visible.length === 0 ? (
           <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3')}>
@@ -141,50 +147,54 @@ export function BookmarksPage() {
               <path d="M20 20h12M20 26h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" opacity="0.4"/>
               </svg>
             </div>
-            <h3 className="m-0 text-xl font-extrabold text-ink-strong">{items.length === 0 ? 'Your queue is ready when you are' : 'Nothing in this view'}</h3>
+            <h3 className="m-0 text-xl font-extrabold text-ink-strong">{items.length === 0 ? 'Your saved shelf is ready when you are' : 'Nothing saved in this view'}</h3>
             <p className="m-0 max-w-[340px] text-sm leading-relaxed text-ink-soft">{items.length === 0
-              ? 'Nothing saved yet. Hit "Save" on any quiz, question, or lesson to build your revision queue.'
-              : 'No items match this filter.'
+              ? 'Bookmark a note, question, or quiz when you want to review it again later. It will appear here neatly for your next study pass.'
+              : 'Try another filter to see the rest of your bookmarked revision items.'
             }</p>
             <button className={ui.primaryAction} type="button" onClick={() => navigate('/quizzes')}>
               Browse quizzes
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[520px]:gap-3">
+          <div className="grid gap-2.5">
             {visible.map(item => {
-              const isQuiz = item.itemType === 'quiz';
-              const isQuestion = item.itemType === 'question';
+              const meta = getItemMeta(item);
+              const contextLine = getContextLine(item, meta.title);
+              const savedDate = formatSavedDate(item.createdAt);
               return (
                 <article
                   key={`${item.itemType}-${item.itemId}`}
-                  className="group relative flex min-h-[104px] cursor-pointer items-center gap-3 overflow-hidden rounded-lg border border-line-soft bg-surface-1 p-4 shadow-xs transition hover:-translate-y-0.5 hover:border-line-medium hover:shadow-md"
-                  onClick={() => openItem(item)}
+                  className="grid min-h-[86px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line-soft bg-surface-1 px-4 py-3 shadow-xs transition-[background,border-color,box-shadow] hover:border-line-medium hover:bg-surface-2/60 hover:shadow-sm max-[640px]:grid-cols-1 max-[640px]:items-start max-[640px]:gap-2.5"
                 >
-                  <div className={cx('grid size-11 shrink-0 place-items-center rounded-md border', isQuiz || isQuestion ? 'border-violet-500/20 bg-violet-500/10 text-violet-600' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600')}>{isQuiz || isQuestion ? <QuizIcon/> : <NoteIcon/>}</div>
-                  <div className="min-w-0 flex-1">
-                    <div className={cx('mb-1 inline-flex rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.05em]', isQuiz || isQuestion ? 'bg-violet-500/10 text-violet-600' : 'bg-emerald-500/10 text-emerald-600')}>{isQuestion ? 'Question' : isQuiz ? 'Practice quiz' : 'Lesson'}</div>
-                    <div className="truncate text-[13.5px] font-semibold text-ink-strong">{item.title || `${isQuestion ? 'Question' : isQuiz ? 'Quiz' : 'Lesson'} #${item.itemId}`}</div>
-                    {(item.courseTitle || item.topicName) && (
-                      <div className="mt-0.5 truncate text-[11.5px] text-ink-muted">
-                        {[item.courseTitle, item.topicName].filter(Boolean).join(' › ')}
-                      </div>
-                    )}
+                  <div className="min-w-0">
+                    <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-2">
+                      <span className={cx(
+                        'inline-flex rounded-full border px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.05em]',
+                        meta.isQuiz || meta.isQuestion
+                          ? 'border-violet-500/18 bg-violet-500/8 text-violet-600 dark:text-violet-200'
+                          : 'border-emerald-500/18 bg-emerald-500/8 text-emerald-600 dark:text-emerald-200'
+                      )}>{meta.label}</span>
+                      <span className="text-[11.5px] font-semibold text-ink-muted">{savedDate}</span>
+                    </div>
+                    <h3 className="m-0 overflow-hidden text-[14.5px] font-extrabold leading-snug text-ink-strong [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                      {meta.title}
+                    </h3>
+                    {contextLine ? (
+                      <p className="m-0 mt-1 truncate text-[12px] font-medium text-ink-muted">{contextLine}</p>
+                    ) : null}
                   </div>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-brand-primary/5 to-transparent opacity-0 transition group-hover:opacity-100" aria-hidden="true" />
-                  <div className="relative z-[1] flex shrink-0 gap-1.5">
-                    <button className={ui.iconButton}
+                  <div className="flex shrink-0 items-center gap-2 max-[640px]:w-full max-[640px]:justify-between">
+                    <button
+                      className="inline-flex min-h-9 items-center justify-center rounded-lg border border-brand-primary/22 bg-[var(--color-primary-light)] px-3 text-[12.5px] font-extrabold text-brand-primary shadow-none transition hover:border-brand-primary/35 hover:bg-brand-primary/12"
                       type="button"
-                     
                       onClick={() => openItem(item)}
-                      title={isQuestion ? 'Open question' : isQuiz ? 'Practice' : 'Read'}
-                      aria-label={isQuestion ? 'Open saved question' : isQuiz ? 'Open saved quiz' : 'Open saved lesson'}
+                      aria-label={`${meta.action} saved ${meta.label.toLowerCase()}`}
                     >
-                      {isQuiz || isQuestion ? <PlayIcon/> : <ReadIcon/>}
+                      {meta.action}
                     </button>
                     <button className={ui.dangerIconButton}
                       type="button"
-                     
                       onClick={e => handleRemove(e, item)}
                       title="Remove bookmark"
                       aria-label="Remove saved item"

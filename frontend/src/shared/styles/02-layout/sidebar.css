@@ -1,7 +1,7 @@
 .app-shell {
   --lms-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --lms-ease-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
-  --lms-sidebar-duration: 380ms;
+  --lms-sidebar-duration: 280ms;
   --lms-dropdown-duration: 220ms;
 }
 
@@ -34,7 +34,7 @@
   ) {
     transition:
       opacity 220ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
-      transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
+      transform var(--lms-sidebar-duration, 280ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
   }
 
   .lms-sidebar--admin-model .lms-sidebar-wordmark,
@@ -57,18 +57,18 @@
 @media (min-width: 901px) {
   .app-shell:not(.mobile-top-nav-mode) .main-content {
     transition:
-      transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
+      transform var(--lms-sidebar-duration, 280ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
     contain: paint;
-    will-change: transform;
+    will-change: auto;
   }
 
   .app-shell:not(.mobile-top-nav-mode) .lms-sidebar:not(.is-overlay-nav) {
-    transition-duration: var(--lms-sidebar-duration, 380ms) !important;
+    transition-duration: var(--lms-sidebar-duration, 280ms) !important;
     transition-timing-function: var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
     backface-visibility: hidden;
     contain: layout paint;
     transform: translate3d(0, 0, 0);
-    will-change: transform, opacity;
+    will-change: auto;
   }
 
   .app-shell:not(.mobile-top-nav-mode) .lms-sidebar:not(.is-overlay-nav).is-collapsed {

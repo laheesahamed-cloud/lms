@@ -11,7 +11,7 @@
   --lms-safe-left: env(safe-area-inset-left, 0px);
   --lms-motion-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --lms-motion-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
-  --lms-sidebar-motion: 400ms var(--lms-motion-soft);
+  --lms-sidebar-motion: 280ms var(--lms-motion-soft);
   --lms-popover-motion: 220ms var(--lms-motion-soft);
   --lms-popover-exit-motion: 190ms var(--lms-motion-soft-exit);
   --lms-live-gutter-x: clamp(12px, 2.2vw, 28px);
@@ -70,7 +70,7 @@ body {
 .app-shell {
   --lms-ease-soft: var(--lms-motion-soft);
   --lms-ease-soft-exit: var(--lms-motion-soft-exit);
-  --lms-sidebar-duration: 400ms;
+  --lms-sidebar-duration: 280ms;
   --lms-dropdown-duration: 220ms;
 }
 
@@ -92,7 +92,7 @@ body {
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     contain: paint;
-    will-change: transform;
+    will-change: auto;
   }
 
   .lms-sidebar:not(.is-overlay-nav) {
@@ -100,18 +100,15 @@ body {
     opacity: 1;
     transition:
       width var(--lms-sidebar-motion),
-      transform var(--lms-sidebar-motion),
-      opacity 240ms var(--lms-motion-soft),
-      border-color 180ms ease-out,
-      background-color 180ms ease-out !important;
+      opacity 180ms var(--lms-motion-soft) !important;
     backface-visibility: hidden;
     contain: layout paint;
-    will-change: transform, opacity;
+    will-change: auto;
   }
 
   .lms-sidebar:not(.is-overlay-nav).is-collapsed {
-    transform: translate3d(-2px, 0, 0) scale(0.995);
-    opacity: 0.995;
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
   }
 
   .lms-sidebar:not(.is-overlay-nav) :where(
@@ -126,9 +123,8 @@ body {
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     transition:
-      opacity 180ms var(--lms-motion-soft),
-      transform 320ms var(--lms-motion-soft) !important;
-    will-change: opacity, transform;
+      opacity 160ms var(--lms-motion-soft),
+      transform 260ms var(--lms-motion-soft) !important;
   }
 
   .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-wordmark {
@@ -185,8 +181,38 @@ body {
     pointer-events: none;
   }
 
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-brand {
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0 !important;
+    padding-inline: 0 !important;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-brand-mark {
+    flex: 0 0 auto !important;
+    margin-inline: auto !important;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-wordmark {
+    position: absolute !important;
+    inset-inline-start: 50% !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
   .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-link {
     gap: 0 !important;
+    justify-content: center !important;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-link-text,
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-link-arrow {
+    position: absolute !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
   }
 
   .lms-sidebar:not(.is-overlay-nav).is-collapsed .lms-sidebar-wordmark {
@@ -418,15 +444,30 @@ body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
     margin-left: 0 !important;
     padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w, 224px) + var(--sidebar-shell-gap, 16px)) !important;
     padding-right: var(--lms-live-gutter-x) !important;
+    transform: translate3d(0, 0, 0) !important;
+    transition:
+      padding-left var(--lms-sidebar-motion),
+      background-color 160ms ease-out !important;
+    backface-visibility: hidden;
+    contain: paint;
+    will-change: auto !important;
   }
 
   .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode):not(:has(:is(.lms-exam-page, .practice-review-page, .lms-review-page, .student-notes-page))) .main-content {
     padding-right: clamp(18px, 2vw, 32px) !important;
   }
 
-  .student-app-shell.sidebar-collapsed:not(.compact-focus-mode) .main-content {
-    padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w, 224px) + var(--sidebar-shell-gap, 16px)) !important;
-    transform: translate3d(calc(var(--sidebar-w-collapsed, 68px) - var(--sidebar-w, 224px)), 0, 0) !important;
+  .app-shell.student-app-shell.sidebar-collapsed:not(.mobile-top-nav-mode):not(.compact-focus-mode):not(.sidebar-hidden) > .main-content {
+    padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w-collapsed, 68px) + var(--sidebar-shell-gap, 16px)) !important;
+    transform: translate3d(0, 0, 0) !important;
+  }
+
+  .student-app-shell.sidebar-hidden:not(.mobile-top-nav-mode) .main-content {
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding-left: var(--lms-live-gutter-x) !important;
+    padding-right: var(--lms-live-gutter-x) !important;
+    transform: translate3d(0, 0, 0) !important;
   }
 
   .student-app-shell .dashboard-page.study-hub-page > .study-hub-shell,
@@ -628,6 +669,38 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] {
   box-shadow:
     0 0 0 3px color-mix(in srgb, var(--color-primary, #60a5fa) 15%, transparent),
     0 18px 34px -28px color-mix(in srgb, var(--color-primary, #60a5fa) 58%, transparent) !important;
+}
+
+.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) .lms-answer-card.is-correct {
+  border-color: color-mix(in srgb, var(--color-success, #16a34a) 42%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-success, #16a34a) 9%, transparent), transparent 44%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-success, #16a34a) 10%, var(--surface-1, #fff)), color-mix(in srgb, var(--color-success, #16a34a) 4%, var(--surface-1, #fff))) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-success, #16a34a) 10%, transparent),
+    0 16px 30px -26px color-mix(in srgb, var(--color-success, #16a34a) 42%, transparent) !important;
+}
+
+.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) .lms-answer-card.is-wrong {
+  border-color: color-mix(in srgb, var(--color-error, #dc2626) 42%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-error, #dc2626) 8%, transparent), transparent 44%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-error, #dc2626) 9%, var(--surface-1, #fff)), color-mix(in srgb, var(--color-error, #dc2626) 4%, var(--surface-1, #fff))) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-error, #dc2626) 9%, transparent),
+    0 16px 30px -26px color-mix(in srgb, var(--color-error, #dc2626) 40%, transparent) !important;
+}
+
+:root[data-theme="dark"] .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) .lms-answer-card.is-correct {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-success, #22c55e) 14%, transparent), transparent 44%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-success, #22c55e) 13%, var(--surface-1, #0b1019)), color-mix(in srgb, var(--color-success, #22c55e) 6%, var(--surface-1, #0b1019))) !important;
+}
+
+:root[data-theme="dark"] .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) .lms-answer-card.is-wrong {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-error, #f87171) 13%, transparent), transparent 44%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-error, #f87171) 12%, var(--surface-1, #0b1019)), color-mix(in srgb, var(--color-error, #f87171) 5%, var(--surface-1, #0b1019))) !important;
 }
 
 .student-app-shell .lms-assessment-btn {

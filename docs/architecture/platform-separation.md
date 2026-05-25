@@ -22,18 +22,12 @@ frontend/src/shared/platform/
   config.js
   PlatformProvider.jsx
   AppOnlyBrowserGate.jsx
-  notifications.js
   select.js
   styles.css
   overrides/
     web/
-      HeaderInstallAction.jsx
-      NotificationDelivery.js
     pwa/
-      NotificationDelivery.js
     native/
-      HeaderInstallAction.jsx
-      NotificationDelivery.js
       ios/
         phone/
         tablet/
@@ -132,7 +126,6 @@ Header install action:
 
 Notification delivery:
 
-- `StudentNotificationsPage` uses `platform/notifications.js`.
 - Web/PWA select Web Push delivery.
 - Native selects a native placeholder and never runs Web Push registration.
 

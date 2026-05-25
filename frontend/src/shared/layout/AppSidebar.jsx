@@ -232,7 +232,7 @@ function getInitials(user) {
 
 const sidebarUi = {
   shell:
-    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[transform,opacity,border-color] duration-[var(--lms-sidebar-duration,380ms)] ease-[var(--lms-ease-soft,cubic-bezier(0.22,1,0.36,1))] [contain:layout_paint] [height:100dvh] [min-height:100dvh] will-change-[transform,opacity] shadow-[1px_0_0_var(--line-soft),var(--shadow-sm)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[22px]',
+    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[transform,opacity] duration-[var(--lms-sidebar-duration,280ms)] ease-[var(--lms-ease-soft,cubic-bezier(0.22,1,0.36,1))] [contain:layout_paint] [height:100dvh] [min-height:100dvh] shadow-[1px_0_0_var(--line-soft),var(--shadow-sm)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[22px]',
   shellLight:
     '',
   open: 'max-[900px]:translate-x-0',
@@ -242,7 +242,7 @@ const sidebarUi = {
   logoRow:
     'relative flex min-h-[var(--admin-header-h)] items-center gap-3 border-b border-[var(--line-soft)] px-4 py-3',
   logoRowCollapsed:
-    'min-[901px]:flex-col min-[901px]:justify-center min-[901px]:gap-2 min-[901px]:px-0 min-[901px]:py-3',
+    'min-[901px]:justify-center min-[901px]:gap-0 min-[901px]:px-0 min-[901px]:py-3',
   brandIcon:
     'grid size-[38px] shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,#0B1220_0%,#2563EB_55%,#38BDF8_100%)] shadow-[0_8px_20px_rgba(37,99,235,0.16)]',
   brandIconCollapsed: 'min-[901px]:size-[36px]',

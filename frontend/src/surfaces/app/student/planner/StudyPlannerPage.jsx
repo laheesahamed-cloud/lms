@@ -3,14 +3,82 @@ import { useNavigate } from 'react-router-dom';
 import { fetchStudentDashboard } from '../../../../shared/api/dashboard.api.js';
 import {
   createPlannerTask,
+  deletePlannerTask,
+  fetchPlannerAgenda,
   fetchPlannerSuggestions,
-  fetchPlannerTasks,
   updatePlannerTask,
 } from '../../../../shared/api/workspace.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import './StudyPlannerPage.css';
 
+const FLASHCARD_REVIEW_STATS_KEY = 'lms.flashcards.reviewStats.v1';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const VIEW_OPTIONS = [
+  { key: 'agenda', label: 'Agenda' },
+  { key: 'week', label: 'Week' },
+  { key: 'course', label: 'Course' },
+  { key: 'completed', label: 'Completed' },
+];
+
+const STATUS_LABELS = {
+  due_today: 'Due today',
+  overdue: 'Overdue',
+  upcoming: 'Upcoming',
+  in_progress: 'In progress',
+  completed: 'Completed',
+  locked: 'Locked',
+  optional: 'Optional',
+};
+
+const TYPE_LABELS = {
+  task: 'Task',
+  lesson: 'Lesson',
+  quiz: 'Quiz',
+  exam: 'Exam',
+  review: 'Review',
+  flashcards: 'Flashcards',
+};
+
+const TASK_CATEGORIES = [
+  { value: 'general', label: 'General task' },
+  { value: 'lesson', label: 'Lesson' },
+  { value: 'quiz', label: 'Quiz practice' },
+  { value: 'exam', label: 'Exam block' },
+  { value: 'review', label: 'Review' },
+  { value: 'flashcards', label: 'Flashcards' },
+];
+
+const TASK_PRIORITIES = [
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'low', label: 'Low' },
+];
+
+const TYPE_FILTER_OPTIONS = [
+  { value: '', label: 'All types' },
+  { value: 'task', label: 'Tasks' },
+  { value: 'lesson', label: 'Lessons' },
+  { value: 'quiz', label: 'Quizzes' },
+  { value: 'exam', label: 'Exams' },
+  { value: 'review', label: 'Reviews' },
+  { value: 'flashcards', label: 'Flashcards' },
+];
+
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'All states' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'due_today', label: 'Due today' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'upcoming', label: 'Upcoming' },
+  { value: 'optional', label: 'Optional' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'locked', label: 'Locked' },
+];
+
 function appRoute(path) {
+  if (!path) return '/app/planner';
+  if (path.startsWith('/app/')) return path;
   return `/app${path.startsWith('/') ? path : `/${path}`}`;
 }
 
@@ -22,439 +90,636 @@ function todayIso() {
   return `${year}-${month}-${day}`;
 }
 
-function parseLocalDate(value) {
-  if (!value) return null;
-  const [year, month, day] = String(value).split('-').map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
+function emptyTaskForm() {
+  return {
+    title: '',
+    dueDate: todayIso(),
+    description: '',
+    category: 'general',
+    priority: 'medium',
+    estimatedMinutes: '30',
+  };
 }
 
-function isoFromDate(date) {
+function parseDate(value) {
+  if (!value) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    const [year, month, day] = text.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  }
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+  const dateText = text.slice(0, 10);
+  const [year, month, day] = dateText.split('-').map(Number);
+  return year && month && day ? new Date(year, month - 1, day) : null;
+}
+
+function daysFromToday(value, todayValue = todayIso()) {
+  const date = parseDate(value);
+  const today = parseDate(todayValue);
+  if (!date || !today) return null;
+  return Math.round((date - today) / DAY_MS);
+}
+
+function formatDue(value, status) {
+  const days = daysFromToday(value);
+  if (status === 'in_progress') return 'Continue today';
+  if (status === 'locked') return 'Access locked';
+  if (status === 'completed') return 'Completed';
+  if (days === null) return 'No due date';
+  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`;
+  if (days === 0) return 'Due today';
+  if (days === 1) return 'Tomorrow';
+  if (days <= 7) return `In ${days} days`;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(parseDate(value));
+}
+
+function formatDateLabel(value) {
+  const date = parseDate(value);
+  if (!date) return 'No due date';
+  return new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(date);
+}
+
+function formatMinutes(value) {
+  const minutes = Number(value);
+  if (!Number.isFinite(minutes) || minutes <= 0) return '';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} hr ${rest} min` : `${hours} hr`;
+}
+
+function formatShortDate(value) {
+  const date = parseDate(value);
+  if (!date) return '';
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+}
+
+function titleCase(value) {
+  return String(value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function normalizeTaskCategory(value) {
+  const text = String(value || '').trim().toLowerCase();
+  return TASK_CATEGORIES.some((item) => item.value === text) ? text : 'general';
+}
+
+function normalizeTaskPriority(value) {
+  const text = String(value || '').trim().toLowerCase();
+  return TASK_PRIORITIES.some((item) => item.value === text) ? text : 'medium';
+}
+
+function normalizeAgenda(data) {
+  return {
+    generatedAt: data?.generatedAt || '',
+    items: Array.isArray(data?.items) ? data.items : [],
+    filters: {
+      courses: Array.isArray(data?.filters?.courses) ? data.filters.courses : [],
+      subjects: Array.isArray(data?.filters?.subjects) ? data.filters.subjects : [],
+      topics: Array.isArray(data?.filters?.topics) ? data.filters.topics : [],
+      lessons: Array.isArray(data?.filters?.lessons) ? data.filters.lessons : [],
+    },
+    summary: data?.summary || { today: 0, overdue: 0, upcoming: 0, completed: 0, total: 0 },
+  };
+}
+
+function normalizeSuggestions(data) {
+  if (!Array.isArray(data)) return [];
+  return data.map((item, index) => ({
+    key: item?.key || `suggestion-${index}`,
+    title: String(item?.title || '').trim(),
+    description: String(item?.description || '').trim(),
+    priority: normalizeTaskPriority(item?.priority),
+    dueInDays: Number.isFinite(Number(item?.dueInDays)) ? Number(item.dueInDays) : null,
+    task: {
+      title: String(item?.task?.title || item?.title || '').trim(),
+      description: String(item?.task?.description || item?.description || '').trim(),
+      dueDate: item?.task?.dueDate || todayIso(),
+      category: normalizeTaskCategory(item?.task?.category || 'review'),
+      priority: normalizeTaskPriority(item?.task?.priority || item?.priority),
+      estimatedMinutes: Number.isFinite(Number(item?.task?.estimatedMinutes)) ? Number(item.task.estimatedMinutes) : 30,
+    },
+  })).filter((item) => item.title);
+}
+
+function readFlashcardReviewStats() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(FLASHCARD_REVIEW_STATS_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function flashcardDueItem() {
+  const rows = Object.values(readFlashcardReviewStats());
+  if (!rows.length) return null;
+  const now = Date.now();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const counts = rows.reduce((acc, row) => {
+    const dueAt = row?.dueAt ? Date.parse(row.dueAt) : 0;
+    const learning = row?.state === 'learning' || row?.state === 'relearning' || Number(row?.learning || 0) > 0;
+    if (Number.isFinite(dueAt) && dueAt > 0 && dueAt < todayStart.getTime()) acc.overdue += 1;
+    else if (Number.isFinite(dueAt) && dueAt > 0 && dueAt <= now) acc.due += 1;
+    if (learning && Number.isFinite(dueAt) && dueAt > 0 && dueAt <= now) acc.learning += 1;
+    return acc;
+  }, { due: 0, overdue: 0, learning: 0 });
+  const totalDue = counts.due + counts.overdue + counts.learning;
+  if (totalDue <= 0) return null;
+  return {
+    id: 'flashcards-due-local',
+    source: 'flashcards_local',
+    sourceId: null,
+    type: 'flashcards',
+    title: `${totalDue} flashcard${totalDue === 1 ? '' : 's'} ready`,
+    course: '',
+    subject: '',
+    topic: '',
+    lesson: '',
+    status: counts.overdue > 0 ? 'overdue' : 'due_today',
+    dueAt: todayIso(),
+    completedAt: null,
+    progress: null,
+    actionUrl: '/flashcards?mode=due',
+    actionLabel: 'Review flashcards',
+    locked: false,
+    accessMessage: '',
+    priority: counts.overdue > 0 ? 98 : 86,
+    meta: counts,
+  };
+}
+
+function itemContext(item) {
+  return [item.course, item.subject, item.topic, item.lesson]
+    .map((part) => String(part || '').trim())
+    .filter((part, index, all) => part && all.indexOf(part) === index && part !== item.title)
+    .join(' / ');
+}
+
+function itemDescription(item) {
+  return String(item?.meta?.description || item?.description || '').trim();
+}
+
+function itemEstimatedMinutes(item) {
+  const value = Number(item?.meta?.estimatedMinutes);
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
+}
+
+function itemPriority(item) {
+  return normalizeTaskPriority(item?.meta?.priority);
+}
+
+function taskFormFromItem(item) {
+  return {
+    title: item?.title || '',
+    dueDate: item?.dueAt || todayIso(),
+    description: itemDescription(item),
+    category: normalizeTaskCategory(item?.meta?.category),
+    priority: itemPriority(item),
+    estimatedMinutes: itemEstimatedMinutes(item) ? String(itemEstimatedMinutes(item)) : '',
+  };
+}
+
+function taskPayloadFromForm(form) {
+  const rawMinutes = String(form.estimatedMinutes || '').trim();
+  const estimatedMinutes = rawMinutes ? Number(rawMinutes) : null;
+  return {
+    title: String(form.title || '').trim(),
+    description: String(form.description || '').trim(),
+    dueDate: form.dueDate || null,
+    category: normalizeTaskCategory(form.category),
+    priority: normalizeTaskPriority(form.priority),
+    estimatedMinutes: Number.isFinite(estimatedMinutes) && estimatedMinutes >= 0 ? estimatedMinutes : null,
+  };
+}
+
+function progressValue(item) {
+  const value = Number(item.progress);
+  if (!Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function sectionCounts(items) {
+  return items.reduce((acc, item) => {
+    acc[item.status] = (acc[item.status] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function filterItems(items, filters) {
+  const query = String(filters.search || '').trim().toLowerCase();
+  return items.filter((item) => {
+    if (filters.course && item.course !== filters.course) return false;
+    if (filters.type && item.type !== filters.type) return false;
+    if (filters.status && item.status !== filters.status) return false;
+    if (!query) return true;
+    return [
+      item.title,
+      item.course,
+      item.subject,
+      item.topic,
+      item.lesson,
+      itemDescription(item),
+      item.accessMessage,
+      item.meta?.questionType,
+    ].some((value) => String(value || '').toLowerCase().includes(query));
+  });
+}
+
+function agendaSections(items, today) {
+  const active = items.filter((item) => item.status !== 'completed');
+  const overdue = active.filter((item) => item.status === 'overdue');
+  const todayItems = active.filter((item) => item.status === 'due_today' || item.status === 'in_progress');
+  const upcomingItems = active.filter((item) => !overdue.includes(item) && !todayItems.includes(item));
+  const grouped = {
+    tomorrow: [],
+    thisWeek: [],
+    nextWeek: [],
+    later: [],
+  };
+
+  for (const item of upcomingItems) {
+    const days = daysFromToday(item.dueAt, today);
+    if (days === 1) grouped.tomorrow.push(item);
+    else if (days !== null && days >= 2 && days <= 7) grouped.thisWeek.push(item);
+    else if (days !== null && days >= 8 && days <= 14) grouped.nextWeek.push(item);
+    else grouped.later.push(item);
+  }
+
+  return [
+    { key: 'overdue', title: 'Overdue', hint: 'Missed or late study work', items: overdue },
+    { key: 'today', title: 'Today', hint: 'What should be handled now', items: todayItems },
+    { key: 'tomorrow', title: 'Tomorrow', hint: 'Next day work', items: grouped.tomorrow },
+    { key: 'this-week', title: 'This week', hint: 'Due in the next seven days', items: grouped.thisWeek },
+    { key: 'next-week', title: 'Next week', hint: 'Coming soon', items: grouped.nextWeek },
+    { key: 'later', title: 'Later', hint: 'Available without a strict due date', items: grouped.later },
+  ].filter((section) => section.items.length);
+}
+
+function weekSections(items, today) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(parseDate(today));
+    date.setDate(date.getDate() + index);
+    const iso = todayIsoFromDate(date);
+    const dayItems = items.filter((item) => item.status !== 'completed' && item.dueAt === iso);
+    return {
+      key: iso,
+      title: index === 0 ? 'Today' : formatDateLabel(iso),
+      hint: dayItems.length ? `${dayItems.length} item${dayItems.length === 1 ? '' : 's'}` : 'No dated items',
+      items: dayItems,
+    };
+  });
+}
+
+function todayIsoFromDate(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-function addDays(date, amount) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + amount);
-  return next;
+function courseSections(items) {
+  const grouped = items.reduce((acc, item) => {
+    const key = item.course || 'No course';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+  return Object.entries(grouped)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([title, sectionItems]) => ({
+      key: title,
+      title,
+      hint: `${sectionItems.length} planner item${sectionItems.length === 1 ? '' : 's'}`,
+      items: sectionItems,
+    }));
 }
 
-function daysUntil(value, todayValue = todayIso()) {
-  const dueDate = parseLocalDate(value);
-  const startDate = parseLocalDate(todayValue);
-  if (!dueDate || !startDate) return null;
-  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-  const end = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-  return Math.round((end - start) / 86400000);
+function completedSections(items) {
+  const completed = items.filter((item) => item.status === 'completed');
+  return completed.length ? [{ key: 'completed', title: 'Completed', hint: 'Finished study work', items: completed }] : [];
 }
 
-function formatDaysLeft(value, todayValue = todayIso()) {
-  const days = daysUntil(value, todayValue);
-  if (days === null) return 'No due date';
-  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} late`;
-  if (days === 0) return 'Due today';
-  if (days === 1) return 'Tomorrow';
-  return `${days} days left`;
+function buildPlannerInsights(items, today) {
+  const activeItems = items.filter((item) => item.status !== 'completed');
+  const dueWork = activeItems.filter((item) => ['overdue', 'due_today', 'in_progress'].includes(item.status));
+  const weekWork = activeItems.filter((item) => {
+    const days = daysFromToday(item.dueAt, today);
+    return days !== null && days >= 0 && days <= 7;
+  });
+  const estimatedToday = dueWork.reduce((sum, item) => sum + itemEstimatedMinutes(item), 0);
+  const estimatedWeek = weekWork.reduce((sum, item) => sum + itemEstimatedMinutes(item), 0);
+  const highPriority = activeItems.filter((item) => itemPriority(item) === 'high').length;
+  const nextDue = [...activeItems]
+    .filter((item) => item.dueAt)
+    .sort((left, right) => String(left.dueAt).localeCompare(String(right.dueAt)))[0];
+  const completed = items.filter((item) => item.status === 'completed').length;
+
+  return {
+    active: activeItems.length,
+    estimatedToday,
+    estimatedWeek,
+    highPriority,
+    nextDueLabel: nextDue ? `${nextDue.title} · ${formatDue(nextDue.dueAt, nextDue.status)}` : 'No dated work yet',
+    completionRate: items.length ? Math.round((completed / items.length) * 100) : 0,
+    locked: activeItems.filter((item) => item.locked).length,
+  };
 }
 
-function formatShortDate(value) {
-  const date = parseLocalDate(value);
-  if (!date) return 'Anytime';
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
-}
-
-function clampPercent(value) {
-  return Math.max(0, Math.min(100, Math.round(Number(value || 0))));
-}
-
-function parsePercent(text, fallback = 32) {
-  const match = String(text || '').match(/(\d+(?:\.\d+)?)%/);
-  return clampPercent(match ? Number(match[1]) : fallback);
-}
-
-function timeMinutes(value) {
-  const match = String(value || '').match(/(\d+)/);
-  return match ? Number(match[1]) : 0;
-}
-
-function routeForAction(actionType) {
-  if (actionType === 'quiz' || actionType === 'Q-Bank') return appRoute('/quizzes');
-  if (actionType === 'results' || actionType === 'Review') return appRoute('/results');
-  return appRoute('/ai-notes');
-}
-
-const fallbackPlan = [
-  {
-    id: 'fallback-lesson',
-    type: 'Lesson',
-    title: 'Mitral Stenosis',
-    reason: 'Start with a short lesson so the topic feels clear before practice.',
-    time: '25 min',
-    action: 'Start lesson',
-    route: appRoute('/ai-notes'),
-    ready: 32,
-  },
-  {
-    id: 'fallback-qbank',
-    type: 'Q-Bank',
-    title: 'Valvular Heart Diseases',
-    reason: 'Answer a small set while the lesson is fresh.',
-    time: '25 min',
-    action: 'Practice',
-    route: appRoute('/quizzes'),
-    ready: 28,
-  },
-  {
-    id: 'fallback-review',
-    type: 'Review',
-    title: 'Wrong Answers',
-    reason: 'Finish by reviewing missed points.',
-    time: '10 min',
-    action: 'Review',
-    route: appRoute('/results'),
-    ready: 24,
-  },
-];
-
-const fallbackWeakAreas = [
-  { label: 'Pathophysiology', value: 18 },
-  { label: 'Echocardiography', value: 28 },
-  { label: 'Clinical Features', value: 35 },
-];
-
-function Icon({ name }) {
-  if (name === 'book') {
-    return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3.5h8a2 2 0 0 1 2 2v11H6.5A2.5 2.5 0 0 1 4 14V4.5a1 1 0 0 1 1-1Z" /><path d="M7 8h5M7 11h4" /></svg>;
-  }
-  if (name === 'question') {
-    return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="3.5" width="13" height="13" rx="3" /><path d="M8 8a2.2 2.2 0 1 1 3.05 2.03c-.5.25-.8.66-.8 1.32" /><path d="M10.25 14h.01" /></svg>;
-  }
-  if (name === 'review') {
-    return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 5.5h11M4.5 10h7M4.5 14.5h5" /><path d="M14 11.5l1.6 1.6 2.7-3" /></svg>;
-  }
-  if (name === 'tools') {
-    return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h4M12 6h4M8 4v4M4 14h7M15 14h1M12 12v4" /></svg>;
-  }
-  if (name === 'check') {
-    return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10.5 3.8 3.8L16 6" /></svg>;
-  }
-  if (name === 'calendar') {
-    return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="4.5" width="13" height="12" rx="2.5" /><path d="M7 2.8v3.4M13 2.8v3.4M4 8h12" /></svg>;
-  }
-  if (name === 'plus') {
-    return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>;
-  }
-  if (name === 'clock') {
-    return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5" /><path d="M10 6.5v4l2.7 1.8" /></svg>;
-  }
-  if (name === 'target') {
-    return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5" /><circle cx="10" cy="10" r="2.5" /><path d="M10 1.8v3M10 15.2v3M1.8 10h3M15.2 10h3" /></svg>;
-  }
-  return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v14M3 10h14" /></svg>;
-}
-
-function StethoBuddy() {
+function PlannerStatusChip({ status }) {
   return (
-    <div className="planner-buddy" aria-hidden="true">
-      <svg viewBox="0 0 88 88">
-        <path className="planner-buddy__tube" d="M23 17c-11 0-14 8-14 19 0 14 9 24 21 24s21-10 21-24c0-11-3-19-14-19" />
-        <path className="planner-buddy__tube" d="M51 39c10 0 18 7 18 17 0 9-6 16-15 16-7 0-13-5-13-12" />
-        <circle className="planner-buddy__face" cx="30" cy="38" r="19" />
-        <path className="planner-buddy__tube" d="M20 18v-6M40 18v-6" />
-        <circle className="planner-buddy__cap" cx="20" cy="12" r="5" />
-        <circle className="planner-buddy__cap" cx="40" cy="12" r="5" />
-        <circle className="planner-buddy__eye" cx="24" cy="35" r="2.6" />
-        <circle className="planner-buddy__eye" cx="36" cy="35" r="2.6" />
-        <path className="planner-buddy__smile" d="M25 45c3 4 8 4 11 0" />
-        <circle className="planner-buddy__disc" cx="69" cy="53" r="9" />
-        <circle className="planner-buddy__disc-inner" cx="69" cy="53" r="4" />
-      </svg>
-      <span>First step</span>
-    </div>
+    <span className={`planner-status-chip is-${status || 'optional'}`}>
+      {STATUS_LABELS[status] || 'Optional'}
+    </span>
   );
 }
 
-function taskIcon(type) {
-  if (type === 'Q-Bank') return 'question';
-  if (type === 'Review') return 'review';
-  return 'book';
+function PlannerRow({ item, onAction, onTaskStatus, onTaskEdit, onTaskDelete, saving }) {
+  const context = itemContext(item);
+  const progress = progressValue(item);
+  const description = itemDescription(item);
+  const minutes = formatMinutes(itemEstimatedMinutes(item));
+  const priority = itemPriority(item);
+  const category = normalizeTaskCategory(item.meta?.category);
+  const isPersonalTask = item.source === 'planner_task' && item.sourceId;
+  const disabled = saving === item.id || item.locked;
+  const savingStatus = saving === `${item.id}:status`;
+  const savingDelete = saving === `${item.id}:delete`;
+  const metaText = item.type === 'review' && item.meta?.missCount
+    ? `${item.meta.missCount} missed signal${Number(item.meta.missCount) === 1 ? '' : 's'}`
+    : item.type === 'quiz' && item.meta?.totalQuestions
+      ? `${item.meta.totalQuestions} questions`
+      : item.type === 'exam' && item.meta?.timeLimit
+        ? `${item.meta.timeLimit} min`
+        : '';
+  const detailChips = [
+    minutes,
+    isPersonalTask ? `${titleCase(priority)} priority` : '',
+    isPersonalTask && category !== 'general' ? titleCase(category) : '',
+  ].filter(Boolean);
+
+  return (
+    <article className={`planner-row is-${item.status || 'optional'}`}>
+      <div className="planner-row__chip">
+        <PlannerStatusChip status={item.status} />
+      </div>
+      <div className="planner-row__body">
+        <div className="planner-row__title-line">
+          <span>{TYPE_LABELS[item.type] || 'Task'}</span>
+          <h3>{item.title}</h3>
+        </div>
+        {context ? <p>{context}</p> : null}
+        {description ? <p className="planner-row__description">{description}</p> : null}
+        <div className="planner-row__meta">
+          <span>{formatDue(item.dueAt, item.status)}</span>
+          {item.completedAt ? <span>Finished {formatShortDate(item.completedAt)}</span> : null}
+          {metaText ? <span>{metaText}</span> : null}
+          {detailChips.map((label) => <span key={label}>{label}</span>)}
+          {item.accessMessage ? <span>{item.accessMessage}</span> : null}
+        </div>
+        {progress !== null ? (
+          <div className="planner-progress" role="progressbar" aria-label={`${progress}% progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+            <span style={{ width: `${progress}%` }} />
+          </div>
+        ) : null}
+      </div>
+      <div className="planner-row__actions">
+        {isPersonalTask ? (
+          <>
+            <button
+              type="button"
+              className={item.status === 'completed' ? 'planner-action is-secondary' : 'planner-action'}
+              onClick={() => onTaskStatus(item, item.status === 'completed' ? 'todo' : 'done')}
+              disabled={disabled || savingStatus}
+            >
+              {savingStatus ? 'Saving...' : item.status === 'completed' ? 'Reopen' : 'Done'}
+            </button>
+            <button type="button" className="planner-action is-secondary" onClick={() => onTaskEdit(item)} disabled={disabled}>
+              Edit
+            </button>
+            <button type="button" className="planner-action is-danger" onClick={() => onTaskDelete(item)} disabled={disabled || savingDelete}>
+              {savingDelete ? 'Deleting...' : 'Delete'}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className={item.status === 'completed' ? 'planner-action is-secondary' : 'planner-action'}
+            onClick={() => onAction(item)}
+            disabled={disabled}
+          >
+            {saving === item.id ? 'Working...' : item.actionLabel || 'Open'}
+          </button>
+        )}
+      </div>
+    </article>
+  );
 }
 
-function actionLabel(type, actionType) {
-  if (actionType === 'quiz' || type === 'Q-Bank') return 'Practice';
-  if (actionType === 'results' || type === 'Review') return 'Review';
-  return 'Start lesson';
-}
-
-function typeFromTitle(title, fallback = 'Lesson') {
-  const [prefix] = String(title || '').split(':');
-  if (/q-bank|quiz|practice/i.test(prefix)) return 'Q-Bank';
-  if (/review|wrong|result/i.test(prefix)) return 'Review';
-  return fallback;
-}
-
-function cleanTitle(title) {
-  return String(title || '').replace(/^(Lesson|Q-Bank|Review|Quiz|Practice|Study):\s*/i, '').trim() || 'Study task';
-}
-
-function mapDatabaseTask(task, index) {
-  const type = typeFromTitle(task.title);
-  return {
-    id: `task-${task.id}`,
-    dbId: task.id,
-    type,
-    title: cleanTitle(task.title),
-    reason: task.description || (task.status === 'done' ? 'Completed from your planner' : 'Saved in your planner'),
-    time: type === 'Review' ? '10 min' : '25 min',
-    action: actionLabel(type),
-    route: routeForAction(type),
-    ready: 100 - Math.min(index * 8 + 20, 60),
-    dueDate: task.dueDate || '',
-    done: task.status === 'done',
-  };
-}
-
-function mapDashboardPlan(item, index, dashboard) {
-  const type = item.actionType === 'quiz' ? 'Q-Bank' : item.actionType === 'results' ? 'Review' : 'Lesson';
-  const weakTopic = dashboard?.weakTopics?.[0];
-  return {
-    id: item.key || `adaptive-${index}`,
-    type,
-    title: item.title || weakTopic?.topicName || fallbackPlan[index]?.title || 'Study task',
-    reason: item.description || 'Based on your latest weak area and quiz history.',
-    time: type === 'Review' ? '10 min' : '25 min',
-    action: actionLabel(type, item.actionType),
-    route: routeForAction(item.actionType),
-    ready: clampPercent(weakTopic?.averagePercentage || dashboard?.performanceSnapshot?.readinessScore || fallbackPlan[index]?.ready),
-    dueDate: todayIso(),
-    done: item.status === 'done',
-  };
-}
-
-function mapSuggestion(item, index) {
-  const isWrongLoop = /wrong|missed|redo/i.test(`${item.title} ${item.description}`);
-  const type = isWrongLoop ? 'Review' : 'Q-Bank';
-  return {
-    id: item.key || `suggestion-${index}`,
-    type,
-    title: cleanTitle(item.title),
-    reason: item.description || 'Suggested from your weak areas.',
-    time: type === 'Review' ? '10 min' : '25 min',
-    action: actionLabel(type),
-    route: routeForAction(type),
-    ready: parsePercent(item.description, item.priority === 'high' ? 25 : 40),
-    dueDate: todayIso(),
-    done: false,
-  };
-}
-
-function buildWeek(tasks, todayValue) {
-  const start = parseLocalDate(todayValue) || new Date();
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = addDays(start, index);
-    const iso = isoFromDate(date);
-    const dueCount = tasks.filter((task) => task.dueDate === iso).length;
-    return {
-      key: iso,
-      day: new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date),
-      date: new Intl.DateTimeFormat(undefined, { day: 'numeric' }).format(date),
-      label: index === 0 ? (dueCount ? `${dueCount} due` : 'Today') : dueCount ? `${dueCount} due` : 'Free',
-      tone: index === 0 ? 'today' : dueCount ? 'planned' : 'rest',
-    };
-  });
+function PlannerSection({ section, onAction, onTaskStatus, onTaskEdit, onTaskDelete, saving, emptyText }) {
+  return (
+    <section className="planner-list-section" aria-labelledby={`planner-section-${section.key}`}>
+      <div className="planner-section-heading">
+        <div>
+          <h2 id={`planner-section-${section.key}`}>{section.title}</h2>
+          <p>{section.hint}</p>
+        </div>
+        <span>{section.items.length}</span>
+      </div>
+      <div className="planner-row-list">
+        {section.items.length ? section.items.map((item) => (
+          <PlannerRow
+            item={item}
+            key={item.id}
+            onAction={onAction}
+            onTaskStatus={onTaskStatus}
+            onTaskEdit={onTaskEdit}
+            onTaskDelete={onTaskDelete}
+            saving={saving}
+          />
+        )) : (
+          <div className="planner-empty-row">{emptyText || 'Nothing here yet.'}</div>
+        )}
+      </div>
+    </section>
+  );
 }
 
 export function StudyPlannerPage() {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
+  const [agenda, setAgenda] = useState(() => normalizeAgenda(null));
   const [dashboard, setDashboard] = useState(null);
+  const [flashcardItem, setFlashcardItem] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [view, setView] = useState('agenda');
+  const [courseFilter, setCourseFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState('');
   const [message, setMessage] = useState('');
-  const [reminderForm, setReminderForm] = useState({
-    title: '',
-    dueDate: todayIso(),
-    note: '',
-  });
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [taskForm, setTaskForm] = useState(() => emptyTaskForm());
 
   async function loadPlanner() {
     setLoading(true);
-    const [taskRows, suggestionRows, dashboardData] = await Promise.all([
-      fetchPlannerTasks().catch(() => []),
-      fetchPlannerSuggestions().catch(() => []),
-      fetchStudentDashboard().catch(() => null),
-    ]);
-    setTasks(Array.isArray(taskRows) ? taskRows : []);
-    setSuggestions(Array.isArray(suggestionRows) ? suggestionRows : []);
-    setDashboard(dashboardData);
-    setLoading(false);
+    setMessage('');
+    try {
+      const [agendaData, dashboardData, suggestionData] = await Promise.all([
+        fetchPlannerAgenda(),
+        fetchStudentDashboard().catch(() => null),
+        fetchPlannerSuggestions().catch(() => []),
+      ]);
+      setAgenda(normalizeAgenda(agendaData));
+      setDashboard(dashboardData);
+      setSuggestions(normalizeSuggestions(suggestionData));
+      setFlashcardItem(flashcardDueItem());
+    } catch {
+      setAgenda(normalizeAgenda(null));
+      setSuggestions([]);
+      setMessage('Planner data could not be loaded right now.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    loadPlanner().catch(() => setLoading(false));
+    loadPlanner();
   }, []);
 
   const today = todayIso();
-  const todaysSavedTasks = useMemo(
-    () => tasks.filter((task) => !task.dueDate || task.dueDate <= today).slice(0, 3).map(mapDatabaseTask),
-    [tasks, today],
+  const allItems = useMemo(() => {
+    const merged = flashcardItem ? [flashcardItem, ...agenda.items] : agenda.items;
+    return [...merged].sort((left, right) => Number(right.priority || 0) - Number(left.priority || 0));
+  }, [agenda.items, flashcardItem]);
+  const filteredItems = useMemo(
+    () => filterItems(allItems, { course: courseFilter, type: typeFilter, status: statusFilter, search: searchTerm }),
+    [allItems, courseFilter, searchTerm, statusFilter, typeFilter]
   );
-  const adaptiveTasks = useMemo(
-    () => (dashboard?.adaptivePlan || []).slice(0, 3).map((item, index) => mapDashboardPlan(item, index, dashboard)),
-    [dashboard],
-  );
-  const suggestedTasks = useMemo(
-    () => suggestions.slice(0, 3).map(mapSuggestion),
-    [suggestions],
-  );
+  const counts = useMemo(() => sectionCounts(allItems), [allItems]);
+  const inProgressCount = counts.in_progress || 0;
+  const dueTodayCount = (counts.due_today || 0) + inProgressCount;
+  const overdueCount = counts.overdue || 0;
+  const completedCount = counts.completed || 0;
+  const upcomingCount = (counts.upcoming || 0) + (counts.optional || 0) + (counts.locked || 0);
+  const personalTasks = allItems.filter((item) => item.source === 'planner_task');
+  const plannerInsights = useMemo(() => buildPlannerInsights(allItems, today), [allItems, today]);
+  const visibleSuggestions = useMemo(() => {
+    const existingTitles = new Set(personalTasks.map((item) => item.title.trim().toLowerCase()));
+    return suggestions.filter((item) => !existingTitles.has(item.task.title.trim().toLowerCase()));
+  }, [personalTasks, suggestions]);
 
-  const prescription = todaysSavedTasks.length
-    ? todaysSavedTasks
-    : adaptiveTasks.length
-      ? adaptiveTasks
-      : suggestedTasks.length
-        ? suggestedTasks
-        : fallbackPlan;
+  const sections = useMemo(() => {
+    if (view === 'week') return weekSections(filteredItems, today);
+    if (view === 'course') return courseSections(filteredItems);
+    if (view === 'completed') return completedSections(filteredItems);
+    return agendaSections(filteredItems, today);
+  }, [filteredItems, today, view]);
 
-  const planSource = todaysSavedTasks.length
-    ? 'Saved reminders'
-    : adaptiveTasks.length
-      ? 'Based on results'
-      : suggestedTasks.length
-        ? 'Suggested plan'
-        : 'Starter plan';
-
-  const weakAreas = useMemo(() => {
-    const dashboardWeakAreas = (dashboard?.weakTopics || []).slice(0, 3).map((topic) => ({
-      label: topic.topicName || 'Weak topic',
-      value: clampPercent(topic.averagePercentage),
-    }));
-    if (dashboardWeakAreas.length) return dashboardWeakAreas;
-    const suggestionWeakAreas = suggestions.slice(0, 3).map((item) => ({
-      label: cleanTitle(item.title).replace(/^Review\s+/i, ''),
-      value: parsePercent(item.description, 35),
-    }));
-    return suggestionWeakAreas.length ? suggestionWeakAreas : fallbackWeakAreas;
-  }, [dashboard, suggestions]);
-
-  const activePlannerTasks = useMemo(
-    () => tasks.filter((task) => task.status !== 'done'),
-    [tasks],
-  );
-  const reminderList = useMemo(
-    () => [...activePlannerTasks].sort((a, b) => {
-      const aDays = daysUntil(a.dueDate, today);
-      const bDays = daysUntil(b.dueDate, today);
-      const aOrder = aDays === null ? Number.POSITIVE_INFINITY : aDays;
-      const bOrder = bDays === null ? Number.POSITIVE_INFINITY : bDays;
-      return aOrder - bOrder || Number(b.id || 0) - Number(a.id || 0);
-    }).slice(0, 4),
-    [activePlannerTasks, today],
-  );
-  const weekItems = useMemo(() => buildWeek(activePlannerTasks, today), [activePlannerTasks, today]);
-
-  const readiness = clampPercent(dashboard?.performanceSnapshot?.readinessScore || dashboard?.avgScore || weakAreas[0]?.value || 32);
-  const done = tasks.filter((task) => task.status === 'done').length;
-  const open = Math.max(tasks.length - done, 0);
-  const dueTodayCount = activePlannerTasks.filter((task) => daysUntil(task.dueDate, today) === 0).length;
-  const overdueCount = activePlannerTasks.filter((task) => {
-    const days = daysUntil(task.dueDate, today);
-    return days !== null && days < 0;
-  }).length;
-  const routeDone = prescription.filter((task) => task.done).length;
-  const totalMinutes = prescription.reduce((sum, item) => sum + timeMinutes(item.time), 0);
-  const mainTask = prescription[0] || fallbackPlan[0];
-  const mainWeakArea = weakAreas[0]?.label || 'your weakest topic';
-
-  async function saveTask(item) {
-    await createPlannerTask({
-      title: `${item.type}: ${item.title}`,
-      description: item.reason,
-      dueDate: todayIso(),
-    });
-  }
-
-  async function startTask(item = mainTask) {
+  async function handleAction(item) {
+    if (item.locked) return;
     setSaving(item.id);
     setMessage('');
     try {
-      if (!item.dbId) {
-        await saveTask(item);
-        await loadPlanner();
-      }
-      navigate(item.route);
+      navigate(appRoute(item.actionUrl || '/planner'));
     } catch {
-      setMessage('Planner save failed, but you can still study now.');
-      navigate(item.route);
+      setMessage('Action failed. Try again when the API is reachable.');
     } finally {
       setSaving('');
     }
   }
 
-  async function markDone(item) {
-    if (!item.dbId || item.done) return;
-    setSaving(`done-${item.dbId}`);
+  async function setPersonalTaskStatus(item, status) {
+    if (!item.sourceId) return;
+    setSaving(`${item.id}:status`);
     setMessage('');
     try {
-      await updatePlannerTask(item.dbId, {
-        title: `${item.type}: ${item.title}`,
-        description: item.reason,
-        dueDate: item.dueDate || todayIso(),
-        status: 'done',
-      });
-      setMessage('Task marked done.');
+      await updatePlannerTask(item.sourceId, { status });
+      setMessage(status === 'done' ? 'Task marked complete.' : 'Task reopened.');
       await loadPlanner();
     } catch {
-      setMessage('Could not mark done. Try again when the API is reachable.');
+      setMessage('Could not update the task right now.');
     } finally {
       setSaving('');
     }
   }
 
-  async function addReminder(event) {
+  function startEditTask(item) {
+    setEditingTaskId(item.sourceId);
+    setTaskForm(taskFormFromItem(item));
+    setMessage('Editing task details.');
+  }
+
+  function cancelEditTask() {
+    setEditingTaskId(null);
+    setTaskForm(emptyTaskForm());
+    setMessage('');
+  }
+
+  async function removePersonalTask(item) {
+    if (!item.sourceId) return;
+    setSaving(`${item.id}:delete`);
+    setMessage('');
+    try {
+      await deletePlannerTask(item.sourceId);
+      if (editingTaskId === item.sourceId) {
+        cancelEditTask();
+      }
+      setMessage('Task deleted.');
+      await loadPlanner();
+    } catch {
+      setMessage('Could not delete the task right now.');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function addSuggestionTask(suggestion) {
+    const payload = suggestion.task || {};
+    if (!payload.title) return;
+    setSaving(`suggestion:${suggestion.key}`);
+    setMessage('');
+    try {
+      await createPlannerTask(payload);
+      setMessage('Suggested task added to your planner.');
+      await loadPlanner();
+    } catch {
+      setMessage('Could not add that suggestion right now.');
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function addPersonalTask(event) {
     event.preventDefault();
-    const title = cleanTitle(reminderForm.title);
-    if (!title) {
-      setMessage('Add a topic first.');
+    const payload = taskPayloadFromForm(taskForm);
+    if (!payload.title) {
+      setMessage('Add a task title first.');
       return;
     }
-
-    setSaving('reminder');
+    setSaving('task-form');
     setMessage('');
     try {
-      await createPlannerTask({
-        title: `Lesson: ${title}`,
-        description: reminderForm.note.trim() || 'Study reminder from Planner.',
-        dueDate: reminderForm.dueDate || todayIso(),
-      });
-      setReminderForm({ title: '', dueDate: todayIso(), note: '' });
-      setMessage('Reminder added. It will appear on your dashboard.');
+      if (editingTaskId) {
+        await updatePlannerTask(editingTaskId, payload);
+        setMessage('Task updated.');
+      } else {
+        await createPlannerTask(payload);
+        setMessage('Task added to your planner.');
+      }
+      setEditingTaskId(null);
+      setTaskForm(emptyTaskForm());
       await loadPlanner();
     } catch {
-      setMessage('Could not add reminder right now. Try again when the API is reachable.');
-    } finally {
-      setSaving('');
-    }
-  }
-
-  async function addCatchUp() {
-    setSaving('fix');
-    setMessage('');
-    try {
-      const focus = weakAreas[0]?.label || mainTask.title;
-      await createPlannerTask({
-        title: `Review: ${focus}`,
-        description: 'Catch-up reminder for your weakest current area.',
-        dueDate: todayIso(),
-      });
-      setMessage('Catch-up reminder added.');
-      await loadPlanner();
-    } catch {
-      setMessage('Could not add catch-up right now.');
+      setMessage(editingTaskId ? 'Could not update the task right now.' : 'Could not add the task right now.');
     } finally {
       setSaving('');
     }
@@ -463,187 +728,306 @@ export function StudyPlannerPage() {
   return (
     <main className="student-route-page dashboard-page study-hub-page study-planner-page">
       <div className="study-hub-shell study-planner-shell">
-        <AppHeader title="Planner" subtitle="Today, reminders, and weak spots" />
+        <AppHeader title="Planner" subtitle="Agenda, course timeline, and personal tasks" />
 
-        <section className="planner-hero-card">
-          <div className="planner-hero-copy">
-            <span className="planner-eyebrow">{loading ? 'Building plan' : planSource}</span>
-            <h1>Start with {mainTask.title}</h1>
-            <p>{mainTask.reason || `Focus on ${mainWeakArea} first, then practice and review.`}</p>
-            <div className="planner-hero-actions">
-              <button className="planner-primary" type="button" onClick={() => startTask(mainTask)} disabled={saving === mainTask.id}>
-                {saving === mainTask.id ? 'Opening...' : mainTask.action}
-              </button>
-              <button className="planner-secondary" type="button" onClick={() => navigate(appRoute('/quizzes'))}>
-                Q-Bank
-              </button>
-            </div>
-          </div>
-
-          <div className="planner-hero-side">
-            <StethoBuddy />
-            <div className="planner-stat-stack" aria-label="Planner summary">
-              <div>
-                <span>Due today</span>
-                <strong>{dueTodayCount}</strong>
-              </div>
-              <div>
-                <span>Open</span>
-                <strong>{open}</strong>
-              </div>
-              <div>
-                <span>Ready</span>
-                <strong>{readiness}%</strong>
-              </div>
-            </div>
-          </div>
+        <section className="planner-summary-strip" aria-label="Planner summary">
+          <article>
+            <span>Today</span>
+            <strong>{loading ? '...' : dueTodayCount}</strong>
+          </article>
+          <article>
+            <span>Overdue</span>
+            <strong>{loading ? '...' : overdueCount}</strong>
+          </article>
+          <article>
+            <span>In progress</span>
+            <strong>{loading ? '...' : inProgressCount}</strong>
+          </article>
+          <article>
+            <span>Upcoming</span>
+            <strong>{loading ? '...' : upcomingCount}</strong>
+          </article>
+          <article>
+            <span>Study load</span>
+            <strong>{loading ? '...' : (formatMinutes(plannerInsights.estimatedToday) || '0')}</strong>
+          </article>
+          <article>
+            <span>Completed</span>
+            <strong>{loading ? '...' : completedCount}</strong>
+          </article>
         </section>
 
-        <div className="planner-main-grid">
-          <section className="planner-panel planner-today-card">
-            <div className="planner-section-title">
-              <div>
-                <span className="planner-eyebrow">Today's route</span>
-                <h2>{prescription.length} clear steps</h2>
-              </div>
-              <small>{routeDone}/{prescription.length} done · {totalMinutes} min</small>
-            </div>
-
-            <div className="planner-simple-list">
-              {prescription.map((item, index) => (
-                <article className={`planner-simple-task${item.done ? ' is-complete' : ''}`} key={item.id}>
-                  <button
-                    className="planner-step"
-                    type="button"
-                    onClick={() => markDone(item)}
-                    disabled={!item.dbId || item.done || saving === `done-${item.dbId}`}
-                    aria-label={item.done ? `${item.title} completed` : `Mark ${item.title} done`}
-                  >
-                    {item.done ? <Icon name="check" /> : index + 1}
-                  </button>
-                  <div className="planner-task-icon"><Icon name={taskIcon(item.type)} /></div>
-                  <div className="planner-task-text">
-                    <span>{item.type} · {item.time}</span>
-                    <h3>{item.title}</h3>
-                    <p>{item.reason}</p>
-                  </div>
-                  <button type="button" onClick={() => startTask(item)} disabled={saving === item.id}>
-                    {saving === item.id ? 'Opening' : item.action}
-                  </button>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="planner-panel planner-reminder-card">
-            <div className="planner-section-title">
-              <div>
-                <span className="planner-eyebrow">Reminders</span>
-                <h2>Add a study plan</h2>
-              </div>
-              <small>{overdueCount ? `${overdueCount} late` : `${reminderList.length} saved`}</small>
-            </div>
-
-            <form className="planner-reminder-form" onSubmit={addReminder}>
-              <label>
-                <span>Topic</span>
-                <input
-                  type="text"
-                  value={reminderForm.title}
-                  onChange={(event) => setReminderForm((current) => ({ ...current, title: event.target.value }))}
-                  placeholder="Example: Cardiology revision"
-                />
-              </label>
-              <label>
-                <span>Due date</span>
-                <input
-                  type="date"
-                  value={reminderForm.dueDate}
-                  min={today}
-                  onChange={(event) => setReminderForm((current) => ({ ...current, dueDate: event.target.value }))}
-                />
-              </label>
-              <label className="planner-reminder-note">
-                <span>Note</span>
-                <textarea
-                  rows="2"
-                  value={reminderForm.note}
-                  onChange={(event) => setReminderForm((current) => ({ ...current, note: event.target.value }))}
-                  placeholder="What should you revise?"
-                />
-              </label>
-              <button type="submit" disabled={saving === 'reminder'}>
-                <Icon name="plus" /> {saving === 'reminder' ? 'Adding...' : 'Add reminder'}
+        <div className="planner-control-bar">
+          <div className="planner-tabs" role="tablist" aria-label="Planner views">
+            {VIEW_OPTIONS.map((option) => (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === option.key}
+                className={view === option.key ? 'is-active' : ''}
+                key={option.key}
+                onClick={() => setView(option.key)}
+              >
+                {option.label}
               </button>
-            </form>
+            ))}
+          </div>
+          <label className="planner-search">
+            <span>Search planner</span>
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search tasks, lessons, topics"
+            />
+          </label>
+        </div>
 
-            <div className="planner-reminder-list">
-              {reminderList.length ? reminderList.map((task, index) => {
-                const mapped = mapDatabaseTask(task, index);
-                return (
-                  <article className="planner-reminder-item" key={task.id}>
-                    <span><Icon name="calendar" /></span>
-                    <div>
-                      <strong>{cleanTitle(task.title)}</strong>
-                      <p>{formatDaysLeft(task.dueDate, today)} · {formatShortDate(task.dueDate)}</p>
-                    </div>
-                    <button type="button" onClick={() => markDone(mapped)} disabled={saving === `done-${task.id}`}>
-                      Done
-                    </button>
-                  </article>
-                );
-              }) : (
-                <div className="planner-empty-state">
-                  <strong>No reminders yet</strong>
-                  <p>Add one topic and it will show on the dashboard with days left.</p>
-                </div>
-              )}
-            </div>
-          </section>
+        <div className="planner-filter-grid">
+          <label className="planner-course-filter">
+            <span>Course</span>
+            <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
+              <option value="">All courses</option>
+              {agenda.filters.courses.map((course) => (
+                <option value={course} key={course}>{course}</option>
+              ))}
+            </select>
+          </label>
+          <label className="planner-course-filter">
+            <span>Type</span>
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+              {TYPE_FILTER_OPTIONS.map((option) => (
+                <option value={option.value} key={option.value || 'all-types'}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="planner-course-filter">
+            <span>Status</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              {STATUS_FILTER_OPTIONS.map((option) => (
+                <option value={option.value} key={option.value || 'all-statuses'}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          {(courseFilter || typeFilter || statusFilter || searchTerm) ? (
+            <button
+              type="button"
+              className="planner-action is-secondary"
+              onClick={() => {
+                setCourseFilter('');
+                setTypeFilter('');
+                setStatusFilter('');
+                setSearchTerm('');
+              }}
+            >
+              Clear filters
+            </button>
+          ) : null}
         </div>
 
         {message ? <p className="planner-message" role="status">{message}</p> : null}
 
-        <div className="planner-bottom-grid">
-          <section className="planner-panel planner-focus-card">
-            <div className="planner-section-title">
-              <div>
-                <span className="planner-eyebrow">Study focus</span>
-                <h2>Lowest scores</h2>
-              </div>
-              <small>{dashboard?.totalAttempts || 0} attempts</small>
-            </div>
-            <div className="planner-weak-simple">
-              {weakAreas.map((area) => (
-                <div key={area.label}>
-                  <p><span>{area.label}</span><strong>{area.value}%</strong></p>
-                  <i><b style={{ width: `${area.value}%` }} /></i>
+        <div className="planner-layout-grid">
+          <div className="planner-agenda-column">
+            {loading ? (
+              <section className="planner-list-section">
+                <div className="planner-section-heading">
+                  <div>
+                    <h2>Loading planner</h2>
+                    <p>Getting your study agenda</p>
+                  </div>
                 </div>
-              ))}
-            </div>
-            <p className="planner-plain-note">Focus on {mainWeakArea} today. This updates after more quizzes and reviews.</p>
-          </section>
+                <div className="planner-skeleton-list" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </section>
+            ) : sections.length ? sections.map((section) => (
+              <PlannerSection
+                section={section}
+                key={section.key}
+                onAction={handleAction}
+                onTaskStatus={setPersonalTaskStatus}
+                onTaskEdit={startEditTask}
+                onTaskDelete={removePersonalTask}
+                saving={saving}
+              />
+            )) : (
+              <section className="planner-list-section">
+                <div className="planner-empty-row">
+                  No real planner items match this view yet.
+                </div>
+              </section>
+            )}
+          </div>
 
-          <section className="planner-panel planner-week-simple" aria-label="This week plan">
-            <div className="planner-section-title">
-              <div>
-                <span className="planner-eyebrow">Next 7 days</span>
-                <h2>Reminder map</h2>
+          <aside className="planner-side-column" aria-label="Planner details">
+            <section className="planner-side-panel">
+              <div className="planner-side-heading">
+                <h2>Today's focus</h2>
+                <span>{dashboard?.quizDayStreak ? `${dashboard.quizDayStreak} day streak` : 'Dashboard'}</span>
               </div>
-              <button type="button" onClick={addCatchUp} disabled={saving === 'fix'}>
-                <Icon name="tools" /> {saving === 'fix' ? 'Adding...' : 'Add catch-up'}
-              </button>
-            </div>
-            <div className="planner-week-row">
-              {weekItems.map((item) => (
-                <div className={`planner-week-day is-${item.tone}`} key={item.key}>
-                  <span>{item.day}</span>
-                  <b>{item.date}</b>
-                  <strong>{item.label}</strong>
+              <div className="planner-focus-box">
+                <strong>{dashboard?.focusTopic || 'No focus topic yet'}</strong>
+                <p>{dashboard?.focusCourse || 'Complete lessons or quizzes to build planner signals.'}</p>
+              </div>
+              <div className="planner-goal-list">
+                {(dashboard?.dailyGoals || []).map((goal) => (
+                  <div className={goal.completed ? 'is-done' : ''} key={goal.key || goal.title}>
+                    <span>{goal.completed ? 'Done' : 'Open'}</span>
+                    <p>{goal.title}</p>
+                    <small>{goal.progressText}</small>
+                  </div>
+                ))}
+                {dashboard?.dailyGoals?.length ? null : (
+                  <div>
+                    <span>Open</span>
+                    <p>Start a quiz or lesson to generate daily goals.</p>
+                    <small>No dashboard goal yet</small>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="planner-side-panel">
+              <div className="planner-side-heading">
+                <h2>Study load</h2>
+                <span>{plannerInsights.completionRate}% done</span>
+              </div>
+              <div className="planner-insight-grid">
+                <div>
+                  <span>Today</span>
+                  <strong>{formatMinutes(plannerInsights.estimatedToday) || '0 min'}</strong>
                 </div>
-              ))}
-            </div>
-          </section>
+                <div>
+                  <span>This week</span>
+                  <strong>{formatMinutes(plannerInsights.estimatedWeek) || '0 min'}</strong>
+                </div>
+                <div>
+                  <span>High priority</span>
+                  <strong>{plannerInsights.highPriority}</strong>
+                </div>
+                <div>
+                  <span>Locked</span>
+                  <strong>{plannerInsights.locked}</strong>
+                </div>
+              </div>
+              <div className="planner-focus-box">
+                <strong>Next dated item</strong>
+                <p>{plannerInsights.nextDueLabel}</p>
+              </div>
+            </section>
+
+            <section className="planner-side-panel">
+              <div className="planner-side-heading">
+                <h2>Smart suggestions</h2>
+                <span>{visibleSuggestions.length} ready</span>
+              </div>
+              <div className="planner-suggestion-list">
+                {visibleSuggestions.length ? visibleSuggestions.map((suggestion) => (
+                  <div key={suggestion.key}>
+                    <span className={`planner-priority-pill is-${suggestion.priority}`}>{titleCase(suggestion.priority)}</span>
+                    <strong>{suggestion.title}</strong>
+                    <p>{suggestion.description}</p>
+                    <small>{suggestion.dueInDays === 0 ? 'Suggested for today' : suggestion.dueInDays ? `Suggested in ${suggestion.dueInDays} day${suggestion.dueInDays === 1 ? '' : 's'}` : 'Suggested task'}</small>
+                    <button
+                      type="button"
+                      className="planner-action is-secondary"
+                      onClick={() => addSuggestionTask(suggestion)}
+                      disabled={saving === `suggestion:${suggestion.key}`}
+                    >
+                      {saving === `suggestion:${suggestion.key}` ? 'Adding...' : 'Add'}
+                    </button>
+                  </div>
+                )) : (
+                  <div className="planner-empty-row">No new suggestions right now.</div>
+                )}
+              </div>
+            </section>
+
+            <section className="planner-side-panel">
+              <div className="planner-side-heading">
+                <h2>{editingTaskId ? 'Edit task' : 'Personal tasks'}</h2>
+                <span>{personalTasks.filter((item) => item.status !== 'completed').length} open</span>
+              </div>
+              <form className="planner-task-form" onSubmit={addPersonalTask}>
+                <label>
+                  <span>Task</span>
+                  <input
+                    type="text"
+                    value={taskForm.title}
+                    onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))}
+                    placeholder="Add a study task"
+                  />
+                </label>
+                <div className="planner-task-form__grid">
+                  <label>
+                    <span>Due date</span>
+                    <input
+                      type="date"
+                      value={taskForm.dueDate}
+                      onChange={(event) => setTaskForm((current) => ({ ...current, dueDate: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    <span>Minutes</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="5"
+                      value={taskForm.estimatedMinutes}
+                      onChange={(event) => setTaskForm((current) => ({ ...current, estimatedMinutes: event.target.value }))}
+                      placeholder="30"
+                    />
+                  </label>
+                </div>
+                <div className="planner-task-form__grid">
+                  <label>
+                    <span>Category</span>
+                    <select
+                      value={taskForm.category}
+                      onChange={(event) => setTaskForm((current) => ({ ...current, category: event.target.value }))}
+                    >
+                      {TASK_CATEGORIES.map((option) => (
+                        <option value={option.value} key={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Priority</span>
+                    <select
+                      value={taskForm.priority}
+                      onChange={(event) => setTaskForm((current) => ({ ...current, priority: event.target.value }))}
+                    >
+                      {TASK_PRIORITIES.map((option) => (
+                        <option value={option.value} key={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  <span>Note</span>
+                  <textarea
+                    rows="2"
+                    value={taskForm.description}
+                    onChange={(event) => setTaskForm((current) => ({ ...current, description: event.target.value }))}
+                    placeholder="Optional"
+                  />
+                </label>
+                <div className="planner-task-form__actions">
+                  <button type="submit" disabled={saving === 'task-form'}>
+                    {saving === 'task-form' ? (editingTaskId ? 'Saving...' : 'Adding...') : editingTaskId ? 'Save changes' : 'Add task'}
+                  </button>
+                  {editingTaskId ? (
+                    <button type="button" className="is-secondary" onClick={cancelEditTask}>
+                      Cancel
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            </section>
+          </aside>
         </div>
       </div>
     </main>

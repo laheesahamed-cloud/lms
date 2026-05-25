@@ -203,9 +203,35 @@ function getLessonActionLabel(lesson) {
 
 function getLessonStateLabel(lesson) {
   if (lesson.accessLocked) return 'Locked';
-  if (lesson.status === 'completed') return 'Done';
-  if (lesson.status === 'in_progress') return 'In Progress';
-  return 'Ready';
+  if (lesson.status === 'completed') return 'Completed';
+  if (lesson.status === 'in_progress') return 'Current';
+  return 'Available';
+}
+
+function getLessonProgressValue(lesson) {
+  if (lesson.accessLocked) return 0;
+  if (lesson.status === 'completed') return 100;
+  return clampPercent(lesson.progressPercent);
+}
+
+function getLessonMetaItems(lesson) {
+  const items = [];
+  const progress = getLessonProgressValue(lesson);
+
+  if (lesson.accessLocked) {
+    items.push(lesson.accessMessage || 'Included with selected plans');
+  } else if (lesson.status === 'completed') {
+    items.push('Ready to review');
+  } else if (progress > 0) {
+    items.push(`${progress}% complete`);
+  } else {
+    items.push(lesson.duration || '~15 min');
+  }
+
+  if (lesson.lessonType) items.push(lesson.lessonType);
+  if (lesson.isFree) items.push('Free access');
+
+  return items.slice(0, 2);
 }
 
 export function CourseDetailPage() {
@@ -477,8 +503,9 @@ export function CourseDetailPage() {
         <section className="course-map-shell" aria-label="Course lesson map">
           <div className="course-map-shell__head">
             <div>
-              <span className="course-map-eyebrow">Course Hierarchy</span>
-              <h2>Subjects, Topics, Lessons</h2>
+              <span className="course-map-eyebrow">Learning Path</span>
+              <h2>Lesson Map</h2>
+              <p>Follow the lessons in order and unlock your progress.</p>
             </div>
             <span className="course-map-count">{course.completedLessonsCount || 0} / {course.totalLessonsCount || 0} done</span>
           </div>
@@ -532,6 +559,8 @@ export function CourseDetailPage() {
                               topicName: topic.topicName,
                             };
                             const stateLabel = getLessonStateLabel(lesson);
+                            const lessonProgress = getLessonProgressValue(lesson);
+                            const lessonMetaItems = getLessonMetaItems(lesson);
 
                             return (
                               <div
@@ -539,6 +568,7 @@ export function CourseDetailPage() {
                                   'course-map-lesson-row',
                                   lesson.status === 'completed' && 'is-done',
                                   lesson.status === 'in_progress' && 'is-active',
+                                  !lesson.accessLocked && lesson.status === 'not_started' && 'is-available',
                                   lesson.accessLocked && 'is-locked'
                                 )}
                                 key={lesson.id}
@@ -550,12 +580,18 @@ export function CourseDetailPage() {
                                   onClick={() => handleOpenLesson(lessonContext)}
                                   disabled={busyLessonId === lesson.id}
                                 >
-                                  <span>{subjectIndex + 1}.{topicIndex + 1}.{lessonIndex + 1}</span>
+                                  <span className="course-map-lesson-order">{subjectIndex + 1}.{topicIndex + 1}.{lessonIndex + 1}</span>
                                   <span className="course-map-lesson-glyph">
                                     <LessonGlyph lesson={lesson} />
                                   </span>
-                                  <strong>{lesson.lessonTitle}</strong>
-                                  {lesson.isFree ? <em>Free</em> : null}
+                                  <span className="course-map-lesson-copy">
+                                    <strong>{lesson.lessonTitle}</strong>
+                                    <span className="course-map-lesson-meta">
+                                      {lessonMetaItems.map((item) => (
+                                        <em key={item}>{item}</em>
+                                      ))}
+                                    </span>
+                                  </span>
                                 </button>
 
                                 <span className={cx('course-map-status', statusTone(lesson.status))}>{stateLabel}</span>
@@ -569,6 +605,10 @@ export function CourseDetailPage() {
                                 >
                                   {busyLessonId === lesson.id ? 'Opening...' : getLessonActionLabel(lesson)}
                                 </button>
+
+                                <div className="course-map-lesson-progress" aria-label={`${lessonProgress} percent complete`}>
+                                  <span style={{ width: `${lessonProgress}%` }} />
+                                </div>
                               </div>
                             );
                           })}

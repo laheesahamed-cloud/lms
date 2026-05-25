@@ -44,6 +44,9 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'users', 'session_expires_at', 'DATETIME NULL AFTER session_token');
       await this.ensureColumn(connection, 'users', 'password_reset_token', 'VARCHAR(128) NULL AFTER session_expires_at');
       await this.ensureColumn(connection, 'users', 'password_reset_expires_at', 'DATETIME NULL AFTER password_reset_token');
+      await this.ensureColumn(connection, 'study_planner_tasks', 'category', "ENUM('general','lesson','quiz','exam','review','flashcards') NOT NULL DEFAULT 'general' AFTER status");
+      await this.ensureColumn(connection, 'study_planner_tasks', 'priority', "ENUM('low','medium','high') NOT NULL DEFAULT 'medium' AFTER category");
+      await this.ensureColumn(connection, 'study_planner_tasks', 'estimated_minutes', 'INT NULL AFTER priority');
       await this.ensureColumn(connection, 'ai_illustrated_notes', 'is_public',   "TINYINT NOT NULL DEFAULT 1");
       await this.ensureColumn(connection, 'ai_illustrated_notes', 'course_id',   'INT NULL');
       await this.ensureColumn(connection, 'ai_illustrated_notes', 'topic_id',    'INT NULL');
@@ -492,6 +495,9 @@ export class SchemaSyncService implements OnModuleInit {
         description TEXT NULL,
         due_date DATE NULL,
         status ENUM('todo','done') NOT NULL DEFAULT 'todo',
+        category ENUM('general','lesson','quiz','exam','review','flashcards') NOT NULL DEFAULT 'general',
+        priority ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
+        estimated_minutes INT NULL,
         sort_order INT NOT NULL DEFAULT 0,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

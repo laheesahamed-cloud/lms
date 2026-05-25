@@ -6,12 +6,57 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
-function getPlanEndDate(plan) {
+function getPlanDurationLabel(plan) {
   const days = Number(plan?.durationDays || 0);
-  if (!days) return '';
-  const date = new Date();
-  date.setDate(date.getDate() + Math.max(1, days) - 1);
-  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  if (!days) return 'Plan duration is confirmed after checkout';
+  if (days % 30 === 0) {
+    const months = Math.round(days / 30);
+    return `${months} month${months === 1 ? '' : 's'} of access`;
+  }
+  return `${days} day${days === 1 ? '' : 's'} of access`;
+}
+
+function getAccessScopeLabel(accessScope, courseIds, lessonIds) {
+  if (accessScope === 'courses') {
+    const count = courseIds.length;
+    return count ? `${count} selected course${count === 1 ? '' : 's'}` : 'Selected course access';
+  }
+  if (accessScope === 'lessons') {
+    const count = lessonIds.length;
+    return count ? `${count} selected lesson${count === 1 ? '' : 's'}` : 'Selected lesson access';
+  }
+  return 'Full plan coverage';
+}
+
+function getPlanBenefitGroups(plan) {
+  const featureKeys = new Set((Array.isArray(plan?.enabledFeatures) ? plan.enabledFeatures : [])
+    .map((feature) => String(feature.featureKey || feature.key || '').trim())
+    .filter(Boolean));
+
+  const groups = [
+    {
+      label: 'Learn',
+      detail: 'Lessons and study materials',
+      keys: ['lessons_access_full', 'lessons_access_limited', 'notes_canvas_study_mode'],
+    },
+    {
+      label: 'Practice',
+      detail: 'Question practice and exam preparation',
+      keys: ['question_bank_full', 'question_bank_limited', 'practice_mode', 'exam_mode', 'mock_paper_access', 'past_paper_access'],
+    },
+    {
+      label: 'Review',
+      detail: 'Results, progress, and revision history',
+      keys: ['results_tracking', 'progress_tracking_basic', 'progress_tracking_advanced', 'performance_analytics', 'weak_area_analysis'],
+    },
+    {
+      label: 'Support',
+      detail: 'Help tools and student support features',
+      keys: ['report_question', 'ai_quiz_generator'],
+    },
+  ];
+
+  return groups.filter((group) => group.keys.some((key) => featureKeys.has(key))).slice(0, 3);
 }
 
 function submitHostedCheckout(checkout) {
@@ -104,6 +149,8 @@ export function StudentCheckoutPage() {
   const plan = useMemo(() => {
     return billing.availablePlans.find((item) => String(item?.id) === String(planId)) || null;
   }, [billing.availablePlans, planId]);
+  const planBenefitGroups = useMemo(() => getPlanBenefitGroups(plan), [plan]);
+  const accessScopeLabel = useMemo(() => getAccessScopeLabel(accessScope, courseIds, lessonIds), [accessScope, courseIds, lessonIds]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -219,12 +266,43 @@ export function StudentCheckoutPage() {
                   <span className="ml-2 text-sm font-semibold text-ink-muted line-through">{plan.currency} {Number(plan.regularPrice).toFixed(2)}</span>
                 ) : null}
               </div>
-              <div className={ui.tableSubtext}>Access ends on {getPlanEndDate(plan)}</div>
-              {customSelectionNote ? <div className={ui.feedbackSuccess}>{customSelectionNote}</div> : null}
-              <div className="flex flex-wrap gap-2">
-                {(Array.isArray(plan.enabledFeatures) ? plan.enabledFeatures : []).slice(0, 10).map((feature) => (
-                  <span className={ui.tablePill} key={feature.id}>{feature.featureName}</span>
-                ))}
+              <div className="grid gap-3 rounded-xl border border-line-soft bg-surface-2 p-3.5">
+                <div>
+                  <span className={ui.eyebrow}>Quick summary</span>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-extrabold text-ink-soft">
+                    <span className={ui.tablePill}>ERPM LMS</span>
+                    <span aria-hidden="true">/</span>
+                    <span className={ui.tablePill}>{plan.name}</span>
+                    <span aria-hidden="true">/</span>
+                    <span className={ui.tablePill}>{accessScopeLabel}</span>
+                  </div>
+                </div>
+
+                <div className="grid gap-2 text-[13px] leading-relaxed text-ink-soft">
+                  <div className="flex items-start justify-between gap-3 rounded-lg bg-surface-card px-3 py-2">
+                    <span>Duration</span>
+                    <strong className="text-right text-ink-strong">{getPlanDurationLabel(plan)}</strong>
+                  </div>
+                  <div className="flex items-start justify-between gap-3 rounded-lg bg-surface-card px-3 py-2">
+                    <span>Activation</span>
+                    <strong className="text-right text-ink-strong">After payment confirmation</strong>
+                  </div>
+                </div>
+
+                {customSelectionNote ? <div className={ui.feedbackSuccess}>{customSelectionNote}</div> : null}
+
+                {planBenefitGroups.length ? (
+                  <div className="grid gap-2">
+                    {planBenefitGroups.map((group) => (
+                      <div className="flex items-start justify-between gap-3 rounded-lg border border-line-soft bg-surface-card px-3 py-2" key={group.label}>
+                        <div>
+                          <strong className="block text-[13px] text-ink-strong">{group.label}</strong>
+                          <span className="text-[12px] leading-relaxed text-ink-soft">{group.detail}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </section>
 

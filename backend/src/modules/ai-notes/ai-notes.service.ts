@@ -281,7 +281,7 @@ export class AiNotesService {
     const hasNotesAccess = await this.plansService.hasFeatureAccess(student.id, 'notes_canvas_study_mode');
     const accessProfile = await this.getLessonAccessProfile(student.id);
     const [rows] = await this.db.execute<AiNoteRow[]>(`
-      SELECT n.id, n.title, NULL AS note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
+      SELECT n.id, n.title, n.note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
              COALESCE(n.course_id, l.course_id) AS effective_course_id,
              COALESCE(n.topic_id, l.topic_id) AS effective_topic_id,
              COALESCE(n.subtopic_id, l.subtopic_id) AS effective_subtopic_id,
@@ -299,7 +299,7 @@ export class AiNotesService {
       WHERE n.is_public = 1 AND n.note_data IS NOT NULL AND n.status = 'active'
         AND n.engine_key = ?
       ORDER BY c.course_title ASC, t.topic_name ASC, n.updated_at DESC`, [student.id, engineKey]);
-    return rows.map((row) => this.mapStudentNote(row, hasNotesAccess, accessProfile));
+    return rows.map((row) => this.mapStudentNote(row, hasNotesAccess, accessProfile, { includeNoteData: false }));
   }
 
   async studentFindOne(id: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
@@ -324,7 +324,7 @@ export class AiNotesService {
       LEFT JOIN subtopics s ON s.id = COALESCE(n.subtopic_id, l.subtopic_id)
       WHERE n.id = ? AND n.is_public = 1 AND n.status = 'active' AND n.engine_key = ?`, [student.id, id, engineKey]);
     if (!rows.length) throw new NotFoundException('Lesson not found');
-    return this.mapStudentNote(rows[0], hasNotesAccess, accessProfile);
+    return this.mapStudentNote(rows[0], hasNotesAccess, accessProfile, { includeNoteData: true });
   }
 
   async studentFindByLesson(lessonId: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
@@ -355,7 +355,7 @@ export class AiNotesService {
       ORDER BY n.updated_at DESC
       LIMIT 1`, [student.id, lessonId, engineKey]);
     if (!rows.length) throw new NotFoundException('Lesson not found');
-    return this.mapStudentNote(rows[0], hasNotesAccess, accessProfile);
+    return this.mapStudentNote(rows[0], hasNotesAccess, accessProfile, { includeNoteData: true });
   }
 
   // ── Hierarchy lookups (admin) ─────────────────────────────
@@ -1036,12 +1036,46 @@ export class AiNotesService {
     return false;
   }
 
-  private mapStudentNote(row: AiNoteRow, hasNotesAccess: boolean, accessProfile: LessonAccessProfile) {
+  private estimateFlashcardCount(noteData: unknown) {
+    const pages = Array.isArray((noteData as { pages?: unknown[] } | null)?.pages)
+      ? (noteData as { pages: unknown[] }).pages
+      : [];
+
+    return pages.reduce<number>((total, page) => {
+      const row = page as {
+        sections?: Array<{ heading?: unknown; bullets?: unknown[]; callout?: unknown; mnemonic?: unknown }>;
+        summary_box?: unknown;
+        key_points?: unknown[];
+      };
+      const sectionCount = Array.isArray(row.sections)
+        ? row.sections.reduce((count, section) => {
+            const hasHeading = String(section?.heading || '').trim().length > 0;
+            const hasBullets = Array.isArray(section?.bullets) && section.bullets.some((item) => String(item || '').trim());
+            const hasCallout = String(section?.callout || '').trim().length > 0;
+            const hasMnemonic = String(section?.mnemonic || '').trim().length > 0;
+            return count + (hasHeading && (hasBullets || hasCallout) ? 1 : 0) + (hasMnemonic ? 1 : 0);
+          }, 0)
+        : 0;
+      const summaryCount = String(row.summary_box || '').trim() ? 1 : 0;
+      const keyPointCount = Array.isArray(row.key_points)
+        ? row.key_points.filter((point) => String(point || '').trim()).length
+        : 0;
+      return total + sectionCount + summaryCount + keyPointCount;
+    }, 0);
+  }
+
+  private mapStudentNote(
+    row: AiNoteRow,
+    hasNotesAccess: boolean,
+    accessProfile: LessonAccessProfile,
+    options: { includeNoteData?: boolean } = {},
+  ) {
     const note = this.deserialize(row);
     const canAccess = this.canAccessStudentNote(note, hasNotesAccess, accessProfile);
     const hasStudyMode = hasNotesAccess || note.isFree;
     return {
       ...note,
+      cardCount: this.estimateFlashcardCount(note.noteData),
       canAccess,
       accessLocked: !canAccess,
       upgradeLabel: hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',
@@ -1050,7 +1084,7 @@ export class AiNotesService {
           ? 'Your package only unlocks selected course or lesson content.'
           : 'Upgrade to access this feature'
         : '',
-      noteData: canAccess ? note.noteData : null,
+      noteData: options.includeNoteData && canAccess ? note.noteData : null,
     };
   }
 

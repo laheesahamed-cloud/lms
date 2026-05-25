@@ -20,12 +20,13 @@ import {
   fetchSubscriptionAdminMeta,
   fetchSubscriptionAudit,
   fetchSubscriptionInvoice,
+  fetchSubscriptionPaymentProof,
   renewSubscription,
   resolveSubscriptionRequest,
   updateSubscriptionCoupon,
   updateSubscriptionPayment,
 } from '../../../../shared/api/subscriptions.api.js';
-import { API_BASE_URL, getErrorMessage } from '../../../../shared/api/client.js';
+import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -366,8 +367,8 @@ function EntityModal({ open, title, subtitle, children, onClose, wide = false })
   );
 }
 
-function resolveProofPreviewUrl(rawPath) {
-  const text = String(rawPath || '');
+async function resolveProofPreviewUrl(request) {
+  const text = String(request?.paymentProofDataUrl || '');
   if (!text) {
     throw new Error('Missing proof file');
   }
@@ -382,11 +383,11 @@ function resolveProofPreviewUrl(rawPath) {
     return { url: text, revoke: false };
   }
   if (text.startsWith('/uploads/')) {
-    const protectedPath = text.replace(/^\/uploads\/payment-proofs\//, '/uploads/payment-proofs/');
-    if (protectedPath !== text) {
-      return { url: `${API_BASE_URL}${protectedPath}`, revoke: false };
+    if (!request?.invoiceId) {
+      throw new Error('Missing payment proof invoice');
     }
-    return { url: `${API_BASE_URL.replace(/\/api\/?$/i, '')}${text}`, revoke: false };
+    const proofBlob = await fetchSubscriptionPaymentProof(request.invoiceId);
+    return { url: URL.createObjectURL(proofBlob), revoke: true };
   }
 
   const match = text.match(/^data:([^;,]+);base64,(.+)$/);
@@ -410,23 +411,29 @@ function BankTransferProofPreview({ request }) {
   const isPdf = String(request?.paymentProofMime || '').toLowerCase().includes('pdf');
 
   useEffect(() => {
+    let cancelled = false;
     let resolved = { url: '', revoke: false };
     setPreviewUrl('');
     setPreviewError('');
 
-    try {
-      resolved = resolveProofPreviewUrl(request?.paymentProofDataUrl);
-      setPreviewUrl(resolved.url);
-    } catch {
-      setPreviewError('Unable to preview this uploaded proof. Try downloading it or ask the student to upload it again.');
+    async function loadPreview() {
+      try {
+        resolved = await resolveProofPreviewUrl(request);
+        if (!cancelled) setPreviewUrl(resolved.url);
+      } catch {
+        if (!cancelled) setPreviewError('Unable to preview this uploaded proof. Try downloading it or ask the student to upload it again.');
+      }
     }
 
+    loadPreview();
+
     return () => {
+      cancelled = true;
       if (resolved.revoke && resolved.url) {
         URL.revokeObjectURL(resolved.url);
       }
     };
-  }, [request?.paymentProofDataUrl]);
+  }, [request?.invoiceId, request?.paymentProofDataUrl]);
 
   return (
     <div className="grid gap-4 px-6 pb-6 pt-[22px]">

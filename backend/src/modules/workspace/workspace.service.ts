@@ -19,6 +19,47 @@ type AdminReportFilters = {
   userId: number | null;
 };
 
+type PlannerAgendaItem = {
+  id: string;
+  source: 'planner_task' | 'lesson_progress' | 'quiz' | 'review_signal';
+  sourceId: number | null;
+  type: 'task' | 'lesson' | 'quiz' | 'exam' | 'review' | 'flashcards';
+  title: string;
+  course: string;
+  subject: string;
+  topic: string;
+  lesson: string;
+  status: 'due_today' | 'overdue' | 'upcoming' | 'in_progress' | 'completed' | 'locked' | 'optional';
+  dueAt: string | null;
+  completedAt: unknown;
+  progress: number | null;
+  actionUrl: string;
+  actionLabel: string;
+  locked: boolean;
+  accessMessage: string;
+  priority: number;
+  meta?: Record<string, unknown>;
+};
+
+type PlannerTaskCategory = 'general' | 'lesson' | 'quiz' | 'exam' | 'review' | 'flashcards';
+type PlannerTaskPriority = 'low' | 'medium' | 'high';
+
+const PLANNER_TASK_CATEGORIES = ['general', 'lesson', 'quiz', 'exam', 'review', 'flashcards'] as const;
+const PLANNER_TASK_PRIORITIES = ['low', 'medium', 'high'] as const;
+
+type PlannerQuizAccessScopeRow = RowDataPacket & {
+  feature_key: string | null;
+  plan_slug: string | null;
+  access_scope: 'all' | 'courses' | 'lessons' | null;
+  course_ids_json: string | null;
+};
+
+type PlannerQuizAccessProfile = {
+  hasAnyPaidQuizAccess: boolean;
+  hasFullAccess: boolean;
+  courseIds: Set<number>;
+};
+
 const ADMIN_REPORT_FILTER_COLUMNS = [
   'COALESCE(qa.submitted_at, qa.created_at)',
   'qa.user_id',
@@ -201,13 +242,147 @@ export class WorkspaceService {
   async listPlannerTasks(authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
     const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, title, description, due_date, status, created_at
+      `SELECT id, title, description, due_date, status, category, priority, estimated_minutes, created_at, updated_at
        FROM study_planner_tasks
        WHERE user_id = ?
        ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC`,
       [student.id]
     );
     return rows.map(this.mapPlannerTask);
+  }
+
+  async getPlannerAgenda(authorization?: string) {
+    const student = await this.authService.requireStudent(authorization);
+    const today = this.todayDateKey();
+    const quizAccessProfile = await this.getPlannerQuizAccessProfile(student.id);
+
+    const [taskRows, lessonRows, quizRows, reviewRows] = await Promise.all([
+      this.db.execute<RowDataPacket[]>(
+        `SELECT id, title, description, due_date, status, category, priority, estimated_minutes, created_at, updated_at
+         FROM study_planner_tasks
+         WHERE user_id = ?
+         ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC
+         LIMIT 80`,
+        [student.id]
+      ),
+      this.db.execute<RowDataPacket[]>(
+        `SELECT
+           slp.lesson_id,
+           slp.status AS progress_status,
+           slp.progress_percent,
+           slp.started_at,
+           slp.completed_at,
+           slp.updated_at,
+           l.lesson_title,
+           c.course_title,
+           subj.topic_name AS subject_name,
+           sub.subtopic_name AS topic_name
+         FROM student_lesson_progress slp
+         INNER JOIN lessons l ON l.id = slp.lesson_id AND l.status = 'active'
+         LEFT JOIN courses c ON c.id = l.course_id
+         LEFT JOIN topics subj ON subj.id = l.topic_id
+         LEFT JOIN subtopics sub ON sub.id = l.subtopic_id
+         WHERE slp.user_id = ?
+         ORDER BY FIELD(slp.status, 'in_progress', 'not_started', 'completed'), slp.updated_at DESC, slp.lesson_id DESC
+         LIMIT 36`,
+        [student.id]
+      ),
+      this.db.execute<RowDataPacket[]>(
+        `SELECT
+           q.id,
+           q.course_id,
+           q.is_free,
+           q.exam_mode_only,
+           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
+           q.total_questions,
+           q.time_limit,
+           q.created_at AS quiz_created_at,
+           c.course_title,
+           subj.topic_name AS subject_name,
+           sub.subtopic_name AS topic_name,
+           l.lesson_title,
+           ps.id AS practice_session_id,
+           ps.last_question_index,
+           ps.updated_at AS practice_updated_at,
+           (
+             SELECT COUNT(DISTINCT pa.question_id)
+             FROM practice_answers pa
+             WHERE pa.practice_session_id = ps.id
+           ) AS practice_answered_count,
+           (
+             SELECT COUNT(*)
+             FROM practice_sessions cps
+             WHERE cps.quiz_id = q.id
+               AND cps.user_id = ?
+               AND cps.status = 'completed'
+           ) AS practice_completed_count,
+           (
+             SELECT COUNT(*)
+             FROM quiz_attempts qa
+             WHERE qa.quiz_id = q.id
+               AND qa.user_id = ?
+               AND qa.status = 'submitted'
+           ) AS exam_attempt_count
+         FROM quizzes q
+         INNER JOIN courses c ON c.id = q.course_id
+         LEFT JOIN topics subj ON subj.id = q.topic_id
+         LEFT JOIN subtopics sub ON sub.id = q.subtopic_id
+         LEFT JOIN lessons l ON l.id = q.lesson_id
+         LEFT JOIN practice_sessions ps
+           ON ps.quiz_id = q.id
+          AND ps.user_id = ?
+          AND ps.status = 'in_progress'
+         WHERE q.status = 'active'
+         ORDER BY ps.updated_at IS NULL ASC, ps.updated_at DESC, q.created_at DESC, q.id DESC
+         LIMIT 60`,
+        [student.id, student.id, student.id]
+      ),
+      this.db.execute<RowDataPacket[]>(
+        `SELECT
+           c.course_title,
+           subj.topic_name AS subject_name,
+           sub.subtopic_name AS topic_name,
+           l.lesson_title,
+           qn.question_type,
+           COUNT(*) AS miss_count,
+           MAX(COALESCE(qa.submitted_at, qa.created_at)) AS latest_missed_at
+         FROM student_answers sa
+         INNER JOIN quiz_attempts qa ON qa.id = sa.attempt_id
+         INNER JOIN questions qn ON qn.id = sa.question_id
+         INNER JOIN question_options qo ON qo.id = sa.option_id
+         LEFT JOIN courses c ON c.id = qn.course_id
+         LEFT JOIN topics subj ON subj.id = qn.topic_id
+         LEFT JOIN subtopics sub ON sub.id = qn.subtopic_id
+         LEFT JOIN lessons l ON l.id = qn.lesson_id
+         WHERE qa.user_id = ?
+           AND qa.status = 'submitted'
+           AND COALESCE(qa.submitted_at, qa.created_at) >= DATE_SUB(NOW(), INTERVAL 45 DAY)
+           AND (
+             (qn.question_type = 'sba' AND sa.is_selected = 1 AND qo.is_correct = 0)
+             OR (qn.question_type = 'true_false' AND sa.is_selected <> qo.is_correct)
+           )
+         GROUP BY c.course_title, subj.topic_name, sub.subtopic_name, l.lesson_title, qn.question_type
+         ORDER BY miss_count DESC, latest_missed_at DESC
+         LIMIT 8`,
+        [student.id]
+      ),
+    ]);
+
+    const personalItems = taskRows[0].map((row) => this.mapPlannerAgendaTask(row, today));
+    const lessonItems = lessonRows[0].map((row) => this.mapPlannerAgendaLesson(row));
+    const quizItems = quizRows[0].map((row) => this.mapPlannerAgendaQuiz(row, quizAccessProfile));
+    const reviewItems = reviewRows[0].map((row, index) => this.mapPlannerAgendaReview(row, index, today));
+    const items = [...personalItems, ...lessonItems, ...quizItems, ...reviewItems]
+      .filter((item) => item.title)
+      .sort((left, right) => this.comparePlannerAgendaItems(left, right))
+      .slice(0, 120);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      items,
+      filters: this.buildPlannerAgendaFilters(items),
+      summary: this.summarizePlannerAgenda(items),
+    };
   }
 
   async listPlannerSuggestions(authorization?: string) {
@@ -250,6 +425,14 @@ export class WorkspaceService {
       description: `${String(row.course_title || 'Course')} average is ${Number(row.average_percentage || 0).toFixed(1)}%. Revisit notes, then do practice questions.`,
       dueInDays: index + 1,
       priority: index === 0 ? 'high' : 'medium',
+      task: {
+        title: `Review ${String(row.topic_name || 'weak topic')}`,
+        description: `${String(row.course_title || 'Course')} average is ${Number(row.average_percentage || 0).toFixed(1)}%. Revisit notes, then do practice questions.`,
+        dueDate: this.addDaysDateKey(index + 1),
+        category: 'review',
+        priority: index === 0 ? 'high' : 'medium',
+        estimatedMinutes: 30,
+      },
     }));
 
     if (Number(wrongRows[0]?.wrong_questions || 0) > 0) {
@@ -259,19 +442,37 @@ export class WorkspaceService {
         description: `${Number(wrongRows[0].wrong_questions || 0)} questions have recent wrong-answer signals. Review explanations before another full quiz.`,
         dueInDays: 1,
         priority: 'high',
+        task: {
+          title: 'Redo missed questions',
+          description: `${Number(wrongRows[0].wrong_questions || 0)} questions have recent wrong-answer signals. Review explanations before another full quiz.`,
+          dueDate: this.addDaysDateKey(1),
+          category: 'quiz',
+          priority: 'high',
+          estimatedMinutes: 35,
+        },
       });
     }
 
+    const catchUpTitle = attempts === 0 ? 'Set a baseline quiz' : avgScore < 55 ? 'Catch-up revision block' : 'Maintain study streak';
+    const catchUpDescription = attempts === 0
+      ? 'Take one short practice quiz so the planner can adapt to real performance.'
+      : avgScore < 55
+        ? 'Schedule a 30-minute review block before your next exam attempt.'
+        : 'Add one light recall task to keep momentum active.';
     suggestions.push({
       key: 'catch-up',
-      title: attempts === 0 ? 'Set a baseline quiz' : avgScore < 55 ? 'Catch-up revision block' : 'Maintain study streak',
-      description: attempts === 0
-        ? 'Take one short practice quiz so the planner can adapt to real performance.'
-        : avgScore < 55
-          ? 'Schedule a 30-minute review block before your next exam attempt.'
-          : 'Add one light recall task to keep momentum active.',
+      title: catchUpTitle,
+      description: catchUpDescription,
       dueInDays: 0,
       priority: avgScore < 55 ? 'high' : 'medium',
+      task: {
+        title: catchUpTitle,
+        description: catchUpDescription,
+        dueDate: this.todayDateKey(),
+        category: attempts === 0 ? 'quiz' : 'review',
+        priority: avgScore < 55 ? 'high' : 'medium',
+        estimatedMinutes: attempts === 0 ? 20 : 30,
+      },
     });
 
     return suggestions.slice(0, 5);
@@ -282,9 +483,14 @@ export class WorkspaceService {
     const title = this.requiredString(input?.title, 'Task title');
     const description = this.optionalString(input?.description);
     const dueDate = this.optionalDate(input?.dueDate);
+    const category = this.normalizePlannerTaskCategory(input?.category);
+    const priority = this.normalizePlannerTaskPriority(input?.priority);
+    const estimatedMinutes = this.optionalPlannerEstimatedMinutes(input?.estimatedMinutes);
     const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO study_planner_tasks (user_id, title, description, due_date, status) VALUES (?, ?, ?, ?, 'todo')`,
-      [student.id, title, description, dueDate]
+      `INSERT INTO study_planner_tasks
+         (user_id, title, description, due_date, status, category, priority, estimated_minutes)
+       VALUES (?, ?, ?, ?, 'todo', ?, ?, ?)`,
+      [student.id, title, description, dueDate, category, priority, estimatedMinutes]
     );
     return { ok: true, id: result.insertId };
   }
@@ -312,6 +518,18 @@ export class WorkspaceService {
       if (!status) throw new BadRequestException('Planner task status is invalid');
       updates.push('status = ?');
       values.push(status);
+    }
+    if (input?.category !== undefined) {
+      updates.push('category = ?');
+      values.push(this.normalizePlannerTaskCategory(input.category));
+    }
+    if (input?.priority !== undefined) {
+      updates.push('priority = ?');
+      values.push(this.normalizePlannerTaskPriority(input.priority));
+    }
+    if (input?.estimatedMinutes !== undefined) {
+      updates.push('estimated_minutes = ?');
+      values.push(this.optionalPlannerEstimatedMinutes(input.estimatedMinutes));
     }
     if (!updates.length) {
       return { ok: true, id };
@@ -659,6 +877,286 @@ export class WorkspaceService {
     return { ok: true, id };
   }
 
+  private mapPlannerAgendaTask(row: RowDataPacket, today: string): PlannerAgendaItem {
+    const dueAt = this.dateKey(row.due_date);
+    const done = String(row.status || '') === 'done';
+    const category = this.normalizePlannerTaskCategory(row.category);
+    const priorityLevel = this.normalizePlannerTaskPriority(row.priority);
+    const estimatedMinutes = this.optionalPlannerEstimatedMinutes(row.estimated_minutes);
+    const status = done ? 'completed' : this.plannerStatusForDueDate(dueAt, today);
+    const statusPriority = status === 'overdue' ? 100 : status === 'due_today' ? 88 : status === 'upcoming' ? 48 : status === 'completed' ? 4 : 28;
+    const taskPriorityBoost = priorityLevel === 'high' ? 14 : priorityLevel === 'medium' ? 6 : 0;
+    const type = category === 'general' ? 'task' : category;
+    return {
+      id: `task-${Number(row.id)}`,
+      source: 'planner_task',
+      sourceId: Number(row.id),
+      type,
+      title: String(row.title || '').trim(),
+      course: '',
+      subject: '',
+      topic: '',
+      lesson: '',
+      status,
+      dueAt,
+      completedAt: done ? row.updated_at || row.created_at || null : null,
+      progress: done ? 100 : 0,
+      actionUrl: '/planner',
+      actionLabel: done ? 'View task' : 'Mark complete',
+      locked: false,
+      accessMessage: '',
+      priority: status === 'completed' ? statusPriority : statusPriority + taskPriorityBoost,
+      meta: {
+        description: String(row.description || ''),
+        category,
+        priority: priorityLevel,
+        estimatedMinutes,
+        createdAt: row.created_at || null,
+        updatedAt: row.updated_at || null,
+      },
+    };
+  }
+
+  private mapPlannerAgendaLesson(row: RowDataPacket): PlannerAgendaItem {
+    const statusText = String(row.progress_status || 'in_progress');
+    const completed = statusText === 'completed';
+    const progress = this.clampPlannerPercent(row.progress_percent);
+    return {
+      id: `lesson-${Number(row.lesson_id)}`,
+      source: 'lesson_progress',
+      sourceId: Number(row.lesson_id),
+      type: 'lesson',
+      title: String(row.lesson_title || 'Lesson').trim(),
+      course: String(row.course_title || ''),
+      subject: String(row.subject_name || ''),
+      topic: String(row.topic_name || ''),
+      lesson: String(row.lesson_title || ''),
+      status: completed ? 'completed' : 'in_progress',
+      dueAt: null,
+      completedAt: completed ? row.completed_at || row.updated_at || null : null,
+      progress: completed ? 100 : progress,
+      actionUrl: `/study/lesson/${Number(row.lesson_id)}`,
+      actionLabel: completed ? 'Review lesson' : 'Continue lesson',
+      locked: false,
+      accessMessage: '',
+      priority: completed ? 8 : 82,
+      meta: {
+        startedAt: row.started_at || null,
+        updatedAt: row.updated_at || null,
+      },
+    };
+  }
+
+  private mapPlannerAgendaQuiz(row: RowDataPacket, accessProfile: PlannerQuizAccessProfile): PlannerAgendaItem {
+    const quizId = Number(row.id);
+    const isExam = Number(row.exam_mode_only) === 1;
+    const canAccess = this.canAccessPlannerQuiz(row, accessProfile);
+    const inProgress = Boolean(row.practice_session_id);
+    const completed = Number(row.exam_attempt_count || 0) > 0 || Number(row.practice_completed_count || 0) > 0;
+    const totalQuestions = Number(row.total_questions || 0);
+    const answered = Number(row.practice_answered_count || 0);
+    const progress = completed ? 100 : inProgress && totalQuestions > 0 ? this.clampPlannerPercent((answered / totalQuestions) * 100) : 0;
+    const mode = isExam ? 'exam' : 'practice';
+    const status = !canAccess ? 'locked' : completed ? 'completed' : inProgress ? 'in_progress' : 'optional';
+    return {
+      id: `${isExam ? 'exam' : 'quiz'}-${quizId}`,
+      source: 'quiz',
+      sourceId: quizId,
+      type: isExam ? 'exam' : 'quiz',
+      title: String(row.quiz_title || (isExam ? 'Exam' : 'Quiz')).trim(),
+      course: String(row.course_title || ''),
+      subject: String(row.subject_name || ''),
+      topic: String(row.topic_name || ''),
+      lesson: String(row.lesson_title || ''),
+      status,
+      dueAt: null,
+      completedAt: completed ? row.practice_updated_at || row.quiz_created_at || null : null,
+      progress,
+      actionUrl: `/quizzes/${quizId}?mode=${mode}`,
+      actionLabel: !canAccess ? 'Locked' : completed ? 'Review' : inProgress ? 'Resume practice' : isExam ? 'Start exam' : 'Start quiz',
+      locked: !canAccess,
+      accessMessage: canAccess ? '' : 'Your subscription does not include this course question bank.',
+      priority: !canAccess ? 18 : inProgress ? 78 : completed ? 5 : isExam ? 38 : 34,
+      meta: {
+        totalQuestions,
+        answeredQuestions: answered,
+        timeLimit: Number(row.time_limit || 0),
+      },
+    };
+  }
+
+  private mapPlannerAgendaReview(row: RowDataPacket, index: number, today: string): PlannerAgendaItem {
+    const title = String(row.lesson_title || row.topic_name || row.subject_name || 'Missed questions review').trim();
+    const misses = Number(row.miss_count || 0);
+    return {
+      id: `review-${index}-${this.slugPlannerId(title)}`,
+      source: 'review_signal',
+      sourceId: null,
+      type: 'review',
+      title,
+      course: String(row.course_title || ''),
+      subject: String(row.subject_name || ''),
+      topic: String(row.topic_name || ''),
+      lesson: String(row.lesson_title || ''),
+      status: 'due_today',
+      dueAt: today,
+      completedAt: null,
+      progress: null,
+      actionUrl: '/results',
+      actionLabel: 'Review',
+      locked: false,
+      accessMessage: '',
+      priority: 74 - index,
+      meta: {
+        missCount: misses,
+        latestMissedAt: row.latest_missed_at || null,
+        questionType: String(row.question_type || ''),
+      },
+    };
+  }
+
+  private comparePlannerAgendaItems(left: PlannerAgendaItem, right: PlannerAgendaItem) {
+    if (right.priority !== left.priority) return right.priority - left.priority;
+    const leftDue = left.dueAt || '9999-12-31';
+    const rightDue = right.dueAt || '9999-12-31';
+    if (leftDue !== rightDue) return leftDue.localeCompare(rightDue);
+    return left.title.localeCompare(right.title);
+  }
+
+  private buildPlannerAgendaFilters(items: PlannerAgendaItem[]) {
+    const unique = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((left, right) => left.localeCompare(right));
+    return {
+      courses: unique(items.map((item) => item.course)),
+      subjects: unique(items.map((item) => item.subject)),
+      topics: unique(items.map((item) => item.topic)),
+      lessons: unique(items.map((item) => item.lesson)),
+    };
+  }
+
+  private summarizePlannerAgenda(items: PlannerAgendaItem[]) {
+    return {
+      today: items.filter((item) => item.status === 'due_today' || item.status === 'in_progress').length,
+      overdue: items.filter((item) => item.status === 'overdue').length,
+      upcoming: items.filter((item) => item.status === 'upcoming' || item.status === 'optional' || item.status === 'locked').length,
+      completed: items.filter((item) => item.status === 'completed').length,
+      total: items.length,
+    };
+  }
+
+  private async getPlannerQuizAccessProfile(userId: number): Promise<PlannerQuizAccessProfile> {
+    const [rows] = await this.db.execute<PlannerQuizAccessScopeRow[]>(
+      `
+        SELECT sf.feature_key, plans.slug AS plan_slug, us.access_scope, us.course_ids_json
+        FROM user_subscriptions us
+        INNER JOIN plans ON plans.id = us.plan_id
+        INNER JOIN subscription_plan_features spf
+          ON spf.plan_id = us.plan_id
+         AND spf.is_enabled = 1
+        INNER JOIN subscription_features sf
+          ON sf.id = spf.feature_id
+         AND sf.status = 'active'
+        WHERE us.user_id = ?
+          AND us.status = 'active'
+          AND us.start_date <= CURDATE()
+          AND us.end_date >= CURDATE()
+          AND sf.feature_key IN ('question_bank_full', 'question_bank_limited', 'practice_mode', 'exam_mode')
+      `,
+      [userId]
+    );
+
+    const profile: PlannerQuizAccessProfile = {
+      hasAnyPaidQuizAccess: rows.length > 0,
+      hasFullAccess: false,
+      courseIds: new Set<number>(),
+    };
+
+    for (const row of rows) {
+      const courseIds = this.parsePlannerIdList(row.course_ids_json);
+      const scope = this.resolvePlannerAccessScope(row, courseIds);
+      if (scope === 'all' && courseIds.length === 0) {
+        profile.hasFullAccess = true;
+      } else if (scope === 'courses') {
+        courseIds.forEach((id) => profile.courseIds.add(id));
+      }
+    }
+
+    return profile;
+  }
+
+  private canAccessPlannerQuiz(row: RowDataPacket, profile: PlannerQuizAccessProfile) {
+    if (Number(row.is_free) === 1) return true;
+    if (!profile.hasAnyPaidQuizAccess) return false;
+    if (profile.hasFullAccess) return true;
+    return profile.courseIds.has(Number(row.course_id));
+  }
+
+  private resolvePlannerAccessScope(row: PlannerQuizAccessScopeRow, courseIds: number[]) {
+    const planSlug = String(row.plan_slug || '').trim();
+    if (planSlug.startsWith('custom-single-') || planSlug.startsWith('custom-multi-')) {
+      return 'courses';
+    }
+    return row.access_scope || (courseIds.length ? 'courses' : 'all');
+  }
+
+  private parsePlannerIdList(raw: unknown) {
+    try {
+      const parsed = raw ? JSON.parse(String(raw)) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  private plannerStatusForDueDate(dueAt: string | null, today: string): PlannerAgendaItem['status'] {
+    if (!dueAt) return 'optional';
+    if (dueAt < today) return 'overdue';
+    if (dueAt === today) return 'due_today';
+    return 'upcoming';
+  }
+
+  private clampPlannerPercent(value: unknown) {
+    const numeric = Number(value || 0);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(0, Math.min(100, Math.round(numeric)));
+  }
+
+  private todayDateKey() {
+    return this.formatPlannerDateKey(new Date());
+  }
+
+  private addDaysDateKey(days: number) {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return this.formatPlannerDateKey(date);
+  }
+
+  private dateKey(value: unknown) {
+    if (!value) return null;
+    if (value instanceof Date) return this.formatPlannerDateKey(value);
+    const text = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+    const parsed = Date.parse(text);
+    return Number.isFinite(parsed) ? this.formatPlannerDateKey(new Date(parsed)) : null;
+  }
+
+  private formatPlannerDateKey(date: Date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private slugPlannerId(value: string) {
+    return String(value || 'item')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48) || 'item';
+  }
+
   private normalizeAdminReportFilters(input: AdminReportFilterInput): AdminReportFilters {
     return {
       startDate: this.optionalDate(input.startDate) || '',
@@ -733,6 +1231,23 @@ export class WorkspaceService {
     return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
   }
 
+  private normalizePlannerTaskCategory(value: unknown): PlannerTaskCategory {
+    const text = String(value || '').trim().toLowerCase();
+    return (PLANNER_TASK_CATEGORIES as readonly string[]).includes(text) ? text as PlannerTaskCategory : 'general';
+  }
+
+  private normalizePlannerTaskPriority(value: unknown): PlannerTaskPriority {
+    const text = String(value || '').trim().toLowerCase();
+    return (PLANNER_TASK_PRIORITIES as readonly string[]).includes(text) ? text as PlannerTaskPriority : 'medium';
+  }
+
+  private optionalPlannerEstimatedMinutes(value: unknown) {
+    if (value === null || value === undefined || value === '') return null;
+    const minutes = Number(value);
+    if (!Number.isInteger(minutes) || minutes < 0) throw new BadRequestException('Estimated minutes must be a non-negative whole number');
+    return Math.min(minutes, 600);
+  }
+
   private mapAnnouncement(row: RowDataPacket) {
     return {
       id: Number(row.id),
@@ -752,9 +1267,13 @@ export class WorkspaceService {
       id: Number(row.id),
       title: String(row.title || ''),
       description: String(row.description || ''),
-      dueDate: row.due_date ? String(row.due_date).slice(0, 10) : '',
+      dueDate: this.dateKey(row.due_date) || '',
       status: String(row.status || 'todo'),
+      category: this.normalizePlannerTaskCategory(row.category),
+      priority: this.normalizePlannerTaskPriority(row.priority),
+      estimatedMinutes: this.optionalPlannerEstimatedMinutes(row.estimated_minutes),
       createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null,
     };
   }
 

@@ -99,11 +99,11 @@ const reviewUi = {
   recapAction:
     'relative w-full max-w-none flex-none [&_.qtr-popup-trigger]:min-h-11 [&_.qtr-popup-trigger]:rounded-xl [&_.qtr-popup-trigger]:px-3 [&_.qtr-popup-trigger]:py-2.5 [&_.qtr-popup-trigger__label]:text-[13px] max-[640px]:w-full max-[640px]:max-w-none max-[640px]:[&_.qtr-popup-trigger]:min-h-12 max-[640px]:[&_.qtr-popup-trigger]:rounded-2xl max-[640px]:[&_.qtr-popup-trigger__concept]:max-w-[42vw]',
   questionActions:
-    'flex flex-wrap items-center gap-2.5 max-[520px]:grid max-[520px]:grid-cols-1 max-[520px]:[&_button]:w-full',
+    'lms-question-utility-row flex flex-wrap items-center justify-end gap-2.5 border-t border-line-soft pt-3 max-[640px]:justify-start max-[520px]:grid max-[520px]:grid-cols-1 max-[520px]:[&_button]:w-full',
 };
 
 const reviewSecondaryButtonClass =
-  'lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-center text-sm font-bold leading-tight text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/28 hover:bg-brand-primary/8 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
+  'lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center gap-2 rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-center text-sm font-bold leading-tight text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/28 hover:bg-brand-primary/8 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
 const reviewPrimaryButtonClass =
   'lms-assessment-btn lms-assessment-btn--primary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center rounded-xl border border-brand-primary/30 bg-[var(--color-primary-light)] px-[18px] text-center text-sm font-bold leading-tight text-brand-primary shadow-none transition-[background,border-color,opacity] duration-150 hover:bg-brand-primary/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
 
@@ -178,6 +178,34 @@ function reviewStudyCardClass(tone, extra = '') {
     'lms-key-points-card relative grid gap-3 rounded-[18px] border border-line-soft bg-surface-1 px-4 py-3.5 shadow-[0_12px_28px_color-mix(in_srgb,#8b5cf6_7%,transparent)] transition-colors hover:border-line-medium [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.62] [&_p]:text-ink-strong max-[640px]:rounded-[16px] max-[640px]:px-3.5 max-[640px]:[&_p]:text-sm',
     studyCardToneClass[tone],
     extra
+  );
+}
+
+function IcoBookmark({ filled = false }) {
+  return (
+    <svg aria-hidden="true" className="size-4" fill={filled ? 'currentColor' : 'none'} viewBox="0 0 24 24">
+      <path
+        d="M7 4.75A2.25 2.25 0 0 1 9.25 2.5h5.5A2.25 2.25 0 0 1 17 4.75v15.1a.7.7 0 0 1-1.08.59L12 17.92l-3.92 2.52A.7.7 0 0 1 7 19.85V4.75Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function IcoReport() {
+  return (
+    <svg aria-hidden="true" className="size-4" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M12 8.25v4.25m0 3.25h.01M10.2 3.9 2.85 17.1A2.25 2.25 0 0 0 4.82 20.5h14.36a2.25 2.25 0 0 0 1.97-3.4L13.8 3.9a2.07 2.07 0 0 0-3.6 0Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
   );
 }
 
@@ -684,15 +712,6 @@ export function ReviewWorkspace({
       <section className={focusQuestionOnly ? reviewUi.mainFocus : reviewUi.main} ref={mainRef}>
         <article className={reviewUi.questionCard} ref={questionCardRef}>
           <p className={reviewUi.questionText}>{activeQuestion.questionText}</p>
-          <div className={reviewUi.questionActions}>
-            <button className={reviewSecondaryButtonClass} type="button" onClick={toggleActiveQuestionBookmark} disabled={questionActionBusy}>
-              {activeQuestionSaved ? 'Saved question' : 'Save question'}
-            </button>
-            <button className={reviewSecondaryButtonClass} type="button" onClick={reportActiveQuestion} disabled={questionActionBusy}>
-              Report question
-            </button>
-          </div>
-          {questionActionError ? <div className={ui.feedbackError}>{questionActionError}</div> : null}
 
           <div className={reviewUi.questionHead}>
             <div className={reviewUi.questionMeta}>
@@ -714,6 +733,26 @@ export function ReviewWorkspace({
           </div>
 
           {questionNavigation}
+
+          {questionActionError ? <div className={ui.feedbackError}>{questionActionError}</div> : null}
+          <div className={reviewUi.questionActions}>
+            <button
+              className={cx(
+                reviewSecondaryButtonClass,
+                activeQuestionSaved && 'border-brand-violet/25 bg-purple-100 text-brand-violet dark:bg-purple-500/15 dark:text-purple-200'
+              )}
+              type="button"
+              onClick={toggleActiveQuestionBookmark}
+              disabled={questionActionBusy}
+            >
+              <IcoBookmark filled={activeQuestionSaved} />
+              <span>{activeQuestionSaved ? 'Saved question' : 'Save question'}</span>
+            </button>
+            <button className={reviewSecondaryButtonClass} type="button" onClick={reportActiveQuestion} disabled={questionActionBusy}>
+              <IcoReport />
+              <span>Report question</span>
+            </button>
+          </div>
         </article>
       </section>
 

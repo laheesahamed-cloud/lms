@@ -9,6 +9,7 @@ export const fetchNotifications = () => apiClient.get('/student/notifications').
 export const markNotificationRead = (id) => apiClient.post(`/student/notifications/${id}/read`).then((r) => r.data);
 
 export const fetchPlannerTasks = () => apiClient.get('/student/planner').then((r) => r.data);
+export const fetchPlannerAgenda = () => apiClient.get('/student/planner/agenda').then((r) => r.data);
 export const fetchPlannerSuggestions = () => apiClient.get('/student/planner/suggestions').then((r) => r.data);
 export const createPlannerTask = (payload) => apiClient.post('/student/planner', payload).then((r) => r.data);
 export const updatePlannerTask = (id, payload) => apiClient.patch(`/student/planner/${id}`, payload).then((r) => r.data);

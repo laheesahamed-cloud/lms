@@ -10,6 +10,7 @@ type BookmarkRow = RowDataPacket & {
   item_id: number;
   created_at: string | null;
   quiz_title?: string | null;
+  exam_mode_only?: number | null;
   note_title?: string | null;
   note_engine_key?: string | null;
   question_text?: string | null;
@@ -31,6 +32,7 @@ export class StudyBookmarksService {
          b.item_id,
          b.created_at,
          COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
+         q.exam_mode_only,
          n.title AS note_title,
          n.engine_key AS note_engine_key,
          LEFT(qn.question_text, 180) AS question_text,
@@ -67,6 +69,7 @@ export class StudyBookmarksService {
         : row.item_type === 'question'
           ? String(row.question_text || `Question #${row.item_id}`)
           : String(row.note_title || 'AI Note'),
+      examModeOnly: row.item_type === 'quiz' ? Number(row.exam_mode_only || 0) === 1 : false,
       engineKey: row.item_type === 'ai_note' ? String(row.note_engine_key || 'gemini') : null,
       quizId: row.item_type === 'question' && row.question_quiz_id ? Number(row.question_quiz_id) : null,
       courseTitle: String(row.course_title || ''),

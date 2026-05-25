@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, ParseIntPipe, Patch, Post, Put, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, ParseIntPipe, Patch, Post, Put, Res, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { isStaffRole, roleHasPermission } from '../auth/role-permissions';
@@ -75,6 +75,22 @@ export class SubscriptionsController {
   ) {
     await this.authService.requireAdmin(authorization);
     return this.subscriptionsService.findInvoice(invoiceId);
+  }
+
+  @Get('admin/payment-proofs/:invoiceId')
+  @RequirePermissions('subscriptions.manage')
+  async downloadPaymentProof(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('invoiceId') invoiceId: string,
+    @Res() response: any
+  ) {
+    await this.authService.requireAdmin(authorization);
+    const proof = await this.subscriptionsService.getPaymentProofFile(invoiceId);
+    const safeFileName = String(proof.fileName || 'payment-proof').replace(/["\r\n]+/g, '_');
+    response.setHeader('Content-Type', proof.mimeType || 'application/octet-stream');
+    response.setHeader('Content-Disposition', `inline; filename="${safeFileName}"`);
+    response.setHeader('Cache-Control', 'private, max-age=60');
+    response.send(proof.buffer);
   }
 
   @Post('admin/coupons')
