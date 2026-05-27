@@ -122,7 +122,6 @@ function getFormFactor(os, runtime) {
 
 function getRuntimeKind(buildTarget) {
   if (isNativeShell()) return 'native';
-  if (buildTarget === 'native') return 'native';
   if (buildTarget === 'desktop') return 'desktop';
   if (buildTarget === 'pwa') return 'pwa';
   if (isStandalonePwaDisplay()) return 'pwa';

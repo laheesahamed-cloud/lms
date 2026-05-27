@@ -70,9 +70,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "framer-motion": "^12.38.0"
-  },
   "devDependencies": {
     "electron": "^42.0.0",
     "electron-builder": "^26.8.1"

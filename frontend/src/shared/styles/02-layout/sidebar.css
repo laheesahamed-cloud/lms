@@ -55,6 +55,10 @@
 }
 
 @media (min-width: 901px) {
+  .app-shell:not(.mobile-top-nav-mode):not(.compact-focus-mode):not(.sidebar-hidden) {
+    --sidebar-float-gap: 24px;
+  }
+
   .app-shell:not(.mobile-top-nav-mode) .main-content {
     transition:
       transform var(--lms-sidebar-duration, 280ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
@@ -73,6 +77,10 @@
 
   .app-shell:not(.mobile-top-nav-mode) .lms-sidebar:not(.is-overlay-nav).is-collapsed {
     opacity: 0.985;
+  }
+
+  .app-shell:not(.mobile-top-nav-mode) .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-nav {
+    padding-top: 6px;
   }
 }
 

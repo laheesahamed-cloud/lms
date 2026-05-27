@@ -4,6 +4,7 @@ import { detectPlatform } from '../platform/detect.js';
 let secureContentConsumers = 0;
 let secureContentEnabled = false;
 let secureContentRetryTimer = 0;
+const SCREEN_PROTECTION_PAUSED = true;
 
 function postNativeSecureContentState(active) {
   if (typeof window === 'undefined') return false;
@@ -94,6 +95,11 @@ export function isSecureContentRoute(location) {
 
 export function useSecureContentMode(active) {
   useEffect(() => {
+    if (SCREEN_PROTECTION_PAUSED) {
+      void disableSecureContentMode();
+      return undefined;
+    }
+
     const platform = detectPlatform();
     if (!active || !platform.isNative) return undefined;
 
