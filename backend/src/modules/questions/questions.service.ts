@@ -1025,13 +1025,19 @@ export class QuestionsService {
         s.topic_name AS subject_name,
         st.subtopic_name AS topic_name,
         l.lesson_title,
-        p.paper_title
+        p.paper_title,
+        COALESCE(qql.quiz_count, 0) AS quiz_count
       FROM questions q
       LEFT JOIN courses c ON c.id = q.course_id
       LEFT JOIN topics s ON s.id = q.topic_id
       LEFT JOIN subtopics st ON st.id = q.subtopic_id
       LEFT JOIN lessons l ON l.id = q.lesson_id
       LEFT JOIN papers p ON p.id = q.paper_id
+      LEFT JOIN (
+        SELECT question_id, COUNT(DISTINCT quiz_id) AS quiz_count
+        FROM question_quizzes
+        GROUP BY question_id
+      ) qql ON qql.question_id = q.id
       WHERE 1 = 1
     `;
     const params: Array<string | number> = [];
@@ -1040,6 +1046,11 @@ export class QuestionsService {
       sql += ' AND (q.question_text LIKE ? OR q.keywords_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
       const like = `%${filters.search.trim()}%`;
       params.push(like, like, like, like, like);
+    }
+
+    if (filters.keywords?.trim()) {
+      sql += ' AND q.keywords_text LIKE ?';
+      params.push(`%${filters.keywords.trim()}%`);
     }
 
     if (filters.status === 'active' || filters.status === 'inactive') {
@@ -1084,6 +1095,14 @@ export class QuestionsService {
 
     if (filters.unclassified) {
       sql += ' AND (q.subtopic_id IS NULL OR q.lesson_id IS NULL)';
+    }
+
+    if (filters.usage === 'unused') {
+      sql += ' AND COALESCE(qql.quiz_count, 0) = 0';
+    }
+
+    if (filters.usage === 'used') {
+      sql += ' AND COALESCE(qql.quiz_count, 0) > 0';
     }
 
     sql += ' ORDER BY q.id DESC';

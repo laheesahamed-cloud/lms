@@ -2096,6 +2096,8 @@ export function StudentFlashcardsPage() {
   const [searchParams] = useSearchParams();
   const autoNoteId     = searchParams.get('noteId') ? Number(searchParams.get('noteId')) : null;
   const deckCountLoadingRef = useRef(new Set());
+  const loadingLessonIdRef = useRef(null);
+  const autoLoadedNoteIdRef = useRef(null);
 
   const [phase,    setPhase]    = useState('pick');
   const [notes,    setNotes]    = useState([]);
@@ -2117,15 +2119,20 @@ export function StudentFlashcardsPage() {
         const mergedRows = mergeNotesWithLessons(noteRows, lessonRows);
         setDeckStats(buildInitialDeckStats(mergedRows));
         setNotes(mergedRows);
-        if (autoNoteId) {
-          const match = mergedRows.find(n => Number(n.id) === autoNoteId);
-          if (match) loadLessonCards(match);
-        }
       })
       .catch(e => setError(getErrorMessage(e, 'Unable to load flashcard decks')))
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!autoNoteId || !notes.length || autoLoadedNoteIdRef.current === autoNoteId) return;
+    const match = notes.find(n => Number(n.id) === autoNoteId);
+    if (!match || isLessonPlaceholder(match)) return;
+    autoLoadedNoteIdRef.current = autoNoteId;
+    loadLessonCards(match, { syncUrl: false });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoNoteId, notes]);
 
   useEffect(() => {
     if (!notes.length) return undefined;
@@ -2221,9 +2228,18 @@ export function StudentFlashcardsPage() {
     return true;
   }
 
-  async function loadLessonCards(note) {
+  async function loadLessonCards(note, options = {}) {
+    const noteId = Number(note?.id || 0);
+    if (!noteId || loadingLessonIdRef.current === noteId) return;
+
+    loadingLessonIdRef.current = noteId;
     setStarting(true);
     setError('');
+    if (options.syncUrl !== false && autoNoteId !== noteId) {
+      autoLoadedNoteIdRef.current = noteId;
+      navigate(`/flashcards?noteId=${noteId}`, { replace: true });
+    }
+
     try {
       const fullNote = note.noteData ? note : await getAiNote(note.id);
       const cards = selectQueueCards(buildLessonCards(fullNote), 'all', 80);
@@ -2244,6 +2260,7 @@ export function StudentFlashcardsPage() {
       setError(getErrorMessage(e, 'Unable to load flashcards'));
       setPhase('pick');
     } finally {
+      loadingLessonIdRef.current = null;
       setStarting(false);
     }
   }
@@ -2254,6 +2271,10 @@ export function StudentFlashcardsPage() {
       .filter((note) => !isLessonPlaceholder(note));
     if (!unlockedNotes.length) {
       setError('No available lessons are ready in this deck.');
+      return;
+    }
+    if (unlockedNotes.length === 1) {
+      loadLessonCards(unlockedNotes[0]);
       return;
     }
 

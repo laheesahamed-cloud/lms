@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import {
   createQuestion,
   bulkDeleteQuestions,
+  bulkUpdateQuestionKeywords,
   deleteQuestion,
   exportQuestions,
   fetchQuestion,
@@ -50,6 +51,7 @@ const tableCheckboxClass =
   'size-4 cursor-pointer rounded border-line-medium accent-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20';
 const bulkWarningClass =
   'rounded-lg border border-brand-warning/25 bg-[var(--color-warning-light)] px-4 py-3 text-[13px] leading-relaxed text-ink-medium';
+const bulkKeywordGridClass = 'grid gap-3 px-5 py-4';
 const questionPreviewButtonClass =
   'block w-full rounded-lg border-0 bg-transparent p-0 text-left font-inherit text-inherit transition hover:text-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20';
 const detailMetaGridClass = 'grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3';
@@ -94,6 +96,7 @@ function buildDefaultForm() {
     subjectId: '',
     topicId: '',
     lessonId: '',
+    paperId: '',
     topicLabel: '',
     examSource: 'local',
     category: 'mock',
@@ -113,6 +116,7 @@ function mapQuestionToForm(question) {
     subjectId: question.subjectId ? String(question.subjectId) : '',
     topicId: question.topicId ? String(question.topicId) : '',
     lessonId: question.lessonId ? String(question.lessonId) : '',
+    paperId: question.paperId ? String(question.paperId) : '',
     topicLabel: question.topicLabel || '',
     examSource: question.examSource || 'local',
     category: question.category || 'mock',
@@ -209,7 +213,7 @@ export function QuestionsPage() {
   const importInputRef = useRef(null);
   const [questions, setQuestions] = useState([]);
   const [meta, setMeta] = useState({ courses: [], subjects: [], topics: [], lessons: [], papers: [], keywordSuggestions: [] });
-  const [filters, setFilters] = useState({ search: '', status: '', type: '', category: '', unclassified: '', courseId: '', subjectId: '', topicId: '', lessonId: '' });
+  const [filters, setFilters] = useState({ search: '', status: '', type: '', category: '', unclassified: '', usage: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' });
   const [form, setForm] = useState(buildDefaultForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -225,8 +229,11 @@ export function QuestionsPage() {
   const [detailError, setDetailError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkKeywordSaving, setBulkKeywordSaving] = useState(false);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState(() => new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkKeywordOpen, setBulkKeywordOpen] = useState(false);
+  const [bulkKeywordForm, setBulkKeywordForm] = useState({ keywordsText: '', mode: 'append' });
   const [toast, setToast] = useState(null);
   const [error, setError] = useState('');
   const [recap, setRecap] = useState(null);
@@ -297,6 +304,15 @@ export function QuestionsPage() {
   const selectedVisibleQuestions = useMemo(
     () => questions.filter((question) => selectedQuestionIds.has(question.id)),
     [questions, selectedQuestionIds]
+  );
+  const selectedKeywordPreview = useMemo(
+    () => Array.from(new Set(
+      selectedVisibleQuestions
+        .flatMap((question) => String(question.keywordsText || '').split(','))
+        .map((keyword) => keyword.trim())
+        .filter(Boolean)
+    )).slice(0, 8),
+    [selectedVisibleQuestions]
   );
   const allVisibleSelected = questions.length > 0 && selectedVisibleIds.length === questions.length;
   const selectedLinkedQuestionCount = selectedVisibleQuestions.filter((question) => Number(question.quizCount || 0) > 0).length;
@@ -381,6 +397,7 @@ export function QuestionsPage() {
       }
       if (name === 'category' && value !== 'past_paper') {
         next.examSource = 'local';
+        next.paperId = '';
       }
       if (name === 'questionType') {
         next.options = buildOptions(value, current.options);
@@ -635,6 +652,7 @@ export function QuestionsPage() {
         subjectId: Number(form.subjectId),
         topicId: form.topicId ? Number(form.topicId) : null,
         lessonId: form.lessonId ? Number(form.lessonId) : null,
+        paperId: form.paperId ? Number(form.paperId) : null,
         topicLabel: form.topicLabel,
         category: form.category,
         questionType: form.questionType,
@@ -865,6 +883,36 @@ export function QuestionsPage() {
     }
   }
 
+  async function handleBulkKeywordSubmit(event) {
+    event.preventDefault();
+    if (selectedVisibleIds.length === 0) {
+      return;
+    }
+    if (!bulkKeywordForm.keywordsText.trim()) {
+      setError('Enter at least one keyword before updating selected questions.');
+      return;
+    }
+
+    setBulkKeywordSaving(true);
+    setError('');
+    try {
+      const result = await bulkUpdateQuestionKeywords({
+        questionIds: selectedVisibleIds,
+        keywordsText: bulkKeywordForm.keywordsText,
+        mode: bulkKeywordForm.mode,
+      });
+
+      setBulkKeywordOpen(false);
+      setBulkKeywordForm({ keywordsText: '', mode: 'append' });
+      showToast(`${result.updatedCount ?? selectedVisibleIds.length} question(s) updated with ${result.keywords?.length || 0} keyword(s).`);
+      await Promise.all([loadQuestions(filters), loadMeta()]);
+    } catch (keywordError) {
+      setError(getErrorMessage(keywordError, 'Unable to update selected question keywords'));
+    } finally {
+      setBulkKeywordSaving(false);
+    }
+  }
+
   return (
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
@@ -929,7 +977,11 @@ export function QuestionsPage() {
             <form className={ui.questionFilterGrid} onSubmit={handleFilterSubmit}>
               <label className={ui.formLabel}>
                 Search
-                <input className={ui.input} name="search" value={filters.search} onChange={handleFilterChange} placeholder="Search question text" />
+                <input className={ui.input} name="search" value={filters.search} onChange={handleFilterChange} placeholder="Search question, paper, topic" />
+              </label>
+              <label className={ui.formLabel}>
+                Keywords
+                <input className={ui.input} list="question-filter-keyword-suggestions" name="keywords" value={filters.keywords} onChange={handleFilterChange} placeholder="Filter by keyword" />
               </label>
               <label className={ui.formLabel}>
                 Course
@@ -989,6 +1041,26 @@ export function QuestionsPage() {
                   <option value="">All</option>
                   <option value="past_paper">Past Paper</option>
                   <option value="mock">Mock</option>
+                  <option value="ai">AI</option>
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Paper
+                <select className={ui.input} name="paperId" value={filters.paperId} onChange={handleFilterChange}>
+                  <option value="">All papers</option>
+                  {meta.papers.map((paper) => (
+                    <option key={paper.id} value={paper.id}>
+                      {[paper.year || null, paper.paperTitle].filter(Boolean).join(' - ')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Usage
+                <select className={ui.input} name="usage" value={filters.usage} onChange={handleFilterChange}>
+                  <option value="">All usage</option>
+                  <option value="used">Used in quizzes</option>
+                  <option value="unused">Unused</option>
                 </select>
               </label>
               <label className={ui.formLabel}>
@@ -1004,7 +1076,7 @@ export function QuestionsPage() {
                   type="button"
                  
                   onClick={() => {
-                    const next = { search: '', status: '', type: '', category: '', unclassified: '', courseId: '', subjectId: '', topicId: '', lessonId: '' };
+                    const next = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
                     setFilters(next);
                     loadQuestions(next);
                   }}
@@ -1013,6 +1085,11 @@ export function QuestionsPage() {
                 </button>
               </div>
             </form>
+            <datalist id="question-filter-keyword-suggestions">
+              {(meta.keywordSuggestions || []).map((keyword) => (
+                <option key={keyword} value={keyword} />
+              ))}
+            </datalist>
 
             <div className={bulkSelectBarClass}>
               <label className={cx(ui.checkboxLabel, 'min-w-0')}>
@@ -1026,6 +1103,13 @@ export function QuestionsPage() {
               </label>
               <div className={cx(ui.buttonRow, 'justify-end')}>
                 <span className={ui.tablePill}>{selectedVisibleIds.length} selected</span>
+                <button className={ui.secondaryAction}
+                  type="button"
+                  onClick={() => setBulkKeywordOpen(true)}
+                  disabled={selectedVisibleIds.length === 0 || bulkKeywordSaving}
+                >
+                  Update keywords
+                </button>
                 <button className={ui.dangerAction}
                   type="button"
                   onClick={() => setBulkDeleteOpen(true)}
@@ -1037,7 +1121,7 @@ export function QuestionsPage() {
             </div>
 
             <div className={ui.tableShell}>
-              <table className={ui.modernTable}>
+              <table className={cx(ui.modernTable, '!min-w-[1080px] max-[640px]:!min-w-[960px]')}>
                 <thead>
                   <tr>
                     <th className={ui.tableHeadCell}>
@@ -1053,7 +1137,9 @@ export function QuestionsPage() {
                     <th className={ui.tableHeadCell}>Question</th>
                     <th className={ui.tableHeadCell}>Course</th>
                     <th className={ui.tableHeadCell}>Hierarchy</th>
+                    <th className={ui.tableHeadCell}>Source</th>
                     <th className={ui.tableHeadCell}>Type</th>
+                    <th className={ui.tableHeadCell}>Usage</th>
                     <th className={ui.tableHeadCell}>Status</th>
                     <th className={ui.tableHeadCell}>Actions</th>
                   </tr>
@@ -1061,12 +1147,12 @@ export function QuestionsPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="8" className={ui.tableEmpty}>Loading questions...</td>
+                      <td colSpan="10" className={ui.tableEmpty}>Loading questions...</td>
                     </tr>
                   ) : null}
                   {!loading && questions.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className={ui.tableEmpty}>No questions found.</td>
+                      <td colSpan="10" className={ui.tableEmpty}>No questions found.</td>
                     </tr>
                   ) : null}
                   {!loading && questions.map((question) => (
@@ -1089,7 +1175,7 @@ export function QuestionsPage() {
                         >
                           <strong>{question.questionText.slice(0, 80)}{question.questionText.length > 80 ? '...' : ''}</strong>
                           <div className={ui.tableSubtext}>
-                            {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.keywordsText ? `Keywords: ${question.keywordsText}` : null]
+                            {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.paperTitle ? `Paper: ${question.paperTitle}` : null, question.keywordsText ? `Keywords: ${question.keywordsText}` : null]
                               .filter(Boolean)
                               .join(' • ')}
                           </div>
@@ -1097,7 +1183,14 @@ export function QuestionsPage() {
                       </td>
                       <td className={ui.tableCell}>{question.courseTitle || '-'}</td>
                       <td className={ui.tableCell}>{[question.subjectName, question.topicName, question.lessonTitle].filter(Boolean).join(' / ') || '-'}</td>
+                      <td className={ui.tableCell}>
+                        <div className="grid gap-1">
+                          <span className={ui.tablePill}>{question.category === 'ai' ? 'AI' : question.category === 'past_paper' ? 'Past Paper' : 'Mock'}</span>
+                          {question.paperTitle ? <span className={ui.tableSubtext}>{question.paperTitle}</span> : null}
+                        </div>
+                      </td>
                       <td className={ui.tableCell}><span className={ui.tablePill}>{question.questionType === 'sba' ? 'SBA' : 'T/F'}</span></td>
+                      <td className={ui.tableCell}>{Number(question.quizCount || 0) > 0 ? `${question.quizCount} quiz link${Number(question.quizCount) === 1 ? '' : 's'}` : 'Unused'}</td>
                       <td className={ui.tableCell}><span className={statusPill(question.status)}>{question.status}</span></td>
                       <td className={ui.tableCell}>
                         <div className={ui.buttonRow}>
@@ -1166,6 +1259,66 @@ export function QuestionsPage() {
                 </button>
               </div>
             </div>
+          </div>,
+          document.body
+        )}
+
+        {bulkKeywordOpen && createPortal(
+          <div className={ui.modalBackdrop} onClick={() => !bulkKeywordSaving && setBulkKeywordOpen(false)}>
+            <form className={ui.confirmModal} onSubmit={handleBulkKeywordSubmit} onClick={(event) => event.stopPropagation()}>
+              <div className={ui.confirmModalHead}>
+                <div>
+                  <h2>Update selected keywords</h2>
+                  <p>Apply keywords to {selectedVisibleIds.length} selected question(s).</p>
+                </div>
+              </div>
+              <div className={bulkKeywordGridClass}>
+                {selectedKeywordPreview.length ? (
+                  <div className={bulkWarningClass}>
+                    Current visible keywords include: {selectedKeywordPreview.join(', ')}
+                    {selectedKeywordPreview.length >= 8 ? '...' : ''}
+                  </div>
+                ) : null}
+                <label className={ui.formLabel}>
+                  Mode
+                  <select
+                    className={ui.input}
+                    value={bulkKeywordForm.mode}
+                    onChange={(event) => setBulkKeywordForm((current) => ({ ...current, mode: event.target.value }))}
+                    disabled={bulkKeywordSaving}
+                  >
+                    <option value="append">Append to existing keywords</option>
+                    <option value="replace">Replace existing keywords</option>
+                  </select>
+                </label>
+                <label className={ui.formLabel}>
+                  Keywords
+                  <input
+                    className={ui.input}
+                    list="question-filter-keyword-suggestions"
+                    value={bulkKeywordForm.keywordsText}
+                    onChange={(event) => setBulkKeywordForm((current) => ({ ...current, keywordsText: event.target.value }))}
+                    placeholder="cardiology, murmurs, mock set 1"
+                    disabled={bulkKeywordSaving}
+                  />
+                </label>
+              </div>
+              <div className={ui.modalActions}>
+                <button className={ui.secondaryAction}
+                  type="button"
+                  onClick={() => setBulkKeywordOpen(false)}
+                  disabled={bulkKeywordSaving}
+                >
+                  Cancel
+                </button>
+                <button className={ui.primaryAction}
+                  type="submit"
+                  disabled={bulkKeywordSaving || selectedVisibleIds.length === 0}
+                >
+                  {bulkKeywordSaving ? 'Updating...' : 'Update keywords'}
+                </button>
+              </div>
+            </form>
           </div>,
           document.body
         )}
@@ -1295,6 +1448,7 @@ function QuestionDetailModal({ open, question, recap, loading, error, onClose, o
                 <DetailMeta label="Hierarchy" value={hierarchy} />
                 <DetailMeta label="Type" value={question.questionType === 'sba' ? 'SBA' : 'True / False'} />
                 <DetailMeta label="Category" value={question.category} />
+                <DetailMeta label="Paper" value={question.paperTitle} />
                 <DetailMeta label="Status" value={question.status} />
                 <DetailMeta label="Linked quizzes" value={question.quizCount ?? 0} />
                 <DetailMeta label="Created" value={formatDateTime(question.createdAt || question.created_at)} />
@@ -1699,6 +1853,19 @@ function QuestionEditModal({
               <select className={ui.input} name="category" value={form.category} onChange={onFormChange}>
                 <option value="past_paper">Past Paper</option>
                 <option value="mock">Mock</option>
+                <option value="ai">AI</option>
+              </select>
+            </label>
+
+            <label className={ui.formLabel}>
+              Paper
+              <select className={ui.input} name="paperId" value={form.paperId} onChange={onFormChange}>
+                <option value="">No paper</option>
+                {meta.papers.map((paper) => (
+                  <option key={paper.id} value={paper.id}>
+                    {[paper.year || null, paper.paperTitle].filter(Boolean).join(' - ')}
+                  </option>
+                ))}
               </select>
             </label>
 

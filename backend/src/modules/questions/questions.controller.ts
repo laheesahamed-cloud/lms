@@ -95,6 +95,8 @@ export class QuestionsController {
     @Query('paperId') paperId?: string,
     @Query('category') category?: string,
     @Query('unclassified') unclassified?: string,
+    @Query('keywords') keywords?: string,
+    @Query('usage') usage?: string,
     @Res() response?: any,
   ) {
     const workbook = await this.questionsService.exportWorkbook({
@@ -102,6 +104,8 @@ export class QuestionsController {
       status,
       type,
       category,
+      keywords,
+      usage,
       courseId: courseId ? Number(courseId) : undefined,
       subjectId: subjectId ? Number(subjectId) : undefined,
       topicId: topicId ? Number(topicId) : undefined,
@@ -127,6 +131,8 @@ export class QuestionsController {
     @Query('paperId') paperId?: string,
     @Query('category') category?: string,
     @Query('unclassified') unclassified?: string,
+    @Query('keywords') keywords?: string,
+    @Query('usage') usage?: string,
     @Res() response?: any,
   ) {
     return this.exportQuestions(
@@ -140,6 +146,8 @@ export class QuestionsController {
       paperId,
       category,
       unclassified,
+      keywords,
+      usage,
       response,
     );
   }

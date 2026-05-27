@@ -4,6 +4,7 @@ const APP_BASENAME = '/lms';
 const LEGACY_BUILD_BASENAME = '/lms/frontend/dist';
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
 const LOOPBACK_API_BASE_URL = 'http://127.0.0.1:3000/api';
+const ANDROID_EMULATOR_API_BASE_URL = 'http://10.0.2.2:3000/api';
 const NATIVE_DEFAULT_API_BASE_URL = LOCAL_API_BASE_URL;
 const SAME_ORIGIN_API_BASE_URL = '/api';
 const PLACEHOLDER_API_HOSTS = new Set(['your-domain.com', 'app.your-domain.com', 'app-lms.your-domain.com']);
@@ -129,6 +130,10 @@ export function resolveApiBaseUrl() {
 
   const platform = detectPlatform();
   if (platform.isNative) {
+    if (platform.isAndroid) {
+      return ANDROID_EMULATOR_API_BASE_URL;
+    }
+
     return NATIVE_DEFAULT_API_BASE_URL;
   }
 
@@ -154,6 +159,10 @@ export function resolveApiBaseUrls() {
   const fallbackUrls = [];
 
   if (platform.isNative) {
+    if (platform.isAndroid) {
+      fallbackUrls.push(ANDROID_EMULATOR_API_BASE_URL);
+    }
+
     fallbackUrls.push(LOOPBACK_API_BASE_URL, LOCAL_API_BASE_URL);
   } else {
     const location = getLocation();
