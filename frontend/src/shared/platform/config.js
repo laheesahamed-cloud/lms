@@ -6,6 +6,7 @@ const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
 const LOOPBACK_API_BASE_URL = 'http://127.0.0.1:3000/api';
 const NATIVE_DEFAULT_API_BASE_URL = LOCAL_API_BASE_URL;
 const SAME_ORIGIN_API_BASE_URL = '/api';
+const PLACEHOLDER_API_HOSTS = new Set(['your-domain.com', 'app.your-domain.com', 'app-lms.your-domain.com']);
 
 function splitCsv(value) {
   return String(value || '')
@@ -23,6 +24,17 @@ function splitUrlList(value) {
 
 function normalizeApiBaseUrl(value) {
   return String(value || '').trim().replace(/\/+$/, '');
+}
+
+function isPlaceholderApiBaseUrl(value) {
+  const normalized = normalizeApiBaseUrl(value);
+  if (!normalized) return false;
+
+  try {
+    return PLACEHOLDER_API_HOSTS.has(new URL(normalized).hostname.toLowerCase());
+  } catch {
+    return PLACEHOLDER_API_HOSTS.has(normalized.toLowerCase());
+  }
 }
 
 function isPrivateLanHost(hostname) {
@@ -110,8 +122,9 @@ export function shouldUseOverlayNavigation(platform = detectPlatform()) {
 }
 
 export function resolveApiBaseUrl() {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
+  const configuredApiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  if (configuredApiBaseUrl && !isPlaceholderApiBaseUrl(configuredApiBaseUrl)) {
+    return configuredApiBaseUrl;
   }
 
   const platform = detectPlatform();
@@ -133,12 +146,16 @@ export function resolveApiBaseUrl() {
 }
 
 export function resolveApiBaseUrls() {
-  const configuredUrls = splitUrlList(import.meta.env.VITE_API_BASE_URLS).map(normalizeApiBaseUrl);
+  const configuredUrls = splitUrlList(import.meta.env.VITE_API_BASE_URLS)
+    .map(normalizeApiBaseUrl)
+    .filter((url) => !isPlaceholderApiBaseUrl(url));
   const primaryUrl = normalizeApiBaseUrl(resolveApiBaseUrl());
   const platform = detectPlatform();
   const fallbackUrls = [];
 
-  if (!platform.isNative) {
+  if (platform.isNative) {
+    fallbackUrls.push(LOOPBACK_API_BASE_URL, LOCAL_API_BASE_URL);
+  } else {
     const location = getLocation();
     const protocol = location?.protocol || 'http:';
     const hostname = location?.hostname || '';

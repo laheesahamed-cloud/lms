@@ -6,13 +6,8 @@ import {
 } from '../../../../shared/api/courses.api.js';
 import { getLessonAiNote, listAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
+import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
-
-const subtleButton =
-  'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line-medium bg-surface-2 px-4 text-[13px] font-semibold text-ink-medium transition-[background,border-color,color] duration-150 hover:border-brand-primary/26 hover:bg-[var(--color-primary-light)] hover:text-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 disabled:cursor-not-allowed disabled:opacity-55 dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-300 dark:hover:border-sky-400/28 dark:hover:bg-sky-400/12 dark:hover:text-white';
-const primaryButton =
-  'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand-primary/24 bg-[var(--color-primary-light)] px-4 text-[13px] font-semibold text-brand-primary transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/36 hover:bg-brand-primary/14 disabled:cursor-not-allowed disabled:opacity-55 dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200 dark:hover:bg-sky-400/18';
-const surfaceCard = 'lms-app-card rounded-2xl border border-line-soft bg-surface-card shadow-sm';
 
 const COURSE_SUBJECT_PALETTES = [
   { key: 'rose', group: 'warm', match: /(cardio|heart|coronar|arrhythm|myocard)/i, rgb: '214, 91, 145', bg: 'rgba(253, 242, 248, 0.86)', soft: 'rgba(214, 91, 145, 0.13)', border: 'rgba(214, 91, 145, 0.25)', text: '#d65b91' },
@@ -109,7 +104,7 @@ function clampPercent(value) {
 }
 
 function formatStatus(status) {
-  if (status === 'completed') return 'Completed';
+  if (status === 'completed') return '';
   if (status === 'in_progress') return 'In Progress';
   return 'Not Started';
 }
@@ -203,7 +198,7 @@ function getLessonActionLabel(lesson) {
 
 function getLessonStateLabel(lesson) {
   if (lesson.accessLocked) return 'Locked';
-  if (lesson.status === 'completed') return 'Completed';
+  if (lesson.status === 'completed') return '';
   if (lesson.status === 'in_progress') return 'Current';
   return 'Available';
 }
@@ -232,6 +227,11 @@ function getLessonMetaItems(lesson) {
   if (lesson.isFree) items.push('Free access');
 
   return items.slice(0, 2);
+}
+
+function formatCountLabel(count, singular, plural = `${singular}s`) {
+  const numeric = Number(count || 0);
+  return `${numeric} ${numeric === 1 ? singular : plural}`;
 }
 
 export function CourseDetailPage() {
@@ -416,15 +416,18 @@ export function CourseDetailPage() {
 
   if (loading) {
     return (
-      <main className="dashboard-page study-hub-page student-course-detail-page min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white">
-        <section className="study-hub-shell max-w-[1180px]">
-          <div className="grid gap-4">
-            <div className="h-52 rounded-2xl bg-surface-2 dark:bg-white/[0.055]" />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-              <div className="h-96 rounded-2xl bg-surface-2 dark:bg-white/[0.045]" />
-              <div className="h-80 rounded-2xl bg-surface-2 dark:bg-white/[0.045]" />
-            </div>
-          </div>
+      <main className="dashboard-page study-hub-page student-notes-page lms-course-detail-page lms-course-map-page">
+        <section className="study-hub-shell course-detail-shell">
+          <AppHeader title="Course" subtitle="Lesson Map" />
+          <section className="course-map-overview course-map-overview--loading" aria-label="Loading course lesson map">
+            <div className="course-map-skeleton course-map-skeleton--title" />
+            <div className="course-map-skeleton course-map-skeleton--line" />
+            <div className="course-map-skeleton course-map-skeleton--stats" />
+          </section>
+          <section className="course-map-shell course-map-shell--loading" aria-label="Loading lessons">
+            <div className="course-map-skeleton course-map-skeleton--heading" />
+            <div className="course-map-skeleton course-map-skeleton--rows" />
+          </section>
         </section>
       </main>
     );
@@ -432,32 +435,52 @@ export function CourseDetailPage() {
 
   if (!course) {
     return (
-      <main className="dashboard-page study-hub-page student-course-detail-page min-h-dvh bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white">
-        <section className="study-hub-shell max-w-[1180px]">
-          <div className={cx(surfaceCard, 'p-6 text-[14px] text-ink-soft dark:text-slate-300')}>Course details are unavailable.</div>
+      <main className="dashboard-page study-hub-page student-notes-page lms-course-detail-page lms-course-map-page">
+        <section className="study-hub-shell course-detail-shell">
+          <AppHeader title="Course" subtitle="Lesson Map" />
+          <div className="course-map-page-actions">
+            <button type="button" className={ui.secondaryAction} onClick={() => navigate('/courses')}>
+              Back to Courses
+            </button>
+          </div>
+          <div className={ui.emptyBox}>Course details are unavailable.</div>
         </section>
       </main>
     );
   }
 
   return (
-    <main className="dashboard-page study-hub-page lms-course-detail-page lms-course-map-page relative min-h-dvh overflow-hidden bg-surface-0 text-ink-strong dark:bg-[#020305] dark:text-white">
-      <section className="study-hub-shell relative gap-5">
-        {error ? (
-          <div className="rounded-2xl border border-brand-error/20 bg-brand-error/8 px-4 py-3 text-[14px] font-semibold text-brand-error dark:border-red-300/20 dark:bg-red-400/10 dark:text-red-100">
-            {error}
-          </div>
-        ) : null}
+    <main className="dashboard-page study-hub-page student-notes-page lms-course-detail-page lms-course-map-page">
+      <section className="study-hub-shell course-detail-shell">
+        <AppHeader title={course.courseTitle} subtitle="Course lesson map" />
 
-        <section className="lms-course-detail-hero lms-page-header-card course-map-hero">
-          <div className="course-map-hero__top">
-            <button type="button" className={subtleButton} onClick={() => navigate('/courses')}>
+        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+
+        <section className="course-map-overview" aria-labelledby="course-map-title">
+          <div className="course-map-overview__copy">
+            <span className="course-map-eyebrow">Course</span>
+            <h1 id="course-map-title">{course.courseTitle}</h1>
+            <p className="course-map-context">
+              Course
+              <span aria-hidden="true">/</span>
+              <strong>{course.courseTitle}</strong>
+            </p>
+          </div>
+
+          <div className="course-map-progress" aria-label={`${clampPercent(course.progressPercent)} percent complete`}>
+            <strong>{clampPercent(course.progressPercent)}%</strong>
+            <span>Complete</span>
+            <ProgressBar value={course.progressPercent} className="h-2" />
+          </div>
+
+          <div className="course-map-overview__actions">
+            <button type="button" className={ui.secondaryAction} onClick={() => navigate('/courses')}>
               Back to Courses
             </button>
             {continueTarget ? (
               <button
                 type="button"
-                className={primaryButton}
+                className={ui.primaryAction}
                 onClick={() =>
                   handleOpenLesson({
                     ...continueTarget.lesson,
@@ -473,83 +496,71 @@ export function CourseDetailPage() {
             ) : null}
           </div>
 
-          <div className="course-map-hero__body course-map-hero__body--simple">
-            <div className="course-map-hero__copy">
-              <span className="course-map-eyebrow">Lesson Map</span>
-              <h1>{course.courseTitle}</h1>
-              <p>
-                Follow each subject, scan lesson progress, and continue from the next open lesson.
-              </p>
-            </div>
-
-            <div className="course-map-progress" aria-label={`${clampPercent(course.progressPercent)} percent complete`}>
-              <strong>{clampPercent(course.progressPercent)}%</strong>
-              <span>Complete</span>
-              <ProgressBar value={course.progressPercent} className="h-2" />
-            </div>
-          </div>
-
-          <div className="course-map-stats" aria-label="Course overview">
+          <dl className="course-map-stats" aria-label="Course overview">
             {overviewStats.map((item) => (
               <div key={item.label}>
-                <strong>{item.value}</strong>
-                <span>{item.label}</span>
+                <dt>{item.label}</dt>
+                <dd>{item.value}</dd>
               </div>
             ))}
-          </div>
-
+          </dl>
         </section>
 
-        <section className="course-map-shell" aria-label="Course lesson map">
+        <section className="course-map-shell" aria-labelledby="course-map-heading">
           <div className="course-map-shell__head">
             <div>
               <span className="course-map-eyebrow">Learning Path</span>
-              <h2>Lesson Map</h2>
-              <p>Follow the lessons in order and unlock your progress.</p>
+              <h2 id="course-map-heading">Lesson Map</h2>
+              <p>
+                {formatCountLabel(subjects.length, 'subject')} · {formatCountLabel(course.totalLessonsCount || 0, 'lesson')}
+              </p>
             </div>
-            <span className="course-map-count">{course.completedLessonsCount || 0} / {course.totalLessonsCount || 0} done</span>
+            <span className="course-map-count">{course.completedLessonsCount || 0} / {course.totalLessonsCount || 0} lessons</span>
           </div>
 
-          <div className="course-map-units">
-            {subjects.map((subject, subjectIndex) => (
-              <article
-                className="course-map-unit course-map-unit--simple"
-                key={subject.id}
-                style={subjectAccentStyle(subjectPalettes.get(subject.id) || COURSE_SUBJECT_PALETTES[0])}
-              >
+          <ol className="course-map-units">
+            {subjects.map((subject, subjectIndex) => {
+              const subjectStatusLabel = formatStatus(subject.status);
+
+              return (
+                <li
+                  className="course-map-unit course-map-unit--simple"
+                  key={subject.id}
+                  style={subjectAccentStyle(subjectPalettes.get(subject.id) || COURSE_SUBJECT_PALETTES[0])}
+                >
                 <header className="course-map-unit__head">
                   <div className="course-map-unit__title">
                     <span>{subjectIndex + 1}</span>
                     <div>
                       <h3>{subject.subjectName}</h3>
-                      <p>{subject.totalTopicsCount || subject.topics.length} topics · {subject.totalLessonsCount || 0} lessons</p>
+                      <p>{formatCountLabel(subject.totalTopicsCount || subject.topics.length, 'topic')} · {formatCountLabel(subject.totalLessonsCount || 0, 'lesson')}</p>
                     </div>
                   </div>
                   <div className="course-map-unit__progress">
-                    <span className={cx('course-map-status', statusTone(subject.status))}>{formatStatus(subject.status)}</span>
+                    {subjectStatusLabel ? <span className={cx('course-map-status', statusTone(subject.status))}>{subjectStatusLabel}</span> : null}
                     <strong>{subject.progressPercent}%</strong>
                     <ProgressBar value={subject.progressPercent} />
                   </div>
                 </header>
 
-                <div className="course-map-topics">
+                <ol className="course-map-topics">
                   {subject.topics.map((topic, topicIndex) => {
-                    const topicDone = topic.totalLessonsCount > 0 && topic.completedLessonsCount === topic.totalLessonsCount;
+                    const topicStatusLabel = formatStatus(topic.status);
 
                     return (
-                      <section className="course-map-topic" key={`${subject.id}:${topic.id}`}>
+                      <li className="course-map-topic" key={`${subject.id}:${topic.id}`}>
                         <header className="course-map-topic__head">
                           <div>
                             <span>{subjectIndex + 1}.{topicIndex + 1}</span>
                             <h4>{topic.topicName}</h4>
                           </div>
                           <div>
-                            <span className={cx('course-map-status', statusTone(topic.status))}>{topicDone ? 'Done' : formatStatus(topic.status)}</span>
+                            {topicStatusLabel ? <span className={cx('course-map-status', statusTone(topic.status))}>{topicStatusLabel}</span> : null}
                             <small>{topic.completedLessonsCount || 0}/{topic.totalLessonsCount || 0} lessons</small>
                           </div>
                         </header>
 
-                        <div className="course-map-lessons">
+                        <ol className="course-map-lessons">
                           {topic.lessons.map((lesson, lessonIndex) => {
                             const lessonContext = {
                               ...lesson,
@@ -563,7 +574,7 @@ export function CourseDetailPage() {
                             const lessonMetaItems = getLessonMetaItems(lesson);
 
                             return (
-                              <div
+                              <li
                                 className={cx(
                                   'course-map-lesson-row',
                                   lesson.status === 'completed' && 'is-done',
@@ -572,13 +583,15 @@ export function CourseDetailPage() {
                                   lesson.accessLocked && 'is-locked'
                                 )}
                                 key={lesson.id}
+                                aria-current={lesson.status === 'in_progress' ? 'step' : undefined}
                                 style={{ '--course-map-lesson-delay': `${Math.min(lessonIndex, 8) * 90}ms` }}
                               >
                                 <button
                                   type="button"
                                   className="course-map-lesson-title"
                                   onClick={() => handleOpenLesson(lessonContext)}
-                                  disabled={busyLessonId === lesson.id}
+                                  disabled={busyLessonId === lesson.id || lesson.accessLocked}
+                                  aria-describedby={stateLabel ? `lesson-${lesson.id}-state` : undefined}
                                 >
                                   <span className="course-map-lesson-order">{subjectIndex + 1}.{topicIndex + 1}.{lessonIndex + 1}</span>
                                   <span className="course-map-lesson-glyph">
@@ -594,7 +607,9 @@ export function CourseDetailPage() {
                                   </span>
                                 </button>
 
-                                <span className={cx('course-map-status', statusTone(lesson.status))}>{stateLabel}</span>
+                                {stateLabel ? (
+                                  <span id={`lesson-${lesson.id}-state`} className={cx('course-map-status', statusTone(lesson.status))}>{stateLabel}</span>
+                                ) : null}
 
                                 <button
                                   type="button"
@@ -609,17 +624,18 @@ export function CourseDetailPage() {
                                 <div className="course-map-lesson-progress" aria-label={`${lessonProgress} percent complete`}>
                                   <span style={{ width: `${lessonProgress}%` }} />
                                 </div>
-                              </div>
+                              </li>
                             );
                           })}
-                        </div>
-                      </section>
+                        </ol>
+                      </li>
                     );
                   })}
-                </div>
-              </article>
-            ))}
-          </div>
+                </ol>
+                </li>
+              );
+            })}
+          </ol>
         </section>
       </section>
     </main>

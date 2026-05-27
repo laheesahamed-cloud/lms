@@ -17,11 +17,52 @@ const ANIM_CSS = `
   from { opacity:0; transform:scale(0.96); }
   to   { opacity:1; transform:scale(1); }
 }
+@keyframes fcRowReveal {
+  from { opacity:0; transform:translateY(-2px); }
+  to   { opacity:1; transform:translateY(0); }
+}
 .fc-fade-up  { animation: fcFadeUp  0.36s cubic-bezier(0.23,1,0.32,1) both; }
 .fc-scale-in { animation: fcScaleIn 0.28s cubic-bezier(0.23,1,0.32,1) both; }
 .fc-d1 { animation-delay:  50ms; }
 .fc-d2 { animation-delay: 110ms; }
 .fc-d3 { animation-delay: 180ms; }
+.fc-deck-row { animation: fcRowReveal 150ms cubic-bezier(0.23,1,0.32,1) both; }
+.fc-deck-table {
+  border-spacing: 0;
+}
+.fc-deck-label {
+  --fc-depth: 0;
+  padding-left: calc(var(--fc-depth) * clamp(3px, 0.5vw, 7px));
+}
+.fc-deck-status-slot {
+  min-width: 1.5rem;
+}
+.fc-deck-chevron {
+  transition: transform 150ms cubic-bezier(0.23,1,0.32,1), color 150ms ease;
+}
+.fc-deck-chevron[data-expanded="true"] {
+  transform: rotate(90deg);
+}
+@media (max-width: 640px) {
+  .fc-deck-row {
+    min-height: 44px;
+  }
+  .fc-deck-label {
+    padding-left: calc(var(--fc-depth) * 5px);
+  }
+}
+@media (max-width: 380px) {
+  .fc-deck-label {
+    padding-left: calc(var(--fc-depth) * 4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-deck-row,
+  .fc-deck-chevron {
+    animation: none;
+    transition: none;
+  }
+}
 .fc-card-front-bg {
   background-color: var(--surface-1);
   background-image: radial-gradient(ellipse at 88% 12%, rgba(59,130,246,0.09), transparent 42%);
@@ -1249,11 +1290,19 @@ function hasDeckContent(node) {
   );
 }
 
-function flattenDeckTree(nodes) {
+function flattenDeckTree(nodes, expandedKeys = new Set()) {
   return nodes.flatMap((node) => {
     if (!hasDeckContent(node)) return [];
-    return [node, ...flattenDeckTree(node.children)];
+    if (!node.children.length || !expandedKeys.has(node.key)) return [node];
+    return [node, ...flattenDeckTree(node.children, expandedKeys)];
   });
+}
+
+function collectDeckBranchKeys(node) {
+  if (!node?.children?.length) return [];
+  return node.children
+    .filter(hasDeckContent)
+    .flatMap((child) => [child.key, ...collectDeckBranchKeys(child)]);
 }
 
 function formatDeckMetric(value, unknown = false) {
@@ -1270,7 +1319,7 @@ function CountCell({ value, unknown = false, tone }) {
     total: 'text-ink-muted',
   };
   return (
-    <span className={cx('inline-flex min-w-8 justify-end rounded-md px-1.5 py-0.5 text-right text-[12px] font-black tabular-nums', tones[tone])}>
+    <span className={cx('inline-flex min-w-6 justify-end rounded-md px-0.5 py-0 text-right text-[11.5px] font-black tabular-nums max-[640px]:min-w-7 max-[640px]:text-[11.5px] max-[380px]:min-w-6 max-[380px]:text-[10.5px]', tones[tone])}>
       {formatDeckMetric(value, unknown)}
     </span>
   );
@@ -1292,10 +1341,25 @@ function FlashcardLockMark() {
   );
 }
 
-function FlashcardDeckRow({ node, starting, onStartScope, onUnlock }) {
+function DeckChevron({ expanded }) {
+  return (
+    <span
+      className="fc-deck-chevron grid size-5 shrink-0 place-items-center rounded-md text-ink-muted group-hover:text-brand-primary max-[520px]:size-4"
+      data-expanded={expanded ? 'true' : 'false'}
+      aria-hidden="true"
+    >
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" focusable="false">
+        <path d="M4.5 2.75 7.75 6 4.5 9.25" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+function FlashcardDeckRow({ node, expanded, starting, onToggle, onStartScope, onUnlock }) {
   const unlockedNotes = node.notes.filter((note) => !note.accessLocked);
   const hasStudyNotes = unlockedNotes.some((note) => !isLessonPlaceholder(note));
-  const disabled = starting || (!hasStudyNotes && !node.lockedCount);
+  const isExpandable = node.type !== 'lesson' && node.children.some(hasDeckContent);
+  const disabled = !isExpandable && (starting || (!hasStudyNotes && !node.lockedCount));
   const isLesson = node.type === 'lesson';
   const labelPrefix = {
     course: 'Course',
@@ -1304,11 +1368,11 @@ function FlashcardDeckRow({ node, starting, onStartScope, onUnlock }) {
     lesson: 'Lesson',
   }[node.type] || 'Deck';
   const rowPadding = {
-    course: 'py-2.5',
-    subject: 'py-2',
-    topic: 'py-1.5',
-    lesson: 'py-1.5',
-  }[node.type] || 'py-2';
+    course: 'py-2 max-[640px]:py-3',
+    subject: 'py-1.5 max-[640px]:py-2.5',
+    topic: 'py-1.5 max-[640px]:py-2.5',
+    lesson: 'py-1 max-[640px]:py-2.5',
+  }[node.type] || 'py-1.5';
   const rowTone = {
     course: 'border-line-medium/80 bg-surface-1/55 dark:bg-white/[0.025]',
     subject: 'bg-surface-card',
@@ -1316,6 +1380,10 @@ function FlashcardDeckRow({ node, starting, onStartScope, onUnlock }) {
     lesson: 'bg-transparent',
   }[node.type] || '';
   const handleActivate = () => {
+    if (isExpandable) {
+      onToggle(node.key);
+      return;
+    }
     if (disabled) return;
     if (!hasStudyNotes && node.lockedCount) {
       onUnlock();
@@ -1328,48 +1396,65 @@ function FlashcardDeckRow({ node, starting, onStartScope, onUnlock }) {
     event.preventDefault();
     handleActivate();
   };
+  const statusMark = !hasStudyNotes && node.lockedCount ? (
+    <FlashcardLockMark />
+  ) : !hasStudyNotes && isLesson ? (
+    <span className="shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[10px] font-black leading-none text-ink-muted">
+      No cards
+    </span>
+  ) : null;
 
   return (
     <tr
       tabIndex={disabled ? -1 : 0}
       role="button"
       aria-disabled={disabled}
-      aria-label={`${labelPrefix} ${node.label}. New ${node.newCount}, Learn ${node.learnCount}, Due ${node.dueCount}.${hasStudyNotes ? ' Start studying.' : node.lockedCount ? ' Locked.' : ' No flashcards yet.'}`}
+      aria-label={`${labelPrefix} ${node.label}. New ${node.newCount}, Learn ${node.learnCount}, Due ${node.dueCount}.${isExpandable ? expanded ? ' Expanded. Collapse group.' : ' Collapsed. Expand group.' : hasStudyNotes ? ' Start studying.' : node.lockedCount ? ' Locked.' : ' No flashcards yet.'}`}
+      {...(isExpandable ? { 'aria-expanded': expanded ? 'true' : 'false' } : {})}
       onClick={handleActivate}
       onKeyDown={handleKeyDown}
       className={cx(
-        'group border-t border-line-soft text-[12px] outline-none transition-[background,border-color] duration-150 dark:border-white/[0.07]',
+        'fc-deck-row group border-t border-line-soft text-[12px] outline-none transition-[background,border-color] duration-150 dark:border-white/[0.07]',
         rowTone,
         !disabled && 'cursor-pointer hover:bg-surface-2/55 focus-visible:bg-surface-2/70 focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-brand-primary/12 dark:hover:bg-white/[0.045]',
         disabled && 'cursor-not-allowed opacity-55'
       )}
     >
-      <th scope="row" className={cx('min-w-0 px-2 text-left align-middle sm:px-3', rowPadding)}>
+      <th scope="row" className={cx('min-w-0 px-2 text-left align-middle max-[640px]:px-2 sm:px-2.5', rowPadding)}>
         <div
-          className="flex min-w-0 items-center gap-2"
-          style={{ paddingLeft: `calc(${node.depth} * clamp(14px, 2.25vw, 26px))` }}
+          className="fc-deck-label flex min-w-0 items-center gap-1 max-[520px]:gap-1.5"
+          style={{ '--fc-depth': Math.max(node.depth, 0) }}
         >
+          {isExpandable ? (
+            <DeckChevron expanded={expanded} />
+          ) : (
+            <span className="size-3 shrink-0 max-[520px]:size-2" aria-hidden="true" />
+          )}
           {node.depth > 0 ? (
-            <span className="h-px w-4 shrink-0 rounded-full bg-line-medium/75" aria-hidden="true" />
+            <span className="h-px w-1.5 shrink-0 rounded-full bg-line-medium/70 max-[520px]:w-2" aria-hidden="true" />
           ) : null}
           <span className={cx(
-            'min-w-0 truncate leading-tight',
-            isLesson ? 'text-[12.5px] font-bold text-ink-medium' : 'text-[13px] font-black text-ink-strong'
+            'min-w-0 truncate leading-tight max-[640px]:whitespace-normal max-[640px]:break-words max-[640px]:overflow-visible',
+            isLesson ? 'text-[12.5px] font-bold text-ink-medium max-[520px]:text-[12px]' : 'text-[13px] font-black text-ink-strong max-[520px]:text-[12.5px]'
           )}>
             {node.label}
           </span>
-          {!hasStudyNotes && node.lockedCount ? (
-            <FlashcardLockMark />
-          ) : !hasStudyNotes && isLesson ? (
-            <span className="shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[10px] font-black leading-none text-ink-muted">
-              No cards
-            </span>
-          ) : null}
+          <span
+            className={cx(
+              'ml-1 hidden h-px min-w-6 flex-1 rounded-full bg-line-soft/70 min-[760px]:block dark:bg-white/[0.08]',
+              node.type === 'course' && 'bg-line-medium/80 dark:bg-white/[0.12]',
+              node.type === 'lesson' && 'bg-line-soft/45 dark:bg-white/[0.055]'
+            )}
+            aria-hidden="true"
+          />
+          <span className="fc-deck-status-slot ml-auto inline-flex shrink-0 items-center justify-center">
+            {statusMark}
+          </span>
         </div>
       </th>
-      <td className={cx('px-2 text-right align-middle', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
-      <td className={cx('px-2 text-right align-middle', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
-      <td className={cx('px-2 text-right align-middle', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
+      <td className={cx('px-1.5 text-right align-middle max-[640px]:px-1', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
+      <td className={cx('px-1.5 text-right align-middle max-[640px]:px-1', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
+      <td className={cx('px-2 text-right align-middle max-[640px]:px-2', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
     </tr>
   );
 }
@@ -1380,7 +1465,7 @@ function FlashcardDeckLoading() {
       {[1, 2, 3, 4, 5].map(i => (
         <div
           key={i}
-          className="grid min-h-[42px] grid-cols-[minmax(0,1fr)_56px_56px_56px] items-center gap-2 border-t border-line-soft px-3 py-2 dark:border-white/[0.07] max-[520px]:grid-cols-[minmax(0,1fr)_48px_48px_48px]"
+          className="grid min-h-[42px] grid-cols-[minmax(0,1fr)_52px_52px_52px] items-center gap-2 border-t border-line-soft px-3 py-2 dark:border-white/[0.07] max-[640px]:grid-cols-[minmax(0,1fr)_38px_38px_38px] max-[380px]:grid-cols-[minmax(0,1fr)_34px_34px_34px]"
         >
           <div className={ui.shimmer} style={{ height: 13, width: `${70 - i * 7}%`, marginLeft: i > 1 ? 16 : 0, borderRadius: 999 }} />
           <div className={ui.shimmer} style={{ height: 16, borderRadius: 8 }} />
@@ -1393,11 +1478,42 @@ function FlashcardDeckLoading() {
 }
 
 function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, reviewStats, onStartScope, onUnlock }) {
-  const rows = useMemo(
-    () => flattenDeckTree(buildDeckTree(notes, deckStats, reviewStats)),
+  const [expandedKeys, setExpandedKeys] = useState(() => new Set());
+  const deckTree = useMemo(
+    () => buildDeckTree(notes, deckStats, reviewStats),
     [deckStats, notes, reviewStats]
   );
-  const headerClass = 'px-3 py-2 text-[10.5px] font-black uppercase tracking-normal text-ink-muted';
+  const rows = useMemo(
+    () => flattenDeckTree(deckTree, expandedKeys),
+    [deckTree, expandedKeys]
+  );
+  const nodeLookup = useMemo(() => {
+    const map = new Map();
+    const visit = (nodes) => {
+      nodes.forEach((node) => {
+        map.set(node.key, node);
+        if (node.children.length) visit(node.children);
+      });
+    };
+    visit(deckTree);
+    return map;
+  }, [deckTree]);
+  const toggleDeckNode = (key) => {
+    setExpandedKeys((current) => {
+      const node = nodeLookup.get(key);
+      const next = new Set(current);
+      const branchKeys = node ? collectDeckBranchKeys(node) : [];
+      if (next.has(key)) {
+        next.delete(key);
+        branchKeys.forEach((branchKey) => next.delete(branchKey));
+      } else {
+        next.add(key);
+        branchKeys.forEach((branchKey) => next.add(branchKey));
+      }
+      return next;
+    });
+  };
+  const headerClass = 'px-2 py-1.5 text-[10px] font-black uppercase tracking-normal text-ink-muted max-[640px]:px-1 max-[640px]:py-2 max-[640px]:text-[9.5px]';
 
   return (
     <section className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-none fc-fade-up fc-d3 dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
@@ -1419,15 +1535,15 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
           </div>
         </div>
       ) : (
-        <table className="w-full table-fixed border-collapse text-left">
+        <table className="fc-deck-table w-full table-fixed border-collapse text-left">
           <caption className="sr-only">
             Anki-style flashcard deck hierarchy ordered by LMS course, subject, topic, and lesson.
           </caption>
           <colgroup>
             <col />
-            <col className="w-[56px] max-[520px]:w-[48px]" />
-            <col className="w-[56px] max-[520px]:w-[48px]" />
-            <col className="w-[56px] max-[520px]:w-[48px]" />
+            <col className="w-[42px] max-[640px]:w-[42px] max-[380px]:w-[36px]" />
+            <col className="w-[42px] max-[640px]:w-[42px] max-[380px]:w-[36px]" />
+            <col className="w-[44px] max-[640px]:w-[44px] max-[380px]:w-[38px]" />
           </colgroup>
           <thead className="bg-surface-1/70 dark:bg-white/[0.025]">
             <tr>
@@ -1442,7 +1558,9 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
               <FlashcardDeckRow
                 key={node.key}
                 node={node}
+                expanded={expandedKeys.has(node.key)}
                 starting={starting}
+                onToggle={toggleDeckNode}
                 onStartScope={onStartScope}
                 onUnlock={onUnlock}
               />

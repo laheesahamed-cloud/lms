@@ -59,8 +59,8 @@ const reviewUi = {
   questionNav:
     'lms-review-question-nav flex items-center justify-between gap-2.5 border-t border-line-soft pt-4 max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:gap-2',
   questionNavActions:
-    'flex min-w-0 flex-wrap items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-1 max-[640px]:[&_button]:w-full',
-  position: 'text-xs font-extrabold text-ink-soft',
+    'lms-review-nav-actions flex min-w-0 flex-wrap items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-1 max-[640px]:[&_button]:w-full',
+  position: 'lms-review-position text-xs font-extrabold text-ink-soft',
   optionsGrid: 'lms-review-options-grid grid gap-3 max-[640px]:gap-2.5',
   optionTopline: 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start',
   optionLead: 'flex min-w-0 flex-auto items-start gap-2',
@@ -394,8 +394,9 @@ function hasTheoryRecap(recap) {
 }
 
 function ReviewStudySupport({ question }) {
-  const hasRecap = question?.theoryRecap !== undefined;
-  const hasStudyCard = hasTheoryRecap(question?.theoryRecap);
+  const recap = question?.theoryRecap || null;
+  const hasRecap = Boolean(question && Object.prototype.hasOwnProperty.call(question, 'theoryRecap'));
+  const hasStudyCard = hasTheoryRecap(recap);
 
   if (!hasRecap && !hasStudyCard) return null;
 
@@ -404,7 +405,7 @@ function ReviewStudySupport({ question }) {
       {hasRecap ? (
         <div className={reviewUi.recapAction}>
           <TheoryRecapPopupTrigger
-            recap={question.theoryRecap}
+            recap={recap}
             context="review"
             revealed={true}
           />
@@ -413,10 +414,10 @@ function ReviewStudySupport({ question }) {
       {hasStudyCard ? (
         <article className={reviewStudyCardClass('theory')}>
           <h4>Key Points</h4>
-          {question.theoryRecap.conceptName ? <p><strong>{question.theoryRecap.conceptName}</strong></p> : null}
-          {question.theoryRecap.keyPoints?.length ? (
+          {recap.conceptName ? <p><strong>{recap.conceptName}</strong></p> : null}
+          {recap.keyPoints?.length ? (
             <ul className={reviewUi.studyList}>
-              {question.theoryRecap.keyPoints.slice(0, 4).map((point, index) => (
+              {recap.keyPoints.slice(0, 4).map((point, index) => (
                 <li
                   className="relative rounded-[12px] border border-[color-mix(in_srgb,#8b5cf6_12%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_4%,var(--surface-2))] py-2 pl-8 pr-3 text-[13px] leading-[1.48] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-sm"
                   key={`${index}-${point.slice(0, 16)}`}

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { applyCapacitorStatusBarTheme } from '../utils/capacitorStatusBar.js';
 
 const THEME_KEY = 'lms_theme_mode';
 const ACCENT_THEME_KEY = 'lms_accent_theme';
@@ -40,6 +41,8 @@ function commitTheme(theme, options = {}) {
   if (metaThemeColor) {
     metaThemeColor.setAttribute('content', CHROME_THEME_COLORS[theme]);
   }
+
+  applyCapacitorStatusBarTheme(theme, CHROME_THEME_COLORS[theme]);
 
   window.clearTimeout(themeTransitionTimer);
   if (shouldAnimate) {

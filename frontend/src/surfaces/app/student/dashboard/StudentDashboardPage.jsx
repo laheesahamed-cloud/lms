@@ -556,12 +556,30 @@ function DailyQuestionCard({ question }) {
   const [selectedOptionId, setSelectedOptionId] = useState(null);
   const [answerFeedback, setAnswerFeedback] = useState(null);
   const [expanded, setExpanded] = useState(false);
+  const [desktopAnswersVisible, setDesktopAnswersVisible] = useState(() => (
+    typeof window !== 'undefined'
+      ? window.matchMedia?.('(min-width: 1080px)').matches === true
+      : false
+  ));
 
   useEffect(() => {
     setSelectedOptionId(null);
     setAnswerFeedback(null);
     setExpanded(false);
   }, [question?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const media = window.matchMedia('(min-width: 1080px)');
+    const update = () => setDesktopAnswersVisible(media.matches);
+    update();
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', update);
+      return () => media.removeEventListener('change', update);
+    }
+    media.addListener?.(update);
+    return () => media.removeListener?.(update);
+  }, []);
 
   if (!question?.questionText || !Array.isArray(question.options) || question.options.length === 0) {
     return (
@@ -582,6 +600,8 @@ function DailyQuestionCard({ question }) {
   }
 
   const revealAnswer = selectedOptionId !== null;
+  const answersVisible = expanded || desktopAnswersVisible;
+  const answerListId = 'daily-question-answers';
 
   const triggerAnswerFeedback = (option) => {
     const isCorrect = Boolean(option.isCorrect);
@@ -612,7 +632,7 @@ function DailyQuestionCard({ question }) {
   };
 
   return (
-    <section className={`study-card study-question-card ${expanded ? 'is-expanded' : 'is-collapsed'}`}>
+    <section className={`study-card study-question-card ${expanded ? 'is-expanded' : 'is-collapsed'} ${desktopAnswersVisible ? 'has-desktop-answers' : ''}`}>
       <div className="study-card__head">
         <div>
           <span className="study-eyebrow">Question of the day</span>
@@ -621,16 +641,19 @@ function DailyQuestionCard({ question }) {
         <span className="study-soft-icon study-soft-icon--indigo"><Icon name="review" /></span>
       </div>
       <p className="study-question-text">{question.questionText}</p>
-      <div className="study-answer-list" role="list" aria-label="Question answers">
+      <div
+        id={answerListId}
+        className="study-answer-list"
+        role="list"
+        aria-label="Question answers"
+        aria-hidden={answersVisible ? undefined : 'true'}
+      >
         {question.options.map((option) => {
           const isSelected = option.id === selectedOptionId;
           const isCorrect = Boolean(option.isCorrect);
           const answerStateClass = [
-            revealAnswer
-              ? isCorrect
-                ? 'is-correct'
-                : 'is-wrong'
-              : '',
+            revealAnswer && isCorrect ? 'is-correct' : '',
+            revealAnswer && isSelected && !isCorrect ? 'is-wrong' : '',
             isSelected ? 'is-selected' : '',
             answerFeedback?.type === 'wrong' && answerFeedback.optionId === option.id ? 'is-shaking' : '',
           ].filter(Boolean).join(' ');
@@ -639,7 +662,7 @@ function DailyQuestionCard({ question }) {
               type="button"
               className={`study-answer-option ${answerStateClass}`}
               key={option.id}
-              tabIndex={expanded ? 0 : -1}
+              tabIndex={answersVisible ? 0 : -1}
               onClick={() => triggerAnswerFeedback(option)}
             >
               <span>{option.optionLabel}</span>
@@ -656,7 +679,8 @@ function DailyQuestionCard({ question }) {
       <button
         type="button"
         className="study-question-toggle"
-        aria-expanded={expanded ? 'true' : 'false'}
+        aria-controls={answerListId}
+        aria-expanded={answersVisible ? 'true' : 'false'}
         onClick={() => setExpanded((value) => !value)}
       >
         {expanded ? 'Hide question' : 'Answer question'}
@@ -775,34 +799,6 @@ export function StudentDashboardPage() {
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [heroMascot] = useState(pickDashboardHeroMascot);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-
-    const body = document.body;
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    const root = document.documentElement;
-    const routeThemeColors = { light: '#dce6f4', dark: '#0f1720' };
-    const appThemeColors = { light: '#dce6f4', dark: '#0f1720' };
-    const getTheme = () => (root.dataset.theme === 'dark' ? 'dark' : 'light');
-    const syncRouteThemeColor = () => {
-      metaThemeColor?.setAttribute('content', routeThemeColors[getTheme()]);
-    };
-
-    body.classList.add('study-hub-screen');
-    syncRouteThemeColor();
-
-    const observer = typeof MutationObserver === 'function'
-      ? new MutationObserver(syncRouteThemeColor)
-      : null;
-    observer?.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
-
-    return () => {
-      observer?.disconnect();
-      body.classList.remove('study-hub-screen');
-      metaThemeColor?.setAttribute('content', appThemeColors[getTheme()]);
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

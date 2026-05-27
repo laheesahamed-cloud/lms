@@ -11,6 +11,7 @@ import { cx } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
 
 const PROFILE_MENU_EXIT_MS = 220;
+const PROFILE_MENU_ID = 'lms-profile-menu';
 
 function areStyleObjectsEqual(current, next) {
   if (current === next) return true;
@@ -123,10 +124,10 @@ function useOutsideDismiss(ref, onDismiss, enabled = true) {
       }
     }
 
-    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleEscape);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleEscape);
     };
   }, [enabled, ref, onDismiss]);
@@ -258,11 +259,19 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       return;
     }
 
+    const shouldRestoreFocus =
+      typeof document !== 'undefined'
+      && profileMenuRef.current
+      && profileMenuRef.current.contains(document.activeElement);
+
     window.clearTimeout(profileCloseTimerRef.current);
     setProfileOpen(false);
     setProfileClosing(true);
     profileCloseTimerRef.current = window.setTimeout(() => {
       setProfileClosing(false);
+      if (shouldRestoreFocus) {
+        profileButtonRef.current?.focus({ preventScroll: true });
+      }
     }, PROFILE_MENU_EXIT_MS);
   }, [profileClosing, profileOpen]);
 
@@ -296,6 +305,38 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
 
     openProfileMenu();
   }, [closeProfileMenu, openProfileMenu, profileOpen]);
+
+  const handleProfileMenuKeyDown = useCallback((event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeProfileMenu();
+      return;
+    }
+
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      return;
+    }
+
+    const items = Array.from(profileMenuRef.current?.querySelectorAll('[role="menuitem"]:not(:disabled)') || []);
+    if (!items.length) {
+      return;
+    }
+
+    event.preventDefault();
+    const activeIndex = items.indexOf(document.activeElement);
+    let nextIndex = 0;
+
+    if (event.key === 'End') {
+      nextIndex = items.length - 1;
+    } else if (event.key === 'ArrowUp') {
+      nextIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
+    } else if (event.key === 'ArrowDown') {
+      nextIndex = activeIndex === -1 || activeIndex >= items.length - 1 ? 0 : activeIndex + 1;
+    }
+
+    items[nextIndex]?.focus({ preventScroll: true });
+  }, [closeProfileMenu]);
 
   async function handleLogout() {
     closeProfileMenu();
@@ -359,6 +400,32 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       document.body.classList.remove('lms-profile-menu-closing');
     };
   }, [profileClosing, profileVisible]);
+
+  useEffect(() => {
+    if (!profileOpen || typeof window === 'undefined' || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const activeElement = document.activeElement;
+      const openedFromTrigger =
+        profileButtonRef.current?.contains(activeElement)
+        || profileAvatarLayerRef.current?.contains(activeElement)
+        || activeElement === document.body;
+
+      if (!openedFromTrigger) {
+        return;
+      }
+
+      profileMenuRef.current
+        ?.querySelector('[role="menuitem"]:not(:disabled)')
+        ?.focus({ preventScroll: true });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [profileOpen]);
 
   useEffect(() => {
     return () => {
@@ -455,7 +522,9 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       className={cx('lms-profile-avatar-floating', profileClosing && 'is-closing')}
       style={profileAvatarStyle || undefined}
       aria-label="Close profile menu"
+      aria-controls={PROFILE_MENU_ID}
       aria-expanded={profileOpen ? 'true' : 'false'}
+      aria-haspopup="menu"
       onClick={toggleProfileMenu}
     >
       <ProfileAvatar user={user} />
@@ -467,9 +536,13 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       : profileAvatarLayer;
   const profileMenu = profileVisible ? (
     <div
+      id={PROFILE_MENU_ID}
       ref={profileMenuRef}
       className={cx(topbarUi.dropdown, topbarUi.profileDropdown, profileClosing && 'is-closing')}
       style={profileMenuStyle || undefined}
+      role="menu"
+      aria-label="Profile menu"
+      onKeyDown={handleProfileMenuKeyDown}
     >
       <div className={topbarUi.dropdownHead}>
         <div className="lms-profile-menu-head-copy">
@@ -479,13 +552,13 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       </div>
 
       <div className={topbarUi.dropdownSection}>
-        <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
+        <button type="button" role="menuitem" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
           <ProfileIcon />
           <span>Profile</span>
         </button>
 
         {settingsPath ? (
-          <button type="button" className={topbarUi.menuItem} onClick={() => handleNavigate(settingsPath)}>
+          <button type="button" role="menuitem" className={topbarUi.menuItem} onClick={() => handleNavigate(settingsPath)}>
             <SettingsIcon />
             <span>Settings</span>
           </button>
@@ -493,7 +566,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       </div>
 
       <div className={topbarUi.dropdownSection}>
-        <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')} type="button" onClick={handleLogout} disabled={isSigningOut}>
+        <button className={cx(topbarUi.menuItem, topbarUi.dangerItem, 'lms-profile-menu-logout')} type="button" role="menuitem" onClick={handleLogout} disabled={isSigningOut}>
           <LogoutIcon />
           <span>{isSigningOut ? 'Signing out...' : 'Log out'}</span>
         </button>
@@ -533,7 +606,9 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                 type="button"
                 className={cx('study-avatar study-avatar--profile', profileVisible && 'is-profile-avatar-open')}
                 aria-label="Open profile menu"
+                aria-controls={PROFILE_MENU_ID}
                 aria-expanded={profileOpen ? 'true' : 'false'}
+                aria-haspopup="menu"
                 onClick={toggleProfileMenu}
               >
                 <ProfileAvatar user={user} />
@@ -692,7 +767,9 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
                 type="button"
                
                 aria-label="Open profile menu"
+                aria-controls={PROFILE_MENU_ID}
                 aria-expanded={profileOpen ? 'true' : 'false'}
+                aria-haspopup="menu"
                 onClick={toggleProfileMenu}
               >
                 <ProfileAvatar user={user} />

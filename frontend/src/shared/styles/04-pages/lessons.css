@@ -880,6 +880,50 @@
   }
 }
 
+.student-app-shell .student-quiz-map-page .student-quiz-course-picker-head {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+}
+
+.student-app-shell .student-quiz-map-page .student-quiz-course-picker-head .student-lessons-mascot-strip,
+.student-app-shell .student-quiz-map-page .student-quiz-course-picker-head .student-lessons-mascot-strip > div {
+  min-width: 0;
+}
+
+.student-app-shell .student-quiz-map-page .student-quiz-course-count-pill {
+  justify-self: end !important;
+}
+
+@media (max-width: 640px) {
+  .student-app-shell .student-quiz-map-page .student-quiz-course-picker-head {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+  }
+
+  .student-app-shell .student-quiz-map-page .student-quiz-course-picker-head .student-lessons-mascot-strip {
+    gap: 8px;
+  }
+
+  .student-app-shell .student-quiz-map-page .student-quiz-course-count-pill {
+    min-height: 30px;
+    padding-inline: 10px;
+    font-size: 10.5px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 380px) {
+  .student-app-shell .student-quiz-map-page .student-quiz-course-picker-head {
+    gap: 6px !important;
+  }
+
+  .student-app-shell .student-quiz-map-page .student-quiz-course-count-pill {
+    min-height: 28px;
+    padding-inline: 8px;
+    font-size: 10px;
+  }
+}
+
 /* ============================================================
    AI NOTE READER (focus mode — sidebar hidden)
    ============================================================ */

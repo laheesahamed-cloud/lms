@@ -102,9 +102,6 @@ function fmtDate(iso) {
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
-function SearchIcon() {
-  return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M10 10l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>;
-}
 function CourseIcon() {
   return <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3.5 5.5C5.5 5.5 8 6 10 7.5C12 6 14.5 5.5 16.5 5.5V16C14.5 16 12 16.5 10 18C8 16.5 5.5 16 3.5 16V5.5Z" stroke="currentColor" strokeWidth="1.55" strokeLinejoin="round"/><path d="M10 7.5V18" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
 }
@@ -350,7 +347,6 @@ export function AiNotesListPage({
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
   const selectedCourse = searchParams.get('course');
 
   useEffect(() => {
@@ -403,18 +399,7 @@ export function AiNotesListPage({
     return () => window.removeEventListener('lms:lesson-progress-updated', handleLessonProgress);
   }, []);
 
-  const filteredNotes = useMemo(() => {
-    if (!search.trim()) return notes;
-    const q = search.toLowerCase();
-    return notes.filter(n =>
-      n.title?.toLowerCase().includes(q) ||
-      n.topicName?.toLowerCase().includes(q) ||
-      n.courseTitle?.toLowerCase().includes(q) ||
-      n.subtopicName?.toLowerCase().includes(q)
-    );
-  }, [notes, search]);
-
-  const hierarchy = useMemo(() => buildHierarchy(filteredNotes), [filteredNotes]);
+  const hierarchy = useMemo(() => buildHierarchy(notes), [notes]);
   const activeCourse = useMemo(
     () => hierarchy.find(c => c.label === selectedCourse) || null,
     [hierarchy, selectedCourse]
@@ -445,24 +430,6 @@ export function AiNotesListPage({
           subtitle="Lesson Notes"
         />
 
-        {/* Search */}
-        <div className="student-lessons-search-card rounded-lg border border-line-soft bg-surface-card p-3 shadow-sm dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] max-[520px]:p-2">
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted">
-              <SearchIcon />
-            </span>
-            <input
-              className={cx(ui.input, 'pl-10 pr-11 max-[520px]:min-h-10 max-[520px]:text-[13px]')}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search lessons, topics, courses..."
-            />
-            {search && (
-              <button className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-[13px] font-black text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong" onClick={() => setSearch('')} aria-label="Clear lesson search">✕</button>
-            )}
-          </div>
-        </div>
-
         {error && (
           <div className={cx(ui.feedbackError, 'flex items-center justify-between gap-3')}>
             {error}
@@ -483,17 +450,11 @@ export function AiNotesListPage({
                 <LessonIcon />
               </span>
               <p className="m-0 text-center text-[15px] font-semibold text-ink-medium">
-                {search ? 'No lessons match your search.' : 'No lessons yet.'}
+                No lessons yet.
               </p>
               <p className="m-0 text-center text-[13px] text-ink-muted">
-                {search ? 'Try different keywords.' : 'Lessons will appear here once published by your instructor.'}
+                Lessons will appear here once published by your instructor.
               </p>
-              {search && (
-                <button className={cx(ui.secondaryButton, 'min-h-10 px-4 text-xs')}
-                  onClick={() => setSearch('')}>
-                  Clear search
-                </button>
-              )}
             </div>
           ) : (
             <section className="student-lessons-hub animate-fadePop">
@@ -502,7 +463,7 @@ export function AiNotesListPage({
                   <StudyMascot variant="stetho" mood="lesson" size="md" label="Lessons study buddy" />
                   <div>
                     <h2 className="m-0 text-[19px] font-black uppercase leading-tight text-ink-strong dark:text-white max-[520px]:text-[16px]">Choose a Lesson</h2>
-                    <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{filteredNotes.length} lesson{filteredNotes.length !== 1 ? 's' : ''} available</p>
+                    <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{notes.length} lesson{notes.length !== 1 ? 's' : ''} available</p>
                   </div>
                 </div>
                 <span className="student-lessons-count-pill rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-extrabold text-ink-muted">

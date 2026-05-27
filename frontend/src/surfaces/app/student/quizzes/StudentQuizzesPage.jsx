@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { fetchStudentQuizzes } from '../../../../shared/api/quizAttempts.api.js';
@@ -702,9 +702,6 @@ function CourseGroup({ course, quizzes, groupIndex, bookmarkedIds, onBookmark, o
 
 function QuizFilterPanel({
   isExamPage,
-  search,
-  onSearchChange,
-  searchSuggestions,
   statusItems,
   statusFilter,
   onStatusChange,
@@ -717,32 +714,10 @@ function QuizFilterPanel({
 }) {
   const showSubjects = visibleSubjects.length > 1;
   const showTopics = visibleTopics.length > 1;
-  const suggestionId = isExamPage ? 'exam-map-suggestions' : 'quiz-map-suggestions';
 
   return (
     <div className="rounded-2xl border border-line-soft bg-surface-card p-3.5 shadow-sm shadow-slate-950/[0.03] dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:shadow-black/20 max-[520px]:rounded-xl max-[520px]:p-2.5">
       <div className="grid gap-3 max-[520px]:gap-2.5">
-        <label className="grid min-w-0 gap-1.5">
-          <span className="text-[10.5px] font-black uppercase tracking-[0.08em] text-ink-muted max-[520px]:sr-only">Search</span>
-          <span className="relative block">
-            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted max-[520px]:left-2.5">
-              <IcoSearch/>
-            </span>
-            <input
-              className={cx(ui.input, 'min-h-11 pl-10 text-[13.5px] max-[520px]:min-h-10 max-[520px]:rounded-lg max-[520px]:pl-8 max-[520px]:pr-2 max-[520px]:text-[12px]')}
-              placeholder={isExamPage ? 'Search exams, subjects, or topics' : 'Search practice sets, subjects, or topics'}
-              value={search}
-              onChange={event => onSearchChange(event.target.value)}
-              list={suggestionId}
-            />
-            <datalist id={suggestionId}>
-              {searchSuggestions.map((item) => (
-                <option key={item} value={item} />
-              ))}
-            </datalist>
-          </span>
-        </label>
-
         {statusItems?.length ? (
           <div className="grid min-w-0 gap-1.5">
             <span className="text-[10.5px] font-black uppercase tracking-[0.08em] text-ink-muted">Categories</span>
@@ -845,7 +820,7 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
 
   return (
     <section className="student-lessons-hub animate-fadePop">
-      <div className="student-lessons-section-head mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="student-lessons-section-head student-quiz-course-picker-head mb-5 flex flex-wrap items-end justify-between gap-3">
         <div className="lms-quiz-mascot-strip student-lessons-mascot-strip">
           <StudyMascot variant="stetho" mood="lesson" size="md" label={isExamPage ? 'Exam navigator mascot' : 'Q-Bank study buddy'} />
           <div>
@@ -853,7 +828,7 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
             <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12px]">{totalSets} {setLabel}{totalSets !== 1 ? 's' : ''} available</p>
           </div>
         </div>
-        <span className="student-lessons-count-pill rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-extrabold text-ink-muted">
+        <span className="student-lessons-count-pill student-quiz-course-count-pill rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-extrabold text-ink-muted">
           {courses.length} {courses.length === 1 ? 'course' : 'courses'}
         </span>
       </div>
@@ -1175,9 +1150,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   const [courseFilter,  setCourseFilter]  = useState('all');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [topicFilter,   setTopicFilter]   = useState('all');
-  const [search,        setSearch]        = useState('');
   const [accessPromptQuiz, setAccessPromptQuiz] = useState(null);
-  const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -1255,7 +1228,6 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     setSubjectFilter('all');
     setTopicFilter('all');
     setStatusFilter('all');
-    setSearch('');
   }
 
   function handleBackToCourses() {
@@ -1263,17 +1235,10 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     setSubjectFilter('all');
     setTopicFilter('all');
     setStatusFilter('all');
-    setSearch('');
   }
 
   const modeQuizzes = useMemo(
-    () => (isExamPage ? quizzes : quizzes.filter(q => !q.examModeOnly)).map((quiz) => ({
-      ...quiz,
-      searchText: [quiz.quizTitle, quiz.courseTitle, quiz.subjectName, quiz.topicName, quiz.subtopicName, quiz.lessonTitle]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase(),
-    })),
+    () => (isExamPage ? quizzes : quizzes.filter(q => !q.examModeOnly)),
     [isExamPage, quizzes],
   );
 
@@ -1321,22 +1286,6 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     )].sort()
   ), [modeQuizzes, courseFilter, subjectFilter]);
 
-  const searchSuggestions = useMemo(() => (
-    [...new Set(
-      modeQuizzes
-        .filter(q => courseFilter === 'all' || (q.courseTitle || 'General') === courseFilter)
-        .flatMap(q => [
-          q.quizTitle,
-          q.subjectName || (q.isGeneral ? 'General / Full Course Revision' : ''),
-          q.topicName,
-          q.subtopicName,
-          q.lessonTitle,
-        ])
-        .filter(Boolean)
-    )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })).slice(0, 80)
-  ), [modeQuizzes, courseFilter]);
-
-  const normalizedSearch = deferredSearch.trim().toLowerCase();
   const visible = useMemo(() => modeQuizzes.filter(q => {
     const done = isQuizDone(q);
     if (statusFilter === 'new'  && (done || q.practiceSessionId)) return false;
@@ -1347,11 +1296,8 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     if (courseFilter !== 'all'  && (q.courseTitle || 'General') !== courseFilter) return false;
     if (subjectFilter !== 'all' && (q.subjectName || (q.isGeneral ? 'General / Full Course Revision' : 'No subject')) !== subjectFilter) return false;
     if (topicFilter !== 'all'   && (q.subtopicName || q.lessonTitle || '') !== topicFilter) return false;
-    if (normalizedSearch) {
-      if (!q.searchText.includes(normalizedSearch)) return false;
-    }
     return true;
-  }), [modeQuizzes, statusFilter, courseFilter, subjectFilter, topicFilter, normalizedSearch]);
+  }), [modeQuizzes, statusFilter, courseFilter, subjectFilter, topicFilter]);
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -1389,23 +1335,6 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
         />
 
         {error && <div className={ui.feedbackError}>{error}</div>}
-
-        <div className="student-lessons-search-card rounded-lg border border-line-soft bg-surface-card p-3 shadow-sm dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] max-[520px]:p-2">
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted">
-              <IcoSearch />
-            </span>
-            <input
-              className={cx(ui.input, 'pl-10 pr-11 max-[520px]:min-h-10 max-[520px]:text-[13px]')}
-              value={search}
-              onChange={event => setSearch(event.target.value)}
-              placeholder={isExamPage ? 'Search exams, topics, courses...' : 'Search quizzes, topics, courses...'}
-            />
-            {search ? (
-              <button className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-[13px] font-black text-ink-muted transition hover:bg-surface-2 hover:text-ink-strong" onClick={() => setSearch('')} aria-label="Clear search">x</button>
-            ) : null}
-          </div>
-        </div>
 
         {loading ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">

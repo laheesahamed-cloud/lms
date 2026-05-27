@@ -539,7 +539,7 @@ function SmoothCanvasMotion() {
         bottom: 0;
         left: 0;
         z-index: 9998;
-        padding: 10px 24px calc(10px + env(safe-area-inset-bottom, 0px));
+        padding: 10px 24px 0;
         pointer-events: none;
       }
       .lms-ai-note-reading-dock__inner {
@@ -550,10 +550,10 @@ function SmoothCanvasMotion() {
         max-width: 1680px;
         margin: 0 auto;
         border: 1px solid var(--lms-ai-note-progress-border);
-        border-radius: 18px;
+        border-radius: 18px 18px 0 0;
         background: color-mix(in srgb, var(--lms-ai-note-progress-bg) 88%, transparent);
         box-shadow: 0 18px 46px rgba(15, 23, 42, 0.18);
-        padding: 10px;
+        padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
         pointer-events: auto;
         -webkit-backdrop-filter: blur(18px) saturate(1.08);
         backdrop-filter: blur(18px) saturate(1.08);
@@ -623,17 +623,36 @@ function SmoothCanvasMotion() {
         }
         .lms-ai-note-reading-dock {
           bottom: 0;
-          padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+          padding: 8px 12px 0;
         }
         .lms-ai-note-reading-dock__inner {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr) auto;
           gap: 8px;
-          border-radius: 16px;
-          padding: 9px;
+          border-radius: 16px 16px 0 0;
+          padding: 9px 9px calc(9px + env(safe-area-inset-bottom, 0px));
         }
         .lms-ai-note-reading-dock .lms-ai-note-action-button {
-          width: 100%;
+          width: auto;
+          min-width: 92px;
         }
+        .lms-ai-note-progress-inline--floating {
+          min-width: 0;
+        }
+      }
+      @media (max-width: 360px) {
+        .lms-ai-note-reading-dock__inner {
+          grid-template-columns: minmax(0, 1fr) minmax(78px, auto);
+        }
+        .lms-ai-note-reading-dock .lms-ai-note-action-button {
+          min-width: 78px;
+          padding-inline: 9px !important;
+          font-size: 10.5px !important;
+        }
+        .lms-ai-canvas-shell {
+          grid-template-columns: 1fr !important;
+        }
+      }
+      @media (max-width: 760px) {
         .lms-ai-canvas-shell {
           grid-template-columns: 1fr !important;
         }

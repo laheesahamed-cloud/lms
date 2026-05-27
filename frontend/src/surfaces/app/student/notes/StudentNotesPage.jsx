@@ -36,9 +36,16 @@ const notesViewerShellClass = 'flex min-h-full flex-col gap-4';
 const notesViewerHeadClass = 'flex flex-col gap-2 border-b border-line-soft pb-3.5 max-[900px]:flex-row max-[900px]:items-center max-[900px]:justify-between max-[900px]:gap-3 max-[900px]:[&_.eyebrow]:hidden max-[900px]:[&_h2]:hidden max-[900px]:[&_p]:hidden';
 const notesViewerTitleClass = 'm-0 text-[22px] font-extrabold leading-tight text-ink-strong';
 const notesViewerTextClass = 'm-0 text-[13px] leading-normal text-ink-soft';
+const notesReaderToolbarClass = 'flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-1/80 px-3.5 py-3 shadow-none dark:bg-white/[0.035]';
+const notesReaderToolGroupClass = 'flex flex-wrap items-center gap-2';
+const notesReaderToolButtonClass = 'inline-flex min-h-8 touch-manipulation items-center justify-center rounded-lg border border-line-soft bg-surface-card px-3 text-[11.5px] font-extrabold text-ink-muted transition-[background,border-color,color,transform] hover:-translate-y-px hover:border-brand-primary/22 hover:text-ink-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15 active:scale-[0.98]';
+const notesReaderToolButtonActiveClass = 'border-brand-primary/28 bg-brand-primary/10 text-brand-primary';
+const notesOutlineRailClass = 'flex gap-2 overflow-x-auto rounded-xl border border-line-soft bg-surface-glass-subtle p-2 shadow-none';
+const notesOutlineButtonClass = 'inline-flex min-h-8 shrink-0 touch-manipulation items-center rounded-lg border border-line-soft bg-surface-card px-3 text-left text-[11.5px] font-extrabold text-ink-muted transition-[background,border-color,color] hover:border-brand-primary/22 hover:text-ink-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15';
 const notesHintClass = 'rounded-lg border border-line-soft bg-surface-glass-subtle px-3.5 py-3 text-[12.5px] leading-relaxed text-ink-soft [&_strong]:text-ink-strong';
 const notesPaperClass = cx(ui.lessonNotebookContent, 'min-h-[70vh] cursor-text select-text [-webkit-user-select:text] [content-visibility:auto] [contain-intrinsic-size:760px]');
 const notesStudyPaperClass = 'min-h-[78vh] text-base leading-[1.85]';
+const notesCompactPaperClass = 'min-h-[78vh] text-[14.5px] leading-[1.65]';
 const notesCrudStackClass = 'flex flex-col gap-3';
 const notesEditorCardClass = 'flex flex-col gap-3.5';
 const annotationListClass = 'flex flex-col gap-3';
@@ -52,6 +59,46 @@ const annotationMarkToneClass = {
   note: 'shadow-[inset_0_-2px_0_rgba(99,102,241,0.16)]',
   highlight: 'shadow-[inset_0_-2px_0_rgba(234,179,8,0.16)]',
 };
+const NOTES_READER_CSS = `
+  .student-notes-page .notes-recall-mode p[data-note-block-index] {
+    cursor: pointer;
+    position: relative;
+    border-radius: 10px;
+    transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .student-notes-page .notes-recall-mode p[data-note-block-index]:not(.is-revealed) {
+    color: transparent;
+    text-shadow: none;
+    background:
+      linear-gradient(90deg,
+        color-mix(in srgb, var(--brand-primary) 10%, transparent),
+        color-mix(in srgb, var(--color-warning) 12%, transparent));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warning) 22%, transparent);
+  }
+
+  .student-notes-page .notes-recall-mode p[data-note-block-index]:not(.is-revealed) * {
+    color: transparent !important;
+    text-shadow: none !important;
+  }
+
+  .student-notes-page .notes-recall-mode p[data-note-block-index]:not(.is-revealed)::after {
+    content: "Tap to reveal";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-muted);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .student-notes-page .notes-recall-mode p[data-note-block-index].is-revealed {
+    background: transparent;
+  }
+`;
 
 function toPlainText(content) {
   return String(content || '')
@@ -115,8 +162,31 @@ function buildAnnotatedHtml(plainText, annotations) {
 
   return html
     .split(/\n{2,}/)
-    .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br />')}</p>`)
+    .map((paragraph, index) => `<p data-note-block-index="${index}" tabindex="0">${paragraph.replace(/\n/g, '<br />')}</p>`)
     .join('');
+}
+
+function isLikelyOutlineTitle(text, index) {
+  if (!text) return false;
+  if (index === 0) return true;
+  if (text.length > 82) return false;
+  if (/[.:;!?]$/.test(text)) return false;
+  if (/^(definition|overview|classification|causes?|risk factors?|pathophysiology|clinical features?|symptoms?|signs?|diagnosis|investigations?|management|treatment|complications?|summary|key points?|exam points?|remember)\b/i.test(text)) return true;
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length > 9) return false;
+  const importantWords = words.filter((word) => /^[A-Z0-9]/.test(word) || word.length > 7).length;
+  return importantWords >= Math.max(1, Math.ceil(words.length * 0.45));
+}
+
+function buildLessonOutline(plainText) {
+  return String(plainText || '')
+    .split(/\n{2,}/)
+    .map((paragraph, index) => ({
+      index,
+      title: paragraph.replace(/\s+/g, ' ').trim(),
+    }))
+    .filter((item) => isLikelyOutlineTitle(item.title, item.index))
+    .slice(0, 10);
 }
 
 function getSelectionOffsets(container, selection) {
@@ -236,6 +306,9 @@ export function StudentNotesPage() {
   const [expandedSubjects, setExpandedSubjects] = useState({});
   const [expandedTopics, setExpandedTopics] = useState({});
   const [studyMode, setStudyMode] = useState(true);
+  const [outlineOpen, setOutlineOpen] = useState(true);
+  const [recallMode, setRecallMode] = useState(false);
+  const [readerDensity, setReaderDensity] = useState('comfort');
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -351,6 +424,7 @@ export function StudentNotesPage() {
   }, [lessons]);
   const plainLessonText = useMemo(() => toPlainText(activeLesson?.lessonContent || ''), [activeLesson?.lessonContent]);
   const renderedLessonHtml = useMemo(() => buildAnnotatedHtml(plainLessonText, annotations), [annotations, plainLessonText]);
+  const lessonOutline = useMemo(() => buildLessonOutline(plainLessonText), [plainLessonText]);
   const noteAnnotations = useMemo(() => annotations.filter((annotation) => annotation.type === 'note'), [annotations]);
   const activeVideoUrl = activeLesson?.videoUrl || activeLessonSummary?.videoUrl || '';
 
@@ -392,6 +466,12 @@ export function StudentNotesPage() {
     setExpandedSubjects((current) => ({ ...current, [subjectKey]: true }));
     setExpandedTopics((current) => ({ ...current, [topicKey]: true }));
   }, [activeLessonSummary]);
+
+  useEffect(() => {
+    contentRef.current?.querySelectorAll('.is-revealed').forEach((element) => {
+      element.classList.remove('is-revealed');
+    });
+  }, [activeLessonId, recallMode]);
 
   async function refreshAnnotations() {
     if (!activeLessonId) {
@@ -458,6 +538,26 @@ export function StudentNotesPage() {
       endOffset: range.endOffset,
       noteText: '',
     });
+  }
+
+  function toggleRecallBlock(target) {
+    const block = target?.closest?.('[data-note-block-index]');
+    if (!block || !contentRef.current?.contains(block)) {
+      return false;
+    }
+    block.classList.toggle('is-revealed');
+    return true;
+  }
+
+  function scrollToOutlineBlock(index) {
+    const block = contentRef.current?.querySelector(`[data-note-block-index="${index}"]`);
+    if (!block) {
+      return;
+    }
+    block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (recallMode) {
+      block.classList.add('is-revealed');
+    }
   }
 
   function handleComposerChange(event) {
@@ -545,6 +645,10 @@ export function StudentNotesPage() {
   }
 
   function handleNotebookClick(event) {
+    if (studyMode && recallMode) {
+      toggleRecallBlock(event.target);
+      return;
+    }
     if (studyMode) {
       return;
     }
@@ -562,8 +666,18 @@ export function StudentNotesPage() {
     handleEditNote(annotation);
   }
 
+  function handleNotebookKeyDown(event) {
+    if (!studyMode || !recallMode || (event.key !== 'Enter' && event.key !== ' ')) {
+      return;
+    }
+    if (toggleRecallBlock(event.target)) {
+      event.preventDefault();
+    }
+  }
+
   return (
     <main className="dashboard-page study-hub-page student-notes-page">
+      <style>{NOTES_READER_CSS}</style>
       <section className="study-hub-shell">
         <AppHeader
           title="Notes"
@@ -713,15 +827,73 @@ export function StudentNotesPage() {
                 </div>
               ) : null}
 
+              {studyMode && activeLesson ? (
+                <div className={notesReaderToolbarClass} aria-label="Lesson reader tools">
+                  <div className="min-w-0">
+                    <span className={ui.eyebrow}>Reader tools</span>
+                    <p className="m-0 mt-0.5 text-[12px] font-semibold leading-snug text-ink-muted">
+                      Outline, recall tape, and reading density for focused study.
+                    </p>
+                  </div>
+                  <div className={notesReaderToolGroupClass}>
+                    <button
+                      type="button"
+                      className={cx(notesReaderToolButtonClass, outlineOpen && notesReaderToolButtonActiveClass)}
+                      onClick={() => setOutlineOpen((value) => !value)}
+                      aria-pressed={outlineOpen}
+                    >
+                      Outline
+                    </button>
+                    <button
+                      type="button"
+                      className={cx(notesReaderToolButtonClass, recallMode && notesReaderToolButtonActiveClass)}
+                      onClick={() => setRecallMode((value) => !value)}
+                      aria-pressed={recallMode}
+                    >
+                      Recall tape
+                    </button>
+                    <button
+                      type="button"
+                      className={cx(notesReaderToolButtonClass, readerDensity === 'compact' && notesReaderToolButtonActiveClass)}
+                      onClick={() => setReaderDensity((value) => value === 'compact' ? 'comfort' : 'compact')}
+                      aria-pressed={readerDensity === 'compact'}
+                    >
+                      Compact
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {studyMode && outlineOpen && lessonOutline.length ? (
+                <nav className={notesOutlineRailClass} aria-label="Lesson outline">
+                  {lessonOutline.map((item) => (
+                    <button
+                      key={`${item.index}-${item.title}`}
+                      type="button"
+                      className={notesOutlineButtonClass}
+                      onClick={() => scrollToOutlineBlock(item.index)}
+                    >
+                      {item.title}
+                    </button>
+                  ))}
+                </nav>
+              ) : null}
+
               <div className="min-h-0">
                 {detailLoading ? <div className={ui.emptyBox}>Opening notebook...</div> : null}
                 {!detailLoading && activeLesson ? (
                   <div className="relative">
                     <div
                       ref={contentRef}
-                      className={cx(notesPaperClass, studyMode && notesStudyPaperClass, 'relative z-0')}
+                      className={cx(
+                        notesPaperClass,
+                        studyMode && (readerDensity === 'compact' ? notesCompactPaperClass : notesStudyPaperClass),
+                        studyMode && recallMode && 'notes-recall-mode',
+                        'relative z-0'
+                      )}
                       onMouseUp={handleSelectionCapture}
                       onClick={handleNotebookClick}
+                      onKeyDown={handleNotebookKeyDown}
                       dangerouslySetInnerHTML={{ __html: renderedLessonHtml }}
                     />
                   </div>

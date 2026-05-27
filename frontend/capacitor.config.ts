@@ -1,3 +1,4 @@
+/// <reference types="@capacitor/status-bar" />
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
@@ -7,16 +8,21 @@ const config: CapacitorConfig = {
   bundledWebRuntime: false,
   ios: {
     contentInset: 'never',
-    backgroundColor: '#dce6f4',
+    backgroundColor: '#111a23',
   },
   android: {
-    backgroundColor: '#0f1720',
+    backgroundColor: '#0b121b',
   },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
       launchShowDuration: 0,
-      backgroundColor: '#0f1720',
+      backgroundColor: '#0b121b',
+    },
+    StatusBar: {
+      overlaysWebView: true,
+      style: 'DARK',
+      backgroundColor: '#111a23',
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],

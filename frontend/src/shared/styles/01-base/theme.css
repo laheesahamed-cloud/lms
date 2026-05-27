@@ -1810,6 +1810,54 @@ body.lms-profile-menu-open :where(.management-layout, .study-hub-shell)
   background-color: transparent !important;
 }
 
+:root[data-theme] html[data-lms-runtime="native"][data-lms-form-factor="phone"]:has(body.study-hub-screen),
+:root[data-theme] html[data-lms-runtime="pwa"][data-lms-form-factor="phone"]:has(body.study-hub-screen),
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body.study-hub-screen,
+html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body.study-hub-screen :where(
+  #root,
+  .lms-app-scroll-root,
+  .native-app-frame,
+  .app-shell,
+  .student-app-shell,
+  .main-content,
+  .page-content,
+  .portal-content,
+  .portal-content__frame
+),
+html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen :where(
+  #root,
+  .lms-app-scroll-root,
+  .app-shell,
+  .student-app-shell,
+  .main-content,
+  .page-content,
+  .portal-content,
+  .portal-content__frame
+) {
+  background: var(--app-bg) !important;
+  background-color: var(--app-bg-solid) !important;
+  border-top: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body.study-hub-screen .native-app-frame::before {
+  content: none !important;
+  display: none !important;
+  height: 0 !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body.study-hub-screen .app-safe-top-spacer,
+html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen .app-safe-top-spacer {
+  display: block !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  flex-basis: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 @media (min-width: 901px) {
   body.study-hub-screen .lms-sidebar--student-model:not(.is-overlay-nav) {
     overflow: hidden !important;
