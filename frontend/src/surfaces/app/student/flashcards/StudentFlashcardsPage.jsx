@@ -30,12 +30,23 @@ const ANIM_CSS = `
 .fc-deck-table {
   border-spacing: 0;
 }
+.fc-deck-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3rem;
+  align-items: center;
+  column-gap: 0.25rem;
+}
 .fc-deck-label {
   --fc-depth: 0;
-  padding-left: calc(var(--fc-depth) * clamp(3px, 0.5vw, 7px));
+  --fc-indent-step: clamp(8px, 1vw, 12px);
+  padding-left: calc(var(--fc-depth) * var(--fc-indent-step));
 }
 .fc-deck-status-slot {
   min-width: 1.5rem;
+  justify-self: end;
+}
+.fc-deck-empty-mark {
+  white-space: nowrap;
 }
 .fc-deck-chevron {
   transition: transform 150ms cubic-bezier(0.23,1,0.32,1), color 150ms ease;
@@ -47,13 +58,20 @@ const ANIM_CSS = `
   .fc-deck-row {
     min-height: 44px;
   }
+  .fc-deck-cell {
+    grid-template-columns: minmax(0, 1fr) 2.75rem;
+    column-gap: 0.125rem;
+  }
   .fc-deck-label {
-    padding-left: calc(var(--fc-depth) * 5px);
+    --fc-indent-step: 7px;
   }
 }
 @media (max-width: 380px) {
+  .fc-deck-cell {
+    grid-template-columns: minmax(0, 1fr) 2.5rem;
+  }
   .fc-deck-label {
-    padding-left: calc(var(--fc-depth) * 4px);
+    --fc-indent-step: 5px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1319,7 +1337,7 @@ function CountCell({ value, unknown = false, tone }) {
     total: 'text-ink-muted',
   };
   return (
-    <span className={cx('inline-flex min-w-6 justify-end rounded-md px-0.5 py-0 text-right text-[11.5px] font-black tabular-nums max-[640px]:min-w-7 max-[640px]:text-[11.5px] max-[380px]:min-w-6 max-[380px]:text-[10.5px]', tones[tone])}>
+    <span className={cx('inline-flex min-w-5 justify-end rounded-md px-0.5 py-0 text-right text-[11.5px] font-black tabular-nums max-[640px]:min-w-5 max-[640px]:text-[11px] max-[380px]:text-[10.5px]', tones[tone])}>
       {formatDeckMetric(value, unknown)}
     </span>
   );
@@ -1368,17 +1386,28 @@ function FlashcardDeckRow({ node, expanded, starting, onToggle, onStartScope, on
     lesson: 'Lesson',
   }[node.type] || 'Deck';
   const rowPadding = {
-    course: 'py-2 max-[640px]:py-3',
-    subject: 'py-1.5 max-[640px]:py-2.5',
-    topic: 'py-1.5 max-[640px]:py-2.5',
-    lesson: 'py-1 max-[640px]:py-2.5',
+    course: 'py-2.5 max-[640px]:py-2.5',
+    subject: 'py-2 max-[640px]:py-2',
+    topic: 'py-1.5 max-[640px]:py-1.5',
+    lesson: 'py-1.5 max-[640px]:py-1.5',
   }[node.type] || 'py-1.5';
   const rowTone = {
-    course: 'border-line-medium/80 bg-surface-1/55 dark:bg-white/[0.025]',
+    course: 'border-line-medium/80 bg-surface-1/60 dark:bg-white/[0.03]',
     subject: 'bg-surface-card',
-    topic: 'bg-surface-card/80',
+    topic: 'bg-surface-card/70',
     lesson: 'bg-transparent',
   }[node.type] || '';
+  const labelTone = {
+    course: 'text-[13px] font-black text-ink-strong max-[520px]:text-[12.5px]',
+    subject: 'text-[12.5px] font-extrabold text-ink-strong max-[520px]:text-[12px]',
+    topic: 'text-[12.5px] font-bold text-ink-medium max-[520px]:text-[12px]',
+    lesson: 'text-[12.25px] font-semibold text-ink-medium max-[520px]:text-[11.75px]',
+  }[node.type] || 'text-[12.5px] font-bold text-ink-medium';
+  const connectorTone = {
+    subject: 'bg-line-medium/75',
+    topic: 'bg-line-soft',
+    lesson: 'bg-line-soft/70',
+  }[node.type] || 'bg-line-soft';
   const handleActivate = () => {
     if (isExpandable) {
       onToggle(node.key);
@@ -1399,7 +1428,7 @@ function FlashcardDeckRow({ node, expanded, starting, onToggle, onStartScope, on
   const statusMark = !hasStudyNotes && node.lockedCount ? (
     <FlashcardLockMark />
   ) : !hasStudyNotes && isLesson ? (
-    <span className="shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[10px] font-black leading-none text-ink-muted">
+    <span className="fc-deck-empty-mark shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[9.5px] font-black leading-none text-ink-muted max-[520px]:px-1 max-[520px]:text-[9px]">
       No cards
     </span>
   ) : null;
@@ -1420,41 +1449,35 @@ function FlashcardDeckRow({ node, expanded, starting, onToggle, onStartScope, on
         disabled && 'cursor-not-allowed opacity-55'
       )}
     >
-      <th scope="row" className={cx('min-w-0 px-2 text-left align-middle max-[640px]:px-2 sm:px-2.5', rowPadding)}>
-        <div
-          className="fc-deck-label flex min-w-0 items-center gap-1 max-[520px]:gap-1.5"
-          style={{ '--fc-depth': Math.max(node.depth, 0) }}
-        >
-          {isExpandable ? (
-            <DeckChevron expanded={expanded} />
-          ) : (
-            <span className="size-3 shrink-0 max-[520px]:size-2" aria-hidden="true" />
-          )}
-          {node.depth > 0 ? (
-            <span className="h-px w-1.5 shrink-0 rounded-full bg-line-medium/70 max-[520px]:w-2" aria-hidden="true" />
-          ) : null}
-          <span className={cx(
-            'min-w-0 truncate leading-tight max-[640px]:whitespace-normal max-[640px]:break-words max-[640px]:overflow-visible',
-            isLesson ? 'text-[12.5px] font-bold text-ink-medium max-[520px]:text-[12px]' : 'text-[13px] font-black text-ink-strong max-[520px]:text-[12.5px]'
-          )}>
-            {node.label}
-          </span>
-          <span
-            className={cx(
-              'ml-1 hidden h-px min-w-6 flex-1 rounded-full bg-line-soft/70 min-[760px]:block dark:bg-white/[0.08]',
-              node.type === 'course' && 'bg-line-medium/80 dark:bg-white/[0.12]',
-              node.type === 'lesson' && 'bg-line-soft/45 dark:bg-white/[0.055]'
+      <th scope="row" className={cx('min-w-0 px-2 text-left align-middle max-[640px]:px-1.5 sm:px-2.5', rowPadding)}>
+        <div className="fc-deck-cell">
+          <div
+            className="fc-deck-label flex min-w-0 items-center gap-1"
+            style={{ '--fc-depth': Math.max(node.depth, 0) }}
+          >
+            {isExpandable ? (
+              <DeckChevron expanded={expanded} />
+            ) : (
+              <span className="size-4 shrink-0 max-[520px]:size-3" aria-hidden="true" />
             )}
-            aria-hidden="true"
-          />
-          <span className="fc-deck-status-slot ml-auto inline-flex shrink-0 items-center justify-center">
+            {node.depth > 0 ? (
+              <span className={cx('h-px w-2 shrink-0 rounded-full max-[520px]:w-1.5', connectorTone)} aria-hidden="true" />
+            ) : null}
+            <span className={cx(
+              'min-w-0 truncate leading-snug max-[640px]:whitespace-normal max-[640px]:break-words max-[640px]:overflow-visible max-[640px]:[overflow-wrap:anywhere]',
+              labelTone
+            )}>
+              {node.label}
+            </span>
+          </div>
+          <span className="fc-deck-status-slot inline-flex shrink-0 items-center justify-center">
             {statusMark}
           </span>
         </div>
       </th>
-      <td className={cx('px-1.5 text-right align-middle max-[640px]:px-1', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
-      <td className={cx('px-1.5 text-right align-middle max-[640px]:px-1', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
-      <td className={cx('px-2 text-right align-middle max-[640px]:px-2', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
+      <td className={cx('px-1 text-right align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
+      <td className={cx('px-1 text-right align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
+      <td className={cx('px-1.5 text-right align-middle max-[640px]:px-1', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
     </tr>
   );
 }
@@ -1465,7 +1488,7 @@ function FlashcardDeckLoading() {
       {[1, 2, 3, 4, 5].map(i => (
         <div
           key={i}
-          className="grid min-h-[42px] grid-cols-[minmax(0,1fr)_52px_52px_52px] items-center gap-2 border-t border-line-soft px-3 py-2 dark:border-white/[0.07] max-[640px]:grid-cols-[minmax(0,1fr)_38px_38px_38px] max-[380px]:grid-cols-[minmax(0,1fr)_34px_34px_34px]"
+          className="grid min-h-[40px] grid-cols-[minmax(0,1fr)_40px_44px_40px] items-center gap-1.5 border-t border-line-soft px-2.5 py-2 dark:border-white/[0.07] max-[640px]:grid-cols-[minmax(0,1fr)_34px_38px_34px] max-[640px]:px-1.5 max-[380px]:grid-cols-[minmax(0,1fr)_30px_34px_30px]"
         >
           <div className={ui.shimmer} style={{ height: 13, width: `${70 - i * 7}%`, marginLeft: i > 1 ? 16 : 0, borderRadius: 999 }} />
           <div className={ui.shimmer} style={{ height: 16, borderRadius: 8 }} />
@@ -1513,7 +1536,7 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
       return next;
     });
   };
-  const headerClass = 'px-2 py-1.5 text-[10px] font-black uppercase tracking-normal text-ink-muted max-[640px]:px-1 max-[640px]:py-2 max-[640px]:text-[9.5px]';
+  const headerClass = 'px-2 py-1.5 text-[10px] font-black uppercase tracking-normal text-ink-muted max-[640px]:px-0.5 max-[640px]:py-1.5 max-[640px]:text-[9.5px]';
 
   return (
     <section className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-none fc-fade-up fc-d3 dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
@@ -1541,9 +1564,9 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
           </caption>
           <colgroup>
             <col />
-            <col className="w-[42px] max-[640px]:w-[42px] max-[380px]:w-[36px]" />
-            <col className="w-[42px] max-[640px]:w-[42px] max-[380px]:w-[36px]" />
-            <col className="w-[44px] max-[640px]:w-[44px] max-[380px]:w-[38px]" />
+            <col className="w-[40px] max-[640px]:w-[34px] max-[380px]:w-[30px]" />
+            <col className="w-[44px] max-[640px]:w-[38px] max-[380px]:w-[34px]" />
+            <col className="w-[40px] max-[640px]:w-[34px] max-[380px]:w-[30px]" />
           </colgroup>
           <thead className="bg-surface-1/70 dark:bg-white/[0.025]">
             <tr>
@@ -1937,38 +1960,38 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
 
         {/* Actions */}
         <div
-          className="mb-3 grid grid-cols-4 justify-center gap-2 transition-[opacity,transform] duration-200 max-[720px]:grid-cols-2 max-[420px]:grid-cols-1"
+          className="mb-3 grid grid-cols-4 justify-center gap-2 transition-[opacity,transform] duration-200 max-[520px]:gap-1.5 max-[380px]:gap-1"
           style={{ opacity: flipped ? 1 : 0, pointerEvents: flipped ? 'auto' : 'none', transform: flipped ? 'translateY(0)' : 'translateY(4px)' }}
           aria-hidden={!flipped}
         >
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
+            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
-              disabled:cursor-not-allowed disabled:opacity-40"
+              disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px]"
             style={{ background: 'rgba(244,63,94,0.09)', borderColor: 'rgba(244,63,94,0.22)', color: '#E11D48' }}
             onClick={() => advance('again')} disabled={!flipped || advancing}>
             Again
           </button>
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
+            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
-              disabled:cursor-not-allowed disabled:opacity-40"
+              disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px] [&_svg]:shrink-0 max-[380px]:[&_svg]:size-3.5"
             style={{ background: 'rgba(245,158,11,0.09)', borderColor: 'rgba(245,158,11,0.22)', color: '#D97706' }}
             onClick={() => advance('hard')} disabled={!flipped || advancing}>
             <IcReview/> Hard
           </button>
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
+            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
-              disabled:cursor-not-allowed disabled:opacity-40"
+              disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px] [&_svg]:shrink-0 max-[380px]:[&_svg]:size-3.5"
             style={{ background: 'rgba(16,185,129,0.09)', borderColor: 'rgba(16,185,129,0.22)', color: '#059669' }}
             onClick={() => advance('good')} disabled={!flipped || advancing}>
             <IcKnow/> Good
           </button>
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
+            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
-              disabled:cursor-not-allowed disabled:opacity-40"
+              disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px]"
             style={{ background: 'rgba(37,99,235,0.09)', borderColor: 'rgba(37,99,235,0.22)', color: '#2563EB' }}
             onClick={() => advance('easy')} disabled={!flipped || advancing}>
             Easy

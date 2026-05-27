@@ -79,7 +79,7 @@ export class CoursesService {
       'SELECT id, course_title, course_code, description, exam_type, status, created_at FROM courses ORDER BY course_title ASC'
     );
 
-    return rows.map(this.mapCourse);
+    return rows.map((row) => this.mapCourse(row));
   }
 
   async create(createCourseDto: CreateCourseDto) {

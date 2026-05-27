@@ -4,21 +4,8 @@ import { fetchStudentDashboard } from '../../../../shared/api/dashboard.api.js';
 import { fetchStudentResults } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
-import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
-
-function formatDateTime(value) {
-  if (!value) return 'Not available';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not available';
-  return date.toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function formatPercentage(value) {
   const percentage = Number(value || 0);
@@ -35,10 +22,68 @@ function formatShortDate(value) {
   });
 }
 
+function getAttemptType(result) {
+  const rawType = String(result?.attemptType || result?.attemptMode || result?.mode || '').trim().toLowerCase();
+  if (rawType.includes('practice') || rawType.includes('qbank')) return 'QBank';
+  return 'Exam';
+}
+
 function getResultQuizTitle(result) {
-  const title = String(result?.quizTitle || '').trim();
-  if (title.length > 3) return title;
-  return `Exam attempt #${result?.attemptId || '-'}`;
+  return `${getAttemptType(result)} attempt #${result?.attemptId || '-'}`;
+}
+
+function getAttemptSubtitle(result) {
+  return [result?.courseTitle, result?.topicDisplay]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(' • ') || String(result?.quizTitle || 'Quiz attempt').trim();
+}
+
+function getAttemptMarks(result) {
+  const correct = Number(result?.correctAnswers || 0);
+  const wrong = Number(result?.wrongAnswers || 0);
+  const unanswered = Number(result?.unansweredQuestions || 0);
+  const total = correct + wrong + unanswered;
+  return total > 0 ? `${correct}/${total}` : '';
+}
+
+function getAttemptReviewStatus(result) {
+  const status = String(result?.status || '').trim().toLowerCase();
+  if (status && !['submitted', 'complete', 'completed'].includes(status)) {
+    return { label: 'In progress', tone: 'progress' };
+  }
+  if (result?.passStatus === 'pass') {
+    return { label: 'Passed', tone: 'passed' };
+  }
+  const percentage = Number(result?.percentage || 0);
+  if (percentage > 0 && percentage < 40) {
+    return { label: 'Failed', tone: 'failed' };
+  }
+  return { label: 'Needs review', tone: 'review' };
+}
+
+function getAttemptAriaLabel(result) {
+  const score = `${formatPercentage(result?.percentage)}%`;
+  const marks = getAttemptMarks(result);
+  const status = getAttemptReviewStatus(result).label;
+  return [
+    getResultQuizTitle(result),
+    getAttemptSubtitle(result),
+    formatShortDate(result?.submittedAt),
+    marks ? `${score}, ${marks}` : score,
+    status,
+    'open review',
+  ].filter(Boolean).join(', ');
+}
+
+function AttemptChevron() {
+  return (
+    <span className="student-results-attempt-chevron" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" focusable="false">
+        <path d="M8 5l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
 }
 
 function scoreTone(score) {
@@ -178,6 +223,12 @@ export function ResultsListPage() {
     navigate(`/review/${attemptId}`);
   }
 
+  function handleAttemptKeyDown(event, attemptId) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openAttemptReview(attemptId);
+  }
+
   return (
     <main className="dashboard-page study-hub-page student-results-page">
       <section className="study-hub-shell student-results-layout">
@@ -266,10 +317,10 @@ export function ResultsListPage() {
 
           {loading ? (
             <div className={ui.tableShell}>
-              <table className={cx(ui.modernTable, 'min-w-[860px]')}>
+              <table className={cx(ui.modernTable, 'min-w-[720px]')}>
                 <tbody>
                   <tr>
-                    <td colSpan="7" className={ui.tableEmpty}>Loading results...</td>
+                    <td colSpan="5" className={ui.tableEmpty}>Loading results...</td>
                   </tr>
                 </tbody>
               </table>
@@ -281,48 +332,48 @@ export function ResultsListPage() {
           ) : (
             <>
             <div className={cx(ui.tableShell, 'max-[820px]:hidden')}>
-              <table className={cx(ui.modernTable, 'min-w-[860px]')}>
+              <table className={cx(ui.modernTable, 'min-w-[720px]')}>
                 <thead>
                   <tr>
-                    <th className={ui.tableHeadCell}>Exam</th>
-                    <th className={ui.tableHeadCell}>Course</th>
-                    <th className={ui.tableHeadCell}>Topic</th>
+                    <th className={ui.tableHeadCell}>Attempt</th>
+                    <th className={ui.tableHeadCell}>Date</th>
                     <th className={ui.tableHeadCell}>Score</th>
-                    <th className={ui.tableHeadCell}>Submitted</th>
                     <th className={ui.tableHeadCell}>Status</th>
-                    <th className={ui.tableHeadCell}>Actions</th>
+                    <th className={ui.tableHeadCell} aria-label="Open review" />
                   </tr>
                 </thead>
                 <tbody>
                   {visibleResults.map((result) => {
-                    const isPassed = result.passStatus === 'pass';
+                    const reviewStatus = getAttemptReviewStatus(result);
+                    const marks = getAttemptMarks(result);
                     return (
-                      <tr key={result.attemptId} className="transition-colors hover:bg-surface-2/70">
+                      <tr
+                        key={result.attemptId}
+                        className="student-results-attempt-row"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={getAttemptAriaLabel(result)}
+                        onClick={() => openAttemptReview(result.attemptId)}
+                        onKeyDown={(event) => handleAttemptKeyDown(event, result.attemptId)}
+                      >
                         <td className={ui.tableCell}>
                           <strong className="block max-w-[260px] text-[13.5px] leading-snug text-ink-strong">{getResultQuizTitle(result)}</strong>
-                          <div className={ui.tableSubtext}>Attempt #{result.attemptId}</div>
+                          <div className={ui.tableSubtext}>{getAttemptSubtitle(result)}</div>
                         </td>
                         <td className={ui.tableCell}>
-                          <span className="block max-w-[190px] text-ink-medium">{result.courseTitle || '-'}</span>
+                          <span className="tabular-nums text-ink-medium">{formatShortDate(result.submittedAt)}</span>
                         </td>
                         <td className={ui.tableCell}>
-                          <span className="block max-w-[260px] leading-snug text-ink-medium">{result.topicDisplay || '-'}</span>
+                          <strong className="block tabular-nums text-[15px] text-ink-strong">{formatPercentage(result.percentage)}%</strong>
+                          {marks ? <span className={ui.tableSubtext}>{marks}</span> : null}
                         </td>
                         <td className={ui.tableCell}>
-                          <strong className="tabular-nums text-[15px] text-ink-strong">{formatPercentage(result.percentage)}%</strong>
-                        </td>
-                        <td className={ui.tableCell}>
-                          <span className="tabular-nums text-ink-medium">{formatDateTime(result.submittedAt)}</span>
-                        </td>
-                        <td className={ui.tableCell}>
-                          <span className={statusPill(isPassed ? 'active' : 'inactive')}>
-                            {isPassed ? 'Pass' : 'Review'}
+                          <span className={`student-results-attempt-status student-results-attempt-status--${reviewStatus.tone}`}>
+                            {reviewStatus.label}
                           </span>
                         </td>
-                        <td className={ui.tableCell}>
-                          <button type="button" className={cx(ui.ghostSmall, 'min-h-9 whitespace-nowrap')} onClick={() => openAttemptReview(result.attemptId)}>
-                            Review
-                          </button>
+                        <td className={cx(ui.tableCell, 'text-right')}>
+                          <AttemptChevron />
                         </td>
                       </tr>
                     );
@@ -333,19 +384,25 @@ export function ResultsListPage() {
             <div className="student-results-mobile-history">
               <div className="student-results-mobile-history__shell">
                 <div className="student-results-mobile-history__head">
-                  <span>Exam</span>
+                  <span>Attempt</span>
                   <span className="text-right">Score</span>
-                  <span className="text-right">Open</span>
+                  <span className="text-right" aria-label="Open review" />
                 </div>
 
                 <div className="student-results-attempt-list">
                   {visibleResults.map((result) => {
-                    const isPassed = result.passStatus === 'pass';
+                    const reviewStatus = getAttemptReviewStatus(result);
+                    const marks = getAttemptMarks(result);
                     const score = Number(formatPercentage(result.percentage));
                     return (
                       <div
                         key={result.attemptId}
                         className="student-results-attempt-card"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={getAttemptAriaLabel(result)}
+                        onClick={() => openAttemptReview(result.attemptId)}
+                        onKeyDown={(event) => handleAttemptKeyDown(event, result.attemptId)}
                       >
                         <div className="min-w-0">
                           <strong className="block truncate text-[14px] font-extrabold leading-tight text-ink-strong">
@@ -357,7 +414,7 @@ export function ResultsListPage() {
                             <span className="truncate">{result.topicDisplay || 'Topic'}</span>
                           </div>
                           <div className="mt-1 text-[10.5px] font-semibold text-ink-muted">
-                            Attempt #{result.attemptId} • {formatShortDate(result.submittedAt)}
+                            {formatShortDate(result.submittedAt)}
                           </div>
                         </div>
 
@@ -365,28 +422,15 @@ export function ResultsListPage() {
                           <strong className="block text-[18px] font-extrabold leading-none text-ink-strong tabular-nums">
                             {score}%
                           </strong>
-                          <span
-                            className={cx(
-                              'mt-1 inline-flex min-h-5 items-center rounded-full px-2 text-[10px] font-extrabold uppercase tracking-[0.08em]',
-                              isPassed
-                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                            )}
-                          >
-                            {isPassed ? 'Pass' : 'Review'}
+                          <span className="mt-0.5 block text-[10.5px] font-semibold text-ink-muted tabular-nums">
+                            {marks}
+                          </span>
+                          <span className={`student-results-attempt-status student-results-attempt-status--${reviewStatus.tone}`}>
+                            {reviewStatus.label}
                           </span>
                         </div>
 
-                        <button
-                          type="button"
-                          className="grid size-10 place-items-center justify-self-end rounded-full border border-line-soft bg-surface-2 text-ink-soft shadow-sm transition active:scale-95"
-                          onClick={() => openAttemptReview(result.attemptId)}
-                          aria-label={`Review attempt ${result.attemptId}`}
-                        >
-                          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                            <path d="M8 5l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
+                        <AttemptChevron />
                       </div>
                     );
                   })}

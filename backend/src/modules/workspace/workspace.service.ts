@@ -95,7 +95,7 @@ export class WorkspaceService {
       ORDER BY a.created_at DESC
       LIMIT 100
     `);
-    return rows.map(this.mapAnnouncement);
+    return rows.map((row) => this.mapAnnouncement(row));
   }
 
   async createAnnouncement(authorization: string | undefined, input: any) {
@@ -248,7 +248,7 @@ export class WorkspaceService {
        ORDER BY COALESCE(due_date, '9999-12-31') ASC, sort_order ASC, id DESC`,
       [student.id]
     );
-    return rows.map(this.mapPlannerTask);
+    return rows.map((row) => this.mapPlannerTask(row));
   }
 
   async getPlannerAgenda(authorization?: string) {
@@ -863,7 +863,7 @@ export class WorkspaceService {
       `,
       params
     );
-    return rows.map(this.mapQuestionReport);
+    return rows.map((row) => this.mapQuestionReport(row));
   }
 
   async updateQuestionReport(authorization: string | undefined, id: number, input: any) {

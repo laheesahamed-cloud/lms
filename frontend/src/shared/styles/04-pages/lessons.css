@@ -46,9 +46,11 @@
 }
 
 .student-app-shell .student-lessons-course-grid {
-  width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)) !important;
+  width: min(100%, 760px);
+  margin-left: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   align-items: stretch;
+  justify-content: end;
 }
 
 .student-app-shell.student-app-shell .student-lessons-page .student-lessons-course-card {
@@ -120,6 +122,15 @@
   background: rgba(var(--sa-surface-rgb), 0.42);
   padding: 8px 10px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+@media (max-width: 900px) {
+  .student-app-shell .student-lessons-course-grid {
+    width: 100%;
+    margin-left: 0;
+    grid-template-columns: 1fr !important;
+    justify-content: stretch;
+  }
 }
 
 :root[data-theme="dark"] .student-app-shell.student-app-shell .student-lessons-page .student-lessons-course-card,

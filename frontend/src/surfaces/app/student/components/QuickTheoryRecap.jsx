@@ -48,6 +48,66 @@ const fontButtonClass = (active, sizeClass) =>
     active && 'is-active bg-brand-primary-light text-brand-primary'
   );
 
+function normalizeRecapArray(value) {
+  if (Array.isArray(value)) {
+    return value.map(String).map((item) => item.trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map(String).map((item) => item.trim()).filter(Boolean);
+      }
+    } catch {
+      // Fall back to line-based admin drafts.
+    }
+
+    return trimmed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+  }
+
+  return [];
+}
+
+export function normalizeQuickTheoryRecap(recap) {
+  if (!recap) return null;
+
+  const hierarchy = recap.hierarchy || {};
+  return {
+    ...recap,
+    conceptName: recap.conceptName || recap.concept_name || '',
+    hierarchy: {
+      course: hierarchy.course || recap.hierarchyCourse || recap.hierarchy_course || '',
+      subject: hierarchy.subject || recap.hierarchySubject || recap.hierarchy_subject || '',
+      topic: hierarchy.topic || recap.hierarchyTopic || recap.hierarchy_topic || '',
+      lesson: hierarchy.lesson || recap.hierarchyLesson || recap.hierarchy_lesson || '',
+    },
+    etiology: normalizeRecapArray(recap.etiology),
+    pathophysiology: normalizeRecapArray(recap.pathophysiology),
+    clinicalFeatures: normalizeRecapArray(recap.clinicalFeatures || recap.clinical_features),
+    investigations: normalizeRecapArray(recap.investigations),
+    treatment: normalizeRecapArray(recap.treatment),
+    keyPoints: normalizeRecapArray(recap.keyPoints || recap.key_points),
+    mnemonic: String(recap.mnemonic || '').trim(),
+  };
+}
+
+export function hasQuickTheoryRecapContent(recap) {
+  const normalized = normalizeQuickTheoryRecap(recap);
+  return Boolean(normalized && (
+    normalized.etiology.length ||
+    normalized.pathophysiology.length ||
+    normalized.clinicalFeatures.length ||
+    normalized.investigations.length ||
+    normalized.treatment.length ||
+    normalized.keyPoints.length ||
+    normalized.mnemonic
+  ));
+}
+
 function RecapSection({ icon, title, items, tone = 'default', scale = 'md' }) {
   if (!items || items.length === 0) return null;
   const scaleClass = recapScaleClasses[scale] || recapScaleClasses.md;
@@ -87,15 +147,16 @@ function RecapBreadcrumb({ hierarchy }) {
 }
 
 function RecapContent({ recap, context, revealed, scale = 'md' }) {
+  const normalizedRecap = normalizeQuickTheoryRecap(recap);
   const scaleClass = recapScaleClasses[scale] || recapScaleClasses.md;
   const hasContent =
-    recap.etiology?.length ||
-    recap.pathophysiology?.length ||
-    recap.clinicalFeatures?.length ||
-    recap.investigations?.length ||
-    recap.treatment?.length ||
-    recap.keyPoints?.length ||
-    recap.mnemonic;
+    normalizedRecap?.etiology.length ||
+    normalizedRecap?.pathophysiology.length ||
+    normalizedRecap?.clinicalFeatures.length ||
+    normalizedRecap?.investigations.length ||
+    normalizedRecap?.treatment.length ||
+    normalizedRecap?.keyPoints.length ||
+    normalizedRecap?.mnemonic;
 
   if (!hasContent) {
     return <p className={cx('qtr-empty-text my-2 mb-2.5 text-ink-muted', scaleClass.item)}>Recap content is pending.</p>;
@@ -103,30 +164,30 @@ function RecapContent({ recap, context, revealed, scale = 'md' }) {
 
   return (
     <>
-      {recap.hierarchy && <RecapBreadcrumb hierarchy={recap.hierarchy} />}
+      {normalizedRecap.hierarchy && <RecapBreadcrumb hierarchy={normalizedRecap.hierarchy} />}
 
       {context === 'practice' && !revealed ? (
         <>
           <div className="qtr-hint-notice border-l-2 border-brand-primary/35 py-1.5 pl-3 text-xs font-semibold leading-relaxed text-ink-soft">
             Answer first to unlock the full recap. Key points stay visible as a hint.
           </div>
-          <RecapSection icon="✦" title="Key Points" items={recap.keyPoints} tone="primary" scale={scale} />
+          <RecapSection icon="✦" title="Key Points" items={normalizedRecap.keyPoints} tone="primary" scale={scale} />
         </>
       ) : (
         <>
-          <RecapSection icon="🧬" title="Etiology" items={recap.etiology} scale={scale} />
-          <RecapSection icon="⚙️" title="Pathophysiology" items={recap.pathophysiology} scale={scale} />
-          <RecapSection icon="🩺" title="Clinical Picture / Examination" items={recap.clinicalFeatures} scale={scale} />
-          <RecapSection icon="🔬" title="Investigations" items={recap.investigations} tone="investigations" scale={scale} />
-          <RecapSection icon="💊" title="Treatment" items={recap.treatment} tone="treatment" scale={scale} />
-          <RecapSection icon="📌" title="Key Points" items={recap.keyPoints} tone="primary" scale={scale} />
-          {recap.mnemonic ? (
+          <RecapSection icon="🧬" title="Etiology" items={normalizedRecap.etiology} scale={scale} />
+          <RecapSection icon="⚙️" title="Pathophysiology" items={normalizedRecap.pathophysiology} scale={scale} />
+          <RecapSection icon="🩺" title="Clinical Picture / Examination" items={normalizedRecap.clinicalFeatures} scale={scale} />
+          <RecapSection icon="🔬" title="Investigations" items={normalizedRecap.investigations} tone="investigations" scale={scale} />
+          <RecapSection icon="💊" title="Treatment" items={normalizedRecap.treatment} tone="treatment" scale={scale} />
+          <RecapSection icon="📌" title="Key Points" items={normalizedRecap.keyPoints} tone="primary" scale={scale} />
+          {normalizedRecap.mnemonic ? (
             <div className="qtr-mnemonic border-l-2 border-[color-mix(in_srgb,var(--color-warning)_42%,transparent)] py-1.5 pl-3 pr-1">
               <div className={cx('qtr-mnemonic__head mb-1.5 flex items-center gap-1.5 font-semibold uppercase tracking-[0.04em] text-ink-soft', scaleClass.label)}>
                 <span aria-hidden="true">🧠</span>
                 <strong>Mnemonic</strong>
               </div>
-              <p className={cx('qtr-mnemonic__text m-0 italic text-ink-strong', scaleClass.item)}>{recap.mnemonic}</p>
+              <p className={cx('qtr-mnemonic__text m-0 italic text-ink-strong', scaleClass.item)}>{normalizedRecap.mnemonic}</p>
             </div>
           ) : null}
         </>
@@ -138,6 +199,7 @@ function RecapContent({ recap, context, revealed, scale = 'md' }) {
 export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = true, onOpen = null }) {
   const [open, setOpen] = useState(false);
   const [fontScale, setFontScale] = useState('md');
+  const normalizedRecap = normalizeQuickTheoryRecap(recap);
   const dialogRef = useRef(null);
   const closeButtonRef = useRef(null);
   const dragStateRef = useRef({
@@ -348,15 +410,7 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
     if (!open) resetPopupDrag();
   }, [open]);
 
-  const hasRecap = recap && (
-    recap.etiology?.length ||
-    recap.pathophysiology?.length ||
-    recap.clinicalFeatures?.length ||
-    recap.investigations?.length ||
-    recap.treatment?.length ||
-    recap.keyPoints?.length ||
-    recap.mnemonic
-  );
+  const hasRecap = hasQuickTheoryRecapContent(normalizedRecap);
   const popupScaleClass = recapScaleClasses[fontScale] || recapScaleClasses.md;
 
   return (
@@ -380,8 +434,8 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
         <span className="qtr-popup-trigger__icon mt-0.5 shrink-0 text-base text-brand-primary" aria-hidden="true">⚡</span>
         <span className="qtr-popup-trigger__copy grid min-w-0 flex-1 gap-0.5">
           <span className="qtr-popup-trigger__label min-w-0 whitespace-normal text-[13.5px] font-extrabold leading-snug text-ink-strong max-[520px]:text-[12.5px]">Quick theory recap</span>
-          {recap?.conceptName ? (
-            <span className="qtr-popup-trigger__concept min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] font-medium text-ink-soft max-[520px]:text-[10.5px]">{recap.conceptName}</span>
+          {normalizedRecap?.conceptName ? (
+            <span className="qtr-popup-trigger__concept min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] font-medium text-ink-soft max-[520px]:text-[10.5px]">{normalizedRecap.conceptName}</span>
           ) : null}
         </span>
       </button>
@@ -419,8 +473,8 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
                 <span className="qtr-popup__icon shrink-0 text-xl leading-none" aria-hidden="true">⚡</span>
                 <div className="min-w-0">
                   <h3 className={cx('qtr-popup__title m-0 font-bold leading-[1.3] text-ink-strong', popupScaleClass.title)} id="qtr-popup-title">Quick Theory Recap</h3>
-                  {recap.conceptName ? (
-                    <span className="qtr-popup__concept mt-0.5 block overflow-hidden text-ellipsis whitespace-nowrap text-xs font-medium text-brand-primary">{recap.conceptName}</span>
+                  {normalizedRecap?.conceptName ? (
+                    <span className="qtr-popup__concept mt-0.5 block overflow-hidden text-ellipsis whitespace-nowrap text-xs font-medium text-brand-primary">{normalizedRecap.conceptName}</span>
                   ) : null}
                 </div>
               </div>
@@ -464,7 +518,7 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
             </div>
             <div className="qtr-popup__body flex min-h-0 flex-1 flex-col bg-surface-elevated px-[18px] py-4 dark:bg-[rgba(8,14,26,0.98)] max-[520px]:px-3.5 max-[520px]:py-3">
               <div className="qtr-popup__scroller flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain pr-1 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
-                <RecapContent recap={recap} context={context} revealed={revealed} scale={fontScale} />
+                <RecapContent recap={normalizedRecap} context={context} revealed={revealed} scale={fontScale} />
               </div>
             </div>
           </div>
@@ -477,6 +531,7 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
 
 export function QuickTheoryRecap({ recap, context = 'review', revealed = true, generating = false, onGenerate = null }) {
   const [expanded, setExpanded] = useState(context === 'review');
+  const normalizedRecap = normalizeQuickTheoryRecap(recap);
 
   if (generating) {
     return (
@@ -493,7 +548,7 @@ export function QuickTheoryRecap({ recap, context = 'review', revealed = true, g
     );
   }
 
-  if (!recap) {
+  if (!normalizedRecap) {
     return (
       <div className={cx(recapCardPaddedClass, 'quick-theory-recap--empty')}>
         <div className={cx(recapHeaderClass, 'px-0 py-0')}>
@@ -511,13 +566,13 @@ export function QuickTheoryRecap({ recap, context = 'review', revealed = true, g
   }
 
   const hasContent =
-    recap.etiology?.length ||
-    recap.pathophysiology?.length ||
-    recap.clinicalFeatures?.length ||
-    recap.investigations?.length ||
-    recap.treatment?.length ||
-    recap.keyPoints?.length ||
-    recap.mnemonic;
+    normalizedRecap.etiology.length ||
+    normalizedRecap.pathophysiology.length ||
+    normalizedRecap.clinicalFeatures.length ||
+    normalizedRecap.investigations.length ||
+    normalizedRecap.treatment.length ||
+    normalizedRecap.keyPoints.length ||
+    normalizedRecap.mnemonic;
 
   if (!hasContent) {
     return (
@@ -525,7 +580,7 @@ export function QuickTheoryRecap({ recap, context = 'review', revealed = true, g
         <div className={cx(recapHeaderClass, 'px-0 py-0')}>
           <span className={recapIconClass} aria-hidden="true">⚡</span>
           <h4 className={recapTitleClass}>Quick Theory Recap</h4>
-          {recap.conceptName ? <span className={recapConceptClass}>{recap.conceptName}</span> : null}
+          {normalizedRecap.conceptName ? <span className={recapConceptClass}>{normalizedRecap.conceptName}</span> : null}
         </div>
         <p className={recapEmptyTextClass}>Recap content is pending.</p>
       </div>
@@ -545,7 +600,7 @@ export function QuickTheoryRecap({ recap, context = 'review', revealed = true, g
         <span className={recapIconClass} aria-hidden="true">⚡</span>
         <div className="qtr-header__text min-w-0 flex-1">
           <h4 className={recapTitleClass}>Quick Theory Recap</h4>
-          {recap.conceptName ? <span className={recapConceptClass}>{recap.conceptName}</span> : null}
+          {normalizedRecap.conceptName ? <span className={recapConceptClass}>{normalizedRecap.conceptName}</span> : null}
         </div>
         <span className="qtr-header__chevron shrink-0 text-[10px] text-ink-muted" aria-hidden="true">
           {expanded ? '▲' : '▼'}
@@ -554,7 +609,7 @@ export function QuickTheoryRecap({ recap, context = 'review', revealed = true, g
 
       {expanded ? (
         <div className={recapBodyClass}>
-          <RecapContent recap={recap} context={context} revealed={revealed} />
+          <RecapContent recap={normalizedRecap} context={context} revealed={revealed} />
         </div>
       ) : null}
     </div>

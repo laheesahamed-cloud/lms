@@ -6,7 +6,7 @@ import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { useThemeStore } from '../../../../shared/stores/themeStore.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
-import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
+import { TheoryRecapPopupTrigger, hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/QuickTheoryRecap.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel } from './quizLabels.js';
 import { ImpactStyle, nativeImpact, nativeSuccess } from '../../../../shared/utils/nativeHaptics.js';
@@ -781,22 +781,10 @@ function getIncorrectOptionReasons(question) {
     }));
 }
 
-function hasTheoryRecap(recap) {
-  return Boolean(recap && (
-    recap.etiology?.length ||
-    recap.pathophysiology?.length ||
-    recap.clinicalFeatures?.length ||
-    recap.investigations?.length ||
-    recap.treatment?.length ||
-    recap.keyPoints?.length ||
-    recap.mnemonic
-  ));
-}
-
 function PracticeStudySupport({ currentQuestion, revealed = true, className = '' }) {
-  const recap = currentQuestion?.theoryRecap || null;
+  const recap = normalizeQuickTheoryRecap(currentQuestion?.theoryRecap);
   const hasRecap = Boolean(currentQuestion && Object.prototype.hasOwnProperty.call(currentQuestion, 'theoryRecap'));
-  const hasStudyCard = revealed && hasTheoryRecap(recap);
+  const hasStudyCard = revealed && hasQuickTheoryRecapContent(recap);
 
   if (!hasRecap && !hasStudyCard) return null;
 
