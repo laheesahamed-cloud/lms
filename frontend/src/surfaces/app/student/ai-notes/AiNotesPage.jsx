@@ -46,6 +46,7 @@ const DECOS_LIB = ['✦','✧','♡','☁','〰','🌿','🍃','✿','✾','❋'
 const STICKERS  = ['⭐','🔥','💡','🏆','✅','⚠️','❤️','👍','🧠','📚','📌','❗','❓','🚀','✏️','✨','⏰','🚩','🎯','💊','🧬','🔬','🩺','📊'];
 const DRAW_COLORS = ['#1f2937', '#2563eb', '#7c3aed', '#dc2626', '#047857', '#f59e0b'];
 const DRAW_WIDTHS = [3, 5, 8];
+const HIGHLIGHT_COLORS = ['#fde047', '#86efac', '#93c5fd', '#f0abfc'];
 
 function clampNumber(value, min, max) {
   const number = Number(value);
@@ -117,6 +118,11 @@ function pressureStrokeWidth(baseWidth, pressure) {
   return Math.max(1, baseWidth * (0.72 + clampNumber(pressure, 0.24, 1) * 0.5));
 }
 
+function averageStrokePressure(points = []) {
+  if (!points.length) return 0.72;
+  return points.reduce((total, point) => total + clampNumber(point?.pressure ?? 0.72, 0.24, 1), 0) / points.length;
+}
+
 function midPoint(a, b) {
   return {
     x: (a.x + b.x) / 2,
@@ -125,20 +131,45 @@ function midPoint(a, b) {
   };
 }
 
+function smoothStrokePoints(points = [], passes = 2) {
+  if (points.length <= 2) return points;
+  let smoothed = points;
+  for (let pass = 0; pass < passes; pass += 1) {
+    smoothed = smoothed.map((point, index) => {
+      if (index === 0 || index === smoothed.length - 1) return point;
+      const previous = smoothed[index - 1];
+      const next = smoothed[index + 1];
+      return {
+        ...point,
+        x: (previous.x + point.x * 2 + next.x) / 4,
+        y: (previous.y + point.y * 2 + next.y) / 4,
+        pressure: (clampNumber(previous.pressure ?? 0.72, 0.24, 1) + clampNumber(point.pressure ?? 0.72, 0.24, 1) * 2 + clampNumber(next.pressure ?? 0.72, 0.24, 1)) / 4,
+      };
+    });
+  }
+  return smoothed;
+}
+
 function drawSmoothStroke(ctx, stroke, width, height) {
   const rawPoints = Array.isArray(stroke?.points) ? stroke.points : [];
   if (rawPoints.length < 1) return;
 
-  const points = rawPoints.map(point => canvasPoint(point, width, height));
+  const isHighlighter = stroke?.tool === 'highlighter';
+  const renderPoints = rawPoints.length > 2 ? smoothStrokePoints(rawPoints, isHighlighter ? 1 : 2) : rawPoints;
+  const points = renderPoints.map(point => canvasPoint(point, width, height));
   const baseWidth = Math.max(1, Number(stroke?.width) || 4);
   const color = stroke?.color || '#1f2937';
 
   ctx.save();
   ctx.globalAlpha = Number(stroke?.opacity) || 0.96;
+  if (isHighlighter) {
+    ctx.globalCompositeOperation = 'multiply';
+  }
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+  ctx.miterLimit = 2;
 
   if (points.length === 1) {
     const point = points[0];
@@ -160,28 +191,87 @@ function drawSmoothStroke(ctx, stroke, width, height) {
     return;
   }
 
-  for (let i = 1; i < points.length; i += 1) {
-    const previous = points[i - 1];
-    const current = points[i];
-    const beforePrevious = points[i - 2] || previous;
-    const start = i === 1 ? previous : midPoint(beforePrevious, previous);
-    const end = midPoint(previous, current);
-    ctx.lineWidth = pressureStrokeWidth(baseWidth, (previous.pressure + current.pressure) / 2);
+  if (isHighlighter) {
+    ctx.lineWidth = baseWidth;
     ctx.beginPath();
-    ctx.moveTo(start.x, start.y);
-    ctx.quadraticCurveTo(previous.x, previous.y, end.x, end.y);
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length - 1; i += 1) {
+      const end = midPoint(points[i], points[i + 1]);
+      ctx.quadraticCurveTo(points[i].x, points[i].y, end.x, end.y);
+    }
+    const last = points[points.length - 1];
+    ctx.lineTo(last.x, last.y);
     ctx.stroke();
+    ctx.restore();
+    return;
   }
 
-  const last = points[points.length - 1];
-  const beforeLast = points[points.length - 2];
-  const lastStart = midPoint(beforeLast, last);
-  ctx.lineWidth = pressureStrokeWidth(baseWidth, last.pressure);
+  ctx.lineWidth = pressureStrokeWidth(baseWidth, averageStrokePressure(points));
   ctx.beginPath();
-  ctx.moveTo(lastStart.x, lastStart.y);
-  ctx.quadraticCurveTo(last.x, last.y, last.x, last.y);
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const end = midPoint(points[i], points[i + 1]);
+    ctx.quadraticCurveTo(points[i].x, points[i].y, end.x, end.y);
+  }
+  const last = points[points.length - 1];
+  ctx.lineTo(last.x, last.y);
   ctx.stroke();
   ctx.restore();
+}
+
+function drawEraserStroke(ctx, stroke, width, height) {
+  const rawPoints = Array.isArray(stroke?.points) ? stroke.points : [];
+  if (!rawPoints.length) return;
+  const points = (rawPoints.length > 2 ? smoothStrokePoints(rawPoints, 1) : rawPoints)
+    .map(point => canvasPoint(point, width, height));
+  const eraserWidth = Math.max(12, Number(stroke?.width) || 32);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#000';
+  ctx.fillStyle = '#000';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = eraserWidth;
+
+  if (points.length === 1) {
+    const point = points[0];
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, eraserWidth / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const end = midPoint(points[i], points[i + 1]);
+    ctx.quadraticCurveTo(points[i].x, points[i].y, end.x, end.y);
+  }
+  const last = points[points.length - 1];
+  ctx.lineTo(last.x, last.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function HighlighterIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M8.4 1.7l3.8 3.8-5.6 5.6-3.8-3.8 5.6-5.6z" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round"/>
+      <path d="M2.1 8l3.9 3.9-4.2.4.3-4.3zM8.7 4.9l1.1 1.1" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function EraserIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M8.2 1.8l4 4a1.2 1.2 0 0 1 0 1.7l-3.5 3.5H4.4L1.8 8.4a1.2 1.2 0 0 1 0-1.7l4.7-4.9a1.2 1.2 0 0 1 1.7 0z" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round"/>
+      <path d="M4.6 4.1l5.2 5.2M4.4 11h7.8" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/>
+    </svg>
+  );
 }
 function getMCQTag(note) {
   const t = `${note?.title||''} ${note?.courseTitle||''} ${note?.topicName||''}`.toLowerCase();
@@ -306,6 +396,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   parentRef,
   editable,
   drawMode,
+  drawTool = 'pen',
   strokes,
   penColor,
   penWidth,
@@ -313,19 +404,15 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   onCommitStroke,
 }) {
   const canvasEl = useRef(null);
+  const highlightCanvasEl = useRef(null);
   const currentStrokeRef = useRef(null);
   const strokeScrollLockRef = useRef(null);
   const stylusTouchUntilRef = useRef(0);
   const strokesRef = useRef(strokes);
+  const [eraserCursor, setEraserCursor] = useState(null);
 
-  const drawAll = useCallback((items = strokesRef.current) => {
-    const canvas = canvasEl.current;
-    const host = parentRef.current;
-    if (!canvas || !host) return;
-    const rect = host.getBoundingClientRect();
-    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
-    const width = Math.max(1, Math.round(rect.width));
-    const height = Math.max(1, Math.round(rect.height));
+  const prepareCanvas = useCallback((canvas, width, height, dpr) => {
+    if (!canvas) return null;
     const targetWidth = Math.round(width * dpr);
     const targetHeight = Math.round(height * dpr);
     if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
@@ -335,11 +422,39 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
       canvas.style.height = `${height}px`;
     }
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) return null;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.clearRect(0, 0, width, height);
-    items.forEach((stroke) => drawSmoothStroke(ctx, stroke, width, height));
-  }, [parentRef]);
+    return ctx;
+  }, []);
+
+  const drawAll = useCallback((items = strokesRef.current) => {
+    const inkCanvas = canvasEl.current;
+    const highlightCanvas = highlightCanvasEl.current;
+    const host = parentRef.current;
+    if (!inkCanvas || !highlightCanvas || !host) return;
+    const rect = host.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 4));
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+    const inkCtx = prepareCanvas(inkCanvas, width, height, dpr);
+    const highlightCtx = prepareCanvas(highlightCanvas, width, height, dpr);
+    if (!inkCtx || !highlightCtx) return;
+    const eraserStrokes = [];
+    items.forEach((stroke) => {
+      if (stroke?.tool === 'eraser') {
+        eraserStrokes.push(stroke);
+        return;
+      }
+      drawSmoothStroke(stroke?.tool === 'highlighter' ? highlightCtx : inkCtx, stroke, width, height);
+    });
+    eraserStrokes.forEach((stroke) => {
+      drawEraserStroke(highlightCtx, stroke, width, height);
+      drawEraserStroke(inkCtx, stroke, width, height);
+    });
+  }, [parentRef, prepareCanvas]);
 
   useEffect(() => {
     strokesRef.current = strokes;
@@ -364,18 +479,25 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     if (!canvas || !editable || !drawMode) return undefined;
     const handleNativeTouchStart = (event) => {
       if (!hasStylusTouch(event)) return;
-      stylusTouchUntilRef.current = Date.now() + 700;
+      stylusTouchUntilRef.current = Date.now() + 90;
       event.preventDefault();
     };
     const handleNativeTouchMove = (event) => {
-      if (!hasStylusTouch(event) && Date.now() > stylusTouchUntilRef.current) return;
+      if (!hasStylusTouch(event)) return;
       event.preventDefault();
+    };
+    const handleNativeTouchEnd = (event) => {
+      if (hasStylusTouch(event)) stylusTouchUntilRef.current = 0;
     };
     canvas.addEventListener('touchstart', handleNativeTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleNativeTouchEnd, { passive: true });
+    canvas.addEventListener('touchcancel', handleNativeTouchEnd, { passive: true });
     return () => {
       canvas.removeEventListener('touchstart', handleNativeTouchStart);
       canvas.removeEventListener('touchmove', handleNativeTouchMove);
+      canvas.removeEventListener('touchend', handleNativeTouchEnd);
+      canvas.removeEventListener('touchcancel', handleNativeTouchEnd);
     };
   }, [drawMode, editable]);
 
@@ -394,13 +516,24 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     };
   }
 
-  function appendPointToCurrentStroke(event) {
+function appendPointToCurrentStroke(event) {
     const stroke = currentStrokeRef.current;
     if (!stroke) return false;
     const point = pointFromEvent(event);
     if (!point || !shouldKeepStrokePoint(stroke.points, point)) return false;
     stroke.points.push(point);
     if (stroke.points.length > 2200) stroke.points.splice(0, stroke.points.length - 2200);
+    return true;
+  }
+
+  function eraserBrushWidth() {
+    return Math.max(22, (Number(penWidth) || 5) * 7);
+  }
+
+  function updateEraserCursor(event) {
+    const point = pointFromEvent(event);
+    if (!point) return false;
+    setEraserCursor({ x:point.x, y:point.y, size:eraserBrushWidth() });
     return true;
   }
 
@@ -523,19 +656,36 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginStrokeScrollLock();
     holdStrokeScrollLock(true);
+    if (drawTool === 'eraser') {
+      currentStrokeRef.current = {
+        id: `eraser-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        color: '#000000',
+        width: eraserBrushWidth(),
+        opacity: 1,
+        tool: 'eraser',
+        points: [point],
+      };
+      setEraserCursor({ x:point.x, y:point.y, size:eraserBrushWidth() });
+      drawAll([...strokesRef.current, currentStrokeRef.current]);
+      return;
+    }
+    const isHighlighter = drawTool === 'highlighter';
     currentStrokeRef.current = {
       id: `stroke-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       color: penColor,
-      width: penWidth,
-      opacity: 0.98,
+      width: isHighlighter ? Math.max(10, penWidth * 2.4) : penWidth,
+      opacity: isHighlighter ? 0.36 : 0.98,
+      tool: drawTool,
       points: [point],
     };
     drawAll([...strokesRef.current, currentStrokeRef.current]);
   }
 
   function onPointerMove(event) {
-    if (!editable || !drawMode || !currentStrokeRef.current) return;
+    if (!editable || !drawMode) return;
+    if (!currentStrokeRef.current) return;
     blockDrawingGesture(event);
+    if (drawTool === 'eraser') updateEraserCursor(event);
 
     const events = typeof event.getCoalescedEvents === 'function'
       ? event.getCoalescedEvents()
@@ -547,16 +697,18 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
 
     if (changed) {
       holdStrokeScrollLock(true);
+      if (drawTool === 'eraser') updateEraserCursor(event);
       drawAll([...strokesRef.current, currentStrokeRef.current]);
     }
   }
 
   function finishStroke(event) {
     const stroke = currentStrokeRef.current;
-    if (!stroke) return;
+    if (!stroke && drawTool !== 'eraser') return;
     event?.preventDefault?.();
     event?.stopPropagation?.();
     endStrokeScrollLock();
+    stylusTouchUntilRef.current = 0;
     currentStrokeRef.current = null;
     try {
       if (event?.pointerId != null) event.currentTarget?.releasePointerCapture?.(event.pointerId);
@@ -564,35 +716,279 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
       /* pointer may already be released */
     }
 
+    if (!stroke) return;
     const points = simplifyStrokePoints(stroke.points);
     if (points.length > 0) {
       onCommitStroke({ ...stroke, points });
     }
   }
 
+  function hideEraserCursor() {
+    setEraserCursor(null);
+  }
+
+  const eraserDiameter = `${Math.round(eraserCursor?.size || Math.max(20, (Number(penWidth) || 5) * 8))}px`;
+
   return (
-    <canvas
-      ref={canvasEl}
-      className="lms-student-drawing-layer"
-      aria-label="Personal writing canvas"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={finishStroke}
-      onPointerCancel={finishStroke}
-      style={{
-        position:'absolute',
-        inset:0,
-        zIndex:drawMode && editable ? 32 : 18,
-        pointerEvents:drawMode && editable ? 'auto' : 'none',
-        touchAction:drawMode && editable && stylusOnly ? 'pan-y' : (drawMode && editable ? 'none' : 'auto'),
-        cursor:drawMode && editable ? 'crosshair' : 'default',
-        WebkitTouchCallout:'none',
-        WebkitUserSelect:'none',
-        userSelect:'none',
-      }}
-    />
+    <>
+      {drawMode && editable && drawTool === 'eraser' && eraserCursor && (
+        <div
+          aria-hidden="true"
+          style={{
+            position:'absolute',
+            left:`${eraserCursor.x * 100}%`,
+            top:`${eraserCursor.y * 100}%`,
+            width:eraserDiameter,
+            height:eraserDiameter,
+            border:'2px solid rgba(37,99,235,.78)',
+            borderRadius:999,
+            background:'rgba(96,165,250,.12)',
+            boxShadow:'0 0 0 2px rgba(255,255,255,.72), 0 8px 22px rgba(15,23,42,.16)',
+            transform:'translate(-50%, -50%)',
+            zIndex:34,
+            pointerEvents:'none',
+          }}
+        />
+      )}
+      <canvas
+        ref={highlightCanvasEl}
+        className="lms-student-highlight-layer"
+        aria-hidden="true"
+        style={{
+          position:'absolute',
+          inset:0,
+          zIndex:30,
+          pointerEvents:'none',
+          mixBlendMode:'multiply',
+          WebkitTouchCallout:'none',
+          WebkitUserSelect:'none',
+          userSelect:'none',
+        }}
+      />
+      <canvas
+        ref={canvasEl}
+        className="lms-student-drawing-layer"
+        aria-label="Personal writing canvas"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={finishStroke}
+        onPointerCancel={finishStroke}
+        onPointerLeave={hideEraserCursor}
+        style={{
+          position:'absolute',
+          inset:0,
+          zIndex:drawMode && editable ? 32 : 18,
+          pointerEvents:drawMode && editable ? 'auto' : 'none',
+          touchAction:drawMode && editable && stylusOnly ? 'pan-y' : (drawMode && editable ? 'none' : 'auto'),
+          cursor:drawMode && editable ? 'crosshair' : 'default',
+          WebkitTouchCallout:'none',
+          WebkitUserSelect:'none',
+          userSelect:'none',
+        }}
+      />
+    </>
   );
 });
+
+function FloatingWritingPalette({
+  isDark,
+  isEditing,
+  drawMode,
+  drawTool,
+  penColor,
+  penWidth,
+  strokeCount,
+  onActivate,
+  onToolChange,
+  onPenColorChange,
+  onPenWidthChange,
+  onUndoStroke,
+  onClearStrokes,
+}) {
+  const [open, setOpen] = useState(false);
+  const paletteRef = useRef(null);
+  const bd = isDark ? 'rgba(148,163,184,.24)' : 'rgba(148,163,184,.36)';
+  const panelBg = isDark ? 'rgba(15,23,42,.96)' : 'rgba(255,255,255,.97)';
+  const tx = isDark ? '#e2e8f0' : '#1e293b';
+  const muted = isDark ? 'rgba(203,213,225,.72)' : '#64748b';
+  const activeBg = isDark ? 'rgba(96,165,250,.2)' : '#eff6ff';
+  const tools = [
+    { id:'pen', label:'Pen', icon:<PenIcon /> },
+    { id:'highlighter', label:'Highlighter', icon:<HighlighterIcon /> },
+    { id:'eraser', label:'Eraser', icon:<EraserIcon /> },
+  ];
+  const colors = drawTool === 'highlighter' ? HIGHLIGHT_COLORS : DRAW_COLORS;
+  const handleMainClick = () => {
+    if (!drawMode) {
+      onActivate();
+      setOpen(false);
+      return;
+    }
+    onActivate();
+    setOpen(value => !value);
+  };
+
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return undefined;
+    const closeOnOutsideTouch = (event) => {
+      if (paletteRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsideTouch, true);
+    document.addEventListener('touchstart', closeOnOutsideTouch, true);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideTouch, true);
+      document.removeEventListener('touchstart', closeOnOutsideTouch, true);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={paletteRef}
+      className="lms-ai-note-write-palette"
+      style={{
+        position:'fixed',
+        right:'max(16px, var(--lms-safe-right, 0px))',
+        bottom:'calc(var(--lms-mobile-content-bottom, 68px) + 16px)',
+        zIndex:92,
+        display:'flex',
+        flexDirection:'column',
+        alignItems:'flex-end',
+        gap:10,
+        pointerEvents:'none',
+      }}
+    >
+      {open && (
+        <div
+          style={{
+            width:248,
+            border:`1px solid ${bd}`,
+            borderRadius:18,
+            background:panelBg,
+            color:tx,
+            boxShadow:isDark ? '0 22px 54px rgba(0,0,0,.42)' : '0 22px 54px rgba(15,23,42,.2)',
+            padding:12,
+            pointerEvents:'auto',
+            backdropFilter:'blur(18px)',
+          }}
+        >
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7, marginBottom:10 }}>
+            {tools.map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                onClick={() => {
+                  onToolChange(tool.id);
+                  if (!drawMode) onActivate();
+                }}
+                aria-pressed={drawTool === tool.id}
+                className="inline-flex items-center justify-center"
+                title={tool.label}
+                style={{
+                  minHeight:42,
+                  border:`1px solid ${drawTool === tool.id ? (isDark ? 'rgba(96,165,250,.62)' : '#2563eb') : bd}`,
+                  borderRadius:12,
+                  background:drawTool === tool.id ? activeBg : 'transparent',
+                  color:drawTool === tool.id ? (isDark ? '#bfdbfe' : '#1d4ed8') : tx,
+                  cursor:'pointer',
+                }}
+              >
+                {tool.icon}
+              </button>
+            ))}
+          </div>
+
+          {drawTool !== 'eraser' && (
+            <div style={{ display:'flex', flexWrap:'wrap', gap:7, marginBottom:10 }}>
+              {colors.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => onPenColorChange(color)}
+                  aria-label={`Use ${color}`}
+                  aria-pressed={penColor === color}
+                  style={{
+                    width:30,
+                    height:30,
+                    borderRadius:10,
+                    border:penColor === color ? `3px solid ${isDark ? '#f8fafc' : '#111827'}` : `1px solid ${bd}`,
+                    background:color,
+                    cursor:'pointer',
+                    boxShadow:penColor === color ? '0 0 0 2px rgba(96,165,250,.36)' : 'none',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7, marginBottom:10 }}>
+            {DRAW_WIDTHS.map((width) => (
+              <button
+                key={width}
+                type="button"
+                onClick={() => onPenWidthChange(width)}
+                aria-pressed={penWidth === width}
+                style={{
+                  minHeight:36,
+                  border:`1px solid ${penWidth === width ? (isDark ? 'rgba(167,139,250,.56)' : '#7c3aed') : bd}`,
+                  borderRadius:11,
+                  background:penWidth === width ? (isDark ? 'rgba(167,139,250,.14)' : '#f5f3ff') : 'transparent',
+                  cursor:'pointer',
+                }}
+              >
+                <span style={{ display:'block', height:drawTool === 'highlighter' ? Math.max(8, width * 1.7) : width, borderRadius:99, background:drawTool === 'eraser' ? muted : penColor, margin:'0 auto', width:'64%', opacity:drawTool === 'highlighter' ? .55 : 1 }} />
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
+            <button
+              type="button"
+              onClick={onUndoStroke}
+              disabled={!strokeCount}
+              className="inline-flex items-center justify-center gap-1.5"
+              style={{ minHeight:36, border:`1px solid ${bd}`, borderRadius:11, background:'transparent', color:muted, cursor:strokeCount?'pointer':'not-allowed', opacity:strokeCount?1:.45, fontSize:11, fontWeight:900 }}
+            >
+              <UndoIcon /> Undo
+            </button>
+            <button
+              type="button"
+              onClick={onClearStrokes}
+              disabled={!strokeCount}
+              className="inline-flex items-center justify-center gap-1.5"
+              style={{ minHeight:36, border:`1px solid ${strokeCount ? 'rgba(220,38,38,.34)' : bd}`, borderRadius:11, background:strokeCount ? (isDark?'rgba(220,38,38,.1)':'#fef2f2') : 'transparent', color:strokeCount ? (isDark?'#fca5a5':'#b91c1c') : muted, cursor:strokeCount?'pointer':'not-allowed', opacity:strokeCount?1:.45, fontSize:11, fontWeight:900 }}
+            >
+              <TrashIcon /> Clear
+            </button>
+          </div>
+        </div>
+      )}
+      <button
+        className="lms-ai-note-write-fab lms-smooth-action inline-flex items-center justify-center"
+        type="button"
+        onClick={handleMainClick}
+        aria-expanded={open}
+        aria-pressed={drawMode}
+        style={{
+          pointerEvents:'auto',
+          width:56,
+          height:56,
+          border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.62)' : '#2563eb') : bd}`,
+          borderRadius:999,
+          background:drawMode ? (isDark ? 'linear-gradient(180deg,rgba(96,165,250,.28),rgba(37,99,235,.18))' : '#eff6ff') : panelBg,
+          color:drawMode ? (isDark ? '#dbeafe' : '#1d4ed8') : tx,
+          boxShadow:isDark ? '0 18px 42px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.12)' : '0 18px 42px rgba(15,23,42,.18)',
+          cursor:'pointer',
+          opacity:isEditing || drawMode ? 1 : .96,
+          WebkitTapHighlightColor:'transparent',
+        }}
+        title="Pencil / S Pen tools"
+      >
+        {drawTool === 'eraser' ? <EraserIcon size={18} /> : drawTool === 'highlighter' ? <HighlighterIcon size={18} /> : <PenIcon size={18} />}
+      </button>
+    </div>
+  );
+}
 
 const CanvasPage = memo(function CanvasPage({ pageData, index, note, topBd, isDark }) {
   const data = useMemo(() => ({
@@ -1208,6 +1604,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const [toast,     setToast]     = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [drawMode,  setDrawMode]  = useState(false);
+  const [drawTool,  setDrawTool]  = useState('pen');
   const [penColor,  setPenColor]  = useState(DRAW_COLORS[1]);
   const [penWidth,  setPenWidth]  = useState(DRAW_WIDTHS[1]);
   const [videoUrl,  setVideoUrl]  = useState('');
@@ -1632,95 +2029,42 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
         document.body
       ) : null}
 
-      {!isLocked && nativeWritingEnabled && (
-        <button
-          className="lms-ai-note-write-fab lms-smooth-action inline-flex items-center justify-center"
-          type="button"
-          onClick={() => {
-            if (!isEditing) {
-              setIsEditing(true);
-              setDrawMode(true);
-              return;
-            }
-            setDrawMode(value => !value);
+      {!isLocked && nativeWritingEnabled && typeof document !== 'undefined' ? createPortal(
+        <FloatingWritingPalette
+          isDark={isDark}
+          isEditing={isEditing}
+          drawMode={drawMode}
+          drawTool={drawTool}
+          penColor={penColor}
+          penWidth={penWidth}
+          strokeCount={strokes.length}
+          onActivate={() => {
+            if (!isEditing) setIsEditing(true);
+            setDrawMode(true);
           }}
-          aria-pressed={drawMode}
-          style={{
-            position:'fixed',
-            right:'max(16px, var(--lms-safe-right, 0px))',
-            bottom:'calc(var(--lms-mobile-content-bottom, 68px) + 16px)',
-            zIndex:88,
-            display:'inline-flex',
-            alignItems:'center',
-            justifyContent:'center',
-            gap:8,
-            minHeight:46,
-            padding:'0 16px',
-            border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.52)' : '#2563eb') : btnBd}`,
-            borderRadius:999,
-            background:drawMode ? (isDark ? 'linear-gradient(180deg,rgba(96,165,250,.24),rgba(37,99,235,.16))' : '#eff6ff') : (isDark ? 'rgba(15,23,42,.92)' : '#ffffff'),
-            color:drawMode ? (isDark ? '#dbeafe' : '#1d4ed8') : btnTx,
-            boxShadow:isDark ? '0 18px 40px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.12)' : '0 18px 40px rgba(15,23,42,.18)',
-            fontSize:12,
-            fontWeight:900,
-            cursor:'pointer',
-            WebkitTapHighlightColor:'transparent',
+          onToolChange={(tool) => {
+            setDrawTool(tool);
+            if (tool === 'highlighter' && !HIGHLIGHT_COLORS.includes(penColor)) setPenColor(HIGHLIGHT_COLORS[0]);
+            if (tool === 'pen' && HIGHLIGHT_COLORS.includes(penColor)) setPenColor(DRAW_COLORS[1]);
           }}
-        >
-          <PenIcon /> {drawMode ? 'Stop Pen' : 'Pencil / S Pen'}
-        </button>
-      )}
+          onPenColorChange={setPenColor}
+          onPenWidthChange={setPenWidth}
+          onUndoStroke={undoStroke}
+          onClearStrokes={clearStrokes}
+        />,
+        document.body
+      ) : null}
 
       {/* Body */}
       <div className="lms-ai-canvas-shell mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:px-4 max-[640px]:px-0 max-[520px]:gap-3">
         <section className="lms-ai-note-main min-w-0">
           <div ref={canvasRef} style={{ position:'relative', minWidth:0, maxWidth:'100%' }}>
-            {!isLocked && pages.length > 0 && nativeWritingEnabled && (
-              <button
-                className="lms-ai-note-canvas-write-button lms-smooth-action inline-flex items-center justify-center"
-                type="button"
-                onClick={() => {
-                  if (!isEditing) {
-                    setIsEditing(true);
-                    setDrawMode(true);
-                    return;
-                  }
-                  setDrawMode(value => !value);
-                }}
-                aria-pressed={drawMode}
-                style={{
-                  position:'sticky',
-                  top:'calc(var(--lms-safe-top, 0px) + 12px)',
-                  left:'100%',
-                  zIndex:70,
-                  width:'max-content',
-                  transform:'translateX(calc(-100% - 12px))',
-                  display:'inline-flex',
-                  alignItems:'center',
-                  justifyContent:'center',
-                  gap:8,
-                  minHeight:42,
-                  marginBottom:-42,
-                  padding:'0 14px',
-                  border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.52)' : '#2563eb') : btnBd}`,
-                  borderRadius:999,
-                  background:drawMode ? (isDark ? 'linear-gradient(180deg,rgba(96,165,250,.26),rgba(37,99,235,.16))' : '#eff6ff') : (isDark ? 'rgba(15,23,42,.94)' : '#ffffff'),
-                  color:drawMode ? (isDark ? '#dbeafe' : '#1d4ed8') : btnTx,
-                  boxShadow:isDark ? '0 16px 34px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.12)' : '0 16px 34px rgba(15,23,42,.16)',
-                  fontSize:12,
-                  fontWeight:900,
-                  cursor:'pointer',
-                  WebkitTapHighlightColor:'transparent',
-                }}
-              >
-                <PenIcon /> {drawMode ? 'Stop Pen' : 'Pencil / S Pen'}
-              </button>
-            )}
             {nativeWritingEnabled && (
               <PersonalDrawingLayer
                 parentRef={canvasRef}
                 editable={canDraw}
                 drawMode={drawMode}
+                drawTool={drawTool}
                 strokes={strokes}
                 penColor={penColor}
                 penWidth={penWidth}
