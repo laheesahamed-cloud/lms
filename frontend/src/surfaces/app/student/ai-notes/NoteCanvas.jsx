@@ -609,37 +609,177 @@ function stopCanvasInputGesture(event) {
   event.stopPropagation();
 }
 
-function EField({ value, onChange, placeholder, className, style, onPointerDown, onTouchStart, ...props }) {
+let scribbleAudioContext = null;
+let lastScribbleSoundAt = 0;
+
+function getScribbleAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  scribbleAudioContext ||= new AudioContextClass();
+  return scribbleAudioContext;
+}
+
+function unlockScribbleAudio() {
+  if (typeof window === 'undefined') return;
+  playNativeScribbleSound(0.55, true);
+  try {
+    const context = getScribbleAudioContext();
+    if (!context) return;
+    if (context.state === 'suspended') {
+      context.resume().catch(() => {});
+    }
+  } catch {
+    // Audio is optional; editing should continue normally if unavailable.
+  }
+}
+
+function playNativeScribbleSound(volume = 0.9, force = false) {
+  if (typeof window === 'undefined') return false;
+  const handler = window.webkit?.messageHandlers?.lmsScribbleAudio;
+  if (!handler || typeof handler.postMessage !== 'function') return false;
+
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (!force && now - lastScribbleSoundAt < 58) return true;
+  lastScribbleSoundAt = now;
+
+  try {
+    handler.postMessage({ volume });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function playScribbleSound(force = false) {
+  if (typeof window === 'undefined') return;
+
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (!force && now - lastScribbleSoundAt < 58) return;
+  if (playNativeScribbleSound(1, force)) return;
+
+  try {
+    const context = getScribbleAudioContext();
+    if (!context) return;
+    if (context.state === 'suspended') {
+      context.resume().then(() => playScribbleSound(true)).catch(() => {});
+      return;
+    }
+
+    lastScribbleSoundAt = now;
+    const duration = 0.055;
+    const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
+    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i += 1) {
+      const progress = i / sampleCount;
+      const fade = Math.sin(Math.PI * progress) * (1 - progress * 0.25);
+      channel[i] = (Math.random() * 2 - 1) * fade;
+    }
+
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    source.playbackRate.value = 0.82 + Math.random() * 0.55;
+    filter.type = 'bandpass';
+    filter.frequency.value = 1700 + Math.random() * 1300;
+    filter.Q.value = 6;
+    gain.gain.setValueAtTime(0.001, context.currentTime);
+    gain.gain.linearRampToValueAtTime(0.055, context.currentTime + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(context.destination);
+    source.start();
+    source.stop(context.currentTime + duration);
+  } catch {
+    // Writing sound is decorative; never block editing if audio is unavailable.
+  }
+}
+
+function EField({ value, onChange, placeholder, className, style, onPointerDown, onTouchStart, onFocus, onKeyDown, onInput, onBeforeInput, onCompositionUpdate, ...props }) {
   return (
-    <input className={cx(noteCanvasUi.editInput, className)} type="text" value={value || ''} onChange={e => onChange(e.target.value)}
+    <input className={cx(noteCanvasUi.editInput, className)} type="text" value={value || ''} onChange={e => { playScribbleSound(); onChange(e.target.value); }}
       placeholder={placeholder}
       data-lms-canvas-input="true"
       onPointerDown={event => {
         stopCanvasInputGesture(event);
+        unlockScribbleAudio();
         onPointerDown?.(event);
       }}
       onTouchStart={event => {
         stopCanvasInputGesture(event);
+        unlockScribbleAudio();
         onTouchStart?.(event);
+      }}
+      onPointerMove={event => {
+        if (event.pressure > 0 || event.pointerType === 'pen') playScribbleSound();
+      }}
+      onTouchMove={() => playScribbleSound()}
+      onFocus={event => {
+        unlockScribbleAudio();
+        onFocus?.(event);
+      }}
+      onKeyDown={event => {
+        playScribbleSound();
+        onKeyDown?.(event);
+      }}
+      onInput={event => {
+        playScribbleSound();
+        onInput?.(event);
+      }}
+      onBeforeInput={event => {
+        playScribbleSound();
+        onBeforeInput?.(event);
+      }}
+      onCompositionUpdate={event => {
+        playScribbleSound();
+        onCompositionUpdate?.(event);
       }}
       style={{ touchAction: 'manipulation', WebkitUserSelect: 'text', userSelect: 'text', ...style }}
       {...props}/>
   );
 }
-function EArea({ value, onChange, placeholder, className, style, minRows = 2, onPointerDown, onTouchStart, ...props }) {
+function EArea({ value, onChange, placeholder, className, style, minRows = 2, onPointerDown, onTouchStart, onFocus, onKeyDown, onInput, onBeforeInput, onCompositionUpdate, ...props }) {
   const rows = Math.max(minRows, (value || '').split('\n').length + 1);
   return (
-    <textarea className={cx(noteCanvasUi.editArea, className)} value={value || ''} onChange={e => onChange(e.target.value)}
+    <textarea className={cx(noteCanvasUi.editArea, className)} value={value || ''} onChange={e => { playScribbleSound(); onChange(e.target.value); }}
       placeholder={placeholder}
       rows={rows}
       data-lms-canvas-input="true"
       onPointerDown={event => {
         stopCanvasInputGesture(event);
+        unlockScribbleAudio();
         onPointerDown?.(event);
       }}
       onTouchStart={event => {
         stopCanvasInputGesture(event);
+        unlockScribbleAudio();
         onTouchStart?.(event);
+      }}
+      onPointerMove={event => {
+        if (event.pressure > 0 || event.pointerType === 'pen') playScribbleSound();
+      }}
+      onTouchMove={() => playScribbleSound()}
+      onFocus={event => {
+        unlockScribbleAudio();
+        onFocus?.(event);
+      }}
+      onKeyDown={event => {
+        playScribbleSound();
+        onKeyDown?.(event);
+      }}
+      onInput={event => {
+        playScribbleSound();
+        onInput?.(event);
+      }}
+      onBeforeInput={event => {
+        playScribbleSound();
+        onBeforeInput?.(event);
+      }}
+      onCompositionUpdate={event => {
+        playScribbleSound();
+        onCompositionUpdate?.(event);
       }}
       style={{ touchAction: 'manipulation', WebkitUserSelect: 'text', userSelect: 'text', ...style }}
       {...props}/>

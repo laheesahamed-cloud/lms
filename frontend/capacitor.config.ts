@@ -6,6 +6,9 @@ const config: CapacitorConfig = {
   appName: 'ERPM Medical LMS',
   webDir: 'dist-capacitor',
   bundledWebRuntime: false,
+  server: {
+    androidScheme: 'http',
+  },
   ios: {
     contentInset: 'never',
     backgroundColor: '#111a23',

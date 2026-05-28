@@ -20,6 +20,338 @@ if (typeof document !== 'undefined' && !document.getElementById('canvas-hand-fon
 }
 const KL = { fontFamily: "'Patrick Hand', cursive" };
 
+let drawingAudioContext = null;
+let lastDrawingSoundAt = 0;
+let activeDrawingSound = null;
+const DRAWING_SOUND_MODES = [
+  { id:'spen', label:'S Pen' },
+  { id:'secret', label:'Secret Study' },
+];
+const DRAWING_SOUND_STORAGE_KEY = 'lms.aiNotes.drawingSoundMode';
+
+function normalizeDrawingSoundMode(mode) {
+  return mode === 'secret' ? 'secret' : 'spen';
+}
+
+function getDrawingAudioContext() {
+  if (typeof window === 'undefined') return null;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  drawingAudioContext ||= new AudioContextClass();
+  return drawingAudioContext;
+}
+
+function postNativeDrawingSound(action = 'play', mode = 'spen', volume = 1, force = false, extras = null) {
+  if (typeof window === 'undefined') return false;
+  const handler = window.webkit?.messageHandlers?.lmsScribbleAudio;
+  if (!handler || typeof handler.postMessage !== 'function') return false;
+  const soundMode = normalizeDrawingSoundMode(mode);
+
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const minGap = soundMode === 'secret' ? 95 : 320;
+  if (action === 'play' && !force && now - lastDrawingSoundAt < minGap) return true;
+  lastDrawingSoundAt = now;
+
+  try {
+    handler.postMessage({ action, mode: soundMode, volume, ...(extras || {}) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function playNativeDrawingSound(mode = 'spen', volume = 1, force = false) {
+  return postNativeDrawingSound('play', mode, volume, force);
+}
+
+function playDrawingSound(mode = 'spen', force = false) {
+  if (typeof window === 'undefined') return;
+  const soundMode = normalizeDrawingSoundMode(mode);
+  if (playNativeDrawingSound(soundMode, soundMode === 'secret' ? 0.42 : 0.2, force)) return;
+
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const minGap = soundMode === 'secret' ? 95 : 320;
+  if (!force && now - lastDrawingSoundAt < minGap) return;
+
+  try {
+    const context = getDrawingAudioContext();
+    if (!context) return;
+    if (context.state === 'suspended') {
+      context.resume().then(() => playDrawingSound(soundMode, true)).catch(() => {});
+      return;
+    }
+
+    lastDrawingSoundAt = now;
+    const isSecret = soundMode === 'secret';
+    const duration = isSecret ? 0.085 : 0.42;
+    const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
+    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i += 1) {
+      const progress = i / sampleCount;
+      const attack = Math.min(1, progress / (isSecret ? 0.08 : 0.22));
+      const release = Math.max(0, 1 - progress);
+      const grain = Math.random() * 2 - 1;
+      const rub = Math.sin(progress * Math.PI * (isSecret ? 160 : 34)) * (isSecret ? 0.24 : 0.03);
+      const paper = Math.sin(progress * Math.PI * (22 + Math.random() * 8)) * (isSecret ? 0 : 0.022);
+      channel[i] = (grain * (isSecret ? 0.78 : 0.085) + rub + paper) * attack * Math.pow(release, isSecret ? 0.7 : 1.15);
+    }
+
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    source.playbackRate.value = isSecret ? 0.86 + Math.random() * 0.4 : 0.9 + Math.random() * 0.08;
+    filter.type = 'bandpass';
+    filter.frequency.value = isSecret ? 1900 + Math.random() * 1200 : 520 + Math.random() * 260;
+    filter.Q.value = isSecret ? 7 : 1.05;
+    gain.gain.setValueAtTime(0.001, context.currentTime);
+    gain.gain.linearRampToValueAtTime(isSecret ? 0.045 : 0.014, context.currentTime + 0.045);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(context.destination);
+    source.start();
+    source.stop(context.currentTime + duration);
+  } catch {
+    // Drawing sound is optional; never block the writing canvas.
+  }
+}
+
+function stopWebDrawingSound() {
+  const sound = activeDrawingSound;
+  activeDrawingSound = null;
+  if (!sound) return;
+  try {
+    const now = sound.context.currentTime;
+    sound.gain.gain.cancelScheduledValues(now);
+    sound.gain.gain.setTargetAtTime(0.001, now, 0.035);
+    sound.textureGain?.gain.cancelScheduledValues(now);
+    sound.textureGain?.gain.setTargetAtTime(0.001, now, 0.025);
+    sound.source.stop(now + 0.16);
+    sound.textureSource?.stop(now + 0.12);
+  } catch {
+    // Optional sound cleanup only.
+  }
+}
+
+function strokeSegmentMotion(previous, point) {
+  if (!previous || !point) return { distance: 0, elapsed: 8, speed: 0 };
+  const dx = point.x - previous.x;
+  const dy = point.y - previous.y;
+  const distance = Math.hypot(dx, dy);
+  const elapsed = Math.max(8, (point.t || 0) - (previous.t || 0));
+  const speed = clampNumber((distance / elapsed) * 1800, 0, 1);
+  return { distance, elapsed, speed };
+}
+
+function isAudibleStrokeMovement(previous, point) {
+  const { distance, speed } = strokeSegmentMotion(previous, point);
+  return distance >= 0.0009 && speed >= 0.045;
+}
+
+function modulateDrawingStrokeSound(previous, point, mode = 'spen') {
+  if (!previous || !point) return;
+  const soundMode = normalizeDrawingSoundMode(mode);
+  const dx = point.x - previous.x;
+  const dy = point.y - previous.y;
+  const { distance, speed } = strokeSegmentMotion(previous, point);
+  const pressure = clampNumber(Number(point.pressure) || 0.35, 0, 1);
+  const pressureDelta = clampNumber(Math.abs(pressure - (Number(previous.pressure) || pressure)) * 2.4, 0, 1);
+  const tilt = clampNumber(
+    Math.hypot(Number(point.tiltX) || 0, Number(point.tiltY) || 0) / 90,
+    0,
+    1
+  );
+  const direction = Math.atan2(dy, dx);
+  const lastDirection = activeDrawingSound?.lastDirection;
+  const directionDelta = typeof lastDirection === 'number'
+    ? Math.atan2(Math.sin(direction - lastDirection), Math.cos(direction - lastDirection))
+    : 0;
+  const directionChange = clampNumber(Math.abs(directionDelta) / 0.62, 0, 1);
+  const wavePulse = clampNumber(directionChange * (0.65 + speed * 0.55), 0, 1);
+  const directionTexture = (Math.sin(direction * 3.7) + 1) / 2;
+  const segmentTexture = (Math.sin(((point.t || 0) * 0.073) + direction * 4.6 + wavePulse * 2.8) + 1) / 2;
+  const prior = activeDrawingSound?.lastPreviousPoint;
+  let curve = 0;
+  if (prior && prior !== previous) {
+    const ax = previous.x - prior.x;
+    const ay = previous.y - prior.y;
+    const bx = point.x - previous.x;
+    const by = point.y - previous.y;
+    const aLength = Math.hypot(ax, ay);
+    const bLength = Math.hypot(bx, by);
+    if (aLength > 0.00002 && bLength > 0.00002) {
+      const dot = clampNumber((ax * bx + ay * by) / (aLength * bLength), -1, 1);
+      curve = clampNumber((Math.acos(dot) / Math.PI) * 1.8, 0, 1);
+    }
+  }
+
+  const movement = clampNumber(speed * 0.42 + curve * 0.34 + wavePulse * 0.5 + pressureDelta * 0.16, 0, 1);
+  const volume = soundMode === 'secret'
+    ? 0.07 + pressure * 0.06 + speed * 0.11 + curve * 0.08 + pressureDelta * 0.045 + wavePulse * 0.09
+    : 0.032 + pressure * 0.034 + speed * 0.072 + curve * 0.066 + pressureDelta * 0.024 + wavePulse * 0.082;
+  const rate = soundMode === 'secret'
+    ? 0.76 + speed * 0.24 + curve * 0.17 + directionTexture * 0.07 + wavePulse * 0.28 - tilt * 0.045
+    : 0.64 + speed * 0.24 + curve * 0.15 + directionTexture * 0.055 + wavePulse * 0.26 - tilt * 0.035;
+  const brightness = soundMode === 'secret'
+    ? 720 + pressure * 300 + speed * 980 + curve * 860 + pressureDelta * 260 + wavePulse * 1180 + segmentTexture * 180 - tilt * 180
+    : 210 + pressure * 80 + speed * 620 + curve * 780 + pressureDelta * 120 + wavePulse * 1120 + segmentTexture * 96 - tilt * 50;
+  const roughness = clampNumber(curve * 0.56 + directionChange * 0.74 + pressureDelta * 0.26 + speed * 0.28 + segmentTexture * 0.12, 0, 1);
+
+  const sound = activeDrawingSound;
+  if (!isAudibleStrokeMovement(previous, point)) {
+    if (sound) {
+      try {
+        const now = sound.context.currentTime;
+        sound.gain.gain.setTargetAtTime(0.001, now, 0.018);
+        sound.textureGain?.gain.setTargetAtTime(0.001, now, 0.012);
+        sound.lastPreviousPoint = previous;
+        sound.lastPoint = point;
+        sound.lastDirection = direction;
+      } catch {
+        // Optional sound gating only.
+      }
+    } else {
+      postNativeDrawingSound('modulate', soundMode, 0.001, true, { rate, brightness, roughness: 0, wavePulse: 0 });
+    }
+    return;
+  }
+  if (!sound) {
+    postNativeDrawingSound('modulate', soundMode, volume, true, { rate, brightness, roughness, wavePulse });
+    return;
+  }
+  try {
+    const now = sound.context.currentTime;
+    sound.gain.gain.setTargetAtTime(volume * (soundMode === 'secret' ? 0.2 : 0.16), now, 0.014);
+    sound.source.playbackRate.setTargetAtTime(rate, now, 0.012);
+    sound.source.detune?.setTargetAtTime?.((directionTexture - 0.5) * 90 + pressureDelta * 34 + wavePulse * 150 + curve * 70, now, 0.01);
+    sound.filter.frequency.setTargetAtTime(brightness, now, 0.012);
+    sound.filter.Q.setTargetAtTime(0.52 + roughness * 1.55, now, 0.014);
+    if (sound.textureGain && sound.textureFilter && sound.textureSource) {
+      const textureVolume = (soundMode === 'secret' ? 0.018 : 0.009) * clampNumber(movement + directionChange * 0.35, 0, 1);
+      sound.textureGain.gain.setTargetAtTime(textureVolume, now, 0.01);
+      sound.textureFilter.frequency.setTargetAtTime(soundMode === 'secret' ? brightness * 1.25 : brightness * 1.85 + 260, now, 0.01);
+      sound.textureFilter.Q.setTargetAtTime(0.8 + roughness * 2.1, now, 0.012);
+      sound.textureSource.playbackRate.setTargetAtTime(0.78 + speed * 0.42 + curve * 0.24 + wavePulse * 0.34, now, 0.012);
+      sound.textureSource.detune?.setTargetAtTime?.((segmentTexture - 0.5) * 180 + directionChange * 90, now, 0.01);
+    }
+    sound.lastPreviousPoint = previous;
+    sound.lastPoint = point;
+    sound.lastDirection = direction;
+  } catch {
+    // Optional sound modulation only.
+  }
+}
+
+function startDrawingStrokeSound(mode = 'spen') {
+  const soundMode = normalizeDrawingSoundMode(mode);
+  stopWebDrawingSound();
+
+  try {
+    const context = getDrawingAudioContext();
+    if (!context) {
+      postNativeDrawingSound('start', soundMode, soundMode === 'secret' ? 0.26 : 0.14, true);
+      return;
+    }
+    if (context.state === 'suspended') {
+      context.resume().then(() => startDrawingStrokeSound(soundMode)).catch(() => {});
+      return;
+    }
+
+    const isSecret = soundMode === 'secret';
+    const duration = isSecret ? 0.32 : 0.72;
+    const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
+    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i += 1) {
+      const progress = i / sampleCount;
+      const grain = Math.random() * 2 - 1;
+      const rub = Math.sin(progress * Math.PI * (isSecret ? 145 : 28)) * (isSecret ? 0.16 : 0.034);
+      const paper = Math.sin(progress * Math.PI * (10 + Math.random() * 14)) * (isSecret ? 0.012 : 0.026);
+      channel[i] = grain * (isSecret ? 0.24 : 0.028) + rub + paper;
+    }
+
+    const textureBuffer = context.createBuffer(1, sampleCount, context.sampleRate);
+    const textureChannel = textureBuffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i += 1) {
+      const progress = i / sampleCount;
+      const grain = Math.random() * 2 - 1;
+      const fiber = Math.sin(progress * Math.PI * (isSecret ? 220 : 76)) * (isSecret ? 0.09 : 0.032);
+      const tooth = Math.sin(progress * Math.PI * (isSecret ? 58 : 38)) * (isSecret ? 0.04 : 0.018);
+      textureChannel[i] = grain * (isSecret ? 0.12 : 0.035) + fiber + tooth;
+    }
+
+    const source = context.createBufferSource();
+    const textureSource = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const textureFilter = context.createBiquadFilter();
+    const gain = context.createGain();
+    const textureGain = context.createGain();
+    source.buffer = buffer;
+    source.loop = true;
+    source.playbackRate.value = isSecret ? 0.92 : 0.86;
+    textureSource.buffer = textureBuffer;
+    textureSource.loop = true;
+    textureSource.playbackRate.value = isSecret ? 0.86 : 0.78;
+    filter.type = 'bandpass';
+    filter.frequency.value = isSecret ? 1500 : 360;
+    filter.Q.value = isSecret ? 4.4 : 0.82;
+    textureFilter.type = 'bandpass';
+    textureFilter.frequency.value = isSecret ? 1800 : 860;
+    textureFilter.Q.value = isSecret ? 4.2 : 1.1;
+    gain.gain.setValueAtTime(0.001, context.currentTime);
+    textureGain.gain.setValueAtTime(0.001, context.currentTime);
+    gain.gain.linearRampToValueAtTime(isSecret ? 0.018 : 0.007, context.currentTime + 0.05);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(context.destination);
+    textureSource.connect(textureFilter);
+    textureFilter.connect(textureGain);
+    textureGain.connect(context.destination);
+    source.start();
+    textureSource.start();
+    activeDrawingSound = { context, source, textureSource, filter, textureFilter, gain, textureGain, lastPoint: null, lastPreviousPoint: null };
+  } catch {
+    // Drawing sound is optional; never block the writing canvas.
+  }
+}
+
+function stopDrawingStrokeSound() {
+  postNativeDrawingSound('stop', 'spen', 0, true);
+  stopWebDrawingSound();
+}
+
+function quietDrawingStrokeSound(mode = 'spen') {
+  const soundMode = normalizeDrawingSoundMode(mode);
+  postNativeDrawingSound('modulate', soundMode, 0.001, true, {
+    rate: soundMode === 'secret' ? 0.86 : 0.72,
+    brightness: soundMode === 'secret' ? 1200 : 320,
+    roughness: 0,
+    wavePulse: 0,
+  });
+
+  const sound = activeDrawingSound;
+  if (!sound) return;
+  try {
+    const now = sound.context.currentTime;
+    sound.gain.gain.setTargetAtTime(0.001, now, 0.045);
+    sound.textureGain?.gain.setTargetAtTime(0.001, now, 0.025);
+    sound.filter.Q.setTargetAtTime(0.7, now, 0.045);
+  } catch {
+    // Optional sound fade only.
+  }
+}
+
+function unlockDrawingAudio() {
+  try {
+    const context = getDrawingAudioContext();
+    if (context?.state === 'suspended') context.resume().catch(() => {});
+  } catch {
+    // Audio unlock is best-effort only.
+  }
+}
+
 function LockIcon({ size = 48 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
@@ -88,7 +420,7 @@ function shouldKeepStrokePoint(points, point) {
   if (!last) return true;
   const distance = strokePointDistance(last, point);
   const pressureDelta = Math.abs((Number(last.pressure) || 0.7) - (Number(point.pressure) || 0.7));
-  return distance >= 0.0014 || pressureDelta >= 0.08;
+  return distance >= 0.00035 || pressureDelta >= 0.06;
 }
 
 function simplifyStrokePoints(points = []) {
@@ -98,7 +430,7 @@ function simplifyStrokePoints(points = []) {
     const current = points[i];
     const last = refined[refined.length - 1];
     const pressureDelta = Math.abs((Number(last?.pressure) || 0.7) - (Number(current?.pressure) || 0.7));
-    if (strokePointDistance(last, current) >= 0.0011 || pressureDelta >= 0.06) {
+    if (strokePointDistance(last, current) >= 0.0003 || pressureDelta >= 0.045) {
       refined.push(current);
     }
   }
@@ -155,7 +487,7 @@ function drawSmoothStroke(ctx, stroke, width, height) {
   if (rawPoints.length < 1) return;
 
   const isHighlighter = stroke?.tool === 'highlighter';
-  const renderPoints = rawPoints.length > 2 ? smoothStrokePoints(rawPoints, isHighlighter ? 1 : 2) : rawPoints;
+  const renderPoints = rawPoints.length > 2 && isHighlighter ? smoothStrokePoints(rawPoints, 1) : rawPoints;
   const points = renderPoints.map(point => canvasPoint(point, width, height));
   const baseWidth = Math.max(1, Number(stroke?.width) || 4);
   const color = stroke?.color || '#1f2937';
@@ -400,6 +732,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   strokes,
   penColor,
   penWidth,
+  soundMode = 'spen',
   stylusOnly = true,
   onCommitStroke,
 }) {
@@ -407,6 +740,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   const highlightCanvasEl = useRef(null);
   const currentStrokeRef = useRef(null);
   const strokeScrollLockRef = useRef(null);
+  const strokeSoundIdleTimerRef = useRef(0);
   const stylusTouchUntilRef = useRef(0);
   const strokesRef = useRef(strokes);
   const [eraserCursor, setEraserCursor] = useState(null);
@@ -455,6 +789,92 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
       drawEraserStroke(inkCtx, stroke, width, height);
     });
   }, [parentRef, prepareCanvas]);
+
+  function canvasMetrics() {
+    const host = parentRef.current;
+    if (!host) return null;
+    const rect = host.getBoundingClientRect();
+    return {
+      width: Math.max(1, Math.round(rect.width)),
+      height: Math.max(1, Math.round(rect.height)),
+    };
+  }
+
+  function drawLivePoint(ctx, stroke, point, metrics) {
+    const baseWidth = Math.max(1, Number(stroke?.width) || 4);
+    const resolved = canvasPoint(point, metrics.width, metrics.height);
+    ctx.beginPath();
+    ctx.arc(resolved.x, resolved.y, pressureStrokeWidth(baseWidth, resolved.pressure) / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawLiveSegment(ctx, stroke, fromPoint, toPoint, metrics) {
+    const isHighlighter = stroke?.tool === 'highlighter';
+    const baseWidth = Math.max(1, Number(stroke?.width) || 4);
+    const from = canvasPoint(fromPoint, metrics.width, metrics.height);
+    const to = canvasPoint(toPoint, metrics.width, metrics.height);
+    ctx.save();
+    ctx.globalAlpha = Number(stroke?.opacity) || 0.96;
+    if (isHighlighter) {
+      ctx.globalCompositeOperation = 'multiply';
+    }
+    ctx.strokeStyle = stroke?.color || '#1f2937';
+    ctx.fillStyle = stroke?.color || '#1f2937';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = isHighlighter
+      ? baseWidth
+      : pressureStrokeWidth(baseWidth, (from.pressure + to.pressure) / 2);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawLiveEraserSegment(stroke, fromPoint, toPoint, metrics) {
+    const eraserWidth = Math.max(12, Number(stroke?.width) || 32);
+    const from = canvasPoint(fromPoint, metrics.width, metrics.height);
+    const to = canvasPoint(toPoint, metrics.width, metrics.height);
+    [highlightCanvasEl.current, canvasEl.current].forEach((canvas) => {
+      const ctx = canvas?.getContext('2d');
+      if (!ctx) return;
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#000';
+      ctx.fillStyle = '#000';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = eraserWidth;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawLiveStrokeSegment(stroke, fromPoint, toPoint) {
+    const metrics = canvasMetrics();
+    if (!metrics) return;
+    if (stroke?.tool === 'eraser') {
+      drawLiveEraserSegment(stroke, fromPoint, toPoint, metrics);
+      return;
+    }
+    const targetCanvas = stroke?.tool === 'highlighter' ? highlightCanvasEl.current : canvasEl.current;
+    const ctx = targetCanvas?.getContext('2d');
+    if (!ctx) return;
+    if (fromPoint === toPoint) {
+      ctx.save();
+      ctx.fillStyle = stroke?.color || '#1f2937';
+      ctx.globalAlpha = Number(stroke?.opacity) || 0.96;
+      drawLivePoint(ctx, stroke, toPoint, metrics);
+      ctx.restore();
+      return;
+    }
+    drawLiveSegment(ctx, stroke, fromPoint, toPoint, metrics);
+  }
 
   useEffect(() => {
     strokesRef.current = strokes;
@@ -518,12 +938,13 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
 
 function appendPointToCurrentStroke(event) {
     const stroke = currentStrokeRef.current;
-    if (!stroke) return false;
+    if (!stroke) return null;
     const point = pointFromEvent(event);
-    if (!point || !shouldKeepStrokePoint(stroke.points, point)) return false;
+    if (!point || !shouldKeepStrokePoint(stroke.points, point)) return null;
+    const previous = stroke.points[stroke.points.length - 1] || point;
     stroke.points.push(point);
     if (stroke.points.length > 2200) stroke.points.splice(0, stroke.points.length - 2200);
-    return true;
+    return { previous, point };
   }
 
   function eraserBrushWidth() {
@@ -639,6 +1060,21 @@ function appendPointToCurrentStroke(event) {
     holdStrokeScrollLock(true);
   }
 
+  function clearStrokeSoundIdleTimer() {
+    if (!strokeSoundIdleTimerRef.current) return;
+    window.clearTimeout(strokeSoundIdleTimerRef.current);
+    strokeSoundIdleTimerRef.current = 0;
+  }
+
+  function scheduleStrokeSoundIdleStop(stroke) {
+    clearStrokeSoundIdleTimer();
+    strokeSoundIdleTimerRef.current = window.setTimeout(() => {
+      const currentStroke = currentStrokeRef.current;
+      if (currentStroke !== stroke || !currentStroke?.soundStarted) return;
+      quietDrawingStrokeSound(soundMode);
+    }, 220);
+  }
+
   function onPointerDown(event) {
     if (!editable || !drawMode) return;
     const pointerType = String(event.pointerType || '').toLowerCase();
@@ -656,6 +1092,7 @@ function appendPointToCurrentStroke(event) {
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginStrokeScrollLock();
     holdStrokeScrollLock(true);
+    unlockDrawingAudio();
     if (drawTool === 'eraser') {
       currentStrokeRef.current = {
         id: `eraser-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -677,8 +1114,10 @@ function appendPointToCurrentStroke(event) {
       opacity: isHighlighter ? 0.36 : 0.98,
       tool: drawTool,
       points: [point],
+      soundStarted: false,
     };
-    drawAll([...strokesRef.current, currentStrokeRef.current]);
+    drawAll(strokesRef.current);
+    drawLiveStrokeSegment(currentStrokeRef.current, point, point);
   }
 
   function onPointerMove(event) {
@@ -690,15 +1129,35 @@ function appendPointToCurrentStroke(event) {
     const events = typeof event.getCoalescedEvents === 'function'
       ? event.getCoalescedEvents()
       : [event];
-    let changed = false;
+    const appendedSegments = [];
     events.forEach(pointerEvent => {
-      changed = appendPointToCurrentStroke(pointerEvent) || changed;
+      const segment = appendPointToCurrentStroke(pointerEvent);
+      if (segment) appendedSegments.push(segment);
     });
 
-    if (changed) {
+    if (appendedSegments.length) {
       holdStrokeScrollLock(true);
       if (drawTool === 'eraser') updateEraserCursor(event);
-      drawAll([...strokesRef.current, currentStrokeRef.current]);
+      const stroke = currentStrokeRef.current;
+      appendedSegments.forEach(segment => {
+        drawLiveStrokeSegment(stroke, segment.previous, segment.point);
+        if (stroke?.tool !== 'eraser') {
+          const audibleMovement = isAudibleStrokeMovement(segment.previous, segment.point);
+          if (!stroke.soundStarted && !audibleMovement) {
+            return;
+          }
+          if (!stroke.soundStarted) {
+            stroke.soundStarted = true;
+            startDrawingStrokeSound(soundMode);
+            if (activeDrawingSound) {
+              activeDrawingSound.lastPoint = segment.previous;
+              activeDrawingSound.lastPreviousPoint = null;
+            }
+          }
+          modulateDrawingStrokeSound(segment.previous, segment.point, soundMode);
+          scheduleStrokeSoundIdleStop(stroke);
+        }
+      });
     }
   }
 
@@ -707,6 +1166,8 @@ function appendPointToCurrentStroke(event) {
     if (!stroke && drawTool !== 'eraser') return;
     event?.preventDefault?.();
     event?.stopPropagation?.();
+    clearStrokeSoundIdleTimer();
+    stopDrawingStrokeSound();
     endStrokeScrollLock();
     stylusTouchUntilRef.current = 0;
     currentStrokeRef.current = null;
@@ -779,7 +1240,7 @@ function appendPointToCurrentStroke(event) {
           inset:0,
           zIndex:drawMode && editable ? 32 : 18,
           pointerEvents:drawMode && editable ? 'auto' : 'none',
-          touchAction:drawMode && editable && stylusOnly ? 'pan-y' : (drawMode && editable ? 'none' : 'auto'),
+          touchAction:drawMode && editable ? 'none' : 'auto',
           cursor:drawMode && editable ? 'crosshair' : 'default',
           WebkitTouchCallout:'none',
           WebkitUserSelect:'none',
@@ -797,11 +1258,13 @@ function FloatingWritingPalette({
   drawTool,
   penColor,
   penWidth,
+  soundMode,
   strokeCount,
   onActivate,
   onToolChange,
   onPenColorChange,
   onPenWidthChange,
+  onSoundModeChange,
   onUndoStroke,
   onClearStrokes,
 }) {
@@ -812,6 +1275,7 @@ function FloatingWritingPalette({
   const tx = isDark ? '#e2e8f0' : '#1e293b';
   const muted = isDark ? 'rgba(203,213,225,.72)' : '#64748b';
   const activeBg = isDark ? 'rgba(96,165,250,.2)' : '#eff6ff';
+  const selectedSoundMode = normalizeDrawingSoundMode(soundMode);
   const tools = [
     { id:'pen', label:'Pen', icon:<PenIcon /> },
     { id:'highlighter', label:'Highlighter', icon:<HighlighterIcon /> },
@@ -894,6 +1358,32 @@ function FloatingWritingPalette({
                 }}
               >
                 {tool.icon}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7, marginBottom:10 }}>
+            {DRAWING_SOUND_MODES.map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => {
+                  onSoundModeChange?.(mode.id);
+                  playDrawingSound(mode.id, true);
+                }}
+                aria-pressed={selectedSoundMode === mode.id}
+                style={{
+                  minHeight:34,
+                  border:`1px solid ${selectedSoundMode === mode.id ? (isDark ? 'rgba(45,212,191,.52)' : '#0f766e') : bd}`,
+                  borderRadius:11,
+                  background:selectedSoundMode === mode.id ? (isDark ? 'rgba(45,212,191,.14)' : '#ecfdf5') : 'transparent',
+                  color:selectedSoundMode === mode.id ? (isDark ? '#99f6e4' : '#0f766e') : muted,
+                  cursor:'pointer',
+                  fontSize:10.5,
+                  fontWeight:900,
+                }}
+              >
+                {mode.label}
               </button>
             ))}
           </div>
@@ -1607,6 +2097,10 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const [drawTool,  setDrawTool]  = useState('pen');
   const [penColor,  setPenColor]  = useState(DRAW_COLORS[1]);
   const [penWidth,  setPenWidth]  = useState(DRAW_WIDTHS[1]);
+  const [soundMode, setSoundMode] = useState(() => {
+    if (typeof window === 'undefined') return 'spen';
+    return normalizeDrawingSoundMode(window.localStorage?.getItem(DRAWING_SOUND_STORAGE_KEY));
+  });
   const [videoUrl,  setVideoUrl]  = useState('');
   const [videoOpen, setVideoOpen] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
@@ -1617,6 +2111,15 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
 
   const nativeWritingEnabled = true;
   const notify = msg => { setToast(msg); setTimeout(() => setToast(null), 2200); };
+  const updateSoundMode = useCallback((mode) => {
+    const next = normalizeDrawingSoundMode(mode);
+    setSoundMode(next);
+    try {
+      window.localStorage?.setItem(DRAWING_SOUND_STORAGE_KEY, next);
+    } catch {
+      // Preference persistence is optional.
+    }
+  }, []);
   const toggleEditing = useCallback(() => {
     setIsEditing(v => {
       const next = !v;
@@ -2037,6 +2540,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
           drawTool={drawTool}
           penColor={penColor}
           penWidth={penWidth}
+          soundMode={soundMode}
           strokeCount={strokes.length}
           onActivate={() => {
             if (!isEditing) setIsEditing(true);
@@ -2049,6 +2553,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
           }}
           onPenColorChange={setPenColor}
           onPenWidthChange={setPenWidth}
+          onSoundModeChange={updateSoundMode}
           onUndoStroke={undoStroke}
           onClearStrokes={clearStrokes}
         />,
@@ -2068,6 +2573,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
                 strokes={strokes}
                 penColor={penColor}
                 penWidth={penWidth}
+                soundMode={soundMode}
                 stylusOnly
                 onCommitStroke={commitStroke}
               />

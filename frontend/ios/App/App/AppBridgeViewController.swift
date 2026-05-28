@@ -3,6 +3,7 @@ import WebKit
 import Capacitor
 import CoreHaptics
 import AudioToolbox
+import AVFoundation
 
 final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private var appBackground = UIColor(red: 0.862745098, green: 0.9019607843, blue: 0.9568627451, alpha: 1)
@@ -14,6 +15,10 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
     private weak var protectedWebViewOriginalSuperview: UIView?
     private var protectedWebViewOriginalIndex: Int?
     private var protectedWebViewOriginalAutoresizingMask: UIView.AutoresizingMask = []
+    private var scribblePlayers: [AVAudioPlayer] = []
+    private var activeScribblePlayer: AVAudioPlayer?
+    private var lastNativeScribbleSoundAt: TimeInterval = 0
+    private var lastNativeScribbleTextureAt: TimeInterval = 0
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
         currentStatusBarStyle
@@ -21,8 +26,10 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
 
     override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
         configuration.userContentController.add(self, name: "lmsHaptics")
+        configuration.userContentController.add(self, name: "lmsScribbleAudio")
         configuration.userContentController.add(self, name: "lmsSecureContent")
         configuration.userContentController.add(self, name: "lmsChromeTheme")
+        configuration.userContentController.addUserScript(makeScribbleAudioUserScript())
         let webView = super.webView(with: frame, configuration: configuration)
         configureWebViewForTouch(webView)
         return webView
@@ -65,6 +72,13 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         if message.name == "lmsHaptics" {
             DispatchQueue.main.async { [weak self] in
                 self?.playHapticPayload(body)
+            }
+            return
+        }
+
+        if message.name == "lmsScribbleAudio" {
+            DispatchQueue.main.async { [weak self] in
+                self?.handleNativeScribbleSound(body)
             }
             return
         }
@@ -290,6 +304,262 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
             let sharpness = clampedHapticValue(payload["sharpness"] as? Double, fallback: 0.75)
             playTransientHaptic(intensity: intensity, sharpness: sharpness)
         }
+    }
+
+    private func handleNativeScribbleSound(_ payload: [String: Any]) {
+        let action = (payload["action"] as? String ?? "play").lowercased()
+        let volume = payload["volume"] as? Double
+        let mode = payload["mode"] as? String
+
+        switch action {
+        case "start":
+            startNativeScribbleSound(volume: volume, mode: mode)
+        case "modulate":
+            modulateNativeScribbleSound(
+                volume: volume,
+                rate: payload["rate"] as? Double,
+                brightness: payload["brightness"] as? Double,
+                roughness: payload["roughness"] as? Double,
+                wavePulse: payload["wavePulse"] as? Double
+            )
+        case "stop":
+            stopNativeScribbleSound()
+        default:
+            playNativeScribbleSound(volume: volume, mode: mode)
+        }
+    }
+
+    private func configureScribbleAudioSession() throws {
+        let session = AVAudioSession.sharedInstance()
+        if session.category != .playback {
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        }
+        try session.setActive(true)
+    }
+
+    private func startNativeScribbleSound(volume: Double?, mode: String?) {
+        let soundMode = mode == "secret" ? "secret" : "spen"
+        stopNativeScribbleSound()
+
+        do {
+            try configureScribbleAudioSession()
+
+            let player = try AVAudioPlayer(data: makeScribbleWavData(mode: soundMode, loopable: true))
+            let fallbackVolume = soundMode == "secret" ? 0.28 : 0.16
+            player.volume = Float(min(max(volume ?? fallbackVolume, 0.04), 0.42))
+            player.enableRate = true
+            player.rate = soundMode == "secret" ? 0.9 : 0.78
+            player.numberOfLoops = -1
+            player.prepareToPlay()
+            if !player.play() {
+                AudioServicesPlaySystemSound(1104)
+            }
+            activeScribblePlayer = player
+        } catch {
+            AudioServicesPlaySystemSound(1104)
+        }
+    }
+
+    private func modulateNativeScribbleSound(volume: Double?, rate: Double?, brightness: Double?, roughness: Double?, wavePulse: Double?) {
+        guard let player = activeScribblePlayer else { return }
+        let movementVolume = Float(min(max(volume ?? 0.08, 0.001), 0.5))
+        let resolvedRate = Float(min(max(rate ?? Double(player.rate), 0.72), 1.28))
+        player.setVolume(movementVolume, fadeDuration: 0.04)
+        player.rate = resolvedRate
+
+        _ = brightness
+        _ = roughness
+        _ = wavePulse
+    }
+
+    private func playNativeScribbleTexture(brightness: Double, roughness: Double, volume: Double) {
+        do {
+            try configureScribbleAudioSession()
+            scribblePlayers.removeAll { !$0.isPlaying }
+            let player = try AVAudioPlayer(data: makeScribbleTextureWavData(brightness: brightness, roughness: roughness))
+            player.volume = Float(min(max(volume * (0.22 + roughness * 0.18), 0.008), 0.12))
+            player.enableRate = true
+            player.rate = Float(min(max(0.86 + roughness * 0.22, 0.78), 1.2))
+            player.prepareToPlay()
+            player.play()
+            scribblePlayers.append(player)
+        } catch {
+            // Texture accents are optional; keep the base writing sound running.
+        }
+    }
+
+    private func stopNativeScribbleSound() {
+        guard let player = activeScribblePlayer else { return }
+        activeScribblePlayer = nil
+        let originalVolume = player.volume
+        let steps = 5
+        for step in 1...steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(step) * 0.025) { [weak player] in
+                guard let player else { return }
+                let remaining = Float(max(0, steps - step)) / Float(steps)
+                player.volume = originalVolume * remaining
+                if step == steps {
+                    player.stop()
+                    player.currentTime = 0
+                }
+            }
+        }
+    }
+
+    private func playNativeScribbleSound(volume: Double?, mode: String?) {
+        let now = CACurrentMediaTime()
+        let soundMode = mode == "secret" ? "secret" : "spen"
+        let minimumGap = soundMode == "secret" ? 0.095 : 0.32
+        if now - lastNativeScribbleSoundAt < minimumGap { return }
+        lastNativeScribbleSoundAt = now
+
+        do {
+            try configureScribbleAudioSession()
+
+            scribblePlayers.removeAll { !$0.isPlaying }
+            let player = try AVAudioPlayer(data: makeScribbleWavData(mode: soundMode, loopable: false))
+            let fallbackVolume = soundMode == "secret" ? 0.42 : 0.2
+            player.volume = Float(min(max(volume ?? fallbackVolume, 0.05), 0.65))
+            player.prepareToPlay()
+            if !player.play() {
+                AudioServicesPlaySystemSound(1104)
+            }
+            scribblePlayers.append(player)
+        } catch {
+            AudioServicesPlaySystemSound(1104)
+        }
+    }
+
+    private func makeScribbleWavData(mode: String, loopable: Bool = false) -> Data {
+        let isSecret = mode == "secret"
+        let sampleRate: UInt32 = 22050
+        let duration = loopable ? (isSecret ? 0.32 : 0.72) : (isSecret ? 0.085 : 0.42)
+        let sampleCount = Int(Double(sampleRate) * duration)
+        let bitsPerSample: UInt16 = 16
+        let channels: UInt16 = 1
+        let byteRate = sampleRate * UInt32(channels) * UInt32(bitsPerSample / 8)
+        let blockAlign = channels * (bitsPerSample / 8)
+        let dataSize = UInt32(sampleCount) * UInt32(blockAlign)
+
+        var data = Data()
+        data.append(contentsOf: [0x52, 0x49, 0x46, 0x46]) // RIFF
+        appendUInt32(&data, 36 + dataSize)
+        data.append(contentsOf: [0x57, 0x41, 0x56, 0x45]) // WAVE
+        data.append(contentsOf: [0x66, 0x6d, 0x74, 0x20]) // fmt
+        appendUInt32(&data, 16)
+        appendUInt16(&data, 1)
+        appendUInt16(&data, channels)
+        appendUInt32(&data, sampleRate)
+        appendUInt32(&data, byteRate)
+        appendUInt16(&data, blockAlign)
+        appendUInt16(&data, bitsPerSample)
+        data.append(contentsOf: [0x64, 0x61, 0x74, 0x61]) // data
+        appendUInt32(&data, dataSize)
+
+        for index in 0..<sampleCount {
+            let progress = Double(index) / Double(max(1, sampleCount - 1))
+            let attack = loopable ? 1 : min(1, progress / (isSecret ? 0.08 : 0.22))
+            let release = loopable ? 1 : max(0, 1 - progress)
+            let envelope = attack * pow(release, isSecret ? 0.7 : 1.15)
+            let grain = Double.random(in: -1...1)
+            let scrape = sin(progress * .pi * Double.random(in: isSecret ? 120...210 : 24...42)) * (isSecret ? 0.24 : 0.03)
+            let paper = isSecret ? 0 : sin(progress * .pi * Double.random(in: 18...30)) * 0.022
+            let mixed = (grain * (isSecret ? 0.78 : 0.085) + scrape + paper) * envelope * (isSecret ? 0.58 : 0.34)
+            let value = Int16(max(-1, min(1, mixed)) * 32767)
+            appendInt16(&data, value)
+        }
+
+        return data
+    }
+
+    private func makeScribbleTextureWavData(brightness: Double, roughness: Double) -> Data {
+        let sampleRate: UInt32 = 22050
+        let duration = 0.032 + min(max(roughness, 0), 1) * 0.026
+        let sampleCount = Int(Double(sampleRate) * duration)
+        let bitsPerSample: UInt16 = 16
+        let channels: UInt16 = 1
+        let byteRate = sampleRate * UInt32(channels) * UInt32(bitsPerSample / 8)
+        let blockAlign = channels * (bitsPerSample / 8)
+        let dataSize = UInt32(sampleCount) * UInt32(blockAlign)
+        let normalizedBrightness = min(max(brightness, 260), 2600) / 2600
+
+        var data = Data()
+        data.append(contentsOf: [0x52, 0x49, 0x46, 0x46])
+        appendUInt32(&data, 36 + dataSize)
+        data.append(contentsOf: [0x57, 0x41, 0x56, 0x45])
+        data.append(contentsOf: [0x66, 0x6d, 0x74, 0x20])
+        appendUInt32(&data, 16)
+        appendUInt16(&data, 1)
+        appendUInt16(&data, channels)
+        appendUInt32(&data, sampleRate)
+        appendUInt32(&data, byteRate)
+        appendUInt16(&data, blockAlign)
+        appendUInt16(&data, bitsPerSample)
+        data.append(contentsOf: [0x64, 0x61, 0x74, 0x61])
+        appendUInt32(&data, dataSize)
+
+        for index in 0..<sampleCount {
+            let progress = Double(index) / Double(max(1, sampleCount - 1))
+            let attack = min(1, progress / 0.12)
+            let release = pow(max(0, 1 - progress), 1.8)
+            let noise = Double.random(in: -1...1) * (0.16 + roughness * 0.42)
+            let scrape = sin(progress * .pi * Double.random(in: 34...(72 + normalizedBrightness * 110))) * (0.04 + roughness * 0.06)
+            let fiber = sin(progress * .pi * Double.random(in: 10...26)) * 0.025
+            let mixed = (noise + scrape + fiber) * attack * release * 0.42
+            appendInt16(&data, Int16(max(-1, min(1, mixed)) * 32767))
+        }
+
+        return data
+    }
+
+    private func makeScribbleAudioUserScript() -> WKUserScript {
+        let source = """
+        (() => {
+          if (window.__lmsScribbleAudioInstalled) return;
+          window.__lmsScribbleAudioInstalled = true;
+          let last = 0;
+          const post = (volume = 1) => {
+            const now = Date.now();
+            if (now - last < 70) return;
+            last = now;
+            try {
+              window.webkit?.messageHandlers?.lmsScribbleAudio?.postMessage({ volume });
+            } catch (_) {}
+          };
+          const isCanvasInput = target => !!target?.closest?.('[data-lms-canvas-input="true"]');
+          ['beforeinput', 'input', 'compositionupdate', 'keydown'].forEach(type => {
+            document.addEventListener(type, event => {
+              if (isCanvasInput(event.target)) post(1);
+            }, true);
+          });
+          ['pointerdown', 'touchstart', 'focusin'].forEach(type => {
+            document.addEventListener(type, event => {
+              if (isCanvasInput(event.target)) post(0.55);
+            }, true);
+          });
+          ['pointermove', 'touchmove'].forEach(type => {
+            document.addEventListener(type, event => {
+              if (isCanvasInput(event.target)) post(0.9);
+            }, true);
+          });
+        })();
+        """
+        return WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+    }
+
+    private func appendUInt16(_ data: inout Data, _ value: UInt16) {
+        var littleEndian = value.littleEndian
+        withUnsafeBytes(of: &littleEndian) { data.append(contentsOf: $0) }
+    }
+
+    private func appendUInt32(_ data: inout Data, _ value: UInt32) {
+        var littleEndian = value.littleEndian
+        withUnsafeBytes(of: &littleEndian) { data.append(contentsOf: $0) }
+    }
+
+    private func appendInt16(_ data: inout Data, _ value: Int16) {
+        var littleEndian = value.littleEndian
+        withUnsafeBytes(of: &littleEndian) { data.append(contentsOf: $0) }
     }
 
     private func playImpactHaptic(style: String?) {

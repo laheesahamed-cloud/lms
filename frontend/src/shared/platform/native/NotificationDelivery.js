@@ -4,6 +4,14 @@ import { deleteNativePushToken, saveNativePushToken } from '../../api/pushNotifi
 let nativeHandlersInstalled = false;
 const NATIVE_PUSH_TOKEN_KEY = 'lms_native_push_token';
 
+function isNativePushEnabled() {
+  return import.meta.env.VITE_NATIVE_PUSH_ENABLED === 'true';
+}
+
+function isNativePushRuntime() {
+  return Capacitor.isNativePlatform() && isNativePushEnabled();
+}
+
 function rememberNativePushToken(token) {
   const cleanToken = String(token || '').trim();
   if (!cleanToken || typeof window === 'undefined') return '';
@@ -30,7 +38,7 @@ async function saveRememberedNativePushToken(token = getRememberedNativePushToke
 }
 
 export function isPushNotificationSupported() {
-  return Capacitor.isNativePlatform();
+  return isNativePushRuntime();
 }
 
 export function isIosDevice() {
@@ -46,12 +54,15 @@ export function isIosSafariPwaCapable() {
 }
 
 export function getNotificationPermission() {
-  return 'native';
+  return isNativePushRuntime() ? 'native' : 'unsupported';
 }
 
 export async function enablePhonePushNotifications() {
   if (!Capacitor.isNativePlatform()) {
     throw new Error('Native notifications are only available inside the installed app.');
+  }
+  if (!isNativePushEnabled()) {
+    throw new Error('Native push notifications are not configured for this app build.');
   }
 
   await installNativePushNotificationHandlers();
@@ -108,6 +119,9 @@ export async function requestNativePushPermission() {
   if (!Capacitor.isNativePlatform()) {
     throw new Error('Native notifications are only available inside the installed app.');
   }
+  if (!isNativePushEnabled()) {
+    return { ok: false, permission: 'unsupported' };
+  }
 
   await installNativePushNotificationHandlers();
 
@@ -122,12 +136,12 @@ export async function requestNativePushPermission() {
 }
 
 export async function syncNativePushToken() {
-  if (!Capacitor.isNativePlatform()) return { ok: false, token: '' };
+  if (!isNativePushRuntime()) return { ok: false, token: '' };
   return saveRememberedNativePushToken();
 }
 
 export async function installNativePushNotificationHandlers() {
-  if (!Capacitor.isNativePlatform() || nativeHandlersInstalled) return;
+  if (!isNativePushRuntime() || nativeHandlersInstalled) return;
   nativeHandlersInstalled = true;
 
   const { PushNotifications } = await import('@capacitor/push-notifications');

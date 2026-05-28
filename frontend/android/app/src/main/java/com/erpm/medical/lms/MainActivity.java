@@ -1,22 +1,53 @@
 package com.erpm.medical.lms;
 
 import android.os.Bundle;
+import android.os.Build;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
+
+import java.io.File;
 
 public class MainActivity extends BridgeActivity {
     private boolean secureQuizModeEnabled = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        clearWebViewCacheBeforeLoad();
         super.onCreate(savedInstanceState);
         WebView webView = getBridge() != null ? getBridge().getWebView() : null;
         if (webView != null) {
+            webView.clearCache(true);
+            webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                webView.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            }
             webView.addJavascriptInterface(new SecureQuizBridge(), "LmsSecureQuiz");
         }
+    }
+
+    private void clearWebViewCacheBeforeLoad() {
+        deleteDirectory(new File(getCacheDir(), "WebView/Default/HTTP Cache"));
+        deleteDirectory(getCacheDir());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            deleteDirectory(getCodeCacheDir());
+        }
+    }
+
+    private boolean deleteDirectory(File file) {
+        if (file == null || !file.exists()) return true;
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteDirectory(child);
+                }
+            }
+        }
+        return file.delete();
     }
 
     @Override

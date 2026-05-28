@@ -6,9 +6,12 @@ const buildVersion = '20260526-safe-area-blend-v3';
 const isCapacitorBuild = Boolean(process.env.CAPACITOR_BUILD || process.env.VITE_LMS_BUILD_TARGET === 'native');
 const isDesktopBuild = process.env.VITE_LMS_BUILD_TARGET === 'desktop';
 const shouldEmitSourceMaps = process.env.VITE_SOURCEMAP === 'true';
+const appEntryFileName = isCapacitorBuild ? 'assets/app-[hash].js' : `assets/app-${buildVersion}.js`;
+const appChunkFileName = isCapacitorBuild ? 'assets/chunks/[name]-[hash].js' : `assets/chunks/[name]-${buildVersion}.js`;
+const appCssFileName = isCapacitorBuild ? 'assets/app-[hash].css' : `assets/app-${buildVersion}.css`;
 
 export default defineConfig(({ command }) => ({
-  base: command === 'serve' ? '/lms/' : isCapacitorBuild || isDesktopBuild ? './' : '/lms/frontend/dist/',
+  base: command === 'serve' ? '/lms/' : isCapacitorBuild ? '/' : isDesktopBuild ? './' : '/lms/frontend/dist/',
   plugins: [react(), tailwindcss()],
   build: {
     outDir: isCapacitorBuild ? 'dist-capacitor' : 'dist',
@@ -20,11 +23,11 @@ export default defineConfig(({ command }) => ({
     sourcemap: shouldEmitSourceMaps,
     rollupOptions: {
       output: {
-        entryFileNames: `assets/app-${buildVersion}.js`,
-        chunkFileNames: `assets/chunks/[name]-${buildVersion}.js`,
+        entryFileNames: appEntryFileName,
+        chunkFileNames: appChunkFileName,
         assetFileNames: (assetInfo) => {
           if (assetInfo.names && assetInfo.names.some((name) => name.endsWith('.css'))) {
-            return `assets/app-${buildVersion}.css`;
+            return appCssFileName;
           }
 
           return 'assets/[name][extname]';

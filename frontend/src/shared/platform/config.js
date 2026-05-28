@@ -42,6 +42,15 @@ function isPrivateLanHost(hostname) {
   return /^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/i.test(hostname);
 }
 
+function isLocalDevelopmentApiBaseUrl(value) {
+  try {
+    const hostname = new URL(normalizeApiBaseUrl(value)).hostname.toLowerCase();
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '10.0.2.2' || isPrivateLanHost(hostname);
+  } catch {
+    return false;
+  }
+}
+
 function getLocation() {
   return typeof window !== 'undefined' ? window.location : null;
 }
@@ -123,12 +132,16 @@ export function shouldUseOverlayNavigation(platform = detectPlatform()) {
 }
 
 export function resolveApiBaseUrl() {
+  const platform = detectPlatform();
   const configuredApiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  if (platform.isNative && platform.isAndroid && isLocalDevelopmentApiBaseUrl(configuredApiBaseUrl)) {
+    return LOCAL_API_BASE_URL;
+  }
+
   if (configuredApiBaseUrl && !isPlaceholderApiBaseUrl(configuredApiBaseUrl)) {
     return configuredApiBaseUrl;
   }
 
-  const platform = detectPlatform();
   if (platform.isNative) {
     if (platform.isAndroid) {
       return ANDROID_EMULATOR_API_BASE_URL;
@@ -160,7 +173,7 @@ export function resolveApiBaseUrls() {
 
   if (platform.isNative) {
     if (platform.isAndroid) {
-      fallbackUrls.push(ANDROID_EMULATOR_API_BASE_URL);
+      fallbackUrls.push(LOCAL_API_BASE_URL, LOOPBACK_API_BASE_URL, ANDROID_EMULATOR_API_BASE_URL);
     }
 
     fallbackUrls.push(LOOPBACK_API_BASE_URL, LOCAL_API_BASE_URL);
