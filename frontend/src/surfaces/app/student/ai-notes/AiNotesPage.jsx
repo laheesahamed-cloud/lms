@@ -62,18 +62,20 @@ function normalizeStrokePressure(event) {
 }
 
 function isStylusPointerEvent(event) {
-  const pointerType = String(event?.pointerType || event?.nativeEvent?.pointerType || '').toLowerCase();
+  const nativeEvent = event?.nativeEvent || event || {};
+  const pointerType = String(event?.pointerType || nativeEvent?.pointerType || '').toLowerCase();
   if (pointerType === 'pen' || pointerType === 'stylus') return true;
 
-  const width = Number(event?.width) || 0;
-  const height = Number(event?.height) || 0;
-  const pressure = Number(event?.pressure) || 0;
-  const tiltX = Number(event?.tiltX) || 0;
-  const tiltY = Number(event?.tiltY) || 0;
-  const hasFineTipGeometry = width > 0 && height > 0 && Math.max(width, height) <= 12;
-  const hasStylusSignal = Math.abs(tiltX) > 0 || Math.abs(tiltY) > 0 || pressure > 0.52;
+  const touchType = String(event?.touchType || nativeEvent?.touchType || '').toLowerCase();
+  return pointerType === 'touch' && (touchType === 'stylus' || touchType === 'pencil');
+}
 
-  return pointerType === 'touch' && hasFineTipGeometry && hasStylusSignal;
+function hasStylusTouch(event) {
+  const touches = Array.from(event?.changedTouches || event?.touches || []);
+  return touches.some((touch) => {
+    const touchType = String(touch?.touchType || '').toLowerCase();
+    return touchType === 'stylus' || touchType === 'pencil';
+  });
 }
 
 function strokePointDistance(a, b) {
@@ -312,7 +314,8 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
 }) {
   const canvasEl = useRef(null);
   const currentStrokeRef = useRef(null);
-  const fingerScrollRef = useRef(null);
+  const strokeScrollLockRef = useRef(null);
+  const stylusTouchUntilRef = useRef(0);
   const strokesRef = useRef(strokes);
 
   const drawAll = useCallback((items = strokesRef.current) => {
@@ -356,6 +359,26 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     };
   }, [drawAll, parentRef]);
 
+  useEffect(() => {
+    const canvas = canvasEl.current;
+    if (!canvas || !editable || !drawMode) return undefined;
+    const handleNativeTouchStart = (event) => {
+      if (!hasStylusTouch(event)) return;
+      stylusTouchUntilRef.current = Date.now() + 700;
+      event.preventDefault();
+    };
+    const handleNativeTouchMove = (event) => {
+      if (!hasStylusTouch(event) && Date.now() > stylusTouchUntilRef.current) return;
+      event.preventDefault();
+    };
+    canvas.addEventListener('touchstart', handleNativeTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
+    return () => {
+      canvas.removeEventListener('touchstart', handleNativeTouchStart);
+      canvas.removeEventListener('touchmove', handleNativeTouchMove);
+    };
+  }, [drawMode, editable]);
+
   function pointFromEvent(event) {
     const rect = parentRef.current?.getBoundingClientRect();
     if (!rect) return null;
@@ -395,23 +418,100 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
       || document.documentElement;
   }
 
+  function getScrollLockTargets() {
+    const targets = [
+      getScrollTarget(),
+      document.querySelector('.lms-app-scroll-root'),
+      document.querySelector('.native-app-frame'),
+      document.scrollingElement,
+      document.documentElement,
+      document.body,
+    ].filter(Boolean);
+    let element = parentRef.current;
+    while (element && element !== document.body) {
+      const style = window.getComputedStyle?.(element);
+      if (style && /(auto|scroll)/.test(style.overflowY || '')) targets.push(element);
+      element = element.parentElement;
+    }
+    return Array.from(new Set(targets));
+  }
+
+  function beginStrokeScrollLock() {
+    const targets = getScrollLockTargets();
+    strokeScrollLockRef.current = {
+      targets: targets.map((target) => ({
+        target,
+        top: target === document.body || target === document.documentElement || target === document.scrollingElement
+          ? (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0)
+          : target.scrollTop,
+        left: target === document.body || target === document.documentElement || target === document.scrollingElement
+          ? (window.scrollX || document.documentElement.scrollLeft || document.body.scrollLeft || 0)
+          : target.scrollLeft,
+        overflowY: target.style.overflowY,
+        overscrollBehavior: target.style.overscrollBehavior,
+        touchAction: target.style.touchAction,
+      })),
+      windowX: window.scrollX || 0,
+      windowY: window.scrollY || 0,
+      frame: 0,
+    };
+    targets.forEach((target) => {
+      target.style.overflowY = 'hidden';
+      target.style.overscrollBehavior = 'none';
+      target.style.touchAction = 'none';
+    });
+  }
+
+  function holdStrokeScrollLock(schedule = false) {
+    const lock = strokeScrollLockRef.current;
+    if (!lock) return;
+    const restore = () => {
+      const current = strokeScrollLockRef.current;
+      if (!current) return;
+      current.targets.forEach(({ target, top, left }) => {
+        const isDocument = target === document.body || target === document.documentElement || target === document.scrollingElement;
+        if (isDocument) return;
+        if (target.scrollTop !== top) target.scrollTop = top;
+        if (target.scrollLeft !== left) target.scrollLeft = left;
+      });
+      if ((window.scrollX || 0) !== current.windowX || (window.scrollY || 0) !== current.windowY) {
+        window.scrollTo(current.windowX, current.windowY);
+      }
+    };
+
+    restore();
+    if (schedule) {
+      if (lock.frame) window.cancelAnimationFrame(lock.frame);
+      lock.frame = window.requestAnimationFrame(restore);
+    }
+  }
+
+  function endStrokeScrollLock() {
+    const lock = strokeScrollLockRef.current;
+    if (!lock) return;
+    if (lock.frame) window.cancelAnimationFrame(lock.frame);
+    holdStrokeScrollLock(false);
+    lock.targets.forEach(({ target, overflowY, overscrollBehavior, touchAction }) => {
+      target.style.overflowY = overflowY;
+      target.style.overscrollBehavior = overscrollBehavior;
+      target.style.touchAction = touchAction;
+    });
+    strokeScrollLockRef.current = null;
+  }
+
   function blockDrawingGesture(event) {
     if (!editable || !drawMode) return;
     event.preventDefault?.();
     event.stopPropagation?.();
+    holdStrokeScrollLock(true);
   }
 
   function onPointerDown(event) {
     if (!editable || !drawMode) return;
-    if (stylusOnly && !isStylusPointerEvent(event)) {
-      if (String(event.pointerType || '').toLowerCase() !== 'touch') return;
-      blockDrawingGesture(event);
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-      fingerScrollRef.current = {
-        pointerId: event.pointerId,
-        y: event.clientY,
-        target: getScrollTarget(),
-      };
+    const pointerType = String(event.pointerType || '').toLowerCase();
+    const isStylusInput = isStylusPointerEvent(event)
+      || (pointerType === 'touch' && Date.now() <= stylusTouchUntilRef.current);
+    if (stylusOnly && !isStylusInput) {
       return;
     }
     const point = pointFromEvent(event);
@@ -421,6 +521,8 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     }
     blockDrawingGesture(event);
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    beginStrokeScrollLock();
+    holdStrokeScrollLock(true);
     currentStrokeRef.current = {
       id: `stroke-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       color: penColor,
@@ -432,15 +534,6 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   }
 
   function onPointerMove(event) {
-    const fingerScroll = fingerScrollRef.current;
-    if (fingerScroll && fingerScroll.pointerId === event.pointerId) {
-      blockDrawingGesture(event);
-      const nextY = event.clientY;
-      fingerScroll.target.scrollTop += fingerScroll.y - nextY;
-      fingerScroll.y = nextY;
-      return;
-    }
-
     if (!editable || !drawMode || !currentStrokeRef.current) return;
     blockDrawingGesture(event);
 
@@ -453,26 +546,17 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     });
 
     if (changed) {
+      holdStrokeScrollLock(true);
       drawAll([...strokesRef.current, currentStrokeRef.current]);
     }
   }
 
   function finishStroke(event) {
-    if (fingerScrollRef.current && fingerScrollRef.current.pointerId === event?.pointerId) {
-      blockDrawingGesture(event);
-      fingerScrollRef.current = null;
-      try {
-        if (event?.pointerId != null) event.currentTarget?.releasePointerCapture?.(event.pointerId);
-      } catch {
-        /* pointer may already be released */
-      }
-      return;
-    }
-
     const stroke = currentStrokeRef.current;
     if (!stroke) return;
     event?.preventDefault?.();
     event?.stopPropagation?.();
+    endStrokeScrollLock();
     currentStrokeRef.current = null;
     try {
       if (event?.pointerId != null) event.currentTarget?.releasePointerCapture?.(event.pointerId);
@@ -500,7 +584,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
         inset:0,
         zIndex:drawMode && editable ? 32 : 18,
         pointerEvents:drawMode && editable ? 'auto' : 'none',
-        touchAction:drawMode && editable ? 'none' : 'auto',
+        touchAction:drawMode && editable && stylusOnly ? 'pan-y' : (drawMode && editable ? 'none' : 'auto'),
         cursor:drawMode && editable ? 'crosshair' : 'default',
         WebkitTouchCallout:'none',
         WebkitUserSelect:'none',
@@ -537,16 +621,13 @@ const CanvasPage = memo(function CanvasPage({ pageData, index, note, topBd, isDa
 function SmoothCanvasMotion() {
   return (
     <style>{`
-      @keyframes lmsCanvasFadeUp {
-        from { opacity: 0; transform: translate3d(0, 12px, 0); }
-        to { opacity: 1; transform: translate3d(0, 0, 0); }
-      }
       @keyframes lmsToastIn {
         from { opacity: 0; transform: translate3d(-50%, 10px, 0) scale(.98); }
         to { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1); }
       }
       .lms-ai-canvas-shell {
-        animation: lmsCanvasFadeUp 260ms cubic-bezier(.16,1,.3,1) both;
+        animation: none;
+        transform: none;
       }
       .lms-ai-note-topbar-inner > * {
         min-width: 0;
@@ -616,13 +697,34 @@ function SmoothCanvasMotion() {
         align-content: center;
       }
       .lms-canvas-page {
-        animation: lmsCanvasFadeUp 320ms cubic-bezier(.16,1,.3,1) both;
         contain: layout paint;
         content-visibility: auto;
         contain-intrinsic-size: 900px;
+        opacity: 1;
+        transform: none;
       }
-      .lms-canvas-page:nth-child(2) { animation-delay: 45ms; }
-      .lms-canvas-page:nth-child(3) { animation-delay: 90ms; }
+      .lms-ai-note-page :where(.ncv-enter, .ncv-entered) {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+      }
+      .lms-ai-note-page :where(.lms-ai-canvas-editor, .lms-ai-canvas-surface, .lms-canvas-page, .ncv-item) {
+        perspective: none !important;
+        transform: none !important;
+        transform-style: flat !important;
+        filter: none !important;
+      }
+      .lms-ai-note-page :where(.lms-ai-canvas-surface, .ncv-item, .ncv-item > *) {
+        box-shadow: none !important;
+      }
+      .lms-ai-note-page :where(.ncv-item, .ncv-item > *) {
+        transition-property: background-color, border-color, color, opacity !important;
+      }
+      .lms-ai-note-page :where(.ncv-item:hover, .ncv-item:hover > *, .focus-canvas .ncv-item:hover) {
+        opacity: 1 !important;
+        transform: none !important;
+        box-shadow: none !important;
+      }
       .lms-smooth-action {
         transition: transform 180ms cubic-bezier(.16,1,.3,1), box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease, opacity 180ms ease;
       }
