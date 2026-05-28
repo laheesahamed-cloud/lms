@@ -19,6 +19,9 @@
   --lms-live-mobile-gutter-x: max(12px, var(--lms-safe-left), var(--lms-safe-right));
   --lms-live-card-radius: clamp(16px, 3vw, 22px);
   --lms-header-lift: 8px;
+  --lms-assessment-sticky-top: clamp(32px, 3.8vw, 56px);
+  --lms-assessment-header-space: clamp(156px, 16vw, 208px);
+  --lms-assessment-column-gap: clamp(16px, 2vw, 24px);
 }
 
 html,
@@ -430,7 +433,7 @@ body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
 
 @media (min-width: 901px) {
   .student-app-shell {
-    --sa-page-padding-top: max(8px, calc(var(--sidebar-float-gap, 16px) - var(--lms-header-lift, 8px)));
+    --sa-page-padding-top: var(--sidebar-float-gap, 16px);
     --sa-page-padding-bottom: clamp(24px, 3vw, 40px);
   }
 
@@ -481,8 +484,9 @@ body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
   }
 
   .student-app-shell .dashboard-page.study-hub-page > .study-hub-shell,
+  .student-app-shell .student-route-page > .study-hub-shell,
   .student-app-shell .dashboard-page > .study-hub-shell {
-    padding-top: max(8px, calc(var(--sidebar-float-gap, 16px) - var(--lms-header-lift, 8px))) !important;
+    padding-top: var(--sidebar-float-gap, 16px) !important;
   }
 
   .student-app-shell .study-hub-topbar {
@@ -497,6 +501,15 @@ body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
   ) {
     width: min(1080px, 100%) !important;
     max-width: min(1080px, 100%) !important;
+  }
+}
+
+@media (min-width: 901px) {
+  html[data-lms-runtime="native"] .student-app-shell .dashboard-page.study-hub-page > .study-hub-shell,
+  html[data-lms-runtime="native"] .student-app-shell .student-route-page > .study-hub-shell,
+  html[data-lms-runtime="native"] .student-app-shell .dashboard-page > .study-hub-shell,
+  html[data-lms-runtime="native"] .student-app-shell .management-layout {
+    padding-top: var(--sidebar-float-gap, 16px) !important;
   }
 }
 
@@ -3383,5 +3396,142 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
 
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-review-main, .lms-exam-main-card, .lms-review-question-card) {
     max-width: 100% !important;
+  }
+}
+
+/* Native iPad/tablet touch rescue: keep the frame scrollable without letting a
+   stale boot state or restrictive frame-level touch-action swallow taps. */
+html[data-lms-runtime="native"] body:not(.app-booting) #root,
+html[data-lms-runtime="native"] body.app-ready #root,
+html[data-lms-runtime="native"] body:not(.app-booting) .lms-app-scroll-root,
+html[data-lms-runtime="native"] body:not(.app-booting) .native-app-frame {
+  pointer-events: auto !important;
+}
+
+html[data-lms-runtime="native"] .native-app-frame,
+html[data-lms-runtime="native"] .lms-app-scroll-root,
+html[data-lms-runtime="native"] .portal-content,
+html[data-lms-runtime="native"] .portal-content__frame,
+html[data-lms-runtime="native"] .main-content,
+html[data-lms-runtime="native"] .student-app-shell {
+  touch-action: auto !important;
+}
+
+html[data-lms-runtime="native"] :where(html, body, #root) {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}
+
+html[data-lms-runtime="native"] :where(.lms-app-scroll-root, .native-app-frame) {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+html[data-lms-runtime="native"] :where(
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  .card-interactive,
+  .lms-course-card,
+  .lms-dashboard-card,
+  .lms-mobile-bottom-nav__tab
+) {
+  pointer-events: auto;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lms-ai-note-page.is-writing-mode :where(.lms-ai-canvas-shell, .lms-ai-note-main) {
+  overscroll-behavior: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+.lms-ai-note-page.is-writing-mode :where(
+  .lms-student-drawing-layer,
+  canvas[aria-label="Personal writing canvas"]
+) {
+  pointer-events: auto !important;
+  touch-action: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Assessment shell geometry: one set of offsets for header, side progress,
+   and question navigation so tablet landscape does not collapse or overlap. */
+.student-app-shell.quiz-focus-mode {
+  --lms-assessment-sticky-top: clamp(32px, 3.8vw, 56px);
+  --lms-assessment-header-space: clamp(156px, 16vw, 208px);
+  --lms-assessment-column-gap: clamp(16px, 2vw, 24px);
+}
+
+.student-app-shell.quiz-focus-mode :where(.lms-exam-layout, .practice-review-shell) {
+  gap: var(--lms-assessment-column-gap) !important;
+}
+
+.student-app-shell.quiz-focus-mode :where(.lms-exam-grid, .lms-review-workspace:not(.lms-review-workspace--focus)) {
+  align-items: start !important;
+  gap: var(--lms-assessment-column-gap) !important;
+}
+
+.student-app-shell.quiz-focus-mode :where(.lms-exam-header) {
+  top: var(--lms-assessment-sticky-top) !important;
+}
+
+@media (min-width: 701px) {
+  .student-app-shell.quiz-focus-mode :where(.lms-exam-sidebar, .lms-review-sidebar, .lms-review-explanation-side) {
+    top: calc(var(--lms-assessment-sticky-top) + var(--lms-assessment-header-space)) !important;
+    max-height: calc(100dvh - var(--lms-assessment-header-space) - (var(--lms-assessment-sticky-top) * 2)) !important;
+    align-self: start !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .student-app-shell.quiz-focus-mode :where(.lms-exam-sidebar, .lms-review-sidebar) {
+    position: sticky !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1360px) and (orientation: landscape) {
+  .student-app-shell.quiz-focus-mode .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-exam-layout, .practice-review-shell) {
+    width: min(1180px, calc(100vw - clamp(28px, 4vw, 56px))) !important;
+    max-width: 1180px !important;
+  }
+
+  .student-app-shell.quiz-focus-mode .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-exam-grid, .lms-review-workspace:not(.lms-review-workspace--focus)) {
+    grid-template-columns: minmax(210px, 260px) minmax(0, 1fr) !important;
+    max-width: 1180px !important;
+  }
+
+  .student-app-shell.quiz-focus-mode .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-review-explanation-side) {
+    display: none !important;
+  }
+}
+
+@media (max-width: 700px), (orientation: portrait) and (max-width: 900px) {
+  .student-app-shell.quiz-focus-mode :where(.lms-exam-header) {
+    top: 0 !important;
+  }
+
+  .student-app-shell.quiz-focus-mode :where(.lms-exam-sidebar, .lms-review-sidebar, .lms-review-explanation-side) {
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 }

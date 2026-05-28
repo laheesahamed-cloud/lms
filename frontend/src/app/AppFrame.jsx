@@ -157,6 +157,10 @@ function getNativeHapticsModule() {
 function syncAppScrollContract() {
   if (typeof document === 'undefined') return;
 
+  const appTouchAction = PLATFORM.isNative ? 'auto' : 'pan-y';
+  const appViewportHeight = PLATFORM.isNative ? '100dvh' : '100%';
+  const appScrollHeight = '100dvh';
+
   if (typeof window.__lmsLockDocumentScroll === 'function') {
     window.__lmsLockDocumentScroll();
   } else if (typeof window.__lmsUnlockScroll === 'function') {
@@ -167,11 +171,11 @@ function syncAppScrollContract() {
   const documentRoots = [document.documentElement, document.body].filter(Boolean);
 
   documentRoots.forEach((element) => {
-    setCssPropertyIfChanged(element, 'height', PLATFORM.isNative ? '' : '100%', PLATFORM.isNative ? '' : 'important');
-    setCssPropertyIfChanged(element, 'min-height', '100%', 'important');
+    setCssPropertyIfChanged(element, 'height', appViewportHeight, 'important');
+    setCssPropertyIfChanged(element, 'min-height', appViewportHeight, 'important');
     setStyleIfChanged(element, 'maxWidth', '100%');
     setCssPropertyIfChanged(element, 'overflow-x', 'hidden', 'important');
-    setCssPropertyIfChanged(element, 'overflow-y', PLATFORM.isNative ? 'clip' : 'hidden', 'important');
+    setCssPropertyIfChanged(element, 'overflow-y', 'hidden', 'important');
     setStyleIfChanged(element, 'overscrollBehavior', 'none');
     setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #0f1720))');
     setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #0f1720))');
@@ -180,19 +184,19 @@ function syncAppScrollContract() {
 
   setStyleIfChanged(document.body, 'position', 'relative');
   setStyleIfChanged(document.body, 'inset', 'auto');
-  setStyleIfChanged(document.body, 'height', PLATFORM.isNative ? '100%' : '');
+  setStyleIfChanged(document.body, 'height', appViewportHeight);
   setStyleIfChanged(document.body, 'minHeight', '100dvh');
   setStyleIfChanged(document.body, 'paddingLeft', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-left)');
   setStyleIfChanged(document.body, 'paddingRight', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-right)');
 
   if (root) {
-    setCssPropertyIfChanged(root, 'height', '100%', 'important');
-    setCssPropertyIfChanged(root, 'min-height', '100%', 'important');
+    setCssPropertyIfChanged(root, 'height', appViewportHeight, 'important');
+    setCssPropertyIfChanged(root, 'min-height', appViewportHeight, 'important');
     setStyleIfChanged(root, 'maxWidth', '100%');
     setCssPropertyIfChanged(root, 'overflow-x', 'hidden', 'important');
-    setCssPropertyIfChanged(root, 'overflow-y', PLATFORM.isNative ? 'clip' : 'hidden', 'important');
+    setCssPropertyIfChanged(root, 'overflow-y', 'hidden', 'important');
     setStyleIfChanged(root, 'overscrollBehavior', 'none');
-    setStyleIfChanged(root, 'touchAction', 'pan-y');
+    setStyleIfChanged(root, 'touchAction', appTouchAction);
     setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #0f1720))');
     setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #0f1720))');
     setStyleIfChanged(root, 'color', '');
@@ -204,14 +208,14 @@ function syncAppScrollContract() {
     setStyleIfChanged(element, 'maxWidth', PLATFORM.isNative ? '100vw' : '100%');
     setStyleIfChanged(element, 'marginLeft', '0px');
     setStyleIfChanged(element, 'marginRight', '0px');
-    setCssPropertyIfChanged(element, 'height', PLATFORM.isNative ? '100%' : '100dvh', 'important');
-    setCssPropertyIfChanged(element, 'min-height', '100dvh', 'important');
-    setCssPropertyIfChanged(element, 'max-height', PLATFORM.isNative ? '100%' : '100dvh', 'important');
+    setCssPropertyIfChanged(element, 'height', appScrollHeight, 'important');
+    setCssPropertyIfChanged(element, 'min-height', appScrollHeight, 'important');
+    setCssPropertyIfChanged(element, 'max-height', appScrollHeight, 'important');
     setCssPropertyIfChanged(element, 'overflow-x', 'hidden', 'important');
     setCssPropertyIfChanged(element, 'overflow-y', 'auto', 'important');
     setStyleIfChanged(element, 'overscrollBehaviorX', 'none');
     setStyleIfChanged(element, 'overscrollBehaviorY', PLATFORM.isNative ? 'contain' : 'auto');
-    setStyleIfChanged(element, 'touchAction', 'pan-y');
+    setStyleIfChanged(element, 'touchAction', appTouchAction);
     setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
   });
 
@@ -222,7 +226,7 @@ function syncAppScrollContract() {
     setCssPropertyIfChanged(element, 'overflow-x', PLATFORM.isNative ? 'hidden' : 'visible', 'important');
     setCssPropertyIfChanged(element, 'overflow-y', 'visible', 'important');
     setStyleIfChanged(element, 'overscrollBehavior', 'none');
-    setStyleIfChanged(element, 'touchAction', 'pan-y');
+    setStyleIfChanged(element, 'touchAction', appTouchAction);
     setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
   });
 }

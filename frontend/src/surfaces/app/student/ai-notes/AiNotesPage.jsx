@@ -8,6 +8,7 @@ import { updateStudentLessonProgress } from '../../../../shared/api/courses.api.
 import { getVideoEmbed, getVideoThumbnail } from '../../../../shared/utils/videoEmbed.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
+import { cx } from '../../../../shared/styles/tailwindClasses.js';
 import { NoteCanvas } from './NoteCanvas.jsx';
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
@@ -354,6 +355,28 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     };
   }, [drawAll, parentRef]);
 
+  useEffect(() => {
+    if (!editable || !drawMode) return undefined;
+    const canvas = canvasEl.current;
+    if (!canvas) return undefined;
+    const blockNativeTouchScroll = (event) => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+    };
+
+    canvas.addEventListener('touchstart', blockNativeTouchScroll, { passive: false });
+    canvas.addEventListener('touchmove', blockNativeTouchScroll, { passive: false });
+    canvas.addEventListener('gesturestart', blockNativeTouchScroll, { passive: false });
+    canvas.addEventListener('gesturechange', blockNativeTouchScroll, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('touchstart', blockNativeTouchScroll);
+      canvas.removeEventListener('touchmove', blockNativeTouchScroll);
+      canvas.removeEventListener('gesturestart', blockNativeTouchScroll);
+      canvas.removeEventListener('gesturechange', blockNativeTouchScroll);
+    };
+  }, [drawMode, editable]);
+
   function pointFromEvent(event) {
     const rect = parentRef.current?.getBoundingClientRect();
     if (!rect) return null;
@@ -379,13 +402,24 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     return true;
   }
 
+  function blockDrawingGesture(event) {
+    if (!editable || !drawMode) return;
+    event.preventDefault?.();
+    event.stopPropagation?.();
+  }
+
   function onPointerDown(event) {
     if (!editable || !drawMode) return;
-    if (stylusOnly && !isStylusPointerEvent(event)) return;
+    if (stylusOnly && !isStylusPointerEvent(event)) {
+      blockDrawingGesture(event);
+      return;
+    }
     const point = pointFromEvent(event);
-    if (!point) return;
-    event.preventDefault();
-    event.stopPropagation();
+    if (!point) {
+      blockDrawingGesture(event);
+      return;
+    }
+    blockDrawingGesture(event);
     event.currentTarget.setPointerCapture?.(event.pointerId);
     currentStrokeRef.current = {
       id: `stroke-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -399,8 +433,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
 
   function onPointerMove(event) {
     if (!editable || !drawMode || !currentStrokeRef.current) return;
-    event.preventDefault();
-    event.stopPropagation();
+    blockDrawingGesture(event);
 
     const events = typeof event.getCoalescedEvents === 'function'
       ? event.getCoalescedEvents()
@@ -442,12 +475,14 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
       onPointerMove={onPointerMove}
       onPointerUp={finishStroke}
       onPointerCancel={finishStroke}
+      onTouchStart={blockDrawingGesture}
+      onTouchMove={blockDrawingGesture}
       style={{
         position:'absolute',
         inset:0,
         zIndex:drawMode && editable ? 32 : 18,
         pointerEvents:drawMode && editable ? 'auto' : 'none',
-        touchAction:drawMode && editable ? (stylusOnly ? 'pan-y pinch-zoom' : 'none') : 'auto',
+        touchAction:drawMode && editable ? 'none' : 'auto',
         cursor:drawMode && editable ? 'crosshair' : 'default',
         WebkitTouchCallout:'none',
         WebkitUserSelect:'none',
@@ -1367,7 +1402,11 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   ].filter(Boolean).join(' / ');
 
   return (
-    <main ref={pageRef} className="lms-ai-note-page select-text [-webkit-user-select:text]" style={{ minHeight:'100dvh', background:pageBg }}>
+    <main
+      ref={pageRef}
+      className={cx('lms-ai-note-page select-text [-webkit-user-select:text]', drawMode && canDraw && 'is-writing-mode')}
+      style={{ minHeight:'100dvh', background:pageBg }}
+    >
       <SmoothCanvasMotion />
       {/* Top bar */}
       <div className="lms-ai-note-topbar" style={{ position:'relative', zIndex:40, background:topBg, borderBottom:`1px solid ${topBd}` }}>
@@ -1565,7 +1604,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
                 strokes={strokes}
                 penColor={penColor}
                 penWidth={penWidth}
-                stylusOnly
+                stylusOnly={false}
                 onCommitStroke={commitStroke}
               />
             )}

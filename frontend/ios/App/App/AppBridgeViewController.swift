@@ -24,37 +24,39 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         configuration.userContentController.add(self, name: "lmsSecureContent")
         configuration.userContentController.add(self, name: "lmsChromeTheme")
         let webView = super.webView(with: frame, configuration: configuration)
-        webView.isOpaque = false
-        webView.backgroundColor = appBackground
-        webView.scrollView.backgroundColor = appBackground
-        webView.scrollView.bounces = true
-        webView.scrollView.alwaysBounceVertical = true
-        webView.scrollView.alwaysBounceHorizontal = false
-        webView.scrollView.decelerationRate = .fast
-        webView.scrollView.delaysContentTouches = false
-        webView.scrollView.canCancelContentTouches = true
-        webView.scrollView.isDirectionalLockEnabled = true
-        webView.scrollView.contentInsetAdjustmentBehavior = .never
-        webView.scrollView.scrollIndicatorInsets = .zero
+        configureWebViewForTouch(webView)
         return webView
     }
 
     override func viewDidLoad() {
         view.backgroundColor = appBackground
         super.viewDidLoad()
-        bridge?.webView?.isOpaque = false
-        bridge?.webView?.backgroundColor = appBackground
-        bridge?.webView?.scrollView.backgroundColor = appBackground
-        bridge?.webView?.scrollView.bounces = true
-        bridge?.webView?.scrollView.alwaysBounceVertical = true
-        bridge?.webView?.scrollView.alwaysBounceHorizontal = false
-        bridge?.webView?.scrollView.decelerationRate = .fast
-        bridge?.webView?.scrollView.delaysContentTouches = false
-        bridge?.webView?.scrollView.canCancelContentTouches = true
-        bridge?.webView?.scrollView.isDirectionalLockEnabled = true
-        bridge?.webView?.scrollView.contentInsetAdjustmentBehavior = .never
-        bridge?.webView?.scrollView.scrollIndicatorInsets = .zero
+        if let webView = bridge?.webView {
+            configureWebViewForTouch(webView)
+        }
         prepareHapticEngine()
+    }
+
+    private func configureWebViewForTouch(_ webView: WKWebView) {
+        webView.isUserInteractionEnabled = true
+        webView.isOpaque = false
+        webView.backgroundColor = appBackground
+
+        let scrollView = webView.scrollView
+        scrollView.isUserInteractionEnabled = true
+        scrollView.backgroundColor = appBackground
+        scrollView.bounces = true
+        scrollView.alwaysBounceVertical = true
+        scrollView.alwaysBounceHorizontal = false
+        scrollView.decelerationRate = .fast
+        scrollView.delaysContentTouches = false
+        scrollView.canCancelContentTouches = false
+        scrollView.isDirectionalLockEnabled = false
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.scrollIndicatorInsets = .zero
+        scrollView.panGestureRecognizer.cancelsTouchesInView = false
+        scrollView.panGestureRecognizer.delaysTouchesBegan = false
+        scrollView.panGestureRecognizer.delaysTouchesEnded = false
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {

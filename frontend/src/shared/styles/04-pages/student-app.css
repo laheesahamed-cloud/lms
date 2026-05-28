@@ -524,7 +524,6 @@
 @media (min-width: 901px) {
   .student-app-shell {
     --sa-stage-inline-pad: 22px;
-    --sa-page-padding-top: calc(var(--sidebar-float-gap, 16px) + 24px);
   }
 
   .student-app-shell:not(.compact-focus-mode) .main-content {
@@ -1598,43 +1597,6 @@
 :root[data-theme="dark"] .student-app-shell .lms-route-page {
   background: var(--sa-bg) !important;
   color: var(--sa-ink);
-}
-
-.student-app-shell .student-route-page {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-height: 100dvh;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: var(--sa-bg) !important;
-  color: var(--sa-ink);
-  font-family: var(--sa-font-sans);
-  letter-spacing: 0;
-}
-
-.student-app-shell .student-route-page > .management-layout {
-  width: var(--sa-page-width-mobile) !important;
-  max-width: none !important;
-  margin: 0 auto !important;
-  padding: var(--sa-page-padding) !important;
-  gap: 14px !important;
-  align-content: start;
-}
-
-/* ============================================================
-   LAYOUT — page widths, padding rhythm.
-   ============================================================ */
-.student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-  width: var(--sa-page-width-mobile);
-  margin: 0 auto;
-  padding: var(--sa-page-padding);
-  color: var(--sa-ink);
-}
-
-.student-app-shell .management-layout {
-  width: 100%;
-  max-width: none;
-  gap: clamp(14px, 2.2vw, 20px);
 }
 
 /* ============================================================
@@ -3054,11 +3016,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
    RESPONSIVE — phones / tablets / desktops.
    ============================================================ */
 @media (max-width: 900px) {
-  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-    width: var(--sa-page-width-tablet);
-    padding-inline: 0;
-  }
-
   .student-app-shell :where(.practice-review-page, .lms-review-page) {
     width: 100% !important;
   }
@@ -3070,44 +3027,10 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   }
 }
 
-@media (min-width: 760px) {
-  .student-app-shell .student-route-page > .management-layout {
-    width: var(--sa-page-width-tablet) !important;
-  }
-
-  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-    width: var(--sa-page-width-tablet);
-  }
-}
-
-@media (min-width: 1080px) {
-  .student-app-shell .student-route-page > .management-layout {
-    width: var(--sa-page-width-desktop) !important;
-  }
-
-  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-    width: var(--sa-page-width-desktop);
-  }
-}
-
 @media (max-width: 640px) {
-  .student-app-shell .student-route-page > .management-layout {
-    padding: var(--sa-page-padding-compact) !important;
-  }
-
-  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-    width: var(--sa-page-width-mobile);
-    padding: var(--sa-page-padding-compact);
-  }
-
   .student-app-shell :where(.practice-review-page, .lms-review-page) {
     width: var(--sa-page-width-mobile);
     padding: var(--sa-page-padding-compact) !important;
-  }
-
-  .student-app-shell .management-layout {
-    width: 100%;
-    gap: 14px;
   }
 
   .student-app-shell .lms-topbar {
@@ -3137,29 +3060,11 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 }
 
 @media (max-width: 380px) {
-  .student-app-shell .student-route-page > .management-layout {
-    width: var(--sa-page-width-compact) !important;
-  }
-
-  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-    width: var(--sa-page-width-compact);
-  }
-
   .student-app-shell :where(.practice-review-page, .lms-review-page) {
     width: var(--sa-page-width-compact);
   }
 
   .student-app-shell .lms-topbar h1 { font-size: var(--type-size-xl); }
-}
-
-html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-  padding-top: var(--sa-page-padding-top) !important;
-}
-
-@media (max-width: 640px) {
-  html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-    padding: 0 !important;
-  }
 }
 
 @media (max-width: 430px) {
@@ -3200,12 +3105,6 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   color: var(--sa-ink);
   font-family: var(--sa-font-sans);
   letter-spacing: 0;
-}
-
-.student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) > .management-layout {
-  width: 100%;
-  max-width: none;
-  gap: 14px;
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) .lms-topbar {
@@ -3368,19 +3267,6 @@ html[data-lms-runtime="pwa"] .student-app-shell .lms-route-page:not(.dashboard-p
   border-color: var(--sa-border) !important;
   background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
-}
-
-@media (min-width: 1080px) {
-  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-    width: var(--sa-page-width-desktop);
-    padding-top: var(--sa-page-padding-top);
-  }
-}
-
-@media (min-width: 760px) and (max-width: 1079px) {
-  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) {
-    width: var(--sa-page-width-tablet);
-  }
 }
 
 @media (max-width: 640px) {

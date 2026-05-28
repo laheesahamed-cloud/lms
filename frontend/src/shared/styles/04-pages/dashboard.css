@@ -3085,12 +3085,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   padding: calc(max(7px, env(safe-area-inset-top, 0px)) + 3px) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 18px);
 }
 
-@media (min-width: 901px) {
-  .student-app-shell .dashboard-page.study-hub-page > .study-hub-shell {
-    padding-top: calc(var(--sidebar-float-gap, 16px) + 18px);
-  }
-}
-
 .study-hub-page .study-hub-topbar {
   grid-template-columns: 52px minmax(0, 1fr) auto;
   gap: 12px;
