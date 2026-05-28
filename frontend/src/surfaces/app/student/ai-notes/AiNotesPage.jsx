@@ -312,6 +312,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
 }) {
   const canvasEl = useRef(null);
   const currentStrokeRef = useRef(null);
+  const fingerScrollRef = useRef(null);
   const strokesRef = useRef(strokes);
 
   const drawAll = useCallback((items = strokesRef.current) => {
@@ -355,28 +356,6 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     };
   }, [drawAll, parentRef]);
 
-  useEffect(() => {
-    if (!editable || !drawMode) return undefined;
-    const canvas = canvasEl.current;
-    if (!canvas) return undefined;
-    const blockNativeTouchScroll = (event) => {
-      event.preventDefault?.();
-      event.stopPropagation?.();
-    };
-
-    canvas.addEventListener('touchstart', blockNativeTouchScroll, { passive: false });
-    canvas.addEventListener('touchmove', blockNativeTouchScroll, { passive: false });
-    canvas.addEventListener('gesturestart', blockNativeTouchScroll, { passive: false });
-    canvas.addEventListener('gesturechange', blockNativeTouchScroll, { passive: false });
-
-    return () => {
-      canvas.removeEventListener('touchstart', blockNativeTouchScroll);
-      canvas.removeEventListener('touchmove', blockNativeTouchScroll);
-      canvas.removeEventListener('gesturestart', blockNativeTouchScroll);
-      canvas.removeEventListener('gesturechange', blockNativeTouchScroll);
-    };
-  }, [drawMode, editable]);
-
   function pointFromEvent(event) {
     const rect = parentRef.current?.getBoundingClientRect();
     if (!rect) return null;
@@ -402,6 +381,20 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     return true;
   }
 
+  function getScrollTarget() {
+    let element = parentRef.current;
+    while (element && element !== document.body) {
+      const style = window.getComputedStyle?.(element);
+      const canScrollY = style && /(auto|scroll)/.test(style.overflowY || '');
+      if (canScrollY && element.scrollHeight > element.clientHeight) return element;
+      element = element.parentElement;
+    }
+    return document.querySelector('.lms-app-scroll-root')
+      || document.querySelector('.native-app-frame')
+      || document.scrollingElement
+      || document.documentElement;
+  }
+
   function blockDrawingGesture(event) {
     if (!editable || !drawMode) return;
     event.preventDefault?.();
@@ -411,7 +404,14 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   function onPointerDown(event) {
     if (!editable || !drawMode) return;
     if (stylusOnly && !isStylusPointerEvent(event)) {
+      if (String(event.pointerType || '').toLowerCase() !== 'touch') return;
       blockDrawingGesture(event);
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      fingerScrollRef.current = {
+        pointerId: event.pointerId,
+        y: event.clientY,
+        target: getScrollTarget(),
+      };
       return;
     }
     const point = pointFromEvent(event);
@@ -432,6 +432,15 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   }
 
   function onPointerMove(event) {
+    const fingerScroll = fingerScrollRef.current;
+    if (fingerScroll && fingerScroll.pointerId === event.pointerId) {
+      blockDrawingGesture(event);
+      const nextY = event.clientY;
+      fingerScroll.target.scrollTop += fingerScroll.y - nextY;
+      fingerScroll.y = nextY;
+      return;
+    }
+
     if (!editable || !drawMode || !currentStrokeRef.current) return;
     blockDrawingGesture(event);
 
@@ -449,6 +458,17 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   }
 
   function finishStroke(event) {
+    if (fingerScrollRef.current && fingerScrollRef.current.pointerId === event?.pointerId) {
+      blockDrawingGesture(event);
+      fingerScrollRef.current = null;
+      try {
+        if (event?.pointerId != null) event.currentTarget?.releasePointerCapture?.(event.pointerId);
+      } catch {
+        /* pointer may already be released */
+      }
+      return;
+    }
+
     const stroke = currentStrokeRef.current;
     if (!stroke) return;
     event?.preventDefault?.();
@@ -475,8 +495,6 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
       onPointerMove={onPointerMove}
       onPointerUp={finishStroke}
       onPointerCancel={finishStroke}
-      onTouchStart={blockDrawingGesture}
-      onTouchMove={blockDrawingGesture}
       style={{
         position:'absolute',
         inset:0,
@@ -1604,7 +1622,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
                 strokes={strokes}
                 penColor={penColor}
                 penWidth={penWidth}
-                stylusOnly={false}
+                stylusOnly
                 onCommitStroke={commitStroke}
               />
             )}
