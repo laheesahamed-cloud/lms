@@ -9,9 +9,9 @@ import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 
 const reviewPageUi = {
   screen:
-    cx(ui.studentScreenShell, 'dashboard-page study-hub-page practice-review-page'),
+    cx(ui.studentScreenShell, 'lms-quiz-taking-page dashboard-page study-hub-page lms-review-page practice-review-page'),
   layout:
-    'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[18px]',
+    'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]',
   header:
     'practice-review-header sticky top-2.5 z-20 flex items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] px-3 py-2.5 shadow-md backdrop-blur-[14px] dark:border-white/10 dark:bg-[rgba(8,14,26,0.74)] max-[760px]:static max-[760px]:grid max-[760px]:gap-2.5',
   brand:

@@ -23,11 +23,16 @@ const KL = { fontFamily: "'Patrick Hand', cursive" };
 let drawingAudioContext = null;
 let lastDrawingSoundAt = 0;
 let activeDrawingSound = null;
+let spenLoopBuffers = null;
 const DRAWING_SOUND_MODES = [
   { id:'spen', label:'S Pen' },
   { id:'secret', label:'Secret Study' },
 ];
 const DRAWING_SOUND_STORAGE_KEY = 'lms.aiNotes.drawingSoundMode';
+const SECRET_STUDY_EFFECTS = ['fart', 'dog', 'cat', 'boing', 'squeak'];
+let lastSecretStudyEffect = '';
+let currentSecretStudyEffect = '';
+let lastSecretStudyEffectAt = 0;
 
 function normalizeDrawingSoundMode(mode) {
   return mode === 'secret' ? 'secret' : 'spen';
@@ -39,6 +44,45 @@ function getDrawingAudioContext() {
   if (!AudioContextClass) return null;
   drawingAudioContext ||= new AudioContextClass();
   return drawingAudioContext;
+}
+
+function getSpenLoopBuffers(context) {
+  if (spenLoopBuffers?.sampleRate === context.sampleRate) return spenLoopBuffers;
+
+  const duration = 0.72;
+  const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
+  const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+  const channel = buffer.getChannelData(0);
+  for (let i = 0; i < sampleCount; i += 1) {
+    const progress = i / sampleCount;
+    const grain = Math.random() * 2 - 1;
+    const rub = Math.sin(progress * Math.PI * 28) * 0.034;
+    const paper = Math.sin(progress * Math.PI * (10 + Math.random() * 14)) * 0.026;
+    channel[i] = grain * 0.028 + rub + paper;
+  }
+
+  const textureBuffer = context.createBuffer(1, sampleCount, context.sampleRate);
+  const textureChannel = textureBuffer.getChannelData(0);
+  for (let i = 0; i < sampleCount; i += 1) {
+    const progress = i / sampleCount;
+    const grain = Math.random() * 2 - 1;
+    const fiber = Math.sin(progress * Math.PI * 76) * 0.032;
+    const tooth = Math.sin(progress * Math.PI * 38) * 0.018;
+    textureChannel[i] = grain * 0.035 + fiber + tooth;
+  }
+
+  const verticalBuffer = context.createBuffer(1, sampleCount, context.sampleRate);
+  const verticalChannel = verticalBuffer.getChannelData(0);
+  for (let i = 0; i < sampleCount; i += 1) {
+    const progress = i / sampleCount;
+    const grain = Math.random() * 2 - 1;
+    const drag = Math.sin(progress * Math.PI * 58) * 0.026;
+    const paperTooth = Math.sin(progress * Math.PI * (116 + Math.random() * 32)) * 0.018;
+    verticalChannel[i] = grain * 0.042 + drag + paperTooth;
+  }
+
+  spenLoopBuffers = { sampleRate: context.sampleRate, buffer, textureBuffer, verticalBuffer };
+  return spenLoopBuffers;
 }
 
 function postNativeDrawingSound(action = 'play', mode = 'spen', volume = 1, force = false, extras = null) {
@@ -60,64 +104,6 @@ function postNativeDrawingSound(action = 'play', mode = 'spen', volume = 1, forc
   }
 }
 
-function playNativeDrawingSound(mode = 'spen', volume = 1, force = false) {
-  return postNativeDrawingSound('play', mode, volume, force);
-}
-
-function playDrawingSound(mode = 'spen', force = false) {
-  if (typeof window === 'undefined') return;
-  const soundMode = normalizeDrawingSoundMode(mode);
-  if (playNativeDrawingSound(soundMode, soundMode === 'secret' ? 0.42 : 0.2, force)) return;
-
-  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  const minGap = soundMode === 'secret' ? 95 : 320;
-  if (!force && now - lastDrawingSoundAt < minGap) return;
-
-  try {
-    const context = getDrawingAudioContext();
-    if (!context) return;
-    if (context.state === 'suspended') {
-      context.resume().then(() => playDrawingSound(soundMode, true)).catch(() => {});
-      return;
-    }
-
-    lastDrawingSoundAt = now;
-    const isSecret = soundMode === 'secret';
-    const duration = isSecret ? 0.085 : 0.42;
-    const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
-    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
-    const channel = buffer.getChannelData(0);
-    for (let i = 0; i < sampleCount; i += 1) {
-      const progress = i / sampleCount;
-      const attack = Math.min(1, progress / (isSecret ? 0.08 : 0.22));
-      const release = Math.max(0, 1 - progress);
-      const grain = Math.random() * 2 - 1;
-      const rub = Math.sin(progress * Math.PI * (isSecret ? 160 : 34)) * (isSecret ? 0.24 : 0.03);
-      const paper = Math.sin(progress * Math.PI * (22 + Math.random() * 8)) * (isSecret ? 0 : 0.022);
-      channel[i] = (grain * (isSecret ? 0.78 : 0.085) + rub + paper) * attack * Math.pow(release, isSecret ? 0.7 : 1.15);
-    }
-
-    const source = context.createBufferSource();
-    const filter = context.createBiquadFilter();
-    const gain = context.createGain();
-    source.buffer = buffer;
-    source.playbackRate.value = isSecret ? 0.86 + Math.random() * 0.4 : 0.9 + Math.random() * 0.08;
-    filter.type = 'bandpass';
-    filter.frequency.value = isSecret ? 1900 + Math.random() * 1200 : 520 + Math.random() * 260;
-    filter.Q.value = isSecret ? 7 : 1.05;
-    gain.gain.setValueAtTime(0.001, context.currentTime);
-    gain.gain.linearRampToValueAtTime(isSecret ? 0.045 : 0.014, context.currentTime + 0.045);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(context.destination);
-    source.start();
-    source.stop(context.currentTime + duration);
-  } catch {
-    // Drawing sound is optional; never block the writing canvas.
-  }
-}
-
 function stopWebDrawingSound() {
   const sound = activeDrawingSound;
   activeDrawingSound = null;
@@ -128,10 +114,113 @@ function stopWebDrawingSound() {
     sound.gain.gain.setTargetAtTime(0.001, now, 0.035);
     sound.textureGain?.gain.cancelScheduledValues(now);
     sound.textureGain?.gain.setTargetAtTime(0.001, now, 0.025);
+    sound.verticalGain?.gain.cancelScheduledValues(now);
+    sound.verticalGain?.gain.setTargetAtTime(0.001, now, 0.02);
     sound.source.stop(now + 0.16);
     sound.textureSource?.stop(now + 0.12);
+    sound.verticalSource?.stop(now + 0.12);
   } catch {
     // Optional sound cleanup only.
+  }
+}
+
+function pickSecretStudyEffect() {
+  let effect = SECRET_STUDY_EFFECTS[Math.floor(Math.random() * SECRET_STUDY_EFFECTS.length)] || 'fart';
+  if (SECRET_STUDY_EFFECTS.length > 1 && effect === lastSecretStudyEffect) {
+    effect = SECRET_STUDY_EFFECTS[(SECRET_STUDY_EFFECTS.indexOf(effect) + 1) % SECRET_STUDY_EFFECTS.length];
+  }
+  lastSecretStudyEffect = effect;
+  return effect;
+}
+
+function playSecretStudyShuffleEffect(context, effectOverride = '') {
+  if (!context) return;
+  const now = context.currentTime;
+  const effect = effectOverride || pickSecretStudyEffect();
+  lastSecretStudyEffectAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const master = context.createGain();
+  master.gain.setValueAtTime(0.001, now);
+  master.gain.linearRampToValueAtTime(0.052, now + 0.014);
+  master.gain.exponentialRampToValueAtTime(0.001, now + 0.82);
+  master.connect(context.destination);
+
+  const addOsc = (type, startFreq, endFreq, start, duration, gainValue = 0.2) => {
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(startFreq, now + start);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + start + duration);
+    gain.gain.setValueAtTime(0.001, now + start);
+    gain.gain.linearRampToValueAtTime(gainValue, now + start + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + start + duration);
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(now + start);
+    osc.stop(now + start + duration + 0.04);
+  };
+
+  const addNoise = (start, duration, frequency, q, gainValue = 0.16) => {
+    const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
+    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i += 1) {
+      const progress = i / sampleCount;
+      const envelope = Math.sin(Math.PI * progress);
+      channel[i] = (Math.random() * 2 - 1) * envelope;
+    }
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    filter.type = 'bandpass';
+    filter.frequency.value = frequency;
+    filter.Q.value = q;
+    gain.gain.setValueAtTime(gainValue, now + start);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(master);
+    source.start(now + start);
+    source.stop(now + start + duration);
+  };
+
+  if (effect === 'fart') {
+    addOsc('sawtooth', 86, 46, 0, 0.34, 0.22);
+    addOsc('triangle', 58, 42, 0.06, 0.28, 0.15);
+    addNoise(0.02, 0.3, 92, 0.62, 0.2);
+  } else if (effect === 'dog') {
+    addOsc('square', 250, 92, 0, 0.12, 0.26);
+    addNoise(0, 0.13, 720, 2.4, 0.22);
+    addOsc('square', 210, 82, 0.16, 0.12, 0.22);
+    addNoise(0.16, 0.12, 620, 2.2, 0.16);
+  } else if (effect === 'cat') {
+    addOsc('triangle', 620, 1320, 0, 0.2, 0.18);
+    addOsc('sine', 1320, 540, 0.14, 0.26, 0.15);
+  } else if (effect === 'boing') {
+    addOsc('sine', 118, 780, 0, 0.11, 0.18);
+    addOsc('triangle', 780, 180, 0.1, 0.36, 0.18);
+  } else {
+    addOsc('square', 840, 420, 0, 0.08, 0.16);
+    addOsc('triangle', 1080, 620, 0.1, 0.1, 0.14);
+    addNoise(0.02, 0.16, 2200, 6, 0.08);
+  }
+}
+
+function repeatSecretStudyEffectForMovement(previous, point) {
+  if (!isAudibleStrokeMovement(previous, point)) return;
+  const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (nowMs - lastSecretStudyEffectAt < 520) return;
+
+  try {
+    const context = getDrawingAudioContext();
+    if (!context) return;
+    if (context.state === 'suspended') {
+      context.resume().then(() => repeatSecretStudyEffectForMovement(previous, point)).catch(() => {});
+      return;
+    }
+    currentSecretStudyEffect ||= pickSecretStudyEffect();
+    playSecretStudyShuffleEffect(context, currentSecretStudyEffect);
+  } catch {
+    // Funny Secret Study sounds are optional.
   }
 }
 
@@ -150,9 +239,34 @@ function isAudibleStrokeMovement(previous, point) {
   return distance >= 0.0009 && speed >= 0.045;
 }
 
+function isAudibleTinyVerticalMovement(previous, point) {
+  if (!previous || !point) return false;
+  const dx = point.x - previous.x;
+  const dy = point.y - previous.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance <= 0) return false;
+  const verticalStroke = clampNumber((Math.abs(dy) / distance - 0.48) / 0.52, 0, 1);
+  const { speed } = strokeSegmentMotion(previous, point);
+  return verticalStroke >= 0.5 && Math.abs(dy) >= 0.00032 && distance >= 0.00038 && speed >= 0.012;
+}
+
+function isAudibleTinyFastMovement(previous, point) {
+  const { distance, speed } = strokeSegmentMotion(previous, point);
+  return distance >= 0.00034 && distance <= 0.0017 && speed >= 0.16;
+}
+
+function isAudibleTinyAverageMovement(previous, point) {
+  const { distance, speed } = strokeSegmentMotion(previous, point);
+  return distance >= 0.00042 && distance <= 0.0019 && speed >= 0.055 && speed < 0.42;
+}
+
 function modulateDrawingStrokeSound(previous, point, mode = 'spen') {
   if (!previous || !point) return;
   const soundMode = normalizeDrawingSoundMode(mode);
+  if (soundMode === 'secret') {
+    repeatSecretStudyEffectForMovement(previous, point);
+    return;
+  }
   const dx = point.x - previous.x;
   const dy = point.y - previous.y;
   const { distance, speed } = strokeSegmentMotion(previous, point);
@@ -170,6 +284,7 @@ function modulateDrawingStrokeSound(previous, point, mode = 'spen') {
     : 0;
   const directionChange = clampNumber(Math.abs(directionDelta) / 0.62, 0, 1);
   const wavePulse = clampNumber(directionChange * (0.65 + speed * 0.55), 0, 1);
+  const verticalStroke = distance > 0 ? clampNumber((Math.abs(dy) / distance - 0.45) / 0.55, 0, 1) : 0;
   const directionTexture = (Math.sin(direction * 3.7) + 1) / 2;
   const segmentTexture = (Math.sin(((point.t || 0) * 0.073) + direction * 4.6 + wavePulse * 2.8) + 1) / 2;
   const prior = activeDrawingSound?.lastPreviousPoint;
@@ -187,25 +302,133 @@ function modulateDrawingStrokeSound(previous, point, mode = 'spen') {
     }
   }
 
-  const movement = clampNumber(speed * 0.42 + curve * 0.34 + wavePulse * 0.5 + pressureDelta * 0.16, 0, 1);
+  const slowWriting = clampNumber((0.22 - speed) / 0.22, 0, 1);
+  const averageWriting = clampNumber(1 - Math.abs(speed - 0.34) / 0.24, 0, 1);
+  const fastWriting = clampNumber((speed - 0.38) / 0.34, 0, 1);
+  const veryFastWriting = clampNumber((speed - 0.72) / 0.28, 0, 1);
+  const smallHandwriting = clampNumber((0.0028 - distance) / 0.0022, 0, 1) * clampNumber(Math.max(averageWriting, slowWriting * 0.75), 0, 1);
+  const smallAverageHandwriting = clampNumber((0.0019 - distance) / 0.00145, 0, 1) * averageWriting;
+  const smallFastHandwriting = clampNumber((0.0017 - distance) / 0.00135, 0, 1) * clampNumber((speed - 0.14) / 0.32, 0, 1);
+  const minimalStroke = smallHandwriting * clampNumber((0.0024 - distance) / 0.0018, 0, 1);
+  const horizontalStroke = 1 - verticalStroke;
+  const minimalVerticalHandwriting = minimalStroke * verticalStroke;
+  const minimalHorizontalHandwriting = minimalStroke * horizontalStroke;
+  const cleanVerticalHandwriting = minimalVerticalHandwriting * (1 - fastWriting * 0.35);
+  const shortVerticalHandwriting = cleanVerticalHandwriting * clampNumber((0.46 - speed) / 0.46, 0, 1);
+  const compactCurve = curve * (1 - smallHandwriting * 0.34);
+  const minimalStraightHandwriting = minimalStroke * (1 - compactCurve * 0.5);
+  const horizontalRootVertical = clampNumber(shortVerticalHandwriting + minimalVerticalHandwriting * slowWriting * 0.85, 0, 1);
+  const verticalDrag = clampNumber(
+    verticalStroke
+      * (0.42 + speed * 0.72)
+      * (1 - compactCurve * 0.28)
+      * (1 - smallHandwriting * 0.38)
+      * (1 - minimalVerticalHandwriting * 0.04),
+    0,
+    1
+  );
+  const soundVerticalStroke = clampNumber(
+    verticalStroke * (1 - horizontalRootVertical * 0.45)
+      + minimalVerticalHandwriting * 0.22
+      + smallAverageHandwriting * verticalStroke * 0.1
+      + smallFastHandwriting * verticalStroke * 0.12,
+    0,
+    1
+  );
+  const soundVerticalDrag = clampNumber(
+    verticalDrag * (1 - horizontalRootVertical * 0.45)
+      + minimalVerticalHandwriting * 0.08
+      + smallAverageHandwriting * verticalStroke * 0.08
+      + smallFastHandwriting * verticalStroke * 0.1,
+    0,
+    1
+  );
+  const verticalDirectionTexture = dy >= 0 ? 1 : 0.62;
+  const movement = clampNumber(speed * 0.42 + compactCurve * 0.3 + wavePulse * (0.5 - smallHandwriting * 0.14 - minimalHorizontalHandwriting * 0.12 - cleanVerticalHandwriting * 0.045) + pressureDelta * 0.16 + soundVerticalDrag * 0.22 + smallHandwriting * 0.1 + smallAverageHandwriting * 0.14 + smallFastHandwriting * 0.12 + minimalStraightHandwriting * 0.05 + horizontalRootVertical * 0.055, 0, 1);
   const volume = soundMode === 'secret'
     ? 0.07 + pressure * 0.06 + speed * 0.11 + curve * 0.08 + pressureDelta * 0.045 + wavePulse * 0.09
-    : 0.032 + pressure * 0.034 + speed * 0.072 + curve * 0.066 + pressureDelta * 0.024 + wavePulse * 0.082;
+    : 0.026
+      + pressure * 0.036
+      + speed * 0.058
+      + slowWriting * 0.016
+      + smallHandwriting * 0.018
+      + smallAverageHandwriting * 0.018
+      + smallFastHandwriting * 0.014
+      + minimalStraightHandwriting * 0.006
+      + fastWriting * 0.028
+      + veryFastWriting * 0.026
+      + soundVerticalStroke * (0.018 + fastWriting * 0.014)
+      + soundVerticalDrag * 0.034
+      + horizontalRootVertical * 0.008
+      + compactCurve * (0.044 - veryFastWriting * 0.018)
+      + pressureDelta * 0.024
+      + wavePulse * (0.064 - smallHandwriting * 0.02 - minimalHorizontalHandwriting * 0.028 - minimalVerticalHandwriting * 0.004);
   const rate = soundMode === 'secret'
     ? 0.76 + speed * 0.24 + curve * 0.17 + directionTexture * 0.07 + wavePulse * 0.28 - tilt * 0.045
-    : 0.64 + speed * 0.24 + curve * 0.15 + directionTexture * 0.055 + wavePulse * 0.26 - tilt * 0.035;
+    : 0.66
+      + speed * 0.22
+      - smallHandwriting * 0.025
+      + smallAverageHandwriting * 0.028
+      + smallFastHandwriting * 0.035
+      - minimalStraightHandwriting * 0.018
+      + fastWriting * 0.12
+      + veryFastWriting * 0.16
+      + soundVerticalStroke * (0.045 + fastWriting * 0.035)
+      + soundVerticalDrag * (0.055 + verticalDirectionTexture * 0.018)
+      + compactCurve * (0.105 - veryFastWriting * 0.045)
+      + directionTexture * 0.045
+      + wavePulse * (0.16 + fastWriting * 0.08 - smallHandwriting * 0.04 - minimalStroke * 0.035)
+      - tilt * 0.035;
   const brightness = soundMode === 'secret'
     ? 720 + pressure * 300 + speed * 980 + curve * 860 + pressureDelta * 260 + wavePulse * 1180 + segmentTexture * 180 - tilt * 180
-    : 210 + pressure * 80 + speed * 620 + curve * 780 + pressureDelta * 120 + wavePulse * 1120 + segmentTexture * 96 - tilt * 50;
-  const roughness = clampNumber(curve * 0.56 + directionChange * 0.74 + pressureDelta * 0.26 + speed * 0.28 + segmentTexture * 0.12, 0, 1);
+    : 190
+      + pressure * 72
+      + slowWriting * 70
+      + speed * 430
+      + smallHandwriting * 110
+      + smallAverageHandwriting * 115
+      + smallFastHandwriting * 135
+      + minimalStraightHandwriting * 45
+      + fastWriting * 360
+      + veryFastWriting * 720
+      + soundVerticalStroke * (180 + fastWriting * 260 + veryFastWriting * 240)
+      + soundVerticalDrag * (260 + verticalDirectionTexture * 120)
+      + compactCurve * (430 - veryFastWriting * 210)
+      + pressureDelta * 110
+      + wavePulse * (560 + fastWriting * 360 - smallHandwriting * 130 - minimalStroke * 95)
+      + segmentTexture * (80 - smallHandwriting * 24 - minimalStroke * 12)
+      - tilt * 46;
+  const roughness = clampNumber(
+    compactCurve * (0.42 - veryFastWriting * 0.16)
+      + directionChange * (0.48 + fastWriting * 0.24 - smallHandwriting * 0.16)
+      + pressureDelta * 0.24
+      + speed * 0.2
+      + slowWriting * 0.14
+      + smallHandwriting * 0.08
+      + smallAverageHandwriting * 0.1
+      + smallFastHandwriting * 0.11
+      - minimalStraightHandwriting * 0.035
+      - cleanVerticalHandwriting * 0.06
+      + veryFastWriting * 0.18
+      + soundVerticalStroke * (0.13 + fastWriting * 0.12)
+      + soundVerticalDrag * 0.24
+      + segmentTexture * 0.1,
+    0,
+    1
+  );
 
   const sound = activeDrawingSound;
-  if (!isAudibleStrokeMovement(previous, point)) {
+  const audibleStrokeMovement = isAudibleStrokeMovement(previous, point)
+    || isAudibleTinyAverageMovement(previous, point)
+    || isAudibleTinyFastMovement(previous, point)
+    || (verticalStroke >= 0.5 && Math.abs(dy) >= 0.00032 && distance >= 0.00038 && speed >= 0.012);
+  if (!audibleStrokeMovement) {
     if (sound) {
       try {
         const now = sound.context.currentTime;
         sound.gain.gain.setTargetAtTime(0.001, now, 0.018);
         sound.textureGain?.gain.setTargetAtTime(0.001, now, 0.012);
+        sound.verticalGain?.gain.setTargetAtTime(0.001, now, 0.01);
         sound.lastPreviousPoint = previous;
         sound.lastPoint = point;
         sound.lastDirection = direction;
@@ -223,18 +446,36 @@ function modulateDrawingStrokeSound(previous, point, mode = 'spen') {
   }
   try {
     const now = sound.context.currentTime;
-    sound.gain.gain.setTargetAtTime(volume * (soundMode === 'secret' ? 0.2 : 0.16), now, 0.014);
-    sound.source.playbackRate.setTargetAtTime(rate, now, 0.012);
-    sound.source.detune?.setTargetAtTime?.((directionTexture - 0.5) * 90 + pressureDelta * 34 + wavePulse * 150 + curve * 70, now, 0.01);
-    sound.filter.frequency.setTargetAtTime(brightness, now, 0.012);
-    sound.filter.Q.setTargetAtTime(0.52 + roughness * 1.55, now, 0.014);
+    const responseTime = 0.007 - veryFastWriting * 0.003;
+    sound.gain.gain.setTargetAtTime(volume * (0.19 + soundVerticalStroke * 0.025), now, responseTime);
+    sound.source.playbackRate.setTargetAtTime(rate, now, responseTime);
+    sound.source.detune?.setTargetAtTime?.(
+      (directionTexture - 0.5) * 76
+        + pressureDelta * 34
+        + wavePulse * (100 + fastWriting * 80 - smallHandwriting * 28 - minimalStroke * 22)
+        + soundVerticalDrag * (72 + verticalDirectionTexture * 28)
+        + compactCurve * (42 - veryFastWriting * 18)
+        - minimalStraightHandwriting * 18,
+      now,
+      responseTime
+    );
+    sound.filter.frequency.setTargetAtTime(brightness, now, responseTime);
+    sound.filter.Q.setTargetAtTime(0.48 + roughness * (1.35 - veryFastWriting * 0.28), now, responseTime);
     if (sound.textureGain && sound.textureFilter && sound.textureSource) {
-      const textureVolume = (soundMode === 'secret' ? 0.018 : 0.009) * clampNumber(movement + directionChange * 0.35, 0, 1);
-      sound.textureGain.gain.setTargetAtTime(textureVolume, now, 0.01);
-      sound.textureFilter.frequency.setTargetAtTime(soundMode === 'secret' ? brightness * 1.25 : brightness * 1.85 + 260, now, 0.01);
-      sound.textureFilter.Q.setTargetAtTime(0.8 + roughness * 2.1, now, 0.012);
-      sound.textureSource.playbackRate.setTargetAtTime(0.78 + speed * 0.42 + curve * 0.24 + wavePulse * 0.34, now, 0.012);
-      sound.textureSource.detune?.setTargetAtTime?.((segmentTexture - 0.5) * 180 + directionChange * 90, now, 0.01);
+      const textureVolume = 0.0099 * clampNumber(movement + directionChange * (0.24 - smallHandwriting * 0.08 - minimalStroke * 0.05) + slowWriting * 0.18 + smallHandwriting * 0.16 + smallAverageHandwriting * 0.18 + smallFastHandwriting * 0.2 + minimalStraightHandwriting * 0.04 + veryFastWriting * 0.22 + soundVerticalStroke * 0.3 + soundVerticalDrag * 0.38 - minimalHorizontalHandwriting * 0.04, 0, 1);
+      sound.textureGain.gain.setTargetAtTime(textureVolume, now, responseTime);
+      sound.textureFilter.frequency.setTargetAtTime(brightness * (1.54 + fastWriting * 0.25 + soundVerticalStroke * 0.14 + soundVerticalDrag * 0.18 - smallHandwriting * 0.12 - minimalHorizontalHandwriting * 0.05) + 220, now, responseTime);
+      sound.textureFilter.Q.setTargetAtTime(0.7 + roughness * (1.56 - veryFastWriting * 0.42) + soundVerticalStroke * 0.16 + soundVerticalDrag * 0.22 - minimalHorizontalHandwriting * 0.04, now, responseTime);
+      sound.textureSource.playbackRate.setTargetAtTime(0.72 + speed * 0.36 + fastWriting * 0.22 + veryFastWriting * 0.2 + soundVerticalStroke * 0.14 + soundVerticalDrag * 0.22 + compactCurve * 0.14 + wavePulse * (0.22 - minimalStroke * 0.05), now, responseTime);
+      sound.textureSource.detune?.setTargetAtTime?.((segmentTexture - 0.5) * (110 - minimalStroke * 24) + directionChange * (56 + fastWriting * 52 - smallHandwriting * 16 - minimalStroke * 12) + soundVerticalStroke * 34 + soundVerticalDrag * 62, now, responseTime);
+    }
+    if (sound.verticalGain && sound.verticalFilter && sound.verticalSource) {
+      const verticalVolume = 0.0435 * clampNumber(soundVerticalDrag * (0.68 + speed * 0.46) + soundVerticalStroke * (0.14 + fastWriting * 0.18) + minimalVerticalHandwriting * 0.26 + smallFastHandwriting * verticalStroke * 0.2, 0, 1);
+      sound.verticalGain.gain.setTargetAtTime(verticalVolume, now, Math.max(0.006, responseTime * 0.72));
+      sound.verticalFilter.frequency.setTargetAtTime(580 + brightness * (1.04 - minimalVerticalHandwriting * 0.1 - cleanVerticalHandwriting * 0.06) + soundVerticalDrag * (410 - minimalVerticalHandwriting * 105) + veryFastWriting * 420, now, responseTime);
+      sound.verticalFilter.Q.setTargetAtTime(0.9 + soundVerticalDrag * (1.18 - minimalVerticalHandwriting * 0.28 - cleanVerticalHandwriting * 0.24) + fastWriting * 0.48, now, responseTime);
+      sound.verticalSource.playbackRate.setTargetAtTime(0.76 + speed * 0.44 + soundVerticalDrag * (0.23 - minimalVerticalHandwriting * 0.045 - cleanVerticalHandwriting * 0.03) + veryFastWriting * 0.2, now, responseTime);
+      sound.verticalSource.detune?.setTargetAtTime?.(soundVerticalDrag * (dy >= 0 ? 58 : 40) + directionChange * (26 - minimalVerticalHandwriting * 7 - cleanVerticalHandwriting * 7), now, responseTime);
     }
     sound.lastPreviousPoint = previous;
     sound.lastPoint = point;
@@ -260,58 +501,57 @@ function startDrawingStrokeSound(mode = 'spen') {
     }
 
     const isSecret = soundMode === 'secret';
-    const duration = isSecret ? 0.32 : 0.72;
-    const sampleCount = Math.max(1, Math.floor(context.sampleRate * duration));
-    const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
-    const channel = buffer.getChannelData(0);
-    for (let i = 0; i < sampleCount; i += 1) {
-      const progress = i / sampleCount;
-      const grain = Math.random() * 2 - 1;
-      const rub = Math.sin(progress * Math.PI * (isSecret ? 145 : 28)) * (isSecret ? 0.16 : 0.034);
-      const paper = Math.sin(progress * Math.PI * (10 + Math.random() * 14)) * (isSecret ? 0.012 : 0.026);
-      channel[i] = grain * (isSecret ? 0.24 : 0.028) + rub + paper;
+    if (isSecret) {
+      currentSecretStudyEffect = pickSecretStudyEffect();
+      playSecretStudyShuffleEffect(context, currentSecretStudyEffect);
+      return;
     }
-
-    const textureBuffer = context.createBuffer(1, sampleCount, context.sampleRate);
-    const textureChannel = textureBuffer.getChannelData(0);
-    for (let i = 0; i < sampleCount; i += 1) {
-      const progress = i / sampleCount;
-      const grain = Math.random() * 2 - 1;
-      const fiber = Math.sin(progress * Math.PI * (isSecret ? 220 : 76)) * (isSecret ? 0.09 : 0.032);
-      const tooth = Math.sin(progress * Math.PI * (isSecret ? 58 : 38)) * (isSecret ? 0.04 : 0.018);
-      textureChannel[i] = grain * (isSecret ? 0.12 : 0.035) + fiber + tooth;
-    }
+    const { buffer, textureBuffer, verticalBuffer } = getSpenLoopBuffers(context);
 
     const source = context.createBufferSource();
     const textureSource = context.createBufferSource();
+    const verticalSource = context.createBufferSource();
     const filter = context.createBiquadFilter();
     const textureFilter = context.createBiquadFilter();
+    const verticalFilter = context.createBiquadFilter();
     const gain = context.createGain();
     const textureGain = context.createGain();
+    const verticalGain = context.createGain();
     source.buffer = buffer;
     source.loop = true;
     source.playbackRate.value = isSecret ? 0.92 : 0.86;
     textureSource.buffer = textureBuffer;
     textureSource.loop = true;
     textureSource.playbackRate.value = isSecret ? 0.86 : 0.78;
+    verticalSource.buffer = verticalBuffer;
+    verticalSource.loop = true;
+    verticalSource.playbackRate.value = 0.84;
     filter.type = 'bandpass';
     filter.frequency.value = isSecret ? 1500 : 360;
     filter.Q.value = isSecret ? 4.4 : 0.82;
     textureFilter.type = 'bandpass';
     textureFilter.frequency.value = isSecret ? 1800 : 860;
     textureFilter.Q.value = isSecret ? 4.2 : 1.1;
+    verticalFilter.type = 'bandpass';
+    verticalFilter.frequency.value = 980;
+    verticalFilter.Q.value = 1.4;
     gain.gain.setValueAtTime(0.001, context.currentTime);
     textureGain.gain.setValueAtTime(0.001, context.currentTime);
-    gain.gain.linearRampToValueAtTime(isSecret ? 0.018 : 0.007, context.currentTime + 0.05);
+    verticalGain.gain.setValueAtTime(0.001, context.currentTime);
+    gain.gain.linearRampToValueAtTime(0.004, context.currentTime + 0.008);
     source.connect(filter);
     filter.connect(gain);
     gain.connect(context.destination);
     textureSource.connect(textureFilter);
     textureFilter.connect(textureGain);
     textureGain.connect(context.destination);
+    verticalSource.connect(verticalFilter);
+    verticalFilter.connect(verticalGain);
+    verticalGain.connect(context.destination);
     source.start();
     textureSource.start();
-    activeDrawingSound = { context, source, textureSource, filter, textureFilter, gain, textureGain, lastPoint: null, lastPreviousPoint: null };
+    verticalSource.start();
+    activeDrawingSound = { context, source, textureSource, verticalSource, filter, textureFilter, verticalFilter, gain, textureGain, verticalGain, lastPoint: null, lastPreviousPoint: null };
   } catch {
     // Drawing sound is optional; never block the writing canvas.
   }
@@ -319,6 +559,8 @@ function startDrawingStrokeSound(mode = 'spen') {
 
 function stopDrawingStrokeSound() {
   postNativeDrawingSound('stop', 'spen', 0, true);
+  currentSecretStudyEffect = '';
+  lastSecretStudyEffectAt = 0;
   stopWebDrawingSound();
 }
 
@@ -337,6 +579,7 @@ function quietDrawingStrokeSound(mode = 'spen') {
     const now = sound.context.currentTime;
     sound.gain.gain.setTargetAtTime(0.001, now, 0.045);
     sound.textureGain?.gain.setTargetAtTime(0.001, now, 0.025);
+    sound.verticalGain?.gain.setTargetAtTime(0.001, now, 0.02);
     sound.filter.Q.setTargetAtTime(0.7, now, 0.045);
   } catch {
     // Optional sound fade only.
@@ -346,7 +589,11 @@ function quietDrawingStrokeSound(mode = 'spen') {
 function unlockDrawingAudio() {
   try {
     const context = getDrawingAudioContext();
-    if (context?.state === 'suspended') context.resume().catch(() => {});
+    if (context?.state === 'suspended') {
+      context.resume().then(() => getSpenLoopBuffers(context)).catch(() => {});
+      return;
+    }
+    if (context) getSpenLoopBuffers(context);
   } catch {
     // Audio unlock is best-effort only.
   }
@@ -460,6 +707,18 @@ function midPoint(a, b) {
     x: (a.x + b.x) / 2,
     y: (a.y + b.y) / 2,
     pressure: (a.pressure + b.pressure) / 2,
+  };
+}
+
+function blendStrokePoint(a, b, amount = 0.5) {
+  if (!a) return b;
+  if (!b) return a;
+  const mix = clampNumber(amount, 0, 1);
+  return {
+    ...b,
+    x: a.x + (b.x - a.x) * mix,
+    y: a.y + (b.y - a.y) * mix,
+    pressure: (Number(a.pressure) || 0.72) + ((Number(b.pressure) || 0.72) - (Number(a.pressure) || 0.72)) * mix,
   };
 }
 
@@ -800,38 +1059,6 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     };
   }
 
-  function drawLivePoint(ctx, stroke, point, metrics) {
-    const baseWidth = Math.max(1, Number(stroke?.width) || 4);
-    const resolved = canvasPoint(point, metrics.width, metrics.height);
-    ctx.beginPath();
-    ctx.arc(resolved.x, resolved.y, pressureStrokeWidth(baseWidth, resolved.pressure) / 2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  function drawLiveSegment(ctx, stroke, fromPoint, toPoint, metrics) {
-    const isHighlighter = stroke?.tool === 'highlighter';
-    const baseWidth = Math.max(1, Number(stroke?.width) || 4);
-    const from = canvasPoint(fromPoint, metrics.width, metrics.height);
-    const to = canvasPoint(toPoint, metrics.width, metrics.height);
-    ctx.save();
-    ctx.globalAlpha = Number(stroke?.opacity) || 0.96;
-    if (isHighlighter) {
-      ctx.globalCompositeOperation = 'multiply';
-    }
-    ctx.strokeStyle = stroke?.color || '#1f2937';
-    ctx.fillStyle = stroke?.color || '#1f2937';
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = isHighlighter
-      ? baseWidth
-      : pressureStrokeWidth(baseWidth, (from.pressure + to.pressure) / 2);
-    ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
-    ctx.stroke();
-    ctx.restore();
-  }
-
   function drawLiveEraserSegment(stroke, fromPoint, toPoint, metrics) {
     const eraserWidth = Math.max(12, Number(stroke?.width) || 32);
     const from = canvasPoint(fromPoint, metrics.width, metrics.height);
@@ -860,20 +1087,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     if (!metrics) return;
     if (stroke?.tool === 'eraser') {
       drawLiveEraserSegment(stroke, fromPoint, toPoint, metrics);
-      return;
     }
-    const targetCanvas = stroke?.tool === 'highlighter' ? highlightCanvasEl.current : canvasEl.current;
-    const ctx = targetCanvas?.getContext('2d');
-    if (!ctx) return;
-    if (fromPoint === toPoint) {
-      ctx.save();
-      ctx.fillStyle = stroke?.color || '#1f2937';
-      ctx.globalAlpha = Number(stroke?.opacity) || 0.96;
-      drawLivePoint(ctx, stroke, toPoint, metrics);
-      ctx.restore();
-      return;
-    }
-    drawLiveSegment(ctx, stroke, fromPoint, toPoint, metrics);
   }
 
   useEffect(() => {
@@ -900,10 +1114,9 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     const handleNativeTouchStart = (event) => {
       if (!hasStylusTouch(event)) return;
       stylusTouchUntilRef.current = Date.now() + 90;
-      event.preventDefault();
     };
     const handleNativeTouchMove = (event) => {
-      if (!hasStylusTouch(event)) return;
+      if (!currentStrokeRef.current || !hasStylusTouch(event) || !event.cancelable) return;
       event.preventDefault();
     };
     const handleNativeTouchEnd = (event) => {
@@ -1055,7 +1268,7 @@ function appendPointToCurrentStroke(event) {
 
   function blockDrawingGesture(event) {
     if (!editable || !drawMode) return;
-    event.preventDefault?.();
+    if (event?.cancelable !== false) event.preventDefault?.();
     event.stopPropagation?.();
     holdStrokeScrollLock(true);
   }
@@ -1114,10 +1327,10 @@ function appendPointToCurrentStroke(event) {
       opacity: isHighlighter ? 0.36 : 0.98,
       tool: drawTool,
       points: [point],
+      smoothedSoundPoint: point,
       soundStarted: false,
     };
-    drawAll(strokesRef.current);
-    drawLiveStrokeSegment(currentStrokeRef.current, point, point);
+    drawAll([...strokesRef.current, currentStrokeRef.current]);
   }
 
   function onPointerMove(event) {
@@ -1139,24 +1352,42 @@ function appendPointToCurrentStroke(event) {
       holdStrokeScrollLock(true);
       if (drawTool === 'eraser') updateEraserCursor(event);
       const stroke = currentStrokeRef.current;
+      if (stroke?.tool !== 'eraser') {
+        drawAll([...strokesRef.current, stroke]);
+      }
       appendedSegments.forEach(segment => {
-        drawLiveStrokeSegment(stroke, segment.previous, segment.point);
-        if (stroke?.tool !== 'eraser') {
-          const audibleMovement = isAudibleStrokeMovement(segment.previous, segment.point);
-          if (!stroke.soundStarted && !audibleMovement) {
-            return;
-          }
-          if (!stroke.soundStarted) {
-            stroke.soundStarted = true;
-            startDrawingStrokeSound(soundMode);
-            if (activeDrawingSound) {
-              activeDrawingSound.lastPoint = segment.previous;
-              activeDrawingSound.lastPreviousPoint = null;
-            }
-          }
-          modulateDrawingStrokeSound(segment.previous, segment.point, soundMode);
-          scheduleStrokeSoundIdleStop(stroke);
+        if (stroke?.tool === 'eraser') {
+          drawLiveStrokeSegment(stroke, segment.previous, segment.point);
+          return;
         }
+        const soundPrevious = stroke.smoothedSoundPoint || segment.previous;
+        const dx = segment.point.x - soundPrevious.x;
+        const dy = segment.point.y - soundPrevious.y;
+        const distance = Math.hypot(dx, dy);
+        const verticalStroke = distance > 0 ? clampNumber((Math.abs(dy) / distance - 0.45) / 0.55, 0, 1) : 0;
+        const verticalWake = isAudibleTinyVerticalMovement(segment.previous, segment.point);
+        const averageWake = isAudibleTinyAverageMovement(segment.previous, segment.point);
+        const fastWake = isAudibleTinyFastMovement(segment.previous, segment.point);
+        const soundPoint = blendStrokePoint(soundPrevious, segment.point, verticalWake || fastWake ? 0.92 : averageWake ? 0.82 : 0.4 + verticalStroke * 0.24);
+        stroke.smoothedSoundPoint = soundPoint;
+        const audibleMovement = isAudibleStrokeMovement(soundPrevious, soundPoint)
+          || isAudibleStrokeMovement(segment.previous, segment.point)
+          || averageWake
+          || fastWake
+          || verticalWake;
+        if (!stroke.soundStarted && !audibleMovement) {
+          return;
+        }
+        if (!stroke.soundStarted) {
+          stroke.soundStarted = true;
+          startDrawingStrokeSound(soundMode);
+          if (activeDrawingSound) {
+            activeDrawingSound.lastPoint = soundPrevious;
+            activeDrawingSound.lastPreviousPoint = null;
+          }
+        }
+        modulateDrawingStrokeSound(verticalWake || averageWake || fastWake ? segment.previous : soundPrevious, soundPoint, soundMode);
+        scheduleStrokeSoundIdleStop(stroke);
       });
     }
   }
@@ -1164,7 +1395,7 @@ function appendPointToCurrentStroke(event) {
   function finishStroke(event) {
     const stroke = currentStrokeRef.current;
     if (!stroke && drawTool !== 'eraser') return;
-    event?.preventDefault?.();
+    if (event?.cancelable !== false) event?.preventDefault?.();
     event?.stopPropagation?.();
     clearStrokeSoundIdleTimer();
     stopDrawingStrokeSound();
@@ -1367,10 +1598,7 @@ function FloatingWritingPalette({
               <button
                 key={mode.id}
                 type="button"
-                onClick={() => {
-                  onSoundModeChange?.(mode.id);
-                  playDrawingSound(mode.id, true);
-                }}
+                onClick={() => onSoundModeChange?.(mode.id)}
                 aria-pressed={selectedSoundMode === mode.id}
                 style={{
                   minHeight:34,

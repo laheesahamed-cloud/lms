@@ -2908,20 +2908,6 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   box-shadow: none !important;
 }
 
-.student-app-shell :where(.lms-review-workspace) {
-  width: min(100%, 1120px) !important;
-}
-
-.student-app-shell .lms-review-workspace {
-  width: min(100%, 1520px) !important;
-}
-
-.student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) {
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1040px) minmax(220px, 280px) !important;
-  justify-content: center;
-  gap: clamp(16px, 2vw, 24px) !important;
-}
-
 .student-app-shell .lms-review-main {
   border: 0 !important;
   background: transparent !important;
@@ -2941,22 +2927,6 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-}
-
-.student-app-shell .lms-review-question-nav button {
-  width: auto !important;
-  height: auto !important;
-  min-width: min(112px, 100%) !important;
-  min-height: 44px !important;
-  padding-inline: 18px !important;
-  overflow-wrap: anywhere !important;
-  white-space: normal !important;
-  touch-action: manipulation;
-}
-
-.student-app-shell .lms-review-question-nav {
-  display: flex !important;
-  grid-template-columns: none !important;
 }
 
 .student-app-shell .lms-exam-page :where(.lms-exam-layout, .lms-exam-grid) {
@@ -2984,18 +2954,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   min-height: 100dvh !important;
   max-height: none !important;
   overflow: visible !important;
-}
-
-@media (max-width: 1180px) {
-  .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) {
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) !important;
-  }
-}
-
-@media (max-width: 900px) {
-  .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
 }
 
 .student-app-shell :where(.practice-review-page, .lms-review-page) {
@@ -3711,23 +3669,25 @@ body.student-assessment-screen :where(
 .student-app-shell .lms-exam-page .lms-exam-grid {
   width: 100% !important;
   max-width: 1680px !important;
-  grid-template-columns: minmax(230px, 300px) minmax(0, 980px) minmax(230px, 300px) !important;
+  grid-template-columns: minmax(230px, 300px) minmax(0, 980px) !important;
   justify-content: center !important;
   gap: clamp(16px, 2vw, 22px) !important;
-}
-
-.student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) {
-  width: 100% !important;
-  max-width: 1680px !important;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1040px) minmax(220px, 280px) !important;
-  justify-content: center !important;
-  gap: clamp(16px, 2vw, 24px) !important;
 }
 
 .student-app-shell .lms-review-workspace,
 .student-app-shell .lms-review-workspace--focus {
   width: 100% !important;
   max-width: 1680px !important;
+}
+
+@media (min-width: 1200px) and (hover: hover) and (pointer: fine) {
+  .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) {
+    width: 100% !important;
+    max-width: 1680px !important;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1040px) minmax(220px, 280px) !important;
+    justify-content: center !important;
+    gap: clamp(16px, 2vw, 24px) !important;
+  }
 }
 
 .student-app-shell :where(.lms-exam-main-card, .lms-review-main, .lms-review-sidebar) {
@@ -3772,9 +3732,14 @@ body.student-assessment-screen :where(
   padding-inline: 0 !important;
 }
 
-@media (max-width: 1180px) {
-  .student-app-shell .lms-exam-page .lms-exam-grid,
+@media (max-width: 1199px), (hover: none), (pointer: coarse) {
   .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .student-app-shell .lms-exam-page .lms-exam-grid {
     grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) !important;
   }
 }
@@ -3787,13 +3752,6 @@ body.student-assessment-screen :where(
 
   .student-app-shell .lms-review-sidebar {
     max-height: none !important;
-  }
-}
-
-@media (max-width: 640px) {
-  .student-app-shell .lms-review-question-nav button {
-    width: 100% !important;
-    min-width: 0 !important;
   }
 }
 

@@ -27,7 +27,7 @@ function normalizeTrueFalseValue(value) {
 
 const reviewUi = {
   shell:
-    'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1',
+    'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1199px]:grid-cols-1',
   shellThree:
     '',
   shellFocus:
@@ -57,9 +57,9 @@ const reviewUi = {
   questionMeta: 'flex flex-wrap items-center gap-1.5',
   questionNumber: 'text-[10.5px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft',
   questionNav:
-    'lms-review-question-nav flex items-center justify-between gap-2.5 border-t border-line-soft pt-4 max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:gap-2',
+    'lms-review-question-nav flex items-center justify-end gap-2.5 border-t border-line-soft pt-4 max-[640px]:flex-col max-[640px]:items-end max-[640px]:gap-2',
   questionNavActions:
-    'lms-review-nav-actions flex min-w-0 flex-wrap items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-1 max-[640px]:[&_button]:w-full',
+    'lms-review-nav-actions flex min-w-0 flex-wrap items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-1 max-[640px]:justify-items-end',
   position: 'lms-review-position text-xs font-extrabold text-ink-soft',
   optionsGrid: 'lms-review-options-grid grid gap-3 max-[640px]:gap-2.5',
   optionTopline: 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start',
@@ -99,12 +99,12 @@ const reviewUi = {
   recapAction:
     'relative w-full max-w-none flex-none [&_.qtr-popup-trigger]:min-h-11 [&_.qtr-popup-trigger]:rounded-xl [&_.qtr-popup-trigger]:px-3 [&_.qtr-popup-trigger]:py-2.5 [&_.qtr-popup-trigger__label]:text-[13px] max-[640px]:w-full max-[640px]:max-w-none max-[640px]:[&_.qtr-popup-trigger]:min-h-12 max-[640px]:[&_.qtr-popup-trigger]:rounded-2xl max-[640px]:[&_.qtr-popup-trigger__concept]:max-w-[42vw]',
   questionActions:
-    'lms-question-utility-row flex flex-wrap items-center justify-end gap-2.5 border-t border-line-soft pt-3 max-[640px]:justify-start max-[520px]:grid max-[520px]:grid-cols-1 max-[520px]:[&_button]:w-full',
+    'lms-question-utility-row flex flex-wrap items-center justify-end gap-2.5 border-t border-line-soft pt-3 max-[640px]:justify-end max-[520px]:grid max-[520px]:grid-cols-1 max-[520px]:justify-items-end',
 };
 
-const reviewSecondaryButtonClass =
+export const reviewSecondaryButtonClass =
   'lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center gap-2 rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-center text-sm font-bold leading-tight text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/28 hover:bg-brand-primary/8 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
-const reviewPrimaryButtonClass =
+export const reviewPrimaryButtonClass =
   'lms-assessment-btn lms-assessment-btn--primary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center rounded-xl border border-brand-primary/30 bg-[var(--color-primary-light)] px-[18px] text-center text-sm font-bold leading-tight text-brand-primary shadow-none transition-[background,border-color,opacity] duration-150 hover:bg-brand-primary/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
 
 const summaryTileToneClass = {
@@ -552,7 +552,6 @@ export function ReviewWorkspace({
     : cx(reviewUi.shell, reviewUi.shellThree);
   const questionNavigation = (
     <nav className={reviewUi.questionNav} aria-label="Review question navigation">
-      <span className={reviewUi.position}>Question {activeIndex + 1} / {safeQuestions.length}</span>
       <div className={reviewUi.questionNavActions}>
         <button className={reviewSecondaryButtonClass}
           type="button"

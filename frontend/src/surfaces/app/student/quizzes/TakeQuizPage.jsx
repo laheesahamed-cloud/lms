@@ -9,19 +9,11 @@ import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { TheoryRecapPopupTrigger, hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/QuickTheoryRecap.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel } from './quizLabels.js';
-import { ImpactStyle, nativeImpact, nativeSuccess } from '../../../../shared/utils/nativeHaptics.js';
+import { reviewPrimaryButtonClass, reviewSecondaryButtonClass } from '../results/ReviewWorkspace.jsx';
+import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
+import { detectPlatform } from '../../../../shared/platform/detect.js';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-const PRACTICE_CELEBRATION_CONFETTI = Array.from({ length: 56 }, (_, index) => ({
-  id: index,
-  x: `${(index * 37) % 112 - 6}%`,
-  delay: `${index * 14}ms`,
-  drift: `${((index % 13) - 6) * 9}px`,
-  rotA: `${index * 23}deg`,
-  rotB: `${index * 61}deg`,
-  size: `${5 + (index % 4)}px`,
-  tone: index % 6,
-}));
 
 function normalizeCorrectValue(option) {
   const raw = option?.isCorrect ?? option?.is_correct ?? option?.correct;
@@ -141,7 +133,7 @@ const examLayoutClass = 'lms-exam-layout mx-auto grid w-full max-w-[1560px] gap-
 const practiceQuizScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page dashboard-page study-hub-page lms-review-page practice-review-page`;
 const practiceQuizLayoutClass = 'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]';
 const practiceQuizWorkspaceClass =
-  'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
+  'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1199px]:grid-cols-1';
 const practiceQuizSidebarClass =
   'lms-review-sidebar sticky top-6 grid max-h-[calc(100dvh-48px)] gap-3.5 overflow-hidden max-[900px]:static max-[900px]:max-h-none max-[900px]:overflow-visible';
 const practiceQuizMainClass = 'lms-review-main min-w-0';
@@ -173,11 +165,9 @@ const practiceQuizQuestionNavClass =
   'lms-review-question-nav grid gap-3 rounded-[18px] border border-line-soft bg-surface-2 p-3.5 shadow-none max-[640px]:rounded-2xl max-[640px]:p-3';
 const practiceQuizQuestionNavActionsClass =
   'lms-quiz-action-grid grid grid-cols-[minmax(112px,0.72fr)_minmax(0,1.35fr)_minmax(122px,0.86fr)] items-center gap-2.5 max-[820px]:grid-cols-2 max-[640px]:grid-cols-1';
-const quizActionHeaderClass = 'lms-quiz-action-header flex items-center justify-between gap-3 text-xs font-extrabold text-ink-soft';
-const quizActionStartGroupClass = 'lms-quiz-action-start flex min-w-0 items-center justify-start gap-2 max-[820px]:order-1';
-const quizActionReviewGroupClass = 'lms-quiz-action-review flex min-w-0 flex-wrap items-center justify-center gap-2 max-[820px]:order-3 max-[820px]:col-span-2 max-[820px]:justify-start max-[640px]:col-span-1 max-[640px]:[&_button]:flex-1';
+const quizActionStartGroupClass = 'lms-quiz-action-start flex min-w-0 items-center justify-end gap-2 max-[820px]:order-1';
+const quizActionReviewGroupClass = 'lms-quiz-action-review flex min-w-0 flex-wrap items-center justify-end gap-2 max-[820px]:order-3 max-[820px]:col-span-2 max-[820px]:justify-end max-[640px]:col-span-1';
 const quizActionPrimaryGroupClass = 'lms-quiz-action-primary flex min-w-0 items-center justify-end gap-2 max-[820px]:order-2 max-[640px]:justify-stretch max-[640px]:[&_button]:w-full';
-const practiceQuizPositionClass = 'text-xs font-extrabold text-ink-soft';
 const practiceQuizOptionsGridClass = 'lms-review-options-grid grid gap-3 max-[640px]:gap-2.5';
 const practiceQuizOptionToplineClass = 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start';
 const practiceQuizOptionLeadClass = 'flex min-w-0 flex-auto items-start gap-2';
@@ -203,10 +193,6 @@ const practiceQuizTfTrueActiveClass = '!border-[color-mix(in_srgb,var(--sa-ok)_3
 const practiceQuizTfFalseActiveClass = '!border-[color-mix(in_srgb,var(--sa-danger)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
 const practiceQuizTfChoiceCorrectClass = '!border-[color-mix(in_srgb,var(--sa-ok)_34%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_14%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_20%,var(--sa-surface))] dark:!text-emerald-100';
 const practiceQuizTfChoiceWrongClass = '!border-[color-mix(in_srgb,var(--sa-danger)_34%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
-const practiceQuizSecondaryButtonClass =
-  'lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-sm font-bold text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
-const practiceQuizPrimaryButtonClass =
-  'lms-assessment-btn lms-assessment-btn--primary inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-brand-primary/30 bg-[var(--color-primary-light)] px-[18px] text-sm font-bold text-brand-primary shadow-none transition-colors hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
 const examThemeLightVars = {
   '--exam-shell-bg': 'radial-gradient(circle at top left, rgba(59,130,246,0.10), transparent 24%), radial-gradient(circle at top right, rgba(124,58,237,0.08), transparent 20%), linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,247,255,0.95))',
   '--exam-card-bg': 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(246,249,255,0.92))',
@@ -319,7 +305,7 @@ const examHeaderIconClass = 'inline-grid place-items-center text-ink-soft';
 const examHeaderEndClass =
   'min-h-9 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold text-[var(--exam-end-text)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60';
 const practiceHeaderEndClass = 'border-brand-primary/22 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200';
-const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(220px,280px)_minmax(0,1120px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
+const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(220px,280px)_minmax(0,1120px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
 const examSidebarClass = 'lms-exam-sidebar grid gap-[18px]';
 const examPanelClass =
   'border border-[var(--exam-card-border)] bg-[var(--exam-card-bg)] p-[18px] shadow-[var(--exam-card-shadow)]';
@@ -413,10 +399,6 @@ const quizUnifiedAnswerCardClass =
   'lms-answer-card group/answer relative grid cursor-pointer touch-manipulation gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,box-shadow,transform] duration-150 ease-out hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.997] focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
 const quizUnifiedAnswerSelectedClass =
   'is-selected border-[color-mix(in_srgb,var(--color-primary)_38%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_7%,var(--surface-1)),color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent),0_12px_28px_-24px_color-mix(in_srgb,var(--color-primary)_38%,transparent)]';
-const quizUnifiedFooterButtonClass =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--sa-border)] bg-[var(--sa-surface)] px-[18px] text-sm font-bold text-[var(--sa-ink)] shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
-const quizUnifiedPrimaryFooterButtonClass =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-brand-primary/30 bg-[var(--color-primary-light)] px-[18px] text-sm font-bold text-brand-primary shadow-none transition-colors hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
 const quizReviewOptionToplineClass = 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start';
 const quizReviewOptionLeadClass = 'flex min-w-0 flex-auto items-start gap-2';
 const quizReviewOptionTextClass = 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15px] font-medium leading-[1.48] text-ink-strong max-[640px]:text-sm max-[640px]:leading-[1.45]';
@@ -881,51 +863,43 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
   );
 }
 
+function playNativeCompletionBell() {
+  if (typeof window === 'undefined') return;
 
-function PracticeCelebrationOverlay({ quizTitle }) {
-  return (
-    <div className="practice-celebration" role="status" aria-live="polite" aria-label="Practice complete">
-      <div className="practice-celebration__wash" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="practice-celebration__confetti" aria-hidden="true">
-        {PRACTICE_CELEBRATION_CONFETTI.map((item) => (
-          <i
-            key={item.id}
-            className={`practice-celebration__piece practice-celebration__piece--${item.tone}`}
-            style={{
-              '--pc-x': item.x,
-              '--pc-delay': item.delay,
-              '--pc-drift': item.drift,
-              '--pc-rot-a': item.rotA,
-              '--pc-rot-b': item.rotB,
-              '--pc-size': item.size,
-            }}
-          />
-        ))}
-      </div>
-      <section className="practice-celebration__center">
-        <span className="practice-celebration__mark" aria-hidden="true">
-          <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-            <path d="M8.5 17.8 14 23.2 25.8 10.8" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-        <p className="practice-celebration__kicker">Congratulations</p>
-        <h2>Finally, we finished.</h2>
-        {quizTitle ? <small>{quizTitle}</small> : null}
-      </section>
-    </div>
-  );
-}
+  const platform = detectPlatform();
+  if (!platform.isNative || (!platform.isPhone && !platform.isTablet)) return;
 
-function wait(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) return;
 
-async function runPracticeCelebrationHaptics() {
-  await nativeSuccess();
+  try {
+    const audioContext = new AudioContextCtor();
+    const now = audioContext.currentTime;
+    const masterGain = audioContext.createGain();
+    masterGain.gain.setValueAtTime(0.0001, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.16, now + 0.018);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.72);
+    masterGain.connect(audioContext.destination);
+
+    [659.25, 987.77].forEach((frequency, index) => {
+      const oscillator = audioContext.createOscillator();
+      const toneGain = audioContext.createGain();
+      const startAt = now + index * 0.055;
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, startAt);
+      toneGain.gain.setValueAtTime(index === 0 ? 0.82 : 0.54, startAt);
+      oscillator.connect(toneGain);
+      toneGain.connect(masterGain);
+      oscillator.start(startAt);
+      oscillator.stop(now + 0.62 + index * 0.04);
+    });
+
+    window.setTimeout(() => {
+      audioContext.close?.().catch(() => {});
+    }, 900);
+  } catch {
+    // Native sound is a nice-to-have; never block quiz completion.
+  }
 }
 
 export function TakeQuizPage() {
@@ -950,7 +924,7 @@ export function TakeQuizPage() {
   const [secondsRemaining, setSecondsRemaining] = useState(null);
   const [hasAutoSubmitted, setHasAutoSubmitted] = useState(false);
   const [confirmExamSubmitOpen, setConfirmExamSubmitOpen] = useState(false);
-  const [practiceCelebrating, setPracticeCelebrating] = useState(false);
+  const [practiceCompleting, setPracticeCompleting] = useState(false);
   const [questionActionBusy, setQuestionActionBusy] = useState(false);
   const questionContentRef = useRef(null);
   const hasSkippedInitialPracticeScrollRef = useRef(false);
@@ -1127,17 +1101,17 @@ export function TakeQuizPage() {
   }
 
   async function finishPractice() {
-    if (practiceCelebrating) return;
+    if (practiceCompleting) return;
     setError('');
+    setPracticeCompleting(true);
+    playNativeCompletionBell();
     if (data?.mode === 'practice') {
       const saved = await practiceSave(currentIndex);
-      if (!saved) return;
+      if (!saved) {
+        setPracticeCompleting(false);
+        return;
+      }
     }
-    setPracticeCelebrating(true);
-    await Promise.all([
-      runPracticeCelebrationHaptics(),
-      wait(850),
-    ]);
     navigate(`/quizzes/${quizId}/practice-review?complete=1`);
   }
 
@@ -1287,7 +1261,7 @@ export function TakeQuizPage() {
             secondaryLabel="Mode"
             secondaryValue="Practice"
             onEndSession={finishPractice}
-            saving={saving || practiceCelebrating || questionActionBusy}
+            saving={saving || practiceCompleting || questionActionBusy}
             theme={theme}
             workspaceLabel=""
             endLabel="Finish"
@@ -1530,14 +1504,10 @@ export function TakeQuizPage() {
 
 
                 <nav className={practiceQuizQuestionNavClass} aria-label="Practice question actions">
-                  <div className={quizActionHeaderClass}>
-                    <span className={practiceQuizPositionClass}>Question {currentIndex + 1} / {totalQuestions}</span>
-                    <span>{currentQuestionAnswered ? 'Answered' : 'Choose an answer'}</span>
-                  </div>
                   <div className={practiceQuizQuestionNavActionsClass}>
                     <div className={quizActionStartGroupClass}>
                       <button
-                        className={practiceQuizSecondaryButtonClass}
+                        className={reviewSecondaryButtonClass}
                         type="button"
                         onClick={() => goTo(currentIndex - 1)}
                         disabled={currentIndex === 0 || saving}
@@ -1548,7 +1518,7 @@ export function TakeQuizPage() {
 
                     <div className={quizActionReviewGroupClass}>
                       <button
-                        className={practiceQuizSecondaryButtonClass}
+                        className={reviewSecondaryButtonClass}
                         type="button"
                         onClick={revealCurrentAnswer}
                         disabled={currentQuestionRevealed || !currentQuestionCanReveal}
@@ -1560,21 +1530,21 @@ export function TakeQuizPage() {
                     <div className={quizActionPrimaryGroupClass}>
                       {currentIndex < totalQuestions - 1 ? (
                         <button
-                          className={practiceQuizPrimaryButtonClass}
+                          className={reviewPrimaryButtonClass}
                           type="button"
                           onClick={() => goTo(currentIndex + 1)}
-                          disabled={saving || practiceCelebrating}
+                          disabled={saving || practiceCompleting}
                         >
                           {saving ? 'Saving...' : 'Next'}
                         </button>
                       ) : (
                         <button
-                          className={practiceQuizPrimaryButtonClass}
+                          className={reviewPrimaryButtonClass}
                           type="button"
                           onClick={finishPractice}
-                          disabled={saving || practiceCelebrating}
+                          disabled={saving || practiceCompleting}
                         >
-                          Finish practice
+                          {practiceCompleting ? 'Submitting...' : 'Finish practice'}
                         </button>
                       )}
                     </div>
@@ -1583,7 +1553,7 @@ export function TakeQuizPage() {
                 <QuestionUtilityActions
                   bookmarked={currentQuestionBookmarked}
                   flagged={currentQuestionFlagged}
-                  busy={questionActionBusy || saving || practiceCelebrating}
+                  busy={questionActionBusy || saving || practiceCompleting}
                   onFlag={toggleFlagCurrentQuestion}
                   onBookmark={toggleBookmarkCurrentQuestion}
                   onReport={reportCurrentQuestion}
@@ -1598,8 +1568,6 @@ export function TakeQuizPage() {
               />
             </aside>
           </section>
-
-          {practiceCelebrating ? <PracticeCelebrationOverlay quizTitle={data?.quiz?.quizTitle} /> : null}
         </section>
       </main>
     );
@@ -1758,15 +1726,10 @@ export function TakeQuizPage() {
             </div>
 
             <div className={examMainFooterClass}>
-              <div className={quizActionHeaderClass}>
-                <span className={practiceQuizPositionClass}>Question {currentIndex + 1} / {totalQuestions}</span>
-                <span>{saving ? 'Saving...' : 'Ready'}</span>
-              </div>
-
               <div className={examMainFooterActionsClass}>
                 <div className={examMainFooterLeftClass}>
                   <button
-                    className={cx(quizUnifiedFooterButtonClass)}
+                    className={cx(reviewSecondaryButtonClass)}
                     type="button"
                     onClick={() => goTo(currentIndex - 1)}
                     disabled={currentIndex === 0 || saving}
@@ -1777,7 +1740,7 @@ export function TakeQuizPage() {
 
                 <div className={examMainFooterRightClass}>
                   <button
-                    className={cx(quizUnifiedPrimaryFooterButtonClass, examFooterNextClass)}
+                    className={cx(reviewPrimaryButtonClass, examFooterNextClass)}
                     type="button"
                     onClick={currentIndex < totalQuestions - 1 ? () => goTo(currentIndex + 1) : requestExamSubmit}
                     disabled={saving}

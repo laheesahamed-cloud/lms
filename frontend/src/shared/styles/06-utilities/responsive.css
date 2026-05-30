@@ -160,8 +160,7 @@
   .lms-exam-sidebar > section,
   .lms-exam-explainer > section,
   .lms-review-question-card,
-  .lms-review-sidebar,
-  .lms-review-question-nav
+  .lms-review-sidebar
 ) {
   box-sizing: border-box !important;
   min-width: 0 !important;
@@ -186,8 +185,7 @@
   .lms-quiz-set-card,
   .lms-map-hierarchy-guide,
   .lms-review-question-card,
-  .lms-review-sidebar,
-  .lms-review-question-nav
+  .lms-review-sidebar
 ) {
   border-color: var(--lms-app-card-border, var(--line-soft)) !important;
   background: var(--lms-app-list-card-bg, var(--surface-card)) !important;
@@ -266,7 +264,6 @@ html[data-lms-runtime='native'] {
   .lms-reading-incorrect,
   .lms-reading-incorrect p,
   .lms-review-options-grid,
-  .lms-review-question-nav,
   .lms-review-bubble-nav,
   .lms-review-main,
   .lms-review-sidebar
@@ -320,8 +317,7 @@ html[data-lms-runtime='native'] {
     .lms-exam-sidebar > section,
     .lms-exam-explainer > section,
     .lms-review-question-card,
-    .lms-review-sidebar,
-    .lms-review-question-nav
+    .lms-review-sidebar
   ) {
     border-width: 1px !important;
     border-radius: 18px !important;

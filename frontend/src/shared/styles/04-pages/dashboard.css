@@ -218,7 +218,7 @@
 .study-action-card,
 .study-error-card,
 .study-loading-card {
-  border: 1px solid rgba(var(--sa-primary-rgb), 0.11);
+  border: 0;
   border-radius: 20px;
   background: var(--sa-surface);
   box-shadow: var(--sa-shadow-card);
@@ -232,12 +232,11 @@
 .student-app-shell[data-theme="dark"] .study-action-card,
 .student-app-shell[data-theme="dark"] .study-error-card,
 .student-app-shell[data-theme="dark"] .study-loading-card {
-  border-color: rgba(203, 213, 225, 0.13);
+  border-color: transparent;
   background:
     linear-gradient(145deg, rgba(22, 34, 46, 0.92), rgba(18, 28, 38, 0.94)),
     var(--sa-surface);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.025) inset,
     0 18px 42px -34px rgba(2, 6, 12, 0.62);
 }
 
@@ -256,13 +255,13 @@
     radial-gradient(circle at 88% 14%, rgba(96, 165, 250, 0.2), transparent 34%),
     radial-gradient(circle at 98% 92%, rgba(109, 53, 223, 0.14), transparent 45%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(234, 243, 255, 0.9));
-  border: 1px solid rgba(52, 214, 255, 0.16);
+  border: 0;
   box-shadow: none;
 }
 
 :root[data-theme="dark"] .study-continue-card,
 .student-app-shell[data-theme="dark"] .study-continue-card {
-  border: 1px solid rgba(52, 214, 255, 0.16);
+  border: 0;
   background:
     radial-gradient(circle at 84% 12%, rgba(56, 189, 248, 0.18), transparent 34%),
     radial-gradient(circle at 100% 92%, rgba(109, 53, 223, 0.22), transparent 48%),
@@ -680,24 +679,21 @@
   padding: 18px 20px 14px;
   border-radius: 16px;
   /* Light mode — pastel orange wash to match the warmer dark-mode streak card */
-  border: 1px solid #f5d9a8;
+  border: 0;
   background:
     radial-gradient(circle at 16% 12%, rgba(240, 138, 44, 0.16), transparent 34%),
     linear-gradient(135deg, #fff6e9 0%, #ffe4c2 100%);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 0 0 1px rgba(240, 138, 44, 0.08),
     0 14px 34px -18px rgba(240, 138, 44, 0.34);
 }
 
 :root[data-theme="dark"] .study-streak-card,
 .student-app-shell[data-theme="dark"] .study-streak-card {
-  border: 1px solid rgba(240, 138, 44, 0.18);
+  border: 0;
   background:
     radial-gradient(circle at 14% 10%, rgba(240, 138, 44, 0.13), transparent 36%),
     linear-gradient(145deg, rgba(240, 138, 44, 0.07) 0%, rgba(230, 107, 31, 0.1) 100%);
   box-shadow:
-    0 0 0 1px rgba(240, 138, 44, 0.055),
     0 14px 34px -18px rgba(240, 138, 44, 0.28);
 }
 
@@ -1028,19 +1024,17 @@
   border-radius: var(--sa-radius-xl);
   color: #fff;
   /* Light mode default — vivid blue gradient, white text reads cleanly */
-  border: 1px solid rgba(37, 99, 235, 0.28);
+  border: 0;
   background: linear-gradient(140deg, #2563eb 0%, #3b82f6 50%, #1d4ed8 100%);
   box-shadow:
-    0 0 0 1px rgba(37, 99, 235, 0.14),
     0 18px 40px -14px rgba(37, 99, 235, 0.42);
 }
 
 :root[data-theme="dark"] .study-readiness-card,
 .student-app-shell[data-theme="dark"] .study-readiness-card {
-  border-color: rgba(56,189,248,.18);
+  border: 0;
   background: linear-gradient(140deg, #0c1c3e 0%, #0a1530 60%, #081024 100%);
   box-shadow:
-    0 0 0 1px rgba(56,189,248,.08),
     0 24px 48px -12px rgba(0,0,0,.65);
 }
 
@@ -1195,7 +1189,7 @@
   overflow: hidden;
   padding: 16px;
   border-radius: var(--sa-radius-xl);
-  border-color: rgba(var(--sa-primary-rgb), 0.16);
+  border: 0;
   background:
     radial-gradient(circle at 92% 0%, rgba(var(--sa-primary-rgb), 0.14), transparent 34%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.94), var(--sa-surface));
@@ -1353,7 +1347,7 @@
 
 :root[data-theme="dark"] .study-plan-card,
 .student-app-shell[data-theme="dark"] .study-plan-card {
-  border-color: rgba(122, 183, 255, 0.12);
+  border: 0;
   background:
     radial-gradient(circle at 92% 0%, rgba(96, 165, 250, 0.16), transparent 36%),
     var(--sa-surface);
@@ -1373,7 +1367,7 @@
   min-height: 66px;
   padding: 12px 14px;
   border-radius: 16px;
-  border-color: rgba(var(--sa-primary-rgb), 0.16);
+  border: 0;
   background: var(--sa-surface);
   box-shadow: var(--sa-shadow-card);
 }
@@ -1442,7 +1436,7 @@
 
 :root[data-theme="dark"] .study-todo-card,
 .student-app-shell[data-theme="dark"] .study-todo-card {
-  border-color: rgba(122, 183, 255, 0.12);
+  border: 0;
   background: var(--sa-surface);
 }
 
@@ -1457,7 +1451,7 @@
   margin-top: 10px;
   overflow: hidden;
   padding: 10px 12px;
-  border: 1px solid rgba(var(--sa-primary-rgb), 0.12);
+  border: 0;
   border-radius: 16px;
   background: rgba(var(--sa-surface-rgb), 0.78);
   box-shadow: none;
@@ -1539,7 +1533,7 @@
 
 :root[data-theme="dark"] .study-level-summary,
 .student-app-shell[data-theme="dark"] .study-level-summary {
-  border-color: rgba(148, 163, 184, 0.13);
+  border: 0;
   background: var(--sa-card-bg);
   box-shadow: var(--sa-shadow-card);
 }
@@ -1566,7 +1560,7 @@
   overflow: hidden;
   padding: 18px;
   border-radius: 16px;
-  border-color: rgba(var(--sa-primary-rgb), 0.16);
+  border: 0;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.92), var(--sa-surface)),
     var(--sa-surface);
@@ -1695,7 +1689,7 @@
   overflow: hidden;
   cursor: pointer;
   text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 0;
   border-radius: 18px;
   background: #365fe8;
   box-shadow: none;
@@ -2750,7 +2744,7 @@
 .study-continue-card {
   transition:
     transform  260ms cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .study-continue-card:hover {
@@ -2956,7 +2950,7 @@
 .student-app-shell .dashboard-page .study-action-grid > .study-action-card,
 :root[data-theme="dark"] .dashboard-page .study-action-grid > .study-action-card,
 :root[data-theme="dark"] .student-app-shell .dashboard-page .study-action-grid > .study-action-card {
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: 0 !important;
   background: #365fe8 !important;
   box-shadow: none !important;
 }
@@ -3075,7 +3069,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --sa-warn-soft: rgba(245, 158, 11, 0.16);
   --sa-warn-deep: #fbbf24;
   --sa-warn-rgb: 245, 158, 11;
-  --sa-shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 18px 44px -30px rgba(2, 6, 12, 0.64);
+  --sa-shadow-card: 0 18px 44px -30px rgba(2, 6, 12, 0.64);
   background: var(--sa-bg) !important;
   color: var(--sa-ink);
 }
@@ -3125,14 +3119,13 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   min-height: 286px;
   height: auto;
   padding: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 0;
   border-radius: 24px;
   background:
     radial-gradient(circle at 86% 22%, rgba(96, 165, 250, 0.22), transparent 34%),
     radial-gradient(circle at 96% 92%, rgba(124, 58, 237, 0.22), transparent 42%),
     var(--sa-card-bg);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.055),
     0 22px 54px -36px rgba(3, 9, 20, 0.78);
 }
 
@@ -3193,13 +3186,12 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-continue-card,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-continue-card {
-  border-color: rgba(96, 165, 250, 0.18);
+  border-color: transparent;
   background:
     radial-gradient(circle at 84% 18%, rgba(96, 165, 250, 0.2), transparent 34%),
     radial-gradient(circle at 96% 92%, rgba(167, 139, 250, 0.16), transparent 42%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(236, 245, 255, 0.92) 100%);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.72) inset,
     0 18px 42px -30px rgba(59, 130, 246, 0.34);
 }
 
@@ -3245,7 +3237,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   height: 74px;
   min-height: 66px;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 0;
   border-radius: 18px;
   padding: 9px;
   background:
@@ -3341,14 +3333,13 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   min-height: 170px;
   margin-top: 16px;
   padding: 16px;
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  border: 0;
   border-radius: 22px;
   background:
     radial-gradient(circle at 12% 8%, rgba(245, 158, 11, 0.16), transparent 36%),
     linear-gradient(145deg, rgba(44, 38, 32, 0.56), rgba(25, 38, 54, 0.78)),
     var(--sa-card-bg);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
     0 22px 54px -36px rgba(245, 158, 11, 0.34);
 }
 
@@ -3452,13 +3443,12 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-streak-card,
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-streak-card {
-  border-color: rgba(96, 165, 250, 0.18);
+  border-color: transparent;
   background:
     radial-gradient(circle at 12% 8%, rgba(245, 158, 11, 0.14), transparent 36%),
     radial-gradient(circle at 92% 0%, rgba(96, 165, 250, 0.13), transparent 44%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(238, 246, 255, 0.92));
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.72) inset,
     0 18px 42px -30px rgba(59, 130, 246, 0.28);
 }
 
@@ -3571,11 +3561,10 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   justify-items: start !important;
   min-height: 48px !important;
   padding: 7px 8px !important;
-  border: 1px solid rgba(96, 165, 250, 0.18) !important;
+  border: 0 !important;
   border-radius: 16px !important;
   background: var(--sa-soft-tile-bg) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
     0 16px 34px -28px rgba(3, 9, 20, 0.74) !important;
   scroll-snap-align: start;
   text-align: left !important;
@@ -3644,7 +3633,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 .study-hub-page .study-todo-card,
 .study-hub-page .study-mood-card,
 .study-hub-page .study-question-card {
-  border-color: rgba(148, 163, 184, 0.14);
+  border: 0;
   background: var(--sa-card-bg);
 }
 
@@ -3811,7 +3800,7 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
 }
 
 .study-hub-page .study-plan-card {
-  border-color: rgba(148, 163, 184, 0.14);
+  border: 0;
   background:
     radial-gradient(circle at 92% 0%, rgba(96, 165, 250, 0.14), transparent 34%),
     var(--sa-card-bg);
