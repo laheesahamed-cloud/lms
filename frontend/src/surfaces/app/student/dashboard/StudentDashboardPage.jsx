@@ -1045,8 +1045,16 @@ export function StudentDashboardPage() {
       <main className="dashboard-page study-hub-page">
         <div className="study-hub-shell">
           <div className="study-loading-card">
-            <span className="study-loader" />
-            <p>Loading your study hub...</p>
+            <div className="grid w-full max-w-[760px] gap-4" aria-hidden="true">
+              <span className="skeleton-pulse h-6 w-44 rounded-full" />
+              <span className="skeleton-pulse h-24 rounded-[18px]" />
+              <div className="grid grid-cols-3 gap-3 max-[720px]:grid-cols-1">
+                <span className="skeleton-pulse h-24 rounded-[18px]" />
+                <span className="skeleton-pulse h-24 rounded-[18px]" />
+                <span className="skeleton-pulse h-24 rounded-[18px]" />
+              </div>
+              <span className="skeleton-pulse h-32 rounded-[18px]" />
+            </div>
           </div>
         </div>
       </main>

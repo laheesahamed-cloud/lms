@@ -2248,21 +2248,6 @@
   text-align: center;
 }
 
-.study-loading-card p {
-  margin: 14px 0 0;
-  color: var(--sa-text-2);
-  font-weight: 850;
-}
-
-.study-loader {
-  width: 42px;
-  height: 42px;
-  border: 4px solid rgba(56, 189, 248, 0.14);
-  border-top-color: var(--sa-primary);
-  border-radius: 999px;
-  animation: study-spin 880ms linear infinite;
-}
-
 .study-error-card { gap: 14px; }
 
 .study-error-card h1 {
@@ -2540,8 +2525,6 @@
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .study-loader { animation: none; }
-
   .study-icon-button,
   .study-button,
   .study-square-action,
