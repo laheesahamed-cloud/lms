@@ -13,11 +13,6 @@ function isNativeRuntime() {
   return document.documentElement.dataset.lmsRuntime === 'native';
 }
 
-function removeStaticBootScreen() {
-  if (typeof document === 'undefined') return;
-  document.getElementById('lms-static-boot')?.remove();
-}
-
 export function BootLoader() {
   const [exiting, setExiting] = useState(false);
   const [mounted, setMounted] = useState(true);
@@ -27,8 +22,8 @@ export function BootLoader() {
     if (typeof document === 'undefined') return undefined;
 
     const native = isNativeRuntime();
-    const minBootMs = native ? 3000 : 720;
-    const maxBootMs = native ? 5200 : 1900;
+    const minBootMs = native ? 2400 : 2000;
+    const maxBootMs = native ? 3200 : 2800;
     const startedAt = performance.now();
     let done = false;
     let minTimeDone = false;
@@ -40,7 +35,6 @@ export function BootLoader() {
     window.__lmsBootComplete = false;
     document.body.classList.add('app-booting');
     document.body.classList.remove('app-ready');
-    removeStaticBootScreen();
 
     function finishBoot() {
       if (done) return;
@@ -79,7 +73,7 @@ export function BootLoader() {
       document.addEventListener('lms:route-ready', handleRouteReady);
     }
 
-    const stepGap = native ? 600 : 160;
+    const stepGap = native ? 480 : 400;
     timers.push(window.setTimeout(() => setStep(1), stepGap));
     timers.push(window.setTimeout(() => setStep(2), stepGap * 2));
     timers.push(window.setTimeout(() => setStep(3), stepGap * 3));
@@ -139,7 +133,7 @@ export function BootLoader() {
         )}
 
         <div className="abl-brand-wrap">
-          <div className="abl-brand-text">ERPM LMS</div>
+          <div className="abl-brand-text">xyndrome</div>
         </div>
 
         {!native ? <p className="abl-tagline">Your Medical Exam Companion</p> : null}

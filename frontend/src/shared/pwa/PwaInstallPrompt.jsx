@@ -152,11 +152,11 @@ export function PwaInstallPrompt() {
 
     try {
       await navigator.share({
-        title: 'Install ERPM LMS',
-        text: 'Install ERPM LMS as your dedicated study app.',
+        title: 'Install xyndrome',
+        text: 'Install xyndrome as your dedicated study app.',
         url: window.location.href,
       });
-      setShareStatus('If the share sheet is still open, choose Add to Home Screen to finish installing ERPM LMS.');
+      setShareStatus('If the share sheet is still open, choose Add to Home Screen to finish installing xyndrome.');
     } catch (error) {
       if (error?.name !== 'AbortError') {
         setShareStatus('Safari blocked the share sheet. Use the Share button shown above, then choose Add to Home Screen.');
@@ -171,18 +171,18 @@ export function PwaInstallPrompt() {
   const commands = surface === 'ios'
     ? [
         ['01', 'Tap the Share button', 'Use the square-with-arrow button in Safari’s bottom toolbar.'],
-        ['02', 'Choose Add to Home Screen', 'Safari names the system command this way, but it creates the ERPM LMS app icon.'],
-        ['03', 'Launch ERPM LMS from the icon', 'It opens as a clean app window without the normal browser chrome.'],
+        ['02', 'Choose Add to Home Screen', 'Safari names the system command this way, but it creates the xyndrome app icon.'],
+        ['03', 'Launch xyndrome from the icon', 'It opens as a clean app window without the normal browser chrome.'],
       ]
     : [
-        ['01', 'Run Install ERPM LMS', deferredPrompt ? 'Press the button again and confirm the browser install prompt.' : 'Open the browser menu and choose Install app.'],
-        ['02', 'Pin it to your device', 'Keep ERPM LMS next to your study tools for one-tap launch.'],
+        ['01', 'Run Install xyndrome', deferredPrompt ? 'Press the button again and confirm the browser install prompt.' : 'Open the browser menu and choose Install app.'],
+        ['02', 'Pin it to your device', 'Keep xyndrome next to your study tools for one-tap launch.'],
         ['03', 'Study in app mode', 'The LMS opens like an application, not a saved webpage or bookmark.'],
       ];
 
   return (
     <>
-      <button type="button" className={installUi.button} onClick={handleInstallClick} aria-label="Install ERPM LMS app">
+      <button type="button" className={installUi.button} onClick={handleInstallClick} aria-label="Install xyndrome app">
         <InstallIcon />
         <span>Install App</span>
       </button>
@@ -194,7 +194,7 @@ export function PwaInstallPrompt() {
               <div className="flex min-w-0 gap-3">
                 <span className={installUi.mark}><InstallIcon /></span>
                 <div>
-                  <h2 id="pwa-install-title" className={installUi.title}>Install ERPM LMS</h2>
+                  <h2 id="pwa-install-title" className={installUi.title}>Install xyndrome</h2>
                   <p className={installUi.text}>Create a dedicated study app on this device, with faster launch and offline shell support.</p>
                 </div>
               </div>
@@ -244,7 +244,7 @@ export function PwaInstallPrompt() {
             </div>
 
             <div className={installUi.premiumNote}>
-              This is an app install command for ERPM LMS. It is not a bookmark workflow; Safari only controls the final system confirmation.
+              This is an app install command for xyndrome. It is not a bookmark workflow; Safari only controls the final system confirmation.
             </div>
 
             {shareStatus ? (

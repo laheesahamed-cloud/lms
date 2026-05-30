@@ -209,7 +209,7 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         let badge = UILabel()
-        badge.text = "ERPM LMS"
+        badge.text = "xyndrome"
         badge.font = UIFont.systemFont(ofSize: 13, weight: .bold)
         badge.textColor = UIColor(red: 0.733, green: 0.925, blue: 1.0, alpha: 1)
         badge.textAlignment = .center
@@ -221,7 +221,7 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         title.textAlignment = .center
 
         let message = UILabel()
-        message.text = "This quiz or note is protected. Please study inside the ERPM Medical LMS app instead of saving questions or notes."
+        message.text = "This quiz or note is protected. Please study inside the xyndrome app instead of saving questions or notes."
         message.font = UIFont.systemFont(ofSize: 16, weight: .medium)
         message.textColor = UIColor(white: 1, alpha: 0.76)
         message.textAlignment = .center

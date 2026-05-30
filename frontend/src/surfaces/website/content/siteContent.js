@@ -1,5 +1,5 @@
 export const siteContent = {
-  siteName: 'ERPM LMS',
+  siteName: 'xyndrome',
   tagline: 'Future Doctor Learning OS',
   defaultPlanLabel: 'Clinical Momentum',
   whatsappContactUrl: 'https://wa.me/94771234567',

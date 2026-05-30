@@ -270,7 +270,7 @@ export function StudentCheckoutPage() {
                 <div>
                   <span className={ui.eyebrow}>Quick summary</span>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-extrabold text-ink-soft">
-                    <span className={ui.tablePill}>ERPM LMS</span>
+                    <span className={ui.tablePill}>xyndrome</span>
                     <span aria-hidden="true">/</span>
                     <span className={ui.tablePill}>{plan.name}</span>
                     <span aria-hidden="true">/</span>

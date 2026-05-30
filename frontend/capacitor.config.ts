@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.erpm.medical.lms',
-  appName: 'ERPM Medical LMS',
+  appName: 'xyndrome',
   webDir: 'dist-capacitor',
   bundledWebRuntime: false,
   server: {

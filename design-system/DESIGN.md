@@ -1,4 +1,4 @@
-# Design System: ERPM LMS — Medical Study Platform
+# Design System: xyndrome — Medical Study Platform
 
 > Generated for Google Stitch screen generation.
 > Single source of truth for all screen prompts.
@@ -316,4 +316,4 @@ These colors are applied as: icon fill, card border-left accent, tag background 
 
 ---
 
-*ERPM LMS Design System · Generated 2026-05-08 · Version 1.0*
+*xyndrome Design System · Generated 2026-05-08 · Version 1.0*

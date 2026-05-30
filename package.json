@@ -38,7 +38,7 @@
   "main": "desktop/main.cjs",
   "build": {
     "appId": "com.erpm.medical.lms",
-    "productName": "ERPM Medical LMS",
+    "productName": "xyndrome",
     "directories": {
       "output": "release"
     },

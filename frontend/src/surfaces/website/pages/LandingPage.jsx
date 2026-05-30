@@ -605,7 +605,7 @@ export function LandingPage() {
           </div>
 
           {/* hero cards */}
-          <div className={lpHeroCardsClass} data-reveal style={{'--reveal-delay':'0.14s'}} aria-label="ERPM LMS study workspace preview">
+          <div className={lpHeroCardsClass} data-reveal style={{'--reveal-delay':'0.14s'}} aria-label="xyndrome study workspace preview">
             <div className="col-span-full flex items-center justify-between gap-3 px-1 pb-0.5 max-[640px]:col-span-1">
               <div className="min-w-0">
                 <div className="text-[11px] font-black uppercase tracking-[0.08em] text-sky-300">Study command center</div>

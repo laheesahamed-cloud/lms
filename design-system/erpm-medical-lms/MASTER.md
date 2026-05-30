@@ -1,4 +1,4 @@
-# ERPM Medical LMS — Design System Master
+# xyndrome — Design System Master
 
 > **LOGIC:** When building a specific page, first check `design-system/erpm-medical-lms/pages/[page-name].md`.
 > If that file exists, its rules **override** this Master file.

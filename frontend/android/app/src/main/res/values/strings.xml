@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">ERPM Medical LMS</string>
-    <string name="title_activity_main">ERPM Medical LMS</string>
+    <string name="app_name">xyndrome</string>
+    <string name="title_activity_main">xyndrome</string>
     <string name="package_name">com.erpm.medical.lms</string>
     <string name="custom_url_scheme">com.erpm.medical.lms</string>
 </resources>

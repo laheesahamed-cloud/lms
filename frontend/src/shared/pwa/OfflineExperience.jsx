@@ -4,19 +4,19 @@ import { cx } from '../styles/tailwindClasses.js';
 const fallbackQuotes = [
   {
     quote: 'One page at a time, one patient at a time, one day at a time.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'You are not just studying medicine. You are preparing to carry hope into hard rooms.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'Every difficult topic you finish today becomes confidence at the bedside tomorrow.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'The facts you struggle with now may one day help you save a life.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
 ];
 
@@ -153,7 +153,7 @@ export function OfflineExperience({ forceVisible = false, previewClassName = '' 
           <span className={offlineUi.eyebrow}>Offline Study Mode</span>
           <h2 className="m-0 text-[clamp(22px,4vw,34px)] font-black leading-tight">Cached and ready while you are offline.</h2>
           <p>
-            ERPM LMS is holding your installed shell in cache memory. Stay steady, breathe, and keep your momentum.
+            xyndrome is holding your installed shell in cache memory. Stay steady, breathe, and keep your momentum.
           </p>
         </div>
 

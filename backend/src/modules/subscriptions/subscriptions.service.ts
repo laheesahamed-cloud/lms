@@ -982,14 +982,14 @@ export class SubscriptionsService {
         country,
         order_id: orderId,
         items: [
-          `${settings.checkoutTitle || 'ERPM LMS subscription'} - ${plan.name}`,
+          `${settings.checkoutTitle || 'xyndrome subscription'} - ${plan.name}`,
           checkoutInput.message ? `- ${String(checkoutInput.message).slice(0, 80)}` : '',
         ].filter(Boolean).join(' '),
         currency,
         amount: amountFormatted,
         custom_1: String(student.id),
         custom_2: String(plan.id),
-        platform: 'ERPM LMS',
+        platform: 'xyndrome',
         hash: this.generateCheckoutHash(settings.merchantId, orderId, amountFormatted, currency, settings.merchantSecret),
       },
     };

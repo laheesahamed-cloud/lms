@@ -12,7 +12,7 @@ const defaultForm = {
   returnUrl: '',
   cancelUrl: '',
   notifyUrl: '',
-  checkoutTitle: 'ERPM LMS subscription',
+  checkoutTitle: 'xyndrome subscription',
   buttonLabel: 'Pay with PayHere',
   supportText: 'Sandbox payments are simulated by PayHere and no real card will be charged.',
   autoActivatePaidSubscriptions: true,

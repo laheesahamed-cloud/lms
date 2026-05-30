@@ -237,7 +237,7 @@ function buildFinanceReportHtml({ filters, summary, subscriptions, requests, pla
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>ERPM LMS Finance Report</title>
+  <title>xyndrome Finance Report</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 28px; font-family: Inter, Arial, sans-serif; color: #111827; background: #fff; }
@@ -262,7 +262,7 @@ function buildFinanceReportHtml({ filters, summary, subscriptions, requests, pla
 </head>
 <body>
   <header>
-    <h1>ERPM LMS Finance Report</h1>
+    <h1>xyndrome Finance Report</h1>
     <p>${escapeHtml(filterText)}</p>
     <p>Generated ${escapeHtml(new Date().toLocaleString())}</p>
   </header>

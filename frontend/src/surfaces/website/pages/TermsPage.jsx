@@ -40,7 +40,7 @@ export function TermsPage() {
           <div className="flex min-w-0 items-center gap-3">
             <div className={ui.brandMark}>ER</div>
             <div>
-              <div className="font-display text-[17px] font-extrabold leading-tight text-ink-strong max-[640px]:text-[15px]">ERPM LMS</div>
+              <div className="font-display text-[17px] font-extrabold leading-tight text-ink-strong max-[640px]:text-[15px]">xyndrome</div>
               <div className="mt-0.5 text-[10.5px] font-bold uppercase tracking-[0.07em] text-ink-soft max-[640px]:text-[9.5px]">Terms and Conditions</div>
             </div>
           </div>
@@ -53,7 +53,7 @@ export function TermsPage() {
           <h1 className="mt-3 mb-4 font-display text-[28px] font-extrabold leading-tight text-ink-strong">Terms &amp; Conditions</h1>
           <p className="m-0 text-[14.5px] leading-[1.75] text-ink-soft">
             These terms keep the platform safe, respectful, and useful for students. By creating an account, you agree
-            to use ERPM LMS honestly and wait patiently while your access is reviewed by the admin.
+            to use xyndrome honestly and wait patiently while your access is reviewed by the admin.
             {' '}Read the <Link to="/privacy-policy" className="font-bold text-brand-primary no-underline">Privacy Policy</Link> to understand how student, subscription, and payment data is handled.
           </p>
 

@@ -235,7 +235,7 @@ export class SettingsService {
       notifyUrl: input.notifyUrl !== undefined ? this.normalizeOptionalValue(input.notifyUrl) : current.notifyUrl,
       checkoutTitle:
         input.checkoutTitle !== undefined
-          ? this.normalizeOptionalValue(input.checkoutTitle) || 'ERPM LMS subscription'
+          ? this.normalizeOptionalValue(input.checkoutTitle) || 'xyndrome subscription'
           : current.checkoutTitle,
       buttonLabel:
         input.buttonLabel !== undefined
@@ -278,12 +278,12 @@ export class SettingsService {
         input.password !== undefined
           ? this.normalizeSecretInput(input.password) || current.password
           : current.password,
-      fromName: input.fromName !== undefined ? this.normalizeOptionalValue(input.fromName) || 'ERPM LMS' : current.fromName,
+      fromName: input.fromName !== undefined ? this.normalizeOptionalValue(input.fromName) || 'xyndrome' : current.fromName,
       fromEmail: input.fromEmail !== undefined ? this.normalizeOptionalValue(input.fromEmail) : current.fromEmail,
       publicUrl: input.publicUrl !== undefined ? this.normalizeOptionalValue(input.publicUrl) : current.publicUrl,
       subject:
         input.subject !== undefined
-          ? this.normalizeOptionalValue(input.subject) || 'Reset your ERPM LMS password'
+          ? this.normalizeOptionalValue(input.subject) || 'Reset your xyndrome password'
           : current.subject,
       heading:
         input.heading !== undefined
@@ -291,7 +291,7 @@ export class SettingsService {
           : current.heading,
       intro:
         input.intro !== undefined
-          ? this.normalizeOptionalValue(input.intro) || 'We received a request to reset your ERPM LMS password.'
+          ? this.normalizeOptionalValue(input.intro) || 'We received a request to reset your xyndrome password.'
           : current.intro,
       buttonLabel:
         input.buttonLabel !== undefined
@@ -615,7 +615,7 @@ export class SettingsService {
       returnUrl: values.get(PAYMENT_SETTING_KEYS.returnUrl) || '',
       cancelUrl: values.get(PAYMENT_SETTING_KEYS.cancelUrl) || '',
       notifyUrl: values.get(PAYMENT_SETTING_KEYS.notifyUrl) || '',
-      checkoutTitle: values.get(PAYMENT_SETTING_KEYS.checkoutTitle) || 'ERPM LMS subscription',
+      checkoutTitle: values.get(PAYMENT_SETTING_KEYS.checkoutTitle) || 'xyndrome subscription',
       buttonLabel: values.get(PAYMENT_SETTING_KEYS.buttonLabel) || 'Pay with PayHere',
       supportText:
         values.get(PAYMENT_SETTING_KEYS.supportText) ||
@@ -637,12 +637,12 @@ export class SettingsService {
       security: values.get(SMTP_SETTING_KEYS.security) === 'ssl' ? 'ssl' : 'starttls',
       username: values.get(SMTP_SETTING_KEYS.username) || '',
       password: encryptedPassword ? this.decryptSecret(encryptedPassword) : '',
-      fromName: values.get(SMTP_SETTING_KEYS.fromName) || 'ERPM LMS',
+      fromName: values.get(SMTP_SETTING_KEYS.fromName) || 'xyndrome',
       fromEmail: values.get(SMTP_SETTING_KEYS.fromEmail) || '',
       publicUrl,
-      subject: values.get(SMTP_SETTING_KEYS.subject) || 'Reset your ERPM LMS password',
+      subject: values.get(SMTP_SETTING_KEYS.subject) || 'Reset your xyndrome password',
       heading: values.get(SMTP_SETTING_KEYS.heading) || 'Reset your password',
-      intro: values.get(SMTP_SETTING_KEYS.intro) || 'We received a request to reset your ERPM LMS password.',
+      intro: values.get(SMTP_SETTING_KEYS.intro) || 'We received a request to reset your xyndrome password.',
       buttonLabel: values.get(SMTP_SETTING_KEYS.buttonLabel) || 'Reset password',
       footer: values.get(SMTP_SETTING_KEYS.footer) || 'If you did not request this, you can safely ignore this email.',
     };

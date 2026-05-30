@@ -1,5 +1,5 @@
 /* ============================================================
-   ERPM Medical LMS — Design Composition Library
+   xyndrome — Design Composition Library
    Pre-composed Tailwind class strings for consistent UI
    ============================================================ */
 

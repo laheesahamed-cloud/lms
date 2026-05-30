@@ -87,7 +87,7 @@ function downloadCsv(filename, rows) {
 
 function buildReportCsvRows(data, filters, selectedCourse, selectedStudent) {
   const rows = [
-    ['ERPM LMS Reports Export'],
+    ['xyndrome Reports Export'],
     ['Generated At', new Date().toISOString()],
     ['Start Date', filters.startDate || 'All'],
     ['End Date', filters.endDate || 'All'],

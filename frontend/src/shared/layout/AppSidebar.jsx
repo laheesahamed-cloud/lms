@@ -477,7 +477,7 @@ export function AppSidebar({
         </div>
 
         <div className={cx('lms-sidebar-wordmark', sidebarUi.wordmark)}>
-          <span className={cx('lms-sidebar-brand-name', sidebarUi.wordmarkName)}>ERPM LMS</span>
+          <span className={cx('lms-sidebar-brand-name', sidebarUi.wordmarkName)}>xyndrome</span>
           <span className={cx('lms-sidebar-brand-sub', sidebarUi.wordmarkRole)}>
             {isAdminConsole ? 'Admin Console' : 'Student Portal'}
           </span>
@@ -761,7 +761,7 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
             </span>
 
             <div className="lms-mobile-top-nav__brand">
-              <strong>ERPM LMS</strong>
+              <strong>xyndrome</strong>
               <span>{title}</span>
             </div>
 

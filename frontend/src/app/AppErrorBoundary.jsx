@@ -53,7 +53,7 @@ export class AppErrorBoundary extends Component {
           }}
         >
           <p style={{ margin: '0 0 6px', color: '#2563eb', fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>
-            ERPM LMS
+            xyndrome
           </p>
           <h1 style={{ margin: '0 0 10px', fontSize: 22, lineHeight: 1.15 }}>
             This page hit a render error

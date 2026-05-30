@@ -8,27 +8,27 @@ const QUOTE_ROTATE_MS = 3600;
 const defaultQuotes = [
   {
     quote: 'The Wi-Fi is taking a long differential history, but your revision still counts.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'Even slow loading has a pulse. Hold steady, future doctor.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'This page is doing rounds through the network. Kindly maintain calm professionalism.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'If the internet needs CPR, your focus still does not.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'The server is revising at its own pace. You are still ahead by staying patient.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'Slow internet is temporary. Clinical confidence built by repetition lasts longer.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
 ];
 

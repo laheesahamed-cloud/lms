@@ -43,9 +43,9 @@ const scenes: Scene[] = [
     kind: "hero",
     shot: "dashboard",
     eyebrow: "Medical SaaS",
-    title: "ERPM LMS",
+    title: "xyndrome",
     subline: "A premium study platform for focused clinical revision.",
-    cue: "VO: Meet ERPM LMS, a premium medical learning platform built for focused revision.",
+    cue: "VO: Meet xyndrome, a premium medical learning platform built for focused revision.",
     sfx: "SFX: deep riser, clean logo hit, soft whoosh.",
     accent: "#38bdf8",
   },
@@ -127,9 +127,9 @@ const scenes: Scene[] = [
     kind: "final",
     shot: "dashboard",
     eyebrow: "Launch ready",
-    title: "ERPM Medical LMS",
+    title: "xyndrome",
     subline: "A modern learning system with a polished student experience.",
-    cue: "VO: ERPM LMS is ready to become a premium medical learning experience.",
+    cue: "VO: xyndrome is ready to become a premium medical learning experience.",
     sfx: "SFX: final whoosh, logo resolve.",
     accent: "#2563eb",
   },
@@ -373,7 +373,7 @@ function SceneVisual({ scene, local }: { scene: Scene; local: number }) {
         <OrbitSystem local={local} accent={scene.accent} />
         <GlassCard className="final-card" style={{ borderColor: `${scene.accent}66` }}>
           <span>Premium medical learning</span>
-          <strong>ERPM LMS</strong>
+          <strong>xyndrome</strong>
         </GlassCard>
       </>
     );

@@ -73,7 +73,7 @@
     <rect x="96" y="108" width="250" height="976" rx="28" fill="#ffffff" stroke="#e5e7f0"/>
     <rect x="124" y="142" width="50" height="50" rx="16" fill="url(#blueViolet)"/>
     <path d="M149 154v26M136 167h26" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
-    <text x="190" y="164" class="tiny">ERPM LMS</text>
+    <text x="190" y="164" class="tiny">xyndrome</text>
     <text x="190" y="188" class="h2" style="font-size:24px">Study Hub</text>
     <rect x="124" y="246" width="174" height="54" rx="18" fill="#e5e9ff"/>
     <circle cx="151" cy="273" r="10" class="primary"/>

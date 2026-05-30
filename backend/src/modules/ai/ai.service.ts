@@ -714,7 +714,7 @@ export class AiService {
 
   private async sendOpenRouterPrompt(provider: RuntimeAiProviderConfig, prompt: string) {
     const siteUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5174';
-    const siteName = 'ERPM LMS';
+    const siteName = 'xyndrome';
     const response = await fetchWithRetry(normalizeAiProviderBaseUrl('openrouter', provider.baseUrl), {
       method: 'POST',
       signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),

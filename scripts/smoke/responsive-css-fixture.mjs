@@ -132,7 +132,7 @@ function fixtureHtml(attrs) {
         <div class="lms-topbar-center"></div>
         <div class="lms-topbar-right">
           <div class="lms-topbar-utility">
-            <button type="button" aria-label="Install ERPM LMS app"></button>
+            <button type="button" aria-label="Install xyndrome app"></button>
             <button type="button" aria-label="Switch theme"></button>
             <div><button type="button" aria-label="Notifications"></button></div>
             <button type="button" aria-label="Search"></button>
@@ -143,7 +143,7 @@ function fixtureHtml(attrs) {
 
       <section class="lms-dashboard-welcome-card lms-hero-card lms-dashboard-hero-card qa-box" data-score-band="fail" data-study-move="exam">
         <div class="lms-dashboard-welcome-copy">
-          <span class="lms-rc-eyebrow">ERPM LMS</span>
+          <span class="lms-rc-eyebrow">xyndrome</span>
           <h2>Welcome back, Laheez</h2>
           <p class="lms-hero-quiz-context">Next study move - EXAM</p>
         </div>

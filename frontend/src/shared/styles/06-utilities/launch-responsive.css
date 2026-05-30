@@ -13,7 +13,8 @@
   --lms-motion-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
   --lms-sidebar-motion: 280ms var(--lms-motion-soft);
   --lms-popover-motion: 220ms var(--lms-motion-soft);
-  --lms-popover-exit-motion: 230ms var(--lms-motion-soft-exit);
+  --lms-popover-exit-duration: 220ms;
+  --lms-popover-exit-motion: var(--lms-popover-exit-duration) var(--lms-motion-soft-exit);
   --lms-live-gutter-x: clamp(12px, 2.2vw, 28px);
   --lms-live-gutter-y: clamp(12px, 1.8vw, 24px);
   --lms-live-mobile-gutter-x: max(12px, var(--lms-safe-left), var(--lms-safe-right));
@@ -346,7 +347,7 @@ body.lms-profile-menu-open > .lms-profile-avatar-floating {
 }
 
 body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
-  animation: lmsProfileAvatarSmoothOut 170ms var(--lms-motion-soft-exit) both !important;
+  animation: lmsProfileAvatarSmoothOut var(--lms-popover-exit-motion) both !important;
 }
 
 @media (max-width: 520px) {
@@ -1385,7 +1386,7 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
 
 .lms-profile-menu-backdrop.is-closing {
   pointer-events: none !important;
-  animation: lmsProfileBackdropSmoothOut 170ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
+  animation: lmsProfileBackdropSmoothOut var(--lms-popover-exit-motion, 220ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1))) both !important;
 }
 
 :root[data-theme="light"] .lms-profile-menu-backdrop {
@@ -1421,7 +1422,7 @@ body.lms-profile-menu-open > .lms-profile-menu {
 
 body.lms-profile-menu-open > .lms-profile-menu.is-closing {
   pointer-events: none !important;
-  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 230ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1))) both !important;
+  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 220ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1))) both !important;
 }
 
 :root[data-theme="dark"] body.lms-profile-menu-open > .lms-profile-menu {
@@ -1442,7 +1443,7 @@ body.lms-profile-menu-open > .lms-profile-avatar-floating {
 }
 
 body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
-  animation: lmsProfileAvatarSmoothOut 160ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
+  animation: lmsProfileAvatarSmoothOut var(--lms-popover-exit-motion, 220ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1))) both !important;
 }
 
 body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-topbar.is-profile-menu-open) {

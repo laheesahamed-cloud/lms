@@ -322,7 +322,7 @@ export class PushNotificationsService {
 
   private withDefaults(payload: PushPayload): PushPayload {
     return {
-      title: payload.title || 'ERPM LMS',
+      title: payload.title || 'xyndrome',
       body: payload.body || 'You have a new notification.',
       url: this.safeInternalPath(payload.url || '/notifications'),
       icon: payload.icon || '/lms/pwa-icon.svg',
@@ -383,7 +383,7 @@ export class PushNotificationsService {
       `INSERT INTO announcements (title, body, target_role, status, publish_at, created_by)
        VALUES (?, ?, ?, 'published', NULL, ?)`,
       [
-        String(payload.title || 'ERPM LMS').slice(0, 180),
+        String(payload.title || 'xyndrome').slice(0, 180),
         payload.body || 'You have a new notification.',
         this.normalizeTargetRole(targetRole),
         adminId || null,

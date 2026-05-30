@@ -7,23 +7,23 @@ const STORAGE_KEY = 'erpm-lms-server-stop-quotes';
 const defaultQuotes = [
   {
     quote: 'The server seems to be in a prolonged ward round. Clinical patience is advised.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'The backend is not answering right now, but your future consultant energy remains intact.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'This feels like asking for CT results at 4:59 PM. We are still waiting professionally.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'Server response currently absent. Please continue supportive care and calm revision.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
   {
     quote: 'The internet is here. The server is emotionally unavailable.',
-    author: 'ERPM LMS',
+    author: 'xyndrome',
   },
 ];
 

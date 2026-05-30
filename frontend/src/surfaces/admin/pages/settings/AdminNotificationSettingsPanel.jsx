@@ -6,7 +6,7 @@ import { AdminApnsSettingsPanel } from './AdminApnsSettingsPanel.jsx';
 import { AdminFcmSettingsPanel } from './AdminFcmSettingsPanel.jsx';
 
 const emptyPushForm = {
-  title: 'ERPM LMS',
+  title: 'xyndrome',
   body: '',
   targetRole: 'student',
   deliveryType: 'both',

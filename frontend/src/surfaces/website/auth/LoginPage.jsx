@@ -787,7 +787,7 @@ const LoginBrand = memo(function LoginBrand() {
           </svg>
         </div>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--lms-brand-title)', lineHeight: 1.25 }}>ERPM LMS</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--lms-brand-title)', lineHeight: 1.25 }}>xyndrome</div>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--lms-brand-soft)' }}>Medical Workspace</div>
         </div>
       </div>
@@ -1038,7 +1038,7 @@ export function LoginPage() {
                 </linearGradient>
               </defs>
             </svg>
-            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink-strong)' }}>ERPM LMS</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink-strong)' }}>xyndrome</span>
           </div>
           <div className="hidden lg:block"/>
           <ThemeToggle/>

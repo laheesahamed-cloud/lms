@@ -107,7 +107,7 @@
     flex: 0 0 auto !important;
   }
 
-  .lms-topbar .lms-topbar-utility > button[aria-label="Install ERPM LMS app"] {
+  .lms-topbar .lms-topbar-utility > button[aria-label="Install xyndrome app"] {
     display: none !important;
   }
 

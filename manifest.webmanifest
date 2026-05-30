@@ -1,6 +1,6 @@
 {
-  "name": "ERPM Medical LMS",
-  "short_name": "ERPM LMS",
+  "name": "xyndrome",
+  "short_name": "xyndrome",
   "id": "/lms/dashboard?source=pwa-v16",
   "description": "Premium medical learning app for lessons, quizzes, revision notes, and structured progress.",
   "start_url": "/lms/dashboard?source=pwa-v16",

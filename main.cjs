@@ -10,7 +10,7 @@ function createWindow() {
     height: 820,
     minWidth: 1024,
     minHeight: 680,
-    title: 'ERPM Medical LMS',
+    title: 'xyndrome',
     backgroundColor: '#f7f9fc',
     autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
@@ -177,7 +177,7 @@ function renderOfflinePage() {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <title>ERPM Medical LMS</title>
+        <title>xyndrome</title>
         <style>
           body {
             margin: 0;
@@ -221,7 +221,7 @@ function renderOfflinePage() {
       </head>
       <body>
         <main>
-          <h1>Cannot open ERPM Medical LMS</h1>
+          <h1>Cannot open xyndrome</h1>
           <p>The desktop app is online-only and could not reach <code>${APP_URL}</code>.</p>
           <button onclick="location.href='${APP_URL}'">Try again</button>
         </main>

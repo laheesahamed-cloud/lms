@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>ERPM LMS</title>
+    <title>xyndrome</title>
     <meta name="theme-color" content="#05070d" />
     <meta name="color-scheme" content="light dark" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -12,7 +12,7 @@
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="ERPM LMS" />
+    <meta name="apple-mobile-web-app-title" content="xyndrome" />
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="manifest" href="/lms/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/lms/pwa-icon.svg" />
@@ -123,85 +123,9 @@
       html[data-lms-runtime="native"][data-theme="dark"] #root {
         background: #02030a;
       }
-      #lms-static-boot {
-        position: fixed;
-        inset:
-          calc(-1 * env(safe-area-inset-top, 0px))
-          0
-          calc(-1 * env(safe-area-inset-bottom, 0px))
-          0;
-        z-index: 2147481000;
-        display: grid;
-        place-items: center;
-        min-height: calc(100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
-        overflow: hidden;
-        background:
-          radial-gradient(circle at 50% 44%, rgba(56, 189, 248, 0.12), transparent 24%),
-          linear-gradient(180deg, #050b18 0%, #02040b 100%);
-        background-color: #02040b;
-        color: #e5eefb;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
-      #lms-static-boot::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-        background-size: 28px 28px;
-        opacity: 0.8;
-      }
-      .lms-static-boot__mark {
-        position: relative;
-        display: grid;
-        gap: 14px;
-        justify-items: center;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-      }
-      .lms-static-boot__pulse {
-        position: relative;
-        width: 54px;
-        height: 54px;
-        border-radius: 18px;
-        border: 1px solid rgba(56, 189, 248, 0.45);
-        box-shadow: 0 0 34px rgba(14, 165, 233, 0.18), inset 0 0 24px rgba(56, 189, 248, 0.08);
-        animation: lms-static-pulse 1.05s ease-in-out infinite;
-      }
-      .lms-static-boot__pulse::after {
-        content: "";
-        position: absolute;
-        inset: -7px;
-        border-radius: 24px;
-        border: 1px solid rgba(56, 189, 248, 0.28);
-        animation: lms-static-ring 1.2s ease-out infinite;
-      }
-      .lms-static-boot__text {
-        font-size: 13px;
-        font-weight: 800;
-      }
-      @keyframes lms-static-pulse {
-        0%, 100% { transform: scale(1); opacity: 0.86; }
-        50% { transform: scale(1.045); opacity: 1; }
-      }
-      @keyframes lms-static-ring {
-        0% { transform: scale(0.88); opacity: 0.55; }
-        75%, 100% { transform: scale(1.22); opacity: 0; }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .lms-static-boot__pulse,
-        .lms-static-boot__pulse::after {
-          animation: none;
-        }
-      }
     </style>
   </head>
   <body class="app-booting">
-    <div id="lms-static-boot" aria-hidden="true">
-      <div class="lms-static-boot__mark">
-        <span class="lms-static-boot__pulse"></span>
-        <span class="lms-static-boot__text">ERPM LMS</span>
-      </div>
-    </div>
     <div id="root"></div>
     <script type="module">
       if (/\/mascot-animation-lab(?:\/|$)/.test(window.location.pathname || '')) {

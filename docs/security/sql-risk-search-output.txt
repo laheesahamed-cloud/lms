@@ -501,7 +501,7 @@ backend/src/modules/subscriptions/subscriptions.service.ts:805:    const cancelU
 backend/src/modules/subscriptions/subscriptions.service.ts:806:    const notifyUrl = settings.notifyUrl || `${this.resolveApiPublicUrl()}/subscriptions/payhere/notify`;
 backend/src/modules/subscriptions/subscriptions.service.ts:815:    await this.db.execute(
 backend/src/modules/subscriptions/subscriptions.service.ts:842:      summary: `Started PayHere checkout for ${plan.name}`,
-backend/src/modules/subscriptions/subscriptions.service.ts:872:          `${settings.checkoutTitle || 'ERPM LMS subscription'} - ${plan.name}`,
+backend/src/modules/subscriptions/subscriptions.service.ts:872:          `${settings.checkoutTitle || 'xyndrome subscription'} - ${plan.name}`,
 backend/src/modules/subscriptions/subscriptions.service.ts:873:          coupon?.code ? `(${coupon.code})` : '',
 backend/src/modules/subscriptions/subscriptions.service.ts:874:          checkoutInput.message ? `- ${String(checkoutInput.message).slice(0, 80)}` : '',
 backend/src/modules/subscriptions/subscriptions.service.ts:911:      await this.db.execute(

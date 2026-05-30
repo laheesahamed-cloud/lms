@@ -10,12 +10,12 @@ const defaultForm = {
   security: 'starttls',
   username: '',
   password: '',
-  fromName: 'ERPM LMS',
+  fromName: 'xyndrome',
   fromEmail: '',
   publicUrl: 'http://localhost/lms',
-  subject: 'Reset your ERPM LMS password',
+  subject: 'Reset your xyndrome password',
   heading: 'Reset your password',
-  intro: 'We received a request to reset your ERPM LMS password.',
+  intro: 'We received a request to reset your xyndrome password.',
   buttonLabel: 'Reset password',
   footer: 'If you did not request this, you can safely ignore this email.',
 };
@@ -197,7 +197,7 @@ export function AdminSmtpSettingsPanel() {
 
             <div className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-sm">
               <div className="bg-[linear-gradient(135deg,#2563EB,#0EA5E9)] px-5 py-4 text-white">
-                <div className="text-[11px] font-extrabold uppercase tracking-[0.08em]">ERPM LMS</div>
+                <div className="text-[11px] font-extrabold uppercase tracking-[0.08em]">xyndrome</div>
                 <h3 className="m-0 mt-2 text-[22px] font-black leading-tight">{form.heading}</h3>
               </div>
               <div className="grid gap-4 p-5">

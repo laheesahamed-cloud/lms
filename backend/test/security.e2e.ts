@@ -59,7 +59,7 @@ const TEST_SETTINGS: Record<string, string> = {
   payment_payhere_return_url: '',
   payment_payhere_cancel_url: '',
   payment_payhere_notify_url: '',
-  payment_payhere_checkout_title: 'ERPM LMS subscription',
+  payment_payhere_checkout_title: 'xyndrome subscription',
   payment_payhere_button_label: 'Pay with PayHere',
   payment_payhere_support_text: 'Upload a receipt if you pay manually.',
   payment_payhere_auto_activate_paid_subscriptions: 'false',

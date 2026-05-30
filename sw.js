@@ -130,7 +130,7 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('push', (event) => {
   const payload = readPushPayload(event);
-  const title = payload.title || 'ERPM LMS';
+  const title = payload.title || 'xyndrome';
   const options = {
     body: payload.body || 'You have a new notification.',
     icon: payload.icon || DEFAULT_ICON,

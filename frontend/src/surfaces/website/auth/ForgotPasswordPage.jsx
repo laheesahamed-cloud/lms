@@ -18,7 +18,7 @@ function AuthLogo() {
           </linearGradient>
         </defs>
       </svg>
-      <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink-strong)' }}>ERPM LMS</span>
+      <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink-strong)' }}>xyndrome</span>
     </div>
   );
 }

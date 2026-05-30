@@ -404,12 +404,12 @@ export class AuthService {
       security: values.get(SMTP_SETTING_KEYS.security) === 'ssl' ? 'ssl' : 'starttls',
       username: values.get(SMTP_SETTING_KEYS.username) || '',
       password,
-      fromName: values.get(SMTP_SETTING_KEYS.fromName) || 'ERPM LMS',
+      fromName: values.get(SMTP_SETTING_KEYS.fromName) || 'xyndrome',
       fromEmail: values.get(SMTP_SETTING_KEYS.fromEmail) || '',
       publicUrl,
-      subject: values.get(SMTP_SETTING_KEYS.subject) || 'Reset your ERPM LMS password',
+      subject: values.get(SMTP_SETTING_KEYS.subject) || 'Reset your xyndrome password',
       heading: values.get(SMTP_SETTING_KEYS.heading) || 'Reset your password',
-      intro: values.get(SMTP_SETTING_KEYS.intro) || 'We received a request to reset your ERPM LMS password.',
+      intro: values.get(SMTP_SETTING_KEYS.intro) || 'We received a request to reset your xyndrome password.',
       buttonLabel: values.get(SMTP_SETTING_KEYS.buttonLabel) || 'Reset password',
       footer: values.get(SMTP_SETTING_KEYS.footer) || 'If you did not request this, you can safely ignore this email.',
       configured: Boolean(values.get(SMTP_SETTING_KEYS.host) && password && values.get(SMTP_SETTING_KEYS.username) && values.get(SMTP_SETTING_KEYS.fromEmail)),
@@ -469,7 +469,7 @@ ${settings.footer}`;
       <div style="margin:0;padding:32px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
         <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:18px;overflow:hidden;box-shadow:0 18px 46px rgba(15,23,42,.10);">
           <div style="padding:24px 28px;background:linear-gradient(135deg,#2563EB,#14B8A6);color:#ffffff;">
-            <div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">ERPM LMS</div>
+            <div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">xyndrome</div>
             <h1 style="margin:10px 0 0;font-size:26px;line-height:1.15;">${safe(settings.heading)}</h1>
           </div>
           <div style="padding:28px;">

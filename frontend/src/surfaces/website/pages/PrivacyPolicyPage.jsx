@@ -25,7 +25,7 @@ const sections = [
   },
   {
     title: '3. Payments',
-    body: 'Online card or payment details are handled by PayHere or the active payment provider. ERPM LMS stores order and transaction records, but does not store full card numbers or sensitive card verification data on our servers.',
+    body: 'Online card or payment details are handled by PayHere or the active payment provider. xyndrome stores order and transaction records, but does not store full card numbers or sensitive card verification data on our servers.',
   },
   {
     title: '4. Coupons and Billing Details',
@@ -66,7 +66,7 @@ const sections = [
   },
   {
     title: '11. Children',
-    body: 'ERPM LMS is intended for medical students and adult learners. We do not knowingly collect personal information from children.',
+    body: 'xyndrome is intended for medical students and adult learners. We do not knowingly collect personal information from children.',
   },
   {
     title: '12. Changes to This Policy',
@@ -74,7 +74,7 @@ const sections = [
   },
   {
     title: '13. Contact',
-    body: 'For privacy questions, account data requests, or payment record questions, contact the ERPM LMS admin or support channel shown on the platform.',
+    body: 'For privacy questions, account data requests, or payment record questions, contact the xyndrome admin or support channel shown on the platform.',
   },
 ];
 
@@ -86,7 +86,7 @@ export function PrivacyPolicyPage() {
           <div className="flex min-w-0 items-center gap-3">
             <div className={ui.brandMark}>ER</div>
             <div>
-              <div className="font-display text-[17px] font-extrabold leading-tight text-ink-strong max-[640px]:text-[15px]">ERPM LMS</div>
+              <div className="font-display text-[17px] font-extrabold leading-tight text-ink-strong max-[640px]:text-[15px]">xyndrome</div>
               <div className="mt-0.5 text-[10.5px] font-bold uppercase tracking-[0.07em] text-ink-soft max-[640px]:text-[9.5px]">Privacy Policy</div>
             </div>
           </div>
@@ -101,7 +101,7 @@ export function PrivacyPolicyPage() {
           <div className={ui.eyebrow}>Student Data Protection</div>
           <h1 className="mt-3 mb-4 font-display text-[28px] font-extrabold leading-tight text-ink-strong">Privacy Policy</h1>
           <p className="m-0 text-[14.5px] leading-[1.75] text-ink-soft">
-            Last updated: May 8, 2026. This policy explains how ERPM LMS collects, uses, protects, and shares
+            Last updated: May 8, 2026. This policy explains how xyndrome collects, uses, protects, and shares
             information when students use the website, learning tools, subscriptions, coupons, and PayHere checkout.
           </p>
 

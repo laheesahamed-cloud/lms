@@ -100,7 +100,7 @@ The Capacitor config uses:
 ```text
 webDir: dist-capacitor
 appId: com.erpm.medical.lms
-appName: ERPM Medical LMS
+appName: xyndrome
 ```
 
 This means the native app currently bundles built web assets from `frontend/dist-capacitor`. If the final production strategy is to wrap a remote `app.mindomain.com` instead, the native strategy needs a deliberate decision:
