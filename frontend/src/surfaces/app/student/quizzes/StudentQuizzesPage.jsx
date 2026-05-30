@@ -455,9 +455,9 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
       : 'border-brand-primary/24 bg-[var(--color-primary-light)] text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200 dark:hover:bg-sky-400/18';
 
   const nodeClass = status === 'completed'
-    ? 'border-brand-primary/28 bg-brand-primary text-white shadow-none dark:bg-sky-400 dark:text-slate-700'
+    ? 'border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary shadow-none dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200'
     : status === 'in_progress'
-      ? 'border-brand-primary/30 bg-brand-primary text-white shadow-none'
+      ? 'border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary shadow-none dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200'
       : isLocked
         ? 'border-amber-400/35 bg-amber-400 text-white shadow-none'
         : 'border-brand-primary/22 bg-brand-primary/10 text-brand-primary dark:border-sky-300/18 dark:bg-sky-400/12 dark:text-sky-200';

@@ -395,9 +395,10 @@
 
 .planner-action,
 .planner-task-form button {
-  background: var(--sa-grad, linear-gradient(135deg, #2563eb, #7c3aed));
-  color: #ffffff;
-  box-shadow: var(--sa-shadow-cta, 0 14px 28px -20px rgba(37, 99, 235, 0.62));
+  border-color: color-mix(in srgb, var(--sa-primary, #2563eb) 35%, var(--sa-border, rgba(119, 137, 165, 0.18)));
+  background: var(--sa-primary-soft, color-mix(in srgb, var(--sa-primary, #2563eb) 12%, transparent));
+  color: var(--sa-primary, #2563eb);
+  box-shadow: none;
   white-space: nowrap;
 }
 

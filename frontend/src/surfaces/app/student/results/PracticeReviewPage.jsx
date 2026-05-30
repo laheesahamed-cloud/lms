@@ -13,9 +13,9 @@ const reviewPageUi = {
   layout:
     'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]',
   header:
-    'practice-review-header sticky top-2.5 z-20 flex items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] px-3 py-2.5 shadow-md backdrop-blur-[14px] dark:border-white/10 dark:bg-[rgba(8,14,26,0.74)] max-[760px]:static max-[760px]:grid max-[760px]:gap-2.5',
+    'lms-exam-header practice-review-header flex items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 py-2.5 shadow-[var(--exam-card-shadow)] backdrop-blur-[14px] max-[700px]:flex-row max-[700px]:items-center max-[700px]:justify-between max-[700px]:gap-3 max-[700px]:px-3.5 max-[700px]:py-3',
   brand:
-    'flex min-w-0 items-center gap-3',
+    'flex min-w-0 flex-1 items-center gap-3',
   mark:
     'grid size-10 shrink-0 place-items-center rounded-[13px] border border-line-soft bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_18%,var(--surface-card)),color-mix(in_srgb,var(--color-teal)_12%,var(--surface-card)))] text-brand-primary shadow-sm dark:border-white/10',
   titleWrap:
@@ -25,7 +25,7 @@ const reviewPageUi = {
   subtitle:
     'mt-0.5 block max-w-[min(680px,52vw)] truncate text-xs text-ink-soft max-[760px]:max-w-full',
   actions:
-    'flex min-w-0 flex-nowrap items-center justify-end gap-2 max-[760px]:w-full max-[760px]:justify-start max-[420px]:gap-1.5',
+    'quiz-header-actions flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 max-[700px]:justify-end max-[420px]:gap-1.5',
   scoreChip:
     'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-[13px] border border-line-soft bg-surface-glass-subtle px-3 text-sm text-ink-medium shadow-xs dark:border-white/10 max-[420px]:min-h-9 max-[420px]:px-2.5 max-[420px]:text-[12px]',
   scoreValue:
@@ -35,7 +35,7 @@ const reviewPageUi = {
   actionSecondary:
     'border-line-soft bg-surface-glass-subtle text-ink-medium hover:border-brand-primary/22 hover:bg-brand-primary/7 hover:text-brand-primary dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-200',
   actionPrimary:
-    'border-brand-primary/22 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200',
+    'border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200',
 };
 
 function ReviewHeader({ data, complete, onQuizzes, onHome }) {

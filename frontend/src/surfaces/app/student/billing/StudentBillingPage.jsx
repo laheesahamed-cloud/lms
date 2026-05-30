@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchStudentCourses } from '../../../../shared/api/courses.api.js';
 import { fetchMySubscription, requestSubscription } from '../../../../shared/api/subscriptions.api.js';
@@ -204,6 +204,10 @@ const billingUi = {
     'grid gap-2 text-[13px] font-semibold text-ink-medium max-[520px]:gap-1.5 max-[520px]:text-[12.5px]',
   mobileToolbar:
     'mb-4 grid grid-cols-2 gap-2 max-[440px]:grid-cols-1 [&_button]:w-full',
+  planCarousel:
+    'flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain scroll-smooth pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-[520px]:gap-3',
+  planCarouselItem:
+    'w-[min(82vw,320px)] shrink-0 snap-start md:w-[min(42vw,340px)] xl:w-[320px] [&>article]:h-full',
   comparisonDesktop:
     'overflow-x-auto rounded-lg border border-line-soft bg-surface-card max-[760px]:hidden',
   comparisonMobile:
@@ -223,6 +227,7 @@ const billingUi = {
 export function StudentBillingPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const recommendedCarouselRef = useRef(null);
   const customPlanSearch = new URLSearchParams(location.search);
   const shouldOpenCustomPlanner = customPlanSearch.get('custom') === '1';
   const customRequestMode = customPlanSearch.get('request') === '1';
@@ -320,6 +325,7 @@ export function StudentBillingPage() {
   }, [availablePlans, customPlan]);
 
   const comparisonPlans = recommendedPlans.length ? recommendedPlans : availablePlans.slice(0, 4);
+  const recommendedCarouselPlans = recommendedPlans.length ? recommendedPlans : availablePlans.filter((plan) => plan.slug !== 'free').slice(0, 4);
 
   const pendingPlanIds = useMemo(() => new Set(
     requests
@@ -434,6 +440,13 @@ export function StudentBillingPage() {
 
   function scrollToComparison() {
     document.getElementById('plan-comparison')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function scrollRecommendedPlans(direction) {
+    const carousel = recommendedCarouselRef.current;
+    if (!carousel) return;
+    const distance = Math.max(280, Math.round(carousel.clientWidth * 0.82));
+    carousel.scrollBy({ left: direction * distance, behavior: 'smooth' });
   }
 
   function optionCardClass(isSelected) {
@@ -666,6 +679,16 @@ export function StudentBillingPage() {
               <h2 className={ui.panelTitle}>Recommended plans</h2>
               <p className={ui.panelText}>Pick by study timeline. Complete Prep is the best fit for most ERPM students.</p>
             </div>
+            {!loading && recommendedCarouselPlans.length > 1 ? (
+              <div className="flex shrink-0 items-center gap-2">
+                <button type="button" className={ui.squareIconButton} onClick={() => scrollRecommendedPlans(-1)} aria-label="Previous recommended plans" title="Previous recommended plans">
+                  ‹
+                </button>
+                <button type="button" className={ui.squareIconButton} onClick={() => scrollRecommendedPlans(1)} aria-label="Next recommended plans" title="Next recommended plans">
+                  ›
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {loading ? <div className={ui.emptyBox}>Loading plans...</div> : null}
@@ -683,11 +706,15 @@ export function StudentBillingPage() {
             </div>
           ) : null}
           {!loading ? (
-            <div className="grid grid-cols-4 gap-4 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1 max-[520px]:gap-3">
-              {(recommendedPlans.length ? recommendedPlans : availablePlans.filter((plan) => plan.slug !== 'free').slice(0, 4)).map((plan) => renderPlanCard(plan, {
-                highlight: plan.slug === 'complete-prep-3m',
-                badge: plan.slug === 'complete-prep-3m' ? 'Most Popular' : undefined,
-              }))}
+            <div ref={recommendedCarouselRef} className={billingUi.planCarousel} aria-label="Recommended subscription plans" tabIndex={0}>
+              {recommendedCarouselPlans.map((plan) => (
+                <div className={billingUi.planCarouselItem} key={`recommended-${plan.id}`}>
+                  {renderPlanCard(plan, {
+                    highlight: plan.slug === 'complete-prep-3m',
+                    badge: plan.slug === 'complete-prep-3m' ? 'Most Popular' : undefined,
+                  })}
+                </div>
+              ))}
             </div>
           ) : null}
         </section>

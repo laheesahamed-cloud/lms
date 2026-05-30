@@ -2570,12 +2570,16 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 }
 
 .lms-app-btn--primary {
-  background: var(--sa-grad);
-  color: #ffffff;
-  box-shadow: var(--sa-shadow-cta);
+  border-color: rgba(var(--sa-primary-rgb), 0.35);
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
+  box-shadow: none;
 }
 
-.lms-app-btn--primary:hover { filter: brightness(1.04); }
+.lms-app-btn--primary:hover {
+  border-color: rgba(var(--sa-primary-rgb), 0.45);
+  background: color-mix(in srgb, var(--sa-primary) 12%, var(--sa-surface));
+}
 
 .lms-app-btn--ghost {
   border-color: var(--sa-border);

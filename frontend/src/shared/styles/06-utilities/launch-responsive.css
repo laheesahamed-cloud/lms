@@ -827,10 +827,10 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
 }
 
 .student-app-shell .lms-assessment-btn--primary {
-  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 34%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
-  background: color-mix(in srgb, var(--color-primary, #2563eb) 13%, var(--surface-card, var(--surface-1))) !important;
+  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 35%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
+  background: var(--color-primary-light, color-mix(in srgb, var(--color-primary, #2563eb) 12%, var(--surface-card, var(--surface-1)))) !important;
   color: var(--color-primary, #2563eb) !important;
-  box-shadow: 0 10px 22px -18px color-mix(in srgb, var(--color-primary, #2563eb) 56%, transparent) !important;
+  box-shadow: none !important;
 }
 
 .student-app-shell .lms-assessment-btn--flagged {
@@ -854,7 +854,8 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
 }
 
 .student-app-shell .lms-assessment-btn--primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary, #2563eb) 17%, var(--surface-card, var(--surface-1))) !important;
+  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 45%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 12%, var(--surface-1, var(--surface-card))) !important;
 }
 
 .student-app-shell .lms-assessment-btn:focus-visible {
@@ -3165,8 +3166,8 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
   }
 
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-assessment-btn--primary) {
-    border-color: color-mix(in srgb, var(--color-primary) 42%, var(--line-soft)) !important;
-    background: color-mix(in srgb, var(--color-primary) 15%, var(--surface-1)) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--line-soft)) !important;
+    background: var(--color-primary-light, color-mix(in srgb, var(--color-primary) 12%, var(--surface-1))) !important;
     color: var(--color-primary) !important;
   }
 

@@ -290,7 +290,7 @@ const examThemeDarkVars = {
   '--exam-block-dot-fill': '#081426',
 };
 const examHeaderClass =
-  'lms-exam-header sticky top-2.5 z-20 flex items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 py-2.5 shadow-[var(--exam-card-shadow)] backdrop-blur-[14px] max-[700px]:static max-[700px]:flex-col max-[700px]:items-stretch';
+  'lms-exam-header flex items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 py-2.5 shadow-[var(--exam-card-shadow)] backdrop-blur-[14px] max-[700px]:flex-col max-[700px]:items-stretch';
 const practiceHeaderClass = 'practice-review-header max-[700px]:!flex-row max-[700px]:!items-center max-[700px]:!justify-between max-[700px]:gap-3 max-[700px]:px-3.5 max-[700px]:py-3 [&_.quiz-header-actions]:shrink-0';
 const examHeaderBrandClass = 'flex min-w-0 items-center gap-3';
 const examHeaderLogoClass =

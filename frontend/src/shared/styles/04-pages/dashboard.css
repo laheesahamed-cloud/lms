@@ -1689,9 +1689,10 @@
   overflow: hidden;
   cursor: pointer;
   text-align: center;
-  border: 0;
+  border: 1px solid rgba(var(--sa-primary-rgb), 0.2);
   border-radius: 18px;
-  background: #365fe8;
+  background: var(--sa-primary-soft);
+  color: var(--sa-primary);
   box-shadow: none;
   transition:
     background    var(--sa-dur) var(--sa-ease),
@@ -1705,11 +1706,15 @@
 }
 
 .study-action-card:nth-child(2) {
-  background: #278c83;
+  border-color: rgba(var(--sa-ok-rgb), 0.24);
+  background: var(--sa-ok-soft);
+  color: var(--sa-ok);
 }
 
 .study-action-card:nth-child(3) {
-  background: #6d38df;
+  border-color: rgba(var(--sa-purple-rgb), 0.22);
+  background: rgba(var(--sa-purple-rgb), 0.1);
+  color: var(--sa-purple);
 }
 
 .study-action-art {
@@ -1752,7 +1757,6 @@
   outline-offset: 2px;
 }
 
-/* Icon badge — card 1: cyan, card 2: electric blue, card 3: indigo */
 .study-action-card > span {
   display: inline-grid;
   width: 44px;
@@ -1763,23 +1767,19 @@
   place-items: center;
   border-radius: 14px;
   margin-bottom: 0;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
+  border: 1px solid currentColor;
+  background: rgba(var(--sa-surface-rgb), 0.48);
+  color: currentColor;
   box-shadow: none;
   z-index: 1;
 }
 
 .study-action-card:nth-child(2) > span {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
+  color: currentColor;
 }
 
 .study-action-card:nth-child(3) > span {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
+  color: currentColor;
 }
 
 /* Count badge — top-right */
@@ -1790,7 +1790,7 @@
   grid-column: auto;
   grid-row: 1;
   justify-self: end;
-  color: rgba(255, 255, 255, 0.56);
+  color: currentColor;
   font-size: 0;
   font-style: normal;
   font-weight: 900;
@@ -1808,7 +1808,7 @@
 }
 
 .study-action-card:nth-child(2) em,
-.study-action-card:nth-child(3) em { color: rgba(255, 255, 255, 0.56); }
+.study-action-card:nth-child(3) em { color: currentColor; }
 
 /* Label */
 .study-action-card strong {
@@ -1817,7 +1817,7 @@
   grid-row: 2;
   min-width: 0;
   overflow-wrap: anywhere;
-  color: #ffffff;
+  color: currentColor;
   font: var(--type-card-title);
   letter-spacing: 0;
   text-shadow: none;
@@ -2943,15 +2943,13 @@
   filter: none;
 }
 
-/* Final quick-action override.
-   Dark-mode theme.css uses broad !important card rules, so these tiles keep
-   their dedicated solid treatment here with higher specificity. */
 .dashboard-page .study-action-grid > .study-action-card,
 .student-app-shell .dashboard-page .study-action-grid > .study-action-card,
 :root[data-theme="dark"] .dashboard-page .study-action-grid > .study-action-card,
 :root[data-theme="dark"] .student-app-shell .dashboard-page .study-action-grid > .study-action-card {
-  border: 0 !important;
-  background: #365fe8 !important;
+  border: 1px solid rgba(var(--sa-primary-rgb), 0.2) !important;
+  background: var(--sa-primary-soft) !important;
+  color: var(--sa-primary) !important;
   box-shadow: none !important;
 }
 
@@ -2959,14 +2957,18 @@
 .student-app-shell .dashboard-page .study-action-grid > .study-action-card:nth-child(2),
 :root[data-theme="dark"] .dashboard-page .study-action-grid > .study-action-card:nth-child(2),
 :root[data-theme="dark"] .student-app-shell .dashboard-page .study-action-grid > .study-action-card:nth-child(2) {
-  background: #278c83 !important;
+  border-color: rgba(var(--sa-ok-rgb), 0.24) !important;
+  background: var(--sa-ok-soft) !important;
+  color: var(--sa-ok) !important;
 }
 
 .dashboard-page .study-action-grid > .study-action-card:nth-child(3),
 .student-app-shell .dashboard-page .study-action-grid > .study-action-card:nth-child(3),
 :root[data-theme="dark"] .dashboard-page .study-action-grid > .study-action-card:nth-child(3),
 :root[data-theme="dark"] .student-app-shell .dashboard-page .study-action-grid > .study-action-card:nth-child(3) {
-  background: #6d38df !important;
+  border-color: rgba(var(--sa-purple-rgb), 0.22) !important;
+  background: rgba(var(--sa-purple-rgb), 0.1) !important;
+  color: var(--sa-purple) !important;
 }
 
 .dashboard-page .study-action-grid > .study-action-card::before,
@@ -2976,8 +2978,9 @@
 
 .dashboard-page .study-action-grid > .study-action-card .study-action-art,
 .student-app-shell .dashboard-page .study-action-grid > .study-action-card .study-action-art {
-  color: rgba(255, 255, 255, 0.18) !important;
+  color: currentColor !important;
   filter: none !important;
+  opacity: 0.18 !important;
 }
 
 .dashboard-page .study-action-grid > .study-action-card > span,
@@ -2986,7 +2989,7 @@
 .student-app-shell .dashboard-page .study-action-grid > .study-action-card > span,
 .student-app-shell .dashboard-page .study-action-grid > .study-action-card em,
 .student-app-shell .dashboard-page .study-action-grid > .study-action-card strong {
-  color: #ffffff !important;
+  color: currentColor !important;
 }
 
 /* ============================================================
