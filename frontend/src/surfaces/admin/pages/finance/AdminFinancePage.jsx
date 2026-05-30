@@ -25,7 +25,7 @@ const PAYMENT_CURRENCY = 'LKR';
 
 const financeUi = {
   layout: cx(ui.managementLayout, 'max-w-[980px]'),
-  panel: cx(ui.panelCard, 'animate-fadePop'),
+  panel: ui.panelCard,
   metric:
     'grid min-h-[124px] min-w-0 content-between gap-3 rounded-lg border border-line-soft bg-surface-1 px-4 py-3 shadow-xs',
   summaryList: 'grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1',

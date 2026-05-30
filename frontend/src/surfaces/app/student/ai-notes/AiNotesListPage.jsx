@@ -478,7 +478,7 @@ export function AiNotesListPage({
             </section>
           )
         ) : (
-          <section className="animate-fadePop">
+          <section>
             <CourseDetail
               course={activeCourse}
               onBack={() => selectCourse(null)}

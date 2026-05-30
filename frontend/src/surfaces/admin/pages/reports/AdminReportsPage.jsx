@@ -14,7 +14,7 @@ const emptyFilters = {
 };
 
 const reportUi = {
-  panel: cx(ui.panelCard, 'animate-fadePop'),
+  panel: ui.panelCard,
   panelTitle: 'm-0 text-[17px] font-extrabold text-ink-strong',
   panelText: 'm-0 text-[13px] leading-relaxed text-ink-soft',
   metric: cx(ui.metricCard, ui.metricCardPremium, 'min-h-[128px]'),

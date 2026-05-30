@@ -621,7 +621,7 @@ function CourseGroup({ course, quizzes, groupIndex, bookmarkedIds, onBookmark, o
       </button>
 
       {open ? (
-        <div className="grid gap-3 animate-fadePop">
+        <div className="grid gap-3">
             {topicGroups.map(([topicName, topicQuizzes], topicIndex) => {
               const topicKey = `${course}:${topicName}:${topicIndex}`;
               const topicOpen = openTopics.has(topicIndex);
@@ -1354,7 +1354,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             <CoursePicker courses={courseCards} onSelect={handleSelectCourse} pageMode={pageMode} />
           )
         ) : grouped.size === 0 ? (
-          <section className="animate-fadePop">
+          <section>
             <QuizLessonDetail
               courseName={courseFilter}
               quizzes={visible}
@@ -1371,7 +1371,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             </div>
           </section>
         ) : (
-          <section className="animate-fadePop">
+          <section>
             <QuizLessonDetail
               courseName={courseFilter}
               quizzes={visible}

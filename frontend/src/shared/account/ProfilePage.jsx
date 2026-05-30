@@ -64,7 +64,7 @@ export function ProfilePage() {
         </section>
 
         <div className="grid grid-cols-2 gap-[18px] max-[900px]:grid-cols-1">
-          <form className={cx(ui.dashboardCard, 'grid gap-4 p-[22px] animate-fadePop')} onSubmit={handleProfileSubmit}>
+          <form className={cx(ui.dashboardCard, 'grid gap-4 p-[22px]')} onSubmit={handleProfileSubmit}>
             <div className="grid gap-1.5">
               <span className={ui.eyebrow}>Account</span>
               <h3 className="m-0 text-xl text-ink-strong">Profile details</h3>
@@ -123,7 +123,7 @@ export function ProfilePage() {
             </button>
           </form>
 
-          <form className={cx(ui.dashboardCard, 'grid gap-4 p-[22px] animate-fadePop')} onSubmit={handlePasswordSubmit}>
+          <form className={cx(ui.dashboardCard, 'grid gap-4 p-[22px]')} onSubmit={handlePasswordSubmit}>
             <div className="grid gap-1.5">
               <span className={ui.eyebrow}>Security</span>
               <h3 className="m-0 text-xl text-ink-strong">Change password</h3>
