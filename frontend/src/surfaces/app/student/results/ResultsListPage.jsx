@@ -239,7 +239,7 @@ export function ResultsListPage() {
 
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
 
-        <section className="student-results-hero lms-page-header-card animate-fadePop" aria-label="Results summary">
+        <section className="student-results-hero lms-page-header-card" aria-label="Results summary">
           <div className="student-results-hero__score" aria-label="Exam performance trend">
             <div className="student-results-performance-top">
               <ScoreRing value={averagePercentage} />

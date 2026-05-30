@@ -457,7 +457,7 @@ export function AiNotesListPage({
               </p>
             </div>
           ) : (
-            <section className="student-lessons-hub animate-fadePop">
+            <section className="student-lessons-hub">
               <div className="student-lessons-section-head mb-5 flex flex-wrap items-end justify-between gap-3">
                 <div className="lms-quiz-mascot-strip student-lessons-mascot-strip">
                   <StudyMascot variant="stetho" mood="lesson" size="md" label="Lessons study buddy" />

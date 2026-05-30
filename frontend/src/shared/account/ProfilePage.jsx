@@ -51,7 +51,7 @@ export function ProfilePage() {
       <section className={cx(ui.managementLayout, 'gap-[18px]')}>
         <AppHeader title="Profile" subtitle="Account Settings" />
 
-        <section className="animate-fadePop flex items-center gap-[18px] rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-[22px] shadow-[var(--card-shadow)] max-[900px]:items-start max-[900px]:flex-col">
+        <section className="flex items-center gap-[18px] rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-[22px] shadow-[var(--card-shadow)] max-[900px]:items-start max-[900px]:flex-col">
           <div className="inline-flex rounded-[24px] shadow-[var(--shadow-glow)]">
             <ProfileAvatar user={user} avatarKey={profileForm.avatarKey} size="xl" />
           </div>

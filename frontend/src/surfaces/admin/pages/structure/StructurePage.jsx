@@ -662,7 +662,7 @@ export function StructurePage() {
         {feedback.error ? <div className={ui.feedbackError}>{feedback.error}</div> : null}
         {feedback.success ? <div className={ui.feedbackSuccess}>{feedback.success}</div> : null}
 
-        <section className={cx(ui.panelCard, structureUi.hero, 'animate-fadePop')}>
+        <section className={cx(ui.panelCard, structureUi.hero)}>
           <div className={structureUi.heroCopy}>
             <span className={ui.eyebrow}>Hierarchy Engine</span>
             <h2>Build the academic tree.</h2>

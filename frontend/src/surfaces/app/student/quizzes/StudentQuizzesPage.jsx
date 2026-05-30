@@ -819,7 +819,7 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
   const setLabel = isExamPage ? 'exam set' : 'practice set';
 
   return (
-    <section className="student-lessons-hub animate-fadePop">
+    <section className="student-lessons-hub">
       <div className="student-lessons-section-head student-quiz-course-picker-head mb-5 flex flex-wrap items-end justify-between gap-3">
         <div className="lms-quiz-mascot-strip student-lessons-mascot-strip">
           <StudyMascot variant="stetho" mood="lesson" size="md" label={isExamPage ? 'Exam navigator mascot' : 'Q-Bank study buddy'} />
