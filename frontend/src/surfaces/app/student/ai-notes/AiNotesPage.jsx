@@ -2619,9 +2619,9 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     <main style={{ minHeight:'100dvh', background:pageBg }}>
       <div className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:grid-cols-1 max-[1180px]:px-4 max-[520px]:px-3">
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, alignItems:'start' }}>
-          {[1,2,3,4,5,6].map((i,j) => <div key={i} className="animate-pulse" style={{ height:[220,160,200,180,240,140][j], borderRadius:16, background:isDark?'#1a1d2e':'#e5e7eb', gridColumn:j===0?'1/-1':'span 1' }}/>)}
+          {[1,2,3,4,5,6].map((i,j) => <div key={i} style={{ height:[220,160,200,180,240,140][j], borderRadius:16, background:isDark?'#1a1d2e':'#e5e7eb', gridColumn:j===0?'1/-1':'span 1' }}/>)}
         </div>
-        <div className="animate-pulse" style={{ height:320, borderRadius:16, background:isDark?'#1a1d2e':'#e5e7eb' }}/>
+        <div style={{ height:320, borderRadius:16, background:isDark?'#1a1d2e':'#e5e7eb' }}/>
       </div>
     </main>
   );

@@ -221,18 +221,8 @@
     height: 5px;
     margin: 0 0 1px;
     border-radius: 999px;
-    background:
-      linear-gradient(90deg, rgba(56, 189, 248, 0.0) 0%, rgba(56, 189, 248, 0.96) 48%, rgba(129, 140, 248, 0.0) 100%),
-      rgba(148, 163, 184, 0.13);
-    background-size: 46% 100%, 100% 100%;
-    background-repeat: no-repeat;
-    animation: abl-loading-sheen 0.9s linear infinite;
+    background: rgba(56, 189, 248, 0.38);
     box-shadow: 0 0 18px rgba(56, 189, 248, 0.26);
-  }
-
-  @keyframes abl-loading-sheen {
-    0% { background-position: -60% 0, 0 0; }
-    100% { background-position: 160% 0, 0 0; }
   }
 
   .abl-step-text {
@@ -1111,95 +1101,38 @@
                 0 0 20px rgba(59, 130, 246, 0.09);
   }
 
-  /* ── Progress / shimmer ────────────────────────────────── */
+  /* ── Progress placeholders ─────────────────────────────── */
   .shimmer {
     position: relative;
     overflow: hidden;
-    background:
-      linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--surface-2) 94%, transparent) 0%,
-        color-mix(in srgb, var(--surface-3) 82%, var(--color-primary) 5%) 42%,
-        color-mix(in srgb, var(--surface-2) 94%, transparent) 82%
-      );
-    background-size: 240% 100%;
-    animation: lmsShimmerRtl 1.45s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    background: color-mix(in srgb, var(--surface-2) 92%, var(--color-primary) 4%);
     border-radius: var(--radius-sm);
     isolation: isolate;
   }
 
-  /* ── Skeleton pulse — for loading states ──────────────── */
+  /* ── Static skeletons — for loading states ─────────────── */
   .skeleton-pulse {
     position: relative;
     overflow: hidden;
-    background:
-      linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--surface-2) 96%, transparent),
-        color-mix(in srgb, var(--surface-3) 88%, var(--color-primary) 4%)
-      );
+    background: color-mix(in srgb, var(--surface-2) 94%, var(--color-primary) 3%);
     border-radius: var(--radius-sm);
     isolation: isolate;
   }
 
   .skeleton-pulse::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    border-radius: inherit;
-    background:
-      linear-gradient(
-        105deg,
-        transparent 0%,
-        transparent 32%,
-        rgba(255, 255, 255, 0.46) 46%,
-        color-mix(in srgb, var(--color-primary) 18%, rgba(255, 255, 255, 0.36)) 50%,
-        rgba(255, 255, 255, 0.18) 55%,
-        transparent 68%,
-        transparent 100%
-      );
-    background-size: 240% 100%;
-    animation: lmsShimmerRtl 1.35s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-    pointer-events: none;
+    content: none;
   }
 
   :root[data-theme='dark'] .shimmer {
-    background:
-      linear-gradient(
-        90deg,
-        rgba(15, 23, 42, 0.92) 0%,
-        rgba(30, 41, 59, 0.92) 42%,
-        rgba(15, 23, 42, 0.92) 82%
-      );
+    background: rgba(30, 41, 59, 0.74);
   }
 
   :root[data-theme='dark'] .skeleton-pulse {
-    background:
-      linear-gradient(
-        90deg,
-        rgba(15, 23, 42, 0.82),
-        rgba(30, 41, 59, 0.72)
-      );
+    background: rgba(30, 41, 59, 0.68);
   }
 
   :root[data-theme='dark'] .skeleton-pulse::after {
-    background:
-      linear-gradient(
-        105deg,
-        transparent 0%,
-        transparent 32%,
-        rgba(125, 211, 252, 0.10) 44%,
-        rgba(255, 255, 255, 0.20) 50%,
-        rgba(56, 189, 248, 0.08) 57%,
-        transparent 70%,
-        transparent 100%
-      );
-  }
-
-  @keyframes lmsShimmerRtl {
-    0% { background-position: 220% 0; }
-    100% { background-position: -220% 0; }
+    content: none;
   }
 
   /* ── Metric card accent strips ─────────────────────────── */

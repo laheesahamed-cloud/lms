@@ -984,11 +984,7 @@
 .student-app-shell .course-map-skeleton {
   overflow: hidden;
   border-radius: var(--radius-md);
-  background:
-    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24), transparent),
-    var(--surface-2);
-  background-size: 180% 100%, auto;
-  animation: courseMapSkeleton 1.4s ease-in-out infinite;
+  background: var(--surface-2);
 }
 
 .student-app-shell .course-map-skeleton--title {
@@ -1013,16 +1009,6 @@
 .student-app-shell .course-map-skeleton--rows {
   height: 280px;
   margin-top: 16px;
-}
-
-@keyframes courseMapSkeleton {
-  0% {
-    background-position: 180% 0, 0 0;
-  }
-
-  100% {
-    background-position: -180% 0, 0 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

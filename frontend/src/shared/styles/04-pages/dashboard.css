@@ -2766,17 +2766,6 @@
        (studyFireGlow + studyFireFlicker + studyFlameBody + studyFireEmbers).
        Don't override it here — that block is more refined. ─────── */
 
-/* ── Hero name — one-time shimmer sweep on mount ───────────────── */
-@keyframes study-name-shimmer {
-  0%   { background-position: -100% 50%; }
-  100% { background-position: 200% 50%; }
-}
-
-.study-hero-name strong {
-  background-size: 220% 100%;
-  animation: study-name-shimmer 1800ms cubic-bezier(0.4, 0, 0.2, 1) 700ms 1 both;
-}
-
 /* ── Refined readiness icon — soft inner glow in light mode ────── */
 .study-readiness-icon::after {
   content: '';

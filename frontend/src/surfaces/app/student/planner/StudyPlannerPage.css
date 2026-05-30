@@ -666,16 +666,7 @@
 .planner-skeleton-list span {
   height: 58px;
   border-radius: 8px;
-  background:
-    linear-gradient(90deg, transparent, color-mix(in srgb, var(--sa-primary, #2563eb) 8%, transparent), transparent),
-    var(--sa-soft-tile-bg, rgba(119, 137, 165, 0.08));
-  background-size: 220% 100%;
-  animation: planner-skeleton 1.2s ease-in-out infinite;
-}
-
-@keyframes planner-skeleton {
-  from { background-position: 120% 0; }
-  to { background-position: -120% 0; }
+  background: var(--sa-soft-tile-bg, rgba(119, 137, 165, 0.08));
 }
 
 @media (min-width: 760px) {
