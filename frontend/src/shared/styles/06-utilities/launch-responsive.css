@@ -3492,3 +3492,567 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-assessment-btn--p
     order: 3 !important;
   }
 }
+
+/* ============================================================
+   GLOBAL CARD PARITY
+   Source of truth: the Profile ACCOUNT and SECURITY cards.
+   Keep layout/content intact; normalize only shared card chrome.
+   ============================================================ */
+:where(.portal-shell, .student-app-shell, .admin-app-shell) {
+  --lms-global-card-bg:
+    linear-gradient(
+      145deg,
+      rgba(251, 252, 255, 0.94),
+      rgba(243, 246, 252, 0.88)
+    );
+  --lms-global-card-border: #dde4ee;
+  --lms-global-card-border-width: 1px;
+  --lms-global-card-border-hover: rgba(37, 99, 235, 0.22);
+  --lms-global-card-radius: 22px;
+  --lms-global-card-shadow:
+    0 1px 2px rgba(11, 18, 32, 0.035),
+    0 8px 18px rgba(15, 23, 42, 0.043);
+  --lms-global-card-shadow-hover:
+    0 1px 2px rgba(11, 18, 32, 0.04),
+    0 10px 24px rgba(15, 23, 42, 0.06);
+  --lms-global-card-padding: 24px;
+  --lms-global-card-gap: 16px;
+  --lms-global-card-title: var(--ink-strong);
+  --lms-global-card-description: var(--ink-soft);
+  --lms-global-card-accent-line:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--color-primary) 32%, transparent) 40%,
+      color-mix(in srgb, var(--color-secondary) 20%, transparent) 80%,
+      transparent 100%
+    );
+}
+
+:root[data-theme="dark"] :where(.portal-shell, .student-app-shell, .admin-app-shell),
+body.dark :where(.portal-shell, .student-app-shell, .admin-app-shell),
+:where(.portal-shell, .student-app-shell, .admin-app-shell)[data-theme="dark"] {
+  --lms-global-card-bg: transparent;
+  --lms-global-card-border: transparent;
+  --lms-global-card-border-width: 0px;
+  --lms-global-card-border-hover: transparent;
+  --lms-global-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 10px 28px rgba(0, 0, 0, 0.36);
+  --lms-global-card-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 12px 30px rgba(0, 0, 0, 0.38);
+}
+
+:where(.portal-shell, .student-app-shell, .admin-app-shell) :where(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .lms-page-header-card,
+  .lms-hero-card,
+  .student-page-hero,
+  .lms-course-detail-hero,
+  .student-results-hero,
+  .planner-hero-card,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card,
+  .study-topic-card,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .student-lessons-search-card,
+  .student-lessons-detail-toolbar,
+  .student-lessons-category__head,
+  .student-lessons-lesson-list-shell,
+  .student-lessons-lesson-row,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .lms-quiz-loading-shell,
+  .lms-review-question-card,
+  .lms-review-explanation-side > section,
+  .lms-review-sidebar > section,
+  .lms-exam-header,
+  .lms-exam-main-card,
+  .lms-exam-sidebar > section,
+  .lms-exam-explainer > section,
+  .result-chart-card,
+  .student-results-attempt-card,
+  .student-result-score-card,
+  .student-result-stat-card,
+  .student-result-insight-card,
+  .student-result-focus-card,
+  .student-results-focus,
+  .student-results-history,
+  .planner-panel,
+  [class*="rounded-lg"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-xl"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-2xl"][class*="border"][class*="bg-surface-card"]
+) {
+  position: relative;
+  overflow: hidden;
+  border: var(--lms-global-card-border-width) solid var(--lms-global-card-border) !important;
+  border-radius: var(--lms-global-card-radius) !important;
+  background: var(--lms-global-card-bg) !important;
+  color: var(--ink-strong);
+  box-shadow: var(--lms-global-card-shadow) !important;
+}
+
+:where(.portal-shell, .student-app-shell, .admin-app-shell) :where(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell
+) {
+  padding: var(--lms-global-card-padding) !important;
+  gap: var(--lms-global-card-gap);
+}
+
+:where(.portal-shell, .student-app-shell, .admin-app-shell) :where(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .lms-page-header-card,
+  .lms-hero-card,
+  .student-page-hero,
+  .lms-course-detail-hero,
+  .student-results-hero,
+  .planner-hero-card,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card,
+  .study-topic-card,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .student-lessons-search-card,
+  .student-lessons-detail-toolbar,
+  .student-lessons-category__head,
+  .student-lessons-lesson-list-shell,
+  .student-lessons-lesson-row,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .lms-quiz-loading-shell,
+  .lms-review-question-card,
+  .lms-review-explanation-side > section,
+  .lms-review-sidebar > section,
+  .lms-exam-header,
+  .lms-exam-main-card,
+  .lms-exam-sidebar > section,
+  .lms-exam-explainer > section,
+  .result-chart-card,
+  .student-results-attempt-card,
+  .student-result-score-card,
+  .student-result-stat-card,
+  .student-result-insight-card,
+  .student-result-focus-card,
+  .student-results-focus,
+  .student-results-history,
+  .planner-panel,
+  [class*="rounded-lg"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-xl"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-2xl"][class*="border"][class*="bg-surface-card"]
+)::before {
+  position: absolute !important;
+  inset-inline: 0 !important;
+  top: 0 !important;
+  bottom: auto !important;
+  z-index: 0 !important;
+  width: auto !important;
+  height: 2px !important;
+  border-radius: var(--lms-global-card-radius) var(--lms-global-card-radius) 0 0 !important;
+  background: var(--lms-global-card-accent-line) !important;
+  opacity: 0.55 !important;
+  pointer-events: none !important;
+  content: "" !important;
+}
+
+:where(.portal-shell, .student-app-shell, .admin-app-shell) :where(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card
+)::after {
+  display: none !important;
+  content: none !important;
+}
+
+:where(.portal-shell, .student-app-shell, .admin-app-shell) :where(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card
+):where(:hover, :focus-visible) {
+  border-color: var(--lms-global-card-border-hover) !important;
+  box-shadow: var(--lms-global-card-shadow-hover) !important;
+}
+
+:where(.portal-shell, .student-app-shell, .admin-app-shell) :where(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .study-card,
+  .study-continue-card,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card
+) :where(h1, h2, h3, h4, .heading, .title, .study-card__head h2) {
+  color: var(--lms-global-card-title) !important;
+}
+
+:where(.portal-shell, .student-app-shell, .admin-app-shell) :where(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .study-card,
+  .study-continue-card,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card
+) :where(p, .description, .subtitle, .caption, .study-card__head p) {
+  color: var(--lms-global-card-description) !important;
+}
+
+.portal-shell.portal-shell .lms-route-page.lms-route-page :is(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .lms-page-header-card,
+  .lms-hero-card,
+  .student-page-hero,
+  .lms-course-detail-hero,
+  .student-results-hero,
+  .planner-hero-card,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card,
+  .study-topic-card,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .student-lessons-search-card,
+  .student-lessons-detail-toolbar,
+  .student-lessons-category__head,
+  .student-lessons-lesson-list-shell,
+  .student-lessons-lesson-row,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .lms-quiz-loading-shell,
+  .lms-review-question-card,
+  .lms-review-explanation-side > section,
+  .lms-review-sidebar > section,
+  .lms-exam-header,
+  .lms-exam-main-card,
+  .lms-exam-sidebar > section,
+  .lms-exam-explainer > section,
+  .result-chart-card,
+  .student-results-attempt-card,
+  .student-result-score-card,
+  .student-result-stat-card,
+  .student-result-insight-card,
+  .student-result-focus-card,
+  .student-results-focus,
+  .student-results-history,
+  .planner-panel,
+  [class*="rounded-lg"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-xl"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-2xl"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-lg"][class*="border"][class*="bg-[var(--card-bg)]"],
+  [class*="rounded-xl"][class*="border"][class*="bg-[var(--card-bg)]"],
+  [class*="rounded-2xl"][class*="border"][class*="bg-[var(--card-bg)]"]
+) {
+  border: var(--lms-global-card-border-width) solid var(--lms-global-card-border) !important;
+  border-radius: var(--lms-global-card-radius) !important;
+  background: var(--lms-global-card-bg) !important;
+  box-shadow: var(--lms-global-card-shadow) !important;
+}
+
+.portal-shell.portal-shell .lms-route-page.lms-route-page :is(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .lms-page-header-card,
+  .lms-hero-card,
+  .student-page-hero,
+  .lms-course-detail-hero,
+  .student-results-hero,
+  .planner-hero-card,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card,
+  .study-topic-card,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .student-lessons-search-card,
+  .student-lessons-detail-toolbar,
+  .student-lessons-category__head,
+  .student-lessons-lesson-list-shell,
+  .student-lessons-lesson-row,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .lms-quiz-loading-shell,
+  .lms-review-question-card,
+  .lms-review-explanation-side > section,
+  .lms-review-sidebar > section,
+  .lms-exam-header,
+  .lms-exam-main-card,
+  .lms-exam-sidebar > section,
+  .lms-exam-explainer > section,
+  .result-chart-card,
+  .student-results-attempt-card,
+  .student-result-score-card,
+  .student-result-stat-card,
+  .student-result-insight-card,
+  .student-result-focus-card,
+  .student-results-focus,
+  .student-results-history,
+  .planner-panel
+)::before {
+  position: absolute !important;
+  inset-inline: 0 !important;
+  top: 0 !important;
+  bottom: auto !important;
+  z-index: 0 !important;
+  width: auto !important;
+  height: 2px !important;
+  border-radius: var(--lms-global-card-radius) var(--lms-global-card-radius) 0 0 !important;
+  background: var(--lms-global-card-accent-line) !important;
+  opacity: 0.55 !important;
+  pointer-events: none !important;
+  content: "" !important;
+}
+
+.portal-shell.portal-shell .dashboard-page.study-hub-page :is(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .lms-page-header-card,
+  .lms-hero-card,
+  .student-page-hero,
+  .lms-course-detail-hero,
+  .student-results-hero,
+  .planner-hero-card,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card,
+  .study-topic-card,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .student-lessons-search-card,
+  .student-lessons-detail-toolbar,
+  .student-lessons-category__head,
+  .student-lessons-lesson-list-shell,
+  .student-lessons-lesson-row,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .lms-quiz-loading-shell,
+  .lms-review-question-card,
+  .lms-review-explanation-side > section,
+  .lms-review-sidebar > section,
+  .lms-exam-header,
+  .lms-exam-main-card,
+  .lms-exam-sidebar > section,
+  .lms-exam-explainer > section,
+  .result-chart-card,
+  .student-results-attempt-card,
+  .student-result-score-card,
+  .student-result-stat-card,
+  .student-result-insight-card,
+  .student-result-focus-card,
+  .student-results-focus,
+  .student-results-history,
+  .planner-panel,
+  [class*="rounded-lg"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-xl"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-2xl"][class*="border"][class*="bg-surface-card"],
+  [class*="rounded-lg"][class*="border"][class*="bg-[var(--card-bg)]"],
+  [class*="rounded-xl"][class*="border"][class*="bg-[var(--card-bg)]"],
+  [class*="rounded-2xl"][class*="border"][class*="bg-[var(--card-bg)]"]
+) {
+  border: var(--lms-global-card-border-width) solid var(--lms-global-card-border) !important;
+  border-radius: var(--lms-global-card-radius) !important;
+  background: var(--lms-global-card-bg) !important;
+  box-shadow: var(--lms-global-card-shadow) !important;
+}
+
+.portal-shell.portal-shell .dashboard-page.study-hub-page :is(
+  .lms-global-card,
+  .glass-card:not(.lms-topbar):not(.study-hub-topbar):not(.lms-profile-menu),
+  .card-surface,
+  .lms-app-card,
+  .lms-dashboard-card,
+  .lms-form-card,
+  .lms-table-shell,
+  .lms-page-header-card,
+  .lms-hero-card,
+  .student-page-hero,
+  .lms-course-detail-hero,
+  .student-results-hero,
+  .planner-hero-card,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card,
+  .study-topic-card,
+  .lms-course-card,
+  .student-course-card,
+  .student-lessons-course-card,
+  .student-lessons-search-card,
+  .student-lessons-detail-toolbar,
+  .student-lessons-category__head,
+  .student-lessons-lesson-list-shell,
+  .student-lessons-lesson-row,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .lms-quiz-loading-shell,
+  .lms-review-question-card,
+  .lms-review-explanation-side > section,
+  .lms-review-sidebar > section,
+  .lms-exam-header,
+  .lms-exam-main-card,
+  .lms-exam-sidebar > section,
+  .lms-exam-explainer > section,
+  .result-chart-card,
+  .student-results-attempt-card,
+  .student-result-score-card,
+  .student-result-stat-card,
+  .student-result-insight-card,
+  .student-result-focus-card,
+  .student-results-focus,
+  .student-results-history,
+  .planner-panel
+)::before {
+  position: absolute !important;
+  inset-inline: 0 !important;
+  top: 0 !important;
+  bottom: auto !important;
+  z-index: 0 !important;
+  width: auto !important;
+  height: 2px !important;
+  border-radius: var(--lms-global-card-radius) var(--lms-global-card-radius) 0 0 !important;
+  background: var(--lms-global-card-accent-line) !important;
+  opacity: 0.55 !important;
+  pointer-events: none !important;
+  content: "" !important;
+}

@@ -9,7 +9,7 @@ const secondaryButtonBase =
   'inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-full border border-line-medium bg-[var(--btn-secondary-bg)] px-[18px] text-sm font-extrabold text-ink-medium no-underline shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/28 hover:bg-[var(--color-primary-light)] hover:text-brand-primary active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-50 disabled:shadow-none max-[520px]:w-full';
 
 const cardBase =
-  'glass-card relative w-full max-w-full overflow-hidden text-ink-strong';
+  'lms-global-card glass-card relative w-full max-w-full overflow-hidden text-ink-strong';
 
 const interactiveCard =
   `${cardBase} transition-[background,border-color,box-shadow] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/20 hover:shadow-sm active:shadow-none`;
@@ -76,21 +76,21 @@ export const ui = {
 
   // ── Cards ─────────────────────────────────────────────────
   dashboardCard:
-    `${interactiveCard} p-ui-3 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:rounded-t-2xl before:bg-[linear-gradient(90deg,transparent_0%,color-mix(in_srgb,var(--color-primary)_32%,transparent)_40%,color-mix(in_srgb,var(--color-secondary)_20%,transparent)_80%,transparent_100%)] before:opacity-55 before:content-[""]`,
+    `${interactiveCard} p-ui-3`,
   dashboardCardPremium:
-    'relative border-brand-primary/14 bg-[linear-gradient(160deg,color-mix(in_srgb,var(--color-primary)_4.5%,var(--surface-card)),var(--surface-card))]',
+    '',
   metricCard:
     `${interactiveCard} p-[18px_20px_16px] overflow-hidden`,
   metricCardPremium:
     'p-[20px_22px_18px]',
   metricCardBlue:
-    'border-l-[3px] border-l-brand-primary bg-[linear-gradient(150deg,rgba(37,99,235,0.055)_0%,transparent_50%),var(--surface-card)]',
+    '',
   metricCardTeal:
-    'border-l-[3px] border-l-sky-500 bg-[linear-gradient(150deg,rgba(14,165,233,0.055)_0%,transparent_50%),var(--surface-card)]',
+    '',
   metricCardSlate:
-    'border-l-[3px] border-l-brand-indigo bg-[linear-gradient(150deg,rgba(67,56,202,0.055)_0%,transparent_50%),var(--surface-card)]',
+    '',
   metricCardViolet:
-    'border-l-[3px] border-l-brand-violet bg-[linear-gradient(150deg,rgba(124,58,237,0.055)_0%,transparent_50%),var(--surface-card)]',
+    '',
   glassCard:
     'glass-card w-[min(720px,100%)] p-9 max-[520px]:p-4',
   pageCard:
@@ -100,15 +100,15 @@ export const ui = {
   compactPanelCard:
     `${cardBase} p-ui-2`,
   featureCard:
-    `${interactiveCard} p-ui-3 before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:rounded-t-2xl before:bg-[var(--brand-gradient-primary)] before:opacity-45 before:content-[""]`,
+    `${interactiveCard} p-ui-3`,
   questionCard:
-    `${interactiveCard} border-l-[3px] border-l-brand-primary p-ui-3`,
+    `${interactiveCard} p-ui-3`,
   quizCard:
-    `${interactiveCard} border-brand-primary/15 bg-[linear-gradient(160deg,color-mix(in_srgb,var(--color-primary)_4%,var(--surface-card)),var(--surface-card))] p-ui-3`,
+    `${interactiveCard} p-ui-3`,
   listCard:
-    `${cardBase} border-line-soft bg-surface-card p-ui-2`,
+    `${cardBase} p-ui-2`,
   lockedCard:
-    `${cardBase} border-brand-secondary/18 bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-secondary)_4%,var(--surface-card)),var(--surface-card))] p-ui-3 shadow-md`,
+    `${cardBase} p-ui-3`,
   infoCard:
     'rounded-[var(--radius-md)] border border-brand-accent/20 bg-[color-mix(in_srgb,var(--color-accent-light)_64%,var(--surface-card))] p-ui-2 text-[13px] leading-relaxed text-ink-medium shadow-xs',
 
