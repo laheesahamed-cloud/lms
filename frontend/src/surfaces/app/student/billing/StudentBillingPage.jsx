@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchStudentCourses } from '../../../../shared/api/courses.api.js';
 import { fetchMySubscription, requestSubscription } from '../../../../shared/api/subscriptions.api.js';
@@ -205,9 +205,9 @@ const billingUi = {
   mobileToolbar:
     'mb-4 grid grid-cols-2 gap-2 max-[440px]:grid-cols-1 [&_button]:w-full',
   planCarousel:
-    'flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain scroll-smooth pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-[520px]:gap-3',
+    'grid grid-cols-4 gap-4 max-[1180px]:grid-cols-2 max-[640px]:-mx-4 max-[640px]:flex max-[640px]:snap-x max-[640px]:snap-mandatory max-[640px]:overflow-x-auto max-[640px]:overscroll-x-contain max-[640px]:scroll-smooth max-[640px]:px-4 max-[640px]:pb-3 max-[640px]:[-webkit-overflow-scrolling:touch] max-[520px]:-mx-3.5 max-[520px]:gap-3 max-[520px]:px-3.5',
   planCarouselItem:
-    'w-[min(82vw,320px)] shrink-0 snap-start md:w-[min(42vw,340px)] xl:w-[320px] [&>article]:h-full',
+    'min-w-0 [&>article]:h-full max-[640px]:w-[76%] max-[640px]:min-w-[240px] max-[640px]:shrink-0 max-[640px]:snap-start',
   comparisonDesktop:
     'overflow-x-auto rounded-lg border border-line-soft bg-surface-card max-[760px]:hidden',
   comparisonMobile:
@@ -227,7 +227,6 @@ const billingUi = {
 export function StudentBillingPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const recommendedCarouselRef = useRef(null);
   const customPlanSearch = new URLSearchParams(location.search);
   const shouldOpenCustomPlanner = customPlanSearch.get('custom') === '1';
   const customRequestMode = customPlanSearch.get('request') === '1';
@@ -442,13 +441,6 @@ export function StudentBillingPage() {
     document.getElementById('plan-comparison')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function scrollRecommendedPlans(direction) {
-    const carousel = recommendedCarouselRef.current;
-    if (!carousel) return;
-    const distance = Math.max(280, Math.round(carousel.clientWidth * 0.82));
-    carousel.scrollBy({ left: direction * distance, behavior: 'smooth' });
-  }
-
   function optionCardClass(isSelected) {
     return cx(
       'flex min-h-[82px] cursor-pointer items-start gap-3 rounded-lg border bg-surface-1 p-3 text-left shadow-xs transition-[border-color,background,box-shadow,transform] hover:-translate-y-0.5 hover:border-brand-primary/35',
@@ -486,7 +478,7 @@ export function StudentBillingPage() {
       <article className={cx(
         ui.compactPanelCard,
         billingUi.planCard,
-        isRecommended && 'border-brand-primary/35 ring-2 ring-brand-primary/10',
+        isRecommended && 'border-brand-primary/35',
         isCurrent && 'border-brand-success/35'
       )} key={plan.id}>
         <div className="grid gap-3">
@@ -585,12 +577,12 @@ export function StudentBillingPage() {
                     </p>
                   </div>
                   {currentIsFreePlan ? (
-                    <div className="min-w-[190px] rounded-lg border border-brand-success/20 bg-brand-success/10 px-4 py-3 text-right shadow-xs backdrop-blur max-[640px]:w-full max-[640px]:text-left">
+                    <div className="min-w-[190px] rounded-lg border border-brand-success/20 bg-brand-success/10 px-4 py-3 text-right shadow-xs max-[640px]:w-full max-[640px]:text-left">
                       <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand-success">Free Plan</span>
                       <strong className="mt-1 block text-2xl font-extrabold text-brand-success">Unlimited days</strong>
                     </div>
                   ) : (
-                    <div className="min-w-[190px] rounded-lg border border-line-soft bg-surface-card/85 px-4 py-3 text-right shadow-xs backdrop-blur max-[640px]:w-full max-[640px]:text-left">
+                    <div className="min-w-[190px] rounded-lg border border-line-soft bg-surface-card px-4 py-3 text-right shadow-xs max-[640px]:w-full max-[640px]:text-left">
                       <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Paid amount</span>
                       <strong className="mt-1 block text-2xl font-extrabold text-brand-primary">
                         {current.planCurrency} {Number(current.planEffectivePrice).toFixed(2)}
@@ -679,16 +671,6 @@ export function StudentBillingPage() {
               <h2 className={ui.panelTitle}>Recommended plans</h2>
               <p className={ui.panelText}>Pick by study timeline. Complete Prep is the best fit for most ERPM students.</p>
             </div>
-            {!loading && recommendedCarouselPlans.length > 1 ? (
-              <div className="flex shrink-0 items-center gap-2">
-                <button type="button" className={ui.squareIconButton} onClick={() => scrollRecommendedPlans(-1)} aria-label="Previous recommended plans" title="Previous recommended plans">
-                  ‹
-                </button>
-                <button type="button" className={ui.squareIconButton} onClick={() => scrollRecommendedPlans(1)} aria-label="Next recommended plans" title="Next recommended plans">
-                  ›
-                </button>
-              </div>
-            ) : null}
           </div>
 
           {loading ? <div className={ui.emptyBox}>Loading plans...</div> : null}
@@ -706,7 +688,7 @@ export function StudentBillingPage() {
             </div>
           ) : null}
           {!loading ? (
-            <div ref={recommendedCarouselRef} className={billingUi.planCarousel} aria-label="Recommended subscription plans" tabIndex={0}>
+            <div className={billingUi.planCarousel} aria-label="Recommended subscription plans" tabIndex={0}>
               {recommendedCarouselPlans.map((plan) => (
                 <div className={billingUi.planCarouselItem} key={`recommended-${plan.id}`}>
                   {renderPlanCard(plan, {
