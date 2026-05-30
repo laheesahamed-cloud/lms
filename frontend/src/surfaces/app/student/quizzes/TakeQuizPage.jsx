@@ -1264,7 +1264,7 @@ export function TakeQuizPage() {
             saving={saving || practiceCompleting || questionActionBusy}
             theme={theme}
             workspaceLabel=""
-            endLabel="Finish"
+            endLabel={practiceCompleting ? 'Submitting...' : 'Finish'}
             className={practiceHeaderClass}
             showThemeToggle
             showSecondary={false}
