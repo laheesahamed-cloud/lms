@@ -10,7 +10,7 @@ import { getStaffRoleLabel, isStaffUser, roleRouteMode, userHasPermission } from
 import { cx } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
 
-const PROFILE_MENU_EXIT_MS = 260;
+const PROFILE_MENU_EXIT_MS = 220;
 const PROFILE_MENU_ID = 'lms-profile-menu';
 
 function areStyleObjectsEqual(current, next) {

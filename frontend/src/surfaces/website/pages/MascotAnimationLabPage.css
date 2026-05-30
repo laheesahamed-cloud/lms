@@ -709,7 +709,7 @@
 
 .element-mascot-card__motion--magic span {
   border-radius: 50%;
-  background: radial-gradient(circle, #ffffff 0 20%, #69f3ff 21% 58%, transparent 60%);
+  background: radial-gradient(circle, #fbfcff 0 20%, #69f3ff 21% 58%, transparent 60%);
   filter: drop-shadow(0 0 14px rgba(105, 243, 255, 0.7));
   animation: image-element-magic 1550ms ease-in-out infinite;
 }
@@ -957,7 +957,7 @@
 }
 
 .hero-mascot-section--neon-blue .element-mascot-card__motion--magic span {
-  background: radial-gradient(circle, #ffffff 0 18%, #7df7ff 19% 52%, rgba(0, 136, 255, 0.46) 53% 64%, transparent 66%);
+  background: radial-gradient(circle, #fbfcff 0 18%, #7df7ff 19% 52%, rgba(0, 136, 255, 0.46) 53% 64%, transparent 66%);
   filter: drop-shadow(0 0 16px rgba(0, 221, 255, 0.86));
 }
 

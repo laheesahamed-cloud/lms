@@ -820,8 +820,8 @@ function drawEraserStroke(ctx, stroke, width, height) {
   ctx.save();
   ctx.globalCompositeOperation = 'destination-out';
   ctx.globalAlpha = 1;
-  ctx.strokeStyle = '#000';
-  ctx.fillStyle = '#000';
+  ctx.strokeStyle = '#0B1220';
+  ctx.fillStyle = '#0B1220';
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.lineWidth = eraserWidth;
@@ -1069,8 +1069,8 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
       ctx.save();
       ctx.globalCompositeOperation = 'destination-out';
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = '#000';
-      ctx.fillStyle = '#000';
+      ctx.strokeStyle = '#0B1220';
+      ctx.fillStyle = '#0B1220';
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.lineWidth = eraserWidth;
@@ -1309,7 +1309,7 @@ function appendPointToCurrentStroke(event) {
     if (drawTool === 'eraser') {
       currentStrokeRef.current = {
         id: `eraser-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        color: '#000000',
+        color: '#0B1220',
         width: eraserBrushWidth(),
         opacity: 1,
         tool: 'eraser',
@@ -1721,7 +1721,7 @@ const CanvasPage = memo(function CanvasPage({ pageData, index, note, topBd, isDa
       {index > 0 && (
         <div style={{ display:'flex', alignItems:'center', gap:14, margin:'4px 0 16px' }}>
           <div style={{ flex:1, height:1, background:topBd }}/>
-          <span style={{ ...KL, border:`1px solid ${topBd}`, background:isDark?'rgba(255,255,255,.04)':'#fff', borderRadius:99, padding:'3px 14px', fontSize:11, fontWeight:600, color:isDark?'#94a3b8':'#6b7280', whiteSpace:'nowrap' }}>
+          <span style={{ ...KL, border:`1px solid ${topBd}`, background:isDark?'rgba(255,255,255,.04)':'#fbfcff', borderRadius:99, padding:'3px 14px', fontSize:11, fontWeight:600, color:isDark?'#94a3b8':'#6b7280', whiteSpace:'nowrap' }}>
             Page {index+1}{pageData.title?` · ${pageData.title}`:''}
           </span>
           <div style={{ flex:1, height:1, background:topBd }}/>
@@ -1964,7 +1964,7 @@ function StickerPicker({ onPick, onClose }) {
     document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
   }, [onClose]);
   return (
-    <div ref={r} className="absolute bottom-full left-0 z-50 mb-2 grid grid-cols-6 gap-1 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-lg">
+    <div ref={r} className="absolute bottom-full left-0 z-50 mb-2 grid grid-cols-6 gap-1 rounded-2xl border border-gray-200 bg-surface-card p-2.5 shadow-lg">
       {STICKERS.map((s,i) => (
         <button key={i} className="flex size-8 items-center justify-center rounded-lg border border-gray-100 text-base hover:border-violet-300 hover:bg-violet-50"
           onClick={() => { onPick(s); onClose(); }}>{s}</button>
@@ -1976,7 +1976,7 @@ function StickerPicker({ onPick, onClose }) {
 function WatchVideoModal({ open, url, onClose, isDark }) {
   if (!open || typeof document === 'undefined') return null;
   const embed = getVideoEmbed(url);
-  const panelBg = isDark ? 'rgba(15,18,31,.98)' : '#ffffff';
+  const panelBg = isDark ? 'rgba(15,18,31,.98)' : '#fbfcff';
   const line = isDark ? 'rgba(255,255,255,.10)' : '#e5e7eb';
   const muted = isDark ? 'rgba(226,232,240,.62)' : '#64748b';
   const text = isDark ? '#f8fafc' : '#334155';
@@ -2063,7 +2063,7 @@ function WatchVideoModal({ open, url, onClose, isDark }) {
 }
 
 function WatchVideoPanel({ videoUrl, onOpenVideo, isDark }) {
-  const bg = isDark ? '#12141f' : '#fff';
+  const bg = isDark ? '#12141f' : '#fbfcff';
   const bd = isDark ? 'rgba(255,255,255,.09)' : '#e5e7eb';
   const muted = isDark ? 'rgba(200,210,255,.58)' : '#64748b';
   const thumb = getVideoThumbnail(videoUrl);
@@ -2117,7 +2117,7 @@ function RightPanel({
   const [stickerOpen, setStickerOpen] = useState(false);
   const navigate = useNavigate();
   const mcq = getMCQTag(note);
-  const bg  = isDark?'#12141f':'#fff', bd=isDark?'rgba(255,255,255,.09)':'#e5e7eb';
+  const bg  = isDark?'#12141f':'#fbfcff', bd=isDark?'rgba(255,255,255,.09)':'#e5e7eb';
   const lbl = isDark?'rgba(200,210,255,.4)':'#9ca3af';
   const C = ch => <div style={{ background:bg, border:`1px solid ${bd}`, borderRadius:16, padding:'13px 15px', marginBottom:12 }}>{ch}</div>;
   const L = t => <div style={{ fontFamily:'sans-serif', fontSize:9, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:lbl, marginBottom:9 }}>{t}</div>;
@@ -2809,7 +2809,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
             {stickers.map(s => <FloatingSticker key={s.id} s={s} editable={canEdit} onUpdate={updateSticker} onDelete={deleteSticker} canvasRef={canvasRef}/>)}
 
             {isLocked ? (
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, minHeight:400, borderRadius:20, border:`1.5px dashed ${topBd}`, background:isDark?'rgba(255,255,255,.02)':'#fff', padding:48, textAlign:'center' }}>
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, minHeight:400, borderRadius:20, border:`1.5px dashed ${topBd}`, background:isDark?'rgba(255,255,255,.02)':'#fbfcff', padding:48, textAlign:'center' }}>
                 <span style={{ color:isDark?'#93c5fd':'#2563eb' }}><LockIcon /></span>
                 <div style={{ fontSize:15, fontWeight:800, color:isDark?'#f0f4ff':'#374151' }}>{note.upgradeLabel||'Plan access needed'}</div>
                 <div style={{ fontSize:13, color:isDark?'#94a3b8':'#6b7280' }}>{note.lockReason||'This lesson is included with selected subscriptions.'}</div>
@@ -2830,7 +2830,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
                 ))}
               </div>
             ) : (
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, minHeight:400, borderRadius:20, border:`1.5px dashed ${topBd}`, background:isDark?'rgba(255,255,255,.02)':'#fff', textAlign:'center' }}>
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, minHeight:400, borderRadius:20, border:`1.5px dashed ${topBd}`, background:isDark?'rgba(255,255,255,.02)':'#fbfcff', textAlign:'center' }}>
                 <span style={{ fontSize:48 }}>📋</span>
                 <div style={{ fontSize:14, fontWeight:600, color:isDark?'#94a3b8':'#6b7280' }}>Lesson not yet published</div>
                 <div style={{ fontSize:12, color:isDark?'#64748b':'#9ca3af' }}>This lesson is being prepared by your instructor.</div>
@@ -2870,7 +2870,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
 
       {toast && (
         <div className="lms-toast" style={{ position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:50 }}>
-          <div style={{ ...KL, display:'flex', alignItems:'center', gap:8, border:`1px solid ${topBd}`, background:isDark?'#1a1d2e':'#fff', borderRadius:16, padding:'10px 20px', fontSize:13, fontWeight:600, color:isDark?'#f0f4ff':'#374151', boxShadow:'0 8px 32px rgba(0,0,0,.15)' }}>{toast}</div>
+          <div style={{ ...KL, display:'flex', alignItems:'center', gap:8, border:`1px solid ${topBd}`, background:isDark?'#1a1d2e':'#fbfcff', borderRadius:16, padding:'10px 20px', fontSize:13, fontWeight:600, color:isDark?'#f0f4ff':'#374151', boxShadow:'0 8px 32px rgba(0,0,0,.15)' }}>{toast}</div>
         </div>
       )}
 

@@ -52,11 +52,11 @@ html[data-lms-runtime="native"][data-theme="dark"] {
   --surface-2: #172332;
   --surface-3: #203044;
   --surface-4: #2b3d54;
-  --surface-card: rgba(17, 27, 39, 0.96);
-  --surface-card-elevated: rgba(21, 33, 47, 0.98);
-  --surface-glass: rgba(17, 27, 39, 0.82);
-  --surface-glass-strong: rgba(17, 27, 39, 0.94);
-  --surface-glass-subtle: rgba(21, 33, 47, 0.74);
+  --surface-card: rgba(7, 12, 19, 0.97);
+  --surface-card-elevated: rgba(10, 17, 26, 0.99);
+  --surface-glass: rgba(7, 12, 19, 0.84);
+  --surface-glass-strong: rgba(7, 12, 19, 0.94);
+  --surface-glass-subtle: rgba(10, 17, 26, 0.76);
   --line-soft: rgba(226, 232, 240, 0.14);
   --line-medium: rgba(226, 232, 240, 0.22);
   --line-strong: rgba(226, 232, 240, 0.32);
@@ -113,8 +113,8 @@ html[data-lms-runtime="native"][data-theme="dark"] .student-app-shell {
   --sa-surface: var(--surface-card);
   --sa-surface-2: var(--surface-2);
   --sa-surface-raised: var(--surface-card-elevated);
-  --sa-surface-rgb: 17, 27, 39;
-  --sa-surface-2-rgb: 23, 35, 50;
+  --sa-surface-rgb: 7, 12, 19;
+  --sa-surface-2-rgb: 10, 17, 26;
   --sa-ink: var(--ink-strong);
   --sa-ink-deep: #ffffff;
   --sa-text-2: var(--ink-soft);
@@ -126,14 +126,14 @@ html[data-lms-runtime="native"][data-theme="dark"] .student-app-shell {
   --sa-shadow-card: var(--shadow-sm);
   --sa-shadow-card-hover: var(--shadow-md);
   --sa-card-bg:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.035), transparent 36%),
-    linear-gradient(180deg, rgba(20, 31, 45, 0.98), rgba(14, 22, 32, 0.96));
+    linear-gradient(145deg, rgba(255, 255, 255, 0.026), transparent 36%),
+    linear-gradient(180deg, rgba(10, 17, 26, 0.99), rgba(5, 9, 15, 0.98));
   --lms-app-card-bg:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.052), transparent 42%),
-    linear-gradient(135deg, rgba(96, 165, 250, 0.105), rgba(255, 255, 255, 0) 58%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.034), transparent 42%),
+    linear-gradient(135deg, rgba(96, 165, 250, 0.07), rgba(255, 255, 255, 0) 58%),
     var(--surface-card);
   --lms-app-list-card-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.026), transparent 52%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 52%),
     var(--surface-card);
   --lms-app-card-border: rgba(226, 232, 240, 0.16);
   --lms-app-card-shadow: var(--shadow-sm);

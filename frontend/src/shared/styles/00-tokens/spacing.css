@@ -1,0 +1,20 @@
+/* xyndrome spacing token export.
+   Section 1 audit scale: 4, 8, 12, 16, 24, 32px. */
+
+:root {
+  --ds-space-1: var(--space-1, 4px);
+  --ds-space-2: var(--space-2, 8px);
+  --ds-space-3: var(--space-3, 12px);
+  --ds-space-4: var(--space-4, 16px);
+  --ds-space-5: var(--space-6, 24px);
+  --ds-space-6: var(--space-7, 32px);
+
+  --ds-page-pad-x: var(--page-pad-x, 22px);
+  --ds-page-pad-y: var(--page-pad-y, 16px);
+  --ds-section-gap: var(--section-gap, 18px);
+  --ds-card-pad: var(--card-pad, 20px);
+  --ds-card-pad-compact: var(--card-pad-compact, 16px);
+  --ds-form-gap: var(--form-gap, 16px);
+  --ds-control-height: var(--control-h, 42px);
+  --ds-touch-target-min: var(--lms-min-touch-target, 44px);
+}

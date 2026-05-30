@@ -260,113 +260,6 @@ body {
   }
 }
 
-/* Avatar/profile popover: one smooth portal animation, no duplicated blur layer. */
-body.lms-profile-menu-open :where(.app-shell)::after,
-body.lms-profile-menu-closing :where(.app-shell)::after {
-  content: none !important;
-  animation: none !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-}
-
-body.lms-profile-menu-open :where(.lms-sidebar),
-body.lms-profile-menu-closing :where(.lms-sidebar) {
-  filter: none !important;
-  -webkit-filter: none !important;
-  opacity: 1 !important;
-  transition: none !important;
-}
-
-body.lms-profile-menu-open :where(.management-layout, .study-hub-shell) > :not(.lms-topbar):not(.study-hub-topbar),
-body.lms-profile-menu-closing :where(.management-layout, .study-hub-shell) > :not(.lms-topbar):not(.study-hub-topbar),
-body.lms-profile-menu-open .study-hub-topbar.is-profile-menu-open > :where(.lms-topbar-menu-button, .study-topbar-title),
-body.lms-profile-menu-open .study-hub-topbar.is-profile-menu-open .study-topbar-actions > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
-body.lms-profile-menu-open .lms-topbar.is-profile-menu-open :where(.lms-topbar-left, .lms-topbar-center),
-body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-utility > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
-body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-right > :not(.lms-topbar-utility):not(.lms-topbar-menu-wrap.is-profile-menu-open) {
-  filter: none !important;
-  -webkit-filter: none !important;
-  opacity: 1 !important;
-  transition: none !important;
-}
-
-.lms-profile-menu-backdrop {
-  z-index: 10055 !important;
-  --lms-profile-menu-backdrop-bg: rgba(12, 24, 48, 0.11);
-  --lms-profile-menu-backdrop-blur: 14px;
-  --lms-profile-menu-backdrop-saturate: 112%;
-  background: var(--lms-profile-menu-backdrop-bg) !important;
-  animation: lmsProfileBackdropSmoothIn var(--lms-popover-motion) both !important;
-  -webkit-backdrop-filter:
-    blur(var(--lms-profile-menu-backdrop-blur))
-    saturate(var(--lms-profile-menu-backdrop-saturate)) !important;
-  backdrop-filter:
-    blur(var(--lms-profile-menu-backdrop-blur))
-    saturate(var(--lms-profile-menu-backdrop-saturate)) !important;
-  will-change: opacity, backdrop-filter;
-}
-
-.lms-profile-menu-backdrop.is-closing {
-  pointer-events: none !important;
-  animation: lmsProfileBackdropSmoothOut var(--lms-popover-exit-motion) both !important;
-}
-
-body.lms-profile-menu-open > .lms-profile-menu {
-  transform-origin: top right !important;
-  animation: lmsProfilePopoverIn var(--lms-popover-motion) both !important;
-  -webkit-backdrop-filter: blur(18px) saturate(118%) !important;
-  backdrop-filter: blur(18px) saturate(118%) !important;
-  backface-visibility: hidden;
-  contain: layout paint;
-  will-change: opacity, transform;
-}
-
-body.lms-profile-menu-open > .lms-profile-menu.is-closing {
-  pointer-events: none !important;
-  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion) both !important;
-}
-
-body.lms-profile-menu-open > .lms-profile-menu > * {
-  animation: none !important;
-  opacity: 1 !important;
-  transform: none !important;
-}
-
-body.lms-profile-menu-open > .lms-profile-menu.is-closing > * {
-  animation: none !important;
-  opacity: 1 !important;
-  transform: none !important;
-}
-
-body.lms-profile-menu-open > .lms-profile-avatar-floating {
-  animation: lmsProfileAvatarSmoothIn 190ms var(--lms-motion-soft) both !important;
-  -webkit-backdrop-filter: blur(10px) saturate(112%) !important;
-  backdrop-filter: blur(10px) saturate(112%) !important;
-  backface-visibility: hidden;
-  will-change: opacity, transform;
-}
-
-body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
-  animation: lmsProfileAvatarSmoothOut var(--lms-popover-exit-motion) both !important;
-}
-
-@media (max-width: 520px) {
-  body.lms-profile-menu-open > .lms-profile-menu {
-    transform-origin: top center !important;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lms-profile-menu-backdrop,
-  body.lms-profile-menu-open > .lms-profile-menu,
-  body.lms-profile-menu-open > .lms-profile-menu > *,
-  body.lms-profile-menu-open > .lms-profile-avatar-floating {
-    animation-duration: 1ms !important;
-    transition-duration: 1ms !important;
-    will-change: auto !important;
-  }
-}
-
 @keyframes lmsProfilePopoverIn {
   from {
     opacity: 0;
@@ -739,7 +632,7 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
   border-color: color-mix(in srgb, var(--color-primary, #2563eb) 44%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--color-primary, #2563eb) 8%, transparent), transparent 42%),
-    linear-gradient(135deg, color-mix(in srgb, var(--color-primary, #2563eb) 7%, var(--surface-1, #fff)), color-mix(in srgb, var(--color-primary, #2563eb) 3%, var(--surface-1, #fff))) !important;
+    linear-gradient(135deg, color-mix(in srgb, var(--color-primary, #2563eb) 7%, var(--surface-1, #fbfcff)), color-mix(in srgb, var(--color-primary, #2563eb) 3%, var(--surface-1, #fbfcff))) !important;
   box-shadow:
     0 0 0 3px color-mix(in srgb, var(--color-primary, #2563eb) 10%, transparent),
     0 16px 30px -26px color-mix(in srgb, var(--color-primary, #2563eb) 46%, transparent) !important;
@@ -768,7 +661,7 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
   border-color: color-mix(in srgb, var(--color-success, #16a34a) 42%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--color-success, #16a34a) 9%, transparent), transparent 44%),
-    linear-gradient(135deg, color-mix(in srgb, var(--color-success, #16a34a) 10%, var(--surface-1, #fff)), color-mix(in srgb, var(--color-success, #16a34a) 4%, var(--surface-1, #fff))) !important;
+    linear-gradient(135deg, color-mix(in srgb, var(--color-success, #16a34a) 10%, var(--surface-1, #fbfcff)), color-mix(in srgb, var(--color-success, #16a34a) 4%, var(--surface-1, #fbfcff))) !important;
   box-shadow:
     0 0 0 3px color-mix(in srgb, var(--color-success, #16a34a) 10%, transparent),
     0 16px 30px -26px color-mix(in srgb, var(--color-success, #16a34a) 42%, transparent) !important;
@@ -778,7 +671,7 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
   border-color: color-mix(in srgb, var(--color-error, #dc2626) 42%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--color-error, #dc2626) 8%, transparent), transparent 44%),
-    linear-gradient(135deg, color-mix(in srgb, var(--color-error, #dc2626) 9%, var(--surface-1, #fff)), color-mix(in srgb, var(--color-error, #dc2626) 4%, var(--surface-1, #fff))) !important;
+    linear-gradient(135deg, color-mix(in srgb, var(--color-error, #dc2626) 9%, var(--surface-1, #fbfcff)), color-mix(in srgb, var(--color-error, #dc2626) 4%, var(--surface-1, #fbfcff))) !important;
   box-shadow:
     0 0 0 3px color-mix(in srgb, var(--color-error, #dc2626) 9%, transparent),
     0 16px 30px -26px color-mix(in srgb, var(--color-error, #dc2626) 40%, transparent) !important;
@@ -862,7 +755,7 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
 .student-app-shell .lms-assessment-btn:focus-visible {
   outline: 0 !important;
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--surface-0, #fff) 90%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--surface-0, #fbfcff) 90%, transparent),
     0 0 0 6px color-mix(in srgb, var(--color-primary, #2563eb) 28%, transparent) !important;
 }
 
@@ -1364,7 +1257,36 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
   }
 }
 
-/* Avatar dropdown focus layer. Keep the trigger/menu crisp while the app recedes. */
+/* Avatar/profile popover: one smooth portal animation, no duplicated blur layer. */
+body.lms-profile-menu-open :where(.app-shell)::after,
+body.lms-profile-menu-closing :where(.app-shell)::after {
+  content: none !important;
+  animation: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+body.lms-profile-menu-open :where(.lms-sidebar),
+body.lms-profile-menu-closing :where(.lms-sidebar) {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+body.lms-profile-menu-open :where(.management-layout, .study-hub-shell) > :not(.lms-topbar):not(.study-hub-topbar),
+body.lms-profile-menu-closing :where(.management-layout, .study-hub-shell) > :not(.lms-topbar):not(.study-hub-topbar),
+body.lms-profile-menu-open .study-hub-topbar.is-profile-menu-open > :where(.lms-topbar-menu-button, .study-topbar-title),
+body.lms-profile-menu-open .study-hub-topbar.is-profile-menu-open .study-topbar-actions > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
+body.lms-profile-menu-open .lms-topbar.is-profile-menu-open :where(.lms-topbar-left, .lms-topbar-center),
+body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-utility > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
+body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-right > :not(.lms-topbar-utility):not(.lms-topbar-menu-wrap.is-profile-menu-open) {
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
 .lms-profile-menu-backdrop {
   z-index: 10070 !important;
   padding: 0 !important;
@@ -2044,7 +1966,7 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
     margin-inline: 0 !important;
     border: 1px solid var(--sa-border, var(--line-soft)) !important;
     border-radius: 14px !important;
-    background: var(--surface-card, var(--surface-0, #fff)) !important;
+    background: var(--surface-card, var(--surface-0, #fbfcff)) !important;
     box-shadow: 0 14px 30px -28px rgba(15, 23, 42, 0.34) !important;
     padding: 12px !important;
     gap: 11px !important;
@@ -2198,7 +2120,7 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
     margin-inline: 0 !important;
     border: 1px solid var(--sa-border, var(--line-soft)) !important;
     border-radius: 14px !important;
-    background: var(--surface-card, var(--surface-0, #fff)) !important;
+    background: var(--surface-card, var(--surface-0, #fbfcff)) !important;
     box-shadow: 0 14px 30px -28px rgba(15, 23, 42, 0.34) !important;
     padding: 12px !important;
     gap: 11px !important;
@@ -2352,7 +2274,7 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
     margin-inline: 0 !important;
     border: 1px solid var(--sa-border, var(--line-soft)) !important;
     border-radius: 14px !important;
-    background: var(--surface-card, var(--surface-0, #fff)) !important;
+    background: var(--surface-card, var(--surface-0, #fbfcff)) !important;
     box-shadow: 0 14px 30px -28px rgba(15, 23, 42, 0.34) !important;
     padding: 12px !important;
     gap: 11px !important;
@@ -2525,7 +2447,7 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
     margin-inline: 0 !important;
     border: 1px solid var(--sa-border, var(--line-soft)) !important;
     border-radius: 14px !important;
-    background: var(--surface-card, var(--surface-0, #fff)) !important;
+    background: var(--surface-card, var(--surface-0, #fbfcff)) !important;
     box-shadow: 0 14px 30px -28px rgba(15, 23, 42, 0.34) !important;
     padding: 12px !important;
     gap: 11px !important;
@@ -2582,7 +2504,7 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
 
   html[data-theme] body .student-app-shell .lms-exam-page .lms-exam-main-card {
     border-radius: 14px !important;
-    background: var(--surface-card, var(--surface-0, #fff)) !important;
+    background: var(--surface-card, var(--surface-0, #fbfcff)) !important;
     box-shadow: 0 14px 30px -28px rgba(15, 23, 42, 0.34) !important;
     padding: 12px !important;
   }
@@ -2608,7 +2530,7 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
     .lms-exam-page.lms-exam-page
     .lms-exam-main-card.lms-exam-main-card {
     border-radius: 14px !important;
-    background: var(--surface-card, var(--surface-1, #fff)) !important;
+    background: var(--surface-card, var(--surface-1, #fbfcff)) !important;
     box-shadow: 0 14px 30px -28px rgba(15, 23, 42, 0.34) !important;
     padding: 12px !important;
   }
@@ -3068,13 +2990,13 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-answer-card) {
     border-width: 1px !important;
     border-radius: 12px !important;
-    background: color-mix(in srgb, var(--surface-1, #fff) 88%, var(--surface-2, #f8fafc)) !important;
+    background: color-mix(in srgb, var(--surface-1, #fbfcff) 88%, var(--surface-2, #f8fafc)) !important;
     box-shadow: none !important;
     padding: 10px 11px !important;
   }
 
   :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-answer-card) {
-    background: color-mix(in srgb, var(--surface-1, #0f172a) 88%, white 4%) !important;
+    background: color-mix(in srgb, var(--surface-1, #0f172a) 88%, #f8fafc 4%) !important;
   }
 
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-reading-question) {
@@ -3333,6 +3255,113 @@ html[data-lms-runtime="native"] :where(
   pointer-events: auto;
   touch-action: manipulation !important;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Native assessment parity: keep quiz-taking and review pages visually aligned
+   with the current web surface while respecting safe areas and native scrolling. */
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-quiz-taking-page, .practice-review-page, .lms-review-page, .lms-exam-page) {
+  background: var(--sa-bg, var(--app-bg)) !important;
+  color: var(--sa-ink, var(--ink-strong)) !important;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) {
+  min-height: 100dvh !important;
+  padding-top: max(10px, var(--lms-safe-top, env(safe-area-inset-top, 0px))) !important;
+  padding-bottom: max(18px, var(--lms-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+  overflow-x: clip !important;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-layout, .practice-review-shell, .lms-review-workspace, .lms-exam-grid) {
+  min-width: 0 !important;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-header, .practice-review-header) {
+  border-color: color-mix(in srgb, var(--sa-border, var(--line-soft)) 82%, transparent) !important;
+  background: color-mix(in srgb, var(--surface-card, var(--sa-surface)) 78%, transparent) !important;
+  box-shadow: var(--sa-shadow-card, 0 16px 34px rgba(15, 23, 42, 0.06)) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(116%) !important;
+  backdrop-filter: blur(14px) saturate(116%) !important;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-main-card, .lms-review-question-card) {
+  border-color: color-mix(in srgb, var(--sa-border, var(--line-soft)) 88%, transparent) !important;
+  background: var(--sa-card-bg, var(--surface-card)) !important;
+  box-shadow: var(--sa-shadow-card, 0 16px 34px rgba(15, 23, 42, 0.06)) !important;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-review-summary-grid, .lms-review-side-nav, .lms-exam-sidebar > section, .lms-review-explanation-side > section) {
+  border-color: color-mix(in srgb, var(--sa-border, var(--line-soft)) 84%, transparent) !important;
+  background: color-mix(in srgb, var(--surface-card, var(--sa-surface)) 88%, transparent) !important;
+  box-shadow: none !important;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-learning-reveal-card, .lms-reading-explanation, .lms-reading-incorrect, .lms-key-points-card, .lms-quiz-key-points-card) {
+  background: color-mix(in srgb, var(--surface-2, var(--sa-surface-2)) 92%, transparent) !important;
+  color: var(--sa-ink, var(--ink-strong)) !important;
+  box-shadow: none !important;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-assessment-btn, .lms-question-utility-row button, .lms-exam-main-footer button, .lms-mobile-quiz-actions button) {
+  background: var(--exam-footer-btn-bg, var(--btn-secondary-bg, var(--surface-1))) !important;
+  color: var(--exam-footer-btn-text, var(--btn-secondary-text, var(--sa-ink))) !important;
+  border-color: var(--exam-footer-btn-border, var(--sa-border, var(--line-soft))) !important;
+  box-shadow: none !important;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-assessment-btn--primary, .lms-mobile-quiz-primary) {
+  background: var(--color-primary-light, color-mix(in srgb, var(--color-primary) 13%, var(--surface-1))) !important;
+  color: var(--color-primary) !important;
+  border-color: color-mix(in srgb, var(--color-primary) 34%, var(--line-soft)) !important;
+}
+
+html[data-lms-runtime="native"] .quiz-completion-overlay {
+  background: color-mix(in srgb, var(--surface-0, var(--app-bg-solid)) 70%, transparent) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(118%) !important;
+  backdrop-filter: blur(24px) saturate(118%) !important;
+}
+
+html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-overlay {
+  background: color-mix(in srgb, var(--surface-0, #0b121b) 76%, transparent) !important;
+}
+
+html[data-lms-runtime="native"] .quiz-completion-capsule {
+  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 28%, var(--line-soft)) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-card, #fbfcff) 96%, transparent), color-mix(in srgb, var(--surface-1, #fbfcff) 92%, transparent)) !important;
+  box-shadow: 0 24px 58px -34px color-mix(in srgb, var(--color-primary, #2563eb) 28%, rgba(15, 23, 42, 0.28)) !important;
+}
+
+html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-capsule {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-card, #0b121b) 94%, #f8fafc 3%), color-mix(in srgb, var(--surface-1, #111827) 92%, #020617 6%)) !important;
+  box-shadow: 0 24px 60px -36px rgba(0, 0, 0, 0.68) !important;
+}
+
+@media (max-width: 700px) {
+  html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-header, .practice-review-header) {
+    border-radius: 18px !important;
+    padding: 10px 11px !important;
+  }
+
+  html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-main-card, .lms-review-question-card) {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-inline: 0 !important;
+    border-left: 1px solid var(--sa-border, var(--line-soft)) !important;
+    border-right: 1px solid var(--sa-border, var(--line-soft)) !important;
+    border-radius: 18px !important;
+    padding: 14px !important;
+  }
+
+  html[data-lms-runtime="native"] .student-app-shell :where(.lms-quiz-action-grid, .lms-review-nav-actions, .lms-question-utility-row) {
+    gap: 8px !important;
+  }
+
+  html[data-lms-runtime="native"] .student-app-shell :where(.lms-mobile-quiz-bar) {
+    bottom: max(8px, var(--lms-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+  }
+
+  html[data-lms-runtime="native"] .quiz-completion-overlay {
+    padding-inline: max(14px, var(--lms-safe-left, env(safe-area-inset-left, 0px)), var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;
+  }
 }
 
 .lms-ai-note-page.is-writing-mode :where(.lms-ai-canvas-shell, .lms-ai-note-main) {

@@ -23,11 +23,11 @@
   --surface-2: #172330;
   --surface-3: #1d2b3a;
   --surface-4: #263749;
-  --surface-card: rgba(18, 28, 38, 0.94);
-  --surface-card-elevated: rgba(23, 35, 48, 0.95);
-  --surface-glass: rgba(18, 28, 38, 0.78);
-  --surface-glass-strong: rgba(18, 28, 38, 0.9);
-  --surface-glass-subtle: rgba(23, 35, 48, 0.66);
+  --surface-card: rgba(8, 13, 20, 0.96);
+  --surface-card-elevated: rgba(11, 18, 27, 0.98);
+  --surface-glass: rgba(8, 13, 20, 0.82);
+  --surface-glass-strong: rgba(8, 13, 20, 0.92);
+  --surface-glass-subtle: rgba(12, 19, 29, 0.72);
 
   --line-soft: rgba(203, 213, 225, 0.13);
   --line-medium: rgba(203, 213, 225, 0.2);
@@ -69,17 +69,17 @@
     ),
     linear-gradient(
       145deg,
-      rgba(22, 34, 46, 0.92) 0%,
-      rgba(18, 28, 38, 0.94) 56%,
-      rgba(14, 22, 31, 0.96) 100%
+      rgba(12, 20, 31, 0.96) 0%,
+      rgba(8, 13, 20, 0.97) 56%,
+      rgba(5, 8, 13, 0.98) 100%
     ),
     var(--surface-card);
   --lms-app-list-card-bg:
     linear-gradient(
       180deg,
       rgba(255, 255, 255, 0.018) 0%,
-      rgba(22, 34, 46, 0.9) 48%,
-      rgba(16, 25, 35, 0.96) 100%
+      rgba(10, 17, 27, 0.94) 48%,
+      rgba(5, 8, 13, 0.98) 100%
     ),
     var(--surface-card);
   --lms-app-card-border: var(--line-soft);
@@ -98,8 +98,8 @@
   --sa-surface: var(--surface-card);
   --sa-surface-2: var(--surface-2);
   --sa-surface-raised: var(--surface-card-elevated);
-  --sa-surface-rgb: 18, 28, 38;
-  --sa-surface-2-rgb: 23, 35, 48;
+  --sa-surface-rgb: 8, 13, 20;
+  --sa-surface-2-rgb: 12, 19, 29;
   --sa-ink: var(--ink-strong);
   --sa-ink-deep: #f8fafc;
   --sa-text-2: var(--ink-soft);
@@ -472,18 +472,18 @@ body.student-quiz-night-screen .student-app-shell {
   --app-bg-solid: #0f1720;
 
   --sa-bg: var(--quiz-night-bg);
-  --sa-surface: rgba(18, 28, 38, 0.94);
-  --sa-surface-2: rgba(23, 35, 48, 0.9);
-  --sa-surface-raised: rgba(23, 35, 48, 0.95);
-  --sa-surface-rgb: 18, 28, 38;
-  --sa-surface-2-rgb: 23, 35, 48;
+  --sa-surface: rgba(8, 13, 20, 0.96);
+  --sa-surface-2: rgba(12, 19, 29, 0.92);
+  --sa-surface-raised: rgba(11, 18, 27, 0.98);
+  --sa-surface-rgb: 8, 13, 20;
+  --sa-surface-2-rgb: 12, 19, 29;
 
   --surface-0: #0f1720;
-  --surface-1: rgba(18, 28, 38, 0.94);
-  --surface-2: rgba(23, 35, 48, 0.9);
-  --surface-3: rgba(29, 43, 58, 0.9);
-  --surface-card: rgba(18, 28, 38, 0.94);
-  --surface-card-elevated: rgba(23, 35, 48, 0.95);
+  --surface-1: rgba(8, 13, 20, 0.96);
+  --surface-2: rgba(12, 19, 29, 0.92);
+  --surface-3: rgba(16, 25, 38, 0.92);
+  --surface-card: rgba(8, 13, 20, 0.96);
+  --surface-card-elevated: rgba(11, 18, 27, 0.98);
   --btn-secondary-bg: rgba(31, 42, 56, 0.76);
 
   --sa-ink: #eef3f8;
@@ -510,13 +510,13 @@ body.student-quiz-night-screen .student-app-shell {
   --sa-shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 18px 44px -32px rgba(2, 6, 12, 0.66);
   --sa-shadow-card-hover: inset 0 1px 0 rgba(255, 255, 255, 0.058), 0 22px 50px -34px rgba(2, 6, 12, 0.72);
   --lms-app-card-bg:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01) 38%, rgba(148, 163, 184, 0.018)),
-    linear-gradient(145deg, rgba(22, 34, 46, 0.92), rgba(18, 28, 38, 0.94) 56%, rgba(14, 22, 31, 0.96)),
-    rgba(18, 28, 38, 0.94);
+    linear-gradient(145deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008) 38%, rgba(148, 163, 184, 0.014)),
+    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(8, 13, 20, 0.97) 56%, rgba(5, 8, 13, 0.98)),
+    rgba(8, 13, 20, 0.96);
   --sa-card-bg: var(--lms-app-card-bg);
   --sa-card-bg-hover:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018) 42%, rgba(148, 163, 184, 0.028)),
-    linear-gradient(145deg, rgba(25, 38, 51, 0.94), rgba(18, 28, 38, 0.96));
+    linear-gradient(145deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.014) 42%, rgba(148, 163, 184, 0.022)),
+    linear-gradient(145deg, rgba(14, 22, 33, 0.97), rgba(8, 13, 20, 0.98));
   --sa-soft-tile-bg:
     linear-gradient(135deg, rgba(148, 163, 184, 0.055), rgba(96, 113, 135, 0.035)),
     rgba(23, 35, 48, 0.72);
@@ -1468,7 +1468,7 @@ body,
 
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page :where(input, textarea, select) {
   border-color: rgba(86, 112, 150, 0.18) !important;
-  background: rgba(255, 255, 255, 0.94) !important;
+  background: rgba(251, 252, 255, 0.94) !important;
   color: #2f3b57 !important;
   box-shadow: none !important;
 }
@@ -1552,7 +1552,7 @@ body,
 }
 
 :root[data-theme="light"] .lms-mobile-bottom-nav__inner {
-  background: linear-gradient(180deg, #ffffff 0%, #f5f8fd 100%) !important;
+  background: linear-gradient(180deg, #fbfcff 0%, #f5f8fd 100%) !important;
   color: #26314c !important;
   box-shadow: 0 -10px 28px -22px rgba(37, 99, 235, 0.24) !important;
 }
@@ -1624,7 +1624,7 @@ body,
 
 :root[data-theme="light"] .student-app-shell .lms-profile-avatar {
   border-color: rgba(255, 255, 255, 0.92) !important;
-  background: #ffffff !important;
+  background: var(--surface-card, #fbfcff) !important;
   box-shadow:
     0 8px 18px -14px rgba(37, 99, 235, 0.38),
     0 0 0 1px rgba(37, 99, 235, 0.12) !important;
@@ -2031,18 +2031,18 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 :root[data-theme="dark"] .student-app-shell:has(:is(.dashboard-page.study-hub-page, .lms-exam-page)),
 :root[data-theme="dark"] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) {
   --student-route-card-bg:
-    radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.06), transparent 38%),
-    linear-gradient(145deg, rgba(22, 34, 46, 0.92), rgba(17, 26, 36, 0.96));
+    radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.048), transparent 38%),
+    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(7, 12, 19, 0.98));
   --student-route-card-bg-raised:
-    radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.075), transparent 36%),
-    linear-gradient(145deg, rgba(25, 38, 51, 0.94), rgba(19, 29, 40, 0.97));
+    radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.06), transparent 36%),
+    linear-gradient(145deg, rgba(14, 22, 33, 0.97), rgba(9, 15, 23, 0.98));
   --student-route-card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 20px 46px -34px rgba(2, 6, 12, 0.66);
   --sa-bg: var(--app-bg);
-  --sa-surface: rgba(18, 28, 38, 0.94);
-  --sa-surface-2: rgba(23, 35, 48, 0.9);
-  --sa-surface-raised: rgba(23, 35, 48, 0.95);
-  --sa-surface-rgb: 18, 28, 38;
-  --sa-surface-2-rgb: 23, 35, 48;
+  --sa-surface: rgba(8, 13, 20, 0.96);
+  --sa-surface-2: rgba(12, 19, 29, 0.92);
+  --sa-surface-raised: rgba(11, 18, 27, 0.98);
+  --sa-surface-rgb: 8, 13, 20;
+  --sa-surface-2-rgb: 12, 19, 29;
   --sa-ink: #eef3f8;
   --sa-ink-deep: #f8fafc;
   --sa-text-2: #a3afbd;
@@ -2052,12 +2052,12 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --sa-border-strong: rgba(203, 213, 225, 0.2);
   --sa-border-rgb: 203, 213, 225;
   --surface-0: var(--app-bg);
-  --surface-1: rgba(18, 28, 38, 0.94);
-  --surface-2: rgba(23, 35, 48, 0.9);
-  --surface-3: rgba(29, 43, 58, 0.9);
-  --surface-4: rgba(38, 55, 73, 0.88);
-  --surface-card: rgba(18, 28, 38, 0.94);
-  --surface-card-elevated: rgba(23, 35, 48, 0.95);
+  --surface-1: rgba(8, 13, 20, 0.96);
+  --surface-2: rgba(12, 19, 29, 0.92);
+  --surface-3: rgba(16, 25, 38, 0.92);
+  --surface-4: rgba(24, 35, 50, 0.9);
+  --surface-card: rgba(8, 13, 20, 0.96);
+  --surface-card-elevated: rgba(11, 18, 27, 0.98);
   --surface-elevated: var(--surface-card-elevated);
   --surface-glass: rgba(18, 28, 38, 0.74);
   --surface-glass-strong: rgba(18, 28, 38, 0.88);
@@ -2690,18 +2690,18 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   --app-bg-solid: #0f1720;
   --sa-bg: var(--student-night-bg);
 
-  --sa-surface: rgba(18, 28, 38, 0.94);
-  --sa-surface-2: rgba(23, 35, 48, 0.9);
-  --sa-surface-raised: rgba(23, 35, 48, 0.95);
-  --sa-surface-rgb: 18, 28, 38;
-  --sa-surface-2-rgb: 23, 35, 48;
+  --sa-surface: rgba(8, 13, 20, 0.96);
+  --sa-surface-2: rgba(12, 19, 29, 0.92);
+  --sa-surface-raised: rgba(11, 18, 27, 0.98);
+  --sa-surface-rgb: 8, 13, 20;
+  --sa-surface-2-rgb: 12, 19, 29;
 
   --surface-0: #0f1720;
-  --surface-1: rgba(18, 28, 38, 0.94);
-  --surface-2: rgba(23, 35, 48, 0.9);
-  --surface-3: rgba(29, 43, 58, 0.9);
-  --surface-card: rgba(18, 28, 38, 0.94);
-  --surface-card-elevated: rgba(23, 35, 48, 0.95);
+  --surface-1: rgba(8, 13, 20, 0.96);
+  --surface-2: rgba(12, 19, 29, 0.92);
+  --surface-3: rgba(16, 25, 38, 0.92);
+  --surface-card: rgba(8, 13, 20, 0.96);
+  --surface-card-elevated: rgba(11, 18, 27, 0.98);
   --surface-elevated: var(--surface-card-elevated);
   --surface-glass: rgba(18, 28, 38, 0.74);
   --surface-glass-strong: rgba(18, 28, 38, 0.88);
@@ -2724,13 +2724,13 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   --line-strong: rgba(203, 213, 225, 0.28);
 
   --lms-app-card-bg:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.008) 42%, rgba(148, 163, 184, 0.018)),
-    linear-gradient(145deg, rgba(22, 34, 46, 0.92), rgba(18, 28, 38, 0.94) 56%, rgba(14, 22, 31, 0.96));
+    linear-gradient(145deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006) 42%, rgba(148, 163, 184, 0.014)),
+    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(8, 13, 20, 0.97) 56%, rgba(5, 8, 13, 0.98));
   --lms-app-card-bg-raised:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.012) 42%, rgba(148, 163, 184, 0.024)),
-    linear-gradient(145deg, rgba(25, 38, 51, 0.94), rgba(19, 29, 40, 0.97));
+    linear-gradient(145deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.01) 42%, rgba(148, 163, 184, 0.02)),
+    linear-gradient(145deg, rgba(14, 22, 33, 0.97), rgba(9, 15, 23, 0.98));
   --lms-app-list-card-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(22, 34, 46, 0.9) 52%, rgba(16, 25, 35, 0.96));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.014), rgba(10, 17, 27, 0.94) 52%, rgba(5, 8, 13, 0.98));
   --lms-app-card-border: var(--line-soft);
   --lms-app-card-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.045),

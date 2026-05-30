@@ -2,3 +2,29 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] :where(.lms-hero-c
   min-height: auto !important;
   border-radius: 17px !important;
 }
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .study-chip-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: 100%;
+  max-width: min(100%, 430px);
+  min-width: 0;
+  gap: 6px;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .study-chip-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .study-chip-row span:first-child {
+  flex: 0 1 auto;
+  max-width: 42%;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .study-chip-row span:nth-child(2) {
+  flex: 1 1 auto;
+  max-width: none;
+}

@@ -371,7 +371,7 @@ const ANIM_CSS = `
   :root:not([data-theme='dark']) .lms-login-form input {
     border-color: rgba(37,99,235,.18) !important;
     background:
-      linear-gradient(180deg, #FFFFFF 0%, #F8FBFF 100%) !important;
+      linear-gradient(180deg, #FBFCFF 0%, #F8FBFF 100%) !important;
     color: #0B1220 !important;
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,.92),
@@ -436,7 +436,7 @@ const ANIM_CSS = `
   :root:not([data-theme='dark']) .lms-google-btn:hover {
     border-color: rgba(37,99,235,.28);
     background:
-      linear-gradient(180deg, #FFFFFF, #F1F7FF);
+      linear-gradient(180deg, #FBFCFF, #F1F7FF);
   }
   :root[data-theme='dark'] .lms-login-form h2 { color: #F1F5F9 !important; }
   /* ── Right panel form card elevation ── */

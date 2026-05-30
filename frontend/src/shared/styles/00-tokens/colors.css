@@ -1,0 +1,25 @@
+/* xyndrome color token export.
+   Canonical values live in shared/theme.css; this file exposes audited
+   design-system aliases consumed by page and component CSS. */
+
+:root {
+  --ds-surface-page: var(--surface-0, #F7F9FC);
+  --ds-surface-primary: var(--surface-card, #FBFCFF);
+  --ds-surface-raised: var(--surface-card-elevated, #FDFEFF);
+  --ds-surface-muted: var(--surface-2, #F3F6FA);
+
+  --ds-text-primary: var(--ink-strong, #0B1220);
+  --ds-text-secondary: var(--ink-medium, #2A3B52);
+  --ds-text-muted: var(--ink-soft, #62758A);
+
+  --ds-accent-primary: var(--color-primary, #2563EB);
+  --ds-accent-secondary: var(--color-secondary, #7C3AED);
+  --ds-success: var(--color-success, #2E7D32);
+  --ds-warning: var(--color-warning, #A16207);
+  --ds-error: var(--color-error, #B3261E);
+  --ds-info: var(--color-cyan, #0891B2);
+
+  --ds-border-soft: var(--line-soft, #E7EDF5);
+  --ds-border-medium: var(--line-medium, #CBD8E8);
+  --ds-border-strong: var(--line-strong, #94A3B8);
+}

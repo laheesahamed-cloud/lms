@@ -234,7 +234,7 @@
 .student-app-shell[data-theme="dark"] .study-loading-card {
   border-color: transparent;
   background:
-    linear-gradient(145deg, rgba(22, 34, 46, 0.92), rgba(18, 28, 38, 0.94)),
+    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(8, 13, 20, 0.97)),
     var(--sa-surface);
   box-shadow:
     0 18px 42px -34px rgba(2, 6, 12, 0.62);
@@ -1141,7 +1141,7 @@
   height: 100%;
   border-radius: inherit;
   /* In light mode the card itself is blue, so the fill is white-cyan */
-  background: linear-gradient(90deg, #ffffff, #cfe9ff);
+  background: linear-gradient(90deg, #fbfcff, #cfe9ff);
 }
 
 :root[data-theme="dark"] .study-large-rail,

@@ -134,10 +134,6 @@ export function shouldUseOverlayNavigation(platform = detectPlatform()) {
 export function resolveApiBaseUrl() {
   const platform = detectPlatform();
   const configuredApiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
-  if (platform.isNative && platform.isAndroid && isLocalDevelopmentApiBaseUrl(configuredApiBaseUrl)) {
-    return LOCAL_API_BASE_URL;
-  }
-
   if (configuredApiBaseUrl && !isPlaceholderApiBaseUrl(configuredApiBaseUrl)) {
     return configuredApiBaseUrl;
   }
@@ -170,6 +166,10 @@ export function resolveApiBaseUrls() {
   const primaryUrl = normalizeApiBaseUrl(resolveApiBaseUrl());
   const platform = detectPlatform();
   const fallbackUrls = [];
+
+  if (platform.isNative && (configuredUrls.length || !isPlaceholderApiBaseUrl(import.meta.env.VITE_API_BASE_URL))) {
+    return Array.from(new Set([primaryUrl, ...configuredUrls].filter(Boolean)));
+  }
 
   if (platform.isNative) {
     if (platform.isAndroid) {

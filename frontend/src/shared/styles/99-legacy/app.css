@@ -271,14 +271,13 @@
   }
 
   html[data-lms-runtime="native"] #app-boot-loader.abl-native .abl-grid {
-    opacity: 0.8;
-    animation: none;
+    animation: abl-glow-in 1s 200ms ease forwards;
   }
 
   html[data-lms-runtime="native"] #app-boot-loader.abl-native .abl-stage {
-    gap: 14px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
+    gap: 0;
+    letter-spacing: normal;
+    text-transform: none;
   }
 
   .abl-native-pulse {
@@ -312,23 +311,30 @@
   }
 
   html[data-lms-runtime="native"] #app-boot-loader.abl-native .abl-brand-wrap {
-    transform: none;
+    will-change: transform, opacity;
+    transform-origin: center center;
+    backface-visibility: hidden;
   }
 
   html[data-lms-runtime="native"] #app-boot-loader.abl-native .abl-brand-text {
-    background: none;
-    color: #e5eefb;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 13px;
+    background: linear-gradient(110deg, #22d3ee 0%, #38bdf8 14%, #818cf8 28%, #a78bfa 42%, #06b6d4 56%, #3b82f6 70%, #c4b5fd 84%, #22d3ee 100%);
+    background-size: 280% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    font-size: clamp(34px, 8vw, 62px);
     font-weight: 800;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.08em;
     line-height: 1;
-    opacity: 1;
-    text-shadow: none;
-    text-transform: uppercase;
-    -webkit-text-fill-color: currentColor;
-    animation: none;
-    filter: none;
+    opacity: 0;
+    text-transform: none;
+    -webkit-text-fill-color: transparent;
+    animation:
+      abl-aurora 3.5s 350ms linear infinite,
+      abl-rise 0.7s 350ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    filter: drop-shadow(0 0 24px rgba(6, 182, 212, 0.35)) drop-shadow(0 0 48px rgba(99, 102, 241, 0.2));
+    will-change: opacity, transform, background-position;
+    transform: translateZ(0);
   }
 
   @keyframes abl-dot-pop {
@@ -391,7 +397,7 @@
     --app-bg: var(--page-background);
     --app-light-bg: var(--page-background);
     --app-dark-bg: #0f1720;
-    --lms-tabbar-bg: #fff;
+    --lms-tabbar-bg: var(--surface-card, #fbfcff);
     --lms-tabbar-content-shift: 0px;
     --lms-tabbar-row-height: 64px;
     --header-height: 64px;
@@ -735,14 +741,14 @@
 
   :root:not([data-theme='dark']) .card-surface,
   :root:not([data-theme='dark']) .lms-course-card {
-    background: rgba(255, 255, 255, 0.985);
+    background: rgba(251, 252, 255, 0.985);
     border-color: rgba(235, 240, 248, 0.96);
     box-shadow: 0 1px 2px rgba(11, 18, 32, 0.025), 0 8px 20px rgba(37, 99, 235, 0.028);
   }
 
   :root:not([data-theme='dark']) .bg-surface-card,
   :root:not([data-theme='dark']) .bg-surface-card-elevated {
-    background-color: #fff;
+    background-color: var(--surface-card, #fbfcff);
   }
 
   :root:not([data-theme='dark']) .lms-topbar {

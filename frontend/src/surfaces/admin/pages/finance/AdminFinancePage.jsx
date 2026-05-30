@@ -240,7 +240,7 @@ function buildFinanceReportHtml({ filters, summary, subscriptions, requests, pla
   <title>xyndrome Finance Report</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 28px; font-family: Inter, Arial, sans-serif; color: #111827; background: #fff; }
+    body { margin: 0; padding: 28px; font-family: Inter, Arial, sans-serif; color: #111827; background: #F8FAFC; }
     header { border-bottom: 2px solid #1d4ed8; padding-bottom: 16px; margin-bottom: 20px; }
     h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: 0; }
     h2 { margin: 26px 0 10px; font-size: 17px; }

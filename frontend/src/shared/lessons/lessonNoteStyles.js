@@ -40,7 +40,7 @@ export const noteUi = {
   tabs:
     'flex gap-2.5 overflow-x-auto pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
   tab:
-    'shrink-0 rounded-full border border-[rgba(221,230,239,0.96)] bg-white px-3.5 py-2.5 text-sm font-bold text-[#1d3a52] no-underline shadow-[0_6px_14px_rgba(98,118,138,0.08)]',
+    'shrink-0 rounded-full border border-[rgba(221,230,239,0.96)] bg-surface-card px-3.5 py-2.5 text-sm font-bold text-[#1d3a52] no-underline shadow-[0_6px_14px_rgba(98,118,138,0.08)]',
   lead:
     'm-0 mb-[18px] rotate-[-0.6deg] rounded-[22px] border border-[rgba(188,220,238,0.86)] bg-[linear-gradient(180deg,#f4fbff,#fffdf4)] px-4 py-[18px] text-base leading-[1.7] text-[#1d3a52] shadow-[0_12px_20px_rgba(97,106,117,0.06)]',
   section: 'relative mb-6',
@@ -69,7 +69,7 @@ export const noteUi = {
     'inline-grid size-7 place-items-center rounded-[10px] bg-[rgba(209,238,255,0.92)] font-extrabold text-[#21669a]',
   pillRow: 'flex flex-wrap gap-2.5 pt-[18px]',
   pill:
-    'rounded-full border border-dashed border-[rgba(169,191,214,0.9)] bg-white px-3 py-2 text-[13px] font-bold text-[#506a80]',
+    'rounded-full border border-dashed border-[rgba(169,191,214,0.9)] bg-surface-card px-3 py-2 text-[13px] font-bold text-[#506a80]',
   footer:
     'px-0 pb-1.5 pt-3 text-center font-["Comic_Sans_MS","Bradley_Hand","Marker_Felt",cursive] text-[1.05rem] text-[#7d718d]',
   embeddedFooter: 'pb-0',

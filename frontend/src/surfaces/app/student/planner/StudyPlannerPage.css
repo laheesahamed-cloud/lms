@@ -28,7 +28,7 @@
 .planner-side-panel {
   border: 1px solid var(--sa-border, rgba(119, 137, 165, 0.18));
   border-radius: 8px;
-  background: var(--sa-card-bg, var(--sa-surface, #ffffff));
+  background: var(--sa-card-bg, var(--sa-surface, #fbfcff));
   box-shadow: var(--sa-shadow-card, 0 18px 40px -34px rgba(20, 32, 54, 0.35));
 }
 
@@ -126,7 +126,7 @@
 .planner-tabs button.is-active,
 .planner-tabs button[aria-selected="true"] {
   border-color: var(--sa-border, rgba(119, 137, 165, 0.18));
-  background: var(--sa-card-bg, #ffffff);
+  background: var(--sa-card-bg, #fbfcff);
   color: var(--sa-ink, #172033);
   box-shadow: var(--sa-shadow-soft, 0 10px 28px -22px rgba(22, 35, 56, 0.3));
 }
@@ -160,7 +160,7 @@
   min-width: 0;
   border: 1px solid var(--sa-border, rgba(119, 137, 165, 0.18));
   border-radius: 8px;
-  background: var(--sa-surface, #ffffff);
+  background: var(--sa-surface, #fbfcff);
   color: var(--sa-ink, #172033);
   font: inherit;
   font-size: 14px;
@@ -404,7 +404,7 @@
 
 .planner-action.is-secondary {
   border-color: var(--sa-border, rgba(119, 137, 165, 0.18));
-  background: var(--sa-surface, #ffffff);
+  background: var(--sa-surface, #fbfcff);
   color: var(--sa-ink, #172033);
   box-shadow: none;
 }
@@ -540,7 +540,7 @@
   justify-self: start;
   border: 1px solid var(--sa-border-soft, rgba(119, 137, 165, 0.16));
   border-radius: 999px;
-  background: var(--sa-card-bg, #ffffff);
+  background: var(--sa-card-bg, #fbfcff);
   color: var(--sa-text-2, #657188);
   padding: 4px 7px;
   font-size: 10px;
@@ -625,7 +625,7 @@
 
 .planner-task-form__actions button.is-secondary {
   border-color: var(--sa-border, rgba(119, 137, 165, 0.18));
-  background: var(--sa-surface, #ffffff);
+  background: var(--sa-surface, #fbfcff);
   color: var(--sa-ink, #172033);
   box-shadow: none;
 }
