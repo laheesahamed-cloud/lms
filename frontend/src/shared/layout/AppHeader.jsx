@@ -74,36 +74,48 @@ function AnimatedMenuIcon({ motionKey = 0 }) {
   useEffect(() => {
     let animation = null;
     let cancelled = false;
+    let idleId = null;
+    let timerId = null;
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
     if (prefersReducedMotion || !containerRef.current) return undefined;
 
-    import('lottie-web')
-      .then((module) => {
-        if (cancelled || !containerRef.current) return;
-        const lottie = module.default || module;
-        animation = lottie.loadAnimation({
-          container: containerRef.current,
-          renderer: 'svg',
-          loop: false,
-          autoplay: false,
-          path: navToggleAnimationPath,
-          rendererSettings: {
-            progressiveLoad: true,
-            preserveAspectRatio: 'xMidYMid meet',
-          },
-        });
-        animationRef.current = animation;
-        animation.addEventListener?.('DOMLoaded', () => {
-          if (cancelled) return;
-          animation.goToAndStop(0, true);
-          setAnimationReady(true);
-        });
-      })
-      .catch(() => {});
+    function loadAnimation() {
+      import('lottie-web')
+        .then((module) => {
+          if (cancelled || !containerRef.current) return;
+          const lottie = module.default || module;
+          animation = lottie.loadAnimation({
+            container: containerRef.current,
+            renderer: 'svg',
+            loop: false,
+            autoplay: false,
+            path: navToggleAnimationPath,
+            rendererSettings: {
+              progressiveLoad: true,
+              preserveAspectRatio: 'xMidYMid meet',
+            },
+          });
+          animationRef.current = animation;
+          animation.addEventListener?.('DOMLoaded', () => {
+            if (cancelled) return;
+            animation.goToAndStop(0, true);
+            setAnimationReady(true);
+          });
+        })
+        .catch(() => {});
+    }
+
+    if ('requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(loadAnimation, { timeout: 1200 });
+    } else {
+      timerId = window.setTimeout(loadAnimation, 120);
+    }
 
     return () => {
       cancelled = true;
+      if (idleId !== null) window.cancelIdleCallback?.(idleId);
+      if (timerId !== null) window.clearTimeout(timerId);
       animation?.destroy?.();
       animationRef.current = null;
     };
