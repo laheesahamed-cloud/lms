@@ -30,7 +30,6 @@ const defaultQuotes = [
 const serverUi = {
   rootBase: 'pointer-events-none isolate',
   rootLive: 'fixed inset-0 z-[9999] grid place-items-center p-5 max-[520px]:p-3 max-[520px]:pb-[calc(12px+env(safe-area-inset-bottom,0px))] max-[520px]:pt-[calc(12px+env(safe-area-inset-top,0px))]',
-  rootPreview: 'absolute inset-0 z-[2] grid place-items-center p-5',
   scrim: 'absolute inset-0 bg-red-950/25 backdrop-blur-[4px]',
   dialog:
     'pointer-events-auto relative z-[1] grid w-[min(430px,100%)] justify-items-center gap-3 rounded-2xl border border-red-300/15 bg-[linear-gradient(135deg,rgba(30,10,18,0.94),rgba(15,23,42,0.9))] p-6 text-center text-white shadow-2xl max-[520px]:rounded-[20px] max-[520px]:p-4',
@@ -62,7 +61,7 @@ function loadCachedQuotes() {
   return defaultQuotes;
 }
 
-export function ServerNotRespondingExperience({ forceVisible = false, previewClassName = '' }) {
+export function ServerNotRespondingExperience() {
   const [visible, setVisible] = useState(() => getServerNotRespondingState());
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [quotes] = useState(() => loadCachedQuotes());
@@ -85,13 +84,13 @@ export function ServerNotRespondingExperience({ forceVisible = false, previewCla
 
   const activeQuote = useMemo(() => quotes[quoteIndex % quotes.length] || defaultQuotes[0], [quoteIndex, quotes]);
 
-  if (!forceVisible && !visible) {
+  if (!visible) {
     return null;
   }
 
   return (
     <section
-      className={cx(serverUi.rootBase, previewClassName ? serverUi.rootPreview : serverUi.rootLive, previewClassName)}
+      className={cx(serverUi.rootBase, serverUi.rootLive)}
       aria-live="polite"
       aria-atomic="true"
     >

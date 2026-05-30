@@ -4,14 +4,6 @@ import { clearServerNotResponding, getServerNotRespondingState, subscribeToServe
 
 const HEALTH_CHECK_INTERVAL_MS = 2200;
 
-function isPreviewRoute() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return window.location.pathname.includes('/pwa-preview') || (window.location.hash || '').includes('/pwa-preview');
-}
-
 function isNoAutoRefreshRoute() {
   if (typeof window === 'undefined') {
     return false;
@@ -19,7 +11,6 @@ function isNoAutoRefreshRoute() {
 
   const routeText = `${window.location.pathname || ''}${window.location.hash || ''}`;
   return /\/ai-notes(?:\/|$)/.test(routeText) ||
-    /\/mascot-animation-lab(?:\/|$)/.test(routeText) ||
     /\/(?:auth\/)?(?:login|register)(?:\/|$)/.test(routeText) ||
     /\/auth\/(?:forgot-password|reset-password)(?:\/|$)/.test(routeText);
 }
@@ -93,7 +84,7 @@ export function RecoveryRefreshController() {
   }, [isOnline, serverNotResponding]);
 
   useEffect(() => {
-    if (isPreviewRoute() || isNoAutoRefreshRoute() || hasRecentAuthSuccess() || !recoveryNeededRef.current || reloadingRef.current) {
+    if (isNoAutoRefreshRoute() || hasRecentAuthSuccess() || !recoveryNeededRef.current || reloadingRef.current) {
       return undefined;
     }
 

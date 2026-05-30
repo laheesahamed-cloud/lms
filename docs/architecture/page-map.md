@@ -15,7 +15,7 @@ This map documents the current frontend surface split.
 
 | Surface | Purpose | Source |
 | --- | --- | --- |
-| Website | Public `domain.com` pages, auth entry, policy pages, demos. | `frontend/src/surfaces/website/` |
+| Website | Public `domain.com` pages, auth entry, policy pages, and AI generator entry points. | `frontend/src/surfaces/website/` |
 | App | Student `app.mydomain.com` and native-app pages. | `frontend/src/surfaces/app/` |
 | Admin | Admin console pages. | `frontend/src/surfaces/admin/` |
 | Shared | Cross-surface API, layout, auth, platform, styles, stores, utilities. | `frontend/src/shared/` |
@@ -87,19 +87,13 @@ Student app routes exist under `/app/*` and are intended to map to `app.mydomain
 | `/admin/setup` | Setup | `frontend/src/surfaces/admin/pages/setup/AdminSetupPage.jsx` |
 | `/admin/settings` | Settings | `frontend/src/surfaces/admin/pages/settings/AdminSettingsPage.jsx` |
 
-## Dev / Demo Website Routes
+## AI Website Routes
 
 | Route | Page | Source |
 | --- | --- | --- |
-| `/ai` | AI generator demo | `frontend/src/surfaces/website/ai/AiQuizGeneratorPage.jsx` |
-| `/ai/gemini` | Gemini generator demo | `frontend/src/surfaces/website/ai/AiQuizGeneratorPage.jsx` |
-| `/ai/chatgpt` | ChatGPT generator demo | `frontend/src/surfaces/website/ai/AiQuizGeneratorPage.jsx` |
-| `/lesson-notes-demo` | Lesson notes demo | `frontend/src/surfaces/website/pages/LessonNotesDemoPage.jsx` |
-| `/headache-notes-demo` | Headache notes demo | `frontend/src/surfaces/website/pages/HeadacheNotesDemoPage.jsx` |
-| `/pwa-preview` | PWA preview | `frontend/src/surfaces/website/pages/PwaPreviewPage.jsx` |
-| `/browser-test` | Browser test | `frontend/src/surfaces/website/pages/BrowserTestPage.jsx` |
-| `/gpt` | GPT test page | `frontend/src/surfaces/website/pages/GptPage.jsx` |
-| `/gemini` | Gemini test page | `frontend/src/surfaces/website/pages/GeminiPage.jsx` |
+| `/ai` | AI generator | `frontend/src/surfaces/website/ai/AiQuizGeneratorPage.jsx` |
+| `/ai/gemini` | Gemini generator | `frontend/src/surfaces/website/ai/AiQuizGeneratorPage.jsx` |
+| `/ai/chatgpt` | ChatGPT generator | `frontend/src/surfaces/website/ai/AiQuizGeneratorPage.jsx` |
 
 ## Compatibility Routes
 

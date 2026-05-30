@@ -5,7 +5,6 @@ export const DEFAULT_SCROLL_RESTORATION_EXCLUDED_ROUTES = [
   '/quiz',
   '/question',
   '/exam',
-  '/test',
   '/quizzes/:quizId',
   '/quizzes/:quizId/practice-review',
   '/review/:attemptId',

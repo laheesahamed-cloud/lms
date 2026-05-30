@@ -855,7 +855,7 @@ export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {}
 
   const nav = (
     <nav
-      className="lms-mobile-bottom-nav lms-mobile-bottom-nav--app3 fixed inset-x-0 bottom-0 z-[9999] isolate pointer-events-none min-[901px]:hidden"
+      className="lms-mobile-bottom-nav lms-mobile-bottom-nav--student fixed inset-x-0 bottom-0 z-[9999] isolate pointer-events-none min-[901px]:hidden"
       aria-label="Mobile navigation"
     >
       <div className="lms-mobile-bottom-nav__inner pointer-events-auto">

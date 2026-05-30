@@ -6,7 +6,7 @@ Use this as the quick map of what exists in the project. When debugging, start h
 
 | Layer | Purpose | Main Path |
 | --- | --- | --- |
-| Public website | Landing, auth, policy, demos | `frontend/src/surfaces/website/` |
+| Public website | Landing, auth, policy, and AI generation entry points | `frontend/src/surfaces/website/` |
 | Student app | Dashboard, courses, lessons, quizzes, results, notes | `frontend/src/surfaces/app/` |
 | Admin console | Content, users, questions, quizzes, subscriptions, reports | `frontend/src/surfaces/admin/` |
 | Shared frontend | API clients, layout, auth, stores, styles, platform helpers | `frontend/src/shared/` |
@@ -72,7 +72,7 @@ Plain `/api/` is not a route. Use a specific endpoint such as `/api/health`.
 
 | Surface | Important Pages |
 | --- | --- |
-| Website | `LandingPage`, `LoginPage`, `RegisterPage`, policy pages, AI demo pages |
+| Website | `LandingPage`, `LoginPage`, `RegisterPage`, policy pages, AI generator pages |
 | Student | `StudentDashboardPage`, `StudentCoursesPage`, `CourseDetailPage`, `AiNotesPage`, `StudentQuizzesPage`, `TakeQuizPage`, results pages, billing, planner |
 | Admin | `AdminDashboardPage`, `CoursesPage`, `StructurePage`, `UsersPage`, `QuestionsPage`, `QuizBuilderPage`, subscriptions, AI notes, reports, settings |
 | Shared | `AppHeader`, auth store/gates, API clients, profile avatar, theme/platform styles |

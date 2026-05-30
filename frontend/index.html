@@ -128,11 +128,7 @@
   <body class="app-booting">
     <div id="root"></div>
     <script type="module">
-      if (/\/mascot-animation-lab(?:\/|$)/.test(window.location.pathname || '')) {
-        import('/src/mascot-preview.jsx');
-      } else {
-        import('/src/main.jsx');
-      }
+      import('/src/main.jsx');
     </script>
   </body>
 </html>

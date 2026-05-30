@@ -70,19 +70,11 @@ http://localhost/lms/app/dashboard    student app surface
 http://localhost/lms/admin/dashboard  admin surface
 ```
 
-Mobile browser preview:
+Mobile/native build:
 
 ```bash
-npm run mobile:preview
+npm run mobile:cap:sync
 ```
-
-Then open:
-
-```text
-http://localhost/lms/mobile-preview.html
-```
-
-This is a browser device frame, so it does not require Xcode, iOS Simulator, or any native emulator.
 
 ## Build checks
 

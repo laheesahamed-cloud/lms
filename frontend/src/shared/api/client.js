@@ -25,15 +25,6 @@ function isPrivateLanHost(hostname) {
   return /^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/i.test(hostname);
 }
 
-function isApiFreePreviewRoute() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const routeText = `${window.location.pathname || ''}${window.location.hash || ''}`;
-  return /\/mascot-animation-lab(?:\/|$)/.test(routeText);
-}
-
 export const API_BASE_URL = resolveApiBaseUrl();
 export const API_BASE_URLS = resolveApiBaseUrls();
 
@@ -168,7 +159,6 @@ function redirectToLoginIfNeeded() {
     publicPath === '/register' ||
     publicPath === '/terms' ||
     publicPath === '/privacy-policy' ||
-    publicPath === '/mascot-animation-lab' ||
     publicPath === '/auth/login' ||
     publicPath === '/auth/register' ||
     publicPath === '/auth/forgot-password' ||
@@ -204,12 +194,6 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const requestConfig = error?.config;
-    if (isApiFreePreviewRoute()) {
-      finalizeNetworkActivity(requestConfig);
-      clearServerNotResponding();
-      return Promise.reject(error);
-    }
-
     const currentBaseUrl = String(requestConfig?.baseURL || API_BASE_URL);
     const currentHost =
       typeof window !== 'undefined' && window.location ? window.location.hostname : '';

@@ -19,10 +19,6 @@ function isProtectedPath(pathname) {
   return /^\/lms\/(?:app|admin|dashboard|study|courses|quizzes|exams|results|review|ai-notes|notes|billing|subscriptions|profile)(?:\/|$)/.test(pathname);
 }
 
-function isMascotPreviewPath(pathname) {
-  return /^\/lms\/mascot-animation-lab(?:\/|$)/.test(pathname);
-}
-
 function offlineProtectedResponse() {
   return new Response(
     '<!doctype html><title>Protected content unavailable</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#05070d;color:#f8fafc;font-family:system-ui,sans-serif;text-align:center;padding:24px"><main><h1>Protected content is online-only</h1><p>Please reconnect and reload to continue.</p></main></body>',
@@ -61,11 +57,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    if (isMascotPreviewPath(url.pathname)) {
-      event.respondWith(fetch(request, { cache: 'no-store' }));
-      return;
-    }
-
     if (isProtectedPath(url.pathname)) {
       event.respondWith(
         fetch(request, { cache: 'no-store' })

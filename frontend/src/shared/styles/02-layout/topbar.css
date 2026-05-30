@@ -6,14 +6,115 @@
   align-items: center !important;
   justify-content: center !important;
   line-height: 0 !important;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
 }
 
-.lms-topbar-menu-button svg {
+.lms-topbar-menu-button::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  z-index: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(124, 58, 237, 0.12));
+  opacity: 0;
+  transition: opacity 160ms ease, transform 160ms ease;
+  transform: scale(0.86);
+}
+
+.lms-topbar-menu-button:hover::before,
+.lms-topbar-menu-button:focus-visible::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.lms-nav-toggle-animation {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  color: inherit;
+  pointer-events: none;
+}
+
+.lms-nav-toggle-lottie {
   display: block;
-  width: 18px;
-  height: 18px;
-  margin: auto;
-  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: inherit;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.lms-nav-toggle-lottie svg {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: visible !important;
+}
+
+.lms-nav-toggle-lottie svg * {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.lms-nav-toggle-static {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 3px;
+  color: inherit;
+  transition: opacity 140ms ease;
+}
+
+.lms-nav-toggle-static span {
+  display: block;
+  width: 16px;
+  height: 1.7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.lms-nav-toggle-animation.is-loaded .lms-nav-toggle-lottie {
+  opacity: 1;
+}
+
+.lms-nav-toggle-animation.is-loaded .lms-nav-toggle-static {
+  opacity: 0;
+}
+
+@media (max-width: 520px) {
+  .lms-nav-toggle-animation,
+  .lms-nav-toggle-lottie {
+    width: 20px;
+    height: 20px;
+  }
+
+  .lms-nav-toggle-static span {
+    width: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lms-topbar-menu-button::before,
+  .lms-nav-toggle-lottie,
+  .lms-nav-toggle-static {
+    transition: none !important;
+  }
+
+  .lms-nav-toggle-animation.is-loaded .lms-nav-toggle-lottie,
+  .lms-nav-toggle-lottie {
+    opacity: 0 !important;
+  }
+
+  .lms-nav-toggle-animation.is-loaded .lms-nav-toggle-static,
+  .lms-nav-toggle-static {
+    opacity: 1 !important;
+  }
 }
 
 .mobile-top-nav-mode :where(.lms-topbar, .study-hub-topbar) .lms-topbar-menu-button {

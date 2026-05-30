@@ -1,9 +1,9 @@
 /* ============================================================
-   Mobile Bottom Nav — app-3 style
+   Mobile Bottom Nav
    Dark navy bottom bar with top-only rounded corners.
    ============================================================ */
 
-.lms-mobile-bottom-nav--app3 {
+.lms-mobile-bottom-nav--student {
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
@@ -21,7 +21,7 @@
   box-shadow: none !important;
 }
 
-.lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
+.lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
   background: transparent !important;
   background-color: transparent !important;
   border: 0 !important;
@@ -31,16 +31,16 @@
 
 @media (min-width: 901px) {
   .lms-mobile-bottom-nav,
-  .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
+  .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
     display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;
   }
 }
 
-html[data-lms-runtime] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3,
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3,
-html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
+html[data-lms-runtime] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student,
+html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
   padding: 0 !important;
   background: transparent !important;
   background-color: transparent !important;
@@ -49,8 +49,8 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 
   box-shadow: none !important;
 }
 
-:root[data-theme="dark"] .lms-mobile-bottom-nav--app3,
-.student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav--app3 {
+:root[data-theme="dark"] .lms-mobile-bottom-nav--student,
+.student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav--student {
   background: transparent !important;
   background-color: transparent !important;
 }
@@ -88,17 +88,17 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 
   box-shadow: var(--shadow-card);
 }
 
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 > .lms-mobile-bottom-nav__inner {
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner {
   height: calc(var(--lms-tabbar-row-height, 64px) + var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
   padding-bottom: max(6px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
-html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
+html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
   bottom: 0 !important;
   padding: 0 max(env(safe-area-inset-right, 0px), 0px) 0 max(env(safe-area-inset-left, 0px), 0px) !important;
 }
 
-html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 > .lms-mobile-bottom-nav__inner {
+html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner {
   height: calc(var(--lms-tabbar-row-height, 58px) + max(var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)), 6px)) !important;
   min-height: calc(var(--lms-tabbar-row-height, 58px) + max(var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)), 6px)) !important;
   border-radius: 18px 18px 0 0 !important;
@@ -241,7 +241,7 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
 }
 
 @media (min-width: 700px) and (max-width: 900px) {
-  .lms-mobile-bottom-nav--app3 {
+  .lms-mobile-bottom-nav--student {
     padding-inline: 0 !important;
   }
 
@@ -260,7 +260,7 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
 }
 
 @media (max-width: 380px) {
-  .lms-mobile-bottom-nav--app3 {
+  .lms-mobile-bottom-nav--student {
     padding-inline: 0 !important;
   }
 

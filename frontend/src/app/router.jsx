@@ -79,13 +79,6 @@ const ReviewPage = lazyNamed(() => import('../surfaces/app/student/results/Revie
 const DashboardPage = lazyNamed(() => import('../shared/pages/DashboardPage.jsx'), 'DashboardPage');
 const NotFoundPage = lazyNamed(() => import('../shared/pages/NotFoundPage.jsx'), 'NotFoundPage');
 const AiQuizGeneratorPage = lazyNamed(() => import('../surfaces/website/ai/AiQuizGeneratorPage.jsx'), 'AiQuizGeneratorPage');
-const LessonNotesDemoPage = lazyNamed(() => import('../surfaces/website/pages/LessonNotesDemoPage.jsx'), 'LessonNotesDemoPage');
-const HeadacheNotesDemoPage = lazyNamed(() => import('../surfaces/website/pages/HeadacheNotesDemoPage.jsx'), 'HeadacheNotesDemoPage');
-const PwaPreviewPage = lazyNamed(() => import('../surfaces/website/pages/PwaPreviewPage.jsx'), 'PwaPreviewPage');
-const BrowserTestPage = lazyNamed(() => import('../surfaces/website/pages/BrowserTestPage.jsx'), 'BrowserTestPage');
-const MascotAnimationLabPage = lazyNamed(() => import('../surfaces/website/pages/MascotAnimationLabPage.jsx'), 'MascotAnimationLabPage');
-const GptPage = lazyNamed(() => import('../surfaces/website/pages/GptPage.jsx'), 'GptPage');
-const GeminiPage = lazyNamed(() => import('../surfaces/website/pages/GeminiPage.jsx'), 'GeminiPage');
 const ProfilePage = lazyNamed(() => import('../shared/account/ProfilePage.jsx'), 'ProfilePage');
 const PanelLayout = lazyNamed(() => import('../shared/layout/PanelLayout.jsx'), 'PanelLayout');
 
@@ -592,10 +585,6 @@ export const router = createBrowserRouter([
         element: withSuspense(<PrivacyPolicyPage />),
       },
       {
-        path: 'mascot-animation-lab',
-        element: withSuspense(<MascotAnimationLabPage />),
-      },
-      {
         path: 'ai',
         element: withSuspense(
           <AiQuizGeneratorPage
@@ -630,30 +619,6 @@ export const router = createBrowserRouter([
             heroDescription="Generate draft SBA and True/False questions with the fixed ChatGPT / OpenAI API, then review and save them into the LMS question bank."
           />
         ),
-      },
-      {
-        path: 'lesson-notes-demo',
-        element: withSuspense(<LessonNotesDemoPage />),
-      },
-      {
-        path: 'headache-notes-demo',
-        element: withSuspense(<HeadacheNotesDemoPage />),
-      },
-      {
-        path: 'pwa-preview',
-        element: withSuspense(<PwaPreviewPage />),
-      },
-      {
-        path: 'browser-test',
-        element: withSuspense(<BrowserTestPage />),
-      },
-      {
-        path: 'gpt',
-        element: withSuspense(<GptPage />),
-      },
-      {
-        path: 'gemini',
-        element: withSuspense(<GeminiPage />),
       },
       {
         path: 'admin',

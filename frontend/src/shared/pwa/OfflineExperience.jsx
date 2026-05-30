@@ -23,7 +23,6 @@ const fallbackQuotes = [
 const offlineUi = {
   rootBase: 'isolate overflow-hidden bg-[radial-gradient(circle_at_20%_12%,rgba(59,130,246,0.16),transparent_34%),radial-gradient(circle_at_82%_72%,rgba(16,185,129,0.14),transparent_32%),linear-gradient(135deg,#020617,#07111f_52%,#020617)] text-white',
   rootLive: 'fixed inset-0 z-[10000] grid place-items-center p-5 max-[520px]:p-3 max-[520px]:pb-[calc(12px+env(safe-area-inset-bottom,0px))] max-[520px]:pt-[calc(12px+env(safe-area-inset-top,0px))]',
-  rootPreview: 'absolute inset-0 grid place-items-center p-5',
   glowOne: 'pointer-events-none absolute -left-16 -top-16 size-56 rounded-full bg-blue-500/25 blur-3xl',
   glowTwo: 'pointer-events-none absolute -bottom-20 -right-20 size-64 rounded-full bg-emerald-400/20 blur-3xl',
   shell: 'relative z-[1] grid w-[min(760px,100%)] max-h-[calc(100dvh-24px)] gap-5 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.07] p-6 shadow-2xl backdrop-blur-2xl [-webkit-overflow-scrolling:touch] max-[640px]:gap-4 max-[640px]:p-5 max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-24px)] max-[520px]:rounded-[20px] max-[520px]:p-4',
@@ -50,7 +49,7 @@ function getBasePath() {
   return pathParts.length > 0 ? `/${pathParts[0]}` : '';
 }
 
-export function OfflineExperience({ forceVisible = false, previewClassName = '' }) {
+export function OfflineExperience() {
   const [quotes, setQuotes] = useState(fallbackQuotes);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [isOnline, setIsOnline] = useState(() => {
@@ -76,7 +75,7 @@ export function OfflineExperience({ forceVisible = false, previewClassName = '' 
   }, []);
 
   useEffect(() => {
-    if (!forceVisible && isOnline) {
+    if (isOnline) {
       return undefined;
     }
 
@@ -103,7 +102,7 @@ export function OfflineExperience({ forceVisible = false, previewClassName = '' 
     return () => {
       cancelled = true;
     };
-  }, [forceVisible, isOnline]);
+  }, [isOnline]);
 
   useEffect(() => {
     if (isOnline || quotes.length < 2) {
@@ -125,17 +124,13 @@ export function OfflineExperience({ forceVisible = false, previewClassName = '' 
     return quotes[quoteIndex % quotes.length];
   }, [quoteIndex, quotes]);
 
-  if (!forceVisible && isOnline) {
+  if (isOnline) {
     return null;
   }
 
   return (
     <section
-      className={cx(
-        offlineUi.rootBase,
-        previewClassName ? offlineUi.rootPreview : offlineUi.rootLive,
-        previewClassName
-      )}
+      className={cx(offlineUi.rootBase, offlineUi.rootLive)}
       aria-live="polite"
     >
       <div className={offlineUi.glowOne} />

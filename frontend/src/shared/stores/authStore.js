@@ -18,17 +18,7 @@ function isPublicAuthRoute() {
     pathname.endsWith('/auth/login') ||
     pathname.endsWith('/auth/register') ||
     pathname.endsWith('/auth/forgot-password') ||
-    pathname.endsWith('/auth/reset-password') ||
-    pathname.endsWith('/mascot-animation-lab');
-}
-
-function isApiFreePreviewRoute() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const routeText = `${window.location.pathname || ''}${window.location.hash || ''}`;
-  return /\/mascot-animation-lab(?:\/|$)/.test(routeText);
+    pathname.endsWith('/auth/reset-password');
 }
 
 function finishSignedOut(set) {
@@ -60,14 +50,6 @@ export const useAuthStore = create((set, get) => ({
   isSigningOut: false,
 
   hydrate: async () => {
-    if (isApiFreePreviewRoute()) {
-      set({
-        isHydrating: false,
-        isSigningOut: false,
-      });
-      return;
-    }
-
     if (hydratePromise) {
       return hydratePromise;
     }

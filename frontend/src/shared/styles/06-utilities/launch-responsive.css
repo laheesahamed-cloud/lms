@@ -557,16 +557,16 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] bo
   padding-top: 0 !important;
 }
 
-html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3,
-html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
+html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student,
+html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
   bottom: 0 !important;
   min-height: var(--bottom-nav-height, 80px) !important;
   padding: 0 !important;
   background: var(--app-bg-solid, var(--surface-0, #0b121b)) !important;
 }
 
-html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 > .lms-mobile-bottom-nav__inner,
-html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 > .lms-mobile-bottom-nav__inner {
+html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner,
+html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner {
   height: var(--bottom-nav-height, 80px) !important;
   min-height: var(--bottom-nav-height, 80px) !important;
   padding-bottom: max(7px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;

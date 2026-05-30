@@ -395,7 +395,7 @@ export function AppFrame() {
     }
 
     if (/^\/(?:admin|app|auth)(?:\/|$)/.test(location.pathname)) return;
-    if (/^\/(?:login|register|terms|privacy-policy|ai|lesson-notes-demo|headache-notes-demo|pwa-preview|browser-test|gpt|gemini)(?:\/|$)/.test(location.pathname)) return;
+    if (/^\/(?:login|register|terms|privacy-policy|ai)(?:\/|$)/.test(location.pathname)) return;
 
     const isLegacyProtectedPath = /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/.test(location.pathname);
     if (!isLegacyProtectedPath) return;

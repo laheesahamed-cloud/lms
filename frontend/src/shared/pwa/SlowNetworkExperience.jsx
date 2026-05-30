@@ -35,7 +35,6 @@ const defaultQuotes = [
 const slowUi = {
   rootBase: 'pointer-events-none isolate',
   rootLive: 'fixed inset-0 z-[9998] grid place-items-center p-5 max-[520px]:p-3 max-[520px]:pb-[calc(12px+env(safe-area-inset-bottom,0px))] max-[520px]:pt-[calc(12px+env(safe-area-inset-top,0px))]',
-  rootPreview: 'absolute inset-0 z-[2] grid place-items-center p-5',
   scrim: 'absolute inset-0 bg-slate-950/35 backdrop-blur-[3px]',
   dialog: 'pointer-events-auto relative z-[1] grid w-[min(430px,100%)] gap-4 rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(30,41,59,0.86))] p-5 text-white shadow-2xl max-[520px]:gap-3 max-[520px]:rounded-[20px] max-[520px]:p-4',
   signal: 'flex items-end justify-center gap-1.5',
@@ -44,7 +43,7 @@ const slowUi = {
   eyebrow: 'text-[10.5px] font-black uppercase tracking-[0.14em] text-cyan-200',
 };
 
-export function SlowNetworkExperience({ forceVisible = false, previewClassName = '' }) {
+export function SlowNetworkExperience() {
   const [isNetworkBusy, setIsNetworkBusy] = useState(() => getNetworkActivityCount() > 0);
   const [showOverlay, setShowOverlay] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
@@ -90,13 +89,13 @@ export function SlowNetworkExperience({ forceVisible = false, previewClassName =
 
   const activeQuote = useMemo(() => quotes[quoteIndex % quotes.length] || defaultQuotes[0], [quoteIndex, quotes]);
 
-  if (!forceVisible && !showOverlay) {
+  if (!showOverlay) {
     return null;
   }
 
   return (
     <aside
-      className={cx(slowUi.rootBase, previewClassName ? slowUi.rootPreview : slowUi.rootLive, previewClassName)}
+      className={cx(slowUi.rootBase, slowUi.rootLive)}
       aria-live="polite"
       aria-atomic="true"
     >
