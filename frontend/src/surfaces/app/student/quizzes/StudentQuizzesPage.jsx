@@ -37,10 +37,10 @@ function IcoLayers()      { return <svg width="16" height="16" viewBox="0 0 16 1
 
 const TOPIC_TONES = [
   { iconBg: 'rgba(59, 130, 246, 0.13)', color: '#2563eb' },
-  { iconBg: 'rgba(97, 165, 246, 0.13)', color: '#2563eb' },
+  { iconBg: 'rgba(14, 165, 233, 0.13)', color: '#0284c7' },
   { iconBg: 'rgba(37, 99, 235, 0.11)', color: '#1d4ed8' },
   { iconBg: 'rgba(124, 58, 237, 0.12)', color: '#7c3aed' },
-  { iconBg: 'rgba(97, 165, 246, 0.14)', color: '#2563eb' },
+  { iconBg: 'rgba(96, 165, 250, 0.14)', color: '#2563eb' },
   { iconBg: 'rgba(67, 56, 202, 0.11)', color: '#4338ca' },
 ];
 
@@ -1158,7 +1158,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     const body = document.body;
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     const root = document.documentElement;
-    const dashboardThemeColors = { light: '#dce6f4', dark: '#151c24' };
+    const dashboardThemeColors = { light: '#dce6f4', dark: '#060d22' };
     const getTheme = () => (root.dataset.theme === 'dark' ? 'dark' : 'light');
     const syncRouteThemeColor = () => {
       metaThemeColor?.setAttribute('content', dashboardThemeColors[getTheme()]);

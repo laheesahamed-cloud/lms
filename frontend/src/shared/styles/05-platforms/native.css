@@ -41,12 +41,10 @@ html[data-lms-runtime="native"]:not([data-theme="dark"]) {
 }
 
 html[data-lms-runtime="native"][data-theme="dark"] {
-  --app-bg:
-    radial-gradient(ellipse 100% 70% at 50% -12%, rgba(97, 165, 246, 0.055) 0%, rgba(97, 165, 246, 0.025) 34%, rgba(97, 165, 246, 0) 70%),
-    linear-gradient(180deg, #151c24 0%, #131b23 54%, #111820 100%);
+  --app-bg: var(--lms-login-dark-bg, linear-gradient(148deg, #04091a 0%, #0a1230 45%, #060d22 100%));
   --page-background: var(--app-bg);
-  --app-bg-solid: #151c24;
-  --surface-0: #151c24;
+  --app-bg-solid: var(--lms-login-dark-bg-solid, #060d22);
+  --surface-0: var(--lms-login-dark-bg-solid, #060d22);
   --surface-1: #1c2631;
   --surface-2: #19232e;
   --surface-3: #222d39;

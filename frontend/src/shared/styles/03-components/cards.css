@@ -3,41 +3,47 @@
    course, quiz, and page header cards keep one visual language. */
 
 :root {
-  --lms-app-card-radius: clamp(16px, 1.5vw, 22px);
-  --lms-app-card-pad: clamp(16px, 2vw, 24px);
+  --lms-global-card-radius: 22px;
+  --lms-global-card-pad: clamp(20px, 2.2vw, 28px);
+  --lms-global-card-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 253, 255, 0.96));
+  --lms-global-card-border: rgba(37, 99, 235, 0.14);
+  --lms-global-card-shadow:
+    0 24px 70px -42px rgba(30, 64, 175, 0.38),
+    0 12px 30px -26px rgba(15, 23, 42, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  --lms-app-card-radius: var(--lms-global-card-radius);
+  --lms-app-card-pad: var(--lms-global-card-pad);
   --lms-app-card-gap: clamp(12px, 1.45vw, 18px);
-  --lms-app-card-bg:
-    linear-gradient(
-      145deg,
-      rgba(var(--sa-primary-rgb, 37, 99, 235), 0.05) 0%,
-      transparent 62%,
-      rgba(var(--sa-primary-rgb, 37, 99, 235), 0.03) 100%
-    ),
-    var(--surface-card);
-  --lms-app-list-card-bg:
-    linear-gradient(
-      180deg,
-      rgba(var(--sa-primary-rgb, 37, 99, 235), 0.03) 0%,
-      transparent 58%,
-      rgba(var(--sa-primary-rgb, 37, 99, 235), 0.02) 100%
-    ),
-    var(--surface-card);
-  --lms-app-card-border: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.08);
-  --lms-app-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.035), 0 14px 32px rgba(37, 99, 235, 0.045);
-  --lms-app-list-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.035), 0 10px 28px rgba(37, 99, 235, 0.035);
+  --lms-app-card-bg: var(--lms-global-card-bg);
+  --lms-app-list-card-bg: var(--lms-global-card-bg);
+  --lms-app-card-border: var(--lms-global-card-border);
+  --lms-app-card-shadow: var(--lms-global-card-shadow);
+  --lms-app-list-card-shadow: var(--lms-global-card-shadow);
   --lms-app-card-title: var(--ink-strong);
   --lms-app-card-muted: var(--ink-soft);
   --lms-app-card-accent: var(--color-primary);
 }
 
 :root[data-theme='dark'] {
-  --lms-app-card-bg: var(--surface-card);
-  --lms-app-list-card-bg: var(--surface-card-soft);
-  --lms-app-card-border: var(--line-soft);
-  --lms-app-card-shadow: var(--shadow-card);
-  --lms-app-list-card-shadow: var(--shadow-card);
-  --lms-app-card-title: var(--ink-strong);
-  --lms-app-card-muted: var(--ink-soft);
+  --lms-global-card-bg:
+    linear-gradient(
+      180deg,
+      rgba(8, 18, 45, 0.96) 0%,
+      rgba(6, 12, 29, 0.97) 58%,
+      rgba(4, 7, 14, 0.98) 100%
+    );
+  --lms-global-card-border: rgba(148, 163, 184, 0.15);
+  --lms-global-card-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --lms-app-card-bg: var(--lms-global-card-bg);
+  --lms-app-list-card-bg: var(--lms-global-card-bg);
+  --lms-app-card-border: var(--lms-global-card-border);
+  --lms-app-card-shadow: var(--lms-global-card-shadow);
+  --lms-app-list-card-shadow: var(--lms-global-card-shadow);
+  --lms-app-card-title: rgba(255, 255, 255, 0.94);
+  --lms-app-card-muted: rgba(226, 232, 240, 0.68);
 }
 
 :where(.lms-hero-card, .lms-page-header-card) {
@@ -131,7 +137,7 @@
 
 :where(.lms-course-card, .lms-quiz-card) {
   min-width: 0;
-  border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.08) !important;
+  border-color: var(--lms-app-card-border) !important;
   background: var(--lms-app-list-card-bg) !important;
   box-shadow: var(--lms-app-list-card-shadow) !important;
 }
@@ -142,8 +148,8 @@
 
 @media (max-width: 640px) {
   :root {
-    --lms-app-card-radius: 16px;
-    --lms-app-card-pad: 16px;
+    --lms-global-card-radius: 18px;
+    --lms-global-card-pad: 18px;
     --lms-app-card-gap: 12px;
   }
 

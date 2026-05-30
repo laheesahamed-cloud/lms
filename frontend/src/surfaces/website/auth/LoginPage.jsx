@@ -439,21 +439,12 @@ const ANIM_CSS = `
       linear-gradient(180deg, #FBFCFF, #F1F7FF);
   }
   :root[data-theme='dark'] .lms-login-form h2 { color: #F1F5F9 !important; }
-  /* ── Right panel form card elevation ── */
-  :root:not([data-theme='dark']) .lms-form-card {
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,253,255,.96)) !important;
-    border-color: rgba(37,99,235,.14) !important;
-    box-shadow:
-      0 24px 70px -42px rgba(30,64,175,.38),
-      0 12px 30px -26px rgba(15,23,42,.28),
-      inset 0 1px 0 rgba(255,255,255,.96) !important;
+  .lms-form-card {
+    border-color: var(--lms-global-card-border, var(--lms-app-card-border)) !important;
+    background: var(--lms-global-card-bg, var(--lms-app-card-bg)) !important;
+    box-shadow: var(--lms-global-card-shadow, var(--lms-app-card-shadow)) !important;
     animation: none !important;
-  }
-  :root[data-theme='dark'] .lms-form-card {
-    background: rgba(4,7,14,.98) !important;
-    border-color: rgba(148,163,184,.15) !important;
-    box-shadow: 0 8px 40px rgba(0,0,0,.52), 0 1px 0 rgba(255,255,255,.06) inset !important;
+    transform: none !important;
   }
 
   /* ── ECG monitor band animations ── */
@@ -478,7 +469,7 @@ const ANIM_CSS = `
   :root:not([data-theme='dark']) .lms-ecg-full {
     filter: drop-shadow(0 0 3px rgba(2,132,199,.30));
   }
-  .lms-form-card { animation: lmsCardBreath   5s   ease-in-out infinite; }
+  .lms-form-card { animation: none !important; transform: none !important; }
 
   @media (prefers-reduced-motion:reduce) {
     .lms-float,.lms-glow-pulse,.lms-ecg,.lms-ecg-full,.lms-ecg-dot,.lms-login-ring,.lms-google-btn,.lms-google-btn::after { animation:none!important; }
@@ -815,7 +806,7 @@ const LoginBrand = memo(function LoginBrand() {
           fontSize: 'clamp(26px, 2.6vw, 44px)', color: 'var(--lms-brand-title)',
           letterSpacing: '-0.025em',
         }}>
-          Your medical study<br/>
+          Your medical study{' '}<br/>
           <span style={{
             background: 'linear-gradient(135deg, #60A5FA 0%, #22D3EE 55%, #34D399 100%)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',

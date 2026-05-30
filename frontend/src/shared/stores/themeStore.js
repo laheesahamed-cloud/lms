@@ -6,7 +6,7 @@ const ACCENT_THEME_KEY = 'lms_accent_theme';
 const ACCENT_THEMES = new Set(['erpm', 'codeforge']);
 const CHROME_THEME_COLORS = {
   light: '#dce6f4',
-  dark: '#151c24',
+  dark: '#060d22',
 };
 let themeTransitionTimer = null;
 

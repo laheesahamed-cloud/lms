@@ -5,130 +5,96 @@
    ============================================================ */
 
 :root {
+  --lms-login-dark-bg:
+    linear-gradient(148deg, #04091a 0%, #0a1230 45%, #060d22 100%);
+  --lms-login-dark-bg-solid: #060d22;
+  --app-dark-bg: var(--lms-login-dark-bg);
   --app-bg: var(--page-background);
   --app-bg-solid: #dce6f4;
 }
 
+.lms-skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100000;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.lms-skip-link:focus,
+.lms-skip-link:focus-visible {
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  border-radius: 10px;
+  background: var(--surface-card-elevated, #fff);
+  color: var(--ink-strong, #0f172a);
+  padding: 10px 14px;
+  box-shadow: var(--shadow-md, 0 18px 42px rgba(15, 23, 42, 0.18));
+  text-decoration: none;
+}
+
 :root[data-theme="dark"] {
-  --app-bg:
-    radial-gradient(ellipse 100% 70% at 50% -12%, rgba(97, 165, 246, 0.055) 0%, rgba(97, 165, 246, 0.025) 34%, rgba(97, 165, 246, 0) 70%),
-    linear-gradient(180deg, #151c24 0%, #131b23 54%, #111820 100%);
+  --app-bg: var(--lms-login-dark-bg);
   --page-background: var(--app-bg);
-  --app-bg-solid: #151c24;
+  --app-bg-solid: var(--lms-login-dark-bg-solid);
 
-  --bg-page: #151c24;
-  --bg-page-soft: #18212b;
-  --bg-page-deep: #111820;
+  --surface-0: #0f1720;
+  --surface-1: #121c26;
+  --surface-2: #172330;
+  --surface-3: #1d2b3a;
+  --surface-4: #263749;
+  --surface-card: rgba(8, 13, 20, 0.96);
+  --surface-card-elevated: rgba(11, 18, 27, 0.98);
+  --surface-glass: rgba(8, 13, 20, 0.82);
+  --surface-glass-strong: rgba(8, 13, 20, 0.92);
+  --surface-glass-subtle: rgba(12, 19, 29, 0.72);
 
-  --surface-0: var(--bg-page);
-  --surface-1: #1c2631;
-  --surface-2: #19232e;
-  --surface-3: #222d39;
-  --surface-4: #2a3848;
-  --surface-card: #1c2631;
-  --surface-card-elevated: #222d39;
-  --surface-card-soft: #19232e;
-  --surface-card-hover: #263342;
-  --surface-card-active: #2a3848;
-  --surface-input: #202b36;
-  --surface-input-hover: #263340;
-  --surface-input-active: #2a3948;
-  --surface-glass: rgba(28, 38, 49, 0.78);
-  --surface-glass-strong: rgba(28, 38, 49, 0.9);
-  --surface-glass-subtle: rgba(32, 43, 54, 0.66);
-
-  --line-soft: rgba(205, 219, 235, 0.10);
-  --line-medium: rgba(205, 219, 235, 0.16);
-  --line-strong: rgba(205, 219, 235, 0.24);
-  --line-control: rgba(205, 219, 235, 0.34);
+  --line-soft: rgba(203, 213, 225, 0.13);
+  --line-medium: rgba(203, 213, 225, 0.2);
+  --line-strong: rgba(203, 213, 225, 0.28);
   --color-border-soft: var(--line-soft);
   --color-border-medium: var(--line-medium);
   --color-border-strong: var(--line-strong);
 
-  --ink-strong: #e3ebf5;
-  --ink-medium: #c3cfdd;
-  --ink-soft: #9caabd;
-  --ink-muted: #8492a6;
-  --ink-disabled: rgba(195, 207, 221, 0.42);
-  --ink-on-accent: #ffffff;
+  --ink-strong: #eef3f8;
+  --ink-medium: #cbd6e3;
+  --ink-soft: #a3afbd;
+  --ink-muted: #8491a3;
   --text-primary: var(--ink-strong);
   --text-secondary: var(--ink-medium);
-  --text-muted: var(--ink-muted);
+  --text-muted: var(--ink-soft);
 
-  --accent-blue: #61a5f6;
-  --accent-violet: #5f78f1;
-  --accent-purple: #724be7;
-  --accent: #6f6af0;
-  --accent-strong: #8a7cff;
-  --accent-soft: #61a5f6;
-  --accent-surface: rgba(111, 106, 240, 0.12);
-  --accent-surface-hover: rgba(111, 106, 240, 0.18);
-  --accent-surface-active: rgba(111, 106, 240, 0.22);
-  --accent-border: rgba(138, 124, 255, 0.34);
-  --accent-ring: rgba(138, 124, 255, 0.42);
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-light: rgba(96, 165, 250, 0.12);
+  --color-primary-glow: rgba(96, 165, 250, 0.18);
 
-  --color-primary: var(--accent);
-  --color-primary-hover: var(--accent-strong);
-  --color-primary-light: var(--accent-surface);
-  --color-primary-glow: var(--accent-surface);
-  --color-secondary: var(--accent-purple);
-  --color-secondary-light: rgba(114, 75, 231, 0.13);
-  --color-accent: var(--accent-blue);
-  --color-accent-light: rgba(97, 165, 246, 0.12);
-  --color-cyan: var(--accent-blue);
-  --color-cyan-light: rgba(97, 165, 246, 0.12);
-
-  --cta-gradient: linear-gradient(135deg, #61a5f6 0%, #5f78f1 48%, #724be7 100%);
-  --cta-gradient-hover: linear-gradient(135deg, #72b2ff 0%, #6d86ff 48%, #8059f0 100%);
-  --hero-card-bg:
-    radial-gradient(ellipse 85% 70% at 82% 12%, rgba(114, 75, 231, 0.18) 0%, rgba(114, 75, 231, 0.10) 34%, rgba(114, 75, 231, 0.04) 58%, rgba(114, 75, 231, 0) 82%),
-    radial-gradient(ellipse 75% 60% at 10% 0%, rgba(97, 165, 246, 0.10) 0%, rgba(97, 165, 246, 0.045) 42%, rgba(97, 165, 246, 0) 78%),
-    linear-gradient(145deg, #1f2a36 0%, #1b2530 54%, #18222c 100%);
-  --surface-card-gradient-soft: linear-gradient(145deg, #202b36 0%, #1c2631 58%, #19232e 100%);
-
-  --topbar-bg: rgba(28, 38, 49, 0.86);
-  --sidebar-bg: rgba(28, 38, 49, 0.92);
+  --topbar-bg: rgba(18, 28, 38, 0.86);
+  --sidebar-bg: rgba(8, 18, 45, 0.94);
   --card-bg: var(--surface-card);
-  --btn-primary-bg: var(--cta-gradient);
-  --btn-secondary-bg: var(--accent-surface);
+  --btn-secondary-bg: rgba(31, 42, 56, 0.76);
   --btn-secondary-text: var(--ink-medium);
 
-  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.22), 0 12px 28px rgba(0, 0, 0, 0.18);
-  --shadow-card-elevated: 0 1px 2px rgba(0, 0, 0, 0.26), 0 18px 42px rgba(0, 0, 0, 0.22);
-  --shadow-focus: 0 0 0 3px var(--accent-ring);
-  --shadow-xs: var(--shadow-card);
-  --shadow-sm: var(--shadow-card);
-  --shadow-md: var(--shadow-card-elevated);
-  --shadow-lg: var(--shadow-card-elevated);
-  --shadow-xl: var(--shadow-card-elevated);
-  --shadow-2xl: var(--shadow-card-elevated);
-  --shadow-glow: var(--shadow-card);
+  --shadow-xs: 0 1px 0 rgba(255, 255, 255, 0.03), 0 8px 18px rgba(0, 0, 0, 0.22);
+  --shadow-sm: 0 1px 0 rgba(255, 255, 255, 0.035), 0 12px 26px rgba(0, 0, 0, 0.26);
+  --shadow-md: 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 42px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 1px 0 rgba(255, 255, 255, 0.045), 0 26px 62px rgba(0, 0, 0, 0.42);
 
-  --state-hover: rgba(255, 255, 255, 0.045);
-  --state-pressed: rgba(255, 255, 255, 0.075);
-  --state-selected: rgba(111, 106, 240, 0.14);
-
-  --lms-app-card-bg: var(--surface-card);
-  --lms-app-card-bg-raised: var(--surface-card-elevated);
-  --lms-app-list-card-bg: var(--surface-card-soft);
-  --lms-app-card-border: var(--line-soft);
-  --lms-app-card-shadow: var(--shadow-card);
-  --lms-app-list-card-shadow: var(--shadow-card);
+  --lms-app-card-bg: var(--lms-global-card-bg);
+  --lms-app-list-card-bg: var(--lms-global-card-bg);
+  --lms-app-card-border: var(--lms-global-card-border);
+  --lms-app-card-shadow: var(--lms-global-card-shadow);
+  --lms-app-list-card-shadow: var(--lms-global-card-shadow);
   --lms-app-card-title: var(--ink-strong);
   --lms-app-card-muted: var(--ink-soft);
-
-  --success: #8bc99a;
-  --success-surface: rgba(139, 201, 154, 0.12);
-  --success-border: rgba(139, 201, 154, 0.30);
-  --warning: #d8ad55;
-  --warning-surface: rgba(216, 173, 85, 0.13);
-  --warning-border: rgba(216, 173, 85, 0.32);
-  --danger: #e79a9a;
-  --danger-surface: rgba(231, 154, 154, 0.13);
-  --danger-border: rgba(231, 154, 154, 0.34);
-  --info: #61a5f6;
-  --info-surface: rgba(97, 165, 246, 0.12);
-  --info-border: rgba(97, 165, 246, 0.30);
 }
 
 :root[data-theme="dark"] :where(
@@ -140,27 +106,25 @@
   --sa-surface: var(--surface-card);
   --sa-surface-2: var(--surface-2);
   --sa-surface-raised: var(--surface-card-elevated);
-  --sa-surface-rgb: 28, 38, 49;
-  --sa-surface-2-rgb: 25, 35, 46;
-  --sa-ink: var(--ink-medium);
-  --sa-ink-deep: var(--ink-strong);
+  --sa-surface-rgb: 8, 13, 20;
+  --sa-surface-2-rgb: 12, 19, 29;
+  --sa-ink: var(--ink-strong);
+  --sa-ink-deep: #f8fafc;
   --sa-text-2: var(--ink-soft);
   --sa-text-3: var(--ink-muted);
   --sa-border: var(--line-soft);
-  --sa-border-soft: var(--line-soft);
+  --sa-border-soft: rgba(203, 213, 225, 0.09);
   --sa-border-strong: var(--line-medium);
-  --sa-border-rgb: 205, 219, 235;
+  --sa-border-rgb: 203, 213, 225;
   --sa-primary: var(--color-primary);
   --sa-primary-deep: var(--color-primary-hover);
   --sa-primary-soft: var(--color-primary-light);
-  --sa-primary-rgb: 111, 106, 240;
-  --sa-purple: var(--accent-purple);
-  --sa-purple-soft: rgba(114, 75, 231, 0.12);
-  --sa-purple-rgb: 114, 75, 231;
-  --sa-grad: var(--cta-gradient);
-  --sa-grad-soft: var(--accent-surface);
-  --sa-shadow-card: var(--shadow-card);
-  --sa-shadow-card-hover: var(--shadow-card-elevated);
+  --sa-primary-rgb: 96, 165, 250;
+  --sa-purple: #38bdf8;
+  --sa-purple-soft: rgba(56, 189, 248, 0.055);
+  --sa-purple-rgb: 56, 189, 248;
+  --sa-shadow-card: var(--shadow-sm);
+  --sa-shadow-card-hover: var(--shadow-md);
 }
 
 :root[data-theme="dark"] .student-app-shell .dashboard-page,
@@ -179,7 +143,7 @@
   background: var(--app-bg) !important;
   background-color: var(--app-bg-solid) !important;
   background-attachment: fixed !important;
-  color: var(--ink-medium);
+  color: var(--ink-strong);
   color-scheme: dark;
 }
 
@@ -204,58 +168,7 @@
 ) {
   background: transparent !important;
   background-color: transparent !important;
-  color: var(--ink-medium);
-}
-
-:root[data-theme="dark"] :where(
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  strong,
-  .heading,
-  .title,
-  .stat-value,
-  .selected-label,
-  .text-ink-strong
-) {
-  color: var(--ink-strong) !important;
-}
-
-:root[data-theme="dark"] :where(
-  p,
-  li,
-  td,
-  th,
-  label,
-  .body-text,
-  .content-text,
-  .label,
-  .text-ink-medium
-) {
-  color: var(--ink-medium) !important;
-}
-
-:root[data-theme="dark"] :where(
-  small,
-  .secondary,
-  .caption,
-  .description,
-  .subtitle,
-  .text-ink-soft
-) {
-  color: var(--ink-soft) !important;
-}
-
-:root[data-theme="dark"] :where(
-  .muted,
-  .metadata,
-  .helper-text,
-  .text-ink-muted
-) {
-  color: var(--ink-muted) !important;
+  color: var(--ink-strong);
 }
 
 :root[data-theme="dark"] :where(
@@ -281,10 +194,10 @@
   .study-todo-card,
   .study-mood-card
 ) {
-  border-color: var(--line-soft) !important;
-  background: var(--lms-app-card-bg) !important;
-  box-shadow: var(--shadow-card) !important;
-  color: var(--ink-medium);
+  border-color: var(--lms-global-card-border, var(--lms-app-card-border)) !important;
+  background: var(--lms-global-card-bg, var(--lms-app-card-bg)) !important;
+  box-shadow: var(--lms-global-card-shadow, var(--lms-app-card-shadow)) !important;
+  color: var(--ink-strong);
 }
 
 :root[data-theme="dark"] :where(
@@ -296,46 +209,9 @@
   .form-select,
   .form-textarea
 ) {
-  border-color: var(--line-control) !important;
-  background: var(--surface-input) !important;
-  color: var(--ink-medium) !important;
-}
-
-:root[data-theme="dark"] .study-streak-card,
-.student-app-shell[data-theme="dark"] .study-streak-card {
-  border-color: rgba(216, 173, 85, 0.24) !important;
-  background:
-    radial-gradient(circle at 14% 10%, rgba(216, 173, 85, 0.10), rgba(216, 173, 85, 0) 42%),
-    var(--surface-card) !important;
-  box-shadow: var(--shadow-card) !important;
-}
-
-:root[data-theme="dark"] .dashboard-page :where(
-  .study-continue-card,
-  .study-readiness-card,
-  .study-todo-card,
-  .study-mood-card,
-  .study-question-card
-),
-:root[data-theme="dark"] .student-app-shell .dashboard-page :where(
-  .study-continue-card,
-  .study-readiness-card,
-  .study-todo-card,
-  .study-mood-card,
-  .study-question-card
-) {
-  border-color: var(--line-soft) !important;
-  background: var(--lms-app-card-bg) !important;
-  box-shadow: var(--shadow-card) !important;
-}
-
-:root[data-theme="dark"] .dashboard-page .study-streak-card,
-:root[data-theme="dark"] .student-app-shell .dashboard-page .study-streak-card {
-  border-color: rgba(216, 173, 85, 0.24) !important;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(216, 173, 85, 0.11), rgba(216, 173, 85, 0) 42%),
-    var(--lms-app-card-bg) !important;
-  box-shadow: var(--shadow-card) !important;
+  border-color: var(--line-medium) !important;
+  background: rgba(23, 35, 48, 0.88) !important;
+  color: var(--ink-strong) !important;
 }
 
 :root[data-theme="dark"] :where(
@@ -361,7 +237,7 @@
   .table-head,
   .admin-table__head
 ) {
-  background: var(--surface-card-elevated) !important;
+  background: rgba(15, 27, 46, 0.82) !important;
   color: var(--ink-medium) !important;
 }
 
@@ -414,7 +290,7 @@
   [class*="bg-surface-0/"],
   [class*="bg-surface-1/"]
 ) {
-  background-color: var(--surface-card-elevated) !important;
+  background-color: rgba(31, 42, 56, 0.7) !important;
 }
 
 :root[data-theme="dark"] :where(
@@ -441,8 +317,8 @@
   .dashboard-page,
   .student-route-page
 )::after {
-  opacity: 0 !important;
-  filter: none !important;
+  opacity: 0.18 !important;
+  filter: blur(92px) saturate(0.55) !important;
   mix-blend-mode: normal !important;
 }
 
@@ -453,15 +329,16 @@
   .student-courses-hero,
   .lms-course-detail-hero
 )::after {
-  background: none !important;
-  opacity: 0 !important;
+  background:
+    radial-gradient(circle at center, rgba(56, 189, 248, 0.045) 0%, rgba(37, 99, 235, 0.025) 48%, transparent 74%) !important;
+  opacity: 0.42 !important;
   mix-blend-mode: normal !important;
 }
 
 :root[data-theme="dark"] .study-readiness-icon::after,
 :root[data-theme="dark"] .student-app-shell .study-readiness-icon::after {
-  background: radial-gradient(circle at 30% 25%, rgba(97, 165, 246, 0.10), rgba(97, 165, 246, 0) 70%) !important;
-  opacity: 0.38 !important;
+  background: radial-gradient(circle at 30% 25%, rgba(96, 165, 250, 0.18), transparent 70%) !important;
+  opacity: 0.58 !important;
 }
 
 :root[data-theme="dark"] :where(
@@ -470,7 +347,8 @@
   .lms-mobile-top-nav,
   .lms-mobile-top-nav--plain::before
 ) {
-  background: var(--surface-card-elevated) !important;
+  background:
+    linear-gradient(180deg, rgba(23, 35, 48, 0.86), rgba(18, 28, 38, 0.8)) !important;
   border-color: var(--line-soft) !important;
 }
 
@@ -478,13 +356,13 @@
   .lms-sidebar,
   .lms-sidebar--student-model
 ) {
-  background: var(--surface-card) !important;
-  border-color: var(--line-soft) !important;
-  box-shadow: var(--shadow-card) !important;
+  background: var(--lms-global-card-bg) !important;
+  border-color: var(--lms-global-card-border, var(--line-soft)) !important;
+  box-shadow: var(--lms-global-card-shadow, var(--shadow-sm)) !important;
 }
 
 :root[data-theme="dark"] .lms-mobile-top-nav::after {
-  background: linear-gradient(to bottom, rgba(17, 24, 32, 0), rgba(17, 24, 32, 0.62)) !important;
+  background: linear-gradient(to bottom, transparent, rgba(6, 12, 24, 0.78)) !important;
 }
 
 html body .student-app-shell.quiz-focus-mode,
@@ -531,74 +409,65 @@ html:not([data-lms-runtime="native"]) body .lms-app-scroll-root {
    Route-scoped so the global theme preference is restored on exit.
    ============================================================ */
 body.student-quiz-night-screen {
-  --quiz-night-bg:
-    radial-gradient(ellipse 100% 70% at 50% -12%, rgba(97, 165, 246, 0.055) 0%, rgba(97, 165, 246, 0.025) 34%, rgba(97, 165, 246, 0) 70%),
-    linear-gradient(180deg, #151c24 0%, #131b23 54%, #111820 100%);
-  background: #151c24 !important;
+  --quiz-night-bg: var(--lms-login-dark-bg);
+  background: var(--lms-login-dark-bg-solid) !important;
   color-scheme: dark;
 }
 
 body.student-quiz-night-screen .student-app-shell {
   --app-bg: var(--quiz-night-bg);
   --page-background: var(--quiz-night-bg);
-  --app-bg-solid: #151c24;
+  --app-bg-solid: var(--lms-login-dark-bg-solid);
 
   --sa-bg: var(--quiz-night-bg);
-  --sa-surface: #1c2631;
-  --sa-surface-2: #19232e;
-  --sa-surface-raised: #222d39;
-  --sa-surface-rgb: 28, 38, 49;
-  --sa-surface-2-rgb: 25, 35, 46;
+  --sa-surface: rgba(8, 13, 20, 0.96);
+  --sa-surface-2: rgba(12, 19, 29, 0.92);
+  --sa-surface-raised: rgba(11, 18, 27, 0.98);
+  --sa-surface-rgb: 8, 13, 20;
+  --sa-surface-2-rgb: 12, 19, 29;
 
-  --surface-0: #151c24;
-  --surface-1: #1c2631;
-  --surface-2: #19232e;
-  --surface-3: #222d39;
-  --surface-card: #1c2631;
-  --surface-card-elevated: #222d39;
-  --btn-secondary-bg: var(--accent-surface);
+  --surface-0: #0f1720;
+  --surface-1: rgba(8, 13, 20, 0.96);
+  --surface-2: rgba(12, 19, 29, 0.92);
+  --surface-3: rgba(16, 25, 38, 0.92);
+  --surface-card: rgba(8, 13, 20, 0.96);
+  --surface-card-elevated: rgba(11, 18, 27, 0.98);
+  --btn-secondary-bg: rgba(31, 42, 56, 0.76);
 
-  --sa-ink: #c3cfdd;
-  --sa-ink-deep: #e3ebf5;
-  --sa-text-2: #9caabd;
-  --sa-text-3: #8492a6;
-  --ink-strong: #e3ebf5;
-  --ink-medium: #c3cfdd;
-  --ink-soft: #9caabd;
-  --ink-muted: #8492a6;
+  --sa-ink: #eef3f8;
+  --sa-ink-deep: #f8fafc;
+  --sa-text-2: #a3afbd;
+  --sa-text-3: #8491a3;
+  --ink-strong: #eef3f8;
+  --ink-medium: #cbd6e3;
+  --ink-soft: #a3afbd;
+  --ink-muted: #8491a3;
 
-  --sa-border: rgba(205, 219, 235, 0.10);
-  --sa-border-soft: rgba(205, 219, 235, 0.10);
-  --sa-border-strong: rgba(205, 219, 235, 0.16);
-  --line-soft: rgba(205, 219, 235, 0.10);
-  --line-medium: rgba(205, 219, 235, 0.16);
-  --line-strong: rgba(205, 219, 235, 0.24);
-  --line-control: rgba(205, 219, 235, 0.34);
+  --sa-border: rgba(203, 213, 225, 0.13);
+  --sa-border-soft: rgba(203, 213, 225, 0.09);
+  --sa-border-strong: rgba(203, 213, 225, 0.2);
+  --line-soft: rgba(203, 213, 225, 0.13);
+  --line-medium: rgba(203, 213, 225, 0.2);
+  --line-strong: rgba(203, 213, 225, 0.28);
 
-  --accent-blue: #61a5f6;
-  --accent-violet: #5f78f1;
-  --accent-purple: #724be7;
-  --accent: #6f6af0;
-  --accent-strong: #8a7cff;
-  --accent-surface: rgba(111, 106, 240, 0.12);
-  --accent-border: rgba(138, 124, 255, 0.34);
-  --accent-ring: rgba(138, 124, 255, 0.42);
-  --cta-gradient: linear-gradient(135deg, #61a5f6 0%, #5f78f1 48%, #724be7 100%);
-  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.22), 0 12px 28px rgba(0, 0, 0, 0.18);
-  --shadow-card-elevated: 0 1px 2px rgba(0, 0, 0, 0.26), 0 18px 42px rgba(0, 0, 0, 0.22);
-
-  --sa-primary: var(--accent);
-  --sa-primary-deep: var(--accent-strong);
-  --sa-primary-soft: var(--accent-surface);
-  --sa-purple: var(--accent-purple);
-  --sa-purple-soft: rgba(114, 75, 231, 0.12);
-  --sa-grad: var(--cta-gradient);
-  --sa-shadow-card: var(--shadow-card);
-  --sa-shadow-card-hover: var(--shadow-card-elevated);
-  --lms-app-card-bg: var(--surface-card);
+  --sa-primary: #60a5fa;
+  --sa-primary-deep: #93c5fd;
+  --sa-primary-soft: rgba(96, 165, 250, 0.12);
+  --sa-purple: #a78bfa;
+  --sa-purple-soft: rgba(167, 139, 250, 0.08);
+  --sa-shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 18px 44px -32px rgba(2, 6, 12, 0.66);
+  --sa-shadow-card-hover: inset 0 1px 0 rgba(255, 255, 255, 0.058), 0 22px 50px -34px rgba(2, 6, 12, 0.72);
+  --lms-app-card-bg:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008) 38%, rgba(148, 163, 184, 0.014)),
+    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(8, 13, 20, 0.97) 56%, rgba(5, 8, 13, 0.98)),
+    rgba(8, 13, 20, 0.96);
   --sa-card-bg: var(--lms-app-card-bg);
-  --sa-card-bg-hover: var(--surface-card-elevated);
-  --sa-soft-tile-bg: var(--surface-card-soft);
+  --sa-card-bg-hover:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.014) 42%, rgba(148, 163, 184, 0.022)),
+    linear-gradient(145deg, rgba(14, 22, 33, 0.97), rgba(8, 13, 20, 0.98));
+  --sa-soft-tile-bg:
+    linear-gradient(135deg, rgba(148, 163, 184, 0.055), rgba(96, 113, 135, 0.035)),
+    rgba(23, 35, 48, 0.72);
 
   background: var(--quiz-night-bg) !important;
   color: var(--sa-ink) !important;
@@ -730,10 +599,10 @@ body.student-quiz-night-screen :where(
   .lms-mobile-top-nav,
   .lms-mobile-bottom-nav__inner
 ) {
-  border-color: var(--line-soft) !important;
-  background: var(--surface-card-elevated, #222d39) !important;
+  border-color: var(--lms-global-card-border, rgba(203, 213, 225, 0.13)) !important;
+  background: var(--lms-global-card-bg) !important;
   color: var(--sa-ink) !important;
-  box-shadow: var(--shadow-card, 0 12px 28px rgba(0, 0, 0, 0.18)) !important;
+  box-shadow: var(--lms-global-card-shadow, var(--shadow-sm)) !important;
 }
 
 body.student-quiz-night-screen :where(.lms-sidebar-brand-name, .lms-sidebar-wordmark strong) {
@@ -746,9 +615,9 @@ body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordm
 
 html body.student-quiz-night-screen,
 html body.student-quiz-night-screen #root {
-  background: #151c24 !important;
+  background: var(--lms-login-dark-bg-solid) !important;
   background-image: var(--quiz-night-bg) !important;
-  color: var(--ink-medium) !important;
+  color: #eef3f8 !important;
 }
 
 body.student-quiz-night-screen .student-app-shell .student-quiz-night-page {
@@ -919,36 +788,6 @@ body.student-quiz-night-screen .lms-sidebar--student-model .lms-sidebar-nav-item
    Cross-viewport hardening
    Shared guardrails for desktop, iPad/tablet, and phone layouts.
    ============================================================ */
-.lms-skip-link {
-  position: fixed;
-  inset-block-start: max(12px, env(safe-area-inset-top));
-  inset-inline-start: max(12px, env(safe-area-inset-left));
-  z-index: 10000;
-  transform: translateY(calc(-100% - 18px));
-  border: 1px solid var(--accent-border, var(--line-medium));
-  border-radius: var(--radius-md);
-  background: var(--surface-card-elevated, var(--surface-1));
-  color: var(--ink-strong);
-  box-shadow: var(--shadow-focus, 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent));
-  font-size: 0.875rem;
-  font-weight: 800;
-  line-height: 1;
-  min-height: 44px;
-  padding: 0.85rem 1rem;
-  text-decoration: none;
-  transition: transform 0.16s var(--ease-out);
-}
-
-.lms-skip-link:focus,
-.lms-skip-link:focus-visible {
-  transform: translateY(0);
-  outline: none;
-}
-
-#main-content:focus {
-  outline: none;
-}
-
 html,
 body,
 #root {
@@ -1612,7 +1451,7 @@ body,
 
 :root[data-theme="dark"] body.study-hub-screen .lms-mobile-bottom-nav__inner,
 :root[data-theme="dark"] body.student-quiz-night-screen .lms-mobile-bottom-nav__inner {
-  box-shadow: var(--shadow-card) !important;
+  box-shadow: 0 -18px 40px -34px rgba(96, 165, 250, 0.42) !important;
 }
 
 :root[data-theme="light"] body.study-hub-screen .lms-mobile-bottom-nav__inner,
@@ -2136,63 +1975,67 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 
 :root[data-theme="dark"] .student-app-shell:has(:is(.dashboard-page.study-hub-page, .lms-exam-page)),
 :root[data-theme="dark"] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) {
-  --student-route-card-bg: var(--surface-card);
-  --student-route-card-bg-raised: var(--surface-card-elevated);
-  --student-route-card-shadow: var(--shadow-card);
+  --student-route-card-bg:
+    radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.048), transparent 38%),
+    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(7, 12, 19, 0.98));
+  --student-route-card-bg-raised:
+    radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.06), transparent 36%),
+    linear-gradient(145deg, rgba(14, 22, 33, 0.97), rgba(9, 15, 23, 0.98));
+  --student-route-card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 20px 46px -34px rgba(2, 6, 12, 0.66);
   --sa-bg: var(--app-bg);
-  --sa-surface: var(--surface-card);
-  --sa-surface-2: var(--surface-card-soft);
-  --sa-surface-raised: var(--surface-card-elevated);
-  --sa-surface-rgb: 28, 38, 49;
-  --sa-surface-2-rgb: 25, 35, 46;
-  --sa-ink: var(--ink-medium);
-  --sa-ink-deep: var(--ink-strong);
-  --sa-text-2: var(--ink-soft);
-  --sa-text-3: var(--ink-muted);
-  --sa-border: var(--line-soft);
-  --sa-border-soft: var(--line-soft);
-  --sa-border-strong: var(--line-medium);
-  --sa-border-rgb: 205, 219, 235;
+  --sa-surface: rgba(8, 13, 20, 0.96);
+  --sa-surface-2: rgba(12, 19, 29, 0.92);
+  --sa-surface-raised: rgba(11, 18, 27, 0.98);
+  --sa-surface-rgb: 8, 13, 20;
+  --sa-surface-2-rgb: 12, 19, 29;
+  --sa-ink: #eef3f8;
+  --sa-ink-deep: #f8fafc;
+  --sa-text-2: #a3afbd;
+  --sa-text-3: #8491a3;
+  --sa-border: rgba(203, 213, 225, 0.13);
+  --sa-border-soft: rgba(203, 213, 225, 0.09);
+  --sa-border-strong: rgba(203, 213, 225, 0.2);
+  --sa-border-rgb: 203, 213, 225;
   --surface-0: var(--app-bg);
-  --surface-1: #1c2631;
-  --surface-2: #19232e;
-  --surface-3: #222d39;
-  --surface-4: #2a3848;
-  --surface-card: #1c2631;
-  --surface-card-elevated: #222d39;
+  --surface-1: rgba(8, 13, 20, 0.96);
+  --surface-2: rgba(12, 19, 29, 0.92);
+  --surface-3: rgba(16, 25, 38, 0.92);
+  --surface-4: rgba(24, 35, 50, 0.9);
+  --surface-card: rgba(8, 13, 20, 0.96);
+  --surface-card-elevated: rgba(11, 18, 27, 0.98);
   --surface-elevated: var(--surface-card-elevated);
-  --surface-glass: rgba(28, 38, 49, 0.78);
-  --surface-glass-strong: rgba(28, 38, 49, 0.9);
-  --surface-glass-subtle: rgba(32, 43, 54, 0.66);
-  --line-soft: rgba(205, 219, 235, 0.10);
-  --line-medium: rgba(205, 219, 235, 0.16);
-  --line-strong: rgba(205, 219, 235, 0.24);
+  --surface-glass: rgba(18, 28, 38, 0.74);
+  --surface-glass-strong: rgba(18, 28, 38, 0.88);
+  --surface-glass-subtle: rgba(31, 42, 56, 0.62);
+  --line-soft: rgba(203, 213, 225, 0.13);
+  --line-medium: rgba(203, 213, 225, 0.2);
+  --line-strong: rgba(203, 213, 225, 0.28);
   --color-border-soft: var(--line-soft);
   --color-border-medium: var(--line-medium);
   --color-border-strong: var(--line-strong);
-  --ink-strong: #e3ebf5;
-  --ink-medium: #c3cfdd;
-  --ink-soft: #9caabd;
-  --ink-muted: #8492a6;
-  --color-primary: var(--accent);
-  --color-primary-hover: var(--accent-strong);
-  --color-primary-light: var(--accent-surface);
-  --color-primary-glow: var(--accent-surface);
-  --color-secondary: var(--accent-purple);
-  --color-secondary-light: rgba(114, 75, 231, 0.13);
-  --color-accent: var(--accent-blue);
-  --color-accent-light: rgba(97, 165, 246, 0.12);
-  --brand-primary-start: var(--accent-blue);
-  --brand-primary-mid: var(--accent-violet);
-  --brand-primary-end: var(--accent-purple);
-  --brand-primary-solid: var(--accent);
-  --brand-primary-soft: var(--accent-surface);
-  --brand-gradient-primary: var(--cta-gradient);
-  --btn-secondary-bg: var(--accent-surface);
+  --ink-strong: #eef3f8;
+  --ink-medium: #cbd6e3;
+  --ink-soft: #a3afbd;
+  --ink-muted: #8491a3;
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-light: rgba(96, 165, 250, 0.12);
+  --color-primary-glow: rgba(96, 165, 250, 0.18);
+  --color-secondary: #38bdf8;
+  --color-secondary-light: rgba(56, 189, 248, 0.08);
+  --color-accent: #a78bfa;
+  --color-accent-light: rgba(167, 139, 250, 0.08);
+  --brand-primary-start: #60a5fa;
+  --brand-primary-mid: #38bdf8;
+  --brand-primary-end: #a78bfa;
+  --brand-primary-solid: #60a5fa;
+  --brand-primary-soft: rgba(96, 165, 250, 0.16);
+  --brand-gradient-primary: linear-gradient(135deg, #60a5fa 0%, #38bdf8 58%, #a78bfa 100%);
+  --btn-secondary-bg: rgba(31, 42, 56, 0.76);
   --lms-app-card-bg: var(--student-route-card-bg);
   --lms-app-card-bg-raised: var(--student-route-card-bg-raised);
   --lms-app-card-shadow: var(--student-route-card-shadow);
-  --lms-app-card-shadow-hover: var(--shadow-card-elevated);
+  --lms-app-card-shadow-hover: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 24px 54px -36px rgba(2, 6, 12, 0.72);
   background: var(--sa-bg) !important;
   color: var(--sa-ink) !important;
 }
@@ -2267,13 +2110,13 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --exam-jump-text: #93c5fd !important;
   --exam-jump-disabled-bg: rgba(255, 255, 255, 0.035) !important;
   --exam-jump-disabled-text: #7481a1 !important;
-  --exam-chip-primary-bg: var(--accent-surface) !important;
-  --exam-chip-text: var(--accent-strong) !important;
+  --exam-chip-primary-bg: rgba(96, 165, 250, 0.16) !important;
+  --exam-chip-text: #93c5fd !important;
   --exam-answer-border: rgba(148, 163, 184, 0.16) !important;
-  --exam-answer-hover-border: var(--accent-border) !important;
+  --exam-answer-hover-border: rgba(96, 165, 250, 0.34) !important;
   --exam-answer-hover-shadow: 0 16px 34px -28px rgba(2, 6, 12, 0.62) !important;
-  --exam-answer-selected-border: var(--accent-border) !important;
-  --exam-answer-selected-ring: var(--shadow-focus) !important;
+  --exam-answer-selected-border: rgba(96, 165, 250, 0.52) !important;
+  --exam-answer-selected-ring: 0 0 0 3px rgba(96, 165, 250, 0.14) !important;
   --exam-answer-radio: rgba(174, 185, 212, 0.52) !important;
   --exam-answer-text: #dce6f7 !important;
   --exam-tf-bg: rgba(255, 255, 255, 0.055) !important;
@@ -2306,7 +2149,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 ) {
   border-color: var(--line-soft) !important;
   background: var(--lms-app-card-bg) !important;
-  color: var(--ink-medium) !important;
+  color: var(--ink-strong) !important;
   box-shadow: var(--lms-app-card-shadow) !important;
 }
 
@@ -2349,9 +2192,9 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   .lms-exam-main-footer button.border-brand-primary\/35,
   .practice-review-header button.border-brand-primary\/22
 ) {
-  border-color: var(--accent-border) !important;
-  background: var(--accent-surface) !important;
-  color: var(--accent-strong) !important;
+  border-color: rgba(96, 165, 250, 0.26) !important;
+  background: rgba(96, 165, 250, 0.14) !important;
+  color: #93c5fd !important;
 }
 
 :root[data-theme="light"] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) .lms-sidebar--student-model {
@@ -2373,12 +2216,12 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 }
 
 :root[data-theme="dark"] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) .lms-sidebar--student-model {
-  --student-sidebar-ink: var(--ink-strong);
-  --student-sidebar-muted: var(--ink-soft);
-  --student-sidebar-faint: var(--ink-muted);
-  --student-sidebar-border: var(--line-soft);
-  --student-sidebar-hover: var(--state-hover);
-  --student-sidebar-active: var(--state-selected);
+  --student-sidebar-ink: #eef3f8;
+  --student-sidebar-muted: #a3afbd;
+  --student-sidebar-faint: #8491a3;
+  --student-sidebar-border: rgba(203, 213, 225, 0.13);
+  --student-sidebar-hover: rgba(203, 213, 225, 0.08);
+  --student-sidebar-active: linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(56, 189, 248, 0.08));
 }
 
 @media (min-width: 901px) {
@@ -2422,10 +2265,10 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --quiz-map-card-shadow: var(--lms-app-card-shadow);
   --quiz-map-button-border: rgba(148, 163, 184, 0.16);
   --quiz-map-button-bg: rgba(255, 255, 255, 0.055);
-  --quiz-map-button-text: var(--ink-medium);
-  --quiz-map-primary-border: var(--accent-border);
-  --quiz-map-primary-bg: var(--accent-surface);
-  --quiz-map-primary-text: var(--accent-strong);
+  --quiz-map-button-text: #dce6f7;
+  --quiz-map-primary-border: rgba(96, 165, 250, 0.26);
+  --quiz-map-primary-bg: rgba(96, 165, 250, 0.14);
+  --quiz-map-primary-text: #93c5fd;
 }
 
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page {
@@ -2545,8 +2388,10 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 
 .student-app-shell .student-quiz-map-page .student-lessons-course-card::before,
 .student-app-shell .student-quiz-map-page .student-lessons-lesson-row::after {
-  background: none !important;
-  opacity: 0 !important;
+  background:
+    radial-gradient(circle at 88% 14%, rgba(56, 189, 248, 0.12), transparent 42%),
+    radial-gradient(circle at 12% 90%, rgba(37, 99, 235, 0.08), transparent 36%) !important;
+  opacity: 0.42 !important;
 }
 
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page .student-lessons-course-card::before,
@@ -2558,8 +2403,8 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 }
 
 .student-app-shell .student-quiz-map-page .student-lessons-course-card::after {
-  background: none !important;
-  opacity: 0 !important;
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.22), rgba(56, 189, 248, 0.16)) !important;
+  opacity: 0.34 !important;
 }
 
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page .student-lessons-course-card::after {
@@ -2759,9 +2604,12 @@ body.lms-profile-menu-open :where(.student-app-shell, .app-shell, .lms-topbar, .
 }
 
 :root[data-theme='dark'] body.lms-profile-menu-open :where(.student-app-shell, .app-shell, .lms-topbar, .study-hub-topbar) :where(.lms-profile-menu) {
-  border-color: var(--line-medium) !important;
-  background: var(--surface-card-elevated) !important;
-  box-shadow: var(--shadow-card-elevated) !important;
+  border-color: rgba(203, 213, 225, 0.14) !important;
+  background:
+    linear-gradient(180deg, rgba(23, 35, 48, 0.92), rgba(18, 28, 38, 0.88)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 56px -24px rgba(2, 6, 12, 0.62) !important;
 }
 
 body.lms-profile-menu-open :where(.student-app-shell, .app-shell, .lms-topbar, .study-hub-topbar) :where(.lms-profile-menu > div) {
@@ -2771,10 +2619,8 @@ body.lms-profile-menu-open :where(.student-app-shell, .app-shell, .lms-topbar, .
 
 /* Student night/assessment final lock: neutral dark stage with separated cards. */
 body:is(.student-quiz-night-screen, .student-assessment-screen) {
-  --student-night-bg:
-    radial-gradient(ellipse 100% 70% at 50% -12%, rgba(97, 165, 246, 0.055) 0%, rgba(97, 165, 246, 0.025) 34%, rgba(97, 165, 246, 0) 70%),
-    linear-gradient(180deg, #151c24 0%, #131b23 54%, #111820 100%);
-  background: #151c24 !important;
+  --student-night-bg: var(--lms-login-dark-bg);
+  background: var(--lms-login-dark-bg-solid) !important;
   background-image: var(--student-night-bg) !important;
   color-scheme: dark !important;
 }
@@ -2782,70 +2628,67 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) {
 body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-shell {
   --app-bg: var(--student-night-bg);
   --page-background: var(--student-night-bg);
-  --app-bg-solid: #151c24;
+  --app-bg-solid: var(--lms-login-dark-bg-solid);
   --sa-bg: var(--student-night-bg);
 
-  --sa-surface: #1c2631;
-  --sa-surface-2: #19232e;
-  --sa-surface-raised: #222d39;
-  --sa-surface-rgb: 28, 38, 49;
-  --sa-surface-2-rgb: 25, 35, 46;
+  --sa-surface: rgba(8, 13, 20, 0.96);
+  --sa-surface-2: rgba(12, 19, 29, 0.92);
+  --sa-surface-raised: rgba(11, 18, 27, 0.98);
+  --sa-surface-rgb: 8, 13, 20;
+  --sa-surface-2-rgb: 12, 19, 29;
 
-  --surface-0: #151c24;
-  --surface-1: #1c2631;
-  --surface-2: #19232e;
-  --surface-3: #222d39;
-  --surface-card: #1c2631;
-  --surface-card-elevated: #222d39;
+  --surface-0: #0f1720;
+  --surface-1: rgba(8, 13, 20, 0.96);
+  --surface-2: rgba(12, 19, 29, 0.92);
+  --surface-3: rgba(16, 25, 38, 0.92);
+  --surface-card: rgba(8, 13, 20, 0.96);
+  --surface-card-elevated: rgba(11, 18, 27, 0.98);
   --surface-elevated: var(--surface-card-elevated);
-  --surface-glass: rgba(28, 38, 49, 0.78);
-  --surface-glass-strong: rgba(28, 38, 49, 0.9);
-  --surface-glass-subtle: rgba(32, 43, 54, 0.66);
+  --surface-glass: rgba(18, 28, 38, 0.74);
+  --surface-glass-strong: rgba(18, 28, 38, 0.88);
+  --surface-glass-subtle: rgba(31, 42, 56, 0.62);
 
-  --sa-ink: #c3cfdd;
-  --sa-ink-deep: #e3ebf5;
-  --sa-text-2: #9caabd;
-  --sa-text-3: #8492a6;
-  --ink-strong: #e3ebf5;
-  --ink-medium: #c3cfdd;
-  --ink-soft: #9caabd;
-  --ink-muted: #8492a6;
+  --sa-ink: #eef3f8;
+  --sa-ink-deep: #f8fafc;
+  --sa-text-2: #a3afbd;
+  --sa-text-3: #8491a3;
+  --ink-strong: #eef3f8;
+  --ink-medium: #cbd6e3;
+  --ink-soft: #a3afbd;
+  --ink-muted: #8491a3;
 
-  --sa-border: rgba(205, 219, 235, 0.10);
-  --sa-border-soft: rgba(205, 219, 235, 0.10);
-  --sa-border-strong: rgba(205, 219, 235, 0.16);
-  --line-soft: rgba(205, 219, 235, 0.10);
-  --line-medium: rgba(205, 219, 235, 0.16);
-  --line-strong: rgba(205, 219, 235, 0.24);
-  --line-control: rgba(205, 219, 235, 0.34);
+  --sa-border: rgba(203, 213, 225, 0.13);
+  --sa-border-soft: rgba(203, 213, 225, 0.09);
+  --sa-border-strong: rgba(203, 213, 225, 0.2);
+  --line-soft: rgba(203, 213, 225, 0.13);
+  --line-medium: rgba(203, 213, 225, 0.2);
+  --line-strong: rgba(203, 213, 225, 0.28);
 
-  --accent-blue: #61a5f6;
-  --accent-violet: #5f78f1;
-  --accent-purple: #724be7;
-  --accent: #6f6af0;
-  --accent-strong: #8a7cff;
-  --accent-surface: rgba(111, 106, 240, 0.12);
-  --accent-border: rgba(138, 124, 255, 0.34);
-  --accent-ring: rgba(138, 124, 255, 0.42);
-  --cta-gradient: linear-gradient(135deg, #61a5f6 0%, #5f78f1 48%, #724be7 100%);
-  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.22), 0 12px 28px rgba(0, 0, 0, 0.18);
-  --shadow-card-elevated: 0 1px 2px rgba(0, 0, 0, 0.26), 0 18px 42px rgba(0, 0, 0, 0.22);
-
-  --lms-app-card-bg: var(--surface-card);
-  --lms-app-card-bg-raised: var(--surface-card-elevated);
-  --lms-app-list-card-bg: var(--surface-card-soft, #19232e);
+  --lms-app-card-bg:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006) 42%, rgba(148, 163, 184, 0.014)),
+    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(8, 13, 20, 0.97) 56%, rgba(5, 8, 13, 0.98));
+  --lms-app-card-bg-raised:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.01) 42%, rgba(148, 163, 184, 0.02)),
+    linear-gradient(145deg, rgba(14, 22, 33, 0.97), rgba(9, 15, 23, 0.98));
+  --lms-app-list-card-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.014), rgba(10, 17, 27, 0.94) 52%, rgba(5, 8, 13, 0.98));
   --lms-app-card-border: var(--line-soft);
-  --lms-app-card-shadow: var(--shadow-card);
-  --lms-app-list-card-shadow: var(--shadow-card);
+  --lms-app-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 22px 54px -36px rgba(2, 6, 12, 0.68);
+  --lms-app-list-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.034),
+    0 18px 42px -34px rgba(2, 6, 12, 0.62);
   --sa-card-bg: var(--lms-app-card-bg);
   --sa-card-bg-hover: var(--lms-app-card-bg-raised);
-  --sa-grad: var(--cta-gradient);
   --sa-shadow-card: var(--lms-app-card-shadow);
-  --sa-shadow-card-hover: var(--shadow-card-elevated);
-  --btn-secondary-bg: var(--accent-surface);
+  --sa-shadow-card-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 26px 60px -38px rgba(2, 6, 12, 0.72);
+  --btn-secondary-bg: rgba(31, 42, 56, 0.76);
 
   background: var(--sa-bg) !important;
-  color: var(--ink-medium) !important;
+  color: var(--ink-strong) !important;
 }
 
 body:is(.student-quiz-night-screen, .student-assessment-screen) :where(
@@ -2869,7 +2712,7 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(
 ) {
   background: transparent !important;
   background-color: transparent !important;
-  color: var(--ink-medium) !important;
+  color: var(--ink-strong) !important;
 }
 
 body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-shell :where(
@@ -2923,9 +2766,11 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   .student-lessons-course-card,
   .student-lessons-lesson-row
 ):hover {
-  border-color: var(--line-medium) !important;
+  border-color: rgba(203, 213, 225, 0.22) !important;
   background: var(--lms-app-card-bg-raised) !important;
-  box-shadow: var(--shadow-card-elevated) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 26px 60px -38px rgba(2, 6, 12, 0.72) !important;
 }
 
 body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-shell :where(
@@ -2963,9 +2808,9 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   .form-select,
   .form-textarea
 ) {
-  border-color: var(--line-control) !important;
-  background: var(--surface-input, #202b36) !important;
-  color: var(--ink-medium) !important;
+  border-color: var(--line-medium) !important;
+  background: rgba(23, 35, 48, 0.88) !important;
+  color: var(--ink-strong) !important;
 }
 
 body:is(.student-quiz-night-screen, .student-assessment-screen) :where(
@@ -2974,10 +2819,10 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(
   .lms-mobile-top-nav,
   .lms-mobile-bottom-nav__inner
 ) {
-  border-color: var(--line-soft) !important;
-  background: var(--surface-card-elevated) !important;
-  color: var(--ink-medium) !important;
-  box-shadow: var(--shadow-card) !important;
+  border-color: var(--lms-global-card-border, rgba(203, 213, 225, 0.13)) !important;
+  background: var(--lms-global-card-bg) !important;
+  color: var(--ink-strong) !important;
+  box-shadow: var(--lms-global-card-shadow, var(--shadow-sm)) !important;
 }
 
 body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-sidebar-brand-name, .lms-sidebar-wordmark strong, .lms-sidebar-profile-name) {
@@ -2988,6 +2833,108 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-side
 body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-sidebar-brand-sub, .lms-sidebar-wordmark span, .lms-sidebar-profile-role, .lms-sidebar-group-label, .lms-sidebar-nav-item, .lms-sidebar-link) {
   color: var(--ink-soft) !important;
   -webkit-text-fill-color: var(--ink-soft) !important;
+}
+
+/* Global card lock: login card surface is the source of truth. */
+:root :where(
+  .glass-card,
+  .card-surface,
+  .bg-surface-card,
+  .bg-surface-card-elevated,
+  .surface-card,
+  .lms-app-card,
+  .lms-course-card,
+  .student-course-card,
+  .lms-quiz-card,
+  .lms-page-header-card,
+  .lms-hero-card,
+  .lms-form-card,
+  .lms-floating-panel,
+  .lms-alert,
+  .route-skeleton__card,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .study-error-card,
+  .study-loading-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card,
+  .student-result-summary-card,
+  .student-result-detail-hero,
+  .student-result-stat-card,
+  .student-result-insight-card,
+  .student-result-focus-card
+) {
+  border: 1px solid var(--lms-global-card-border, var(--lms-app-card-border)) !important;
+  border-radius: var(--lms-global-card-radius, var(--lms-app-card-radius, 22px)) !important;
+  background: var(--lms-global-card-bg, var(--lms-app-card-bg)) !important;
+  box-shadow: var(--lms-global-card-shadow, var(--lms-app-card-shadow)) !important;
+  color: var(--lms-app-card-title, var(--ink-strong)) !important;
+}
+
+:root .dashboard-page :where(
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card
+)::before,
+:root .dashboard-page :where(
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card
+)::after {
+  background: none !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+}
+
+:root .dashboard-page :where(
+  .study-hero-soft-shape,
+  .study-readiness-glow,
+  .study-mood-orbit
+) {
+  display: none !important;
+}
+
+:root .dashboard-page :where(
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card
+) :where(h1, h2, h3, h4, strong, em, .study-hero-name, .study-hero-name > span, .study-readiness-card__score strong) {
+  color: var(--lms-app-card-title, var(--ink-strong)) !important;
+  -webkit-text-fill-color: var(--lms-app-card-title, var(--ink-strong)) !important;
+}
+
+:root .dashboard-page :where(
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card
+) :where(p, small, .study-eyebrow, .study-hero-lead, .study-readiness-meta span, .study-readiness-card__score span) {
+  color: var(--lms-app-card-muted, var(--ink-soft)) !important;
+  -webkit-text-fill-color: var(--lms-app-card-muted, var(--ink-soft)) !important;
 }
 
 @keyframes lmsProfileMenuSoftIn {

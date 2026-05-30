@@ -12,8 +12,6 @@ import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../util
 
 const PROFILE_MENU_EXIT_MS = 220;
 const PROFILE_MENU_ID = 'lms-profile-menu';
-const publicAssetBase = import.meta.env.BASE_URL.replace(/\/?$/, '/');
-const navToggleAnimationPath = `${publicAssetBase}lms-assets/animations/nav-toggle.json`;
 
 function areStyleObjectsEqual(current, next) {
   if (current === next) return true;
@@ -56,84 +54,11 @@ function SearchIcon() {
   );
 }
 
-function StaticMenuGlyph() {
+function MenuIcon() {
   return (
-    <span className="lms-nav-toggle-static" aria-hidden="true">
-      <span />
-      <span />
-      <span />
-    </span>
-  );
-}
-
-function AnimatedMenuIcon({ motionKey = 0 }) {
-  const containerRef = useRef(null);
-  const animationRef = useRef(null);
-  const [animationReady, setAnimationReady] = useState(false);
-
-  useEffect(() => {
-    let animation = null;
-    let cancelled = false;
-    let idleId = null;
-    let timerId = null;
-    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-
-    if (prefersReducedMotion || !containerRef.current) return undefined;
-
-    function loadAnimation() {
-      import('lottie-web')
-        .then((module) => {
-          if (cancelled || !containerRef.current) return;
-          const lottie = module.default || module;
-          animation = lottie.loadAnimation({
-            container: containerRef.current,
-            renderer: 'svg',
-            loop: false,
-            autoplay: false,
-            path: navToggleAnimationPath,
-            rendererSettings: {
-              progressiveLoad: true,
-              preserveAspectRatio: 'xMidYMid meet',
-            },
-          });
-          animationRef.current = animation;
-          animation.addEventListener?.('DOMLoaded', () => {
-            if (cancelled) return;
-            animation.goToAndStop(0, true);
-            setAnimationReady(true);
-          });
-        })
-        .catch(() => {});
-    }
-
-    if ('requestIdleCallback' in window) {
-      idleId = window.requestIdleCallback(loadAnimation, { timeout: 1200 });
-    } else {
-      timerId = window.setTimeout(loadAnimation, 120);
-    }
-
-    return () => {
-      cancelled = true;
-      if (idleId !== null) window.cancelIdleCallback?.(idleId);
-      if (timerId !== null) window.clearTimeout(timerId);
-      animation?.destroy?.();
-      animationRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    if (prefersReducedMotion || !animationReady || motionKey === 0) return;
-
-    const animation = animationRef.current;
-    animation?.goToAndPlay?.(0, true);
-  }, [animationReady, motionKey]);
-
-  return (
-    <span className={cx('lms-nav-toggle-animation', animationReady && 'is-loaded')} aria-hidden="true">
-      <span ref={containerRef} className="lms-nav-toggle-lottie" />
-      <StaticMenuGlyph />
-    </span>
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
   );
 }
 
@@ -176,6 +101,11 @@ function LogoutIcon() {
       <path d="M6.5 8H12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
+}
+
+function getNavigationExpandedState() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.__lmsNavigationState?.navExpanded);
 }
 
 function useOutsideDismiss(ref, onDismiss, enabled = true) {
@@ -303,7 +233,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileClosing, setProfileClosing] = useState(false);
-  const [navToggleMotionKey, setNavToggleMotionKey] = useState(0);
+  const [navExpanded, setNavExpanded] = useState(getNavigationExpandedState);
   const notificationRef = useRef(null);
   const profileRef = useRef(null);
   const profileButtonRef = useRef(null);
@@ -372,6 +302,17 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
 
   useOutsideDismiss(notificationRef, closeNotificationsMenu, notificationsOpen);
   useOutsideDismiss(profileDismissRefs, dismissProfileMenu, profileVisible);
+
+  useEffect(() => {
+    function handleNavigationState(event) {
+      const detail = event?.detail || window.__lmsNavigationState;
+      setNavExpanded(Boolean(detail?.navExpanded));
+    }
+
+    handleNavigationState();
+    window.addEventListener('lms:navigation-state', handleNavigationState);
+    return () => window.removeEventListener('lms:navigation-state', handleNavigationState);
+  }, []);
 
   const toggleProfileMenu = useCallback(() => {
     if (profileOpen) {
@@ -460,7 +401,6 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   }
 
   function toggleSidebar() {
-    setNavToggleMotionKey((current) => current + 1);
     window.dispatchEvent(new CustomEvent('lms:toggle-sidebar'));
   }
 
@@ -663,8 +603,8 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
         {profileMenuLayer}
 
         <header className={cx('study-hub-topbar', profileVisible && 'is-profile-menu-open', className)}>
-          <button type="button" className="study-icon-button lms-topbar-menu-button" aria-label="Toggle navigation" onClick={toggleSidebar}>
-            <AnimatedMenuIcon motionKey={navToggleMotionKey} />
+          <button type="button" className="study-icon-button lms-topbar-menu-button" aria-label={navExpanded ? 'Hide navigation' : 'Show navigation'} onClick={toggleSidebar}>
+            {navExpanded ? <CloseIcon /> : <MenuIcon />}
           </button>
 
           <div className="study-topbar-title">
@@ -715,9 +655,9 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
           <button className={topbarUi.mobileMenuButton}
             type="button"
             onClick={toggleSidebar}
-            aria-label="Toggle navigation"
+            aria-label={navExpanded ? 'Hide navigation' : 'Show navigation'}
           >
-            <AnimatedMenuIcon motionKey={navToggleMotionKey} />
+            {navExpanded ? <CloseIcon /> : <MenuIcon />}
           </button>
 
           <div className={topbarUi.titleBlock}>

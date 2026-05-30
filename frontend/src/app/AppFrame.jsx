@@ -117,7 +117,7 @@ function syncNativeChromeSurface() {
   const sourceStyles = window.getComputedStyle(source);
   const rootStyles = window.getComputedStyle(document.documentElement);
   const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-  const fallbackColor = theme === 'dark' ? '#151c24' : '#dce6f4';
+  const fallbackColor = theme === 'dark' ? '#060d22' : '#dce6f4';
   const routeBackground =
     readCssVariable(sourceStyles, '--app-bg') ||
     readCssVariable(sourceStyles, '--page-background') ||
@@ -177,8 +177,8 @@ function syncAppScrollContract() {
     setCssPropertyIfChanged(element, 'overflow-x', 'hidden', 'important');
     setCssPropertyIfChanged(element, 'overflow-y', 'hidden', 'important');
     setStyleIfChanged(element, 'overscrollBehavior', 'none');
-    setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #151c24))');
-    setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #151c24))');
+    setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #060d22))');
+    setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #060d22))');
     setStyleIfChanged(element, 'color', '');
   });
 
@@ -197,8 +197,8 @@ function syncAppScrollContract() {
     setCssPropertyIfChanged(root, 'overflow-y', 'hidden', 'important');
     setStyleIfChanged(root, 'overscrollBehavior', 'none');
     setStyleIfChanged(root, 'touchAction', appTouchAction);
-    setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #151c24))');
-    setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #151c24))');
+    setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #060d22))');
+    setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #060d22))');
     setStyleIfChanged(root, 'color', '');
     setStyleIfChanged(root, 'webkitOverflowScrolling', 'touch');
   }
@@ -248,8 +248,8 @@ export function AppFrame() {
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     const root = document.documentElement;
     const isStudyHubScreen = user?.role === 'student' && isStudentStudyHubPath(location.pathname);
-    const routeThemeColors = { light: '#dce6f4', dark: '#151c24' };
-    const appThemeColors = { light: '#dce6f4', dark: '#151c24' };
+    const routeThemeColors = { light: '#dce6f4', dark: '#060d22' };
+    const appThemeColors = { light: '#dce6f4', dark: '#060d22' };
     const getTheme = () => (root.dataset.theme === 'dark' ? 'dark' : 'light');
     const syncThemeColor = () => {
       const theme = getTheme();
