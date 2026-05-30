@@ -42,31 +42,31 @@ html[data-lms-runtime="native"]:not([data-theme="dark"]) {
 
 html[data-lms-runtime="native"][data-theme="dark"] {
   --app-bg:
-    radial-gradient(circle at 14% -10%, rgba(96, 165, 250, 0.12), transparent 31%),
-    radial-gradient(circle at 88% -4%, rgba(56, 189, 248, 0.075), transparent 28%),
-    linear-gradient(180deg, #101923 0%, #0b121b 52%, #080e15 100%);
+    radial-gradient(ellipse 100% 70% at 50% -12%, rgba(97, 165, 246, 0.055) 0%, rgba(97, 165, 246, 0.025) 34%, rgba(97, 165, 246, 0) 70%),
+    linear-gradient(180deg, #151c24 0%, #131b23 54%, #111820 100%);
   --page-background: var(--app-bg);
-  --app-bg-solid: #0b121b;
-  --surface-0: #0b121b;
-  --surface-1: #111b27;
-  --surface-2: #172332;
-  --surface-3: #203044;
-  --surface-4: #2b3d54;
-  --surface-card: rgba(7, 12, 19, 0.97);
-  --surface-card-elevated: rgba(10, 17, 26, 0.99);
-  --surface-glass: rgba(7, 12, 19, 0.84);
-  --surface-glass-strong: rgba(7, 12, 19, 0.94);
-  --surface-glass-subtle: rgba(10, 17, 26, 0.76);
-  --line-soft: rgba(226, 232, 240, 0.14);
-  --line-medium: rgba(226, 232, 240, 0.22);
-  --line-strong: rgba(226, 232, 240, 0.32);
-  --ink-strong: #f6f9fc;
-  --ink-medium: #d8e1ec;
-  --ink-soft: #b4c0ce;
-  --ink-muted: #91a0b2;
-  --color-primary-light: rgba(96, 165, 250, 0.16);
-  --btn-secondary-bg: rgba(31, 44, 60, 0.88);
-  --btn-secondary-text: #d8e1ec;
+  --app-bg-solid: #151c24;
+  --surface-0: #151c24;
+  --surface-1: #1c2631;
+  --surface-2: #19232e;
+  --surface-3: #222d39;
+  --surface-4: #2a3848;
+  --surface-card: #1c2631;
+  --surface-card-elevated: #222d39;
+  --surface-glass: rgba(28, 38, 49, 0.78);
+  --surface-glass-strong: rgba(28, 38, 49, 0.9);
+  --surface-glass-subtle: rgba(32, 43, 54, 0.66);
+  --line-soft: rgba(205, 219, 235, 0.10);
+  --line-medium: rgba(205, 219, 235, 0.16);
+  --line-strong: rgba(205, 219, 235, 0.24);
+  --line-control: rgba(205, 219, 235, 0.34);
+  --ink-strong: #e3ebf5;
+  --ink-medium: #c3cfdd;
+  --ink-soft: #9caabd;
+  --ink-muted: #8492a6;
+  --color-primary-light: rgba(111, 106, 240, 0.12);
+  --btn-secondary-bg: rgba(111, 106, 240, 0.12);
+  --btn-secondary-text: #c3cfdd;
   --shadow-xs: 0 1px 0 rgba(255, 255, 255, 0.035), 0 10px 24px rgba(0, 0, 0, 0.24);
   --shadow-sm: 0 1px 0 rgba(255, 255, 255, 0.04), 0 16px 38px rgba(0, 0, 0, 0.34);
   --shadow-md: 0 1px 0 rgba(255, 255, 255, 0.045), 0 24px 54px rgba(0, 0, 0, 0.42);
@@ -113,29 +113,22 @@ html[data-lms-runtime="native"][data-theme="dark"] .student-app-shell {
   --sa-surface: var(--surface-card);
   --sa-surface-2: var(--surface-2);
   --sa-surface-raised: var(--surface-card-elevated);
-  --sa-surface-rgb: 7, 12, 19;
-  --sa-surface-2-rgb: 10, 17, 26;
-  --sa-ink: var(--ink-strong);
-  --sa-ink-deep: #ffffff;
+  --sa-surface-rgb: 28, 38, 49;
+  --sa-surface-2-rgb: 25, 35, 46;
+  --sa-ink: var(--ink-medium);
+  --sa-ink-deep: var(--ink-strong);
   --sa-text-2: var(--ink-soft);
   --sa-text-3: var(--ink-muted);
   --sa-border: var(--line-soft);
-  --sa-border-soft: rgba(226, 232, 240, 0.10);
+  --sa-border-soft: var(--line-soft);
   --sa-border-strong: var(--line-medium);
-  --sa-border-rgb: 226, 232, 240;
+  --sa-border-rgb: 205, 219, 235;
   --sa-shadow-card: var(--shadow-sm);
   --sa-shadow-card-hover: var(--shadow-md);
-  --sa-card-bg:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.026), transparent 36%),
-    linear-gradient(180deg, rgba(10, 17, 26, 0.99), rgba(5, 9, 15, 0.98));
-  --lms-app-card-bg:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.034), transparent 42%),
-    linear-gradient(135deg, rgba(96, 165, 250, 0.07), rgba(255, 255, 255, 0) 58%),
-    var(--surface-card);
-  --lms-app-list-card-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 52%),
-    var(--surface-card);
-  --lms-app-card-border: rgba(226, 232, 240, 0.16);
+  --sa-card-bg: var(--surface-card);
+  --lms-app-card-bg: var(--surface-card);
+  --lms-app-list-card-bg: var(--surface-card-soft, #19232e);
+  --lms-app-card-border: var(--line-soft);
   --lms-app-card-shadow: var(--shadow-sm);
   --lms-app-list-card-shadow: var(--shadow-xs);
   --lms-app-card-muted: var(--ink-soft);

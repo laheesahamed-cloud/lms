@@ -64,8 +64,8 @@
 
 :root[data-theme="dark"] .student-app-shell .student-courses-hero__chips span,
 .student-app-shell[data-theme="dark"] .student-courses-hero__chips span {
-  border-color: rgba(96, 165, 250, 0.2);
-  background: rgba(96, 165, 250, 0.14);
+  border-color: var(--accent-border);
+  background: var(--accent-surface);
 }
 
 .student-app-shell .student-courses-hero__visual {

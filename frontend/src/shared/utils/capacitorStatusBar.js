@@ -1,6 +1,6 @@
 const DEFAULT_THEME_COLORS = {
   light: '#dce6f4',
-  dark: '#0f1720',
+  dark: '#151c24',
 };
 
 let statusBarModulePromise = null;

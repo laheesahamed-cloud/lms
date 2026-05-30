@@ -136,13 +136,13 @@ const examLayoutClass = 'lms-exam-layout mx-auto grid w-full max-w-[1560px] gap-
 const practiceQuizScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page dashboard-page study-hub-page lms-review-page practice-review-page`;
 const practiceQuizLayoutClass = 'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]';
 const practiceQuizWorkspaceClass =
-  'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1199px]:grid-cols-1';
+  'lms-review-workspace lms-practice-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1199px]:grid-cols-1';
 const practiceQuizSidebarClass =
-  'lms-review-sidebar sticky top-6 grid max-h-[calc(100dvh-48px)] gap-3.5 overflow-hidden max-[900px]:static max-[900px]:max-h-none max-[900px]:overflow-visible';
-const practiceQuizMainClass = 'lms-review-main min-w-0';
+  'lms-review-sidebar lms-practice-quiz-sidebar sticky top-6 grid max-h-[calc(100dvh-48px)] gap-3.5 overflow-hidden max-[900px]:static max-[900px]:max-h-none max-[900px]:overflow-visible';
+const practiceQuizMainClass = 'lms-review-main lms-practice-question-main min-w-0';
 const practiceQuizAsideClass =
   'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:hidden';
-const practiceQuizSummaryGridClass = 'lms-review-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5';
+const practiceQuizSummaryGridClass = 'lms-review-summary-grid lms-practice-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5';
 const practiceQuizSummaryTileClass =
   'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]';
 const practiceQuizSideNavClass =
@@ -1399,7 +1399,7 @@ export function TakeQuizPage() {
                 <PracticeSummaryTile label="Progress" value={`${progressPercent}%`} />
               </div>
 
-              <section className={practiceQuizSideNavClass} aria-label="Practice progress">
+              <section className={cx(practiceQuizSideNavClass, 'lms-practice-progress-card')} aria-label="Practice progress">
                 <div className={practiceQuizNavHeadClass}>
                   <h3>Progress</h3>
                   <span>{progressPercent}% complete</span>
@@ -1415,7 +1415,7 @@ export function TakeQuizPage() {
                 </p>
               </section>
 
-              <section className={practiceQuizSideNavClass} aria-label="Question navigator">
+              <section className={cx(practiceQuizSideNavClass, 'lms-practice-question-key')} aria-label="Question navigator">
                 <div className={practiceQuizNavHeadClass}>
                   <h3>Question List</h3>
                   <span>{totalQuestions} total</span>

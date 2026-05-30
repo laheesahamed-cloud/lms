@@ -231,112 +231,205 @@
    ============================================================ */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  color: #EEF3F8;
+  color: var(--ink-medium);
 
-  --surface-0: #0F1720;
-  --surface-1: #121C26;
-  --surface-2: #172330;
-  --surface-3: #1D2B3A;
-  --surface-4: #263749;
+  --bg-page: #151c24;
+  --bg-page-soft: #18212b;
+  --bg-page-deep: #111820;
 
-  --surface-card:          rgba(18, 28, 38, 0.94);
-  --surface-card-elevated: rgba(23, 35, 48, 0.95);
-  --surface-glass:         rgba(18, 28, 38, 0.78);
-  --surface-glass-strong:  rgba(18, 28, 38, 0.9);
-  --surface-glass-subtle:  rgba(23, 35, 48, 0.66);
+  --surface-0: var(--bg-page);
+  --surface-1: #1c2631;
+  --surface-2: #19232e;
+  --surface-3: #222d39;
+  --surface-4: #2a3848;
+
+  --surface-card: #1c2631;
+  --surface-card-elevated: #222d39;
+  --surface-card-soft: #19232e;
+  --surface-card-hover: #263342;
+  --surface-card-active: #2a3848;
+  --surface-input: #202b36;
+  --surface-input-hover: #263340;
+  --surface-input-active: #2a3948;
+  --surface-glass: rgba(28, 38, 49, 0.78);
+  --surface-glass-strong: rgba(28, 38, 49, 0.9);
+  --surface-glass-subtle: rgba(32, 43, 54, 0.66);
 
   /* ── Borders — subtle, barely-there ─────────────────────── */
-  --line-soft:   rgba(203, 213, 225, 0.13);
-  --line-medium: rgba(203, 213, 225, 0.20);
-  --line-strong: rgba(203, 213, 225, 0.28);
+  --line-soft: rgba(205, 219, 235, 0.10);
+  --line-medium: rgba(205, 219, 235, 0.16);
+  --line-strong: rgba(205, 219, 235, 0.24);
+  --line-control: rgba(205, 219, 235, 0.34);
   --color-border-soft: var(--line-soft);
   --color-border-medium: var(--line-medium);
   --color-border-strong: var(--line-strong);
 
   /* ── Text — clear and readable on dark ─────────────────── */
-  --ink-strong: #EEF3F8;
-  --ink-medium: #CBD6E3;
-  --ink-soft:   #A3AFBD;
-  --ink-muted:  #8491A3;
+  --ink-strong: #e3ebf5;
+  --ink-medium: #c3cfdd;
+  --ink-soft: #9caabd;
+  --ink-muted: #8492a6;
+  --ink-disabled: rgba(195, 207, 221, 0.42);
+  --ink-on-accent: #ffffff;
 
   /* ── Colors — slightly lighter for dark bg contrast ─────── */
-  --color-primary:       #38BDF8;
-  --color-primary-hover: #7DD3FC;
-  --color-primary-light: rgba(56, 189, 248, 0.10);
-  --color-primary-glow:  rgba(56, 189, 248, 0.18);
+  --accent-blue: #61a5f6;
+  --accent-violet: #5f78f1;
+  --accent-purple: #724be7;
+  --accent: #6f6af0;
+  --accent-strong: #8a7cff;
+  --accent-soft: #61a5f6;
+  --accent-surface: rgba(111, 106, 240, 0.12);
+  --accent-surface-hover: rgba(111, 106, 240, 0.18);
+  --accent-surface-active: rgba(111, 106, 240, 0.22);
+  --accent-border: rgba(138, 124, 255, 0.34);
+  --accent-ring: rgba(138, 124, 255, 0.42);
 
-  --color-secondary:       #A78BFA;
-  --color-secondary-light: rgba(167, 139, 250, 0.13);
+  --color-primary: var(--accent);
+  --color-primary-hover: var(--accent-strong);
+  --color-primary-light: var(--accent-surface);
+  --color-primary-glow: var(--accent-surface);
 
-  --color-accent:       #2DD4BF;
-  --color-accent-light: rgba(45, 212, 191, 0.11);
+  --color-secondary: var(--accent-purple);
+  --color-secondary-light: rgba(114, 75, 231, 0.13);
 
-  --color-teal:       #2DD4BF;
-  --color-teal-light: rgba(45, 212, 191, 0.11);
+  --color-accent: var(--accent-blue);
+  --color-accent-light: rgba(97, 165, 246, 0.12);
 
-  --color-indigo:       #818CF8;
-  --color-indigo-light: rgba(129, 140, 248, 0.14);
+  --color-teal: #8bc99a;
+  --color-teal-light: rgba(139, 201, 154, 0.12);
 
-  --color-violet:       #A78BFA;
-  --color-violet-light: rgba(167, 139, 250, 0.14);
+  --color-indigo: var(--accent-violet);
+  --color-indigo-light: rgba(95, 120, 241, 0.14);
 
-  --color-cyan:       #22D3EE;
-  --color-cyan-light: rgba(34, 211, 238, 0.11);
+  --color-violet: var(--accent-purple);
+  --color-violet-light: rgba(114, 75, 231, 0.14);
 
-  --color-success:       #34D399;
-  --color-success-light: rgba(52, 211, 153, 0.13);
-  --color-success-bg:    rgba(5, 150, 105, 0.18);
-  --color-warning:       #FBBF24;
-  --color-warning-light: rgba(251, 191, 36, 0.13);
-  --color-warning-bg:    rgba(217, 119, 6, 0.18);
-  --color-error:         #F87171;
-  --color-error-light:   rgba(248, 113, 113, 0.13);
-  --color-error-bg:      rgba(220, 38, 38, 0.18);
+  --color-cyan: var(--accent-blue);
+  --color-cyan-light: rgba(97, 165, 246, 0.12);
 
-  /* ── Shadows — deep, with blue glow ─────────────────────── */
-  --shadow-xs: 0 1px 3px rgba(2, 6, 12, 0.32);
-  --shadow-sm: 0 4px 14px rgba(2, 6, 12, 0.28), 0 1px 3px rgba(2, 6, 12, 0.2);
-  --shadow-md: 0 12px 36px rgba(2, 6, 12, 0.34), 0 2px 8px rgba(2, 6, 12, 0.22);
-  --shadow-lg: 0 20px 54px rgba(2, 6, 12, 0.4), 0 4px 14px rgba(96, 165, 250, 0.04);
-  --shadow-xl: 0 26px 70px rgba(2, 6, 12, 0.46), 0 8px 22px rgba(96, 165, 250, 0.05);
-  --shadow-2xl: 0 32px 88px rgba(2, 6, 12, 0.52), 0 12px 30px rgba(96, 165, 250, 0.06);
-  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.12), 0 8px 24px rgba(37, 99, 235, 0.14), 0 14px 36px rgba(2, 6, 12, 0.32);
+  --success: #8bc99a;
+  --success-surface: rgba(139, 201, 154, 0.12);
+  --success-border: rgba(139, 201, 154, 0.30);
+  --warning: #d8ad55;
+  --warning-surface: rgba(216, 173, 85, 0.13);
+  --warning-border: rgba(216, 173, 85, 0.32);
+  --danger: #e79a9a;
+  --danger-surface: rgba(231, 154, 154, 0.13);
+  --danger-border: rgba(231, 154, 154, 0.34);
+  --info: #61a5f6;
+  --info-surface: rgba(97, 165, 246, 0.12);
+  --info-border: rgba(97, 165, 246, 0.30);
+
+  --color-success: var(--success);
+  --color-success-light: var(--success-surface);
+  --color-success-bg: var(--success-surface);
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-surface);
+  --color-warning-bg: var(--warning-surface);
+  --color-error: var(--danger);
+  --color-error-light: var(--danger-surface);
+  --color-error-bg: var(--danger-surface);
+
+  --cta-gradient: linear-gradient(135deg, #61a5f6 0%, #5f78f1 48%, #724be7 100%);
+  --cta-gradient-hover: linear-gradient(135deg, #72b2ff 0%, #6d86ff 48%, #8059f0 100%);
+
+  --hero-card-bg:
+    radial-gradient(ellipse 85% 70% at 82% 12%, rgba(114, 75, 231, 0.18) 0%, rgba(114, 75, 231, 0.10) 34%, rgba(114, 75, 231, 0.04) 58%, rgba(114, 75, 231, 0) 82%),
+    radial-gradient(ellipse 75% 60% at 10% 0%, rgba(97, 165, 246, 0.10) 0%, rgba(97, 165, 246, 0.045) 42%, rgba(97, 165, 246, 0) 78%),
+    linear-gradient(145deg, #1f2a36 0%, #1b2530 54%, #18222c 100%);
+
+  --surface-card-gradient-soft: linear-gradient(145deg, #202b36 0%, #1c2631 58%, #19232e 100%);
+
+  /* ── Shadows — neutral, no colored glow ─────────────────── */
+  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.22), 0 12px 28px rgba(0, 0, 0, 0.18);
+  --shadow-card-elevated: 0 1px 2px rgba(0, 0, 0, 0.26), 0 18px 42px rgba(0, 0, 0, 0.22);
+  --shadow-focus: 0 0 0 3px var(--accent-ring);
+  --shadow-xs: var(--shadow-card);
+  --shadow-sm: var(--shadow-card);
+  --shadow-md: var(--shadow-card-elevated);
+  --shadow-lg: var(--shadow-card-elevated);
+  --shadow-xl: var(--shadow-card-elevated);
+  --shadow-2xl: var(--shadow-card-elevated);
+  --shadow-glow: var(--shadow-card);
   --shadow-soft: var(--shadow-xl);
   --shadow-lift: var(--shadow-lg);
 
-  /* ── Page Background — layered neutral, not pure black ── */
+  --state-hover: rgba(255, 255, 255, 0.045);
+  --state-pressed: rgba(255, 255, 255, 0.075);
+  --state-selected: rgba(111, 106, 240, 0.14);
+
+  /* ── Page Background — one smooth stack ─────────────────── */
   --page-background:
-    radial-gradient(ellipse at 18% -14%, rgba(148, 163, 184, 0.085) 0%, rgba(148, 163, 184, 0.026) 34%, transparent 58%),
-    radial-gradient(ellipse at 88% -6%, rgba(71, 85, 105, 0.075) 0%, rgba(71, 85, 105, 0.022) 32%, transparent 56%),
-    radial-gradient(ellipse at 54% 112%, rgba(96, 113, 135, 0.045) 0%, transparent 48%),
-    linear-gradient(180deg, #111A23 0%, #0F1720 48%, #0D141C 100%);
+    radial-gradient(ellipse 100% 70% at 50% -12%, rgba(97, 165, 246, 0.055) 0%, rgba(97, 165, 246, 0.025) 34%, rgba(97, 165, 246, 0) 70%),
+    linear-gradient(180deg, #151c24 0%, #131b23 54%, #111820 100%);
   --app-bg: var(--page-background);
-  --app-bg-solid: #0F1720;
+  --app-bg-solid: var(--bg-page);
 
   /* ── Sidebar ─────────────────────────────────────────────── */
-  --sidebar-bg:     rgba(16, 24, 34, 0.92);
-  --sidebar-border: rgba(203, 213, 225, 0.13);
+  --sidebar-bg: rgba(28, 38, 49, 0.92);
+  --sidebar-border: var(--line-soft);
 
   /* ── Inputs ─────────────────────────────────────────────── */
-  --input-bg:           rgba(23, 35, 48, 0.88);
-  --input-border:       rgba(203, 213, 225, 0.20);
-  --input-focus-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+  --input-bg: var(--surface-input);
+  --input-border: var(--line-control);
+  --input-focus-shadow: var(--shadow-focus);
 
   /* ── Card tokens ─────────────────────────────────────────── */
   --card-bg:     var(--surface-card);
   --card-border: var(--line-soft);
-  --card-shadow: var(--shadow-md);
+  --card-shadow: var(--shadow-card);
 
-  --topbar-bg:         rgba(18, 28, 38, 0.86);
-  --btn-secondary-bg:  var(--surface-glass-subtle);
+  --lms-app-card-bg: var(--surface-card);
+  --lms-app-card-bg-raised: var(--surface-card-elevated);
+  --lms-app-list-card-bg: var(--surface-card-soft);
+  --lms-app-card-border: var(--line-soft);
+  --lms-app-card-shadow: var(--shadow-card);
+  --lms-app-list-card-shadow: var(--shadow-card);
+  --lms-app-card-title: var(--ink-strong);
+  --lms-app-card-muted: var(--ink-soft);
+
+  --topbar-bg: rgba(28, 38, 49, 0.86);
+  --btn-primary-bg: var(--cta-gradient);
+  --btn-secondary-bg: var(--accent-surface);
   --btn-secondary-text: var(--ink-medium);
+
+  --brand-primary-start: var(--accent-blue);
+  --brand-primary-mid: var(--accent-violet);
+  --brand-primary-end: var(--accent-purple);
+  --brand-primary-solid: var(--accent);
+  --brand-primary-soft: var(--accent-surface);
+  --brand-gradient-primary: var(--cta-gradient);
+  --brand-gradient-vivid: var(--cta-gradient);
+  --brand-gradient-hero: var(--hero-card-bg);
+  --brand-shadow-soft: var(--shadow-card);
+  --brand-shadow-md: var(--shadow-card);
+  --brand-shadow-lg: var(--shadow-card-elevated);
+  --brand-glow: var(--shadow-card);
+
+  --accent-primary: var(--color-primary);
+  --accent-secondary: var(--color-secondary);
+  --accent-cyan: var(--color-accent);
+  --accent-success: var(--color-success);
+  --accent-warning: var(--color-warning);
+  --accent-danger: var(--color-error);
+  --ink-body: var(--ink-medium);
+  --border: var(--line-soft);
+  --text-primary: var(--ink-strong);
+  --text-secondary: var(--ink-medium);
+  --text-muted: var(--ink-muted);
+  --ink-base: var(--ink-medium);
+  --surface-hover: var(--surface-card-hover);
+  --bg-card: var(--surface-card);
+  --bg-elevated: var(--surface-card-elevated);
+  --surface-elevated: var(--surface-card-elevated);
 }
 
 :root[data-theme='dark'],
 :root[data-theme='dark'] body,
 :root[data-theme='dark'] #root {
   background: var(--page-background) !important;
-  color: var(--ink-strong);
+  color: var(--ink-medium);
 }
 
 /* ── ERPM Accent Theme ─────────────────────────────────────── */
@@ -365,17 +458,22 @@
 }
 
 :root[data-theme='dark'][data-accent-theme='erpm'] {
-  --color-primary:       #3B82F6;
-  --color-primary-hover: #60A5FA;
-  --color-primary-light: rgba(59, 130, 246, 0.11);
-  --color-primary-glow:  rgba(59, 130, 246, 0.18);
-  --shadow-glow: 0 0 0 1px rgba(59, 130, 246, 0.12), 0 0 24px rgba(59, 130, 246, 0.16), 0 14px 36px rgba(2, 6, 12, .34);
-  --input-focus-shadow: 0 0 0 3px rgba(59,130,246,.18);
-  --page-background:
-    radial-gradient(ellipse at 18% -14%, rgba(148, 163, 184, 0.085) 0%, rgba(148, 163, 184, 0.026) 34%, transparent 58%),
-    radial-gradient(ellipse at 88% -6%, rgba(71, 85, 105, 0.075) 0%, rgba(71, 85, 105, 0.022) 32%, transparent 56%),
-    radial-gradient(ellipse at 54% 112%, rgba(96, 113, 135, 0.045) 0%, transparent 48%),
-    linear-gradient(180deg, #111A23 0%, #0F1720 48%, #0D141C 100%);
+  --color-primary: var(--accent);
+  --color-primary-hover: var(--accent-strong);
+  --color-primary-light: var(--accent-surface);
+  --color-primary-glow: var(--accent-surface);
+  --shadow-glow: var(--shadow-card);
+  --input-focus-shadow: var(--shadow-focus);
+  --brand-primary-start: var(--accent-blue);
+  --brand-primary-mid: var(--accent-violet);
+  --brand-primary-end: var(--accent-purple);
+  --brand-gradient-primary: var(--cta-gradient);
+  --brand-gradient-vivid: var(--cta-gradient);
+  --brand-gradient-hero: var(--hero-card-bg);
+  --brand-shadow-soft: var(--shadow-card);
+  --brand-shadow-md: var(--shadow-card);
+  --brand-shadow-lg: var(--shadow-card-elevated);
+  --brand-glow: var(--shadow-card);
 }
 
 /* ── Codeforge Accent Theme ───────────────────────────────── */
@@ -406,14 +504,20 @@
 }
 
 :root[data-theme='dark'][data-accent-theme='codeforge'] {
-  --color-primary:       #38BDF8;
-  --color-primary-hover: #7DD3FC;
-  --color-primary-light: rgba(56, 189, 248, 0.10);
-  --color-primary-glow:  rgba(56, 189, 248, 0.18);
-  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.12), 0 8px 24px rgba(37, 99, 235, 0.14);
-  --input-focus-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
-  --page-background:
-    radial-gradient(ellipse at 18% -14%, rgba(148, 163, 184, 0.085) 0%, rgba(148, 163, 184, 0.026) 34%, transparent 58%),
-    radial-gradient(ellipse at 88% -6%, rgba(71, 85, 105, 0.075) 0%, rgba(71, 85, 105, 0.022) 32%, transparent 56%),
-    linear-gradient(180deg, #111A23 0%, #0F1720 48%, #0D141C 100%);
+  --color-primary: var(--accent);
+  --color-primary-hover: var(--accent-strong);
+  --color-primary-light: var(--accent-surface);
+  --color-primary-glow: var(--accent-surface);
+  --shadow-glow: var(--shadow-card);
+  --input-focus-shadow: var(--shadow-focus);
+  --brand-primary-start: var(--accent-blue);
+  --brand-primary-mid: var(--accent-violet);
+  --brand-primary-end: var(--accent-purple);
+  --brand-gradient-primary: var(--cta-gradient);
+  --brand-gradient-vivid: var(--cta-gradient);
+  --brand-gradient-hero: var(--hero-card-bg);
+  --brand-shadow-soft: var(--shadow-card);
+  --brand-shadow-md: var(--shadow-card);
+  --brand-shadow-lg: var(--shadow-card-elevated);
+  --brand-glow: var(--shadow-card);
 }

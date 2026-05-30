@@ -1123,7 +1123,7 @@ export function LoginPage() {
                 <div style={{ position: 'relative' }}>
                   <input
                     id="login-password"
-                    className={cx(ui.input, 'pr-11')}
+                    className={cx(ui.input, 'pr-14')}
                     name="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Enter your password"
@@ -1138,7 +1138,7 @@ export function LoginPage() {
                     style={{
                       position: 'absolute', top: '50%', right: 8,
                       transform: 'translateY(-50%)',
-                      width: 30, height: 30, borderRadius: 7, border: 'none',
+                      width: 44, height: 44, borderRadius: 10, border: 'none',
                       background: 'transparent', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       color: 'var(--ink-soft)',

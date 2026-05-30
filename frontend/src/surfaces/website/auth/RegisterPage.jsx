@@ -4,6 +4,7 @@ import { getErrorMessage } from '../../../shared/api/client.js';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
 import { ui } from '../../../shared/styles/tailwindClasses.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../shared/utils/routeForwarding.js';
+import { PasswordField } from '../../../shared/ui/PasswordField.jsx';
 
 const auth = {
   shell: 'grid min-h-dvh place-items-center bg-page px-6 py-6',
@@ -117,30 +118,22 @@ export function RegisterPage() {
             Email address
             <input className={ui.input} name="email" type="email" placeholder="you@example.com" required autoComplete="email" />
           </label>
-          <label className={ui.formLabel}>
-            Password
-            <input
-              className={ui.input}
-              name="password"
-              type="password"
-              placeholder="10+ chars with uppercase, lowercase, and number"
-              minLength={10}
-              required
-              autoComplete="new-password"
-            />
-          </label>
-          <label className={ui.formLabel}>
-            Confirm password
-            <input
-              className={ui.input}
-              name="confirmPassword"
-              type="password"
-              placeholder="Repeat your password"
-              minLength={10}
-              required
-              autoComplete="new-password"
-            />
-          </label>
+          <PasswordField
+            label="Password"
+            name="password"
+            placeholder="10+ chars with uppercase, lowercase, and number"
+            minLength={10}
+            required
+            autoComplete="new-password"
+          />
+          <PasswordField
+            label="Confirm password"
+            name="confirmPassword"
+            placeholder="Repeat your password"
+            minLength={10}
+            required
+            autoComplete="new-password"
+          />
           <label className={ui.checkboxRow}>
             <input className="shrink-0" name="acceptedTerms" type="checkbox" defaultChecked />
             <span>

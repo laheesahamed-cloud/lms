@@ -35,9 +35,9 @@ const shellUi = {
   ambient: 'portal-shell-ambient pointer-events-none hidden',
   ambientGlow: 'portal-shell-ambient__glow absolute rounded-full blur-[90px]',
   ambientGlowOne:
-    'portal-shell-ambient__glow--one left-[20%] top-[-120px] size-[680px] bg-[radial-gradient(ellipse,rgba(14,165,233,0.042),rgba(37,99,235,0.022)_38%,transparent_72%)] opacity-0 dark:opacity-28',
+    'portal-shell-ambient__glow--one left-[20%] top-[-120px] size-[680px] bg-[radial-gradient(ellipse,rgba(97,165,246,0.035),rgba(95,120,241,0.018)_38%,transparent_72%)] opacity-0 dark:opacity-16',
   ambientGlowTwo:
-    'portal-shell-ambient__glow--two bottom-[-160px] right-[8%] size-[560px] bg-[radial-gradient(ellipse,rgba(37,99,235,0.026),transparent_74%)] opacity-0 dark:opacity-24',
+    'portal-shell-ambient__glow--two bottom-[-160px] right-[8%] size-[560px] bg-[radial-gradient(ellipse,rgba(114,75,231,0.024),transparent_74%)] opacity-0 dark:opacity-14',
   ambientGrid:
     'portal-shell-ambient__grid absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.014)_1px,transparent_1px)] bg-[length:56px_56px] opacity-70 [mask-image:radial-gradient(ellipse_at_center,rgba(0,0,0,0.20)_0%,transparent_76%)]',
   signoutCurtain:

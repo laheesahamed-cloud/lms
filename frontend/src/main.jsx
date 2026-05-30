@@ -5,10 +5,7 @@ import { applyPlatformAttributes, installPlatformAttributeSync } from './shared/
 import { shouldRegisterServiceWorker } from './shared/platform/config.js';
 import { applyPerformanceProfile } from './shared/utils/performanceProfile.js';
 import { installPwaRegistration, uninstallPwaRegistration } from './shared/utils/pwaRegistration.js';
-import { installNativeErrorOverlay } from './shared/utils/nativeErrorOverlay.js';
 import './shared/styles/index.css';
-
-installNativeErrorOverlay();
 
 function isPwaMode() {
   return document.documentElement.dataset.lmsPwa === 'true';

@@ -31,27 +31,13 @@
 }
 
 :root[data-theme='dark'] {
-  --lms-app-card-bg:
-    linear-gradient(
-      145deg,
-      rgba(14, 165, 233, 0.075) 0%,
-      rgba(255, 255, 255, 0.026) 56%,
-      rgba(96, 165, 250, 0.048) 100%
-    ),
-    var(--surface-card);
-  --lms-app-list-card-bg:
-    linear-gradient(
-      180deg,
-      rgba(14, 165, 233, 0.048) 0%,
-      rgba(255, 255, 255, 0.022) 58%,
-      rgba(96, 165, 250, 0.034) 100%
-    ),
-    var(--surface-card);
-  --lms-app-card-border: rgba(125, 211, 252, 0.16);
-  --lms-app-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.035), 0 18px 42px rgba(0, 0, 0, 0.2);
-  --lms-app-list-card-shadow: 0 1px 0 rgba(255, 255, 255, 0.026), 0 16px 34px rgba(0, 0, 0, 0.16);
-  --lms-app-card-title: rgba(255, 255, 255, 0.94);
-  --lms-app-card-muted: rgba(226, 232, 240, 0.68);
+  --lms-app-card-bg: var(--surface-card);
+  --lms-app-list-card-bg: var(--surface-card-soft);
+  --lms-app-card-border: var(--line-soft);
+  --lms-app-card-shadow: var(--shadow-card);
+  --lms-app-list-card-shadow: var(--shadow-card);
+  --lms-app-card-title: var(--ink-strong);
+  --lms-app-card-muted: var(--ink-soft);
 }
 
 :where(.lms-hero-card, .lms-page-header-card) {

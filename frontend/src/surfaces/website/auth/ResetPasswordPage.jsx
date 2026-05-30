@@ -4,6 +4,7 @@ import { getErrorMessage } from '../../../shared/api/client.js';
 import { resetPassword } from '../../../shared/api/auth.api.js';
 import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
+import { PasswordField } from '../../../shared/ui/PasswordField.jsx';
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -43,15 +44,25 @@ export function ResetPasswordPage() {
           {status.error && <div className={ui.feedbackError}>{status.error}</div>}
           {status.success && <div className={ui.feedbackSuccess}>{status.success}</div>}
 
-          <label className={cx(ui.formLabel, 'grid gap-1.5')}>
-            New password
-            <input className={ui.input} name="newPassword" type="password" autoComplete="new-password" minLength={10} required disabled={!token || status.success} />
-          </label>
+          <PasswordField
+            label="New password"
+            name="newPassword"
+            autoComplete="new-password"
+            minLength={10}
+            required
+            disabled={!token || Boolean(status.success)}
+            labelClassName="grid gap-1.5"
+          />
 
-          <label className={cx(ui.formLabel, 'grid gap-1.5')}>
-            Confirm new password
-            <input className={ui.input} name="confirmPassword" type="password" autoComplete="new-password" minLength={10} required disabled={!token || status.success} />
-          </label>
+          <PasswordField
+            label="Confirm new password"
+            name="confirmPassword"
+            autoComplete="new-password"
+            minLength={10}
+            required
+            disabled={!token || Boolean(status.success)}
+            labelClassName="grid gap-1.5"
+          />
 
           <button type="submit" disabled={!token || status.loading || Boolean(status.success)} className={cx(ui.primaryAction, 'min-h-12 w-full rounded-[var(--radius-md)] disabled:cursor-not-allowed')}>
             {status.loading ? 'Updating...' : 'Update password'}

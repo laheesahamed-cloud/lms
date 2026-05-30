@@ -287,7 +287,7 @@
     height: 54px;
     border: 1px solid rgba(56, 189, 248, 0.45);
     border-radius: 18px;
-    box-shadow: 0 0 34px rgba(14, 165, 233, 0.18), inset 0 0 24px rgba(56, 189, 248, 0.08);
+    box-shadow: 0 0 28px rgba(97, 165, 246, 0.10), inset 0 0 18px rgba(114, 75, 231, 0.06);
     animation: lms-static-pulse 1.05s ease-in-out infinite;
   }
 
@@ -396,7 +396,7 @@
     --safe-left: var(--lms-safe-left);
     --app-bg: var(--page-background);
     --app-light-bg: var(--page-background);
-    --app-dark-bg: #0f1720;
+    --app-dark-bg: #151c24;
     --lms-tabbar-bg: var(--surface-card, #fbfcff);
     --lms-tabbar-content-shift: 0px;
     --lms-tabbar-row-height: 64px;
@@ -411,7 +411,7 @@
 
   :root[data-theme='dark'] {
     --app-bg: var(--page-background);
-    --lms-tabbar-bg: #0f1720;
+    --lms-tabbar-bg: #222d39;
   }
 
   * {
@@ -428,21 +428,21 @@
     min-height: 100%;
     max-width: 100%;
     overflow-x: hidden;
-    background: var(--app-bg, #0f1720);
-    background-color: var(--app-bg, #0f1720);
+    background: var(--app-bg, #151c24);
+    background-color: var(--app-bg, #151c24);
   }
 
   html {
-    background: var(--app-bg, #0f1720);
-    background-color: var(--app-bg, #0f1720);
+    background: var(--app-bg, #151c24);
+    background-color: var(--app-bg, #151c24);
     scroll-behavior: smooth;
   }
 
   body {
     min-height: 100dvh;
     max-width: 100%;
-    background: var(--app-bg, #0f1720);
-    background-color: var(--app-bg, #0f1720);
+    background: var(--app-bg, #151c24);
+    background-color: var(--app-bg, #151c24);
     overscroll-behavior: none;
     position: relative;
     padding-left: env(safe-area-inset-left);
@@ -460,8 +460,8 @@
     max-width: 100%;
     min-height: 100dvh;
     overflow-x: hidden;
-    background: var(--app-bg, #0f1720);
-    background-color: var(--app-bg, #0f1720);
+    background: var(--app-bg, #151c24);
+    background-color: var(--app-bg, #151c24);
   }
 
   .app-shell {
@@ -546,8 +546,8 @@
   .app-shell .portal-content,
   .app-shell .portal-content__frame,
   .app-shell .lms-route-page {
-    background: var(--app-bg, #0f1720);
-    background-color: var(--app-bg, #0f1720);
+    background: var(--app-bg, #151c24);
+    background-color: var(--app-bg, #151c24);
   }
 
   .app-safe-top-spacer {
@@ -640,8 +640,8 @@
   :root[data-theme='dark'] .bottom-navbar,
   :root[data-theme='dark'] .mobile-nav,
   :root[data-theme='dark'] .tab-bar {
-    background: #0f1720;
-    background-color: #0f1720;
+    background: #151c24;
+    background-color: #151c24;
     border-top-color: rgba(255, 255, 255, 0.12);
     box-shadow: 0 -2px 14px rgba(0, 0, 0, 0.28);
   }
@@ -905,7 +905,7 @@
   :root[data-theme='dark'] .card-interactive:hover {
     box-shadow:
       0 18px 48px rgba(2, 6, 12, 0.4),
-      0 4px 14px rgba(96, 165, 250, 0.04);
+      0 4px 14px rgba(97, 165, 246, 0.04);
     border-color: rgba(203, 213, 225, 0.18);
   }
 
@@ -1151,7 +1151,7 @@
 
   /* ── Badge / status pill helpers ──────────────────────── */
   .badge-blue   { background: rgba(37, 99, 235, 0.09);  color: #1D4ED8; border: 1px solid rgba(37, 99, 235, 0.16); }
-  .badge-teal   { background: rgba(14, 165, 233, 0.09); color: #2563EB; border: 1px solid rgba(14, 165, 233, 0.16); }
+  .badge-teal   { background: rgba(97, 165, 246, 0.09); color: #2563EB; border: 1px solid rgba(97, 165, 246, 0.16); }
   .badge-violet { background: rgba(124, 58, 237, 0.09); color: #7C3AED; border: 1px solid rgba(124, 58, 237, 0.16); }
   .badge-amber  { background: rgba(217, 119, 6, 0.09);  color: #B45309; border: 1px solid rgba(217, 119, 6, 0.16); }
   .badge-green  { background: rgba(5, 150, 105, 0.09);  color: #047857; border: 1px solid rgba(5, 150, 105, 0.16); }
@@ -1504,8 +1504,8 @@
     min-height: 100% !important;
     max-width: 100% !important;
     overflow-x: hidden !important;
-    background: var(--app-bg, #0f1720) !important;
-    background-color: var(--app-bg, #0f1720) !important;
+    background: var(--app-bg, #151c24) !important;
+    background-color: var(--app-bg, #151c24) !important;
   }
 
   body {
@@ -1515,8 +1515,8 @@
     min-height: 100dvh;
     overflow-x: hidden !important;
     overscroll-behavior: none !important;
-    background: var(--app-bg, #0f1720) !important;
-    background-color: var(--app-bg, #0f1720) !important;
+    background: var(--app-bg, #151c24) !important;
+    background-color: var(--app-bg, #151c24) !important;
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
@@ -1526,8 +1526,8 @@
     min-height: 100%;
     max-width: 100%;
     overflow-x: hidden !important;
-    background: var(--app-bg, #0f1720) !important;
-    background-color: var(--app-bg, #0f1720) !important;
+    background: var(--app-bg, #151c24) !important;
+    background-color: var(--app-bg, #151c24) !important;
     -webkit-overflow-scrolling: touch;
   }
 
@@ -2719,7 +2719,7 @@
   }
   :root[data-low-spec] .lp,
   .lp.lp-motion-disabled {
-    background: #0d141c !important;
+    background: #111820 !important;
   }
   :root[data-low-spec] .lp *,
   :root[data-low-spec] .lp *::before,
@@ -2733,7 +2733,7 @@
   .lp.lp-motion-disabled .lp-hero {
     background:
       radial-gradient(ellipse at 70% 20%, rgba(29, 78, 216, 0.07), transparent 34%),
-      linear-gradient(180deg, #0d141c 0%, #111a23 68%, #0d141c 100%) !important;
+      linear-gradient(180deg, #151c24 0%, #131b23 54%, #111820 100%) !important;
   }
   :root[data-low-spec] .lp-hero-orb,
   :root[data-low-spec] .lp-depth-dot,
@@ -2798,7 +2798,7 @@
 
   :root[data-visual-effects='balanced'] .lp,
   :root[data-visual-effects='balanced'] .lp.lp-motion-disabled {
-    background: #0d141c !important;
+    background: #111820 !important;
   }
 
   :root[data-visual-effects='balanced'] .lp *,
@@ -2809,8 +2809,8 @@
 
   :root[data-visual-effects='balanced'] .lp-hero {
     background:
-      radial-gradient(ellipse at 72% 18%, rgba(14, 165, 233, 0.09), transparent 34%),
-      linear-gradient(180deg, #0d141c 0%, #111a23 68%, #0d141c 100%) !important;
+      radial-gradient(ellipse 100% 70% at 50% -12%, rgba(97, 165, 246, 0.055), rgba(97, 165, 246, 0) 70%),
+      linear-gradient(180deg, #151c24 0%, #131b23 54%, #111820 100%) !important;
   }
 
   :root[data-visual-effects='balanced'] .lp-hcard,
@@ -2980,8 +2980,8 @@
     width: 100vw !important;
     max-width: 100vw !important;
     overflow-x: hidden !important;
-    background: var(--app-bg, #0f1720) !important;
-    background-color: var(--app-bg, #0f1720) !important;
+    background: var(--app-bg, #151c24) !important;
+    background-color: var(--app-bg, #151c24) !important;
   }
 
   html[data-lms-runtime="native"] .native-app-frame {
@@ -2998,8 +2998,8 @@
     border: 0 !important;
     outline: 0 !important;
     box-shadow: none !important;
-    background: var(--app-bg, #0f1720) !important;
-    background-color: var(--app-bg, #0f1720) !important;
+    background: var(--app-bg, #151c24) !important;
+    background-color: var(--app-bg, #151c24) !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     overscroll-behavior-x: none !important;

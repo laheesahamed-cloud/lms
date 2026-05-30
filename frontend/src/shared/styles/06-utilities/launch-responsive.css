@@ -2725,6 +2725,57 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
     box-shadow: none !important;
     padding: 0 !important;
   }
+
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-practice-workspace {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-practice-quiz-sidebar {
+    display: contents !important;
+  }
+
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-practice-summary-grid {
+    display: none !important;
+  }
+
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-practice-progress-card {
+    order: 1 !important;
+  }
+
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-practice-question-main {
+    order: 3 !important;
+    width: 100% !important;
+  }
+
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-practice-question-key {
+    order: 2 !important;
+    border-color: color-mix(in srgb, var(--color-primary, #2563eb) 18%, var(--sa-border, var(--line-soft))) !important;
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--color-primary, #2563eb) 4%, transparent), transparent 60%),
+      var(--surface-card, var(--surface-1)) !important;
+  }
+
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-practice-question-key .lms-review-bubble-legend {
+    margin-top: 8px !important;
+  }
+
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-practice-question-key .lms-review-bubble-legend > span {
+    min-height: 24px !important;
+    border: 1px solid color-mix(in srgb, var(--sa-border, var(--line-soft)) 76%, transparent) !important;
+    border-radius: 999px !important;
+    background: color-mix(in srgb, var(--surface-2, var(--surface-1)) 84%, transparent) !important;
+    padding: 3px 7px !important;
+    color: var(--ink-soft, var(--text-muted)) !important;
+  }
+
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-practice-question-key .lms-review-bubble-nav button {
+    min-height: 38px !important;
+    border-width: 1.5px !important;
+    font-size: 13px !important;
+  }
 }
 
 @media (max-width: 380px) {
@@ -3314,27 +3365,6 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-assessment-btn--p
   border-color: color-mix(in srgb, var(--color-primary) 34%, var(--line-soft)) !important;
 }
 
-html[data-lms-runtime="native"] .quiz-completion-overlay {
-  background: color-mix(in srgb, var(--surface-0, var(--app-bg-solid)) 70%, transparent) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(118%) !important;
-  backdrop-filter: blur(24px) saturate(118%) !important;
-}
-
-html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-overlay {
-  background: color-mix(in srgb, var(--surface-0, #0b121b) 76%, transparent) !important;
-}
-
-html[data-lms-runtime="native"] .quiz-completion-capsule {
-  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 28%, var(--line-soft)) !important;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-card, #fbfcff) 96%, transparent), color-mix(in srgb, var(--surface-1, #fbfcff) 92%, transparent)) !important;
-  box-shadow: 0 24px 58px -34px color-mix(in srgb, var(--color-primary, #2563eb) 28%, rgba(15, 23, 42, 0.28)) !important;
-}
-
-html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-capsule {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-card, #0b121b) 94%, #f8fafc 3%), color-mix(in srgb, var(--surface-1, #111827) 92%, #020617 6%)) !important;
-  box-shadow: 0 24px 60px -36px rgba(0, 0, 0, 0.68) !important;
-}
-
 @media (max-width: 700px) {
   html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-header, .practice-review-header) {
     border-radius: 18px !important;
@@ -3359,9 +3389,6 @@ html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-capsule {
     bottom: max(8px, var(--lms-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
   }
 
-  html[data-lms-runtime="native"] .quiz-completion-overlay {
-    padding-inline: max(14px, var(--lms-safe-left, env(safe-area-inset-left, 0px)), var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;
-  }
 }
 
 .lms-ai-note-page.is-writing-mode :where(.lms-ai-canvas-shell, .lms-ai-note-main) {

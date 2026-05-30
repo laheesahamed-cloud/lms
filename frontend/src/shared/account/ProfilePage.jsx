@@ -6,6 +6,7 @@ import { PROFILE_AVATARS, ProfileAvatar } from '../ui/ProfileAvatar.jsx';
 import { useAuthStore } from '../stores/authStore.js';
 import { getStaffRoleLabel, isStaffUser } from '../auth/roleAccess.js';
 import { cx, statusPill, ui } from '../styles/tailwindClasses.js';
+import { PasswordField } from '../ui/PasswordField.jsx';
 
 export function ProfilePage() {
   const user = useAuthStore((state) => state.user);
@@ -133,40 +134,34 @@ export function ProfilePage() {
             {passwordStatus.error ? <div className={ui.feedbackError}>{passwordStatus.error}</div> : null}
             {passwordStatus.success ? <div className={ui.feedbackSuccess}>{passwordStatus.success}</div> : null}
 
-            <label className="grid gap-[7px] text-[13px] font-bold text-ink-medium">
-              Current password
-              <input className={ui.input}
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
-                required
-                autoComplete="current-password"
-              />
-            </label>
+            <PasswordField
+              label="Current password"
+              value={passwordForm.currentPassword}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+              required
+              autoComplete="current-password"
+              labelClassName="grid gap-[7px] text-[13px] font-bold text-ink-medium"
+            />
 
-            <label className="grid gap-[7px] text-[13px] font-bold text-ink-medium">
-              New password
-              <input className={ui.input}
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
-                minLength={6}
-                required
-                autoComplete="new-password"
-              />
-            </label>
+            <PasswordField
+              label="New password"
+              value={passwordForm.newPassword}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+              minLength={10}
+              required
+              autoComplete="new-password"
+              labelClassName="grid gap-[7px] text-[13px] font-bold text-ink-medium"
+            />
 
-            <label className="grid gap-[7px] text-[13px] font-bold text-ink-medium">
-              Confirm new password
-              <input className={ui.input}
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
-                minLength={6}
-                required
-                autoComplete="new-password"
-              />
-            </label>
+            <PasswordField
+              label="Confirm new password"
+              value={passwordForm.confirmPassword}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+              minLength={10}
+              required
+              autoComplete="new-password"
+              labelClassName="grid gap-[7px] text-[13px] font-bold text-ink-medium"
+            />
 
             <button type="submit" className={cx(ui.primaryAction, 'justify-self-start disabled:cursor-progress')} disabled={passwordStatus.loading}>
               {passwordStatus.loading ? 'Changing...' : 'Change Password'}
