@@ -305,6 +305,7 @@ export declare class AuthController {
     }>;
     private setSessionCookie;
     private clearSessionCookie;
+    private shouldUseSecureSessionCookie;
     private shouldExposeSessionToken;
     private authorizationFromCookie;
 }

@@ -62,6 +62,7 @@ function splitUrlList(value: string | undefined) {
 function toOrigin(value: string | undefined) {
   const clean = String(value || '').trim();
   if (!clean) return '';
+  if (['null', 'undefined'].includes(clean.toLowerCase())) return '';
 
   try {
     return new URL(clean).origin;
@@ -81,6 +82,32 @@ function getConfiguredFrontendOrigins(configService: ConfigService) {
     configService.get<string>('APP_PUBLIC_URL'),
     ...splitUrlList(configService.get<string>('FRONTEND_URLS')),
   ].map(toOrigin).filter(Boolean)));
+}
+
+function isPublicOrigin(origin: string) {
+  return Boolean(origin) && !isLocalOrigin(origin) && !isPrivateLanOrigin(origin) && !isCapacitorOrigin(origin);
+}
+
+function isProductionLikeRuntime(nodeEnv: string, frontendOrigins: string[], apiOrigin: string) {
+  if (nodeEnv === 'production') return true;
+  return [...frontendOrigins, apiOrigin].some((origin) =>
+    origin.startsWith('https://') && isPublicOrigin(origin)
+  );
+}
+
+function isTruthyEnv(value: string | undefined) {
+  return ['true', '1', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());
+}
+
+function isFalsyEnv(value: string | undefined) {
+  return ['false', '0', 'no', 'off'].includes(String(value || '').trim().toLowerCase());
+}
+
+function shouldAllowLanOrigins(configService: ConfigService, nodeEnv: string, productionLikeRuntime: boolean) {
+  const setting = configService.get<string>('ALLOW_LAN_ORIGINS');
+  if (isTruthyEnv(setting)) return !productionLikeRuntime;
+  if (isFalsyEnv(setting)) return false;
+  return !productionLikeRuntime && nodeEnv !== 'production';
 }
 
 function buildContentSecurityPolicy(frontendOrigins: string[], apiOrigin: string, allowLanOrigins: boolean) {
@@ -103,9 +130,9 @@ function buildContentSecurityPolicy(frontendOrigins: string[], apiOrigin: string
   ].join('; ');
 }
 
-function assertProductionConfig(configService: ConfigService, frontendOrigins: string[], allowLanOrigins: boolean) {
+function assertProductionConfig(configService: ConfigService, frontendOrigins: string[], allowLanOrigins: boolean, productionLikeRuntime: boolean) {
   const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
-  if (nodeEnv !== 'production') return;
+  if (!productionLikeRuntime) return;
 
   const failures: string[] = [];
   const hasPublicFrontendOrigin = frontendOrigins.some((origin) =>
@@ -337,10 +364,11 @@ export async function configureApp(app: INestApplication) {
   const enableAccessLogs = nodeEnv !== 'production' || configService.get<string>('ENABLE_ACCESS_LOGS') === 'true';
   const enableSecurityAccessLogs = enableAccessLogs || configService.get<string>('ENABLE_SECURITY_ACCESS_LOGS') === 'true';
   const enableContentAccessLogs = enableAccessLogs || configService.get<string>('ENABLE_CONTENT_ACCESS_LOGS') === 'true';
-  const allowLanOrigins = configService.get<string>('ALLOW_LAN_ORIGINS') === 'true' || nodeEnv !== 'production';
   const configuredFrontendOrigins = getConfiguredFrontendOrigins(configService);
   const configuredApiOrigin = toOrigin(configService.get<string>('API_PUBLIC_URL')) || toOrigin(configService.get<string>('APP_PUBLIC_URL'));
-  assertProductionConfig(configService, configuredFrontendOrigins, allowLanOrigins);
+  const productionLikeRuntime = isProductionLikeRuntime(nodeEnv, configuredFrontendOrigins, configuredApiOrigin);
+  const allowLanOrigins = shouldAllowLanOrigins(configService, nodeEnv, productionLikeRuntime);
+  assertProductionConfig(configService, configuredFrontendOrigins, allowLanOrigins, productionLikeRuntime);
   const uploadsRoot = path.join(process.cwd(), 'uploads');
   const contentSecurityPolicy = buildContentSecurityPolicy(configuredFrontendOrigins, configuredApiOrigin, allowLanOrigins);
 

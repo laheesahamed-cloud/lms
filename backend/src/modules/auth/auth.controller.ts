@@ -96,7 +96,7 @@ export class AuthController {
   private setSessionCookie(response: any, token: string, ttlDays = SESSION_TTL_DAYS) {
     response.cookie('lms_session', token, {
       httpOnly: true,
-      secure: this.configService.get<string>('NODE_ENV') === 'production',
+      secure: this.shouldUseSecureSessionCookie(),
       sameSite: 'lax',
       path: '/',
       maxAge: ttlDays * 24 * 60 * 60 * 1000,
@@ -106,9 +106,35 @@ export class AuthController {
   private clearSessionCookie(response: any) {
     response.clearCookie('lms_session', {
       httpOnly: true,
-      secure: this.configService.get<string>('NODE_ENV') === 'production',
+      secure: this.shouldUseSecureSessionCookie(),
       sameSite: 'lax',
       path: '/',
+    });
+  }
+
+  private shouldUseSecureSessionCookie() {
+    if (this.configService.get<string>('NODE_ENV') === 'production') return true;
+
+    const configuredUrls = [
+      this.configService.get<string>('frontendUrl'),
+      this.configService.get<string>('FRONTEND_URL'),
+      this.configService.get<string>('APP_PUBLIC_URL'),
+      this.configService.get<string>('API_PUBLIC_URL'),
+      ...String(this.configService.get<string>('FRONTEND_URLS') || '').split(','),
+    ];
+
+    return configuredUrls.some((value) => {
+      const clean = String(value || '').trim();
+      if (!clean || ['null', 'undefined'].includes(clean.toLowerCase())) return false;
+
+      try {
+        const origin = new URL(clean).origin;
+        return origin.startsWith('https://') &&
+          !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin) &&
+          !/^https?:\/\/(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/i.test(origin);
+      } catch {
+        return false;
+      }
     });
   }
 
