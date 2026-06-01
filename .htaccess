@@ -1,5 +1,9 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
+
+  RewriteCond %{HTTP_HOST} ^xyndrome\.lk$ [NC]
+  RewriteRule ^ https://www.xyndrome.lk%{REQUEST_URI} [R=301,L]
+
   RewriteBase /lms/
 
   RewriteCond %{REQUEST_FILENAME} -f [OR]
