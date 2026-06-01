@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useThemeStore } from '../stores/themeStore.js';
-import { cx, ui } from '../styles/tailwindClasses.js';
+import { cx } from '../styles/tailwindClasses.js';
 
 const SOFT_THEME_TRANSITION_MS = 160;
 

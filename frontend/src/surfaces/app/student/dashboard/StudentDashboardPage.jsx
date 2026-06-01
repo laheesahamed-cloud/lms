@@ -386,18 +386,18 @@ function Icon({ name }) {
 const appAssetBase = import.meta.env.BASE_URL === './' ? '/' : import.meta.env.BASE_URL;
 const dashboardHeroMascotBase = `${appAssetBase.replace(/\/?$/, '/')}temp/mascots/`;
 const DASHBOARD_HERO_MASCOTS = [
-  { key: '2d-brain-dj', image: 'generated/2d/2d-brain-dj.png', webp: 'generated/2d/2d-brain-dj.webp', label: 'Brain DJ mascot' },
-  { key: '2d-scope-wizard', image: 'generated/2d/2d-microscope-wizard.png', webp: 'generated/2d/2d-microscope-wizard.webp', label: 'Scope wizard mascot' },
-  { key: 'hero-break', image: 'generated/hero-brain-coffee.png', webp: 'generated/hero-brain-coffee.webp', label: 'Break return mascot' },
-  { key: 'hero-lesson', image: 'generated/hero-lesson-book.png', webp: 'generated/hero-lesson-book.webp', label: 'Lesson complete mascot' },
-  { key: '3d-stetho-rocket', image: 'generated/3d-neon/neon-stetho-rocket.png', webp: 'generated/3d-neon/neon-stetho-rocket.webp', label: 'Stetho rocket mascot' },
-  { key: '3d-brain-goggles', image: 'generated/3d-neon/neon-brain-goggles.png', webp: 'generated/3d-neon/neon-brain-goggles.webp', label: 'Goggle brain mascot' },
-  { key: '3d-dna-hover', image: 'generated/3d-neon/neon-dna-hoverboard.png', webp: 'generated/3d-neon/neon-dna-hoverboard.webp', label: 'DNA hover mascot' },
-  { key: '3d-chart-doctor', image: 'generated/3d-neon/neon-tablet-doctor.png', webp: 'generated/3d-neon/neon-tablet-doctor.webp', label: 'Chart doctor mascot' },
-  { key: 'vial-stetho', image: 'generated/vibe/vibe-vial-stetho.png', webp: 'generated/vibe/vibe-vial-stetho.webp', label: 'Vial stetho mascot' },
-  { key: 'focus-brain', image: 'generated/vibe/vibe-headphone-brain.png', webp: 'generated/vibe/vibe-headphone-brain.webp', label: 'Focus brain mascot' },
-  { key: 'dna-surf', image: 'generated/vibe/vibe-dna-surf.png', webp: 'generated/vibe/vibe-dna-surf.webp', label: 'DNA surf mascot' },
-  { key: 'stetho-wave', image: 'generated/dashboard-hero-companion.png', webp: 'generated/dashboard-hero-companion.webp', label: 'Stetho wave mascot' },
+  { key: '2d-brain-dj', image: 'generated/2d/2d-brain-dj.webp', label: 'Brain DJ mascot' },
+  { key: '2d-scope-wizard', image: 'generated/2d/2d-microscope-wizard.webp', label: 'Scope wizard mascot' },
+  { key: 'hero-break', image: 'generated/hero-brain-coffee.webp', label: 'Break return mascot' },
+  { key: 'hero-lesson', image: 'generated/hero-lesson-book.webp', label: 'Lesson complete mascot' },
+  { key: '3d-stetho-rocket', image: 'generated/3d-neon/neon-stetho-rocket.webp', label: 'Stetho rocket mascot' },
+  { key: '3d-brain-goggles', image: 'generated/3d-neon/neon-brain-goggles.webp', label: 'Goggle brain mascot' },
+  { key: '3d-dna-hover', image: 'generated/3d-neon/neon-dna-hoverboard.webp', label: 'DNA hover mascot' },
+  { key: '3d-chart-doctor', image: 'generated/3d-neon/neon-tablet-doctor.webp', label: 'Chart doctor mascot' },
+  { key: 'vial-stetho', image: 'generated/vibe/vibe-vial-stetho.webp', label: 'Vial stetho mascot' },
+  { key: 'focus-brain', image: 'generated/vibe/vibe-headphone-brain.webp', label: 'Focus brain mascot' },
+  { key: 'dna-surf', image: 'generated/vibe/vibe-dna-surf.webp', label: 'DNA surf mascot' },
+  { key: 'stetho-wave', image: 'generated/dashboard-hero-companion.webp', label: 'Stetho wave mascot' },
 ];
 
 function pickDashboardHeroMascot() {
@@ -406,22 +406,9 @@ function pickDashboardHeroMascot() {
 
 function DashboardHeroMascot({ mascot }) {
   if (!mascot) return null;
-  const fallbackSrc = `${dashboardHeroMascotBase}generated/dashboard-hero-companion.png`;
-  const pngSrc = `${dashboardHeroMascotBase}${mascot.image}`;
-  const webpSrc = mascot.webp ? `${dashboardHeroMascotBase}${mascot.webp}` : '';
+  const src = `${dashboardHeroMascotBase}${mascot.image}`;
   const handleImageError = (event) => {
-    const image = event.currentTarget;
-    if (webpSrc && image.dataset.pngFallbackApplied !== 'true') {
-      image.dataset.pngFallbackApplied = 'true';
-      image.src = pngSrc;
-      return;
-    }
-    if (image.dataset.genericFallbackApplied === 'true') {
-      image.hidden = true;
-      return;
-    }
-    image.dataset.genericFallbackApplied = 'true';
-    image.src = fallbackSrc;
+    event.currentTarget.hidden = true;
   };
 
   return (
@@ -431,7 +418,7 @@ function DashboardHeroMascot({ mascot }) {
       <span className="study-hero-mascot-random__spark study-hero-mascot-random__spark--three" />
       <span className="study-hero-mascot-random__spark study-hero-mascot-random__spark--four" />
       <img
-        src={webpSrc || pngSrc}
+        src={src}
         alt=""
         width="512"
         height="512"

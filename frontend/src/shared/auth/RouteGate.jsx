@@ -51,7 +51,7 @@ export function ProtectedRoute({ children, role, allowPending = false, requiredF
     return <Navigate to={getRoleHome(user)} replace />;
   }
 
-  if (role && role !== 'admin' && user.role !== role) {
+  if (role && role !== 'admin' && user.role !== role && !isStaffUser(user)) {
     return <Navigate to={getRoleHome(user)} replace />;
   }
 

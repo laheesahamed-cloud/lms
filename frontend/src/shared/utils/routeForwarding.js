@@ -65,7 +65,7 @@ export function canonicalizeForwardPathForUser(path, user) {
   const suffix = `${search}${hash}`;
 
   if (isStaffUser(user)) {
-    if (pathname.startsWith('/app')) return '/admin/dashboard';
+    if (pathname.startsWith('/app')) return safePath;
     if (pathname.startsWith('/admin')) return safePath;
     if (protectedLegacyPathPattern.test(pathname)) {
       const cleanPath = pathname === '/billing' ? '/subscriptions' : pathname;

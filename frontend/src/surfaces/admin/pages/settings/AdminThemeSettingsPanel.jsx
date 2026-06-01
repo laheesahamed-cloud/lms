@@ -1,5 +1,5 @@
 import { useThemeStore } from '../../../../shared/stores/themeStore.js';
-import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { cx } from '../../../../shared/styles/tailwindClasses.js';
 
 const themes = [
   {

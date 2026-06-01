@@ -3290,16 +3290,16 @@ html[data-lms-runtime="native"] .student-app-shell {
 }
 
 html[data-lms-runtime="native"] :where(html, body, #root) {
-  height: 100dvh !important;
-  min-height: 100dvh !important;
+  height: var(--lms-app-viewport-height, 100dvh) !important;
+  min-height: var(--lms-app-viewport-height, 100dvh) !important;
   overflow-x: hidden !important;
   overflow-y: hidden !important;
 }
 
 html[data-lms-runtime="native"] :where(.lms-app-scroll-root, .native-app-frame) {
-  height: 100dvh !important;
-  min-height: 100dvh !important;
-  max-height: 100dvh !important;
+  height: var(--lms-app-viewport-height, 100dvh) !important;
+  min-height: var(--lms-app-viewport-height, 100dvh) !important;
+  max-height: var(--lms-app-viewport-height, 100dvh) !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
   overscroll-behavior-y: contain !important;

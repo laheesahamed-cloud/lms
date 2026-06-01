@@ -14,10 +14,6 @@ export class AppErrorBoundary extends Component {
     return { error };
   }
 
-  componentDidCatch(error, info) {
-    console.error('LMS render error', error, info);
-  }
-
   render() {
     if (!this.state.error) {
       return this.props.children;

@@ -5,6 +5,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
+import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 
 const reviewPageUi = {
   screen:
@@ -83,6 +84,7 @@ export function ReviewPage() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const goBack = () => safeNavigateBack(navigate, { fallbackPath: '/results' });
 
   useEffect(() => {
     async function load() {
@@ -126,7 +128,7 @@ export function ReviewPage() {
   return (
       <main className={reviewPageUi.screen}>
         <section className={reviewPageUi.layout}>
-        {data ? <ReviewHeader attempt={data.attempt} onBack={() => navigate(-1)} /> : null}
+        {data ? <ReviewHeader attempt={data.attempt} onBack={goBack} /> : null}
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
         {data ? (
           <ReviewWorkspace
@@ -134,7 +136,7 @@ export function ReviewPage() {
             summary={summary}
             navigatorVariant="bubbles"
             exitLabel="Finish"
-            onExit={() => navigate(-1)}
+            onExit={goBack}
             notesPath={reviewNotesPath}
           />
         ) : null}

@@ -7,6 +7,7 @@ import { recordStudyActivity } from '../../../../shared/api/dashboard.api.js';
 import { updateStudentLessonProgress } from '../../../../shared/api/courses.api.js';
 import { getVideoEmbed, getVideoThumbnail } from '../../../../shared/utils/videoEmbed.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
+import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { cx } from '../../../../shared/styles/tailwindClasses.js';
 import { NoteCanvas } from './NoteCanvas.jsx';
@@ -2585,7 +2586,13 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     }, 120);
   }, [id, isOffline, lessonId, note?.id, showPersonalSaveStatus]);
 
-  function handleBack() { if (location.state?.returnToPath) { navigate(location.state.returnToPath); return; } navigate(-1); }
+  function handleBack() {
+    if (location.state?.returnToPath) {
+      navigate(location.state.returnToPath);
+      return;
+    }
+    safeNavigateBack(navigate, { fallbackPath: '/ai-notes', currentPath: location.pathname });
+  }
 
   useEffect(() => {
     if (!platform.isNative || !platform.isAndroid || typeof window === 'undefined') {

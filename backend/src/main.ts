@@ -192,7 +192,7 @@ function stableRequestActor(value: string) {
 
 function getAuthRateLimitPolicy(path: string) {
   const normalizedPath = normalizeRateLimitPath(path.replace(/\?.*$/, ''));
-  if (normalizedPath === '/api/auth/login') {
+  if (normalizedPath === '/api/auth/login' || normalizedPath === '/api/auth/google') {
     return { windowMs: 15 * 60_000, maxRequests: 8 };
   }
   if (normalizedPath === '/api/auth/forgot-password') {

@@ -15,6 +15,11 @@ export async function fetchLandingPageSettings() {
   return response.data;
 }
 
+export async function fetchAvailabilitySettings() {
+  const response = await apiClient.get('/admin/settings/availability');
+  return response.data;
+}
+
 export async function fetchPaymentSettings() {
   const response = await apiClient.get('/admin/settings/payments');
   return response.data;
@@ -45,6 +50,14 @@ export async function fetchPublicSettings() {
   return response.data;
 }
 
+export async function verifyAvailabilityUnlockCode(payload) {
+  const response = await apiClient.post('/settings/availability/unlock', payload, {
+    __suppressServerStatus: true,
+    __skipNetworkActivity: true,
+  });
+  return response.data;
+}
+
 export async function createAiProviderConfig(payload) {
   const response = await apiClient.post('/admin/settings/ai-providers', payload);
   return response.data;
@@ -62,6 +75,11 @@ export async function updateGeneralSettings(payload) {
 
 export async function updateLandingPageSettings(payload) {
   const response = await apiClient.put('/admin/settings/landing-page', payload);
+  return response.data;
+}
+
+export async function updateAvailabilitySettings(payload) {
+  const response = await apiClient.put('/admin/settings/availability', payload);
   return response.data;
 }
 

@@ -568,6 +568,26 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   }, [user?.id]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    function handleAndroidBack(event) {
+      if (profileVisible) {
+        event.preventDefault();
+        closeProfileMenu();
+        return;
+      }
+
+      if (notificationsOpen) {
+        event.preventDefault();
+        closeNotificationsMenu();
+      }
+    }
+
+    window.addEventListener('lms:android-back', handleAndroidBack);
+    return () => window.removeEventListener('lms:android-back', handleAndroidBack);
+  }, [closeNotificationsMenu, closeProfileMenu, notificationsOpen, profileVisible]);
+
+  useEffect(() => {
     if (typeof document === 'undefined') return undefined;
     document.body.classList.toggle('lms-profile-menu-open', profileVisible);
     document.body.classList.toggle('lms-profile-menu-closing', profileClosing);

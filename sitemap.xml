@@ -1,37 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://your-domain.com/lms/</loc>
+    <loc>https://www.xyndrome.lk/lms/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://your-domain.com/lms/auth/login</loc>
+    <loc>https://www.xyndrome.lk/lms/auth/login</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://your-domain.com/lms/auth/register</loc>
+    <loc>https://www.xyndrome.lk/lms/auth/register</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://your-domain.com/lms/terms</loc>
+    <loc>https://www.xyndrome.lk/lms/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://your-domain.com/lms/privacy-policy</loc>
+    <loc>https://www.xyndrome.lk/lms/privacy-policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://your-domain.com/lms/refund-policy</loc>
+    <loc>https://www.xyndrome.lk/lms/refund-policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://your-domain.com/lms/cookie-policy</loc>
+    <loc>https://www.xyndrome.lk/lms/cookie-policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

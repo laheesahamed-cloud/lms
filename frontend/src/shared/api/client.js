@@ -19,7 +19,6 @@ const API_PERFORMANCE_TARGETS_MS = {
   other: 2000,
 };
 const API_PERFORMANCE_WINDOW_LIMIT = 120;
-const DEBUG_API_PERFORMANCE = import.meta.env.DEV || import.meta.env.VITE_DEBUG_API_PERFORMANCE === 'true';
 
 function redactSensitiveValue(value) {
   return String(value || '')
@@ -168,9 +167,6 @@ function recordApiPerformance(config, { status = 0, failed = false } = {}) {
     window.__lmsApiPerformance.splice(0, window.__lmsApiPerformance.length - API_PERFORMANCE_WINDOW_LIMIT);
   }
   window.dispatchEvent?.(new CustomEvent('lms:api-performance', { detail: record }));
-  if (DEBUG_API_PERFORMANCE && (record.slow || failed)) {
-    console.warn(JSON.stringify(record));
-  }
 }
 
 function canRetryTimeoutRequest(config, settings) {
@@ -232,6 +228,7 @@ function redirectToLoginIfNeeded() {
     publicPath === '/register' ||
     publicPath === '/terms' ||
     publicPath === '/privacy-policy' ||
+    publicPath.startsWith('/launch-preview/') ||
     publicPath === '/auth/login' ||
     publicPath === '/auth/register' ||
     publicPath === '/auth/forgot-password' ||
@@ -250,7 +247,9 @@ function isApiFreePreviewRoute() {
   if (typeof window === 'undefined') return false;
   const path = window.location.pathname || '';
   return /^\/lms\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path) ||
-    /^\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path);
+    /^\/lms\/launch-preview\//i.test(path) ||
+    /^\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path) ||
+    /^\/launch-preview\//i.test(path);
 }
 
 function getNextApiFallbackUrl(currentBaseUrl, triedBaseUrls = []) {

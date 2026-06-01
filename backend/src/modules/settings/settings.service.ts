@@ -42,6 +42,10 @@ type AiProviderRow = RowDataPacket & {
 
 const WHATSAPP_NUMBER_SETTING_KEY = 'contact_whatsapp_number';
 const LANDING_PAGE_SETTING_KEY = 'landing_page_content';
+const AVAILABILITY_MODE_SETTING_KEY = 'site_availability_mode';
+const AVAILABILITY_UNLOCK_CODE_SETTING_KEY = 'site_availability_unlock_code';
+const AVAILABILITY_MODES = ['live', 'maintenance', 'coming-soon'] as const;
+const DEFAULT_AVAILABILITY_UNLOCK_CODE = '1122334455';
 const DEFAULT_LANDING_PAGE_CONTENT = {
   metaTitle: 'Medical Study Platform',
   metaDescription:
@@ -226,6 +230,8 @@ export type LandingPageContent = {
   [Key in keyof typeof DEFAULT_LANDING_PAGE_CONTENT]: string;
 };
 
+export type AvailabilityMode = typeof AVAILABILITY_MODES[number];
+
 @Injectable()
 export class SettingsService {
   constructor(
@@ -253,6 +259,25 @@ export class SettingsService {
     };
   }
 
+  async getAvailabilitySettings() {
+    const [mode, unlockCode] = await Promise.all([
+      this.getAvailabilityMode(),
+      this.getAvailabilityUnlockCode(),
+    ]);
+
+    return {
+      ok: true,
+      ...this.serializeAvailabilitySettings(mode),
+      unlockCode,
+      unlockCodeLength: unlockCode.length,
+      previewPaths: {
+        maintenance: '/launch-preview/maintenance',
+        comingSoon: '/launch-preview/coming-soon',
+      },
+      note: 'Maintenance mode pauses the public website, student app, and native shells. Coming Soon only covers the public website. Admins enter the secret code on the launch screen, then sign in with their admin account.',
+    };
+  }
+
   async getPublicSettings() {
     const whatsappNumber = await this.getSettingValue(WHATSAPP_NUMBER_SETTING_KEY);
     const popupAlert = await this.getRawPopupAlertSettings();
@@ -261,6 +286,7 @@ export class SettingsService {
       whatsappUrl: this.toWhatsAppUrl(whatsappNumber),
       landingPage: await this.getLandingPageContent(),
       popupAlert: this.serializePublicPopupAlertSettings(popupAlert),
+      availability: this.serializeAvailabilitySettings(await this.getAvailabilityMode()),
     };
   }
 
@@ -279,6 +305,31 @@ export class SettingsService {
     await this.saveSettingValue(LANDING_PAGE_SETTING_KEY, JSON.stringify(next));
 
     return this.getLandingPageSettings();
+  }
+
+  async updateAvailabilitySettings(input: { mode?: AvailabilityMode; unlockCode?: string }) {
+    if (input.mode !== undefined) {
+      await this.saveSettingValue(AVAILABILITY_MODE_SETTING_KEY, this.normalizeAvailabilityMode(input.mode));
+    }
+
+    if (input.unlockCode !== undefined) {
+      await this.saveSettingValue(
+        AVAILABILITY_UNLOCK_CODE_SETTING_KEY,
+        this.normalizeAvailabilityUnlockCode(input.unlockCode)
+      );
+    }
+
+    return this.getAvailabilitySettings();
+  }
+
+  async verifyAvailabilityUnlock(input: { code?: string }) {
+    const submittedCode = this.normalizeAvailabilityUnlockAttempt(input.code);
+    const unlockCode = await this.getAvailabilityUnlockCode();
+
+    return {
+      ok: submittedCode.endsWith(unlockCode),
+      adminLoginPath: '/auth/login?admin=1&from=%2Fadmin%2Fsettings',
+    };
   }
 
   async getPaymentSettings() {
@@ -822,6 +873,54 @@ export class SettingsService {
     });
 
     return next as LandingPageContent;
+  }
+
+  private async getAvailabilityMode(): Promise<AvailabilityMode> {
+    return this.normalizeAvailabilityMode(await this.getSettingValue(AVAILABILITY_MODE_SETTING_KEY), 'live');
+  }
+
+  private async getAvailabilityUnlockCode() {
+    const value = await this.getSettingValue(AVAILABILITY_UNLOCK_CODE_SETTING_KEY);
+    return value ? this.normalizeAvailabilityUnlockCode(value) : DEFAULT_AVAILABILITY_UNLOCK_CODE;
+  }
+
+  private normalizeAvailabilityMode(value: unknown, fallback?: AvailabilityMode): AvailabilityMode {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, '-');
+
+    if ((AVAILABILITY_MODES as readonly string[]).includes(normalized)) {
+      return normalized as AvailabilityMode;
+    }
+
+    if (fallback) {
+      return fallback;
+    }
+
+    throw new BadRequestException('Unsupported availability mode');
+  }
+
+  private serializeAvailabilitySettings(mode: AvailabilityMode) {
+    return {
+      mode,
+      isLive: mode === 'live',
+      isMaintenance: mode === 'maintenance',
+      isComingSoon: mode === 'coming-soon',
+      scope: mode === 'maintenance' ? 'all' : mode === 'coming-soon' ? 'website' : 'none',
+    };
+  }
+
+  private normalizeAvailabilityUnlockCode(value: unknown) {
+    const code = String(value || '').trim();
+    if (!/^\d{4,20}$/.test(code)) {
+      throw new BadRequestException('Unlock code must be 4 to 20 digits');
+    }
+    return code;
+  }
+
+  private normalizeAvailabilityUnlockAttempt(value: unknown) {
+    return String(value || '').replace(/\D/g, '').slice(-40);
   }
 
   private async getRawPaymentSettings(): Promise<PayHerePaymentSettings> {

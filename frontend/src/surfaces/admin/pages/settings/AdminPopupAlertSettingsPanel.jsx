@@ -149,6 +149,7 @@ export function AdminPopupAlertSettingsPanel() {
       setSettings(data);
       setForm(toForm(data));
       if (fileInputRef.current) fileInputRef.current.value = '';
+      window.dispatchEvent?.(new Event('lms:popup-alert-refresh'));
       setStatus((current) => ({ ...current, saving: false, success: 'Popup alert settings saved successfully.' }));
     } catch (error) {
       setStatus((current) => ({ ...current, saving: false, error: getErrorMessage(error, 'Unable to save popup alert settings') }));
@@ -237,7 +238,7 @@ export function AdminPopupAlertSettingsPanel() {
 
             <label className={ui.formLabel}>
               Button URL
-              <input className={ui.input} value={form.buttonUrl} onChange={(event) => patchForm({ buttonUrl: event.target.value })} placeholder="https://xyndrome.lk/register" />
+              <input className={ui.input} value={form.buttonUrl} onChange={(event) => patchForm({ buttonUrl: event.target.value })} placeholder="https://www.xyndrome.lk/register" />
             </label>
 
             <div className={ui.buttonRow}>

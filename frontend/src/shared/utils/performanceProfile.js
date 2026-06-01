@@ -11,7 +11,6 @@ const PERFORMANCE_TARGETS = {
   cls: 0.1,
 };
 const ENABLE_CLIENT_PERFORMANCE_BEACONS = import.meta.env.VITE_ENABLE_CLIENT_PERFORMANCE_BEACONS === 'true';
-const DEBUG_CLIENT_PERFORMANCE = import.meta.env.DEV || import.meta.env.VITE_DEBUG_CLIENT_PERFORMANCE === 'true';
 
 export function isLowSpecDevice() {
   if (typeof navigator === 'undefined') return false;
@@ -131,7 +130,7 @@ function sendClientPerformanceMetric(metric) {
       return;
     }
   } catch {
-    // Beacon delivery is best-effort; console evidence remains available.
+    // Beacon delivery is best-effort.
   }
 
   try {
@@ -159,18 +158,6 @@ function recordClientPerformanceMetric(metric) {
   window.__lmsClientPerformance.push(record);
   if (window.__lmsClientPerformance.length > 120) {
     window.__lmsClientPerformance.splice(0, window.__lmsClientPerformance.length - 120);
-  }
-
-  const target = Number(record.target);
-  const value = Number(record.value);
-  if (DEBUG_CLIENT_PERFORMANCE && Number.isFinite(target) && Number.isFinite(value) && value > target) {
-    console.warn(JSON.stringify({
-      event: 'client_performance_slow',
-      metric: record.metric,
-      route: record.route,
-      value,
-      target,
-    }));
   }
 
   sendClientPerformanceMetric(record);

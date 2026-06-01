@@ -7,7 +7,7 @@ const LOOPBACK_API_BASE_URL = 'http://127.0.0.1:3000/api';
 const ANDROID_EMULATOR_API_BASE_URL = 'http://10.0.2.2:3000/api';
 const NATIVE_DEFAULT_API_BASE_URL = LOCAL_API_BASE_URL;
 const SAME_ORIGIN_API_BASE_URL = '/api';
-const PLACEHOLDER_API_HOSTS = new Set(['your-domain.com', 'app.your-domain.com', 'app-lms.your-domain.com']);
+const PLACEHOLDER_API_HOSTS = new Set();
 
 function splitCsv(value) {
   return String(value || '')
@@ -42,13 +42,9 @@ function isPrivateLanHost(hostname) {
   return /^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/i.test(hostname);
 }
 
-function isLocalDevelopmentApiBaseUrl(value) {
-  try {
-    const hostname = new URL(normalizeApiBaseUrl(value)).hostname.toLowerCase();
-    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '10.0.2.2' || isPrivateLanHost(hostname);
-  } catch {
-    return false;
-  }
+function isLocalWebLocation(location = getLocation()) {
+  const hostname = location?.hostname || '';
+  return hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateLanHost(hostname);
 }
 
 function getLocation() {
@@ -134,7 +130,16 @@ export function shouldUseOverlayNavigation(platform = detectPlatform()) {
 export function resolveApiBaseUrl() {
   const platform = detectPlatform();
   const configuredApiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  const location = getLocation();
   if (configuredApiBaseUrl && !isPlaceholderApiBaseUrl(configuredApiBaseUrl)) {
+    if (!platform.isNative && configuredApiBaseUrl === SAME_ORIGIN_API_BASE_URL && isLocalWebLocation(location)) {
+      const protocol = location?.protocol || 'http:';
+      const hostname = location?.hostname || 'localhost';
+      if (hostname === '127.0.0.1') return LOOPBACK_API_BASE_URL;
+      if (isPrivateLanHost(hostname)) return `${protocol}//${hostname}:3000/api`;
+      return LOCAL_API_BASE_URL;
+    }
+
     return configuredApiBaseUrl;
   }
 
@@ -146,7 +151,6 @@ export function resolveApiBaseUrl() {
     return NATIVE_DEFAULT_API_BASE_URL;
   }
 
-  const location = getLocation();
   if (location) {
     const protocol = location.protocol || 'http:';
     const hostname = location.hostname || 'localhost';
@@ -177,13 +181,12 @@ export function resolveApiBaseUrls() {
     const location = getLocation();
     const protocol = location?.protocol || 'http:';
     const hostname = location?.hostname || '';
-    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
 
     if (isPrivateLanHost(hostname)) {
       fallbackUrls.push(normalizeApiBaseUrl(`${protocol}//${hostname}:3000/api`));
     }
 
-    if (import.meta.env.DEV || isLocalHost || isPrivateLanHost(hostname)) {
+    if (import.meta.env.DEV || isLocalWebLocation(location)) {
       fallbackUrls.push(LOOPBACK_API_BASE_URL, LOCAL_API_BASE_URL);
     }
   }

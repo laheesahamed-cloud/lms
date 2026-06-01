@@ -466,7 +466,6 @@ export function AdminAiNotesEditorPage({
       setSaveStatus('published — students can see this');
       clearSaveStatusLater(3500);
     } catch (err) {
-      console.error('[Publish] save error:', err?.response?.status || 'unknown');
       const msg = getErrorMessage(err, 'Could not save — check server is running');
       setSaveStatus(`save failed: ${msg}`);
     }

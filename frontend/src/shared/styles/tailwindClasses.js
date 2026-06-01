@@ -35,7 +35,7 @@ const interactiveCard =
   `${cardBase} lms-card-interactive transition-[background,border-color,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/20`;
 
 const screenFeedbackBase =
-  'lms-alert lms-screen-status fixed right-[calc(env(safe-area-inset-right,0px)+16px)] top-[calc(env(safe-area-inset-top,0px)+16px)] z-[9500] w-[min(440px,calc(100vw-32px))] max-w-[calc(100vw-32px)] rounded-[var(--radius-sm)] border px-4 py-3 text-[13px] font-extrabold leading-normal shadow-none max-[640px]:left-1/2 max-[640px]:right-auto max-[640px]:top-[calc(env(safe-area-inset-top,0px)+8px)] max-[640px]:w-[calc(100vw-24px)] max-[640px]:-translate-x-1/2';
+  'lms-alert lms-screen-status fixed right-[calc(env(safe-area-inset-right,0px)+20px)] top-[calc(env(safe-area-inset-top,0px)+52px)] z-[9500] w-[min(440px,calc(100vw-40px))] max-w-[calc(100vw-40px)] rounded-[var(--radius-md)] border px-4 py-3 text-[13px] font-extrabold leading-normal shadow-[0_18px_45px_-28px_rgba(15,23,42,0.45)] max-[640px]:left-1/2 max-[640px]:right-auto max-[640px]:top-[calc(env(safe-area-inset-top,0px)+34px)] max-[640px]:w-[calc(100vw-28px)] max-[640px]:-translate-x-1/2';
 
 // ── Exports ──────────────────────────────────────────────────
 

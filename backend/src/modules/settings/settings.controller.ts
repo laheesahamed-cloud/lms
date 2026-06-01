@@ -5,6 +5,7 @@ import { CreateAiProviderDto } from './dto/create-ai-provider.dto';
 import { UpdateGeneralSettingsDto } from './dto/update-general-settings.dto';
 import { UpdateAiProviderDto } from './dto/update-ai-provider.dto';
 import { UpdateLandingPageSettingsDto } from './dto/update-landing-page-settings.dto';
+import { UpdateAvailabilitySettingsDto, VerifyAvailabilityUnlockDto } from './dto/update-availability-settings.dto';
 import { UpdatePaymentSettingsDto } from './dto/update-payment-settings.dto';
 import { UpdateSmtpSettingsDto } from './dto/update-smtp-settings.dto';
 import { UpdatePopupAlertSettingsDto } from './dto/update-popup-alert-settings.dto';
@@ -40,9 +41,21 @@ export class SettingsController {
     return this.settingsService.getLandingPageSettings();
   }
 
+  @Get('availability')
+  @RequirePermissions('settings.manage')
+  async getAvailabilitySettings(@Headers('authorization') authorization?: string) {
+    await this.authService.requireAdmin(authorization);
+    return this.settingsService.getAvailabilitySettings();
+  }
+
   @Get('public')
   async getPublicSettings() {
     return this.settingsService.getPublicSettings();
+  }
+
+  @Post('availability/unlock')
+  async verifyAvailabilityUnlock(@Body() dto: VerifyAvailabilityUnlockDto) {
+    return this.settingsService.verifyAvailabilityUnlock(dto);
   }
 
   @Get('payments')
@@ -112,6 +125,16 @@ export class SettingsController {
   ) {
     await this.authService.requireAdmin(authorization);
     return this.settingsService.updateLandingPageSettings(dto);
+  }
+
+  @Put('availability')
+  @RequirePermissions('settings.manage')
+  async updateAvailabilitySettings(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: UpdateAvailabilitySettingsDto
+  ) {
+    await this.authService.requireAdmin(authorization);
+    return this.settingsService.updateAvailabilitySettings(dto);
   }
 
   @Put('payments')

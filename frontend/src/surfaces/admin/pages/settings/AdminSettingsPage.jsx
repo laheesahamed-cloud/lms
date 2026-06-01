@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { AdminGeneralSettingsPanel } from './AdminGeneralSettingsPanel.jsx';
 import { AdminLandingPageSettingsPanel } from './AdminLandingPageSettingsPanel.jsx';
+import { AdminAvailabilitySettingsPanel } from './AdminAvailabilitySettingsPanel.jsx';
 import { AdminAiSettingsPanel } from './AdminAiSettingsPanel.jsx';
 import { AdminPaymentSettingsPanel } from './AdminPaymentSettingsPanel.jsx';
 import { AdminSmtpSettingsPanel } from './AdminSmtpSettingsPanel.jsx';
@@ -32,6 +33,13 @@ const settingsCategories = [
     title: 'Landing page',
     description: 'Edit the public landing page hero, section headings, CTA text, footer copy, and SEO preview.',
     panel: <AdminLandingPageSettingsPanel />,
+  },
+  {
+    id: 'launch-mode',
+    label: 'Launch Mode',
+    title: 'Launch mode',
+    description: 'Switch between Live, Maintenance, and Coming Soon without editing code.',
+    panel: <AdminAvailabilitySettingsPanel />,
   },
   {
     id: 'payhere',

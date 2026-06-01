@@ -10,6 +10,7 @@ import { decryptSecret } from '../../common/utils/ai-provider.utils';
 import { ADMIN_SESSION_TTL_DAYS, SESSION_TTL_DAYS, createSessionExpiry, extractBearerToken, hashSessionToken, isValidSessionTokenFormat } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -38,6 +39,19 @@ type SubscriptionAccessRow = RowDataPacket & {
 type SettingRow = RowDataPacket & {
   setting_key: string;
   setting_value: string | null;
+};
+
+type GoogleTokenInfo = {
+  aud?: string;
+  sub?: string;
+  email?: string;
+  email_verified?: string | boolean;
+  name?: string;
+  given_name?: string;
+  family_name?: string;
+  picture?: string;
+  error?: string;
+  error_description?: string;
 };
 
 type AuthUser = Pick<UserRow, 'id' | 'full_name' | 'email' | 'role' | 'status' | 'avatar_key'>;
@@ -150,6 +164,55 @@ export class AuthService {
         role: 'student',
         status: 'active',
       }),
+    };
+  }
+
+  async loginWithGoogle(googleLoginDto: GoogleLoginDto) {
+    const profile = await this.verifyGoogleCredential(googleLoginDto.credential);
+    const email = String(profile.email || '').trim().toLowerCase();
+    const fullName = this.getGoogleDisplayName(profile);
+
+    const [rows] = await this.db.execute<UserRow[]>(
+      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
+      [email]
+    );
+
+    let user = rows[0];
+    if (!user) {
+      const randomPassword = await bcrypt.hash(`google:${profile.sub}:${randomBytes(16).toString('hex')}`, 10);
+      const [result] = await this.db.execute<ResultSetHeader>(
+        'INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, ?, ?)',
+        [fullName, email, randomPassword, 'student', 'active']
+      );
+      await this.assignDefaultEntryPlan(result.insertId);
+      user = {
+        id: result.insertId,
+        full_name: fullName,
+        email,
+        password: randomPassword,
+        role: 'student',
+        status: 'active',
+      } as UserRow;
+    }
+
+    if (isStaffRole(user.role) && user.status !== 'active') {
+      throw new UnauthorizedException('Your admin account is not active right now');
+    }
+
+    const sessionToken = randomBytes(32).toString('hex');
+    const sessionTtlDays = isStaffRole(user.role) ? ADMIN_SESSION_TTL_DAYS : SESSION_TTL_DAYS;
+    await this.db.execute('UPDATE users SET session_token = ?, session_expires_at = ? WHERE id = ?', [
+      hashSessionToken(sessionToken),
+      createSessionExpiry(sessionTtlDays),
+      user.id,
+    ]);
+
+    return {
+      ok: true,
+      sessionToken,
+      sessionTtlDays,
+      redirectPath: this.getRedirectPath(user.role, user.status),
+      user: await this.serializeUser(user),
     };
   }
 
@@ -494,6 +557,56 @@ ${settings.footer}`;
   private decryptSettingsSecret(value: string) {
     const configured = String(this.configService.get<string>('SETTINGS_ENCRYPTION_KEY') || '').trim();
     return decryptSecret(value, configured || 'lms-dev-settings-key-change-me');
+  }
+
+  private getGoogleClientIds() {
+    return String(
+      this.configService.get<string>('GOOGLE_CLIENT_IDS') ||
+      this.configService.get<string>('GOOGLE_CLIENT_ID') ||
+      ''
+    )
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private async verifyGoogleCredential(credential: string) {
+    const clientIds = this.getGoogleClientIds();
+    if (clientIds.length === 0) {
+      throw new BadRequestException('Google sign-in is not configured yet');
+    }
+
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    const profile = await response.json().catch(() => ({})) as GoogleTokenInfo;
+
+    if (!response.ok || profile.error) {
+      throw new UnauthorizedException('Google sign-in token is invalid');
+    }
+
+    if (!profile.aud || !clientIds.includes(String(profile.aud))) {
+      throw new UnauthorizedException('Google sign-in token was issued for a different app');
+    }
+
+    if (!profile.sub || !profile.email) {
+      throw new UnauthorizedException('Google account details are incomplete');
+    }
+
+    if (String(profile.email_verified).toLowerCase() !== 'true') {
+      throw new UnauthorizedException('Google email address is not verified');
+    }
+
+    return profile;
+  }
+
+  private getGoogleDisplayName(profile: GoogleTokenInfo) {
+    const name = String(profile.name || '').trim();
+    if (name.length >= 2) return name.slice(0, 120);
+
+    const composed = `${String(profile.given_name || '').trim()} ${String(profile.family_name || '').trim()}`.trim();
+    if (composed.length >= 2) return composed.slice(0, 120);
+
+    const emailName = String(profile.email || '').split('@')[0]?.replace(/[._-]+/g, ' ').trim() || 'Google Student';
+    return emailName.length >= 2 ? emailName.slice(0, 120) : 'Google Student';
   }
 
   private async serializeUser(user: AuthUser) {

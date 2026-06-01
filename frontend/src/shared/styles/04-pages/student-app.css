@@ -2826,9 +2826,9 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 }
 
 body.student-quiz-focus-screen .lms-app-scroll-root {
-  height: 100dvh !important;
-  min-height: 100dvh !important;
-  max-height: 100dvh !important;
+  height: var(--lms-app-viewport-height, 100dvh) !important;
+  min-height: var(--lms-app-viewport-height, 100dvh) !important;
+  max-height: var(--lms-app-viewport-height, 100dvh) !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
   overscroll-behavior-y: auto !important;

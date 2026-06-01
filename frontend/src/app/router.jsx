@@ -81,6 +81,7 @@ const ResultsListPage = lazyNamed(() => import('../surfaces/app/student/results/
 const ReviewPage = lazyNamed(() => import('../surfaces/app/student/results/ReviewPage.jsx'), 'ReviewPage');
 const DashboardPage = lazyNamed(() => import('../shared/pages/DashboardPage.jsx'), 'DashboardPage');
 const NotFoundPage = lazyNamed(() => import('../shared/pages/NotFoundPage.jsx'), 'NotFoundPage');
+const LaunchModePreviewPage = lazyNamed(() => import('../shared/launch/LaunchModePreviewPage.jsx'), 'LaunchModePreviewPage');
 const AiQuizGeneratorPage = lazyNamed(() => import('../surfaces/website/ai/AiQuizGeneratorPage.jsx'), 'AiQuizGeneratorPage');
 const ProfilePage = lazyNamed(() => import('../shared/account/ProfilePage.jsx'), 'ProfilePage');
 const PanelLayout = lazyNamed(() => import('../shared/layout/PanelLayout.jsx'), 'PanelLayout');
@@ -684,6 +685,10 @@ export const router = createBrowserRouter([
             heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
           />
         ),
+      },
+      {
+        path: 'launch-preview/:mode',
+        element: withSuspense(<LaunchModePreviewPage />),
       },
       {
         path: 'admin',

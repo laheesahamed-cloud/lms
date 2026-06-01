@@ -369,8 +369,8 @@ def build_story():
             [
                 ("Local app URL", "http://localhost/lms/"),
                 ("Local API URL", "http://localhost:3000/api"),
-                ("Production public URL", "https://your-real-domain.com/lms or your chosen final URL"),
-                ("Production API URL", "https://your-real-domain.com/api"),
+                ("Production public URL", "https://www.xyndrome.lk or your chosen final URL"),
+                ("Production API URL", "https://www.xyndrome.lk/api"),
             ],
             ("Type", "Example"),
         ),
@@ -626,7 +626,7 @@ def build_story():
         DataTable(
             ["Blocker", "What Must Be True", "Who/Where"],
             [
-                ["Domain", "A real domain is connected and replaces your-domain.com placeholders.", "Hosting/DNS and project env files."],
+                ["Domain", "A real domain is connected and production URLs point to it.", "Hosting/DNS and project env files."],
                 ["HTTPS", "Website and API load over https, not plain http.", "Hosting/reverse proxy."],
                 ["Production API", "Frontend calls the public production API, not localhost or LAN IP.", "Frontend env/build."],
                 ["Database", "Production DB exists with correct user, password, schema, and backups.", "Hosting/MySQL."],
@@ -696,7 +696,7 @@ def build_story():
             [
                 ("Browser on Mac", "http://localhost:3000/api can work."),
                 ("Phone on same Wi-Fi", "Use your Mac's LAN IP, such as http://172.20.10.2:3000/api when that is the current IP."),
-                ("Production native app", "Use https://your-real-domain.com/api."),
+                ("Production native app", "Use https://www.xyndrome.lk/api."),
             ],
             ("Situation", "API URL"),
         ),

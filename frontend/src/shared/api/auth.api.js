@@ -35,6 +35,18 @@ export async function register(payload) {
   return response.data;
 }
 
+export async function loginWithGoogle(payload) {
+  const native = detectPlatform().isNative;
+  const response = await apiClient.post('/auth/google', payload, {
+    headers: nativeAuthHeaders(),
+    params: nativeAuthParams(),
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : undefined,
+    __skipApiBaseFallback: native,
+    __skipTimeoutRetry: native,
+  });
+  return response.data;
+}
+
 export async function fetchCurrentUser(options = {}) {
   const response = await apiClient.get('/auth/me', {
     __skipNetworkActivity: Boolean(options.silent),

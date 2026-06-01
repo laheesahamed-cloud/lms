@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { applyPlatformAttributes, detectPlatform, installPlatformAttributeSync } from './detect.js';
 import { getPlatformConfig } from './config.js';
-import { selectPlatformComponent, selectPlatformValue } from './select.js';
+import { selectPlatformValue } from './select.js';
 
 const PlatformContext = createContext(getPlatformConfig(applyPlatformAttributes()));
 

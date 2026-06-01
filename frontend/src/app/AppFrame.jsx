@@ -3,11 +3,16 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { RouteScrollRestoration } from '../shared/routing/RouteScrollRestoration.jsx';
 import { detectPlatform } from '../shared/platform/detect.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { useAvailabilityStore } from '../shared/stores/availabilityStore.js';
 import { isStaffUser } from '../shared/auth/roleAccess.js';
 import { isSecureContentRoute, useSecureContentMode } from '../shared/security/secureContentMode.js';
 import { applyCapacitorStatusBarTheme } from '../shared/utils/capacitorStatusBar.js';
 import { getFocusableElements } from '../shared/hooks/useFocusTrap.js';
 import { NativeAndroidStatusAnnouncer } from '../shared/platform/native/NativeAndroidStatusAnnouncer.jsx';
+import { LaunchModePage } from '../shared/launch/LaunchModePage.jsx';
+import { hasRecentLaunchAdminUnlock } from '../shared/launch/launchUnlock.js';
+import { canNavigateBack, safeNavigateBack } from '../shared/routing/safeBack.js';
+import { MarketingPopupAlert } from '../shared/popup/MarketingPopupAlert.jsx';
 
 const PLATFORM = detectPlatform();
 const NATIVE_PUSH_PROMPT_KEY = 'lms_native_push_permission_prompted';
@@ -29,6 +34,13 @@ const nativeChromeSourceSelector = [
 
 const studentStudyHubPathPattern =
   /^\/(?:app\/)?(?:dashboard|courses|notifications|planner|ai-notes|flashcards|quizzes|exams|results|bookmarks|subscriptions|billing|profile)(?:\/|$)/;
+const legacyProtectedPathPattern =
+  /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
+const adminRoutePattern = /^\/admin(?:\/|$)/;
+const adminSettingsRoutePattern = /^\/admin\/settings(?:\/|$)/;
+const appRoutePattern = /^\/app(?:\/|$)/;
+const authRoutePattern = /^\/(?:auth\/login|login)(?:\/|$)/;
+const launchPreviewRoutePattern = /^\/launch-preview\/(?:maintenance|coming-soon)(?:\/|$)/;
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -347,8 +359,48 @@ function syncNativeChromeSurface() {
   applyCapacitorStatusBarTheme(theme, routeSolidBackground);
 }
 
+function getVisualViewportHeight() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return '100dvh';
+  const height =
+    window.visualViewport?.height ||
+    window.innerHeight ||
+    document.documentElement?.clientHeight ||
+    0;
+  return Number.isFinite(height) && height > 0 ? `${Math.round(height)}px` : '100dvh';
+}
+
 function isStudentStudyHubPath(pathname = '') {
   return studentStudyHubPathPattern.test(pathname);
+}
+
+function isAdminLoginBypass(pathname = '', search = '') {
+  if (!authRoutePattern.test(pathname)) return false;
+  try {
+    const params = new URLSearchParams(search);
+    const from = params.get('from') || '';
+    const adminLoginRequest = params.get('admin') === '1' || /^\/admin(?:\/|$)/.test(from);
+    return adminLoginRequest && hasRecentLaunchAdminUnlock();
+  } catch {
+    return false;
+  }
+}
+
+function isWebsiteSurfacePath(pathname = '') {
+  if (PLATFORM.isNative || PLATFORM.isDesktopApp) return false;
+  if (adminRoutePattern.test(pathname) || appRoutePattern.test(pathname)) return false;
+  if (legacyProtectedPathPattern.test(pathname)) return false;
+  return true;
+}
+
+function LaunchModeLoadingShell() {
+  return (
+    <main className="grid min-h-dvh place-items-center bg-[var(--app-bg,var(--page-background,#dce6f4))] px-4 text-ink-strong">
+      <section className="grid w-[min(420px,100%)] gap-2 rounded-lg border border-line-soft bg-surface-glass-strong p-6 text-center shadow-[var(--ds-card-shadow)]">
+        <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-brand-primary">Status</span>
+        <h1 className="m-0 text-base font-extrabold text-ink-strong">Checking site availability...</h1>
+      </section>
+    </main>
+  );
 }
 
 function getNativeHapticsModule() {
@@ -360,12 +412,17 @@ function syncAppScrollContract() {
   if (typeof document === 'undefined') return;
 
   const appTouchAction = PLATFORM.isNative ? 'auto' : 'pan-y';
-  const appViewportHeight = PLATFORM.isNative ? '100dvh' : '100%';
-  const appScrollHeight = '100dvh';
+  const visualViewportHeight = getVisualViewportHeight();
+  const nativeViewportHeight = 'var(--lms-app-viewport-height, 100dvh)';
+  const appViewportHeight = PLATFORM.isNative ? nativeViewportHeight : 'auto';
+  const appViewportMinHeight = PLATFORM.isNative ? nativeViewportHeight : '100%';
+  const appScrollHeight = PLATFORM.isNative ? nativeViewportHeight : 'auto';
+  const appScrollMinHeight = PLATFORM.isNative ? nativeViewportHeight : '100dvh';
+  const appScrollMaxHeight = PLATFORM.isNative ? nativeViewportHeight : 'none';
 
-  if (typeof window.__lmsLockDocumentScroll === 'function') {
-    window.__lmsLockDocumentScroll();
-  } else if (typeof window.__lmsUnlockScroll === 'function') {
+  setCssPropertyIfChanged(document.documentElement, '--lms-app-viewport-height', visualViewportHeight);
+
+  if (typeof window !== 'undefined' && typeof window.__lmsUnlockScroll === 'function') {
     window.__lmsUnlockScroll();
   }
 
@@ -374,11 +431,11 @@ function syncAppScrollContract() {
 
   documentRoots.forEach((element) => {
     setCssPropertyIfChanged(element, 'height', appViewportHeight, 'important');
-    setCssPropertyIfChanged(element, 'min-height', appViewportHeight, 'important');
+    setCssPropertyIfChanged(element, 'min-height', appViewportMinHeight, 'important');
     setStyleIfChanged(element, 'maxWidth', '100%');
-    setCssPropertyIfChanged(element, 'overflow-x', 'hidden', 'important');
-    setCssPropertyIfChanged(element, 'overflow-y', 'hidden', 'important');
-    setStyleIfChanged(element, 'overscrollBehavior', 'none');
+    setCssPropertyIfChanged(element, 'overflow-x', PLATFORM.isNative ? 'hidden' : 'clip', 'important');
+    setCssPropertyIfChanged(element, 'overflow-y', PLATFORM.isNative ? 'hidden' : 'auto', 'important');
+    setStyleIfChanged(element, 'overscrollBehavior', PLATFORM.isNative ? 'none' : '');
     setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #060d22))');
     setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #060d22))');
     setStyleIfChanged(element, 'color', '');
@@ -386,18 +443,18 @@ function syncAppScrollContract() {
 
   setStyleIfChanged(document.body, 'position', 'relative');
   setStyleIfChanged(document.body, 'inset', 'auto');
-  setStyleIfChanged(document.body, 'height', appViewportHeight);
-  setStyleIfChanged(document.body, 'minHeight', '100dvh');
+  setCssPropertyIfChanged(document.body, 'height', appViewportHeight, 'important');
+  setCssPropertyIfChanged(document.body, 'min-height', appViewportMinHeight, 'important');
   setStyleIfChanged(document.body, 'paddingLeft', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-left)');
   setStyleIfChanged(document.body, 'paddingRight', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-right)');
 
   if (root) {
     setCssPropertyIfChanged(root, 'height', appViewportHeight, 'important');
-    setCssPropertyIfChanged(root, 'min-height', appViewportHeight, 'important');
+    setCssPropertyIfChanged(root, 'min-height', appViewportMinHeight, 'important');
     setStyleIfChanged(root, 'maxWidth', '100%');
-    setCssPropertyIfChanged(root, 'overflow-x', 'hidden', 'important');
-    setCssPropertyIfChanged(root, 'overflow-y', 'hidden', 'important');
-    setStyleIfChanged(root, 'overscrollBehavior', 'none');
+    setCssPropertyIfChanged(root, 'overflow-x', PLATFORM.isNative ? 'hidden' : 'clip', 'important');
+    setCssPropertyIfChanged(root, 'overflow-y', PLATFORM.isNative ? 'hidden' : 'visible', 'important');
+    setStyleIfChanged(root, 'overscrollBehavior', PLATFORM.isNative ? 'none' : '');
     setStyleIfChanged(root, 'touchAction', appTouchAction);
     setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #060d22))');
     setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #060d22))');
@@ -411,10 +468,10 @@ function syncAppScrollContract() {
     setStyleIfChanged(element, 'marginLeft', '0px');
     setStyleIfChanged(element, 'marginRight', '0px');
     setCssPropertyIfChanged(element, 'height', appScrollHeight, 'important');
-    setCssPropertyIfChanged(element, 'min-height', appScrollHeight, 'important');
-    setCssPropertyIfChanged(element, 'max-height', appScrollHeight, 'important');
-    setCssPropertyIfChanged(element, 'overflow-x', 'hidden', 'important');
-    setCssPropertyIfChanged(element, 'overflow-y', 'auto', 'important');
+    setCssPropertyIfChanged(element, 'min-height', appScrollMinHeight, 'important');
+    setCssPropertyIfChanged(element, 'max-height', appScrollMaxHeight, 'important');
+    setCssPropertyIfChanged(element, 'overflow-x', PLATFORM.isNative ? 'hidden' : 'clip', 'important');
+    setCssPropertyIfChanged(element, 'overflow-y', PLATFORM.isNative ? 'auto' : 'visible', 'important');
     setStyleIfChanged(element, 'overscrollBehaviorX', 'none');
     setStyleIfChanged(element, 'overscrollBehaviorY', PLATFORM.isNative ? 'contain' : 'auto');
     setStyleIfChanged(element, 'touchAction', appTouchAction);
@@ -439,9 +496,15 @@ export function AppFrame() {
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isHydrating = useAuthStore((state) => state.isHydrating);
+  const availability = useAvailabilityStore((state) => state.availability);
+  const availabilityHydrated = useAvailabilityStore((state) => state.hydrated);
   const secureContentActive = isSecureContentRoute(location);
 
   useSecureContentMode(secureContentActive);
+
+  useEffect(() => {
+    useAvailabilityStore.getState().hydrate();
+  }, []);
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -657,6 +720,8 @@ export function AppFrame() {
     };
   }, []);
 
+  const backFallbackPath = user?.role === 'student' && user.status !== 'active' ? '/pending' : '/dashboard';
+
   useEffect(() => {
     if (!PLATFORM.isNative || !PLATFORM.isAndroid || typeof window === 'undefined') {
       return undefined;
@@ -680,16 +745,14 @@ export function AppFrame() {
 
       const backEvent = new CustomEvent('lms:android-back', {
         cancelable: true,
-        detail: { canGoBack: Boolean(event?.canGoBack) },
+        detail: { canGoBack: canNavigateBack() },
       });
       if (!window.dispatchEvent(backEvent)) return;
 
-      if (event?.canGoBack || window.history.length > 1) {
-        navigate(-1);
-        return;
-      }
-
-      appPlugin.exitApp?.();
+      safeNavigateBack(navigate, {
+        fallbackPath: backFallbackPath,
+        currentPath: location.pathname,
+      });
     }
 
     Promise.resolve(appPlugin.addListener('backButton', handleAndroidBack))
@@ -706,7 +769,7 @@ export function AppFrame() {
       removed = true;
       Promise.resolve(listenerHandle?.remove?.()).catch(() => {});
     };
-  }, [navigate]);
+  }, [backFallbackPath, location.pathname, navigate]);
 
   useEffect(() => {
     if (!PLATFORM.isNative || isHydrating || !isAuthenticated) return undefined;
@@ -765,7 +828,7 @@ export function AppFrame() {
     if (/^\/(?:admin|app|auth)(?:\/|$)/.test(location.pathname)) return;
     if (/^\/(?:login|register|terms|privacy-policy|ai)(?:\/|$)/.test(location.pathname)) return;
 
-    const isLegacyProtectedPath = /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/.test(location.pathname);
+    const isLegacyProtectedPath = legacyProtectedPathPattern.test(location.pathname);
     if (!isLegacyProtectedPath) return;
 
     const cleanPath = location.pathname === '/billing' ? '/subscriptions' : location.pathname;
@@ -847,6 +910,44 @@ export function AppFrame() {
     };
   }, [location.pathname, location.search]);
 
+  const isLaunchPreviewRoute = launchPreviewRoutePattern.test(location.pathname);
+  const isAdminSettingsRoute = adminSettingsRoutePattern.test(location.pathname);
+  const allowAdminLogin = isAdminLoginBypass(location.pathname, location.search);
+  const staffCanBypassLaunchMode = isStaffUser(user);
+  const isCheckingAvailability = !availabilityHydrated && !isLaunchPreviewRoute;
+  const isLaunchModeForCurrentRoute =
+    availability.isMaintenance ||
+    (availability.isComingSoon && isWebsiteSurfacePath(location.pathname));
+  const isCheckingStaffLaunchAccess =
+    isLaunchModeForCurrentRoute &&
+    isHydrating &&
+    !isLaunchPreviewRoute &&
+    !allowAdminLogin;
+  const isCheckingLaunchAccess = isCheckingAvailability || isCheckingStaffLaunchAccess;
+  const showMaintenance =
+    !isCheckingLaunchAccess &&
+    availability.isMaintenance &&
+    !staffCanBypassLaunchMode &&
+    !isLaunchPreviewRoute &&
+    !isAdminSettingsRoute &&
+    !allowAdminLogin;
+  const showComingSoon =
+    !isCheckingLaunchAccess &&
+    availability.isComingSoon &&
+    !staffCanBypassLaunchMode &&
+    !isLaunchPreviewRoute &&
+    !allowAdminLogin &&
+    isWebsiteSurfacePath(location.pathname);
+  const routeContent = isCheckingLaunchAccess ? (
+    <LaunchModeLoadingShell />
+  ) : showMaintenance ? (
+    <LaunchModePage mode="maintenance" adminUnlockHref="/auth/login?admin=1&from=%2Fadmin%2Fsettings" />
+  ) : showComingSoon ? (
+    <LaunchModePage mode="coming-soon" adminUnlockHref="/auth/login?admin=1&from=%2Fadmin%2Fsettings" />
+  ) : (
+    <Outlet />
+  );
+
   if (PLATFORM.isNative) {
     return (
       <>
@@ -855,9 +956,10 @@ export function AppFrame() {
           <RouteScrollRestoration />
           <NativeAndroidStatusAnnouncer />
           <div id="main-content" tabIndex={-1}>
-            <Outlet />
+            {routeContent}
           </div>
         </div>
+        <MarketingPopupAlert suppressed={isCheckingLaunchAccess || showMaintenance || showComingSoon || isLaunchPreviewRoute} />
       </>
     );
   }
@@ -868,9 +970,10 @@ export function AppFrame() {
       <div className={cx('lms-app-scroll-root', routeSceneBaseClass, activeAuthRouteSceneClass)}>
         <RouteScrollRestoration />
         <div id="main-content" tabIndex={-1}>
-          <Outlet />
+          {routeContent}
         </div>
       </div>
+      <MarketingPopupAlert suppressed={isCheckingLaunchAccess || showMaintenance || showComingSoon || isLaunchPreviewRoute} />
     </>
   );
 }

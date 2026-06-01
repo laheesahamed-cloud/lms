@@ -4,6 +4,7 @@ const DEFAULT_TITLE = 'xyndrome';
 const DEFAULT_DESCRIPTION =
   'xyndrome is a medical learning platform for lessons, quizzes, revision notes, subscriptions, and progress tracking.';
 const DEFAULT_IMAGE = '/lms/pwa-icon-512.png';
+const PUBLIC_WEBSITE_URL = String(import.meta.env.VITE_PUBLIC_WEBSITE_URL || '').trim().replace(/\/+$/, '');
 
 function upsertMeta(selector, attributes) {
   if (typeof document === 'undefined') return;
@@ -31,13 +32,29 @@ function upsertLink(selector, attributes) {
   });
 }
 
-function absoluteUrl(path = '/') {
+function absoluteUrl(path = '/', baseUrl = '') {
   if (typeof window === 'undefined') return path;
   try {
-    return new URL(path, window.location.origin).toString();
+    return new URL(path, baseUrl || window.location.origin).toString();
   } catch {
     return path;
   }
+}
+
+function publicPath(path = '/') {
+  return String(path || '/').replace(/^\/+/, '');
+}
+
+function publicAssetPath(path = '/') {
+  return String(path || '/').replace(/^\/lms\/?/, '').replace(/^\/+/, '');
+}
+
+function publicUrl(path = '/') {
+  if (PUBLIC_WEBSITE_URL) {
+    return absoluteUrl(publicPath(path), `${PUBLIC_WEBSITE_URL}/`);
+  }
+
+  return absoluteUrl(`/lms${path === '/' ? '/' : path}`);
 }
 
 export function PageMeta({
@@ -49,8 +66,8 @@ export function PageMeta({
 }) {
   useEffect(() => {
     const fullTitle = title === DEFAULT_TITLE ? title : `${title} | xyndrome`;
-    const canonicalUrl = absoluteUrl(`/lms${path === '/' ? '/' : path}`);
-    const imageUrl = absoluteUrl(image);
+    const canonicalUrl = publicUrl(path);
+    const imageUrl = PUBLIC_WEBSITE_URL ? absoluteUrl(publicAssetPath(image), `${PUBLIC_WEBSITE_URL}/`) : absoluteUrl(image);
 
     document.title = fullTitle;
     upsertMeta('meta[name="description"]', { name: 'description', content: description });
