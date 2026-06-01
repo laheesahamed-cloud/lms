@@ -19,6 +19,7 @@ const API_PERFORMANCE_TARGETS_MS = {
   other: 2000,
 };
 const API_PERFORMANCE_WINDOW_LIMIT = 120;
+const DEBUG_API_PERFORMANCE = import.meta.env.DEV || import.meta.env.VITE_DEBUG_API_PERFORMANCE === 'true';
 
 function redactSensitiveValue(value) {
   return String(value || '')
@@ -167,7 +168,7 @@ function recordApiPerformance(config, { status = 0, failed = false } = {}) {
     window.__lmsApiPerformance.splice(0, window.__lmsApiPerformance.length - API_PERFORMANCE_WINDOW_LIMIT);
   }
   window.dispatchEvent?.(new CustomEvent('lms:api-performance', { detail: record }));
-  if (record.slow || failed) {
+  if (DEBUG_API_PERFORMANCE && (record.slow || failed)) {
     console.warn(JSON.stringify(record));
   }
 }
@@ -243,6 +244,13 @@ function redirectToLoginIfNeeded() {
   const forwardQuery = from ? `?from=${encodeURIComponent(from)}` : '';
   const loginPath = getLoginPath(detectPlatform());
   window.location.href = `${loginPath}${forwardQuery}`;
+}
+
+function isApiFreePreviewRoute() {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname || '';
+  return /^\/lms\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path) ||
+    /^\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path);
 }
 
 function getNextApiFallbackUrl(currentBaseUrl, triedBaseUrls = []) {

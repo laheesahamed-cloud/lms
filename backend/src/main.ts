@@ -322,6 +322,9 @@ export async function configureApp(app: INestApplication) {
   const authService = app.get(AuthService);
   const bodyLimit = configService.get<string>('bodyLimit') || configService.get<string>('BODY_LIMIT') || '8mb';
   const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
+  const enableAccessLogs = nodeEnv !== 'production' || configService.get<string>('ENABLE_ACCESS_LOGS') === 'true';
+  const enableSecurityAccessLogs = enableAccessLogs || configService.get<string>('ENABLE_SECURITY_ACCESS_LOGS') === 'true';
+  const enableContentAccessLogs = enableAccessLogs || configService.get<string>('ENABLE_CONTENT_ACCESS_LOGS') === 'true';
   const allowLanOrigins = configService.get<string>('ALLOW_LAN_ORIGINS') === 'true' || nodeEnv !== 'production';
   const configuredFrontendOrigins = getConfiguredFrontendOrigins(configService);
   const configuredApiOrigin = toOrigin(configService.get<string>('API_PUBLIC_URL')) || toOrigin(configService.get<string>('APP_PUBLIC_URL'));
@@ -376,7 +379,7 @@ export async function configureApp(app: INestApplication) {
   app.use((req: any, res: any, next: any) => {
     const startedAt = Date.now();
     const path = String(req.path || req.url || '');
-    if (!isAuditablePath(path)) {
+    if (!enableSecurityAccessLogs || !isAuditablePath(path)) {
       next();
       return;
     }
@@ -619,20 +622,22 @@ export async function configureApp(app: INestApplication) {
       updateContentDeviceAudit(userId, ip, userAgent);
     }
 
-    const startedAt = Date.now();
-    res.on('finish', () => {
-      console.info(JSON.stringify({
-        event: 'content_access',
-        userId,
-        method,
-        path: normalizedPath,
-        itemId: extractRouteItemId(path),
-        statusCode: Number(res.statusCode || 0),
-        durationMs: Date.now() - startedAt,
-        ip,
-        userAgent: userAgent.slice(0, 160),
-      }));
-    });
+    if (enableContentAccessLogs) {
+      const startedAt = Date.now();
+      res.on('finish', () => {
+        console.info(JSON.stringify({
+          event: 'content_access',
+          userId,
+          method,
+          path: normalizedPath,
+          itemId: extractRouteItemId(path),
+          statusCode: Number(res.statusCode || 0),
+          durationMs: Date.now() - startedAt,
+          ip,
+          userAgent: userAgent.slice(0, 160),
+        }));
+      });
+    }
 
     next();
   });

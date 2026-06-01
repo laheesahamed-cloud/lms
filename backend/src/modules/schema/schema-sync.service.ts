@@ -129,6 +129,16 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIndex(connection, 'users', 'idx_users_password_reset_token', 'password_reset_token');
       await this.ensureIndex(connection, 'plans', 'idx_plans_sort_order', 'sort_order');
       await this.ensureIndex(connection, 'question_quizzes', 'idx_question_quizzes_quiz_sort', 'quiz_id, sort_order');
+      await this.ensureIndex(connection, 'question_quizzes', 'idx_question_quizzes_question_quiz', 'question_id, quiz_id');
+      await this.ensureIndex(connection, 'question_options', 'idx_question_options_question_label', 'question_id, option_label');
+      await this.ensureIndex(connection, 'questions', 'idx_questions_status_type_id', 'status, question_type, id');
+      await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_status_course_id', 'status, course_id, id');
+      await this.ensureIndex(connection, 'quiz_attempts', 'idx_quiz_attempts_user_status_dates', 'user_id, status, submitted_at, created_at');
+      await this.ensureIndex(connection, 'quiz_attempts', 'idx_quiz_attempts_quiz_user_dates', 'quiz_id, user_id, submitted_at, created_at');
+      await this.ensureIndex(connection, 'practice_sessions', 'idx_practice_sessions_quiz_user_status', 'quiz_id, user_id, status');
+      await this.ensureIndex(connection, 'practice_answers', 'idx_practice_answers_session_question', 'practice_session_id, question_id');
+      await this.ensureIndex(connection, 'student_answers', 'idx_student_answers_attempt_question', 'attempt_id, question_id');
+      await this.ensureIndex(connection, 'student_answers', 'idx_student_answers_question_option', 'question_id, option_id');
       await this.ensureIndex(connection, 'question_keyword_map', 'idx_question_keyword_map_keyword_id', 'keyword_id');
       await this.ensureIndex(connection, 'subscription_features', 'idx_subscription_features_key', 'feature_key');
       await this.ensureIndex(connection, 'subscription_features', 'idx_subscription_features_category', 'category');
@@ -149,6 +159,9 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIndex(connection, 'native_push_tokens', 'idx_native_push_tokens_user', 'user_id');
       await this.ensureIndex(connection, 'native_push_tokens', 'idx_native_push_tokens_enabled', 'enabled');
       await this.ensureIndex(connection, 'study_planner_tasks', 'idx_study_planner_user_due', 'user_id, due_date');
+      await this.ensureIndex(connection, 'study_activity_events', 'idx_study_activity_user_type_created', 'user_id, activity_type, created_at');
+      await this.ensureIndex(connection, 'smart_notes', 'idx_smart_notes_user_updated', 'user_id, updated_at');
+      await this.ensureIndex(connection, 'ai_illustrated_notes', 'idx_ai_notes_public_status_course', 'is_public, status, course_id, topic_id');
       await this.ensureIndex(connection, 'question_review_items', 'idx_question_review_items_status', 'status');
       await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_note_status', 'note_id, status');
       await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_lesson_status', 'lesson_id, status');

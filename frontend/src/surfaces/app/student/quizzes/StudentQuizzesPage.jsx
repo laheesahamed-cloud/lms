@@ -108,21 +108,25 @@ const QUIZ_COURSE_STOCK_VISUALS = [
   {
     key: 'medicine',
     image: 'medicine-cutout.png',
+    webp: 'medicine-cutout.webp',
     match: /(medicine|medical|clinical|internal|rheum|cardio|hema|renal|gastro|endo|neuro|resp|micro|pharma)/i,
   },
   {
     key: 'surgery',
     image: 'surgery-cutout.png',
+    webp: 'surgery-cutout.webp',
     match: /(surgery|surgical|ortho|trauma|operative|anatomy|anaesth|anesth)/i,
   },
   {
     key: 'maternal',
     image: 'maternal-cutout.png',
+    webp: 'maternal-cutout.webp',
     match: /(gyn|obst|preg|maternal|repro|paed|pediatr|child)/i,
   },
   {
     key: 'systems',
     image: 'systems-cutout.png',
+    webp: 'systems-cutout.webp',
     match: /(system|basic|foundation|general|revision|path)/i,
   },
 ];
@@ -141,14 +145,24 @@ function getQuizCourseStockVisual(name, index = 0) {
 
 function CourseStockArt({ visual }) {
   const src = `${quizCourseArtBase}${visual.image}`;
+  const webpSrc = visual.webp ? `${quizCourseArtBase}${visual.webp}` : '';
+  const handleImageError = (event) => {
+    if (!webpSrc || event.currentTarget.dataset.fallbackApplied === 'true') return;
+    event.currentTarget.dataset.fallbackApplied = 'true';
+    event.currentTarget.src = src;
+  };
+
   return (
     <img
       className="quiz-course-stock-art"
-      src={src}
+      src={webpSrc || src}
       alt=""
+      width="640"
+      height="640"
       loading="lazy"
       decoding="async"
       draggable="false"
+      onError={handleImageError}
     />
   );
 }

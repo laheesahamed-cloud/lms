@@ -152,9 +152,13 @@ const TRUE_FALSE_STATEMENT_MARKS = 0.4;
 const QUIZ_TOTAL_MARKS = 100;
 const QUIZ_PASS_MARK = 45;
 const TRUE_FALSE_STATEMENTS_PER_QUESTION = 5;
+const QUIZ_CONTENT_CACHE_MS = 30000;
 
 @Injectable()
 export class QuizAttemptsService {
+  private readonly activeQuizCache = new Map<number, { expiresAt: number; value: QuizRow }>();
+  private readonly quizQuestionCache = new Map<string, { expiresAt: number; value: LoadedQuestion[] }>();
+
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly plansService: PlansService
@@ -791,6 +795,12 @@ export class QuizAttemptsService {
   }
 
   private async loadActiveQuiz(quizId: number) {
+    const now = Date.now();
+    const cached = this.activeQuizCache.get(quizId);
+    if (cached && cached.expiresAt > now) {
+      return cached.value;
+    }
+
     const [rows] = await this.db.execute<QuizRow[]>(
       `
         SELECT
@@ -814,6 +824,7 @@ export class QuizAttemptsService {
     if (!quiz) {
       throw new NotFoundException('Quiz not found or inactive');
     }
+    this.activeQuizCache.set(quizId, { value: quiz, expiresAt: now + QUIZ_CONTENT_CACHE_MS });
     return quiz;
   }
 
@@ -821,6 +832,13 @@ export class QuizAttemptsService {
     const scopedQuestionId = Number.isFinite(Number(questionId)) && Number(questionId) > 0
       ? Number(questionId)
       : null;
+    const cacheKey = `${quizId}:${scopedQuestionId || 'all'}`;
+    const now = Date.now();
+    const cached = this.quizQuestionCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.value;
+    }
+
     const [questionRows] = await this.db.execute<QuestionRow[]>(
       `
         SELECT q.*
@@ -879,7 +897,7 @@ export class QuizAttemptsService {
 
     const optionsByQuestionId = this.mapOptionsByQuestionId(optionRows);
 
-    return questionRows.map((question) => ({
+    const loadedQuestions = questionRows.map((question) => ({
       ...this.withQuestionTrace(question, versionByQuestionId),
       options: (optionsByQuestionId.get(question.id) || [])
         .map((option) => ({
@@ -891,47 +909,16 @@ export class QuizAttemptsService {
         })),
       theoryRecap: recapMap.get(question.id) || null,
     }));
+    this.quizQuestionCache.set(cacheKey, { value: loadedQuestions, expiresAt: now + QUIZ_CONTENT_CACHE_MS });
+    return loadedQuestions;
   }
 
   private async loadQuestionForPracticeSave(quizId: number, questionId: number): Promise<LoadedQuestion> {
-    const [questionRows] = await this.db.execute<QuestionRow[]>(
-      `
-        SELECT q.*
-        FROM questions q
-        INNER JOIN question_quizzes qq ON qq.question_id = q.id
-        WHERE qq.quiz_id = ? AND q.id = ? AND q.status = 'active'
-        LIMIT 1
-      `,
-      [quizId, questionId]
-    );
-    const question = questionRows[0];
+    const [question] = await this.loadQuestionsForQuiz(quizId, questionId);
     if (!question) {
       throw new NotFoundException('Question not found in this quiz');
     }
-
-    const [optionRows] = await this.db.execute<OptionRow[]>(
-      `
-        SELECT id, question_id, option_label, option_text, is_correct, why_incorrect
-        FROM question_options
-        WHERE question_id = ?
-        ORDER BY option_label ASC
-      `,
-      [questionId]
-    );
-
-    const versionByQuestionId = await this.loadQuestionContentVersions([question.id]);
-
-    return {
-      ...this.withQuestionTrace(question, versionByQuestionId),
-      options: optionRows.map((option) => ({
-        id: option.id,
-        optionLabel: option.option_label,
-        optionText: option.option_text,
-        isCorrect: Number(option.is_correct) === 1 ? 1 : 0,
-        whyIncorrect: option.why_incorrect || '',
-      })),
-      theoryRecap: null,
-    };
+    return question;
   }
 
   private mapOptionsByQuestionId(optionRows: OptionRow[]) {
@@ -1035,11 +1022,10 @@ export class QuizAttemptsService {
 
   private normalizeSubmittedAnswers(rawAnswers: Record<string, unknown>, questions: LoadedQuestion[]) {
     const normalized: Record<string, unknown> = {};
-    const questionIds = new Set(questions.map((question) => String(question.id)));
+    const questionById = new Map(questions.map((question) => [String(question.id), question]));
     for (const [rawQuestionId, rawValue] of Object.entries(rawAnswers || {})) {
       const questionId = String(Number(rawQuestionId));
-      if (!questionIds.has(questionId)) continue;
-      const question = questions.find((item) => String(item.id) === questionId);
+      const question = questionById.get(questionId);
       if (!question) continue;
 
       if (question.question_type === 'sba') {

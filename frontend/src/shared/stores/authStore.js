@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { clearAllTimedApiCaches } from '../api/cache.js';
 import { setUnauthorizedHandler } from '../api/client.js';
 import { fetchCurrentUser, login, logout, register } from '../api/auth.api.js';
 import { detectPlatform } from '../platform/detect.js';
@@ -22,6 +23,7 @@ function isPublicAuthRoute() {
 }
 
 function finishSignedOut(set) {
+  clearAllTimedApiCaches();
   setAuthToken('');
   setStoredAuthUser(null);
   set({
@@ -92,6 +94,7 @@ export const useAuthStore = create((set, get) => ({
       throw new Error('Native sign-in did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
     }
     authMutationVersion += 1;
+    clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');
     setStoredAuthUser(data.user);
     set({
@@ -111,6 +114,7 @@ export const useAuthStore = create((set, get) => ({
       throw new Error('Native registration did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
     }
     authMutationVersion += 1;
+    clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');
     setStoredAuthUser(data.user);
     set({
@@ -126,6 +130,7 @@ export const useAuthStore = create((set, get) => ({
 
   signOut: async () => {
     authMutationVersion += 1;
+    clearAllTimedApiCaches();
     set({ isSigningOut: true });
 
     await new Promise((resolve) => {
@@ -150,6 +155,7 @@ export const useAuthStore = create((set, get) => ({
 
   forceSignOut: () => {
     authMutationVersion += 1;
+    clearAllTimedApiCaches();
     clearStoredAuth();
     set({
       token: '',

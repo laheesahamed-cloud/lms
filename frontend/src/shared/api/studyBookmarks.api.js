@@ -1,11 +1,19 @@
 import { apiClient } from './client.js';
+import { createTimedApiCache } from './cache.js';
 
-export async function fetchStudyBookmarks() {
-  const response = await apiClient.get('/student/bookmarks');
-  return response.data;
+const studyBookmarksCache = createTimedApiCache({
+  ttlMs: 30000,
+  load: () => apiClient.get('/student/bookmarks').then((response) => response.data),
+});
+
+export const fetchStudyBookmarks = () => studyBookmarksCache.get();
+
+export function clearStudyBookmarksCache() {
+  studyBookmarksCache.clear();
 }
 
 export async function toggleStudyBookmark(payload) {
   const response = await apiClient.post('/student/bookmarks/toggle', payload);
+  clearStudyBookmarksCache();
   return response.data;
 }

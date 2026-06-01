@@ -36,6 +36,11 @@ export const API_RESPONSE_TARGETS_MS: Record<ApiMetricGroup, number> = {
 const apiMetrics = new Map<ApiMetricGroup, ApiMetricRecord[]>();
 const clientMetrics: ClientMetricRecord[] = [];
 
+function shouldLogPerformanceEvents() {
+  return process.env.ENABLE_PERFORMANCE_LOGS === 'true' ||
+    (process.env.NODE_ENV || 'development') !== 'production';
+}
+
 function normalizePath(path: string) {
   return String(path || '')
     .split('?')[0]
@@ -87,7 +92,7 @@ export function recordApiRequestMetric(input: {
   if (records.length > MAX_RECORDS_PER_GROUP) records.splice(0, records.length - MAX_RECORDS_PER_GROUP);
   apiMetrics.set(group, records);
 
-  if (record.slow || !record.ok) {
+  if (shouldLogPerformanceEvents() && (record.slow || !record.ok)) {
     console.warn(JSON.stringify({
       event: record.slow ? 'api_performance_slow' : 'api_performance_error',
       group: record.group,

@@ -1,4 +1,5 @@
 import { apiClient } from './client.js';
+import { createTimedApiCache } from './cache.js';
 
 function withEngine(config = {}, engine = 'gemini') {
   return {
@@ -17,11 +18,20 @@ export const adminListAiNotes = (options = {}) =>
 export const adminGetAiNote = (id, options = {}) =>
   apiClient.get(`/admin/ai-notes/${id}`, withEngine({}, options.engine)).then((r) => r.data);
 export const adminCreateAiNote = (payload, options = {}) =>
-  apiClient.post('/admin/ai-notes', payload, withEngine({}, options.engine)).then((r) => r.data);
+  apiClient.post('/admin/ai-notes', payload, withEngine({}, options.engine)).then((r) => {
+    clearStudentAiNotesCache();
+    return r.data;
+  });
 export const adminUpdateAiNote = (id, payload, config = {}, options = {}) =>
-  apiClient.patch(`/admin/ai-notes/${id}`, payload, withEngine(config, options.engine)).then((r) => r.data);
+  apiClient.patch(`/admin/ai-notes/${id}`, payload, withEngine(config, options.engine)).then((r) => {
+    clearStudentAiNotesCache();
+    return r.data;
+  });
 export const adminDeleteAiNote = (id, options = {}) =>
-  apiClient.delete(`/admin/ai-notes/${id}`, withEngine({}, options.engine)).then((r) => r.data);
+  apiClient.delete(`/admin/ai-notes/${id}`, withEngine({}, options.engine)).then((r) => {
+    clearStudentAiNotesCache();
+    return r.data;
+  });
 
 export const adminGetCourses = () => apiClient.get('/admin/ai-notes/hierarchy/courses').then((r) => r.data);
 export const adminGetTopics = (courseId) =>
@@ -43,8 +53,18 @@ export const adminUpdateLessonFlashcard = (noteId, cardId, payload, options = {}
 export const adminDeleteLessonFlashcard = (noteId, cardId, options = {}) =>
   apiClient.delete(`/admin/ai-notes/${noteId}/flashcards/${cardId}`, withEngine({}, options.engine)).then((r) => r.data);
 
-export const listAiNotes = (options = {}) =>
-  apiClient.get('/student/ai-notes', withEngine({}, options.engine)).then((r) => r.data);
+const studentAiNotesCache = createTimedApiCache({
+  ttlMs: 30000,
+  key: (options = {}) => options.engine || 'gemini',
+  load: (options = {}) => apiClient.get('/student/ai-notes', withEngine({}, options.engine)).then((r) => r.data),
+});
+
+export const listAiNotes = (options = {}) => studentAiNotesCache.get(options);
+
+export function clearStudentAiNotesCache() {
+  studentAiNotesCache.clear();
+}
+
 export const getAiNote = (id, options = {}) =>
   apiClient.get(`/student/ai-notes/${id}`, withEngine({}, options.engine)).then((r) => r.data);
 

@@ -10,6 +10,8 @@ const PERFORMANCE_TARGETS = {
   inp: 200,
   cls: 0.1,
 };
+const ENABLE_CLIENT_PERFORMANCE_BEACONS = import.meta.env.VITE_ENABLE_CLIENT_PERFORMANCE_BEACONS === 'true';
+const DEBUG_CLIENT_PERFORMANCE = import.meta.env.DEV || import.meta.env.VITE_DEBUG_CLIENT_PERFORMANCE === 'true';
 
 export function isLowSpecDevice() {
   if (typeof navigator === 'undefined') return false;
@@ -117,7 +119,7 @@ export function installMotionResourceGuards() {
 }
 
 function sendClientPerformanceMetric(metric) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !ENABLE_CLIENT_PERFORMANCE_BEACONS) return;
   const payload = JSON.stringify({
     ...metric,
     timestamp: new Date().toISOString(),
@@ -161,7 +163,7 @@ function recordClientPerformanceMetric(metric) {
 
   const target = Number(record.target);
   const value = Number(record.value);
-  if (Number.isFinite(target) && Number.isFinite(value) && value > target) {
+  if (DEBUG_CLIENT_PERFORMANCE && Number.isFinite(target) && Number.isFinite(value) && value > target) {
     console.warn(JSON.stringify({
       event: 'client_performance_slow',
       metric: record.metric,

@@ -12,6 +12,7 @@ const rootPublicFiles = [
   ['manifest.webmanifest', 'manifest.webmanifest'],
   ['robots.txt', 'robots.txt'],
   ['sitemap.xml', 'sitemap.xml'],
+  ['apple-touch-icon.png', 'apple-touch-icon.png'],
 ];
 
 async function assertExists(filePath, label) {
