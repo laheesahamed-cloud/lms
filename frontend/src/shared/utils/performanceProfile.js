@@ -72,7 +72,7 @@ export function applyPerformanceProfile() {
   const lowSpec = isLowSpecDevice();
   const balancedEffects = nativeRuntime || (!installedRuntime && shouldUseBalancedVisualEffects());
   const browserProfile = getBrowserPerformanceProfile();
-  root.toggleAttribute('data-low-spec', lowSpec);
+  root.toggleAttribute('data-low-spec', browserProfile.saveData);
   root.dataset.visualEffects = balancedEffects ? 'balanced' : 'full';
   root.dataset.browserEngine = browserProfile.isSafari || browserProfile.isIOS
     ? 'webkit'

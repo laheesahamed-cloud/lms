@@ -49,13 +49,6 @@ html[data-motion-paused] body :where(
   .study-mascot__pulse,
   .study-mascot__flame,
   .study-mascot__sparkles path
-),
-:root[data-visual-effects='balanced'] :where(
-  .study-mascot__bob,
-  .study-mascot__run,
-  .study-mascot__pulse,
-  .study-mascot__flame,
-  .study-mascot__sparkles path
 ) {
   animation: none !important;
 }
@@ -70,14 +63,6 @@ html[data-motion-paused] body :where(
   .student-route-page
 )::before,
 :root[data-low-spec] :where(
-  .dashboard-page,
-  .student-route-page
-)::after,
-:root[data-visual-effects='balanced'] :where(
-  .dashboard-page,
-  .student-route-page
-)::before,
-:root[data-visual-effects='balanced'] :where(
   .dashboard-page,
   .student-route-page
 )::after {
@@ -101,22 +86,6 @@ html[data-motion-paused] body :where(
 }
 
 :root[data-low-spec] :where(
-  .study-hub-shell > .study-continue-card,
-  .study-hub-shell > .study-streak-card,
-  .study-hub-shell > .study-readiness-stack,
-  .study-hub-shell > .study-section-head,
-  .study-hub-shell > .study-action-grid,
-  .study-hub-shell > .study-question-card,
-  .study-hub-shell > .study-level-summary,
-  .student-app-shell .student-route-page:not(.dashboard-page) :where(
-    .management-layout > section,
-    .management-layout > article,
-    .management-layout > .lms-page-header-card,
-    .study-hub-shell > section:not(.study-hub-topbar),
-    .study-hub-shell > article
-  )
-),
-:root[data-visual-effects='balanced'] :where(
   .study-hub-shell > .study-continue-card,
   .study-hub-shell > .study-streak-card,
   .study-hub-shell > .study-readiness-stack,
