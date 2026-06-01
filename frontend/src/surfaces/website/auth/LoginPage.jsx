@@ -8,6 +8,7 @@ import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
 import { clearServerNotResponding } from '../../../shared/stores/serverStatusStore.js';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
+import { requestSpaNavigation } from '../../../shared/routing/spaNavigation.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../shared/utils/routeForwarding.js';
 
 /* ── Animation keyframes ─────────────────────────────────────────────────────── */
@@ -1058,7 +1059,7 @@ function forceNativeRoute(path) {
 
   window.setTimeout(() => {
     if (window.location.pathname !== targetPathname) {
-      window.location.replace(target);
+      requestSpaNavigation(target, { replace: true });
     }
   }, 650);
 }

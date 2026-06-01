@@ -1,1 +1,0 @@
-import{d as e,s as t}from"./config-ETxrz32O.js";import"./pushNotifications.api-Bm0u6-bq.js";var n=`/lms/sw.js`,r=`/lms/`;async function i(){if(!t(e())||typeof window>`u`||!(`serviceWorker`in navigator))return null;let i=n,a=r;return navigator.serviceWorker.register(i,{scope:a})}export{i as registerLmsServiceWorker};

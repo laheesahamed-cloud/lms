@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import { XyndromeBrand } from '../shared/brand/XyndromeBrand.jsx';
 import { detectPlatform } from '../shared/platform/detect.js';
+import { requestSpaNavigation } from '../shared/routing/spaNavigation.js';
 
 const PLATFORM = detectPlatform();
 
@@ -67,7 +68,7 @@ export class AppErrorBoundary extends Component {
             type="button"
             onClick={() => {
               this.setState({ error: null });
-              window.location.href = PLATFORM.isNative ? '/' : '/lms';
+              requestSpaNavigation(PLATFORM.isNative ? '/' : '/lms', { replace: true });
             }}
             style={{
               minHeight: 42,

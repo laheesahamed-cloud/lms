@@ -4,6 +4,7 @@ import { beginNetworkActivity, endNetworkActivity } from '../stores/networkActiv
 import { clearServerNotResponding, markServerNotResponding } from '../stores/serverStatusStore.js';
 import { detectPlatform } from '../platform/detect.js';
 import { getLoginPath, resolveApiBaseUrl, resolveApiBaseUrls } from '../platform/config.js';
+import { requestSpaNavigation } from '../routing/spaNavigation.js';
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
@@ -240,7 +241,7 @@ function redirectToLoginIfNeeded() {
   const from = getCurrentForwardPath();
   const forwardQuery = from ? `?from=${encodeURIComponent(from)}` : '';
   const loginPath = getLoginPath(detectPlatform());
-  window.location.href = `${loginPath}${forwardQuery}`;
+  requestSpaNavigation(`${loginPath}${forwardQuery}`, { replace: true });
 }
 
 function isApiFreePreviewRoute() {

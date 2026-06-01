@@ -12,6 +12,7 @@ import { NativeAndroidStatusAnnouncer } from '../shared/platform/native/NativeAn
 import { LaunchModePage } from '../shared/launch/LaunchModePage.jsx';
 import { hasRecentLaunchAdminUnlock } from '../shared/launch/launchUnlock.js';
 import { canNavigateBack, safeNavigateBack } from '../shared/routing/safeBack.js';
+import { normalizeSpaNavigationPath, SPA_NAVIGATION_EVENT } from '../shared/routing/spaNavigation.js';
 import { MarketingPopupAlert } from '../shared/popup/MarketingPopupAlert.jsx';
 
 const PLATFORM = detectPlatform();
@@ -500,6 +501,22 @@ export function AppFrame() {
   const secureContentActive = isSecureContentRoute(location);
 
   useSecureContentMode(secureContentActive);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    function handleSpaNavigation(event) {
+      const target = normalizeSpaNavigationPath(event?.detail?.to);
+      if (!target) return;
+      event.preventDefault?.();
+      navigate(target, { replace: Boolean(event?.detail?.replace) });
+    }
+
+    window.addEventListener(SPA_NAVIGATION_EVENT, handleSpaNavigation);
+    return () => {
+      window.removeEventListener(SPA_NAVIGATION_EVENT, handleSpaNavigation);
+    };
+  }, [navigate]);
 
   useEffect(() => {
     useAvailabilityStore.getState().hydrate();
