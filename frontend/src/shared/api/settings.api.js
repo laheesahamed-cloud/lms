@@ -1,5 +1,9 @@
 import { apiClient } from './client.js';
 
+const PUBLIC_SETTINGS_CACHE_TTL_MS = 15_000;
+let publicSettingsCache = null;
+let publicSettingsPromise = null;
+
 export async function fetchAiProviderSettings() {
   const response = await apiClient.get('/admin/settings/ai-providers');
   return response.data;
@@ -45,8 +49,37 @@ export async function fetchFcmSettings() {
   return response.data;
 }
 
-export async function fetchPublicSettings() {
-  const response = await apiClient.get('/settings/public', { __suppressServerStatus: true });
+export async function fetchPublicSettings({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && publicSettingsCache && publicSettingsCache.expiresAt > now) {
+    return publicSettingsCache.data;
+  }
+
+  if (!force && publicSettingsPromise) {
+    return publicSettingsPromise;
+  }
+
+  publicSettingsPromise = apiClient
+    .get('/settings/public', { __suppressServerStatus: true, __skipNetworkActivity: true })
+    .then((response) => {
+      publicSettingsCache = {
+        expiresAt: Date.now() + PUBLIC_SETTINGS_CACHE_TTL_MS,
+        data: response.data,
+      };
+      return response.data;
+    })
+    .finally(() => {
+      publicSettingsPromise = null;
+    });
+
+  return publicSettingsPromise;
+}
+
+export async function fetchPublicAvailabilitySettings() {
+  const response = await apiClient.get('/settings/public/availability', {
+    __suppressServerStatus: true,
+    __skipNetworkActivity: true,
+  });
   return response.data;
 }
 

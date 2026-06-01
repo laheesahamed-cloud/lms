@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchPublicSettings } from '../api/settings.api.js';
+import { fetchPublicAvailabilitySettings } from '../api/settings.api.js';
 
 const DEFAULT_AVAILABILITY = {
   mode: 'live',
@@ -49,7 +49,7 @@ export const useAvailabilityStore = create((set, get) => ({
     }
 
     set({ loading: true, error: '' });
-    hydrationPromise = fetchPublicSettings()
+    hydrationPromise = fetchPublicAvailabilitySettings()
       .then((settings) => {
         const availability = normalizeAvailability(settings);
         set({ availability, hydrated: true, loading: false, error: '' });

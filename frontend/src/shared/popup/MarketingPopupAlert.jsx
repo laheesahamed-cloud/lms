@@ -105,9 +105,9 @@ export function MarketingPopupAlert({ suppressed = false }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadPopupAlert() {
+    async function loadPopupAlert({ force = false } = {}) {
       try {
-        const settings = await fetchPublicSettings();
+        const settings = await fetchPublicSettings({ force });
         if (cancelled) return;
         setAlert(settings?.popupAlert || { enabled: false });
       } catch {
@@ -122,10 +122,11 @@ export function MarketingPopupAlert({ suppressed = false }) {
     }
 
     loadPopupAlert();
-    window.addEventListener?.('lms:popup-alert-refresh', loadPopupAlert);
+    const refreshPopupAlert = () => loadPopupAlert({ force: true });
+    window.addEventListener?.('lms:popup-alert-refresh', refreshPopupAlert);
     return () => {
       cancelled = true;
-      window.removeEventListener?.('lms:popup-alert-refresh', loadPopupAlert);
+      window.removeEventListener?.('lms:popup-alert-refresh', refreshPopupAlert);
     };
   }, []);
 

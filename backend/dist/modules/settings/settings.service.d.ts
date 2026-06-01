@@ -102,10 +102,27 @@ export type LandingPageContent = {
     [Key in keyof typeof DEFAULT_LANDING_PAGE_CONTENT]: string;
 };
 export type AvailabilityMode = typeof AVAILABILITY_MODES[number];
+type SerializedAvailabilitySettings = {
+    mode: AvailabilityMode;
+    isLive: boolean;
+    isMaintenance: boolean;
+    isComingSoon: boolean;
+    scope: 'all' | 'website' | 'none';
+};
+type PublicSettingsResponse = {
+    ok: true;
+    whatsappUrl: string;
+    landingPage: LandingPageContent;
+    popupAlert: Record<string, unknown>;
+    availability: SerializedAvailabilitySettings;
+};
 export declare class SettingsService {
     private readonly db;
     private readonly configService;
+    private publicSettingsCache;
+    private publicAvailabilityCache;
     constructor(db: Pool, configService: ConfigService);
+    private clearPublicSettingsCache;
     getGeneralSettings(): Promise<{
         ok: boolean;
         whatsappNumber: string;
@@ -163,43 +180,19 @@ export declare class SettingsService {
             comingSoon: string;
         };
         note: string;
-        mode: "live" | "maintenance" | "coming-soon";
+        mode: AvailabilityMode;
         isLive: boolean;
         isMaintenance: boolean;
         isComingSoon: boolean;
-        scope: string;
+        scope: "all" | "website" | "none";
         ok: boolean;
     }>;
-    getPublicSettings(): Promise<{
+    getPublicSettings(): Promise<PublicSettingsResponse>;
+    getPublicAvailabilitySettings(): Promise<{
         ok: boolean;
-        whatsappUrl: string;
-        landingPage: LandingPageContent;
-        popupAlert: {
-            enabled: boolean;
-            placement: "all" | "landing" | "login" | "app";
-            title: string;
-            body: string;
-            buttonLabel: string;
-            buttonUrl: string;
-            imageUrl: string;
-            imageAlt: string;
-            imageFileName: string;
-            imageWidth: number;
-            imageHeight: number;
-            imageBytes: number;
-            version: string;
-            configured: boolean;
-        } | {
-            enabled: boolean;
-        };
-        availability: {
-            mode: "live" | "maintenance" | "coming-soon";
-            isLive: boolean;
-            isMaintenance: boolean;
-            isComingSoon: boolean;
-            scope: string;
-        };
+        availability: SerializedAvailabilitySettings;
     }>;
+    private buildPublicSettings;
     updateGeneralSettings(input: {
         whatsappNumber?: string;
     }): Promise<{
@@ -262,11 +255,11 @@ export declare class SettingsService {
             comingSoon: string;
         };
         note: string;
-        mode: "live" | "maintenance" | "coming-soon";
+        mode: AvailabilityMode;
         isLive: boolean;
         isMaintenance: boolean;
         isComingSoon: boolean;
-        scope: string;
+        scope: "all" | "website" | "none";
         ok: boolean;
     }>;
     verifyAvailabilityUnlock(input: {
@@ -773,6 +766,7 @@ export declare class SettingsService {
     private getSettingValue;
     private getSettingMap;
     private getLandingPageContent;
+    private getLandingPageContentFromRaw;
     private normalizeLandingPageContent;
     private getAvailabilityMode;
     private getAvailabilityUnlockCode;
@@ -783,6 +777,7 @@ export declare class SettingsService {
     private getRawPaymentSettings;
     private getRawSmtpSettings;
     private getRawPopupAlertSettings;
+    private getRawPopupAlertSettingsFromValues;
     getRawApnsSettings(): Promise<ApnsSettings>;
     getRawFcmSettings(): Promise<FcmSettings>;
     private serializeSmtpSettings;

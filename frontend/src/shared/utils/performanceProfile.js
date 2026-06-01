@@ -257,10 +257,11 @@ export function shouldPreloadRoutes() {
   if (typeof document !== 'undefined' && document.documentElement.dataset.lmsRuntime === 'native') {
     return false;
   }
-  return !isLowSpecDevice() && !getBrowserPerformanceProfile().saveData;
+  return !getBrowserPerformanceProfile().saveData;
 }
 
 export function getRoutePreloadLimit() {
   if (!shouldPreloadRoutes()) return 0;
-  return shouldUseBalancedVisualEffects() ? 2 : 4;
+  if (isLowSpecDevice()) return 2;
+  return shouldUseBalancedVisualEffects() ? 3 : 5;
 }

@@ -53,6 +53,11 @@ export class SettingsController {
     return this.settingsService.getPublicSettings();
   }
 
+  @Get('public/availability')
+  async getPublicAvailabilitySettings() {
+    return this.settingsService.getPublicAvailabilitySettings();
+  }
+
   @Post('availability/unlock')
   async verifyAvailabilityUnlock(@Body() dto: VerifyAvailabilityUnlockDto) {
     return this.settingsService.verifyAvailabilityUnlock(dto);

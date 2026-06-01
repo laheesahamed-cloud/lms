@@ -231,13 +231,35 @@ export type LandingPageContent = {
 };
 
 export type AvailabilityMode = typeof AVAILABILITY_MODES[number];
+type SerializedAvailabilitySettings = {
+  mode: AvailabilityMode;
+  isLive: boolean;
+  isMaintenance: boolean;
+  isComingSoon: boolean;
+  scope: 'all' | 'website' | 'none';
+};
+type PublicSettingsResponse = {
+  ok: true;
+  whatsappUrl: string;
+  landingPage: LandingPageContent;
+  popupAlert: Record<string, unknown>;
+  availability: SerializedAvailabilitySettings;
+};
 
 @Injectable()
 export class SettingsService {
+  private publicSettingsCache: { expiresAt: number; value: PublicSettingsResponse } | null = null;
+  private publicAvailabilityCache: { expiresAt: number; value: SerializedAvailabilitySettings } | null = null;
+
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly configService: ConfigService
   ) {}
+
+  private clearPublicSettingsCache() {
+    this.publicSettingsCache = null;
+    this.publicAvailabilityCache = null;
+  }
 
   async getGeneralSettings() {
     const whatsappNumber = await this.getSettingValue(WHATSAPP_NUMBER_SETTING_KEY);
@@ -279,14 +301,51 @@ export class SettingsService {
   }
 
   async getPublicSettings() {
-    const whatsappNumber = await this.getSettingValue(WHATSAPP_NUMBER_SETTING_KEY);
-    const popupAlert = await this.getRawPopupAlertSettings();
+    const now = Date.now();
+    if (this.publicSettingsCache && this.publicSettingsCache.expiresAt > now) {
+      return this.publicSettingsCache.value;
+    }
+
+    const value = await this.buildPublicSettings();
+    this.publicSettingsCache = { expiresAt: now + 15_000, value };
+    return value;
+  }
+
+  async getPublicAvailabilitySettings() {
+    const now = Date.now();
+    if (this.publicAvailabilityCache && this.publicAvailabilityCache.expiresAt > now) {
+      return {
+        ok: true,
+        availability: this.publicAvailabilityCache.value,
+      };
+    }
+
+    const availability = this.serializeAvailabilitySettings(await this.getAvailabilityMode());
+    this.publicAvailabilityCache = { expiresAt: now + 5_000, value: availability };
+
+    return {
+      ok: true,
+      availability,
+    };
+  }
+
+  private async buildPublicSettings(): Promise<PublicSettingsResponse> {
+    const values = await this.getSettingMap([
+      WHATSAPP_NUMBER_SETTING_KEY,
+      LANDING_PAGE_SETTING_KEY,
+      AVAILABILITY_MODE_SETTING_KEY,
+      ...Object.values(POPUP_ALERT_SETTING_KEYS),
+    ]);
+    const whatsappNumber = values.get(WHATSAPP_NUMBER_SETTING_KEY) || '';
+    const popupAlert = this.getRawPopupAlertSettingsFromValues(values);
     return {
       ok: true,
       whatsappUrl: this.toWhatsAppUrl(whatsappNumber),
-      landingPage: await this.getLandingPageContent(),
+      landingPage: this.getLandingPageContentFromRaw(values.get(LANDING_PAGE_SETTING_KEY) || ''),
       popupAlert: this.serializePublicPopupAlertSettings(popupAlert),
-      availability: this.serializeAvailabilitySettings(await this.getAvailabilityMode()),
+      availability: this.serializeAvailabilitySettings(
+        this.normalizeAvailabilityMode(values.get(AVAILABILITY_MODE_SETTING_KEY), 'live')
+      ),
     };
   }
 
@@ -294,6 +353,7 @@ export class SettingsService {
     const whatsappNumber = this.normalizeWhatsAppNumber(input.whatsappNumber);
 
     await this.saveSettingValue(WHATSAPP_NUMBER_SETTING_KEY, whatsappNumber);
+    this.clearPublicSettingsCache();
 
     return this.getGeneralSettings();
   }
@@ -303,6 +363,7 @@ export class SettingsService {
     const next = this.normalizeLandingPageContent({ ...current, ...input });
 
     await this.saveSettingValue(LANDING_PAGE_SETTING_KEY, JSON.stringify(next));
+    this.clearPublicSettingsCache();
 
     return this.getLandingPageSettings();
   }
@@ -310,6 +371,7 @@ export class SettingsService {
   async updateAvailabilitySettings(input: { mode?: AvailabilityMode; unlockCode?: string }) {
     if (input.mode !== undefined) {
       await this.saveSettingValue(AVAILABILITY_MODE_SETTING_KEY, this.normalizeAvailabilityMode(input.mode));
+      this.clearPublicSettingsCache();
     }
 
     if (input.unlockCode !== undefined) {
@@ -547,6 +609,7 @@ export class SettingsService {
       this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageBytes, String(next.imageBytes || 0)),
       this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.version, next.version),
     ]);
+    this.clearPublicSettingsCache();
 
     return this.getPopupAlertSettings();
   }
@@ -830,7 +893,10 @@ export class SettingsService {
   }
 
   private async getLandingPageContent(): Promise<LandingPageContent> {
-    const raw = await this.getSettingValue(LANDING_PAGE_SETTING_KEY);
+    return this.getLandingPageContentFromRaw(await this.getSettingValue(LANDING_PAGE_SETTING_KEY));
+  }
+
+  private getLandingPageContentFromRaw(raw: string): LandingPageContent {
     if (!raw) {
       return this.normalizeLandingPageContent({});
     }
@@ -901,7 +967,7 @@ export class SettingsService {
     throw new BadRequestException('Unsupported availability mode');
   }
 
-  private serializeAvailabilitySettings(mode: AvailabilityMode) {
+  private serializeAvailabilitySettings(mode: AvailabilityMode): SerializedAvailabilitySettings {
     return {
       mode,
       isLive: mode === 'live',
@@ -972,7 +1038,10 @@ export class SettingsService {
 
   private async getRawPopupAlertSettings(): Promise<PopupAlertSettings> {
     const values = await this.getSettingMap(Object.values(POPUP_ALERT_SETTING_KEYS));
+    return this.getRawPopupAlertSettingsFromValues(values);
+  }
 
+  private getRawPopupAlertSettingsFromValues(values: Map<string, string>): PopupAlertSettings {
     return {
       enabled: this.parseBoolean(values.get(POPUP_ALERT_SETTING_KEYS.enabled), false),
       placement: this.normalizePopupPlacement(values.get(POPUP_ALERT_SETTING_KEYS.placement) || 'landing'),

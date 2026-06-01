@@ -134,6 +134,12 @@ let SettingsService = class SettingsService {
     constructor(db, configService) {
         this.db = db;
         this.configService = configService;
+        this.publicSettingsCache = null;
+        this.publicAvailabilityCache = null;
+    }
+    clearPublicSettingsCache() {
+        this.publicSettingsCache = null;
+        this.publicAvailabilityCache = null;
     }
     async getGeneralSettings() {
         const whatsappNumber = await this.getSettingValue(WHATSAPP_NUMBER_SETTING_KEY);
@@ -170,30 +176,63 @@ let SettingsService = class SettingsService {
         };
     }
     async getPublicSettings() {
-        const whatsappNumber = await this.getSettingValue(WHATSAPP_NUMBER_SETTING_KEY);
-        const popupAlert = await this.getRawPopupAlertSettings();
+        const now = Date.now();
+        if (this.publicSettingsCache && this.publicSettingsCache.expiresAt > now) {
+            return this.publicSettingsCache.value;
+        }
+        const value = await this.buildPublicSettings();
+        this.publicSettingsCache = { expiresAt: now + 15_000, value };
+        return value;
+    }
+    async getPublicAvailabilitySettings() {
+        const now = Date.now();
+        if (this.publicAvailabilityCache && this.publicAvailabilityCache.expiresAt > now) {
+            return {
+                ok: true,
+                availability: this.publicAvailabilityCache.value,
+            };
+        }
+        const availability = this.serializeAvailabilitySettings(await this.getAvailabilityMode());
+        this.publicAvailabilityCache = { expiresAt: now + 5_000, value: availability };
+        return {
+            ok: true,
+            availability,
+        };
+    }
+    async buildPublicSettings() {
+        const values = await this.getSettingMap([
+            WHATSAPP_NUMBER_SETTING_KEY,
+            LANDING_PAGE_SETTING_KEY,
+            AVAILABILITY_MODE_SETTING_KEY,
+            ...Object.values(POPUP_ALERT_SETTING_KEYS),
+        ]);
+        const whatsappNumber = values.get(WHATSAPP_NUMBER_SETTING_KEY) || '';
+        const popupAlert = this.getRawPopupAlertSettingsFromValues(values);
         return {
             ok: true,
             whatsappUrl: this.toWhatsAppUrl(whatsappNumber),
-            landingPage: await this.getLandingPageContent(),
+            landingPage: this.getLandingPageContentFromRaw(values.get(LANDING_PAGE_SETTING_KEY) || ''),
             popupAlert: this.serializePublicPopupAlertSettings(popupAlert),
-            availability: this.serializeAvailabilitySettings(await this.getAvailabilityMode()),
+            availability: this.serializeAvailabilitySettings(this.normalizeAvailabilityMode(values.get(AVAILABILITY_MODE_SETTING_KEY), 'live')),
         };
     }
     async updateGeneralSettings(input) {
         const whatsappNumber = this.normalizeWhatsAppNumber(input.whatsappNumber);
         await this.saveSettingValue(WHATSAPP_NUMBER_SETTING_KEY, whatsappNumber);
+        this.clearPublicSettingsCache();
         return this.getGeneralSettings();
     }
     async updateLandingPageSettings(input) {
         const current = await this.getLandingPageContent();
         const next = this.normalizeLandingPageContent({ ...current, ...input });
         await this.saveSettingValue(LANDING_PAGE_SETTING_KEY, JSON.stringify(next));
+        this.clearPublicSettingsCache();
         return this.getLandingPageSettings();
     }
     async updateAvailabilitySettings(input) {
         if (input.mode !== undefined) {
             await this.saveSettingValue(AVAILABILITY_MODE_SETTING_KEY, this.normalizeAvailabilityMode(input.mode));
+            this.clearPublicSettingsCache();
         }
         if (input.unlockCode !== undefined) {
             await this.saveSettingValue(AVAILABILITY_UNLOCK_CODE_SETTING_KEY, this.normalizeAvailabilityUnlockCode(input.unlockCode));
@@ -393,6 +432,7 @@ let SettingsService = class SettingsService {
             this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageBytes, String(next.imageBytes || 0)),
             this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.version, next.version),
         ]);
+        this.clearPublicSettingsCache();
         return this.getPopupAlertSettings();
     }
     async updateApnsSettings(input) {
@@ -597,7 +637,9 @@ let SettingsService = class SettingsService {
         return new Map(rows.map((row) => [String(row.setting_key), String(row.setting_value || '').trim()]));
     }
     async getLandingPageContent() {
-        const raw = await this.getSettingValue(LANDING_PAGE_SETTING_KEY);
+        return this.getLandingPageContentFromRaw(await this.getSettingValue(LANDING_PAGE_SETTING_KEY));
+    }
+    getLandingPageContentFromRaw(raw) {
         if (!raw) {
             return this.normalizeLandingPageContent({});
         }
@@ -721,6 +763,9 @@ let SettingsService = class SettingsService {
     }
     async getRawPopupAlertSettings() {
         const values = await this.getSettingMap(Object.values(POPUP_ALERT_SETTING_KEYS));
+        return this.getRawPopupAlertSettingsFromValues(values);
+    }
+    getRawPopupAlertSettingsFromValues(values) {
         return {
             enabled: this.parseBoolean(values.get(POPUP_ALERT_SETTING_KEYS.enabled), false),
             placement: this.normalizePopupPlacement(values.get(POPUP_ALERT_SETTING_KEYS.placement) || 'landing'),

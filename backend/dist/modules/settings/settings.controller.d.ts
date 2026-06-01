@@ -114,41 +114,34 @@ export declare class SettingsController {
             comingSoon: string;
         };
         note: string;
-        mode: "live" | "maintenance" | "coming-soon";
+        mode: import("./settings.service").AvailabilityMode;
         isLive: boolean;
         isMaintenance: boolean;
         isComingSoon: boolean;
-        scope: string;
+        scope: "all" | "website" | "none";
         ok: boolean;
     }>;
     getPublicSettings(): Promise<{
-        ok: boolean;
+        ok: true;
         whatsappUrl: string;
         landingPage: import("./settings.service").LandingPageContent;
-        popupAlert: {
-            enabled: boolean;
-            placement: "all" | "landing" | "login" | "app";
-            title: string;
-            body: string;
-            buttonLabel: string;
-            buttonUrl: string;
-            imageUrl: string;
-            imageAlt: string;
-            imageFileName: string;
-            imageWidth: number;
-            imageHeight: number;
-            imageBytes: number;
-            version: string;
-            configured: boolean;
-        } | {
-            enabled: boolean;
-        };
+        popupAlert: Record<string, unknown>;
         availability: {
-            mode: "live" | "maintenance" | "coming-soon";
+            mode: import("./settings.service").AvailabilityMode;
             isLive: boolean;
             isMaintenance: boolean;
             isComingSoon: boolean;
-            scope: string;
+            scope: "all" | "website" | "none";
+        };
+    }>;
+    getPublicAvailabilitySettings(): Promise<{
+        ok: boolean;
+        availability: {
+            mode: import("./settings.service").AvailabilityMode;
+            isLive: boolean;
+            isMaintenance: boolean;
+            isComingSoon: boolean;
+            scope: "all" | "website" | "none";
         };
     }>;
     verifyAvailabilityUnlock(dto: VerifyAvailabilityUnlockDto): Promise<{
@@ -371,11 +364,11 @@ export declare class SettingsController {
             comingSoon: string;
         };
         note: string;
-        mode: "live" | "maintenance" | "coming-soon";
+        mode: import("./settings.service").AvailabilityMode;
         isLive: boolean;
         isMaintenance: boolean;
         isComingSoon: boolean;
-        scope: string;
+        scope: "all" | "website" | "none";
         ok: boolean;
     }>;
     updatePaymentSettings(authorization: string | undefined, dto: UpdatePaymentSettingsDto): Promise<{
