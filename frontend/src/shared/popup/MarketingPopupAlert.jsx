@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { fetchPublicSettings } from '../api/settings.api.js';
 import { ui } from '../styles/tailwindClasses.js';
-import { getSafeExternalUrl, getSafeInternalPath } from '../utils/linkSafety.js';
 import { resolvePublicAssetUrl } from '../utils/publicAssetUrl.js';
 
 const POPUP_DISMISS_PREFIX = 'lms_popup_alert_dismissed';
@@ -26,7 +25,6 @@ function getContentKey(alert) {
     alert?.title,
     alert?.body,
     alert?.imageUrl,
-    alert?.buttonUrl,
   ].filter(Boolean).join('|') || 'current';
 }
 
@@ -56,7 +54,7 @@ function shouldShowForPath(alert, pathname) {
 }
 
 function hasPopupContent(alert) {
-  return Boolean(alert?.title || alert?.body || alert?.imageUrl);
+  return Boolean(alert?.imageUrl);
 }
 
 function readDismissed(key) {
@@ -79,19 +77,12 @@ function writeDismissed(key) {
 
 export function MarketingPopupAlert({ suppressed = false }) {
   const location = useLocation();
-  const navigate = useNavigate();
   const closeButtonRef = useRef(null);
   const [alert, setAlert] = useState(null);
   const [dismissedKey, setDismissedKey] = useState('');
   const [loaded, setLoaded] = useState(false);
 
   const imageUrl = useMemo(() => resolvePublicAssetUrl(alert?.imageUrl), [alert?.imageUrl]);
-  const internalButtonPath = useMemo(() => getSafeInternalPath(alert?.buttonUrl), [alert?.buttonUrl]);
-  const externalButtonUrl = useMemo(
-    () => internalButtonPath ? '' : getSafeExternalUrl(alert?.buttonUrl),
-    [alert?.buttonUrl, internalButtonPath]
-  );
-  const ctaLabel = String(alert?.buttonLabel || '').trim();
   const dismissKey = useMemo(() => getDismissKey(alert), [alert]);
   const shouldOpen =
     !suppressed &&
@@ -143,14 +134,6 @@ export function MarketingPopupAlert({ suppressed = false }) {
     setDismissedKey(dismissKey);
   }
 
-  function handleCtaClick(event) {
-    closePopup();
-    if (internalButtonPath) {
-      event.preventDefault();
-      navigate(internalButtonPath);
-    }
-  }
-
   if (!shouldOpen || typeof document === 'undefined') {
     return null;
   }
@@ -158,35 +141,25 @@ export function MarketingPopupAlert({ suppressed = false }) {
   const modal = (
     <div className={cx(ui.modalBackdrop, 'z-[220] px-4')} role="presentation">
       <section
-        className="lms-modal-panel grid w-[min(560px,100%)] max-h-[min(88vh,760px)] overflow-hidden rounded-xl border border-line-soft bg-surface-card-elevated shadow-[var(--ds-floating-shadow)] animate-scaleIn"
+        className="lms-modal-panel relative grid w-[min(560px,100%)] max-h-[min(88vh,760px)] overflow-hidden rounded-xl border border-line-soft bg-surface-card-elevated shadow-[var(--ds-floating-shadow)] animate-scaleIn"
         role="dialog"
         aria-modal="true"
         aria-labelledby={alert.title ? 'marketing-popup-title' : undefined}
-        aria-label={alert.title ? undefined : 'Popup alert'}
+        aria-label={alert.title ? undefined : alert.imageAlt || 'Popup alert'}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-line-soft px-5 py-4">
-          <div className="min-w-0">
-            <span className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-brand-primary">Announcement</span>
-            {alert.title ? (
-              <h2 id="marketing-popup-title" className="m-0 mt-1 text-[22px] font-black leading-tight text-ink-strong">
-                {alert.title}
-              </h2>
-            ) : null}
-          </div>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className="grid size-10 shrink-0 place-items-center rounded-md border border-line-soft bg-surface-1 text-ink-soft transition hover:bg-surface-2 hover:text-ink-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18"
-            aria-label="Close popup"
-            onClick={closePopup}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
+        <button
+          ref={closeButtonRef}
+          type="button"
+          className="absolute right-3 top-3 z-10 grid size-10 shrink-0 place-items-center rounded-md border border-line-soft bg-surface-card/95 text-ink-soft shadow-sm transition hover:bg-surface-1 hover:text-ink-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18"
+          aria-label="Close popup"
+          onClick={closePopup}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
 
-        <div className="grid gap-4 overflow-y-auto px-5 py-5">
+        <div className="grid gap-4 overflow-y-auto p-5">
           {imageUrl ? (
             <img
               className="block aspect-video w-full rounded-lg border border-line-soft bg-surface-1 object-cover"
@@ -194,27 +167,15 @@ export function MarketingPopupAlert({ suppressed = false }) {
               alt={alert.imageAlt || alert.title || 'Popup alert image'}
             />
           ) : null}
+          {alert.title ? (
+            <h2 id="marketing-popup-title" className="m-0 text-[22px] font-black leading-tight text-ink-strong">
+              {alert.title}
+            </h2>
+          ) : null}
           {alert.body ? (
             <p className="m-0 whitespace-pre-wrap text-[14px] font-medium leading-relaxed text-ink-medium">
               {alert.body}
             </p>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap justify-end gap-2 border-t border-line-soft px-5 py-4">
-          <button type="button" className={ui.secondaryAction} onClick={closePopup}>
-            Close
-          </button>
-          {ctaLabel && (internalButtonPath || externalButtonUrl) ? (
-            <a
-              className={ui.primaryAction}
-              href={internalButtonPath || externalButtonUrl}
-              target={externalButtonUrl ? '_blank' : undefined}
-              rel={externalButtonUrl ? 'noreferrer' : undefined}
-              onClick={handleCtaClick}
-            >
-              {ctaLabel}
-            </a>
           ) : null}
         </div>
       </section>
