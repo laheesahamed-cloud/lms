@@ -7,6 +7,15 @@ body.lms-motion-paused {
   scroll-behavior: auto !important;
 }
 
+body.app-booting :where(.animate-spin, .animate-progressShimmer) {
+  animation-play-state: paused !important;
+}
+
+body.app-booting :where(.skeleton-pulse)::after {
+  animation-play-state: paused !important;
+  will-change: auto !important;
+}
+
 html[data-motion-paused] body *,
 html[data-motion-paused] body *::before,
 html[data-motion-paused] body *::after {

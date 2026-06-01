@@ -13,6 +13,8 @@ import { getRouterBasename, normalizeLegacyBuildPath } from '../shared/platform/
 const PLATFORM = detectPlatform();
 const ROUTER_BASENAME = getRouterBasename(PLATFORM);
 const ROUTE_FALLBACK_DELAY_MS = 260;
+const studentRouteFallbackPathPattern =
+  /^\/(?:app\/)?(?:dashboard|pending|profile|courses|quizzes|exams|subscriptions|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review)(?:\/|$)/;
 const routeUi = {
   screenShell:
     'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5',
@@ -180,15 +182,29 @@ function RouteFallback() {
   );
 }
 
+function shouldUsePageLoaderOnly(pathname, user) {
+  const path = String(pathname || '');
+  if (/^\/app(?:\/|$)/.test(path)) return true;
+  if (/^\/admin(?:\/|$)/.test(path)) return false;
+  return user?.role === 'student' && studentRouteFallbackPathPattern.test(path);
+}
+
 function DelayedRouteFallback() {
+  const location = useLocation();
+  const user = useAuthStore((state) => state.user);
+  const pageLoaderOnly = shouldUsePageLoaderOnly(location.pathname, user);
   const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
+    if (pageLoaderOnly) {
+      setShowFallback(false);
+      return undefined;
+    }
     const timer = window.setTimeout(() => setShowFallback(true), ROUTE_FALLBACK_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [pageLoaderOnly]);
 
-  return showFallback ? <RouteFallback /> : null;
+  return !pageLoaderOnly && showFallback ? <RouteFallback /> : null;
 }
 
 function usePrefersReducedMotion() {
