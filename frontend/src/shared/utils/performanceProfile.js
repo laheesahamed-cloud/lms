@@ -72,7 +72,7 @@ export function applyPerformanceProfile() {
   const lowSpec = isLowSpecDevice();
   const balancedEffects = nativeRuntime || (!installedRuntime && shouldUseBalancedVisualEffects());
   const browserProfile = getBrowserPerformanceProfile();
-  root.toggleAttribute('data-low-spec', nativeRuntime || (!installedRuntime && lowSpec));
+  root.toggleAttribute('data-low-spec', lowSpec);
   root.dataset.visualEffects = balancedEffects ? 'balanced' : 'full';
   root.dataset.browserEngine = browserProfile.isSafari || browserProfile.isIOS
     ? 'webkit'
@@ -89,26 +89,54 @@ export function installMotionResourceGuards() {
 
   if (motionResourceGuardCleanup) return motionResourceGuardCleanup;
 
-  const syncMotionPauseState = () => {
-    const shouldPause = document.hidden;
+  const isPageHidden = () => document.hidden || document.visibilityState === 'hidden';
+
+  const setMotionPauseState = (shouldPause) => {
     document.documentElement.toggleAttribute('data-motion-paused', shouldPause);
     document.body?.classList.toggle('lms-motion-paused', shouldPause);
   };
 
+  const syncMotionPauseState = () => {
+    setMotionPauseState(isPageHidden());
+  };
+
   const pauseMotion = () => {
-    document.documentElement.toggleAttribute('data-motion-paused', true);
-    document.body?.classList.add('lms-motion-paused');
+    setMotionPauseState(true);
+  };
+
+  const resumeMotion = () => {
+    if (!isPageHidden()) {
+      setMotionPauseState(false);
+    }
+
+    window.requestAnimationFrame(() => {
+      if (!isPageHidden()) {
+        setMotionPauseState(false);
+      }
+    });
+
+    window.setTimeout(() => {
+      if (!isPageHidden()) {
+        setMotionPauseState(false);
+      }
+    }, 120);
   };
 
   document.addEventListener('visibilitychange', syncMotionPauseState, { passive: true });
+  document.addEventListener('resume', resumeMotion, { passive: true });
+  document.addEventListener('freeze', pauseMotion, { passive: true });
   window.addEventListener('pagehide', pauseMotion, { passive: true });
-  window.addEventListener('pageshow', syncMotionPauseState, { passive: true });
+  window.addEventListener('pageshow', resumeMotion, { passive: true });
+  window.addEventListener('focus', resumeMotion, { passive: true });
   syncMotionPauseState();
 
   motionResourceGuardCleanup = () => {
     document.removeEventListener('visibilitychange', syncMotionPauseState);
+    document.removeEventListener('resume', resumeMotion);
+    document.removeEventListener('freeze', pauseMotion);
     window.removeEventListener('pagehide', pauseMotion);
-    window.removeEventListener('pageshow', syncMotionPauseState);
+    window.removeEventListener('pageshow', resumeMotion);
+    window.removeEventListener('focus', resumeMotion);
     document.documentElement.removeAttribute('data-motion-paused');
     document.body?.classList.remove('lms-motion-paused');
     motionResourceGuardCleanup = null;
@@ -262,6 +290,6 @@ export function shouldPreloadRoutes() {
 
 export function getRoutePreloadLimit() {
   if (!shouldPreloadRoutes()) return 0;
-  if (isLowSpecDevice()) return 2;
-  return shouldUseBalancedVisualEffects() ? 3 : 5;
+  if (isLowSpecDevice()) return 1;
+  return shouldUseBalancedVisualEffects() ? 2 : 4;
 }

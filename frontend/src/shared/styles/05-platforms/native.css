@@ -391,55 +391,6 @@ html[data-lms-runtime="native"] :where(
   -webkit-backface-visibility: hidden;
 }
 
-:root[data-lms-runtime="native"][data-visual-effects] .animate-routeFade {
-  animation-name: nativeRouteFade !important;
-  animation-duration: 0.22s !important;
-  animation-timing-function: var(--lms-native-motion-enter) !important;
-  animation-fill-mode: both !important;
-  animation-iteration-count: 1 !important;
-}
-
-:root[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
-:root[data-lms-runtime="native"][data-visual-effects] body.app-ready .lms-route-reveal.animate-panelRouteFade {
-  animation-name: nativePanelRouteFade !important;
-  animation-duration: 0.20s !important;
-  animation-timing-function: var(--lms-native-motion-enter) !important;
-  animation-fill-mode: both !important;
-  animation-iteration-count: 1 !important;
-}
-
-:root[data-lms-runtime="native"][data-visual-effects] .animate-fadePop {
-  animation-name: nativeFadePop !important;
-  animation-duration: 0.22s !important;
-  animation-timing-function: var(--lms-native-motion-enter) !important;
-  animation-fill-mode: both !important;
-  animation-iteration-count: 1 !important;
-}
-
-:root[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn {
-  animation-name: nativeScaleIn !important;
-  animation-duration: 0.18s !important;
-  animation-timing-function: var(--lms-native-motion-enter) !important;
-  animation-fill-mode: both !important;
-  animation-iteration-count: 1 !important;
-}
-
-:root[data-lms-runtime="native"][data-visual-effects] .animate-dropdownIn {
-  animation-name: nativeDropdownIn !important;
-  animation-duration: 0.16s !important;
-  animation-timing-function: var(--ease-out, var(--lms-native-motion-enter)) !important;
-  animation-fill-mode: both !important;
-  animation-iteration-count: 1 !important;
-}
-
-:root[data-lms-runtime="native"][data-visual-effects] .animate-overlayIn {
-  animation-name: nativeOverlayIn !important;
-  animation-duration: 0.14s !important;
-  animation-timing-function: var(--ease-out, var(--lms-native-motion-enter)) !important;
-  animation-fill-mode: both !important;
-  animation-iteration-count: 1 !important;
-}
-
 @media (prefers-reduced-motion: reduce) {
   :root[data-lms-runtime="native"][data-visual-effects] .animate-routeFade,
   :root[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,

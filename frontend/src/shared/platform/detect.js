@@ -1,5 +1,8 @@
 const PHONE_MAX_WIDTH = 767;
 const TABLET_MIN_WIDTH = 768;
+const platformSyncSubscribers = new Set();
+let platformSyncCleanup = null;
+let lastPlatformSnapshot = '';
 
 function getWindow() {
   return typeof window !== 'undefined' ? window : null;
@@ -195,16 +198,62 @@ export function applyPlatformAttributes(platform = detectPlatform()) {
   return platform;
 }
 
+function getPlatformSnapshot(platform) {
+  return [
+    platform.runtime,
+    platform.os,
+    platform.formFactor,
+    platform.target,
+    platform.isPwa ? 'pwa' : 'browser',
+  ].join('|');
+}
+
+function notifyPlatformSubscribers(platform) {
+  platformSyncSubscribers.forEach((subscriber) => {
+    subscriber(platform);
+  });
+}
+
+function runPlatformSync() {
+  const platform = applyPlatformAttributes();
+  const snapshot = getPlatformSnapshot(platform);
+  if (snapshot === lastPlatformSnapshot) {
+    return { platform, notified: false };
+  }
+
+  lastPlatformSnapshot = snapshot;
+  notifyPlatformSubscribers(platform);
+  return { platform, notified: true };
+}
+
 export function installPlatformAttributeSync(onChange) {
   const win = getWindow();
   if (!win) return () => {};
 
+  if (typeof onChange === 'function') {
+    platformSyncSubscribers.add(onChange);
+  }
+
+  if (platformSyncCleanup) {
+    const { platform, notified } = runPlatformSync();
+    if (typeof onChange === 'function' && !notified) {
+      onChange(platform);
+    }
+    return () => {
+      platformSyncSubscribers.delete(onChange);
+      if (!platformSyncSubscribers.size && platformSyncCleanup) {
+        platformSyncCleanup();
+      }
+    };
+  }
+
+  const standaloneQuery = win.matchMedia?.('(display-mode: standalone)');
+  const overlayQuery = win.matchMedia?.('(display-mode: window-controls-overlay)');
   let frame = 0;
   const sync = () => {
-    cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => {
-      const platform = applyPlatformAttributes();
-      onChange?.(platform);
+    win.cancelAnimationFrame(frame);
+    frame = win.requestAnimationFrame(() => {
+      runPlatformSync();
     });
   };
 
@@ -213,16 +262,28 @@ export function installPlatformAttributeSync(onChange) {
   win.addEventListener('orientationchange', sync);
   win.addEventListener('pageshow', sync);
   win.visualViewport?.addEventListener?.('resize', sync);
-  win.matchMedia?.('(display-mode: standalone)')?.addEventListener?.('change', sync);
-  win.matchMedia?.('(display-mode: window-controls-overlay)')?.addEventListener?.('change', sync);
+  standaloneQuery?.addEventListener?.('change', sync);
+  overlayQuery?.addEventListener?.('change', sync);
 
-  return () => {
-    cancelAnimationFrame(frame);
+  platformSyncCleanup = () => {
+    win.cancelAnimationFrame(frame);
     win.removeEventListener('resize', sync);
     win.removeEventListener('orientationchange', sync);
     win.removeEventListener('pageshow', sync);
     win.visualViewport?.removeEventListener?.('resize', sync);
-    win.matchMedia?.('(display-mode: standalone)')?.removeEventListener?.('change', sync);
-    win.matchMedia?.('(display-mode: window-controls-overlay)')?.removeEventListener?.('change', sync);
+    standaloneQuery?.removeEventListener?.('change', sync);
+    overlayQuery?.removeEventListener?.('change', sync);
+    platformSyncSubscribers.clear();
+    platformSyncCleanup = null;
+    lastPlatformSnapshot = '';
+  };
+
+  runPlatformSync();
+
+  return () => {
+    platformSyncSubscribers.delete(onChange);
+    if (!platformSyncSubscribers.size && platformSyncCleanup) {
+      platformSyncCleanup();
+    }
   };
 }
