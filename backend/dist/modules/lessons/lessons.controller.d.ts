@@ -27,7 +27,7 @@ export declare class LessonsController {
             status: string;
         }[];
     }>;
-    findAdminList(search?: string, courseId?: string, topicId?: string, subtopicId?: string, status?: string): Promise<{
+    findAdminList(search?: string, courseId?: string, topicId?: string, subtopicId?: string, status?: string, limit?: string, page?: string, offset?: string): Promise<{
         id: number;
         courseId: number;
         topicId: number;
@@ -84,7 +84,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -97,7 +97,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -110,7 +110,7 @@ export declare class LessonsController {
         id: number;
         lessonId: number;
         userId: number;
-        type: "highlight" | "note";
+        type: "note" | "highlight";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -167,4 +167,6 @@ export declare class LessonsController {
         status: "active" | "inactive";
         workflowState: "draft" | "published";
     }>;
+    private parsePositiveNumber;
+    private parseNonNegativeNumber;
 }

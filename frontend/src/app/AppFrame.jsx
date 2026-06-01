@@ -38,6 +38,7 @@ const legacyProtectedPathPattern =
   /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 const adminRoutePattern = /^\/admin(?:\/|$)/;
 const authRoutePattern = /^\/(?:auth\/login|login)(?:\/|$)/;
+const authRecoveryRoutePattern = /^\/auth\/(?:forgot-password|reset-password)(?:\/|$)/;
 const launchPreviewRoutePattern = /^\/launch-preview\/(?:maintenance|coming-soon)(?:\/|$)/;
 
 function cx(...classes) {
@@ -111,52 +112,59 @@ function inferIconControlLabel(element) {
 function annotateComponentStateSemantics(root = document) {
   if (typeof document === 'undefined') return;
   const scope = root.querySelectorAll ? root : document;
+  const rootElement = scope instanceof Element ? scope : null;
+  const forEachMatch = (selector, callback) => {
+    if (rootElement?.matches(selector)) {
+      callback(rootElement);
+    }
+    scope.querySelectorAll(selector).forEach(callback);
+  };
 
-  scope.querySelectorAll('button svg:not([aria-hidden]):not([role="img"]), a svg:not([aria-hidden]):not([role="img"]), [role="button"] svg:not([aria-hidden]):not([role="img"])').forEach((element) => {
+  forEachMatch('button svg:not([aria-hidden]):not([role="img"]), a svg:not([aria-hidden]):not([role="img"]), [role="button"] svg:not([aria-hidden]):not([role="img"])', (element) => {
     if (!element.querySelector('title')) {
       element.setAttribute('aria-hidden', 'true');
       element.setAttribute('focusable', 'false');
     }
   });
 
-  scope.querySelectorAll('.lms-mobile-bottom-nav__icon, .lms-mobile-top-nav__icon').forEach((element) => {
+  forEachMatch('.lms-mobile-bottom-nav__icon, .lms-mobile-top-nav__icon', (element) => {
     if (!element.hasAttribute('aria-hidden')) element.setAttribute('aria-hidden', 'true');
   });
 
-  scope.querySelectorAll('button:not([aria-label]):not([aria-labelledby]), a[href]:not([aria-label]):not([aria-labelledby]), [role="button"]:not([aria-label]):not([aria-labelledby])').forEach((element) => {
+  forEachMatch('button:not([aria-label]):not([aria-labelledby]), a[href]:not([aria-label]):not([aria-labelledby]), [role="button"]:not([aria-label]):not([aria-labelledby])', (element) => {
     const inferredLabel = inferIconControlLabel(element);
     if (inferredLabel) {
       element.setAttribute('aria-label', inferredLabel);
     }
   });
 
-  scope.querySelectorAll('img:not([alt])').forEach((element) => {
+  forEachMatch('img:not([alt])', (element) => {
     const isMedicalContentImage = element.closest('.lms-medical-image-frame, .lms-reading-question, .lms-reading-answer');
     element.setAttribute('alt', isMedicalContentImage ? 'Question image: no description provided.' : '');
   });
 
-  scope.querySelectorAll('.lms-alert-error').forEach((element) => {
+  forEachMatch('.lms-alert-error', (element) => {
     if (!element.hasAttribute('role')) element.setAttribute('role', 'alert');
     if (!element.hasAttribute('aria-live')) element.setAttribute('aria-live', 'assertive');
   });
 
-  scope.querySelectorAll('.lms-alert-success, .lms-alert-warning, .lms-alert-info, .lms-toast').forEach((element) => {
+  forEachMatch('.lms-alert-success, .lms-alert-warning, .lms-alert-info, .lms-toast', (element) => {
     if (!element.hasAttribute('role')) element.setAttribute('role', 'status');
     if (!element.hasAttribute('aria-live')) element.setAttribute('aria-live', 'polite');
   });
 
-  scope.querySelectorAll('.lms-empty-state, .lms-table-empty').forEach((element) => {
+  forEachMatch('.lms-empty-state, .lms-table-empty', (element) => {
     if (!element.hasAttribute('role')) element.setAttribute('role', 'status');
     if (!element.hasAttribute('aria-live')) element.setAttribute('aria-live', 'polite');
   });
 
-  scope.querySelectorAll('.lms-table-shell').forEach((element) => {
+  forEachMatch('.lms-table-shell', (element) => {
     if (!element.hasAttribute('role')) element.setAttribute('role', 'region');
     if (!element.hasAttribute('aria-label')) element.setAttribute('aria-label', 'Scrollable data table');
     if (!element.hasAttribute('tabindex')) element.setAttribute('tabindex', '0');
   });
 
-  scope.querySelectorAll('.lms-modal-panel').forEach((element) => {
+  forEachMatch('.lms-modal-panel', (element) => {
     if (PLATFORM.isNative) {
       element.classList.add('lms-native-modal');
     }
@@ -179,7 +187,7 @@ function annotateComponentStateSemantics(root = document) {
     }
   });
 
-  scope.querySelectorAll('[role="progressbar"]').forEach((element) => {
+  forEachMatch('[role="progressbar"]', (element) => {
     if (!element.hasAttribute('aria-valuemin')) element.setAttribute('aria-valuemin', '0');
     if (!element.hasAttribute('aria-valuemax')) element.setAttribute('aria-valuemax', '100');
     if (!element.hasAttribute('aria-label') && !element.hasAttribute('aria-labelledby')) {
@@ -187,7 +195,7 @@ function annotateComponentStateSemantics(root = document) {
     }
   });
 
-  scope.querySelectorAll('[role="tablist"]').forEach((tablist) => {
+  forEachMatch('[role="tablist"]', (tablist) => {
     const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
     tabs.forEach((tab) => {
       const selected = tab.getAttribute('aria-selected') === 'true';
@@ -195,7 +203,7 @@ function annotateComponentStateSemantics(root = document) {
     });
   });
 
-  scope.querySelectorAll('.lms-mobile-bottom-nav__tab').forEach((element) => {
+  forEachMatch('.lms-mobile-bottom-nav__tab', (element) => {
     if (element.classList.contains('is-active')) {
       element.setAttribute('aria-current', 'page');
     } else if (element.getAttribute('aria-current') === 'page') {
@@ -469,7 +477,7 @@ function syncAppScrollContract() {
     setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
   });
 
-  document.querySelectorAll('.portal-shell, .portal-content, .portal-content__frame, .motion-smooth, .lms-route-page, .student-route-page').forEach((element) => {
+  document.querySelectorAll('.portal-shell, .portal-content, .portal-content__frame, .lms-route-page, .student-route-page').forEach((element) => {
     setStyleIfChanged(element, 'height', 'auto');
     setStyleIfChanged(element, 'minHeight', '100%');
     setStyleIfChanged(element, 'maxHeight', 'none');
@@ -546,11 +554,28 @@ export function AppFrame() {
     }
 
     let annotationFrame = 0;
+    const pendingAnnotationRoots = new Set();
+
+    function addAnnotationRoot(node) {
+      if (!(node instanceof Element)) return;
+      pendingAnnotationRoots.add(node);
+      if (pendingAnnotationRoots.size > 80) {
+        pendingAnnotationRoots.clear();
+        pendingAnnotationRoots.add(document);
+      }
+    }
+
     function scheduleAnnotation() {
       if (annotationFrame) return;
       annotationFrame = window.requestAnimationFrame(() => {
         annotationFrame = 0;
-        annotateComponentStateSemantics(document);
+        const roots = Array.from(pendingAnnotationRoots);
+        pendingAnnotationRoots.clear();
+        roots.forEach((root) => {
+          if (root === document || root.isConnected) {
+            annotateComponentStateSemantics(root);
+          }
+        });
       });
     }
 
@@ -597,7 +622,19 @@ export function AppFrame() {
     }
 
     annotateComponentStateSemantics(document);
-    const observer = PLATFORM.isNative ? null : new MutationObserver(scheduleAnnotation);
+    const observer = PLATFORM.isNative ? null : new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => addAnnotationRoot(node));
+          if (mutation.target instanceof Element) {
+            addAnnotationRoot(mutation.target);
+          }
+          return;
+        }
+        addAnnotationRoot(mutation.target);
+      });
+      scheduleAnnotation();
+    });
     observer?.observe(document.body, {
       attributes: true,
       attributeFilter: ['class', 'role', 'aria-selected'],
@@ -614,6 +651,7 @@ export function AppFrame() {
       if (annotationFrame) {
         window.cancelAnimationFrame(annotationFrame);
       }
+      pendingAnnotationRoots.clear();
     };
   }, []);
 
@@ -902,6 +940,7 @@ export function AppFrame() {
   }, [location.pathname, location.search]);
 
   const isLaunchPreviewRoute = launchPreviewRoutePattern.test(location.pathname);
+  const isAuthRecoveryRoute = authRecoveryRoutePattern.test(location.pathname);
   const isAdminRoute = adminRoutePattern.test(location.pathname);
   const allowAdminLogin = isAdminLoginBypass(location.pathname, location.search);
   const staffCanBypassLaunchMode = isStaffUser(user);
@@ -930,6 +969,12 @@ export function AppFrame() {
     !isAdminRoute &&
     !allowAdminLogin;
   const shouldShowLaunchMode = showMaintenance || showComingSoon;
+  const shouldSuppressMarketingPopup =
+    isCheckingLaunchAccess ||
+    showMaintenance ||
+    showComingSoon ||
+    isLaunchPreviewRoute ||
+    isAuthRecoveryRoute;
 
   useEffect(() => {
     if (!shouldShowLaunchMode || isLaunchPreviewRoute || location.pathname === '/') return;
@@ -957,7 +1002,7 @@ export function AppFrame() {
             {routeContent}
           </div>
         </div>
-        <MarketingPopupAlert suppressed={isCheckingLaunchAccess || showMaintenance || showComingSoon || isLaunchPreviewRoute} />
+        <MarketingPopupAlert suppressed={shouldSuppressMarketingPopup} />
       </>
     );
   }
@@ -971,7 +1016,7 @@ export function AppFrame() {
           {routeContent}
         </div>
       </div>
-      <MarketingPopupAlert suppressed={isCheckingLaunchAccess || showMaintenance || showComingSoon || isLaunchPreviewRoute} />
+      <MarketingPopupAlert suppressed={shouldSuppressMarketingPopup} />
     </>
   );
 }

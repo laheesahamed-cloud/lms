@@ -1,0 +1,866 @@
+[
+  {
+    "label": "dashboard",
+    "route": "/app/dashboard",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/desktop-dashboard.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/dashboard",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content DAILY FOCUS Study Hub 4 CONTINUE WHERE YOU LEFT OFF Welcome back, laheez Next study move - PRACTICE Medicine Cardiology · 17% ready Resume practice STUDY STATUS Practice in progress You have attempted several practice sets. Review mistakes before starting more. Based on today’s activity 4 Courses 10% lessons 17% Readiness Avg. readiness 0 Streak Keep it going COURSE PROGRESS 10% overall Courses 10% 1/10 completed lessons from the course page source Gynacology and Obstetrics 0/2 lessons · ERPM 0% Peadiatrics 0/1 lessons · ERPM 0% Surgery 0/0 lessons · ERPM 0% EXAM COUNTDOWN No exam scheduled Exams -- NO DATE SET Add an exam task in Planner to show a server-date countdown. Server date 2026-06-01 · Europe/Minsk DAILY STREAK Start your first streak today 0 DAYS M T W T F S S Past 4 weeks · 0 active days View history > Quick actions Exams Planner Q-Bank Notes Bookmarks Weak areas STUDY PLAN Today's route Planner PRACTICE Answer questions on Hematology Medicine 1 REVIEW ",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "laheez",
+          "cls": "study-hero-name-nowrap"
+        },
+        {
+          "text": "17%",
+          "cls": "STRONG"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "sr-only"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "h": [
+        "Study Hub",
+        "Metabolic diseses"
+      ],
+      "cards": 26,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "courses",
+    "route": "/app/courses",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/desktop-courses.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/courses",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content STUDY LIBRARY Courses 4 AVAILABLE COURSES CHOOSE A COURSE 4 courses Gynacology and Obstetrics READY 2 lessons · 0 done · 2 left 0% Medicine IN PROGRESS 7 lessons · 1 done · 6 left 14% Peadiatrics READY 1 lessons · 0 done · 1 left 0% Surgery READY 0 lessons · 0 done · No lessons yet 0% xyndrome yndrome Student Portal Study Hub Courses Planner Lessons Flashcards Q-Bank Exams Results Saved Subscriptions L laheez Medical Student",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "sr-only"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "h": [
+        "Courses",
+        "CHOOSE A COURSE",
+        "Gynacology and Obstetrics",
+        "Medicine",
+        "Peadiatrics",
+        "Surgery"
+      ],
+      "cards": 22,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "q-bank",
+    "route": "/app/quizzes",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/desktop-q-bank.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/quizzes",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content PRACTICE QUESTION SETS Q-Bank 4 CHOOSE A COURSE 9 practice sets available 2 courses Medicine 4 subjects 8 SETS Surgery 1 subject 1 SETS xyndrome yndrome Student Portal Study Hub Courses Planner Lessons Flashcards Q-Bank Exams Results Saved Subscriptions L laheez Medical Student",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "PRACTICE QUESTION SETS Q-Bank 4 CHOOSE A COURSE 9 practice sets available 2 courses Medicine 4 subjects 8 SETS Surgery 1",
+          "cls": "portal-content__frame min-h-full"
+        },
+        {
+          "text": "PRACTICE QUESTION SETS Q-Bank 4 CHOOSE A COURSE 9 practice sets available 2 courses Medicine 4 subjects 8 SETS Surgery 1",
+          "cls": "min-h-full overflow-x-hidden"
+        },
+        {
+          "text": "PRACTICE QUESTION SETS Q-Bank 4 CHOOSE A COURSE 9 practice sets available 2 courses Medicine 4 subjects 8 SETS Surgery 1",
+          "cls": "lms-route-reveal motion-smooth animate-panelRouteFade"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "sr-only"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "h": [
+        "Q-Bank",
+        "CHOOSE A COURSE"
+      ],
+      "cards": 16,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "exams",
+    "route": "/app/exams",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/desktop-exams.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/exams",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content TIMED EXAM SETS Exams 4 CHOOSE A COURSE 9 exam sets available 2 courses Medicine 4 subjects 8 EXAMS Surgery 1 subject 1 EXAMS xyndrome yndrome Student Portal Study Hub Courses Planner Lessons Flashcards Q-Bank Exams Results Saved Subscriptions L laheez Medical Student",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "TIMED EXAM SETS Exams 4 CHOOSE A COURSE 9 exam sets available 2 courses Medicine 4 subjects 8 EXAMS Surgery 1 subject 1 ",
+          "cls": "portal-content__frame min-h-full"
+        },
+        {
+          "text": "TIMED EXAM SETS Exams 4 CHOOSE A COURSE 9 exam sets available 2 courses Medicine 4 subjects 8 EXAMS Surgery 1 subject 1 ",
+          "cls": "min-h-full overflow-x-hidden"
+        },
+        {
+          "text": "TIMED EXAM SETS Exams 4 CHOOSE A COURSE 9 exam sets available 2 courses Medicine 4 subjects 8 EXAMS Surgery 1 subject 1 ",
+          "cls": "lms-route-reveal motion-smooth animate-panelRouteFade"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "sr-only"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "h": [
+        "Exams",
+        "CHOOSE A COURSE"
+      ],
+      "cards": 16,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "results",
+    "route": "/app/results",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/desktop-results.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/results",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content PERFORMANCE Results 4 21% avg PERFORMANCE Your exam score trend Recent performance shape from your exam attempts. 25 Attempts 7 Passed 20.9% Average LAST ATTEMPTS Newest performance shape, from left to right. Focus areas Weak topics and repeated mistake patterns from your recent attempts. WEAK TOPICS 0% Hematology Medicine • 3 attempts 15% Cardiology Medicine • 9 attempts 33% Rheumatology Medicine • 12 attempts MISSED PATTERNS x10 Rheumatology Medicine • True/false accuracy x5 Rheumatology Medicine • Answer selection x3 Cardiology Medicine • Answer selection Attempt history Exam attempts, scores, submitted time, and review status. ATTEMPT DATE SCORE STATUS Exam attempt #85 Medicine • Cardiology 11 May 0% 0/2 NEEDS REVIEW Exam attempt #81 Medicine • Cardiology 6 May 0% NEEDS REVIEW Exam attempt #80 Medicine • Cardiology 6 May 0% NEEDS REVIEW Exam attempt #77 Medicine • Hematology 1 May 0% NEEDS REVIEW Exam attempt #76 Medicine • Cardiology 30 Apr 0% 0/2 NEEDS REVIEW",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "20.9%",
+          "cls": "STRONG"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "sr-only"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "h": [
+        "Results",
+        "Your exam score trend",
+        "Focus areas",
+        "Attempt history"
+      ],
+      "cards": 18,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "flashcards",
+    "route": "/app/flashcards",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/desktop-flashcards.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/flashcards",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content All Due New Learning Flagged Mastered Flashcard decks Anki-style flashcard deck hierarchy ordered by LMS course, subject, topic, and lesson. DECK NEW LEARN DUE Gynacology and Obstetrics 0 0 0 Medicine 200 0 0 Peadiatrics 16 0 0 xyndrome yndrome Student Portal Study Hub Courses Planner Lessons Flashcards Q-Bank Exams Results Saved Subscriptions L laheez Medical Student",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Flashcard decks",
+          "cls": "sr-only"
+        },
+        {
+          "text": "Anki-style flashcard deck hierarchy ordered by LMS course, subject, topic, and lesson.",
+          "cls": "sr-only"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "sr-only"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "h": [
+        "Flashcard decks"
+      ],
+      "cards": 9,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "notes",
+    "route": "/app/notes",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/desktop-notes.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/notes",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content STUDY NOTEBOOK Notes 4 Lesson notebooks 12 lesson notebook(s) ready Close Medicine 3 topic(s) − Toxicology 5 notebook(s) − Organophosphate Poison Included with selected plans Organophosphate Poison Included with selected plans Paracetamol Poison Included with selected plans Paracetamol Poison Included with selected plans Paracetamol Poison Included with selected plans Cardiology 3 notebook(s) − valvular heart disease FREE LESSON Mital stenosis Mital stenosis Included with selected plans Heart failiure Included with selected plans Hematology 1 notebook(s) − lukemia Included with selected plans Gynacology and Obstetrics 1 topic(s) − General lessons 2 notebook(s) − Overview Included with selected plans Overview FREE LESSON sdcsdvsdv Peadiatrics 1 topic(s) − General lessons 1 notebook(s) − Overview Included with selected plans STUDY VIEW sdcsdvsdv Gynacology and Obstetrics • General lessons • Overview Lesson Notebooks Watch Video Study Only Open Workspace READER TOOLS ",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Cardiology 3 notebook(s) − valvular heart disease FREE LESSON Mital stenosis Mital stenosis Included with selected plans",
+          "cls": "flex flex-col gap-2.5"
+        },
+        {
+          "text": "Mitral Stenosis (MS) Mitral stenosis is a condition in which the mitral valve opening is narrowed, restricting blood flo",
+          "cls": "flex gap-2 overflow-x-auto rounded-xl border border-line-soft bg-surface-glass-subtle p-2 shadow-none"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "sr-only"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "h": [
+        "Notes",
+        "Lesson notebooks",
+        "sdcsdvsdv"
+      ],
+      "cards": 15,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "subscriptions",
+    "route": "/app/subscriptions",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/desktop-subscriptions.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/subscriptions",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content PLAN ACCESS Subscriptions 4 Current subscription Your Free Plan access is active without payment or expiry details. Free Your LMS Free Plan is active FREE PLAN Unlimited days Free Plan access stays active. No payment, renewal, or countdown is needed for this plan. Recommended plans Pick by study timeline. Complete Prep is the best fit for most ERPM students. Compare plans Create custom plan Trial 29% off Quick Revision 7 days of all-subject MCQ, quizzes, and exam practice for fast revision. LKR 990.00 / 7 days Regular LKR 1390.00 ✓ Courses access ✓ Exam mode ✓ Mock paper access Choose plan Starter 25% off Monthly Prep 1 month of all-subject lessons, notes, MCQs, quizzes, practice, and exam mode. LKR 3990.00 / 30 days Regular LKR 5290.00 ✓ Courses access ✓ Exam mode ✓ Full lessons access Choose plan Most Popular 24% off Complete Prep 3 months of complete ERPM preparation. Best for most serious students. LKR 8990.00 / 90 days Regular LKR 11890.00 ✓ Courses access ✓ E",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "7 days of all-subject MCQ, quizzes, and exam practice for fast revision.",
+          "cls": "m-0 mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12.5px]"
+        },
+        {
+          "text": "LKR 990.00",
+          "cls": "text-2xl font-extrabold leading-none text-ink-strong max-[520px]:text-[22px]"
+        },
+        {
+          "text": "1 month of all-subject lessons, notes, MCQs, quizzes, practice, and exam mode.",
+          "cls": "m-0 mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12.5px]"
+        },
+        {
+          "text": "LKR 3990.00",
+          "cls": "text-2xl font-extrabold leading-none text-ink-strong max-[520px]:text-[22px]"
+        },
+        {
+          "text": "3 months of complete ERPM preparation. Best for most serious students.",
+          "cls": "m-0 mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12.5px]"
+        },
+        {
+          "text": "LKR 8990.00",
+          "cls": "text-2xl font-extrabold leading-none text-ink-strong max-[520px]:text-[22px]"
+        },
+        {
+          "text": "6 months of complete preparation with the best long-term value.",
+          "cls": "m-0 mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12.5px]"
+        },
+        {
+          "text": "LKR 14990.00",
+          "cls": "text-2xl font-extrabold leading-none text-ink-strong max-[520px]:text-[22px]"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "sr-only"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "h": [
+        "Subscriptions",
+        "Current subscription",
+        "Free",
+        "Recommended plans",
+        "Quick Revision",
+        "Monthly Prep",
+        "Complete Prep",
+        "Master Prep",
+        "Plan comparison",
+        "Quick Revision",
+        "Monthly Prep",
+        "Complete Prep"
+      ],
+      "cards": 16,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "notifications",
+    "route": "/app/notifications",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/desktop-notifications.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/notifications",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content MESSAGE INBOX Notifications 4 ANNOUNCEMENT Unread May 23, 05:20 AM ERPM LMS iojoijnnmnkjnkj Mark read ANNOUNCEMENT Unread May 23, 05:20 AM ERPM LMS iojoijnn Mark read ANNOUNCEMENT Unread May 23, 03:49 AM ERPM LMS mn mn mn kjnbkjnk Mark read ANNOUNCEMENT Unread May 23, 03:35 AM nlknlk knlknlk Mark read SUBSCRIPTION May 22, 12:40 PM Free active Payment: Free Plan Open WEAK-TOPIC May 1, 09:38 PM Review Hematology Medicine is averaging 0.0%. Add one focused practice round today. Open xyndrome yndrome Student Portal Study Hub Courses Planner Lessons Flashcards Q-Bank Exams Results Saved Subscriptions L laheez Medical Student",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "sr-only"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "h": [
+        "Notifications",
+        "ERPM LMS",
+        "ERPM LMS",
+        "ERPM LMS",
+        "nlknlk",
+        "Free active",
+        "Review Hematology"
+      ],
+      "cards": 14,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "dashboard",
+    "route": "/app/dashboard",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/mobile-dashboard.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/dashboard",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content DAILY FOCUS Study Hub 4 CONTINUE WHERE YOU LEFT OFF Welcome back, laheez Next study move - PRACTICE Medicine Cardiology · 17% ready Resume practice 4 Courses 10% lessons 17% Readiness Avg. readiness 0 Streak Keep it going COURSE PROGRESS 10% overall Courses 10% 1/10 completed lessons from the course page source Gynacology and Obstetrics 0/2 lessons · ERPM 0% Peadiatrics 0/1 lessons · ERPM 0% Surgery 0/0 lessons · ERPM 0% EXAM COUNTDOWN No exam scheduled Exams -- NO DATE SET Add an exam task in Planner to show a server-date countdown. Server date 2026-06-01 · Europe/Minsk DAILY STREAK Start your first streak today 0 DAYS M T W T F S S Past 4 weeks · 0 active days View history > Quick actions Exams Planner Q-Bank Notes Bookmarks Weak areas STUDY PLAN Today's route Planner PRACTICE Answer questions on Hematology Medicine 1 REVIEW Review your latest answers Medicine / Cardiology 2 LESSON PARACETAMOL POISONING Medicine / Hematology 3 UPCOMING TASKS Sorted by urgency Pla",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "CONTINUE WHERE YOU LEFT OFF Welcome back, laheez Next study move - PRACTICE Medicine Cardiology · 17% ready Resume pract",
+          "cls": "study-continue-card__copy"
+        },
+        {
+          "text": "Welcome back, laheez",
+          "cls": "study-hero-name"
+        },
+        {
+          "text": "Welcome back,",
+          "cls": "study-hero-greeting"
+        },
+        {
+          "text": "Next study move - PRACTICE",
+          "cls": "study-hero-lead"
+        },
+        {
+          "text": "4 Courses 10% lessons",
+          "cls": "study-metric study-metric--cyan"
+        },
+        {
+          "text": "17% Readiness Avg. readiness",
+          "cls": "study-metric study-metric--violet"
+        },
+        {
+          "text": "17%",
+          "cls": "STRONG"
+        },
+        {
+          "text": "0 Streak Keep it going",
+          "cls": "study-metric study-metric--amber"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h": [
+        "Study Hub",
+        "Metabolic diseses"
+      ],
+      "cards": 22,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "courses",
+    "route": "/app/courses",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/mobile-courses.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/courses",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content STUDY LIBRARY Courses 4 AVAILABLE COURSES CHOOSE A COURSE 4 courses Gynacology and Obstetrics READY 2 lessons · 0 done · 2 left 0% Medicine IN PROGRESS 7 lessons · 1 done · 6 left 14% Peadiatrics READY 1 lessons · 0 done · 1 left 0% Surgery READY 0 lessons · 0 done · No lessons yet 0% Courses Q-Bank Study Hub Lessons Results",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h": [
+        "Courses",
+        "CHOOSE A COURSE",
+        "Gynacology and Obstetrics",
+        "Medicine",
+        "Peadiatrics",
+        "Surgery"
+      ],
+      "cards": 21,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "q-bank",
+    "route": "/app/quizzes",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/mobile-q-bank.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/quizzes",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content PRACTICE QUESTION SETS Q-Bank 4 CHOOSE A COURSE 9 practice sets available 2 courses Medicine 4 subjects 8 SETS Surgery 1 subject 1 SETS Courses Q-Bank Study Hub Lessons Results",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "PRACTICE QUESTION SETS Q-Bank 4 CHOOSE A COURSE 9 practice sets available 2 courses Medicine 4 subjects 8 SETS Surgery 1",
+          "cls": "lms-route-reveal motion-smooth animate-panelRouteFade"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h": [
+        "Q-Bank",
+        "CHOOSE A COURSE"
+      ],
+      "cards": 15,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "exams",
+    "route": "/app/exams",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/mobile-exams.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/exams",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content TIMED EXAM SETS Exams 4 CHOOSE A COURSE 9 exam sets available 2 courses Medicine 4 subjects 8 EXAMS Surgery 1 subject 1 EXAMS Courses Q-Bank Study Hub Lessons Results",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "TIMED EXAM SETS Exams 4 CHOOSE A COURSE 9 exam sets available 2 courses Medicine 4 subjects 8 EXAMS Surgery 1 subject 1 ",
+          "cls": "lms-route-reveal motion-smooth animate-panelRouteFade"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h": [
+        "Exams",
+        "CHOOSE A COURSE"
+      ],
+      "cards": 15,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "results",
+    "route": "/app/results",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/mobile-results.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/results",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content PERFORMANCE Results 4 21% avg PERFORMANCE Your exam score trend Recent performance shape from your exam attempts. 25 Attempts 7 Passed 20.9% Average LAST ATTEMPTS Newest performance shape, from left to right. Focus areas Weak topics and repeated mistake patterns from your recent attempts. WEAK TOPICS 0% Hematology Medicine • 3 attempts 15% Cardiology Medicine • 9 attempts 33% Rheumatology Medicine • 12 attempts MISSED PATTERNS x10 Rheumatology Medicine • True/false accuracy x5 Rheumatology Medicine • Answer selection x3 Cardiology Medicine • Answer selection Attempt history Exam attempts, scores, submitted time, and review status. ATTEMPT SCORE Exam attempt #85 Medicine • Cardiology 11 May 0% 0/2 NEEDS REVIEW Exam attempt #81 Medicine • Cardiology 6 May 0% NEEDS REVIEW Exam attempt #80 Medicine • Cardiology 6 May 0% NEEDS REVIEW Exam attempt #77 Medicine • Hematology 1 May 0% NEEDS REVIEW Exam attempt #76 Medicine • Cardiology 30 Apr 0% 0/2 NEEDS REVIEW Exam attemp",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "20.9%",
+          "cls": "STRONG"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h": [
+        "Results",
+        "Your exam score trend",
+        "Focus areas",
+        "Attempt history"
+      ],
+      "cards": 11,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "flashcards",
+    "route": "/app/flashcards",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/mobile-flashcards.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/flashcards",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content All Due New Learning Flagged Mastered Flashcard decks Anki-style flashcard deck hierarchy ordered by LMS course, subject, topic, and lesson. DECK NEW LEARN DUE Gynacology and Obstetrics 0 0 0 Medicine 200 0 0 Peadiatrics 16 0 0 Courses Q-Bank Study Hub Lessons Results",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "All Due New Learning Flagged Mastered",
+          "cls": "flex gap-2 overflow-x-auto pb-1"
+        },
+        {
+          "text": "Flashcard decks",
+          "cls": "sr-only"
+        },
+        {
+          "text": "Anki-style flashcard deck hierarchy ordered by LMS course, subject, topic, and lesson.",
+          "cls": "sr-only"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h": [
+        "Flashcard decks"
+      ],
+      "cards": 8,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "notes",
+    "route": "/app/notes",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/mobile-notes.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/notes",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content STUDY NOTEBOOK Notes 4 STUDY VIEW Lesson Notebooks Watch Video Study Only Open Workspace READER TOOLS Outline, recall tape, and reading density for focused study. Outline Recall tape Compact Mitral Stenosis (MS) Mitral stenosis is a condition in which the mitral valve opening is narrowed, restricting blood flow from the left atrium to the left ventricle. Mitral Stenosis (MS) Mitral stenosis is a condition in which the mitral valve opening is narrowed, restricting blood flow from the left atrium to the left ventricle. Causes: * Most commonly due to rheumatic fever * Congenital abnormalities (rare) * Calcification of the mitral valve (in elderly) Pathophysiology: Narrowing of the mitral valve → increased left atrial pressure → left atrial enlargement → pulmonary congestion → pulmonary hypertension → right-sided heart failure (in advanced cases) Symptoms: * Shortness of breath (especially on exertion) * Orthopnea and paroxysmal nocturnal dyspnea * Fatigue * Palpitatio",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Mitral Stenosis (MS) Mitral stenosis is a condition in which the mitral valve opening is narrowed, restricting blood flo",
+          "cls": "flex gap-2 overflow-x-auto rounded-xl border border-line-soft bg-surface-glass-subtle p-2 shadow-none"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h": [
+        "Notes",
+        "Lesson notebooks",
+        "sdcsdvsdv"
+      ],
+      "cards": 13,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "subscriptions",
+    "route": "/app/subscriptions",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/mobile-subscriptions.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/subscriptions",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content PLAN ACCESS Subscriptions 4 Current subscription Your Free Plan access is active without payment or expiry details. Free Your LMS Free Plan is active FREE PLAN Unlimited days Free Plan access stays active. No payment, renewal, or countdown is needed for this plan. Recommended plans Pick by study timeline. Complete Prep is the best fit for most ERPM students. Compare plans Create custom plan Trial 29% off Quick Revision 7 days of all-subject MCQ, quizzes, and exam practice for fast revision. LKR 990.00 / 7 days Regular LKR 1390.00 ✓ Courses access ✓ Exam mode ✓ Mock paper access Choose plan Starter 25% off Monthly Prep 1 month of all-subject lessons, notes, MCQs, quizzes, practice, and exam mode. LKR 3990.00 / 30 days Regular LKR 5290.00 ✓ Courses access ✓ Exam mode ✓ Full lessons access Choose plan Most Popular 24% off Complete Prep 3 months of complete ERPM preparation. Best for most serious students. LKR 8990.00 / 90 days Regular LKR 11890.00 ✓ Courses access ✓ E",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "1 month of all-subject lessons, notes, MCQs, quizzes, practice, and exam mode.",
+          "cls": "m-0 mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12.5px]"
+        },
+        {
+          "text": "3 months of complete ERPM preparation. Best for most serious students.",
+          "cls": "m-0 mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-soft max-[520px]:text-[12.5px]"
+        },
+        {
+          "text": "LKR 14990.00",
+          "cls": "text-2xl font-extrabold leading-none text-ink-strong max-[520px]:text-[22px]"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h": [
+        "Subscriptions",
+        "Current subscription",
+        "Free",
+        "Recommended plans",
+        "Quick Revision",
+        "Monthly Prep",
+        "Complete Prep",
+        "Master Prep",
+        "Plan comparison",
+        "Quick Revision",
+        "Monthly Prep",
+        "Complete Prep"
+      ],
+      "cards": 15,
+      "modalCount": 2
+    }
+  },
+  {
+    "label": "notifications",
+    "route": "/app/notifications",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan-auth/mobile-notifications.png",
+    "metrics": {
+      "url": "http://127.0.0.1:5174/lms/notifications",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content MESSAGE INBOX Notifications 4 ANNOUNCEMENT Unread May 23, 05:20 AM ERPM LMS iojoijnnmnkjnkj Mark read ANNOUNCEMENT Unread May 23, 05:20 AM ERPM LMS iojoijnn Mark read ANNOUNCEMENT Unread May 23, 03:49 AM ERPM LMS mn mn mn kjnbkjnk Mark read ANNOUNCEMENT Unread May 23, 03:35 AM nlknlk knlknlk Mark read SUBSCRIPTION May 22, 12:40 PM Free active Payment: Free Plan Open WEAK-TOPIC May 1, 09:38 PM Review Hematology Medicine is averaging 0.0%. Add one focused practice round today. Open Courses Q-Bank Study Hub Lessons Results",
+      "overflowX": 0,
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h": [
+        "Notifications",
+        "ERPM LMS",
+        "ERPM LMS",
+        "ERPM LMS",
+        "nlknlk",
+        "Free active",
+        "Review Hematology"
+      ],
+      "cards": 12,
+      "modalCount": 2
+    }
+  }
+]

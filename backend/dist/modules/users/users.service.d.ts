@@ -1,4 +1,5 @@
 import { Pool } from 'mysql2/promise';
+import { PaginationInput } from '../../common/utils/pagination';
 import { UserRole } from '../auth/role-permissions';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -15,7 +16,7 @@ export declare class UsersService {
         search?: string;
         status?: string;
         role?: string;
-    }): Promise<{
+    } & PaginationInput): Promise<{
         id: number;
         fullName: string;
         email: string;

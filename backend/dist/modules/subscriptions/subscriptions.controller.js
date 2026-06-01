@@ -33,7 +33,7 @@ let SubscriptionsController = class SubscriptionsController {
         await this.authService.requireAdmin(authorization);
         return this.subscriptionsService.getAdminMeta();
     }
-    async defaultList(authorization) {
+    async defaultList(authorization, limit, page, offset) {
         const user = await this.authService.requireAuthenticatedUser(authorization);
         if ((0, role_permissions_1.isStaffRole)(user.role)) {
             if (user.status !== 'active') {
@@ -42,13 +42,21 @@ let SubscriptionsController = class SubscriptionsController {
             if (!(0, role_permissions_1.roleHasPermission)(user.role, 'subscriptions.manage')) {
                 throw new common_1.ForbiddenException('Your role does not have permission for this action');
             }
-            return this.subscriptionsService.findAdminList();
+            return this.subscriptionsService.findAdminList({
+                limit: this.parsePositiveNumber(limit),
+                page: this.parsePositiveNumber(page),
+                offset: this.parseNonNegativeNumber(offset),
+            });
         }
         return this.subscriptionsService.getStudentBilling(user.id);
     }
-    async findAdminList(authorization) {
+    async findAdminList(authorization, limit, page, offset) {
         await this.authService.requireAdmin(authorization);
-        return this.subscriptionsService.findAdminList();
+        return this.subscriptionsService.findAdminList({
+            limit: this.parsePositiveNumber(limit),
+            page: this.parsePositiveNumber(page),
+            offset: this.parseNonNegativeNumber(offset),
+        });
     }
     async findAdminRequests(authorization) {
         await this.authService.requireAdmin(authorization);
@@ -130,6 +138,20 @@ let SubscriptionsController = class SubscriptionsController {
         const student = await this.authService.requireStudent(authorization);
         return this.subscriptionsService.getStudentBilling(student.id);
     }
+    parsePositiveNumber(raw) {
+        const value = Number(raw);
+        if (!Number.isFinite(value) || value <= 0) {
+            return undefined;
+        }
+        return Math.trunc(value);
+    }
+    parseNonNegativeNumber(raw) {
+        const value = Number(raw);
+        if (!Number.isFinite(value) || value < 0) {
+            return undefined;
+        }
+        return Math.trunc(value);
+    }
 };
 exports.SubscriptionsController = SubscriptionsController;
 __decorate([
@@ -143,16 +165,22 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)('page')),
+    __param(3, (0, common_1.Query)('offset')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "defaultList", null);
 __decorate([
     (0, common_1.Get)('admin'),
     (0, permissions_decorator_1.RequirePermissions)('subscriptions.manage'),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)('page')),
+    __param(3, (0, common_1.Query)('offset')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "findAdminList", null);
 __decorate([

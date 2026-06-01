@@ -14,7 +14,8 @@ export function ResetPasswordPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    const fd = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const fd = new FormData(formElement);
     setStatus({ loading: true, error: '', success: '' });
 
     try {
@@ -23,7 +24,7 @@ export function ResetPasswordPage() {
         newPassword: String(fd.get('newPassword') || ''),
         confirmPassword: String(fd.get('confirmPassword') || ''),
       });
-      event.currentTarget.reset();
+      formElement.reset?.();
       setStatus({ loading: false, error: '', success: data.message || 'Password updated.' });
     } catch (error) {
       setStatus({ loading: false, error: getErrorMessage(error, 'Unable to reset password'), success: '' });

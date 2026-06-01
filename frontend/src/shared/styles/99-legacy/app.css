@@ -2826,7 +2826,7 @@
   :root[data-visual-effects='balanced'] .card-interactive:hover,
   :root[data-visual-effects='balanced'] .lms-course-card:hover,
   :root[data-visual-effects='balanced'] .lp-hcard:hover {
-    transform: none !important;
+    transform: translateY(-1px) !important;
   }
 
   :root[data-visual-effects='balanced'] .lp,
@@ -2903,7 +2903,7 @@
   :root[data-visual-effects='balanced'] .card-interactive,
   :root[data-visual-effects='balanced'] .premium-primary-button,
   :root[data-visual-effects='balanced'] .premium-secondary-button {
-    transition-duration: 100ms !important;
+    transition-duration: 150ms !important;
   }
 
   @media (prefers-reduced-motion: reduce) {

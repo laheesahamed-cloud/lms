@@ -80,7 +80,7 @@ summary {
 button:active,
 a:active,
 [role="button"]:active {
-  transform: translateY(1px) scale(0.99);
+  transform: translateY(1px) scale(0.98);
 }
 
 .motion-smooth {

@@ -1,4 +1,5 @@
 import { Pool } from 'mysql2/promise';
+import { PaginationInput } from '../../common/utils/pagination';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
@@ -38,7 +39,7 @@ export declare class LessonsService {
         topicId?: number;
         subtopicId?: number;
         status?: string;
-    }): Promise<{
+    } & PaginationInput): Promise<{
         id: number;
         courseId: number;
         topicId: number;

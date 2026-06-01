@@ -8,7 +8,7 @@ export declare class QuestionsController {
     private readonly questionsService;
     private readonly authService;
     constructor(questionsService: QuestionsService, authService: AuthService);
-    findAll(search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, ids?: string, excludeIds?: string, limit?: string, random?: string): Promise<{
+    findAll(search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, ids?: string, excludeIds?: string, limit?: string, page?: string, offset?: string, random?: string): Promise<{
         id: number;
         courseId: number;
         subjectId: number;
@@ -166,4 +166,6 @@ export declare class QuestionsController {
     }>;
     private parseIdList;
     private parseLimit;
+    private parsePositiveNumber;
+    private parseNonNegativeNumber;
 }

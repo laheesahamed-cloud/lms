@@ -443,7 +443,7 @@ export function StudentBillingPage() {
 
   function optionCardClass(isSelected) {
     return cx(
-      'flex min-h-[82px] cursor-pointer items-start gap-3 rounded-lg border bg-surface-1 p-3 text-left shadow-xs transition-[border-color,background,box-shadow,transform] hover:-translate-y-0.5 hover:border-brand-primary/35',
+      'flex min-h-[82px] cursor-pointer items-start gap-3 rounded-lg border bg-surface-1 p-3 text-left shadow-xs transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:border-brand-primary/35 active:scale-[0.98]',
       isSelected
         ? 'border-brand-primary/60 bg-[color-mix(in_srgb,var(--surface-1)_84%,var(--color-primary-light))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_12%,transparent)]'
         : 'border-line-soft'

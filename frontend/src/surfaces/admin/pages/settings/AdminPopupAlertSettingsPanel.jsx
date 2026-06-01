@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchPopupAlertSettings, updatePopupAlertSettings } from '../../../../shared/api/settings.api.js';
-import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { ui } from '../../../../shared/styles/tailwindClasses.js';
 import { resolvePublicAssetUrl } from '../../../../shared/utils/publicAssetUrl.js';
 
 const MAX_IMAGE_BYTES = 2_000_000;
@@ -12,8 +12,6 @@ const defaultForm = {
   placement: 'landing',
   title: '',
   body: '',
-  buttonLabel: '',
-  buttonUrl: '',
   imageUrl: '',
   imageAlt: '',
   imageDataUrl: '',
@@ -30,8 +28,6 @@ function toForm(data) {
     placement: ['landing', 'login', 'app', 'all'].includes(data?.placement) ? data.placement : 'landing',
     title: data?.title || '',
     body: data?.body || '',
-    buttonLabel: data?.buttonLabel || '',
-    buttonUrl: data?.buttonUrl || '',
     imageUrl: data?.imageUrl || '',
     imageAlt: data?.imageAlt || '',
     imageFileName: data?.imageFileName || '',
@@ -141,9 +137,12 @@ export function AdminPopupAlertSettingsPanel() {
     setStatus((current) => ({ ...current, saving: true, error: '', success: '' }));
 
     try {
-      const payload = { ...form };
+      const payload = { ...form, buttonLabel: '', buttonUrl: '' };
       if (!payload.imageDataUrl) {
         delete payload.imageDataUrl;
+      }
+      if (payload.enabled && !payload.imageDataUrl && !payload.imageUrl) {
+        throw new Error('Add a popup image before enabling the alert.');
       }
       const data = await updatePopupAlertSettings(payload);
       setSettings(data);
@@ -160,7 +159,8 @@ export function AdminPopupAlertSettingsPanel() {
     () => form.imageDataUrl || resolvePublicAssetUrl(form.imageUrl),
     [form.imageDataUrl, form.imageUrl]
   );
-  const hasContent = Boolean(form.title || form.body || previewImageUrl);
+  const hasImage = Boolean(previewImageUrl);
+  const hasText = Boolean(form.title || form.body);
 
   return (
     <div className="min-w-0">
@@ -178,33 +178,17 @@ export function AdminPopupAlertSettingsPanel() {
                 Show popup alert
               </label>
               <p className="m-0 text-[12.5px] leading-relaxed text-ink-soft">
-                Keep it off while preparing the message. It will only appear when text or an image is saved.
+                Keep it off while preparing the popup. It will only appear when an image is saved.
               </p>
             </div>
 
-            <div className={ui.formGrid}>
-              <label className={ui.formLabel}>
-                Show on
-                <select className={ui.input} value={form.placement} onChange={(event) => patchForm({ placement: event.target.value })}>
-                  <option value="landing">Landing page only</option>
-                  <option value="login">Login page only</option>
-                  <option value="app">Inside the app only</option>
-                  <option value="all">Everywhere</option>
-                </select>
-              </label>
-              <label className={ui.formLabel}>
-                Button label
-                <input className={ui.input} value={form.buttonLabel} onChange={(event) => patchForm({ buttonLabel: event.target.value })} placeholder="Learn more" maxLength={80} />
-              </label>
-            </div>
-
             <label className={ui.formLabel}>
-              Popup title
+              Popup title (optional)
               <input className={ui.input} value={form.title} onChange={(event) => patchForm({ title: event.target.value })} placeholder="New batch starts this week" maxLength={120} />
             </label>
             <label className={ui.formLabel}>
-              Popup text
-              <textarea className={ui.textarea} value={form.body} onChange={(event) => patchForm({ body: event.target.value })} placeholder="Add the announcement students should see." maxLength={900} />
+              Popup text (optional)
+              <textarea className={ui.textarea} value={form.body} onChange={(event) => patchForm({ body: event.target.value })} placeholder="Add optional announcement text." maxLength={900} />
             </label>
 
             <div className="grid gap-3 rounded-lg border border-line-soft bg-surface-glass-subtle p-4">
@@ -236,13 +220,8 @@ export function AdminPopupAlertSettingsPanel() {
               ) : null}
             </div>
 
-            <label className={ui.formLabel}>
-              Button URL
-              <input className={ui.input} value={form.buttonUrl} onChange={(event) => patchForm({ buttonUrl: event.target.value })} placeholder="https://xyndrome.lk/register" />
-            </label>
-
             <div className={ui.buttonRow}>
-              <button className={ui.primaryAction} type="submit" disabled={status.saving || (form.enabled && !hasContent)}>
+              <button className={ui.primaryAction} type="submit" disabled={status.saving || (form.enabled && !hasImage)}>
                 {status.saving ? 'Saving...' : 'Save popup alert'}
               </button>
               <button className={ui.secondaryAction} type="button" onClick={loadSettings} disabled={status.saving}>
@@ -255,7 +234,7 @@ export function AdminPopupAlertSettingsPanel() {
             <div className="flex flex-col gap-1.5 rounded-lg border border-line-soft bg-surface-glass-subtle px-4 py-3.5">
               <span className="text-xs text-ink-soft">Configuration status</span>
               <strong className="[overflow-wrap:anywhere] text-sm leading-normal text-ink-strong">
-                {settings?.configured ? 'Popup content saved' : 'Add text or an image before enabling'}
+                {hasImage ? (hasText ? 'Image and text saved' : 'Image-only popup ready') : 'Add an image before enabling'}
               </strong>
             </div>
 
@@ -273,17 +252,13 @@ export function AdminPopupAlertSettingsPanel() {
                 <div className="grid aspect-[16/9] place-items-center bg-surface-2 text-[12.5px] font-bold text-ink-soft">Image preview</div>
               )}
               <div className="grid gap-3 p-5">
-                <span className="w-fit rounded-full border border-brand-primary/20 bg-[var(--color-primary-light)] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-brand-primary">
-                  {form.placement === 'all' ? 'Everywhere' : form.placement}
-                </span>
-                <h3 className="m-0 text-[22px] font-black leading-tight text-ink-strong">{form.title || 'Popup title preview'}</h3>
-                <p className="m-0 whitespace-pre-wrap text-[14px] leading-relaxed text-ink-medium">{form.body || 'Popup message preview.'}</p>
-                {form.buttonLabel ? <span className={cx(ui.primaryAction, 'w-fit rounded-lg px-4 py-3 text-[13px]')}>{form.buttonLabel}</span> : null}
+                {form.title ? <h3 className="m-0 text-[22px] font-black leading-tight text-ink-strong">{form.title}</h3> : null}
+                {form.body ? <p className="m-0 whitespace-pre-wrap text-[14px] leading-relaxed text-ink-medium">{form.body}</p> : null}
               </div>
             </div>
 
             <div className={ui.warningFeedback}>
-              Students can close the popup. A newly saved version will appear again in their next session.
+              Students can dismiss the popup from the top close icon. A newly saved version will appear again in their next session.
             </div>
             <p className="m-0 text-[12.5px] leading-relaxed text-ink-soft">{settings?.note}</p>
           </aside>

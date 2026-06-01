@@ -3023,8 +3023,17 @@ html body :where(.lms-review-bubble-nav, .lms-exam-question-nav) {
 }
 
 html body :where(.lms-review-bubble-nav, .lms-exam-question-nav) > button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   min-width: 44px !important;
   min-height: 44px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
   touch-action: manipulation;
 }
 

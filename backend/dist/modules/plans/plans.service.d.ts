@@ -141,6 +141,7 @@ export declare class PlansService {
         createdAt: string | null;
         updatedAt: string | null;
     }>;
+    findByIds(ids: number[]): Promise<Map<any, any>>;
     getFeatureCatalog(): Promise<{
         categories: ("Learning Access" | "Question Bank" | "Exams & Practice" | "Lessons & Study Tools" | "Analytics" | "AI Tools" | "Support / Extras")[];
         features: {

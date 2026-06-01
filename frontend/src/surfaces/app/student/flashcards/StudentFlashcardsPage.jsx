@@ -9,24 +9,6 @@ import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
    STYLES
 ───────────────────────────────────────── */
 const ANIM_CSS = `
-@keyframes fcFadeUp {
-  from { opacity:0; transform:translateY(10px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-@keyframes fcScaleIn {
-  from { opacity:0; transform:scale(0.96); }
-  to   { opacity:1; transform:scale(1); }
-}
-@keyframes fcRowReveal {
-  from { opacity:0; transform:translateY(-2px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-.fc-fade-up  { animation: fcFadeUp  0.36s cubic-bezier(0.23,1,0.32,1) both; }
-.fc-scale-in { animation: fcScaleIn 0.28s cubic-bezier(0.23,1,0.32,1) both; }
-.fc-d1 { animation-delay:  50ms; }
-.fc-d2 { animation-delay: 110ms; }
-.fc-d3 { animation-delay: 180ms; }
-.fc-deck-row { animation: fcRowReveal 150ms cubic-bezier(0.23,1,0.32,1) both; }
 .fc-deck-table {
   border-spacing: 0;
 }
@@ -75,9 +57,7 @@ const ANIM_CSS = `
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fc-deck-row,
   .fc-deck-chevron {
-    animation: none;
     transition: none;
   }
 }
@@ -1566,7 +1546,7 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
   const headerClass = 'px-2 py-1.5 text-[11px] font-black uppercase tracking-normal text-ink-muted max-[640px]:px-0.5 max-[640px]:py-1.5 max-[640px]:text-[11px]';
 
   return (
-    <section className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-none fc-fade-up fc-d3 dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
+    <section className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-none dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
       <h2 id="flashcard-list-title" className="sr-only">Flashcard decks</h2>
 
       {loading ? (
@@ -1654,7 +1634,7 @@ function FilterChip({ active, children, onClick }) {
     <button
       type="button"
       className={cx(
-        'inline-flex min-h-8 shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-lg border px-2.5 text-[11.5px] font-extrabold transition-[background,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18',
+        'inline-flex min-h-8 shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-lg border px-2.5 text-[11.5px] font-extrabold transition-[background,border-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18',
         active
           ? 'border-brand-primary/28 bg-brand-primary/10 text-brand-primary'
           : 'border-line-soft bg-surface-1 text-ink-muted hover:border-brand-primary/18 hover:text-ink-strong'
@@ -1690,9 +1670,9 @@ function PickPhase({
       <style>{ANIM_CSS}</style>
       <section className="study-hub-shell grid max-w-[1080px] gap-4">
 
-        {error && <div className={cx(ui.feedbackError, 'fc-fade-up')}>{error}</div>}
+        {error && <div className={ui.feedbackError}>{error}</div>}
 
-        <section className="grid gap-3 fc-fade-up fc-d2">
+        <section className="grid gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex min-h-10 min-w-[min(100%,320px)] flex-1 items-center gap-2 rounded-lg border border-line-soft bg-surface-1 px-3 transition-[border-color,box-shadow] duration-150 focus-within:border-brand-primary/35 focus-within:ring-4 focus-within:ring-brand-primary/10">
               <svg width="16" height="16" viewBox="0 0 14 14" fill="none" className="shrink-0 text-ink-muted" aria-hidden="true">
@@ -1708,7 +1688,7 @@ function PickPhase({
               />
               {filter && (
                 <button type="button"
-                  className="grid size-7 shrink-0 place-items-center rounded-md bg-surface-3 text-ink-muted transition hover:text-ink-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"
+                  className="grid size-7 shrink-0 place-items-center rounded-md bg-surface-3 text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"
                   onClick={() => setFilter('')} aria-label="Clear search">
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
                     <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
@@ -1862,11 +1842,11 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
       <section className="study-hub-shell">
 
         {/* Header */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-1 px-5 py-3.5 shadow-xs fc-fade-up">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-1 px-5 py-3.5 shadow-xs">
           <div className="flex items-center gap-3 min-w-0">
             <button type="button"
               className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-2 text-ink-muted
-                transition-[background,transform] hover:bg-surface-3 hover:text-ink-strong active:scale-[0.97]
+                transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-3 hover:text-ink-strong active:scale-[0.98]
                 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"
               onClick={onBack} aria-label="Back to lesson picker">
               <IcBack/>
@@ -1889,14 +1869,14 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
         </div>
 
         {/* Progress */}
-        <div className="mb-5 h-2 overflow-hidden rounded-full bg-surface-3 fc-fade-up fc-d1">
+        <div className="mb-5 h-2 overflow-hidden rounded-full bg-surface-3">
           <div className="h-full w-full origin-left rounded-full transition-transform duration-500"
             style={{ transform: `scaleX(${progress / 100})`, background: 'linear-gradient(90deg,#3B82F6,#8B5CF6)' }}/>
         </div>
 
         {/* Card */}
         <div
-          className="mx-auto mb-5 min-h-[420px] w-full max-w-[800px] cursor-pointer touch-pan-y [perspective:1400px] fc-scale-in fc-d2 max-[600px]:min-h-[360px]"
+          className="mx-auto mb-5 min-h-[420px] w-full max-w-[800px] cursor-pointer touch-pan-y [perspective:1400px] max-[600px]:min-h-[360px]"
           onPointerDown={handleCardPointerDown}
           onPointerMove={handleCardPointerMove}
           onClick={handleCardClick}
@@ -1971,7 +1951,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <button
                   type="button"
-                  className="inline-flex min-h-8 items-center rounded-full border border-line-soft bg-surface-2 px-3 text-[11px] font-extrabold text-ink-muted transition hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-45"
+                  className="inline-flex min-h-8 items-center rounded-full border border-line-soft bg-surface-2 px-3 text-[11px] font-extrabold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
                   onClick={handleReportCard}
                   disabled={isReported}
                 >
@@ -1993,7 +1973,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
         >
           <button
             className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
-              transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
+              transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
               disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px]"
             style={{ background: 'rgba(244,63,94,0.09)', borderColor: 'rgba(244,63,94,0.22)', color: '#E11D48' }}
             onClick={() => advance('again')} disabled={!flipped || advancing}>
@@ -2001,7 +1981,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
           </button>
           <button
             className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
-              transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
+              transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
               disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px] [&_svg]:shrink-0 max-[380px]:[&_svg]:size-3.5"
             style={{ background: 'rgba(245,158,11,0.09)', borderColor: 'rgba(245,158,11,0.22)', color: '#D97706' }}
             onClick={() => advance('hard')} disabled={!flipped || advancing}>
@@ -2009,7 +1989,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
           </button>
           <button
             className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
-              transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
+              transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
               disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px] [&_svg]:shrink-0 max-[380px]:[&_svg]:size-3.5"
             style={{ background: 'rgba(16,185,129,0.09)', borderColor: 'rgba(16,185,129,0.22)', color: '#059669' }}
             onClick={() => advance('good')} disabled={!flipped || advancing}>
@@ -2017,7 +1997,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
           </button>
           <button
             className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
-              transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.97]
+              transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
               disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px]"
             style={{ background: 'rgba(37,99,235,0.09)', borderColor: 'rgba(37,99,235,0.22)', color: '#2563EB' }}
             onClick={() => advance('easy')} disabled={!flipped || advancing}>
@@ -2054,17 +2034,17 @@ function ResultPhase({ quiz, result, onRetry, onRetryMissed, onBack }) {
       <section className="study-hub-shell">
         <div className="flex flex-col items-center px-5 py-12 text-center">
 
-          <div className="mb-5 grid size-20 place-items-center rounded-2xl fc-scale-in"
+          <div className="mb-5 grid size-20 place-items-center rounded-2xl"
             style={{ background: `${accentColor}12`, color: accentColor }}>
             {isExcellent ? <IcTrophy/> : <IcStudy/>}
           </div>
 
-          <h2 className="m-0 mb-1.5 text-[26px] font-black text-ink-strong fc-fade-up">
+          <h2 className="m-0 mb-1.5 text-[26px] font-black text-ink-strong">
             {isExcellent ? 'Excellent work!' : isGood ? 'Good progress!' : 'Keep practicing!'}
           </h2>
-          <p className="m-0 mb-10 text-sm font-semibold text-ink-muted fc-fade-up fc-d1">{quiz.quizTitle}</p>
+          <p className="m-0 mb-10 text-sm font-semibold text-ink-muted">{quiz.quizTitle}</p>
 
-          <div className="mb-10 flex flex-wrap items-center justify-center gap-8 fc-fade-up fc-d2 max-[600px]:gap-5">
+          <div className="mb-10 flex flex-wrap items-center justify-center gap-8 max-[600px]:gap-5">
             <div className="flex min-w-20 flex-col items-center gap-1">
               <strong className="text-[36px] font-black" style={{ color: '#10B981' }}>{knownIds.size}</strong>
               <span className="text-xs font-semibold text-ink-muted">Know It</span>
@@ -2091,7 +2071,7 @@ function ResultPhase({ quiz, result, onRetry, onRetryMissed, onBack }) {
             </div>
           </div>
 
-          <div className="grid w-full max-w-72 gap-2.5 fc-fade-up fc-d3">
+          <div className="grid w-full max-w-72 gap-2.5">
             {learningIds.size > 0 && (
               <button className={ui.primaryAction} onClick={onRetryMissed}>
                 Retry Missed Cards ({learningIds.size})
@@ -2102,7 +2082,7 @@ function ResultPhase({ quiz, result, onRetry, onRetryMissed, onBack }) {
             </button>
             <button
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-transparent px-4
-                text-sm font-bold text-ink-muted transition hover:text-ink-strong
+                text-sm font-bold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98]
                 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"
               onClick={onBack}
             >

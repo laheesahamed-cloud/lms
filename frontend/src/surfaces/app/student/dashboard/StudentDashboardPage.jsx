@@ -425,7 +425,7 @@ function DashboardHeroMascot({ mascot }) {
         draggable="false"
         decoding="async"
         loading="eager"
-        fetchPriority="low"
+        fetchPriority="high"
         onError={handleImageError}
       />
     </span>
@@ -471,23 +471,24 @@ function QuickActionArt({ type }) {
   );
 }
 
+const DUST_PARTICLES = [
+  { left: '8%',  delay: 0,    duration: 14 },
+  { left: '18%', delay: 3.2,  duration: 16 },
+  { left: '28%', delay: 6.4,  duration: 13 },
+  { left: '38%', delay: 1.8,  duration: 17 },
+  { left: '48%', delay: 8.1,  duration: 15 },
+  { left: '58%', delay: 4.4,  duration: 14 },
+  { left: '68%', delay: 11,   duration: 18 },
+  { left: '78%', delay: 7.3,  duration: 12 },
+  { left: '88%', delay: 2.5,  duration: 16 },
+  { left: '95%', delay: 9.6,  duration: 14 },
+];
+
 /* Floating dust particles — dark mode atmospheric layer ────────── */
 function DashboardDustLayer() {
-  const particles = [
-    { left: '8%',  delay: 0,    duration: 14 },
-    { left: '18%', delay: 3.2,  duration: 16 },
-    { left: '28%', delay: 6.4,  duration: 13 },
-    { left: '38%', delay: 1.8,  duration: 17 },
-    { left: '48%', delay: 8.1,  duration: 15 },
-    { left: '58%', delay: 4.4,  duration: 14 },
-    { left: '68%', delay: 11,   duration: 18 },
-    { left: '78%', delay: 7.3,  duration: 12 },
-    { left: '88%', delay: 2.5,  duration: 16 },
-    { left: '95%', delay: 9.6,  duration: 14 },
-  ];
   return (
     <div className="study-dust-layer" aria-hidden="true">
-      {particles.map((p, i) => (
+      {DUST_PARTICLES.map((p, i) => (
         <span
           key={i}
           className="study-dust-particle"

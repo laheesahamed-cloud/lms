@@ -250,10 +250,16 @@ export class AuthService {
 
   async requestPasswordReset(forgotPasswordDto: ForgotPasswordDto) {
     const email = forgotPasswordDto.email.trim().toLowerCase();
-    const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, email FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
+    let [rows] = await this.db.execute<UserRow[]>(
+      'SELECT id, email FROM users WHERE email = ? LIMIT 1',
       [email]
     );
+    if (!rows.length) {
+      [rows] = await this.db.execute<UserRow[]>(
+        'SELECT id, email FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
+        [email]
+      );
+    }
 
     const user = rows[0];
     if (!user) {

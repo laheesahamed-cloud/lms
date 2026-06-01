@@ -1,0 +1,1081 @@
+[
+  {
+    "label": "dashboard",
+    "route": "/app/dashboard",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/desktop-dashboard.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fdashboard",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content yndrome MEDICAL WORKSPACE TRUSTED BY MEDICAL STUDENTS Your medical study command center. Lessons, flashcards, Q-Bank, and progress tracking — all in one focused clinical workspace. CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat. Role-aware access for every learner type Integrated study tools, notes & Q-Bank Dark & light mode, built for long sessions Cardiology Pharmacology Anatomy Revision path 74% STREAK 12d Q-BANK 480 BP 120/80 Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 1,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 900,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "yndrome",
+          "cls": "xyndrome-brand__word !font-extrabold"
+        },
+        {
+          "text": "Your medical study command center.",
+          "cls": "H1"
+        },
+        {
+          "text": "CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat.",
+          "cls": "DIV"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "courses",
+    "route": "/app/courses",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/desktop-courses.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fcourses",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "xyndrome YOUR MEDICAL EXAM COMPANION Preparing study data... Skip to main content yndrome MEDICAL WORKSPACE TRUSTED BY MEDICAL STUDENTS Your medical study command center. Lessons, flashcards, Q-Bank, and progress tracking — all in one focused clinical workspace. CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat. Role-aware access for every learner type Integrated study tools, notes & Q-Bank Dark & light mode, built for long sessions Cardiology Pharmacology Anatomy Revision path 74% STREAK 12d Q-BANK 480 BP 120/80 Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "abl-exiting",
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 900,
+          "text": "xyndrome YOUR MEDICAL EXAM COMPANION Preparing study data..."
+        },
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 1,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 900,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "xyndrome",
+          "cls": "abl-brand-wrap"
+        },
+        {
+          "text": "xyndrome",
+          "cls": "abl-brand-text"
+        },
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "yndrome",
+          "cls": "xyndrome-brand__word !font-extrabold"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "q-bank",
+    "route": "/app/quizzes",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/desktop-q-bank.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fquizzes",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content yndrome MEDICAL WORKSPACE TRUSTED BY MEDICAL STUDENTS Your medical study command center. Lessons, flashcards, Q-Bank, and progress tracking — all in one focused clinical workspace. CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat. Role-aware access for every learner type Integrated study tools, notes & Q-Bank Dark & light mode, built for long sessions Cardiology Pharmacology Anatomy Revision path 74% STREAK 12d Q-BANK 480 BP 120/80 Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 1,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 900,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "yndrome",
+          "cls": "xyndrome-brand__word !font-extrabold"
+        },
+        {
+          "text": "Your medical study command center.",
+          "cls": "H1"
+        },
+        {
+          "text": "CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat.",
+          "cls": "DIV"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "exams",
+    "route": "/app/exams",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/desktop-exams.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fexams",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content yndrome MEDICAL WORKSPACE TRUSTED BY MEDICAL STUDENTS Your medical study command center. Lessons, flashcards, Q-Bank, and progress tracking — all in one focused clinical workspace. CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat. Role-aware access for every learner type Integrated study tools, notes & Q-Bank Dark & light mode, built for long sessions Cardiology Pharmacology Anatomy Revision path 74% STREAK 12d Q-BANK 480 BP 120/80 Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 1,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 900,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "yndrome",
+          "cls": "xyndrome-brand__word !font-extrabold"
+        },
+        {
+          "text": "Your medical study command center.",
+          "cls": "H1"
+        },
+        {
+          "text": "CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat.",
+          "cls": "DIV"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "results",
+    "route": "/app/results",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/desktop-results.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fresults",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content yndrome MEDICAL WORKSPACE TRUSTED BY MEDICAL STUDENTS Your medical study command center. Lessons, flashcards, Q-Bank, and progress tracking — all in one focused clinical workspace. CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat. Role-aware access for every learner type Integrated study tools, notes & Q-Bank Dark & light mode, built for long sessions Cardiology Pharmacology Anatomy Revision path 74% STREAK 12d Q-BANK 480 BP 120/80 Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 1,
+          "text": "Skip to main content"
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "yndrome",
+          "cls": "xyndrome-brand__word !font-extrabold"
+        },
+        {
+          "text": "Your medical study command center.",
+          "cls": "H1"
+        },
+        {
+          "text": "CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat.",
+          "cls": "DIV"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        },
+        {
+          "text": "Sign in",
+          "cls": "inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-[var(--radius-md)] border px-4 text-sm font-extra"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "flashcards",
+    "route": "/app/flashcards",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/desktop-flashcards.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fflashcards",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content yndrome MEDICAL WORKSPACE TRUSTED BY MEDICAL STUDENTS Your medical study command center. Lessons, flashcards, Q-Bank, and progress tracking — all in one focused clinical workspace. CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat. Role-aware access for every learner type Integrated study tools, notes & Q-Bank Dark & light mode, built for long sessions Cardiology Pharmacology Anatomy Revision path 74% STREAK 12d Q-BANK 480 BP 120/80 Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 1,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 900,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "yndrome",
+          "cls": "xyndrome-brand__word !font-extrabold"
+        },
+        {
+          "text": "Your medical study command center.",
+          "cls": "H1"
+        },
+        {
+          "text": "CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat.",
+          "cls": "DIV"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "notes",
+    "route": "/app/notes",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/desktop-notes.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fnotes",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content yndrome MEDICAL WORKSPACE TRUSTED BY MEDICAL STUDENTS Your medical study command center. Lessons, flashcards, Q-Bank, and progress tracking — all in one focused clinical workspace. CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat. Role-aware access for every learner type Integrated study tools, notes & Q-Bank Dark & light mode, built for long sessions Cardiology Pharmacology Anatomy Revision path 74% STREAK 12d Q-BANK 480 BP 120/80 Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 1,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 900,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "yndrome",
+          "cls": "xyndrome-brand__word !font-extrabold"
+        },
+        {
+          "text": "Your medical study command center.",
+          "cls": "H1"
+        },
+        {
+          "text": "CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat.",
+          "cls": "DIV"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "subscriptions",
+    "route": "/app/subscriptions",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/desktop-subscriptions.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fsubscriptions",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content yndrome MEDICAL WORKSPACE TRUSTED BY MEDICAL STUDENTS Your medical study command center. Lessons, flashcards, Q-Bank, and progress tracking — all in one focused clinical workspace. CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat. Role-aware access for every learner type Integrated study tools, notes & Q-Bank Dark & light mode, built for long sessions Cardiology Pharmacology Anatomy Revision path 74% STREAK 12d Q-BANK 480 BP 120/80 Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 1,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 900,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "yndrome",
+          "cls": "xyndrome-brand__word !font-extrabold"
+        },
+        {
+          "text": "Your medical study command center.",
+          "cls": "H1"
+        },
+        {
+          "text": "CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat.",
+          "cls": "DIV"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "notifications",
+    "route": "/app/notifications",
+    "sizeLabel": "desktop",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/desktop-notifications.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fnotifications",
+      "viewport": {
+        "vw": 1280,
+        "vh": 900
+      },
+      "bodyText": "Skip to main content yndrome MEDICAL WORKSPACE TRUSTED BY MEDICAL STUDENTS Your medical study command center. Lessons, flashcards, Q-Bank, and progress tracking — all in one focused clinical workspace. CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat. Role-aware access for every learner type Integrated study tools, notes & Q-Bank Dark & light mode, built for long sessions Cardiology Pharmacology Anatomy Revision path 74% STREAK 12d Q-BANK 480 BP 120/80 Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 1,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 900,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "yndrome",
+          "cls": "xyndrome-brand__word !font-extrabold"
+        },
+        {
+          "text": "Your medical study command center.",
+          "cls": "H1"
+        },
+        {
+          "text": "CLINICAL PROGRESS HEART RATE 72bpm Normal sinus SPO₂ 98% Oxygen sat.",
+          "cls": "DIV"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "dashboard",
+    "route": "/app/dashboard",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/mobile-dashboard.png",
+    "metrics": {
+      "title": "xyndrome | Medical Study Platform",
+      "url": "http://127.0.0.1:5174/lms/dashboard",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content DAILY FOCUS Study Hub 4 CONTINUE WHERE YOU LEFT OFF Welcome back, laheez Next study move - PRACTICE Medicine Cardiology · 17% ready Resume practice 4 Courses 10% lessons 17% Readiness Avg. readiness 0 Streak Keep it going COURSE PROGRESS 10% overall Courses 10% 1/10 completed lessons from the course page source Gynacology and Obstetrics 0/2 lessons · ERPM 0% Peadiatrics 0/1 lessons · ERPM 0% Surgery 0/0 lessons · ERPM 0% EXAM COUNTDOWN No exam scheduled Exams -- NO DATE SET Add an exam task in Planner to show a server-date countdown. Server date 2026-06-01 · Europe/Minsk DAILY STREAK Start your first streak today 0 DAYS M T W T F S S Past 4 weeks · 0 active days View history > Quick actions Exams Planner Q-Bank Notes Bookmarks Weak areas STUDY PLAN Today's route Planner PRACTICE Answer questions on Hematology Medicine 1 REVIEW Review your latest answers Medicine / Ca",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 44,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 844,
+          "text": ""
+        },
+        {
+          "cls": "lms-mobile-bottom-nav lms-mobile-bottom-nav--student fixed inset-x-0 bottom-0 z-[9999] isolate pointer-events-none min-[",
+          "x": 0,
+          "y": 780,
+          "w": 390,
+          "h": 64,
+          "text": "Courses Q-Bank Study Hub Lessons Results"
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "CONTINUE WHERE YOU LEFT OFF Welcome back, laheez Next study move - PRACTICE Medicine Cardiology · 17",
+          "cls": "study-continue-card__copy"
+        },
+        {
+          "text": "Welcome back, laheez",
+          "cls": "study-hero-name"
+        },
+        {
+          "text": "Welcome back,",
+          "cls": "study-hero-greeting"
+        },
+        {
+          "text": "Next study move - PRACTICE",
+          "cls": "study-hero-lead"
+        },
+        {
+          "text": "4 Courses 10% lessons",
+          "cls": "study-metric study-metric--cyan"
+        },
+        {
+          "text": "17% Readiness Avg. readiness",
+          "cls": "study-metric study-metric--violet"
+        },
+        {
+          "text": "17%",
+          "cls": "STRONG"
+        },
+        {
+          "text": "0 Streak Keep it going",
+          "cls": "study-metric study-metric--amber"
+        },
+        {
+          "text": "DAILY STREAK Start your first streak today 0 DAYS M T W T F S S Past 4 weeks · 0 active days View hi",
+          "cls": "study-card study-streak-card"
+        },
+        {
+          "text": "Exams Planner Q-Bank Notes Bookmarks Weak areas",
+          "cls": "study-action-grid"
+        },
+        {
+          "text": "Courses Q-Bank Study Hub Lessons Results",
+          "cls": "lms-mobile-bottom-nav__inner pointer-events-auto"
+        }
+      ],
+      "bottomNavRect": {
+        "x": 0,
+        "y": 780,
+        "w": 390,
+        "h": 64
+      },
+      "h1s": [
+        "Study Hub",
+        "Metabolic diseses"
+      ]
+    }
+  },
+  {
+    "label": "courses",
+    "route": "/app/courses",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/mobile-courses.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fcourses",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content yndrome Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 44,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 844,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        },
+        {
+          "text": "Sign in with Google",
+          "cls": "lms-google-btn"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "q-bank",
+    "route": "/app/quizzes",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/mobile-q-bank.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fquizzes",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content yndrome Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 44,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 844,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        },
+        {
+          "text": "Sign in with Google",
+          "cls": "lms-google-btn"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "exams",
+    "route": "/app/exams",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/mobile-exams.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fexams",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content yndrome Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 44,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 844,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        },
+        {
+          "text": "Sign in with Google",
+          "cls": "lms-google-btn"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "results",
+    "route": "/app/results",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/mobile-results.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fresults",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content yndrome Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 44,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 844,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        },
+        {
+          "text": "Sign in with Google",
+          "cls": "lms-google-btn"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "flashcards",
+    "route": "/app/flashcards",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/mobile-flashcards.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fflashcards",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content yndrome Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 44,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 844,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        },
+        {
+          "text": "Sign in with Google",
+          "cls": "lms-google-btn"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "notes",
+    "route": "/app/notes",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/mobile-notes.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fnotes",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content yndrome Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 44,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 844,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        },
+        {
+          "text": "Sign in with Google",
+          "cls": "lms-google-btn"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "subscriptions",
+    "route": "/app/subscriptions",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/mobile-subscriptions.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fsubscriptions",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content yndrome Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 44,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 844,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        },
+        {
+          "text": "Sign in with Google",
+          "cls": "lms-google-btn"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  },
+  {
+    "label": "notifications",
+    "route": "/app/notifications",
+    "sizeLabel": "mobile",
+    "screenshot": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/student-side-design-scan/mobile-notifications.png",
+    "metrics": {
+      "title": "Sign In | xyndrome",
+      "url": "http://127.0.0.1:5174/lms/auth/login?from=%2Fapp%2Fnotifications",
+      "viewport": {
+        "vw": 390,
+        "vh": 844
+      },
+      "bodyText": "Skip to main content yndrome Toggle theme SECURE SIGN IN Welcome back Enter your details to continue where you left off. Email address Password Forgot password? Sign in OR Sign in with Google New here? Create your account",
+      "overflowX": 0,
+      "fixed": [
+        {
+          "cls": "lms-skip-link",
+          "x": 10,
+          "y": 10,
+          "w": 1,
+          "h": 44,
+          "text": "Skip to main content"
+        },
+        {
+          "cls": "lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[64",
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 844,
+          "text": ""
+        }
+      ],
+      "clippedText": [
+        {
+          "text": "Skip to main content",
+          "cls": "lms-skip-link"
+        },
+        {
+          "text": "Toggle theme",
+          "cls": "sr-only absolute size-px overflow-hidden whitespace-nowrap border-0 p-0 [clip:rect(0,0,0,0)] [-webkit-clip-path:inset(50"
+        },
+        {
+          "text": "Sign in with Google",
+          "cls": "lms-google-btn"
+        }
+      ],
+      "bottomNavRect": null,
+      "h1s": [
+        "Your medical study command center.",
+        "Welcome back"
+      ]
+    }
+  }
+]

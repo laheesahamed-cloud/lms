@@ -95,6 +95,10 @@ const SMTP_SETTING_KEYS = {
     buttonLabel: 'smtp_reset_button_label',
     footer: 'smtp_reset_footer',
 };
+const LEGACY_SMTP_BRAND_REPLACEMENTS = [
+    [/\bERPM LMS\b/g, 'xyndrome'],
+    [/\bERPM\b/g, 'xyndrome'],
+];
 const POPUP_ALERT_SETTING_KEYS = {
     enabled: 'popup_alert_enabled',
     placement: 'popup_alert_placement',
@@ -353,23 +357,23 @@ let SettingsService = class SettingsService {
             password: input.password !== undefined
                 ? this.normalizeSecretInput(input.password) || current.password
                 : current.password,
-            fromName: input.fromName !== undefined ? this.normalizeOptionalValue(input.fromName) || 'xyndrome' : current.fromName,
+            fromName: input.fromName !== undefined ? this.normalizeSmtpBrandText(this.normalizeOptionalValue(input.fromName)) || 'xyndrome' : current.fromName,
             fromEmail: input.fromEmail !== undefined ? this.normalizeOptionalValue(input.fromEmail) : current.fromEmail,
             publicUrl: input.publicUrl !== undefined ? this.normalizeOptionalValue(input.publicUrl) : current.publicUrl,
             subject: input.subject !== undefined
-                ? this.normalizeOptionalValue(input.subject) || 'Reset your xyndrome password'
+                ? this.normalizeSmtpBrandText(this.normalizeOptionalValue(input.subject)) || 'Reset your xyndrome password'
                 : current.subject,
             heading: input.heading !== undefined
-                ? this.normalizeOptionalValue(input.heading) || 'Reset your password'
+                ? this.normalizeSmtpBrandText(this.normalizeOptionalValue(input.heading)) || 'Reset your password'
                 : current.heading,
             intro: input.intro !== undefined
-                ? this.normalizeOptionalValue(input.intro) || 'We received a request to reset your xyndrome password.'
+                ? this.normalizeSmtpBrandText(this.normalizeOptionalValue(input.intro)) || 'We received a request to reset your xyndrome password.'
                 : current.intro,
             buttonLabel: input.buttonLabel !== undefined
                 ? this.normalizeOptionalValue(input.buttonLabel) || 'Reset password'
                 : current.buttonLabel,
             footer: input.footer !== undefined
-                ? this.normalizeOptionalValue(input.footer) || 'If you did not request this, you can safely ignore this email.'
+                ? this.normalizeSmtpBrandText(this.normalizeOptionalValue(input.footer)) || 'If you did not request this, you can safely ignore this email.'
                 : current.footer,
         };
         await Promise.all([
@@ -404,8 +408,8 @@ let SettingsService = class SettingsService {
             placement: this.normalizePopupPlacement(input.placement || current.placement),
             title: input.title !== undefined ? this.normalizeOptionalValue(input.title).slice(0, 120) : current.title,
             body: input.body !== undefined ? this.normalizeOptionalValue(input.body).slice(0, 900) : current.body,
-            buttonLabel: input.buttonLabel !== undefined ? this.normalizeOptionalValue(input.buttonLabel).slice(0, 80) : current.buttonLabel,
-            buttonUrl: input.buttonUrl !== undefined ? this.normalizeOptionalValue(input.buttonUrl).slice(0, 500) : current.buttonUrl,
+            buttonLabel: '',
+            buttonUrl: '',
             imageUrl,
             imageAlt: input.imageAlt !== undefined ? this.normalizeOptionalValue(input.imageAlt).slice(0, 160) : current.imageAlt,
             imageFileName,
@@ -414,8 +418,8 @@ let SettingsService = class SettingsService {
             imageBytes: uploadedImage?.imageBytes ?? Number(input.imageBytes ?? current.imageBytes ?? 0),
             version: String(Date.now()),
         };
-        if (next.enabled && !next.title && !next.body && !next.imageUrl) {
-            throw new common_1.BadRequestException('Add popup text or an image before enabling the alert');
+        if (next.enabled && !next.imageUrl) {
+            throw new common_1.BadRequestException('Add a popup image before enabling the alert');
         }
         await Promise.all([
             this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.enabled, next.enabled ? 'true' : 'false'),
@@ -751,15 +755,22 @@ let SettingsService = class SettingsService {
             security: values.get(SMTP_SETTING_KEYS.security) === 'ssl' ? 'ssl' : 'starttls',
             username: values.get(SMTP_SETTING_KEYS.username) || '',
             password: encryptedPassword ? this.decryptSecret(encryptedPassword) : '',
-            fromName: values.get(SMTP_SETTING_KEYS.fromName) || 'xyndrome',
+            fromName: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.fromName)) || 'xyndrome',
             fromEmail: values.get(SMTP_SETTING_KEYS.fromEmail) || '',
             publicUrl,
-            subject: values.get(SMTP_SETTING_KEYS.subject) || 'Reset your xyndrome password',
-            heading: values.get(SMTP_SETTING_KEYS.heading) || 'Reset your password',
-            intro: values.get(SMTP_SETTING_KEYS.intro) || 'We received a request to reset your xyndrome password.',
+            subject: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.subject)) || 'Reset your xyndrome password',
+            heading: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.heading)) || 'Reset your password',
+            intro: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.intro)) || 'We received a request to reset your xyndrome password.',
             buttonLabel: values.get(SMTP_SETTING_KEYS.buttonLabel) || 'Reset password',
-            footer: values.get(SMTP_SETTING_KEYS.footer) || 'If you did not request this, you can safely ignore this email.',
+            footer: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.footer)) || 'If you did not request this, you can safely ignore this email.',
         };
+    }
+    normalizeSmtpBrandText(value) {
+        let normalized = String(value || '').trim();
+        for (const [pattern, replacement] of LEGACY_SMTP_BRAND_REPLACEMENTS) {
+            normalized = normalized.replace(pattern, replacement);
+        }
+        return normalized;
     }
     async getRawPopupAlertSettings() {
         const values = await this.getSettingMap(Object.values(POPUP_ALERT_SETTING_KEYS));
@@ -847,11 +858,11 @@ let SettingsService = class SettingsService {
             imageHeight: settings.imageHeight,
             imageBytes: settings.imageBytes,
             version: settings.version,
-            configured: Boolean(settings.title || settings.body || settings.imageUrl),
+            configured: Boolean(settings.imageUrl),
         };
     }
     serializePublicPopupAlertSettings(settings) {
-        if (!settings.enabled || (!settings.title && !settings.body && !settings.imageUrl)) {
+        if (!settings.enabled || !settings.imageUrl) {
             return { enabled: false };
         }
         return this.serializePopupAlertSettings(settings);

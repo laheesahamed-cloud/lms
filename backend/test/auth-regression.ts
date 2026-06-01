@@ -27,6 +27,28 @@ class MockPool {
       return [(this.user && userEmail === email ? [this.user] : []) as T, []];
     }
 
+    if (normalizedSql.startsWith('SELECT id, email FROM users WHERE email = ? LIMIT 1')) {
+      const email = String(params[0] || '');
+      const userEmail = String(this.user?.email || '');
+      return [(this.user && userEmail === email ? [{ id: this.user.id, email: this.user.email }] : []) as T, []];
+    }
+
+    if (normalizedSql.startsWith('SELECT id, email FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1')) {
+      const email = String(params[0] || '');
+      const userEmail = String(this.user?.email || '').trim().toLowerCase();
+      return [(this.user && userEmail === email ? [{ id: this.user.id, email: this.user.email }] : []) as T, []];
+    }
+
+    if (normalizedSql.startsWith('UPDATE users SET password_reset_token = ?, password_reset_expires_at = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?')) {
+      this.user.password_reset_token = params[0];
+      this.user.password_reset_expires_at = params[1];
+      return [{ affectedRows: 1 } as T, []];
+    }
+
+    if (normalizedSql.startsWith('SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN')) {
+      return [[] as T, []];
+    }
+
     if (normalizedSql.startsWith('UPDATE users SET session_token = ?, session_expires_at = ? WHERE id = ?')) {
       this.user.session_token = params[0];
       this.user.session_expires_at = params[1];
@@ -68,12 +90,12 @@ function createConfig() {
   };
 }
 
-async function createService(role: string, status = 'active') {
+async function createService(role: string, status = 'active', email = 'test@example.com') {
   const password = 'Keep Spaces 123';
   const user: any = {
     id: 7,
     full_name: 'Test User',
-    email: 'test@example.com',
+    email,
     password: await bcrypt.hash(password, 10),
     role,
     status,
@@ -117,6 +139,15 @@ async function testLogoutWithoutTokenIsIdempotent() {
   assert.equal(result.ok, true);
 }
 
+async function testPasswordResetFallsBackToLegacyEmailNormalization() {
+  const { service, db, user } = await createService('student', 'active', ' Legacy@Example.COM ');
+  const result = await service.requestPasswordReset({ email: 'legacy@example.com' });
+  assert.equal(result.ok, true);
+  assert(user.password_reset_token, 'password reset token should be stored for legacy-normalized email match');
+  assert(db.queries.some((query) => query.sql.includes('WHERE email = ?')), 'password reset should try the indexed exact email lookup first');
+  assert(db.queries.some((query) => query.sql.includes('LOWER(TRIM(email))')), 'password reset should fall back to legacy-normalized email lookup');
+}
+
 async function testExpiredSessionIsUnauthorized() {
   const { service, user, password } = await createService('student');
   const result = await service.login({ email: user.email, password });
@@ -140,6 +171,7 @@ async function main() {
   await testLoginNormalizesEmailCaseAndWhitespace();
   await testLogoutInvalidatesEvenExpiredSession();
   await testLogoutWithoutTokenIsIdempotent();
+  await testPasswordResetFallsBackToLegacyEmailNormalization();
   await testExpiredSessionIsUnauthorized();
   await testUnauthorizedAccessRequiresToken();
   await testInactiveStaffCannotCreateSession();

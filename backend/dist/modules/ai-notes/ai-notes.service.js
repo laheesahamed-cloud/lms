@@ -81,7 +81,7 @@ let AiNotesService = class AiNotesService {
     async adminList(token, engineKey = 'gemini') {
         await this.requireAdmin(token);
         const [rows] = await this.db.execute(`
-      SELECT n.id, n.title, n.raw_text, NULL AS note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
+      SELECT n.id, n.title, NULL AS raw_text, NULL AS note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
              c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
       FROM ai_illustrated_notes n
       LEFT JOIN courses  c ON c.id = n.course_id

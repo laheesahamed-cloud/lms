@@ -19,6 +19,8 @@ type QuestionFilters = {
     ids?: number[];
     excludeIds?: number[];
     limit?: number;
+    page?: number;
+    offset?: number;
     random?: boolean;
 };
 type ContentActor = {

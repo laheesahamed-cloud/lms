@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuestionsService = void 0;
 const common_1 = require("@nestjs/common");
+const pagination_1 = require("../../common/utils/pagination");
 const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E'];
@@ -97,6 +98,10 @@ let QuestionsService = class QuestionsService {
         const params = [];
         const ids = Array.from(new Set(filters.ids || [])).filter((id) => Number.isInteger(id) && id > 0);
         const excludeIds = Array.from(new Set(filters.excludeIds || [])).filter((id) => Number.isInteger(id) && id > 0);
+        const pagination = (0, pagination_1.normalizePagination)(filters, {
+            defaultLimit: ids.length > 0 ? Math.min(ids.length, 200) : 50,
+            maxLimit: 200,
+        });
         if (ids.length > 0) {
             sql += ` AND q.id IN (${(0, sql_safety_1.sqlPlaceholders)(ids)})`;
             params.push(...ids);
@@ -156,9 +161,11 @@ let QuestionsService = class QuestionsService {
             sql += ' AND COALESCE(qql.quiz_count, 0) > 0';
         }
         sql += filters.random ? ' ORDER BY RAND()' : ' ORDER BY q.id DESC';
-        if (filters.limit && filters.limit > 0) {
-            sql += ' LIMIT ?';
-            params.push(Math.min(Math.trunc(filters.limit), 200));
+        sql += ' LIMIT ?';
+        params.push(pagination.limit);
+        if (pagination.offset > 0) {
+            sql += ' OFFSET ?';
+            params.push(pagination.offset);
         }
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapQuestionSummary(row));

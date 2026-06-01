@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuizzesService = void 0;
 const common_1 = require("@nestjs/common");
+const pagination_1 = require("../../common/utils/pagination");
 const sql_safety_1 = require("../../database/sql-safety");
 const auth_service_1 = require("../auth/auth.service");
 const database_tokens_1 = require("../../database/database.tokens");
@@ -41,9 +42,35 @@ let QuizzesService = class QuizzesService {
         }
     }
     async findAll(filters) {
+        const { limit, offset } = (0, pagination_1.normalizePagination)(filters, { defaultLimit: 50, maxLimit: 100 });
         let sql = `
       SELECT
-        quizzes.*,
+        quizzes.id,
+        quizzes.course_id,
+        quizzes.topic_id,
+        quizzes.subtopic_id,
+        quizzes.lesson_id,
+        quizzes.paper_id,
+        quizzes.category,
+        quizzes.collection_tags,
+        quizzes.is_free,
+        quizzes.subtopic,
+        quizzes.is_general,
+        quizzes.exam_mode_only,
+        quizzes.admin_name,
+        quizzes.student_title,
+        quizzes.display_title_mode,
+        quizzes.quiz_title,
+        quizzes.quiz_description,
+        NULL AS blueprint_json,
+        quizzes.total_questions,
+        quizzes.total_marks,
+        quizzes.time_limit,
+        quizzes.hide_time_limit,
+        quizzes.passing_marks,
+        quizzes.hide_passing_marks,
+        quizzes.status,
+        quizzes.created_at,
         courses.course_title,
         topics.topic_name AS subject_name,
         subtopics.subtopic_name AS topic_name,
@@ -80,7 +107,8 @@ let QuizzesService = class QuizzesService {
             sql += ' AND quizzes.status = ?';
             params.push(filters.status);
         }
-        sql += ' ORDER BY quizzes.id DESC';
+        sql += ' ORDER BY quizzes.id DESC LIMIT ? OFFSET ?';
+        params.push(limit, offset);
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapQuiz(row));
     }
@@ -225,7 +253,32 @@ let QuizzesService = class QuizzesService {
     async findOne(id) {
         const [rows] = await this.db.execute(`
         SELECT
-          quizzes.*,
+          quizzes.id,
+          quizzes.course_id,
+          quizzes.topic_id,
+          quizzes.subtopic_id,
+          quizzes.lesson_id,
+          quizzes.paper_id,
+          quizzes.category,
+          quizzes.collection_tags,
+          quizzes.is_free,
+          quizzes.subtopic,
+          quizzes.is_general,
+          quizzes.exam_mode_only,
+          quizzes.admin_name,
+          quizzes.student_title,
+          quizzes.display_title_mode,
+          quizzes.quiz_title,
+          quizzes.quiz_description,
+          quizzes.blueprint_json,
+          quizzes.total_questions,
+          quizzes.total_marks,
+          quizzes.time_limit,
+          quizzes.hide_time_limit,
+          quizzes.passing_marks,
+          quizzes.hide_passing_marks,
+          quizzes.status,
+          quizzes.created_at,
           courses.course_title,
           topics.topic_name AS subject_name,
           subtopics.subtopic_name AS topic_name,

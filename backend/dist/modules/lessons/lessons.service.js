@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LessonsService = void 0;
 const common_1 = require("@nestjs/common");
+const pagination_1 = require("../../common/utils/pagination");
 const database_tokens_1 = require("../../database/database.tokens");
 const auth_token_util_1 = require("../auth/auth-token.util");
 let LessonsService = class LessonsService {
@@ -45,6 +46,7 @@ let LessonsService = class LessonsService {
         };
     }
     async findAdminList(filters) {
+        const { limit, offset } = (0, pagination_1.normalizePagination)(filters, { defaultLimit: 50, maxLimit: 100 });
         const conditions = [];
         const params = [];
         if (filters.search?.trim()) {
@@ -74,7 +76,7 @@ let LessonsService = class LessonsService {
         l.topic_id,
         l.subtopic_id,
         l.lesson_title,
-        l.lesson_content,
+        NULL AS lesson_content,
         l.video_url,
         l.is_free,
         l.status,
@@ -87,7 +89,8 @@ let LessonsService = class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       ${whereClause}
-      ORDER BY l.created_at DESC, l.id DESC`, params);
+      ORDER BY l.created_at DESC, l.id DESC
+      LIMIT ? OFFSET ?`, [...params, limit, offset]);
         return rows.map((row) => this.mapLesson(row));
     }
     async findStudentList(authorization) {

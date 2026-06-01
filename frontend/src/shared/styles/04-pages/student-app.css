@@ -105,7 +105,7 @@
   --sa-dur: 160ms;
   --lms-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --lms-ease-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
-  --lms-sidebar-duration: 380ms;
+  --lms-sidebar-duration: 220ms;
   --lms-dropdown-duration: 220ms;
   --sidebar-float-gap: 16px;
   --sidebar-shell-gap: 16px;
@@ -283,7 +283,7 @@
   transform: translate3d(0, 0, 0);
   transition:
     opacity 220ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
-    transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
+    transform var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .lms-sidebar--student-model .lms-sidebar-brand-name {
@@ -377,7 +377,7 @@
   transform: translate3d(0, 0, 0);
   transition:
     opacity 200ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
-    transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
+    transform var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .lms-sidebar--student-model .lms-sidebar-student-footer {
@@ -391,8 +391,8 @@
   transform: translate3d(0, 0, 0);
   transition:
     opacity 220ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
-    transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
-    border-color var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
+    transform var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+    border-color var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .lms-sidebar--student-model .lms-sidebar-student-avatar {
@@ -449,11 +449,14 @@
     isolation: isolate;
     contain: layout paint;
     backface-visibility: hidden;
-    will-change: transform, opacity;
     transition:
-      width var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
-      transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      width var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      transform var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
       opacity 260ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
+  }
+
+  .sidebar-motion-active .lms-sidebar--student-model:not(.is-overlay-nav) {
+    will-change: transform, opacity;
   }
 
   .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed {
@@ -545,10 +548,9 @@
     width: 100% !important;
     padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w, 224px) + var(--sidebar-shell-gap, 16px)) !important;
     transition:
-      padding-left var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
-      width var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
-      transform var(--lms-sidebar-duration, 380ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
-    will-change: padding-left;
+      padding-left var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      width var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      transform var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
   }
 
   .student-app-shell.sidebar-collapsed:not(.compact-focus-mode) .main-content {
@@ -1474,8 +1476,9 @@
   font-size: var(--type-size-base);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-body);
-  --lms-student-page-enter-duration: 360ms;
-  --lms-student-page-enter-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --lms-student-page-enter-duration: 200ms;
+  --lms-student-page-enter-ease: var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+  --lms-student-page-enter-y: 6px;
 }
 
 /* Display font everywhere headings live */
@@ -1876,159 +1879,6 @@
   z-index: 10062;
 }
 
-.app-shell .lms-profile-menu,
-.lms-topbar .lms-profile-menu,
-.study-hub-topbar .lms-profile-menu {
-  --profile-menu-trigger-size: 36px;
-  --profile-menu-trigger-radius: 12px;
-  --profile-menu-ink: #26314c;
-  --profile-menu-muted: #4d5b78;
-  --profile-menu-border: rgba(12, 24, 48, 0.08);
-  --profile-menu-grad: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(56, 189, 248, 0.1));
-  --profile-menu-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(247, 250, 255, 0.64)),
-    var(--profile-menu-grad);
-  --profile-menu-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 24px 54px -22px rgba(14, 21, 56, 0.28);
-  border-color: var(--profile-menu-border) !important;
-  background: var(--profile-menu-bg) !important;
-  color: var(--profile-menu-ink) !important;
-  box-shadow: var(--profile-menu-shadow) !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-  animation: lmsProfilePopoverIn var(--lms-popover-motion, 180ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
-  transform-origin: top right;
-  will-change: transform, opacity;
-}
-
-:root[data-theme='dark'] :where(.app-shell, .lms-topbar, .study-hub-topbar) .lms-profile-menu {
-  --profile-menu-ink: #e8eefa;
-  --profile-menu-muted: #a3afbd;
-  --profile-menu-border: rgba(203, 213, 225, 0.13);
-  --profile-menu-grad: linear-gradient(135deg, rgba(148, 163, 184, 0.08), rgba(96, 113, 135, 0.05));
-  --profile-menu-bg:
-    linear-gradient(180deg, rgba(23, 35, 48, 0.88), rgba(18, 28, 38, 0.82)),
-    var(--profile-menu-grad);
-  --profile-menu-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 24px 56px -24px rgba(2, 6, 12, 0.62);
-}
-
-.app-shell .lms-profile-menu.is-closing,
-.lms-topbar .lms-profile-menu.is-closing,
-.study-hub-topbar .lms-profile-menu.is-closing {
-  pointer-events: none;
-  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 160ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
-}
-
-.app-shell .lms-profile-menu::before,
-.lms-topbar .lms-profile-menu::before,
-.study-hub-topbar .lms-profile-menu::before {
-  content: none !important;
-}
-
-.app-shell .lms-profile-menu > *,
-.lms-topbar .lms-profile-menu > *,
-.study-hub-topbar .lms-profile-menu > * {
-  position: relative;
-  z-index: 1;
-  opacity: 0;
-  transform: translate3d(0, -4px, 0);
-  animation: lmsProfileMenuContentIn 140ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
-}
-
-.app-shell .lms-profile-menu > :nth-child(1),
-.lms-topbar .lms-profile-menu > :nth-child(1),
-.study-hub-topbar .lms-profile-menu > :nth-child(1) {
-  animation-delay: 35ms;
-}
-
-.app-shell .lms-profile-menu > :nth-child(2),
-.lms-topbar .lms-profile-menu > :nth-child(2),
-.study-hub-topbar .lms-profile-menu > :nth-child(2) {
-  animation-delay: 55ms;
-}
-
-.app-shell .lms-profile-menu > :nth-child(3),
-.lms-topbar .lms-profile-menu > :nth-child(3),
-.study-hub-topbar .lms-profile-menu > :nth-child(3) {
-  animation-delay: 75ms;
-}
-
-.app-shell .lms-profile-menu.is-closing > *,
-.lms-topbar .lms-profile-menu.is-closing > *,
-.study-hub-topbar .lms-profile-menu.is-closing > * {
-  animation: lmsProfileMenuContentOut 110ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
-  animation-delay: 0ms;
-}
-
-.app-shell .lms-profile-menu .lms-profile-menu-head-copy,
-.lms-topbar .lms-profile-menu .lms-profile-menu-head-copy,
-.study-hub-topbar .lms-profile-menu .lms-profile-menu-head-copy {
-  width: 100%;
-  margin-left: auto;
-  text-align: right;
-}
-
-.app-shell .lms-profile-menu .lms-profile-menu-head-copy :where(strong, small),
-.lms-topbar .lms-profile-menu .lms-profile-menu-head-copy :where(strong, small),
-.study-hub-topbar .lms-profile-menu .lms-profile-menu-head-copy :where(strong, small) {
-  text-align: right;
-}
-
-.app-shell .lms-profile-menu :where(button, [role="button"]),
-.lms-topbar .lms-profile-menu :where(button, [role="button"]),
-.study-hub-topbar .lms-profile-menu :where(button, [role="button"]) {
-  justify-content: space-between !important;
-  color: var(--profile-menu-muted) !important;
-  box-shadow: none !important;
-  text-align: right !important;
-  transform: none !important;
-  transition: opacity var(--sa-dur) var(--sa-ease) !important;
-}
-
-.app-shell .lms-profile-menu :where(button, [role="button"]) span,
-.lms-topbar .lms-profile-menu :where(button, [role="button"]) span,
-.study-hub-topbar .lms-profile-menu :where(button, [role="button"]) span {
-  margin-left: auto;
-  text-align: right;
-}
-
-.app-shell .lms-profile-menu :where(button, [role="button"]):is(:hover, :active),
-.lms-topbar .lms-profile-menu :where(button, [role="button"]):is(:hover, :active),
-.study-hub-topbar .lms-profile-menu :where(button, [role="button"]):is(:hover, :active) {
-  background: transparent !important;
-  color: var(--profile-menu-muted) !important;
-  box-shadow: none !important;
-  transform: none !important;
-}
-
-.app-shell .lms-profile-menu > div:nth-of-type(3),
-.lms-topbar .lms-profile-menu > div:nth-of-type(3),
-.study-hub-topbar .lms-profile-menu > div:nth-of-type(3) {
-  border-top: 0 !important;
-}
-
-.app-shell .lms-profile-menu .lms-profile-menu-logout,
-.lms-topbar .lms-profile-menu .lms-profile-menu-logout,
-.study-hub-topbar .lms-profile-menu .lms-profile-menu-logout {
-  background: transparent !important;
-  color: var(--profile-menu-muted) !important;
-}
-
-.app-shell .lms-profile-menu .lms-profile-menu-logout:is(:hover, :active),
-.lms-topbar .lms-profile-menu .lms-profile-menu-logout:is(:hover, :active),
-.study-hub-topbar .lms-profile-menu .lms-profile-menu-logout:is(:hover, :active) {
-  background: transparent !important;
-  color: var(--profile-menu-muted) !important;
-}
-
-.app-shell .lms-profile-menu .lms-profile-menu-logout span,
-.lms-topbar .lms-profile-menu .lms-profile-menu-logout span,
-.study-hub-topbar .lms-profile-menu .lms-profile-menu-logout span {
-  color: var(--sa-danger-deep, var(--brand-error)) !important;
-}
 
 .student-app-shell .lms-profile-menu,
 .app-shell .lms-profile-menu,
@@ -3295,9 +3145,10 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .results-focus-board
 ) {
   transition:
-    transform    220ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow   220ms cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 180ms ease;
+    transform 160ms var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+    box-shadow 160ms var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+    background-color 150ms ease,
+    border-color 150ms ease;
 }
 
 .student-app-shell :where(
@@ -3374,34 +3225,84 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .lms-quiz-topic-card,
   .lms-quiz-set-card
 ):active {
-  transform: scale(0.99);
+  transform: scale(0.98);
 }
 
-/* ── Staggered entrance for non-dashboard pages ─────────────── */
+/* ── Staggered entrance for student main pages ──────────────── */
 @keyframes lms-page-fade-up {
-  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  from { opacity: 0; transform: translate3d(0, var(--lms-student-page-enter-y), 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
-.student-app-shell .student-route-page:not(.dashboard-page) :where(
-  .management-layout > section,
-  .management-layout > article,
-  .management-layout > .lms-page-header-card,
-  .study-hub-shell > section:not(.study-hub-topbar),
-  .study-hub-shell > article
+.student-app-shell :where(
+  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+  .dashboard-page.study-hub-page:is(
+    .student-courses-page,
+    .lms-course-detail-page,
+    .student-quiz-map-page,
+    .student-billing-page,
+    .student-checkout-page,
+    .student-bookmarks-page,
+    .student-notifications-page,
+    .student-flashcards-page,
+    .student-notes-page,
+    .student-results-page,
+    .study-planner-page,
+    .ai-notes-list-page
+  )
+) :where(.management-layout, .study-hub-shell) > :where(
+  :not(style):not(script):not(.study-hub-topbar)
 ) {
   animation: lms-page-fade-up var(--lms-student-page-enter-duration) var(--lms-student-page-enter-ease) both;
   backface-visibility: hidden;
 }
 
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(1) { animation-delay:  12ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(2) { animation-delay:  36ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(3) { animation-delay:  60ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(4) { animation-delay:  84ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(5) { animation-delay: 108ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(6) { animation-delay: 132ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(7) { animation-delay: 132ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(8) { animation-delay: 132ms; }
+.student-app-shell :where(
+  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+) :where(.management-layout, .study-hub-shell) > :nth-child(1) { animation-delay:  12ms; }
+.student-app-shell :where(
+  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+) :where(.management-layout, .study-hub-shell) > :nth-child(2) { animation-delay:  48ms; }
+.student-app-shell :where(
+  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+) :where(.management-layout, .study-hub-shell) > :nth-child(3) { animation-delay:  84ms; }
+.student-app-shell :where(
+  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+) :where(.management-layout, .study-hub-shell) > :nth-child(n+4) { animation-delay: 120ms; }
+
+@media (max-width: 700px) {
+  .student-app-shell {
+    --lms-student-page-enter-duration: 180ms;
+    --lms-student-page-enter-y: 3px;
+  }
+
+  .student-app-shell :where(
+    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+    .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+  ) :where(.management-layout, .study-hub-shell) > :where(
+    :not(style):not(script):not(.study-hub-topbar)
+  ) {
+    animation-delay: 0ms;
+  }
+
+  .student-app-shell :where(
+    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+    .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+  ) :where(.management-layout, .study-hub-shell) > :nth-child(2) {
+    animation-delay: 18ms;
+  }
+
+  .student-app-shell :where(
+    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+    .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+  ) :where(.management-layout, .study-hub-shell) > :nth-child(n+3) {
+    animation-delay: 32ms;
+  }
+}
 
 /* ── Unified section heads — match dashboard's eyebrow + small */
 .student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) :where(.lms-app-section-head, .student-section-head) {
@@ -3444,12 +3345,24 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
     transform: none !important;
   }
 
-  .student-app-shell .student-route-page:not(.dashboard-page) :where(
-    .management-layout > section,
-    .management-layout > article,
-    .management-layout > .lms-page-header-card,
-    .study-hub-shell > section:not(.study-hub-topbar),
-    .study-hub-shell > article
+  .student-app-shell :where(
+    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+    .dashboard-page.study-hub-page:is(
+      .student-courses-page,
+      .lms-course-detail-page,
+      .student-quiz-map-page,
+      .student-billing-page,
+      .student-checkout-page,
+      .student-bookmarks-page,
+      .student-notifications-page,
+      .student-flashcards-page,
+      .student-notes-page,
+      .student-results-page,
+      .study-planner-page,
+      .ai-notes-list-page
+    )
+  ) :where(.management-layout, .study-hub-shell) > :where(
+    :not(style):not(script):not(.study-hub-topbar)
   ) {
     animation: none !important;
   }
@@ -3464,7 +3377,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 ) {
   min-height: 100dvh !important;
   background: var(--sa-bg) !important;
-  background-attachment: fixed !important;
   padding-inline: 0 !important;
 }
 

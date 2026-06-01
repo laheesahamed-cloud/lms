@@ -26,12 +26,15 @@ let QuizzesController = class QuizzesController {
         this.quizzesService = quizzesService;
         this.authService = authService;
     }
-    findAll(search, courseId, topicId, status) {
+    findAll(search, courseId, topicId, status, limit, page, offset) {
         return this.quizzesService.findAll({
             search,
             courseId: courseId ? parseInt(courseId, 10) : undefined,
             topicId: topicId || undefined,
             status,
+            limit: this.parsePositiveNumber(limit),
+            page: this.parsePositiveNumber(page),
+            offset: this.parseNonNegativeNumber(offset),
         });
     }
     meta(includeQuestions) {
@@ -76,6 +79,20 @@ let QuizzesController = class QuizzesController {
         const actor = await this.authService.requireAdmin(authorization);
         return this.quizzesService.remove(id, actor);
     }
+    parsePositiveNumber(raw) {
+        const value = Number(raw);
+        if (!Number.isFinite(value) || value <= 0) {
+            return undefined;
+        }
+        return Math.trunc(value);
+    }
+    parseNonNegativeNumber(raw) {
+        const value = Number(raw);
+        if (!Number.isFinite(value) || value < 0) {
+            return undefined;
+        }
+        return Math.trunc(value);
+    }
 };
 exports.QuizzesController = QuizzesController;
 __decorate([
@@ -86,8 +103,11 @@ __decorate([
     __param(1, (0, common_1.Query)('courseId')),
     __param(2, (0, common_1.Query)('topicId')),
     __param(3, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('limit')),
+    __param(5, (0, common_1.Query)('page')),
+    __param(6, (0, common_1.Query)('offset')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuizzesController.prototype, "findAll", null);
 __decorate([

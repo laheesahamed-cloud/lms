@@ -6,7 +6,7 @@ export declare class QuizzesController {
     private readonly quizzesService;
     private readonly authService;
     constructor(quizzesService: QuizzesService, authService: AuthService);
-    findAll(search?: string, courseId?: string, topicId?: string, status?: string): Promise<{
+    findAll(search?: string, courseId?: string, topicId?: string, status?: string, limit?: string, page?: string, offset?: string): Promise<{
         id: number;
         courseId: number;
         topicId: number | null;
@@ -215,4 +215,6 @@ export declare class QuizzesController {
         ok: boolean;
         id: number;
     }>;
+    private parsePositiveNumber;
+    private parseNonNegativeNumber;
 }

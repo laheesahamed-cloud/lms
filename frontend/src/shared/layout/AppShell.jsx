@@ -244,7 +244,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
       return;
     }
 
-    const preloadLimit = PLATFORM.isNative ? (PLATFORM.isPhone ? 2 : 6) : getRoutePreloadLimit();
+    const preloadLimit = getRoutePreloadLimit();
     if (preloadLimit <= 0) {
       return;
     }

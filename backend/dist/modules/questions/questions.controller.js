@@ -49,7 +49,7 @@ let QuestionsController = class QuestionsController {
         this.questionsService = questionsService;
         this.authService = authService;
     }
-    findAll(search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, ids, excludeIds, limit, random) {
+    findAll(search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, ids, excludeIds, limit, page, offset, random) {
         return this.questionsService.findAll({
             search,
             status,
@@ -66,6 +66,8 @@ let QuestionsController = class QuestionsController {
             ids: this.parseIdList(ids),
             excludeIds: this.parseIdList(excludeIds),
             limit: this.parseLimit(limit),
+            page: this.parsePositiveNumber(page),
+            offset: this.parseNonNegativeNumber(offset),
             random: random === '1' || random === 'true',
         });
     }
@@ -157,6 +159,20 @@ let QuestionsController = class QuestionsController {
         }
         return Math.min(Math.max(Math.trunc(value), 1), 200);
     }
+    parsePositiveNumber(raw) {
+        const value = Number(raw);
+        if (!Number.isFinite(value) || value <= 0) {
+            return undefined;
+        }
+        return Math.trunc(value);
+    }
+    parseNonNegativeNumber(raw) {
+        const value = Number(raw);
+        if (!Number.isFinite(value) || value < 0) {
+            return undefined;
+        }
+        return Math.trunc(value);
+    }
 };
 exports.QuestionsController = QuestionsController;
 __decorate([
@@ -176,9 +192,11 @@ __decorate([
     __param(12, (0, common_1.Query)('ids')),
     __param(13, (0, common_1.Query)('excludeIds')),
     __param(14, (0, common_1.Query)('limit')),
-    __param(15, (0, common_1.Query)('random')),
+    __param(15, (0, common_1.Query)('page')),
+    __param(16, (0, common_1.Query)('offset')),
+    __param(17, (0, common_1.Query)('random')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "findAll", null);
 __decorate([

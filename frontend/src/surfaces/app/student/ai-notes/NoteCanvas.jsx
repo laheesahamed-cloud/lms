@@ -11,10 +11,10 @@ if (typeof document !== 'undefined' && !document.getElementById('canvas-study-st
     '@keyframes ncvLightboxBackdropIn{from{opacity:0}to{opacity:1}}',
     '@keyframes ncvLightboxPanelIn{from{opacity:0;transform:translateY(12px) scale(0.985)}to{opacity:1;transform:translateY(0) scale(1)}}',
     '.ncv-enter{opacity:0!important}',
-    '.ncv-entered{animation:ncvCardIn 0.48s cubic-bezier(0.22,1,0.36,1) both}',
+    '.ncv-entered{animation:ncvCardIn 0.26s cubic-bezier(0.16,1,0.3,1) both}',
     '.ncv-lightbox-backdrop{animation:ncvLightboxBackdropIn 0.18s cubic-bezier(0.22,1,0.36,1) both}',
     '.ncv-lightbox-panel{animation:ncvLightboxPanelIn 0.22s cubic-bezier(0.22,1,0.36,1) both}',
-    '.focus-canvas .ncv-item{transition:opacity 0.2s ease,transform 0.2s ease,box-shadow 0.2s ease;opacity:0.3}',
+    '.focus-canvas .ncv-item{transition:opacity 160ms cubic-bezier(0.16,1,0.3,1),transform 160ms cubic-bezier(0.16,1,0.3,1),box-shadow 160ms cubic-bezier(0.16,1,0.3,1);opacity:0.3}',
     '.focus-canvas .ncv-item:hover{opacity:1!important;transform:translateY(-3px) scale(1.014);z-index:12;position:relative}',
     '@media (prefers-reduced-motion: reduce){.ncv-entered,.ncv-lightbox-backdrop,.ncv-lightbox-panel{animation:none!important}.focus-canvas .ncv-item{transition:none!important}}',
   ].join('');
@@ -131,13 +131,13 @@ const noteCanvasUi = {
   imageFitToggleOverlay:
     'border-white/15 bg-white/10',
   imageFitButton:
-    'min-h-[26px] cursor-pointer rounded-md px-2.5 font-sans text-[11px] font-extrabold text-ink-muted transition hover:bg-surface-raised hover:text-ink-strong active:scale-[0.97] dark:hover:bg-white/[0.08] dark:hover:text-white',
+    'min-h-[26px] cursor-pointer rounded-md px-2.5 font-sans text-[11px] font-extrabold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-raised hover:text-ink-strong active:scale-[0.98] dark:hover:bg-white/[0.08] dark:hover:text-white',
   imageFitButtonOverlay:
     'min-h-[24px] px-2 text-white/74 hover:bg-white/12 hover:text-white',
   imageFitButtonOn:
     '!bg-primary !text-white shadow-sm dark:!bg-sky-400 dark:!text-slate-700',
   imagePlaceholder:
-    'flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-md border-2 border-dashed border-indigo-500/30 bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_5%,var(--surface-2,#f8fafc))] font-sans text-[13px] text-ink-muted transition hover:bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_10%,var(--surface-2,#f8fafc))]',
+    'flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-md border-2 border-dashed border-indigo-500/30 bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_5%,var(--surface-2,#f8fafc))] font-sans text-[13px] text-ink-muted transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_10%,var(--surface-2,#f8fafc))] active:scale-[0.98]',
   imageCaption: 'mx-2.5 mb-2 mt-1.5 text-center font-sans text-xs italic text-ink-muted',
   imageSizePill:
     'absolute bottom-2 right-2 z-10 rounded-full border border-black/10 bg-white/90 px-2 py-0.5 font-sans text-[11px] font-extrabold text-slate-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/75 dark:text-slate-200',
@@ -154,11 +154,11 @@ const noteCanvasUi = {
   imageControlsBar: 'mt-[5px] flex flex-wrap items-center gap-1.5',
   imagePosButtons: 'flex flex-wrap gap-[3px]',
   imagePosButton:
-    'cursor-pointer whitespace-nowrap rounded-[5px] border-[1.5px] border-line-soft bg-transparent px-[7px] py-0.5 font-sans text-[11px] font-semibold text-ink-muted transition hover:bg-surface-raised hover:text-ink-strong',
+    'cursor-pointer whitespace-nowrap rounded-[5px] border-[1.5px] border-line-soft bg-transparent px-[7px] py-0.5 font-sans text-[11px] font-semibold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-raised hover:text-ink-strong active:scale-[0.98]',
   imagePosButtonOn:
     'border-[color-mix(in_srgb,var(--color-primary,#2563eb)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_12%,transparent)] text-primary',
   imageSmallButton:
-    'cursor-pointer rounded-[5px] border-[1.5px] border-line-soft bg-surface-raised px-2 py-0.5 font-sans text-[11px] font-semibold text-ink-muted transition hover:bg-surface-glass-strong hover:text-ink-strong',
+    'cursor-pointer rounded-[5px] border-[1.5px] border-line-soft bg-surface-raised px-2 py-0.5 font-sans text-[11px] font-semibold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-glass-strong hover:text-ink-strong active:scale-[0.98]',
   imageDeleteButton: 'border-red-600/30 text-red-600 hover:bg-red-600/[0.08]',
   sectionBody: 'px-3.5 pb-3 pt-2 max-[520px]:px-2.5',
   sectionBodySplit: 'flex items-start gap-3 p-0',
@@ -208,17 +208,17 @@ const noteCanvasUi = {
   bgSwatch: 'inline-block size-3.5 shrink-0 rounded border-[1.5px] border-black/20',
   layoutToggle: 'flex items-center gap-[3px]',
   layoutButton:
-    'flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-[7px] border-[1.5px] border-line-soft bg-transparent px-[9px] py-1 font-sans text-[11px] font-semibold text-ink-muted transition hover:bg-surface-raised hover:text-ink-strong active:scale-[0.97] dark:border-[rgba(145,170,255,0.16)] dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-sky-300/26 dark:hover:bg-sky-300/10 dark:hover:text-white',
+    'flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-[7px] border-[1.5px] border-line-soft bg-transparent px-[9px] py-1 font-sans text-[11px] font-semibold text-ink-muted transition-[background,border-color,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-raised hover:text-ink-strong active:scale-[0.98] dark:border-[rgba(145,170,255,0.16)] dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-sky-300/26 dark:hover:bg-sky-300/10 dark:hover:text-white',
   layoutButtonOn:
     'border-[color-mix(in_srgb,var(--color-primary,#2563eb)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_12%,transparent)] text-primary dark:!border-sky-300/36 dark:!bg-sky-300/14 dark:!text-sky-100',
   popup:
     'absolute left-0 top-[calc(100%+6px)] z-[300] rounded-[14px] border border-line-soft bg-surface-1 p-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.13)] dark:border-white/[0.08] dark:bg-[#374151]',
   stickerPicker: 'grid w-[228px] grid-cols-6 gap-[5px]',
   stickerButton:
-    'flex size-[34px] cursor-pointer items-center justify-center rounded-lg border border-line-soft bg-surface-2 text-lg transition hover:scale-110 hover:bg-[color-mix(in_srgb,var(--color-primary)_10%,var(--surface-2))]',
+    'flex size-[34px] cursor-pointer items-center justify-center rounded-lg border border-line-soft bg-surface-2 text-lg transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:scale-105 hover:bg-[color-mix(in_srgb,var(--color-primary)_10%,var(--surface-2))] active:scale-[0.98]',
   colorPicker: 'grid w-[180px] grid-cols-5 gap-1.5',
   colorSwatch:
-    'size-[26px] cursor-pointer rounded-[7px] border-[1.5px] border-black/10 p-0 transition hover:scale-110',
+    'size-[26px] cursor-pointer rounded-[7px] border-[1.5px] border-black/10 p-0 transition-transform duration-150 ease-[var(--ease-out)] hover:scale-105 active:scale-[0.98]',
   colorSwatchSelected: 'border-[2.5px] !border-blue-700 shadow-[0_0_0_2px_rgba(37,99,235,0.28)]',
   colorCustom:
     'relative flex items-center justify-center overflow-hidden !bg-surface-2 text-sm',
@@ -229,15 +229,15 @@ const noteCanvasUi = {
   stickerControls:
     'absolute left-1/2 top-[calc(100%+6px)] z-30 flex -translate-x-1/2 items-center gap-[3px] whitespace-nowrap rounded-[10px] border border-line-soft bg-surface-1 px-1.5 py-1 shadow-[0_4px_16px_rgba(0,0,0,0.14)] [transform:translateX(-50%)_rotate(calc(-1*var(--rot,0deg)))] dark:border-white/10 dark:bg-slate-800',
   stickerControlButton:
-    'flex size-[26px] cursor-pointer items-center justify-center rounded-[7px] border border-black/10 bg-surface-2 p-0 text-xs font-bold text-ink-medium transition hover:bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_10%,var(--surface-2,#f8fafc))]',
+    'flex size-[26px] cursor-pointer items-center justify-center rounded-[7px] border border-black/10 bg-surface-2 p-0 text-xs font-bold text-ink-medium transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_10%,var(--surface-2,#f8fafc))] active:scale-[0.98]',
   stickerDeleteButton: '!border-red-500/20 !bg-red-50 !text-red-500 hover:!bg-red-100',
   compressToast:
     'my-1.5 flex items-center gap-[7px] self-start rounded-full border border-line-soft bg-surface-glass px-3.5 py-1.5 font-sans text-xs text-ink-muted',
   compressSpin: 'animate-[spin_0.9s_linear_infinite]',
   smartArrangeFab:
-    'absolute bottom-4 right-4 z-[55] inline-flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-white/90 px-3.5 py-2 font-sans text-[11px] font-extrabold text-violet-700 shadow-[0_10px_28px_rgba(88,28,135,0.14)] backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-violet-50 dark:border-violet-300/20 dark:bg-slate-950/85 dark:text-violet-100 dark:hover:bg-violet-500/15',
+    'absolute bottom-4 right-4 z-[55] inline-flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-white/90 px-3.5 py-2 font-sans text-[11px] font-extrabold text-violet-700 shadow-[0_10px_28px_rgba(88,28,135,0.14)] backdrop-blur-md transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:bg-violet-50 active:scale-[0.98] dark:border-violet-300/20 dark:bg-slate-950/85 dark:text-violet-100 dark:hover:bg-violet-500/15',
   focusBtn:
-    "inline-flex items-center gap-1.5 rounded-lg border border-slate-300/60 bg-surface-card/60 px-2.5 py-1 font-[var(--type-font-body)] text-[11px] font-semibold text-slate-600 backdrop-blur-sm transition hover:bg-surface-card hover:text-slate-700 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
+    "inline-flex items-center gap-1.5 rounded-lg border border-slate-300/60 bg-surface-card/60 px-2.5 py-1 font-[var(--type-font-body)] text-[11px] font-semibold text-slate-600 backdrop-blur-sm transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-card hover:text-slate-700 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
   focusBtnOn:
     '!border-violet-400/50 !bg-violet-100/90 !text-violet-700 dark:!border-violet-400/30 dark:!bg-violet-500/15 dark:!text-violet-200',
   lightboxBackdrop:
@@ -255,9 +255,9 @@ const noteCanvasUi = {
   lightboxActions:
     'flex shrink-0 flex-wrap items-center justify-end gap-1.5 max-[640px]:justify-start',
   lightboxButton:
-    'inline-flex min-h-[36px] cursor-pointer items-center justify-center rounded-lg border border-white/12 bg-white/[0.065] px-3 font-sans text-[12px] font-extrabold text-white/86 transition hover:bg-white/[0.12] hover:text-white active:scale-[0.97]',
+    'inline-flex min-h-[36px] cursor-pointer items-center justify-center rounded-lg border border-white/12 bg-white/[0.065] px-3 font-sans text-[12px] font-extrabold text-white/86 transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-white/[0.12] hover:text-white active:scale-[0.98]',
   lightboxIconButton:
-    'inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/12 bg-white/[0.065] p-0 font-sans text-[17px] font-extrabold text-white/86 transition hover:bg-white/[0.12] hover:text-white active:scale-[0.97]',
+    'inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-white/12 bg-white/[0.065] p-0 font-sans text-[17px] font-extrabold text-white/86 transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-white/[0.12] hover:text-white active:scale-[0.98]',
   lightboxViewport:
     'relative flex min-h-0 flex-1 cursor-grab items-center justify-center overflow-hidden bg-slate-950 p-4 touch-none active:cursor-grabbing',
   lightboxImage:
@@ -867,7 +867,7 @@ function CheckableBulletList({ bullets, accentColor, highlightColors, sectionKey
       {checked > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           <div style={{ flex: 1, height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
-            <div style={{ height: '100%', borderRadius: 99, background: '#10b981', width: `${Math.round((checked / total) * 100)}%`, transition: 'width 0.4s ease', boxShadow: '0 0 8px rgba(16,185,129,0.35)' }}/>
+            <div style={{ height: '100%', borderRadius: 99, background: '#10b981', width: '100%', transform: `scaleX(${checked / total})`, transformOrigin: 'left center', transition: 'transform 180ms cubic-bezier(0.16,1,0.3,1)', boxShadow: '0 0 8px rgba(16,185,129,0.35)' }}/>
           </div>
           <span style={{ fontSize:11, fontFamily: 'var(--type-font-body)', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap', lineHeight: 1 }}>
             {checked}/{total}

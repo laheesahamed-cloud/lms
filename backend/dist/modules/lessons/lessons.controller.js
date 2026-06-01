@@ -30,13 +30,16 @@ let LessonsController = class LessonsController {
     getMeta() {
         return this.lessonsService.getMeta();
     }
-    findAdminList(search, courseId, topicId, subtopicId, status) {
+    findAdminList(search, courseId, topicId, subtopicId, status, limit, page, offset) {
         return this.lessonsService.findAdminList({
             search,
             courseId: courseId ? Number(courseId) : undefined,
             topicId: topicId ? Number(topicId) : undefined,
             subtopicId: subtopicId ? Number(subtopicId) : undefined,
             status,
+            limit: this.parsePositiveNumber(limit),
+            page: this.parsePositiveNumber(page),
+            offset: this.parseNonNegativeNumber(offset),
         });
     }
     findStudentList(authorization) {
@@ -88,6 +91,20 @@ let LessonsController = class LessonsController {
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.rollback(id, versionNumber, actor);
     }
+    parsePositiveNumber(raw) {
+        const value = Number(raw);
+        if (!Number.isFinite(value) || value <= 0) {
+            return undefined;
+        }
+        return Math.trunc(value);
+    }
+    parseNonNegativeNumber(raw) {
+        const value = Number(raw);
+        if (!Number.isFinite(value) || value < 0) {
+            return undefined;
+        }
+        return Math.trunc(value);
+    }
 };
 exports.LessonsController = LessonsController;
 __decorate([
@@ -107,8 +124,11 @@ __decorate([
     __param(2, (0, common_1.Query)('topicId')),
     __param(3, (0, common_1.Query)('subtopicId')),
     __param(4, (0, common_1.Query)('status')),
+    __param(5, (0, common_1.Query)('limit')),
+    __param(6, (0, common_1.Query)('page')),
+    __param(7, (0, common_1.Query)('offset')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], LessonsController.prototype, "findAdminList", null);
 __decorate([

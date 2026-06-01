@@ -18,9 +18,31 @@ const config_1 = require("@nestjs/config");
 const crypto_1 = require("crypto");
 const promises_1 = require("fs/promises");
 const path_1 = require("path");
+const pagination_1 = require("../../common/utils/pagination");
 const database_tokens_1 = require("../../database/database.tokens");
 const plans_service_1 = require("../plans/plans.service");
 const settings_service_1 = require("../settings/settings.service");
+const SUBSCRIPTION_LIST_COLUMNS = `
+  us.id,
+  us.user_id,
+  us.plan_id,
+  us.assigned_by,
+  us.notes,
+  us.status,
+  us.payment_status,
+  us.amount_paid,
+  us.payment_method,
+  us.payment_reference,
+  us.payment_date,
+  us.receipt_url,
+  us.access_scope,
+  us.course_ids_json,
+  us.lesson_ids_json,
+  us.start_date,
+  us.end_date,
+  us.created_at,
+  us.updated_at
+`;
 let SubscriptionsService = class SubscriptionsService {
     constructor(db, plansService, settingsService, configService) {
         this.db = db;
@@ -67,9 +89,10 @@ let SubscriptionsService = class SubscriptionsService {
             features: featureCatalog.features,
         };
     }
-    async findAdminList() {
+    async findAdminList(pagination = {}) {
+        const { limit, offset } = (0, pagination_1.normalizePagination)(pagination, { defaultLimit: 50, maxLimit: 100 });
         const [rows] = await this.db.execute(`SELECT
-         us.*,
+         ${SUBSCRIPTION_LIST_COLUMNS},
          student.full_name AS student_name,
          student.email AS student_email,
          admin.full_name AS assigned_by_name,
@@ -85,8 +108,10 @@ let SubscriptionsService = class SubscriptionsService {
        INNER JOIN users student ON student.id = us.user_id
        INNER JOIN plans ON plans.id = us.plan_id
        LEFT JOIN users admin ON admin.id = us.assigned_by
-       ORDER BY us.created_at DESC, us.id DESC`);
-        return Promise.all(rows.map((row) => this.mapSubscription(row)));
+       ORDER BY us.created_at DESC, us.id DESC
+       LIMIT ? OFFSET ?`, [limit, offset]);
+        const planMap = await this.loadSubscriptionPlanMap(rows);
+        return Promise.all(rows.map((row) => this.mapSubscription(row, planMap.get(Number(row.plan_id)))));
     }
     async assign(dto, assignedBy) {
         const student = await this.getStudentOrThrow(dto.userId);
@@ -381,7 +406,32 @@ let SubscriptionsService = class SubscriptionsService {
     }
     async findAdminRequests() {
         const [rows] = await this.db.execute(`SELECT
-         sr.*,
+         sr.id,
+         sr.user_id,
+         sr.plan_id,
+         sr.invoice_id,
+         sr.status,
+         sr.message,
+         sr.admin_note,
+         sr.requested_at,
+         sr.resolved_at,
+         sr.resolved_by,
+         sr.subscription_id,
+         sr.payment_method,
+         sr.payment_reference,
+         sr.payment_amount,
+         sr.payment_currency,
+         sr.coupon_code,
+         sr.discount_amount,
+         sr.payment_proof_name,
+         sr.payment_proof_mime,
+         CASE
+           WHEN sr.payment_proof_data_url LIKE 'data:%' AND sr.invoice_id IS NOT NULL THEN CONCAT('/uploads/payment-proofs/', sr.invoice_id)
+           ELSE sr.payment_proof_data_url
+         END AS payment_proof_data_url,
+         sr.access_scope,
+         sr.course_ids_json,
+         sr.lesson_ids_json,
          student.full_name AS student_name,
          student.email AS student_email,
          plans.name AS plan_name,
@@ -414,11 +464,11 @@ let SubscriptionsService = class SubscriptionsService {
                 assignedBy: adminId,
                 notes: adminNote || `Approved upgrade request #${requestId}`,
                 status: 'active',
-                paymentStatus: request.paymentProofDataUrl ? 'paid' : 'manual',
+                paymentStatus: this.isPaidSubscriptionRequest(request) ? 'paid' : 'manual',
                 amountPaid: request.paymentAmount ?? undefined,
                 paymentMethod: request.paymentMethod || undefined,
                 paymentReference: request.paymentReference || undefined,
-                paymentDate: request.paymentProofDataUrl ? startDate : undefined,
+                paymentDate: this.isPaidSubscriptionRequest(request) ? startDate : undefined,
                 startDate,
                 endDate,
                 accessScope: request.accessScope,
@@ -456,7 +506,7 @@ let SubscriptionsService = class SubscriptionsService {
     }
     async getStudentBilling(userId) {
         const [currentRows] = await this.db.execute(`SELECT
-         us.*,
+         ${SUBSCRIPTION_LIST_COLUMNS},
          plans.name AS plan_name,
          plans.regular_price AS plan_regular_price,
          plans.offer_price AS plan_offer_price,
@@ -470,7 +520,7 @@ let SubscriptionsService = class SubscriptionsService {
        ORDER BY FIELD(us.status, 'active', 'pending', 'expired', 'cancelled'), us.end_date DESC, us.id DESC
        LIMIT 1`, [userId]);
         const [historyRows] = await this.db.execute(`SELECT
-         us.*,
+         ${SUBSCRIPTION_LIST_COLUMNS},
          admin.full_name AS assigned_by_name,
          plans.name AS plan_name,
          plans.regular_price AS plan_regular_price,
@@ -486,9 +536,10 @@ let SubscriptionsService = class SubscriptionsService {
        ORDER BY us.created_at DESC, us.id DESC
        LIMIT 12`, [userId]);
         const availablePlans = await this.plansService.findActive();
+        const planMap = await this.loadSubscriptionPlanMap([...currentRows, ...historyRows]);
         return {
-            currentSubscription: currentRows[0] ? await this.mapSubscription(currentRows[0]) : null,
-            history: (await Promise.all(historyRows.map((row) => this.mapSubscription(row))))
+            currentSubscription: currentRows[0] ? await this.mapSubscription(currentRows[0], planMap.get(Number(currentRows[0].plan_id))) : null,
+            history: (await Promise.all(historyRows.map((row) => this.mapSubscription(row, planMap.get(Number(row.plan_id))))))
                 .filter((subscription) => !subscription.isFreePlan),
             availablePlans,
             requests: await this.findStudentRequests(userId),
@@ -496,7 +547,9 @@ let SubscriptionsService = class SubscriptionsService {
         };
     }
     async findCoupons() {
-        const [rows] = await this.db.execute(`SELECT *
+        const [rows] = await this.db.execute(`SELECT
+         id, code, label, coupon_mode, discount_type, discount_value, plan_ids_json,
+         status, starts_at, expires_at, max_redemptions, redemption_count, created_at, updated_at
        FROM subscription_coupons
        ORDER BY status ASC, updated_at DESC, id DESC`);
         return rows.map((row) => this.mapCoupon(row));
@@ -507,7 +560,20 @@ let SubscriptionsService = class SubscriptionsService {
             throw new common_1.BadRequestException('Enter a valid invoice ID');
         }
         const [transactionRows] = await this.db.execute(`SELECT
-         pt.*,
+         pt.id,
+         pt.provider,
+         pt.invoice_id,
+         pt.order_id,
+         pt.status,
+         pt.amount,
+         pt.currency,
+         pt.coupon_code,
+         pt.discount_amount,
+         pt.order_note,
+         pt.payhere_payment_id,
+         pt.payment_method,
+         pt.created_at,
+         pt.updated_at,
          student.full_name AS student_name,
          student.email AS student_email,
          plans.name AS plan_name
@@ -540,7 +606,29 @@ let SubscriptionsService = class SubscriptionsService {
             };
         }
         const [requestRows] = await this.db.execute(`SELECT
-         sr.*,
+         sr.id,
+         sr.user_id,
+         sr.plan_id,
+         sr.invoice_id,
+         sr.status,
+         sr.message,
+         sr.admin_note,
+         sr.requested_at,
+         sr.resolved_at,
+         sr.resolved_by,
+         sr.subscription_id,
+         sr.payment_method,
+         sr.payment_reference,
+         sr.payment_amount,
+         sr.payment_currency,
+         sr.coupon_code,
+         sr.discount_amount,
+         sr.payment_proof_name,
+         sr.payment_proof_mime,
+         sr.payment_proof_data_url,
+         sr.access_scope,
+         sr.course_ids_json,
+         sr.lesson_ids_json,
          student.full_name AS student_name,
          student.email AS student_email,
          plans.name AS plan_name
@@ -675,7 +763,7 @@ let SubscriptionsService = class SubscriptionsService {
         const baseFrontendUrl = this.resolveFrontendUrl();
         const returnUrl = settings.returnUrl || `${baseFrontendUrl}/lms/#/subscriptions?payment=return&order_id=${encodeURIComponent(orderId)}`;
         const cancelUrl = settings.cancelUrl || `${baseFrontendUrl}/lms/#/subscriptions?payment=cancel&order_id=${encodeURIComponent(orderId)}`;
-        const notifyUrl = settings.notifyUrl || `${this.resolveApiPublicUrl()}/subscriptions/payhere/notify`;
+        const notifyUrl = this.resolvePayHereNotifyUrl(settings.notifyUrl);
         const billingName = String(checkoutInput.billingName || student.fullName || '').trim() || student.fullName;
         const billingEmail = String(checkoutInput.billingEmail || student.email || '').trim() || student.email;
         const nameParts = this.splitName(billingName);
@@ -683,6 +771,19 @@ let SubscriptionsService = class SubscriptionsService {
         const address = String(checkoutInput.address || '').trim() || 'Student account';
         const city = String(checkoutInput.city || '').trim() || 'Colombo';
         const country = String(checkoutInput.country || '').trim() || 'Sri Lanka';
+        const requestId = await this.createPayHerePendingRequest({
+            userId: student.id,
+            planId: plan.id,
+            invoiceId,
+            orderId,
+            message: checkoutInput.message,
+            amount: payableAmount,
+            currency,
+            discountAmount,
+            accessScope: scope.accessScope,
+            courseIds: scope.courseIds,
+            lessonIds: scope.lessonIds,
+        });
         await this.db.execute(`
         INSERT INTO payment_transactions (
           provider, order_id, invoice_id, user_id, plan_id, amount, currency, coupon_code, discount_amount, order_note,
@@ -703,6 +804,7 @@ let SubscriptionsService = class SubscriptionsService {
             JSON.stringify(scope.lessonIds),
         ]);
         await this.logAudit({
+            requestId,
             userId: student.id,
             actorId: student.id,
             eventType: 'payhere_checkout_initiated',
@@ -716,6 +818,7 @@ let SubscriptionsService = class SubscriptionsService {
             actionUrl: settings.sandboxMode ? 'https://sandbox.payhere.lk/pay/checkout' : 'https://www.payhere.lk/pay/checkout',
             invoiceId,
             orderId,
+            requestId,
             amount: amountFormatted,
             originalAmount: this.formatAmount(amount),
             discountAmount: this.formatAmount(discountAmount),
@@ -773,6 +876,8 @@ let SubscriptionsService = class SubscriptionsService {
             throw new common_1.BadRequestException('PayHere notification was already processed');
         }
         let subscriptionId = transaction?.subscription_id ? Number(transaction.subscription_id) : null;
+        const cardRequest = await this.findPayHereRequest(String(transaction.invoice_id || orderId), Number(transaction.user_id), Number(transaction.plan_id));
+        const paymentReference = String(body.payment_id || orderId).trim();
         await this.db.execute(`
         UPDATE payment_transactions
         SET status = ?,
@@ -812,6 +917,14 @@ let SubscriptionsService = class SubscriptionsService {
                 cancelExisting: true,
             });
             await this.db.execute('UPDATE payment_transactions SET subscription_id = ? WHERE id = ?', [subscriptionId, transaction.id]);
+            if (cardRequest?.id) {
+                await this.markPayHereRequestVerified({
+                    requestId: cardRequest.id,
+                    subscriptionId,
+                    paymentReference,
+                    adminNote: `PayHere payment verified automatically. Payment ID: ${paymentReference}.`,
+                });
+            }
             if (transaction.coupon_code) {
                 await this.db.execute('UPDATE subscription_coupons SET redemption_count = redemption_count + 1 WHERE code = ?', [transaction.coupon_code]);
             }
@@ -820,12 +933,22 @@ let SubscriptionsService = class SubscriptionsService {
                 userId: Number(transaction.user_id),
                 eventType: 'payhere_payment_paid',
                 summary: `Verified PayHere payment for ${plan.name}`,
+                requestId: cardRequest?.id || null,
                 details: { orderId, paymentId: body.payment_id || '', amount: payhereAmount, currency: payhereCurrency, couponCode: transaction.coupon_code || '', discountAmount: transaction.discount_amount || 0, accessScope: transaction.access_scope || 'all', courseIds: this.parseIdList(transaction.course_ids_json), lessonIds: this.parseIdList(transaction.lesson_ids_json) },
             });
         }
         else {
+            if (cardRequest?.id) {
+                await this.updatePayHereRequestAfterNotification({
+                    requestId: cardRequest.id,
+                    nextStatus,
+                    paymentReference,
+                    adminNote: `PayHere payment marked ${nextStatus}. Status code: ${statusCode}.`,
+                });
+            }
             await this.logAudit({
                 userId: Number(transaction.user_id),
+                requestId: cardRequest?.id || null,
                 eventType: `payhere_payment_${nextStatus}`,
                 summary: `PayHere payment marked ${nextStatus}`,
                 details: { orderId, statusCode, paymentId: body.payment_id || '', amount: payhereAmount, currency: payhereCurrency },
@@ -931,7 +1054,15 @@ let SubscriptionsService = class SubscriptionsService {
     }
     async findAuditEvents() {
         const [rows] = await this.db.execute(`SELECT
-         sae.*,
+         sae.id,
+         sae.subscription_id,
+         sae.request_id,
+         sae.user_id,
+         sae.actor_id,
+         sae.event_type,
+         sae.summary,
+         sae.details_json,
+         sae.created_at,
          actor.full_name AS actor_name,
          actor.email AS actor_email,
          student.full_name AS student_name,
@@ -1004,7 +1135,29 @@ let SubscriptionsService = class SubscriptionsService {
     }
     async findStudentRequests(userId) {
         const [rows] = await this.db.execute(`SELECT
-         sr.*,
+         sr.id,
+         sr.user_id,
+         sr.plan_id,
+         sr.invoice_id,
+         sr.status,
+         sr.message,
+         sr.admin_note,
+         sr.requested_at,
+         sr.resolved_at,
+         sr.resolved_by,
+         sr.subscription_id,
+         sr.payment_method,
+         sr.payment_reference,
+         sr.payment_amount,
+         sr.payment_currency,
+         sr.coupon_code,
+         sr.discount_amount,
+         sr.payment_proof_name,
+         sr.payment_proof_mime,
+         sr.payment_proof_data_url,
+         sr.access_scope,
+         sr.course_ids_json,
+         sr.lesson_ids_json,
          plans.name AS plan_name,
          plans.regular_price AS plan_regular_price,
          plans.offer_price AS plan_offer_price,
@@ -1020,11 +1173,91 @@ let SubscriptionsService = class SubscriptionsService {
         return rows.map((row) => this.mapRequest(row));
     }
     async findPaymentTransaction(orderId) {
-        const [rows] = await this.db.execute('SELECT * FROM payment_transactions WHERE order_id = ? LIMIT 1', [orderId]);
+        const [rows] = await this.db.execute(`SELECT
+         id, order_id, invoice_id, user_id, plan_id, subscription_id, amount, currency,
+         coupon_code, discount_amount, order_note, access_scope, course_ids_json, lesson_ids_json, status
+       FROM payment_transactions
+       WHERE order_id = ?
+       LIMIT 1`, [orderId]);
         return rows[0] || null;
     }
+    async createPayHerePendingRequest(input) {
+        const [result] = await this.db.execute(`INSERT INTO subscription_requests (
+         user_id, plan_id, invoice_id, message, payment_method, payment_reference, payment_amount, payment_currency,
+         coupon_code, discount_amount, access_scope, course_ids_json, lesson_ids_json, status
+       ) VALUES (?, ?, ?, ?, 'payhere', ?, ?, ?, NULL, ?, ?, ?, ?, 'pending')`, [
+            input.userId,
+            input.planId,
+            input.invoiceId,
+            String(input.message || '').trim(),
+            input.orderId,
+            input.amount,
+            this.normalizePaymentCurrency(input.currency),
+            input.discountAmount,
+            input.accessScope,
+            JSON.stringify(input.courseIds),
+            JSON.stringify(input.lessonIds),
+        ]);
+        return result.insertId;
+    }
+    async findPayHereRequest(invoiceId, userId, planId) {
+        const [rows] = await this.db.execute(`SELECT id, status, subscription_id
+       FROM subscription_requests
+       WHERE invoice_id = ?
+         AND user_id = ?
+         AND plan_id = ?
+         AND payment_method = 'payhere'
+       ORDER BY id DESC
+       LIMIT 1`, [invoiceId, userId, planId]);
+        const row = rows[0];
+        if (!row)
+            return null;
+        return {
+            id: Number(row.id),
+            status: String(row.status || 'pending'),
+            subscriptionId: row.subscription_id ? Number(row.subscription_id) : null,
+        };
+    }
+    async markPayHereRequestVerified(input) {
+        await this.db.execute(`UPDATE subscription_requests
+       SET status = 'approved',
+           admin_note = ?,
+           resolved_at = NOW(),
+           resolved_by = NULL,
+           subscription_id = ?,
+           payment_reference = ?
+       WHERE id = ?`, [input.adminNote, input.subscriptionId, input.paymentReference, input.requestId]);
+    }
+    async updatePayHereRequestAfterNotification(input) {
+        if (input.nextStatus === 'paid') {
+            await this.db.execute(`UPDATE subscription_requests
+         SET admin_note = ?,
+             payment_reference = ?
+         WHERE id = ? AND status = 'pending'`, [input.adminNote, input.paymentReference, input.requestId]);
+            return;
+        }
+        if (['cancelled', 'failed', 'chargedback'].includes(input.nextStatus)) {
+            await this.db.execute(`UPDATE subscription_requests
+         SET status = 'cancelled',
+             admin_note = ?,
+             resolved_at = NOW(),
+             resolved_by = NULL,
+             payment_reference = ?
+         WHERE id = ? AND status = 'pending'`, [input.adminNote, input.paymentReference, input.requestId]);
+            return;
+        }
+        await this.db.execute(`UPDATE subscription_requests
+       SET admin_note = ?,
+           payment_reference = ?
+       WHERE id = ? AND status = 'pending'`, [input.adminNote, input.paymentReference, input.requestId]);
+    }
     async getCouponRowOrThrow(id) {
-        const [rows] = await this.db.execute('SELECT * FROM subscription_coupons WHERE id = ? LIMIT 1', [id]);
+        const [rows] = await this.db.execute(`SELECT
+         id, code, label, coupon_mode, discount_type, discount_value, plan_ids_json,
+         status, starts_at, expires_at, max_redemptions, redemption_count, created_at, updated_at
+       FROM subscription_coupons
+       WHERE id = ?
+       LIMIT 1`, [id]);
         const row = rows[0];
         if (!row) {
             throw new common_1.NotFoundException('Coupon not found');
@@ -1035,11 +1268,42 @@ let SubscriptionsService = class SubscriptionsService {
         const normalized = this.normalizeCouponCode(code);
         if (!normalized)
             return null;
-        const [rows] = await this.db.execute('SELECT * FROM subscription_coupons WHERE code = ? LIMIT 1', [normalized]);
+        const [rows] = await this.db.execute(`SELECT
+         id, code, label, coupon_mode, discount_type, discount_value, plan_ids_json,
+         status, starts_at, expires_at, max_redemptions, redemption_count, created_at, updated_at
+       FROM subscription_coupons
+       WHERE code = ?
+       LIMIT 1`, [normalized]);
         return rows[0] || null;
     }
     async findRequestById(id) {
-        const [rows] = await this.db.execute(`SELECT sr.*, student.full_name AS student_name, student.email AS student_email, plans.name AS plan_name
+        const [rows] = await this.db.execute(`SELECT
+         sr.id,
+         sr.user_id,
+         sr.plan_id,
+         sr.invoice_id,
+         sr.status,
+         sr.message,
+         sr.admin_note,
+         sr.requested_at,
+         sr.resolved_at,
+         sr.resolved_by,
+         sr.subscription_id,
+         sr.payment_method,
+         sr.payment_reference,
+         sr.payment_amount,
+         sr.payment_currency,
+         sr.coupon_code,
+         sr.discount_amount,
+         sr.payment_proof_name,
+         sr.payment_proof_mime,
+         sr.payment_proof_data_url,
+         sr.access_scope,
+         sr.course_ids_json,
+         sr.lesson_ids_json,
+         student.full_name AS student_name,
+         student.email AS student_email,
+         plans.name AS plan_name
        FROM subscription_requests sr
        INNER JOIN users student ON student.id = sr.user_id
        INNER JOIN plans ON plans.id = sr.plan_id
@@ -1052,7 +1316,11 @@ let SubscriptionsService = class SubscriptionsService {
         return this.mapRequest(row);
     }
     async getSubscriptionOrThrow(id) {
-        const [rows] = await this.db.execute('SELECT * FROM user_subscriptions WHERE id = ? LIMIT 1', [id]);
+        const [rows] = await this.db.execute(`SELECT
+         ${SUBSCRIPTION_LIST_COLUMNS}
+       FROM user_subscriptions us
+       WHERE us.id = ?
+       LIMIT 1`, [id]);
         const row = rows[0];
         if (!row) {
             throw new common_1.NotFoundException('Subscription not found');
@@ -1214,8 +1482,14 @@ let SubscriptionsService = class SubscriptionsService {
             return [];
         }
     }
-    async mapSubscription(row) {
-        const plan = await this.plansService.findById(Number(row.plan_id));
+    async loadSubscriptionPlanMap(rows) {
+        const planIds = Array.from(new Set(rows
+            .map((row) => Number(row.plan_id))
+            .filter((planId) => Number.isInteger(planId) && planId > 0)));
+        return this.plansService.findByIds(planIds);
+    }
+    async mapSubscription(row, planOverride) {
+        const plan = planOverride || await this.plansService.findById(Number(row.plan_id));
         const startDate = this.dateValueToText(row.start_date);
         const endDate = this.dateValueToText(row.end_date);
         const end = new Date(`${endDate}T00:00:00`);
@@ -1281,6 +1555,10 @@ let SubscriptionsService = class SubscriptionsService {
     }
     isFreePlanAssignment(paymentStatus, plan) {
         return this.isFreePlanPaymentStatus(paymentStatus) || this.isFreePlan(plan);
+    }
+    isPaidSubscriptionRequest(request) {
+        const paymentMethod = String(request.paymentMethod || '').trim().toLowerCase();
+        return Boolean(request.paymentProofDataUrl) || paymentMethod === 'payhere';
     }
     generateCheckoutHash(merchantId, orderId, amount, currency, merchantSecret) {
         return this.md5(`${merchantId}${orderId}${amount}${currency}${this.md5(merchantSecret)}`);
@@ -1431,16 +1709,67 @@ let SubscriptionsService = class SubscriptionsService {
     resolveFrontendUrl() {
         return String(this.configService.get('frontendUrl') || 'http://localhost:5174').replace(/\/+$/, '');
     }
+    resolvePayHereNotifyUrl(configuredNotifyUrl) {
+        const explicitNotifyUrl = this.normalizePublicPayHereUrl(configuredNotifyUrl);
+        if (explicitNotifyUrl) {
+            return explicitNotifyUrl;
+        }
+        const apiPublicUrl = this.resolveApiPublicUrl();
+        if (!apiPublicUrl) {
+            throw new common_1.BadRequestException('PayHere notify URL must be a public HTTPS API URL before card checkout can start.');
+        }
+        return `${apiPublicUrl}/subscriptions/payhere/notify`;
+    }
     resolveApiPublicUrl() {
-        const configured = String(this.configService.get('PAYHERE_PUBLIC_API_URL') || '').trim();
-        if (configured) {
-            return configured.replace(/\/+$/, '');
+        const candidates = [
+            this.configService.get('PAYHERE_PUBLIC_API_URL'),
+            this.configService.get('API_PUBLIC_URL'),
+            this.configService.get('frontendUrl'),
+            this.configService.get('FRONTEND_URL'),
+            this.configService.get('APP_PUBLIC_URL'),
+        ];
+        for (const candidate of candidates) {
+            const publicUrl = this.normalizePublicPayHereUrl(candidate);
+            if (!publicUrl)
+                continue;
+            return /\/api$/i.test(publicUrl) ? publicUrl : `${publicUrl}/api`;
         }
-        const frontendUrl = this.resolveFrontendUrl();
-        if (/localhost|127\.0\.0\.1/i.test(frontendUrl)) {
-            return 'http://localhost:3000/api';
+        return '';
+    }
+    normalizePublicPayHereUrl(value) {
+        const input = String(value || '').trim();
+        if (!input)
+            return '';
+        let url;
+        try {
+            url = new URL(input);
         }
-        return `${frontendUrl}/api`;
+        catch {
+            return '';
+        }
+        if (url.protocol !== 'https:') {
+            return '';
+        }
+        if (this.isBlockedPaymentCallbackHost(url.hostname)) {
+            return '';
+        }
+        const path = url.pathname.replace(/\/+$/, '');
+        return `${url.origin}${path}${url.search}`;
+    }
+    isBlockedPaymentCallbackHost(hostname) {
+        const host = String(hostname || '').trim().toLowerCase();
+        return !host ||
+            host === 'localhost' ||
+            host === '127.0.0.1' ||
+            host === '0.0.0.0' ||
+            host === '::1' ||
+            host.includes('your-public-domain') ||
+            host.includes('your-domain') ||
+            host === 'example.com' ||
+            host.endsWith('.example.com') ||
+            /^10\./.test(host) ||
+            /^192\.168\./.test(host) ||
+            /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
     }
 };
 exports.SubscriptionsService = SubscriptionsService;

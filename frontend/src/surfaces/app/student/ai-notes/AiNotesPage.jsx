@@ -2079,17 +2079,17 @@ function WatchVideoPanel({ videoUrl, onOpenVideo, isDark }) {
   const thumb = getVideoThumbnail(videoUrl);
   return (
     <div style={{ background:bg, border:`1px solid ${bd}`, borderRadius:14, padding:10, marginBottom:12 }}>
-      <button className="group relative block aspect-video w-full overflow-hidden rounded-xl border text-left shadow-[0_16px_34px_rgba(15,23,42,.12)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(37,99,235,.18)]"
+      <button className="group relative block aspect-video w-full overflow-hidden rounded-xl border text-left shadow-[0_16px_34px_rgba(15,23,42,.12)] transition-[box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(37,99,235,.18)] active:scale-[0.98]"
         type="button"
         onClick={onOpenVideo}
         style={{ borderColor:bd, opacity:videoUrl ? 1 : 0.76, cursor:'pointer', background:isDark?'linear-gradient(135deg,rgba(37,99,235,.22),rgba(124,58,237,.18),rgba(15,23,42,.96))':'linear-gradient(135deg,#eff6ff,#f5f3ff,#ffffff)' }}
       >
-        {thumb && <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-200 group-hover:scale-[1.03]" loading="lazy" decoding="async" />}
+        {thumb && <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition-transform duration-150 ease-[var(--ease-out)] group-hover:scale-[1.03]" loading="lazy" decoding="async" />}
         <span className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(59,130,246,.15),transparent_36%),linear-gradient(180deg,rgba(2,6,23,.08),rgba(2,6,23,.66))]" />
         <span className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white backdrop-blur">
           Watch Video
         </span>
-        <span className="absolute left-1/2 top-1/2 grid size-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/18 text-white shadow-[0_0_34px_rgba(59,130,246,.38)] backdrop-blur-md transition group-hover:scale-105">
+        <span className="absolute left-1/2 top-1/2 grid size-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/18 text-white shadow-[0_0_34px_rgba(59,130,246,.38)] backdrop-blur-md transition-transform duration-150 ease-[var(--ease-out)] group-hover:scale-105">
           ▶
         </span>
         <span className="absolute inset-x-3 bottom-3">

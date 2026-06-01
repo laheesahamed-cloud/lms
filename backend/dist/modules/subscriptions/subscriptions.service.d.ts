@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'mysql2/promise';
+import { PaginationInput } from '../../common/utils/pagination';
 import { PlansService } from '../plans/plans.service';
 import { SettingsService } from '../settings/settings.service';
 import { AssignSubscriptionDto } from './dto/assign-subscription.dto';
@@ -87,15 +88,15 @@ export declare class SubscriptionsService {
             updatedAt: string | null;
         }[];
     }>;
-    findAdminList(): Promise<{
+    findAdminList(pagination?: PaginationInput): Promise<{
         id: number;
         userId: number;
         planId: number;
         assignedBy: number | null;
         notes: string;
-        status: "active" | "pending" | "expired" | "cancelled";
-        computedStatus: "active" | "pending" | "expired" | "cancelled";
-        paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+        status: "active" | "expired" | "pending" | "cancelled";
+        computedStatus: "active" | "expired" | "pending" | "cancelled";
+        paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
         isFreePlan: boolean;
         isUnlimitedAccess: boolean;
         amountPaid: number | null;
@@ -103,7 +104,7 @@ export declare class SubscriptionsService {
         paymentReference: string;
         paymentDate: string | null;
         receiptUrl: string;
-        accessScope: "all" | "courses" | "lessons";
+        accessScope: "courses" | "lessons" | "all";
         courseIds: number[];
         lessonIds: number[];
         startDate: string;
@@ -172,7 +173,7 @@ export declare class SubscriptionsService {
         id: number;
         userId: number;
         planId: number;
-        status: "pending" | "cancelled" | "approved" | "rejected";
+        status: "pending" | "approved" | "rejected" | "cancelled";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -190,7 +191,7 @@ export declare class SubscriptionsService {
         paymentProofName: string;
         paymentProofMime: string;
         paymentProofDataUrl: string;
-        accessScope: "all" | "courses" | "lessons";
+        accessScope: "courses" | "lessons" | "all";
         courseIds: number[];
         lessonIds: number[];
         invoiceId: string;
@@ -215,9 +216,9 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "active" | "expired" | "pending" | "cancelled";
+            computedStatus: "active" | "expired" | "pending" | "cancelled";
+            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -225,7 +226,7 @@ export declare class SubscriptionsService {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "all" | "courses" | "lessons";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -266,9 +267,9 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "pending" | "expired" | "cancelled";
-            computedStatus: "active" | "pending" | "expired" | "cancelled";
-            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
+            status: "active" | "expired" | "pending" | "cancelled";
+            computedStatus: "active" | "expired" | "pending" | "cancelled";
+            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -276,7 +277,7 @@ export declare class SubscriptionsService {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "all" | "courses" | "lessons";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -360,7 +361,7 @@ export declare class SubscriptionsService {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "pending" | "approved" | "rejected" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -378,7 +379,7 @@ export declare class SubscriptionsService {
             paymentProofName: string;
             paymentProofMime: string;
             paymentProofDataUrl: string;
-            accessScope: "all" | "courses" | "lessons";
+            accessScope: "courses" | "lessons" | "all";
             courseIds: number[];
             lessonIds: number[];
             invoiceId: string;
@@ -549,6 +550,7 @@ export declare class SubscriptionsService {
         actionUrl: string;
         invoiceId: string;
         orderId: string;
+        requestId: number;
         amount: string;
         originalAmount: string;
         discountAmount: string;
@@ -626,6 +628,10 @@ export declare class SubscriptionsService {
     private createSubscription;
     private findStudentRequests;
     private findPaymentTransaction;
+    private createPayHerePendingRequest;
+    private findPayHereRequest;
+    private markPayHereRequestVerified;
+    private updatePayHereRequestAfterNotification;
     private getCouponRowOrThrow;
     private findCouponByCode;
     private findRequestById;
@@ -642,11 +648,13 @@ export declare class SubscriptionsService {
     private normalizeAccessScope;
     private cleanIdList;
     private parseIdList;
+    private loadSubscriptionPlanMap;
     private mapSubscription;
     private normalizePaymentCurrency;
     private isFreePlanPaymentStatus;
     private isFreePlan;
     private isFreePlanAssignment;
+    private isPaidSubscriptionRequest;
     private generateCheckoutHash;
     private generateNotificationHash;
     private md5;
@@ -659,5 +667,8 @@ export declare class SubscriptionsService {
     private assertPayHereNotificationPayload;
     private splitName;
     private resolveFrontendUrl;
+    private resolvePayHereNotifyUrl;
     private resolveApiPublicUrl;
+    private normalizePublicPayHereUrl;
+    private isBlockedPaymentCallbackHost;
 }

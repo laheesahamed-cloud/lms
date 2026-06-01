@@ -213,6 +213,11 @@ const RouteReveal = memo(function RouteReveal({ children }) {
   const location = useLocation();
   const routeKey = `${location.pathname}${location.search}`;
   const prefersReducedMotion = usePrefersReducedMotion();
+  const routeRevealClassName = [
+    'lms-route-reveal',
+    'motion-smooth',
+    !prefersReducedMotion && 'animate-panelRouteFade',
+  ].filter(Boolean).join(' ');
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -236,7 +241,7 @@ const RouteReveal = memo(function RouteReveal({ children }) {
   }, [location.pathname, location.search, routeKey]);
 
   return (
-    <div className={prefersReducedMotion ? 'lms-route-reveal motion-smooth' : 'lms-route-reveal motion-smooth animate-panelRouteFade'} key={routeKey}>
+    <div className={routeRevealClassName} key={routeKey}>
       {children}
     </div>
   );

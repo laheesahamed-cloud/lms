@@ -326,7 +326,7 @@ function QBankRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, nav
 
   return (
     <article
-      className="grid min-h-[92px] cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-4 bg-transparent px-5 py-4 text-left transition-colors hover:bg-surface-2/55 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:hover:bg-white/[0.035] max-[540px]:min-h-[88px] max-[540px]:gap-3.5 max-[540px]:px-3.5 max-[540px]:py-3.5"
+      className="grid min-h-[92px] cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-4 bg-transparent px-5 py-4 text-left transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-2/55 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:hover:bg-white/[0.035] max-[540px]:min-h-[88px] max-[540px]:gap-3.5 max-[540px]:px-3.5 max-[540px]:py-3.5"
       role="button"
       tabIndex={0}
       aria-label={!canOpenMode ? accessMessage : `Open ${quizDisplay.primary}`}
@@ -487,7 +487,7 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
       <span className={cx('absolute left-[2px] top-1/2 z-[1] grid size-6 -translate-y-1/2 place-items-center rounded-full border text-[11px]', nodeClass)} aria-hidden="true">
         {status === 'completed' ? <IcoCheck/> : status === 'in_progress' ? <IcoPlay/> : isLocked ? <IcoLock/> : <span className="size-1.5 rounded-full bg-current" />}
       </span>
-      <div className={cx('lms-quiz-set-card lms-card-clickable group relative overflow-hidden rounded-[var(--ds-card-radius)] border shadow-[var(--ds-card-shadow)] transition-[border-color,background] duration-150', cardBg)}>
+      <div className={cx('lms-quiz-set-card lms-card-clickable group relative overflow-hidden rounded-[var(--ds-card-radius)] border shadow-[var(--ds-card-shadow)] transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)]', cardBg)}>
       <div className="grid min-h-[70px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 max-[560px]:grid-cols-1 max-[560px]:gap-2.5 max-[520px]:px-2.5">
         <button
           type="button"
@@ -531,7 +531,7 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[560px]:justify-start max-[560px]:pl-[44px] max-[540px]:gap-1.5 max-[540px]:pl-[42px]">
           <button
             type="button"
-            className={cx('inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border px-3.5 text-[12px] font-bold transition-[background,border-color,opacity] duration-150 max-[540px]:min-h-9 max-[540px]:px-2.5 max-[380px]:[&_span]:sr-only', actionBtn)}
+            className={cx('inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border px-3.5 text-[12px] font-bold transition-[background,border-color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] max-[540px]:min-h-9 max-[540px]:px-2.5 max-[380px]:[&_span]:sr-only', actionBtn)}
             onClick={openQuiz}
             onPointerEnter={preloadQuizRoute}
             onFocus={preloadQuizRoute}
@@ -543,7 +543,7 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
           {!isExamPage && status === 'completed' && hasReviewTarget ? (
             <button
               type="button"
-              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/8 px-3 text-[12px] font-bold text-brand-primary transition-[background,border-color] duration-150 hover:bg-brand-primary/12 dark:border-sky-300/22 dark:bg-sky-400/10 dark:text-sky-200 dark:hover:bg-sky-400/16 max-[540px]:min-h-9 max-[540px]:px-2.5"
+              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-brand-primary/20 bg-brand-primary/8 px-3 text-[12px] font-bold text-brand-primary transition-[background,border-color,transform] duration-150 ease-[var(--ease-out)] hover:bg-brand-primary/12 active:scale-[0.98] dark:border-sky-300/22 dark:bg-sky-400/10 dark:text-sky-200 dark:hover:bg-sky-400/16 max-[540px]:min-h-9 max-[540px]:px-2.5"
               onClick={openPracticeReview}
               title="Review answers and explanations"
             >
@@ -554,7 +554,7 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
           {isExamPage && status === 'completed' ? (
             <button
               type="button"
-              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-brand-primary/18 bg-brand-primary/7 px-3 text-[12px] font-bold text-brand-primary hover:bg-brand-primary/12 dark:border-sky-300/18 dark:bg-sky-400/10 dark:text-sky-200 dark:hover:bg-sky-400/16 max-[540px]:min-h-9"
+              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border border-brand-primary/18 bg-brand-primary/7 px-3 text-[12px] font-bold text-brand-primary transition-[background,border-color,transform] duration-150 ease-[var(--ease-out)] hover:bg-brand-primary/12 active:scale-[0.98] dark:border-sky-300/18 dark:bg-sky-400/10 dark:text-sky-200 dark:hover:bg-sky-400/16 max-[540px]:min-h-9"
               onClick={() => navigate(`/results?quizId=${quiz.id}`)}
             >
               <IcoTrophy/><span className="ml-1 max-[540px]:hidden">Results</span>
@@ -564,7 +564,7 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
           <button
             type="button"
             className={cx(
-              'grid min-h-[44px] min-w-[44px] place-items-center rounded-xl border transition-[background,border-color] duration-150 max-[540px]:min-h-[40px] max-[540px]:min-w-[40px]',
+              'grid min-h-[44px] min-w-[44px] place-items-center rounded-xl border transition-[background,border-color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] max-[540px]:min-h-[40px] max-[540px]:min-w-[40px]',
               bookmarked
                 ? 'border-brand-primary/28 bg-[var(--color-primary-light)] text-brand-primary'
                 : 'border-brand-primary/16 bg-brand-primary/10 text-brand-primary/70 hover:bg-brand-primary/15 dark:border-sky-300/16 dark:bg-sky-400/10 dark:text-sky-200/75 dark:hover:bg-sky-400/15'
@@ -607,7 +607,7 @@ function CourseGroup({ course, quizzes, groupIndex, bookmarkedIds, onBookmark, o
     <section className="grid gap-3.5">
       <button
         type="button"
-        className={cx('lms-quiz-subject-card lms-card-clickable grid min-h-[104px] w-full overflow-hidden rounded-[var(--ds-card-radius)] border px-4 py-3.5 text-left shadow-[var(--ds-card-shadow)] transition-[border-color,background] duration-150 hover:border-brand-primary/18 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-[92px] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:px-3 max-[520px]:py-3 sm:grid-cols-[minmax(0,1fr)_minmax(190px,300px)] sm:items-center', tone.card, tone.header)}
+        className={cx('lms-quiz-subject-card lms-card-clickable grid min-h-[104px] w-full overflow-hidden rounded-[var(--ds-card-radius)] border px-4 py-3.5 text-left shadow-[var(--ds-card-shadow)] transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/18 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-[92px] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:px-3 max-[520px]:py-3 sm:grid-cols-[minmax(0,1fr)_minmax(190px,300px)] sm:items-center', tone.card, tone.header)}
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
       >
@@ -663,7 +663,7 @@ function CourseGroup({ course, quizzes, groupIndex, bookmarkedIds, onBookmark, o
                   <span className={cx('absolute bottom-5 left-[26px] top-[62px] w-px bg-gradient-to-b from-brand-primary/45 via-brand-primary/22 to-transparent dark:from-sky-300/44 dark:via-sky-300/20 max-[640px]:left-[23px]', !topicOpen && 'hidden')} aria-hidden="true" />
                   <button
                     type="button"
-                    className="relative grid min-h-[58px] w-full grid-cols-[46px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl px-1.5 py-1 text-left transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,transparent)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 dark:hover:bg-sky-400/[0.035] max-[520px]:grid-cols-[40px_minmax(0,1fr)_auto] max-[520px]:gap-2"
+                    className="relative grid min-h-[58px] w-full grid-cols-[46px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl px-1.5 py-1 text-left transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,transparent)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 dark:hover:bg-sky-400/[0.035] max-[520px]:grid-cols-[40px_minmax(0,1fr)_auto] max-[520px]:gap-2"
                     onClick={() => toggleTopic(topicIndex)}
                   >
                     <span
@@ -756,7 +756,7 @@ function QuizFilterPanel({
                     key={item.key}
                     type="button"
                     className={cx(
-                      'inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-full border px-3.5 text-[11.5px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-3 max-[520px]:text-[11px]',
+                      'inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-full border px-3.5 text-[11.5px] font-extrabold transition-[background,border-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-3 max-[520px]:text-[11px]',
                       active
                         ? 'border-brand-primary/30 bg-[var(--color-primary-light)] text-brand-primary dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200'
                         : 'border-brand-primary/12 bg-white/70 text-ink-soft hover:border-brand-primary/22 hover:bg-brand-primary/10 hover:text-ink-strong dark:border-sky-300/12 dark:bg-sky-400/[0.045] dark:text-slate-400 dark:hover:text-slate-200'
@@ -791,7 +791,7 @@ function QuizFilterPanel({
                     key={subject}
                     type="button"
                     className={cx(
-                      'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-[11.5px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-2.5 max-[520px]:text-[11px]',
+                      'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-[11.5px] font-extrabold transition-[background,border-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-2.5 max-[520px]:text-[11px]',
                       active
                         ? 'border-brand-primary/30 bg-[var(--color-primary-light)] text-brand-primary dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200'
                         : 'border-brand-primary/12 bg-white/70 text-ink-soft hover:border-brand-primary/22 hover:bg-brand-primary/10 hover:text-ink-strong dark:border-sky-300/12 dark:bg-sky-400/[0.045] dark:text-slate-400 dark:hover:text-slate-200'
@@ -821,7 +821,7 @@ function QuizFilterPanel({
                     key={topic}
                     type="button"
                     className={cx(
-                      'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-[11.5px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-2.5 max-[520px]:text-[11px]',
+                      'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-[11.5px] font-extrabold transition-[background,border-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-2.5 max-[520px]:text-[11px]',
                       active
                         ? 'border-brand-primary/30 bg-[var(--color-primary-light)] text-brand-primary dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200'
                         : 'border-brand-primary/12 bg-white/70 text-ink-soft hover:border-brand-primary/22 hover:bg-brand-primary/10 hover:text-ink-strong dark:border-sky-300/12 dark:bg-sky-400/[0.045] dark:text-slate-400 dark:hover:text-slate-200'
@@ -868,7 +868,7 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
               key={course.name}
               type="button"
               onClick={() => onSelect(course.name)}
-              className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-200 focus-visible:ring-4 focus-visible:ring-brand-primary/22"
+              className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/22"
             >
               <div className="student-lessons-course-card__top flex items-start justify-between gap-4 px-5 py-5">
                 <div className="flex min-w-0 items-start gap-3">
@@ -1149,7 +1149,7 @@ function StatusTabs({ items, value, onChange }) {
             key={item.key}
             type="button"
             className={cx(
-              'inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-full border px-4 text-[12px] font-extrabold shadow-none transition-colors max-[520px]:min-h-9 max-[520px]:gap-0.5 max-[520px]:px-1 max-[520px]:text-[11px]',
+              'inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-full border px-4 text-[12px] font-extrabold shadow-none transition-[background,border-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] max-[520px]:min-h-9 max-[520px]:gap-0.5 max-[520px]:px-1 max-[520px]:text-[11px]',
               value === item.key
                 ? 'border-brand-primary/30 bg-[var(--color-primary-light)] text-brand-primary'
                 : 'border-line-soft bg-surface-card text-ink-muted dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.88)]',
