@@ -1,7 +1,7 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
 const DEFAULT_ICON = '/lms/pwa-icon.svg';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'erpm-lms-shell-20260531-performance-v1';
+const CACHE_NAME = 'xyndrome-lms-shell-20260601-brand-v1';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',
@@ -40,7 +40,8 @@ self.addEventListener('activate', (event) => {
     const keys = await caches.keys();
     await Promise.all(
       keys
-        .filter((key) => key.startsWith('erpm-lms-shell-') && key !== CACHE_NAME)
+        .filter((key) => key.startsWith('erpm-lms-shell-') || key.startsWith('xyndrome-lms-shell-'))
+        .filter((key) => key !== CACHE_NAME)
         .map((key) => caches.delete(key))
     );
     await self.clients.claim();
@@ -146,7 +147,7 @@ self.addEventListener('push', (event) => {
     body: payload.body || 'You have a new notification.',
     icon: payload.icon || DEFAULT_ICON,
     badge: payload.badge || DEFAULT_BADGE,
-    tag: payload.tag || 'erpm-lms-notification',
+    tag: payload.tag || 'xyndrome-lms-notification',
     renotify: Boolean(payload.renotify),
     requireInteraction: Boolean(payload.requireInteraction),
     data: {
