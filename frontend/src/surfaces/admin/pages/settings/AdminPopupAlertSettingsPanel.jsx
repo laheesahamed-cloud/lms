@@ -238,7 +238,7 @@ export function AdminPopupAlertSettingsPanel() {
 
             <label className={ui.formLabel}>
               Button URL
-              <input className={ui.input} value={form.buttonUrl} onChange={(event) => patchForm({ buttonUrl: event.target.value })} placeholder="https://www.xyndrome.lk/register" />
+              <input className={ui.input} value={form.buttonUrl} onChange={(event) => patchForm({ buttonUrl: event.target.value })} placeholder="https://xyndrome.lk/register" />
             </label>
 
             <div className={ui.buttonRow}>

@@ -369,8 +369,8 @@ def build_story():
             [
                 ("Local app URL", "http://localhost/lms/"),
                 ("Local API URL", "http://localhost:3000/api"),
-                ("Production public URL", "https://www.xyndrome.lk or your chosen final URL"),
-                ("Production API URL", "https://www.xyndrome.lk/api"),
+                ("Production public URL", "https://xyndrome.lk or your chosen final URL"),
+                ("Production API URL", "https://xyndrome.lk/api"),
             ],
             ("Type", "Example"),
         ),
@@ -696,7 +696,7 @@ def build_story():
             [
                 ("Browser on Mac", "http://localhost:3000/api can work."),
                 ("Phone on same Wi-Fi", "Use your Mac's LAN IP, such as http://172.20.10.2:3000/api when that is the current IP."),
-                ("Production native app", "Use https://www.xyndrome.lk/api."),
+                ("Production native app", "Use https://xyndrome.lk/api."),
             ],
             ("Situation", "API URL"),
         ),

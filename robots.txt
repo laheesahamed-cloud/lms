@@ -11,4 +11,4 @@ Disallow: /lms/review
 Disallow: /lms/ai-notes
 Disallow: /lms/subscriptions/checkout/
 
-Sitemap: https://www.xyndrome.lk/lms/sitemap.xml
+Sitemap: https://xyndrome.lk/lms/sitemap.xml

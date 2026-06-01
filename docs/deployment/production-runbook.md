@@ -9,10 +9,10 @@ Backend:
 ```bash
 NODE_ENV=production
 PORT=3000
-FRONTEND_URL=https://www.xyndrome.lk
-FRONTEND_URLS=https://www.xyndrome.lk,https://xyndrome.lk
-APP_PUBLIC_URL=https://www.xyndrome.lk/lms
-API_PUBLIC_URL=https://www.xyndrome.lk/api
+FRONTEND_URL=https://xyndrome.lk
+FRONTEND_URLS=https://xyndrome.lk,https://www.xyndrome.lk
+APP_PUBLIC_URL=https://xyndrome.lk/lms
+API_PUBLIC_URL=https://xyndrome.lk/api
 ALLOW_LAN_ORIGINS=false
 BODY_LIMIT=8mb
 SETTINGS_ENCRYPTION_KEY=<32+ random characters>
@@ -31,15 +31,15 @@ VITE_API_BASE_URL=/api
 VITE_API_BASE_URLS=
 VITE_LMS_BUILD_TARGET=web
 VITE_ENABLE_PWA=true
-VITE_PUBLIC_WEBSITE_URL=https://www.xyndrome.lk/lms
+VITE_PUBLIC_WEBSITE_URL=https://xyndrome.lk/lms
 VITE_APP_ONLY_HOSTS=app.xyndrome.lk,app-lms.xyndrome.lk
 ```
 
 Native app builds must use the public API URL, not a LAN address:
 
 ```bash
-VITE_API_BASE_URL=https://www.xyndrome.lk/api
-VITE_API_BASE_URLS=https://www.xyndrome.lk/api
+VITE_API_BASE_URL=https://xyndrome.lk/api
+VITE_API_BASE_URLS=https://xyndrome.lk/api
 VITE_LMS_BUILD_TARGET=native
 VITE_ENABLE_PWA=false
 ```
