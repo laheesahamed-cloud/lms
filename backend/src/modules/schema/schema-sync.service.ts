@@ -12,9 +12,10 @@ export class SchemaSyncService implements OnModuleInit {
   constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
 
   async onModuleInit() {
-    const connection = await this.db.getConnection();
+    let connection: PoolConnection | null = null;
 
     try {
+      connection = await this.db.getConnection();
       await this.ensurePlansTable(connection);
       await this.ensureUserSubscriptionsTable(connection);
       await this.ensureSubscriptionCouponsTable(connection);
@@ -174,8 +175,11 @@ export class SchemaSyncService implements OnModuleInit {
       await this.backfillQuestionKeywordMaps(connection);
       await this.backfillQuizTitles(connection);
       await this.hashLegacyPlaintextPasswords(connection);
+    } catch (error) {
+      const message = error instanceof Error ? error.stack || error.message : String(error);
+      this.logger.error(`Schema sync skipped because the database is not ready: ${message}`);
     } finally {
-      connection.release();
+      connection?.release();
     }
   }
 

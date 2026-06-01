@@ -32,7 +32,23 @@ let HealthController = class HealthController {
     }
     async ready() {
         const startedAt = Date.now();
-        await this.db.query('SELECT 1');
+        try {
+            await this.db.query('SELECT 1');
+        }
+        catch (error) {
+            throw new common_1.ServiceUnavailableException({
+                ok: false,
+                service: 'lms-api',
+                checks: {
+                    database: {
+                        ok: false,
+                        latencyMs: Date.now() - startedAt,
+                        message: this.cleanErrorMessage(error),
+                    },
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
         return {
             ok: true,
             service: 'lms-api',
@@ -90,6 +106,12 @@ let HealthController = class HealthController {
         if (!configuredToken || healthToken !== configuredToken) {
             throw new common_1.UnauthorizedException('Metrics access is restricted');
         }
+    }
+    cleanErrorMessage(error) {
+        const message = error instanceof Error ? error.message : String(error || 'Unknown database error');
+        return message
+            .replace(/(password|secret|token|api[_-]?key)\s*[:=]\s*['"]?[^'",\s}&)]+/gi, '$1=[redacted]')
+            .slice(0, 1000);
     }
 };
 exports.HealthController = HealthController;

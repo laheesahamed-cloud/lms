@@ -25,8 +25,9 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         this.logger = new common_1.Logger(SchemaSyncService_1.name);
     }
     async onModuleInit() {
-        const connection = await this.db.getConnection();
+        let connection = null;
         try {
+            connection = await this.db.getConnection();
             await this.ensurePlansTable(connection);
             await this.ensureUserSubscriptionsTable(connection);
             await this.ensureSubscriptionCouponsTable(connection);
@@ -187,8 +188,12 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.backfillQuizTitles(connection);
             await this.hashLegacyPlaintextPasswords(connection);
         }
+        catch (error) {
+            const message = error instanceof Error ? error.stack || error.message : String(error);
+            this.logger.error(`Schema sync skipped because the database is not ready: ${message}`);
+        }
         finally {
-            connection.release();
+            connection?.release();
         }
     }
     async hashLegacyPlaintextPasswords(connection) {

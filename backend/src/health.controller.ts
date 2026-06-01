@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Post, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Inject, Post, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from './database/database.tokens';
@@ -24,7 +24,23 @@ export class HealthController {
   @Get('ready')
   async ready() {
     const startedAt = Date.now();
-    await this.db.query('SELECT 1');
+
+    try {
+      await this.db.query('SELECT 1');
+    } catch (error) {
+      throw new ServiceUnavailableException({
+        ok: false,
+        service: 'lms-api',
+        checks: {
+          database: {
+            ok: false,
+            latencyMs: Date.now() - startedAt,
+            message: this.cleanErrorMessage(error),
+          },
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     return {
       ok: true,
@@ -89,5 +105,12 @@ export class HealthController {
     if (!configuredToken || healthToken !== configuredToken) {
       throw new UnauthorizedException('Metrics access is restricted');
     }
+  }
+
+  private cleanErrorMessage(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error || 'Unknown database error');
+    return message
+      .replace(/(password|secret|token|api[_-]?key)\s*[:=]\s*['"]?[^'",\s}&)]+/gi, '$1=[redacted]')
+      .slice(0, 1000);
   }
 }

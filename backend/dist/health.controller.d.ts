@@ -57,4 +57,5 @@ export declare class HealthController {
         ok: boolean;
     };
     private requireMetricsAccess;
+    private cleanErrorMessage;
 }
