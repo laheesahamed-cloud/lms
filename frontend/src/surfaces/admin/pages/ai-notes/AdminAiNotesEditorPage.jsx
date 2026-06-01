@@ -1,10 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NoteCanvas } from '../../../app/student/ai-notes/NoteCanvas.jsx';
-import { adminGetAiNote, adminUpdateAiNote, adminGenerateAiNotes, adminGetCourses, adminGetTopics, adminGetSubtopics } from '../../../../shared/api/aiNotes.api.js';
+import {
+  adminCreateLessonFlashcard,
+  adminDeleteLessonFlashcard,
+  adminGenerateAiNotes,
+  adminGenerateLessonFlashcards,
+  adminGetAiNote,
+  adminGetCourses,
+  adminGetSubtopics,
+  adminGetTopics,
+  adminListLessonFlashcards,
+  adminUpdateAiNote,
+  adminUpdateLessonFlashcard,
+} from '../../../../shared/api/aiNotes.api.js';
 import { createLesson, updateLesson } from '../../../../shared/api/lessons.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { BreadcrumbTrail } from '../../../../shared/ui/BreadcrumbTrail.jsx';
 
 function BackIcon()    { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function SparkleIcon() { return <svg width="15" height="15" viewBox="0 0 14 14" fill="none"><path d="M7 1L8.5 5H13L9.5 7.5L11 12L7 9.5L3 12L4.5 7.5L1 5H5.5L7 1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none"/></svg>; }
@@ -14,6 +27,7 @@ function PublishIcon() { return <svg width="14" height="14" viewBox="0 0 14 14" 
 function EditIcon()    { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9.5 1.5L12.5 4.5L5 12H2V9L9.5 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>; }
 function DoneIcon()    { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5l3 3 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function QuizIcon()    { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="1.5" width="10" height="11" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M4.2 5h5.6M4.2 7.2h3.7M4.2 9.4h5.2" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round"/><circle cx="10.4" cy="7.2" r=".65" fill="currentColor"/></svg>; }
+function TrashIcon()   { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3.5h10M5.5 1.8h3l.6 1.7M4 3.5l.4 8.2a1 1 0 0 0 1 .9h3.2a1 1 0 0 0 1-.9l.4-8.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
 function normalizeNoteData(raw) {
   if (!raw) return null;
@@ -48,6 +62,18 @@ function getNoteDataSize(data) {
   return JSON.stringify(data).length;
 }
 
+function flashcardStatusClass(status) {
+  if (status === 'approved') return 'border-brand-success/28 bg-[var(--color-success-light)] text-brand-success';
+  if (status === 'rejected') return 'border-brand-error/24 bg-brand-error/8 text-brand-error';
+  return 'border-brand-primary/20 bg-[var(--color-primary-light)] text-brand-primary';
+}
+
+function flashcardStatusLabel(status) {
+  if (status === 'approved') return 'Approved';
+  if (status === 'rejected') return 'Rejected';
+  return 'Draft';
+}
+
 const editorUi = {
   layout:
     'grid min-h-0 flex-1 grid-cols-[380px_1fr] overflow-hidden max-[900px]:grid-cols-1 max-[900px]:grid-rows-[auto_1fr]',
@@ -80,6 +106,38 @@ const editorUi = {
   statusLabel: 'flex-1 text-xs font-semibold text-ink-muted',
   freeLabel: 'mt-1 flex items-center gap-2 text-xs font-semibold text-ink-muted',
   settingsButton: 'mt-0.5 px-3 py-[5px] text-xs',
+  flashcardPanel:
+    'lms-card-compact mx-auto mb-4 mt-4 grid w-[min(980px,calc(100%-28px))] gap-3 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-card p-4 shadow-[var(--ds-card-shadow)] max-[640px]:w-[calc(100%-20px)] max-[640px]:p-3',
+  flashcardHead:
+    'flex flex-wrap items-start justify-between gap-3',
+  flashcardKicker:
+    'm-0 text-[11px] font-extrabold uppercase tracking-[0.12em] text-brand-primary',
+  flashcardTitle:
+    'm-0 mt-1 text-[15px] font-extrabold text-ink-strong',
+  flashcardText:
+    'm-0 mt-1 text-[12px] leading-relaxed text-ink-soft',
+  flashcardActions:
+    'flex flex-wrap items-center gap-2',
+  flashcardCountInput:
+    'min-h-9 w-20 rounded-[var(--radius-sm)] border border-line-soft bg-surface-1 px-2 text-sm font-bold text-ink-strong outline-none focus:border-brand-primary',
+  flashcardGrid:
+    'grid gap-3',
+  flashcardItem:
+    'grid gap-2 rounded-[var(--radius-sm)] border border-line-soft bg-surface-1 p-3',
+  flashcardItemHead:
+    'flex flex-wrap items-center justify-between gap-2',
+  flashcardStatus:
+    'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-[0.08em]',
+  flashcardFields:
+    'grid gap-2 md:grid-cols-2',
+  flashcardLabel:
+    'grid gap-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-muted',
+  flashcardTextarea:
+    'min-h-[86px] resize-y rounded-[var(--radius-sm)] border border-line-soft bg-surface-card px-3 py-2 text-[13px] font-semibold leading-relaxed text-ink-strong outline-none transition-colors focus:border-brand-primary',
+  flashcardSource:
+    'text-[11px] font-semibold leading-relaxed text-ink-muted',
+  flashcardEmpty:
+    'rounded-[var(--radius-sm)] border border-dashed border-line-medium bg-surface-1 p-4 text-center text-[13px] font-semibold leading-relaxed text-ink-soft',
   loadingFallback: 'p-12 text-center text-ink-muted',
   notFoundFallback: 'p-12 text-center',
   outputPanel:
@@ -95,7 +153,7 @@ const editorUi = {
   pageTurn: 'my-9 mb-8 flex select-none items-center gap-3.5',
   pageTurnLine: 'h-px flex-1 bg-[linear-gradient(90deg,transparent,var(--line-soft)_20%,var(--line-soft)_80%,transparent)]',
   pageTurnBadge:
-    'whitespace-nowrap rounded-full border border-line-soft bg-surface-card px-3.5 py-[5px] text-[11px] font-semibold tracking-[0.02em] text-ink-muted shadow-[0_1px_4px_rgba(0,0,0,0.08)]',
+    'whitespace-nowrap rounded-full border border-line-soft bg-surface-card px-3.5 py-[5px] text-[11px] font-semibold tracking-[0.02em] text-ink-muted shadow-[var(--ds-card-shadow)]',
   spinner:
     'inline-flex items-center gap-2 text-[13px] text-primary before:size-3.5 before:rounded-full before:border-2 before:border-current before:border-t-transparent before:content-[""] before:animate-[spin_0.7s_linear_infinite]',
   statusPill:
@@ -146,6 +204,12 @@ export function AdminAiNotesEditorPage({
   const [status,      setStatus]     = useState('active');
   const [isFree,      setIsFree]     = useState(false);
   const [metaSaving,  setMetaSaving] = useState(false);
+  const [flashcards, setFlashcards] = useState([]);
+  const [flashcardsLoading, setFlashcardsLoading] = useState(false);
+  const [flashcardsGenerating, setFlashcardsGenerating] = useState(false);
+  const [flashcardCount, setFlashcardCount] = useState(24);
+  const [flashcardMessage, setFlashcardMessage] = useState('');
+  const [savingCardId, setSavingCardId] = useState(null);
 
   useEffect(() => (
     () => {
@@ -176,6 +240,22 @@ export function AdminAiNotesEditorPage({
       })
       .catch(() => setError('Failed to load lesson.'))
       .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [engineKey, id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFlashcardsLoading(true);
+    adminListLessonFlashcards(Number(id), { engine: engineKey })
+      .then((items) => {
+        if (!cancelled) setFlashcards(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        if (!cancelled) setFlashcardMessage('Flashcards could not be loaded yet.');
+      })
+      .finally(() => {
+        if (!cancelled) setFlashcardsLoading(false);
+      });
     return () => { cancelled = true; };
   }, [engineKey, id]);
 
@@ -439,6 +519,117 @@ export function AdminAiNotesEditorPage({
     }
   }
 
+  function handleFlashcardField(cardId, field, value) {
+    setFlashcards((current) => current.map((card) => (
+      String(card.id) === String(cardId)
+        ? { ...card, [field]: value, dirty: true }
+        : card
+    )));
+  }
+
+  function handleAddFlashcard() {
+    const tempId = `new-${Date.now()}`;
+    setFlashcards((current) => [
+      {
+        id: tempId,
+        question: '',
+        answer: '',
+        sourceHint: title || note?.title || '',
+        status: 'draft',
+        generatedBy: 'manual',
+        dirty: true,
+        isNew: true,
+      },
+      ...current,
+    ]);
+    setFlashcardMessage('Draft card added. Write the question and answer, then approve it.');
+  }
+
+  async function handleSaveFlashcard(card, nextStatus) {
+    const statusValue = nextStatus || card.status || 'draft';
+    const payload = {
+      question: String(card.question || '').trim(),
+      answer: String(card.answer || '').trim(),
+      sourceHint: String(card.sourceHint || '').trim(),
+      status: statusValue,
+    };
+
+    setSavingCardId(card.id);
+    setFlashcardMessage('');
+    try {
+      const saved = card.isNew
+        ? await adminCreateLessonFlashcard(Number(id), payload, { engine: engineKey })
+        : await adminUpdateLessonFlashcard(Number(id), card.id, payload, { engine: engineKey });
+      setFlashcards((current) => current.map((item) => (
+        String(item.id) === String(card.id) ? { ...saved, dirty: false, isNew: false } : item
+      )));
+      setFlashcardMessage(statusValue === 'approved' ? 'Flashcard approved for students.' : 'Flashcard saved.');
+    } catch (err) {
+      setFlashcardMessage(getErrorMessage(err, 'Could not save flashcard'));
+    } finally {
+      setSavingCardId(null);
+    }
+  }
+
+  async function handleDeleteFlashcard(card) {
+    if (!window.confirm('Delete this flashcard?')) return;
+    if (card.isNew) {
+      setFlashcards((current) => current.filter((item) => String(item.id) !== String(card.id)));
+      return;
+    }
+
+    setSavingCardId(card.id);
+    setFlashcardMessage('');
+    try {
+      await adminDeleteLessonFlashcard(Number(id), card.id, { engine: engineKey });
+      setFlashcards((current) => current.filter((item) => String(item.id) !== String(card.id)));
+      setFlashcardMessage('Flashcard removed.');
+    } catch (err) {
+      setFlashcardMessage(getErrorMessage(err, 'Could not delete flashcard'));
+    } finally {
+      setSavingCardId(null);
+    }
+  }
+
+  async function handleGenerateFlashcards() {
+    if (rawText.trim().length < 10 && !noteData?.pages?.length) {
+      setFlashcardMessage('Add lesson notes before generating Q&A flashcards.');
+      return;
+    }
+
+    setFlashcardsGenerating(true);
+    setFlashcardMessage(`Creating Q&A drafts with ${generatorLabel}...`);
+    try {
+      let lessonId = linkedLessonId;
+      if (selCourse && selTopic && selSubtopic) {
+        lessonId = await ensureLinkedLesson();
+      }
+      const cleanData = noteData ? cleanNoteDataForSave(noteData) : null;
+      await adminUpdateAiNote(Number(id), {
+        title,
+        rawText,
+        noteData: cleanData,
+        lessonId: lessonId ?? linkedLessonId ?? null,
+        videoUrl: cleanVideoUrl(videoUrl),
+      }, { timeout: 60000 }, { engine: engineKey });
+      if (cleanData) {
+        setNoteData(cleanData);
+        setSavedData(cleanData);
+      }
+      const result = await adminGenerateLessonFlashcards(Number(id), {
+        count: Math.max(6, Math.min(60, Number(flashcardCount) || 24)),
+      }, { engine: engineKey });
+      setFlashcards(Array.isArray(result?.items) ? result.items : []);
+      setFlashcardMessage(result?.createdCount
+        ? `${result.createdCount} draft Q&A flashcard${result.createdCount === 1 ? '' : 's'} created. Review before students see them.`
+        : 'No new drafts were added because matching flashcards already exist.');
+    } catch (err) {
+      setFlashcardMessage(getErrorMessage(err, 'Could not generate Q&A flashcards'));
+    } finally {
+      setFlashcardsGenerating(false);
+    }
+  }
+
   async function handleExportPng() {
     if (!bookRef.current) return;
     setExportMsg('Capturing…');
@@ -470,6 +661,8 @@ export function AdminAiNotesEditorPage({
   const pages     = noteData?.pages || [];
   const isUnsaved = noteData && noteData !== savedData;
   const hasCanvas = pages.length > 0;
+  const approvedFlashcardCount = flashcards.filter((card) => card.status === 'approved').length;
+  const draftFlashcardCount = flashcards.filter((card) => card.status === 'draft').length;
 
   if (loading) return <div className={editorUi.loadingFallback}>Loading…</div>;
   if (!note)   return <div className={editorUi.notFoundFallback}>Not found. <button className={ui.secondaryAction} onClick={() => navigate(routeBase)}>Back</button></div>;
@@ -481,18 +674,30 @@ export function AdminAiNotesEditorPage({
       <div className={editorUi.topBar}>
         <button className={cx(ui.secondaryAction, 'px-3 py-1.5 text-[13px]')}
                 onClick={() => navigate(routeBase)}><BackIcon/> {listLabel}</button>
+        <BreadcrumbTrail
+          className="lms-editor-breadcrumb"
+          items={[
+            { label: listLabel, to: routeBase },
+            { label: title || note?.title || 'Lesson' },
+          ]}
+        />
         <input className={editorUi.titleInput}
+               aria-label="Lesson title"
                value={title} onChange={handleTitleChange} placeholder="Lesson title" maxLength={255}/>
 
         {saveStatus && (
-          <span className={cx(
+          <span
+            className={cx(
             editorUi.statusText,
             saveStatus.startsWith('save failed')
               ? 'text-brand-error'
               : saveStatus.includes('published') || saveStatus === 'saved'
                 ? 'text-brand-success'
                 : 'text-ink-muted'
-          )}>
+            )}
+            role="status"
+            aria-live="polite"
+          >
             {saveStatus}
           </span>
         )}
@@ -543,6 +748,7 @@ export function AdminAiNotesEditorPage({
         <div className={editorUi.inputPanel}>
           <div className={editorUi.inputTitle}>Source Text</div>
           <textarea className={editorUi.textarea}
+            aria-label="Source text for generated lesson"
             placeholder={`Paste the topic text here…\n\ne.g. Lecture notes, textbook content, clinical guidelines…`}
             value={rawText} onChange={handleRawChange}
           />
@@ -560,18 +766,21 @@ export function AdminAiNotesEditorPage({
             <div className={editorUi.categoryTitle}>Category &amp; Status</div>
             <div className={editorUi.categoryStack}>
               <select className={cx(ui.input, editorUi.compactInput)} value={selCourse}
+                      aria-label="Lesson course"
                       onChange={e => { initialLoad.current = false; setSelCourse(e.target.value); }}
               >
                 <option value="">— Course (optional) —</option>
                 {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <select className={cx(ui.input, editorUi.compactInput)} value={selTopic} disabled={!selCourse}
+                      aria-label="Lesson subject"
                       onChange={e => { initialLoad.current = false; setSelTopic(e.target.value); }}
               >
                 <option value="">— Subject (optional) —</option>
                 {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
               <select className={cx(ui.input, editorUi.compactInput)} value={selSubtopic} disabled={!selTopic}
+                      aria-label="Lesson topic"
                       onChange={e => { initialLoad.current = false; setSelSubtopic(e.target.value); }}
               >
                 <option value="">— Topic (optional) —</option>
@@ -582,6 +791,7 @@ export function AdminAiNotesEditorPage({
                 value={videoUrl}
                 onChange={handleVideoUrlChange}
                 placeholder="Video link for students (YouTube/Vimeo/MP4)"
+                aria-label="Student video link"
               />
               <div className={editorUi.statusRow}>
                 <label className={editorUi.statusLabel}>Status</label>
@@ -608,6 +818,154 @@ export function AdminAiNotesEditorPage({
 
         {/* canvas panel */}
         <div className={editorUi.outputPanel}>
+          <section className={editorUi.flashcardPanel} aria-labelledby="lesson-flashcards-title">
+            <div className={editorUi.flashcardHead}>
+              <div>
+                <p className={editorUi.flashcardKicker}>Reviewed Q&amp;A flashcards</p>
+                <h2 id="lesson-flashcards-title" className={editorUi.flashcardTitle}>Question and answer cards from this lesson</h2>
+                <p className={editorUi.flashcardText}>
+                  Students see approved cards only. Drafts stay here until the question and answer are checked.
+                </p>
+              </div>
+              <div className={editorUi.flashcardActions}>
+                <input
+                  className={editorUi.flashcardCountInput}
+                  type="number"
+                  min="6"
+                  max="60"
+                  value={flashcardCount}
+                  aria-label="Number of Q&A flashcards to generate"
+                  onChange={(event) => setFlashcardCount(event.target.value)}
+                />
+                <button
+                  className={cx(ui.primaryAction, editorUi.smallAction)}
+                  type="button"
+                  onClick={handleGenerateFlashcards}
+                  disabled={flashcardsGenerating}
+                >
+                  <SparkleIcon/> {flashcardsGenerating ? 'Creating...' : 'Generate Q&A'}
+                </button>
+                <button
+                  className={cx(ui.secondaryAction, editorUi.smallAction)}
+                  type="button"
+                  onClick={handleAddFlashcard}
+                  disabled={flashcardsGenerating}
+                >
+                  <EditIcon/> Add Draft
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 text-[11px] font-extrabold text-ink-muted">
+              <span className={cx(editorUi.flashcardStatus, 'border-brand-success/28 bg-[var(--color-success-light)] text-brand-success')}>
+                {approvedFlashcardCount} approved
+              </span>
+              <span className={cx(editorUi.flashcardStatus, 'border-brand-primary/20 bg-[var(--color-primary-light)] text-brand-primary')}>
+                {draftFlashcardCount} draft
+              </span>
+            </div>
+
+            {flashcardMessage && (
+              <div className={cx(
+                flashcardMessage.toLowerCase().includes('could not') || flashcardMessage.toLowerCase().includes('failed')
+                  ? ui.feedbackError
+                  : ui.feedbackSuccess,
+                'py-2 text-xs'
+              )}>
+                {flashcardMessage}
+              </div>
+            )}
+
+            {flashcardsLoading ? (
+              <div className={editorUi.flashcardEmpty}>Loading Q&amp;A flashcards...</div>
+            ) : flashcards.length === 0 ? (
+              <div className={editorUi.flashcardEmpty}>
+                No Q&amp;A flashcards yet. Generate drafts from the lesson notes, then approve the accurate ones.
+              </div>
+            ) : (
+              <div className={editorUi.flashcardGrid}>
+                {flashcards.map((card, index) => {
+                  const isSaving = String(savingCardId) === String(card.id);
+                  return (
+                    <article key={card.id} className={editorUi.flashcardItem}>
+                      <div className={editorUi.flashcardItemHead}>
+                        <span className={cx(editorUi.flashcardStatus, flashcardStatusClass(card.status))}>
+                          {flashcardStatusLabel(card.status)}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            className={cx(ui.secondaryAction, 'min-h-9 px-3 py-1 text-xs')}
+                            type="button"
+                            onClick={() => handleSaveFlashcard(card)}
+                            disabled={isSaving || flashcardsGenerating || (!card.dirty && !card.isNew)}
+                          >
+                            {isSaving ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            className={cx(card.status === 'approved' ? ui.successAction : ui.primaryAction, 'min-h-9 px-3 py-1 text-xs')}
+                            type="button"
+                            onClick={() => handleSaveFlashcard(card, 'approved')}
+                            disabled={isSaving || flashcardsGenerating}
+                          >
+                            <DoneIcon/> {card.status === 'approved' ? 'Approved' : 'Approve'}
+                          </button>
+                          {card.status !== 'rejected' && (
+                            <button
+                              className={cx(ui.ghostSmallDanger, 'min-h-9 px-3 py-1 text-xs')}
+                              type="button"
+                              onClick={() => handleSaveFlashcard(card, 'rejected')}
+                              disabled={isSaving || flashcardsGenerating}
+                            >
+                              Reject
+                            </button>
+                          )}
+                          <button
+                            className={cx(ui.dangerIconButton, 'size-9 min-h-9')}
+                            type="button"
+                            aria-label={`Delete flashcard ${index + 1}`}
+                            onClick={() => handleDeleteFlashcard(card)}
+                            disabled={isSaving || flashcardsGenerating}
+                          >
+                            <TrashIcon/>
+                          </button>
+                        </div>
+                      </div>
+                      <div className={editorUi.flashcardFields}>
+                        <label className={editorUi.flashcardLabel}>
+                          Question
+                          <textarea
+                            className={editorUi.flashcardTextarea}
+                            value={card.question || ''}
+                            onChange={(event) => handleFlashcardField(card.id, 'question', event.target.value)}
+                            placeholder="What is the key mechanism of mitral stenosis?"
+                          />
+                        </label>
+                        <label className={editorUi.flashcardLabel}>
+                          Answer
+                          <textarea
+                            className={editorUi.flashcardTextarea}
+                            value={card.answer || ''}
+                            onChange={(event) => handleFlashcardField(card.id, 'answer', event.target.value)}
+                            placeholder="The narrowed mitral valve obstructs left atrial emptying during diastole..."
+                          />
+                        </label>
+                      </div>
+                      <label className={editorUi.flashcardLabel}>
+                        Source hint
+                        <input
+                          className={cx(ui.input, 'min-h-9 py-1.5 text-xs')}
+                          value={card.sourceHint || ''}
+                          onChange={(event) => handleFlashcardField(card.id, 'sourceHint', event.target.value)}
+                          placeholder="Pathophysiology"
+                        />
+                      </label>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
           {processing && (
             <div className={editorUi.loadingState}>
               <div className={editorUi.loadingSpinner}/>

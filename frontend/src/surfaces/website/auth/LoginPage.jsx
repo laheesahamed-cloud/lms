@@ -3,6 +3,8 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../../shared/api/client.js';
 import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
 import { detectPlatform } from '../../../shared/platform/detect.js';
+import { XyndromeBrand } from '../../../shared/brand/XyndromeBrand.jsx';
+import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
 import { clearServerNotResponding } from '../../../shared/stores/serverStatusStore.js';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
@@ -347,9 +349,6 @@ const ANIM_CSS = `
       linear-gradient(180deg, rgba(255,255,255,.96), rgba(245,249,255,.98)) !important;
     color: #0f172a;
   }
-  :root:not([data-theme='dark']) .lms-login-mobile-logo {
-    box-shadow: none !important;
-  }
   :root:not([data-theme='dark']) .lms-login-topbar {
     border-bottom: 1px solid rgba(37,99,235,.08);
     background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,0));
@@ -364,12 +363,49 @@ const ANIM_CSS = `
     padding-top: 38px !important;
   }
 
+  .lms-login-brand-logo-row {
+    --xyndrome-brand-gap: 5px;
+    --xyndrome-logo-filter: drop-shadow(0 6px 16px rgba(37,99,235,.22));
+    inline-size: fit-content;
+  }
+  :root[data-theme='dark'] .lms-login-brand-logo-row {
+    --xyndrome-logo-filter:
+      drop-shadow(0 0 0.8px rgba(219,234,254,.78))
+      drop-shadow(0 6px 16px rgba(37,99,235,.22));
+  }
+  .lms-login-mobile-brand {
+    --xyndrome-brand-gap: 4px;
+    --xyndrome-brand-word-size: 19px;
+    --xyndrome-logo-filter: drop-shadow(0 5px 12px rgba(37,99,235,.22));
+    align-items: center;
+  }
+  .lms-login-mobile-brand .xyndrome-logo-mark {
+    transform: translateY(-1px);
+  }
+  .lms-login-mobile-brand .xyndrome-brand__word {
+    line-height: 1;
+  }
+  @media (min-width: 1024px) {
+    .lms-login-mobile-brand {
+      display: none !important;
+    }
+  }
+  :root[data-theme='dark'] .lms-login-mobile-brand {
+    --xyndrome-brand-text: #f1f5f9;
+    --xyndrome-logo-filter:
+      drop-shadow(0 0 0.8px rgba(219,234,254,.82))
+      drop-shadow(0 5px 12px rgba(37,99,235,.24));
+  }
+
   /* ── Right panel: input contrast ── */
   :root:not([data-theme='dark']) .lms-login-form .lms-field-label {
     color: #1e293b !important;
   }
+  .lms-login-form input {
+    border-width: 1px !important;
+  }
   :root:not([data-theme='dark']) .lms-login-form input {
-    border-color: rgba(37,99,235,.18) !important;
+    border-color: rgba(37,99,235,.12) !important;
     background:
       linear-gradient(180deg, #FBFCFF 0%, #F8FBFF 100%) !important;
     color: #0B1220 !important;
@@ -378,23 +414,60 @@ const ANIM_CSS = `
       0 1px 0 rgba(15,23,42,.025) !important;
   }
   :root:not([data-theme='dark']) .lms-login-form input::placeholder {
-    color: #94A3B8 !important;
+    color: #7C8BA1 !important;
+    opacity: .78 !important;
   }
   :root[data-theme='dark'] .lms-login-form input {
-    border-color: rgba(148,163,184,.32) !important;
-    background: rgba(2,5,12,.97) !important;
-    color: #E2E8F0 !important;
+    border-color: rgba(148,163,184,.18) !important;
+    background: rgba(2,6,23,.74) !important;
+    color: #EAF1FB !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.035),
+      0 1px 0 rgba(0,0,0,.18) !important;
+  }
+  :root[data-theme='dark'] .lms-login-form input::placeholder {
+    color: #94A3B8 !important;
+    opacity: .72 !important;
   }
   .lms-login-form input:focus {
     border-color: #2563EB !important;
     box-shadow:
-      0 0 0 4px rgba(37,99,235,.14),
+      0 0 0 3px rgba(37,99,235,.12),
       0 12px 24px -22px rgba(37,99,235,.72) !important;
     outline: none !important;
   }
   :root[data-theme='dark'] .lms-login-form input:focus {
     border-color: #3B82F6 !important;
-    box-shadow: 0 0 0 3px rgba(59,130,246,.24) !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,.18) !important;
+  }
+  .lms-login-form input:focus-visible {
+    outline: 2px solid rgba(37,99,235,.42) !important;
+    outline-offset: 2px !important;
+    box-shadow:
+      0 0 0 3px rgba(37,99,235,.12),
+      0 12px 24px -22px rgba(37,99,235,.72) !important;
+  }
+  html body .lms-login-form input:focus-visible {
+    outline: 2px solid rgba(37,99,235,.42) !important;
+    outline-offset: 2px !important;
+    box-shadow:
+      0 0 0 3px rgba(37,99,235,.12),
+      0 12px 24px -22px rgba(37,99,235,.72) !important;
+  }
+  :root[data-theme='dark'] .lms-login-form input:focus-visible {
+    outline-color: rgba(96,165,250,.48) !important;
+    box-shadow:
+      0 0 0 3px rgba(59,130,246,.18),
+      0 12px 24px -22px rgba(37,99,235,.72) !important;
+  }
+  html[data-theme='dark'] body .lms-login-form input:focus-visible {
+    outline-color: rgba(96,165,250,.48) !important;
+    box-shadow:
+      0 0 0 3px rgba(59,130,246,.18),
+      0 12px 24px -22px rgba(37,99,235,.72) !important;
+  }
+  .lms-login-password-toggle svg {
+    stroke-width: 1.65;
   }
   /* ── CTA button: vibrant blue gradient ── */
   .lms-login-cta {
@@ -507,7 +580,7 @@ function MedVitalsCard() {
       </div>
       {/* Vitals data */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(148,163,184,.65)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 7 }}>
+        <div style={{ fontSize:11, fontWeight: 700, color: 'rgba(148,163,184,.65)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 7 }}>
           Patient Vitals
         </div>
         <div style={{ display: 'flex', gap: 16 }}>
@@ -517,10 +590,10 @@ function MedVitalsCard() {
             { label: 'BP', value: '120/80', unit: '', color: '#60A5FA' },
           ].map(({ label, value, unit, color }) => (
             <div key={label}>
-              <div style={{ fontSize: 9.5, color: 'rgba(148,163,184,.56)', marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize:11.5, color: 'rgba(148,163,184,.56)', marginBottom: 2 }}>{label}</div>
               <div style={{ fontSize: 15, fontWeight: 800, color, lineHeight: 1.1 }}>
                 {value}
-                {unit && <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(148,163,184,.6)', marginLeft: 1 }}>{unit}</span>}
+                {unit && <span style={{ fontSize:11, fontWeight: 600, color: 'rgba(148,163,184,.6)', marginLeft: 1 }}>{unit}</span>}
               </div>
             </div>
           ))}
@@ -612,7 +685,7 @@ function EcgMonitorBand() {
           borderRadius:99, padding:'3px 10px', zIndex:4,
         }}>
           <span style={{ width:5, height:5, borderRadius:'50%', background:'#22D3EE', boxShadow:'0 0 6px #22D3EE', flexShrink:0 }}/>
-          <span style={{ fontSize:8.5, fontWeight:800, color:'var(--lms-brand-monitor-label)', letterSpacing:'.1em', textTransform:'uppercase' }}>Clinical progress</span>
+          <span style={{ fontSize:11.5, fontWeight:800, color:'var(--lms-brand-monitor-label)', letterSpacing:'.1em', textTransform:'uppercase' }}>Clinical progress</span>
         </div>
 
         {/* Annotation card — Heart Rate */}
@@ -623,11 +696,11 @@ function EcgMonitorBand() {
           backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)',
           zIndex:3, boxShadow:'0 0 0 1px rgba(34,211,238,.08), 0 10px 26px rgba(15,23,42,.12)',
         }}>
-          <div style={{ fontSize:8.5, fontWeight:800, color:'var(--lms-brand-soft)', letterSpacing:'.11em', textTransform:'uppercase' }}>Heart Rate</div>
+          <div style={{ fontSize:11.5, fontWeight:800, color:'var(--lms-brand-soft)', letterSpacing:'.11em', textTransform:'uppercase' }}>Heart Rate</div>
           <div style={{ fontSize:20, fontWeight:900, color:'#22D3EE', lineHeight:1.1, marginTop:2 }}>
-            72<span style={{ fontSize:10, fontWeight:600, color:'var(--lms-brand-soft)', marginLeft:2 }}>bpm</span>
+            72<span style={{ fontSize:11, fontWeight:600, color:'var(--lms-brand-soft)', marginLeft:2 }}>bpm</span>
           </div>
-          <div style={{ fontSize:8.5, fontWeight:700, color:'#34D399', marginTop:3 }}>Normal sinus</div>
+          <div style={{ fontSize:11.5, fontWeight:700, color:'#34D399', marginTop:3 }}>Normal sinus</div>
         </div>
 
         {/* Annotation card — SpO₂ */}
@@ -638,11 +711,11 @@ function EcgMonitorBand() {
           backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)',
           zIndex:3, boxShadow:'0 0 0 1px rgba(96,165,250,.07), 0 10px 26px rgba(15,23,42,.12)',
         }}>
-          <div style={{ fontSize:8.5, fontWeight:800, color:'var(--lms-brand-soft)', letterSpacing:'.11em', textTransform:'uppercase' }}>SpO₂</div>
+          <div style={{ fontSize:11.5, fontWeight:800, color:'var(--lms-brand-soft)', letterSpacing:'.11em', textTransform:'uppercase' }}>SpO₂</div>
           <div style={{ fontSize:20, fontWeight:900, color:'#60A5FA', lineHeight:1.1, marginTop:2 }}>
-            98<span style={{ fontSize:10, fontWeight:600, color:'var(--lms-brand-soft)', marginLeft:2 }}>%</span>
+            98<span style={{ fontSize:11, fontWeight:600, color:'var(--lms-brand-soft)', marginLeft:2 }}>%</span>
           </div>
-          <div style={{ fontSize:8.5, fontWeight:700, color:'#34D399', marginTop:3 }}>Oxygen sat.</div>
+          <div style={{ fontSize:11.5, fontWeight:700, color:'#34D399', marginTop:3 }}>Oxygen sat.</div>
         </div>
 
         {/* ECG SVG */}
@@ -764,24 +837,21 @@ const LoginBrand = memo(function LoginBrand() {
       </div>
 
       {/* ── Logo ── */}
-      <div className="lms-login-brand-logo-row" style={{ padding: '28px 36px 0', display: 'flex', alignItems: 'center', gap: 13, flexShrink: 0 }}>
-        <div style={{ flexShrink: 0, boxShadow: 'var(--lms-brand-logo-shadow)', borderRadius: 13 }}>
-          <svg width="42" height="42" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-            <rect width="30" height="30" rx="9" fill="url(#bp-logo-g)"/>
-            <path d="M9 10.5h12M9 15h8M9 19.5h12" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-            <defs>
-              <linearGradient id="bp-logo-g" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#2563EB"/>
-                <stop offset="100%" stopColor="#0EA5E9"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--lms-brand-title)', lineHeight: 1.25 }}>xyndrome</div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--lms-brand-soft)' }}>Medical Workspace</div>
-        </div>
-      </div>
+      <XyndromeBrand
+        className="lms-login-brand-logo-row"
+        markSize={50}
+        subtitle="Medical Workspace"
+        textClassName="!font-extrabold"
+        subtitleClassName="!font-bold"
+        style={{
+          '--xyndrome-brand-text': 'var(--lms-brand-title)',
+          '--xyndrome-brand-muted': 'var(--lms-brand-soft)',
+          padding: '28px 36px 0',
+          display: 'flex',
+          alignItems: 'center',
+          flexShrink: 0,
+        }}
+      />
 
       {/* ── Hero copy ── */}
       <div
@@ -879,7 +949,7 @@ const LoginBrand = memo(function LoginBrand() {
             <div style={{ display: 'flex', gap: 14, flexShrink: 0 }}>
               {[['Streak', '12d', '#60A5FA'], ['Q-Bank', '480', '#A78BFA'], ['BP', '120/80', '#FB7185']].map(([label, value, color]) => (
                 <div key={label} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--lms-brand-soft)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 2 }}>{label}</div>
+                  <div style={{ fontSize:11, fontWeight: 700, color: 'var(--lms-brand-soft)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 2 }}>{label}</div>
                   <div style={{ fontSize: 15, fontWeight: 800, color }}>{value}</div>
                 </div>
               ))}
@@ -955,6 +1025,18 @@ function nextPaint() {
   });
 }
 
+function forceNativeRoute(path) {
+  if (typeof window === 'undefined') return;
+  const target = getSafeForwardPath(path, '/dashboard') || '/dashboard';
+  const targetPathname = target.split(/[?#]/)[0] || '/';
+
+  window.setTimeout(() => {
+    if (window.location.pathname !== targetPathname) {
+      window.location.replace(target);
+    }
+  }, 650);
+}
+
 /* ── Login page ──────────────────────────────────────────────────────────────── */
 export function LoginPage() {
   const navigate = useNavigate();
@@ -990,7 +1072,8 @@ export function LoginPage() {
       if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
       if (PLATFORM.isNative) {
         await nextPaint();
-        navigate(nextPath);
+        navigate(nextPath, { replace: true });
+        forceNativeRoute(nextPath);
       } else {
         navigate(nextPath);
       }
@@ -1002,8 +1085,16 @@ export function LoginPage() {
     }
   }
 
+  const feedbackId = status.error ? 'login-error' : status.success ? 'login-success' : undefined;
+
   return (
     <main className={cx(ui.authRouteScene, 'lms-login-page')} style={{ display: 'flex', minHeight: '100dvh', overflowX: 'hidden', overflowY: 'auto', background: 'var(--lms-login-page-bg, var(--page-background))' }}>
+      <PageMeta
+        title="Sign In"
+        description="Sign in to xyndrome to continue medical lessons, quizzes, results, revision notes, and subscriptions."
+        path="/auth/login"
+        noindex
+      />
       <style>{ANIM_CSS}</style>
 
       {/* ── Left: dark brand panel (desktop only) ── */}
@@ -1018,19 +1109,11 @@ export function LoginPage() {
       >
         {/* Top bar: mobile logo + theme toggle */}
         <div className="lms-login-topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 28px', flexShrink: 0 }}>
-          <div className="flex items-center gap-2.5 lg:hidden">
-            <svg className="lms-login-mobile-logo" width="32" height="32" viewBox="0 0 30 30" fill="none" aria-hidden="true" style={{ borderRadius: 10, boxShadow: '0 2px 10px rgba(37,99,235,.30)', flexShrink: 0 }}>
-              <rect width="30" height="30" rx="9" fill="url(#mb-logo-g)"/>
-              <path d="M9 10.5h12M9 15h8M9 19.5h12" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-              <defs>
-                <linearGradient id="mb-logo-g" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#2563EB"/>
-                  <stop offset="100%" stopColor="#0EA5E9"/>
-                </linearGradient>
-              </defs>
-            </svg>
-            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink-strong)' }}>xyndrome</span>
-          </div>
+          <XyndromeBrand
+            className="lms-login-mobile-brand lg:hidden"
+            markSize={36}
+            textClassName="!font-extrabold"
+          />
           <div className="hidden lg:block"/>
           <ThemeToggle/>
         </div>
@@ -1046,6 +1129,7 @@ export function LoginPage() {
             className="lms-stagger lms-login-form"
             onSubmit={handleSubmit}
             noValidate
+            aria-describedby={feedbackId}
           >
             {/* ── Heading ── */}
             <div>
@@ -1060,42 +1144,24 @@ export function LoginPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              className="lms-google-btn"
-              aria-label="Continue with Google"
-              onClick={() => setStatus({ loading: false, error: '', success: 'Google sign-in will be connected later.' })}
-            >
-              <span className="lms-google-mark" aria-hidden="true">
-                <svg width="16" height="16" viewBox="0 0 24 24" focusable="false">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.85 0-5.27-1.93-6.14-4.52H2.18v2.84C4 20.56 7.73 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.86 14.11A6.63 6.63 0 015.5 12c0-.73.13-1.44.36-2.11V7.05H2.18A10.96 10.96 0 001 12c0 1.77.42 3.45 1.18 4.95l3.68-2.84z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.16-3.16C17.45 2.07 14.97 1 12 1 7.73 1 4 3.44 2.18 7.05l3.68 2.84C6.73 7.31 9.15 5.38 12 5.38z" />
-                </svg>
-              </span>
-              <span>Continue with Google</span>
-            </button>
-
-            <div className="lms-auth-divider" aria-hidden="true">
-              <span>or</span>
-            </div>
-
             {/* ── Feedback banners ── */}
-            {status.error   && <div className={ui.feedbackError}>{status.error}</div>}
-            {status.success && <div className={ui.feedbackSuccess}>{status.success}</div>}
+            {status.error   && <div id="login-error" className={ui.feedbackError} role="alert" aria-live="assertive">{status.error}</div>}
+            {status.success && <div id="login-success" className={ui.feedbackSuccess} role="status" aria-live="polite">{status.success}</div>}
 
             {/* ── Email ── */}
             <div className="lms-field-wrap grid gap-1.5">
               <label className={cx(ui.formLabel, 'lms-field-label')}>
                 Email address
                 <input
+                  id="login-email"
                   className={ui.input}
                   name="email"
                   type="email"
                   placeholder="you@example.com"
                   required
                   autoComplete="email"
+                  aria-invalid={status.error ? 'true' : undefined}
+                  aria-describedby={feedbackId}
                 />
               </label>
             </div>
@@ -1120,9 +1186,12 @@ export function LoginPage() {
                     placeholder="Enter your password"
                     required
                     autoComplete="current-password"
+                    aria-invalid={status.error ? 'true' : undefined}
+                    aria-describedby={feedbackId}
                   />
                   <button
                     type="button"
+                    className="lms-login-password-toggle"
                     onClick={() => setShowPassword(v => !v)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     tabIndex={0}

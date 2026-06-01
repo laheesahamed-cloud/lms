@@ -240,18 +240,18 @@ function buildFinanceReportHtml({ filters, summary, subscriptions, requests, pla
   <title>xyndrome Finance Report</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 28px; font-family: Inter, Arial, sans-serif; color: #111827; background: #F8FAFC; }
+    body { margin: 0; padding: 28px; font-family: var(--type-font-body, "Plus Jakarta Sans", Inter, Arial, sans-serif); color: #111827; background: #F8FAFC; }
     header { border-bottom: 2px solid #1d4ed8; padding-bottom: 16px; margin-bottom: 20px; }
     h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: 0; }
     h2 { margin: 26px 0 10px; font-size: 17px; }
     p { margin: 0; color: #4b5563; font-size: 12px; line-height: 1.5; }
     .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
     .metric { border: 1px solid #dbeafe; border-radius: 8px; padding: 12px; background: #f8fbff; }
-    .metric span { display: block; color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    .metric span { display: block; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; }
     .metric strong { display: block; margin-top: 5px; font-size: 18px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 12px; page-break-inside: avoid; }
     th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; vertical-align: top; font-size: 11px; }
-    th { background: #eff6ff; color: #1e3a8a; text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.04em; }
+    th { background: #eff6ff; color: #1e3a8a; text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
     .muted { color: #64748b; }
     @media print {
       body { padding: 18px; }
@@ -345,7 +345,7 @@ function Metric({ label, value, hint }) {
         <span className={ui.eyebrow}>{label}</span>
         <p className="m-0 mt-1 text-[12.5px] leading-relaxed text-ink-soft">{hint}</p>
       </div>
-      <strong className="block whitespace-nowrap text-left text-[clamp(18px,1.45vw,22px)] font-extrabold leading-tight text-ink-strong tabular-nums max-[560px]:whitespace-normal">{value}</strong>
+      <strong className="block whitespace-nowrap text-left text-[22px] max-[560px]:text-[18px] font-extrabold leading-tight text-ink-strong tabular-nums max-[560px]:whitespace-normal">{value}</strong>
     </article>
   );
 }

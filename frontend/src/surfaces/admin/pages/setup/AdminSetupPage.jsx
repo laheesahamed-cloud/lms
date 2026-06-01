@@ -117,7 +117,7 @@ export function AdminSetupPage() {
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
         <AppHeader
-          title="Admin Setup"
+          title="Setup"
           subtitle="System Readiness"
         />
 

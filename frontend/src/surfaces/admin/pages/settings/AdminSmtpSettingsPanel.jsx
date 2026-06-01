@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchSmtpSettings, updateSmtpSettings } from '../../../../shared/api/settings.api.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { PasswordField } from '../../../../shared/ui/PasswordField.jsx';
 
 const defaultForm = {
   enabled: false,
@@ -125,17 +126,13 @@ export function AdminSmtpSettingsPanel() {
                 SMTP username
                 <input className={ui.input} value={form.username} onChange={(event) => patchForm({ username: event.target.value })} placeholder="support@yourdomain.com" autoComplete="username" />
               </label>
-              <label className={ui.formLabel}>
-                SMTP password
-                <input
-                  className={ui.input}
-                  type="password"
-                  value={form.password}
-                  onChange={(event) => patchForm({ password: event.target.value })}
-                  placeholder={settings?.hasPassword ? settings.maskedPassword : 'Paste SMTP/app password'}
-                  autoComplete="new-password"
-                />
-              </label>
+              <PasswordField
+                label="SMTP password"
+                value={form.password}
+                onChange={(event) => patchForm({ password: event.target.value })}
+                placeholder={settings?.hasPassword ? settings.maskedPassword : 'Paste SMTP/app password'}
+                autoComplete="new-password"
+              />
               <label className={ui.formLabel}>
                 Public app URL
                 <input className={ui.input} value={form.publicUrl} onChange={(event) => patchForm({ publicUrl: event.target.value })} placeholder="https://yourdomain.com/lms" />

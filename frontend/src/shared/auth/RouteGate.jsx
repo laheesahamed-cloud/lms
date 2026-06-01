@@ -7,7 +7,7 @@ const gateUi = {
   screenShell:
     'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5',
   eyebrow:
-    'inline-block text-[10.5px] font-extrabold uppercase tracking-[0.13em] text-brand-primary opacity-90',
+    'inline-block text-[11px] font-extrabold uppercase tracking-[0.13em] text-brand-primary opacity-90',
 };
 
 function GateShell({ label }) {

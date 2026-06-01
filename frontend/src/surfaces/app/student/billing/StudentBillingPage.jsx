@@ -191,7 +191,7 @@ const billingUi = {
   planCard:
     'grid gap-4 rounded-xl border-line-soft bg-surface-card p-4 shadow-sm max-[520px]:gap-3 max-[520px]:rounded-lg max-[520px]:p-3.5',
   cardBadges:
-    'flex min-h-7 flex-wrap items-center gap-2 max-[520px]:gap-1.5 [&_span]:max-[520px]:min-h-[24px] [&_span]:max-[520px]:px-2 [&_span]:max-[520px]:text-[10px]',
+    'flex min-h-7 flex-wrap items-center gap-2 max-[520px]:gap-1.5 [&_span]:max-[520px]:min-h-[24px] [&_span]:max-[520px]:px-2 [&_span]:max-[520px]:text-[11px]',
   planTitle:
     'm-0 text-lg font-extrabold leading-tight text-ink-strong max-[520px]:text-[16px]',
   planDescription:
@@ -509,7 +509,7 @@ export function StudentBillingPage() {
         <div className={billingUi.planFeatureList}>
           {(featureLabels.length ? featureLabels : [plan.slug?.includes('quick-revision') ? 'MCQ practice' : 'Lessons and practice']).map((label) => (
             <span className="flex items-center gap-2" key={label}>
-              <span className="grid size-4 shrink-0 place-items-center rounded-full bg-brand-primary/10 text-[10px] font-black text-brand-primary">✓</span>
+              <span className="grid size-4 shrink-0 place-items-center rounded-full bg-brand-primary/10 text-[11px] font-black text-brand-primary">✓</span>
               <span className="min-w-0 truncate">{label}</span>
             </span>
           ))}
@@ -626,11 +626,11 @@ export function StudentBillingPage() {
                 <div className="grid grid-cols-3 gap-3 p-5 max-[760px]:grid-cols-1 max-[520px]:p-4">
                   <div className="hidden rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:grid max-[520px]:grid-cols-2 max-[520px]:gap-3">
                     <div className="min-w-0 border-r border-line-soft pr-3">
-                      <span className="block text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Start date</span>
+                      <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Start date</span>
                       <strong className="mt-1 block truncate text-[13px] text-ink-strong">{current.startDate || '-'}</strong>
                     </div>
                     <div className="min-w-0 pl-1">
-                      <span className="block text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">End date</span>
+                      <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">End date</span>
                       <strong className="mt-1 block truncate text-[13px] text-ink-strong">{current.endDate || '-'}</strong>
                     </div>
                   </div>
@@ -718,7 +718,7 @@ export function StudentBillingPage() {
                     <th className="min-w-[150px] px-4 py-3 text-center" key={plan.id}>
                       <span className="block text-[13px] font-extrabold text-ink-strong">{plan.name}</span>
                       <span className="mt-1 block text-[11px] font-bold text-ink-muted">{formatPlanPrice(plan)}</span>
-                      <span className="mt-0.5 block text-[10px] font-semibold text-ink-muted">{getPlanSummary(plan)}</span>
+                      <span className="mt-0.5 block text-[11px] font-semibold text-ink-muted">{getPlanSummary(plan)}</span>
                     </th>
                   ))}
                 </tr>

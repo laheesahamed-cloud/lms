@@ -8,12 +8,68 @@
   line-height: 0 !important;
 }
 
-.lms-topbar-menu-button svg {
-  display: block;
+.lms-nav-toggle-icon {
+  display: grid;
   width: 18px;
   height: 18px;
-  margin: auto;
-  flex: 0 0 auto;
+  place-items: center;
+  color: currentColor;
+  pointer-events: none;
+}
+
+.lms-nav-toggle-icon span {
+  grid-area: 1 / 1;
+  width: 16px;
+  height: 1.75px;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center;
+  transition:
+    opacity 160ms ease,
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lms-nav-toggle-icon span:nth-child(1) {
+  transform: translateY(-5px);
+}
+
+.lms-nav-toggle-icon span:nth-child(3) {
+  transform: translateY(5px);
+}
+
+.app-shell:not(.mobile-top-nav-mode):not(.sidebar-collapsed):not(.sidebar-hidden) .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(1),
+.app-shell.mobile-top-nav-mode.sidebar-open .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(1) {
+  transform: rotate(45deg);
+}
+
+.app-shell:not(.mobile-top-nav-mode):not(.sidebar-collapsed):not(.sidebar-hidden) .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(2),
+.app-shell.mobile-top-nav-mode.sidebar-open .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(2) {
+  width: 4px;
+  opacity: 0;
+  transform: scaleX(0.25);
+}
+
+.app-shell:not(.mobile-top-nav-mode):not(.sidebar-collapsed):not(.sidebar-hidden) .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(3),
+.app-shell.mobile-top-nav-mode.sidebar-open .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(3) {
+  transform: rotate(-45deg);
+}
+
+@media (max-width: 520px) {
+  .lms-nav-toggle-icon {
+    width: 17px;
+    height: 17px;
+  }
+
+  .lms-nav-toggle-icon span {
+    width: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lms-nav-toggle-icon span {
+    transition: none !important;
+  }
 }
 
 .mobile-top-nav-mode :where(.lms-topbar, .study-hub-topbar) .lms-topbar-menu-button {

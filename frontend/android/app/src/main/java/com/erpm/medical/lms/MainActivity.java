@@ -1,7 +1,10 @@
 package com.erpm.medical.lms;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Build;
+import android.view.View;
+import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
@@ -9,45 +12,57 @@ import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 
-import java.io.File;
-
 public class MainActivity extends BridgeActivity {
     private boolean secureQuizModeEnabled = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        clearWebViewCacheBeforeLoad();
+        configureEdgeToEdgeWindow();
         super.onCreate(savedInstanceState);
+        configureEdgeToEdgeWindow();
         WebView webView = getBridge() != null ? getBridge().getWebView() : null;
         if (webView != null) {
-            webView.clearCache(true);
-            webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+            webView.setFitsSystemWindows(false);
+            webView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+            webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            webView.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
+            webView.getSettings().setDomStorageEnabled(true);
+            webView.getSettings().setDatabaseEnabled(true);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                webView.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                webView.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
             }
             webView.addJavascriptInterface(new SecureQuizBridge(), "LmsSecureQuiz");
         }
     }
 
-    private void clearWebViewCacheBeforeLoad() {
-        deleteDirectory(new File(getCacheDir(), "WebView/Default/HTTP Cache"));
-        deleteDirectory(getCacheDir());
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            deleteDirectory(getCodeCacheDir());
-        }
-    }
+    private void configureEdgeToEdgeWindow() {
+        Window window = getWindow();
+        if (window == null) return;
 
-    private boolean deleteDirectory(File file) {
-        if (file == null || !file.exists()) return true;
-        if (file.isDirectory()) {
-            File[] children = file.listFiles();
-            if (children != null) {
-                for (File child : children) {
-                    deleteDirectory(child);
-                }
-            }
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        window.setStatusBarColor(Color.TRANSPARENT);
+        window.setNavigationBarColor(Color.TRANSPARENT);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams attributes = window.getAttributes();
+            attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            window.setAttributes(attributes);
         }
-        return file.delete();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.setStatusBarContrastEnforced(false);
+            window.setNavigationBarContrastEnforced(false);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false);
+        } else {
+            window.getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            );
+        }
     }
 
     @Override

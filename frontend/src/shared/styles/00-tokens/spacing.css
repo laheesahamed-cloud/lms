@@ -6,15 +6,27 @@
   --ds-space-2: var(--space-2, 8px);
   --ds-space-3: var(--space-3, 12px);
   --ds-space-4: var(--space-4, 16px);
-  --ds-space-5: var(--space-6, 24px);
-  --ds-space-6: var(--space-7, 32px);
+  --ds-space-5: 24px;
+  --ds-space-6: 32px;
 
-  --ds-page-pad-x: var(--page-pad-x, 22px);
-  --ds-page-pad-y: var(--page-pad-y, 16px);
-  --ds-section-gap: var(--section-gap, 18px);
-  --ds-card-pad: var(--card-pad, 20px);
+  --ds-page-pad-x: var(--page-pad-x, var(--ds-space-5));
+  --ds-page-pad-y: var(--page-pad-y, var(--ds-space-4));
+  --ds-section-gap: var(--section-gap, var(--ds-space-5));
+  --ds-card-pad: var(--card-pad, var(--ds-space-5));
   --ds-card-pad-compact: var(--card-pad-compact, 16px);
   --ds-form-gap: var(--form-gap, 16px);
-  --ds-control-height: var(--control-h, 42px);
+  --ds-control-height: var(--control-h, 44px);
   --ds-touch-target-min: var(--lms-min-touch-target, 44px);
+  --ds-list-gap: var(--ds-space-3);
+  --ds-card-content-gap: var(--ds-space-4);
+  --ds-card-section-gap: var(--ds-space-5);
+  --ds-medical-media-gap: var(--ds-space-3);
+  --ds-loading-min-block: 160px;
+}
+
+@media (max-width: 600px) {
+  :root {
+    --ds-section-gap: var(--ds-space-4);
+    --ds-card-pad: var(--ds-space-4);
+  }
 }

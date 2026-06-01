@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchPaymentSettings, updatePaymentSettings } from '../../../../shared/api/settings.api.js';
 import { ui } from '../../../../shared/styles/tailwindClasses.js';
+import { PasswordField } from '../../../../shared/ui/PasswordField.jsx';
 
 const defaultForm = {
   enabled: false,
@@ -138,17 +139,13 @@ export function AdminPaymentSettingsPanel() {
                   placeholder="121XXXX"
                 />
               </label>
-              <label className={ui.formLabel}>
-                Merchant secret
-                <input
-                  className={ui.input}
-                  value={form.merchantSecret}
-                  onChange={(event) => patchForm({ merchantSecret: event.target.value })}
-                  placeholder={settings?.hasMerchantSecret ? settings.maskedMerchantSecret : 'Paste sandbox merchant secret'}
-                  type="password"
-                  autoComplete="new-password"
-                />
-              </label>
+              <PasswordField
+                label="Merchant secret"
+                value={form.merchantSecret}
+                onChange={(event) => patchForm({ merchantSecret: event.target.value })}
+                placeholder={settings?.hasMerchantSecret ? settings.maskedMerchantSecret : 'Paste sandbox merchant secret'}
+                autoComplete="new-password"
+              />
               <label className={ui.formLabel}>
                 Currency
                 <select className={ui.input} value={form.currency} onChange={(event) => patchForm({ currency: event.target.value })}>

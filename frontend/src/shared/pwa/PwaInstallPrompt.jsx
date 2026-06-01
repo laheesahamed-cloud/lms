@@ -49,7 +49,7 @@ function getInstallSurface() {
 
 const installUi = {
   button:
-    'inline-flex h-9 min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-brand-primary/18 bg-[var(--color-primary-light)] px-3 text-[12px] font-extrabold text-brand-primary shadow-xs transition-[background,border-color,transform,color,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-px hover:border-brand-primary/30 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] hover:shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_14%,transparent)] active:translate-y-0 active:scale-[0.98] max-[520px]:size-8 max-[520px]:min-h-8 max-[520px]:min-w-8 max-[520px]:gap-0 max-[520px]:p-0 [&_span]:max-[760px]:hidden',
+    'inline-flex h-9 min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-brand-primary/18 bg-[var(--color-primary-light)] px-3 text-[12px] font-extrabold text-brand-primary shadow-xs transition-[background,border-color,transform,color,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-px hover:border-brand-primary/30 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] hover:shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_14%,transparent)] active:translate-y-0 active:scale-[0.98] max-[520px]:size-11 max-[520px]:min-h-11 max-[520px]:min-w-11 max-[520px]:gap-0 max-[520px]:p-0 [&_span]:max-[760px]:hidden',
   backdrop: 'fixed inset-0 z-[1200] grid place-items-center bg-slate-950/45 p-5 backdrop-blur-md animate-overlayIn max-[520px]:items-end max-[520px]:p-0',
   modal:
     'motion-smooth grid w-[min(520px,100%)] max-h-[calc(100dvh-24px)] gap-5 overflow-y-auto rounded-2xl border border-line-soft bg-surface-card-elevated p-5 shadow-2xl animate-dropdownIn [-webkit-overflow-scrolling:touch] max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-8px)] max-[520px]:gap-4 max-[520px]:rounded-b-none max-[520px]:p-4 max-[520px]:pb-[calc(16px+env(safe-area-inset-bottom,0px))]',
@@ -64,7 +64,7 @@ const installUi = {
   command:
     'grid grid-cols-[32px_minmax(0,1fr)] items-start gap-3 rounded-xl border border-line-soft bg-surface-1 px-3.5 py-3 max-[520px]:grid-cols-[28px_minmax(0,1fr)] max-[520px]:gap-2.5 max-[520px]:px-3 max-[520px]:py-2.5',
   commandIndex:
-    'grid size-8 place-items-center rounded-lg bg-[var(--color-primary-light)] text-[12px] font-black text-brand-primary max-[520px]:size-7 max-[520px]:text-[10px]',
+    'grid size-8 place-items-center rounded-lg bg-[var(--color-primary-light)] text-[12px] font-black text-brand-primary max-[520px]:size-7 max-[520px]:text-[11px]',
   commandTitle: 'block text-[13.5px] font-extrabold text-ink-strong',
   commandText: 'mt-0.5 block text-[12px] leading-relaxed text-ink-soft',
   iosGuide:

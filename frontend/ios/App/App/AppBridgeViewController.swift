@@ -19,6 +19,8 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
     private var activeScribblePlayer: AVAudioPlayer?
     private var lastNativeScribbleSoundAt: TimeInterval = 0
     private var lastNativeScribbleTextureAt: TimeInterval = 0
+    private var lastPublishedSafeAreaInsets: UIEdgeInsets = .zero
+    private var lastPublishedContentSizeCategory: UIContentSizeCategory?
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
         currentStatusBarStyle
@@ -42,12 +44,41 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
             configureWebViewForTouch(webView)
         }
         prepareHapticEngine()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(preferredContentSizeCategoryDidChange),
+            name: UIContentSizeCategory.didChangeNotification,
+            object: nil
+        )
+        DispatchQueue.main.async { [weak self] in
+            self?.publishNativeViewportState(force: true)
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        publishNativeViewportState()
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        publishNativeViewportState()
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        publishNativeViewportState()
     }
 
     private func configureWebViewForTouch(_ webView: WKWebView) {
         webView.isUserInteractionEnabled = true
         webView.isOpaque = false
         webView.backgroundColor = appBackground
+        webView.allowsBackForwardNavigationGestures = false
 
         let scrollView = webView.scrollView
         scrollView.isUserInteractionEnabled = true
@@ -58,12 +89,117 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         scrollView.decelerationRate = .fast
         scrollView.delaysContentTouches = false
         scrollView.canCancelContentTouches = false
+        scrollView.keyboardDismissMode = .interactive
         scrollView.isDirectionalLockEnabled = false
         scrollView.contentInsetAdjustmentBehavior = .never
         scrollView.scrollIndicatorInsets = .zero
         scrollView.panGestureRecognizer.cancelsTouchesInView = false
         scrollView.panGestureRecognizer.delaysTouchesBegan = false
         scrollView.panGestureRecognizer.delaysTouchesEnded = false
+    }
+
+    @objc private func preferredContentSizeCategoryDidChange() {
+        publishNativeViewportState(force: true)
+    }
+
+    private func publishNativeViewportState(force: Bool = false) {
+        guard isViewLoaded, let webView = bridge?.webView else { return }
+
+        let safeAreaInsets = view.safeAreaInsets
+        let contentSizeCategory = traitCollection.preferredContentSizeCategory
+        let insetChanged =
+            abs(safeAreaInsets.top - lastPublishedSafeAreaInsets.top) > 0.5 ||
+            abs(safeAreaInsets.right - lastPublishedSafeAreaInsets.right) > 0.5 ||
+            abs(safeAreaInsets.bottom - lastPublishedSafeAreaInsets.bottom) > 0.5 ||
+            abs(safeAreaInsets.left - lastPublishedSafeAreaInsets.left) > 0.5
+        let typeChanged = contentSizeCategory != lastPublishedContentSizeCategory
+
+        guard force || insetChanged || typeChanged else { return }
+
+        lastPublishedSafeAreaInsets = safeAreaInsets
+        lastPublishedContentSizeCategory = contentSizeCategory
+
+        let category = jsStringLiteral(contentSizeCategory.rawValue)
+        let top = cssPx(safeAreaInsets.top)
+        let right = cssPx(safeAreaInsets.right)
+        let bottom = cssPx(safeAreaInsets.bottom)
+        let left = cssPx(safeAreaInsets.left)
+        let resolvedTextScale = nativeTextScale(for: contentSizeCategory)
+        let textScale = String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), resolvedTextScale)
+        let readableBodySize = cssPx(16 * resolvedTextScale)
+        let dynamicIslandTop = cssPx(max(safeAreaInsets.top, 54))
+        let js = """
+        (() => {
+          const root = document.documentElement;
+          root.dataset.lmsNativeSafeArea = 'true';
+          root.dataset.lmsIosContentSizeCategory = \(category);
+          root.style.setProperty('--lms-native-safe-top', '\(top)');
+          root.style.setProperty('--lms-native-safe-right', '\(right)');
+          root.style.setProperty('--lms-native-safe-bottom', '\(bottom)');
+          root.style.setProperty('--lms-native-safe-left', '\(left)');
+          root.style.setProperty('--lms-safe-top', '\(top)');
+          root.style.setProperty('--lms-safe-right', '\(right)');
+          root.style.setProperty('--lms-safe-bottom', '\(bottom)');
+          root.style.setProperty('--lms-safe-left', '\(left)');
+          root.style.setProperty('--lms-ios-dynamic-island-top', '\(dynamicIslandTop)');
+          root.style.setProperty('--lms-native-text-scale', '\(textScale)');
+          root.style.setProperty('--lms-native-readable-body-size', '\(readableBodySize)');
+          root.dispatchEvent(new CustomEvent('lms:native-viewport', {
+            detail: {
+              top: \(safeAreaInsets.top),
+              right: \(safeAreaInsets.right),
+              bottom: \(safeAreaInsets.bottom),
+              left: \(safeAreaInsets.left),
+              contentSizeCategory: \(category),
+              textScale: \(textScale)
+            }
+          }));
+        })();
+        """
+
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    private func cssPx(_ value: CGFloat) -> String {
+        String(format: "%.1fpx", locale: Locale(identifier: "en_US_POSIX"), max(0, value))
+    }
+
+    private func jsStringLiteral(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+        return "\"\(escaped)\""
+    }
+
+    private func nativeTextScale(for category: UIContentSizeCategory) -> CGFloat {
+        switch category {
+        case .extraSmall:
+            return 0.92
+        case .small:
+            return 0.96
+        case .medium, .large:
+            return 1.0
+        case .extraLarge:
+            return 1.08
+        case .extraExtraLarge:
+            return 1.16
+        case .extraExtraExtraLarge:
+            return 1.24
+        case .accessibilityMedium:
+            return 1.32
+        case .accessibilityLarge:
+            return 1.42
+        case .accessibilityExtraLarge:
+            return 1.52
+        case .accessibilityExtraExtraLarge:
+            return 1.64
+        case .accessibilityExtraExtraExtraLarge:
+            return 1.78
+        default:
+            return 1.0
+        }
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -210,19 +346,23 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
 
         let badge = UILabel()
         badge.text = "xyndrome"
-        badge.font = UIFont.systemFont(ofSize: 13, weight: .bold)
+        badge.font = UIFontMetrics(forTextStyle: .caption1).scaledFont(for: UIFont.systemFont(ofSize: 13, weight: .bold))
+        badge.adjustsFontForContentSizeCategory = true
         badge.textColor = UIColor(red: 0.733, green: 0.925, blue: 1.0, alpha: 1)
         badge.textAlignment = .center
 
         let title = UILabel()
         title.text = "Screenshot blocked"
-        title.font = UIFont.systemFont(ofSize: 28, weight: .bold)
+        title.font = UIFontMetrics(forTextStyle: .title1).scaledFont(for: UIFont.systemFont(ofSize: 28, weight: .bold))
+        title.adjustsFontForContentSizeCategory = true
         title.textColor = .white
         title.textAlignment = .center
+        title.numberOfLines = 0
 
         let message = UILabel()
         message.text = "This quiz or note is protected. Please study inside the xyndrome app instead of saving questions or notes."
-        message.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        message.font = UIFontMetrics(forTextStyle: .body).scaledFont(for: UIFont.systemFont(ofSize: 16, weight: .medium))
+        message.adjustsFontForContentSizeCategory = true
         message.textColor = UIColor(white: 1, alpha: 0.76)
         message.textAlignment = .center
         message.numberOfLines = 0

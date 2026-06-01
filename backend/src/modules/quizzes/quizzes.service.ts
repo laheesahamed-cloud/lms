@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
@@ -31,6 +31,13 @@ type QuizAccessProfile = {
   hasFullAccess: boolean;
   courseIds: Set<number>;
 };
+type ContentActor = {
+  id: number;
+  role?: string;
+  permissions?: readonly string[];
+};
+type ContentActorInput = ContentActor | number | undefined;
+type ContentWorkflowState = 'draft' | 'in_review' | 'published' | 'archived';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
@@ -355,8 +362,9 @@ export class QuizzesService {
     };
   }
 
-  async create(createQuizDto: CreateQuizDto) {
+  async create(createQuizDto: CreateQuizDto, actor?: ContentActorInput) {
     this.validateQuiz(createQuizDto);
+    this.assertCanSaveStatus(actor, createQuizDto.status);
     const connection = await this.db.getConnection();
 
     try {
@@ -402,6 +410,17 @@ export class QuizzesService {
 
       await this.replaceQuestionLinks(connection, result.insertId, questionIds);
       await this.appendKeywordsToQuestions(connection, questionIds, createQuizDto.collectionTags);
+      const snapshot = this.buildQuizSnapshot(createQuizDto);
+      await this.recordContentVersion(connection, 'quiz', result.insertId, snapshot, this.getActorId(actor));
+      await this.setWorkflowState(connection, 'quiz', result.insertId, createQuizDto.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'quiz',
+        entityId: result.insertId,
+        action: 'created',
+        summary: `Quiz ${result.insertId} created`,
+        actorId: this.getActorId(actor),
+        after: snapshot,
+      });
       await connection.commit();
       return { ok: true, id: result.insertId };
     } catch (error) {
@@ -412,7 +431,7 @@ export class QuizzesService {
     }
   }
 
-  async update(id: number, updateQuizDto: UpdateQuizDto) {
+  async update(id: number, updateQuizDto: UpdateQuizDto, actor?: ContentActorInput) {
     const existing = await this.findOne(id);
     const merged: CreateQuizDto = {
       courseId: updateQuizDto.courseId ?? existing.courseId,
@@ -441,6 +460,8 @@ export class QuizzesService {
     };
 
     this.validateQuiz(merged);
+    this.assertCanModifyExistingStatus(actor, existing.status);
+    this.assertCanSaveStatus(actor, merged.status);
     const connection = await this.db.getConnection();
 
     try {
@@ -509,6 +530,18 @@ export class QuizzesService {
 
       await this.replaceQuestionLinks(connection, id, questionIds);
       await this.appendKeywordsToQuestions(connection, questionIds, merged.collectionTags);
+      const snapshot = this.buildQuizSnapshot(merged);
+      await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
+      await this.setWorkflowState(connection, 'quiz', id, merged.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'quiz',
+        entityId: id,
+        action: 'updated',
+        summary: `Quiz ${id} updated`,
+        actorId: this.getActorId(actor),
+        before: existing,
+        after: snapshot,
+      });
       await connection.commit();
       return { ok: true, id };
     } catch (error) {
@@ -519,10 +552,139 @@ export class QuizzesService {
     }
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
-    await this.db.execute('DELETE FROM quizzes WHERE id = ?', [id]);
+  async remove(id: number, actor?: ContentActorInput) {
+    const existing = await this.findOne(id);
+    this.assertCanModifyExistingStatus(actor, existing.status);
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.execute('DELETE FROM question_quizzes WHERE quiz_id = ?', [id]);
+      await connection.execute('DELETE FROM quizzes WHERE id = ?', [id]);
+      await this.recordContentAudit(connection, {
+        entityType: 'quiz',
+        entityId: id,
+        action: 'deleted',
+        summary: `Quiz ${id} deleted`,
+        actorId: this.getActorId(actor),
+        before: existing,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
     return { ok: true, id };
+  }
+
+  async listVersions(id: number) {
+    await this.findOne(id);
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, version_number, created_by, created_at, snapshot_json
+       FROM content_versions
+       WHERE entity_type = 'quiz' AND entity_id = ?
+       ORDER BY version_number DESC`,
+      [id]
+    );
+
+    return rows.map((row) => ({
+      id: Number(row.id),
+      versionNumber: Number(row.version_number),
+      createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
+      createdAt: row.created_at || null,
+      snapshot: this.parseSnapshotJson(row.snapshot_json),
+    }));
+  }
+
+  async markDraft(id: number, actor?: ContentActorInput) {
+    return this.transitionWorkflow(id, {
+      workflowState: 'draft',
+      status: 'inactive',
+      action: 'marked_draft',
+      summary: `Quiz ${id} marked as draft`,
+      actor,
+    });
+  }
+
+  async submitForReview(id: number, actor?: ContentActorInput) {
+    return this.transitionWorkflow(id, {
+      workflowState: 'in_review',
+      status: 'inactive',
+      action: 'submitted_for_review',
+      summary: `Quiz ${id} submitted for review`,
+      actor,
+    });
+  }
+
+  async publish(id: number, actor?: ContentActorInput) {
+    return this.transitionWorkflow(id, {
+      workflowState: 'published',
+      status: 'active',
+      action: 'published',
+      summary: `Quiz ${id} published`,
+      actor,
+    });
+  }
+
+  async rollback(id: number, versionNumber: number, actor?: ContentActorInput) {
+    if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
+      throw new BadRequestException('Version number is invalid');
+    }
+    if (!this.canReviewContent(actor)) {
+      throw new ForbiddenException('Review permission is required to rollback quiz content');
+    }
+
+    const existing = await this.findOne(id);
+    const [versionRows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT snapshot_json
+       FROM content_versions
+       WHERE entity_type = 'quiz' AND entity_id = ? AND version_number = ?
+       LIMIT 1`,
+      [id, versionNumber]
+    );
+    if (!versionRows[0]) {
+      throw new NotFoundException('Quiz version not found');
+    }
+
+    const snapshot = this.parseQuizSnapshot(versionRows[0].snapshot_json);
+    this.validateQuiz(snapshot);
+    this.assertCanSaveStatus(actor, snapshot.status);
+    const questionIds = this.cleanQuestionIds(snapshot.questionIds);
+    const workflowState: ContentWorkflowState = snapshot.status === 'active' ? 'published' : 'draft';
+    const connection = await this.db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+      await this.writeQuizSnapshot(connection, id, snapshot);
+      await this.replaceQuestionLinks(connection, id, questionIds);
+      await this.appendKeywordsToQuestions(connection, questionIds, snapshot.collectionTags);
+      await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
+      await this.setWorkflowState(connection, 'quiz', id, workflowState, this.getActorId(actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'quiz',
+        entityId: id,
+        action: 'rolled_back',
+        summary: `Quiz ${id} rolled back to version ${versionNumber}`,
+        actorId: this.getActorId(actor),
+        before: existing,
+        after: snapshot,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    return {
+      ok: true,
+      id,
+      rolledBackToVersion: versionNumber,
+      status: snapshot.status,
+      workflowState,
+    };
   }
 
   private validateQuiz(quiz: CreateQuizDto) {
@@ -553,6 +715,309 @@ export class QuizzesService {
 
   private cleanQuestionIds(questionIds: number[]) {
     return Array.from(new Set(questionIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)));
+  }
+
+  private buildQuizSnapshot(quiz: CreateQuizDto) {
+    return {
+      courseId: quiz.courseId,
+      topicId: quiz.topicId ?? null,
+      subtopicId: quiz.subtopicId ?? null,
+      lessonId: quiz.lessonId ?? null,
+      paperId: quiz.paperId ?? null,
+      category: quiz.category || '',
+      collectionTags: this.normalizeKeywords(quiz.collectionTags),
+      isFree: quiz.isFree === 1 ? 1 : 0,
+      subtopic: quiz.subtopic || '',
+      isGeneral: quiz.isGeneral,
+      examModeOnly: quiz.examModeOnly,
+      adminName: this.resolveAdminName(quiz),
+      studentTitle: this.resolveStudentTitle(quiz),
+      displayTitleMode: this.resolveDisplayTitleMode(quiz.displayTitleMode),
+      quizTitle: this.resolveStudentTitle(quiz),
+      quizDescription: quiz.quizDescription || '',
+      blueprint: this.normalizeBlueprintPayload(quiz.blueprint),
+      timeLimit: quiz.timeLimit,
+      hideTimeLimit: quiz.hideTimeLimit,
+      passingMarks: this.resolvePassingMarks(quiz.passingMarks),
+      hidePassingMarks: quiz.hidePassingMarks,
+      status: quiz.status,
+      questionIds: this.cleanQuestionIds(quiz.questionIds),
+    };
+  }
+
+  private buildQuizSnapshotFromEntity(quiz: Awaited<ReturnType<QuizzesService['findOne']>>, status: 'active' | 'inactive') {
+    return this.buildQuizSnapshot({
+      courseId: Number(quiz.courseId),
+      topicId: quiz.topicId === null || quiz.topicId === undefined ? null : Number(quiz.topicId),
+      subtopicId: quiz.subtopicId === null || quiz.subtopicId === undefined ? null : Number(quiz.subtopicId),
+      lessonId: quiz.lessonId === null || quiz.lessonId === undefined ? null : Number(quiz.lessonId),
+      paperId: quiz.paperId === null || quiz.paperId === undefined ? null : Number(quiz.paperId),
+      category: quiz.category || '',
+      collectionTags: quiz.collectionTags || '',
+      isFree: quiz.isFree === 1 ? 1 : 0,
+      subtopic: quiz.subtopic || '',
+      isGeneral: quiz.isGeneral === 1 ? 1 : 0,
+      examModeOnly: quiz.examModeOnly === 1 ? 1 : 0,
+      adminName: quiz.adminName,
+      studentTitle: quiz.studentTitle,
+      displayTitleMode: this.resolveDisplayTitleMode(quiz.displayTitleMode),
+      quizTitle: quiz.quizTitle,
+      quizDescription: quiz.quizDescription || '',
+      blueprint: quiz.blueprint || null,
+      timeLimit: Number(quiz.timeLimit),
+      hideTimeLimit: quiz.hideTimeLimit === 1 ? 1 : 0,
+      passingMarks: this.resolvePassingMarks(quiz.passingMarks),
+      hidePassingMarks: quiz.hidePassingMarks === 1 ? 1 : 0,
+      status,
+      questionIds: quiz.questionIds,
+    }) as CreateQuizDto;
+  }
+
+  private async transitionWorkflow(
+    id: number,
+    input: {
+      workflowState: ContentWorkflowState;
+      status: 'active' | 'inactive';
+      action: string;
+      summary: string;
+      actor?: ContentActorInput;
+    }
+  ) {
+    const existing = await this.findOne(id);
+    this.assertCanModifyExistingStatus(input.actor, existing.status);
+    this.assertCanSaveStatus(input.actor, input.status);
+    const snapshot = this.buildQuizSnapshotFromEntity(existing, input.status);
+    this.validateQuiz(snapshot);
+
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.execute('UPDATE quizzes SET status = ? WHERE id = ?', [input.status, id]);
+      await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(input.actor));
+      await this.setWorkflowState(connection, 'quiz', id, input.workflowState, this.getActorId(input.actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'quiz',
+        entityId: id,
+        action: input.action,
+        summary: input.summary,
+        actorId: this.getActorId(input.actor),
+        before: existing,
+        after: snapshot,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    return {
+      ok: true,
+      id,
+      status: input.status,
+      workflowState: input.workflowState,
+    };
+  }
+
+  private async writeQuizSnapshot(connection: PoolConnection, id: number, quiz: CreateQuizDto) {
+    const questionIds = this.cleanQuestionIds(quiz.questionIds);
+    await connection.execute(
+      `
+        UPDATE quizzes SET
+          course_id = ?,
+          topic_id = ?,
+          subtopic_id = ?,
+          lesson_id = ?,
+          paper_id = ?,
+          category = ?,
+          collection_tags = ?,
+          is_free = ?,
+          subtopic = ?,
+          is_general = ?,
+          exam_mode_only = ?,
+          admin_name = ?,
+          student_title = ?,
+          display_title_mode = ?,
+          quiz_title = ?,
+          quiz_description = ?,
+          blueprint_json = ?,
+          total_questions = ?,
+          total_marks = ?,
+          time_limit = ?,
+          hide_time_limit = ?,
+          passing_marks = ?,
+          hide_passing_marks = ?,
+          status = ?
+        WHERE id = ?
+      `,
+      [
+        quiz.courseId,
+        quiz.isGeneral === 1 ? null : quiz.topicId ?? null,
+        quiz.isGeneral === 1 ? null : quiz.subtopicId ?? null,
+        quiz.isGeneral === 1 ? null : quiz.lessonId ?? null,
+        quiz.paperId ?? null,
+        (quiz.category || '').trim() || null,
+        this.normalizeKeywords(quiz.collectionTags),
+        quiz.isFree === 1 ? 1 : 0,
+        (quiz.subtopic || '').trim(),
+        quiz.isGeneral,
+        quiz.examModeOnly,
+        this.resolveAdminName(quiz),
+        this.resolveStudentTitle(quiz),
+        this.resolveDisplayTitleMode(quiz.displayTitleMode),
+        this.resolveStudentTitle(quiz),
+        (quiz.quizDescription || '').trim(),
+        this.stringifyBlueprint(quiz.blueprint),
+        questionIds.length,
+        questionIds.length,
+        quiz.timeLimit,
+        quiz.hideTimeLimit,
+        this.resolvePassingMarks(quiz.passingMarks),
+        quiz.hidePassingMarks,
+        quiz.status,
+        id,
+      ]
+    );
+  }
+
+  private parseSnapshotJson(value: unknown) {
+    if (value && typeof value === 'object') {
+      return value;
+    }
+
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  private parseQuizSnapshot(value: unknown): CreateQuizDto {
+    const parsed = this.parseSnapshotJson(value);
+    if (!parsed || typeof parsed !== 'object') {
+      throw new BadRequestException('Quiz version snapshot is invalid');
+    }
+
+    const snapshot = parsed as Partial<CreateQuizDto>;
+    return {
+      courseId: Number(snapshot.courseId),
+      topicId: snapshot.topicId === null || snapshot.topicId === undefined ? null : Number(snapshot.topicId),
+      subtopicId: snapshot.subtopicId === null || snapshot.subtopicId === undefined ? null : Number(snapshot.subtopicId),
+      lessonId: snapshot.lessonId === null || snapshot.lessonId === undefined ? null : Number(snapshot.lessonId),
+      paperId: snapshot.paperId === null || snapshot.paperId === undefined ? null : Number(snapshot.paperId),
+      category: String(snapshot.category || ''),
+      collectionTags: String(snapshot.collectionTags || ''),
+      isFree: Number(snapshot.isFree) === 1 ? 1 : 0,
+      subtopic: String(snapshot.subtopic || ''),
+      isGeneral: Number(snapshot.isGeneral) === 1 ? 1 : 0,
+      examModeOnly: Number(snapshot.examModeOnly) === 1 ? 1 : 0,
+      adminName: String(snapshot.adminName || snapshot.quizTitle || ''),
+      studentTitle: String(snapshot.studentTitle || snapshot.quizTitle || ''),
+      displayTitleMode: snapshot.displayTitleMode === 'title' ? 'title' : 'number',
+      quizTitle: String(snapshot.quizTitle || snapshot.studentTitle || ''),
+      quizDescription: String(snapshot.quizDescription || ''),
+      blueprint: this.normalizeBlueprintPayload(snapshot.blueprint),
+      timeLimit: Math.max(1, Number(snapshot.timeLimit || 1)),
+      hideTimeLimit: Number(snapshot.hideTimeLimit) === 1 ? 1 : 0,
+      passingMarks: this.resolvePassingMarks(Number(snapshot.passingMarks || DEFAULT_PASSING_MARKS)),
+      hidePassingMarks: Number(snapshot.hidePassingMarks) === 1 ? 1 : 0,
+      status: snapshot.status === 'active' ? 'active' : 'inactive',
+      questionIds: Array.isArray(snapshot.questionIds)
+        ? snapshot.questionIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
+        : [],
+    };
+  }
+
+  private async recordContentVersion(
+    connection: PoolConnection,
+    entityType: string,
+    entityId: number,
+    snapshot: unknown,
+    actorId?: number,
+  ) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      'SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?',
+      [entityType, entityId]
+    );
+    const versionNumber = Number(rows[0]?.next_version || 1);
+    await connection.execute(
+      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)',
+      [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]
+    );
+  }
+
+  private async setWorkflowState(
+    connection: PoolConnection,
+    entityType: string,
+    entityId: number,
+    workflowState: ContentWorkflowState,
+    actorId?: number,
+  ) {
+    await connection.execute(
+      `INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         workflow_state = VALUES(workflow_state),
+         updated_by = VALUES(updated_by),
+         updated_at = CURRENT_TIMESTAMP`,
+      [entityType, entityId, workflowState, actorId || null]
+    );
+  }
+
+  private async recordContentAudit(
+    connection: PoolConnection,
+    event: {
+      entityType: string;
+      entityId: number;
+      action: string;
+      summary: string;
+      actorId?: number;
+      before?: unknown;
+      after?: unknown;
+    },
+  ) {
+    await connection.execute(
+      `INSERT INTO content_audit_events
+        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        event.entityType,
+        event.entityId,
+        event.action,
+        event.actorId || null,
+        event.summary,
+        event.before === undefined ? null : JSON.stringify(event.before),
+        event.after === undefined ? null : JSON.stringify(event.after),
+      ]
+    );
+  }
+
+  private getActorId(actor?: ContentActorInput) {
+    if (typeof actor === 'number') return actor;
+    return actor?.id;
+  }
+
+  private canReviewContent(actor?: ContentActorInput) {
+    if (!actor || typeof actor === 'number') return true;
+    return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review'));
+  }
+
+  private assertCanSaveStatus(actor: ContentActorInput, status: 'active' | 'inactive') {
+    if (status === 'active' && !this.canReviewContent(actor)) {
+      throw new ForbiddenException('Review permission is required to publish quiz content');
+    }
+  }
+
+  private assertCanModifyExistingStatus(actor: ContentActorInput, currentStatus: string) {
+    if (currentStatus === 'active' && !this.canReviewContent(actor)) {
+      throw new ForbiddenException('Published quizzes require review permission before modification');
+    }
   }
 
   private async replaceQuestionLinks(connection: PoolConnection, quizId: number, questionIds: number[]) {

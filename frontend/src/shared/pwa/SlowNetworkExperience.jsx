@@ -40,7 +40,7 @@ const slowUi = {
   signal: 'flex items-end justify-center gap-1.5',
   signalBar: 'w-2 rounded-full bg-cyan-300 shadow-[0_0_16px_rgba(103,232,249,0.55)] animate-pulse',
   copy: 'grid gap-2 text-center',
-  eyebrow: 'text-[10.5px] font-black uppercase tracking-[0.14em] text-cyan-200',
+  eyebrow: 'text-[11px] font-black uppercase tracking-[0.14em] text-cyan-200',
 };
 
 export function SlowNetworkExperience() {

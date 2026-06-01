@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchFcmSettings, updateFcmSettings } from '../../../../shared/api/settings.api.js';
 import { ui } from '../../../../shared/styles/tailwindClasses.js';
+import { PasswordField } from '../../../../shared/ui/PasswordField.jsx';
 
 const defaultForm = {
   projectId: '',
@@ -99,16 +100,12 @@ export function AdminFcmSettingsPanel() {
               />
             </label>
 
-            <label className={ui.formLabel}>
-              Legacy FCM server key
-              <input
-                className={ui.input}
-                type="password"
-                value={form.serverKey}
-                onChange={(event) => patchForm({ serverKey: event.target.value })}
-                placeholder={settings?.hasServerKey ? settings.maskedServerKey : 'Optional legacy server key'}
-              />
-            </label>
+            <PasswordField
+              label="Legacy FCM server key"
+              value={form.serverKey}
+              onChange={(event) => patchForm({ serverKey: event.target.value })}
+              placeholder={settings?.hasServerKey ? settings.maskedServerKey : 'Optional legacy server key'}
+            />
 
             <div className={ui.buttonRow}>
               <button className={ui.primaryAction} type="submit" disabled={status.saving}>

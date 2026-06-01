@@ -1,0 +1,21 @@
+:root {
+  --lms-safe-top: env(safe-area-inset-top, 0px);
+  --lms-safe-right: env(safe-area-inset-right, 0px);
+  --lms-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --lms-safe-left: env(safe-area-inset-left, 0px);
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] {
+  --lms-android-statusbar-fallback: 24px;
+  --lms-android-navigation-fallback: 16px;
+  --lms-safe-top: max(env(safe-area-inset-top, 0px), var(--lms-android-statusbar-fallback));
+  --lms-safe-right: env(safe-area-inset-right, 0px);
+  --lms-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--lms-android-navigation-fallback));
+  --lms-safe-left: env(safe-area-inset-left, 0px);
+  --lms-android-safe-top-content: max(var(--lms-safe-top), 24px);
+  --lms-android-safe-bottom-content: max(var(--lms-safe-bottom), 16px);
+  --lms-tabbar-safe-bottom: var(--lms-android-safe-bottom-content);
+  --bottom-nav-height: calc(var(--lms-tabbar-row-height, 64px) + var(--lms-tabbar-safe-bottom));
+  --lms-mobile-nav-height: var(--bottom-nav-height);
+  --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 10px);
+}

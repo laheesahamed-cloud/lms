@@ -156,7 +156,7 @@ function CourseCard({ course, onClick, isDark }) {
         </div>
         <div className="student-lessons-course-card__count text-right shrink-0">
           <div className="text-[30px] font-extrabold leading-none text-ink-strong">{count}</div>
-          <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">lessons</div>
+          <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">lessons</div>
         </div>
       </div>
     </button>
@@ -423,7 +423,7 @@ export function AiNotesListPage({
   }
 
   return (
-    <main className="dashboard-page study-hub-page student-lessons-page">
+    <main className="dashboard-page study-hub-page student-lessons-page ai-notes-list-page">
       <section className="study-hub-shell">
         <AppHeader
           title={headerTitle}

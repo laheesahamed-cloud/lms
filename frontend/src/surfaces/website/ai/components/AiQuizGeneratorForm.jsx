@@ -28,8 +28,8 @@ export function AiQuizGeneratorForm({
   onSubmit,
   isLoading,
   generatorLabel = 'AI',
-  generatorEyebrow = 'Experimental AI Tool',
-  generatorDescription = 'This is a standalone test page. It does not save into the live LMS question bank automatically.',
+  generatorEyebrow = 'AI Question Builder',
+  generatorDescription = 'Generate draft medical questions, review the output, and save approved items into the LMS question bank.',
   lessonQuizMode = false,
 }) {
   const selectedCourse = meta.courses.find((item) => String(item.id) === String(form.courseId));

@@ -90,19 +90,25 @@ export function PracticeReviewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const complete = searchParams.get('complete') === '1';
+  const questionIdParam = searchParams.get('questionId') || '';
+  const questionId = Number(questionIdParam);
+  const isSingleQuestionReview = Number.isFinite(questionId) && questionId > 0;
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     async function load() {
       try {
-        setData(await fetchPracticeReview(quizId, complete ? { complete: '1' } : undefined));
+        setData(await fetchPracticeReview(quizId, {
+          ...(complete ? { complete: '1' } : {}),
+          ...(isSingleQuestionReview ? { questionId: String(questionId) } : {}),
+        }));
       } catch (loadError) {
         setError(getErrorMessage(loadError, 'Unable to load practice review'));
       }
     }
     load();
-  }, [quizId, complete]);
+  }, [quizId, complete, isSingleQuestionReview, questionId]);
 
   if (!data && !error) {
     return (
@@ -113,6 +119,8 @@ export function PracticeReviewPage() {
       </main>
     );
   }
+
+  const reviewNotesPath = data?.quiz?.lessonId ? `/study/lesson/${data.quiz.lessonId}` : '/ai-notes';
 
   return (
       <main className={reviewPageUi.screen}>
@@ -131,6 +139,7 @@ export function PracticeReviewPage() {
             navigatorVariant="bubbles"
             exitLabel="Finish"
             onExit={() => navigate('/quizzes')}
+            notesPath={reviewNotesPath}
           />
         ) : null}
         </section>

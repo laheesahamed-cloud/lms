@@ -10,6 +10,8 @@ const publicDir = path.join(repoRoot, 'frontend', 'public');
 const rootPublicFiles = [
   ['sw.js', 'sw.js'],
   ['manifest.webmanifest', 'manifest.webmanifest'],
+  ['robots.txt', 'robots.txt'],
+  ['sitemap.xml', 'sitemap.xml'],
 ];
 
 async function assertExists(filePath, label) {

@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlIdentifier, sqlPlaceholders } from '../../database/sql-safety';
@@ -29,6 +29,7 @@ type QuestionRow = RowDataPacket & {
   lesson_title?: string | null;
   paper_title?: string | null;
   quiz_count?: number;
+  content_version?: number | null;
 };
 
 type OptionRow = RowDataPacket & {
@@ -65,6 +66,21 @@ type ExportQuestionRow = QuestionRow & {
   topic_name: string | null;
   lesson_title: string | null;
   paper_title: string | null;
+};
+
+type ContentActor = {
+  id: number;
+  role?: string;
+  permissions?: readonly string[];
+};
+type ContentActorInput = ContentActor | number | undefined;
+
+type ContentWorkflowState = 'draft' | 'in_review' | 'published' | 'archived';
+type ImportPayload = {
+  rowNumber: number;
+  sourceQuestionId: string;
+  fingerprint: string;
+  payload: CreateQuestionDto;
 };
 
 const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E'] as const;
@@ -128,7 +144,12 @@ export class QuestionsService {
         st.subtopic_name AS topic_name,
         l.lesson_title,
         p.paper_title,
-        COALESCE(qql.quiz_count, 0) AS quiz_count
+        COALESCE(qql.quiz_count, 0) AS quiz_count,
+        (
+          SELECT MAX(cv.version_number)
+          FROM content_versions cv
+          WHERE cv.entity_type = 'question' AND cv.entity_id = q.id
+        ) AS content_version
       FROM questions q
       LEFT JOIN courses c ON c.id = q.course_id
       LEFT JOIN topics s ON s.id = q.topic_id
@@ -322,7 +343,12 @@ export class QuestionsService {
           s.topic_name AS subject_name,
           st.subtopic_name AS topic_name,
           l.lesson_title,
-          p.paper_title
+          p.paper_title,
+          (
+            SELECT MAX(cv.version_number)
+            FROM content_versions cv
+            WHERE cv.entity_type = 'question' AND cv.entity_id = q.id
+          ) AS content_version
         FROM questions q
         LEFT JOIN courses c ON c.id = q.course_id
         LEFT JOIN topics s ON s.id = q.topic_id
@@ -362,7 +388,7 @@ export class QuestionsService {
     };
   }
 
-  async exportWorkbook(filters: QuestionFilters) {
+  async exportWorkbook(filters: QuestionFilters, actor?: ContentActorInput) {
     const questions = await this.loadQuestionsForExport(filters);
     const ids = questions.map((question) => question.id);
     const optionsByQuestionId = await this.loadOptionsForQuestionIds(ids);
@@ -402,10 +428,21 @@ export class QuestionsService {
       IMPORT_COLUMNS.map((column) => row[column] ?? '')
     ))];
 
+    await this.recordAdminAuditEvent({
+      eventType: 'questions.exported',
+      actorId: this.getActorId(actor),
+      targetType: 'question_export',
+      summary: 'Question CSV export generated',
+      metadata: {
+        filters: this.serializeQuestionFilters(filters),
+        questionCount: questions.length,
+      },
+    });
+
     return Buffer.from(rows.map((row) => row.map((cell) => this.escapeCsvCell(cell)).join(',')).join('\n'), 'utf8');
   }
 
-  async importWorkbook(file: any) {
+  async importWorkbook(file: any, actor?: ContentActorInput) {
     if (!file?.buffer || !file.originalname) {
       throw new BadRequestException('Please upload a CSV file');
     }
@@ -421,7 +458,7 @@ export class QuestionsService {
     }
 
     const lookups = await this.loadImportLookups();
-    const payloads: Array<{ rowNumber: number; payload: CreateQuestionDto }> = [];
+    const payloads: ImportPayload[] = [];
     const errors: string[] = [];
 
     rows.forEach((row, index) => {
@@ -432,9 +469,13 @@ export class QuestionsService {
       }
 
       try {
+        this.validateImportRowSafety(row);
+        const payload = this.mapImportRowToPayload(row, lookups);
         payloads.push({
           rowNumber,
-          payload: this.mapImportRowToPayload(row, lookups),
+          sourceQuestionId: String(row.question_id || '').trim(),
+          fingerprint: this.buildImportFingerprint(payload),
+          payload,
         });
       } catch (error) {
         errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'Invalid row'}`);
@@ -445,11 +486,15 @@ export class QuestionsService {
       throw new BadRequestException(errors[0] || 'No valid question rows found');
     }
 
+    const duplicateRows = new Set<number>();
+    errors.push(...this.findInFileImportDuplicateErrors(payloads, duplicateRows));
+    errors.push(...await this.findExistingImportDuplicateErrors(payloads, duplicateRows));
+
     const importedIds: number[] = [];
 
-    for (const item of payloads) {
+    for (const item of payloads.filter((payload) => !duplicateRows.has(payload.rowNumber))) {
       try {
-        const result = await this.create(item.payload);
+        const result = await this.create(item.payload, actor);
         importedIds.push(Number(result.id));
       } catch (error) {
         errors.push(`Row ${item.rowNumber}: ${error instanceof Error ? error.message : 'Unable to import row'}`);
@@ -502,13 +547,156 @@ export class QuestionsService {
       }
     }
 
+    if (inQuotes) {
+      throw new BadRequestException('CSV format is invalid: a quoted cell is not closed');
+    }
+
     row.push(cell);
     parsedRows.push(row);
 
-    const headers = parsedRows.shift()?.map((header) => header.trim()) || [];
+    const headers = parsedRows.shift()?.map((header) => header.replace(/^\uFEFF/, '').trim()) || [];
+    this.validateImportHeaders(headers);
+
+    const extraCellRowIndex = parsedRows.findIndex((values) => values.length > headers.length);
+    if (extraCellRowIndex >= 0) {
+      throw new BadRequestException(`CSV row ${extraCellRowIndex + 2} has more cells than the header row`);
+    }
+
     return parsedRows
       .filter((values) => values.some((value) => value.trim() !== ''))
       .map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ''])));
+  }
+
+  private validateImportHeaders(headers: string[]) {
+    const cleanHeaders = headers.filter(Boolean);
+    const seen = new Set<string>();
+    const duplicateHeaders = cleanHeaders.filter((header) => {
+      if (seen.has(header)) return true;
+      seen.add(header);
+      return false;
+    });
+    const headerSet = new Set(cleanHeaders);
+    const missing = IMPORT_COLUMNS.filter((column) => !headerSet.has(column));
+    const unsupported = cleanHeaders.filter((header) => !IMPORT_COLUMNS.includes(header as (typeof IMPORT_COLUMNS)[number]));
+
+    if (duplicateHeaders.length > 0) {
+      throw new BadRequestException(`CSV headers are duplicated: ${Array.from(new Set(duplicateHeaders)).join(', ')}`);
+    }
+
+    if (missing.length > 0) {
+      throw new BadRequestException(`CSV headers missing required columns: ${missing.join(', ')}`);
+    }
+
+    if (unsupported.length > 0) {
+      throw new BadRequestException(`CSV contains unsupported columns: ${unsupported.join(', ')}`);
+    }
+  }
+
+  private validateImportRowSafety(row: Record<string, unknown>) {
+    const mediaColumns = Object.entries(row)
+      .filter(([, value]) => this.containsEmbeddedMediaPayload(value))
+      .map(([column]) => column);
+
+    if (mediaColumns.length > 0) {
+      throw new Error(`Embedded media is not supported in CSV imports (${mediaColumns.join(', ')}). Upload media through approved LMS media tools and reference safe links only.`);
+    }
+  }
+
+  private containsEmbeddedMediaPayload(value: unknown) {
+    const cell = String(value || '').trim().toLowerCase();
+    if (!cell) return false;
+
+    return (
+      /data:(image|video|audio|application\/pdf)[/;]/.test(cell) ||
+      /<\s*(img|video|audio|iframe|object|embed)\b/.test(cell) ||
+      /!\[[^\]]*]\([^)]*\)/.test(cell) ||
+      /\b(file|blob|javascript):/.test(cell)
+    );
+  }
+
+  private buildImportFingerprint(question: CreateQuestionDto) {
+    const options = question.options
+      .map((option) => [
+        this.normalizeLookup(option.optionLabel),
+        this.normalizeLookup(option.optionText),
+        Number(option.isCorrect) === 1 ? '1' : '0',
+      ])
+      .sort((left, right) => left[0].localeCompare(right[0]));
+
+    return JSON.stringify([
+      this.normalizeLookup(question.questionType),
+      this.normalizeLookup(question.questionText),
+      options,
+    ]);
+  }
+
+  private findInFileImportDuplicateErrors(payloads: ImportPayload[], duplicateRows: Set<number>) {
+    const errors: string[] = [];
+    const firstRowBySourceId = new Map<string, number>();
+    const firstRowByFingerprint = new Map<string, number>();
+
+    for (const item of payloads) {
+      const sourceId = item.sourceQuestionId;
+      if (sourceId) {
+        const firstRow = firstRowBySourceId.get(sourceId);
+        if (firstRow) {
+          duplicateRows.add(item.rowNumber);
+          errors.push(`Row ${item.rowNumber}: Duplicate question_id "${sourceId}" also appears on row ${firstRow}`);
+        } else {
+          firstRowBySourceId.set(sourceId, item.rowNumber);
+        }
+      }
+
+      const firstContentRow = firstRowByFingerprint.get(item.fingerprint);
+      if (firstContentRow) {
+        duplicateRows.add(item.rowNumber);
+        errors.push(`Row ${item.rowNumber}: Duplicate question content matches row ${firstContentRow}`);
+      } else {
+        firstRowByFingerprint.set(item.fingerprint, item.rowNumber);
+      }
+    }
+
+    return errors;
+  }
+
+  private async findExistingImportDuplicateErrors(payloads: ImportPayload[], duplicateRows: Set<number>) {
+    const candidates = payloads.filter((item) => !duplicateRows.has(item.rowNumber));
+    const questionKeys = Array.from(new Set(
+      candidates
+        .map((item) => this.normalizeLookup(item.payload.questionText))
+        .filter(Boolean)
+    ));
+
+    if (questionKeys.length === 0) {
+      return [];
+    }
+
+    const placeholders = sqlPlaceholders(questionKeys);
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, LOWER(TRIM(question_text)) AS question_key
+       FROM questions
+       WHERE LOWER(TRIM(question_text)) IN (${placeholders})`,
+      questionKeys
+    );
+
+    const existingByKey = new Map<string, number>();
+    rows.forEach((row) => {
+      const key = String(row.question_key || '').trim().toLowerCase();
+      if (key && !existingByKey.has(key)) {
+        existingByKey.set(key, Number(row.id));
+      }
+    });
+
+    const errors: string[] = [];
+    for (const item of candidates) {
+      const existingId = existingByKey.get(this.normalizeLookup(item.payload.questionText));
+      if (existingId) {
+        duplicateRows.add(item.rowNumber);
+        errors.push(`Row ${item.rowNumber}: Question text already exists as question #${existingId}`);
+      }
+    }
+
+    return errors;
   }
 
   private escapeCsvCell(value: unknown) {
@@ -519,8 +707,12 @@ export class QuestionsService {
     return cell;
   }
 
-  async create(createQuestionDto: CreateQuestionDto) {
+  async create(createQuestionDto: CreateQuestionDto, actor?: ContentActorInput) {
     this.validateQuestionPayload(createQuestionDto);
+    this.assertCanSaveStatus(actor, createQuestionDto.status);
+    if (createQuestionDto.status === 'active') {
+      this.validateQuestionPublishReady(createQuestionDto);
+    }
     await this.ensureHierarchyExists(createQuestionDto);
 
     const connection = await this.db.getConnection();
@@ -553,12 +745,14 @@ export class QuestionsService {
 
       await this.replaceOptions(connection, result.insertId, createQuestionDto.options, createQuestionDto.questionType);
       await this.syncQuestionKeywords(connection, result.insertId, createQuestionDto.keywordsText);
-      await this.recordContentVersion(connection, 'question', result.insertId, this.buildQuestionSnapshot(createQuestionDto));
+      await this.recordContentVersion(connection, 'question', result.insertId, this.buildQuestionSnapshot(createQuestionDto), this.getActorId(actor));
+      await this.setWorkflowState(connection, 'question', result.insertId, createQuestionDto.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
       await this.recordContentAudit(connection, {
         entityType: 'question',
         entityId: result.insertId,
         action: 'created',
         summary: `Question ${result.insertId} created`,
+        actorId: this.getActorId(actor),
         after: this.buildQuestionSnapshot(createQuestionDto),
       });
 
@@ -572,7 +766,7 @@ export class QuestionsService {
     }
   }
 
-  async update(id: number, updateQuestionDto: UpdateQuestionDto) {
+  async update(id: number, updateQuestionDto: UpdateQuestionDto, actor?: ContentActorInput) {
     const existing = await this.findOne(id);
     const merged: CreateQuestionDto = {
       courseId: updateQuestionDto.courseId ?? existing.courseId,
@@ -599,6 +793,11 @@ export class QuestionsService {
     };
 
     this.validateQuestionPayload(merged);
+    this.assertCanModifyExistingStatus(actor, existing.status);
+    this.assertCanSaveStatus(actor, merged.status);
+    if (merged.status === 'active') {
+      this.validateQuestionPublishReady(merged);
+    }
     await this.ensureHierarchyExists(merged);
 
     const connection = await this.db.getConnection();
@@ -643,12 +842,14 @@ export class QuestionsService {
 
       await this.replaceOptions(connection, id, merged.options, merged.questionType);
       await this.syncQuestionKeywords(connection, id, merged.keywordsText);
-      await this.recordContentVersion(connection, 'question', id, this.buildQuestionSnapshot(merged));
+      await this.recordContentVersion(connection, 'question', id, this.buildQuestionSnapshot(merged), this.getActorId(actor));
+      await this.setWorkflowState(connection, 'question', id, merged.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
       await this.recordContentAudit(connection, {
         entityType: 'question',
         entityId: id,
         action: 'updated',
         summary: `Question ${id} updated`,
+        actorId: this.getActorId(actor),
         before: existing,
         after: this.buildQuestionSnapshot(merged),
       });
@@ -663,8 +864,9 @@ export class QuestionsService {
     }
   }
 
-  async remove(id: number) {
+  async remove(id: number, actor?: ContentActorInput) {
     const existing = await this.findOne(id);
+    this.assertCanModifyExistingStatus(actor, existing.status);
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
@@ -674,6 +876,7 @@ export class QuestionsService {
         entityId: id,
         action: 'deleted',
         summary: `Question ${id} deleted`,
+        actorId: this.getActorId(actor),
         before: existing,
       });
       await connection.commit();
@@ -686,7 +889,7 @@ export class QuestionsService {
     return { ok: true, id };
   }
 
-  async bulkDelete(bulkDeleteQuestionsDto: BulkDeleteQuestionsDto) {
+  async bulkDelete(bulkDeleteQuestionsDto: BulkDeleteQuestionsDto, actor?: ContentActorInput) {
     const questionIds = Array.from(
       new Set(
         (bulkDeleteQuestionsDto.questionIds || [])
@@ -701,12 +904,15 @@ export class QuestionsService {
 
     const placeholders = sqlPlaceholders(questionIds);
     const [questionRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id FROM questions WHERE id IN (${placeholders})`,
+      `SELECT id, status FROM questions WHERE id IN (${placeholders})`,
       questionIds
     );
 
     if (questionRows.length !== questionIds.length) {
       throw new NotFoundException('One or more questions could not be found');
+    }
+    if (!this.canReviewContent(actor) && questionRows.some((row) => String(row.status || '') === 'active')) {
+      throw new ForbiddenException('Published questions require review permission before deletion');
     }
 
     const [linkRows] = await this.db.execute<RowDataPacket[]>(
@@ -740,6 +946,7 @@ export class QuestionsService {
         entityId: 0,
         action: 'bulk_deleted',
         summary: `${result.affectedRows} question(s) deleted`,
+        actorId: this.getActorId(actor),
         before: { questionIds },
       });
       await connection.commit();
@@ -758,7 +965,7 @@ export class QuestionsService {
     }
   }
 
-  async bulkUpdateKeywords(bulkUpdateQuestionKeywordsDto: BulkUpdateQuestionKeywordsDto) {
+  async bulkUpdateKeywords(bulkUpdateQuestionKeywordsDto: BulkUpdateQuestionKeywordsDto, actor?: ContentActorInput) {
     const questionIds = Array.from(
       new Set(
         (bulkUpdateQuestionKeywordsDto.questionIds || [])
@@ -778,12 +985,15 @@ export class QuestionsService {
 
     const placeholders = sqlPlaceholders(questionIds);
     const [questionRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id, keywords_text FROM questions WHERE id IN (${placeholders})`,
+      `SELECT id, keywords_text, status FROM questions WHERE id IN (${placeholders})`,
       questionIds
     );
 
     if (questionRows.length !== questionIds.length) {
       throw new NotFoundException('One or more questions could not be found');
+    }
+    if (!this.canReviewContent(actor) && questionRows.some((row) => String(row.status || '') === 'active')) {
+      throw new ForbiddenException('Published questions require review permission before keyword changes');
     }
 
     const connection = await this.db.getConnection();
@@ -808,6 +1018,7 @@ export class QuestionsService {
           entityId: Number(row.id),
           action: 'keywords_updated',
           summary: `Question ${row.id} keywords updated`,
+          actorId: this.getActorId(actor),
           before: { keywordsText: String(row.keywords_text || '') },
           after: { keywordsText },
         });
@@ -825,6 +1036,120 @@ export class QuestionsService {
     } finally {
       connection.release();
     }
+  }
+
+  async listVersions(id: number) {
+    await this.findOne(id);
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, version_number, created_by, created_at, snapshot_json
+       FROM content_versions
+       WHERE entity_type = 'question' AND entity_id = ?
+       ORDER BY version_number DESC`,
+      [id]
+    );
+
+    return rows.map((row) => ({
+      id: Number(row.id),
+      versionNumber: Number(row.version_number),
+      createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
+      createdAt: row.created_at || null,
+      snapshot: this.parseSnapshotJson(row.snapshot_json),
+    }));
+  }
+
+  async markDraft(id: number, actor?: ContentActorInput) {
+    return this.transitionWorkflow(id, {
+      workflowState: 'draft',
+      status: 'inactive',
+      action: 'marked_draft',
+      summary: `Question ${id} marked as draft`,
+      actor,
+    });
+  }
+
+  async submitForReview(id: number, actor?: ContentActorInput) {
+    return this.transitionWorkflow(id, {
+      workflowState: 'in_review',
+      status: 'inactive',
+      action: 'submitted_for_review',
+      summary: `Question ${id} submitted for review`,
+      actor,
+    });
+  }
+
+  async publish(id: number, actor?: ContentActorInput) {
+    return this.transitionWorkflow(id, {
+      workflowState: 'published',
+      status: 'active',
+      action: 'published',
+      summary: `Question ${id} published`,
+      actor,
+      requirePublishReady: true,
+    });
+  }
+
+  async rollback(id: number, versionNumber: number, actor?: ContentActorInput) {
+    if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
+      throw new BadRequestException('Version number is invalid');
+    }
+
+    if (!this.canReviewContent(actor)) {
+      throw new ForbiddenException('Review permission is required to rollback published question content');
+    }
+
+    const existing = await this.findOne(id);
+    const [versionRows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT snapshot_json
+       FROM content_versions
+       WHERE entity_type = 'question' AND entity_id = ? AND version_number = ?
+       LIMIT 1`,
+      [id, versionNumber]
+    );
+
+    if (!versionRows[0]) {
+      throw new NotFoundException('Content version not found');
+    }
+
+    const snapshot = this.parseQuestionSnapshot(versionRows[0].snapshot_json);
+    this.validateQuestionPayload(snapshot);
+    if (snapshot.status === 'active') {
+      this.validateQuestionPublishReady(snapshot);
+    }
+    await this.ensureHierarchyExists(snapshot);
+
+    const workflowState: ContentWorkflowState = snapshot.status === 'active' ? 'published' : 'draft';
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await this.writeQuestionSnapshot(connection, id, snapshot);
+      await this.replaceOptions(connection, id, snapshot.options, snapshot.questionType);
+      await this.syncQuestionKeywords(connection, id, snapshot.keywordsText);
+      await this.recordContentVersion(connection, 'question', id, snapshot, this.getActorId(actor));
+      await this.setWorkflowState(connection, 'question', id, workflowState, this.getActorId(actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'question',
+        entityId: id,
+        action: 'rolled_back',
+        summary: `Question ${id} rolled back to version ${versionNumber}`,
+        actorId: this.getActorId(actor),
+        before: existing,
+        after: snapshot,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    return {
+      ok: true,
+      id,
+      rolledBackToVersion: versionNumber,
+      status: snapshot.status,
+      workflowState,
+    };
   }
 
   private async ensureHierarchyExists(question: CreateQuestionDto) {
@@ -867,11 +1192,172 @@ export class QuestionsService {
     };
   }
 
+  private buildQuestionSnapshotFromEntity(question: Awaited<ReturnType<QuestionsService['findOne']>>, status: 'active' | 'inactive') {
+    return this.buildQuestionSnapshot({
+      courseId: Number(question.courseId),
+      subjectId: Number(question.subjectId),
+      topicId: question.topicId === null || question.topicId === undefined ? null : Number(question.topicId),
+      lessonId: question.lessonId === null || question.lessonId === undefined ? null : Number(question.lessonId),
+      paperId: question.paperId === null || question.paperId === undefined ? null : Number(question.paperId),
+      topicLabel: question.topicLabel || '',
+      category: question.category as CreateQuestionDto['category'],
+      questionType: question.questionType as CreateQuestionDto['questionType'],
+      questionText: question.questionText,
+      keywordsText: question.keywordsText || '',
+      explanation: question.explanation || '',
+      status,
+      options: question.options.map((option) => ({
+        optionLabel: option.optionLabel,
+        optionText: option.optionText,
+        isCorrect: Number(option.isCorrect) === 1 ? 1 : 0,
+        whyIncorrect: option.whyIncorrect || '',
+      })),
+    }) as CreateQuestionDto;
+  }
+
+  private async transitionWorkflow(
+    id: number,
+    input: {
+      workflowState: ContentWorkflowState;
+      status: 'active' | 'inactive';
+      action: string;
+      summary: string;
+      actor?: ContentActorInput;
+      requirePublishReady?: boolean;
+    }
+  ) {
+    const existing = await this.findOne(id);
+    this.assertCanModifyExistingStatus(input.actor, existing.status);
+    this.assertCanSaveStatus(input.actor, input.status);
+    const snapshot = this.buildQuestionSnapshotFromEntity(existing, input.status);
+    this.validateQuestionPayload(snapshot);
+    if (input.requirePublishReady) {
+      this.validateQuestionPublishReady(snapshot);
+    }
+
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.execute('UPDATE questions SET status = ? WHERE id = ?', [input.status, id]);
+      await this.recordContentVersion(connection, 'question', id, snapshot, this.getActorId(input.actor));
+      await this.setWorkflowState(connection, 'question', id, input.workflowState, this.getActorId(input.actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'question',
+        entityId: id,
+        action: input.action,
+        summary: input.summary,
+        actorId: this.getActorId(input.actor),
+        before: existing,
+        after: snapshot,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    return {
+      ok: true,
+      id,
+      status: input.status,
+      workflowState: input.workflowState,
+    };
+  }
+
+  private async writeQuestionSnapshot(connection: PoolConnection, id: number, question: CreateQuestionDto) {
+    await connection.execute(
+      `
+        UPDATE questions SET
+          course_id = ?,
+          topic_id = ?,
+          subtopic_id = ?,
+          lesson_id = ?,
+          paper_id = ?,
+          subtopic = ?,
+          category = ?,
+          question_category = ?,
+          question_type = ?,
+          question_text = ?,
+          keywords_text = ?,
+          explanation = ?,
+          status = ?
+        WHERE id = ?
+      `,
+      [
+        question.courseId,
+        question.subjectId,
+        question.topicId ?? null,
+        question.lessonId ?? null,
+        question.paperId ?? null,
+        (question.topicLabel || '').trim(),
+        this.normalizeLegacyCategory(question.category),
+        this.normalizeCategory(question.category),
+        question.questionType,
+        question.questionText.trim(),
+        this.normalizeKeywords(question.keywordsText),
+        (question.explanation || '').trim(),
+        question.status,
+        id,
+      ]
+    );
+  }
+
+  private parseSnapshotJson(value: unknown) {
+    if (value && typeof value === 'object') {
+      return value;
+    }
+
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  private parseQuestionSnapshot(value: unknown): CreateQuestionDto {
+    const parsed = this.parseSnapshotJson(value);
+    if (!parsed || typeof parsed !== 'object') {
+      throw new BadRequestException('Content version snapshot is invalid');
+    }
+
+    const snapshot = parsed as Partial<CreateQuestionDto>;
+    return {
+      courseId: Number(snapshot.courseId),
+      subjectId: Number(snapshot.subjectId),
+      topicId: snapshot.topicId === null || snapshot.topicId === undefined ? null : Number(snapshot.topicId),
+      lessonId: snapshot.lessonId === null || snapshot.lessonId === undefined ? null : Number(snapshot.lessonId),
+      paperId: snapshot.paperId === null || snapshot.paperId === undefined ? null : Number(snapshot.paperId),
+      topicLabel: String(snapshot.topicLabel || ''),
+      category: (snapshot.category === 'past' || snapshot.category === 'past_paper' || snapshot.category === 'ai') ? snapshot.category : 'mock',
+      questionType: snapshot.questionType === 'true_false' ? 'true_false' : 'sba',
+      questionText: String(snapshot.questionText || ''),
+      keywordsText: String(snapshot.keywordsText || ''),
+      explanation: String(snapshot.explanation || ''),
+      status: snapshot.status === 'active' ? 'active' : 'inactive',
+      options: Array.isArray(snapshot.options)
+        ? snapshot.options.map((option: any) => ({
+            optionLabel: String(option?.optionLabel || option?.option_label || ''),
+            optionText: String(option?.optionText || option?.option_text || ''),
+            isCorrect: Number(option?.isCorrect ?? option?.is_correct) === 1 ? 1 : 0,
+            whyIncorrect: String(option?.whyIncorrect || option?.why_incorrect || ''),
+          }))
+        : [],
+    };
+  }
+
   private async recordContentVersion(
     connection: PoolConnection,
     entityType: string,
     entityId: number,
-    snapshot: unknown
+    snapshot: unknown,
+    actorId?: number
   ) {
     const [rows] = await connection.execute<RowDataPacket[]>(
       'SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?',
@@ -879,8 +1365,26 @@ export class QuestionsService {
     );
     const versionNumber = Number(rows[0]?.next_version || 1);
     await connection.execute(
-      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json) VALUES (?, ?, ?, ?)',
-      [entityType, entityId, versionNumber, JSON.stringify(snapshot)]
+      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)',
+      [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]
+    );
+  }
+
+  private async setWorkflowState(
+    connection: PoolConnection,
+    entityType: string,
+    entityId: number,
+    workflowState: ContentWorkflowState,
+    actorId?: number,
+  ) {
+    await connection.execute(
+      `INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         workflow_state = VALUES(workflow_state),
+         updated_by = VALUES(updated_by),
+         updated_at = CURRENT_TIMESTAMP`,
+      [entityType, entityId, workflowState, actorId || null]
     );
   }
 
@@ -891,23 +1395,87 @@ export class QuestionsService {
       entityId: number;
       action: string;
       summary: string;
+      actorId?: number;
       before?: unknown;
       after?: unknown;
     }
   ) {
     await connection.execute(
       `INSERT INTO content_audit_events
-        (entity_type, entity_id, action, summary, before_json, after_json)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         event.entityType,
         event.entityId,
         event.action,
+        event.actorId || null,
         event.summary,
         event.before === undefined ? null : JSON.stringify(event.before),
         event.after === undefined ? null : JSON.stringify(event.after),
       ]
     );
+  }
+
+  private async recordAdminAuditEvent(input: {
+    eventType: string;
+    actorId?: number | null;
+    targetType?: string | null;
+    targetId?: number | null;
+    summary: string;
+    metadata?: unknown;
+  }) {
+    await this.db.execute(
+      `INSERT INTO admin_audit_events
+        (event_type, actor_id, target_type, target_id, summary, metadata_json)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        input.eventType,
+        input.actorId || null,
+        input.targetType || null,
+        input.targetId || null,
+        input.summary,
+        input.metadata === undefined ? null : JSON.stringify(input.metadata),
+      ]
+    );
+  }
+
+  private serializeQuestionFilters(filters: QuestionFilters) {
+    return {
+      search: filters.search || '',
+      status: filters.status || '',
+      type: filters.type || '',
+      category: filters.category || '',
+      keywords: filters.keywords || '',
+      usage: filters.usage || '',
+      courseId: filters.courseId || null,
+      subjectId: filters.subjectId || null,
+      topicId: filters.topicId || null,
+      lessonId: filters.lessonId || null,
+      paperId: filters.paperId || null,
+      unclassified: Boolean(filters.unclassified),
+    };
+  }
+
+  private getActorId(actor?: ContentActorInput) {
+    if (typeof actor === 'number') return actor;
+    return actor?.id;
+  }
+
+  private canReviewContent(actor?: ContentActorInput) {
+    if (!actor || typeof actor === 'number') return true;
+    return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review'));
+  }
+
+  private assertCanSaveStatus(actor: ContentActorInput, status: 'active' | 'inactive') {
+    if (status === 'active' && !this.canReviewContent(actor)) {
+      throw new ForbiddenException('Review permission is required to publish question content');
+    }
+  }
+
+  private assertCanModifyExistingStatus(actor: ContentActorInput, currentStatus: string) {
+    if (currentStatus === 'active' && !this.canReviewContent(actor)) {
+      throw new ForbiddenException('Published questions require review permission before modification');
+    }
   }
 
   private async ensureExists(tableName: string, id: number, message: string) {
@@ -960,6 +1528,26 @@ export class QuestionsService {
       if (invalid) {
         throw new BadRequestException(`Please choose True or False for statement ${invalid.optionLabel}`);
       }
+    }
+  }
+
+  private validateQuestionPublishReady(question: CreateQuestionDto) {
+    if (!String(question.explanation || '').trim()) {
+      throw new BadRequestException('A reviewed explanation is required before publishing a question');
+    }
+
+    const options = question.options
+      .map((option) => ({
+        optionLabel: String(option.optionLabel || '').trim().toUpperCase(),
+        optionText: String(option.optionText || '').trim(),
+        isCorrect: Number(option.isCorrect) === 1 ? 1 : 0,
+        whyIncorrect: this.normalizeWhyIncorrect(option),
+      }))
+      .filter((option) => option.optionText !== '');
+
+    const missingRationales = options.filter((option) => option.isCorrect !== 1 && !option.whyIncorrect);
+    if (missingRationales.length > 0) {
+      throw new BadRequestException(`Every incorrect option needs a review explanation before publishing (${missingRationales.map((option) => option.optionLabel).join(', ')})`);
     }
   }
 
@@ -1398,6 +1986,7 @@ export class QuestionsService {
       lessonTitle: row.lesson_title || '',
       paperTitle: row.paper_title || '',
       quizCount: Number(row.quiz_count || 0),
+      contentVersion: row.content_version ? Number(row.content_version) : null,
     };
   }
 }

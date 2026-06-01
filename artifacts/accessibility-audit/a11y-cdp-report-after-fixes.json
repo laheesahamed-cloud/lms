@@ -1,0 +1,602 @@
+{
+  "generatedAt": "2026-05-31T13:57:46.677Z",
+  "pages": [
+    {
+      "key": "dashboard-dark-desktop-after",
+      "pathName": "/dashboard",
+      "viewport": {
+        "w": 1440,
+        "h": 980,
+        "mobile": false
+      },
+      "audit": {
+        "url": "http://localhost/lms/dashboard",
+        "missingNames": [],
+        "tinyTargets": [
+          {
+            "path": "button.study-icon-button.lms-topbar-menu-button",
+            "name": "Toggle navigation",
+            "width": 42,
+            "height": 42
+          },
+          {
+            "path": "button.study-icon-button.relative",
+            "name": "4 unread notifications",
+            "width": 42,
+            "height": 42
+          },
+          {
+            "path": "button.study-icon-button",
+            "name": "Search lessons and exams",
+            "width": 42,
+            "height": 42
+          },
+          {
+            "path": "button.study-avatar.study-avatar--profile",
+            "name": "Open profile menu",
+            "width": 42,
+            "height": 42
+          }
+        ],
+        "missingAlt": [],
+        "medAlt": [],
+        "contrastFailures": [
+          {
+            "path": "span.absolute.-right-1.-top-1",
+            "text": "4",
+            "ratio": 2.69,
+            "needed": 4.5,
+            "color": "rgb(255, 255, 255)"
+          }
+        ],
+        "headingSkips": [],
+        "timers": [
+          {
+            "path": "section.study-card.study-exam-countdown-card",
+            "label": "Exam countdown",
+            "text": "EXAM COUNTDOWN No exam scheduled Exams -- NO DATE SET Add an exam task in Planne"
+          }
+        ],
+        "progress": [
+          {
+            "path": "div.study-course-ring",
+            "label": "Overall course lesson completion",
+            "now": "20"
+          }
+        ]
+      },
+      "focus": [
+        {
+          "tag": "a",
+          "cls": "lms-skip-link",
+          "name": "Skip to main content",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 10,
+          "left": 10,
+          "width": 184,
+          "height": 45
+        },
+        {
+          "tag": "button",
+          "cls": "study-icon-button lms-topbar-menu-button",
+          "name": "Toggle navigation",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 30,
+          "left": 301,
+          "width": 42,
+          "height": 42
+        },
+        {
+          "tag": "button",
+          "cls": "study-icon-button relative",
+          "name": "4 unread notifications",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 28,
+          "left": 1239,
+          "width": 42,
+          "height": 42
+        },
+        {
+          "tag": "button",
+          "cls": "study-icon-button",
+          "name": "Search lessons and exams",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 28,
+          "left": 1289,
+          "width": 42,
+          "height": 42
+        },
+        {
+          "tag": "button",
+          "cls": "study-avatar study-avatar--profile",
+          "name": "Open profile menu",
+          "outline": "rgb(130, 212, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 28,
+          "left": 1339,
+          "width": 42,
+          "height": 42
+        },
+        {
+          "tag": "button",
+          "cls": "study-button study-button--primary",
+          "name": "Resume practice",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(123, 207, 252, 0.33) 0px 0.28272px 0.565439px 5.43456px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 321,
+          "left": 320,
+          "width": 499,
+          "height": 44
+        },
+        {
+          "tag": "button",
+          "cls": "study-square-action",
+          "name": "Open exams",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.314) 0px 0px 0px 5.87473px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 321,
+          "left": 829,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "tag": "button",
+          "cls": "",
+          "name": "Courses",
+          "outline": "rgb(124, 210, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.314) 0px 0px 0px 5.87286px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 537,
+          "left": 750,
+          "width": 68,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "key": "quiz-dark-desktop-after",
+      "pathName": "/quizzes/18",
+      "viewport": {
+        "w": 1440,
+        "h": 980,
+        "mobile": false
+      },
+      "audit": {
+        "url": "http://localhost/lms/quizzes/18",
+        "missingNames": [],
+        "tinyTargets": [
+          {
+            "path": "input.sr-only",
+            "name": "A An infectious process of the GI tract may precipitate this disease",
+            "width": 1,
+            "height": 1
+          },
+          {
+            "path": "input.sr-only",
+            "name": "B not found",
+            "width": 1,
+            "height": 1
+          },
+          {
+            "path": "input.sr-only",
+            "name": "C An ANA is very likely to be positive",
+            "width": 1,
+            "height": 1
+          },
+          {
+            "path": "input.sr-only",
+            "name": "D The patient is likely to be rheumatoid factor- positive",
+            "width": 1,
+            "height": 1
+          },
+          {
+            "path": "input.sr-only",
+            "name": "E Neisseria gonorrnoeaeis likely to be cultured from the glans penis",
+            "width": 1,
+            "height": 1
+          },
+          {
+            "path": "button.inline-flex.min-h-10.items-center",
+            "name": "Flag question",
+            "width": 88,
+            "height": 40
+          },
+          {
+            "path": "button.inline-flex.min-h-10.items-center",
+            "name": "Save question",
+            "width": 46,
+            "height": 40
+          },
+          {
+            "path": "button.inline-flex.min-h-10.items-center",
+            "name": "Report question",
+            "width": 107,
+            "height": 40
+          }
+        ],
+        "missingAlt": [],
+        "medAlt": [],
+        "contrastFailures": [],
+        "headingSkips": [],
+        "timers": [],
+        "progress": [
+          {
+            "path": "div.h-2.overflow-hidden.rounded-full",
+            "label": "Practice progress",
+            "now": "0"
+          }
+        ]
+      },
+      "focus": [
+        {
+          "tag": "a",
+          "cls": "lms-skip-link",
+          "name": "Skip to main content",
+          "outline": "rgb(127, 212, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.314) 0px 0px 0px 5.87348px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 10,
+          "left": 10,
+          "width": 184,
+          "height": 45
+        },
+        {
+          "tag": "button",
+          "cls": "relative isolate inline-flex",
+          "name": "Switch to dark mode",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 49,
+          "left": 1241,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-11 rounded-full border",
+          "name": "Finish",
+          "outline": "rgb(126, 210, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 49,
+          "left": 1293,
+          "width": 74,
+          "height": 44
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 1, current, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 405,
+          "left": 77,
+          "width": 56,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 2, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 405,
+          "left": 141,
+          "width": 56,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 3, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 405,
+          "left": 204,
+          "width": 56,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 4, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 405,
+          "left": 268,
+          "width": 56,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 5, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 461,
+          "left": 77,
+          "width": 56,
+          "height": 47
+        }
+      ]
+    },
+    {
+      "key": "quiz-dark-mobile-after",
+      "pathName": "/quizzes/18",
+      "viewport": {
+        "w": 390,
+        "h": 844,
+        "mobile": true
+      },
+      "audit": {
+        "url": "http://localhost/lms/quizzes/18",
+        "missingNames": [],
+        "tinyTargets": [
+          {
+            "path": "button.lms-assessment-btn.lms-assessment-btn--secondary.inline-flex",
+            "name": "Show answer",
+            "width": 107,
+            "height": 42
+          },
+          {
+            "path": "button.lms-assessment-btn.lms-assessment-btn--primary.inline-flex",
+            "name": "Next",
+            "width": 107,
+            "height": 42
+          },
+          {
+            "path": "button.inline-flex.min-h-10.items-center",
+            "name": "Flag question",
+            "width": 72,
+            "height": 38
+          },
+          {
+            "path": "button.inline-flex.min-h-10.items-center",
+            "name": "Save question",
+            "width": 42,
+            "height": 38
+          },
+          {
+            "path": "button.inline-flex.min-h-10.items-center",
+            "name": "Report question",
+            "width": 86,
+            "height": 38
+          }
+        ],
+        "missingAlt": [],
+        "medAlt": [],
+        "contrastFailures": [],
+        "headingSkips": [],
+        "timers": [],
+        "progress": [
+          {
+            "path": "div.h-2.overflow-hidden.rounded-full",
+            "label": "Practice progress",
+            "now": "0"
+          }
+        ]
+      },
+      "focus": [
+        {
+          "tag": "a",
+          "cls": "lms-skip-link",
+          "name": "Skip to main content",
+          "outline": "rgb(126, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.318) 0px 0px 0px 5.94796px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 10,
+          "left": 10,
+          "width": 184,
+          "height": 45
+        },
+        {
+          "tag": "button",
+          "cls": "relative isolate inline-flex",
+          "name": "Switch to dark mode",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 24,
+          "left": 261,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-11 rounded-full border",
+          "name": "Finish",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 24,
+          "left": 313,
+          "width": 74,
+          "height": 44
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 1, current, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 873,
+          "left": 14,
+          "width": 44,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 2, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 493,
+          "left": 55,
+          "width": 44,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 3, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 415,
+          "left": 96,
+          "width": 44,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 4, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 415,
+          "left": 137,
+          "width": 44,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 5, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 415,
+          "left": 178,
+          "width": 44,
+          "height": 47
+        }
+      ]
+    },
+    {
+      "key": "review-dark-tablet-after",
+      "pathName": "/review/111",
+      "viewport": {
+        "w": 1024,
+        "h": 768,
+        "mobile": false
+      },
+      "audit": {
+        "url": "http://localhost/lms/review/111",
+        "missingNames": [],
+        "tinyTargets": [],
+        "missingAlt": [],
+        "medAlt": [],
+        "contrastFailures": [],
+        "headingSkips": [],
+        "timers": [],
+        "progress": []
+      },
+      "focus": [
+        {
+          "tag": "a",
+          "cls": "lms-skip-link",
+          "name": "Skip to main content",
+          "outline": "rgb(127, 212, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.314) 0px 0px 0px 5.87332px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 10,
+          "left": 10,
+          "width": 184,
+          "height": 45
+        },
+        {
+          "tag": "button",
+          "cls": "inline-flex min-h-10 shrink-0",
+          "name": "Back to results",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": -61,
+          "left": 812,
+          "width": 146,
+          "height": 40
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 1, current, wrong",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 231,
+          "left": 70,
+          "width": 438,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 2, wrong",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 231,
+          "left": 516,
+          "width": 438,
+          "height": 47
+        },
+        {
+          "tag": "button",
+          "cls": "qtr-popup-trigger flex w-full",
+          "name": "⚡ Quick theory recap Reactive Arthritis",
+          "outline": "rgb(126, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.318) 0px 0px 0px 5.94706px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 1087,
+          "left": 85,
+          "width": 854,
+          "height": 61
+        },
+        {
+          "tag": "button",
+          "cls": "lms-assessment-btn lms-assessment-btn--primary inline-flex",
+          "name": "Next",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 5.97746px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 1109,
+          "left": 827,
+          "width": 112,
+          "height": 44
+        },
+        {
+          "tag": "button",
+          "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex",
+          "name": "Save question",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.318) 0px 0px 0px 5.93346px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 647,
+          "left": 445,
+          "width": 159,
+          "height": 44
+        },
+        {
+          "tag": "button",
+          "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex",
+          "name": "Open notes",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.318) 0px 0px 0px 5.93305px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "top": 628,
+          "left": 614,
+          "width": 142,
+          "height": 44
+        }
+      ]
+    }
+  ],
+  "reducedMotion": {
+    "matches": true,
+    "movingCount": 2,
+    "moving": [
+      {
+        "type": "animation",
+        "tag": "div",
+        "cls": "lms-app-scroll-root relative isolate",
+        "name": "routeFade",
+        "duration": "0.24s"
+      },
+      {
+        "type": "animation",
+        "tag": "div",
+        "cls": "lms-route-reveal motion-smooth animate-panelRouteFade",
+        "name": "panelRouteFade",
+        "duration": "0.24s"
+      }
+    ]
+  }
+}

@@ -33,7 +33,7 @@ const structureUi = {
   hero:
     'grid grid-cols-[minmax(0,1fr)_minmax(280px,440px)] items-start gap-[18px] px-6 py-5 max-[1180px]:grid-cols-1',
   heroCopy:
-    '[&_h2]:my-2 [&_h2]:mb-2 [&_h2]:text-[clamp(1.2rem,2vw,1.6rem)] [&_h2]:leading-[1.15] [&_p]:max-w-[640px] [&_p]:text-[0.92rem] [&_p]:leading-[1.55] [&_p]:text-ink-soft',
+    '[&_h2]:my-2 [&_h2]:mb-2 [&_h2]:text-[1.5rem] max-[640px]:[&_h2]:text-[1.2rem] [&_h2]:leading-[1.15] [&_p]:max-w-[640px] [&_p]:text-[0.92rem] [&_p]:leading-[1.55] [&_p]:text-ink-soft',
   heroStats:
     'flex max-w-[440px] flex-wrap items-start justify-end gap-2 justify-self-end overflow-y-hidden pb-0 max-[1180px]:max-w-none max-[1180px]:justify-start max-[1180px]:justify-self-stretch',
   miniStat:
@@ -655,7 +655,7 @@ export function StructurePage() {
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
         <AppHeader
-          title="Academic structure"
+          title="Structure"
           subtitle="Curriculum Builder"
         />
 

@@ -32,6 +32,16 @@ export const adminGetLessons = (subtopicId) =>
   apiClient.get(`/admin/ai-notes/hierarchy/lessons${subtopicId ? `?subtopicId=${subtopicId}` : ''}`).then((r) => r.data);
 export const adminGetLessonCanvases = (options = {}) =>
   apiClient.get('/admin/ai-notes/lesson-canvases', withEngine({}, options.engine)).then((r) => r.data);
+export const adminListLessonFlashcards = (noteId, options = {}) =>
+  apiClient.get(`/admin/ai-notes/${noteId}/flashcards`, withEngine({}, options.engine)).then((r) => r.data);
+export const adminGenerateLessonFlashcards = (noteId, payload = {}, options = {}) =>
+  apiClient.post(`/admin/ai-notes/${noteId}/flashcards/generate`, payload, withEngine({ timeout: 240000 }, options.engine)).then((r) => r.data);
+export const adminCreateLessonFlashcard = (noteId, payload, options = {}) =>
+  apiClient.post(`/admin/ai-notes/${noteId}/flashcards`, payload, withEngine({}, options.engine)).then((r) => r.data);
+export const adminUpdateLessonFlashcard = (noteId, cardId, payload, options = {}) =>
+  apiClient.patch(`/admin/ai-notes/${noteId}/flashcards/${cardId}`, payload, withEngine({}, options.engine)).then((r) => r.data);
+export const adminDeleteLessonFlashcard = (noteId, cardId, options = {}) =>
+  apiClient.delete(`/admin/ai-notes/${noteId}/flashcards/${cardId}`, withEngine({}, options.engine)).then((r) => r.data);
 
 export const listAiNotes = (options = {}) =>
   apiClient.get('/student/ai-notes', withEngine({}, options.engine)).then((r) => r.data);

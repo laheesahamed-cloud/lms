@@ -1,0 +1,42 @@
+:root {
+  --lms-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --lms-motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --lms-motion-ease-standard: cubic-bezier(0.23, 1, 0.32, 1);
+
+  --lms-motion-duration-micro: 140ms;
+  --lms-motion-duration-hover: 150ms;
+  --lms-motion-duration-dropdown: 180ms;
+  --lms-motion-duration-modal: 220ms;
+  --lms-motion-duration-page: 240ms;
+  --lms-motion-duration-card: 220ms;
+
+  --lms-route-enter-duration: var(--lms-motion-duration-page);
+  --lms-route-enter-ease: var(--lms-motion-ease-out);
+  --lms-panel-route-duration: var(--lms-motion-duration-page);
+  --lms-panel-route-ease: var(--lms-motion-ease-out);
+
+  --lms-card-enter-duration: var(--lms-motion-duration-card);
+  --lms-dropdown-duration: var(--lms-motion-duration-dropdown);
+  --lms-modal-duration: var(--lms-motion-duration-modal);
+
+  --lms-motion-soft: var(--lms-motion-ease-out);
+  --lms-motion-soft-exit: var(--lms-motion-ease-in);
+  --lms-ease-soft: var(--lms-motion-ease-out);
+  --lms-ease-soft-exit: var(--lms-motion-ease-in);
+  --lms-platform-motion-enter: var(--lms-motion-ease-out);
+  --lms-native-motion-enter: var(--lms-motion-ease-out);
+
+  --lms-student-page-enter-duration: var(--lms-motion-duration-card);
+  --lms-student-page-enter-ease: var(--lms-motion-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --lms-route-enter-duration: 1ms;
+    --lms-panel-route-duration: 1ms;
+    --lms-card-enter-duration: 1ms;
+    --lms-dropdown-duration: 1ms;
+    --lms-modal-duration: 1ms;
+    --lms-student-page-enter-duration: 1ms;
+  }
+}

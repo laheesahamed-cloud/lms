@@ -1,19 +1,54 @@
 .app-shell {
   --lms-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --lms-ease-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
-  --lms-sidebar-duration: 280ms;
-  --lms-dropdown-duration: 220ms;
+  --lms-sidebar-duration: 220ms;
+  --lms-dropdown-duration: 180ms;
+}
+
+.lms-sidebar {
+  box-shadow: var(--ds-nav-shadow) !important;
+}
+
+.lms-sidebar-link {
+  border-radius: var(--ds-nav-radius) !important;
+}
+
+.lms-sidebar-link:where(:hover, :focus-visible) {
+  transform: none;
+}
+
+.lms-sidebar-link[aria-current="page"],
+.lms-sidebar-link.nav-active-glow {
+  box-shadow: var(--ds-nav-active-shadow) !important;
+}
+
+.lms-sidebar-link[aria-disabled="true"] {
+  opacity: 0.52;
+  pointer-events: none;
+}
+
+.lms-floating-panel {
+  box-shadow: var(--ds-floating-shadow) !important;
 }
 
 .lms-sidebar-brand {
+  --lms-sidebar-logo-gap: 6px;
+  --lms-sidebar-logo-filter: drop-shadow(0 6px 14px rgba(37, 99, 235, 0.16));
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: var(--lms-sidebar-logo-gap) !important;
 }
 
 .lms-sidebar-brand-mark {
   display: grid !important;
   place-items: center !important;
+  transform: translate3d(-1px, -1px, 0);
+}
+
+.lms-sidebar-brand-mark img {
+  filter: var(--lms-sidebar-logo-filter, var(--xyndrome-logo-filter));
 }
 
 .lms-sidebar-brand-mark svg {
@@ -25,6 +60,21 @@
   align-content: center;
 }
 
+.lms-sidebar-brand-name {
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+.lms-sidebar-brand-sub {
+  line-height: 1.12 !important;
+}
+
+:root[data-theme="dark"] .lms-sidebar-brand {
+  --lms-sidebar-logo-filter:
+    drop-shadow(0 0 0.8px rgba(219, 234, 254, 0.76))
+    drop-shadow(0 6px 14px rgba(37, 99, 235, 0.22));
+}
+
 @media (min-width: 901px) {
   .lms-sidebar--admin-model :where(
     .lms-sidebar-wordmark,
@@ -33,8 +83,9 @@
     .lms-sidebar-tooltip
   ) {
     transition:
-      opacity 220ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
-      transform var(--lms-sidebar-duration, 280ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
+      max-width var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      opacity 130ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      transform var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
   }
 
   .lms-sidebar--admin-model .lms-sidebar-wordmark,
@@ -52,6 +103,10 @@
     transform: translate3d(-6px, 0, 0);
     pointer-events: none;
   }
+
+  .lms-sidebar.is-collapsed .lms-sidebar-brand-mark {
+    transform: translate3d(0, -1px, 0);
+  }
 }
 
 @media (min-width: 901px) {
@@ -61,72 +116,71 @@
 
   .app-shell:not(.mobile-top-nav-mode) .main-content {
     transition:
-      transform var(--lms-sidebar-duration, 280ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
+      margin-left var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      width var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      padding-left var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      transform var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
     contain: paint;
     will-change: auto;
   }
 
-  .app-shell:not(.mobile-top-nav-mode) .lms-sidebar:not(.is-overlay-nav) {
-    transition-duration: var(--lms-sidebar-duration, 280ms) !important;
-    transition-timing-function: var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
+  .lms-sidebar:not(.is-overlay-nav) {
+    transition-property: width, transform, opacity !important;
+    transition-duration:
+      var(--lms-sidebar-duration, 220ms),
+      var(--lms-sidebar-duration, 220ms),
+      140ms !important;
+    transition-timing-function:
+      var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
     backface-visibility: hidden;
     contain: layout paint;
     transform: translate3d(0, 0, 0);
     will-change: auto;
   }
 
-  .app-shell:not(.mobile-top-nav-mode) .lms-sidebar:not(.is-overlay-nav).is-collapsed {
+  .lms-sidebar:not(.is-overlay-nav).is-collapsed {
     opacity: 0.985;
   }
 
-  .app-shell:not(.mobile-top-nav-mode) .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-nav {
+  .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-nav {
     padding-top: 6px;
+  }
+
+  .app-shell.sidebar-motion-active:not(.mobile-top-nav-mode) .main-content {
+    will-change: margin-left, width, padding-left, transform;
+  }
+
+  .lms-sidebar:not(.is-overlay-nav).is-animating {
+    will-change: width, transform, opacity;
   }
 }
 
-.lms-sidebar-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 810;
-  display: block;
-  border: 0;
-  padding: 0;
-  background: rgba(12, 24, 48, 0.14);
-  cursor: default;
-  -webkit-backdrop-filter: blur(8px) saturate(112%);
-  backdrop-filter: blur(8px) saturate(112%);
-  animation: lmsSidebarOverlayIn 180ms var(--ease-out, ease-out) both;
+@media (max-width: 900px) {
+  .app-drawer,
+  .lms-sidebar.is-overlay-nav {
+    transition-property: transform, opacity !important;
+    transition-duration:
+      var(--lms-sidebar-duration, 220ms),
+      140ms !important;
+    transition-timing-function:
+      var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
+      var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
+    will-change: auto;
+  }
+
+  .app-shell.sidebar-motion-active :where(.app-drawer, .lms-sidebar.is-overlay-nav) {
+    will-change: transform, opacity;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .app-shell .main-content,
-  .app-shell .lms-sidebar {
+  .app-shell .lms-sidebar,
+  .lms-sidebar {
     transition: none !important;
     animation: none !important;
     will-change: auto !important;
-  }
-}
-
-:root[data-theme="dark"] .lms-sidebar-overlay {
-  background: rgba(2, 6, 23, 0.34);
-}
-
-:root[data-theme="light"] .lms-sidebar-overlay {
-  background: rgba(12, 24, 48, 0.1);
-}
-
-:root[data-low-spec] .lms-sidebar-overlay,
-:root[data-visual-effects="balanced"] .lms-sidebar-overlay {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  background: rgba(12, 24, 48, 0.18);
-}
-
-@keyframes lmsSidebarOverlayIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
   }
 }

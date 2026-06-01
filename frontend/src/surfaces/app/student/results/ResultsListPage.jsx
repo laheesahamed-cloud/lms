@@ -413,7 +413,7 @@ export function ResultsListPage() {
                             <span aria-hidden="true">•</span>
                             <span className="truncate">{result.topicDisplay || 'Topic'}</span>
                           </div>
-                          <div className="mt-1 text-[10.5px] font-semibold text-ink-muted">
+                          <div className="mt-1 text-[11px] font-semibold text-ink-muted">
                             {formatShortDate(result.submittedAt)}
                           </div>
                         </div>
@@ -422,7 +422,7 @@ export function ResultsListPage() {
                           <strong className="block text-[18px] font-extrabold leading-none text-ink-strong tabular-nums">
                             {score}%
                           </strong>
-                          <span className="mt-0.5 block text-[10.5px] font-semibold text-ink-muted tabular-nums">
+                          <span className="mt-0.5 block text-[11px] font-semibold text-ink-muted tabular-nums">
                             {marks}
                           </span>
                           <span className={`student-results-attempt-status student-results-attempt-status--${reviewStatus.tone}`}>

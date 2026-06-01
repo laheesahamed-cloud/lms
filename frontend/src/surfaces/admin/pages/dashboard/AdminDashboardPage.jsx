@@ -19,7 +19,7 @@ const heroRailClass = 'flex min-w-[300px] flex-wrap justify-end gap-2 max-[760px
 const heroMiniStatClass =
   'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line-soft bg-surface-1 px-2.5 text-[11px] font-extrabold text-ink-medium';
 const moneyGridClass = 'grid grid-cols-4 gap-4 max-[1120px]:grid-cols-2 max-[640px]:grid-cols-1';
-const metricValueClass = 'mt-2 block break-words text-[clamp(22px,2.5vw,30px)] font-black leading-tight text-ink-strong';
+const metricValueClass = 'mt-2 block break-words text-[28px] max-[640px]:text-[22px] font-black leading-tight text-ink-strong';
 const metricLabelClass = 'm-0 mt-2 text-[11.5px] font-bold leading-relaxed text-ink-soft';
 const metricCardBase =
   'lms-dashboard-card min-w-0 rounded-xl border border-line-soft bg-surface-card p-4 shadow-xs';
@@ -407,7 +407,7 @@ export function AdminDashboardPage() {
         <section className={heroClass}>
           <div>
             <span className={ui.eyebrow}>Today</span>
-            <h1 className="m-0 mt-2 text-[clamp(20px,2vw,26px)] font-black leading-tight text-ink-strong">
+            <h1 className="m-0 mt-2 text-[26px] max-[640px]:text-[20px] font-black leading-tight text-ink-strong">
               Admin operations at a glance.
             </h1>
             <p className="m-0 mt-2 max-w-[620px] text-[13px] leading-relaxed text-ink-soft">

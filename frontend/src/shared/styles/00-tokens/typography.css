@@ -3,17 +3,28 @@
    Standard: mobile-first, readable body, clear clinical hierarchy.
    ============================================================ */
 
+@font-face {
+  font-family: "Patrick Hand";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../../assets/fonts/patrick-hand-v25-latin-regular.ttf") format("truetype");
+}
+
 :root {
   --type-font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --type-font-body: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --type-font-brand: "Bricolage Grotesque", var(--type-font-display);
+  --type-font-notebook: "Patrick Hand", var(--type-font-body);
+  --type-font-control: var(--type-font-body);
   --type-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-  --type-size-2xs: 0.625rem;  /* 10px: tiny metadata only */
-  --type-size-xs: 0.6875rem;  /* 11px: labels */
-  --type-size-sm: 0.75rem;    /* 12px: compact UI */
-  --type-size-md: 0.8125rem;  /* 13px: dense cards */
-  --type-size-base: 0.875rem; /* 14px: app body */
-  --type-size-lg: 1rem;       /* 16px: questions/body emphasis */
+  --type-size-2xs: 0.6875rem; /* 11px: tiny metadata only */
+  --type-size-xs: 0.75rem;    /* 12px: labels */
+  --type-size-sm: 0.8125rem;  /* 13px: compact UI */
+  --type-size-md: 0.875rem;   /* 14px: dense cards */
+  --type-size-base: 1rem;     /* 16px: app body */
+  --type-size-lg: 1.0625rem;  /* 17px: questions/body emphasis */
   --type-size-xl: 1.125rem;   /* 18px: section titles */
   --type-size-2xl: 1.375rem;  /* 22px: page titles */
   --type-size-3xl: 1.75rem;   /* 28px: mobile hero */

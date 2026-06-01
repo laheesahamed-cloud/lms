@@ -23,6 +23,9 @@
     overflow: hidden;
     pointer-events: none;
     contain: layout paint style;
+    opacity: 1;
+    transform: translateZ(0);
+    will-change: opacity;
   }
 
   body.app-booting,
@@ -47,7 +50,6 @@
 
   body.app-booting .app-drawer,
   body.app-booting .lms-sidebar,
-  body.app-booting .lms-sidebar-overlay,
   body.app-booting .lms-mobile-bottom-nav {
     z-index: 0 !important;
     pointer-events: none !important;
@@ -148,12 +150,14 @@
     position: relative;
     width: 100%;
     height: 100%;
+    filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.24));
     animation: abl-icon-breathe 1.55s 550ms ease-in-out infinite;
+    will-change: transform;
   }
 
   @keyframes abl-icon-breathe {
-    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.16)); }
-    50% { transform: scale(1.045); filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.34)); }
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.045); }
   }
 
   .abl-brand-wrap {
@@ -163,8 +167,8 @@
   }
 
   .abl-brand-text {
-    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-    font-size: clamp(34px, 8vw, 62px);
+    font-family: var(--type-font-brand);
+    font-size: 48px;
     font-weight: 800;
     letter-spacing: 0.08em;
     line-height: 1;
@@ -178,7 +182,7 @@
       abl-aurora 3.5s 350ms linear infinite,
       abl-rise 0.7s 350ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
     filter: drop-shadow(0 0 24px rgba(6, 182, 212, 0.35)) drop-shadow(0 0 48px rgba(99, 102, 241, 0.2));
-    will-change: opacity, transform, background-position;
+    will-change: opacity, transform;
     transform: translateZ(0);
   }
 
@@ -194,8 +198,8 @@
 
   .abl-tagline {
     margin: 10px 0 0;
-    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-    font-size: clamp(11px, 2vw, 13px);
+    font-family: var(--type-font-body);
+    font-size: 12px;
     font-weight: 500;
     letter-spacing: 0.22em;
     text-transform: uppercase;
@@ -227,7 +231,7 @@
 
   .abl-step-text {
     margin: 0;
-    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    font-family: var(--type-font-body);
     font-size: 11.5px;
     font-weight: 650;
     color: rgba(186, 207, 232, 0.88);
@@ -321,8 +325,8 @@
     background-size: 280% 100%;
     -webkit-background-clip: text;
     background-clip: text;
-    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-    font-size: clamp(34px, 8vw, 62px);
+    font-family: var(--type-font-brand);
+    font-size: 48px;
     font-weight: 800;
     letter-spacing: 0.08em;
     line-height: 1;
@@ -333,7 +337,7 @@
       abl-aurora 3.5s 350ms linear infinite,
       abl-rise 0.7s 350ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
     filter: drop-shadow(0 0 24px rgba(6, 182, 212, 0.35)) drop-shadow(0 0 48px rgba(99, 102, 241, 0.2));
-    will-change: opacity, transform, background-position;
+    will-change: opacity, transform;
     transform: translateZ(0);
   }
 
@@ -348,13 +352,12 @@
   }
 
   #app-boot-loader.abl-exiting {
-    animation: abl-overlay-out 0.32s ease forwards;
+    animation: abl-overlay-out 0.34s cubic-bezier(0.23, 1, 0.32, 1) forwards;
   }
 
   @keyframes abl-overlay-out {
-    0% { background-color: #050b18; opacity: 1; }
-    55% { background-color: rgba(5, 11, 24, 0.25); opacity: 1; }
-    100% { background-color: rgba(5, 11, 24, 0); opacity: 0; }
+    from { opacity: 1; }
+    to { opacity: 0; }
   }
 
   #app-boot-loader.abl-exiting .abl-icon,
@@ -381,6 +384,12 @@
 
     #app-boot-loader.abl-exiting {
       animation: abl-overlay-out 0.3s ease forwards !important;
+    }
+
+    .shimmer,
+    .skeleton-pulse::after {
+      animation: none !important;
+      transform: none !important;
     }
   }
 
@@ -691,12 +700,6 @@
     content: none !important;
     display: none !important;
   }
-
-  /* ── Ambient glow ──────────────────────────────────────── */
-  .main-glow {
-    display: none !important;
-  }
-  :root[data-theme='dark'] .main-glow { opacity: 0; }
 
   /* ── Page transition ───────────────────────────────────── */
   .page-fade-in {
@@ -1111,8 +1114,16 @@
   .shimmer {
     position: relative;
     overflow: hidden;
-    background: color-mix(in srgb, var(--surface-2) 92%, var(--color-primary) 4%);
+    background:
+      linear-gradient(
+        100deg,
+        color-mix(in srgb, var(--surface-2) 92%, var(--color-primary) 4%) 0%,
+        color-mix(in srgb, var(--surface-2) 78%, white 16%) 42%,
+        color-mix(in srgb, var(--surface-2) 92%, var(--color-primary) 4%) 84%
+      );
+    background-size: 220% 100%;
     border-radius: var(--radius-sm);
+    animation: shimmer 1.6s ease-in-out infinite;
     isolation: isolate;
   }
 
@@ -1126,11 +1137,40 @@
   }
 
   .skeleton-pulse::after {
-    content: none;
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        100deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.34) 42%,
+        transparent 74%
+      );
+    transform: translate3d(-110%, 0, 0);
+    animation: lmsSkeletonShimmer 1.6s ease-in-out infinite;
+    will-change: transform;
+    pointer-events: none;
+  }
+
+  @keyframes lmsSkeletonShimmer {
+    0% {
+      transform: translate3d(-110%, 0, 0);
+    }
+    100% {
+      transform: translate3d(110%, 0, 0);
+    }
   }
 
   :root[data-theme='dark'] .shimmer {
-    background: rgba(30, 41, 59, 0.74);
+    background:
+      linear-gradient(
+        100deg,
+        rgba(30, 41, 59, 0.74) 0%,
+        rgba(51, 65, 85, 0.78) 42%,
+        rgba(30, 41, 59, 0.74) 84%
+      );
+    background-size: 220% 100%;
   }
 
   :root[data-theme='dark'] .skeleton-pulse {
@@ -1138,7 +1178,13 @@
   }
 
   :root[data-theme='dark'] .skeleton-pulse::after {
-    content: none;
+    background:
+      linear-gradient(
+        100deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.10) 42%,
+        transparent 74%
+      );
   }
 
   /* ── Metric card accent strips ─────────────────────────── */
@@ -1273,10 +1319,6 @@
     color: var(--ink-strong);
   }
 
-  .auth-route-scene .main-glow {
-    display: none;
-  }
-
   .auth-login-shell,
   .auth-login-card {
     contain: layout paint;
@@ -1385,7 +1427,7 @@
     }
 
     .lms-course-detail-hero h1 {
-      font-size: clamp(24px, 8vw, 34px) !important;
+      font-size: 30px !important;
     }
 
     .course-overview-stats {
@@ -1403,11 +1445,11 @@
     }
 
     .course-overview-stat strong {
-      font-size: clamp(15px, 4.8vw, 19px) !important;
+      font-size: 17px !important;
     }
 
     .course-overview-stat span:last-child {
-      font-size: 10px !important;
+      font-size: 11px !important;
       line-height: 1.1 !important;
     }
 
@@ -1697,10 +1739,6 @@
       overscroll-behavior-y: auto !important;
       touch-action: pan-y !important;
       -webkit-overflow-scrolling: touch;
-    }
-
-    .lms-app-scroll-root > .main-glow {
-      pointer-events: none;
     }
 
     .portal-shell,
@@ -2368,7 +2406,7 @@
 
     .lp .lp-hero-h1 {
       max-width: 720px !important;
-      font-size: clamp(42px, 7vw, 56px) !important;
+      font-size: 52px !important;
       line-height: 1.05 !important;
     }
 
@@ -2626,7 +2664,7 @@
   .portal-content th {
     background: color-mix(in srgb, var(--surface-2) 88%, var(--surface-card));
     color: var(--ink-muted);
-    font-size: 10.5px;
+    font-size: 11px;
     letter-spacing: 0.06em;
   }
 
@@ -2697,21 +2735,17 @@
   :root[data-low-spec] .premium-primary-button {
     box-shadow: none !important;
   }
-  :root[data-low-spec] .main-glow,
   :root[data-low-spec] .portal-shell-ambient,
   :root[data-low-spec] .lp-hero-orb,
   :root[data-low-spec] .lp-depth-dot,
   :root[data-low-spec] .lp-cta-orb {
     display: none !important;
   }
-  :root[data-low-spec] .skeleton-pulse,
-  :root[data-low-spec] .shimmer {
-    animation: none !important;
+  :root[data-low-spec] .skeleton-pulse::after {
+    animation: lmsSkeletonShimmer 1.8s ease-in-out infinite !important;
   }
-  :root[data-low-spec] .skeleton-pulse::after,
-  :root[data-low-spec] .shimmer::after {
-    display: none !important;
-    animation: none !important;
+  :root[data-low-spec] .shimmer {
+    animation: shimmer 1.8s ease-in-out infinite !important;
   }
   :root[data-low-spec] [data-content-visibility='auto'] {
     content-visibility: auto;
@@ -2757,7 +2791,6 @@
     scroll-behavior: smooth;
   }
 
-  :root[data-visual-effects='balanced'] .main-glow,
   :root[data-visual-effects='balanced'] .portal-shell-ambient,
   :root[data-visual-effects='balanced'] .lp-hero-orb,
   :root[data-visual-effects='balanced'] .lp-depth-dot,
@@ -2818,22 +2851,41 @@
     animation: none !important;
   }
 
-  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-routeFade,
-  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-panelRouteFade,
-  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-fadePop,
-  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-scaleIn,
-  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-dropdownIn,
-  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-overlayIn,
-  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-progressShimmer,
-  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .shimmer,
-  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .skeleton-pulse {
-    animation: none !important;
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-routeFade {
+    animation: routeFade 0.24s cubic-bezier(0.23, 1, 0.32, 1) both !important;
   }
 
-  :root[data-visual-effects='balanced'] .skeleton-pulse::after,
-  :root[data-visual-effects='balanced'] .shimmer::after {
-    display: none !important;
-    animation: none !important;
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-panelRouteFade {
+    animation: panelRouteFade 0.24s cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-fadePop {
+    animation: fadePop 0.32s cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-scaleIn {
+    animation: scaleIn 0.22s cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-dropdownIn {
+    animation: dropdownIn 0.16s var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-overlayIn {
+    animation: overlayIn 0.16s var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-progressShimmer {
+    animation: progressShimmer 2.2s var(--ease-std, ease) infinite 0.6s !important;
+  }
+
+  :root[data-visual-effects='balanced'] .shimmer {
+    animation: shimmer 1.6s ease-in-out infinite !important;
+  }
+
+  :root[data-visual-effects='balanced'] .skeleton-pulse::after {
+    display: block !important;
+    animation: lmsSkeletonShimmer 1.6s ease-in-out infinite !important;
   }
 
   :root[data-visual-effects='balanced'] .lms-topbar {
@@ -2852,6 +2904,23 @@
   :root[data-visual-effects='balanced'] .premium-primary-button,
   :root[data-visual-effects='balanced'] .premium-secondary-button {
     transition-duration: 100ms !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root[data-visual-effects='balanced'] :where(
+      .animate-routeFade,
+      .animate-panelRouteFade,
+      .animate-fadePop,
+      .animate-scaleIn,
+      .animate-dropdownIn,
+      .animate-overlayIn,
+      .animate-progressShimmer,
+      .shimmer
+    ),
+    :root[data-visual-effects='balanced'] .skeleton-pulse::after {
+      animation: none !important;
+      transform: none !important;
+    }
   }
 
   /* ── Stagger cascades ──────────────────────────────────── */
@@ -2894,10 +2963,6 @@
   html[data-lms-runtime="native"] .lms-route-page {
     visibility: visible !important;
     opacity: 1 !important;
-  }
-
-  html[data-lms-runtime="native"] .main-glow {
-    display: none !important;
   }
 
   html[data-lms-runtime="native"] :where(a[href], button, [role="button"], .card-interactive, .lms-course-card, .lms-mobile-bottom-nav *) {

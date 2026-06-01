@@ -27,6 +27,7 @@ import {
   generateWhyIncorrectExplanations,
 } from '../../../../shared/api/ai.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
+import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 
@@ -34,7 +35,7 @@ const recapAdminSectionClass = 'mt-1 overflow-hidden rounded-lg border border-li
 const recapToggleClass = 'flex w-full items-center gap-2.5 border-0 bg-transparent px-3.5 py-3 text-left font-inherit text-inherit transition hover:bg-surface-2';
 const recapToggleIconClass = 'shrink-0 text-[15px]';
 const recapToggleLabelClass = 'flex-1 text-[13.5px] font-semibold text-ink-strong';
-const recapToggleChevronClass = 'shrink-0 text-[10px] text-ink-muted';
+const recapToggleChevronClass = 'shrink-0 text-[11px] text-ink-muted';
 const recapBadgeClass = 'rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize';
 const recapBadgeExistsClass = 'bg-brand-primary/15 text-brand-primary';
 const recapBadgeNoneClass = 'border border-line-soft bg-surface-2 text-ink-muted';
@@ -48,7 +49,7 @@ const questionModalRecapPanelClass = 'px-6 pb-6 max-[600px]:px-4';
 const bulkSelectBarClass =
   'mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-2 px-4 py-3 text-sm text-ink-medium';
 const tableCheckboxClass =
-  'size-4 cursor-pointer rounded border-line-medium accent-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20';
+  'size-5 cursor-pointer rounded border-line-medium accent-brand-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/20 max-[767px]:size-11 max-[767px]:rounded-lg';
 const bulkWarningClass =
   'rounded-lg border border-brand-warning/25 bg-[var(--color-warning-light)] px-4 py-3 text-[13px] leading-relaxed text-ink-medium';
 const bulkKeywordGridClass = 'grid gap-3 px-5 py-4';
@@ -66,6 +67,24 @@ const detailIncorrectOptionClass = 'border-brand-error/25 bg-brand-error/10';
 const detailRecapListClass = 'm-0 grid gap-1.5 pl-5 text-[13px] leading-relaxed text-ink-medium';
 
 const optionLabels = ['A', 'B', 'C', 'D', 'E'];
+const QUESTION_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+const QUESTION_IMPORT_MIME_TYPES = new Set(['', 'text/csv', 'application/csv', 'application/vnd.ms-excel']);
+
+function validateQuestionImportFile(file) {
+  if (!file) return '';
+  const name = String(file.name || '').trim();
+  const type = String(file.type || '').toLowerCase();
+  if (!name.toLowerCase().endsWith('.csv') || !QUESTION_IMPORT_MIME_TYPES.has(type)) {
+    return 'Import a CSV file exported from the question bank.';
+  }
+  if (file.size > QUESTION_IMPORT_MAX_BYTES) {
+    return 'Question CSV is too large. Upload a file under 2 MB.';
+  }
+  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+    return 'Rename the CSV without special path characters, then import again.';
+  }
+  return '';
+}
 
 function buildOptions(questionType = 'sba', incomingOptions = []) {
   const optionMap = new Map(
@@ -285,17 +304,21 @@ export function QuestionsPage() {
     [meta.subjects, filters.courseId]
   );
   const filterTopics = useMemo(
-    () => meta.topics.filter((topic) => !filters.subjectId || String(topic.subjectId) === String(filters.subjectId)),
-    [meta.topics, filters.subjectId]
+    () => meta.topics.filter((topic) =>
+      (!filters.courseId || String(topic.courseId) === String(filters.courseId)) &&
+      (!filters.subjectId || String(topic.subjectId) === String(filters.subjectId))
+    ),
+    [meta.topics, filters.courseId, filters.subjectId]
   );
   const filterLessons = useMemo(
     () =>
       meta.lessons.filter(
         (lesson) =>
+          (!filters.courseId || String(lesson.courseId) === String(filters.courseId)) &&
           (!filters.subjectId || String(lesson.subjectId) === String(filters.subjectId)) &&
           (!filters.topicId || String(lesson.topicId || '') === String(filters.topicId))
       ),
-    [meta.lessons, filters.subjectId, filters.topicId]
+    [meta.lessons, filters.courseId, filters.subjectId, filters.topicId]
   );
   const selectedVisibleIds = useMemo(
     () => questions.filter((question) => selectedQuestionIds.has(question.id)).map((question) => question.id),
@@ -614,6 +637,12 @@ export function QuestionsPage() {
     if (!file) {
       return;
     }
+    const validationError = validateQuestionImportFile(file);
+    if (validationError) {
+      setError(validationError);
+      event.target.value = '';
+      return;
+    }
 
     setImporting(true);
     setError('');
@@ -917,7 +946,7 @@ export function QuestionsPage() {
     <main className={ui.screenShell}>
       <section className={ui.managementLayout}>
         <AppHeader
-          title="Questions module"
+          title="Questions"
           subtitle="Question Bank"
         />
 
@@ -970,6 +999,7 @@ export function QuestionsPage() {
                   accept=".csv"
                   style={{ display: 'none' }}
                   onChange={handleImportFileChange}
+                  aria-label="Import question CSV"
                 />
               </div>
             </div>
@@ -1457,7 +1487,7 @@ function QuestionDetailModal({ open, question, recap, loading, error, onClose, o
 
               <section className={detailPanelClass}>
                 <strong className={detailPanelTitleClass}>Question</strong>
-                <p className="m-0 whitespace-pre-wrap text-[15px] leading-relaxed text-ink-strong">{question.questionText}</p>
+                <MedicalText as="p" className="m-0 whitespace-pre-wrap text-[15px] leading-relaxed text-ink-strong" text={question.questionText} />
                 {(question.topicLabel || question.keywordsText) ? (
                   <p className="mb-0 mt-3 text-[13px] leading-relaxed text-ink-soft">
                     {[question.topicLabel ? `Internal label: ${question.topicLabel}` : null, question.keywordsText ? `Keywords: ${question.keywordsText}` : null]
@@ -1488,10 +1518,10 @@ function QuestionDetailModal({ open, question, recap, loading, error, onClose, o
                             {question.questionType === 'sba' ? (isCorrect ? 'Correct' : 'Incorrect') : `Answer: ${isCorrect ? 'True' : 'False'}`}
                           </span>
                         </div>
-                        <p className="mb-0 mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink-medium">{option.optionText || '-'}</p>
+                        <MedicalText as="p" className="mb-0 mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink-medium" text={option.optionText || '-'} />
                         {option.whyIncorrect ? (
                           <p className="mb-0 mt-2 rounded-lg bg-surface-1 px-3 py-2 text-[13px] leading-relaxed text-ink-soft">
-                            <strong className="text-ink-strong">Why incorrect: </strong>{option.whyIncorrect}
+                            <strong className="text-ink-strong">Why incorrect: </strong><MedicalText text={option.whyIncorrect} />
                           </p>
                         ) : null}
                       </div>
@@ -1502,7 +1532,7 @@ function QuestionDetailModal({ open, question, recap, loading, error, onClose, o
 
               <section className={detailPanelClass}>
                 <strong className={detailPanelTitleClass}>Explanation</strong>
-                <p className="m-0 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink-medium">{question.explanation || 'No explanation added yet.'}</p>
+                <MedicalText as="p" className="m-0 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink-medium" text={question.explanation || 'No explanation added yet.'} />
               </section>
 
               <section className={detailPanelClass}>
@@ -1980,7 +2010,12 @@ function QuestionEditModal({
                       Correct
                     </label>
                   ) : (
-                    <select className={ui.input} value={option.isCorrect} onChange={(event) => onTfCorrect(index, event.target.value)}>
+                    <select
+                      className={ui.input}
+                      value={option.isCorrect}
+                      onChange={(event) => onTfCorrect(index, event.target.value)}
+                      aria-label={`Correct answer for statement ${option.optionLabel}`}
+                    >
                       <option value={0}>False</option>
                       <option value={1}>True</option>
                     </select>
@@ -1990,6 +2025,7 @@ function QuestionEditModal({
                   value={option.optionText}
                   onChange={(event) => onOptionTextChange(index, event.target.value)}
                   placeholder={form.questionType === 'sba' ? `Option ${option.optionLabel}` : `Statement ${option.optionLabel}`}
+                  aria-label={form.questionType === 'sba' ? `Option ${option.optionLabel} text` : `Statement ${option.optionLabel} text`}
                 />
                 {form.questionType === 'sba' && Number(option.isCorrect) !== 1 ? (
                   <label className={ui.whyIncorrectField}>

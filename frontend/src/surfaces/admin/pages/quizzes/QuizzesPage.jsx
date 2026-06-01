@@ -12,7 +12,7 @@ const overviewCard = cx(
   'grid gap-2 bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(14,165,233,0.04)),var(--surface-1)] px-[18px] py-4'
 );
 const overviewLabel = 'text-[11px] font-bold uppercase tracking-[0.06em] text-ink-soft';
-const overviewValue = 'text-[clamp(20px,2.2vw,26px)] leading-none text-ink-strong';
+const overviewValue = 'text-[24px] max-[640px]:text-[20px] leading-none text-ink-strong';
 const overviewText = 'm-0 text-[12.5px] text-ink-soft';
 
 function getStatusLabel(status) {
@@ -105,7 +105,7 @@ function QuizMapRow({ quiz, index, onEdit, onView, onDelete, deletingId }) {
   return (
     <article className="relative pl-8 max-[640px]:pl-7">
       <span className={cx(
-        'absolute left-[2px] top-1/2 z-[1] grid size-6 -translate-y-1/2 place-items-center rounded-full border text-[10px] font-black',
+        'absolute left-[2px] top-1/2 z-[1] grid size-6 -translate-y-1/2 place-items-center rounded-full border text-[11px] font-black',
         quiz.status === 'active'
           ? 'border-emerald-400/35 bg-emerald-500 text-white'
           : 'border-amber-400/35 bg-amber-400 text-white'
@@ -124,7 +124,7 @@ function QuizMapRow({ quiz, index, onEdit, onView, onDelete, deletingId }) {
             </span>
             <span className="min-w-0">
               <span className="mb-1 flex flex-wrap items-center gap-1.5">
-                <span className="inline-flex h-5 items-center rounded px-1.5 text-[9.5px] font-black uppercase leading-none text-brand-primary bg-brand-primary/7 dark:bg-sky-400/10 dark:text-sky-300">
+                <span className="inline-flex h-5 items-center rounded px-1.5 text-[11px] font-black uppercase leading-none text-brand-primary bg-brand-primary/7 dark:bg-sky-400/10 dark:text-sky-300">
                   {Number(quiz.totalQuestions || 0)} Questions
                 </span>
                 <span className={statusPill(quiz.status)}>
@@ -192,13 +192,13 @@ function QuizMap({ quizzes, loading, onEdit, onView, onDelete, deletingId }) {
 
       <div className="grid gap-4">
         {!loading && groupedCourses.map((course, courseIndex) => (
-          <article key={course.name} className="overflow-hidden rounded-[24px] border border-line-soft bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(14,165,233,0.03)),var(--surface-1)] shadow-sm dark:border-sky-300/12 dark:bg-white/[0.035]">
+          <article key={course.name} className="lms-card overflow-hidden rounded-[var(--ds-card-radius)] border border-line-soft bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(14,165,233,0.03)),var(--surface-1)] shadow-[var(--ds-card-shadow)] dark:border-sky-300/12 dark:bg-white/[0.035]">
             <header className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line-soft px-4 py-4 max-[720px]:grid-cols-[42px_minmax(0,1fr)] max-[720px]:[&>div:last-child]:col-span-2">
               <span className="grid size-12 place-items-center rounded-2xl border border-brand-primary/18 bg-brand-primary/10 text-sm font-black text-brand-primary dark:border-sky-300/20 dark:bg-sky-400/10 dark:text-sky-200 max-[720px]:size-10">
                 {courseIndex + 1}
               </span>
               <div className="min-w-0">
-                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-ink-soft">Course</span>
+                <span className="text-[11px] font-black uppercase tracking-[0.14em] text-ink-soft">Course</span>
                 <h3 className="truncate text-[18px] font-black text-ink-strong dark:text-slate-100">{course.name}</h3>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] font-black uppercase tracking-[0.05em] text-ink-soft max-[720px]:justify-start">
@@ -213,7 +213,7 @@ function QuizMap({ quizzes, loading, onEdit, onView, onDelete, deletingId }) {
                 <section key={subject.name} className="rounded-[22px] border border-line-soft bg-surface-card p-4 dark:border-sky-300/10 dark:bg-white/[0.03]">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-ink-soft">Subject</span>
+                      <span className="text-[11px] font-black uppercase tracking-[0.14em] text-ink-soft">Subject</span>
                       <h4 className="text-[15px] font-black text-ink-strong dark:text-slate-100">{subject.name}</h4>
                     </div>
                     <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-black text-ink-soft">{subject.total} quizzes</span>

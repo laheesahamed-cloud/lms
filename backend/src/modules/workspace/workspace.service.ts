@@ -1,4 +1,5 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { allowedSqlFragment } from '../../database/sql-safety';
@@ -549,8 +550,22 @@ export class WorkspaceService {
   }
 
   async getAdminReports(authorization?: string, rawFilters: AdminReportFilterInput = {}) {
-    await this.authService.requireAdmin(authorization);
+    const admin = await this.authService.requireAdmin(authorization);
     const filters = this.normalizeAdminReportFilters(rawFilters);
+    const canViewLearnerPii = this.canViewLearnerPii(admin);
+    if (filters.userId && !canViewLearnerPii) {
+      throw new ForbiddenException('Student management permission is required for learner-specific analytics');
+    }
+    await this.logAdminAuditEvent({
+      eventType: 'analytics_report.viewed',
+      actorId: admin.id,
+      targetType: 'analytics_report',
+      summary: 'Admin analytics report viewed',
+      metadata: {
+        filters,
+        learnerPiiIncluded: canViewLearnerPii,
+      },
+    });
     const attemptWhere = ['qa.status = \'submitted\''];
     const attemptParams: any[] = [];
     this.appendDateFilter(attemptWhere, attemptParams, 'COALESCE(qa.submitted_at, qa.created_at)', filters);
@@ -753,9 +768,10 @@ export class WorkspaceService {
         wrongCount: Number(row.wrong_count || 0),
       })),
       inactiveStudents: inactiveStudents[0].map((row) => ({
-        id: Number(row.id),
-        fullName: String(row.full_name || ''),
-        email: String(row.email || ''),
+        id: canViewLearnerPii ? Number(row.id) : null,
+        learnerRef: this.anonymizedLearnerRef(row.id),
+        fullName: canViewLearnerPii ? String(row.full_name || '') : this.anonymizedLearnerRef(row.id),
+        email: canViewLearnerPii ? String(row.email || '') : '',
         lastActivity: row.last_activity || null,
       })),
       activityHeatmap: activityHeatmap[0].map((row) => ({
@@ -1155,6 +1171,42 @@ export class WorkspaceService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
       .slice(0, 48) || 'item';
+  }
+
+  private canViewLearnerPii(user: { role?: string; permissions?: string[] }) {
+    return user.role === 'admin' || Boolean(user.permissions?.includes('students.manage'));
+  }
+
+  private anonymizedLearnerRef(value: unknown) {
+    const digest = createHash('sha256')
+      .update(`learner:${String(value || '')}`)
+      .digest('hex')
+      .slice(0, 10)
+      .toUpperCase();
+    return `Learner ${digest}`;
+  }
+
+  private async logAdminAuditEvent(input: {
+    eventType: string;
+    actorId?: number | null;
+    targetType?: string | null;
+    targetId?: number | null;
+    summary: string;
+    metadata?: unknown;
+  }) {
+    await this.db.execute(
+      `INSERT INTO admin_audit_events
+        (event_type, actor_id, target_type, target_id, summary, metadata_json)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        input.eventType,
+        input.actorId || null,
+        input.targetType || null,
+        input.targetId || null,
+        input.summary,
+        input.metadata === undefined ? null : JSON.stringify(input.metadata),
+      ]
+    );
   }
 
   private normalizeAdminReportFilters(input: AdminReportFilterInput): AdminReportFilters {

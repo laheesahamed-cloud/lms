@@ -1,6 +1,8 @@
 import { apiClient } from './client.js';
 import { detectPlatform } from '../platform/detect.js';
 
+const NATIVE_AUTH_TIMEOUT_MS = 7000;
+
 function nativeAuthHeaders() {
   return detectPlatform().isNative ? { 'X-LMS-Native': '1' } : undefined;
 }
@@ -10,17 +12,25 @@ function nativeAuthParams() {
 }
 
 export async function login(payload) {
+  const native = detectPlatform().isNative;
   const response = await apiClient.post('/auth/login', payload, {
     headers: nativeAuthHeaders(),
     params: nativeAuthParams(),
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : undefined,
+    __skipApiBaseFallback: native,
+    __skipTimeoutRetry: native,
   });
   return response.data;
 }
 
 export async function register(payload) {
+  const native = detectPlatform().isNative;
   const response = await apiClient.post('/auth/register', payload, {
     headers: nativeAuthHeaders(),
     params: nativeAuthParams(),
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : undefined,
+    __skipApiBaseFallback: native,
+    __skipTimeoutRetry: native,
   });
   return response.data;
 }

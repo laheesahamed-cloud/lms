@@ -19,6 +19,12 @@ export function normalizeVideoUrl(url) {
   return raw;
 }
 
+function normalizeStartSeconds(value) {
+  const seconds = Math.floor(Number(value || 0));
+  if (!Number.isFinite(seconds) || seconds <= 0) return 0;
+  return Math.min(seconds, 23 * 60 * 60 + 59 * 60 + 59);
+}
+
 function withParams(src, params) {
   const u = new URL(src);
   for (const [key, value] of Object.entries(params)) {
@@ -34,19 +40,22 @@ function currentOrigin() {
   return window.location.origin;
 }
 
-export function getVideoEmbed(url) {
+export function getVideoEmbed(url, options = {}) {
   const raw = normalizeVideoUrl(url);
   if (!raw) return null;
   const safeExternalUrl = getSafeExternalUrl(raw);
+  const startSeconds = normalizeStartSeconds(options.startSeconds);
   const youtubeParams = {
     rel:'0',
     modestbranding:'1',
     playsinline:'1',
     iv_load_policy:'3',
-    disablekb:'1',
-    controls:'0',
-    fs:'0',
+    cc_load_policy:'1',
+    disablekb:'0',
+    controls:'1',
+    fs:'1',
     origin:currentOrigin(),
+    start:startSeconds || undefined,
   };
   try {
     const u = new URL(raw);
@@ -54,18 +63,21 @@ export function getVideoEmbed(url) {
     const host = u.hostname.replace(/^www\./, '');
     if (host === 'youtu.be') {
       const id = u.pathname.split('/').filter(Boolean)[0];
-      if (id) return { type:'iframe', src:withParams(`https://www.youtube.com/embed/${id}`, youtubeParams), provider:'youtube', hideTopChrome:true };
+      if (id) return { type:'iframe', src:withParams(`https://www.youtube.com/embed/${id}`, youtubeParams), provider:'youtube' };
     }
     if (host.includes('youtube.com')) {
       const watchId = u.searchParams.get('v');
       const path = u.pathname.split('/').filter(Boolean);
       const embeddedId = ['embed', 'shorts', 'live'].includes(path[0]) ? path[1] : null;
       const id = watchId || embeddedId;
-      if (id) return { type:'iframe', src:withParams(`https://www.youtube.com/embed/${id}`, youtubeParams), provider:'youtube', hideTopChrome:true };
+      if (id) return { type:'iframe', src:withParams(`https://www.youtube.com/embed/${id}`, youtubeParams), provider:'youtube' };
     }
     if (host.includes('vimeo.com')) {
       const id = u.pathname.split('/').filter(Boolean).find(part => /^\d+$/.test(part));
-      if (id) return { type:'iframe', src:withParams(`https://player.vimeo.com/video/${id}`, { dnt:'1', title:'0', byline:'0', portrait:'0', badge:'0' }), hideTopChrome:true };
+      if (id) {
+        const src = withParams(`https://player.vimeo.com/video/${id}`, { dnt:'1', title:'0', byline:'0', portrait:'0', badge:'0' });
+        return { type:'iframe', src: startSeconds ? `${src}#t=${startSeconds}s` : src, provider:'vimeo' };
+      }
     }
     if (host === 'drive.google.com') {
       const path = u.pathname.split('/').filter(Boolean);

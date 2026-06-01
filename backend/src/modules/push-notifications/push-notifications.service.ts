@@ -18,6 +18,7 @@ type PushPayload = {
   icon?: string;
   badge?: string;
   tag?: string;
+  channelId?: string;
   data?: Record<string, unknown>;
 };
 
@@ -316,11 +317,20 @@ export class PushNotificationsService {
       icon: input?.icon,
       badge: input?.badge,
       tag: input?.tag,
+      channelId: input?.channelId || input?.androidChannelId || input?.notificationChannel,
       data: typeof input?.data === 'object' && input.data !== null ? input.data : {},
     });
   }
 
   private withDefaults(payload: PushPayload): PushPayload {
+    const data = payload.data || {};
+    const channelId = this.normalizeAndroidChannelId(
+      payload.channelId ||
+      data.channelId ||
+      data.androidChannelId ||
+      this.inferAndroidChannelId(payload)
+    ) || 'course_updates';
+
     return {
       title: payload.title || 'xyndrome',
       body: payload.body || 'You have a new notification.',
@@ -328,8 +338,34 @@ export class PushNotificationsService {
       icon: payload.icon || '/lms/pwa-icon.svg',
       badge: payload.badge || '/lms/pwa-maskable.svg',
       tag: payload.tag || 'erpm-lms-notification',
-      data: payload.data || {},
+      channelId,
+      data: { ...data, channelId },
     };
+  }
+
+  private inferAndroidChannelId(payload: PushPayload) {
+    const haystack = [
+      payload.title,
+      payload.body,
+      payload.url,
+      payload.tag,
+      payload.data?.type,
+      payload.data?.kind,
+      payload.data?.category,
+    ].map((value) => String(value || '').toLowerCase()).join(' ');
+
+    if (/\b(exam|quiz|assessment|deadline|reminder|attempt|result)\b/.test(haystack)) {
+      return 'exam_reminders';
+    }
+    if (/\b(account|security|privacy|password|payment|subscription|billing|lock|locked|login)\b/.test(haystack)) {
+      return 'account_alerts';
+    }
+    return 'course_updates';
+  }
+
+  private normalizeAndroidChannelId(value: unknown) {
+    const channelId = String(value || '').trim();
+    return ['default', 'exam_reminders', 'course_updates', 'account_alerts'].includes(channelId) ? channelId : '';
   }
 
   private normalizeDeliveryMode(value: unknown): DeliveryMode {

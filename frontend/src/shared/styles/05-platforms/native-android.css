@@ -1,0 +1,236 @@
+html[data-lms-runtime="native"][data-lms-os="android"] {
+  --lms-android-touch-target: 48px;
+  --lms-android-state-layer: color-mix(in srgb, var(--color-primary, #2563eb) 12%, transparent);
+  --lms-android-state-layer-strong: color-mix(in srgb, var(--color-primary, #2563eb) 18%, transparent);
+  --lms-android-focus-ring: color-mix(in srgb, var(--color-primary, #2563eb) 34%, transparent);
+  --lms-android-sheet-radius: 24px;
+  --lms-android-control-radius: var(--radius-md, 12px);
+  --lms-mobile-page-top: max(8px, calc(var(--lms-android-safe-top-content, 24px) - 10px));
+  --lms-mobile-shell-top: max(8px, calc(var(--lms-android-safe-top-content, 24px) - 12px));
+  --lms-mobile-shell-top-compact: max(6px, calc(var(--lms-android-safe-top-content, 24px) - 14px));
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"][data-theme="dark"] {
+  --lms-android-state-layer: color-mix(in srgb, var(--accent-strong, #8ba4ff) 16%, transparent);
+  --lms-android-state-layer-strong: color-mix(in srgb, var(--accent-strong, #8ba4ff) 22%, transparent);
+  --lms-android-focus-ring: color-mix(in srgb, var(--accent-strong, #8ba4ff) 42%, transparent);
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] :where(body, #root, .native-app-frame, .lms-app-scroll-root) {
+  background: var(--lms-native-chrome-bg, var(--app-bg)) !important;
+  background-color: var(--lms-native-chrome-bg-solid, var(--app-bg-solid, var(--surface-0, #0b121b))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] :where(.native-app-frame, .lms-app-scroll-root) {
+  scroll-padding-top: var(--lms-android-safe-top-content, 24px) !important;
+  scroll-padding-bottom: calc(var(--lms-mobile-content-bottom, 92px) + var(--lms-android-safe-bottom-content, 16px)) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where(
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  summary,
+  input,
+  select,
+  textarea,
+  .lms-mobile-bottom-nav__tab,
+  .lms-assessment-btn,
+  .lms-question-choice,
+  .course-map-lesson-action,
+  .student-course-card__cta
+) {
+  min-height: var(--lms-android-touch-target) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where(
+  input,
+  select,
+  textarea,
+  .lms-native-field
+) {
+  border-radius: var(--lms-android-control-radius) !important;
+  font-size: max(1rem, 16px) !important;
+  line-height: 1.4;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where(
+  p,
+  li,
+  td,
+  th,
+  label,
+  input,
+  select,
+  textarea,
+  button,
+  .body-text,
+  .content-text,
+  .description,
+  .subtitle,
+  .lms-reading-question,
+  .lms-reading-answer,
+  .lms-reading-explanation
+) {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where(h1, h2, h3, .heading, .title) {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where(
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  .lms-assessment-btn,
+  .course-map-lesson-action
+) {
+  white-space: normal;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where(
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  .lms-mobile-bottom-nav__tab
+):active {
+  background-image: linear-gradient(var(--lms-android-state-layer), var(--lms-android-state-layer));
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where(
+  button,
+  a[href],
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  input,
+  select,
+  textarea,
+  summary
+):focus-visible {
+  outline: 3px solid var(--lms-android-focus-ring) !important;
+  outline-offset: 2px !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where(
+  .lms-hero-card,
+  .lms-page-header-card,
+  .lms-course-card,
+  .lms-quiz-card,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .glass-card,
+  .card-surface,
+  .lms-app-card,
+  .lms-review-question-card,
+  .lms-exam-main-card
+) {
+  border-radius: var(--lms-app-card-radius, 18px) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-modal-backdrop, .quiz-completion-overlay) {
+  padding-top: max(16px, var(--lms-android-safe-top-content, 24px)) !important;
+  padding-bottom: max(16px, var(--lms-android-safe-bottom-content, 16px)) !important;
+  padding-left: max(16px, var(--lms-safe-left, env(safe-area-inset-left, 0px))) !important;
+  padding-right: max(16px, var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-native-modal, .lms-modal-panel) {
+  max-height: calc(100dvh - var(--lms-android-safe-top-content, 24px) - var(--lms-android-safe-bottom-content, 16px) - 16px) !important;
+  border-radius: var(--lms-android-sheet-radius) !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
+  bottom: 0 !important;
+  padding-left: max(0px, var(--lms-safe-left, env(safe-area-inset-left, 0px))) !important;
+  padding-right: max(0px, var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner {
+  height: var(--bottom-nav-height, 80px) !important;
+  min-height: var(--bottom-nav-height, 80px) !important;
+  padding-bottom: max(10px, var(--lms-tabbar-safe-bottom, 16px)) !important;
+  border-radius: 20px 20px 0 0 !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .lms-mobile-bottom-nav__tab {
+  min-height: 48px !important;
+  border-radius: 16px !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .lms-mobile-bottom-nav__tab.is-active {
+  background: var(--lms-android-state-layer-strong) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] .lms-mobile-bottom-nav__label {
+  display: -webkit-box !important;
+  min-height: 1.15em;
+  line-height: 1.05 !important;
+  white-space: normal !important;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.lms-native-network-status {
+  position: fixed;
+  z-index: var(--z-toast, 12000);
+  top: max(12px, var(--lms-android-safe-top-content, 24px));
+  left: 50%;
+  width: min(430px, calc(100vw - 24px));
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--line-medium, rgba(44, 58, 79, 0.21)) 82%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-card, #f9fbff) 94%, transparent);
+  color: var(--ink-strong, #111827);
+  box-shadow: var(--shadow-md, 0 20px 46px rgba(15, 23, 42, 0.135));
+  padding: 10px 14px;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+html[data-theme="dark"] .lms-native-network-status {
+  background: color-mix(in srgb, var(--surface-card, #1c2631) 94%, transparent);
+  color: var(--ink-strong, #e3ebf5);
+}
+
+.lms-native-network-status.is-offline {
+  border-color: color-mix(in srgb, var(--color-warning, #b45309) 45%, transparent);
+}
+
+.lms-native-network-status.is-restored {
+  border-color: color-mix(in srgb, var(--color-success, #0f766e) 42%, transparent);
+}
+
+@media (max-width: 520px) {
+  html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-modal-backdrop, .quiz-completion-overlay) {
+    place-items: end center !important;
+    padding-left: max(10px, var(--lms-safe-left, env(safe-area-inset-left, 0px))) !important;
+    padding-right: max(10px, var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;
+  }
+
+  html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-native-modal, .lms-modal-panel) {
+    width: 100% !important;
+    border-radius: 24px 24px 0 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where(button, [role="button"], [role="tab"], .lms-mobile-bottom-nav__tab):active {
+    transform: none !important;
+  }
+}

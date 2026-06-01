@@ -218,17 +218,17 @@ export function AdminAiNotesListPage({
         <form className={adminCanvasUi.createForm} onSubmit={handleCreate}>
           <h3>New Lesson</h3>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <select className={cx(ui.input, 'min-w-0 flex-[1_1_160px]')} value={selCourse} onChange={e => setSelCourse(e.target.value)}>
+            <select className={cx(ui.input, 'min-w-0 flex-[1_1_160px]')} value={selCourse} onChange={e => setSelCourse(e.target.value)} aria-label="New lesson course">
               <option value="">— Course (optional) —</option>
               {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <select className={cx(ui.input, 'min-w-0 flex-[1_1_160px]')} value={selTopic} onChange={e => setSelTopic(e.target.value)}
-                    disabled={!selCourse}>
+                    disabled={!selCourse} aria-label="New lesson subject">
               <option value="">— Subject (optional) —</option>
               {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             <select className={cx(ui.input, 'min-w-0 flex-[1_1_160px]')} value={selSubtopic} onChange={e => setSelSubtopic(e.target.value)}
-                    disabled={!selTopic}>
+                    disabled={!selTopic} aria-label="New lesson topic">
               <option value="">— Topic (optional) —</option>
               {subtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
@@ -236,6 +236,7 @@ export function AdminAiNotesListPage({
           <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
             <input className={cx(ui.input, 'min-w-[180px] flex-[1_1_220px]')} type="text" placeholder="Lesson title (e.g. Heart Failure)" autoFocus
                    value={newTitle} onChange={e => setNewTitle(e.target.value)} maxLength={255} required
+                   aria-label="New lesson title"
             />
           </div>
           <label className="mt-2.5 flex items-center gap-2 text-[13px] font-semibold text-ink-muted">

@@ -91,6 +91,12 @@
   --sa-radius-md: 18px;
   --sa-radius-lg: 22px;
   --sa-radius-xl: 28px;
+  --ds-card-radius: var(--sa-radius-lg);
+  --ds-card-radius-compact: var(--sa-radius-md);
+  --ds-card-radius-inner: var(--sa-radius-sm);
+  --ds-card-shadow: var(--sa-shadow-card);
+  --ds-card-shadow-hover: var(--sa-shadow-card-hover);
+  --ds-card-shadow-raised: var(--sa-shadow-card-hover);
 
   --sa-font-display: var(--type-font-display);
   --sa-font-sans: var(--type-font-body);
@@ -105,18 +111,18 @@
   --sidebar-shell-gap: 16px;
   --sidebar-w: 224px;
   --sidebar-w-collapsed: 68px;
-  --sa-stage-inline-pad: 14px;
+  --sa-stage-inline-pad: 16px;
 
   /* Student route shell — the dashboard and every app page share this
      width/gutter system so cards line up across navigation. */
   --sa-page-width-mobile: min(390px, calc(100% - 24px));
-  --sa-page-width-compact: min(100% - 18px, 390px);
+  --sa-page-width-compact: min(100% - 16px, 390px);
   --sa-page-width-tablet: min(720px, calc(100% - 32px));
   --sa-page-width-desktop: min(880px, calc(100% - 48px));
   --sa-page-padding-top: calc(max(8px, env(safe-area-inset-top, 0px)) + 4px);
-  --sa-page-padding-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 6px);
-  --sa-page-padding-compact-top: calc(max(6px, env(safe-area-inset-top, 0px)) + 3px);
-  --sa-page-padding-compact-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 6px);
+  --sa-page-padding-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 8px);
+  --sa-page-padding-compact-top: calc(max(8px, env(safe-area-inset-top, 0px)) + 4px);
+  --sa-page-padding-compact-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 8px);
   --sa-page-padding: var(--sa-page-padding-top) 0 var(--sa-page-padding-bottom);
   --sa-page-padding-compact: var(--sa-page-padding-compact-top) 0 var(--sa-page-padding-compact-bottom);
 
@@ -230,7 +236,7 @@
   color: var(--student-sidebar-ink);
   background: rgba(255, 255, 255, 0.7) !important;
   border-color: var(--student-sidebar-border) !important;
-  box-shadow: 0 20px 40px -20px rgba(14, 21, 56, 0.12) !important;
+  box-shadow: var(--ds-nav-shadow) !important;
   transition-property: transform, box-shadow, border-color, background-color !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -241,11 +247,13 @@
 }
 
 .lms-sidebar--student-model .lms-sidebar-brand {
+  --lms-sidebar-logo-gap: 8px;
+  --lms-sidebar-logo-filter: drop-shadow(0 6px 14px rgba(37, 99, 235, 0.16));
   min-height: auto !important;
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
-  gap: 12px !important;
+  gap: var(--lms-sidebar-logo-gap) !important;
   padding: 4px 4px 24px !important;
   border-bottom: 0 !important;
 }
@@ -253,11 +261,13 @@
 .lms-sidebar--student-model .lms-sidebar-brand-mark {
   display: grid !important;
   place-items: center !important;
-  width: 40px !important;
-  height: 40px !important;
-  border-radius: 12px !important;
-  background: var(--student-sidebar-grad) !important;
-  box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--xyndrome-logo-scope, #08245f) !important;
+  box-shadow: none !important;
+  transform: translate3d(-1px, -1px, 0);
 }
 
 .lms-sidebar--student-model .lms-sidebar-brand-mark svg {
@@ -279,18 +289,19 @@
 .lms-sidebar--student-model .lms-sidebar-brand-name {
   color: var(--student-sidebar-ink) !important;
   font-family: var(--sa-font-display);
-  font-size: var(--type-size-xl) !important;
-  font-weight: var(--type-weight-bold) !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
   letter-spacing: 0 !important;
-  line-height: var(--type-leading-tight) !important;
+  line-height: 1 !important;
 }
 
 .lms-sidebar--student-model .lms-sidebar-brand-sub {
-  margin-top: 2px;
+  margin-top: 3px;
   color: var(--student-sidebar-muted) !important;
-  font-size: var(--type-size-xs) !important;
+  font-size: 11px !important;
   font-weight: var(--type-weight-medium) !important;
   letter-spacing: 0 !important;
+  line-height: 1.12 !important;
 }
 
 .lms-sidebar--student-model .lms-sidebar-section-label {
@@ -307,7 +318,7 @@
   min-height: 44px !important;
   height: 44px !important;
   gap: 12px !important;
-  padding: 12px 14px !important;
+  padding: 12px 16px !important;
   border: 0 !important;
   border-radius: 14px !important;
   background: transparent !important;
@@ -333,10 +344,10 @@
 .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow::before {
   content: "";
   position: absolute;
-  left: -18px;
+  left: -16px;
   top: 50%;
   width: 3px;
-  height: 22px;
+  height: 24px;
   border-radius: 2px;
   background: linear-gradient(180deg, #2563eb, #38bdf8);
   transform: translateY(-50%);
@@ -372,7 +383,7 @@
 .lms-sidebar--student-model .lms-sidebar-student-footer {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 16px;
   padding: 16px 4px 0;
   border-top: 1px solid var(--student-sidebar-border);
@@ -431,7 +442,7 @@
     height: auto !important;
     min-height: 0 !important;
     max-height: calc(100dvh - (var(--sidebar-float-gap, 16px) * 2)) !important;
-    padding: 20px 14px !important;
+    padding: 24px 16px !important;
     border: 1px solid var(--student-sidebar-border) !important;
     border-radius: 24px !important;
     overflow: hidden !important;
@@ -447,13 +458,13 @@
 
   .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed {
     width: var(--sidebar-w-collapsed, 68px) !important;
-    padding: 14px 8px !important;
+    padding: 16px 8px !important;
   }
 
   .lms-sidebar--student-model.is-collapsed .lms-sidebar-brand {
     width: 100% !important;
     justify-content: center !important;
-    padding: 4px 0 14px !important;
+    padding: 4px 0 16px !important;
   }
 
   .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed .lms-sidebar-wordmark {
@@ -464,7 +475,10 @@
   }
 
   .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed .lms-sidebar-brand-mark {
+    width: 40px !important;
+    height: 40px !important;
     margin-inline: auto !important;
+    transform: translate3d(0, -1px, 0);
   }
 
   .lms-sidebar--student-model.is-collapsed .lms-sidebar-link {
@@ -523,7 +537,7 @@
 
 @media (min-width: 901px) {
   .student-app-shell {
-    --sa-stage-inline-pad: 22px;
+    --sa-stage-inline-pad: 24px;
   }
 
   .student-app-shell:not(.compact-focus-mode) .main-content {
@@ -546,8 +560,8 @@
   .student-app-shell.sidebar-hidden:not(.mobile-top-nav-mode) .main-content {
     margin-left: 0 !important;
     width: 100% !important;
-    padding-left: var(--sa-stage-inline-pad, 22px) !important;
-    padding-right: var(--sa-stage-inline-pad, 22px) !important;
+    padding-left: var(--sa-stage-inline-pad, 24px) !important;
+    padding-right: var(--sa-stage-inline-pad, 24px) !important;
     transform: translate3d(0, 0, 0) !important;
   }
 }
@@ -564,6 +578,13 @@
   border-color: var(--lms-global-card-border, rgba(203, 213, 225, 0.13)) !important;
   color: #eef3f8 !important;
   box-shadow: var(--lms-global-card-shadow, 0 24px 56px -42px rgba(2, 6, 12, 0.62)) !important;
+}
+
+:root[data-theme='dark'] .lms-sidebar--student-model .lms-sidebar-brand,
+.student-app-shell[data-theme='dark'] .lms-sidebar--student-model .lms-sidebar-brand {
+  --lms-sidebar-logo-filter:
+    drop-shadow(0 0 0.8px rgba(219, 234, 254, 0.76))
+    drop-shadow(0 6px 14px rgba(37, 99, 235, 0.22));
 }
 
 :root[data-theme='dark'] .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong),
@@ -601,32 +622,8 @@
     pointer-events: none;
   }
 
-  .lms-mobile-top-nav-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    appearance: none;
-    -webkit-appearance: none;
-    border: 0;
-    padding: 0;
-    background: var(--lms-mobile-top-nav-backdrop-bg, rgba(7, 13, 28, 0.10));
-    box-shadow: none;
-    color: transparent;
-    opacity: 0;
-    -webkit-backdrop-filter: blur(6px) saturate(108%);
-    backdrop-filter: blur(6px) saturate(108%);
-    pointer-events: auto;
-    touch-action: manipulation;
-    animation: mobileTopNavScrimIn 160ms ease-out both;
-    will-change: opacity;
-  }
-
   .lms-mobile-top-nav-layer.is-closing {
     pointer-events: none;
-  }
-
-  .lms-mobile-top-nav-layer.is-closing .lms-mobile-top-nav-backdrop {
-    animation: mobileTopNavScrimOut 120ms ease-out both;
   }
 
   .lms-mobile-top-nav {
@@ -653,7 +650,7 @@
     -webkit-backdrop-filter: blur(14px) saturate(130%);
     backdrop-filter: blur(14px) saturate(130%);
     pointer-events: auto;
-    animation: mobileTopNavSimpleIn 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation: mobileTopNavSimpleIn 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
     will-change: transform, opacity;
     backface-visibility: hidden;
     contain: layout paint;
@@ -661,7 +658,7 @@
 
   .lms-mobile-top-nav-layer.is-closing .lms-mobile-top-nav {
     pointer-events: none;
-    animation: mobileTopNavSimpleOut 160ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation: mobileTopNavSimpleOut 150ms cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
   .lms-mobile-top-nav--plain {
@@ -685,14 +682,14 @@
   @media (max-width: 640px) {
     .lms-mobile-top-nav-layer {
       --mobile-top-nav-left: max(12px, calc((100vw - var(--sa-page-width-mobile, min(390px, calc(100vw - 24px)))) / 2));
-      --mobile-top-nav-top: var(--sa-page-padding-compact-top, calc(max(6px, env(safe-area-inset-top, 0px)) + 3px));
+      --mobile-top-nav-top: var(--sa-page-padding-compact-top, calc(max(8px, env(safe-area-inset-top, 0px)) + 4px));
     }
   }
 
   @media (max-width: 360px) {
     .lms-mobile-top-nav-layer {
-      --mobile-top-nav-left: max(9px, calc((100vw - var(--sa-page-width-compact, min(100vw - 18px, 390px))) / 2));
-      --mobile-top-nav-width: min(260px, calc(100vw - var(--mobile-top-nav-left, 9px) - 9px));
+      --mobile-top-nav-left: max(8px, calc((100vw - var(--sa-page-width-compact, min(100vw - 16px, 390px))) / 2));
+      --mobile-top-nav-width: min(260px, calc(100vw - var(--mobile-top-nav-left, 8px) - 8px));
     }
   }
 
@@ -735,11 +732,11 @@
     backdrop-filter: blur(16px) saturate(128%);
     transform: scaleY(0);
     transform-origin: top left;
-    animation: mobileTopNavRailIn 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation: mobileTopNavRailIn 190ms cubic-bezier(0.23, 1, 0.32, 1) both;
   }
 
   .lms-mobile-top-nav-layer.is-closing .lms-mobile-top-nav--plain::before {
-    animation: mobileTopNavRailOut 160ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation: mobileTopNavRailOut 150ms cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
   .lms-mobile-top-nav::after {
@@ -770,7 +767,7 @@
     position: relative;
     z-index: 1;
     opacity: 0;
-    animation: mobileTopNavContentIn 260ms cubic-bezier(0.23, 1, 0.32, 1) 140ms both;
+    animation: mobileTopNavContentIn 190ms cubic-bezier(0.23, 1, 0.32, 1) 70ms both;
   }
 
   .lms-mobile-top-nav--plain > * {
@@ -780,20 +777,21 @@
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__list {
     opacity: 0;
-    animation: mobileTopNavListIn 180ms cubic-bezier(0.23, 1, 0.32, 1) 120ms both;
+    animation: mobileTopNavListIn 150ms cubic-bezier(0.23, 1, 0.32, 1) 70ms both;
   }
 
   .lms-mobile-top-nav-layer.is-closing .lms-mobile-top-nav--plain .lms-mobile-top-nav__list {
-    animation: mobileTopNavListOut 140ms cubic-bezier(0.4, 0, 1, 1) both;
+    animation: mobileTopNavListOut 120ms cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
   .lms-mobile-top-nav__head {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr) 42px;
     align-items: start;
-    gap: 12px;
+    column-gap: 8px;
+    row-gap: 12px;
     min-height: 54px;
-    padding: 0 0 10px;
+    padding: 0 0 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.26);
   }
 
@@ -810,10 +808,13 @@
 
   .lms-mobile-top-nav__mark {
     margin-left: -1px;
-    margin-top: -4px;
-    background: rgba(37, 99, 235, 0.16);
-    color: #2563eb;
+    margin-top: -3px;
+    background: transparent;
+    color: var(--xyndrome-logo-scope, #08245f);
     box-shadow: none;
+    transform: translate3d(-1px, -1px, 0);
+    --lms-sidebar-logo-filter: drop-shadow(0 5px 12px rgba(37, 99, 235, 0.18));
+    --xyndrome-logo-filter: var(--lms-sidebar-logo-filter);
   }
 
   .lms-mobile-top-nav__brand {
@@ -832,8 +833,8 @@
 
   .lms-mobile-top-nav__brand strong {
     color: #26314c;
-    font-family: "Bricolage Grotesque", "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    font-size: 18px;
+    font-family: var(--type-font-brand);
+    font-size: 18.5px;
     font-weight: 800;
     letter-spacing: 0;
     line-height: 1;
@@ -875,10 +876,10 @@
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.42);
     color: #26314c;
-    box-shadow: 0 8px 22px rgba(13, 28, 64, 0.08);
+    box-shadow: var(--ds-card-shadow);
     opacity: 0;
     transform: translate3d(0, -6px, 0) scale(0.96);
-    animation: mobileTopNavContentIn 220ms cubic-bezier(0.23, 1, 0.32, 1) 150ms both;
+    animation: mobileTopNavContentIn 170ms cubic-bezier(0.23, 1, 0.32, 1) 80ms both;
     touch-action: manipulation;
     pointer-events: auto;
   }
@@ -888,14 +889,14 @@
   }
 
   .lms-mobile-top-nav-layer.is-closing .lms-mobile-top-nav__plain-close {
-    animation: mobileTopNavContentOut 160ms cubic-bezier(0.4, 0, 1, 1) both;
+    animation: mobileTopNavContentOut 130ms cubic-bezier(0.4, 0, 0.2, 1) both;
   }
 
   .lms-mobile-top-nav__list {
     display: grid;
     gap: 8px;
     min-height: 0;
-    padding: 14px 12px 76px;
+    padding: 16px 12px 80px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
@@ -910,7 +911,7 @@
     z-index: 3;
     width: 100%;
     margin-left: 0;
-    padding: calc(var(--mobile-top-nav-trigger-size, 42px) + 10px) 8px 10px 0;
+    padding: calc(var(--mobile-top-nav-trigger-size, 42px) + 8px) 8px 8px 0;
     pointer-events: auto;
   }
 
@@ -949,18 +950,19 @@
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__item {
     display: grid;
     grid-template-columns: var(--mobile-top-nav-trigger-size, 42px) minmax(0, 1fr);
-    min-height: 46px;
+    min-height: 48px;
     padding: 0;
     border-radius: 13px;
-    gap: 14px;
+    gap: 16px;
     font-size: 14.5px;
     opacity: 0;
-    transform: translate3d(0, -8px, 0);
-    animation: mobileTopNavNameIn 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    transform: translate3d(0, -5px, 0);
+    animation: mobileTopNavNameIn 190ms cubic-bezier(0.23, 1, 0.32, 1) both;
   }
 
   .lms-mobile-top-nav-layer.is-closing .lms-mobile-top-nav--plain .lms-mobile-top-nav__item {
-    animation: mobileTopNavNameOut 180ms cubic-bezier(0.4, 0, 1, 1) both;
+    animation: mobileTopNavNameOut 140ms cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation-delay: 0ms;
   }
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__item:first-child {
@@ -968,35 +970,35 @@
   }
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__list > :nth-child(1) {
-    animation-delay: 150ms;
+    animation-delay: 55ms;
   }
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__list > :nth-child(2) {
-    animation-delay: 185ms;
+    animation-delay: 75ms;
   }
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__list > :nth-child(3) {
-    animation-delay: 220ms;
+    animation-delay: 95ms;
   }
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__list > :nth-child(4) {
-    animation-delay: 255ms;
+    animation-delay: 115ms;
   }
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__list > :nth-child(5) {
-    animation-delay: 290ms;
+    animation-delay: 135ms;
   }
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__list > :nth-child(6) {
-    animation-delay: 325ms;
+    animation-delay: 155ms;
   }
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__list > :nth-child(7) {
-    animation-delay: 360ms;
+    animation-delay: 175ms;
   }
 
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__list > :nth-child(8) {
-    animation-delay: 395ms;
+    animation-delay: 195ms;
   }
 
   .lms-mobile-top-nav__item:hover,
@@ -1073,9 +1075,9 @@
   }
 
   .lms-mobile-top-nav__item.is-child {
-    min-height: 46px;
-    margin-left: 14px;
-    padding-left: 14px;
+    min-height: 48px;
+    margin-left: 16px;
+    padding-left: 16px;
   }
 
   .lms-mobile-top-nav__child-dot {
@@ -1127,6 +1129,13 @@
     border-bottom-color: rgba(255, 255, 255, 0.08);
   }
 
+  :root[data-theme='dark'] .lms-mobile-top-nav__mark {
+    --lms-sidebar-logo-filter:
+      drop-shadow(0 0 0.8px rgba(219, 234, 254, 0.76))
+      drop-shadow(0 5px 12px rgba(37, 99, 235, 0.22));
+    --xyndrome-logo-filter: var(--lms-sidebar-logo-filter);
+  }
+
   :root[data-theme='dark'] .lms-mobile-top-nav__brand strong,
   :root[data-theme='dark'] .lms-mobile-top-nav__close,
   :root[data-theme='dark'] .lms-mobile-top-nav__plain-close {
@@ -1158,45 +1167,31 @@
     color: #eef3f8;
   }
 
-  :root[data-theme='light'] .lms-mobile-top-nav-backdrop {
-    --lms-mobile-top-nav-backdrop-bg: rgba(7, 13, 28, 0.10);
-  }
-
-  :root[data-theme='dark'] .lms-mobile-top-nav-backdrop {
-    --lms-mobile-top-nav-backdrop-bg: rgba(255, 255, 255, 0.08);
-  }
-
 }
 
 @media (prefers-reduced-motion: reduce) {
   .lms-mobile-top-nav,
-  .lms-mobile-top-nav-backdrop,
   .lms-mobile-top-nav__plain-close,
+  .lms-mobile-top-nav--plain .lms-mobile-top-nav__list,
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__item {
     animation: none !important;
   }
 
   .lms-mobile-top-nav__plain-close,
-  .lms-mobile-top-nav-backdrop,
   .lms-mobile-top-nav--plain .lms-mobile-top-nav__item {
     opacity: 1;
     transform: none;
-  }
-
-  .lms-mobile-top-nav-backdrop {
-    -webkit-backdrop-filter: blur(10px) saturate(112%);
-    backdrop-filter: blur(10px) saturate(112%);
   }
 }
 
 @supports not (clip-path: inset(0 0 0 0 round 1px)) {
   @media (max-width: 900px) {
     .lms-mobile-top-nav {
-      animation: mobileTopNavSimpleIn 360ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      animation: mobileTopNavSimpleIn 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
     }
 
     .lms-mobile-top-nav-layer.is-closing .lms-mobile-top-nav {
-      animation: mobileTopNavSimpleOut 260ms cubic-bezier(0.4, 0, 1, 1) both;
+      animation: mobileTopNavSimpleOut 170ms cubic-bezier(0.4, 0, 0.2, 1) both;
     }
 
     .lms-mobile-top-nav--plain,
@@ -1205,7 +1200,7 @@
     }
 
     .lms-mobile-top-nav--plain .lms-mobile-top-nav__item {
-      animation-delay: 180ms;
+      animation-delay: 90ms;
     }
   }
 }
@@ -1221,7 +1216,7 @@
   }
   72% {
     opacity: 1;
-    transform: scaleY(1.03);
+    transform: scaleY(1.01);
   }
   100% {
     opacity: 1;
@@ -1247,7 +1242,7 @@
 @keyframes mobileTopNavSimpleIn {
   from {
     opacity: 0;
-    transform: translate3d(0, -8px, 0) scale(0.98);
+    transform: translate3d(0, -6px, 0) scale(0.98);
   }
   to {
     opacity: 1;
@@ -1262,7 +1257,7 @@
   }
   to {
     opacity: 0;
-    transform: translate3d(0, -8px, 0) scale(0.98);
+    transform: translate3d(0, -6px, 0) scale(0.98);
   }
 }
 
@@ -1273,14 +1268,14 @@
   }
   to {
     opacity: 0;
-    transform: translate3d(0, -4px, 0) scale(0.96);
+    transform: translate3d(0, -3px, 0) scale(0.98);
   }
 }
 
 @keyframes mobileTopNavContentIn {
   from {
     opacity: 0;
-    transform: translate3d(0, -8px, 0);
+    transform: translate3d(0, -5px, 0);
   }
   to {
     opacity: 1;
@@ -1291,7 +1286,7 @@
 @keyframes mobileTopNavNameIn {
   from {
     opacity: 0;
-    transform: translate3d(0, -8px, 0);
+    transform: translate3d(0, -5px, 0);
   }
   to {
     opacity: 1;
@@ -1324,25 +1319,7 @@
   }
   to {
     opacity: 0;
-    transform: translate3d(0, -6px, 0);
-  }
-}
-
-@keyframes mobileTopNavScrimIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes mobileTopNavScrimOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
+    transform: translate3d(0, -4px, 0);
   }
 }
 
@@ -1497,6 +1474,8 @@
   font-size: var(--type-size-base);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-body);
+  --lms-student-page-enter-duration: 360ms;
+  --lms-student-page-enter-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Display font everywhere headings live */
@@ -1751,14 +1730,14 @@
     0 24px 54px -22px rgba(14, 21, 56, 0.28) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  animation: lmsProfilePopoverIn var(--lms-popover-motion, 220ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
+  animation: lmsProfilePopoverIn var(--lms-popover-motion, 180ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
   transform-origin: top right;
   will-change: transform, opacity;
 }
 
 .student-app-shell .lms-profile-menu.is-closing {
   pointer-events: none;
-  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 190ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
+  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 160ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
 .student-app-shell .lms-profile-menu::before {
@@ -1775,17 +1754,17 @@
 .student-app-shell .lms-profile-menu > * {
   position: relative;
   z-index: 1;
-  opacity: 1;
-  transform: none;
-  animation: none !important;
+  opacity: 0;
+  transform: translate3d(0, -4px, 0);
+  animation: lmsProfileMenuContentIn 140ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
 }
 
-.student-app-shell .lms-profile-menu > :nth-child(1) { animation-delay: 110ms; }
-.student-app-shell .lms-profile-menu > :nth-child(2) { animation-delay: 150ms; }
-.student-app-shell .lms-profile-menu > :nth-child(3) { animation-delay: 190ms; }
+.student-app-shell .lms-profile-menu > :nth-child(1) { animation-delay: 35ms; }
+.student-app-shell .lms-profile-menu > :nth-child(2) { animation-delay: 55ms; }
+.student-app-shell .lms-profile-menu > :nth-child(3) { animation-delay: 75ms; }
 
 .student-app-shell .lms-profile-menu.is-closing > * {
-  animation: none !important;
+  animation: lmsProfileMenuContentOut 110ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
   animation-delay: 0ms;
 }
 
@@ -1918,7 +1897,7 @@
   box-shadow: var(--profile-menu-shadow) !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  animation: lmsProfilePopoverIn var(--lms-popover-motion, 220ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
+  animation: lmsProfilePopoverIn var(--lms-popover-motion, 180ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
   transform-origin: top right;
   will-change: transform, opacity;
 }
@@ -1940,7 +1919,7 @@
 .lms-topbar .lms-profile-menu.is-closing,
 .study-hub-topbar .lms-profile-menu.is-closing {
   pointer-events: none;
-  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 190ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
+  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 160ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
 .app-shell .lms-profile-menu::before,
@@ -1954,33 +1933,33 @@
 .study-hub-topbar .lms-profile-menu > * {
   position: relative;
   z-index: 1;
-  opacity: 1;
-  transform: none;
-  animation: none !important;
+  opacity: 0;
+  transform: translate3d(0, -4px, 0);
+  animation: lmsProfileMenuContentIn 140ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
 }
 
 .app-shell .lms-profile-menu > :nth-child(1),
 .lms-topbar .lms-profile-menu > :nth-child(1),
 .study-hub-topbar .lms-profile-menu > :nth-child(1) {
-  animation-delay: 110ms;
+  animation-delay: 35ms;
 }
 
 .app-shell .lms-profile-menu > :nth-child(2),
 .lms-topbar .lms-profile-menu > :nth-child(2),
 .study-hub-topbar .lms-profile-menu > :nth-child(2) {
-  animation-delay: 150ms;
+  animation-delay: 55ms;
 }
 
 .app-shell .lms-profile-menu > :nth-child(3),
 .lms-topbar .lms-profile-menu > :nth-child(3),
 .study-hub-topbar .lms-profile-menu > :nth-child(3) {
-  animation-delay: 190ms;
+  animation-delay: 75ms;
 }
 
 .app-shell .lms-profile-menu.is-closing > *,
 .lms-topbar .lms-profile-menu.is-closing > *,
 .study-hub-topbar .lms-profile-menu.is-closing > * {
-  animation: none !important;
+  animation: lmsProfileMenuContentOut 110ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
   animation-delay: 0ms;
 }
 
@@ -2107,29 +2086,29 @@ body.lms-profile-menu-open > .lms-profile-menu {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   transform-origin: top right !important;
-  animation: lmsProfilePopoverIn var(--lms-popover-motion, 220ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
+  animation: lmsProfilePopoverIn var(--lms-popover-motion, 180ms cubic-bezier(0.22, 1, 0.36, 1)) both !important;
   will-change: transform, opacity;
 }
 
 body.lms-profile-menu-open > .lms-profile-menu.is-closing {
   pointer-events: none;
-  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 190ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
+  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 160ms cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
 body.lms-profile-menu-open > .lms-profile-menu > * {
   position: relative;
   z-index: 1;
-  opacity: 1;
-  transform: none;
-  animation: none !important;
+  opacity: 0;
+  transform: translate3d(0, -4px, 0);
+  animation: lmsProfileMenuContentIn 140ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
 }
 
-body.lms-profile-menu-open > .lms-profile-menu > :nth-child(1) { animation-delay: 150ms; }
-body.lms-profile-menu-open > .lms-profile-menu > :nth-child(2) { animation-delay: 185ms; }
-body.lms-profile-menu-open > .lms-profile-menu > :nth-child(3) { animation-delay: 220ms; }
+body.lms-profile-menu-open > .lms-profile-menu > :nth-child(1) { animation-delay: 35ms; }
+body.lms-profile-menu-open > .lms-profile-menu > :nth-child(2) { animation-delay: 55ms; }
+body.lms-profile-menu-open > .lms-profile-menu > :nth-child(3) { animation-delay: 75ms; }
 
 body.lms-profile-menu-open > .lms-profile-menu.is-closing > * {
-  animation: none !important;
+  animation: lmsProfileMenuContentOut 110ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
   animation-delay: 0ms;
 }
 
@@ -2180,7 +2159,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   backdrop-filter: none;
   opacity: 0;
   transform: translate3d(0, 0, 0) scale(0.98);
-  animation: lmsProfileAvatarFloatIn 190ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: lmsProfileAvatarFloatIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   pointer-events: auto;
   touch-action: manipulation;
 }
@@ -2193,7 +2172,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 }
 
 .lms-profile-avatar-floating.is-closing {
-  animation: lmsProfileAvatarFloatOut 170ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: lmsProfileAvatarFloatOut 160ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 :root[data-theme='dark'] .lms-profile-avatar-floating {
@@ -2218,7 +2197,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 @keyframes lmsProfileMenuContentIn {
   from {
     opacity: 0;
-    transform: translate3d(0, -8px, 0);
+    transform: translate3d(0, -4px, 0);
   }
   to {
     opacity: 1;
@@ -2266,31 +2245,11 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   }
   to {
     opacity: 0;
-    transform: translate3d(0, -6px, 0);
-  }
-}
-
-@keyframes lmsProfileBackdropIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes lmsProfileBackdropOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
+    transform: translate3d(0, -4px, 0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .student-app-shell .lms-profile-menu-backdrop,
-  .study-hub-topbar .lms-profile-menu-backdrop,
   .student-app-shell .lms-profile-menu,
   .student-app-shell .lms-profile-menu > * {
     animation: none !important;
@@ -2307,7 +2266,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .student-app-shell .lms-topbar-center {
@@ -2343,7 +2302,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border-radius: var(--sa-radius-lg);
   background: var(--sa-card-bg);
   color: var(--sa-ink);
-  box-shadow: var(--sa-shadow-card);
+  box-shadow: var(--ds-card-shadow);
 }
 
 .student-app-shell :where(.bg-surface-card, .bg-surface-card-elevated) {
@@ -2363,7 +2322,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border-radius: var(--sa-radius-lg);
   background: var(--sa-card-bg);
   color: var(--sa-ink);
-  box-shadow: var(--sa-shadow-card);
+  box-shadow: var(--ds-card-shadow);
 }
 
 .student-app-shell :where([class*="rounded-xl"][class*="border"]:hover, [class*="rounded-2xl"][class*="border"]:hover) {
@@ -2375,7 +2334,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border-color: rgba(var(--sa-primary-rgb), 0.22);
 }
 
-.lms-app-card--padded { padding: 20px; }
+.lms-app-card--padded { padding: 24px; }
 .lms-app-card--soft   { background: var(--sa-soft-tile-bg); }
 .lms-app-card--xl     { border-radius: var(--sa-radius-xl); }
 
@@ -2387,7 +2346,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border-radius: var(--sa-radius-xl);
   background: var(--sa-feature-card-bg);
   color: var(--sa-ink);
-  box-shadow: var(--sa-shadow-card);
+  box-shadow: var(--ds-card-shadow);
 }
 
 .student-app-shell .student-page-hero {
@@ -2430,18 +2389,18 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 }
 
 .student-app-shell .student-page-hero__eyebrow {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   color: var(--sa-primary) !important;
 }
 
 .student-app-shell .student-page-hero__title {
   max-width: 720px;
-  font-size: clamp(34px, 5vw, 46px) !important;
+  font-size: 42px !important;
 }
 
 .student-app-shell .student-page-hero__subtitle {
   max-width: 680px;
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 13px;
   font-weight: 650;
 }
@@ -2459,14 +2418,14 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border-radius: var(--sa-radius-lg);
   background: var(--sa-card-bg);
   color: var(--sa-ink);
-  box-shadow: var(--sa-shadow-card);
+  box-shadow: var(--ds-card-shadow);
   transition: border-color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease), box-shadow var(--sa-dur) var(--sa-ease);
 }
 
 .student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):hover {
   border-color: rgba(var(--sa-primary-rgb), 0.22);
   background: var(--sa-card-bg-hover);
-  box-shadow: var(--sa-shadow-card-hover);
+  box-shadow: var(--ds-card-shadow-hover);
 }
 
 .student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):active {
@@ -2485,7 +2444,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   justify-content: center;
   gap: 8px;
   min-height: 44px;
-  padding: 0 18px;
+  padding: 0 16px;
   border: 1px solid transparent;
   border-radius: var(--sa-radius-sm);
   background: transparent;
@@ -2623,7 +2582,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-lg);
   background: var(--sa-card-bg);
-  box-shadow: var(--sa-shadow-card);
+  box-shadow: var(--ds-card-shadow);
 }
 .student-app-shell :where(table th) {
   background: var(--sa-surface-2);
@@ -2656,7 +2615,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border-radius: var(--sa-radius-lg);
   background: var(--sa-card-bg);
   color: var(--sa-ink);
-  box-shadow: 0 24px 70px rgba(14, 21, 56, 0.18);
+  box-shadow: var(--ds-floating-shadow);
 }
 
 /* ============================================================
@@ -2675,7 +2634,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border-radius: var(--sa-radius-xl) !important;
   background: var(--sa-feature-card-bg) !important;
   color: var(--sa-ink) !important;
-  box-shadow: var(--sa-shadow-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
 }
 
 .student-app-shell.student-app-shell .student-page-hero.lms-hero-card,
@@ -2703,7 +2662,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border-color: var(--sa-border) !important;
   background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
-  box-shadow: var(--sa-shadow-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
 }
 
 .student-app-shell :where(
@@ -2736,7 +2695,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   border-color: var(--sa-border) !important;
   background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
-  box-shadow: var(--sa-shadow-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
 }
 
 .student-app-shell :where(
@@ -2852,7 +2811,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 .student-app-shell .lms-review-explanation-side > section {
   border: 1px solid var(--sa-border) !important;
   background: var(--sa-card-bg) !important;
-  box-shadow: var(--sa-shadow-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
 }
 
 .student-app-shell .lms-review-question-card .lms-reading-explanation,
@@ -2938,11 +2897,11 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 
   .student-app-shell .student-page-hero {
     min-height: 0;
-    padding: 20px;
+    padding: 16px;
   }
 
   .student-app-shell .student-page-hero__title {
-    font-size: clamp(32px, 9vw, 40px) !important;
+    font-size: 36px !important;
   }
 
   .student-app-shell :where(.glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .lms-page-header-card, .student-page-hero, .lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card, .lms-table-shell, .lms-app-card) {
@@ -3048,7 +3007,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__eyebrow {
-  margin-bottom: 14px !important;
+  margin-bottom: 16px !important;
   color: var(--sa-primary) !important;
   font: var(--type-label) !important;
   letter-spacing: 0 !important;
@@ -3063,7 +3022,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 
 .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__subtitle {
   max-width: 680px;
-  margin-top: 10px !important;
+  margin-top: 8px !important;
   color: var(--sa-text-2) !important;
   font: var(--type-body) !important;
   letter-spacing: 0 !important;
@@ -3093,7 +3052,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   border-radius: var(--sa-radius-lg) !important;
   background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
-  box-shadow: var(--sa-shadow-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card, .card-surface, .lms-app-card) {
@@ -3105,7 +3064,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 
 .student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card, .card-surface, .lms-app-card):hover {
   border-color: rgba(56, 189, 248, 0.24) !important;
-  box-shadow: var(--sa-shadow-card-hover) !important;
+  box-shadow: var(--ds-card-shadow-hover) !important;
 }
 
 .student-app-shell .lms-route-page:not(.dashboard-page) :where(.bg-surface-glass-strong, .bg-surface-glass-subtle, .bg-surface-card, .bg-surface-card-elevated) {
@@ -3163,7 +3122,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 @media (max-width: 640px) {
   .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero {
     min-height: 0;
-    padding: 20px;
+    padding: 16px;
   }
 
   .student-app-shell .lms-route-page:not(.dashboard-page) .student-page-hero__title {
@@ -3202,7 +3161,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   max-width: none !important;
   margin: 0 auto !important;
   padding: var(--sa-page-padding) !important;
-  gap: 14px !important;
+  gap: 16px !important;
   align-content: start;
 }
 
@@ -3362,9 +3321,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   transform: translateY(-2px);
   border-color: rgba(var(--sa-primary-rgb), 0.28) !important;
   background: var(--sa-card-bg-hover) !important;
-  box-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.04),
-    0 16px 36px -14px rgba(var(--sa-primary-rgb), 0.22) !important;
+  box-shadow: var(--ds-card-shadow-hover) !important;
 }
 
 :root[data-theme="dark"] .student-app-shell :where(
@@ -3404,9 +3361,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .results-focus-board
 ):hover {
   border-color: rgba(var(--sa-border-rgb), 0.22) !important;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.035),
-    0 18px 38px -16px rgba(2, 6, 12, 0.58) !important;
+  box-shadow: var(--ds-card-shadow-hover) !important;
 }
 
 .student-app-shell :where(
@@ -3424,7 +3379,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 
 /* ── Staggered entrance for non-dashboard pages ─────────────── */
 @keyframes lms-page-fade-up {
-  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
@@ -3435,17 +3390,18 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .study-hub-shell > section:not(.study-hub-topbar),
   .study-hub-shell > article
 ) {
-  animation: lms-page-fade-up 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: lms-page-fade-up var(--lms-student-page-enter-duration) var(--lms-student-page-enter-ease) both;
+  backface-visibility: hidden;
 }
 
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(1) { animation-delay:  50ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(2) { animation-delay: 120ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(3) { animation-delay: 190ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(4) { animation-delay: 260ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(5) { animation-delay: 330ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(6) { animation-delay: 400ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(7) { animation-delay: 470ms; }
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(8) { animation-delay: 540ms; }
+.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(1) { animation-delay:  12ms; }
+.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(2) { animation-delay:  36ms; }
+.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(3) { animation-delay:  60ms; }
+.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(4) { animation-delay:  84ms; }
+.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(5) { animation-delay: 108ms; }
+.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(6) { animation-delay: 132ms; }
+.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(7) { animation-delay: 132ms; }
+.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) > :nth-child(8) { animation-delay: 132ms; }
 
 /* ── Unified section heads — match dashboard's eyebrow + small */
 .student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) :where(.lms-app-section-head, .student-section-head) {
@@ -3453,7 +3409,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 20px 4px 12px;
+  margin: 24px 4px 12px;
 }
 
 /* ── Reduced motion: drop all new motion ─────────────────────── */
@@ -3556,7 +3512,7 @@ body.student-assessment-screen :where(
   border-color: rgba(86, 112, 150, 0.14) !important;
   background: rgba(255, 255, 255, 0.88) !important;
   color: #26314c !important;
-  box-shadow: 0 22px 54px -42px rgba(37, 99, 235, 0.34) !important;
+  box-shadow: var(--ds-nav-shadow) !important;
 }
 
 :root[data-theme="light"] body.student-assessment-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong) {
@@ -3596,7 +3552,7 @@ body.student-assessment-screen :where(
   width: min(1680px, calc(100% - 32px)) !important;
   max-width: 1680px !important;
   margin-inline: auto !important;
-  gap: clamp(16px, 2vw, 22px) !important;
+  gap: clamp(16px, 2vw, 24px) !important;
 }
 
 .student-app-shell .lms-exam-page .lms-exam-grid {
@@ -3604,7 +3560,7 @@ body.student-assessment-screen :where(
   max-width: 1680px !important;
   grid-template-columns: minmax(230px, 300px) minmax(0, 980px) !important;
   justify-content: center !important;
-  gap: clamp(16px, 2vw, 22px) !important;
+  gap: clamp(16px, 2vw, 24px) !important;
 }
 
 .student-app-shell .lms-review-workspace,
@@ -3639,7 +3595,7 @@ body.student-assessment-screen :where(
   border: 1px solid var(--sa-border) !important;
   border-radius: var(--sa-radius-lg) !important;
   background: var(--sa-card-bg) !important;
-  box-shadow: var(--sa-shadow-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
 }
 
 .student-app-shell .lms-review-sidebar > :where(.lms-review-summary-grid, .lms-review-side-nav) {

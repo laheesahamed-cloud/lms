@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { XyndromeBrand } from '../shared/brand/XyndromeBrand.jsx';
 import { detectPlatform } from '../shared/platform/detect.js';
 
 const PLATFORM = detectPlatform();
@@ -52,9 +53,14 @@ export class AppErrorBoundary extends Component {
             padding: 22,
           }}
         >
-          <p style={{ margin: '0 0 6px', color: '#2563eb', fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>
-            xyndrome
-          </p>
+          <XyndromeBrand
+            markSize={30}
+            textClassName="!font-extrabold"
+            style={{
+              '--xyndrome-brand-text': native ? '#e3ebf5' : '#0f172a',
+              margin: '0 0 10px',
+            }}
+          />
           <h1 style={{ margin: '0 0 10px', fontSize: 22, lineHeight: 1.15 }}>
             This page hit a render error
           </h1>

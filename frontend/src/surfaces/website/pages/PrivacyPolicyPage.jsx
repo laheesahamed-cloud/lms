@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { XyndromeBrand } from '../../../shared/brand/XyndromeBrand.jsx';
+import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { ui } from '../../../shared/styles/tailwindClasses.js';
 
 const sections = [
@@ -81,18 +83,23 @@ const sections = [
 export function PrivacyPolicyPage() {
   return (
     <main className="min-h-dvh px-[clamp(20px,4vw,40px)] py-[clamp(40px,6vw,80px)]">
+      <PageMeta
+        title="Privacy Policy"
+        description="Privacy policy for xyndrome student accounts, learning activity, subscriptions, payment records, security logs, and support."
+        path="/privacy-policy"
+      />
       <div className="mx-auto grid w-full max-w-[900px] gap-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className={ui.brandMark}>ER</div>
-            <div>
-              <div className="font-display text-[17px] font-extrabold leading-tight text-ink-strong max-[640px]:text-[15px]">xyndrome</div>
-              <div className="mt-0.5 text-[10.5px] font-bold uppercase tracking-[0.07em] text-ink-soft max-[640px]:text-[9.5px]">Privacy Policy</div>
-            </div>
-          </div>
+          <XyndromeBrand
+            className="min-w-0"
+            markSize={38}
+            subtitle="Privacy Policy"
+            textClassName="!font-extrabold"
+          />
 
           <div className={ui.buttonRow}>
             <Link to="/terms" className={ui.secondaryAction}>Terms</Link>
+            <Link to="/cookie-policy" className={ui.secondaryAction}>Cookies</Link>
             <Link to="/register" className={ui.secondaryAction}>Back to Create Account</Link>
           </div>
         </div>

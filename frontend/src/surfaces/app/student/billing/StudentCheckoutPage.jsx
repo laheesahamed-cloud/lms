@@ -81,6 +81,24 @@ function submitHostedCheckout(checkout) {
   form.submit();
 }
 
+const PAYMENT_PROOF_MAX_BYTES = 4 * 1024 * 1024;
+const PAYMENT_PROOF_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'application/pdf']);
+
+function validatePaymentProofFile(file) {
+  if (!file) return 'Please upload the bank slip or payment screenshot.';
+  const name = String(file.name || 'payment-proof').trim();
+  if (!PAYMENT_PROOF_TYPES.has(String(file.type || '').toLowerCase())) {
+    return 'Upload a PNG, JPG, WEBP, or PDF payment proof.';
+  }
+  if (file.size > PAYMENT_PROOF_MAX_BYTES) {
+    return 'Payment proof is too large. Please upload a file under 4MB.';
+  }
+  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+    return 'Rename the proof file without special path characters, then upload again.';
+  }
+  return '';
+}
+
 function readProofFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -188,16 +206,9 @@ export function StudentCheckoutPage() {
   async function handleManualSubmit(event) {
     event.preventDefault();
     if (!plan) return;
-    if (!proofFile) {
-      setError('Please upload the bank slip or payment screenshot.');
-      return;
-    }
-    if (!['image/png', 'image/jpeg', 'image/webp', 'application/pdf'].includes(proofFile.type)) {
-      setError('Upload a PNG, JPG, WEBP, or PDF payment proof.');
-      return;
-    }
-    if (proofFile.size > 4 * 1024 * 1024) {
-      setError('Payment proof is too large. Please upload a file under 4MB.');
+    const proofError = validatePaymentProofFile(proofFile);
+    if (proofError) {
+      setError(proofError);
       return;
     }
 
@@ -405,7 +416,18 @@ export function StudentCheckoutPage() {
                         className={ui.input}
                         type="file"
                         accept="image/png,image/jpeg,image/webp,application/pdf"
-                        onChange={(event) => setProofFile(event.target.files?.[0] || null)}
+                        onChange={(event) => {
+                          const nextFile = event.target.files?.[0] || null;
+                          const proofError = validatePaymentProofFile(nextFile);
+                          if (proofError && nextFile) {
+                            setError(proofError);
+                            setProofFile(null);
+                            event.target.value = '';
+                            return;
+                          }
+                          setError('');
+                          setProofFile(nextFile);
+                        }}
                       />
                     </label>
                     {proofFile ? <div className={ui.tableSubtext}>{proofFile.name}</div> : null}

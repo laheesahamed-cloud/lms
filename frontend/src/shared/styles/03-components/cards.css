@@ -3,18 +3,15 @@
    course, quiz, and page header cards keep one visual language. */
 
 :root {
-  --lms-global-card-radius: 22px;
-  --lms-global-card-pad: clamp(20px, 2.2vw, 28px);
+  --lms-global-card-radius: var(--ds-card-radius);
+  --lms-global-card-pad: clamp(16px, 2.2vw, 24px);
   --lms-global-card-bg:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 253, 255, 0.96));
   --lms-global-card-border: rgba(37, 99, 235, 0.14);
-  --lms-global-card-shadow:
-    0 24px 70px -42px rgba(30, 64, 175, 0.38),
-    0 12px 30px -26px rgba(15, 23, 42, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  --lms-global-card-shadow: var(--ds-card-shadow-raised);
   --lms-app-card-radius: var(--lms-global-card-radius);
   --lms-app-card-pad: var(--lms-global-card-pad);
-  --lms-app-card-gap: clamp(12px, 1.45vw, 18px);
+  --lms-app-card-gap: clamp(12px, 1.45vw, 16px);
   --lms-app-card-bg: var(--lms-global-card-bg);
   --lms-app-list-card-bg: var(--lms-global-card-bg);
   --lms-app-card-border: var(--lms-global-card-border);
@@ -34,9 +31,7 @@
       rgba(4, 7, 14, 0.98) 100%
     );
   --lms-global-card-border: rgba(148, 163, 184, 0.15);
-  --lms-global-card-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.52),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --lms-global-card-shadow: var(--ds-card-shadow-raised);
   --lms-app-card-bg: var(--lms-global-card-bg);
   --lms-app-list-card-bg: var(--lms-global-card-bg);
   --lms-app-card-border: var(--lms-global-card-border);
@@ -44,6 +39,74 @@
   --lms-app-list-card-shadow: var(--lms-global-card-shadow);
   --lms-app-card-title: rgba(255, 255, 255, 0.94);
   --lms-app-card-muted: rgba(226, 232, 240, 0.68);
+}
+
+:where(
+  .lms-card,
+  .lms-global-card,
+  .glass-card,
+  .card-surface,
+  .lms-app-card,
+  .lms-course-card,
+  .student-course-card,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .student-lessons-search-card,
+  .student-lessons-course-card,
+  .student-lessons-detail-toolbar,
+  .student-lessons-category__head,
+  .student-lessons-lesson-list-shell,
+  .student-lessons-lesson-row,
+  .student-results-focus,
+  .student-results-history,
+  .planner-panel,
+  .planner-hero-card,
+  .results-performance-board,
+  .results-focus-board,
+  .lms-map-hierarchy-guide
+) {
+  border-radius: var(--ds-card-radius) !important;
+  box-shadow: var(--ds-card-shadow) !important;
+}
+
+:where(.lms-card-compact, .lms-card-skeleton, .lms-card-meta-surface) {
+  border-radius: var(--ds-card-radius-compact) !important;
+  box-shadow: var(--ds-card-shadow) !important;
+}
+
+:where(.lms-card-interactive, .lms-course-card, .student-course-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):where(:hover, :focus-visible) {
+  box-shadow: var(--ds-card-shadow-hover) !important;
+}
+
+:where(.lms-card-interactive, .lms-course-card, .student-course-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):active {
+  box-shadow: var(--ds-card-shadow-pressed) !important;
+}
+
+:where(.lms-card-title) {
+  margin: 0;
+  color: var(--lms-app-card-title);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+:where(.lms-card-body, .lms-card-meta) {
+  color: var(--lms-app-card-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+:where(.lms-card-actions, .lms-card-progress) {
+  min-width: 0;
+}
+
+:where(.lms-card-clickable) :where(a, button, input, select, textarea, [role="button"]) {
+  position: relative;
+  z-index: 1;
 }
 
 :where(.lms-hero-card, .lms-page-header-card) {
@@ -96,7 +159,7 @@
 
 .student-page-hero > .relative.z-\[1\] {
   justify-content: center !important;
-  gap: clamp(14px, 2vw, 22px) !important;
+  gap: clamp(12px, 2vw, 24px) !important;
 }
 
 .student-page-hero > .relative.z-\[1\] > .grid {
@@ -107,7 +170,7 @@
 
 .student-page-hero__title {
   background-image: none !important;
-  font-size: clamp(28px, 4vw, 54px) !important;
+  font-size: 40px !important;
   line-height: 1.04 !important;
 }
 
@@ -148,7 +211,7 @@
 
 @media (max-width: 640px) {
   :root {
-    --lms-global-card-radius: 18px;
+    --lms-global-card-radius: var(--ds-card-radius-compact);
     --lms-global-card-pad: 18px;
     --lms-app-card-gap: 12px;
   }
@@ -158,7 +221,7 @@
   }
 
   .student-page-hero {
-    gap: 14px !important;
+    gap: 16px !important;
   }
 
   .student-page-hero > .relative.z-\[1\] {
@@ -172,25 +235,25 @@
 
   .student-page-hero__title {
     max-width: 100% !important;
-    font-size: clamp(24px, 8vw, 34px) !important;
+    font-size: 30px !important;
     line-height: 1.08 !important;
   }
 
   .student-page-hero__subtitle {
-    margin-top: 10px !important;
+    margin-top: 8px !important;
     font-size: 13px !important;
     line-height: 1.5 !important;
   }
 
   .student-page-hero__metric {
-    padding: 10px 11px !important;
+    padding: 12px !important;
   }
 }
 
 @media (max-width: 420px) {
   .student-page-hero {
-    padding: 15px !important;
-    border-radius: 18px !important;
+    padding: 16px !important;
+    border-radius: var(--ds-card-radius-compact) !important;
   }
 
   .student-page-hero > .relative.z-\[1\] > .grid {
@@ -199,15 +262,15 @@
 
   .student-page-hero__metric {
     overflow: hidden;
-    padding: 9px 10px !important;
+    padding: 8px !important;
   }
 
   .student-page-hero__metric-value {
-    font-size: clamp(18px, 7vw, 24px) !important;
+    font-size: 22px !important;
   }
 
   .student-page-hero__metric-label {
-    font-size: 9.5px !important;
+    font-size: 11px !important;
     letter-spacing: 0.06em !important;
   }
 }
@@ -241,7 +304,7 @@
     .lms-exam-sidebar > section,
     .lms-exam-explainer > section
   ) {
-    border-radius: 18px !important;
+    border-radius: var(--ds-card-radius-compact) !important;
     border-width: 1px !important;
   }
 }

@@ -2,13 +2,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-const buildVersion = '20260526-safe-area-blend-v3';
 const isCapacitorBuild = Boolean(process.env.CAPACITOR_BUILD || process.env.VITE_LMS_BUILD_TARGET === 'native');
 const isDesktopBuild = process.env.VITE_LMS_BUILD_TARGET === 'desktop';
 const shouldEmitSourceMaps = process.env.VITE_SOURCEMAP === 'true';
-const appEntryFileName = isCapacitorBuild ? 'assets/app-[hash].js' : `assets/app-${buildVersion}.js`;
-const appChunkFileName = isCapacitorBuild ? 'assets/chunks/[name]-[hash].js' : `assets/chunks/[name]-${buildVersion}.js`;
-const appCssFileName = isCapacitorBuild ? 'assets/app-[hash].css' : `assets/app-${buildVersion}.css`;
+const appEntryFileName = 'assets/app-[hash].js';
+const appChunkFileName = 'assets/chunks/[name]-[hash].js';
+const appCssFileName = 'assets/app-[hash].css';
 
 export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '/lms/' : isCapacitorBuild ? '/' : isDesktopBuild ? './' : '/lms/frontend/dist/',

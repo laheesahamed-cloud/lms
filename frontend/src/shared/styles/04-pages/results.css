@@ -129,7 +129,7 @@
   margin: 5px 0 5px;
   color: #f8fbff;
   font-family: var(--sa-font-display);
-  font-size: clamp(20px, 2.4vw, 27px);
+  font-size: 25px;
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1.03;
@@ -139,7 +139,7 @@
   max-width: 22rem;
   margin: 0;
   color: rgba(202, 213, 232, 0.78);
-  font-size: clamp(12.5px, 1.6vw, 14px);
+  font-size: 14px;
   font-weight: 650;
   line-height: 1.35;
 }
@@ -210,7 +210,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--results-stat-ink, #f8fbff);
-  font-size: clamp(19px, 3vw, 25px);
+  font-size: 23px;
   font-weight: 950;
   line-height: 1;
   text-overflow: ellipsis;
@@ -250,7 +250,7 @@
 .student-app-shell .result-chart-card p {
   margin: 0;
   color: rgba(148, 163, 184, 0.9);
-  font-size: clamp(11.5px, 1.5vw, 13px);
+  font-size: 13px;
   font-weight: 650;
   line-height: 1.35;
 }
@@ -604,7 +604,7 @@
   border: 1px solid transparent;
   border-radius: 999px;
   padding: 2px 9px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.055em;
   line-height: 1;
@@ -707,7 +707,7 @@
   background: rgba(255, 255, 255, 0.018);
   padding: 10px 12px;
   color: var(--sa-text-3);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -824,7 +824,7 @@
   }
 
   .student-app-shell .student-results-hero h1 {
-    font-size: clamp(32px, 9vw, 40px);
+    font-size: 36px;
   }
 
   .student-app-shell .student-results-performance-top {
@@ -904,7 +904,7 @@
   margin: 0;
   color: var(--sa-ink);
   font-family: var(--sa-font-display);
-  font-size: clamp(25px, 3.2vw, 38px);
+  font-size: 34px;
   font-weight: 900;
   line-height: 1.05;
   letter-spacing: 0;
@@ -962,7 +962,7 @@
 
 .student-app-shell .student-result-score-ring strong {
   color: var(--sa-ink);
-  font-size: clamp(24px, 4vw, 34px);
+  font-size: 30px;
   font-weight: 950;
   line-height: 1;
 }
@@ -1116,7 +1116,7 @@
   }
 
   .student-app-shell .student-result-detail-hero h1 {
-    font-size: clamp(25px, 8vw, 34px);
+    font-size: 30px;
   }
 
   .student-app-shell .student-result-score-card {
@@ -1281,9 +1281,34 @@
 }
 
 .lms-exam-page .lms-exam-question-nav > .lms-exam-nav-bubble.is-answered {
-  border-color: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.3) !important;
-  background: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.14) !important;
-  color: var(--sa-ok-deep, var(--sa-ok, #16a974)) !important;
+  border-color: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.48) !important;
+  background: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.2) !important;
+  color: var(--sa-ok-deep, #047857) !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--sa-ok-rgb, 22, 169, 116), 0.14) !important;
+}
+
+.lms-exam-page .lms-exam-question-nav > .lms-exam-nav-bubble.is-idle,
+.lms-exam-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-idle,
+.practice-review-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-idle {
+  border-color: rgba(var(--sa-warn-rgb, 245, 158, 11), 0.46) !important;
+  background: rgba(var(--sa-warn-rgb, 245, 158, 11), 0.16) !important;
+  color: var(--sa-warn-deep, #92400e) !important;
+}
+
+.lms-exam-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-current,
+.practice-review-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-current {
+  border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.42) !important;
+  background: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.16) !important;
+  color: var(--sa-primary, var(--color-primary)) !important;
+  box-shadow: 0 0 0 3px rgba(var(--sa-primary-rgb, 37, 99, 235), 0.1) !important;
+}
+
+.lms-exam-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-answered,
+.practice-review-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-answered {
+  border-color: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.48) !important;
+  background: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.2) !important;
+  color: var(--sa-ok-deep, #047857) !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--sa-ok-rgb, 22, 169, 116), 0.14) !important;
 }
 
 .lms-exam-page .lms-exam-question-nav > .lms-exam-nav-bubble.is-review {
@@ -1395,13 +1420,13 @@
   }
 
   .lms-exam-page .lms-reading-question {
-    font-size: clamp(16px, 4.45vw, 18px);
+    font-size: 17px;
     line-height: 1.58;
     padding-bottom: 12px;
   }
 
   .lms-exam-page .lms-reading-answer {
-    font-size: clamp(14px, 4vw, 16px);
+    font-size: 15.5px;
     line-height: 1.48;
   }
 

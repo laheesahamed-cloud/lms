@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
@@ -9,7 +10,10 @@ import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
 
 @Controller('lessons')
 export class LessonsController {
-  constructor(private readonly lessonsService: LessonsService) {}
+  constructor(
+    private readonly lessonsService: LessonsService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Get('meta')
   @UseGuards(AdminGuard)
@@ -86,21 +90,71 @@ export class LessonsController {
   @Post()
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')
-  create(@Body() createLessonDto: CreateLessonDto) {
-    return this.lessonsService.create(createLessonDto);
+  async create(@Headers('authorization') authorization: string | undefined, @Body() createLessonDto: CreateLessonDto) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.create(createLessonDto, actor);
   }
 
   @Patch(':id')
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateLessonDto: UpdateLessonDto) {
-    return this.lessonsService.update(id, updateLessonDto);
+  async update(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateLessonDto: UpdateLessonDto,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.update(id, updateLessonDto, actor);
   }
 
   @Delete(':id')
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.lessonsService.remove(id);
+  async remove(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.remove(id, actor);
+  }
+
+  @Get(':id/versions')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  listVersions(@Param('id', ParseIntPipe) id: number) {
+    return this.lessonsService.listVersions(id);
+  }
+
+  @Post(':id/draft')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  async markDraft(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.markDraft(id, actor);
+  }
+
+  @Post(':id/submit-review')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  async submitForReview(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.submitForReview(id, actor);
+  }
+
+  @Post(':id/publish')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.review')
+  async publish(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.publish(id, actor);
+  }
+
+  @Post(':id/rollback/:versionNumber')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.review')
+  async rollback(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionNumber', ParseIntPipe) versionNumber: number,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.rollback(id, versionNumber, actor);
   }
 }

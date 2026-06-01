@@ -1,0 +1,1516 @@
+{
+  "generatedAt": "2026-05-31T13:50:26.348Z",
+  "pages": [
+    {
+      "key": "dashboard-dark-desktop",
+      "path": "/dashboard",
+      "viewport": {
+        "width": 1440,
+        "height": 980,
+        "mobile": false
+      },
+      "theme": "dark",
+      "focus": 14,
+      "audit": {
+        "url": "http://localhost/lms/dashboard",
+        "title": "Sign In | xyndrome",
+        "viewport": {
+          "width": 1440,
+          "height": 980
+        },
+        "theme": "dark",
+        "interactiveCount": 25,
+        "missingNames": [],
+        "imagesMissingAlt": [],
+        "medicalImagesWithoutUsefulAlt": [],
+        "tinyTargets": [
+          {
+            "path": "button.study-button.study-button--primary",
+            "name": "Resume practice",
+            "width": 503,
+            "height": 40
+          },
+          {
+            "path": "button.study-square-action",
+            "name": "Open exams",
+            "width": 40,
+            "height": 40
+          },
+          {
+            "path": "button",
+            "name": "Courses",
+            "width": 72,
+            "height": 32
+          },
+          {
+            "path": "button",
+            "name": "Exams",
+            "width": 62,
+            "height": 32
+          },
+          {
+            "path": "button.study-streak-link",
+            "name": "View history >",
+            "width": 89,
+            "height": 19
+          },
+          {
+            "path": "button",
+            "name": "Planner",
+            "width": 69,
+            "height": 32
+          }
+        ],
+        "headings": [],
+        "headingSkips": [],
+        "liveRegions": [],
+        "timers": [
+          {
+            "path": "section.study-card.study-exam-countdown-card",
+            "role": null,
+            "label": "Exam countdown",
+            "text": "EXAM COUNTDOWN No exam scheduled Exams -- NO DATE SET Add an exam task in Planne"
+          }
+        ],
+        "progressbars": [
+          {
+            "path": "div.study-course-ring",
+            "label": "Overall course lesson completion",
+            "valueNow": "20",
+            "valueMin": "0",
+            "valueMax": "100"
+          }
+        ],
+        "contrastFailures": [],
+        "activeElement": {
+          "path": "button.study-action-card",
+          "name": "Exams",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(3, 9, 20, 0.74) 0px 16px 34px -28px"
+        },
+        "reduceMotionMatches": false
+      },
+      "focusSamples": [
+        {
+          "tag": "a",
+          "id": "",
+          "cls": "lms-skip-link",
+          "name": "Skip to main content",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 179,
+            "height": 45,
+            "top": 10,
+            "left": 10
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-icon-button lms-topbar-menu-button",
+          "name": "Toggle navigation",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 42,
+            "height": 42,
+            "top": 30,
+            "left": 301
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-icon-button relative",
+          "name": "4 unread notifications",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 42,
+            "height": 42,
+            "top": 27,
+            "left": 1239
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-icon-button",
+          "name": "Search lessons and exams",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 42,
+            "height": 42,
+            "top": 27,
+            "left": 1289
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-avatar study-avatar--profile",
+          "name": "Open profile menu",
+          "outline": "rgb(126, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 42,
+            "height": 42,
+            "top": 27,
+            "left": 1339
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-button study-button--primary",
+          "name": "Resume practice",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(121, 202, 251, 0.34) 0px 0.656473px 1.31295px 4.68705px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 503,
+            "height": 40,
+            "top": 321,
+            "left": 320
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-square-action",
+          "name": "Open exams",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.306) 0px 0px 0px 5.71865px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 40,
+            "height": 40,
+            "top": 321,
+            "left": 833
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "",
+          "name": "Courses",
+          "outline": "rgb(124, 209, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.306) 0px 0px 0px 5.72372px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 72,
+            "height": 32,
+            "top": 537,
+            "left": 747
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-course-row",
+          "name": "Gynacology and Obstetrics 0/2 lessons · ERPM 0%",
+          "outline": "rgb(126, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.318) 0px 0px 0px 5.94736px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 501,
+            "height": 64,
+            "top": 663,
+            "left": 318
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-course-row",
+          "name": "Peadiatrics 0/1 lessons · ERPM 0%",
+          "outline": "rgb(127, 212, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.314) 0px 0px 0px 5.87286px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 501,
+            "height": 64,
+            "top": 734,
+            "left": 318
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-course-row",
+          "name": "Surgery 0/0 lessons · ERPM 0%",
+          "outline": "rgb(127, 212, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.314) 0px 0px 0px 5.87286px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 501,
+            "height": 64,
+            "top": 806,
+            "left": 318
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "",
+          "name": "Exams",
+          "outline": "rgb(124, 209, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.306) 0px 0px 0px 5.72615px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 62,
+            "height": 32,
+            "top": 537,
+            "left": 1302
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-streak-link",
+          "name": "View history >",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.318) 0px 0px 0px 5.95061px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 89,
+            "height": 19,
+            "top": 1003,
+            "left": 1275
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "study-action-card",
+          "name": "Exams",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(3, 9, 20, 0.74) 0px 16px 34px -28px",
+          "rect": {
+            "width": 112,
+            "height": 48,
+            "top": 877,
+            "left": 303
+          }
+        }
+      ]
+    },
+    {
+      "key": "quiz-dark-desktop",
+      "path": "/quizzes/18",
+      "viewport": {
+        "width": 1440,
+        "height": 980,
+        "mobile": false
+      },
+      "theme": "dark",
+      "focus": 14,
+      "audit": {
+        "url": "http://localhost/lms/quizzes/18",
+        "title": "Sign In | xyndrome",
+        "viewport": {
+          "width": 1440,
+          "height": 980
+        },
+        "theme": "dark",
+        "interactiveCount": 54,
+        "missingNames": [],
+        "imagesMissingAlt": [],
+        "medicalImagesWithoutUsefulAlt": [],
+        "tinyTargets": [
+          {
+            "path": "a.lms-skip-link",
+            "name": "Skip to main content",
+            "width": 1,
+            "height": 1
+          },
+          {
+            "path": "button.relative.isolate.inline-flex",
+            "name": "Switch to dark mode",
+            "width": 40,
+            "height": 40
+          },
+          {
+            "path": "button.min-h-9.rounded-full.border",
+            "name": "Finish",
+            "width": 74,
+            "height": 36
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 1, current, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 2, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 3, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 4, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 5, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 6, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 7, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 8, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 9, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 10, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 11, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 12, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 13, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 14, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 15, not answered",
+            "width": 43,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 16, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 17, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 18, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 19, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 20, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 21, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 22, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 23, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 24, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 25, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 26, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 27, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 28, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 29, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 30, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 31, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 32, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 33, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 34, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 35, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 36, not answered",
+            "width": 43,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 37, not answered",
+            "width": 43,
+            "height": 73
+          }
+        ],
+        "headings": [
+          {
+            "level": 3,
+            "text": "Progress"
+          },
+          {
+            "level": 3,
+            "text": "Question List"
+          }
+        ],
+        "headingSkips": [],
+        "liveRegions": [
+          {
+            "path": "p.sr-only",
+            "role": null,
+            "live": "polite",
+            "text": "Question 1 of 40. Not answered."
+          }
+        ],
+        "timers": [],
+        "progressbars": [
+          {
+            "path": "div.h-2.overflow-hidden.rounded-full",
+            "label": "Practice progress",
+            "valueNow": "0",
+            "valueMin": "0",
+            "valueMax": "100"
+          }
+        ],
+        "contrastFailures": [
+          {
+            "path": "span.inline-flex.min-h-[22px].items-center",
+            "text": "Unanswered",
+            "ratio": 3.84,
+            "needed": 4.5,
+            "color": "rgb(180, 83, 9)",
+            "background": "color(srgb 0.124973 0.112517 0.104984 / 0.928627)"
+          }
+        ],
+        "activeElement": {
+          "path": "button.min-h-9.rounded-xl.border",
+          "name": "Question 11, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        },
+        "reduceMotionMatches": false
+      },
+      "focusSamples": [
+        {
+          "tag": "a",
+          "id": "",
+          "cls": "lms-skip-link",
+          "name": "Skip to main content",
+          "outline": "rgb(130, 212, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.306) 0px 0px 0px 5.72444px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 177,
+            "height": 44,
+            "top": -3,
+            "left": 10
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "relative isolate inline-flex",
+          "name": "Switch to dark mode",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 40,
+            "height": 40,
+            "top": 50,
+            "left": 1246
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-full border",
+          "name": "Finish",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 73,
+            "height": 36,
+            "top": 52,
+            "left": 1294
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 1, current, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 47,
+            "top": 404,
+            "left": 77
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 2, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 47,
+            "top": 404,
+            "left": 128
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 3, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 47,
+            "top": 404,
+            "left": 179
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 4, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 47,
+            "top": 404,
+            "left": 229
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 5, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 47,
+            "top": 404,
+            "left": 280
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 6, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 73,
+            "top": 459,
+            "left": 77
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 7, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 73,
+            "top": 459,
+            "left": 128
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 8, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 73,
+            "top": 459,
+            "left": 179
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 9, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 73,
+            "top": 459,
+            "left": 229
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 10, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 73,
+            "top": 459,
+            "left": 280
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 11, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 43,
+            "height": 47,
+            "top": 539,
+            "left": 77
+          }
+        }
+      ]
+    },
+    {
+      "key": "quiz-dark-mobile",
+      "path": "/quizzes/18",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "mobile": true,
+        "scale": 2
+      },
+      "theme": "dark",
+      "focus": 12,
+      "audit": {
+        "url": "http://localhost/lms/quizzes/18",
+        "title": "Sign In | xyndrome",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "theme": "dark",
+        "interactiveCount": 46,
+        "missingNames": [],
+        "imagesMissingAlt": [],
+        "medicalImagesWithoutUsefulAlt": [],
+        "tinyTargets": [
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 1, current, not answered",
+            "width": 35,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 2, not answered",
+            "width": 35,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 3, not answered",
+            "width": 35,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 4, not answered",
+            "width": 35,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 5, not answered",
+            "width": 35,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 6, not answered",
+            "width": 35,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 7, not answered",
+            "width": 35,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 8, not answered",
+            "width": 35,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 9, not answered",
+            "width": 35,
+            "height": 47
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 10, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 11, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 12, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 13, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 14, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 15, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 16, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 17, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 18, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 19, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 20, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 21, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 22, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 23, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 24, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 25, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 26, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 27, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 28, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 29, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 30, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 31, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 32, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 33, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 34, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 35, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 36, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 37, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 38, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 39, not answered",
+            "width": 35,
+            "height": 73
+          },
+          {
+            "path": "button.min-h-9.rounded-xl.border",
+            "name": "Question 40, not answered",
+            "width": 35,
+            "height": 73
+          }
+        ],
+        "headings": [
+          {
+            "level": 3,
+            "text": "Progress"
+          },
+          {
+            "level": 3,
+            "text": "Question List"
+          }
+        ],
+        "headingSkips": [],
+        "liveRegions": [],
+        "timers": [],
+        "progressbars": [
+          {
+            "path": "div.h-2.overflow-hidden.rounded-full",
+            "label": "Practice progress",
+            "valueNow": "0",
+            "valueMin": "0",
+            "valueMax": "100"
+          }
+        ],
+        "contrastFailures": [],
+        "activeElement": {
+          "path": "button.min-h-9.rounded-xl.border",
+          "name": "Question 9, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        },
+        "reduceMotionMatches": false
+      },
+      "focusSamples": [
+        {
+          "tag": "a",
+          "id": "",
+          "cls": "lms-skip-link",
+          "name": "Skip to main content",
+          "outline": "rgb(126, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.318) 0px 0px 0px 5.95061px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 184,
+            "height": 45,
+            "top": 10,
+            "left": 10
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "relative isolate inline-flex",
+          "name": "Switch to dark mode",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 32,
+            "height": 44,
+            "top": 24,
+            "left": 273
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-full border",
+          "name": "Finish",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 74,
+            "height": 44,
+            "top": 24,
+            "left": 313
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 1, current, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 35,
+            "height": 47,
+            "top": 879,
+            "left": 14
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 2, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 35,
+            "height": 47,
+            "top": 493,
+            "left": 55
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 3, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 35,
+            "height": 47,
+            "top": 447,
+            "left": 96
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 4, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 35,
+            "height": 47,
+            "top": 447,
+            "left": 137
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 5, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 35,
+            "height": 47,
+            "top": 447,
+            "left": 178
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 6, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 35,
+            "height": 47,
+            "top": 447,
+            "left": 218
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 7, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 35,
+            "height": 47,
+            "top": 447,
+            "left": 259
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 8, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 35,
+            "height": 47,
+            "top": 447,
+            "left": 300
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 9, not answered",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 35,
+            "height": 47,
+            "top": 447,
+            "left": 341
+          }
+        }
+      ]
+    },
+    {
+      "key": "review-dark-tablet",
+      "path": "/review/111",
+      "viewport": {
+        "width": 1024,
+        "height": 768,
+        "mobile": false
+      },
+      "theme": "dark",
+      "focus": 12,
+      "audit": {
+        "url": "http://localhost/lms/review/111",
+        "title": "Sign In | xyndrome",
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "theme": "dark",
+        "interactiveCount": 2,
+        "missingNames": [],
+        "imagesMissingAlt": [],
+        "medicalImagesWithoutUsefulAlt": [],
+        "tinyTargets": [],
+        "headings": [
+          {
+            "level": 3,
+            "text": "Question List"
+          },
+          {
+            "level": 3,
+            "text": "WHY OTHER OPTIONS ARE INCORRECT"
+          }
+        ],
+        "headingSkips": [],
+        "liveRegions": [],
+        "timers": [],
+        "progressbars": [],
+        "contrastFailures": [
+          {
+            "path": "span.inline-flex.size-6.items-center",
+            "text": "A",
+            "ratio": 2.72,
+            "needed": 4.5,
+            "color": "rgb(146, 64, 14)",
+            "background": "color(srgb 0.174542 0.156033 0.140535 / 0.931765)"
+          }
+        ],
+        "activeElement": {
+          "path": "button.inline-flex.min-h-10.shrink-0",
+          "name": "Back to results",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+        },
+        "reduceMotionMatches": false
+      },
+      "focusSamples": [
+        {
+          "tag": "a",
+          "id": "",
+          "cls": "lms-skip-link",
+          "name": "Skip to main content",
+          "outline": "rgb(127, 212, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.314) 0px 0px 0px 5.87258px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 184,
+            "height": 45,
+            "top": -102,
+            "left": 10
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "inline-flex min-h-10 shrink-0",
+          "name": "Back to results",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 146,
+            "height": 40,
+            "top": 45,
+            "left": 812
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 1, current, wrong",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 170,
+            "height": 47,
+            "top": 290,
+            "left": 70
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "min-h-9 rounded-xl border",
+          "name": "Question 2, wrong",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 170,
+            "height": 47,
+            "top": 290,
+            "left": 249
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "qtr-popup-trigger flex w-full",
+          "name": "⚡ Quick theory recap Reactive Arthritis",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 5.99587px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 854,
+            "height": 61,
+            "top": 905,
+            "left": 85
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "lms-assessment-btn lms-assessment-btn--primary inline-flex",
+          "name": "Next",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 112,
+            "height": 44,
+            "top": 574,
+            "left": 827
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex",
+          "name": "Save question",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 5.98078px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 159,
+            "height": 44,
+            "top": 628,
+            "left": 445
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex",
+          "name": "Open notes",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 5.99582px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 142,
+            "height": 44,
+            "top": 628,
+            "left": 614
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex",
+          "name": "Report question",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 5.98078px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 173,
+            "height": 44,
+            "top": 628,
+            "left": 766
+          }
+        },
+        {
+          "tag": "body",
+          "id": "",
+          "cls": "app-ready dark dark-bg",
+          "name": "Skip to main content Quiz review ai - Cardiology Score 0% Back to results 2 TOTA",
+          "outline": "rgb(238, 243, 248) none 3px",
+          "boxShadow": "none",
+          "rect": {
+            "width": 1024,
+            "height": 768,
+            "top": 0,
+            "left": 0
+          }
+        },
+        {
+          "tag": "a",
+          "id": "",
+          "cls": "lms-skip-link",
+          "name": "Skip to main content",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 184,
+            "height": 45,
+            "top": -819,
+            "left": 10
+          }
+        },
+        {
+          "tag": "button",
+          "id": "",
+          "cls": "inline-flex min-h-10 shrink-0",
+          "name": "Back to results",
+          "outline": "rgb(125, 211, 252) solid 3px",
+          "boxShadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+          "rect": {
+            "width": 146,
+            "height": 40,
+            "top": -162,
+            "left": 812
+          }
+        }
+      ]
+    }
+  ],
+  "reducedMotion": {
+    "matches": true,
+    "movingCount": 2,
+    "moving": [
+      {
+        "type": "animation",
+        "tag": "div",
+        "cls": "lms-app-scroll-root relative isolate",
+        "name": "routeFade",
+        "duration": "0.24s"
+      },
+      {
+        "type": "animation",
+        "tag": "div",
+        "cls": "lms-route-reveal motion-smooth animate-panelRouteFade",
+        "name": "panelRouteFade",
+        "duration": "0.24s"
+      }
+    ]
+  }
+}

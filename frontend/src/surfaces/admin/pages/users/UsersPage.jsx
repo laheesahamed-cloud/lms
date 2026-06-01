@@ -5,6 +5,7 @@ import { createUser, deleteUser, fetchUsers, fetchUsersSummary, updateUser, upda
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
+import { PasswordField } from '../../../../shared/ui/PasswordField.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../../../../shared/utils/userIdentity.js';
 
@@ -499,34 +500,28 @@ export function UsersPage() {
             </label>
 
             {!isEditing ? (
-              <label className={ui.formLabel}>
-                Password
-                <input className={ui.input}
-                  type="password"
-                  name="password"
-                  value={userForm.password}
-                  onChange={handleUserFormChange}
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                  placeholder="At least 6 characters"
-                />
-              </label>
+              <PasswordField
+                label="Password"
+                name="password"
+                value={userForm.password}
+                onChange={handleUserFormChange}
+                required
+                minLength={6}
+                autoComplete="new-password"
+                placeholder="At least 6 characters"
+              />
             ) : null}
 
             {isEditing ? (
-              <label className={ui.formLabel}>
-                New password
-                <input className={ui.input}
-                  type="password"
-                  name="password"
-                  value={userForm.password}
-                  onChange={handleUserFormChange}
-                  minLength={6}
-                  autoComplete="new-password"
-                  placeholder="Leave blank to keep current"
-                />
-              </label>
+              <PasswordField
+                label="New password"
+                name="password"
+                value={userForm.password}
+                onChange={handleUserFormChange}
+                minLength={6}
+                autoComplete="new-password"
+                placeholder="Leave blank to keep current"
+              />
             ) : null}
 
             <label className={ui.formLabel}>

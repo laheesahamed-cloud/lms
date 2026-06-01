@@ -11,6 +11,7 @@ import { cx } from '../styles/tailwindClasses.js';
 
 const PLATFORM = detectPlatform();
 const SIDEBAR_MOBILE_QUERY = '(max-width: 900px)';
+const SIDEBAR_MOTION_SETTLE_MS = 260;
 
 function shouldUseMobileNavigation(platform = detectPlatform()) {
   if (typeof window === 'undefined') return false;
@@ -43,7 +44,7 @@ const shellUi = {
   signoutCurtain:
     'fixed inset-0 z-[80] grid place-items-center bg-[color-mix(in_srgb,var(--surface-0)_65%,transparent)] backdrop-blur-xl animate-signoutCurtainIn',
   signoutCard:
-    'grid min-w-[240px] justify-items-center gap-3 rounded-xl border border-line-soft bg-surface-glass-strong px-8 py-7 text-center shadow-2xl',
+    'grid min-w-[240px] justify-items-center gap-3 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-glass-strong px-8 py-7 text-center shadow-[var(--ds-card-shadow-raised)]',
   signoutSpinner:
     'size-10 rounded-full border-[3px] border-line-soft border-r-[var(--brand-primary-end)] border-t-brand-primary animate-signoutSpin',
   signoutTitle: 'text-base text-ink-strong',
@@ -72,6 +73,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const location = useLocation();
   const warmedRouteKeysRef = useRef(new Set());
   const resizeFrameRef = useRef(null);
+  const sidebarMotionStateRef = useRef(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isMobileNav, setIsMobileNav] = useState(() => {
@@ -80,6 +82,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return desktopSidebarHiddenByDefault;
   });
+  const [sidebarMotionActive, setSidebarMotionActive] = useState(false);
   const isSigningOut = useAuthStore((state) => state.isSigningOut);
   const user = useAuthStore((state) => state.user);
   const routeSearchParams = new URLSearchParams(location.search);
@@ -99,9 +102,34 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const effectiveSidebarCollapsed = isCollapsedDesktop;
   const hideGlobalSidebar = isFocusMode;
   const useMobileTopNav = isMobileNav && !hideGlobalSidebar;
-  const navigationExpanded = !hideGlobalSidebar && (useMobileTopNav ? sidebarOpen : !effectiveSidebarCollapsed);
-
   const openSearch = useCallback(() => setSearchOpen(true), []);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const previousCollapsed = sidebarMotionStateRef.current;
+    sidebarMotionStateRef.current = effectiveSidebarCollapsed;
+
+    if (!desktopSidebarToggle || hideGlobalSidebar || useMobileTopNav) {
+      setSidebarMotionActive(false);
+      return undefined;
+    }
+
+    if (
+      previousCollapsed === null ||
+      previousCollapsed === effectiveSidebarCollapsed
+    ) {
+      return undefined;
+    }
+
+    setSidebarMotionActive(true);
+    const timer = window.setTimeout(() => setSidebarMotionActive(false), SIDEBAR_MOTION_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [desktopSidebarToggle, effectiveSidebarCollapsed, hideGlobalSidebar, useMobileTopNav]);
 
   useEffect(() => {
     function onKey(e) {
@@ -139,14 +167,6 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     window.addEventListener('lms:toggle-sidebar', handleToggleSidebar);
     return () => window.removeEventListener('lms:toggle-sidebar', handleToggleSidebar);
   }, [desktopSidebarToggle, isFocusMode, isMobileNav]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const detail = { navExpanded: navigationExpanded };
-    window.__lmsNavigationState = detail;
-    window.dispatchEvent(new CustomEvent('lms:navigation-state', { detail }));
-    return undefined;
-  }, [navigationExpanded]);
 
   useEffect(() => {
     function syncNavigationMode() {
@@ -281,6 +301,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         isSigningOut && 'signing-out',
         sidebarOpen && 'sidebar-open',
         effectiveSidebarCollapsed && 'sidebar-collapsed',
+        sidebarMotionActive && 'sidebar-motion-active',
         useMobileTopNav && 'mobile-top-nav-mode',
         hideGlobalSidebar && 'sidebar-hidden',
         isAiNoteReaderRoute && 'exam-focus-mode',
@@ -291,7 +312,6 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
       )}
     >
       <div className={shellUi.ambient} aria-hidden="true">
-        <span className="main-glow" />
         <span className={cx(shellUi.ambientGlow, shellUi.ambientGlowOne)} />
         <span className={cx(shellUi.ambientGlow, shellUi.ambientGlowTwo)} />
         <span className={shellUi.ambientGrid} />
@@ -301,6 +321,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
         <AppSidebar
           isOpen={sidebarOpen}
           isCollapsed={effectiveSidebarCollapsed}
+          isAnimating={sidebarMotionActive}
           isOverlayNav={false}
           isExamFocusMode={isFocusMode}
           onClose={() => setSidebarOpen(false)}

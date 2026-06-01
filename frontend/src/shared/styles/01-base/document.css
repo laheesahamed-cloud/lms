@@ -7,7 +7,7 @@ html {
 }
 
 body {
-  font: var(--type-body, 450 0.875rem / 1.58 var(--font-body, ui-sans-serif, system-ui, sans-serif));
+  font: var(--type-body, 450 1rem / 1.58 var(--font-body, ui-sans-serif, system-ui, sans-serif));
   letter-spacing: 0;
 }
 
@@ -20,6 +20,24 @@ h6 {
   font-family: var(--type-font-display, var(--font-display, ui-sans-serif, system-ui, sans-serif));
   letter-spacing: 0;
   text-wrap: balance;
+}
+
+h1 {
+  font: var(--type-page-title);
+}
+
+h2 {
+  font: var(--type-section-title);
+}
+
+h3 {
+  font: var(--type-card-title);
+}
+
+h4,
+h5,
+h6 {
+  font: var(--type-ui);
 }
 
 p,
@@ -38,6 +56,22 @@ select {
 strong,
 b {
   font-weight: var(--type-weight-bold, 800);
+}
+
+sub,
+sup {
+  position: relative;
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.45em;
 }
 
 small {

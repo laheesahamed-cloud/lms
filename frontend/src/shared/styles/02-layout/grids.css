@@ -1,0 +1,21 @@
+/* Shared grid spacing contracts for LMS route layouts. */
+
+:where(.management-layout, .study-hub-shell, .lms-grid-stack) {
+  gap: var(--ds-section-gap);
+}
+
+:where(.lms-card-grid, .dashboard-grid, .dashboard-card-grid) {
+  gap: var(--ds-card-section-gap);
+}
+
+@media (max-width: 900px) {
+  :where(.lms-card-grid, .dashboard-grid, .dashboard-card-grid) {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  :where(.management-layout, .study-hub-shell, .lms-grid-stack) {
+    gap: var(--ds-space-4);
+  }
+}

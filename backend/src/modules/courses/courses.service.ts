@@ -1,5 +1,5 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
@@ -66,6 +66,22 @@ type LessonAccessProfile = {
   lessonIds: Set<number>;
 };
 
+type ContentActor = {
+  id: number;
+  role?: string;
+  permissions?: readonly string[];
+};
+type ContentActorInput = ContentActor | number | undefined;
+type ContentWorkflowState = 'draft' | 'in_review' | 'published' | 'archived';
+
+type CourseSnapshot = {
+  courseTitle: string;
+  courseCode: string;
+  description: string;
+  examType: string;
+  status: 'active' | 'inactive';
+};
+
 @Injectable()
 export class CoursesService {
   constructor(
@@ -82,38 +98,115 @@ export class CoursesService {
     return rows.map((row) => this.mapCourse(row));
   }
 
-  async create(createCourseDto: CreateCourseDto) {
-    const [result] = await this.db.execute<ResultSetHeader>(
-      'INSERT INTO courses (course_title, course_code, description, exam_type, status) VALUES (?, ?, ?, ?, ?)',
-      [
-        createCourseDto.courseTitle.trim(),
-        createCourseDto.courseCode.trim(),
-        (createCourseDto.description || '').trim(),
-        createCourseDto.examType.trim(),
-        createCourseDto.status,
-      ]
-    );
+  async create(createCourseDto: CreateCourseDto, actor?: ContentActorInput) {
+    const snapshot = this.buildCourseSnapshot(createCourseDto);
+    this.validateCoursePayload(snapshot);
+    this.assertCanSaveStatus(actor, snapshot.status);
 
-    return {
-      ok: true,
-      id: result.insertId,
-    };
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [result] = await connection.execute<ResultSetHeader>(
+        'INSERT INTO courses (course_title, course_code, description, exam_type, status) VALUES (?, ?, ?, ?, ?)',
+        [
+          snapshot.courseTitle,
+          snapshot.courseCode,
+          snapshot.description,
+          snapshot.examType,
+          snapshot.status,
+        ]
+      );
+
+      await this.recordContentVersion(connection, 'course', result.insertId, snapshot, this.getActorId(actor));
+      await this.setWorkflowState(connection, 'course', result.insertId, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'course',
+        entityId: result.insertId,
+        action: 'created',
+        summary: `Course ${result.insertId} created`,
+        actorId: this.getActorId(actor),
+        after: snapshot,
+      });
+
+      await connection.commit();
+      return {
+        ok: true,
+        id: result.insertId,
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
-  async update(id: number, updateCourseDto: UpdateCourseDto) {
+  async update(id: number, updateCourseDto: UpdateCourseDto, actor?: ContentActorInput) {
     const existing = await this.findById(id);
+    const snapshot = this.buildCourseSnapshot({
+      courseTitle: updateCourseDto.courseTitle ?? existing.courseTitle,
+      courseCode: updateCourseDto.courseCode ?? existing.courseCode,
+      description: updateCourseDto.description ?? existing.description,
+      examType: updateCourseDto.examType ?? existing.examType,
+      status: updateCourseDto.status ?? existing.status,
+    });
 
-    await this.db.execute(
-      'UPDATE courses SET course_title = ?, course_code = ?, description = ?, exam_type = ?, status = ? WHERE id = ?',
-      [
-        updateCourseDto.courseTitle?.trim() || existing.courseTitle,
-        updateCourseDto.courseCode?.trim() || existing.courseCode,
-        typeof updateCourseDto.description === 'string' ? updateCourseDto.description.trim() : existing.description,
-        updateCourseDto.examType?.trim() || existing.examType,
-        updateCourseDto.status || existing.status,
+    this.validateCoursePayload(snapshot);
+    this.assertCanModifyExistingStatus(actor, existing.status);
+    this.assertCanSaveStatus(actor, snapshot.status);
+
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await this.writeCourseSnapshot(connection, id, snapshot);
+      await this.recordContentVersion(connection, 'course', id, snapshot, this.getActorId(actor));
+      await this.setWorkflowState(connection, 'course', id, snapshot.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'course',
+        entityId: id,
+        action: 'updated',
+        summary: `Course ${id} updated`,
+        actorId: this.getActorId(actor),
+        before: existing,
+        after: snapshot,
+      });
+
+      await connection.commit();
+      return {
+        ok: true,
         id,
-      ]
-    );
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  async remove(id: number, actor?: ContentActorInput) {
+    const existing = await this.findById(id);
+    this.assertCanModifyExistingStatus(actor, existing.status);
+
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.execute('DELETE FROM courses WHERE id = ?', [id]);
+      await this.recordContentAudit(connection, {
+        entityType: 'course',
+        entityId: id,
+        action: 'deleted',
+        summary: `Course ${id} deleted`,
+        actorId: this.getActorId(actor),
+        before: existing,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     return {
       ok: true,
@@ -121,13 +214,110 @@ export class CoursesService {
     };
   }
 
-  async remove(id: number) {
+  async listVersions(id: number) {
     await this.findById(id);
-    await this.db.execute('DELETE FROM courses WHERE id = ?', [id]);
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, version_number, created_by, created_at, snapshot_json
+       FROM content_versions
+       WHERE entity_type = 'course' AND entity_id = ?
+       ORDER BY version_number DESC`,
+      [id]
+    );
+
+    return rows.map((row) => ({
+      id: Number(row.id),
+      versionNumber: Number(row.version_number),
+      createdBy: row.created_by === null || row.created_by === undefined ? null : Number(row.created_by),
+      createdAt: row.created_at || null,
+      snapshot: this.parseSnapshotJson(row.snapshot_json),
+    }));
+  }
+
+  async markDraft(id: number, actor?: ContentActorInput) {
+    return this.transitionWorkflow(id, {
+      workflowState: 'draft',
+      status: 'inactive',
+      action: 'marked_draft',
+      summary: `Course ${id} marked as draft`,
+      actor,
+    });
+  }
+
+  async submitForReview(id: number, actor?: ContentActorInput) {
+    return this.transitionWorkflow(id, {
+      workflowState: 'in_review',
+      status: 'inactive',
+      action: 'submitted_for_review',
+      summary: `Course ${id} submitted for review`,
+      actor,
+    });
+  }
+
+  async publish(id: number, actor?: ContentActorInput) {
+    return this.transitionWorkflow(id, {
+      workflowState: 'published',
+      status: 'active',
+      action: 'published',
+      summary: `Course ${id} published`,
+      actor,
+    });
+  }
+
+  async rollback(id: number, versionNumber: number, actor?: ContentActorInput) {
+    if (!Number.isInteger(versionNumber) || versionNumber <= 0) {
+      throw new BadRequestException('Version number is invalid');
+    }
+
+    if (!this.canReviewContent(actor)) {
+      throw new ForbiddenException('Review permission is required to rollback published course content');
+    }
+
+    const existing = await this.findById(id);
+    const [versionRows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT snapshot_json
+       FROM content_versions
+       WHERE entity_type = 'course' AND entity_id = ? AND version_number = ?
+       LIMIT 1`,
+      [id, versionNumber]
+    );
+
+    if (!versionRows[0]) {
+      throw new NotFoundException('Content version not found');
+    }
+
+    const snapshot = this.parseCourseSnapshot(versionRows[0].snapshot_json);
+    this.validateCoursePayload(snapshot);
+
+    const workflowState: ContentWorkflowState = snapshot.status === 'active' ? 'published' : 'draft';
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await this.writeCourseSnapshot(connection, id, snapshot);
+      await this.recordContentVersion(connection, 'course', id, snapshot, this.getActorId(actor));
+      await this.setWorkflowState(connection, 'course', id, workflowState, this.getActorId(actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'course',
+        entityId: id,
+        action: 'rolled_back',
+        summary: `Course ${id} rolled back to version ${versionNumber}`,
+        actorId: this.getActorId(actor),
+        before: existing,
+        after: snapshot,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     return {
       ok: true,
       id,
+      rolledBackToVersion: versionNumber,
+      status: snapshot.status,
+      workflowState,
     };
   }
 
@@ -250,6 +440,223 @@ export class CoursesService {
       progressPercent: normalized.progressPercent,
       actionLabel: this.getLessonActionLabel(normalized.status),
     };
+  }
+
+  private async transitionWorkflow(
+    id: number,
+    input: {
+      workflowState: ContentWorkflowState;
+      status: 'active' | 'inactive';
+      action: string;
+      summary: string;
+      actor?: ContentActorInput;
+    }
+  ) {
+    const existing = await this.findById(id);
+    this.assertCanModifyExistingStatus(input.actor, existing.status);
+    this.assertCanSaveStatus(input.actor, input.status);
+    const snapshot = this.buildCourseSnapshotFromEntity(existing, input.status);
+    this.validateCoursePayload(snapshot);
+
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.execute('UPDATE courses SET status = ? WHERE id = ?', [input.status, id]);
+      await this.recordContentVersion(connection, 'course', id, snapshot, this.getActorId(input.actor));
+      await this.setWorkflowState(connection, 'course', id, input.workflowState, this.getActorId(input.actor));
+      await this.recordContentAudit(connection, {
+        entityType: 'course',
+        entityId: id,
+        action: input.action,
+        summary: input.summary,
+        actorId: this.getActorId(input.actor),
+        before: existing,
+        after: snapshot,
+      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    return {
+      ok: true,
+      id,
+      status: input.status,
+      workflowState: input.workflowState,
+    };
+  }
+
+  private buildCourseSnapshot(course: CreateCourseDto | CourseSnapshot): CourseSnapshot {
+    return {
+      courseTitle: String(course.courseTitle || '').trim(),
+      courseCode: String(course.courseCode || '').trim(),
+      description: String(course.description || '').trim(),
+      examType: String(course.examType || '').trim(),
+      status: course.status === 'active' ? 'active' : 'inactive',
+    };
+  }
+
+  private buildCourseSnapshotFromEntity(
+    course: Awaited<ReturnType<CoursesService['findById']>>,
+    status: 'active' | 'inactive',
+  ) {
+    return this.buildCourseSnapshot({
+      courseTitle: course.courseTitle,
+      courseCode: course.courseCode,
+      description: course.description || '',
+      examType: course.examType,
+      status,
+    });
+  }
+
+  private async writeCourseSnapshot(connection: PoolConnection, id: number, course: CourseSnapshot) {
+    await connection.execute(
+      'UPDATE courses SET course_title = ?, course_code = ?, description = ?, exam_type = ?, status = ? WHERE id = ?',
+      [
+        course.courseTitle,
+        course.courseCode,
+        course.description,
+        course.examType,
+        course.status,
+        id,
+      ]
+    );
+  }
+
+  private parseSnapshotJson(value: unknown) {
+    if (value && typeof value === 'object') {
+      return value;
+    }
+
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  private parseCourseSnapshot(value: unknown): CourseSnapshot {
+    const parsed = this.parseSnapshotJson(value);
+    if (!parsed || typeof parsed !== 'object') {
+      throw new BadRequestException('Content version snapshot is invalid');
+    }
+
+    const snapshot = parsed as Partial<CourseSnapshot>;
+    return this.buildCourseSnapshot({
+      courseTitle: String(snapshot.courseTitle || ''),
+      courseCode: String(snapshot.courseCode || ''),
+      description: String(snapshot.description || ''),
+      examType: String(snapshot.examType || ''),
+      status: snapshot.status === 'active' ? 'active' : 'inactive',
+    });
+  }
+
+  private async recordContentVersion(
+    connection: PoolConnection,
+    entityType: string,
+    entityId: number,
+    snapshot: unknown,
+    actorId?: number,
+  ) {
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      'SELECT COALESCE(MAX(version_number), 0) + 1 AS next_version FROM content_versions WHERE entity_type = ? AND entity_id = ?',
+      [entityType, entityId]
+    );
+    const versionNumber = Number(rows[0]?.next_version || 1);
+    await connection.execute(
+      'INSERT INTO content_versions (entity_type, entity_id, version_number, snapshot_json, created_by) VALUES (?, ?, ?, ?, ?)',
+      [entityType, entityId, versionNumber, JSON.stringify(snapshot), actorId || null]
+    );
+  }
+
+  private async setWorkflowState(
+    connection: PoolConnection,
+    entityType: string,
+    entityId: number,
+    workflowState: ContentWorkflowState,
+    actorId?: number,
+  ) {
+    await connection.execute(
+      `INSERT INTO content_workflow_states (entity_type, entity_id, workflow_state, updated_by)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         workflow_state = VALUES(workflow_state),
+         updated_by = VALUES(updated_by),
+         updated_at = CURRENT_TIMESTAMP`,
+      [entityType, entityId, workflowState, actorId || null]
+    );
+  }
+
+  private async recordContentAudit(
+    connection: PoolConnection,
+    event: {
+      entityType: string;
+      entityId: number;
+      action: string;
+      summary: string;
+      actorId?: number;
+      before?: unknown;
+      after?: unknown;
+    }
+  ) {
+    await connection.execute(
+      `INSERT INTO content_audit_events
+        (entity_type, entity_id, action, actor_id, summary, before_json, after_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        event.entityType,
+        event.entityId,
+        event.action,
+        event.actorId || null,
+        event.summary,
+        event.before === undefined ? null : JSON.stringify(event.before),
+        event.after === undefined ? null : JSON.stringify(event.after),
+      ]
+    );
+  }
+
+  private getActorId(actor?: ContentActorInput) {
+    if (typeof actor === 'number') return actor;
+    return actor?.id;
+  }
+
+  private canReviewContent(actor?: ContentActorInput) {
+    if (!actor || typeof actor === 'number') return true;
+    return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review'));
+  }
+
+  private assertCanSaveStatus(actor: ContentActorInput, status: 'active' | 'inactive') {
+    if (status === 'active' && !this.canReviewContent(actor)) {
+      throw new ForbiddenException('Review permission is required to publish course content');
+    }
+  }
+
+  private assertCanModifyExistingStatus(actor: ContentActorInput, currentStatus: string) {
+    if (currentStatus === 'active' && !this.canReviewContent(actor)) {
+      throw new ForbiddenException('Published courses require review permission before modification');
+    }
+  }
+
+  private validateCoursePayload(course: CourseSnapshot) {
+    if (!course.courseTitle) {
+      throw new BadRequestException('Course title is required');
+    }
+
+    if (!course.courseCode) {
+      throw new BadRequestException('Course code is required');
+    }
+
+    if (!course.examType) {
+      throw new BadRequestException('Exam type is required');
+    }
   }
 
   private async findById(id: number) {

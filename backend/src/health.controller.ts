@@ -1,7 +1,8 @@
-import { Controller, Get, Headers, Inject, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Inject, Post, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from './database/database.tokens';
+import { getPerformanceMetricsSnapshot, recordClientPerformanceMetric } from './performance-metrics';
 
 @Controller('health')
 export class HealthController {
@@ -67,8 +68,15 @@ export class HealthController {
         questions: Number(row.questions || 0),
         quizAttempts: Number(row.quiz_attempts || 0),
       },
+      performance: getPerformanceMetricsSnapshot(),
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Post('client-performance')
+  clientPerformance(@Body() body: unknown) {
+    recordClientPerformanceMetric(body);
+    return { ok: true };
   }
 
   private requireMetricsAccess(healthToken?: string) {

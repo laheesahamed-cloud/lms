@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { preloadRouteByPath } from '../../app/router.jsx';
 import { isStaffUser, roleRouteMode, userHasPermissions } from '../auth/roleAccess.js';
+import { XyndromeLogoMark } from '../brand/XyndromeBrand.jsx';
 import { cx } from '../styles/tailwindClasses.js';
 
 /* ── Icon Set (16×16) — standard stroke-based icons ──────────── */
@@ -167,11 +168,11 @@ function ChevronIcon() {
 
 /* ── Nav data ─────────────────────────────────────────────────── */
 const adminLinks = [
-  { to: '/dashboard',     label: 'Command',       icon: 'Dashboard' },
+  { to: '/dashboard',     label: 'Admin Hub',     icon: 'Dashboard' },
   { to: '/courses',       label: 'Courses',       icon: 'Courses', requiredPermissions: ['content.manage'] },
   { to: '/structure',     label: 'Structure',     icon: 'Structure', requiredPermissions: ['content.manage'] },
   { to: '/questions',     label: 'Questions',     icon: 'Questions', requiredPermissions: ['questions.manage'] },
-  { to: '/question-reports', label: 'Q Reports',  icon: 'Questions', requiredPermissions: ['content.review'] },
+  { to: '/question-reports', label: 'Question Reports', icon: 'Questions', requiredPermissions: ['content.review'] },
   { to: '/quizzes',       label: 'Assessments',   icon: 'Quizzes', requiredPermissions: ['quizzes.manage'] },
   {
     label: 'AI Tools',
@@ -186,7 +187,7 @@ const adminLinks = [
   { to: '/subscriptions', label: 'Subscriptions', icon: 'Billing', requiredPermissions: ['subscriptions.manage'] },
   { to: '/finance',       label: 'Finance',       icon: 'Finance', requiredPermissions: ['subscriptions.manage', 'reports.view'] },
   { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes', requiredPermissions: ['content.manage'] },
-  { to: '/users',         label: 'Students',      icon: 'Users', requiredPermissions: ['students.manage'] },
+  { to: '/users',         label: 'Users',         icon: 'Users', requiredPermissions: ['students.manage'] },
   { to: '/announcements', label: 'Announcements', icon: 'Bell', requiredPermissions: ['notifications.manage'] },
   { to: '/reports',       label: 'Reports',       icon: 'Results', requiredPermissions: ['reports.view'] },
   { to: '/setup',         label: 'Setup',         icon: 'Setup', requiredPermissions: ['settings.manage'] },
@@ -232,7 +233,7 @@ function getInitials(user) {
 
 const sidebarUi = {
   shell:
-    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[transform,opacity] duration-[var(--lms-sidebar-duration,280ms)] ease-[var(--lms-ease-soft,cubic-bezier(0.22,1,0.36,1))] [contain:layout_paint] [height:100dvh] [min-height:100dvh] shadow-[1px_0_0_var(--line-soft),var(--shadow-sm)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[22px]',
+    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[width,transform,opacity] duration-[var(--lms-sidebar-duration,280ms)] ease-[var(--lms-ease-soft,cubic-bezier(0.22,1,0.36,1))] [contain:layout_paint] [height:100dvh] [min-height:100dvh] shadow-[var(--ds-nav-shadow)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[var(--ds-card-radius)]',
   shellLight:
     '',
   open: 'max-[900px]:translate-x-0',
@@ -244,13 +245,13 @@ const sidebarUi = {
   logoRowCollapsed:
     'min-[901px]:justify-center min-[901px]:gap-0 min-[901px]:px-0 min-[901px]:py-3',
   brandIcon:
-    'grid size-[38px] shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,#0B1220_0%,#2563EB_55%,#38BDF8_100%)] shadow-[0_8px_20px_rgba(37,99,235,0.16)]',
-  brandIconCollapsed: 'min-[901px]:size-[36px]',
+    'grid size-[42px] shrink-0 place-items-center text-[var(--xyndrome-logo-scope)]',
+  brandIconCollapsed: 'min-[901px]:size-[38px]',
   wordmark: 'grid min-w-0 gap-0.5',
   wordmarkName: 'truncate text-[14.5px] font-extrabold tracking-normal text-ink-strong',
-  wordmarkRole: 'truncate text-[10.5px] font-semibold text-ink-soft',
+  wordmarkRole: 'truncate text-[11px] font-semibold text-ink-soft',
   navLabel:
-    'mx-5 mb-1.5 mt-3 text-[9.5px] font-extrabold uppercase tracking-[0.18em] text-ink-muted transition-[opacity,transform] duration-200 ease-out',
+    'mx-5 mb-1.5 mt-3 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-muted transition-[opacity,transform] duration-200 ease-out',
   nav:
     'flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-1.5 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden',
   navCollapsed:
@@ -258,14 +259,14 @@ const sidebarUi = {
   group:
     'relative flex flex-col gap-1',
   link:
-    'group relative flex h-[42px] min-h-[42px] items-center gap-2.5 rounded-xl border border-transparent px-3 text-[13.5px] font-semibold text-ink-soft no-underline shadow-none transition-[background,border-color,color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:-translate-y-px hover:bg-surface-2 hover:text-ink-strong active:translate-y-0 active:scale-[0.985]',
+    'group relative flex h-[42px] min-h-[42px] items-center gap-2.5 rounded-[var(--ds-nav-radius)] border border-transparent px-3 text-[13.5px] font-semibold text-ink-soft no-underline shadow-none transition-[background,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 hover:text-ink-strong active:scale-[0.985]',
   linkActive:
-    'nav-active-glow border-transparent text-brand-primary shadow-sm hover:translate-y-0 hover:bg-transparent',
+    'nav-active-glow border-transparent text-brand-primary shadow-[var(--ds-nav-active-shadow)] hover:bg-transparent',
   linkCollapsed: 'min-[901px]:h-[48px] min-[901px]:min-h-[48px] min-[901px]:justify-center min-[901px]:px-0',
   icon:
     'grid size-[30px] min-h-[30px] min-w-[30px] shrink-0 place-items-center rounded-[10px] text-ink-soft transition-[background,color] duration-150 group-hover:bg-[var(--color-primary-light)] group-hover:text-brand-primary',
   iconActive:
-    '!bg-[var(--color-primary-light)] !text-brand-primary shadow-[0_2px_10px_color-mix(in_srgb,var(--color-primary)_16%,transparent)]',
+    '!bg-[var(--color-primary-light)] !text-brand-primary shadow-[var(--ds-nav-active-shadow)]',
   iconCollapsed:
     'min-[901px]:size-[42px] min-[901px]:min-h-[42px] min-[901px]:min-w-[42px] min-[901px]:rounded-[14px]',
   label: 'min-w-0 truncate text-[13.5px] font-semibold transition-[opacity,transform] duration-200 ease-out',
@@ -274,7 +275,7 @@ const sidebarUi = {
   arrow: 'ml-auto flex shrink-0 items-center text-ink-muted transition-transform duration-200',
   arrowOpen: 'rotate-180 text-brand-primary',
   tooltip:
-    'lms-sidebar-tooltip lms-floating-panel pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-[900] hidden -translate-y-1/2 translate-x-[-6px] scale-95 whitespace-nowrap rounded-full border border-line-soft bg-surface-card-elevated px-3.5 py-2 text-[12px] font-extrabold text-ink-strong opacity-0 shadow-xl transition-[transform,opacity] duration-150 before:absolute before:left-[-5px] before:top-1/2 before:size-2.5 before:-translate-y-1/2 before:rotate-45 before:border-b before:border-l before:border-line-soft before:bg-surface-card-elevated before:content-[""] group-hover:translate-x-0 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:scale-100 group-focus-visible:opacity-100 min-[901px]:group-[.is-collapsed]/sidebar:block',
+    'lms-sidebar-tooltip lms-floating-panel pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-[900] hidden -translate-y-1/2 translate-x-[-6px] scale-95 whitespace-nowrap rounded-full border border-line-soft bg-surface-card-elevated px-3.5 py-2 text-[12px] font-extrabold text-ink-strong opacity-0 shadow-[var(--ds-floating-shadow)] transition-[transform,opacity] duration-150 before:absolute before:left-[-5px] before:top-1/2 before:size-2.5 before:-translate-y-1/2 before:rotate-45 before:border-b before:border-l before:border-line-soft before:bg-surface-card-elevated before:content-[""] group-hover:translate-x-0 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:scale-100 group-focus-visible:opacity-100 min-[901px]:group-[.is-collapsed]/sidebar:block',
   submenu:
     'ml-4 mt-0.5 flex flex-col gap-0.5 border-l border-brand-primary/18 py-1.5 pl-3',
   submenuItem:
@@ -284,23 +285,23 @@ const sidebarUi = {
   submenuDot:
     'size-[5px] shrink-0 rounded-full bg-ink-muted/50',
   flyout:
-    'lms-floating-panel motion-smooth absolute left-[calc(100%+10px)] top-[-2px] z-[600] min-w-[186px] origin-top-left rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated p-2 shadow-2xl animate-dropdownIn',
+    'lms-floating-panel motion-smooth absolute left-[calc(100%+10px)] top-[-2px] z-[600] min-w-[186px] origin-top-left rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated p-2 shadow-[var(--ds-floating-shadow)] animate-dropdownIn',
   flyoutHead:
-    'px-2.5 pb-2 pt-1 text-[10px] font-extrabold uppercase tracking-[0.11em] text-ink-muted',
+    'px-2.5 pb-2 pt-1 text-[11px] font-extrabold uppercase tracking-[0.11em] text-ink-muted',
   flyoutItem:
     'flex min-h-[38px] items-center whitespace-nowrap rounded-[10px] px-3 py-1.5 text-[13px] font-medium text-ink-soft no-underline transition-[background,color] duration-150 hover:bg-[var(--color-primary-light)] hover:text-ink-strong',
   flyoutItemActive:
     'bg-[linear-gradient(90deg,var(--color-primary-light),color-mix(in_srgb,var(--color-secondary)_8%,transparent))] font-bold text-brand-primary',
   searchButton:
-    'mx-3 mt-2 flex min-h-[38px] items-center gap-2 rounded-xl border border-line-soft bg-[var(--btn-secondary-bg)] px-3 text-[13px] font-semibold text-ink-soft shadow-xs transition-[background,border-color,color,transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-px hover:bg-surface-2 hover:border-line-medium hover:text-ink-strong active:translate-y-0 active:scale-[0.98]',
+    'mx-3 mt-2 flex min-h-[38px] items-center gap-2 rounded-[var(--ds-nav-radius)] border border-line-soft bg-[var(--btn-secondary-bg)] px-3 text-[13px] font-semibold text-ink-soft shadow-[var(--ds-card-shadow)] transition-[background,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 hover:border-line-medium hover:text-ink-strong active:scale-[0.98]',
   kbd:
-    'ml-auto rounded-[8px] border border-brand-primary/14 bg-[var(--color-primary-light)] px-1.5 py-0.5 text-[10.5px] font-bold text-brand-primary',
+    'ml-auto rounded-[8px] border border-brand-primary/14 bg-[var(--color-primary-light)] px-1.5 py-0.5 text-[11px] font-bold text-brand-primary',
   studyCard:
-    'relative mx-3 mt-2.5 mb-3 grid min-h-[128px] shrink-0 overflow-hidden rounded-xl border border-line-soft bg-[linear-gradient(145deg,color-mix(in_srgb,#0ea5e9_9%,var(--surface-card)),color-mix(in_srgb,var(--color-primary)_7%,var(--surface-card)))] p-3 shadow-sm before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_82%_16%,color-mix(in_srgb,var(--color-primary)_18%,transparent),transparent_34%),radial-gradient(circle_at_10%_100%,color-mix(in_srgb,#0ea5e9_14%,transparent),transparent_38%)] before:content-[""] dark:border-white/10 dark:bg-[linear-gradient(145deg,rgba(14,165,233,0.10),rgba(37,99,235,0.08),rgba(255,255,255,0.04))] max-[900px]:hidden',
+    'relative mx-3 mt-2.5 mb-3 grid min-h-[128px] shrink-0 overflow-hidden rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-[linear-gradient(145deg,color-mix(in_srgb,#0ea5e9_9%,var(--surface-card)),color-mix(in_srgb,var(--color-primary)_7%,var(--surface-card)))] p-3 shadow-[var(--ds-card-shadow)] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_82%_16%,color-mix(in_srgb,var(--color-primary)_18%,transparent),transparent_34%),radial-gradient(circle_at_10%_100%,color-mix(in_srgb,#0ea5e9_14%,transparent),transparent_38%)] before:content-[""] dark:border-white/10 dark:bg-[linear-gradient(145deg,rgba(14,165,233,0.10),rgba(37,99,235,0.08),rgba(255,255,255,0.04))] max-[900px]:hidden',
   studyIcon:
     'absolute right-2 top-1 grid h-[82px] w-[92px] place-items-center text-[var(--color-teal)]',
   studyCopy:
-    'relative z-[1] mt-auto grid max-w-[150px] gap-1 [&_p]:m-0 [&_p]:line-clamp-3 [&_p]:text-[10.5px] [&_p]:leading-snug [&_p]:text-ink-soft [&_strong]:text-[13px] [&_strong]:font-extrabold [&_strong]:text-ink-strong',
+    'relative z-[1] mt-auto grid max-w-[150px] gap-1 [&_p]:m-0 [&_p]:line-clamp-3 [&_p]:text-[11px] [&_p]:leading-snug [&_p]:text-ink-soft [&_strong]:text-[13px] [&_strong]:font-extrabold [&_strong]:text-ink-strong',
 };
 
 /* ── Flyout panel (collapsed mode submenu) ─────────────────────── */
@@ -381,6 +382,7 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
         onMouseEnter={handleMouseEnter}
         onFocus={handleMouseEnter}
         aria-expanded={isGroupOpen || flyoutOpen}
+        aria-current={isActive ? 'page' : undefined}
       >
         <span className={cx('lms-sidebar-link-icon', sidebarUi.icon, isActive && sidebarUi.iconActive, isCollapsed && sidebarUi.iconCollapsed)}><IconComp /></span>
         <span className={cx('lms-sidebar-link-text', sidebarUi.label)}>{item.label}</span>
@@ -420,6 +422,7 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
 export function AppSidebar({
   isOpen = false,
   isCollapsed = false,
+  isAnimating = false,
   isOverlayNav = false,
   isExamFocusMode = false,
   onClose = () => {},
@@ -456,6 +459,7 @@ export function AppSidebar({
         isOpen && 'is-open',
         isCollapsed && sidebarUi.collapsed,
         isCollapsed && 'is-collapsed',
+        isAnimating && 'is-animating',
         isOverlayNav && 'is-overlay-nav',
         isExamFocusMode && 'exam-focus',
         isCollapsed && 'min-[901px]:overflow-visible group/sidebar is-collapsed',
@@ -463,21 +467,16 @@ export function AppSidebar({
     >
       {/* ── Logo row ──────────────────────────────────────────────── */}
       <div className={cx('lms-sidebar-brand', sidebarUi.logoRow, isCollapsed && sidebarUi.logoRowCollapsed)}>
-        <div className={cx('lms-sidebar-brand-mark', sidebarUi.brandIcon, isCollapsed && sidebarUi.brandIconCollapsed)} aria-hidden="true">
-          <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-            <rect width="30" height="30" rx="9" fill="url(#sb-logo-g)"/>
-            <path d="M9 10.5h12M9 15h8M9 19.5h12" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-            <defs>
-              <linearGradient id="sb-logo-g" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#2563EB"/>
-                <stop offset="100%" stopColor="#0EA5E9"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
+        <XyndromeLogoMark
+          className={cx('lms-sidebar-brand-mark', sidebarUi.brandIcon, isCollapsed && sidebarUi.brandIconCollapsed)}
+          size={isCollapsed ? 40 : 44}
+        />
 
         <div className={cx('lms-sidebar-wordmark', sidebarUi.wordmark)}>
-          <span className={cx('lms-sidebar-brand-name', sidebarUi.wordmarkName)}>xyndrome</span>
+          <span className={cx('lms-sidebar-brand-name', sidebarUi.wordmarkName)}>
+            <span className="sr-only">xyndrome</span>
+            <span aria-hidden="true">yndrome</span>
+          </span>
           <span className={cx('lms-sidebar-brand-sub', sidebarUi.wordmarkRole)}>
             {isAdminConsole ? 'Admin Console' : 'Student Portal'}
           </span>
@@ -501,7 +500,10 @@ export function AppSidebar({
       </p>
 
       {/* ── Nav ───────────────────────────────────────────────────── */}
-      <nav className={cx('lms-sidebar-nav', sidebarUi.nav, isCollapsed && sidebarUi.navCollapsed)}>
+      <nav
+        className={cx('lms-sidebar-nav', sidebarUi.nav, isCollapsed && sidebarUi.navCollapsed)}
+        aria-label={isAdminConsole ? 'Admin navigation' : 'Student navigation'}
+      >
         {links.map((item, i) => {
           if (item.group) {
             return (
@@ -572,14 +574,14 @@ export function AppSidebar({
 const mobileNavItems = [
   { to: '/courses',   label: 'Courses', icon: 'Courses'   },
   { to: '/quizzes',   label: 'Q-Bank',  icon: 'Quizzes'   },
-  { to: '/dashboard', label: 'Home',    icon: 'Mission'   },
+  { to: '/dashboard', label: 'Study Hub', icon: 'Mission' },
   { to: '/ai-notes',  label: 'Lessons', icon: 'AiNotes'   },
   { to: '/results',   label: 'Results', icon: 'Results'   },
 ];
 
 const mobileNavPrimaryPaths = new Set(mobileNavItems.map((item) => item.to));
 mobileNavPrimaryPaths.delete('/dashboard');
-const MOBILE_TOP_NAV_EXIT_MS = 620;
+const MOBILE_TOP_NAV_EXIT_MS = 190;
 
 function withRolePrefix(path, role) {
   if (!path || path.startsWith('/admin') || path.startsWith('/app')) return path;
@@ -710,10 +712,11 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
   const role = user.role;
   const isAdminConsole = isStaffUser(user);
   const sourceLinks = isAdminConsole ? adminLinks : studentLinks;
+  const accessibleLinks = filterLinksByAccess(sourceLinks, user);
   const menuLinks =
     role === 'student'
-      ? sourceLinks.filter((item) => item.group || !mobileNavPrimaryPaths.has(item.to))
-      : sourceLinks;
+      ? accessibleLinks.filter((item) => item.group || !mobileNavPrimaryPaths.has(item.to))
+      : accessibleLinks;
   const items = prefixLinks(menuLinks, role);
   const isStudentMenu = role === 'student';
   const title = isAdminConsole ? 'Admin Console' : 'Student Portal';
@@ -732,13 +735,6 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
       className={cx('lms-mobile-top-nav-layer', isClosing && 'is-closing')}
       style={geometryStyle}
     >
-      <button
-        type="button"
-        className="lms-mobile-top-nav-backdrop"
-        onClick={onClose}
-        aria-label="Close navigation"
-      />
-
       <section
         className={cx('lms-mobile-top-nav', isStudentMenu && 'lms-mobile-top-nav--plain')}
         role="dialog"
@@ -747,21 +743,13 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
       >
         {!isStudentMenu && (
           <header className="lms-mobile-top-nav__head">
-            <span className="lms-mobile-top-nav__mark" aria-hidden="true">
-              <svg width="28" height="28" viewBox="0 0 30 30" fill="none">
-                <rect width="30" height="30" rx="9" fill="url(#mobile-nav-logo-g)" />
-                <path d="M9 10.5h12M9 15h8M9 19.5h12" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-                <defs>
-                  <linearGradient id="mobile-nav-logo-g" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stopColor="#2563EB" />
-                    <stop offset="100%" stopColor="#0EA5E9" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </span>
+            <XyndromeLogoMark className="lms-mobile-top-nav__mark" size={38} />
 
             <div className="lms-mobile-top-nav__brand">
-              <strong>xyndrome</strong>
+              <strong>
+                <span className="sr-only">xyndrome</span>
+                <span aria-hidden="true">yndrome</span>
+              </strong>
               <span>{title}</span>
             </div>
 

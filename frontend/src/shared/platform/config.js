@@ -167,10 +167,6 @@ export function resolveApiBaseUrls() {
   const platform = detectPlatform();
   const fallbackUrls = [];
 
-  if (platform.isNative && (configuredUrls.length || !isPlaceholderApiBaseUrl(import.meta.env.VITE_API_BASE_URL))) {
-    return Array.from(new Set([primaryUrl, ...configuredUrls].filter(Boolean)));
-  }
-
   if (platform.isNative) {
     if (platform.isAndroid) {
       fallbackUrls.push(LOCAL_API_BASE_URL, LOOPBACK_API_BASE_URL, ANDROID_EMULATOR_API_BASE_URL);

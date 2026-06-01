@@ -1,4 +1,4 @@
-import { Suspense, lazy, memo, useLayoutEffect } from 'react';
+import { Suspense, lazy, memo, useEffect, useLayoutEffect, useState } from 'react';
 import { Navigate, RouterProvider, createBrowserRouter, useLocation } from 'react-router-dom';
 import { ProtectedRoute, PublicOnlyRoute } from '../shared/auth/RouteGate.jsx';
 import { AppRouteError } from './AppRouteError.jsx';
@@ -12,6 +12,7 @@ import { getRouterBasename, normalizeLegacyBuildPath } from '../shared/platform/
 
 const PLATFORM = detectPlatform();
 const ROUTER_BASENAME = getRouterBasename(PLATFORM);
+const ROUTE_FALLBACK_DELAY_MS = 260;
 const routeUi = {
   screenShell:
     'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5',
@@ -39,6 +40,8 @@ const ForgotPasswordPage = lazyNamed(() => import('../surfaces/website/auth/Forg
 const ResetPasswordPage = lazyNamed(() => import('../surfaces/website/auth/ResetPasswordPage.jsx'), 'ResetPasswordPage');
 const TermsPage    = lazyNamed(() => import('../surfaces/website/pages/TermsPage.jsx'),                  'TermsPage');
 const PrivacyPolicyPage = lazyNamed(() => import('../surfaces/website/pages/PrivacyPolicyPage.jsx'),     'PrivacyPolicyPage');
+const RefundPolicyPage = lazyNamed(() => import('../surfaces/website/pages/RefundPolicyPage.jsx'),       'RefundPolicyPage');
+const CookiePolicyPage = lazyNamed(() => import('../surfaces/website/pages/CookiePolicyPage.jsx'),       'CookiePolicyPage');
 
 const CoursesPage = lazyNamed(() => import('../surfaces/admin/pages/courses/CoursesPage.jsx'), 'CoursesPage');
 const AdminDashboardPage = lazyNamed(() => import('../surfaces/admin/pages/dashboard/AdminDashboardPage.jsx'), 'AdminDashboardPage');
@@ -121,14 +124,33 @@ const roleRoutePreloaders = {
   ]),
 };
 
+function dynamicRoutePreloader(path) {
+  const cleanPath = String(path || '')
+    .split('#')[0]
+    .split('?')[0]
+    .replace(/^\/(?:admin|app|student)(?=\/|$)/, '') || '/dashboard';
+
+  if (/^\/quizzes\/\d+$/.test(cleanPath)) return TakeQuizPage.preload;
+  if (/^\/quizzes\/\d+\/practice-review$/.test(cleanPath)) return PracticeReviewPage.preload;
+  if (/^\/results\/\d+$/.test(cleanPath)) return ResultPage.preload;
+  if (/^\/review\/\d+$/.test(cleanPath)) return ReviewPage.preload;
+  if (/^\/courses\/\d+$/.test(cleanPath)) return CourseDetailPage.preload;
+  if (/^\/ai-notes\/\d+$/.test(cleanPath)) return AiNotesPage.preload;
+  if (/^\/study\/lesson\/\d+$/.test(cleanPath)) return AiNotesPage.preload;
+  return null;
+}
+
 export function preloadRouteByPath(path, role = useAuthStore.getState().user?.role) {
-  if (!path || (!PLATFORM.isNative && !shouldPreloadRoutes())) {
+  if (!path || !shouldPreloadRoutes()) {
     return;
   }
 
   const cleanPath = path.replace(/^\/(?:admin|app|student)(?=\/|$)/, '') || '/dashboard';
   const preloadRole = roleRouteMode(role);
-  const preload = roleRoutePreloaders[preloadRole]?.get(cleanPath) || commonRoutePreloaders.get(cleanPath);
+  const preload =
+    dynamicRoutePreloader(cleanPath) ||
+    roleRoutePreloaders[preloadRole]?.get(cleanPath) ||
+    commonRoutePreloaders.get(cleanPath);
   if (typeof preload === 'function') {
     preload().catch(() => {});
   }
@@ -157,8 +179,39 @@ function RouteFallback() {
   );
 }
 
+function DelayedRouteFallback() {
+  const [showFallback, setShowFallback] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowFallback(true), ROUTE_FALLBACK_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return showFallback ? <RouteFallback /> : null;
+}
+
+function usePrefersReducedMotion() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setPrefersReducedMotion(query.matches);
+    sync();
+    query.addEventListener?.('change', sync);
+    return () => query.removeEventListener?.('change', sync);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
 const RouteReveal = memo(function RouteReveal({ children }) {
   const location = useLocation();
+  const routeKey = `${location.pathname}${location.search}`;
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -167,7 +220,11 @@ const RouteReveal = memo(function RouteReveal({ children }) {
       if (cancelled) return;
       window.__lmsRouteReady = true;
       document.dispatchEvent(new CustomEvent('lms:route-ready', {
-        detail: { pathname: location.pathname },
+        detail: {
+          pathname: location.pathname,
+          search: location.search,
+          routeKey,
+        },
       }));
     });
 
@@ -175,10 +232,10 @@ const RouteReveal = memo(function RouteReveal({ children }) {
       cancelled = true;
       window.cancelAnimationFrame(raf);
     };
-  }, [location.pathname]);
+  }, [location.pathname, location.search, routeKey]);
 
   return (
-    <div className="lms-route-reveal motion-smooth animate-panelRouteFade" key={location.pathname}>
+    <div className={prefersReducedMotion ? 'lms-route-reveal motion-smooth' : 'lms-route-reveal motion-smooth animate-panelRouteFade'} key={routeKey}>
       {children}
     </div>
   );
@@ -187,7 +244,7 @@ const RouteReveal = memo(function RouteReveal({ children }) {
 function withSuspense(element) {
   return (
     <AppErrorBoundary>
-      <Suspense fallback={<RouteFallback />}>
+      <Suspense fallback={<DelayedRouteFallback />}>
         <RouteReveal>{element}</RouteReveal>
       </Suspense>
     </AppErrorBoundary>
@@ -197,7 +254,7 @@ function withSuspense(element) {
 function withLayoutSuspense(element) {
   return (
     <AppErrorBoundary>
-      <Suspense fallback={<RouteFallback />}>
+      <Suspense fallback={<DelayedRouteFallback />}>
         {element}
       </Suspense>
     </AppErrorBoundary>
@@ -585,14 +642,22 @@ export const router = createBrowserRouter([
         element: withSuspense(<PrivacyPolicyPage />),
       },
       {
+        path: 'refund-policy',
+        element: withSuspense(<RefundPolicyPage />),
+      },
+      {
+        path: 'cookie-policy',
+        element: withSuspense(<CookiePolicyPage />),
+      },
+      {
         path: 'ai',
         element: withSuspense(
           <AiQuizGeneratorPage
             engineKey="gemini"
             generatorLabel="Gemini"
-            heroEyebrow="Standalone Gemini Route"
+            heroEyebrow="AI Question Builder"
             heroTitle="Gemini Quiz Generator"
-            heroDescription="Generate draft SBA and True/False questions with the fixed Gemini API, then review and save them into the LMS question bank."
+            heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
           />
         ),
       },
@@ -602,9 +667,9 @@ export const router = createBrowserRouter([
           <AiQuizGeneratorPage
             engineKey="gemini"
             generatorLabel="Gemini"
-            heroEyebrow="Standalone Gemini Route"
+            heroEyebrow="AI Question Builder"
             heroTitle="Gemini Quiz Generator"
-            heroDescription="Generate draft SBA and True/False questions with the fixed Gemini API, then review and save them into the LMS question bank."
+            heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
           />
         ),
       },
@@ -614,9 +679,9 @@ export const router = createBrowserRouter([
           <AiQuizGeneratorPage
             engineKey="openai"
             generatorLabel="ChatGPT"
-            heroEyebrow="Standalone ChatGPT Route"
+            heroEyebrow="AI Question Builder"
             heroTitle="ChatGPT Quiz Generator"
-            heroDescription="Generate draft SBA and True/False questions with the fixed ChatGPT / OpenAI API, then review and save them into the LMS question bank."
+            heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
           />
         ),
       },

@@ -1,0 +1,41 @@
+/* Empty, error, and loading surfaces use the same spacing rhythm as cards. */
+
+:where(.lms-empty-state, .empty-state, .error-state, .loading-state, .lms-loading-state) {
+  box-sizing: border-box;
+  gap: var(--ds-card-content-gap);
+  padding: var(--ds-card-pad);
+}
+
+:where(.lms-alert, .lms-screen-status) {
+  gap: var(--ds-space-2);
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-image: none !important;
+  transform: none;
+}
+
+:where(.lms-skeleton-card, .route-skeleton__card) {
+  min-height: var(--ds-loading-min-block);
+  padding: var(--ds-card-pad);
+}
+
+:where(.skeleton-pulse) {
+  display: block;
+}
+
+:where(figure, .medical-figure, .medical-image-card) {
+  display: grid;
+  gap: var(--ds-medical-media-gap);
+}
+
+:where(figure > figcaption, .medical-caption, .image-caption) {
+  margin: 0;
+  padding-block-start: var(--ds-space-1);
+}
+
+@media (max-width: 600px) {
+  :where(.lms-empty-state, .empty-state, .error-state, .loading-state, .lms-loading-state) {
+    padding: var(--ds-space-4);
+  }
+}

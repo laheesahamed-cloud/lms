@@ -2,8 +2,12 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
+import { AuthService } from '../auth/auth.service';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
+import { CoursesService } from '../courses/courses.service';
 import { RecordStudyActivityDto } from './dto/record-study-activity.dto';
+
+type StudentCourseProgress = Awaited<ReturnType<CoursesService['findStudentCourses']>>[number];
 
 type CountRow = RowDataPacket & {
   users_count?: number;
@@ -122,9 +126,15 @@ type ActivityFeedRow = RowDataPacket & {
 
 @Injectable()
 export class DashboardService {
-  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Pool,
+    private readonly authService: AuthService,
+    private readonly coursesService: CoursesService,
+  ) {}
 
-  async getAdminDashboard() {
+  async getAdminDashboard(authorization?: string) {
+    const admin = await this.authService.requireAdmin(authorization);
+    const canViewLearnerPii = this.canViewLearnerPii(admin);
     const [
       summaryResult,
       userGrowthResult,
@@ -297,7 +307,7 @@ export class DashboardService {
       ...recentCourses,
       ...recentLessons,
       ...recentAttempts,
-    ]);
+    ], canViewLearnerPii);
 
     return {
       totalUsers: Number(summary?.users_count || 0),
@@ -504,7 +514,7 @@ export class DashboardService {
     ];
   }
 
-  private buildAdminActivityFeed(feedRows: ActivityFeedRow[]) {
+  private buildAdminActivityFeed(feedRows: ActivityFeedRow[], canViewLearnerPii = false) {
     const typeMap: Record<string, { label: string; tone: string }> = {
       user: { label: 'New user', tone: 'blue' },
       course: { label: 'Course update', tone: 'violet' },
@@ -515,16 +525,32 @@ export class DashboardService {
     return [...feedRows]
       .sort((left, right) => String(right.created_at || '').localeCompare(String(left.created_at || '')))
       .slice(0, 12)
-      .map((row) => ({
-        id: `${row.item_type}-${row.item_id}`,
-        type: row.item_type,
-        typeLabel: typeMap[row.item_type]?.label || 'Activity',
-        tone: typeMap[row.item_type]?.tone || 'blue',
-        title: row.title || 'Untitled item',
-        subtitle: row.subtitle || '',
-        status: row.status || '',
-        createdAt: row.created_at || null,
-      }));
+      .map((row) => {
+        const isLearnerRow = row.item_type === 'user';
+        return {
+          id: `${row.item_type}-${row.item_id}`,
+          type: row.item_type,
+          typeLabel: typeMap[row.item_type]?.label || 'Activity',
+          tone: typeMap[row.item_type]?.tone || 'blue',
+          title: isLearnerRow && !canViewLearnerPii ? this.anonymizedLearnerRef(row.item_id) : row.title || 'Untitled item',
+          subtitle: isLearnerRow && !canViewLearnerPii ? '' : row.subtitle || '',
+          status: row.status || '',
+          createdAt: row.created_at || null,
+        };
+      });
+  }
+
+  private canViewLearnerPii(user: { role?: string; permissions?: string[] }) {
+    return user.role === 'admin' || Boolean(user.permissions?.includes('students.manage'));
+  }
+
+  private anonymizedLearnerRef(value: unknown) {
+    const digest = createHash('sha256')
+      .update(`learner:${String(value || '')}`)
+      .digest('hex')
+      .slice(0, 10)
+      .toUpperCase();
+    return `Learner ${digest}`;
   }
 
   private calculateSeriesDelta(series: Array<{ date: string; value: number }>, windowSize: number) {
@@ -541,6 +567,8 @@ export class DashboardService {
 
   async getStudentDashboard(authorization?: string) {
     const student = await this.findActiveStudentByToken(this.extractToken(authorization));
+    const serverNow = new Date();
+    const serverClock = this.buildServerClock(serverNow);
 
     const [
       summaryResult,
@@ -553,6 +581,7 @@ export class DashboardService {
       todayQuizRowsResult,
       todayNoteRowsResult,
       questionOfDay,
+      courseProgress,
     ] = await Promise.all([
       this.db.execute<CountRow[]>(
         `SELECT
@@ -694,6 +723,7 @@ export class DashboardService {
         [student.id]
       ),
       this.getRandomDashboardQuestion(student.id),
+      this.coursesService.findStudentCourses(authorization),
     ]);
 
     const [summaryRows] = summaryResult;
@@ -706,6 +736,7 @@ export class DashboardService {
     const [todayQuizRows] = todayQuizRowsResult;
     const [todayNoteRows] = todayNoteRowsResult;
     const summary = summaryRows[0];
+    const courseProgressSummary = this.buildCourseProgressSummary(courseProgress);
 
     const totalAttempts = Number(summary?.total_attempts || 0);
     const totalPassed = Number(summary?.total_passed || 0);
@@ -811,7 +842,9 @@ export class DashboardService {
         id: student.id,
         fullName: student.full_name || '',
       },
+      serverClock,
       totalQuizzes: Number(summary?.total_quizzes || 0),
+      totalCourses: courseProgress.length,
       totalAttempts,
       quizDayStreak,
       avgScore: Number(averagePercentage.toFixed(2)),
@@ -819,6 +852,18 @@ export class DashboardService {
       passRate: Number(passRate.toFixed(2)),
       totalSmartNotes: Number(summary?.total_smart_notes || 0),
       generatedSmartNotes: Number(summary?.generated_smart_notes || 0),
+      courseProgress: courseProgress.map((course) => ({
+        id: Number(course.id),
+        courseTitle: course.courseTitle,
+        courseCode: course.courseCode,
+        examType: course.examType,
+        subjectCount: Number(course.subjectCount || 0),
+        progressPercent: Number(course.progressPercent || 0),
+        completedLessonsCount: Number(course.completedLessonsCount || 0),
+        totalLessonsCount: Number(course.totalLessonsCount || 0),
+        actionLabel: course.actionLabel || 'View Course',
+      })),
+      courseProgressSummary,
       recentAttempts: recentAttempts.map((row) => ({
         id: row.id,
         quizTitle: row.quiz_title,
@@ -864,7 +909,7 @@ export class DashboardService {
             ? 'You are moving well. Keep revising your weakest subject to stay consistent.'
             : averagePercentage >= 50
               ? 'You are building momentum. Focus on one weak topic and one recent review each day.'
-              : 'Your recent scores need support. Revisit lessons first, then use practice mode before full exams.',
+              : 'Your recent results point to one focused review block. Revisit lessons first, then use practice mode before full exams.',
     };
   }
 
@@ -928,11 +973,16 @@ export class DashboardService {
         );
 
     return {
+      windowLabel: 'Last 7 days',
+      comparisonLabel: 'Previous 7 days',
+      dateRangeLabel: 'Server calendar: last 7 days',
+      sourceLabel: 'Submitted quiz attempts',
+      emptyState: 'No submitted quiz attempts in this window yet.',
       readinessScore,
       readinessLabel:
         readinessScore >= 75 ? 'Ready to advance' :
         readinessScore >= 50 ? 'Building steadily' :
-        totalAttempts > 0 ? 'Needs focused review' : 'Baseline not set',
+        totalAttempts > 0 ? 'Focus review recommended' : 'Baseline not set',
       weeklyAttempts: last7Attempts,
       weeklyAverage: Number(last7Average.toFixed(2)),
       previousWeeklyAverage: Number(previous7Average.toFixed(2)),
@@ -953,6 +1003,44 @@ export class DashboardService {
         quizDayStreak >= 5 ? 'Excellent consistency' :
         quizDayStreak >= 2 ? 'Momentum building' :
         last7Attempts > 0 ? 'Keep the rhythm going' : 'Start today',
+    };
+  }
+
+  private buildServerClock(now: Date) {
+    return {
+      nowIso: now.toISOString(),
+      dateKey: this.formatDateKey(now),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'server-local',
+      source: 'api-server',
+    };
+  }
+
+  private formatDateKey(date: Date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private buildCourseProgressSummary(courses: StudentCourseProgress[]) {
+    const completedLessons = courses.reduce(
+      (sum, course) => sum + Number(course.completedLessonsCount || 0),
+      0
+    );
+    const totalLessons = courses.reduce(
+      (sum, course) => sum + Number(course.totalLessonsCount || 0),
+      0
+    );
+    const overallProgressPercent = totalLessons > 0
+      ? Math.round((completedLessons / totalLessons) * 100)
+      : 0;
+
+    return {
+      visibleCourses: courses.length,
+      completedLessons,
+      totalLessons,
+      overallProgressPercent,
+      sourceLabel: 'Course lesson progress',
     };
   }
 

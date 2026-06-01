@@ -23,6 +23,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureStudyActivityEventsTable(connection);
       await this.ensurePapersTable(connection);
       await this.ensureQuestionReportsTable(connection);
+      await this.ensureExamSessionsTable(connection);
       await this.ensureLessonAnnotationsTable(connection);
       await this.ensureStudentLessonProgressTable(connection);
       await this.ensureAnnouncementsTable(connection);
@@ -33,11 +34,13 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureAiProviderConfigsTable(connection);
       await this.ensureSmartNotesTable(connection);
       await this.ensureAiIllustratedNotesTable(connection);
+      await this.ensureLessonFlashcardsTable(connection);
       await this.ensureQuestionKeywordsTables(connection);
       await this.ensureSubscriptionFeaturesTables(connection);
       await this.ensureSubscriptionRequestTables(connection);
       await this.ensureQuestionTheoryRecapsTable(connection);
       await this.ensureContentGovernanceTables(connection);
+      await this.ensureAdminAuditEventsTable(connection);
       await this.ensureUserRoleColumnSupportsStaff(connection);
       await this.ensureStudyActivityEventTypes(connection);
       await this.ensureColumn(connection, 'users', 'avatar_key', "VARCHAR(64) NULL AFTER status");
@@ -147,6 +150,8 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIndex(connection, 'native_push_tokens', 'idx_native_push_tokens_enabled', 'enabled');
       await this.ensureIndex(connection, 'study_planner_tasks', 'idx_study_planner_user_due', 'user_id, due_date');
       await this.ensureIndex(connection, 'question_review_items', 'idx_question_review_items_status', 'status');
+      await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_note_status', 'note_id, status');
+      await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_lesson_status', 'lesson_id, status');
       await this.ensureIndex(connection, 'content_audit_events', 'idx_content_audit_entity', 'entity_type, entity_id');
       await this.ensureIndex(connection, 'content_versions', 'idx_content_versions_entity', 'entity_type, entity_id');
       await this.backfillPlanSubscriptionColumns(connection);
@@ -370,6 +375,27 @@ export class SchemaSyncService implements OnModuleInit {
     `);
   }
 
+  private async ensureExamSessionsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS exam_sessions (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        quiz_id INT NOT NULL,
+        status ENUM('in_progress','submitted','expired') NOT NULL DEFAULT 'in_progress',
+        started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        deadline_at DATETIME NULL,
+        last_question_index INT NOT NULL DEFAULT 0,
+        answers_json LONGTEXT NULL,
+        flagged_question_ids_json TEXT NULL,
+        submitted_attempt_id INT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_exam_sessions_user_quiz_status (user_id, quiz_id, status),
+        INDEX idx_exam_sessions_deadline (deadline_at)
+      )
+    `);
+  }
+
   private async ensureLessonAnnotationsTable(connection: PoolConnection) {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS lesson_annotations (
@@ -554,6 +580,37 @@ export class SchemaSyncService implements OnModuleInit {
         UNIQUE KEY uniq_content_versions_entity_version (entity_type, entity_id, version_number)
       )
     `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS content_workflow_states (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        entity_type VARCHAR(40) NOT NULL,
+        entity_id INT NOT NULL,
+        workflow_state ENUM('draft','in_review','published','archived') NOT NULL DEFAULT 'draft',
+        updated_by INT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_content_workflow_entity (entity_type, entity_id),
+        INDEX idx_content_workflow_state (workflow_state)
+      )
+    `);
+  }
+
+  private async ensureAdminAuditEventsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS admin_audit_events (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        event_type VARCHAR(80) NOT NULL,
+        actor_id INT NULL,
+        target_type VARCHAR(80) NULL,
+        target_id INT NULL,
+        summary VARCHAR(255) NOT NULL,
+        metadata_json JSON NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_admin_audit_actor (actor_id),
+        INDEX idx_admin_audit_event_type (event_type),
+        INDEX idx_admin_audit_created (created_at)
+      )
+    `);
   }
 
   private async ensureSystemSettingsTable(connection: PoolConnection) {
@@ -620,6 +677,27 @@ export class SchemaSyncService implements OnModuleInit {
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_ai_illustrated_notes_user (user_id)
+      )
+    `);
+  }
+
+  private async ensureLessonFlashcardsTable(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS lesson_flashcards (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        note_id INT NOT NULL,
+        lesson_id INT NULL,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        source_hint TEXT NULL,
+        status ENUM('draft','approved','rejected') NOT NULL DEFAULT 'draft',
+        sort_order INT NOT NULL DEFAULT 0,
+        generated_by ENUM('ai','manual') NOT NULL DEFAULT 'ai',
+        reviewed_by INT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_lesson_flashcards_note_status (note_id, status),
+        INDEX idx_lesson_flashcards_lesson_status (lesson_id, status)
       )
     `);
   }

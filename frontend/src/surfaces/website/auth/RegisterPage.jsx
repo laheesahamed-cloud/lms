@@ -2,6 +2,7 @@ import { memo, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../../shared/api/client.js';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
+import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { ui } from '../../../shared/styles/tailwindClasses.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../shared/utils/routeForwarding.js';
 import { PasswordField } from '../../../shared/ui/PasswordField.jsx';
@@ -11,8 +12,8 @@ const auth = {
   scene: 'mx-auto grid w-[min(1100px,100%)] items-center gap-12 lg:grid-cols-[minmax(0,1fr)_480px]',
   visual:
     'relative flex min-h-[540px] flex-col justify-center gap-5 overflow-hidden rounded-2xl bg-[var(--brand-gradient-hero)] px-[clamp(24px,4vw,52px)] py-[clamp(32px,5vw,64px)] text-white shadow-xl before:absolute before:inset-0 before:pointer-events-none before:bg-[radial-gradient(ellipse_at_70%_20%,rgba(255,255,255,0.12),transparent_55%),radial-gradient(ellipse_at_20%_80%,rgba(14,165,233,0.18),transparent_50%)] max-lg:hidden',
-  visualEyebrow: 'relative z-[1] inline-block text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-white/70',
-  visualTitle: 'relative z-[1] m-0 max-w-[400px] font-display text-[clamp(24px,3.5vw,36px)] font-extrabold leading-tight text-white',
+  visualEyebrow: 'relative z-[1] inline-block text-[11px] font-extrabold uppercase tracking-[0.12em] text-white/70',
+  visualTitle: 'relative z-[1] m-0 max-w-[400px] font-display text-[32px] max-[640px]:text-[24px] font-extrabold leading-tight text-white',
   visualText: 'relative z-[1] m-0 max-w-[380px] text-[15px] leading-[1.7] text-white/80',
   signalList: 'relative z-[1] flex flex-col gap-2',
   signal: 'flex items-center gap-2.5 text-[13px] font-semibold text-white/85 before:size-1.5 before:shrink-0 before:rounded-full before:bg-white/70 before:content-[""]',
@@ -91,12 +92,20 @@ export function RegisterPage() {
     }
   }
 
+  const feedbackId = status.error ? 'register-error' : status.success ? 'register-success' : undefined;
+
   return (
     <main className={auth.shell}>
+      <PageMeta
+        title="Create Account"
+        description="Create a xyndrome student account to access medical lessons, Q-Bank practice, exams, notes, and subscription plans."
+        path="/auth/register"
+        noindex
+      />
       <section className={auth.scene}>
         <RegisterVisual />
 
-        <form className={auth.card} onSubmit={handleSubmit}>
+        <form className={auth.card} onSubmit={handleSubmit} aria-describedby={feedbackId}>
           <div className={auth.switcher} aria-label="Authentication pages">
             <NavLink to="/auth/login"    className={({ isActive }) => `${auth.switchLink} ${isActive ? auth.switchActive : ''}`}>Sign in</NavLink>
             <NavLink to="/auth/register" className={({ isActive }) => `${auth.switchLink} ${isActive ? auth.switchActive : ''}`}>Create account</NavLink>
@@ -107,16 +116,16 @@ export function RegisterPage() {
             <p className={auth.formHeadText}>New student accounts open the real dashboard immediately with the default Free plan.</p>
           </div>
 
-          {status.error   ? <div className={ui.feedbackError}>{status.error}</div>   : null}
-          {status.success ? <div className={ui.feedbackSuccess}>{status.success}</div> : null}
+          {status.error   ? <div id="register-error" className={ui.feedbackError} role="alert" aria-live="assertive">{status.error}</div>   : null}
+          {status.success ? <div id="register-success" className={ui.feedbackSuccess} role="status" aria-live="polite">{status.success}</div> : null}
 
-          <label className={ui.formLabel}>
+          <label className={ui.formLabel} htmlFor="register-full-name">
             Full name
-            <input className={ui.input} name="fullName" placeholder="Your full name" required autoComplete="name" />
+            <input id="register-full-name" className={ui.input} name="fullName" placeholder="Your full name" required autoComplete="name" aria-invalid={status.error ? 'true' : undefined} aria-describedby={feedbackId} />
           </label>
-          <label className={ui.formLabel}>
+          <label className={ui.formLabel} htmlFor="register-email">
             Email address
-            <input className={ui.input} name="email" type="email" placeholder="you@example.com" required autoComplete="email" />
+            <input id="register-email" className={ui.input} name="email" type="email" placeholder="you@example.com" required autoComplete="email" aria-invalid={status.error ? 'true' : undefined} aria-describedby={feedbackId} />
           </label>
           <PasswordField
             label="Password"
@@ -125,6 +134,8 @@ export function RegisterPage() {
             minLength={10}
             required
             autoComplete="new-password"
+            ariaInvalid={status.error ? 'true' : undefined}
+            ariaDescribedBy={feedbackId}
           />
           <PasswordField
             label="Confirm password"
@@ -133,11 +144,14 @@ export function RegisterPage() {
             minLength={10}
             required
             autoComplete="new-password"
+            ariaInvalid={status.error ? 'true' : undefined}
+            ariaDescribedBy={feedbackId}
           />
           <label className={ui.checkboxRow}>
             <input className="shrink-0" name="acceptedTerms" type="checkbox" defaultChecked />
             <span>
               I agree to the <Link to="/terms" className={auth.inlineLink}>terms and conditions</Link> and <Link to="/privacy-policy" className={auth.inlineLink}>privacy policy</Link>, and understand some features may be locked until I upgrade.
+              {' '}I also understand the <Link to="/refund-policy" className={auth.inlineLink}>refund policy</Link> and <Link to="/cookie-policy" className={auth.inlineLink}>cookie policy</Link>.
             </span>
           </label>
 

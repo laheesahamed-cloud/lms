@@ -1,6 +1,7 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminGuard } from '../auth/admin.guard';
+import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { QuestionsService } from './questions.service';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
@@ -37,7 +38,10 @@ const workbookUploadOptions = {
 @UseGuards(AdminGuard)
 @RequirePermissions('questions.manage')
 export class QuestionsController {
-  constructor(private readonly questionsService: QuestionsService) {}
+  constructor(
+    private readonly questionsService: QuestionsService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Get()
   findAll(
@@ -85,6 +89,7 @@ export class QuestionsController {
 
   @Get('export/workbook')
   async exportQuestions(
+    @Headers('authorization') authorization?: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('type') type?: string,
@@ -99,6 +104,7 @@ export class QuestionsController {
     @Query('usage') usage?: string,
     @Res() response?: any,
   ) {
+    const actor = await this.authService.requireAdmin(authorization);
     const workbook = await this.questionsService.exportWorkbook({
       search,
       status,
@@ -112,7 +118,7 @@ export class QuestionsController {
       lessonId: lessonId ? Number(lessonId) : undefined,
       paperId: paperId ? Number(paperId) : undefined,
       unclassified: unclassified === '1' || unclassified === 'true',
-    });
+    }, actor);
 
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
     response.setHeader('Content-Disposition', `attachment; filename="questions-export-${Date.now()}.csv"`);
@@ -121,6 +127,7 @@ export class QuestionsController {
 
   @Get('export')
   async exportQuestionsLegacy(
+    @Headers('authorization') authorization?: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('type') type?: string,
@@ -136,6 +143,7 @@ export class QuestionsController {
     @Res() response?: any,
   ) {
     return this.exportQuestions(
+      authorization,
       search,
       status,
       type,
@@ -154,14 +162,50 @@ export class QuestionsController {
 
   @Post('import/workbook')
   @UseInterceptors(FileInterceptor('file', workbookUploadOptions))
-  importQuestions(@UploadedFile() file: any) {
-    return this.questionsService.importWorkbook(file);
+  async importQuestions(@Headers('authorization') authorization: string | undefined, @UploadedFile() file: any) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.importWorkbook(file, actor);
   }
 
   @Post('import')
   @UseInterceptors(FileInterceptor('file', workbookUploadOptions))
-  importQuestionsLegacy(@UploadedFile() file: any) {
-    return this.questionsService.importWorkbook(file);
+  async importQuestionsLegacy(@Headers('authorization') authorization: string | undefined, @UploadedFile() file: any) {
+    return this.importQuestions(authorization, file);
+  }
+
+  @Get(':id/versions')
+  listVersions(@Param('id', ParseIntPipe) id: number) {
+    return this.questionsService.listVersions(id);
+  }
+
+  @Post(':id/draft')
+  async markDraft(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.markDraft(id, actor);
+  }
+
+  @Post(':id/submit-review')
+  async submitForReview(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.submitForReview(id, actor);
+  }
+
+  @Post(':id/publish')
+  @RequirePermissions('content.review')
+  async publish(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.publish(id, actor);
+  }
+
+  @Post(':id/rollback/:versionNumber')
+  @RequirePermissions('content.review')
+  async rollback(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionNumber', ParseIntPipe) versionNumber: number,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.rollback(id, versionNumber, actor);
   }
 
   @Get(':id')
@@ -170,28 +214,40 @@ export class QuestionsController {
   }
 
   @Post()
-  create(@Body() createQuestionDto: CreateQuestionDto) {
-    return this.questionsService.create(createQuestionDto);
+  async create(@Headers('authorization') authorization: string | undefined, @Body() createQuestionDto: CreateQuestionDto) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.create(createQuestionDto, actor);
   }
 
   @Post('keywords/bulk')
-  bulkUpdateKeywords(@Body() bulkUpdateQuestionKeywordsDto: BulkUpdateQuestionKeywordsDto) {
-    return this.questionsService.bulkUpdateKeywords(bulkUpdateQuestionKeywordsDto);
+  async bulkUpdateKeywords(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() bulkUpdateQuestionKeywordsDto: BulkUpdateQuestionKeywordsDto,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.bulkUpdateKeywords(bulkUpdateQuestionKeywordsDto, actor);
   }
 
   @Post('bulk-delete')
-  bulkDelete(@Body() bulkDeleteQuestionsDto: BulkDeleteQuestionsDto) {
-    return this.questionsService.bulkDelete(bulkDeleteQuestionsDto);
+  async bulkDelete(@Headers('authorization') authorization: string | undefined, @Body() bulkDeleteQuestionsDto: BulkDeleteQuestionsDto) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.bulkDelete(bulkDeleteQuestionsDto, actor);
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateQuestionDto: UpdateQuestionDto) {
-    return this.questionsService.update(id, updateQuestionDto);
+  async update(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateQuestionDto: UpdateQuestionDto,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.update(id, updateQuestionDto, actor);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.questionsService.remove(id);
+  async remove(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.questionsService.remove(id, actor);
   }
 
   private parseIdList(raw?: string) {

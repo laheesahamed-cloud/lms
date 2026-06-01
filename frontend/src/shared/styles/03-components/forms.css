@@ -1,0 +1,23 @@
+/* Shared form spacing and touch target baseline. */
+
+:where(.lms-native-field, input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  min-height: var(--ds-control-height);
+}
+
+:where(label, .lms-form-field, .form-field) {
+  gap: var(--ds-space-2);
+}
+
+:where(.lms-form-grid, .form-grid) {
+  gap: var(--ds-form-gap);
+}
+
+@media (pointer: coarse) {
+  :where(button, a, [role="button"], summary, input, select, textarea) {
+    touch-action: manipulation;
+  }
+
+  :where(button, a, [role="button"], summary):not(.lms-chip-remove):not([aria-hidden="true"]) {
+    min-height: var(--ds-touch-target-min);
+  }
+}

@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { siteContent } from '../content/siteContent.js';
 import { fetchPublicSettings } from '../../../shared/api/settings.api.js';
+import { XyndromeBrand } from '../../../shared/brand/XyndromeBrand.jsx';
+import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
 import { cx } from '../../../shared/styles/tailwindClasses.js';
 import { getSafeExternalUrl } from '../../../shared/utils/linkSafety.js';
@@ -42,7 +44,7 @@ const lpRevealClass =
   'translate-y-0 scale-100 opacity-100 transition-[opacity,transform] duration-[260ms] ease-[cubic-bezier(0.23,1,0.32,1)] [transition-delay:var(--reveal-delay,0s)] [.lp.lp-reveal-enabled.lp-motion-ready_&:not(.is-revealed)]:translate-y-3 [.lp.lp-reveal-enabled.lp-motion-ready_&:not(.is-revealed)]:scale-[0.992] [.lp.lp-reveal-enabled.lp-motion-ready_&:not(.is-revealed)]:opacity-0 [&.is-revealed]:translate-y-0 [&.is-revealed]:scale-100 [&.is-revealed]:opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100 motion-reduce:transition-none';
 const lpSectionHeadClass = cx(lpRevealClass, 'lp-section-head mx-auto mb-12 max-w-[640px] text-center max-[640px]:mb-8');
 const lpSectionEyebrowClass = 'mb-3 inline-block text-[11.5px] font-extrabold uppercase tracking-[0.1em] text-blue-400';
-const lpSectionTitleClass = 'm-0 mb-3.5 text-[clamp(26px,3vw,40px)] font-black leading-tight tracking-normal text-white';
+const lpSectionTitleClass = 'm-0 mb-3.5 text-[36px] max-[640px]:text-[28px] font-black leading-tight tracking-normal text-white';
 const lpSectionTextClass = 'm-0 text-[15px] leading-relaxed text-white/50';
 const lpPlanGridClass = 'grid grid-cols-3 gap-4 max-[860px]:grid-cols-1';
 const lpRootClass =
@@ -52,8 +54,6 @@ const lpNavClass =
   'lp-nav fixed inset-x-0 top-0 z-[20000] border-b border-transparent bg-transparent shadow-none transition-[background,border-color,box-shadow] duration-200 [&.lp-nav--scrolled]:border-white/10 [&.lp-nav--scrolled]:bg-[#0F1720]/95 [&.lp-nav--scrolled]:shadow-[0_4px_22px_rgba(2,6,12,0.24)]';
 const lpNavInnerClass = 'flex h-[62px] items-center gap-8 max-[640px]:gap-3';
 const lpNavBrandClass = 'flex shrink-0 items-center gap-2.5 text-white no-underline';
-const lpNavCrossClass = 'flex size-8 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#2563EB,#7C3AED)] text-xl font-bold text-white';
-const lpNavNameClass = '[&_strong]:block [&_strong]:text-sm [&_strong]:font-extrabold [&_small]:block [&_small]:text-[10.5px] [&_small]:text-white/50';
 const lpNavLinksClass = 'lp-nav-links flex flex-1 justify-center gap-7 max-[860px]:hidden [&_a]:text-[13.5px] [&_a]:font-medium [&_a]:text-white/60 [&_a]:no-underline [&_a]:transition-colors hover:[&_a]:text-white';
 const lpNavCtaClass = 'lp-nav-cta flex shrink-0 gap-2 max-[860px]:[&_a:first-child]:hidden';
 const lpNavHamburgerClass = 'lp-nav-hamburger flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.07] text-white/75 hover:bg-white/[0.12] hover:text-white transition duration-150 min-[860px]:hidden';
@@ -96,12 +96,12 @@ const lpHeroStaggerBaseClass =
   'translate-y-0 opacity-100 transition-[opacity,transform] duration-[300ms] ease-[cubic-bezier(0.23,1,0.32,1)] group-[.is-revealed]/herocopy:translate-y-0 group-[.is-revealed]/herocopy:opacity-100 motion-reduce:!translate-y-0 motion-reduce:!opacity-100 motion-reduce:!transition-none';
 const lpHeroKickerClass = cx('lp-hero-kicker mb-5 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-3.5 py-1.5 text-[12.5px] font-semibold uppercase tracking-[0.06em] text-blue-400 animate-slideDownFade group-[.is-revealed]/herocopy:delay-[50ms]', lpHeroStaggerBaseClass);
 const lpKickerDotClass = 'lp-kicker-dot size-1.5 rounded-full bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.16)] [.lp-motion-ready_&]:animate-pulseSoft [body.app-booting_&]:![animation-play-state:paused] motion-reduce:!animate-none motion-reduce:!transform-none motion-reduce:!transition-none';
-const lpHeroTitleClass = cx('lp-hero-h1 m-0 mb-5 max-w-[620px] text-[clamp(34px,4.2vw,58px)] font-black leading-[1.07] tracking-normal text-white text-balance animate-slideUpFade [animation-delay:70ms] max-[860px]:mx-auto max-[640px]:max-w-[min(100%,360px)] max-[640px]:text-[clamp(28px,8.8vw,38px)] max-[640px]:leading-[1.12] max-[640px]:[&_br]:hidden group-[.is-revealed]/herocopy:delay-[140ms]', lpHeroStaggerBaseClass);
+const lpHeroTitleClass = cx('lp-hero-h1 m-0 mb-5 max-w-[620px] text-[52px] max-[860px]:text-[42px] font-black leading-[1.07] tracking-normal text-white text-balance animate-slideUpFade [animation-delay:70ms] max-[860px]:mx-auto max-[640px]:max-w-[min(100%,360px)] max-[640px]:text-[34px] max-[640px]:leading-[1.12] max-[640px]:[&_br]:hidden group-[.is-revealed]/herocopy:delay-[140ms]', lpHeroStaggerBaseClass);
 const lpHeroGradientClass = 'bg-[linear-gradient(90deg,#60A5FA,#A78BFA,#F472B6)] bg-clip-text text-transparent';
 const lpHeroSubClass = cx('lp-hero-sub mb-7 max-w-[520px] text-base leading-[1.65] text-white/64 animate-slideUpFade [animation-delay:140ms] max-[860px]:mx-auto max-[640px]:text-sm group-[.is-revealed]/herocopy:delay-[230ms]', lpHeroStaggerBaseClass);
 const lpHeroActionsClass = cx('lp-hero-actions mb-7 flex flex-wrap gap-3 animate-slideUpFade [animation-delay:210ms] max-[860px]:justify-center max-[640px]:mx-auto max-[640px]:grid max-[640px]:w-full max-[640px]:max-w-[320px] max-[640px]:grid-cols-1 max-[640px]:gap-2.5 max-[640px]:[&>a]:w-full max-[640px]:[&>a]:justify-center group-[.is-revealed]/herocopy:delay-[320ms]', lpHeroStaggerBaseClass);
 const lpHeroTrustClass = cx('lp-hero-trust flex flex-nowrap gap-2 overflow-x-auto animate-slideUpFade [animation-delay:280ms] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-[860px]:flex-wrap max-[860px]:justify-center max-[640px]:mx-auto max-[640px]:max-w-[320px] group-[.is-revealed]/herocopy:delay-[410ms]', lpHeroStaggerBaseClass);
-const lpTrustPillClass = 'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/[0.12] bg-white/[0.07] px-3 py-[5px] text-[11.5px] font-medium text-white/60 transition-colors duration-150 hover:border-white/20 hover:text-white/80 max-[420px]:px-2.5 max-[420px]:text-[10.5px]';
+const lpTrustPillClass = 'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/[0.12] bg-white/[0.07] px-3 py-[5px] text-[11.5px] font-medium text-white/60 transition-colors duration-150 hover:border-white/20 hover:text-white/80 max-[420px]:px-2.5 max-[420px]:text-[11px]';
 const lpHeroCardsClass = cx(lpRevealClass, 'lp-hero-cards group/herocards relative z-[2] grid grid-cols-2 grid-rows-[auto_auto] gap-3.5 rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.075),rgba(255,255,255,0.028)),rgba(2,6,23,0.84)] p-4 shadow-[0_30px_90px_rgba(2,6,12,0.3),inset_0_1px_0_rgba(255,255,255,0.10)] [animation:scaleIn_420ms_cubic-bezier(0.16,1,0.3,1)_both,lpFloatA_7.4s_ease-in-out_900ms_infinite] [contain:layout_paint] max-[860px]:mx-auto max-[860px]:max-w-[560px] max-[860px]:[animation:scaleIn_420ms_cubic-bezier(0.16,1,0.3,1)_both] max-[640px]:grid-cols-1 max-[640px]:gap-3 max-[640px]:rounded-[24px] max-[640px]:p-3 max-[480px]:gap-2.5 motion-reduce:!animate-none motion-reduce:![animation:none]');
 const lpPreviewCardClass =
   'lp-hcard relative isolate overflow-hidden rounded-2xl border border-white/[0.075] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025)),#121C26] shadow-[0_14px_32px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-1px_0_rgba(0,0,0,0.18)] transition-[box-shadow,border-color,transform] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-white/[0.11] hover:shadow-[0_18px_40px_rgba(2,6,23,0.22),0_0_0_1px_rgba(96,165,250,0.08),inset_0_1px_0_rgba(255,255,255,0.13),inset_0_-1px_0_rgba(0,0,0,0.22)] active:scale-[0.99] [contain:layout_paint]';
@@ -113,8 +113,8 @@ const lpFeaturedPlanMotionClass =
   'lp-plan-card--featured [.lp-motion-ready_&]:animate-lpPlanGlow [body.app-booting_&]:![animation-play-state:paused] motion-reduce:!animate-none';
 const lpPreviewHeadClass = 'relative z-[1] flex items-center gap-2 border-b border-white/[0.07] bg-black/50 px-3.5 py-2.5 max-[640px]:px-3 max-[640px]:py-2';
 const lpPreviewDotsClass = 'flex gap-[5px] [&_span]:size-2 [&_span]:rounded-full [&_span:nth-child(1)]:bg-[#FF6058] [&_span:nth-child(2)]:bg-[#FFBE2E] [&_span:nth-child(3)]:bg-[#28CA41]';
-const lpPreviewLabelClass = 'text-[10.5px] font-extrabold tracking-[0.04em] text-white/75 max-[640px]:text-[10px]';
-const lpPreviewBodyClass = 'relative z-[1] px-3.5 py-3 text-[10.5px] leading-[1.55] max-[640px]:px-3 max-[640px]:py-[11px]';
+const lpPreviewLabelClass = 'text-[11px] font-extrabold tracking-[0.04em] text-white/75 max-[640px]:text-[11px]';
+const lpPreviewBodyClass = 'relative z-[1] px-3.5 py-3 text-[11px] leading-[1.55] max-[640px]:px-3 max-[640px]:py-[11px]';
 const lpSectionClass = 'lp-section scroll-mt-[30vh] py-[76px] [content-visibility:auto] [contain-intrinsic-size:760px] max-[860px]:py-14 max-[640px]:py-11';
 const lpAltSectionClass = 'bg-[linear-gradient(180deg,rgba(0,0,0,0.2),rgba(0,0,0,0.36)),rgba(255,255,255,0.012)]';
 const lpCardGrid3Class = 'grid grid-cols-3 gap-4 max-[1024px]:grid-cols-2 max-[640px]:grid-cols-1 max-[640px]:gap-3';
@@ -127,7 +127,7 @@ const lpHowGridClass = 'lp-how-grid relative grid grid-cols-3 gap-5 max-[860px]:
 const lpHowCardClass =
   cx(lpRevealClass, 'relative rounded-[18px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#121C26] px-6 pb-[26px] pt-7 text-left shadow-[0_12px_28px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.04))]');
 const lpHowIconClass = 'mb-[18px] flex size-[50px] items-center justify-center rounded-[14px] border border-[color-mix(in_srgb,var(--hic)_30%,transparent)] bg-[color-mix(in_srgb,var(--hic)_14%,rgba(255,255,255,0.04))] text-[var(--hic)]';
-const lpHowNumClass = 'mb-2.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-white/20';
+const lpHowNumClass = 'mb-2.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-white/20';
 const lpHowArrowClass = 'absolute -right-[17px] top-10 z-[2] text-white/20 max-[860px]:hidden';
 const lpCompareWrapClass = cx(lpRevealClass, 'lp-compare-wrap mx-auto grid max-w-[700px] grid-cols-2 overflow-hidden rounded-2xl border border-white/10 bg-[#0F1720] shadow-[0_18px_42px_rgba(2,6,12,0.28)] max-[860px]:grid-cols-1');
 const lpCompareUsClass = 'bg-[linear-gradient(135deg,rgba(37,99,235,0.15),rgba(124,58,237,0.10)),#121C26]';
@@ -205,6 +205,58 @@ const FAQS = [
   },
 ];
 
+const DEFAULT_LANDING_CONTENT = {
+  metaTitle: 'Medical Study Platform',
+  metaDescription: 'xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.',
+  heroKicker: 'Built for medical students in Sri Lanka',
+  heroTitleLine1: 'The smarter way to',
+  heroTitleAccent: 'prepare for',
+  heroTitleLine3: 'medical exams.',
+  heroSubtitle: 'Interactive lessons, timed quizzes, and performance analytics in one focused workspace for serious medical revision.',
+  heroPrimaryLabel: 'Start Studying Free',
+  heroSecondaryLabel: 'Explore Platform',
+  featuresEyebrow: 'Platform Features',
+  featuresTitle: 'The full study loop, not just a pile of MCQs.',
+  featuresText: 'Read, revise, practise, and review — inside one calm academic workspace built for medical preparation.',
+  howEyebrow: 'Getting Started',
+  howTitle: 'Up and revising in three steps.',
+  howText: 'No complicated setup. Sign up and start revising your medical subjects today.',
+  whyEyebrow: 'Why Choose Us',
+  whyTitle: 'More than just another MCQ bank.',
+  whyText: 'While others give you a flat list of questions, we give you the full study experience — structured, visual, and data-driven.',
+  testimonialsEyebrow: 'Student Stories',
+  testimonialsTitle: 'What medical students say.',
+  testimonialsText: 'Real feedback from students across Sri Lanka using the platform for their revision.',
+  faqEyebrow: 'FAQ',
+  faqTitle: 'Questions students usually ask first.',
+  faqText: 'Clear answers about how the platform works before you start your revision journey.',
+  pricingEyebrow: 'Pricing',
+  pricingTitle: 'Transparent plans for Sri Lankan students.',
+  pricingText: 'No hidden fees. Choose the plan that fits your exam timeline and study intensity.',
+  customPlanTitle: 'Need a customized subscription?',
+  customPlanText: 'Create a package around your courses, study timeline, and exam goals.',
+  ctaEyebrow: 'Ready to begin?',
+  ctaTitle: 'Join the most complete medical study platform in Sri Lanka.',
+  ctaText: 'Interactive lessons, a full quiz engine, and performance tracking — everything you need to walk into your examination with confidence.',
+  ctaPrimaryLabel: 'Create Free Account',
+  ctaSecondaryLabel: 'Sign In',
+  footerText: 'A focused study platform for medical students in Sri Lanka — notes, quizzes, and analytics in one place.',
+  footerTagline: 'Built for Sri Lankan medical education.',
+};
+
+function mergeLandingContent(content) {
+  if (!content || typeof content !== 'object') {
+    return DEFAULT_LANDING_CONTENT;
+  }
+
+  return Object.fromEntries(
+    Object.entries(DEFAULT_LANDING_CONTENT).map(([key, fallback]) => {
+      const value = typeof content[key] === 'string' ? content[key].trim() : '';
+      return [key, value || fallback];
+    })
+  );
+}
+
 function onLandingBootReady(callback) {
   if (typeof document === 'undefined' || typeof window === 'undefined') {
     callback();
@@ -280,6 +332,7 @@ export function LandingPage() {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [whatsappUrl, setWhatsappUrl] = useState(siteContent.whatsappContactUrl);
+  const [landingContent, setLandingContent] = useState(DEFAULT_LANDING_CONTENT);
   const safeWhatsappUrl = getSafeExternalUrl(whatsappUrl);
 
   useEffect(() => {
@@ -287,6 +340,9 @@ export function LandingPage() {
       .then((settings) => {
         if (settings?.whatsappUrl) {
           setWhatsappUrl(settings.whatsappUrl);
+        }
+        if (settings?.landingPage) {
+          setLandingContent(mergeLandingContent(settings.landingPage));
         }
       })
       .catch(() => {});
@@ -377,9 +433,17 @@ export function LandingPage() {
     if (!root) return undefined;
 
     let io = null;
+    const countFrames = new Set();
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const lowSpec = lowSpecRef.current;
     const enhancedMotion = enhancedMotionRef.current;
+    const scheduleCountFrame = (callback) => {
+      const frame = window.requestAnimationFrame((timestamp) => {
+        countFrames.delete(frame);
+        callback(timestamp);
+      });
+      countFrames.add(frame);
+    };
 
     const revealAll = () => {
       revealLandingContent(root);
@@ -410,10 +474,10 @@ export function LandingPage() {
             const tick = (now) => {
               const progress = Math.min((now - start) / duration, 1);
               el.textContent = `${Math.round((1 - Math.pow(1 - progress, 3)) * target)}${suffix}`;
-              if (progress < 1) window.requestAnimationFrame(tick);
+              if (progress < 1) scheduleCountFrame(tick);
             };
 
-            window.requestAnimationFrame(tick);
+            scheduleCountFrame(tick);
           });
           io.unobserve(entry.target);
         });
@@ -428,6 +492,8 @@ export function LandingPage() {
     return () => {
       window.clearTimeout(revealTimer);
       window.clearTimeout(forceVisibleTimer);
+      countFrames.forEach((frame) => window.cancelAnimationFrame(frame));
+      countFrames.clear();
       io?.disconnect();
     };
   }, []);
@@ -439,16 +505,30 @@ export function LandingPage() {
     const container = pageRef.current?.querySelector('.lp-hero-cards');
     if (!container) return undefined;
 
-    const onMove = (e) => {
+    let frame = 0;
+    let pointer = null;
+
+    const updateSpotlight = () => {
+      frame = 0;
+      if (!pointer) return;
       container.querySelectorAll('.lp-hcard').forEach((card) => {
         const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const x = pointer.clientX - rect.left;
+        const y = pointer.clientY - rect.top;
         card.style.setProperty('--sx', `${x}px`);
         card.style.setProperty('--sy', `${y}px`);
       });
     };
+    const onMove = (e) => {
+      pointer = { clientX: e.clientX, clientY: e.clientY };
+      if (!frame) frame = window.requestAnimationFrame(updateSpotlight);
+    };
     const onLeave = () => {
+      pointer = null;
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+        frame = 0;
+      }
       container.querySelectorAll('.lp-hcard').forEach((card) => {
         card.style.removeProperty('--sx');
         card.style.removeProperty('--sy');
@@ -460,6 +540,7 @@ export function LandingPage() {
     return () => {
       container.removeEventListener('mousemove', onMove);
       container.removeEventListener('mouseleave', onLeave);
+      if (frame) window.cancelAnimationFrame(frame);
     };
   }, []);
 
@@ -485,16 +566,32 @@ export function LandingPage() {
 
   return (
     <main ref={pageRef} className={lpRootClass}>
+      <PageMeta
+        title={landingContent.metaTitle}
+        description={landingContent.metaDescription}
+        path="/"
+      />
 
       {/* ── STICKY NAV ── */}
       <header className={lpNavClass}>
         <div className={cx(lpShellClass, lpNavInnerClass)}>
           <Link to="/" className={lpNavBrandClass}>
-            <span className={lpNavCrossClass}>+</span>
-            <span className={lpNavNameClass}>
-              <strong>{siteContent.siteName}</strong>
-              <small>Medical Study Platform</small>
-            </span>
+            <XyndromeBrand
+              markSize={36}
+              logoVariant="dark"
+              subtitle="Medical Study Platform"
+              textClassName="!font-extrabold"
+              subtitleClassName="!text-white/50"
+              style={{
+                '--xyndrome-logo-art-scale': '1.4',
+                '--xyndrome-logo-art-y': '2px',
+                '--xyndrome-logo-art-origin': 'right bottom',
+                '--xyndrome-brand-word-size': '20.5px',
+                '--xyndrome-logo-scope': '#dbeafe',
+                '--xyndrome-brand-text': '#ffffff',
+                '--xyndrome-brand-muted': 'rgba(255,255,255,0.5)',
+              }}
+            />
           </Link>
           <nav className={lpNavLinksClass}>
             <a href="#features" onClick={(event) => scrollToLandingSection(event, 'features')}>Features</a>
@@ -571,22 +668,22 @@ export function LandingPage() {
           <div className={lpHeroCopyClass} data-reveal>
             <div className={lpHeroKickerClass}>
               <span className={lpKickerDotClass}/>
-              Built for medical students in Sri Lanka
+              {landingContent.heroKicker}
             </div>
             <h1 className={lpHeroTitleClass}>
-              The smarter way to{' '}<br/>
-              <span className={lpHeroGradientClass}>prepare for</span>{' '}<br/>
-              medical exams.
+              {landingContent.heroTitleLine1}{' '}<br/>
+              <span className={lpHeroGradientClass}>{landingContent.heroTitleAccent}</span>{' '}<br/>
+              {landingContent.heroTitleLine3}
             </h1>
             <p className={lpHeroSubClass}>
-              Interactive lessons, timed quizzes, and performance analytics in one focused workspace for serious medical revision.
+              {landingContent.heroSubtitle}
             </p>
             <div className={lpHeroActionsClass}>
               <Link to="/register" className={cx(lpButtonClass, lpButtonGoldClass, lpButtonLgClass)}>
-                Start Studying Free <IcoArrow/>
+                {landingContent.heroPrimaryLabel} <IcoArrow/>
               </Link>
               <Link to={dashboardUrl} className={cx(lpButtonClass, lpButtonOutlineClass, lpButtonLgClass)}>
-                {isAuthenticated ? 'Open Dashboard' : 'Explore Platform'}
+                {isAuthenticated ? 'Open Dashboard' : landingContent.heroSecondaryLabel}
               </Link>
             </div>
             <div className={lpHeroTrustClass}>
@@ -611,7 +708,7 @@ export function LandingPage() {
                 <div className="text-[11px] font-black uppercase tracking-[0.08em] text-sky-300">Study command center</div>
                 <div className="mt-0.5 truncate text-[12px] font-semibold text-white/52">Lesson, quiz, and progress signals in one place</div>
               </div>
-              <span className="shrink-0 rounded-full border border-emerald-300/18 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] text-emerald-300">Live</span>
+              <span className="shrink-0 rounded-full border border-emerald-300/18 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.06em] text-emerald-300">Live</span>
             </div>
             {/* canvas preview card */}
             <div className={cx(lpPreviewCardClass, lpPreviewCanvasMotionClass, 'lp-hcard--canvas col-start-1 animate-cardFadeIn [animation-delay:140ms] max-[640px]:col-start-1 [--sx:50%] [--sy:50%] before:pointer-events-none before:absolute before:inset-0 before:z-[2] before:rounded-2xl before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100 before:bg-[radial-gradient(280px_circle_at_var(--sx)_var(--sy),rgba(255,255,255,0.06),transparent_70%)]')}>
@@ -620,18 +717,18 @@ export function LandingPage() {
                 <span className={lpPreviewLabelClass}>Lesson — Cardiology</span>
               </div>
               <div className={lpPreviewBodyClass}>
-                <div className="mb-2 text-[11px] font-extrabold tracking-[0.04em] text-blue-300 max-[480px]:text-[10px]">→ MITRAL STENOSIS</div>
+                <div className="mb-2 text-[11px] font-extrabold tracking-[0.04em] text-blue-300 max-[480px]:text-[11px]">→ MITRAL STENOSIS</div>
                 <div className="mb-1.5 rounded-r-md border-l-[2.5px] border-[var(--ac)] bg-[color-mix(in_srgb,var(--ac)_8%,transparent)] px-2 py-1.5" style={{'--ac':'#3B82F6'}}>
-                  <div className="mb-1 text-[10px] font-extrabold text-[var(--ac)]">1. Definition</div>
-                  <div className="mb-0.5 flex gap-1.5 text-white/65 max-[480px]:text-[9.5px]"><span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ac)]"/>Narrowed MV → obstructs LA→LV inflow</div>
-                  <div className="mb-0.5 flex gap-1.5 text-white/65 max-[480px]:text-[9.5px]"><span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ac)]"/>MVA &lt;1.5 cm² = Severe MS</div>
-                  <div className="mt-1 rounded bg-amber-400/15 px-2 py-1 text-[9.5px] font-semibold text-amber-300">⚡ Symptoms begin when MVA &lt;2.0 cm²</div>
+                  <div className="mb-1 text-[11px] font-extrabold text-[var(--ac)]">1. Definition</div>
+                  <div className="mb-0.5 flex gap-1.5 text-white/65 max-[480px]:text-[11px]"><span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ac)]"/>Narrowed MV → obstructs LA→LV inflow</div>
+                  <div className="mb-0.5 flex gap-1.5 text-white/65 max-[480px]:text-[11px]"><span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ac)]"/>MVA &lt;1.5 cm² = Severe MS</div>
+                  <div className="mt-1 rounded bg-amber-400/15 px-2 py-1 text-[11px] font-semibold text-amber-300">⚡ Symptoms begin when MVA &lt;2.0 cm²</div>
                 </div>
                 <div className="mb-1.5 rounded-r-md border-l-[2.5px] border-[var(--ac)] bg-[color-mix(in_srgb,var(--ac)_8%,transparent)] px-2 py-1.5" style={{'--ac':'#8B5CF6'}}>
-                  <div className="mb-1 text-[10px] font-extrabold text-[var(--ac)]">2. Aetiology</div>
-                  <div className="mb-0.5 flex gap-1.5 text-white/65 max-[480px]:text-[9.5px]"><span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ac)]"/>Rheumatic HD — 90% of cases</div>
-                  <div className="mb-0.5 flex gap-1.5 text-white/65 max-[480px]:text-[9.5px]"><span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ac)]"/>Congenital, SLE, Carcinoid (rare)</div>
-                  <div className="mt-1 rounded bg-violet-500/20 px-2 py-0.5 text-[9.5px] font-bold tracking-[0.05em] text-violet-300">MNEMONIC · PRESS · RHD</div>
+                  <div className="mb-1 text-[11px] font-extrabold text-[var(--ac)]">2. Aetiology</div>
+                  <div className="mb-0.5 flex gap-1.5 text-white/65 max-[480px]:text-[11px]"><span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ac)]"/>Rheumatic HD — 90% of cases</div>
+                  <div className="mb-0.5 flex gap-1.5 text-white/65 max-[480px]:text-[11px]"><span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ac)]"/>Congenital, SLE, Carcinoid (rare)</div>
+                  <div className="mt-1 rounded bg-violet-500/20 px-2 py-0.5 text-[11px] font-bold tracking-[0.05em] text-violet-300">MNEMONIC · PRESS · RHD</div>
                 </div>
               </div>
             </div>
@@ -643,24 +740,24 @@ export function LandingPage() {
                 <span className={lpPreviewLabelClass}>Practice Quiz · Medicine</span>
               </div>
               <div className={lpPreviewBodyClass}>
-                <div className="mb-2 text-[10.5px] font-semibold leading-normal text-white/80 max-[480px]:text-[10px]">A 45-year-old woman presents with dyspnoea and a rumbling mid-diastolic murmur at the apex. Most likely diagnosis?</div>
+                <div className="mb-2 text-[11px] font-semibold leading-normal text-white/80 max-[480px]:text-[11px]">A 45-year-old woman presents with dyspnoea and a rumbling mid-diastolic murmur at the apex. Most likely diagnosis?</div>
                 {['Aortic Regurgitation','Mitral Stenosis','Tricuspid Stenosis','Pulmonary Stenosis'].map((opt, i) => (
-                  <div key={i} className={cx('relative mb-1 flex items-center gap-1.5 rounded-md border border-white/[0.07] px-2 py-1 text-[10px] text-white/50 max-[480px]:text-[9.5px]', i === 1 && 'border-emerald-400/35 bg-emerald-500/10 font-semibold text-emerald-300')}>
-                    <span className={cx('flex size-4 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-[9px] font-bold max-[480px]:size-[15px] max-[480px]:text-[8.5px]', i === 1 && 'bg-emerald-600 text-white')}>{String.fromCharCode(65+i)}</span>
+                  <div key={i} className={cx('relative mb-1 flex items-center gap-1.5 rounded-md border border-white/[0.07] px-2 py-1 text-[11px] text-white/50 max-[480px]:text-[11px]', i === 1 && 'border-emerald-400/35 bg-emerald-500/10 font-semibold text-emerald-300')}>
+                    <span className={cx('flex size-4 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-[11px] font-bold max-[480px]:size-[15px] max-[480px]:text-[11px]', i === 1 && 'bg-emerald-600 text-white')}>{String.fromCharCode(65+i)}</span>
                     <span>{opt}</span>
-                    {i===1 && <span className="ml-auto text-[10px] text-emerald-400">✓</span>}
+                    {i===1 && <span className="ml-auto text-[11px] text-emerald-400">✓</span>}
                   </div>
                 ))}
-                <div className="mt-1.5 rounded bg-blue-500/10 px-2 py-1 text-[9.5px] text-blue-300">✦ Classic MS: rumbling diastolic murmur + opening snap after S2</div>
+                <div className="mt-1.5 rounded bg-blue-500/10 px-2 py-1 text-[11px] text-blue-300">✦ Classic MS: rumbling diastolic murmur + opening snap after S2</div>
               </div>
             </div>
 
             {/* analytics card */}
             <div className={cx(lpPreviewCardClass, 'lp-hcard--analytics col-span-full flex animate-cardFadeIn items-center gap-0 border-blue-300/10 bg-[linear-gradient(135deg,rgba(37,99,235,0.18),rgba(124,58,237,0.10)),#02040B] p-0 [animation-delay:300ms] max-[860px]:flex-col max-[640px]:col-span-1 max-[640px]:grid max-[640px]:grid-cols-[minmax(0,0.76fr)_minmax(0,1fr)] max-[640px]:items-stretch [--sx:50%] [--sy:50%] before:pointer-events-none before:absolute before:inset-0 before:z-[2] before:rounded-2xl before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100 before:bg-[radial-gradient(280px_circle_at_var(--sx)_var(--sy),rgba(255,255,255,0.06),transparent_70%)]')}>
               <div className="min-w-[108px] shrink-0 border-r border-white/[0.07] px-[18px] py-4 max-[860px]:w-full max-[860px]:border-b max-[860px]:border-r-0 max-[640px]:flex max-[640px]:w-auto max-[640px]:flex-col max-[640px]:justify-center max-[640px]:border-b-0 max-[640px]:border-r max-[640px]:px-3 max-[640px]:py-3">
-                <div className="mb-1 text-[10px] font-bold text-white/40 max-[420px]:text-[9px]">Weekly Avg</div>
+                <div className="mb-1 text-[11px] font-bold text-white/40 max-[420px]:text-[11px]">Weekly Avg</div>
                 <div className="text-3xl font-black leading-none text-white max-[640px]:text-[25px] max-[420px]:text-[23px]">78<span className="text-[15px] text-white/40 max-[420px]:text-[12px]">%</span></div>
-                <div className="mt-1 text-[9.5px] font-bold text-emerald-400 max-[420px]:text-[8.5px]">+6% this week</div>
+                <div className="mt-1 text-[11px] font-bold text-emerald-400 max-[420px]:text-[11px]">+6% this week</div>
               </div>
               <div className="flex-1 border-r border-white/[0.07] px-4 py-3 max-[860px]:w-full max-[860px]:border-b max-[860px]:border-r-0 max-[640px]:flex max-[640px]:w-auto max-[640px]:flex-col max-[640px]:justify-center max-[640px]:border-b-0 max-[640px]:px-3 max-[640px]:py-3">
                 <div className="flex h-10 items-end gap-[5px] max-[640px]:h-9 max-[420px]:h-8 max-[420px]:gap-1">
@@ -670,7 +767,7 @@ export function LandingPage() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-1 text-[9px] tracking-[0.04em] text-white/20 max-[420px]:text-[8px]">M T W T F S S</div>
+                <div className="mt-1 text-[11px] tracking-[0.04em] text-white/20 max-[420px]:text-[11px]">M T W T F S S</div>
               </div>
               <div className="min-w-[148px] shrink-0 px-4 py-3 max-[860px]:w-full max-[640px]:col-span-2 max-[640px]:min-w-0 max-[640px]:border-t max-[640px]:border-white/[0.07] max-[640px]:px-3 max-[640px]:py-2.5">
                 {[
@@ -680,8 +777,8 @@ export function LandingPage() {
                 ].map(t => (
                   <div key={t.label} className="mb-2 last:mb-0 max-[420px]:mb-1.5">
                     <div className="mb-1 flex justify-between">
-                      <span className="text-[9.5px] text-white/45 max-[420px]:text-[8.5px]">{t.label}</span>
-                      <span className="text-[9.5px] font-bold text-white/75 max-[420px]:text-[8.5px]">{t.v}%</span>
+                      <span className="text-[11px] text-white/45 max-[420px]:text-[11px]">{t.label}</span>
+                      <span className="text-[11px] font-bold text-white/75 max-[420px]:text-[11px]">{t.v}%</span>
                     </div>
                     <div className="h-[3px] overflow-hidden rounded-sm bg-white/10"><div className="h-full rounded-sm bg-[var(--tc)]" style={{width:`${t.v}%`,'--tc':t.c}}/></div>
                   </div>
@@ -697,7 +794,7 @@ export function LandingPage() {
             {STATS.map(s => (
               <div key={s.l} className="flex min-h-[92px] flex-col items-center justify-center bg-white/[0.035] px-4 py-5 text-center max-[480px]:min-h-[78px] max-[480px]:px-2.5 max-[480px]:py-3.5">
                 <strong className="text-[28px] font-black leading-none text-white max-[640px]:text-[22px] max-[480px]:text-[20px]" {...(s.num !== null ? {'data-count': String(s.num), 'data-suffix': s.suffix} : {})}>{s.v}</strong>
-                <span className="mt-1 text-xs leading-tight text-white/44 max-[480px]:text-[10.5px]">{s.l}</span>
+                <span className="mt-1 text-xs leading-tight text-white/44 max-[480px]:text-[11px]">{s.l}</span>
               </div>
             ))}
           </div>
@@ -706,7 +803,7 @@ export function LandingPage() {
           <div className="mt-7 flex justify-center max-[640px]:mt-6" aria-hidden="true">
             <a href="#features" onClick={(e) => scrollToLandingSection(e, 'features')}
                className="group flex flex-col items-center gap-1.5 text-white/20 transition-colors duration-200 hover:text-white/40">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">Explore</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.1em]">Explore</span>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
                    className="[animation:scrollBounce_1.8s_ease-in-out_infinite] motion-reduce:!animate-none">
                 <path d="M4 6.5l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -720,9 +817,9 @@ export function LandingPage() {
       <section className={cx(lpSectionClass, lpAltSectionClass)} id="features">
         <div className={lpShellClass}>
           <div className={lpSectionHeadClass} data-reveal>
-            <span className={lpSectionEyebrowClass}>Platform Features</span>
-            <h2 className={lpSectionTitleClass}>The full study loop, not just a pile of MCQs.</h2>
-            <p className={lpSectionTextClass}>Read, revise, practise, and review — inside one calm academic workspace built for medical preparation.</p>
+            <span className={lpSectionEyebrowClass}>{landingContent.featuresEyebrow}</span>
+            <h2 className={lpSectionTitleClass}>{landingContent.featuresTitle}</h2>
+            <p className={lpSectionTextClass}>{landingContent.featuresText}</p>
           </div>
           <div className={lpFeatureBentoClass}>
             {FEATURES.map((f, i) => (
@@ -744,9 +841,9 @@ export function LandingPage() {
       <section className={lpSectionClass} id="how">
         <div className={lpShellClass}>
           <div className={lpSectionHeadClass} data-reveal>
-            <span className={lpSectionEyebrowClass}>Getting Started</span>
-            <h2 className={lpSectionTitleClass}>Up and revising in three steps.</h2>
-            <p className={lpSectionTextClass}>No complicated setup. Sign up and start revising your medical subjects today.</p>
+            <span className={lpSectionEyebrowClass}>{landingContent.howEyebrow}</span>
+            <h2 className={lpSectionTitleClass}>{landingContent.howTitle}</h2>
+            <p className={lpSectionTextClass}>{landingContent.howText}</p>
           </div>
           <div className={lpHowGridClass}>
             {STEPS.map((s, i) => (
@@ -767,14 +864,24 @@ export function LandingPage() {
       <section className={cx(lpSectionClass, lpAltSectionClass)}>
         <div className={lpShellClass}>
           <div className={lpSectionHeadClass} data-reveal>
-            <span className={lpSectionEyebrowClass}>Why Choose Us</span>
-            <h2 className={lpSectionTitleClass}>More than just another MCQ bank.</h2>
-            <p className={lpSectionTextClass}>While others give you a flat list of questions, we give you the full study experience — structured, visual, and data-driven.</p>
+            <span className={lpSectionEyebrowClass}>{landingContent.whyEyebrow}</span>
+            <h2 className={lpSectionTitleClass}>{landingContent.whyTitle}</h2>
+            <p className={lpSectionTextClass}>{landingContent.whyText}</p>
           </div>
 
           <div className={lpCompareWrapClass} data-reveal style={{'--reveal-delay':'0.1s'}}>
             <div className={lpCompareUsClass}>
-              <div className={lpCompareHeadUsClass}>{siteContent.siteName}</div>
+              <div className={lpCompareHeadUsClass}>
+                <XyndromeBrand
+                  markSize={34}
+                  logoVariant="dark"
+                  textClassName="!font-extrabold"
+                  style={{
+                    '--xyndrome-logo-scope': '#dbeafe',
+                    '--xyndrome-brand-text': '#ffffff',
+                  }}
+                />
+              </div>
               {COMPARE_US.map(f => (
                 <div key={f} className={cx(lpCompareRowClass, 'text-white/80')}>
                   <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-400"><IcoCheck/></span>{f}
@@ -797,9 +904,9 @@ export function LandingPage() {
       <section className={lpSectionClass} id="stories">
         <div className={lpShellClass}>
           <div className={lpSectionHeadClass} data-reveal>
-            <span className={lpSectionEyebrowClass}>Student Stories</span>
-            <h2 className={lpSectionTitleClass}>What medical students say.</h2>
-            <p className={lpSectionTextClass}>Real feedback from students across Sri Lanka using the platform for their revision.</p>
+            <span className={lpSectionEyebrowClass}>{landingContent.testimonialsEyebrow}</span>
+            <h2 className={lpSectionTitleClass}>{landingContent.testimonialsTitle}</h2>
+            <p className={lpSectionTextClass}>{landingContent.testimonialsText}</p>
           </div>
           <div className={lpTestimonialGridClass}>
             <div className={lpTestimonialTrackClass}>
@@ -829,9 +936,9 @@ export function LandingPage() {
       <section className={cx(lpSectionClass, lpAltSectionClass)} id="faq">
         <div className={lpShellClass}>
           <div className={lpSectionHeadClass} data-reveal>
-            <span className={lpSectionEyebrowClass}>FAQ</span>
-            <h2 className={lpSectionTitleClass}>Questions students usually ask first.</h2>
-            <p className={lpSectionTextClass}>Clear answers about how the platform works before you start your revision journey.</p>
+            <span className={lpSectionEyebrowClass}>{landingContent.faqEyebrow}</span>
+            <h2 className={lpSectionTitleClass}>{landingContent.faqTitle}</h2>
+            <p className={lpSectionTextClass}>{landingContent.faqText}</p>
           </div>
 
           <div className={lpFaqGridClass}>
@@ -859,9 +966,9 @@ export function LandingPage() {
       <section className={cx(lpSectionClass, lpAltSectionClass)} id="plans">
         <div className={lpShellClass}>
           <div className={lpSectionHeadClass} data-reveal>
-            <span className={lpSectionEyebrowClass}>Pricing</span>
-            <h2 className={lpSectionTitleClass}>Transparent plans for Sri Lankan students.</h2>
-            <p className={lpSectionTextClass}>No hidden fees. Choose the plan that fits your exam timeline and study intensity.</p>
+            <span className={lpSectionEyebrowClass}>{landingContent.pricingEyebrow}</span>
+            <h2 className={lpSectionTitleClass}>{landingContent.pricingTitle}</h2>
+            <p className={lpSectionTextClass}>{landingContent.pricingText}</p>
           </div>
           <div className="lp-pricing-grid grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-4">
             {siteContent.plans.map((plan, i) => (
@@ -873,14 +980,14 @@ export function LandingPage() {
                        )}
                        data-reveal style={{'--reveal-delay':`${i*0.08}s`}}>
                 {plan.accent === 'growth' && (
-                  <div className="-mx-7 -mt-7 mb-2 bg-[linear-gradient(90deg,#2563EB,#7C3AED)] px-7 py-2 text-center text-[10.5px] font-extrabold tracking-[0.07em] text-white uppercase">
+                  <div className="-mx-7 -mt-7 mb-2 bg-[linear-gradient(90deg,#2563EB,#7C3AED)] px-7 py-2 text-center text-[11px] font-extrabold tracking-[0.07em] text-white uppercase">
                     Best Value
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-blue-400">{plan.tag}</span>
                   {plan.savings ? (
-                    <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-emerald-300">{plan.savings}</span>
+                    <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-emerald-300">{plan.savings}</span>
                   ) : null}
                 </div>
                 <h3 className="m-0 text-xl font-extrabold text-white">{plan.name}</h3>
@@ -911,8 +1018,8 @@ export function LandingPage() {
           </div>
           <div className={cx(lpRevealClass, 'mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-sky-300/14 bg-[linear-gradient(135deg,rgba(14,165,233,0.12),rgba(16,185,129,0.07)),rgba(3,5,13,0.78)] px-5 py-4 shadow-[0_12px_28px_rgba(2,6,23,0.12)] max-[640px]:grid max-[640px]:gap-3 max-[640px]:px-4')} data-reveal style={{'--reveal-delay':'0.28s'}}>
             <div className="min-w-0">
-              <h3 className="m-0 text-[15px] font-extrabold text-white">Need a customized subscription?</h3>
-              <p className="m-0 mt-1 text-[12.5px] leading-relaxed text-white/52">Create a package around your courses, study timeline, and exam goals.</p>
+              <h3 className="m-0 text-[15px] font-extrabold text-white">{landingContent.customPlanTitle}</h3>
+              <p className="m-0 mt-1 text-[12.5px] leading-relaxed text-white/52">{landingContent.customPlanText}</p>
             </div>
             <Link
               to={customPlanEntryUrl}
@@ -935,12 +1042,12 @@ export function LandingPage() {
                 </>
               )}
             </div>
-            <span className="mb-3 block text-xs font-extrabold uppercase tracking-[0.1em] text-blue-400">Ready to begin?</span>
-            <h2 className="m-0 mb-3.5 text-[clamp(22px,3vw,36px)] font-black tracking-normal text-white">Join the most complete medical study platform in Sri Lanka.</h2>
-            <p className="mx-auto mb-8 mt-0 max-w-[560px] text-[15px] leading-[1.65] text-white/55">Interactive lessons, a full quiz engine, and performance tracking — everything you need to walk into your examination with confidence.</p>
+            <span className="mb-3 block text-xs font-extrabold uppercase tracking-[0.1em] text-blue-400">{landingContent.ctaEyebrow}</span>
+            <h2 className="m-0 mb-3.5 text-[34px] max-[640px]:text-[24px] font-black tracking-normal text-white">{landingContent.ctaTitle}</h2>
+            <p className="mx-auto mb-8 mt-0 max-w-[560px] text-[15px] leading-[1.65] text-white/55">{landingContent.ctaText}</p>
             <div className={lpCtaActionsClass}>
-              <Link to="/register" className={cx(lpButtonClass, lpButtonGoldClass, lpButtonLgClass)}>Create Free Account</Link>
-              <Link to="/login" className={cx(lpButtonClass, lpButtonGhostLightClass, lpButtonLgClass)}>Sign In</Link>
+              <Link to="/register" className={cx(lpButtonClass, lpButtonGoldClass, lpButtonLgClass)}>{landingContent.ctaPrimaryLabel}</Link>
+              <Link to="/login" className={cx(lpButtonClass, lpButtonGhostLightClass, lpButtonLgClass)}>{landingContent.ctaSecondaryLabel}</Link>
             </div>
           </div>
         </div>
@@ -952,14 +1059,25 @@ export function LandingPage() {
           <div className="mb-7 flex flex-wrap items-start justify-between gap-8 max-[640px]:flex-col max-[640px]:gap-6">
             <div className="max-w-[260px] max-[640px]:max-w-none">
               <Link to="/" className={cx(lpNavBrandClass, 'mb-3 inline-flex')}>
-                <span className={lpNavCrossClass}>+</span>
-                <span className={lpNavNameClass}>
-                  <strong>{siteContent.siteName}</strong>
-                  <small>Medical Study Platform</small>
-                </span>
+                <XyndromeBrand
+                  markSize={36}
+                  logoVariant="dark"
+                  subtitle="Medical Study Platform"
+                  textClassName="!font-extrabold"
+                  subtitleClassName="!text-white/50"
+                  style={{
+                    '--xyndrome-logo-art-scale': '1.4',
+                    '--xyndrome-logo-art-y': '2px',
+                    '--xyndrome-logo-art-origin': 'right bottom',
+                    '--xyndrome-brand-word-size': '20.5px',
+                    '--xyndrome-logo-scope': '#dbeafe',
+                    '--xyndrome-brand-text': '#ffffff',
+                    '--xyndrome-brand-muted': 'rgba(255,255,255,0.5)',
+                  }}
+                />
               </Link>
               <p className="m-0 text-[12.5px] leading-relaxed text-white/30">
-                A focused study platform for medical students in Sri Lanka — notes, quizzes, and analytics in one place.
+                {landingContent.footerText}
               </p>
             </div>
             <div className="flex gap-12 max-[480px]:gap-8">
@@ -983,13 +1101,15 @@ export function LandingPage() {
                 <ul className="m-0 flex flex-col gap-2.5 p-0 text-[13px] [&_a]:text-white/45 [&_a]:no-underline [&_a]:transition-colors hover:[&_a]:text-white/80">
                   <li><Link to="/terms">Terms</Link></li>
                   <li><Link to="/privacy-policy">Privacy Policy</Link></li>
+                  <li><Link to="/refund-policy">Refund Policy</Link></li>
+                  <li><Link to="/cookie-policy">Cookie Policy</Link></li>
                 </ul>
               </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.05] pt-6 max-[640px]:flex-col max-[640px]:text-center">
             <p className="m-0 text-[11.5px] text-white/25">© {new Date().getFullYear()} {siteContent.siteName}. All rights reserved.</p>
-            <p className="m-0 text-[11.5px] text-white/20">Built for Sri Lankan medical education.</p>
+            <p className="m-0 text-[11.5px] text-white/20">{landingContent.footerTagline}</p>
           </div>
         </div>
       </footer>

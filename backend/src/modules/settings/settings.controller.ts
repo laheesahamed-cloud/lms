@@ -4,8 +4,10 @@ import { RequirePermissions } from '../auth/permissions.decorator';
 import { CreateAiProviderDto } from './dto/create-ai-provider.dto';
 import { UpdateGeneralSettingsDto } from './dto/update-general-settings.dto';
 import { UpdateAiProviderDto } from './dto/update-ai-provider.dto';
+import { UpdateLandingPageSettingsDto } from './dto/update-landing-page-settings.dto';
 import { UpdatePaymentSettingsDto } from './dto/update-payment-settings.dto';
 import { UpdateSmtpSettingsDto } from './dto/update-smtp-settings.dto';
+import { UpdatePopupAlertSettingsDto } from './dto/update-popup-alert-settings.dto';
 import { UpdateApnsSettingsDto } from './dto/update-apns-settings.dto';
 import { UpdateFcmSettingsDto } from './dto/update-fcm-settings.dto';
 import { SettingsService } from './settings.service';
@@ -31,6 +33,13 @@ export class SettingsController {
     return this.settingsService.getGeneralSettings();
   }
 
+  @Get('landing-page')
+  @RequirePermissions('settings.manage')
+  async getLandingPageSettings(@Headers('authorization') authorization?: string) {
+    await this.authService.requireAdmin(authorization);
+    return this.settingsService.getLandingPageSettings();
+  }
+
   @Get('public')
   async getPublicSettings() {
     return this.settingsService.getPublicSettings();
@@ -48,6 +57,13 @@ export class SettingsController {
   async getSmtpSettings(@Headers('authorization') authorization?: string) {
     await this.authService.requireAdmin(authorization);
     return this.settingsService.getSmtpSettings();
+  }
+
+  @Get('popup-alert')
+  @RequirePermissions('settings.manage')
+  async getPopupAlertSettings(@Headers('authorization') authorization?: string) {
+    await this.authService.requireAdmin(authorization);
+    return this.settingsService.getPopupAlertSettings();
   }
 
   @Get('apns')
@@ -88,6 +104,16 @@ export class SettingsController {
     return this.settingsService.updateGeneralSettings(dto);
   }
 
+  @Put('landing-page')
+  @RequirePermissions('settings.manage')
+  async updateLandingPageSettings(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: UpdateLandingPageSettingsDto
+  ) {
+    await this.authService.requireAdmin(authorization);
+    return this.settingsService.updateLandingPageSettings(dto);
+  }
+
   @Put('payments')
   @RequirePermissions('settings.manage')
   async updatePaymentSettings(
@@ -106,6 +132,16 @@ export class SettingsController {
   ) {
     await this.authService.requireAdmin(authorization);
     return this.settingsService.updateSmtpSettings(dto);
+  }
+
+  @Put('popup-alert')
+  @RequirePermissions('settings.manage')
+  async updatePopupAlertSettings(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: UpdatePopupAlertSettingsDto
+  ) {
+    await this.authService.requireAdmin(authorization);
+    return this.settingsService.updatePopupAlertSettings(dto);
   }
 
   @Put('apns')

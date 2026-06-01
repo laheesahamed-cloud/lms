@@ -11,9 +11,9 @@
   --lms-safe-left: env(safe-area-inset-left, 0px);
   --lms-motion-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --lms-motion-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
-  --lms-sidebar-motion: 280ms var(--lms-motion-soft);
-  --lms-popover-motion: 220ms var(--lms-motion-soft);
-  --lms-popover-exit-duration: 220ms;
+  --lms-sidebar-motion: 220ms var(--lms-motion-soft);
+  --lms-popover-motion: 180ms var(--lms-motion-soft);
+  --lms-popover-exit-duration: 160ms;
   --lms-popover-exit-motion: var(--lms-popover-exit-duration) var(--lms-motion-soft-exit);
   --lms-live-gutter-x: clamp(12px, 2.2vw, 28px);
   --lms-live-gutter-y: clamp(12px, 1.8vw, 24px);
@@ -74,8 +74,8 @@ body {
 .app-shell {
   --lms-ease-soft: var(--lms-motion-soft);
   --lms-ease-soft-exit: var(--lms-motion-soft-exit);
-  --lms-sidebar-duration: 280ms;
-  --lms-dropdown-duration: 220ms;
+  --lms-sidebar-duration: 220ms;
+  --lms-dropdown-duration: 180ms;
 }
 
 .portal-content__frame {
@@ -92,7 +92,7 @@ body {
   .app-shell > .main-content {
     transition:
       transform var(--lms-sidebar-motion),
-      background-color 160ms ease-out !important;
+      background-color 140ms ease-out !important;
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     contain: paint;
@@ -104,7 +104,7 @@ body {
     opacity: 1;
     transition:
       width var(--lms-sidebar-motion),
-      opacity 180ms var(--lms-motion-soft) !important;
+      opacity 140ms var(--lms-motion-soft) !important;
     backface-visibility: hidden;
     contain: layout paint;
     will-change: auto;
@@ -127,8 +127,8 @@ body {
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     transition:
-      opacity 160ms var(--lms-motion-soft),
-      transform 260ms var(--lms-motion-soft) !important;
+      opacity 120ms var(--lms-motion-soft),
+      transform 180ms var(--lms-motion-soft) !important;
   }
 
   .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-wordmark {
@@ -154,8 +154,8 @@ body {
     opacity: 1;
     transform: translate3d(0, 0, 0);
     transition:
-      opacity 200ms cubic-bezier(0.22, 1, 0.36, 1),
-      transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+      opacity 130ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .lms-sidebar:not(.is-overlay-nav) .lms-sidebar-student-footer {
@@ -164,8 +164,8 @@ body {
     opacity: 1;
     transform: translate3d(0, 0, 0);
     transition:
-      opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
-      transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+      opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 190ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .app-shell.sidebar-collapsed:not(.mobile-top-nav-mode):not(.compact-focus-mode):not(.sidebar-hidden) > .main-content {
@@ -181,7 +181,7 @@ body {
   ) {
     max-width: 0 !important;
     opacity: 0 !important;
-    transform: translate3d(-8px, 0, 0);
+    transform: translate3d(-5px, 0, 0);
     pointer-events: none;
   }
 
@@ -263,7 +263,7 @@ body {
 @keyframes lmsProfilePopoverIn {
   from {
     opacity: 0;
-    transform: translate3d(0, -10px, 0) scale(0.965);
+    transform: translate3d(0, -6px, 0) scale(0.98);
   }
   to {
     opacity: 1;
@@ -278,14 +278,14 @@ body {
   }
   to {
     opacity: 0;
-    transform: translate3d(0, -4px, 0) scale(0.985);
+    transform: translate3d(0, -3px, 0) scale(0.99);
   }
 }
 
 @keyframes lmsProfileAvatarSmoothIn {
   from {
     opacity: 0;
-    transform: translate3d(0, -6px, 0) scale(0.94);
+    transform: translate3d(0, -3px, 0) scale(0.98);
   }
   to {
     opacity: 1;
@@ -300,25 +300,7 @@ body {
   }
   to {
     opacity: 0;
-    transform: translate3d(0, -5px, 0) scale(0.96);
-  }
-}
-
-@keyframes lmsProfileBackdropSmoothIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes lmsProfileBackdropSmoothOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
+    transform: translate3d(0, -3px, 0) scale(0.985);
   }
 }
 
@@ -945,12 +927,12 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
   .student-app-shell :where(.lms-reading-question) {
     max-width: 100% !important;
     padding-bottom: 6px !important;
-    font-size: clamp(15.5px, 4.2vw, 17px) !important;
+    font-size: 16.5px !important;
     line-height: 1.56 !important;
   }
 
   .student-app-shell :where(.lms-reading-answer) {
-    font-size: clamp(14px, 3.8vw, 15.5px) !important;
+    font-size: 15.5px !important;
     line-height: 1.45 !important;
   }
 
@@ -1158,14 +1140,14 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
   .student-app-shell .practice-review-page .lms-reading-question,
   .student-app-shell .lms-review-page .lms-reading-question {
     max-width: 100% !important;
-    font-size: clamp(15.25px, 4.1vw, 16.5px) !important;
+    font-size: 16px !important;
     line-height: 1.58 !important;
   }
 
   .student-app-shell .lms-exam-page .lms-reading-answer,
   .student-app-shell .practice-review-page .lms-reading-answer,
   .student-app-shell .lms-review-page .lms-reading-answer {
-    font-size: clamp(13.75px, 3.7vw, 15px) !important;
+    font-size: 15px !important;
     line-height: 1.45 !important;
   }
 
@@ -1287,56 +1269,20 @@ body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-right > 
   transition: none !important;
 }
 
-.lms-profile-menu-backdrop {
-  z-index: 10070 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  appearance: none !important;
-  -webkit-appearance: none !important;
-  cursor: pointer;
-  background: var(--lms-profile-menu-backdrop-bg, rgba(12, 24, 48, 0.20)) !important;
-  -webkit-backdrop-filter:
-    blur(var(--lms-profile-menu-backdrop-blur, 14px))
-    saturate(var(--lms-profile-menu-backdrop-saturate, 112%)) !important;
-  backdrop-filter:
-    blur(var(--lms-profile-menu-backdrop-blur, 14px))
-    saturate(var(--lms-profile-menu-backdrop-saturate, 112%)) !important;
-  animation: lmsProfileBackdropSmoothIn 220ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
-  -webkit-tap-highlight-color: transparent;
-  will-change: opacity;
-}
-
-.lms-profile-menu-backdrop.is-closing {
-  pointer-events: none !important;
-  animation: lmsProfileBackdropSmoothOut var(--lms-popover-exit-motion, 220ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1))) both !important;
-}
-
-:root[data-theme="light"] .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-bg: rgba(12, 24, 48, 0.18);
-  --lms-profile-menu-backdrop-blur: 14px;
-  --lms-profile-menu-backdrop-saturate: 114%;
-}
-
-:root[data-theme="dark"] .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-bg: rgba(2, 6, 23, 0.62);
-  --lms-profile-menu-backdrop-blur: 16px;
-  --lms-profile-menu-backdrop-saturate: 108%;
-}
-
 body.lms-profile-menu-open > .lms-profile-menu {
   position: fixed !important;
   z-index: 10081 !important;
   border: 1px solid rgba(86, 112, 150, 0.18) !important;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 250, 255, 0.90)),
-    linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(56, 189, 248, 0.10)) !important;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(247, 250, 255, 0.58)),
+    linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(56, 189, 248, 0.10)) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.78),
     0 28px 62px -24px rgba(14, 21, 56, 0.36) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(118%) !important;
-  backdrop-filter: blur(18px) saturate(118%) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
   transform-origin: top right !important;
-  animation: lmsProfilePopoverIn 220ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
+  animation: lmsProfilePopoverIn var(--lms-popover-motion, 180ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1))) both !important;
   backface-visibility: hidden;
   contain: layout paint;
   will-change: opacity, transform;
@@ -1344,13 +1290,13 @@ body.lms-profile-menu-open > .lms-profile-menu {
 
 body.lms-profile-menu-open > .lms-profile-menu.is-closing {
   pointer-events: none !important;
-  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 220ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1))) both !important;
+  animation: lmsProfilePopoverOut var(--lms-popover-exit-motion, 160ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1))) both !important;
 }
 
 :root[data-theme="dark"] body.lms-profile-menu-open > .lms-profile-menu {
   border-color: rgba(203, 213, 225, 0.15) !important;
   background:
-    linear-gradient(180deg, rgba(23, 35, 48, 0.94), rgba(18, 28, 38, 0.90)) !important;
+    linear-gradient(180deg, rgba(23, 35, 48, 0.76), rgba(18, 28, 38, 0.68)) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 28px 64px -24px rgba(2, 6, 12, 0.68) !important;
@@ -1358,18 +1304,40 @@ body.lms-profile-menu-open > .lms-profile-menu.is-closing {
 
 body.lms-profile-menu-open > .lms-profile-avatar-floating {
   z-index: 10082 !important;
-  -webkit-backdrop-filter: blur(10px) saturate(112%) !important;
-  backdrop-filter: blur(10px) saturate(112%) !important;
-  animation: lmsProfileAvatarSmoothIn 190ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
+  background: rgba(255, 255, 255, 0.58) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  animation: lmsProfileAvatarSmoothIn var(--lms-popover-motion, 180ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1))) both !important;
   will-change: opacity, transform;
 }
 
+:root[data-theme="dark"] body.lms-profile-menu-open > .lms-profile-avatar-floating {
+  background: rgba(23, 35, 48, 0.58) !important;
+}
+
 body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
-  animation: lmsProfileAvatarSmoothOut var(--lms-popover-exit-motion, 220ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1))) both !important;
+  animation: lmsProfileAvatarSmoothOut var(--lms-popover-exit-motion, 160ms var(--lms-motion-soft-exit, cubic-bezier(0.4, 0, 0.2, 1))) both !important;
 }
 
 body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-topbar.is-profile-menu-open) {
   z-index: 10060 !important;
+}
+
+:root[data-visual-effects] body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile-menu),
+body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile-menu) {
+  border-color: rgba(86, 112, 150, 0.18) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(247, 250, 255, 0.56)),
+    linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(56, 189, 248, 0.08)) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(150%) !important;
+  backdrop-filter: blur(28px) saturate(150%) !important;
+}
+
+:root[data-theme="dark"] body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile-menu) {
+  border-color: rgba(203, 213, 225, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(23, 35, 48, 0.76), rgba(18, 28, 38, 0.68)),
+    linear-gradient(135deg, rgba(96, 165, 250, 0.08), rgba(45, 212, 191, 0.06)) !important;
 }
 
 @media (max-width: 520px) {
@@ -1379,8 +1347,8 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lms-profile-menu-backdrop,
   body.lms-profile-menu-open > .lms-profile-menu,
+  body.lms-profile-menu-open > .lms-profile-menu > *,
   body.lms-profile-menu-open > .lms-profile-avatar-floating {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
@@ -1691,13 +1659,13 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
     :where(.lms-reading-question) {
     max-width: 100% !important;
     padding-bottom: 4px !important;
-    font-size: clamp(15.25px, 4.1vw, 16.5px) !important;
+    font-size: 16px !important;
     line-height: 1.57 !important;
   }
 
   .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page)
     :where(.lms-reading-answer) {
-    font-size: clamp(13.75px, 3.75vw, 15px) !important;
+    font-size: 15px !important;
     line-height: 1.45 !important;
   }
 
@@ -1846,12 +1814,12 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-reading-question) {
     max-width: 100% !important;
     padding-bottom: 4px !important;
-    font-size: clamp(15.25px, 4.1vw, 16.5px) !important;
+    font-size: 16px !important;
     line-height: 1.57 !important;
   }
 
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-reading-answer) {
-    font-size: clamp(13.75px, 3.75vw, 15px) !important;
+    font-size: 15px !important;
     line-height: 1.45 !important;
   }
 
@@ -1994,12 +1962,12 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-reading-question) {
     max-width: 100% !important;
     padding-bottom: 4px !important;
-    font-size: clamp(15.25px, 4.1vw, 16.5px) !important;
+    font-size: 16px !important;
     line-height: 1.57 !important;
   }
 
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-reading-answer) {
-    font-size: clamp(13.75px, 3.75vw, 15px) !important;
+    font-size: 15px !important;
     line-height: 1.45 !important;
   }
 
@@ -2148,12 +2116,12 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-reading-question) {
     max-width: 100% !important;
     padding-bottom: 4px !important;
-    font-size: clamp(15.25px, 4.1vw, 16.5px) !important;
+    font-size: 16px !important;
     line-height: 1.57 !important;
   }
 
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-reading-answer) {
-    font-size: clamp(13.75px, 3.75vw, 15px) !important;
+    font-size: 15px !important;
     line-height: 1.45 !important;
   }
 
@@ -2302,12 +2270,12 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
   .student-app-shell .lms-quiz-taking-page :where(.lms-reading-question) {
     max-width: 100% !important;
     padding-bottom: 4px !important;
-    font-size: clamp(15.25px, 4.1vw, 16.5px) !important;
+    font-size: 16px !important;
     line-height: 1.57 !important;
   }
 
   .student-app-shell .lms-quiz-taking-page :where(.lms-reading-answer) {
-    font-size: clamp(13.75px, 3.75vw, 15px) !important;
+    font-size: 15px !important;
     line-height: 1.45 !important;
   }
 
@@ -2617,12 +2585,12 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-reading-question) {
     max-width: 100% !important;
     padding-bottom: 4px !important;
-    font-size: clamp(15.25px, 4.1vw, 16.5px) !important;
+    font-size: 16px !important;
     line-height: 1.57 !important;
   }
 
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-reading-answer) {
-    font-size: clamp(13.75px, 3.75vw, 15px) !important;
+    font-size: 15px !important;
     line-height: 1.45 !important;
   }
 
@@ -2937,6 +2905,31 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
     gap: 8px !important;
   }
 
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-grid, .lms-review-workspace) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-sidebar, .lms-review-sidebar) {
+    order: 1 !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-review-summary-grid) {
+    order: 1 !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-practice-progress-card, .lms-review-progress-card) {
+    order: 2 !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-practice-question-key, .lms-review-side-nav:not(.lms-review-progress-card)) {
+    order: 3 !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-main-card, .lms-review-main, .lms-review-main--focus) {
+    order: 4 !important;
+  }
+
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.study-hub-shell, .practice-review-shell) {
     padding-left: 0 !important;
     padding-right: 0 !important;
@@ -3002,13 +2995,13 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-reading-question) {
     max-width: 100% !important;
     padding-bottom: 2px !important;
-    font-size: clamp(15.5px, 4.05vw, 17px) !important;
+    font-size: 16.5px !important;
     line-height: 1.56 !important;
   }
 
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-reading-answer) {
     max-width: 100% !important;
-    font-size: clamp(13.5px, 3.65vw, 15px) !important;
+    font-size: 15px !important;
     line-height: 1.46 !important;
   }
 
@@ -3058,6 +3051,82 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
     border-radius: 11px !important;
     padding: 6px 3px !important;
     box-shadow: none !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-review-summary-grid > .lms-review-summary-tile:nth-child(2)) {
+    border-color: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.42) !important;
+    background: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.14) !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-review-summary-grid > .lms-review-summary-tile:nth-child(4)) {
+    border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.36) !important;
+    background: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.12) !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-answered {
+    border-color: #047857 !important;
+    background: linear-gradient(180deg, #d1fae5, #a7f3d0) !important;
+    color: #064e3b !important;
+    box-shadow: inset 0 0 0 1px rgba(4, 120, 87, 0.18), 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-idle {
+    border-color: #b45309 !important;
+    background: linear-gradient(180deg, #ffedd5, #fed7aa) !important;
+    color: #7c2d12 !important;
+    box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.2), 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-current {
+    border-color: #1d4ed8 !important;
+    background: linear-gradient(180deg, #dbeafe, #bfdbfe) !important;
+    color: #1e3a8a !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18), inset 0 0 0 1px rgba(29, 78, 216, 0.14) !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-nav-legend-dot.is-idle, .lms-review-bubble-legend i.is-idle) {
+    border-color: #b45309 !important;
+    background: #f59e0b !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-answer-card.is-correct, .lms-answer-card.is-selected) {
+    border-color: #047857 !important;
+    background: linear-gradient(180deg, #ecfdf5, #d1fae5) !important;
+    box-shadow: inset 0 0 0 1px rgba(4, 120, 87, 0.12) !important;
+  }
+
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-answer-card.is-unanswered) {
+    border-color: #b45309 !important;
+    background: linear-gradient(180deg, #fff7ed, #ffedd5) !important;
+    box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.16) !important;
+  }
+
+  :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-answered {
+    border-color: #34d399 !important;
+    background: linear-gradient(180deg, rgba(16, 185, 129, 0.34), rgba(5, 150, 105, 0.26)) !important;
+    color: #ecfdf5 !important;
+  }
+
+  :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-idle {
+    border-color: #fbbf24 !important;
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.38), rgba(180, 83, 9, 0.3)) !important;
+    color: #fff7ed !important;
+  }
+
+  :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-current {
+    border-color: #60a5fa !important;
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.36), rgba(37, 99, 235, 0.28)) !important;
+    color: #eff6ff !important;
+  }
+
+  :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-answer-card.is-correct, .lms-answer-card.is-selected) {
+    border-color: #34d399 !important;
+    background: linear-gradient(180deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.16)) !important;
+  }
+
+  :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-answer-card.is-unanswered) {
+    border-color: #fbbf24 !important;
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.22), rgba(180, 83, 9, 0.16)) !important;
   }
 
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-quiz-action-grid) {
@@ -3314,49 +3383,10 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-assessment-btn--p
   border-color: color-mix(in srgb, var(--color-primary) 34%, var(--line-soft)) !important;
 }
 
-.quiz-completion-fallback-icon .quiz-completion-ring {
-  transform-origin: center;
-  animation: quizCompletionRing 520ms cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-
-.quiz-completion-fallback-icon .quiz-completion-check {
-  stroke-dasharray: 44;
-  stroke-dashoffset: 44;
-  animation: quizCompletionCheck 620ms cubic-bezier(0.23, 1, 0.32, 1) 140ms both;
-}
-
-@keyframes quizCompletionRing {
-  from {
-    opacity: 0;
-    transform: scale(0.88);
-  }
-  to {
-    opacity: 0.12;
-    transform: scale(1);
-  }
-}
-
-@keyframes quizCompletionCheck {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .quiz-completion-fallback-icon .quiz-completion-ring,
-  .quiz-completion-fallback-icon .quiz-completion-check {
-    animation: none !important;
-  }
-
-  .quiz-completion-fallback-icon .quiz-completion-check {
-    stroke-dashoffset: 0 !important;
-  }
-}
-
 html[data-lms-runtime="native"] .quiz-completion-overlay {
   background: color-mix(in srgb, var(--surface-0, var(--app-bg-solid)) 70%, transparent) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(108%) !important;
-  backdrop-filter: blur(10px) saturate(108%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(118%) !important;
+  backdrop-filter: blur(24px) saturate(118%) !important;
 }
 
 html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-overlay {
@@ -3502,5 +3532,144 @@ html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-capsule {
 
   .student-app-shell.quiz-focus-mode :where(.lms-review-explanation-side) {
     order: 3 !important;
+  }
+}
+
+/* iOS native platform standards: use the safe-area and Dynamic Type values
+   published by AppBridgeViewController without changing web page layouts. */
+html[data-lms-runtime="native"][data-lms-os="ios"] {
+  --lms-ios-touch-target: 44px;
+  --lms-ios-modal-gutter: 16px;
+  --lms-ios-readable-text-size: clamp(1rem, var(--lms-native-readable-body-size, 1rem), 1.28rem);
+  --lms-ios-safe-top-content: max(var(--lms-native-safe-top, var(--lms-safe-top, env(safe-area-inset-top, 0px))), 20px);
+  --lms-ios-safe-bottom-content: max(var(--lms-native-safe-bottom, var(--lms-safe-bottom, env(safe-area-inset-bottom, 0px))), 18px);
+  --lms-ios-dynamic-island-content-top: max(var(--lms-ios-dynamic-island-top, var(--lms-ios-safe-top-content)), var(--lms-ios-safe-top-content));
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html[data-lms-runtime="native"][data-lms-os="ios"] :where(.native-app-frame, .lms-app-scroll-root) {
+  scroll-padding-top: var(--lms-ios-dynamic-island-content-top) !important;
+  scroll-padding-bottom: calc(var(--lms-mobile-content-bottom, 92px) + var(--lms-ios-safe-bottom-content)) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="ios"] .app-safe-top-spacer {
+  height: clamp(0px, calc(var(--lms-ios-safe-top-content) - 12px), 32px) !important;
+  min-height: 0 !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="ios"] .student-app-shell :where(
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  summary,
+  input,
+  select,
+  textarea,
+  .lms-mobile-bottom-nav__tab,
+  .lms-assessment-btn,
+  .lms-question-choice
+) {
+  min-height: var(--lms-ios-touch-target) !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html[data-lms-runtime="native"][data-lms-os="ios"] .student-app-shell :where(
+  p,
+  li,
+  td,
+  th,
+  label,
+  input,
+  select,
+  textarea,
+  button,
+  .body-text,
+  .content-text,
+  .description,
+  .subtitle
+) {
+  font-size: max(0.9375rem, var(--lms-ios-readable-text-size));
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+html[data-lms-runtime="native"][data-lms-os="ios"] .student-app-shell :where(h1, h2, h3, .heading, .title) {
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+html[data-lms-runtime="native"][data-lms-os="ios"] .student-app-shell :where(button, [role="button"], [role="tab"], [role="menuitem"]) {
+  white-space: normal;
+}
+
+html[data-lms-runtime="native"][data-lms-os="ios"] :where(.lms-modal-backdrop, .quiz-completion-overlay) {
+  padding-top: max(var(--lms-ios-modal-gutter), var(--lms-ios-safe-top-content)) !important;
+  padding-bottom: max(var(--lms-ios-modal-gutter), var(--lms-ios-safe-bottom-content)) !important;
+  padding-left: max(var(--lms-ios-modal-gutter), var(--lms-safe-left, env(safe-area-inset-left, 0px))) !important;
+  padding-right: max(var(--lms-ios-modal-gutter), var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="ios"] :where(.lms-native-modal, .lms-modal-panel) {
+  max-height: calc(100dvh - var(--lms-ios-safe-top-content) - var(--lms-ios-safe-bottom-content) - 16px) !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+@media (max-width: 700px) {
+  html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-modal-backdrop {
+    place-items: end center !important;
+  }
+
+  html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] :where(.lms-native-modal, .lms-modal-panel) {
+    width: min(100%, 680px) !important;
+    max-height: calc(100dvh - var(--lms-ios-safe-top-content) - 8px) !important;
+    border-bottom-right-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    padding-bottom: max(16px, var(--lms-ios-safe-bottom-content)) !important;
+  }
+}
+
+/* Final release-gate accessibility guards. This file is imported last. */
+html body .lms-assessment-btn.lms-assessment-btn,
+html body .lms-question-utility-row button,
+html body .lms-mobile-quiz-actions button {
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-assessment-btn.lms-assessment-btn,
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-question-utility-row button,
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-mobile-quiz-actions button {
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-question-utility-icon-only {
+  width: auto !important;
+  min-width: 44px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html body .animate-routeFade.animate-routeFade,
+  html body .animate-panelRouteFade.animate-panelRouteFade,
+  html[data-lms-runtime] body .animate-routeFade.animate-routeFade,
+  html[data-lms-runtime] body .animate-panelRouteFade.animate-panelRouteFade,
+  html[data-lms-runtime][data-visual-effects] body .animate-routeFade.animate-routeFade,
+  html[data-lms-runtime][data-visual-effects] body .animate-panelRouteFade.animate-panelRouteFade,
+  html[data-lms-runtime][data-low-spec] body .animate-routeFade.animate-routeFade,
+  html[data-lms-runtime][data-low-spec] body .animate-panelRouteFade.animate-panelRouteFade,
+  html[data-visual-effects] body .animate-routeFade.animate-routeFade,
+  html[data-visual-effects] body .animate-panelRouteFade.animate-panelRouteFade,
+  html[data-low-spec] body .animate-routeFade.animate-routeFade,
+  html[data-low-spec] body .animate-panelRouteFade.animate-panelRouteFade,
+  html body .motion-smooth.motion-smooth,
+  html body .lms-app-scroll-root.lms-app-scroll-root,
+  html body .lms-route-reveal.lms-route-reveal {
+    animation: none !important;
+    animation-name: none !important;
+    animation-duration: 0.01ms !important;
+    transition: none !important;
   }
 }

@@ -7,6 +7,7 @@ const { json, urlencoded } = express;
 const path = require('path');
 import { AppModule } from './app.module';
 import { AuthService } from './modules/auth/auth.service';
+import { recordApiRequestMetric } from './performance-metrics';
 
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 const contentRateLimitBuckets = new Map<string, { count: number; resetAt: number; warnedAt: number }>();
@@ -353,6 +354,22 @@ export async function configureApp(app: INestApplication) {
       contentSecurityPolicy
     );
     res.removeHeader('X-Powered-By');
+    next();
+  });
+
+  app.use((req: any, res: any, next: any) => {
+    const startedAt = Date.now();
+    const path = String(req.path || req.url || '');
+    if (!path.startsWith('/api/health/client-performance')) {
+      res.on('finish', () => {
+        recordApiRequestMetric({
+          method: String(req.method || 'GET').toUpperCase(),
+          path,
+          statusCode: Number(res.statusCode || 0),
+          durationMs: Date.now() - startedAt,
+        });
+      });
+    }
     next();
   });
 

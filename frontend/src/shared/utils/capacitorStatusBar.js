@@ -43,6 +43,7 @@ export async function applyCapacitorStatusBarTheme(theme, color = DEFAULT_THEME_
   const style = theme === 'dark' ? Style.Dark : Style.Light;
 
   try {
+    await StatusBar.setOverlaysWebView?.({ overlay: true });
     await StatusBar.setStyle({ style });
     await StatusBar.setBackgroundColor({ color });
   } catch {

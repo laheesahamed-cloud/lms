@@ -68,6 +68,7 @@ export function BookmarksPage() {
 
   async function handleRemove(e, item) {
     e.stopPropagation();
+    if (!window.confirm('Remove this saved item from bookmarks?')) return;
     try {
       await toggleStudyBookmark({ itemType: item.itemType, itemId: item.itemId });
       setItems(prev => prev.filter(b => !(b.itemType === item.itemType && b.itemId === item.itemId)));
@@ -91,7 +92,7 @@ export function BookmarksPage() {
 
   function openItem(item) {
     if (item.itemType === 'quiz') navigate(`/quizzes/${item.itemId}?mode=${isExamBookmark(item) ? 'exam' : 'practice'}`);
-    else if (item.itemType === 'question') navigate(item.quizId ? `/quizzes/${item.quizId}?mode=practice` : '/quizzes');
+    else if (item.itemType === 'question') navigate(item.quizId ? `/quizzes/${item.quizId}?mode=practice&questionId=${item.itemId}` : '/quizzes');
     else navigate(`/ai-notes/${item.itemId}`);
   }
 
@@ -170,7 +171,7 @@ export function BookmarksPage() {
                   <div className="min-w-0">
                     <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-2">
                       <span className={cx(
-                        'inline-flex rounded-full border px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.05em]',
+                        'inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.05em]',
                         meta.isQuiz || meta.isQuestion
                           ? 'border-violet-500/18 bg-violet-500/8 text-violet-600 dark:text-violet-200'
                           : 'border-emerald-500/18 bg-emerald-500/8 text-emerald-600 dark:text-emerald-200'

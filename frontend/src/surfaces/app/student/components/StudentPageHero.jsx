@@ -42,11 +42,11 @@ export function StudentPageHero({
           {eyebrow ? (
             <p className={cx('student-page-hero__eyebrow m-0 mb-2 text-[11px] font-black uppercase tracking-[0.12em]', theme.accent)}>{eyebrow}</p>
           ) : null}
-          <h1 className="student-page-hero__title m-0 text-[clamp(25px,4vw,40px)] font-black leading-[1.04] tracking-normal text-ink-strong dark:text-white max-[520px]:text-[clamp(23px,7vw,32px)]">
+          <h1 className="student-page-hero__title m-0 text-[34px] max-[640px]:text-[25px] font-black leading-[1.04] tracking-normal text-ink-strong dark:text-white max-[520px]:text-[26px]">
             {title}
           </h1>
           {subtitle ? (
-            <p className="student-page-hero__subtitle m-0 mt-3 max-w-[680px] text-[clamp(13.5px,1.35vw,16px)] font-medium leading-relaxed text-ink-soft dark:text-white/62 max-[520px]:line-clamp-3">
+            <p className="student-page-hero__subtitle m-0 mt-3 max-w-[680px] text-[16px] font-medium leading-relaxed text-ink-soft dark:text-white/62 max-[520px]:line-clamp-3">
               {subtitle}
             </p>
           ) : null}
@@ -59,8 +59,8 @@ export function StudentPageHero({
                 className={cx('student-page-hero__metric min-w-0 rounded-[14px] border px-3 py-2.5 max-[640px]:rounded-[12px] max-[640px]:px-3 max-[640px]:py-2', theme.chip)}
                 key={`${metric.label}-${index}`}
               >
-                <strong className="student-page-hero__metric-value block truncate text-[clamp(18px,2.2vw,26px)] font-black leading-none text-ink-strong dark:text-white">{metric.value}</strong>
-                <span className="student-page-hero__metric-label mt-1 block truncate text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-soft dark:text-white/58 max-[520px]:text-[9.5px]">{metric.label}</span>
+                <strong className="student-page-hero__metric-value block truncate text-[24px] max-[640px]:text-[18px] font-black leading-none text-ink-strong dark:text-white">{metric.value}</strong>
+                <span className="student-page-hero__metric-label mt-1 block truncate text-[11px] font-bold uppercase tracking-[0.08em] text-ink-soft dark:text-white/58 max-[520px]:text-[11px]">{metric.label}</span>
               </div>
             ))}
           </div>

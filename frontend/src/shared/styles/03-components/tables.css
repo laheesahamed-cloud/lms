@@ -1,0 +1,68 @@
+/* Shared responsive table contract.
+   Tables may scroll horizontally, but the scroll region stays contained,
+   visible, and keyboard/touch operable across app and admin routes. */
+
+.lms-table-shell {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scroll-padding-inline: var(--ds-space-4, 16px);
+}
+
+.lms-table-shell:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--color-primary, #2563eb) 34%, transparent);
+  outline-offset: 2px;
+}
+
+.lms-table-shell::after {
+  position: sticky;
+  right: 0;
+  display: block;
+  width: 28px;
+  min-width: 28px;
+  height: 1px;
+  margin-left: auto;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface-card, #fff) 92%, transparent));
+  content: "";
+}
+
+.lms-table-shell table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.lms-table-shell :where(th, td) {
+  max-width: min(34ch, 36vw);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.lms-table-shell :where(button, [role="button"], a[href]) {
+  touch-action: manipulation;
+}
+
+@media (max-width: 900px) {
+  .lms-table-shell {
+    margin-inline: 0;
+    border-radius: var(--radius-lg, 18px);
+  }
+
+  .lms-table-shell :where(th, td) {
+    max-width: min(28ch, 72vw);
+  }
+}
+
+@media (max-width: 520px) {
+  .lms-table-shell {
+    scroll-padding-inline: var(--ds-space-3, 12px);
+  }
+
+  .lms-table-shell :where(th, td) {
+    padding-inline: var(--ds-space-3, 12px);
+  }
+}

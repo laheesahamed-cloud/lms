@@ -92,7 +92,7 @@ export class StudyBookmarksService {
     }
 
     await this.db.execute<ResultSetHeader>(
-      'INSERT INTO study_bookmarks (user_id, item_type, item_id) VALUES (?, ?, ?)',
+      'INSERT IGNORE INTO study_bookmarks (user_id, item_type, item_id) VALUES (?, ?, ?)',
       [userId, dto.itemType, dto.itemId]
     );
 

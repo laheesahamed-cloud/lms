@@ -95,6 +95,7 @@ const ANIM_CSS = `
    CARD TYPE CONFIG
 ───────────────────────────────────────── */
 const CARD_TYPE = {
+  qna:            { label: 'Q&A',               color: '#2563EB', bg: 'rgba(37,99,235,0.10)'  },
   definition:     { label: 'Definition',        color: '#3B82F6', bg: 'rgba(59,130,246,0.10)'  },
   mechanism:      { label: 'Mechanism',          color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)'  },
   features:       { label: 'Clinical Features',  color: '#10B981', bg: 'rgba(16,185,129,0.10)'  },
@@ -860,6 +861,30 @@ function buildMnemonicQuestion(acronym, context) {
   return `In ${context}, what does ${acronym} stand for?`;
 }
 
+function buildReviewedFlashcards(note, hierarchy) {
+  const rows = Array.isArray(note?.flashcards) ? note.flashcards : [];
+  return rows
+    .filter((row) => row?.status === 'approved')
+    .map((row, index) => {
+      const question = cleanStudyText(row.question);
+      const answer = cleanStudyText(row.answer);
+      if (!question || !answer) return null;
+      return {
+        id: `${note.id ?? 'note'}-qna-${row.id || index}`,
+        questionType: 'qna',
+        questionText: question,
+        answerBullets: [],
+        answerText: answer,
+        callout: cleanStudyText(row.sourceHint),
+        mnemonic: '',
+        difficulty: cardDifficulty('explain', [], answer),
+        context: cleanStudyText(row.sourceHint) || hierarchy.lesson,
+        hierarchy,
+      };
+    })
+    .filter(Boolean);
+}
+
 function buildLessonCards(note) {
   const cards = [];
   const hierarchy = {
@@ -868,6 +893,8 @@ function buildLessonCards(note) {
     topic:   note.subtopicName || '',
     lesson:  note.lessonTitle  || note.title || '',
   };
+  const reviewedCards = buildReviewedFlashcards(note, hierarchy);
+  if (reviewedCards.length > 0) return finalizeDeck(reviewedCards);
 
   notePages(note).forEach((page, pi) => {
     (page.sections || []).forEach((sec, si) => {
@@ -1072,7 +1099,7 @@ function AnswerBlock({ card }) {
   const mnemonicNode = mnemonic && (
     <div className="grid gap-2 rounded-xl border p-4"
       style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.20)' }}>
-      <span className="block text-[10px] font-extrabold uppercase tracking-widest"
+      <span className="block text-[11px] font-extrabold uppercase tracking-widest"
         style={{ color: '#6366F1' }}>Mnemonic</span>
       {card.context ? <span className="text-[12px] font-bold text-ink-soft">{card.context}</span> : null}
       <p className="m-0 text-[14px] font-bold leading-relaxed text-ink-strong whitespace-pre-line">{mnemonic}</p>
@@ -1104,7 +1131,7 @@ function AnswerBlock({ card }) {
       {callout && (
         <div className="rounded-xl border p-3.5"
           style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.20)' }}>
-          <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-widest"
+          <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-widest"
             style={{ color: '#D97706' }}>Note</span>
           <p className="m-0 text-[13px] font-semibold text-ink-medium">{callout}</p>
         </div>
@@ -1337,7 +1364,7 @@ function CountCell({ value, unknown = false, tone }) {
     total: 'text-ink-muted',
   };
   return (
-    <span className={cx('inline-flex min-w-5 justify-end rounded-md px-0.5 py-0 text-right text-[11.5px] font-black tabular-nums max-[640px]:min-w-5 max-[640px]:text-[11px] max-[380px]:text-[10.5px]', tones[tone])}>
+    <span className={cx('inline-flex min-w-5 justify-end rounded-md px-0.5 py-0 text-right text-[11.5px] font-black tabular-nums max-[640px]:min-w-5 max-[640px]:text-[11px] max-[380px]:text-[11px]', tones[tone])}>
       {formatDeckMetric(value, unknown)}
     </span>
   );
@@ -1428,7 +1455,7 @@ function FlashcardDeckRow({ node, expanded, starting, onToggle, onStartScope, on
   const statusMark = !hasStudyNotes && node.lockedCount ? (
     <FlashcardLockMark />
   ) : !hasStudyNotes && isLesson ? (
-    <span className="fc-deck-empty-mark shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[9.5px] font-black leading-none text-ink-muted max-[520px]:px-1 max-[520px]:text-[9px]">
+    <span className="fc-deck-empty-mark shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[11px] font-black leading-none text-ink-muted max-[520px]:px-1 max-[520px]:text-[11px]">
       No cards
     </span>
   ) : null;
@@ -1536,7 +1563,7 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
       return next;
     });
   };
-  const headerClass = 'px-2 py-1.5 text-[10px] font-black uppercase tracking-normal text-ink-muted max-[640px]:px-0.5 max-[640px]:py-1.5 max-[640px]:text-[9.5px]';
+  const headerClass = 'px-2 py-1.5 text-[11px] font-black uppercase tracking-normal text-ink-muted max-[640px]:px-0.5 max-[640px]:py-1.5 max-[640px]:text-[11px]';
 
   return (
     <section className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-none fc-fade-up fc-d3 dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
@@ -1863,8 +1890,8 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
 
         {/* Progress */}
         <div className="mb-5 h-2 overflow-hidden rounded-full bg-surface-3 fc-fade-up fc-d1">
-          <div className="h-full rounded-full transition-[width] duration-500"
-            style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#3B82F6,#8B5CF6)' }}/>
+          <div className="h-full w-full origin-left rounded-full transition-transform duration-500"
+            style={{ transform: `scaleX(${progress / 100})`, background: 'linear-gradient(90deg,#3B82F6,#8B5CF6)' }}/>
         </div>
 
         {/* Card */}

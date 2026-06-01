@@ -1,3 +1,16 @@
+import { resolveApiBaseUrl } from '../platform/config.js';
+
+let motionResourceGuardCleanup = null;
+let performanceMonitoringCleanup = null;
+
+const PERFORMANCE_TARGETS = {
+  firstRouteReady: 2000,
+  routeReady: 1500,
+  lcp: 2500,
+  inp: 200,
+  cls: 0.1,
+};
+
 export function isLowSpecDevice() {
   if (typeof navigator === 'undefined') return false;
   const memory = Number(navigator.deviceMemory || 0);
@@ -56,9 +69,9 @@ export function applyPerformanceProfile() {
   const nativeRuntime = runtime === 'native';
   const installedRuntime = nativeRuntime || runtime === 'pwa';
   const lowSpec = isLowSpecDevice();
-  const balancedEffects = installedRuntime ? false : shouldUseBalancedVisualEffects();
+  const balancedEffects = nativeRuntime || (!installedRuntime && shouldUseBalancedVisualEffects());
   const browserProfile = getBrowserPerformanceProfile();
-  root.toggleAttribute('data-low-spec', !installedRuntime && lowSpec);
+  root.toggleAttribute('data-low-spec', nativeRuntime || (!installedRuntime && lowSpec));
   root.dataset.visualEffects = balancedEffects ? 'balanced' : 'full';
   root.dataset.browserEngine = browserProfile.isSafari || browserProfile.isIOS
     ? 'webkit'
@@ -68,7 +81,193 @@ export function applyPerformanceProfile() {
   return lowSpec;
 }
 
+export function installMotionResourceGuards() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') {
+    return () => {};
+  }
+
+  if (motionResourceGuardCleanup) return motionResourceGuardCleanup;
+
+  const syncMotionPauseState = () => {
+    const shouldPause = document.hidden;
+    document.documentElement.toggleAttribute('data-motion-paused', shouldPause);
+    document.body?.classList.toggle('lms-motion-paused', shouldPause);
+  };
+
+  const pauseMotion = () => {
+    document.documentElement.toggleAttribute('data-motion-paused', true);
+    document.body?.classList.add('lms-motion-paused');
+  };
+
+  document.addEventListener('visibilitychange', syncMotionPauseState, { passive: true });
+  window.addEventListener('pagehide', pauseMotion, { passive: true });
+  window.addEventListener('pageshow', syncMotionPauseState, { passive: true });
+  syncMotionPauseState();
+
+  motionResourceGuardCleanup = () => {
+    document.removeEventListener('visibilitychange', syncMotionPauseState);
+    window.removeEventListener('pagehide', pauseMotion);
+    window.removeEventListener('pageshow', syncMotionPauseState);
+    document.documentElement.removeAttribute('data-motion-paused');
+    document.body?.classList.remove('lms-motion-paused');
+    motionResourceGuardCleanup = null;
+  };
+
+  return motionResourceGuardCleanup;
+}
+
+function sendClientPerformanceMetric(metric) {
+  if (typeof window === 'undefined') return;
+  const payload = JSON.stringify({
+    ...metric,
+    timestamp: new Date().toISOString(),
+  });
+  const url = `${resolveApiBaseUrl()}/health/client-performance`;
+
+  try {
+    if (navigator.sendBeacon?.(url, new Blob([payload], { type: 'application/json' }))) {
+      return;
+    }
+  } catch {
+    // Beacon delivery is best-effort; console evidence remains available.
+  }
+
+  try {
+    fetch(url, {
+      method: 'POST',
+      body: payload,
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // Ignore unsupported keepalive/fetch environments.
+  }
+}
+
+function recordClientPerformanceMetric(metric) {
+  if (typeof window === 'undefined') return;
+  const record = {
+    route: window.location?.pathname || '',
+    ...metric,
+  };
+
+  window.__lmsClientPerformance = Array.isArray(window.__lmsClientPerformance)
+    ? window.__lmsClientPerformance
+    : [];
+  window.__lmsClientPerformance.push(record);
+  if (window.__lmsClientPerformance.length > 120) {
+    window.__lmsClientPerformance.splice(0, window.__lmsClientPerformance.length - 120);
+  }
+
+  const target = Number(record.target);
+  const value = Number(record.value);
+  if (Number.isFinite(target) && Number.isFinite(value) && value > target) {
+    console.warn(JSON.stringify({
+      event: 'client_performance_slow',
+      metric: record.metric,
+      route: record.route,
+      value,
+      target,
+    }));
+  }
+
+  sendClientPerformanceMetric(record);
+}
+
+export function installPerformanceMonitoring() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return () => {};
+  }
+
+  if (document.documentElement.dataset.lmsRuntime === 'native') {
+    return () => {};
+  }
+
+  if (performanceMonitoringCleanup) return performanceMonitoringCleanup;
+
+  let firstRouteRecorded = false;
+  let cumulativeLayoutShift = 0;
+  const observers = [];
+
+  const handleRouteReady = (event) => {
+    const value = Math.round(performance.now());
+    const route = `${event?.detail?.pathname || window.location.pathname || ''}${event?.detail?.search || ''}`;
+    recordClientPerformanceMetric({
+      metric: firstRouteRecorded ? 'routeReady' : 'firstRouteReady',
+      route,
+      value,
+      target: firstRouteRecorded ? PERFORMANCE_TARGETS.routeReady : PERFORMANCE_TARGETS.firstRouteReady,
+    });
+    firstRouteRecorded = true;
+  };
+
+  document.addEventListener('lms:route-ready', handleRouteReady);
+
+  if ('PerformanceObserver' in window) {
+    try {
+      const lcpObserver = new PerformanceObserver((entryList) => {
+        const entries = entryList.getEntries();
+        const latest = entries[entries.length - 1];
+        if (!latest) return;
+        recordClientPerformanceMetric({
+          metric: 'lcp',
+          value: Math.round(latest.startTime),
+          target: PERFORMANCE_TARGETS.lcp,
+        });
+      });
+      lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
+      observers.push(lcpObserver);
+    } catch {
+      // LCP observer is unavailable in older WebViews.
+    }
+
+    try {
+      const clsObserver = new PerformanceObserver((entryList) => {
+        for (const entry of entryList.getEntries()) {
+          if (!entry.hadRecentInput) cumulativeLayoutShift += Number(entry.value || 0);
+        }
+        recordClientPerformanceMetric({
+          metric: 'cls',
+          value: Number(cumulativeLayoutShift.toFixed(3)),
+          target: PERFORMANCE_TARGETS.cls,
+        });
+      });
+      clsObserver.observe({ type: 'layout-shift', buffered: true });
+      observers.push(clsObserver);
+    } catch {
+      // CLS observer is unavailable in older WebViews.
+    }
+
+    try {
+      const inpObserver = new PerformanceObserver((entryList) => {
+        const slowest = entryList.getEntries().reduce((max, entry) => Math.max(max, Number(entry.duration || 0)), 0);
+        if (!slowest) return;
+        recordClientPerformanceMetric({
+          metric: 'inp',
+          value: Math.round(slowest),
+          target: PERFORMANCE_TARGETS.inp,
+        });
+      });
+      inpObserver.observe({ type: 'event', buffered: true, durationThreshold: 40 });
+      observers.push(inpObserver);
+    } catch {
+      // INP/event timing is not universally supported.
+    }
+  }
+
+  performanceMonitoringCleanup = () => {
+    document.removeEventListener('lms:route-ready', handleRouteReady);
+    observers.forEach((observer) => observer.disconnect());
+    performanceMonitoringCleanup = null;
+  };
+
+  return performanceMonitoringCleanup;
+}
+
 export function shouldPreloadRoutes() {
+  if (typeof document !== 'undefined' && document.documentElement.dataset.lmsRuntime === 'native') {
+    return false;
+  }
   return !isLowSpecDevice() && !getBrowserPerformanceProfile().saveData;
 }
 

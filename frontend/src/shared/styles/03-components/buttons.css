@@ -1,0 +1,23 @@
+:where(button, [role="button"]) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, [role="button"])[aria-busy="true"],
+:where(button, [role="button"])[data-loading="true"] {
+  cursor: wait;
+}
+
+:where(button:disabled, button[aria-disabled="true"], [role="button"][aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
+:where(button svg, [role="button"] svg) {
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role="button"]) {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

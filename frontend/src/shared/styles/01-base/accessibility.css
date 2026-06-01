@@ -1,0 +1,66 @@
+:root {
+  --a11y-focus-ring: #2563eb;
+  --a11y-focus-ring-shadow: rgba(37, 99, 235, 0.22);
+  --a11y-focus-offset: 3px;
+}
+
+:root[data-theme="dark"] {
+  --a11y-focus-ring: #7dd3fc;
+  --a11y-focus-ring-shadow: rgba(125, 211, 252, 0.32);
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+:where(a[href], button, input, select, textarea, summary, [role="button"], [role="menuitem"], [role="tab"], [tabindex]:not([tabindex="-1"])) {
+  scroll-margin-block: calc(var(--admin-header-h, 72px) + 18px) 96px;
+}
+
+:where(button, [role="button"], [role="tab"], [role="menuitem"]) {
+  touch-action: manipulation;
+}
+
+@media (pointer: coarse) {
+  :where(button, [role="button"], [role="tab"], [role="menuitem"], select, summary) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  :where(label:has(> input[type="checkbox"]), label:has(> input[type="radio"])) {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(a[href], button, input, select, textarea, summary, [role="button"], [role="menuitem"], [role="tab"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: var(--a11y-focus-offset) !important;
+  }
+}

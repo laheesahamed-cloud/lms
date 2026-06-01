@@ -25,17 +25,17 @@ const sectionToneClasses = {
 
 const recapScaleClasses = {
   sm: {
-    item: 'text-[13px] leading-[1.55]',
+    item: 'text-[14px] leading-[1.58]',
     label: 'text-[12.5px]',
     title: 'text-[12.5px]',
   },
   md: {
-    item: 'text-[14px] leading-[1.6]',
+    item: 'text-[15.5px] leading-[1.68]',
     label: 'text-xs',
     title: 'text-[15px]',
   },
   lg: {
-    item: 'text-[15.5px] leading-[1.75]',
+    item: 'text-[16.5px] leading-[1.76]',
     label: 'text-[13px]',
     title: 'text-[15px]',
   },
@@ -435,7 +435,7 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
         <span className="qtr-popup-trigger__copy grid min-w-0 flex-1 gap-0.5">
           <span className="qtr-popup-trigger__label min-w-0 whitespace-normal text-[13.5px] font-extrabold leading-snug text-ink-strong max-[520px]:text-[12.5px]">Quick theory recap</span>
           {normalizedRecap?.conceptName ? (
-            <span className="qtr-popup-trigger__concept min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] font-medium text-ink-soft max-[520px]:text-[10.5px]">{normalizedRecap.conceptName}</span>
+            <span className="qtr-popup-trigger__concept min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] font-medium text-ink-soft max-[520px]:text-[11px]">{normalizedRecap.conceptName}</span>
           ) : null}
         </span>
       </button>
@@ -602,7 +602,7 @@ export function QuickTheoryRecap({ recap, context = 'review', revealed = true, g
           <h4 className={recapTitleClass}>Quick Theory Recap</h4>
           {normalizedRecap.conceptName ? <span className={recapConceptClass}>{normalizedRecap.conceptName}</span> : null}
         </div>
-        <span className="qtr-header__chevron shrink-0 text-[10px] text-ink-muted" aria-hidden="true">
+        <span className="qtr-header__chevron shrink-0 text-[11px] text-ink-muted" aria-hidden="true">
           {expanded ? '▲' : '▼'}
         </span>
       </button>

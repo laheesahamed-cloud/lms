@@ -13,6 +13,8 @@ export function PasswordField({
   disabled = false,
   labelClassName,
   inputClassName,
+  ariaDescribedBy,
+  ariaInvalid,
 }) {
   const generatedId = useId();
   const fieldId = `${generatedId}-${name || 'password'}`;
@@ -32,6 +34,9 @@ export function PasswordField({
           placeholder={placeholder}
           minLength={minLength}
           required={required}
+          aria-required={required || undefined}
+          aria-invalid={ariaInvalid || undefined}
+          aria-describedby={ariaDescribedBy || undefined}
           disabled={disabled}
           autoComplete={autoComplete}
         />

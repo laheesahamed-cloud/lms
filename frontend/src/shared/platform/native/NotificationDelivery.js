@@ -2,7 +2,48 @@ import { Capacitor } from '@capacitor/core';
 import { deleteNativePushToken, saveNativePushToken } from '../../api/pushNotifications.api.js';
 
 let nativeHandlersInstalled = false;
+let androidChannelsPromise = null;
 const NATIVE_PUSH_TOKEN_KEY = 'lms_native_push_token';
+const ANDROID_NOTIFICATION_CHANNELS = [
+  {
+    id: 'default',
+    name: 'Learning updates',
+    description: 'General xyndrome learning notifications.',
+    importance: 3,
+    visibility: 0,
+    vibration: true,
+    lights: false,
+  },
+  {
+    id: 'exam_reminders',
+    name: 'Exam reminders',
+    description: 'Timed exam reminders, deadlines, and active assessment alerts.',
+    importance: 4,
+    visibility: 0,
+    vibration: true,
+    lights: true,
+    lightColor: '#2563EB',
+  },
+  {
+    id: 'course_updates',
+    name: 'Course updates',
+    description: 'Lessons, course content, announcements, and study plan updates.',
+    importance: 3,
+    visibility: 0,
+    vibration: true,
+    lights: false,
+  },
+  {
+    id: 'account_alerts',
+    name: 'Account alerts',
+    description: 'Account, subscription, privacy, and security notifications.',
+    importance: 4,
+    visibility: 0,
+    vibration: true,
+    lights: true,
+    lightColor: '#0F766E',
+  },
+];
 
 function isNativePushEnabled() {
   return import.meta.env.VITE_NATIVE_PUSH_ENABLED === 'true';
@@ -37,6 +78,17 @@ async function saveRememberedNativePushToken(token = getRememberedNativePushToke
   return { ok: true, token: cleanToken };
 }
 
+async function ensureAndroidNotificationChannels(PushNotifications) {
+  if (!isNativePushRuntime() || Capacitor.getPlatform() !== 'android' || typeof PushNotifications?.createChannel !== 'function') {
+    return;
+  }
+
+  androidChannelsPromise ??= Promise.all(
+    ANDROID_NOTIFICATION_CHANNELS.map((channel) => PushNotifications.createChannel(channel).catch(() => null))
+  );
+  await androidChannelsPromise;
+}
+
 export function isPushNotificationSupported() {
   return isNativePushRuntime();
 }
@@ -68,6 +120,7 @@ export async function enablePhonePushNotifications() {
   await installNativePushNotificationHandlers();
 
   const { PushNotifications } = await import('@capacitor/push-notifications');
+  await ensureAndroidNotificationChannels(PushNotifications);
   const permission = await PushNotifications.requestPermissions();
   if (permission.receive !== 'granted') {
     throw new Error('Notification permission was not granted for this device.');
@@ -126,6 +179,7 @@ export async function requestNativePushPermission() {
   await installNativePushNotificationHandlers();
 
   const { PushNotifications } = await import('@capacitor/push-notifications');
+  await ensureAndroidNotificationChannels(PushNotifications);
   const permission = await PushNotifications.requestPermissions();
   if (permission.receive !== 'granted') {
     return { ok: false, permission: 'denied' };
@@ -145,6 +199,7 @@ export async function installNativePushNotificationHandlers() {
   nativeHandlersInstalled = true;
 
   const { PushNotifications } = await import('@capacitor/push-notifications');
+  await ensureAndroidNotificationChannels(PushNotifications);
 
   await PushNotifications.addListener('registration', (registration) => {
     const token = rememberNativePushToken(registration?.value);

@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -8,7 +9,10 @@ import { UpdateStudentLessonProgressDto } from './dto/update-student-lesson-prog
 
 @Controller('courses')
 export class CoursesController {
-  constructor(private readonly coursesService: CoursesService) {}
+  constructor(
+    private readonly coursesService: CoursesService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Get('student')
   findStudentCourses(@Headers('authorization') authorization?: string) {
@@ -42,21 +46,71 @@ export class CoursesController {
   @Post()
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')
-  create(@Body() createCourseDto: CreateCourseDto) {
-    return this.coursesService.create(createCourseDto);
+  async create(@Headers('authorization') authorization: string | undefined, @Body() createCourseDto: CreateCourseDto) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.coursesService.create(createCourseDto, actor);
   }
 
   @Patch(':id')
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateCourseDto: UpdateCourseDto) {
-    return this.coursesService.update(id, updateCourseDto);
+  async update(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCourseDto: UpdateCourseDto,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.coursesService.update(id, updateCourseDto, actor);
   }
 
   @Delete(':id')
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.coursesService.remove(id);
+  async remove(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.coursesService.remove(id, actor);
+  }
+
+  @Get(':id/versions')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  listVersions(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.listVersions(id);
+  }
+
+  @Post(':id/draft')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  async markDraft(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.coursesService.markDraft(id, actor);
+  }
+
+  @Post(':id/submit-review')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  async submitForReview(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.coursesService.submitForReview(id, actor);
+  }
+
+  @Post(':id/publish')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.review')
+  async publish(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.coursesService.publish(id, actor);
+  }
+
+  @Post(':id/rollback/:versionNumber')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.review')
+  async rollback(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionNumber', ParseIntPipe) versionNumber: number,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.coursesService.rollback(id, versionNumber, actor);
   }
 }

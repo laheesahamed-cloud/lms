@@ -34,7 +34,7 @@ const offlineUi = {
   copy: 'mx-auto grid max-w-[560px] gap-2 text-center',
   eyebrow: 'text-[11px] font-black uppercase tracking-[0.14em] text-cyan-200',
   quoteCard: 'rounded-2xl border border-white/10 bg-black/20 p-4 shadow-xl max-[520px]:rounded-xl max-[520px]:p-3.5',
-  quoteTag: 'mb-2 block text-[10.5px] font-black uppercase tracking-[0.12em] text-emerald-200',
+  quoteTag: 'mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-emerald-200',
   quote: 'm-0 grid gap-2 [&_footer]:text-xs [&_footer]:font-bold [&_footer]:text-white/45 [&_p]:m-0 [&_p]:text-[15px] [&_p]:leading-relaxed [&_p]:text-white/80',
   status: 'flex items-center justify-center gap-2 text-center text-xs font-bold text-white/55',
   dot: 'size-2 rounded-full bg-emerald-300 shadow-[0_0_0_6px_rgba(16,185,129,0.12)]',
@@ -146,7 +146,7 @@ export function OfflineExperience() {
 
         <div className={offlineUi.copy}>
           <span className={offlineUi.eyebrow}>Offline Study Mode</span>
-          <h2 className="m-0 text-[clamp(22px,4vw,34px)] font-black leading-tight">Cached and ready while you are offline.</h2>
+          <h2 className="m-0 text-[30px] max-[640px]:text-[22px] font-black leading-tight">Cached and ready while you are offline.</h2>
           <p>
             xyndrome is holding your installed shell in cache memory. Stay steady, breathe, and keep your momentum.
           </p>

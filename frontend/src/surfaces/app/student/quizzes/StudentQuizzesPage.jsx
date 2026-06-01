@@ -5,6 +5,7 @@ import { fetchStudentQuizzes } from '../../../../shared/api/quizAttempts.api.js'
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
+import { preloadRouteByPath } from '../../../../app/router.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
@@ -269,7 +270,7 @@ function ProgressBar({ value, className = '', fillClassName = subscriptionProgre
   const percent = clampPercent(value);
   return (
     <div className={cx('h-1.5 overflow-hidden rounded-full bg-surface-3 dark:bg-white/[0.09]', className)}>
-      <span className={cx('block h-full rounded-full transition-[width] duration-700 ease-out', fillClassName)} style={{ width: `${percent}%` }} />
+      <span className={cx('block h-full w-full origin-left rounded-full transition-transform duration-500 ease-out', fillClassName)} style={{ transform: `scaleX(${percent / 100})` }} />
     </div>
   );
 }
@@ -312,12 +313,19 @@ function QBankRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, nav
     onAccessNeeded({ ...quiz, accessFeature, accessMessage });
   }
 
+  function preloadQuizRoute() {
+    if (canOpenMode) preloadRouteByPath(actionPath);
+  }
+
   return (
     <article
       className="grid min-h-[92px] cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-4 bg-transparent px-5 py-4 text-left transition-colors hover:bg-surface-2/55 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:hover:bg-white/[0.035] max-[540px]:min-h-[88px] max-[540px]:gap-3.5 max-[540px]:px-3.5 max-[540px]:py-3.5"
       role="button"
       tabIndex={0}
+      aria-label={!canOpenMode ? accessMessage : `Open ${quizDisplay.primary}`}
       onClick={openQuiz}
+      onPointerEnter={preloadQuizRoute}
+      onFocus={preloadQuizRoute}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
@@ -328,27 +336,27 @@ function QBankRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, nav
     >
       <div className="flex min-w-0 items-start gap-3.5 max-[540px]:gap-3">
         {quizDisplay.badge ? (
-          <span className="inline-flex h-8 shrink-0 items-center rounded-lg border border-line-soft bg-surface-2 px-2.5 text-[10px] font-black uppercase leading-none text-ink-muted dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-slate-400 max-[540px]:h-7 max-[540px]:rounded-md max-[540px]:px-2 max-[540px]:text-[9px]">
+          <span className="inline-flex h-8 shrink-0 items-center rounded-lg border border-line-soft bg-surface-2 px-2.5 text-[11px] font-black uppercase leading-none text-ink-muted dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-slate-400 max-[540px]:h-7 max-[540px]:rounded-md max-[540px]:px-2 max-[540px]:text-[11px]">
             {quizDisplay.badge}
           </span>
         ) : null}
         <div className="grid min-w-0 flex-1 gap-2">
-            <h3 className="m-0 line-clamp-2 min-w-0 text-[15px] font-extrabold leading-[1.48] text-ink-strong dark:text-white max-[540px]:text-[14px] max-[540px]:leading-[1.45]">{quizDisplay.primary}</h3>
+            <h3 className="m-0 line-clamp-2 min-w-0 text-[15px] font-extrabold leading-[1.48] text-ink-strong dark:text-white max-[540px]:text-[14px] max-[540px]:leading-[1.45]" title={quizDisplay.primary}>{quizDisplay.primary}</h3>
             {quizDisplay.secondary ? (
-              <p className="m-0 line-clamp-2 text-[13px] font-semibold leading-[1.45] text-ink-muted dark:text-slate-400 max-[540px]:text-[12px]">{quizDisplay.secondary}</p>
+              <p className="m-0 line-clamp-2 text-[13px] font-semibold leading-[1.45] text-ink-muted dark:text-slate-400 max-[540px]:text-[12px]" title={quizDisplay.secondary}>{quizDisplay.secondary}</p>
             ) : null}
-            <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-semibold leading-4 text-ink-muted dark:text-slate-500 max-[540px]:gap-1.5 max-[540px]:text-[10px]">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-semibold leading-4 text-ink-muted dark:text-slate-500 max-[540px]:gap-1.5 max-[540px]:text-[11px]">
             {isDone ? (
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-2 py-0.5 font-black text-brand-primary">
-                  <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-brand-primary/12 text-[9px] leading-none" aria-hidden="true">✓</span>
+                  <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-brand-primary/12 text-[11px] leading-none" aria-hidden="true">✓</span>
                   Completed
                 </span>
             ) : null}
             {isExamPage && quiz.examModeOnly ? (
-              <span className="rounded-full border border-brand-primary/22 bg-[var(--color-primary-light)] px-2 py-0.5 text-[9px] font-black uppercase leading-4 text-brand-primary">Exam only</span>
+              <span className="rounded-full border border-brand-primary/22 bg-[var(--color-primary-light)] px-2 py-0.5 text-[11px] font-black uppercase leading-4 text-brand-primary">Exam only</span>
             ) : null}
             {!quiz.isFree && !canOpenMode ? (
-              <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[9px] font-black uppercase leading-4 text-amber-700 dark:text-amber-300">Premium</span>
+              <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[11px] font-black uppercase leading-4 text-amber-700 dark:text-amber-300">Premium</span>
             ) : null}
             </div>
         </div>
@@ -412,10 +420,15 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
   const quizContextLabel = quiz.topicName || quiz.subtopicName || quiz.lessonTitle;
   const isLocked = !quiz.isFree && !canOpenMode;
   const displayTitle = quizDisplay.secondary || quizDisplay.primary;
+  const quizContext = [quizContextLabel, quiz.lessonTitle && quiz.lessonTitle !== quizContextLabel ? quiz.lessonTitle : null].filter(Boolean).join(' · ');
 
   function openQuiz() {
     if (canOpenMode) { navigate(actionPath); return; }
     onAccessNeeded({ ...quiz, accessFeature, accessMessage });
+  }
+
+  function preloadQuizRoute() {
+    if (canOpenMode) preloadRouteByPath(actionPath);
   }
 
   function openPracticeReview() {
@@ -467,39 +480,42 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
       <span className={cx('absolute left-[2px] top-1/2 z-[1] grid size-6 -translate-y-1/2 place-items-center rounded-full border text-[11px]', nodeClass)} aria-hidden="true">
         {status === 'completed' ? <IcoCheck/> : status === 'in_progress' ? <IcoPlay/> : isLocked ? <IcoLock/> : <span className="size-1.5 rounded-full bg-current" />}
       </span>
-      <div className={cx('lms-quiz-set-card group relative overflow-hidden rounded-2xl border shadow-none transition-[border-color,background] duration-150', cardBg)}>
+      <div className={cx('lms-quiz-set-card lms-card-clickable group relative overflow-hidden rounded-[var(--ds-card-radius)] border shadow-[var(--ds-card-shadow)] transition-[border-color,background] duration-150', cardBg)}>
       <div className="grid min-h-[70px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 max-[560px]:grid-cols-1 max-[560px]:gap-2.5 max-[520px]:px-2.5">
         <button
           type="button"
           className="grid min-w-0 grid-cols-[38px_minmax(0,1fr)] items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[540px]:grid-cols-[34px_minmax(0,1fr)] max-[540px]:gap-2.5"
           onClick={openQuiz}
-          title={!canOpenMode ? accessMessage : `Open ${quizDisplay.numberLabel}`}
+          onPointerEnter={preloadQuizRoute}
+          onFocus={preloadQuizRoute}
+          title={!canOpenMode ? accessMessage : `Open ${displayTitle}`}
+          aria-label={!canOpenMode ? accessMessage : `Open ${displayTitle}`}
         >
           <span className={cx('grid size-[38px] shrink-0 place-items-center rounded-2xl border max-[540px]:size-[34px] max-[540px]:rounded-xl', iconBg)}>
             {statusIcon}
           </span>
           <span className="min-w-0">
             <span className="mb-1 flex flex-wrap items-center gap-1.5">
-              <span className={cx('inline-flex h-5 items-center rounded px-1.5 text-[9.5px] font-black uppercase leading-none', numChip)}>
+              <span className={cx('inline-flex h-5 items-center rounded px-1.5 text-[11px] font-black uppercase leading-none', numChip)}>
                 {quizDisplay.numberLabel}
               </span>
               {status === 'completed' && (
-                <span className="inline-flex h-5 items-center gap-0.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-2 text-[9.5px] font-black text-brand-primary dark:text-sky-200">Done</span>
+                <span className="inline-flex h-5 items-center gap-0.5 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-2 text-[11px] font-black text-brand-primary dark:text-sky-200">Done</span>
               )}
               {status === 'in_progress' && (
-                <span className="inline-flex h-5 items-center rounded-full border border-brand-primary/22 bg-brand-primary/8 px-2 text-[9.5px] font-black text-brand-primary dark:text-sky-200">Active</span>
+                <span className="inline-flex h-5 items-center rounded-full border border-brand-primary/22 bg-brand-primary/8 px-2 text-[11px] font-black text-brand-primary dark:text-sky-200">Active</span>
               )}
               {isExamPage && quiz.examModeOnly && (
-                <span className="inline-flex h-5 items-center rounded-full border border-brand-primary/22 bg-[var(--color-primary-light)] px-2 text-[9px] font-black uppercase text-brand-primary">Exam only</span>
+                <span className="inline-flex h-5 items-center rounded-full border border-brand-primary/22 bg-[var(--color-primary-light)] px-2 text-[11px] font-black uppercase text-brand-primary">Exam only</span>
               )}
               {isLocked && (
-                <span className="inline-flex h-5 items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2 text-[9px] font-black uppercase text-amber-700 dark:text-amber-300">Premium</span>
+                <span className="inline-flex h-5 items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2 text-[11px] font-black uppercase text-amber-700 dark:text-amber-300">Premium</span>
               )}
             </span>
-            <strong className="block truncate text-[14px] font-extrabold leading-snug text-ink-strong dark:text-slate-100 max-[540px]:text-[13px]">{displayTitle}</strong>
-            {quizContextLabel ? (
-              <span className="mt-0.5 block truncate text-[11.5px] leading-snug text-ink-soft dark:text-slate-500 max-[540px]:text-[11px]">
-                {[quizContextLabel, quiz.lessonTitle && quiz.lessonTitle !== quizContextLabel ? quiz.lessonTitle : null].filter(Boolean).join(' · ')}
+            <strong className="block truncate text-[14px] font-extrabold leading-snug text-ink-strong dark:text-slate-100 max-[540px]:text-[13px]" title={displayTitle}>{displayTitle}</strong>
+            {quizContext ? (
+              <span className="mt-0.5 block truncate text-[11.5px] leading-snug text-ink-soft dark:text-slate-500 max-[540px]:text-[11px]" title={quizContext}>
+                {quizContext}
               </span>
             ) : null}
           </span>
@@ -510,6 +526,8 @@ function QuizMapRow({ quiz, quizIndex, bookmarked, onBookmark, onAccessNeeded, n
             type="button"
             className={cx('inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full border px-3.5 text-[12px] font-bold transition-[background,border-color,opacity] duration-150 max-[540px]:min-h-9 max-[540px]:px-2.5 max-[380px]:[&_span]:sr-only', actionBtn)}
             onClick={openQuiz}
+            onPointerEnter={preloadQuizRoute}
+            onFocus={preloadQuizRoute}
             title={!canOpenMode ? accessMessage : undefined}
           >
             {isLocked ? <><IcoLock/><span>Unlock</span></> : isExamPage ? <span>Start Exam</span> : status === 'in_progress' ? <><IcoPlay/><span>Resume</span></> : status === 'completed' ? <><IcoPlay/><span>Retake</span></> : <><IcoPlay/><span>Start</span></>}
@@ -566,6 +584,7 @@ function CourseGroup({ course, quizzes, groupIndex, bookmarkedIds, onBookmark, o
   const status = groupStatus(quizzes);
   const tone = unitTone(status);
   const setLabel = pageMode === 'exam' ? 'exam set' : 'practice set';
+  const groupMetaLabel = `${topicGroups.length} topic${topicGroups.length === 1 ? '' : 's'} · ${quizzes.length} ${setLabel}${quizzes.length === 1 ? '' : 's'} · ${done} done`;
   let quizCounter = 0;
 
   function toggleTopic(topicIndex) {
@@ -581,8 +600,9 @@ function CourseGroup({ course, quizzes, groupIndex, bookmarkedIds, onBookmark, o
     <section className="grid gap-3.5">
       <button
         type="button"
-        className={cx('lms-quiz-subject-card grid min-h-[104px] w-full overflow-hidden rounded-[18px] border px-4 py-3.5 text-left shadow-sm transition-[border-color,background] duration-150 hover:border-brand-primary/18 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-[92px] max-[520px]:rounded-[16px] max-[520px]:px-3 max-[520px]:py-3 sm:grid-cols-[minmax(0,1fr)_minmax(190px,300px)] sm:items-center', tone.card, tone.header)}
+        className={cx('lms-quiz-subject-card lms-card-clickable grid min-h-[104px] w-full overflow-hidden rounded-[var(--ds-card-radius)] border px-4 py-3.5 text-left shadow-[var(--ds-card-shadow)] transition-[border-color,background] duration-150 hover:border-brand-primary/18 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-[92px] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:px-3 max-[520px]:py-3 sm:grid-cols-[minmax(0,1fr)_minmax(190px,300px)] sm:items-center', tone.card, tone.header)}
         onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
       >
         <div className="flex min-w-0 items-center gap-3">
           <span className={cx('relative grid size-12 shrink-0 place-items-center rounded-[18px] border border-current/14 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] max-[520px]:size-11 max-[520px]:rounded-2xl', tone.circle)}>
@@ -590,21 +610,21 @@ function CourseGroup({ course, quizzes, groupIndex, bookmarkedIds, onBookmark, o
           </span>
           <div className="relative grid min-w-0 gap-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <span className="rounded-full border border-brand-primary/14 bg-brand-primary/8 px-2.5 py-0.5 text-[9.5px] font-black uppercase text-brand-primary dark:border-sky-300/16 dark:bg-sky-400/10 dark:text-sky-200">
+              <span className="rounded-full border border-brand-primary/14 bg-brand-primary/8 px-2.5 py-0.5 text-[11px] font-black uppercase text-brand-primary dark:border-sky-300/16 dark:bg-sky-400/10 dark:text-sky-200">
                 Subject {String(groupIndex + 1).padStart(2, '0')}
               </span>
-              <span className={cx('rounded-full border px-2.5 py-0.5 text-[9.5px] font-black uppercase', statusTone(status))}>
+              <span className={cx('rounded-full border px-2.5 py-0.5 text-[11px] font-black uppercase', statusTone(status))}>
                 {statusLabel(status)}
               </span>
             </div>
-            <h3 className="m-0 min-w-0 truncate text-[clamp(18px,2vw,24px)] font-black leading-tight text-ink-strong dark:text-white">
+            <h3 className="m-0 min-w-0 truncate text-[22px] max-[640px]:text-[18px] font-black leading-tight text-ink-strong dark:text-white" title={course}>
               {course}
             </h3>
-            <p className="m-0 truncate text-[11.5px] font-semibold text-ink-muted dark:text-slate-500">
-              {topicGroups.length} topic{topicGroups.length === 1 ? '' : 's'} · {quizzes.length} {setLabel}{quizzes.length === 1 ? '' : 's'} · {done} done
+            <p className="m-0 truncate text-[11.5px] font-semibold text-ink-muted dark:text-slate-500" title={groupMetaLabel}>
+              {groupMetaLabel}
             </p>
             {!open ? (
-              <p className="m-0 text-[10.5px] font-black uppercase tracking-[0.06em] text-brand-primary/75 dark:text-sky-200/80">
+              <p className="m-0 text-[11px] font-black uppercase tracking-[0.06em] text-brand-primary/75 dark:text-sky-200/80">
                 Open topics
               </p>
             ) : null}
@@ -632,7 +652,7 @@ function CourseGroup({ course, quizzes, groupIndex, bookmarkedIds, onBookmark, o
               quizCounter += topicQuizzes.length;
 
               return (
-                <section key={topicKey} className="lms-quiz-topic-card relative overflow-hidden rounded-[18px] border border-line-soft bg-surface-card p-3 shadow-sm dark:border-sky-300/12 dark:bg-white/[0.035] max-[520px]:rounded-[16px] max-[520px]:p-2.5">
+                <section key={topicKey} className="lms-quiz-topic-card relative overflow-hidden rounded-[var(--ds-card-radius)] border border-line-soft bg-surface-card p-3 shadow-[var(--ds-card-shadow)] dark:border-sky-300/12 dark:bg-white/[0.035] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:p-2.5">
                   <span className={cx('absolute bottom-5 left-[26px] top-[62px] w-px bg-gradient-to-b from-brand-primary/45 via-brand-primary/22 to-transparent dark:from-sky-300/44 dark:via-sky-300/20 max-[640px]:left-[23px]', !topicOpen && 'hidden')} aria-hidden="true" />
                   <button
                     type="button"
@@ -649,13 +669,13 @@ function CourseGroup({ course, quizzes, groupIndex, bookmarkedIds, onBookmark, o
                       {topicComplete ? <IcoCheck/> : <TopicMarkerIcon index={topicIndex} />}
                     </span>
                     <div className="min-w-0">
-                      <span className="mb-0.5 block text-[9.5px] font-black uppercase tracking-[0.06em] text-brand-primary dark:text-sky-300">
+                      <span className="mb-0.5 block text-[11px] font-black uppercase tracking-[0.06em] text-brand-primary dark:text-sky-300">
                         Topic {groupIndex + 1}.{topicIndex + 1}
                       </span>
-                      <strong className="block truncate text-[clamp(14px,1.4vw,17px)] font-black leading-tight text-ink-strong dark:text-white">
+                      <strong className="block truncate text-[16px] max-[640px]:text-[14px] font-black leading-tight text-ink-strong dark:text-white" title={topicName}>
                         {topicName}
                       </strong>
-                      <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-ink-muted dark:text-slate-500">
+                      <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-ink-muted dark:text-slate-500" title={`${topicDone}/${topicQuizzes.length} sets completed`}>
                         {topicDone}/{topicQuizzes.length} sets completed
                       </span>
                     </div>
@@ -716,11 +736,11 @@ function QuizFilterPanel({
   const showTopics = visibleTopics.length > 1;
 
   return (
-    <div className="rounded-2xl border border-line-soft bg-surface-card p-3.5 shadow-sm shadow-slate-950/[0.03] dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:shadow-black/20 max-[520px]:rounded-xl max-[520px]:p-2.5">
+    <div className="lms-card-compact rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-card p-3.5 shadow-[var(--ds-card-shadow)] dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] max-[520px]:rounded-[var(--ds-card-radius-inner)] max-[520px]:p-2.5">
       <div className="grid gap-3 max-[520px]:gap-2.5">
         {statusItems?.length ? (
           <div className="grid min-w-0 gap-1.5">
-            <span className="text-[10.5px] font-black uppercase tracking-[0.08em] text-ink-muted">Categories</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.08em] text-ink-muted">Categories</span>
             <div className="flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain pb-1.5 [-webkit-overflow-scrolling:touch]">
               {statusItems.map((item) => {
                 const active = statusFilter === item.key;
@@ -729,7 +749,7 @@ function QuizFilterPanel({
                     key={item.key}
                     type="button"
                     className={cx(
-                      'inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-full border px-3.5 text-[11.5px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-3 max-[520px]:text-[10.5px]',
+                      'inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-full border px-3.5 text-[11.5px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-3 max-[520px]:text-[11px]',
                       active
                         ? 'border-brand-primary/30 bg-[var(--color-primary-light)] text-brand-primary dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200'
                         : 'border-brand-primary/12 bg-white/70 text-ink-soft hover:border-brand-primary/22 hover:bg-brand-primary/10 hover:text-ink-strong dark:border-sky-300/12 dark:bg-sky-400/[0.045] dark:text-slate-400 dark:hover:text-slate-200'
@@ -738,7 +758,7 @@ function QuizFilterPanel({
                   >
                     <span>{item.label}</span>
                     <span className={cx(
-                      'rounded-full px-1.5 py-0.5 text-[10px] font-black',
+                      'rounded-full px-1.5 py-0.5 text-[11px] font-black',
                       active
                         ? 'bg-white/70 text-brand-primary dark:bg-white/[0.12] dark:text-sky-100'
                         : 'bg-brand-primary/7 text-brand-primary/70 dark:bg-sky-400/10 dark:text-sky-200/70'
@@ -754,7 +774,7 @@ function QuizFilterPanel({
 
         {showSubjects ? (
           <div className="grid min-w-0 gap-1.5">
-            <span className="text-[10.5px] font-black uppercase tracking-[0.08em] text-ink-muted">Subjects</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.08em] text-ink-muted">Subjects</span>
             <div className="flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
               {['all', ...visibleSubjects].map((subject) => {
                 const active = subjectFilter === subject;
@@ -764,7 +784,7 @@ function QuizFilterPanel({
                     key={subject}
                     type="button"
                     className={cx(
-                      'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-[11.5px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-2.5 max-[520px]:text-[10.5px]',
+                      'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-[11.5px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-2.5 max-[520px]:text-[11px]',
                       active
                         ? 'border-brand-primary/30 bg-[var(--color-primary-light)] text-brand-primary dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200'
                         : 'border-brand-primary/12 bg-white/70 text-ink-soft hover:border-brand-primary/22 hover:bg-brand-primary/10 hover:text-ink-strong dark:border-sky-300/12 dark:bg-sky-400/[0.045] dark:text-slate-400 dark:hover:text-slate-200'
@@ -784,7 +804,7 @@ function QuizFilterPanel({
 
         {showTopics ? (
           <div className="grid min-w-0 gap-1.5">
-            <span className="text-[10.5px] font-black uppercase tracking-[0.08em] text-ink-muted">Topics</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.08em] text-ink-muted">Topics</span>
             <div className="flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
               {['all', ...visibleTopics].map((topic) => {
                 const active = topicFilter === topic;
@@ -794,7 +814,7 @@ function QuizFilterPanel({
                     key={topic}
                     type="button"
                     className={cx(
-                      'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-[11.5px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-2.5 max-[520px]:text-[10.5px]',
+                      'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-[11.5px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/16 max-[520px]:min-h-8 max-[520px]:px-2.5 max-[520px]:text-[11px]',
                       active
                         ? 'border-brand-primary/30 bg-[var(--color-primary-light)] text-brand-primary dark:border-sky-300/24 dark:bg-sky-400/12 dark:text-sky-200'
                         : 'border-brand-primary/12 bg-white/70 text-ink-soft hover:border-brand-primary/22 hover:bg-brand-primary/10 hover:text-ink-strong dark:border-sky-300/12 dark:bg-sky-400/[0.045] dark:text-slate-400 dark:hover:text-slate-200'
@@ -859,7 +879,7 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
                 </div>
                 <div className="student-lessons-course-card__count text-right shrink-0">
                   <div className="text-[30px] font-extrabold leading-none text-ink-strong">{course.quizzes.length}</div>
-                  <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{isExamPage ? 'exams' : 'sets'}</div>
+                  <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{isExamPage ? 'exams' : 'sets'}</div>
                 </div>
               </div>
             </button>
@@ -876,11 +896,16 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
   const statusLabel = quiz.accessLocked ? 'Locked' : quiz.isFree ? (isExamPage ? 'Free exam' : 'Free practice') : quiz.isFree === false ? 'Premium' : '';
   const completed = isQuizDone(quiz);
   const startLabel = isExamPage ? 'Start exam' : 'Start practice';
+  const actionPath = `/quizzes/${quiz.id}?mode=${isExamPage ? 'exam' : 'practice'}`;
+
+  function preloadQuizRoute() {
+    if (!quiz.accessLocked) preloadRouteByPath(actionPath);
+  }
 
   return (
     <div className={cx('student-lessons-lesson-row', completed && 'is-completed')} style={{ '--lesson-row-delay': `${Math.min(index, 8) * 18}ms` }}>
       <strong>{String(index + 1).padStart(2, '0')}.</strong>
-      <button type="button" className="student-lessons-lesson-row__title" onClick={onStart}>
+      <button type="button" className="student-lessons-lesson-row__title" onClick={onStart} onPointerEnter={preloadQuizRoute} onFocus={preloadQuizRoute}>
         <span className="student-lessons-lesson-row__title-line">
           <span className="student-lessons-lesson-row__title-text">{title}</span>
           {completed ? (
@@ -892,7 +917,7 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
         {statusLabel ? <small>{statusLabel}</small> : null}
       </button>
       <div className="student-lessons-lesson-row__actions">
-        <button type="button" className="student-lessons-lesson-row__start" onClick={onStart}>
+        <button type="button" className="student-lessons-lesson-row__start" onClick={onStart} onPointerEnter={preloadQuizRoute} onFocus={preloadQuizRoute}>
           {startLabel}
         </button>
         <button
@@ -1025,7 +1050,7 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
 function MapHierarchyGuide({ pageMode }) {
   const setLabel = pageMode === 'exam' ? 'Exam sets' : 'Practice sets';
   return (
-    <section className="lms-map-hierarchy-guide rounded-2xl border border-line-soft bg-surface-card p-3 shadow-sm dark:border-sky-300/12 dark:bg-white/[0.035] max-[520px]:rounded-xl max-[520px]:p-2.5" aria-label="Content hierarchy">
+    <section className="lms-map-hierarchy-guide rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-card p-3 shadow-[var(--ds-card-shadow)] dark:border-sky-300/12 dark:bg-white/[0.035] max-[520px]:rounded-[var(--ds-card-radius-inner)] max-[520px]:p-2.5" aria-label="Content hierarchy">
       <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2 max-[420px]:gap-1.5">
         {[
           ['01', 'Subject'],
@@ -1034,8 +1059,8 @@ function MapHierarchyGuide({ pageMode }) {
         ].map(([num, label], index) => (
           <div className="contents" key={label}>
             <div className="grid min-h-14 place-items-center rounded-xl border border-brand-primary/12 bg-white/70 px-2 text-center dark:border-sky-300/12 dark:bg-white/[0.035] max-[420px]:min-h-12">
-              <span className="text-[9px] font-black uppercase tracking-[0.08em] text-brand-primary dark:text-sky-200">{num}</span>
-              <strong className="mt-0.5 text-[11px] font-black leading-tight text-ink-strong dark:text-white max-[420px]:text-[10px]">{label}</strong>
+              <span className="text-[11px] font-black uppercase tracking-[0.08em] text-brand-primary dark:text-sky-200">{num}</span>
+              <strong className="mt-0.5 text-[11px] font-black leading-tight text-ink-strong dark:text-white max-[420px]:text-[11px]">{label}</strong>
             </div>
             {index < 2 ? (
               <span className="grid size-7 place-items-center rounded-full bg-brand-primary/8 text-brand-primary dark:bg-sky-400/10 dark:text-sky-200" aria-hidden="true">
@@ -1061,21 +1086,21 @@ function SelectedCourseHeader({ courseName, onBack, total, completed, subjectCou
   ];
 
   return (
-    <section className="lms-page-header-card relative overflow-hidden rounded-2xl border border-line-soft bg-surface-card p-5 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.035] max-[520px]:rounded-xl max-[520px]:p-4">
+    <section className="lms-page-header-card relative overflow-hidden rounded-[var(--ds-card-radius)] border border-line-soft bg-surface-card p-5 shadow-[var(--ds-card-shadow)] dark:border-white/[0.08] dark:bg-white/[0.035] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:p-4">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-line-soft dark:bg-white/[0.08]" aria-hidden="true" />
       <div className="relative z-[1] grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button type="button" className={cx(ui.secondaryButton, 'min-h-10 shrink-0 px-4 text-xs max-[520px]:min-h-9 max-[520px]:px-3 max-[520px]:text-[11px]')} onClick={onBack}>
             All courses
           </button>
-          <span className="rounded-full border border-brand-primary/18 bg-[var(--color-primary-light)] px-3 py-1 text-[10.5px] font-black uppercase text-brand-primary dark:border-sky-300/20 dark:bg-sky-400/10 dark:text-sky-200">
+          <span className="rounded-full border border-brand-primary/18 bg-[var(--color-primary-light)] px-3 py-1 text-[11px] font-black uppercase text-brand-primary dark:border-sky-300/20 dark:bg-sky-400/10 dark:text-sky-200">
             {pageMode === 'exam' ? 'Exam Sets' : 'Practice Sets'}
           </span>
         </div>
 
         <div className="grid gap-3">
           <div>
-            <h2 className="m-0 break-words font-display text-[clamp(26px,4vw,42px)] font-extrabold leading-tight text-ink-strong dark:text-white">
+            <h2 className="m-0 break-words font-display text-[36px] max-[640px]:text-[26px] font-extrabold leading-tight text-ink-strong dark:text-white">
               {courseName}
             </h2>
           </div>
@@ -1083,11 +1108,11 @@ function SelectedCourseHeader({ courseName, onBack, total, completed, subjectCou
 
         <div className="grid gap-4 rounded-xl border border-brand-primary/12 bg-[color-mix(in_srgb,var(--color-primary)_3%,transparent)] p-3.5 dark:border-sky-300/12 dark:bg-sky-400/[0.035] lg:grid-cols-[minmax(0,1fr)_minmax(220px,300px)] lg:items-center">
           <div className="min-w-0">
-            <p className="m-0 text-[10.5px] font-black uppercase text-ink-muted dark:text-slate-500">Course overview</p>
+            <p className="m-0 text-[11px] font-black uppercase text-ink-muted dark:text-slate-500">Course overview</p>
             <div className="mt-3 flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch]">
               {stats.map((item) => (
                 <div key={item.label} className="grid min-w-[112px] shrink-0 gap-1 rounded-lg border border-brand-primary/10 bg-white/55 px-3 py-2 dark:border-sky-300/10 dark:bg-white/[0.025]">
-                  <strong className="block truncate text-[clamp(16px,1.6vw,20px)] font-black leading-none text-ink-strong dark:text-white">{item.value}</strong>
+                  <strong className="block truncate text-[18px] max-[640px]:text-[16px] font-black leading-none text-ink-strong dark:text-white">{item.value}</strong>
                   <span className="block text-[11.5px] font-semibold text-ink-muted dark:text-slate-500">{item.label}</span>
                 </div>
               ))}
@@ -1097,7 +1122,7 @@ function SelectedCourseHeader({ courseName, onBack, total, completed, subjectCou
           <div className="grid min-w-0 content-center gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[12px] font-semibold text-ink-soft dark:text-slate-300">Total Progress:</span>
-              <strong className="text-right text-[clamp(15px,1.5vw,18px)] font-black text-ink-strong dark:text-white">{pct}%</strong>
+              <strong className="text-right text-[17px] max-[640px]:text-[15px] font-black text-ink-strong dark:text-white">{pct}%</strong>
             </div>
             <ProgressBar value={pct} className="h-2" />
             <p className="m-0 text-[12px] font-semibold text-ink-soft dark:text-slate-400">{completed}/{total} complete</p>
@@ -1117,7 +1142,7 @@ function StatusTabs({ items, value, onChange }) {
             key={item.key}
             type="button"
             className={cx(
-              'inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-full border px-4 text-[12px] font-extrabold shadow-sm shadow-slate-950/[0.02] transition-colors max-[520px]:min-h-9 max-[520px]:gap-0.5 max-[520px]:px-1 max-[520px]:text-[9.5px]',
+              'inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-full border px-4 text-[12px] font-extrabold shadow-none transition-colors max-[520px]:min-h-9 max-[520px]:gap-0.5 max-[520px]:px-1 max-[520px]:text-[11px]',
               value === item.key
                 ? 'border-brand-primary/30 bg-[var(--color-primary-light)] text-brand-primary'
                 : 'border-line-soft bg-surface-card text-ink-muted dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.88)]',
@@ -1126,7 +1151,7 @@ function StatusTabs({ items, value, onChange }) {
           >
             <span className="truncate max-[520px]:hidden">{item.label}</span>
             <span className="hidden truncate max-[520px]:inline">{item.mobileLabel || item.label}</span>
-            <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] font-black text-ink-muted dark:bg-white/[0.08] max-[520px]:px-1 max-[520px]:text-[8.5px]">
+            <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[11px] font-black text-ink-muted dark:bg-white/[0.08] max-[520px]:px-1 max-[520px]:text-[11px]">
               {item.count}
             </span>
           </button>
@@ -1182,10 +1207,19 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   useEffect(() => {
     let cancelled = false;
     let cancelBookmarks = () => {};
+    let cancelPreload = () => {};
     fetchStudentQuizzes()
       .then(rows => {
         if (cancelled) return;
         setQuizzes(rows);
+        const firstOpenQuiz = (Array.isArray(rows) ? rows : []).find((quiz) =>
+          isExamPage ? quiz.canExamMode !== false : quiz.canPracticeMode !== false
+        );
+        if (firstOpenQuiz) {
+          cancelPreload = runWhenIdle(() => {
+            preloadRouteByPath(`/quizzes/${firstOpenQuiz.id}?mode=${isExamPage ? 'exam' : 'practice'}`);
+          });
+        }
         cancelBookmarks = runWhenIdle(async () => {
           const bm = await fetchStudyBookmarks().catch(() => []);
           if (cancelled) return;
@@ -1194,8 +1228,8 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
       })
       .catch(e => { if (!cancelled) setError(getErrorMessage(e, isExamPage ? 'Unable to load exams' : 'Unable to load question bank')); })
       .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; cancelBookmarks(); };
-  }, []);
+    return () => { cancelled = true; cancelBookmarks(); cancelPreload(); };
+  }, [isExamPage]);
 
   async function handleBookmark(e, quizId) {
     e.stopPropagation();
@@ -1392,7 +1426,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
           onClick={() => setAccessPromptQuiz(null)}
         >
           <div
-            className="fixed left-1/2 top-1/2 w-[min(380px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-line-soft bg-surface-card-elevated p-5 shadow-2xl dark:border-white/[0.09]"
+            className="fixed left-1/2 top-1/2 w-[min(380px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-card-elevated p-5 shadow-[var(--ds-floating-shadow)] dark:border-white/[0.09]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="quiz-access-title"

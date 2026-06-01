@@ -1,8 +1,8 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as bcrypt from 'bcryptjs';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
-import { USER_ROLES, UserRole } from '../auth/role-permissions';
+import { isStaffRole, USER_ROLES, UserRole } from '../auth/role-permissions';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
@@ -16,11 +16,18 @@ type UserRow = RowDataPacket & {
   created_at?: string | null;
 };
 
+type UserManagementActor = {
+  id: number;
+  role: UserRole;
+  status: string;
+};
+
 @Injectable()
 export class UsersService {
   constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
 
-  async findAll(filters: { search?: string; status?: string; role?: string }) {
+  async findAll(actor: UserManagementActor, filters: { search?: string; status?: string; role?: string }) {
+    this.assertActiveStaff(actor);
     let sql = `
       SELECT id, full_name, email, role, status, created_at
       FROM users
@@ -39,9 +46,10 @@ export class UsersService {
       params.push(filters.status);
     }
 
-    if (USER_ROLES.includes(filters.role as UserRole)) {
+    const requestedRole = this.resolveVisibleRoleFilter(actor, filters.role);
+    if (requestedRole) {
       sql += ' AND role = ?';
-      params.push(filters.role as UserRole);
+      params.push(requestedRole);
     }
 
     sql += ` ORDER BY FIELD(status, 'inactive', 'active'), id DESC`;
@@ -50,7 +58,9 @@ export class UsersService {
     return rows.map((row) => this.mapUser(row));
   }
 
-  async summary() {
+  async summary(actor: UserManagementActor) {
+    this.assertActiveStaff(actor);
+    const where = this.canManageStaff(actor) ? '' : "WHERE role = 'student'";
     const [rows] = await this.db.execute<RowDataPacket[]>(`
       SELECT
         COUNT(*) AS total_users,
@@ -59,6 +69,7 @@ export class UsersService {
         SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS admin_users,
         SUM(CASE WHEN role = 'student' THEN 1 ELSE 0 END) AS student_users
       FROM users
+      ${where}
     `);
 
     const row = rows[0] || {};
@@ -71,7 +82,8 @@ export class UsersService {
     };
   }
 
-  async detail(id: number) {
+  async detail(actor: UserManagementActor, id: number) {
+    this.assertActiveStaff(actor);
     const [userRows] = await this.db.execute<UserRow[]>(
       'SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1',
       [id]
@@ -80,6 +92,7 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    this.assertCanManageTarget(actor, user);
 
     const [[subscriptionRows], [attemptRows], [progressRows], [bookmarkRows]] = await Promise.all([
       this.db.execute<RowDataPacket[]>(
@@ -154,7 +167,10 @@ export class UsersService {
     };
   }
 
-  async create(createUserDto: CreateUserDto) {
+  async create(actor: UserManagementActor, createUserDto: CreateUserDto) {
+    this.assertActiveStaff(actor);
+    this.assertCanAssignRole(actor, createUserDto.role);
+
     const normalizedEmail = createUserDto.email.trim().toLowerCase();
     const [existingRows] = await this.db.execute<RowDataPacket[]>(
       'SELECT id FROM users WHERE email = ? LIMIT 1',
@@ -178,6 +194,18 @@ export class UsersService {
       await this.assignDefaultEntryPlan(insertId);
     }
 
+    await this.logAdminAuditEvent({
+      eventType: isStaffRole(createUserDto.role) ? 'user.staff_created' : 'user.student_created',
+      actorId: actor.id,
+      targetType: 'user',
+      targetId: insertId,
+      summary: `Created ${createUserDto.role} account ${insertId}`,
+      metadata: {
+        role: createUserDto.role,
+        status,
+      },
+    });
+
     return {
       ok: true,
       id: insertId,
@@ -188,7 +216,8 @@ export class UsersService {
     };
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto) {
+  async update(actor: UserManagementActor, id: number, updateUserDto: UpdateUserDto) {
+    this.assertActiveStaff(actor);
     const [rows] = await this.db.execute<UserRow[]>(
       'SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1',
       [id]
@@ -197,6 +226,17 @@ export class UsersService {
     const user = rows[0];
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+    this.assertCanManageTarget(actor, user);
+
+    if (updateUserDto.role) {
+      this.assertCanAssignRole(actor, updateUserDto.role);
+      if (id === actor.id && updateUserDto.role !== 'admin') {
+        throw new ForbiddenException('Administrators cannot demote their own account');
+      }
+      if (user.role === 'admin' && updateUserDto.role !== 'admin') {
+        await this.assertAnotherActiveAdminExists(id);
+      }
     }
 
     const updates: string[] = [];
@@ -239,6 +279,28 @@ export class UsersService {
 
     params.push(id);
     await this.db.execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+    await this.logAdminAuditEvent({
+      eventType: updateUserDto.role && updateUserDto.role !== user.role ? 'user.role_changed' : 'user.updated',
+      actorId: actor.id,
+      targetType: 'user',
+      targetId: id,
+      summary: updateUserDto.role && updateUserDto.role !== user.role
+        ? `Changed user ${id} role from ${user.role} to ${updateUserDto.role}`
+        : `Updated user ${id}`,
+      metadata: {
+        before: {
+          role: user.role,
+          email: user.email,
+          fullName: user.full_name,
+        },
+        after: {
+          role: updateUserDto.role || user.role,
+          email: updateUserDto.email ? updateUserDto.email.trim().toLowerCase() : user.email,
+          fullName: updateUserDto.fullName ? updateUserDto.fullName.trim() : user.full_name,
+          passwordChanged: Boolean(updateUserDto.password),
+        },
+      },
+    });
 
     return {
       ok: true,
@@ -250,7 +312,8 @@ export class UsersService {
     };
   }
 
-  async updateStatus(id: number, updateUserStatusDto: UpdateUserStatusDto) {
+  async updateStatus(actor: UserManagementActor, id: number, updateUserStatusDto: UpdateUserStatusDto) {
+    this.assertActiveStaff(actor);
     const [rows] = await this.db.execute<UserRow[]>(
       'SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1',
       [id]
@@ -260,9 +323,27 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    this.assertCanManageTarget(actor, user);
 
     const status = updateUserStatusDto.status === 'active' ? 'active' : 'inactive';
+    if (id === actor.id && status !== 'active') {
+      throw new ForbiddenException('Administrators cannot deactivate their own account');
+    }
+    if (user.role === 'admin' && user.status === 'active' && status !== 'active') {
+      await this.assertAnotherActiveAdminExists(id);
+    }
     await this.db.execute('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+    await this.logAdminAuditEvent({
+      eventType: 'user.status_changed',
+      actorId: actor.id,
+      targetType: 'user',
+      targetId: id,
+      summary: `Changed user ${id} status from ${user.status} to ${status}`,
+      metadata: {
+        before: { status: user.status, role: user.role },
+        after: { status, role: user.role },
+      },
+    });
 
     return {
       ok: true,
@@ -271,7 +352,8 @@ export class UsersService {
     };
   }
 
-  async delete(id: number) {
+  async delete(actor: UserManagementActor, id: number) {
+    this.assertActiveStaff(actor);
     const [rows] = await this.db.execute<UserRow[]>(
       'SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1',
       [id]
@@ -281,8 +363,26 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    this.assertCanManageTarget(actor, user);
+    if (id === actor.id) {
+      throw new ForbiddenException('Administrators cannot delete their own account');
+    }
+    if (user.role === 'admin' && user.status === 'active') {
+      await this.assertAnotherActiveAdminExists(id);
+    }
 
     await this.db.execute('DELETE FROM users WHERE id = ?', [id]);
+    await this.logAdminAuditEvent({
+      eventType: isStaffRole(user.role) ? 'user.staff_deleted' : 'user.student_deleted',
+      actorId: actor.id,
+      targetType: 'user',
+      targetId: id,
+      summary: `Deleted ${user.role} account ${id}`,
+      metadata: {
+        role: user.role,
+        status: user.status,
+      },
+    });
     return {
       ok: true,
       id,
@@ -328,6 +428,80 @@ export class UsersService {
         ) VALUES (?, ?, NULL, 'Auto-assigned Free plan on admin-created student account', 'active', 'free_plan', ?, ?)
       `,
       [userId, Number(entryPlan.id), toDateOnly(startDate), '9999-12-31']
+    );
+  }
+
+  private assertActiveStaff(actor: UserManagementActor) {
+    if (!isStaffRole(actor.role) || actor.status !== 'active') {
+      throw new ForbiddenException('Active staff access is required');
+    }
+  }
+
+  private canManageStaff(actor: UserManagementActor) {
+    return actor.role === 'admin';
+  }
+
+  private resolveVisibleRoleFilter(actor: UserManagementActor, requestedRole?: string) {
+    if (!this.canManageStaff(actor)) {
+      if (requestedRole && requestedRole !== 'student') {
+        throw new ForbiddenException('Only administrators can list staff accounts');
+      }
+      return 'student' as UserRole;
+    }
+
+    return USER_ROLES.includes(requestedRole as UserRole) ? requestedRole as UserRole : undefined;
+  }
+
+  private assertCanManageTarget(actor: UserManagementActor, target: Pick<UserRow, 'role'>) {
+    if (this.canManageStaff(actor)) {
+      return;
+    }
+
+    if (target.role !== 'student') {
+      throw new ForbiddenException('Only administrators can manage staff accounts');
+    }
+  }
+
+  private assertCanAssignRole(actor: UserManagementActor, role: UserRole) {
+    if (this.canManageStaff(actor)) {
+      return;
+    }
+
+    if (role !== 'student') {
+      throw new ForbiddenException('Only administrators can assign staff roles');
+    }
+  }
+
+  private async assertAnotherActiveAdminExists(excludedUserId: number) {
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      "SELECT COUNT(*) AS active_admins FROM users WHERE role = 'admin' AND status = 'active' AND id <> ?",
+      [excludedUserId]
+    );
+    if (Number(rows[0]?.active_admins || 0) < 1) {
+      throw new BadRequestException('At least one active administrator account is required');
+    }
+  }
+
+  private async logAdminAuditEvent(input: {
+    eventType: string;
+    actorId?: number | null;
+    targetType?: string | null;
+    targetId?: number | null;
+    summary: string;
+    metadata?: unknown;
+  }) {
+    await this.db.execute(
+      `INSERT INTO admin_audit_events
+        (event_type, actor_id, target_type, target_id, summary, metadata_json)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        input.eventType,
+        input.actorId || null,
+        input.targetType || null,
+        input.targetId || null,
+        input.summary,
+        input.metadata === undefined ? null : JSON.stringify(input.metadata),
+      ]
     );
   }
 }

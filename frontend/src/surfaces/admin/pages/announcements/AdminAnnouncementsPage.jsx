@@ -11,6 +11,8 @@ export function AdminAnnouncementsPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   async function load() {
     try { setItems(await fetchAdminAnnouncements()); } catch (error) { setMessage(getErrorMessage(error, 'Unable to load announcements')); }
@@ -18,11 +20,28 @@ export function AdminAnnouncementsPage() {
   useEffect(() => { load(); }, []);
   async function save(event) {
     event.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       editingId ? await updateAnnouncement(editingId, form) : await createAnnouncement(form);
       setForm(emptyForm); setEditingId(null); await load();
       setMessage(editingId ? 'Announcement updated.' : 'Announcement published. In-app notification is created and native app notification is sent to enabled devices.');
     } catch (error) { setMessage(getErrorMessage(error, 'Unable to save announcement')); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDelete(item) {
+    if (!window.confirm(`Delete "${item.title || 'this announcement'}"?`)) return;
+    setDeletingId(item.id);
+    try {
+      await deleteAnnouncement(item.id);
+      await load();
+      setMessage('Announcement deleted.');
+    } catch (error) {
+      setMessage(getErrorMessage(error, 'Unable to delete announcement'));
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -40,10 +59,10 @@ export function AdminAnnouncementsPage() {
             <label className={ui.formLabel}>Status<select className={ui.input} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}><option value="published">Published</option><option value="draft">Draft</option><option value="archived">Archived</option></select></label>
           </div>
           <label className={ui.formLabel}>Message<textarea className={ui.textarea} value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} /></label>
-          <div className={ui.buttonRow}><button className={ui.primaryAction}>{editingId ? 'Update' : 'Publish'} announcement</button>{editingId ? <button type="button" className={ui.secondaryAction} onClick={() => { setEditingId(null); setForm(emptyForm); }}>Cancel</button> : null}</div>
+          <div className={ui.buttonRow}><button className={ui.primaryAction} disabled={saving} aria-busy={saving}>{saving ? (editingId ? 'Updating...' : 'Publishing...') : `${editingId ? 'Update' : 'Publish'} announcement`}</button>{editingId ? <button type="button" className={ui.secondaryAction} onClick={() => { setEditingId(null); setForm(emptyForm); }} disabled={saving}>Cancel</button> : null}</div>
         </form>
       </section>
-      <section className={ui.dashboardGrid}>{items.map((item) => <article className={ui.panelCard} key={item.id}><div className={ui.panelTop}><div><h2>{item.title}</h2><p>{item.body}</p></div><span className={statusPill(item.status)}>{item.status}</span></div><p className={ui.panelText}>Audience: {item.targetRole}</p><div className={ui.buttonRow}><button className={ui.secondaryAction} onClick={() => { setEditingId(item.id); setForm({ title: item.title, body: item.body, targetRole: item.targetRole, status: item.status }); }}>Edit</button><button className={ui.dangerAction} onClick={async () => { await deleteAnnouncement(item.id); await load(); }}>Delete</button></div></article>)}</section>
+      <section className={ui.dashboardGrid}>{items.map((item) => <article className={ui.panelCard} key={item.id}><div className={ui.panelTop}><div><h2>{item.title}</h2><p>{item.body}</p></div><span className={statusPill(item.status)}>{item.status}</span></div><p className={ui.panelText}>Audience: {item.targetRole}</p><div className={ui.buttonRow}><button className={ui.secondaryAction} onClick={() => { setEditingId(item.id); setForm({ title: item.title, body: item.body, targetRole: item.targetRole, status: item.status }); }} disabled={deletingId === item.id}>Edit</button><button className={ui.dangerAction} onClick={() => handleDelete(item)} disabled={deletingId === item.id} aria-busy={deletingId === item.id}>{deletingId === item.id ? 'Deleting...' : 'Delete'}</button></div></article>)}</section>
     </section></main>
   );
 }

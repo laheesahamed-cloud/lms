@@ -103,7 +103,7 @@ function getLessonCounts(course) {
 
 function CourseSkeleton() {
   return (
-    <article className="lms-quiz-card lms-quiz-course-card grid min-h-[112px] gap-3.5 rounded-2xl border border-line-soft bg-surface-card p-4 shadow-sm dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] max-[520px]:min-h-[100px] max-[520px]:rounded-xl max-[520px]:p-3.5">
+    <article className="lms-quiz-card lms-quiz-course-card lms-card-skeleton grid min-h-[112px] gap-3.5 rounded-[var(--ds-card-radius)] border border-line-soft bg-surface-card p-4 shadow-[var(--ds-card-shadow)] dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] max-[520px]:min-h-[100px] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:p-3.5">
       <div className="flex items-start gap-3">
         <div className={cx(ui.shimmer, 'size-10 rounded-xl')} />
         <div className="grid flex-1 gap-2 pt-0.5">
@@ -126,6 +126,7 @@ function CourseCard({ course, onOpen }) {
   const subjects = Number(course.subjectCount || 0);
   const visual = getCourseVisual(course, Number(course.id || 0));
   const leftLabel = totalLessons ? `${remainingLessons} left` : 'No lessons yet';
+  const metaLabel = `${totalLessons} lessons · ${completedLessons} done · ${leftLabel}`;
 
   return (
     <button
@@ -133,7 +134,7 @@ function CourseCard({ course, onOpen }) {
       onClick={onOpen}
       aria-label={`Open ${course.courseTitle}`}
       className={cx(
-        'lms-quiz-card lms-quiz-course-card student-course-card student-course-card--simple group grid min-h-[112px] gap-3.5 rounded-2xl border border-line-soft bg-surface-card p-4 text-left shadow-sm shadow-slate-950/[0.03] outline-none transition-[border-color,background,box-shadow,transform] duration-150 hover:border-brand-primary/18 hover:bg-surface-2/35 hover:shadow-md focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:shadow-black/20 dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-xl max-[520px]:p-3.5',
+        'lms-quiz-card lms-quiz-course-card student-course-card student-course-card--simple lms-card-clickable group grid min-h-[112px] gap-3.5 rounded-[var(--ds-card-radius)] border border-line-soft bg-surface-card p-4 text-left shadow-[var(--ds-card-shadow)] outline-none transition-[border-color,background,transform] duration-150 hover:border-brand-primary/18 hover:bg-surface-2/35 focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:p-3.5',
         `student-course-card--${visual.key}`
       )}
     >
@@ -142,10 +143,10 @@ function CourseCard({ course, onOpen }) {
           <BookIcon />
         </span>
         <div className="min-w-0 flex-1 pt-0.5">
-          <h2 className="m-0 line-clamp-2 text-[15px] font-extrabold leading-snug text-ink-strong dark:text-white max-[520px]:text-[14px]">
+          <h2 className="lms-card-title line-clamp-2 dark:text-white max-[520px]:text-[14px]" title={course.courseTitle}>
             {course.courseTitle}
           </h2>
-          <span className={cx('mt-2 inline-flex rounded-full border px-2 py-0.5 text-[9.5px] font-black uppercase', status.className)}>
+          <span className={cx('mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-black uppercase', status.className)}>
             {status.label}
           </span>
         </div>
@@ -153,8 +154,8 @@ function CourseCard({ course, onOpen }) {
 
       <div className="grid gap-2">
         <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
-          <span className="truncate text-ink-muted">
-            {totalLessons} lessons · {completedLessons} done · {leftLabel}
+          <span className="truncate text-ink-muted" title={metaLabel}>
+            {metaLabel}
           </span>
           <span className={cx('font-extrabold', progress >= 100 ? 'text-brand-primary dark:text-sky-300' : 'text-ink-strong dark:text-white')}>
             {progress}%
@@ -162,8 +163,8 @@ function CourseCard({ course, onOpen }) {
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-surface-3 dark:bg-white/[0.09]">
           <span
-            className="student-course-card__progress-fill block h-full rounded-full transition-[width] duration-700 ease-out"
-            style={{ width: `${progress}%` }}
+            className="student-course-card__progress-fill block h-full w-full origin-left rounded-full transition-transform duration-500 ease-out"
+            style={{ transform: `scaleX(${progress / 100})` }}
           />
         </div>
       </div>

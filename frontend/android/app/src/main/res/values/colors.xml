@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#2563EB</color>
+    <color name="colorPrimaryDark">#0B121B</color>
+    <color name="colorAccent">#0F766E</color>
+    <color name="lms_android_surface_dark">#0B121B</color>
+    <color name="lms_android_surface_light">#D7E2F0</color>
+</resources>

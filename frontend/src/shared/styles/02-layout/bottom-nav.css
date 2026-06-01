@@ -72,9 +72,9 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--stude
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
-  gap: 2px;
-  padding: 6px 6px max(6px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
-  box-shadow: 0 18px 36px -18px rgba(37, 99, 235, 0.2);
+  gap: 4px;
+  padding: 8px 8px max(8px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+  box-shadow: var(--ds-nav-shadow);
   transform: none !important;
 }
 
@@ -85,12 +85,12 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--stude
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   color: var(--ink-medium);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--ds-nav-shadow);
 }
 
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner {
   height: calc(var(--lms-tabbar-row-height, 64px) + var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
-  padding-bottom: max(6px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+  padding-bottom: max(8px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
@@ -99,13 +99,12 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
 }
 
 html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner {
-  height: calc(var(--lms-tabbar-row-height, 58px) + max(var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)), 6px)) !important;
-  min-height: calc(var(--lms-tabbar-row-height, 58px) + max(var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)), 6px)) !important;
+  height: calc(var(--lms-tabbar-row-height, 58px) + max(var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)), 8px)) !important;
+  min-height: calc(var(--lms-tabbar-row-height, 58px) + max(var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)), 8px)) !important;
   border-radius: 18px 18px 0 0 !important;
   border: 0;
-  padding: 5px 6px max(6px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
-  box-shadow:
-    0 10px 24px -18px rgba(37, 99, 235, 0.22);
+  padding: 8px 8px max(8px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+  box-shadow: var(--ds-nav-shadow);
 }
 
 html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav__tab {
@@ -113,8 +112,8 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
   min-height: 48px;
   border-radius: 15px;
   gap: 0;
-  padding: 2px;
-  font-size: 9.5px;
+  padding: 4px;
+  font-size: 11px;
 }
 
 html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav__icon {
@@ -152,8 +151,8 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 3px 2px;
+  gap: 4px;
+  padding: 4px;
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0;
@@ -197,15 +196,14 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
   /* Light mode active — solid blue tint with deep blue text */
   background: rgba(37, 99, 235, 0.12);
   color: #2563eb;
-  box-shadow:
-    0 0 12px rgba(37, 99, 235, 0.14);
+  box-shadow: var(--ds-nav-active-shadow);
 }
 
 :root[data-theme="dark"] .lms-mobile-bottom-nav__tab.is-active,
 .student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__tab.is-active {
   background: var(--state-selected);
   color: var(--accent-strong);
-  box-shadow: none;
+  box-shadow: var(--ds-nav-active-shadow);
 }
 
 .lms-mobile-bottom-nav__icon {
@@ -249,7 +247,7 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
     height: calc(68px + var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
     border-radius: 24px 24px 0 0;
     gap: 4px;
-    padding: 7px 7px max(7px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+    padding: 8px 8px max(8px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
   .lms-mobile-bottom-nav__tab {
@@ -268,14 +266,14 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
     height: calc(64px + var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
     min-height: calc(60px + var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
     border-radius: 20px 20px 0 0;
-    padding: 5px 5px max(5px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+    padding: 4px 4px max(4px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
   .lms-mobile-bottom-nav__tab {
     height: 54px;
     min-height: 50px;
     border-radius: 16px;
-    font-size: 9.5px;
+    font-size: 11px;
   }
 
   .lms-mobile-bottom-nav__icon {

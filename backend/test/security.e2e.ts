@@ -286,6 +286,10 @@ class SecurityE2eDb {
       ] as T, []];
     }
 
+    if (normalized.includes('FROM content_versions') && normalized.includes("entity_type = 'question'")) {
+      return [[] as T, []];
+    }
+
     if (normalized.includes('FROM question_options') && normalized.includes('WHERE question_id = ?')) {
       return [[
         { id: 801, question_id: Number(params[0]), option_label: 'A', option_text: 'Correct', is_correct: 1, why_incorrect: '' },
@@ -309,6 +313,31 @@ class SecurityE2eDb {
       return [[] as T, []];
     }
 
+    if (normalized.includes('FROM exam_sessions') && normalized.includes('WHERE user_id = ? AND quiz_id = ?')) {
+      return [[] as T, []];
+    }
+
+    if (normalized.includes('INSERT INTO exam_sessions')) {
+      return [{ insertId: 444, affectedRows: 1 } as T, []];
+    }
+
+    if (normalized.includes('FROM exam_sessions') && normalized.includes('WHERE id = ?')) {
+      return [[{
+        id: Number(params[0]),
+        status: 'in_progress',
+        started_at: new Date(),
+        deadline_at: new Date(Date.now() + 30 * 60_000),
+        last_question_index: 0,
+        answers_json: '{}',
+        flagged_question_ids_json: '[]',
+        submitted_attempt_id: null,
+      }] as T, []];
+    }
+
+    if (normalized.includes('UPDATE exam_sessions')) {
+      return [{ affectedRows: 1 } as T, []];
+    }
+
     if (normalized.includes('INSERT INTO quiz_attempts')) {
       return [{ insertId: 999, affectedRows: 1 } as T, []];
     }
@@ -329,7 +358,7 @@ class SecurityE2eDb {
       return [[] as T, []];
     }
 
-    if (normalized.includes('INSERT INTO study_bookmarks')) {
+    if (normalized.includes('INSERT IGNORE INTO study_bookmarks') || normalized.includes('INSERT INTO study_bookmarks')) {
       return [{ insertId: 1, affectedRows: 1 } as T, []];
     }
 
@@ -400,6 +429,10 @@ class SecurityE2eDb {
     }
 
     if (normalized.includes('INSERT INTO subscription_audit_events')) {
+      return [{ insertId: 1, affectedRows: 1 } as T, []];
+    }
+
+    if (normalized.includes('INSERT INTO admin_audit_events')) {
       return [{ insertId: 1, affectedRows: 1 } as T, []];
     }
 
@@ -1310,7 +1343,7 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
   const bookmarkLookupCall = db.findCall(/SELECT id FROM study_bookmarks WHERE user_id = \?/i);
   assert(bookmarkLookupCall, 'bookmark toggle lookup must use authenticated user id');
   assert.equal(bookmarkLookupCall.params[0], 100);
-  const bookmarkInsertCall = db.findCall(/INSERT INTO study_bookmarks/i);
+  const bookmarkInsertCall = db.findCall(/INSERT(?: IGNORE)? INTO study_bookmarks/i);
   assert(bookmarkInsertCall, 'bookmark toggle insert must run for new bookmark');
   assert.equal(bookmarkInsertCall.params[0], 100);
 
@@ -1364,6 +1397,11 @@ async function testRemainingAdminPermissionBoundaries() {
     ['post', '/api/ai-notes/admin', { title: 'Blocked' }],
     ['patch', '/api/ai-notes/admin/1', { title: 'Blocked' }],
     ['delete', '/api/ai-notes/admin/1'],
+    ['get', '/api/ai-notes/admin/1/flashcards'],
+    ['post', '/api/ai-notes/admin/1/flashcards', { question: 'Blocked question?', answer: 'Blocked answer text' }],
+    ['post', '/api/ai-notes/admin/1/flashcards/generate', { count: 12 }],
+    ['patch', '/api/ai-notes/admin/1/flashcards/2', { status: 'approved' }],
+    ['delete', '/api/ai-notes/admin/1/flashcards/2'],
     ['put', '/api/theory-recap/question/55', { conceptName: 'Blocked' }],
     ['post', '/api/theory-recap/question/55/generate'],
     ['post', '/api/theory-recap/question/55/regenerate'],

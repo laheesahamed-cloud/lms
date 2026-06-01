@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { AdminGeneralSettingsPanel } from './AdminGeneralSettingsPanel.jsx';
+import { AdminLandingPageSettingsPanel } from './AdminLandingPageSettingsPanel.jsx';
 import { AdminAiSettingsPanel } from './AdminAiSettingsPanel.jsx';
 import { AdminPaymentSettingsPanel } from './AdminPaymentSettingsPanel.jsx';
 import { AdminSmtpSettingsPanel } from './AdminSmtpSettingsPanel.jsx';
+import { AdminPopupAlertSettingsPanel } from './AdminPopupAlertSettingsPanel.jsx';
 import { AdminThemeSettingsPanel } from './AdminThemeSettingsPanel.jsx';
 import { AdminNotificationSettingsPanel } from './AdminNotificationSettingsPanel.jsx';
 import { AdminApiRecoverySettingsPanel } from './AdminApiRecoverySettingsPanel.jsx';
@@ -25,6 +27,13 @@ const settingsCategories = [
     panel: <AdminGeneralSettingsPanel />,
   },
   {
+    id: 'landing-page',
+    label: 'Landing Page',
+    title: 'Landing page',
+    description: 'Edit the public landing page hero, section headings, CTA text, footer copy, and SEO preview.',
+    panel: <AdminLandingPageSettingsPanel />,
+  },
+  {
     id: 'payhere',
     label: 'PayHere',
     title: 'PayHere payments',
@@ -37,6 +46,13 @@ const settingsCategories = [
     title: 'SMTP email',
     description: 'Configure your domain email SMTP account and preview the password reset email students receive.',
     panel: <AdminSmtpSettingsPanel />,
+  },
+  {
+    id: 'popup-alert',
+    label: 'Popup Alert',
+    title: 'Popup alert',
+    description: 'Create an image or text popup for the landing page, login page, inside the app, or everywhere.',
+    panel: <AdminPopupAlertSettingsPanel />,
   },
   {
     id: 'notifications',
@@ -69,7 +85,7 @@ const settingsCategories = [
 ];
 
 export function AdminSettingsPage() {
-  const [activeCategoryId, setActiveCategoryId] = useState('payhere');
+  const [activeCategoryId, setActiveCategoryId] = useState('landing-page');
   const activeCategory = settingsCategories.find((category) => category.id === activeCategoryId) || settingsCategories[0];
 
   return (
@@ -87,7 +103,7 @@ export function AdminSettingsPage() {
               <p>Choose one area to edit at a time.</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 rounded-lg border border-line-soft bg-surface-1 p-2 shadow-sm" role="tablist" aria-label="Settings categories">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,108px),1fr))] gap-2 rounded-lg border border-line-soft bg-surface-1 p-2 shadow-sm max-[760px]:grid-cols-[repeat(auto-fit,minmax(min(100%,132px),1fr))]" role="tablist" aria-label="Settings categories">
             {settingsCategories.map((category) => {
               const isActive = activeCategory.id === category.id;
               return (
@@ -97,7 +113,7 @@ export function AdminSettingsPage() {
                   role="tab"
                   aria-selected={isActive}
                   className={cx(
-                    'inline-flex min-h-10 flex-1 items-center justify-center rounded-md border px-4 text-[13px] font-extrabold transition-[background,border-color,color,box-shadow,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 max-[560px]:flex-[1_1_44%]',
+                    'inline-flex min-h-10 min-w-0 items-center justify-center whitespace-nowrap rounded-md border px-4 text-[13px] font-extrabold transition-[background,border-color,color,box-shadow,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 max-[760px]:min-h-11',
                     isActive
                       ? 'border-brand-primary/24 bg-[var(--color-primary-light)] text-brand-primary shadow-xs'
                       : 'border-transparent bg-transparent text-ink-soft hover:-translate-y-px hover:border-line-soft hover:bg-surface-2 hover:text-ink-strong'

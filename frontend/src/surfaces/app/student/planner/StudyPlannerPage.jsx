@@ -666,6 +666,7 @@ export function StudyPlannerPage() {
 
   async function removePersonalTask(item) {
     if (!item.sourceId) return;
+    if (!window.confirm(`Delete "${item.title || 'this task'}" from your study planner?`)) return;
     setSaving(`${item.id}:delete`);
     setMessage('');
     try {

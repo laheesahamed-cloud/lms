@@ -5,6 +5,7 @@ import { getErrorMessage } from '../../../shared/api/client.js';
 import { createQuestion, fetchQuestionsMeta } from '../../../shared/api/questions.api.js';
 import { createQuiz } from '../../../shared/api/quizzes.api.js';
 import { generateTheoryRecap } from '../../../shared/api/theoryRecap.api.js';
+import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { AiQuizGeneratorForm } from './components/AiQuizGeneratorForm.jsx';
 import { AiQuizPreview } from './components/AiQuizPreview.jsx';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
@@ -33,7 +34,7 @@ const MAX_QUESTIONS_PER_AI_CALL = 5;
 
 const aiPageUi = {
   hero:
-    'mb-1 rounded-xl border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_6%,var(--surface-1))_0%,var(--surface-1)_100%)] px-7 py-6 shadow-sm [&_h1]:m-0 [&_h1]:mt-2 [&_h1]:text-[clamp(24px,3vw,36px)] [&_h1]:font-extrabold [&_h1]:leading-tight [&_p]:m-0 [&_p]:mt-3 [&_p]:max-w-[760px] [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-ink-soft',
+    'mb-1 rounded-xl border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_6%,var(--surface-1))_0%,var(--surface-1)_100%)] px-7 py-6 shadow-sm [&_h1]:m-0 [&_h1]:mt-2 [&_h1]:text-[32px] max-[640px]:[&_h1]:text-[24px] [&_h1]:font-extrabold [&_h1]:leading-tight [&_p]:m-0 [&_p]:mt-3 [&_p]:max-w-[760px] [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-ink-soft',
 };
 
 function getOptionText(option) {
@@ -271,9 +272,9 @@ function countStoredReasons(questionType, options) {
 export function AiQuizGeneratorPage({
   engineKey = 'gemini',
   generatorLabel = 'Gemini',
-  heroEyebrow = 'Standalone Test Route',
+  heroEyebrow = 'AI Question Builder',
   heroTitle = 'Gemini Quiz Generator',
-  heroDescription = 'This route is separate from the live LMS quiz system. It lets you generate quiz drafts with a fixed provider before saving selected items to the question bank.',
+  heroDescription = 'Generate draft medical questions, review the output, and save approved items into the LMS question bank.',
 }) {
   const location = useLocation();
   const lessonQuiz = location.state?.lessonQuiz || null;
@@ -649,6 +650,12 @@ export function AiQuizGeneratorPage({
 
   return (
     <main className={ui.screenShell}>
+      <PageMeta
+        title={heroTitle}
+        description={heroDescription}
+        path={engineKey === 'openai' ? '/ai/chatgpt' : '/ai/gemini'}
+        noindex
+      />
       <section className={ui.managementLayout}>
         <div className={aiPageUi.hero}>
           <span className={ui.eyebrow}>{heroEyebrow}</span>

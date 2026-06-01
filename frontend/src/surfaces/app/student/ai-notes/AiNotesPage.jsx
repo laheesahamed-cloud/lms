@@ -11,14 +11,7 @@ import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { cx } from '../../../../shared/styles/tailwindClasses.js';
 import { NoteCanvas } from './NoteCanvas.jsx';
 
-// ── Fonts ─────────────────────────────────────────────────────────────────────
-if (typeof document !== 'undefined' && !document.getElementById('canvas-hand-font')) {
-  const lnk = document.createElement('link');
-  lnk.id = 'canvas-hand-font'; lnk.rel = 'stylesheet';
-  lnk.href = 'https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap';
-  document.head.appendChild(lnk);
-}
-const KL = { fontFamily: "'Patrick Hand', cursive" };
+const KL = { fontFamily: 'var(--type-font-notebook)' };
 
 let drawingAudioContext = null;
 let lastDrawingSoundAt = 0;
@@ -30,6 +23,7 @@ const DRAWING_SOUND_MODES = [
 ];
 const DRAWING_SOUND_STORAGE_KEY = 'lms.aiNotes.drawingSoundMode';
 const SECRET_STUDY_EFFECTS = ['fart', 'dog', 'cat', 'boing', 'squeak'];
+const EMPTY_CANVAS_PAGES = [];
 let lastSecretStudyEffect = '';
 let currentSecretStudyEffect = '';
 let lastSecretStudyEffectAt = 0;
@@ -968,6 +962,7 @@ function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
               onPointerDown={e => e.stopPropagation()}
               onChange={e => onUpdate({ ...s, text:e.target.value })}
               placeholder="Write your note..."
+              aria-label="Personal sticky note text"
             />
           ) : (
             <p className="m-0 whitespace-pre-wrap text-[15px] font-bold leading-snug">{s.text}</p>
@@ -976,7 +971,7 @@ function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
       ) : (
         <span className="text-2xl">{s.emoji}</span>
       )}
-      {editable && <button className="absolute -right-2 -top-2 hidden size-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white group-hover/fs:flex"
+      {editable && <button className="absolute -right-2 -top-2 hidden size-4 items-center justify-center rounded-full bg-red-500 text-[11px] text-white group-hover/fs:flex"
         type="button"
         onClick={() => onDelete(s.id)}>✕</button>}
     </div>
@@ -1607,7 +1602,7 @@ function FloatingWritingPalette({
                   background:selectedSoundMode === mode.id ? (isDark ? 'rgba(45,212,191,.14)' : '#ecfdf5') : 'transparent',
                   color:selectedSoundMode === mode.id ? (isDark ? '#99f6e4' : '#0f766e') : muted,
                   cursor:'pointer',
-                  fontSize:10.5,
+                  fontSize:11.5,
                   fontWeight:900,
                 }}
               >
@@ -1708,30 +1703,6 @@ function FloatingWritingPalette({
   );
 }
 
-const CanvasPage = memo(function CanvasPage({ pageData, index, note, topBd, isDark }) {
-  const data = useMemo(() => ({
-    ...pageData,
-    title: pageData.title || note.title,
-    subtitle: pageData.subtitle || note.courseTitle || '',
-    layout: pageData.layout || '3col',
-  }), [note.courseTitle, note.title, pageData]);
-
-  return (
-    <div className="lms-canvas-page">
-      {index > 0 && (
-        <div style={{ display:'flex', alignItems:'center', gap:14, margin:'4px 0 16px' }}>
-          <div style={{ flex:1, height:1, background:topBd }}/>
-          <span style={{ ...KL, border:`1px solid ${topBd}`, background:isDark?'rgba(255,255,255,.04)':'#fbfcff', borderRadius:99, padding:'3px 14px', fontSize:11, fontWeight:600, color:isDark?'#94a3b8':'#6b7280', whiteSpace:'nowrap' }}>
-            Page {index+1}{pageData.title?` · ${pageData.title}`:''}
-          </span>
-          <div style={{ flex:1, height:1, background:topBd }}/>
-        </div>
-      )}
-      <NoteCanvas data={data} editable={false} />
-    </div>
-  );
-});
-
 function SmoothCanvasMotion() {
   return (
     <style>{`
@@ -1810,19 +1781,12 @@ function SmoothCanvasMotion() {
         min-height: 38px;
         align-content: center;
       }
-      .lms-canvas-page {
-        contain: layout paint;
-        content-visibility: auto;
-        contain-intrinsic-size: 900px;
-        opacity: 1;
-        transform: none;
-      }
       .lms-ai-note-page :where(.ncv-enter, .ncv-entered) {
         animation: none !important;
         opacity: 1 !important;
         transform: none !important;
       }
-      .lms-ai-note-page :where(.lms-ai-canvas-editor, .lms-ai-canvas-surface, .lms-canvas-page, .ncv-item) {
+      .lms-ai-note-page :where(.lms-ai-canvas-editor, .lms-ai-canvas-surface, .ncv-item) {
         perspective: none !important;
         transform: none !important;
         transform-style: flat !important;
@@ -1915,7 +1879,7 @@ function SmoothCanvasMotion() {
         .lms-ai-note-reading-dock .lms-ai-note-action-button {
           min-width: 78px;
           padding-inline: 9px !important;
-          font-size: 10.5px !important;
+          font-size: 11px !important;
         }
         .lms-ai-canvas-shell {
           grid-template-columns: 1fr !important;
@@ -1942,7 +1906,6 @@ function SmoothCanvasMotion() {
       }
       @media (prefers-reduced-motion: reduce) {
         .lms-ai-canvas-shell,
-        .lms-canvas-page,
         .lms-toast {
           animation: none;
         }
@@ -1973,19 +1936,57 @@ function StickerPicker({ onPick, onClose }) {
   );
 }
 
-function WatchVideoModal({ open, url, onClose, isDark }) {
+const VIDEO_RESUME_STORAGE_PREFIX = 'lms.lessonVideo.resume.';
+
+function videoResumeStorageKey(url) {
+  const normalized = String(url || '').trim();
+  if (!normalized) return '';
+  try {
+    return `${VIDEO_RESUME_STORAGE_PREFIX}${btoa(unescape(encodeURIComponent(normalized))).slice(0, 180)}`;
+  } catch {
+    return `${VIDEO_RESUME_STORAGE_PREFIX}${normalized.slice(0, 180)}`;
+  }
+}
+
+function readVideoResumeSeconds(url) {
+  if (typeof window === 'undefined') return 0;
+  const key = videoResumeStorageKey(url);
+  if (!key) return 0;
+  return Math.max(0, Math.floor(Number(window.localStorage.getItem(key) || 0)));
+}
+
+function writeVideoResumeSeconds(url, seconds) {
+  if (typeof window === 'undefined') return;
+  const key = videoResumeStorageKey(url);
+  if (!key) return;
+  try {
+    const value = Math.max(0, Math.floor(Number(seconds || 0)));
+    if (value > 2) {
+      window.localStorage.setItem(key, String(value));
+    } else {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Video resume is a convenience only.
+  }
+}
+
+function WatchVideoModal({ open, url, captionUrl = '', onClose, isDark }) {
   if (!open || typeof document === 'undefined') return null;
-  const embed = getVideoEmbed(url);
+  const resumeSeconds = readVideoResumeSeconds(url);
+  const embed = getVideoEmbed(url, { startSeconds: resumeSeconds });
   const panelBg = isDark ? 'rgba(15,18,31,.98)' : '#fbfcff';
   const line = isDark ? 'rgba(255,255,255,.10)' : '#e5e7eb';
   const muted = isDark ? 'rgba(226,232,240,.62)' : '#64748b';
   const text = isDark ? '#f8fafc' : '#334155';
+  const titleId = 'lesson-video-modal-title';
   return createPortal(
     <div
       className="fixed inset-0 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-lg"
       style={{ zIndex: 99999 }}
       role="dialog"
       aria-modal="true"
+      aria-labelledby={titleId}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <style>{`
@@ -1997,7 +1998,7 @@ function WatchVideoModal({ open, url, onClose, isDark }) {
       <div className="w-full max-w-4xl overflow-hidden rounded-2xl border shadow-2xl" style={{ background:panelBg, borderColor:line, animation:'lmsVideoDialogIn 220ms cubic-bezier(.16,1,.3,1) both' }}>
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4" style={{ borderColor:line }}>
           <div>
-            <div style={{ ...KL, fontSize:24, fontWeight:800, color:text }}>Watch lesson video</div>
+            <div id={titleId} style={{ ...KL, fontSize:24, fontWeight:800, color:text }}>Watch lesson video</div>
             <div className="text-xs" style={{ color:muted }}>Video added by your instructor.</div>
           </div>
           <button className="inline-flex size-9 items-center justify-center rounded-full border text-sm font-black"
@@ -2022,26 +2023,34 @@ function WatchVideoModal({ open, url, onClose, isDark }) {
                   title="Protected lesson video player"
                   src={embed.src}
                   className="h-full w-full"
-                  allow="autoplay; encrypted-media"
+                  allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                  allowFullScreen
                   loading="lazy"
                   referrerPolicy="strict-origin-when-cross-origin"
                 />
-                {embed.hideTopChrome ? (
-                  <div
-                    className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-black"
-                    aria-hidden="true"
-                  />
-                ) : null}
               </div>
             ) : embed?.type === 'video' ? (
               <video
                 className="h-full w-full bg-black object-contain"
                 controls
-                controlsList="nodownload noplaybackrate"
+                controlsList="nodownload"
                 disablePictureInPicture
+                preload="metadata"
+                onLoadedMetadata={(event) => {
+                  const video = event.currentTarget;
+                  if (resumeSeconds > 2 && Number.isFinite(video.duration) && resumeSeconds < video.duration - 2) {
+                    video.currentTime = resumeSeconds;
+                  }
+                }}
+                onTimeUpdate={(event) => writeVideoResumeSeconds(url, event.currentTarget.currentTime)}
+                onEnded={() => writeVideoResumeSeconds(url, 0)}
                 onContextMenu={(event) => event.preventDefault()}
                 src={embed.src}
-              />
+              >
+                {captionUrl ? (
+                  <track default kind="captions" src={captionUrl} srcLang="en" label="English captions" />
+                ) : null}
+              </video>
             ) : embed?.type === 'blocked' ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
                 <div style={{ ...KL, fontSize:22, color:text }}>This lesson video cannot be played securely.</div>
@@ -2076,7 +2085,7 @@ function WatchVideoPanel({ videoUrl, onOpenVideo, isDark }) {
       >
         {thumb && <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-200 group-hover:scale-[1.03]" loading="lazy" decoding="async" />}
         <span className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(59,130,246,.15),transparent_36%),linear-gradient(180deg,rgba(2,6,23,.08),rgba(2,6,23,.66))]" />
-        <span className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white backdrop-blur">
+        <span className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white backdrop-blur">
           Watch Video
         </span>
         <span className="absolute left-1/2 top-1/2 grid size-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/18 text-white shadow-[0_0_34px_rgba(59,130,246,.38)] backdrop-blur-md transition group-hover:scale-105">
@@ -2120,7 +2129,7 @@ function RightPanel({
   const bg  = isDark?'#12141f':'#fbfcff', bd=isDark?'rgba(255,255,255,.09)':'#e5e7eb';
   const lbl = isDark?'rgba(200,210,255,.4)':'#9ca3af';
   const C = ch => <div style={{ background:bg, border:`1px solid ${bd}`, borderRadius:16, padding:'13px 15px', marginBottom:12 }}>{ch}</div>;
-  const L = t => <div style={{ fontFamily:'sans-serif', fontSize:9, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:lbl, marginBottom:9 }}>{t}</div>;
+  const L = t => <div style={{ fontFamily:'var(--type-font-body)', fontSize:11, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:lbl, marginBottom:9 }}>{t}</div>;
   const btnHov = (e,on) => {
     e.currentTarget.style.borderColor = on?'#a78bfa':bd;
     e.currentTarget.style.background  = on?(isDark?'rgba(167,139,250,.1)':'#f5f3ff'):(isDark?'rgba(255,255,255,.04)':'#f9fafb');
@@ -2133,7 +2142,7 @@ function RightPanel({
           <span style={{ fontSize:18 }}>🎯</span>
           <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.1em', textTransform:'uppercase', color:isDark?'#a78bfa':'#6d28d9' }}>Practice MCQ</span>
         </div>
-        <span style={{ background:isDark?`${mcq.bg}18`:mcq.bg, border:`1px solid ${mcq.c}40`, color:mcq.c, borderRadius:99, padding:'2px 9px', fontSize:10, fontWeight:700, display:'inline-block', marginBottom:10 }}>{mcq.tag}</span>
+        <span style={{ background:isDark?`${mcq.bg}18`:mcq.bg, border:`1px solid ${mcq.c}40`, color:mcq.c, borderRadius:99, padding:'2px 9px', fontSize:11, fontWeight:700, display:'inline-block', marginBottom:10 }}>{mcq.tag}</span>
         <p style={{ ...KL, fontSize:11.5, lineHeight:1.55, color:isDark?'rgba(200,210,255,.65)':'#6b7280', marginBottom:12 }}>
           Test knowledge on <strong style={{ color:isDark?'#a78bfa':'#5b21b6' }}>{note?.title||'this topic'}</strong>.
         </p>
@@ -2160,12 +2169,12 @@ function RightPanel({
         <div style={{ position:'relative', marginTop:8 }}>
           <button className="mb-2 w-full" onClick={onNoteAdd}
             type="button"
-            style={{ width:'100%', border:`1px dashed ${bd}`, borderRadius:9, padding:'5px 0', fontSize:10, fontWeight:700, color:isDark?'#f59e0b':'#92400e', background:isDark?'rgba(245,158,11,.08)':'#fffbeb', cursor:'pointer' }}
+            style={{ width:'100%', border:`1px dashed ${bd}`, borderRadius:9, padding:'5px 0', fontSize:11, fontWeight:700, color:isDark?'#f59e0b':'#92400e', background:isDark?'rgba(245,158,11,.08)':'#fffbeb', cursor:'pointer' }}
           >
             📝 Add sticky note
           </button>
           <button className="w-full" onClick={() => setStickerOpen(v => !v)}
-            style={{ width:'100%', border:`1px dashed ${bd}`, borderRadius:9, padding:'5px 0', fontSize:10, fontWeight:600, color:lbl, background:'transparent', cursor:'pointer' }}
+            style={{ width:'100%', border:`1px dashed ${bd}`, borderRadius:9, padding:'5px 0', fontSize:11, fontWeight:600, color:lbl, background:'transparent', cursor:'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor='#a78bfa'; e.currentTarget.style.color='#7c3aed'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor=bd; e.currentTarget.style.color=lbl; }}>
             ✨ More stickers…
@@ -2198,7 +2207,7 @@ function RightPanel({
         </button>
         <div style={{ display:'grid', gap:10 }}>
           <div>
-            <div style={{ fontFamily:'sans-serif', fontSize:10, fontWeight:800, color:lbl, marginBottom:6 }}>Pen color</div>
+            <div style={{ fontFamily:'var(--type-font-body)', fontSize:11, fontWeight:800, color:lbl, marginBottom:6 }}>Pen color</div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:7 }}>
               {DRAW_COLORS.map((color) => (
                 <button
@@ -2221,7 +2230,7 @@ function RightPanel({
             </div>
           </div>
           <div>
-            <div style={{ fontFamily:'sans-serif', fontSize:10, fontWeight:800, color:lbl, marginBottom:6 }}>Pen width</div>
+            <div style={{ fontFamily:'var(--type-font-body)', fontSize:11, fontWeight:800, color:lbl, marginBottom:6 }}>Pen width</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
               {DRAW_WIDTHS.map((width) => (
                 <button
@@ -2267,7 +2276,7 @@ function RightPanel({
       <div style={{ borderRadius:16, border:isDark?'1px solid rgba(251,191,36,.2)':'1px solid #fde68a', background:isDark?'rgba(251,191,36,.05)':'#fffbeb', padding:'13px 15px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5 }}>
           <span>💡</span>
-          <span style={{ fontSize:9, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:isDark?'#fbbf24':'#92400e', fontFamily:'sans-serif' }}>Revision Tip</span>
+          <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:isDark?'#fbbf24':'#92400e', fontFamily:'var(--type-font-body)' }}>Revision Tip</span>
         </div>
         <p style={{ ...KL, fontSize:11.5, lineHeight:1.6, color:isDark?'#fde68a':'#78350f', margin:0 }}>
           {nativeWritingEnabled
@@ -2292,6 +2301,37 @@ function normalizeNoteData(raw) {
   if (raw.pages && Array.isArray(raw.pages)) return raw;
   return { pages: [raw] };
 }
+function mergeUniqueCanvasValues(values) {
+  return [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))];
+}
+function mergeStudentCanvasPages(pages, note) {
+  const safePages = Array.isArray(pages) ? pages.filter(Boolean) : [];
+  const firstPage = safePages[0] || {};
+  if (safePages.length <= 1) {
+    return {
+      ...firstPage,
+      title: firstPage.title || note.title,
+      subtitle: firstPage.subtitle || note.courseTitle || '',
+      layout: firstPage.layout || '3col',
+    };
+  }
+
+  const summaries = safePages.map(page => String(page.summary_box || '').trim()).filter(Boolean);
+  const mergedTags = mergeUniqueCanvasValues(safePages.flatMap(page => Array.isArray(page.tags) ? page.tags : []));
+  const mergedKeywords = mergeUniqueCanvasValues(safePages.flatMap(page => Array.isArray(page.keywords) ? page.keywords : []));
+  return {
+    ...firstPage,
+    title: note.lessonTitle || note.title || firstPage.title,
+    subtitle: firstPage.subtitle || note.courseTitle || '',
+    layout: firstPage.layout || '3col',
+    sections: safePages.flatMap(page => Array.isArray(page.sections) ? page.sections : []),
+    key_points: safePages.flatMap(page => Array.isArray(page.key_points) ? page.key_points : []),
+    summary_box: summaries.join(' · '),
+    canvasStickers: safePages.flatMap(page => Array.isArray(page.canvasStickers) ? page.canvasStickers : []),
+    ...(mergedTags.length ? { tags: mergedTags } : {}),
+    ...(mergedKeywords.length ? { keywords: mergedKeywords } : {}),
+  };
+}
 function cleanCanvasLabel(value, fallback = '') {
   const text = String(value || '').trim();
   if (!text) return fallback;
@@ -2301,6 +2341,28 @@ function cleanCanvasLabel(value, fallback = '') {
     .filter(Boolean)
     .filter((part) => !/^(lms|study|lesson|lessons|ai-notes|canvas|canvases|\d+)$/i.test(part));
   return parts.length ? parts[parts.length - 1] : text;
+}
+function getVideoCaptionUrl(note) {
+  const noteData = note?.noteData && typeof note.noteData === 'object' ? note.noteData : {};
+  const video = noteData.video && typeof noteData.video === 'object' ? noteData.video : {};
+  const candidates = [
+    note?.captionUrl,
+    note?.captionsUrl,
+    note?.subtitleUrl,
+    note?.subtitlesUrl,
+    note?.videoCaptionUrl,
+    noteData.captionUrl,
+    noteData.captionsUrl,
+    noteData.subtitleUrl,
+    noteData.subtitlesUrl,
+    noteData.videoCaptionUrl,
+    video.captionUrl,
+    video.captionsUrl,
+    video.subtitleUrl,
+    video.subtitlesUrl,
+  ];
+
+  return String(candidates.find((value) => String(value || '').trim()) || '').trim();
 }
 function BackIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M9.5 3.5l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -2330,15 +2392,29 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     return normalizeDrawingSoundMode(window.localStorage?.getItem(DRAWING_SOUND_STORAGE_KEY));
   });
   const [videoUrl,  setVideoUrl]  = useState('');
+  const [videoCaptionUrl, setVideoCaptionUrl] = useState('');
   const [videoOpen, setVideoOpen] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
   const [lessonCompleted, setLessonCompleted] = useState(false);
   const [completionBusy, setCompletionBusy] = useState(false);
+  const [personalSaveStatus, setPersonalSaveStatus] = useState('');
+  const [isOffline, setIsOffline] = useState(() => (typeof navigator === 'undefined' ? false : !navigator.onLine));
   const sidRef = useRef(0);
   const saveTimerRef = useRef(null);
+  const personalStatusTimerRef = useRef(null);
 
   const nativeWritingEnabled = true;
   const notify = msg => { setToast(msg); setTimeout(() => setToast(null), 2200); };
+  const showPersonalSaveStatus = useCallback((message, clearAfter = 0) => {
+    setPersonalSaveStatus(message);
+    if (personalStatusTimerRef.current) clearTimeout(personalStatusTimerRef.current);
+    if (clearAfter > 0) {
+      personalStatusTimerRef.current = setTimeout(() => {
+        setPersonalSaveStatus('');
+        personalStatusTimerRef.current = null;
+      }, clearAfter);
+    }
+  }, []);
   const updateSoundMode = useCallback((mode) => {
     const next = normalizeDrawingSoundMode(mode);
     setSoundMode(next);
@@ -2364,6 +2440,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
         setNote(data);
         setLocalData(baseData);
         setVideoUrl(data.videoUrl || '');
+        setVideoCaptionUrl(getVideoCaptionUrl(data));
         setLessonCompleted(Boolean(
           data.lessonCompleted ||
           data.lessonProgressStatus === 'completed' ||
@@ -2463,15 +2540,42 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
 
   useEffect(() => () => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (personalStatusTimerRef.current) clearTimeout(personalStatusTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const updateConnection = () => {
+      const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+      setIsOffline(offline);
+      if (offline) {
+        showPersonalSaveStatus('Offline - personal notes save on this device');
+      } else if (personalSaveStatus.startsWith('Offline')) {
+        showPersonalSaveStatus('Back online - personal notes are saved locally', 2200);
+      }
+    };
+    updateConnection();
+    window.addEventListener('online', updateConnection);
+    window.addEventListener('offline', updateConnection);
+    return () => {
+      window.removeEventListener('online', updateConnection);
+      window.removeEventListener('offline', updateConnection);
+    };
+  }, [personalSaveStatus, showPersonalSaveStatus]);
 
   const savePersonalItems = useCallback((nextLayer) => {
     const key = studentCanvasPersonalStorageKey(note?.id || id || lessonId);
     if (!key || typeof window === 'undefined') return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    showPersonalSaveStatus('Saving personal notes...');
     saveTimerRef.current = setTimeout(() => {
       const write = () => {
-        try { window.localStorage.setItem(key, JSON.stringify(nextLayer)); } catch { /* personal overlay is optional */ }
+        try {
+          window.localStorage.setItem(key, JSON.stringify(nextLayer));
+          showPersonalSaveStatus(isOffline ? 'Offline - personal notes saved on this device' : 'Personal notes saved', 2200);
+        } catch {
+          showPersonalSaveStatus('Save failed - device storage may be full');
+        }
       };
       if (typeof window.requestIdleCallback === 'function') {
         window.requestIdleCallback(write, { timeout:800 });
@@ -2479,9 +2583,36 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
         write();
       }
     }, 120);
-  }, [id, lessonId, note?.id]);
+  }, [id, isOffline, lessonId, note?.id, showPersonalSaveStatus]);
 
   function handleBack() { if (location.state?.returnToPath) { navigate(location.state.returnToPath); return; } navigate(-1); }
+
+  useEffect(() => {
+    if (!platform.isNative || !platform.isAndroid || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    function handleAndroidBack(event) {
+      const savePending = personalSaveStatus.startsWith('Saving');
+      if (!isEditing && !drawMode && !savePending) return;
+
+      event.preventDefault();
+      if (drawMode) {
+        setDrawMode(false);
+        showPersonalSaveStatus('Drawing closed - personal notes saved locally', 1800);
+        return;
+      }
+      if (isEditing) {
+        setIsEditing(false);
+        showPersonalSaveStatus('Personalize closed - notes stay on this device', 1800);
+        return;
+      }
+      showPersonalSaveStatus('Saving personal notes - try again in a moment', 1800);
+    }
+
+    window.addEventListener('lms:android-back', handleAndroidBack);
+    return () => window.removeEventListener('lms:android-back', handleAndroidBack);
+  }, [drawMode, isEditing, personalSaveStatus, platform.isAndroid, platform.isNative, showPersonalSaveStatus]);
 
   const addSticker    = useCallback(emoji => {
     if (!isEditing) {
@@ -2512,11 +2643,14 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     savePersonalItems({ stickers:next, strokes });
     return next;
   }), [savePersonalItems, strokes]);
-  const deleteSticker = useCallback(sid => setStickers(ss => {
-    const next = ss.filter(s => s.id!==sid);
-    savePersonalItems({ stickers:next, strokes });
-    return next;
-  }), [savePersonalItems, strokes]);
+  const deleteSticker = useCallback(sid => {
+    if (typeof window !== 'undefined' && !window.confirm('Remove this personal note item?')) return;
+    setStickers(ss => {
+      const next = ss.filter(s => s.id!==sid);
+      savePersonalItems({ stickers:next, strokes });
+      return next;
+    });
+  }, [savePersonalItems, strokes]);
   const commitStroke = useCallback((stroke) => {
     if (!nativeWritingEnabled) return;
     setStrokes(current => {
@@ -2533,10 +2667,11 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     });
   }, [savePersonalItems, stickers]);
   const clearStrokes = useCallback(() => {
+    if (strokes.length && typeof window !== 'undefined' && !window.confirm('Clear all canvas writing?')) return;
     setStrokes([]);
     savePersonalItems({ stickers, strokes:[] });
     notify('Canvas writing cleared');
-  }, [savePersonalItems, stickers]);
+  }, [savePersonalItems, stickers, strokes.length]);
   const toggleDrawMode = useCallback(() => {
     if (!nativeWritingEnabled) return;
     if (!isEditing) {
@@ -2614,6 +2749,11 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
     whiteSpace: 'nowrap',
     boxShadow: lessonButtonShadow,
   };
+  const pages = localData?.pages || EMPTY_CANVAS_PAGES;
+  const studentCanvasData = useMemo(
+    () => mergeStudentCanvasPages(pages, note || {}),
+    [pages, note?.courseTitle, note?.lessonTitle, note?.title]
+  );
 
   if (loading) return (
     <main style={{ minHeight:'100dvh', background:pageBg }}>
@@ -2639,7 +2779,6 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   if (!note) return null;
 
   const isLocked = Boolean(note.accessLocked);
-  const pages    = localData?.pages || [];
   const canEdit  = isEditing && !isLocked;
   const canDraw  = nativeWritingEnabled && canEdit;
   const canvasTitle = cleanCanvasLabel(note.lessonTitle || note.title, 'Lesson');
@@ -2663,7 +2802,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
             <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
               <div style={{ ...KL, minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasTitle}</div>
               {note.isFree ? (
-                <span style={{ flexShrink:0, border:'1px solid rgba(16,185,129,.25)', background:'rgba(16,185,129,.12)', color:isDark?'#86efac':'#047857', borderRadius:999, padding:'2px 8px', fontSize:10, fontWeight:900, textTransform:'uppercase' }}>
+                <span style={{ flexShrink:0, border:'1px solid rgba(16,185,129,.25)', background:'rgba(16,185,129,.12)', color:isDark?'#86efac':'#047857', borderRadius:999, padding:'2px 8px', fontSize:11, fontWeight:900, textTransform:'uppercase' }}>
                   Free lesson
                 </span>
               ) : null}
@@ -2733,6 +2872,25 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
                 </button>
               )}
             </div>
+            {(isEditing || personalSaveStatus || isOffline) ? (
+              <div
+                aria-live="polite"
+                role="status"
+                style={{
+                  marginTop:4,
+                  fontSize:11,
+                  fontWeight:700,
+                  color:personalSaveStatus.startsWith('Save failed')
+                    ? (isDark ? '#fca5a5' : '#b91c1c')
+                    : (isDark ? 'rgba(200,210,255,.55)' : '#6b7280'),
+                  whiteSpace:'nowrap',
+                  overflow:'hidden',
+                  textOverflow:'ellipsis',
+                }}
+              >
+                {personalSaveStatus || 'Personal notes autosave locally'}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -2817,18 +2975,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
                   style={{ background:isDark?'rgba(167,139,250,.14)':'#f5f3ff', color:isDark?'#ddd6fe':'#6d28d9', borderRadius:12, padding:'10px 20px', fontSize:12, fontWeight:800, border:`1px solid ${isDark?'rgba(167,139,250,.28)':'rgba(124,58,237,.24)'}`, cursor:'pointer' }}>View access options</button>
               </div>
             ) : pages.length > 0 ? (
-              <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-                {pages.map((pageData, i) => (
-                  <CanvasPage
-                    key={pageData.id || pageData.title || i}
-                    pageData={pageData}
-                    index={i}
-                    note={note}
-                    topBd={topBd}
-                    isDark={isDark}
-                  />
-                ))}
-              </div>
+              <NoteCanvas data={studentCanvasData} editable={false} />
             ) : (
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, minHeight:400, borderRadius:20, border:`1.5px dashed ${topBd}`, background:isDark?'rgba(255,255,255,.02)':'#fbfcff', textAlign:'center' }}>
                 <span style={{ fontSize:48 }}>📋</span>
@@ -2864,6 +3011,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
       <WatchVideoModal
         open={videoOpen}
         url={videoUrl}
+        captionUrl={videoCaptionUrl}
         onClose={() => setVideoOpen(false)}
         isDark={isDark}
       />

@@ -57,7 +57,7 @@
   color-scheme: light;
 
   --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-body:    "Inter", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body:    "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
 
   --ease-std:    cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
@@ -78,20 +78,20 @@
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-7: 32px;
-  --space-8: 40px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 48px;
 
-  --page-pad-x:       22px;
+  --page-pad-x:       24px;
   --page-pad-y:       16px;
-  --section-gap:      18px;
-  --card-pad:         20px;
+  --section-gap:      24px;
+  --card-pad:         24px;
   --card-pad-compact: 16px;
   --form-gap:         16px;
   --table-cell-pad-y: 12px;
   --table-cell-pad-x: 16px;
-  --control-h:        42px;
+  --control-h:        44px;
 
   /* ── Light Mode Surfaces: crisp white, clear hierarchy ─── */
   --surface-0:          #F7F9FC;
@@ -116,8 +116,8 @@
   /* ── Text ────────────────────────────────────────────────── */
   --ink-strong: #0B1220;
   --ink-medium: #2A3B52;
-  --ink-soft:   #62758A;
-  --ink-muted:  #95A6B8;
+  --ink-soft:   #5B6C80;
+  --ink-muted:  #607286;
 
   /* ── Semantic Colors ─────────────────────────────────────── */
   --color-primary:       #2563EB;

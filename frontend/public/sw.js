@@ -1,7 +1,7 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
 const DEFAULT_ICON = '/lms/pwa-icon.svg';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'erpm-lms-shell-20260526-safe-area-blend-v3';
+const CACHE_NAME = 'erpm-lms-shell-20260531-performance-v1';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',
@@ -77,13 +77,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  const isFreshAsset =
-    url.pathname.endsWith('.js') ||
-    url.pathname.endsWith('.css') ||
+  const isServiceWorkerOrManifest =
     url.pathname.endsWith('.webmanifest') ||
     url.pathname.endsWith('/sw.js');
 
-  if (isFreshAsset) {
+  if (isServiceWorkerOrManifest) {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
         .then((response) => {
@@ -94,6 +92,28 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match(request, { ignoreSearch: true }))
+    );
+    return;
+  }
+
+  const isVersionedBuildAsset =
+    /\/assets\/(?:chunks\/)?[^/]+-[A-Za-z0-9_-]{6,}\.(?:js|css)$/i.test(url.pathname);
+
+  if (isVersionedBuildAsset) {
+    event.respondWith(
+      caches.match(request, { ignoreSearch: true }).then((cached) => {
+        const network = fetch(request)
+          .then((response) => {
+            if (response && response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
+            }
+            return response;
+          })
+          .catch(() => cached);
+
+        return cached || network;
+      })
     );
     return;
   }

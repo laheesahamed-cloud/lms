@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from './app/App.jsx';
 import { applyPlatformAttributes, installPlatformAttributeSync } from './shared/platform/detect.js';
 import { shouldRegisterServiceWorker } from './shared/platform/config.js';
-import { applyPerformanceProfile } from './shared/utils/performanceProfile.js';
+import { applyPerformanceProfile, installMotionResourceGuards, installPerformanceMonitoring } from './shared/utils/performanceProfile.js';
 import { installPwaRegistration, uninstallPwaRegistration } from './shared/utils/pwaRegistration.js';
 import './shared/styles/index.css';
 
@@ -27,6 +27,8 @@ function installPwaTouchGuards() {
 
 const initialPlatform = applyPlatformAttributes();
 if (typeof window !== 'undefined') {
+  installMotionResourceGuards();
+  installPerformanceMonitoring();
   installPwaTouchGuards();
   installPlatformAttributeSync(() => applyPerformanceProfile());
 }

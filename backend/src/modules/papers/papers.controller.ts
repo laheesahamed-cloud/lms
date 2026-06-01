@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { PapersService } from './papers.service';
 import { CreatePaperDto } from './dto/create-paper.dto';
@@ -9,7 +10,10 @@ import { UpdatePaperDto } from './dto/update-paper.dto';
 @UseGuards(AdminGuard)
 @RequirePermissions('content.manage')
 export class PapersController {
-  constructor(private readonly papersService: PapersService) {}
+  constructor(
+    private readonly papersService: PapersService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Get()
   findAll(@Query('search') search?: string, @Query('status') status?: string) {
@@ -27,17 +31,59 @@ export class PapersController {
   }
 
   @Post()
-  create(@Body() createPaperDto: CreatePaperDto) {
-    return this.papersService.create(createPaperDto);
+  async create(@Headers('authorization') authorization: string | undefined, @Body() createPaperDto: CreatePaperDto) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.papersService.create(createPaperDto, actor);
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updatePaperDto: UpdatePaperDto) {
-    return this.papersService.update(id, updatePaperDto);
+  async update(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePaperDto: UpdatePaperDto,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.papersService.update(id, updatePaperDto, actor);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.papersService.remove(id);
+  async remove(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.papersService.remove(id, actor);
+  }
+
+  @Get(':id/versions')
+  listVersions(@Param('id', ParseIntPipe) id: number) {
+    return this.papersService.listVersions(id);
+  }
+
+  @Post(':id/draft')
+  async markDraft(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.papersService.markDraft(id, actor);
+  }
+
+  @Post(':id/submit-review')
+  async submitForReview(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.papersService.submitForReview(id, actor);
+  }
+
+  @Post(':id/publish')
+  @RequirePermissions('content.review')
+  async publish(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.papersService.publish(id, actor);
+  }
+
+  @Post(':id/rollback/:versionNumber')
+  @RequirePermissions('content.review')
+  async rollback(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionNumber', ParseIntPipe) versionNumber: number,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.papersService.rollback(id, versionNumber, actor);
   }
 }

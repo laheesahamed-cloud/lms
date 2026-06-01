@@ -2,6 +2,9 @@ import { BadGatewayException, BadRequestException, Inject, Injectable, NotFoundE
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Pool, RowDataPacket } from 'mysql2/promise';
+import { randomUUID } from 'crypto';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import {
@@ -38,6 +41,52 @@ type AiProviderRow = RowDataPacket & {
 };
 
 const WHATSAPP_NUMBER_SETTING_KEY = 'contact_whatsapp_number';
+const LANDING_PAGE_SETTING_KEY = 'landing_page_content';
+const DEFAULT_LANDING_PAGE_CONTENT = {
+  metaTitle: 'Medical Study Platform',
+  metaDescription:
+    'xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics.',
+  heroKicker: 'Built for medical students in Sri Lanka',
+  heroTitleLine1: 'The smarter way to',
+  heroTitleAccent: 'prepare for',
+  heroTitleLine3: 'medical exams.',
+  heroSubtitle:
+    'Interactive lessons, timed quizzes, and performance analytics in one focused workspace for serious medical revision.',
+  heroPrimaryLabel: 'Start Studying Free',
+  heroSecondaryLabel: 'Explore Platform',
+  featuresEyebrow: 'Platform Features',
+  featuresTitle: 'The full study loop, not just a pile of MCQs.',
+  featuresText:
+    'Read, revise, practise, and review - inside one calm academic workspace built for medical preparation.',
+  howEyebrow: 'Getting Started',
+  howTitle: 'Up and revising in three steps.',
+  howText: 'No complicated setup. Sign up and start revising your medical subjects today.',
+  whyEyebrow: 'Why Choose Us',
+  whyTitle: 'More than just another MCQ bank.',
+  whyText:
+    'While others give you a flat list of questions, we give you the full study experience - structured, visual, and data-driven.',
+  testimonialsEyebrow: 'Student Stories',
+  testimonialsTitle: 'What medical students say.',
+  testimonialsText:
+    'Real feedback from students across Sri Lanka using the platform for their revision.',
+  faqEyebrow: 'FAQ',
+  faqTitle: 'Questions students usually ask first.',
+  faqText: 'Clear answers about how the platform works before you start your revision journey.',
+  pricingEyebrow: 'Pricing',
+  pricingTitle: 'Transparent plans for Sri Lankan students.',
+  pricingText: 'No hidden fees. Choose the plan that fits your exam timeline and study intensity.',
+  customPlanTitle: 'Need a customized subscription?',
+  customPlanText: 'Create a package around your courses, study timeline, and exam goals.',
+  ctaEyebrow: 'Ready to begin?',
+  ctaTitle: 'Join the most complete medical study platform in Sri Lanka.',
+  ctaText:
+    'Interactive lessons, a full quiz engine, and performance tracking - everything you need to walk into your examination with confidence.',
+  ctaPrimaryLabel: 'Create Free Account',
+  ctaSecondaryLabel: 'Sign In',
+  footerText:
+    'A focused study platform for medical students in Sri Lanka - notes, quizzes, and analytics in one place.',
+  footerTagline: 'Built for Sri Lankan medical education.',
+} as const;
 const PAYMENT_SETTING_KEYS = {
   enabled: 'payment_payhere_enabled',
   sandboxMode: 'payment_payhere_sandbox_mode',
@@ -69,6 +118,29 @@ const SMTP_SETTING_KEYS = {
   buttonLabel: 'smtp_reset_button_label',
   footer: 'smtp_reset_footer',
 } as const;
+
+const POPUP_ALERT_SETTING_KEYS = {
+  enabled: 'popup_alert_enabled',
+  placement: 'popup_alert_placement',
+  title: 'popup_alert_title',
+  body: 'popup_alert_body',
+  buttonLabel: 'popup_alert_button_label',
+  buttonUrl: 'popup_alert_button_url',
+  imageUrl: 'popup_alert_image_url',
+  imageAlt: 'popup_alert_image_alt',
+  imageFileName: 'popup_alert_image_file_name',
+  imageWidth: 'popup_alert_image_width',
+  imageHeight: 'popup_alert_image_height',
+  imageBytes: 'popup_alert_image_bytes',
+  version: 'popup_alert_version',
+} as const;
+
+const POPUP_ALERT_MAX_IMAGE_BYTES = 2_000_000;
+const POPUP_ALERT_ALLOWED_IMAGE_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
 
 const APNS_SETTING_KEYS = {
   keyId: 'apns_key_id',
@@ -118,6 +190,22 @@ export type SmtpSettings = {
   footer: string;
 };
 
+export type PopupAlertSettings = {
+  enabled: boolean;
+  placement: 'landing' | 'login' | 'app' | 'all';
+  title: string;
+  body: string;
+  buttonLabel: string;
+  buttonUrl: string;
+  imageUrl: string;
+  imageAlt: string;
+  imageFileName: string;
+  imageWidth: number;
+  imageHeight: number;
+  imageBytes: number;
+  version: string;
+};
+
 export type ApnsSettings = {
   keyId: string;
   teamId: string;
@@ -132,6 +220,10 @@ export type FcmSettings = {
   serverKey: string;
   serviceAccountPath: string;
   serviceAccountJson: string;
+};
+
+export type LandingPageContent = {
+  [Key in keyof typeof DEFAULT_LANDING_PAGE_CONTENT]: string;
 };
 
 @Injectable()
@@ -152,11 +244,23 @@ export class SettingsService {
     };
   }
 
+  async getLandingPageSettings() {
+    return {
+      ok: true,
+      content: await this.getLandingPageContent(),
+      defaults: DEFAULT_LANDING_PAGE_CONTENT,
+      note: 'Landing page text is stored in the LMS database. Visitors see saved edits without rebuilding the frontend.',
+    };
+  }
+
   async getPublicSettings() {
     const whatsappNumber = await this.getSettingValue(WHATSAPP_NUMBER_SETTING_KEY);
+    const popupAlert = await this.getRawPopupAlertSettings();
     return {
       ok: true,
       whatsappUrl: this.toWhatsAppUrl(whatsappNumber),
+      landingPage: await this.getLandingPageContent(),
+      popupAlert: this.serializePublicPopupAlertSettings(popupAlert),
     };
   }
 
@@ -166,6 +270,15 @@ export class SettingsService {
     await this.saveSettingValue(WHATSAPP_NUMBER_SETTING_KEY, whatsappNumber);
 
     return this.getGeneralSettings();
+  }
+
+  async updateLandingPageSettings(input: Partial<LandingPageContent>) {
+    const current = await this.getLandingPageContent();
+    const next = this.normalizeLandingPageContent({ ...current, ...input });
+
+    await this.saveSettingValue(LANDING_PAGE_SETTING_KEY, JSON.stringify(next));
+
+    return this.getLandingPageSettings();
   }
 
   async getPaymentSettings() {
@@ -187,6 +300,22 @@ export class SettingsService {
       ok: true,
       ...this.serializeSmtpSettings(settings),
       note: 'SMTP credentials are stored encrypted in the LMS database. Password reset emails are sent only when SMTP is enabled and configured.',
+    };
+  }
+
+  async getPopupAlertSettings() {
+    const settings = await this.getRawPopupAlertSettings();
+
+    return {
+      ok: true,
+      ...this.serializePopupAlertSettings(settings),
+      recommendedImage: {
+        width: 1200,
+        height: 675,
+        maxBytes: POPUP_ALERT_MAX_IMAGE_BYTES,
+        formats: ['JPG', 'PNG', 'WEBP'],
+      },
+      note: 'Popup alerts can be shown on the landing page, login page, inside the app, or everywhere. Images are stored as public marketing assets.',
     };
   }
 
@@ -321,6 +450,54 @@ export class SettingsService {
     ]);
 
     return this.getSmtpSettings();
+  }
+
+  async updatePopupAlertSettings(input: Partial<PopupAlertSettings> & { imageDataUrl?: string }) {
+    const current = await this.getRawPopupAlertSettings();
+    const uploadedImage = input.imageDataUrl
+      ? await this.savePopupAlertImage(input.imageDataUrl)
+      : null;
+    const explicitImageUrl = input.imageUrl !== undefined ? this.normalizeOptionalValue(input.imageUrl) : current.imageUrl;
+    const imageUrl = uploadedImage?.imageUrl || explicitImageUrl;
+    const imageFileName = uploadedImage?.imageFileName ||
+      (input.imageUrl !== undefined && !explicitImageUrl ? '' : current.imageFileName);
+    const next: PopupAlertSettings = {
+      enabled: input.enabled ?? current.enabled,
+      placement: this.normalizePopupPlacement(input.placement || current.placement),
+      title: input.title !== undefined ? this.normalizeOptionalValue(input.title).slice(0, 120) : current.title,
+      body: input.body !== undefined ? this.normalizeOptionalValue(input.body).slice(0, 900) : current.body,
+      buttonLabel: input.buttonLabel !== undefined ? this.normalizeOptionalValue(input.buttonLabel).slice(0, 80) : current.buttonLabel,
+      buttonUrl: input.buttonUrl !== undefined ? this.normalizeOptionalValue(input.buttonUrl).slice(0, 500) : current.buttonUrl,
+      imageUrl,
+      imageAlt: input.imageAlt !== undefined ? this.normalizeOptionalValue(input.imageAlt).slice(0, 160) : current.imageAlt,
+      imageFileName,
+      imageWidth: uploadedImage?.imageWidth ?? Number(input.imageWidth ?? current.imageWidth ?? 0),
+      imageHeight: uploadedImage?.imageHeight ?? Number(input.imageHeight ?? current.imageHeight ?? 0),
+      imageBytes: uploadedImage?.imageBytes ?? Number(input.imageBytes ?? current.imageBytes ?? 0),
+      version: String(Date.now()),
+    };
+
+    if (next.enabled && !next.title && !next.body && !next.imageUrl) {
+      throw new BadRequestException('Add popup text or an image before enabling the alert');
+    }
+
+    await Promise.all([
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.enabled, next.enabled ? 'true' : 'false'),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.placement, next.placement),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.title, next.title),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.body, next.body),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.buttonLabel, next.buttonLabel),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.buttonUrl, next.buttonUrl),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageUrl, next.imageUrl),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageAlt, next.imageAlt),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageFileName, next.imageFileName),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageWidth, String(next.imageWidth || 0)),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageHeight, String(next.imageHeight || 0)),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageBytes, String(next.imageBytes || 0)),
+      this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.version, next.version),
+    ]);
+
+    return this.getPopupAlertSettings();
   }
 
   async updateApnsSettings(input: Partial<ApnsSettings>) {
@@ -601,6 +778,52 @@ export class SettingsService {
     return new Map(rows.map((row) => [String(row.setting_key), String(row.setting_value || '').trim()]));
   }
 
+  private async getLandingPageContent(): Promise<LandingPageContent> {
+    const raw = await this.getSettingValue(LANDING_PAGE_SETTING_KEY);
+    if (!raw) {
+      return this.normalizeLandingPageContent({});
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return this.normalizeLandingPageContent({});
+      }
+      return this.normalizeLandingPageContent(parsed as Partial<LandingPageContent>);
+    } catch {
+      return this.normalizeLandingPageContent({});
+    }
+  }
+
+  private normalizeLandingPageContent(input: Partial<LandingPageContent>): LandingPageContent {
+    const next = {} as Record<keyof LandingPageContent, string>;
+    const maxByKey: Partial<Record<keyof LandingPageContent, number>> = {
+      metaTitle: 80,
+      metaDescription: 220,
+      heroKicker: 90,
+      heroSubtitle: 260,
+      featuresText: 260,
+      howText: 260,
+      whyText: 260,
+      testimonialsText: 260,
+      faqText: 260,
+      pricingText: 260,
+      customPlanText: 220,
+      ctaText: 280,
+      footerText: 220,
+      footerTagline: 120,
+    };
+
+    (Object.keys(DEFAULT_LANDING_PAGE_CONTENT) as Array<keyof LandingPageContent>).forEach((key) => {
+      const fallback = DEFAULT_LANDING_PAGE_CONTENT[key];
+      const value = String(input[key] ?? fallback).trim() || fallback;
+      const max = maxByKey[key] || 120;
+      next[key] = value.slice(0, max);
+    });
+
+    return next as LandingPageContent;
+  }
+
   private async getRawPaymentSettings(): Promise<PayHerePaymentSettings> {
     const values = await this.getSettingMap(Object.values(PAYMENT_SETTING_KEYS));
     const encryptedMerchantSecret = values.get(PAYMENT_SETTING_KEYS.merchantSecret) || '';
@@ -645,6 +868,26 @@ export class SettingsService {
       intro: values.get(SMTP_SETTING_KEYS.intro) || 'We received a request to reset your xyndrome password.',
       buttonLabel: values.get(SMTP_SETTING_KEYS.buttonLabel) || 'Reset password',
       footer: values.get(SMTP_SETTING_KEYS.footer) || 'If you did not request this, you can safely ignore this email.',
+    };
+  }
+
+  private async getRawPopupAlertSettings(): Promise<PopupAlertSettings> {
+    const values = await this.getSettingMap(Object.values(POPUP_ALERT_SETTING_KEYS));
+
+    return {
+      enabled: this.parseBoolean(values.get(POPUP_ALERT_SETTING_KEYS.enabled), false),
+      placement: this.normalizePopupPlacement(values.get(POPUP_ALERT_SETTING_KEYS.placement) || 'landing'),
+      title: values.get(POPUP_ALERT_SETTING_KEYS.title) || '',
+      body: values.get(POPUP_ALERT_SETTING_KEYS.body) || '',
+      buttonLabel: values.get(POPUP_ALERT_SETTING_KEYS.buttonLabel) || '',
+      buttonUrl: values.get(POPUP_ALERT_SETTING_KEYS.buttonUrl) || '',
+      imageUrl: values.get(POPUP_ALERT_SETTING_KEYS.imageUrl) || '',
+      imageAlt: values.get(POPUP_ALERT_SETTING_KEYS.imageAlt) || '',
+      imageFileName: values.get(POPUP_ALERT_SETTING_KEYS.imageFileName) || '',
+      imageWidth: Number(values.get(POPUP_ALERT_SETTING_KEYS.imageWidth) || 0),
+      imageHeight: Number(values.get(POPUP_ALERT_SETTING_KEYS.imageHeight) || 0),
+      imageBytes: Number(values.get(POPUP_ALERT_SETTING_KEYS.imageBytes) || 0),
+      version: values.get(POPUP_ALERT_SETTING_KEYS.version) || '',
     };
   }
 
@@ -704,6 +947,33 @@ export class SettingsService {
       maskedPassword: settings.password ? maskSecret(settings.password) : '',
       configured: Boolean(settings.host && settings.port && settings.username && settings.password && settings.fromEmail),
     };
+  }
+
+  private serializePopupAlertSettings(settings: PopupAlertSettings) {
+    return {
+      enabled: settings.enabled,
+      placement: settings.placement,
+      title: settings.title,
+      body: settings.body,
+      buttonLabel: settings.buttonLabel,
+      buttonUrl: settings.buttonUrl,
+      imageUrl: settings.imageUrl,
+      imageAlt: settings.imageAlt,
+      imageFileName: settings.imageFileName,
+      imageWidth: settings.imageWidth,
+      imageHeight: settings.imageHeight,
+      imageBytes: settings.imageBytes,
+      version: settings.version,
+      configured: Boolean(settings.title || settings.body || settings.imageUrl),
+    };
+  }
+
+  private serializePublicPopupAlertSettings(settings: PopupAlertSettings) {
+    if (!settings.enabled || (!settings.title && !settings.body && !settings.imageUrl)) {
+      return { enabled: false };
+    }
+
+    return this.serializePopupAlertSettings(settings);
   }
 
   private serializeApnsSettings(settings: ApnsSettings) {
@@ -783,6 +1053,98 @@ export class SettingsService {
     }
 
     return normalized.replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '');
+  }
+
+  private normalizePopupPlacement(value?: string | null): PopupAlertSettings['placement'] {
+    const normalized = String(value || '').trim().toLowerCase();
+    return ['landing', 'login', 'app', 'all'].includes(normalized)
+      ? normalized as PopupAlertSettings['placement']
+      : 'landing';
+  }
+
+  private async savePopupAlertImage(dataUrl: string) {
+    const match = String(dataUrl || '').match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
+    if (!match) {
+      throw new BadRequestException('Popup image must be a JPG, PNG, or WEBP file');
+    }
+
+    const mimeType = match[1];
+    const extension = POPUP_ALERT_ALLOWED_IMAGE_TYPES[mimeType];
+    const buffer = Buffer.from(match[2], 'base64');
+    if (!extension || buffer.length === 0) {
+      throw new BadRequestException('Popup image could not be read');
+    }
+    if (buffer.length > POPUP_ALERT_MAX_IMAGE_BYTES) {
+      throw new BadRequestException('Popup image must be 2 MB or smaller');
+    }
+
+    const dimensions = this.readImageDimensions(buffer, mimeType);
+    if (!dimensions.width || !dimensions.height) {
+      throw new BadRequestException('Popup image file contents do not match the selected file type');
+    }
+    const uploadDir = join(process.cwd(), 'uploads', 'marketing-popups');
+    await mkdir(uploadDir, { recursive: true });
+    const imageFileName = `${Date.now()}-${randomUUID()}.${extension}`;
+    await writeFile(join(uploadDir, imageFileName), buffer, { flag: 'wx' });
+
+    return {
+      imageUrl: `/api/uploads/marketing-popups/${imageFileName}`,
+      imageFileName,
+      imageWidth: dimensions.width,
+      imageHeight: dimensions.height,
+      imageBytes: buffer.length,
+    };
+  }
+
+  private readImageDimensions(buffer: Buffer, mimeType: string) {
+    if (mimeType === 'image/png' && buffer.length >= 24 && buffer.toString('ascii', 1, 4) === 'PNG') {
+      return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+    }
+
+    if (mimeType === 'image/webp' && buffer.length >= 30 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') {
+      const chunk = buffer.toString('ascii', 12, 16);
+      if (chunk === 'VP8X' && buffer.length >= 30) {
+        return {
+          width: 1 + buffer.readUIntLE(24, 3),
+          height: 1 + buffer.readUIntLE(27, 3),
+        };
+      }
+      if (chunk === 'VP8 ' && buffer.length >= 30) {
+        return {
+          width: buffer.readUInt16LE(26) & 0x3fff,
+          height: buffer.readUInt16LE(28) & 0x3fff,
+        };
+      }
+      if (chunk === 'VP8L' && buffer.length >= 25) {
+        const bits = buffer.readUInt32LE(21);
+        return {
+          width: (bits & 0x3fff) + 1,
+          height: ((bits >> 14) & 0x3fff) + 1,
+        };
+      }
+    }
+
+    if (mimeType === 'image/jpeg' && buffer.length >= 4 && buffer[0] === 0xff && buffer[1] === 0xd8) {
+      let offset = 2;
+      while (offset < buffer.length - 9) {
+        if (buffer[offset] !== 0xff) {
+          offset += 1;
+          continue;
+        }
+        const marker = buffer[offset + 1];
+        const length = buffer.readUInt16BE(offset + 2);
+        if (length < 2) break;
+        if (marker >= 0xc0 && marker <= 0xc3) {
+          return {
+            width: buffer.readUInt16BE(offset + 7),
+            height: buffer.readUInt16BE(offset + 5),
+          };
+        }
+        offset += 2 + length;
+      }
+    }
+
+    return { width: 0, height: 0 };
   }
 
   private toWhatsAppUrl(value?: string | null) {

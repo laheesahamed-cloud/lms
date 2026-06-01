@@ -5,11 +5,11 @@ import { PlatformProvider, usePlatform } from '../shared/platform/PlatformProvid
 import { getPlatformConfig } from '../shared/platform/config.js';
 import { AppOnlyBrowserGate } from '../shared/platform/AppOnlyBrowserGate.jsx';
 import { BootLoader } from './BootLoader.jsx';
+import { AppRouter } from './router.jsx';
 
 const OfflineExperience = lazy(() => import('../shared/pwa/OfflineExperience.jsx').then((module) => ({ default: module.OfflineExperience })));
 const RecoveryRefreshController = lazy(() => import('../shared/pwa/RecoveryRefreshController.jsx').then((module) => ({ default: module.RecoveryRefreshController })));
 const MacChromiumScrollFix = lazy(() => import('../shared/pwa/MacChromiumScrollFix.jsx').then((module) => ({ default: module.MacChromiumScrollFix })));
-const AppRouter = lazy(() => import('./router.jsx').then((module) => ({ default: module.AppRouter })));
 
 export function AppRuntime() {
   if (getPlatformConfig().blockDirectAppHost) {

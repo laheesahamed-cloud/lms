@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { loadStudentQuiz, savePracticeAnswer, submitExam } from '../../../../shared/api/quizAttempts.api.js';
+import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { loadStudentQuiz, saveExamProgress, savePracticeAnswer, submitExam } from '../../../../shared/api/quizAttempts.api.js';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
+import { XyndromeLogoMark } from '../../../../shared/brand/XyndromeBrand.jsx';
+import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { useThemeStore } from '../../../../shared/stores/themeStore.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { TheoryRecapPopupTrigger, hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/QuickTheoryRecap.jsx';
@@ -142,7 +144,7 @@ const practiceQuizAsideClass =
   'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:hidden';
 const practiceQuizSummaryGridClass = 'lms-review-summary-grid lms-practice-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5';
 const practiceQuizSummaryTileClass =
-  'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]';
+  'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[11px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[20px] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[11px] max-[420px]:[&_strong]:text-[18px]';
 const practiceQuizSideNavClass =
   'lms-review-side-nav grid min-h-0 gap-2.5 rounded-[18px] border border-line-soft bg-surface-1 p-3.5 shadow-none';
 const practiceQuizNavHeadClass =
@@ -153,15 +155,15 @@ const practiceQuizBubbleClass =
 const practiceQuizBubbleActiveClass = 'border-brand-primary/38 bg-brand-primary/12 text-brand-primary shadow-none';
 const practiceQuizBubbleAnsweredClass = 'border-brand-success/30 bg-brand-success/12 text-brand-success';
 const practiceQuizBubbleSavedClass = 'border-[color-mix(in_srgb,#8b5cf6_30%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_12%,var(--surface-2))] text-brand-violet';
-const practiceQuizBubbleFlaggedClass = 'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_12%,var(--surface-2))] text-[#b45309]';
+const practiceQuizBubbleFlaggedClass = 'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_12%,var(--surface-2))] text-[#92400e] dark:text-[#fbbf24]';
 const practiceQuizBubbleLegendClass =
-  'lms-review-bubble-legend mt-3 grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] items-center gap-2 text-[10.5px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded-full [&_i]:border [&_span]:inline-flex [&_span]:min-h-5 [&_span]:min-w-0 [&_span]:items-center [&_span]:gap-1.5 [&_span]:whitespace-nowrap';
+  'lms-review-bubble-legend mt-3 grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] items-center gap-2 text-[11px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded-full [&_i]:border [&_span]:inline-flex [&_span]:min-h-5 [&_span]:min-w-0 [&_span]:items-center [&_span]:gap-1.5 [&_span]:whitespace-nowrap';
 const practiceQuizQuestionCardClass = 'lms-review-question-card grid gap-[clamp(16px,2vw,22px)] p-[clamp(24px,3vw,40px)] max-[640px]:gap-3.5 max-[640px]:p-4';
 const practiceQuizQuestionTextClass =
-  'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[15.5px] max-[640px]:leading-[1.6]';
+  'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[16px] max-[640px]:leading-[1.6]';
 const practiceQuizQuestionHeadClass = 'flex min-h-0 items-center justify-between gap-2 max-[640px]:flex-col max-[640px]:items-start';
 const practiceQuizQuestionMetaClass = 'flex flex-wrap items-center gap-1.5';
-const practiceQuizQuestionNumberClass = 'text-[10.5px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft';
+const practiceQuizQuestionNumberClass = 'text-[11px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft';
 const practiceQuizQuestionNavClass =
   'lms-review-question-nav grid gap-3 rounded-[18px] border border-line-soft bg-surface-2 p-3.5 shadow-none max-[640px]:rounded-2xl max-[640px]:p-3';
 const practiceQuizQuestionNavActionsClass =
@@ -173,10 +175,10 @@ const practiceQuizOptionsGridClass = 'lms-review-options-grid grid gap-3 max-[64
 const practiceQuizOptionToplineClass = 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start';
 const practiceQuizOptionLeadClass = 'flex min-w-0 flex-auto items-start gap-2';
 const practiceQuizOptionTextClass =
-  'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15px] font-medium leading-[1.48] text-ink-strong max-[640px]:text-sm max-[640px]:leading-[1.45]';
+  'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15.5px] font-medium leading-[1.52] text-ink-strong max-[640px]:text-[15.5px] max-[640px]:leading-[1.5]';
 const practiceQuizOptionLabelsClass = 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start';
 const practiceQuizOptionCardClass =
-  'lms-answer-card group/answer relative grid gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,box-shadow,transform] duration-150 ease-out focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
+  'lms-answer-card group/answer relative grid gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,transform] duration-150 ease-out focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
 const practiceQuizOptionInteractiveClass =
   'cursor-pointer touch-manipulation hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.997]';
 const practiceQuizOptionSelectedClass =
@@ -295,7 +297,7 @@ const examHeaderClass =
 const practiceHeaderClass = 'practice-review-header max-[700px]:!flex-row max-[700px]:!items-center max-[700px]:!justify-between max-[700px]:gap-3 max-[700px]:px-3.5 max-[700px]:py-3 [&_.quiz-header-actions]:shrink-0';
 const examHeaderBrandClass = 'flex min-w-0 items-center gap-3';
 const examHeaderLogoClass =
-  'grid size-10 shrink-0 place-items-center rounded-[13px] border border-[var(--exam-header-logo-border)] bg-[var(--exam-header-logo-bg)] shadow-[var(--exam-header-logo-shadow)]';
+  'grid size-10 shrink-0 place-items-center text-[var(--xyndrome-logo-scope)]';
 const examHeaderTitleClass = 'block text-[17px] font-extrabold leading-tight text-ink-strong';
 const examHeaderSubtitleClass = 'mt-0.5 block max-w-[min(62vw,720px)] truncate text-xs text-ink-soft max-[700px]:max-w-full';
 const examHeaderActionsClass = 'quiz-header-actions flex flex-wrap items-center justify-end gap-2 max-[700px]:justify-start';
@@ -304,7 +306,7 @@ const examHeaderChipClass =
 const examHeaderChipValueClass = 'text-base font-extrabold text-ink-strong';
 const examHeaderIconClass = 'inline-grid place-items-center text-ink-soft';
 const examHeaderEndClass =
-  'min-h-9 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold text-[var(--exam-end-text)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60';
+  'min-h-11 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold text-[var(--exam-end-text)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60';
 const practiceHeaderEndClass = 'border-brand-primary/22 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200';
 const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(220px,280px)_minmax(0,1120px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
 const examSidebarClass = 'lms-exam-sidebar grid gap-[18px]';
@@ -324,39 +326,39 @@ const examProgressPercentClass = 'text-[13px] text-ink-soft';
 const examProgressBarClass = 'h-[7px] overflow-hidden rounded-full border border-[var(--exam-card-border)] bg-[var(--exam-progress-track)]';
 const examProgressFillClass = 'block h-full rounded-[inherit] bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] shadow-none';
 const quizFlashPanelClass = 'rounded-[22px] backdrop-blur-md max-[600px]:rounded-[18px]';
-const quizFlashQuestionCopyClass = 'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[15.5px] max-[640px]:leading-[1.6]';
+const quizFlashQuestionCopyClass = 'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[16px] max-[640px]:leading-[1.6]';
 const quizFlashFooterButtonClass = 'rounded-xl';
 const examQuestionStartAnchorClass = 'scroll-mt-4';
 const examQuestionNavClass = 'lms-exam-question-nav grid grid-cols-[repeat(auto-fill,minmax(34px,1fr))] gap-2 max-[900px]:grid-cols-8 max-[600px]:grid-cols-5';
 const examNavBubbleBaseClass =
   'lms-exam-nav-bubble min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-85';
-const examNavLegendClass = 'lms-exam-nav-legend mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10.5px] font-bold leading-tight text-ink-soft';
+const examNavLegendClass = 'lms-exam-nav-legend mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-bold leading-tight text-ink-soft';
 const examNavLegendItemClass = 'inline-flex min-w-0 items-center gap-1 whitespace-nowrap';
 const examNavLegendDotClass = 'lms-exam-nav-legend-dot inline-block size-2.5 shrink-0 rounded border border-transparent';
 const practiceLearningSupportClass = 'mt-0 grid gap-3 pt-0';
 const quizReviewExplanationClass =
-  'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_5%,var(--surface-2))_0%,var(--surface-2)_58%,color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))_100%)] p-4 shadow-[0_14px_34px_color-mix(in_srgb,var(--color-primary)_7%,transparent)] max-[640px]:rounded-[16px] max-[640px]:p-3.5';
+  'lms-learning-reveal-card mt-0 grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_5%,var(--surface-2))_0%,var(--surface-2)_58%,color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))_100%)] p-4 shadow-[var(--ds-card-shadow)] max-[640px]:rounded-[var(--ds-card-radius-inner)] max-[640px]:p-3.5';
 const quizReviewIncorrectCardClass =
-  'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-[color-mix(in_srgb,var(--color-warning)_24%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-warning)_7%,var(--surface-2))_0%,var(--surface-2)_62%,color-mix(in_srgb,var(--color-warning)_4%,var(--surface-1))_100%)] p-4 shadow-[0_14px_34px_color-mix(in_srgb,var(--color-warning)_8%,transparent)] max-[640px]:rounded-[16px] max-[640px]:p-3.5';
+  'lms-learning-reveal-card mt-0 grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-[color-mix(in_srgb,var(--color-warning)_24%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-warning)_7%,var(--surface-2))_0%,var(--surface-2)_62%,color-mix(in_srgb,var(--color-warning)_4%,var(--surface-1))_100%)] p-4 shadow-[var(--ds-card-shadow)] max-[640px]:rounded-[var(--ds-card-radius-inner)] max-[640px]:p-3.5';
 const quizReviewExplanationHeaderClass =
   'flex items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] pb-2.5 max-[640px]:flex-col max-[640px]:items-start [&_h3]:m-0 [&_h3]:text-[12px] [&_h3]:font-extrabold [&_h3]:uppercase [&_h3]:tracking-[0.11em] [&_h3]:text-ink-soft max-[640px]:[&_h3]:text-[11px]';
 const quizReviewExplanationGridClass = 'grid grid-cols-1 gap-3.5';
 const quizReviewExplanationCopyClass =
-  'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15px] [&_p]:font-normal [&_p]:leading-[1.72] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.66]';
+  'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15.5px] [&_p]:font-normal [&_p]:leading-[1.72] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[15.5px] max-[640px]:[&_p]:leading-[1.68]';
 const quizReviewIncorrectListClass =
   'overflow-hidden rounded-[14px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-2))]';
 const quizReviewIncorrectItemClass =
   'grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 border-t border-[color-mix(in_srgb,var(--color-warning)_14%,var(--line-soft))] px-2.5 py-2 first:border-t-0 max-[640px]:grid-cols-[22px_minmax(0,1fr)] max-[640px]:gap-1.5 max-[640px]:px-2 max-[640px]:py-1.5';
 const quizReviewIncorrectBadgeClass =
-  'inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[#92400e] max-[640px]:size-[22px] max-[640px]:text-[10px]';
+  'inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[#92400e] max-[640px]:size-[22px] max-[640px]:text-[11px]';
 const quizReviewIncorrectCopyClass =
-  'lms-reading-incorrect min-w-0 text-left [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[13px] [&_strong]:font-extrabold [&_strong]:leading-snug [&_strong]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.56] [&_p]:text-ink-medium max-[640px]:[&_strong]:text-[12.5px] max-[640px]:[&_p]:text-[13px] max-[640px]:[&_p]:leading-[1.52]';
+  'lms-reading-incorrect min-w-0 text-left [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[14px] [&_strong]:font-extrabold [&_strong]:leading-snug [&_strong]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.6] [&_p]:text-ink-medium max-[640px]:[&_strong]:text-[14px] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.58]';
 const quizReviewRecapActionClass = 'lms-study-recap-action flex justify-start';
 const quizReviewStudyListClass = 'm-0 grid list-none gap-2 p-0';
 const quizReviewStudyCardClass =
-  'lms-key-points-card relative grid gap-3 rounded-[18px] border border-[color-mix(in_srgb,#8b5cf6_20%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_7%,var(--surface-1))_0%,var(--surface-1)_72%)] px-4 py-3.5 shadow-[0_12px_28px_color-mix(in_srgb,#8b5cf6_7%,transparent)] transition-colors hover:border-[color-mix(in_srgb,#8b5cf6_28%,var(--line-soft))] [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.62] [&_p]:text-ink-strong max-[640px]:rounded-[16px] max-[640px]:px-3.5 max-[640px]:[&_p]:text-sm';
+  'lms-key-points-card relative grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-[color-mix(in_srgb,#8b5cf6_20%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_7%,var(--surface-1))_0%,var(--surface-1)_72%)] px-4 py-3.5 shadow-[var(--ds-card-shadow)] transition-colors hover:border-[color-mix(in_srgb,#8b5cf6_28%,var(--line-soft))] [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[var(--ds-card-radius-inner)] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]';
 const practiceKeyPointsClass = 'lms-quiz-key-points-card grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,#8b5cf6_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_5%,var(--surface-1))_0%,var(--surface-1)_74%)] p-4 shadow-none';
-const practiceKeyPointClass = 'lms-reading-incorrect rounded-[12px] border border-[color-mix(in_srgb,var(--color-primary)_12%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--surface-2))] px-3 py-2 text-left text-[13px] font-medium leading-[1.58] text-ink-strong';
+const practiceKeyPointClass = 'lms-reading-incorrect rounded-[12px] border border-[color-mix(in_srgb,var(--color-primary)_12%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--surface-2))] px-3 py-2 text-left text-[14.5px] font-medium leading-[1.62] text-ink-strong';
 const examAnswerListClass = 'lms-review-options-grid grid gap-2.5';
 const examTfActionsClass = 'flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start';
 const examTfToggleClass =
@@ -383,7 +385,7 @@ const examBlockDotClass = 'size-2.5 rounded-full border border-[var(--exam-block
 const examBlockDotDoneClass = 'border-emerald-500 bg-emerald-500/35';
 const examBlockDotCurrentClass = 'border-brand-primary bg-brand-primary/35';
 const mobileQuizBarClass =
-  'lms-mobile-quiz-bar fixed inset-x-0 bottom-0 z-[95] hidden rounded-t-[24px] border-x-0 border-b-0 border-t border-[var(--exam-card-border)] bg-[var(--exam-card-bg)] px-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-3 shadow-[0_-18px_44px_rgba(15,23,42,0.13)] backdrop-blur-xl max-[700px]:block';
+  'lms-mobile-quiz-bar fixed inset-x-0 bottom-0 z-[95] hidden rounded-t-[var(--ds-card-radius)] border-x-0 border-b-0 border-t border-[var(--exam-card-border)] bg-[var(--exam-card-bg)] px-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-3 shadow-[var(--ds-floating-shadow)] backdrop-blur-xl max-[700px]:block';
 const mobileQuizBarTopClass = 'mb-2 flex items-center justify-between gap-3 text-[12px] font-bold text-ink-soft';
 const mobileQuizBarActionsClass = 'lms-mobile-quiz-actions grid grid-cols-[minmax(76px,0.72fr)_minmax(92px,0.9fr)_minmax(118px,1.18fr)] gap-2';
 const mobileQuizIconButtonClass =
@@ -392,35 +394,35 @@ const mobileQuizPrimaryClass =
   'min-h-11 rounded-xl border border-brand-primary/35 bg-[var(--color-primary-light)] px-3 text-[13px] font-extrabold text-brand-primary transition-colors hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
 const questionUtilityRowClass = 'lms-question-utility-row flex flex-wrap items-center justify-end gap-2 border-t border-line-soft pt-3 max-[700px]:justify-start max-[700px]:pt-2.5';
 const questionUtilityButtonClass =
-  'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--sa-border)] bg-[var(--sa-surface)] px-3.5 text-xs font-extrabold text-ink-soft shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_26%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] hover:text-brand-primary active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/25 disabled:cursor-not-allowed disabled:opacity-55 max-[520px]:flex-1';
+  'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-[var(--sa-border)] bg-[var(--sa-surface)] px-3.5 text-xs font-extrabold text-ink-soft shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_26%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] hover:text-brand-primary active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/25 disabled:cursor-not-allowed disabled:opacity-55 max-[520px]:flex-1';
 const questionUtilityIconOnlyClass = 'lms-question-utility-icon-only px-3';
 const quizUnifiedMainCardClass =
   'lms-review-question-card grid w-full justify-self-stretch gap-[16px] p-[22px_24px] max-[640px]:gap-3.5 max-[640px]:p-3.5';
 const quizUnifiedAnswerCardClass =
-  'lms-answer-card group/answer relative grid cursor-pointer touch-manipulation gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,box-shadow,transform] duration-150 ease-out hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.997] focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
+  'lms-answer-card group/answer relative grid cursor-pointer touch-manipulation gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,transform] duration-150 ease-out hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.997] focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
 const quizUnifiedAnswerSelectedClass =
   'is-selected border-[color-mix(in_srgb,var(--color-primary)_38%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_7%,var(--surface-1)),color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent),0_12px_28px_-24px_color-mix(in_srgb,var(--color-primary)_38%,transparent)]';
 const quizReviewOptionToplineClass = 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start';
 const quizReviewOptionLeadClass = 'flex min-w-0 flex-auto items-start gap-2';
-const quizReviewOptionTextClass = 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15px] font-medium leading-[1.48] text-ink-strong max-[640px]:text-sm max-[640px]:leading-[1.45]';
+const quizReviewOptionTextClass = 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15.5px] font-medium leading-[1.52] text-ink-strong max-[640px]:text-[15.5px] max-[640px]:leading-[1.5]';
 const quizReviewOptionLabelsClass = 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start';
 const quizReviewChipToneClass = {
   correct: 'border-[color-mix(in_srgb,var(--color-success)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_12%,var(--surface-2))] text-brand-success',
   wrong: 'border-[color-mix(in_srgb,var(--color-error)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_11%,var(--surface-2))] text-brand-error',
-  unanswered: 'border-[color-mix(in_srgb,#d97706_24%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_9%,var(--surface-2))] text-[#b45309]',
+  unanswered: 'border-[color-mix(in_srgb,#d97706_24%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_9%,var(--surface-2))] text-[#92400e] dark:text-[#fbbf24]',
   neutral: 'border-line-soft bg-surface-2 text-ink-soft',
 };
 const quizReviewOptionIconToneClass = {
   selected: 'border-[color-mix(in_srgb,var(--color-primary)_42%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_10%,var(--surface-1))] text-brand-primary shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent)]',
   correct: 'border-[color-mix(in_srgb,var(--color-success)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-success)_18%,transparent)] text-brand-success shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-success)_12%,transparent)]',
   wrong: 'border-[color-mix(in_srgb,var(--color-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-error)_18%,transparent)] text-brand-error shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-error)_12%,transparent)]',
-  unanswered: 'border-[color-mix(in_srgb,#d97706_30%,transparent)] bg-[color-mix(in_srgb,#d97706_14%,transparent)] text-[#b45309]',
+  unanswered: 'border-[color-mix(in_srgb,#d97706_30%,transparent)] bg-[color-mix(in_srgb,#d97706_14%,transparent)] text-[#92400e] dark:text-[#fbbf24]',
   neutral: 'border-line-soft bg-surface-2 text-ink-soft',
 };
 
 function quizReviewChipClass(tone = 'neutral') {
   return cx(
-    'inline-flex min-h-[22px] items-center gap-1.5 rounded-full border px-[7px] py-[3px] text-[10.5px] font-extrabold tracking-[0.01em]',
+    'inline-flex min-h-[22px] items-center gap-1.5 rounded-full border px-[7px] py-[3px] text-[11px] font-extrabold tracking-[0.01em]',
     quizReviewChipToneClass[tone] || quizReviewChipToneClass.neutral
   );
 }
@@ -444,11 +446,31 @@ function PracticeSummaryTile({ label, value, tone = '' }) {
 function getPracticeQuizBubbleClass({ active, answered, flagged, saved }) {
   return cx(
     practiceQuizBubbleClass,
+    active && 'is-current',
+    !active && answered && 'is-answered',
+    !active && !answered && 'is-idle',
+    !active && saved && 'is-review',
+    !active && flagged && 'is-flagged',
     active && practiceQuizBubbleActiveClass,
     !active && answered && practiceQuizBubbleAnsweredClass,
     !active && saved && practiceQuizBubbleSavedClass,
     !active && flagged && practiceQuizBubbleFlaggedClass
   );
+}
+
+function getQuestionNavButtonLabel(index, {
+  active = false,
+  answered = false,
+  flagged = false,
+  saved = false,
+  review = false,
+} = {}) {
+  const states = [];
+  if (active) states.push('current');
+  states.push(answered ? 'answered' : 'not answered');
+  if (flagged) states.push('flagged');
+  if (saved || review) states.push('marked for review');
+  return `Question ${index + 1}, ${states.join(', ')}`;
 }
 
 function IcoFlag({ filled = false }) {
@@ -488,14 +510,27 @@ function MobileQuizActionBar({
         <span>Question {currentIndex + 1} of {totalQuestions}</span>
         <span>{progressPercent}% complete</span>
       </div>
-      <div className={examProgressBarClass} aria-hidden="true">
+      <div
+        className={examProgressBarClass}
+        role="progressbar"
+        aria-label="Quiz progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progressPercent}
+      >
         <span className={examProgressFillClass} style={{ width: `${progressPercent}%` }} />
       </div>
       <div className={cx(mobileQuizBarActionsClass, 'mt-2')}>
         <button type="button" className={mobileQuizIconButtonClass} onClick={onPrevious} disabled={currentIndex === 0 || saving} aria-label="Previous question">
           Previous
         </button>
-        <button type="button" className={cx(mobileQuizIconButtonClass, isExam && currentQuestionFlagged && examFooterFlagActiveClass)} onClick={isExam ? onFlag : onReveal} disabled={isExam ? saving : currentQuestionRevealed || !canRevealAnswers}>
+        <button
+          type="button"
+          className={cx(mobileQuizIconButtonClass, isExam && currentQuestionFlagged && examFooterFlagActiveClass)}
+          onClick={isExam ? onFlag : onReveal}
+          disabled={isExam ? saving : currentQuestionRevealed || !canRevealAnswers}
+          aria-label={isExam ? (currentQuestionFlagged ? 'Remove flag from current question' : 'Flag current question') : (currentQuestionRevealed ? 'Answer explanation shown' : canRevealAnswers ? 'Show answer explanation' : 'Review unavailable')}
+        >
           {isExam ? (
             <>
               <IcoFlag filled={currentQuestionFlagged} />
@@ -624,7 +659,74 @@ function formatDuration(totalSeconds) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function scrollQuestionContentIntoView(target, behavior = 'smooth') {
+function parseTimestampMs(value) {
+  const timestamp = Date.parse(String(value || ''));
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function readServerNowMs(clockRef) {
+  const clock = clockRef.current;
+  if (!clock?.serverTimeMs || !clock?.performanceTimeMs) return Date.now();
+  return clock.serverTimeMs + (performance.now() - clock.performanceTimeMs);
+}
+
+function syncExamClock(clockRef, serverTime) {
+  const serverTimeMs = parseTimestampMs(serverTime);
+  if (!serverTimeMs) return;
+  clockRef.current = {
+    serverTimeMs,
+    performanceTimeMs: performance.now(),
+  };
+}
+
+function getExamSecondsRemaining(examSession, clockRef) {
+  const deadlineMs = parseTimestampMs(examSession?.deadlineAt);
+  if (!deadlineMs) return null;
+  const serverNowMs = readServerNowMs(clockRef);
+  return Math.max(0, Math.ceil((deadlineMs - serverNowMs) / 1000));
+}
+
+function getExamDraftStorageKey(quizId) {
+  return `lms.examDraft.${quizId}`;
+}
+
+function readExamDraft(quizId, sessionId) {
+  if (typeof window === 'undefined') return null;
+  try {
+    const draft = JSON.parse(window.localStorage.getItem(getExamDraftStorageKey(quizId)) || 'null');
+    return draft && Number(draft.sessionId) === Number(sessionId) ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeExamDraft(quizId, draft) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(getExamDraftStorageKey(quizId), JSON.stringify({
+      ...draft,
+      updatedAt: new Date().toISOString(),
+    }));
+  } catch {
+    // Local recovery is best-effort; server autosave remains authoritative.
+  }
+}
+
+function clearExamDraft(quizId) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(getExamDraftStorageKey(quizId));
+  } catch {
+    // Nothing to recover if storage is unavailable.
+  }
+}
+
+function getPreferredScrollBehavior() {
+  if (typeof window === 'undefined') return 'auto';
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
+function scrollQuestionContentIntoView(target, behavior = getPreferredScrollBehavior()) {
   if (!target || typeof window === 'undefined') return;
 
   if (typeof target.scrollIntoView === 'function') {
@@ -680,22 +782,15 @@ function ExamModeHeader({
   const resolvedSecondaryValue = secondaryValue ?? formatDuration(0);
   const resolvedTitle = quizLabel || getQuizNumberLabel({ quizTitle: title });
   const subtitle = title && title !== resolvedTitle ? title : workspaceLabel;
+  const secondaryAccessibleLabel = secondaryLabel
+    ? `${secondaryLabel}: ${resolvedSecondaryValue}`
+    : `Time remaining: ${resolvedSecondaryValue}. Approved time accommodations are included when assigned to your account.`;
 
   return (
     <header className={cx(examHeaderClass, quizFlashPanelClass, className)}>
       <div className={examHeaderBrandClass}>
         <span className={examHeaderLogoClass} aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-            <rect x="1.5" y="1.5" width="19" height="19" rx="5" fill="url(#exam-header-logo)" />
-            <path d="M10.2 6.1h1.6v3h3v1.6h-3v3h-1.6v-3h-3V9.1h3v-3Z" fill="#fff" />
-            <circle cx="15.8" cy="6.2" r="1.2" fill="#fff" />
-            <defs>
-              <linearGradient id="exam-header-logo" x1="2" y1="2" x2="20" y2="20" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#3B82F6" />
-                <stop offset="1" stopColor="#2563EB" />
-              </linearGradient>
-            </defs>
-          </svg>
+          <XyndromeLogoMark size={38} />
         </span>
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -709,7 +804,12 @@ function ExamModeHeader({
         {showThemeToggle ? <ThemeToggle /> : null}
 
         {showSecondary ? (
-          <div className={examHeaderChipClass}>
+          <div
+            className={examHeaderChipClass}
+            role="timer"
+            aria-label={secondaryAccessibleLabel}
+            aria-atomic="true"
+          >
             <span className={examHeaderIconClass} aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <circle cx="8" cy="8" r="5.8" stroke="currentColor" strokeWidth="1.4" />
@@ -786,15 +886,15 @@ function PracticeStudySupport({ currentQuestion, revealed = true, className = ''
       {hasStudyCard ? (
         <article className={quizReviewStudyCardClass}>
           <h4>Key Points</h4>
-          {recap.conceptName ? <p><strong>{recap.conceptName}</strong></p> : null}
+          {recap.conceptName ? <p><MedicalText as="strong" text={recap.conceptName} /></p> : null}
           {recap.keyPoints?.length ? (
             <ul className={quizReviewStudyListClass}>
               {recap.keyPoints.slice(0, 4).map((point, index) => (
                 <li
-                  className="relative rounded-[12px] border border-[color-mix(in_srgb,#8b5cf6_12%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_4%,var(--surface-2))] py-2 pl-8 pr-3 text-[13px] leading-[1.48] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-sm"
+                  className="relative rounded-[12px] border border-[color-mix(in_srgb,#8b5cf6_12%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_4%,var(--surface-2))] py-2 pl-8 pr-3 text-[14.5px] leading-[1.6] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-[14.5px]"
                   key={`${index}-${point.slice(0, 16)}`}
                 >
-                  {point}
+                  <MedicalText text={point} />
                 </li>
               ))}
             </ul>
@@ -827,7 +927,7 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
           <div className={quizReviewExplanationGridClass}>
             <div className={quizReviewExplanationCopyClass}>
               {explanationBlocks.map((part, index) => (
-                <p key={`${index}-${part.slice(0, 24)}`}>{part}</p>
+                <MedicalText as="p" key={`${index}-${part.slice(0, 24)}`} text={part} />
               ))}
             </div>
           </div>
@@ -845,8 +945,8 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
                 <div className={quizReviewIncorrectItemClass} key={item.label}>
                   <span className={quizReviewIncorrectBadgeClass}>{item.label}</span>
                   <div className={quizReviewIncorrectCopyClass}>
-                    {item.text ? <strong>{item.text}</strong> : null}
-                    <p>{item.reason}</p>
+                    {item.text ? <MedicalText as="strong" text={item.text} /> : null}
+                    <MedicalText as="p" text={item.reason} />
                   </div>
                 </div>
               ))}
@@ -908,8 +1008,8 @@ function QuizCompletionOverlay({ quizLabel, onReview }) {
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const revealDelay = prefersReducedMotion ? 160 : 1100;
-    const reviewDelay = prefersReducedMotion ? 800 : 3200;
+    const revealDelay = prefersReducedMotion ? 180 : 420;
+    const reviewDelay = prefersReducedMotion ? 900 : 2600;
     const revealTimer = window.setTimeout(() => {
       setTextVisible(true);
       void nativeTransientHaptic({ intensity: 0.42, sharpness: 0.78 });
@@ -923,29 +1023,32 @@ function QuizCompletionOverlay({ quizLabel, onReview }) {
   }, [onReview]);
 
   const overlay = (
-    <div className="quiz-completion-overlay fixed inset-0 z-[140] grid h-dvh w-screen place-items-center bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] p-4 backdrop-blur-md dark:bg-[rgba(2,6,23,0.78)]" role="dialog" aria-modal="true" aria-labelledby="quiz-complete-title">
+    <div className="quiz-completion-overlay fixed inset-0 z-[140] grid h-dvh w-screen place-items-center bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] p-4 backdrop-blur-2xl dark:bg-[rgba(2,6,23,0.78)]" role="dialog" aria-modal="true" aria-labelledby="quiz-complete-title">
       <section
         className={cx(
-          'quiz-completion-capsule flex min-h-[104px] w-[min(420px,calc(100vw-32px))] transform-gpu items-center justify-start gap-3.5 overflow-hidden rounded-full border border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-card)_96%,transparent),color-mix(in_srgb,var(--surface-1)_94%,transparent))] py-3 pl-3 pr-6 text-left shadow-[0_22px_52px_-28px_color-mix(in_srgb,var(--color-primary)_28%,rgba(15,23,42,0.30))] [contain:layout_paint_style] dark:border-sky-300/18 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(8,15,28,0.96))] max-[420px]:min-h-[96px] max-[420px]:gap-2.5 max-[420px]:pr-5'
+          'quiz-completion-capsule flex transform-gpu items-center justify-center overflow-hidden border border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-card)_96%,transparent),color-mix(in_srgb,var(--surface-1)_94%,transparent))] text-left shadow-[var(--ds-floating-shadow)] transition-[width,padding,border-radius,gap,transform] duration-[720ms] ease-[cubic-bezier(0.23,1,0.32,1)] [contain:layout_paint_style] [will-change:transform] dark:border-sky-300/18 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(8,15,28,0.96))]',
+          textVisible
+            ? 'min-h-[104px] w-[min(420px,calc(100vw-32px))] gap-3.5 rounded-full py-3 pl-3 pr-6 max-[420px]:min-h-[96px] max-[420px]:pr-5'
+            : 'size-[232px] rounded-[32px] p-5 max-[420px]:size-[206px]'
         )}
         aria-live="polite"
       >
         <div
           className={cx(
-            'quiz-completion-mark relative grid size-[78px] shrink-0 origin-center place-items-center overflow-visible transform-gpu transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] max-[420px]:size-[70px]',
-            textVisible ? 'translate-x-0 scale-100' : 'translate-x-[132px] scale-[2.12] max-[420px]:translate-x-[104px] max-[420px]:scale-[1.95]'
+            'quiz-completion-mark relative grid shrink-0 place-items-center overflow-visible transition-[width,height,transform] duration-[720ms] ease-[cubic-bezier(0.23,1,0.32,1)] [will-change:transform]',
+            textVisible ? 'size-[78px] max-[420px]:size-[70px]' : 'size-[190px] max-[420px]:size-[164px]'
           )}
         >
-          <svg className="quiz-completion-fallback-icon size-20 text-brand-primary max-[420px]:size-[72px]" viewBox="0 0 96 96" fill="none" aria-hidden="true">
-            <circle className="quiz-completion-ring" cx="48" cy="48" r="38" fill="currentColor" opacity="0.12" />
-            <path className="quiz-completion-check" d="M30 49.2 42.2 61 67 35" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+          <svg className={cx('quiz-completion-fallback-icon absolute left-1/2 top-1/2 size-20 origin-center -translate-x-1/2 -translate-y-1/2 transform-gpu text-brand-primary transition-transform duration-[720ms] ease-[cubic-bezier(0.23,1,0.32,1)]', textVisible ? 'scale-[0.42]' : 'scale-100')} viewBox="0 0 96 96" fill="none" aria-hidden="true">
+            <circle cx="48" cy="48" r="38" fill="currentColor" opacity="0.12" />
+            <path d="M30 49.2 42.2 61 67 35" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
 
         <div
           className={cx(
-            'quiz-completion-copy grid min-w-0 max-w-[260px] gap-1 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]',
-            textVisible ? 'translate-x-0 opacity-100' : 'translate-x-3 opacity-0'
+            'quiz-completion-copy grid min-w-0 gap-1 transition-[opacity,transform,max-width] duration-[540ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
+            textVisible ? 'max-w-[260px] translate-x-0 opacity-100' : 'max-w-0 translate-x-4 opacity-0'
           )}
         >
           <p className="m-0 text-[11px] font-extrabold uppercase tracking-[0.12em] text-brand-primary">Quiz finished</p>
@@ -971,6 +1074,9 @@ export function TakeQuizPage() {
   const mode = searchParams.get('mode') || 'practice';
   const continuePractice = searchParams.get('continue') === '1';
   const resetPractice = searchParams.get('resetPractice') === '1';
+  const questionIdParam = searchParams.get('questionId') || '';
+  const singleQuestionId = Number(questionIdParam);
+  const isSingleQuestionPractice = mode === 'practice' && Number.isFinite(singleQuestionId) && singleQuestionId > 0;
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -990,15 +1096,24 @@ export function TakeQuizPage() {
   const questionContentRef = useRef(null);
   const hasSkippedInitialPracticeScrollRef = useRef(false);
   const answersRef = useRef({});
+  const examClockRef = useRef(null);
+  const examAutosaveTimerRef = useRef(null);
+  const examAutosaveRetryTimerRef = useRef(null);
+  const examAutosaveRetryDelayRef = useRef(2500);
+  const examAutosaveInFlightRef = useRef(false);
+  const examAutosaveQueuedRef = useRef(false);
+  const didHydrateExamStateRef = useRef(false);
 
   useEffect(() => {
     async function load() {
       try {
+        didHydrateExamStateRef.current = false;
         const [payload, savedItems] = await Promise.all([
           loadStudentQuiz(quizId, {
             mode,
             continue: continuePractice ? '1' : '0',
             resetPractice: resetPractice ? '1' : '0',
+            questionId: isSingleQuestionPractice ? String(singleQuestionId) : undefined,
           }),
           fetchStudyBookmarks().catch(() => []),
         ]);
@@ -1010,9 +1125,30 @@ export function TakeQuizPage() {
           })),
         };
 
+        if (payload.mode === 'exam' && payload.examSession?.submittedAttemptId) {
+          setHasAutoSubmitted(true);
+          navigate(`/results/${payload.examSession.submittedAttemptId}`, { replace: true });
+          return;
+        }
+
+        const localExamDraft = payload.mode === 'exam' ? readExamDraft(quizId, payload.examSession?.id) : null;
         setData(shuffledPayload);
-        setCurrentIndex(payload.practiceSession?.lastQuestionIndex || 0);
-        setFlaggedQuestionIds(new Set());
+        setCurrentIndex(
+          payload.mode === 'exam'
+            ? Math.max(0, Math.min(
+                Number(localExamDraft?.currentQuestionIndex ?? payload.examSession?.lastQuestionIndex ?? 0),
+                Math.max(shuffledPayload.questions.length - 1, 0)
+              ))
+            : Math.max(0, Math.min(
+                Number(payload.practiceSession?.lastQuestionIndex || 0),
+                Math.max(shuffledPayload.questions.length - 1, 0)
+              ))
+        );
+        setFlaggedQuestionIds(new Set(
+          payload.mode === 'exam' && Array.isArray(payload.examSession?.flaggedQuestionIds)
+            ? payload.examSession.flaggedQuestionIds.map(Number).filter(Boolean)
+            : []
+        ));
         setBookmarkedQuestionIds(new Set(
           (Array.isArray(savedItems) ? savedItems : [])
             .filter((item) => item.itemType === 'question')
@@ -1023,18 +1159,37 @@ export function TakeQuizPage() {
         setHasAutoSubmitted(false);
 
         const initial = {};
+        const serverExamAnswers = payload.mode === 'exam' && payload.examSession?.answers && typeof payload.examSession.answers === 'object'
+          ? payload.examSession.answers
+          : {};
+        const examAnswers = localExamDraft?.answers && Object.keys(localExamDraft.answers).length >= Object.keys(serverExamAnswers).length
+          ? localExamDraft.answers
+          : serverExamAnswers;
         shuffledPayload.questions.forEach((q) => {
           if (q.savedAnswer) {
             initial[q.id] = isSbaQuestion(q)
               ? q.savedAnswer.selectedIds?.[0] ?? ''
               : normalizeTfAnswerMap(q.savedAnswer.tfMap);
+            return;
+          }
+          const savedExamAnswer = examAnswers[String(q.id)] ?? examAnswers[q.id];
+          if (savedExamAnswer !== undefined && savedExamAnswer !== null && savedExamAnswer !== '') {
+            initial[q.id] = isSbaQuestion(q)
+              ? Number(savedExamAnswer)
+              : normalizeTfAnswerMap(savedExamAnswer);
           }
         });
         setAnswers(initial);
         answersRef.current = initial;
+        if (payload.mode === 'exam' && Array.isArray(localExamDraft?.flaggedQuestionIds)) {
+          setFlaggedQuestionIds(new Set(localExamDraft.flaggedQuestionIds.map(Number).filter(Boolean)));
+        }
         if (shuffledPayload.mode === 'exam') {
-          const examSeconds = Math.max(Number(shuffledPayload.quiz?.timeLimit || 0) * 60, 0);
-          setSecondsRemaining(examSeconds);
+          syncExamClock(examClockRef, payload.examSession?.serverTime);
+          const serverSeconds = getExamSecondsRemaining(payload.examSession, examClockRef);
+          const fallbackSeconds = Math.max(Number(shuffledPayload.quiz?.timeLimit || 0) * 60, 0);
+          setSecondsRemaining(Number.isFinite(serverSeconds) ? serverSeconds : fallbackSeconds);
+          didHydrateExamStateRef.current = true;
         } else {
           setSecondsRemaining(null);
         }
@@ -1045,7 +1200,7 @@ export function TakeQuizPage() {
       }
     }
     load();
-  }, [quizId, mode, continuePractice, resetPractice]);
+  }, [quizId, mode, continuePractice, resetPractice, isSingleQuestionPractice, singleQuestionId, navigate]);
 
   const isExam = data?.mode === 'exam';
   const totalQuestions = data?.questions?.length || 0;
@@ -1069,8 +1224,66 @@ export function TakeQuizPage() {
       currentQuestion.theoryRecap !== undefined
     )
   );
+  const shouldBlockQuizExit = Boolean(data && !loading && !isSingleQuestionPractice && !practiceReadyForReview && !hasAutoSubmitted);
+  const quizExitBlocker = useBlocker(shouldBlockQuizExit);
 
   const examDurationSeconds = isExam ? Math.max(Number(data?.quiz?.timeLimit || 0) * 60, 0) : 0;
+
+  useEffect(() => {
+    const platform = detectPlatform();
+    if (!platform.isNative || !platform.isAndroid || !shouldBlockQuizExit || typeof window === 'undefined' || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    document.documentElement.dataset.lmsNativeBackGuard = 'quiz';
+
+    function handleAndroidBack() {
+      writeCurrentExamRecoveryDraft(currentIndex);
+      if (isExam) {
+        void persistExamProgress({ nextIndex: currentIndex, silent: true });
+      }
+    }
+
+    window.addEventListener('lms:android-back', handleAndroidBack);
+    return () => {
+      window.removeEventListener('lms:android-back', handleAndroidBack);
+      if (document.documentElement.dataset.lmsNativeBackGuard === 'quiz') {
+        delete document.documentElement.dataset.lmsNativeBackGuard;
+      }
+    };
+  }, [answers, currentIndex, data, flaggedQuestionIds, hasAutoSubmitted, isExam, quizId, shouldBlockQuizExit]);
+
+  useEffect(() => {
+    if (!data || loading || practiceReadyForReview || hasAutoSubmitted) {
+      return undefined;
+    }
+
+    function handleBeforeUnload(event) {
+      event.preventDefault();
+      event.returnValue = '';
+      return '';
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [data, hasAutoSubmitted, loading, practiceReadyForReview]);
+
+  useEffect(() => {
+    if (quizExitBlocker.state !== 'blocked') return;
+
+    const shouldLeave = window.confirm(
+      isExam
+        ? 'Leave this exam? Submit before leaving to avoid losing the attempt.'
+        : 'Leave this quiz? Your latest answer may not be saved yet.'
+    );
+
+    if (shouldLeave) {
+      quizExitBlocker.proceed();
+      return;
+    }
+
+    quizExitBlocker.reset();
+  }, [isExam, quizExitBlocker]);
 
   useEffect(() => {
     hasSkippedInitialPracticeScrollRef.current = false;
@@ -1084,26 +1297,26 @@ export function TakeQuizPage() {
     }
 
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    window.requestAnimationFrame(() => {
+    const frame = window.requestAnimationFrame(() => {
       scrollQuestionContentIntoView(
         questionContentRef.current,
         prefersReducedMotion ? 'auto' : 'smooth'
       );
     });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [currentIndex, currentQuestion?.id, data, isExam]);
 
   useEffect(() => {
-    if (!isExam || !Number.isFinite(secondsRemaining) || secondsRemaining <= 0) return undefined;
+    if (!isExam || !data?.examSession?.deadlineAt) return undefined;
 
     const timer = window.setInterval(() => {
-      setSecondsRemaining((current) => {
-        if (!Number.isFinite(current) || current <= 1) return 0;
-        return current - 1;
-      });
+      setSecondsRemaining(getExamSecondsRemaining(data.examSession, examClockRef));
     }, 1000);
 
+    setSecondsRemaining(getExamSecondsRemaining(data.examSession, examClockRef));
     return () => window.clearInterval(timer);
-  }, [isExam, secondsRemaining]);
+  }, [data?.examSession?.deadlineAt, isExam]);
 
   function updateSba(questionId, optionId) {
     setError('');
@@ -1154,19 +1367,119 @@ export function TakeQuizPage() {
     }
   }
 
+  function syncExamSessionFromSave(result) {
+    if (!result?.serverTime) return;
+    syncExamClock(examClockRef, result.serverTime);
+    setData((current) => {
+      if (!current?.examSession) return current;
+      return {
+        ...current,
+        examSession: {
+          ...current.examSession,
+          serverTime: result.serverTime,
+          deadlineAt: result.deadlineAt ?? current.examSession.deadlineAt,
+          secondsRemaining: result.secondsRemaining ?? current.examSession.secondsRemaining,
+          submittedAttemptId: result.attemptId ?? current.examSession.submittedAttemptId,
+        },
+      };
+    });
+    if (Number.isFinite(result.secondsRemaining)) {
+      setSecondsRemaining(result.secondsRemaining);
+    }
+  }
+
+  function clearExamAutosaveRetry() {
+    if (examAutosaveRetryTimerRef.current) {
+      window.clearTimeout(examAutosaveRetryTimerRef.current);
+      examAutosaveRetryTimerRef.current = null;
+    }
+    examAutosaveRetryDelayRef.current = 2500;
+  }
+
+  function scheduleExamAutosaveRetry(nextIndex = currentIndex) {
+    if (!isExam || hasAutoSubmitted || examAutosaveRetryTimerRef.current) return;
+    const retryDelayMs = examAutosaveRetryDelayRef.current;
+    examAutosaveRetryTimerRef.current = window.setTimeout(() => {
+      examAutosaveRetryTimerRef.current = null;
+      examAutosaveRetryDelayRef.current = Math.min(15000, Math.round(retryDelayMs * 1.75));
+      void persistExamProgress({ nextIndex, silent: true });
+    }, retryDelayMs);
+  }
+
+  async function persistExamProgress({ nextIndex = currentIndex, silent = false } = {}) {
+    if (!isExam || !data?.questions?.length || hasAutoSubmitted) return true;
+    if (examAutosaveInFlightRef.current) {
+      examAutosaveQueuedRef.current = true;
+      return true;
+    }
+
+    examAutosaveInFlightRef.current = true;
+    try {
+      const draftPayload = {
+        sessionId: data.examSession?.id,
+        answers: normalizeAnswersForBackend(answersRef.current || answers, data.questions),
+        currentQuestionIndex: nextIndex,
+        flaggedQuestionIds: Array.from(flaggedQuestionIds),
+      };
+      writeExamDraft(quizId, draftPayload);
+      const result = await saveExamProgress(quizId, {
+        answers: draftPayload.answers,
+        currentQuestionIndex: draftPayload.currentQuestionIndex,
+        flaggedQuestionIds: draftPayload.flaggedQuestionIds,
+      });
+      clearExamAutosaveRetry();
+      syncExamSessionFromSave(result);
+      if (result?.success) {
+        clearExamDraft(quizId);
+      }
+      if (result?.attemptId && result?.submitted) {
+        clearExamDraft(quizId);
+        setHasAutoSubmitted(true);
+        navigate(`/results/${result.attemptId}`, { replace: true });
+      }
+      if (result?.timeExpired) {
+        setSecondsRemaining(0);
+      }
+      return Boolean(result?.success || result?.submitted || result?.timeExpired);
+    } catch (e) {
+      if (!silent) {
+        setError(getErrorMessage(e, 'Unable to auto-save exam progress'));
+      }
+      scheduleExamAutosaveRetry(nextIndex);
+      return false;
+    } finally {
+      examAutosaveInFlightRef.current = false;
+      if (examAutosaveQueuedRef.current) {
+        examAutosaveQueuedRef.current = false;
+        void persistExamProgress({ nextIndex: currentIndex, silent: true });
+      }
+    }
+  }
+
+  function writeCurrentExamRecoveryDraft(nextIndex = currentIndex) {
+    if (!isExam || !data?.questions?.length || hasAutoSubmitted) return;
+    writeExamDraft(quizId, {
+      sessionId: data.examSession?.id,
+      answers: normalizeAnswersForBackend(answersRef.current || answers, data.questions),
+      currentQuestionIndex: nextIndex,
+      flaggedQuestionIds: Array.from(flaggedQuestionIds),
+    });
+  }
+
   async function goTo(idx) {
     const bounded = Math.max(0, Math.min(idx, (data?.questions?.length || 1) - 1));
     setError('');
     if (data?.mode === 'practice' && !(await practiceSave(bounded))) return;
     setCurrentIndex(bounded);
+    if (data?.mode === 'exam') {
+      void persistExamProgress({ nextIndex: bounded, silent: true });
+    }
   }
 
   async function finishPractice() {
     if (practiceCompleting || practiceReadyForReview) return;
     setError('');
     setPracticeCompleting(true);
-    playNativeCompletionBell();
-    void nativeSuccess();
     if (data?.mode === 'practice') {
       const saved = await practiceSave(currentIndex);
       if (!saved) {
@@ -1174,6 +1487,13 @@ export function TakeQuizPage() {
         return;
       }
     }
+    if (isSingleQuestionPractice) {
+      setPracticeCompleting(false);
+      navigate('/bookmarks');
+      return;
+    }
+    playNativeCompletionBell();
+    void nativeSuccess();
     setPracticeReadyForReview(true);
     setPracticeCompleting(false);
   }
@@ -1183,9 +1503,15 @@ export function TakeQuizPage() {
     setError('');
     setSaving(true);
     try {
+      if (isExam) {
+        await persistExamProgress({ nextIndex: currentIndex, silent: true });
+      }
       const result = await submitExam(quizId, {
         answers: normalizeAnswersForBackend(answersRef.current || answers, data?.questions || []),
       });
+      clearExamAutosaveRetry();
+      clearExamDraft(quizId);
+      setHasAutoSubmitted(true);
       navigate(`/results/${result.attemptId}`);
     } catch (e) {
       setError(getErrorMessage(e, 'Unable to submit exam'));
@@ -1268,6 +1594,62 @@ export function TakeQuizPage() {
     void nativeImpact(ImpactStyle.Light);
   }
 
+  useEffect(() => {
+    if (!isExam || !data?.questions?.length || !didHydrateExamStateRef.current || hasAutoSubmitted) {
+      return undefined;
+    }
+
+    if (examAutosaveTimerRef.current) {
+      window.clearTimeout(examAutosaveTimerRef.current);
+    }
+
+    examAutosaveTimerRef.current = window.setTimeout(() => {
+      void persistExamProgress({ nextIndex: currentIndex });
+    }, 650);
+
+    return () => {
+      if (examAutosaveTimerRef.current) {
+        window.clearTimeout(examAutosaveTimerRef.current);
+        examAutosaveTimerRef.current = null;
+      }
+    };
+  }, [answers, currentIndex, data?.questions, flaggedQuestionIds, hasAutoSubmitted, isExam]);
+
+  useEffect(() => {
+    if (!isExam || !data?.questions?.length || !didHydrateExamStateRef.current || hasAutoSubmitted) {
+      return undefined;
+    }
+
+    const saveForPauseOrNetworkChange = () => {
+      writeCurrentExamRecoveryDraft(currentIndex);
+      void persistExamProgress({ nextIndex: currentIndex, silent: true });
+    };
+    const saveLocalDraftOnly = () => {
+      writeCurrentExamRecoveryDraft(currentIndex);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveForPauseOrNetworkChange();
+      }
+    };
+
+    window.addEventListener('pagehide', saveForPauseOrNetworkChange);
+    window.addEventListener('offline', saveLocalDraftOnly);
+    window.addEventListener('online', saveForPauseOrNetworkChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pagehide', saveForPauseOrNetworkChange);
+      window.removeEventListener('offline', saveLocalDraftOnly);
+      window.removeEventListener('online', saveForPauseOrNetworkChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [answers, currentIndex, data, flaggedQuestionIds, hasAutoSubmitted, isExam, quizId]);
+
+  useEffect(() => () => {
+    clearExamAutosaveRetry();
+  }, []);
+
   const blockSize = 10;
   const examBlocks = useMemo(() => {
     if (!totalQuestions) return [];
@@ -1286,6 +1668,11 @@ export function TakeQuizPage() {
       };
     });
   }, [answers, currentIndex, data, totalQuestions]);
+
+  const handlePracticeReviewOpen = useCallback(() => {
+    const questionParam = isSingleQuestionPractice ? `&questionId=${singleQuestionId}` : '';
+    navigate(`/quizzes/${quizId}/practice-review?complete=1${questionParam}`);
+  }, [isSingleQuestionPractice, navigate, quizId, singleQuestionId]);
 
   if (loading) return (
     <main className={ui.studentScreenShell}>
@@ -1313,14 +1700,16 @@ export function TakeQuizPage() {
 
   if (!isExam) {
     const questionTypeLabel = isSbaQuestion(currentQuestion) ? 'SBA' : 'True / False';
+    const practiceEndLabel = isSingleQuestionPractice ? 'Done' : 'Finish';
+    const practiceEndBusyLabel = isSingleQuestionPractice ? 'Saving...' : 'Submitting...';
 
     return (
       <main className={practiceQuizScreenShellClass}>
         <section className={practiceQuizLayoutClass}>
-          {practiceReadyForReview ? (
+          {practiceReadyForReview && !isSingleQuestionPractice ? (
             <QuizCompletionOverlay
               quizLabel={getQuizNumberLabel(data.quiz)}
-              onReview={() => navigate(`/quizzes/${quizId}/practice-review?complete=1`)}
+              onReview={handlePracticeReviewOpen}
             />
           ) : null}
 
@@ -1334,14 +1723,14 @@ export function TakeQuizPage() {
             saving={saving || practiceCompleting || questionActionBusy}
             theme={theme}
             workspaceLabel=""
-            endLabel={practiceCompleting ? 'Submitting...' : 'Finish'}
+            endLabel={practiceCompleting ? practiceEndBusyLabel : practiceEndLabel}
             className={practiceHeaderClass}
             showThemeToggle
             showSecondary={false}
             endButtonClass={practiceHeaderEndClass}
           />
 
-          {error ? <div className={ui.feedbackError}>{error}</div> : null}
+          {error ? <div className={ui.feedbackError} role="alert" aria-live="assertive">{error}</div> : null}
 
           <section className={practiceQuizWorkspaceClass}>
             <aside className={practiceQuizSidebarClass}>
@@ -1357,7 +1746,14 @@ export function TakeQuizPage() {
                   <h3>Progress</h3>
                   <span>{progressPercent}% complete</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-surface-3">
+                <div
+                  className="h-2 overflow-hidden rounded-full bg-surface-3"
+                  role="progressbar"
+                  aria-label="Practice progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progressPercent}
+                >
                   <span
                     className="block h-full rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
                     style={{ width: `${progressPercent}%` }}
@@ -1387,6 +1783,13 @@ export function TakeQuizPage() {
                       type="button"
                       onClick={() => goTo(index)}
                       title={`Question ${index + 1}`}
+                      aria-current={index === currentIndex ? 'step' : undefined}
+                      aria-label={getQuestionNavButtonLabel(index, {
+                        active: index === currentIndex,
+                        answered: isAnswered(question, answers[question.id]),
+                        flagged: flaggedQuestionIds.has(question.id),
+                        saved: bookmarkedQuestionIds.has(question.id),
+                      })}
                     >
                       {index + 1}
                     </button>
@@ -1396,7 +1799,7 @@ export function TakeQuizPage() {
                 <div className={practiceQuizBubbleLegendClass}>
                   <span><i className="border-brand-primary/30 bg-brand-primary/30" />Current</span>
                   <span><i className="border-brand-success/30 bg-brand-success/30" />Answered</span>
-                  <span><i className="border-[var(--exam-nav-idle-border)] bg-[var(--exam-progress-track)]" />New</span>
+                  <span><i className="is-idle" />Not answered</span>
                   <span><i className="border-[color-mix(in_srgb,#8b5cf6_30%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_30%,transparent)]" />Saved</span>
                   <span><i className="border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_30%,transparent)]" />Flagged</span>
                 </div>
@@ -1405,7 +1808,14 @@ export function TakeQuizPage() {
 
             <section className={practiceQuizMainClass}>
               <article className={cx(practiceQuizQuestionCardClass, examQuestionStartAnchorClass)} ref={questionContentRef}>
-                <p className={practiceQuizQuestionTextClass}>{currentQuestion.questionText}</p>
+                <MedicalText
+                  as="p"
+                  className={practiceQuizQuestionTextClass}
+                  text={currentQuestion.questionText}
+                  imageLoading="eager"
+                  imageFetchPriority="high"
+                  imageZoomable
+                />
 
 
                 <div className={practiceQuizQuestionHeadClass}>
@@ -1418,6 +1828,9 @@ export function TakeQuizPage() {
                     {currentQuestionAnswered ? 'Answered' : 'Unanswered'}
                   </span>
                 </div>
+                <p className="sr-only" aria-live="polite">
+                  Question {currentIndex + 1} of {totalQuestions}. {currentQuestionAnswered ? 'Answered.' : 'Not answered.'} {currentQuestionRevealed ? 'Explanation is shown.' : ''}
+                </p>
 
                 <div className={practiceQuizOptionsGridClass}>
                   {isSbaQuestion(currentQuestion) ? (
@@ -1458,7 +1871,7 @@ export function TakeQuizPage() {
                           <span className={practiceQuizOptionToplineClass}>
                             <span className={practiceQuizOptionLeadClass}>
                               <span className={quizReviewOptionIconClass(optionTone)} aria-hidden="true">{letterLabel}</span>
-                              <span className={practiceQuizOptionTextClass}>{option.optionText}</span>
+                              <MedicalText as="span" className={practiceQuizOptionTextClass} text={option.optionText} />
                             </span>
                             {currentQuestionRevealed ? (
                               <span className={practiceQuizOptionLabelsClass}>
@@ -1513,7 +1926,7 @@ export function TakeQuizPage() {
                               <span className={quizReviewOptionIconClass(answerTone)} aria-hidden="true">
                                 {letterLabel}
                               </span>
-                              <span className={practiceQuizOptionTextClass}>{option.optionText}</span>
+                              <MedicalText as="span" className={practiceQuizOptionTextClass} text={option.optionText} />
                             </div>
                             {currentQuestionRevealed ? (
                               <span className={practiceQuizOptionLabelsClass}>
@@ -1536,6 +1949,7 @@ export function TakeQuizPage() {
                               )}
                               type="button"
                               aria-pressed={selectedValue === 1}
+                              aria-label={`Question ${currentIndex + 1}, statement ${letterLabel}: answer True`}
                               onClick={() => updateTf(currentQuestion.id, option.id, 1)}
                             >
                               True
@@ -1549,6 +1963,7 @@ export function TakeQuizPage() {
                               )}
                               type="button"
                               aria-pressed={selectedValue === 0}
+                              aria-label={`Question ${currentIndex + 1}, statement ${letterLabel}: answer False`}
                               onClick={() => updateTf(currentQuestion.id, option.id, 0)}
                             >
                               False
@@ -1614,7 +2029,7 @@ export function TakeQuizPage() {
                           onClick={finishPractice}
                           disabled={saving || practiceCompleting}
                         >
-                          {practiceCompleting ? 'Submitting...' : 'Finish practice'}
+                          {practiceCompleting ? practiceEndBusyLabel : isSingleQuestionPractice ? 'Done' : 'Finish practice'}
                         </button>
                       )}
                     </div>
@@ -1657,11 +2072,18 @@ export function TakeQuizPage() {
           theme={theme}
         />
 
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {error ? <div className={ui.feedbackError} role="alert" aria-live="assertive">{error}</div> : null}
 
         <div className={examGridClass}>
           <aside className={examSidebarClass}>
-            <section className={cx(examPanelClass, examProgressPanelClass, quizFlashPanelClass)}>
+            <div className={practiceQuizSummaryGridClass}>
+              <PracticeSummaryTile label="Total" value={totalQuestions} />
+              <PracticeSummaryTile label="Answered" value={answeredCount} />
+              <PracticeSummaryTile label="Current" value={currentIndex + 1} />
+              <PracticeSummaryTile label="Progress" value={`${progressPercent}%`} />
+            </div>
+
+            <section className={cx(examPanelClass, examProgressPanelClass, quizFlashPanelClass, 'lms-practice-progress-card')}>
               <div className={examQuestionTypeRowClass}>
                 <div className={examCardKickerClass}>Progress</div>
                 <span className={examChipMiniClass}>{isSbaQuestion(currentQuestion) ? 'SBA' : 'T/F'}</span>
@@ -1670,12 +2092,19 @@ export function TakeQuizPage() {
                 <strong className={examProgressCurrentClass}>Question {currentIndex + 1} of {totalQuestions}</strong>
                 <span className={examProgressPercentClass}>{progressPercent}% complete</span>
               </div>
-              <div className={examProgressBarClass}>
+              <div
+                className={examProgressBarClass}
+                role="progressbar"
+                aria-label="Exam progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progressPercent}
+              >
                 <span className={examProgressFillClass} style={{ width: `${progressPercent}%` }} />
               </div>
             </section>
 
-            <section className={cx(examPanelClass, quizFlashPanelClass)}>
+            <section className={cx(examPanelClass, quizFlashPanelClass, 'lms-practice-question-key')}>
               <div className={examCardHeadClass}>
                 <div>
                   <div className={examCardKickerClass}>Question navigator</div>
@@ -1699,6 +2128,13 @@ export function TakeQuizPage() {
                       type="button"
                      
                       onClick={() => goTo(index)}
+                      aria-current={index === currentIndex ? 'step' : undefined}
+                      aria-label={getQuestionNavButtonLabel(index, {
+                        active: index === currentIndex,
+                        answered,
+                        flagged,
+                        review: reviewing,
+                      })}
                     >
                       {index + 1}
                     </button>
@@ -1718,9 +2154,17 @@ export function TakeQuizPage() {
           </aside>
 
           <section className={cx(examMainCardClass, quizFlashPanelClass, examQuestionStartAnchorClass, quizUnifiedMainCardClass)} ref={questionContentRef}>
-            <div className={quizFlashQuestionCopyClass}>
-              {currentQuestion.questionText}
-            </div>
+            <MedicalText
+              as="div"
+              className={quizFlashQuestionCopyClass}
+              text={currentQuestion.questionText}
+              imageLoading="eager"
+              imageFetchPriority="high"
+              imageZoomable
+            />
+            <p className="sr-only" aria-live="polite">
+              Question {currentIndex + 1} of {totalQuestions}. {currentQuestionAnswered ? 'Answered.' : 'Not answered.'} {currentQuestionFlagged ? 'Flagged.' : ''}
+            </p>
 
             <div className={examAnswerListClass}>
               {isSbaQuestion(currentQuestion) ? (
@@ -1748,7 +2192,7 @@ export function TakeQuizPage() {
                           <span className={quizReviewOptionIconClass(isSelected ? 'selected' : 'neutral')} aria-hidden="true">
                             {letterLabel}
                           </span>
-                          <span className={quizReviewOptionTextClass}>{option.optionText}</span>
+                          <MedicalText as="span" className={quizReviewOptionTextClass} text={option.optionText} />
                         </span>
                       </span>
                     </label>
@@ -1770,13 +2214,14 @@ export function TakeQuizPage() {
                           <span className={quizReviewOptionIconClass(hasSelectedValue ? 'selected' : 'neutral')} aria-hidden="true">
                             {letterLabel}
                           </span>
-                          <span className={quizReviewOptionTextClass}>{option.optionText}</span>
+                          <MedicalText as="span" className={quizReviewOptionTextClass} text={option.optionText} />
                         </div>
                       </div>
                       <div className={examTfActionsClass}>
                         <button className={cx(examTfToggleClass, selectedValue === 1 && examTfTrueActiveClass)}
                           type="button"
                           aria-pressed={selectedValue === 1}
+                          aria-label={`Question ${currentIndex + 1}, statement ${letterLabel}: answer True`}
                           onClick={() => updateTf(currentQuestion.id, option.id, 1)}
                         >
                           True
@@ -1784,6 +2229,7 @@ export function TakeQuizPage() {
                         <button className={cx(examTfToggleClass, selectedValue === 0 && examTfFalseActiveClass)}
                           type="button"
                           aria-pressed={selectedValue === 0}
+                          aria-label={`Question ${currentIndex + 1}, statement ${letterLabel}: answer False`}
                           onClick={() => updateTf(currentQuestion.id, option.id, 0)}
                         >
                           False
@@ -1870,17 +2316,18 @@ export function TakeQuizPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="exam-submit-confirm-title"
+            aria-describedby="exam-submit-confirm-description"
             onClick={() => setConfirmExamSubmitOpen(false)}
           >
             <div
-              className="w-[min(420px,100%)] rounded-2xl border border-line-soft bg-surface-card-elevated p-5 shadow-2xl dark:border-white/[0.09]"
+              className="w-[min(420px,100%)] rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-card-elevated p-5 shadow-[var(--ds-floating-shadow)] dark:border-white/[0.09]"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="grid gap-2">
                 <h2 id="exam-submit-confirm-title" className="m-0 text-[18px] font-extrabold text-ink-strong">
                   Submit exam?
                 </h2>
-                <p className="m-0 text-[13px] leading-relaxed text-ink-soft">
+                <p id="exam-submit-confirm-description" className="m-0 text-[13px] leading-relaxed text-ink-soft">
                   This will end the exam session and send your answers for scoring.
                 </p>
               </div>

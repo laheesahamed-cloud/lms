@@ -28,6 +28,8 @@
 @import "./99-legacy/app.css";
 
 @import "./03-components/buttons.css";
+@import "./03-components/brand.css";
+@import "./03-components/breadcrumbs.css";
 @import "./03-components/cards.css";
 @import "./03-components/forms.css";
 @import "./03-components/tables.css";

@@ -63,6 +63,23 @@ const defaultFilters = {
 
 const QUESTION_POOL_LIMIT = 120;
 const QUESTION_RANDOM_DRAW_DEFAULT = 10;
+const QUIZ_DRAFT_JSON_MAX_BYTES = 2 * 1024 * 1024;
+
+function validateQuizDraftJsonFile(file) {
+  if (!file) return '';
+  const name = String(file.name || '').trim();
+  const type = String(file.type || '').toLowerCase();
+  if (!name.toLowerCase().endsWith('.json') || (type && type !== 'application/json')) {
+    return 'Import a JSON draft file exported from the quiz bulk question tool.';
+  }
+  if (file.size > QUIZ_DRAFT_JSON_MAX_BYTES) {
+    return 'Quiz draft JSON is too large. Upload a file under 2 MB.';
+  }
+  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+    return 'Rename the JSON file without special path characters, then import again.';
+  }
+  return '';
+}
 
 const bulkInputSample = `Question 1. A 45-year-old woman has exertional chest pain relieved by rest. What is the most likely diagnosis?
 A. Pericarditis
@@ -116,7 +133,7 @@ const qb = {
   questionMeta: 'break-words text-[11.5px] leading-[1.55] text-ink-soft',
   usage: 'flex flex-wrap items-center gap-2',
   usageText: 'break-words text-[11.5px] leading-normal text-ink-soft',
-  badge: 'inline-flex min-h-6 items-center rounded-full border border-line-soft bg-surface-1 px-2 text-[10.5px] font-extrabold tracking-[0.02em] text-ink-soft',
+  badge: 'inline-flex min-h-6 items-center rounded-full border border-line-soft bg-surface-1 px-2 text-[11px] font-extrabold tracking-[0.02em] text-ink-soft',
   badgeFresh: 'border-emerald-600/20 bg-[var(--color-success-light)] text-brand-success',
   badgeUsed: 'border-amber-600/20 bg-[var(--color-warning-light)] text-brand-warning',
   badgeCurrent: 'border-brand-primary/25 bg-brand-primary-light text-brand-primary',
@@ -619,7 +636,7 @@ function BulkAddQuestionsPanel({
       {bulkToast ? <div className={ui.feedbackSuccess}>{bulkToast}</div> : null}
 
       {questions.length ? (
-        <div className="grid gap-4 rounded-lg border border-line-soft bg-surface-1 p-4 shadow-sm">
+        <div className="lms-card-compact grid gap-4 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-1 p-4 shadow-[var(--ds-card-shadow)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="m-0 text-base font-extrabold text-ink-strong">Generate Missing AI Content</h3>
@@ -734,7 +751,7 @@ function BulkAddQuestionsPanel({
         </div>
 
         <textarea className="min-h-[220px] resize-y rounded-lg border border-line-soft bg-surface-1 p-3 text-sm leading-relaxed text-ink-strong"
-         
+          aria-label="Bulk question input"
           value={rawInput}
           onChange={(event) => onRawInputChange(event.target.value)}
           placeholder={bulkInputSample}
@@ -756,7 +773,7 @@ function BulkAddQuestionsPanel({
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-lg border border-line-soft bg-surface-1 p-4 shadow-sm">
+      <div className="lms-card-compact grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-1 p-4 shadow-[var(--ds-card-shadow)]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="m-0 text-base font-extrabold text-ink-strong">Global Defaults</h3>
@@ -843,7 +860,7 @@ function BulkAddQuestionsPanel({
 
       {questions.length ? (
         <div className="grid grid-cols-[minmax(220px,300px)_minmax(0,1fr)] gap-4 max-[980px]:grid-cols-1">
-          <aside className="grid content-start gap-3 rounded-lg border border-line-soft bg-surface-1 p-4 shadow-sm">
+          <aside className="lms-card-compact grid content-start gap-3 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-1 p-4 shadow-[var(--ds-card-shadow)]">
             <div className="flex items-center justify-between gap-3">
               <h3 className="m-0 text-sm font-extrabold text-ink-strong">Question Queue</h3>
               <span className={ui.tablePill}>{savedCount} saved • {readyCount} ready</span>
@@ -924,7 +941,7 @@ function BulkAddQuestionsPanel({
             </div>
           </aside>
 
-          <section className="min-w-0 rounded-lg border border-line-soft bg-surface-1 p-4 shadow-sm">
+          <section className="lms-card-compact min-w-0 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-1 p-4 shadow-[var(--ds-card-shadow)]">
             {!currentQuestion ? (
               <div className={ui.emptyBox}>Select a parsed question to review it.</div>
             ) : (
@@ -1076,12 +1093,14 @@ function BulkAddQuestionsPanel({
                         value={option.optionText}
                         onChange={(event) => patchOption(optionIndex, { optionText: event.target.value })}
                         placeholder={currentDiagnostics?.resolved.questionType === 'true_false' ? 'Statement text' : `Option ${option.optionLabel}`}
+                        aria-label={currentDiagnostics?.resolved.questionType === 'true_false' ? `Statement ${option.optionLabel} text` : `Option ${option.optionLabel} text`}
                       />
                       <textarea className={ui.textarea}
                         rows="2"
                         value={option.whyIncorrect || option.optionExplanation || ''}
                         onChange={(event) => patchOption(optionIndex, { whyIncorrect: event.target.value, optionExplanation: event.target.value })}
                         placeholder="Explanation / why incorrect"
+                        aria-label={currentDiagnostics?.resolved.questionType === 'true_false' ? `Statement ${option.optionLabel} explanation` : `Why option ${option.optionLabel} is incorrect`}
                       />
                     </div>
                   ))}
@@ -1697,6 +1716,8 @@ export function QuizBuilderPage() {
   }
 
   function removeBlueprintSection(sectionId) {
+    const section = blueprintSections.find((item) => item.id === sectionId);
+    if (!window.confirm(`Remove ${section?.title || 'this blueprint section'}?`)) return;
     setForm((current) => ({
       ...current,
       blueprint: {
@@ -1764,6 +1785,11 @@ export function QuizBuilderPage() {
     }));
   }
 
+  function removeQuestionWithConfirmation(questionId) {
+    if (!window.confirm('Remove this question from the quiz?')) return;
+    removeQuestion(questionId);
+  }
+
   function toggleQuestion(questionId) {
     if (form.questionIds.includes(questionId)) {
       removeQuestion(questionId);
@@ -1820,6 +1846,8 @@ export function QuizBuilderPage() {
   }
 
   function removeAllQuestions() {
+    if (!form.questionIds.length) return;
+    if (!window.confirm(`Remove all ${form.questionIds.length} selected question(s) from this quiz?`)) return;
     setForm((current) => ({ ...current, questionIds: [] }));
   }
 
@@ -2187,6 +2215,12 @@ export function QuizBuilderPage() {
   function importBulkDraftFile(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    const validationError = validateQuizDraftJsonFile(file);
+    if (validationError) {
+      setBulkToast(validationError);
+      event.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -2212,6 +2246,7 @@ export function QuizBuilderPage() {
   }
 
   function clearBulkDraft() {
+    if (!window.confirm('Clear the quiz bulk draft?')) return;
     setBulkRawInput('');
     setBulkInputMode('text');
     setBulkQuestions([]);
@@ -2469,7 +2504,7 @@ export function QuizBuilderPage() {
               description="Set the internal admin name, the student-facing title, and the core publishing details before you start selecting questions."
               actions={(
                 <button type="button" className={ui.secondaryAction} onClick={() => navigate('/quizzes')}>
-                  Back to Quizzes
+                  Back to Assessments
                 </button>
               )}
             >
@@ -2646,7 +2681,7 @@ export function QuizBuilderPage() {
               </div>
             </BuilderSection>
 
-            <div className="flex flex-wrap gap-2 rounded-lg border border-line-soft bg-surface-1 p-2 shadow-sm" role="tablist" aria-label="Quiz builder question workflow">
+            <div className="lms-card-compact flex flex-wrap gap-2 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-1 p-2 shadow-[var(--ds-card-shadow)]" role="tablist" aria-label="Quiz builder question workflow">
               {quizQuestionTabs.map((tab) => (
                 <button className={cx(
                     'min-h-10 rounded-md px-4 text-sm font-extrabold shadow-none',
@@ -3050,7 +3085,7 @@ export function QuizBuilderPage() {
                                 .join(' • ')}
                             </small>
                           </div>
-                          <button type="button" className={ui.dangerAction} onClick={() => removeQuestion(question.id)}>
+                          <button type="button" className={ui.dangerAction} onClick={() => removeQuestionWithConfirmation(question.id)}>
                             Remove
                           </button>
                         </article>
@@ -3121,7 +3156,7 @@ export function QuizBuilderPage() {
                                 .join(' • ')}
                             </small>
                           </div>
-                          <button type="button" className={ui.dangerAction} onClick={() => removeQuestion(question.id)}>
+                          <button type="button" className={ui.dangerAction} onClick={() => removeQuestionWithConfirmation(question.id)}>
                             Remove
                           </button>
                         </article>
@@ -3183,7 +3218,7 @@ export function QuizBuilderPage() {
                   ref={bulkDraftImportRef}
                   type="file"
                   accept=".json,application/json"
-                 
+                  aria-label="Import quiz bulk draft JSON"
                   onChange={importBulkDraftFile}
                 />
               </BuilderSection>

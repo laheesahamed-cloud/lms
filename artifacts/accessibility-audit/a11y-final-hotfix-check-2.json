@@ -1,0 +1,110 @@
+{
+  "generatedAt": "2026-05-31T14:05:38.499Z",
+  "dashboard": {
+    "small": [],
+    "dims": [
+      {
+        "name": "Toggle navigation",
+        "cls": "study-icon-button lms-topbar-menu-button",
+        "w": 44,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      },
+      {
+        "name": "4 unread notifications",
+        "cls": "study-icon-button relative",
+        "w": 44,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      },
+      {
+        "name": "Search lessons and exams",
+        "cls": "study-icon-button",
+        "w": 44,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      },
+      {
+        "name": "Open profile menu",
+        "cls": "study-avatar study-avatar--profile",
+        "w": 44,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      }
+    ]
+  },
+  "quiz": {
+    "small": [],
+    "dims": [
+      {
+        "name": "Previous",
+        "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11",
+        "w": 107,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      },
+      {
+        "name": "Show answer",
+        "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11",
+        "w": 107,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      },
+      {
+        "name": "Next",
+        "cls": "lms-assessment-btn lms-assessment-btn--primary inline-flex min-h-11",
+        "w": 107,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      },
+      {
+        "name": "Flag question",
+        "cls": "inline-flex min-h-11 min-w-11 items-center",
+        "w": 72,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      },
+      {
+        "name": "Save question",
+        "cls": "inline-flex min-h-11 min-w-11 items-center",
+        "w": 44,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      },
+      {
+        "name": "Report question",
+        "cls": "inline-flex min-h-11 min-w-11 items-center",
+        "w": 86,
+        "h": 44,
+        "minH": "44px",
+        "anim": "none",
+        "dur": "0s"
+      }
+    ]
+  },
+  "motion": {
+    "matches": true,
+    "routeName": "routeFade",
+    "routeDuration": "0.24s",
+    "panelName": "panelRouteFade",
+    "panelDuration": "0.24s"
+  }
+}

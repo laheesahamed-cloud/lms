@@ -1,0 +1,160 @@
+/* Runtime motion budget helpers.
+   The normal visible UI is unchanged; these rules only pause work while the
+   page is backgrounded, or simplify decorative loops for constrained devices. */
+
+html[data-motion-paused],
+body.lms-motion-paused {
+  scroll-behavior: auto !important;
+}
+
+html[data-motion-paused] body *,
+html[data-motion-paused] body *::before,
+html[data-motion-paused] body *::after {
+  animation-play-state: paused !important;
+  transition-delay: 0ms !important;
+  transition-duration: 1ms !important;
+}
+
+html[data-motion-paused] body :where(
+  .portal-shell-ambient,
+  .lp-hero-orb,
+  .lp-depth-dot,
+  .lp-path-trace,
+  .lp-cta-orb,
+  .study-mascot__svg,
+  .study-mascot__bob,
+  .study-mascot__run,
+  .study-mascot__pulse,
+  .study-mascot__flame,
+  .study-mascot__sparkles path,
+  .animate-progressShimmer,
+  .skeleton-pulse,
+  .shimmer
+) {
+  will-change: auto !important;
+}
+
+:root[data-low-spec] :where(
+  .study-mascot__bob,
+  .study-mascot__run,
+  .study-mascot__pulse,
+  .study-mascot__flame,
+  .study-mascot__sparkles path
+),
+:root[data-visual-effects='balanced'] :where(
+  .study-mascot__bob,
+  .study-mascot__run,
+  .study-mascot__pulse,
+  .study-mascot__flame,
+  .study-mascot__sparkles path
+) {
+  animation: none !important;
+}
+
+:root[data-low-spec] :where(.quiz-completion-overlay, .quiz-completion-capsule),
+:root[data-visual-effects='balanced'] :where(.quiz-completion-overlay, .quiz-completion-capsule) {
+  will-change: auto !important;
+}
+
+:root[data-low-spec] :where(
+  .dashboard-page,
+  .student-route-page
+)::before,
+:root[data-low-spec] :where(
+  .dashboard-page,
+  .student-route-page
+)::after,
+:root[data-visual-effects='balanced'] :where(
+  .dashboard-page,
+  .student-route-page
+)::before,
+:root[data-visual-effects='balanced'] :where(
+  .dashboard-page,
+  .student-route-page
+)::after {
+  animation: none !important;
+  will-change: auto !important;
+}
+
+:root[data-low-spec] :where(
+  .study-streak-icon,
+  .study-streak-icon svg,
+  .study-fire-outer,
+  .study-fire-inner,
+  .study-hero-mascot-random img,
+  .study-hero-mascot-random__spark
+),
+:root[data-low-spec] .study-streak-icon::before,
+:root[data-low-spec] .study-streak-icon::after,
+:root[data-low-spec] .study-hero-mascot-random::before {
+  animation: none !important;
+  will-change: auto !important;
+}
+
+:root[data-low-spec] :where(
+  .study-hub-shell > .study-continue-card,
+  .study-hub-shell > .study-streak-card,
+  .study-hub-shell > .study-readiness-stack,
+  .study-hub-shell > .study-section-head,
+  .study-hub-shell > .study-action-grid,
+  .study-hub-shell > .study-question-card,
+  .study-hub-shell > .study-level-summary,
+  .student-app-shell .student-route-page:not(.dashboard-page) :where(
+    .management-layout > section,
+    .management-layout > article,
+    .management-layout > .lms-page-header-card,
+    .study-hub-shell > section:not(.study-hub-topbar),
+    .study-hub-shell > article
+  )
+),
+:root[data-visual-effects='balanced'] :where(
+  .study-hub-shell > .study-continue-card,
+  .study-hub-shell > .study-streak-card,
+  .study-hub-shell > .study-readiness-stack,
+  .study-hub-shell > .study-section-head,
+  .study-hub-shell > .study-action-grid,
+  .study-hub-shell > .study-question-card,
+  .study-hub-shell > .study-level-summary,
+  .student-app-shell .student-route-page:not(.dashboard-page) :where(
+    .management-layout > section,
+    .management-layout > article,
+    .management-layout > .lms-page-header-card,
+    .study-hub-shell > section:not(.study-hub-topbar),
+    .study-hub-shell > article
+  )
+) {
+  animation-delay: 0ms !important;
+}
+
+:root[data-low-spec] :where(
+  .study-hub-shell > .study-continue-card,
+  .study-hub-shell > .study-streak-card,
+  .study-hub-shell > .study-readiness-stack,
+  .study-hub-shell > .study-section-head,
+  .study-hub-shell > .study-action-grid,
+  .study-hub-shell > .study-question-card,
+  .study-hub-shell > .study-level-summary,
+  .student-app-shell .student-route-page:not(.dashboard-page) :where(
+    .management-layout > section,
+    .management-layout > article,
+    .management-layout > .lms-page-header-card,
+    .study-hub-shell > section:not(.study-hub-topbar),
+    .study-hub-shell > article
+  )
+) {
+  animation-duration: 1ms !important;
+  transform: none !important;
+}
+
+:root[data-low-spec] .quiz-completion-overlay,
+:root[data-visual-effects='balanced'] .quiz-completion-overlay {
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+:root[data-low-spec] .quiz-completion-capsule,
+:root[data-low-spec] .quiz-completion-mark,
+:root[data-visual-effects='balanced'] .quiz-completion-capsule,
+:root[data-visual-effects='balanced'] .quiz-completion-mark {
+  will-change: transform, opacity !important;
+}

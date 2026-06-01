@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-05-31T14:10:40.934Z",
+  "dashboardSmall": [],
+  "quizSmall": [],
+  "motion": {
+    "matches": true,
+    "appClass": "lms-app-scroll-root relative isolate min-h-dvh overflow-x-hidden",
+    "panelClass": "lms-route-reveal motion-smooth",
+    "appAnimation": "none",
+    "panelAnimation": "none",
+    "appDuration": "1e-05s",
+    "panelDuration": "1e-05s"
+  }
+}

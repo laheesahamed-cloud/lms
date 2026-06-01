@@ -1,0 +1,54 @@
+:root {
+  --ds-card-radius: var(--sa-radius-lg, var(--radius-xl, 22px));
+  --ds-card-radius-compact: var(--sa-radius-md, var(--radius-lg, 18px));
+  --ds-card-radius-inner: var(--sa-radius-sm, var(--radius-md, 14px));
+  --ds-card-shadow:
+    0 1px 0 rgba(15, 20, 48, 0.03),
+    0 4px 16px rgba(37, 99, 235, 0.04);
+  --ds-card-shadow-hover:
+    0 1px 0 rgba(15, 20, 48, 0.03),
+    0 18px 42px rgba(37, 99, 235, 0.1);
+  --ds-card-shadow-raised:
+    0 24px 70px -42px rgba(30, 64, 175, 0.34),
+    0 12px 30px -26px rgba(15, 23, 42, 0.22);
+  --ds-card-shadow-pressed: none;
+  --ds-floating-shadow:
+    0 24px 60px -34px rgba(15, 23, 42, 0.34),
+    0 2px 8px rgba(15, 23, 42, 0.08);
+  --ds-nav-radius: var(--radius-md, 14px);
+  --ds-nav-shadow:
+    1px 0 0 var(--line-soft),
+    var(--shadow-sm, 0 8px 20px rgba(15, 23, 42, 0.06));
+  --ds-nav-active-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 14%, transparent),
+    0 8px 20px -16px color-mix(in srgb, var(--color-primary) 44%, transparent);
+}
+
+:root[data-theme="dark"] {
+  --ds-card-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.035),
+    0 16px 38px -30px rgba(2, 6, 23, 0.72);
+  --ds-card-shadow-hover:
+    0 1px 0 rgba(255, 255, 255, 0.035),
+    0 18px 38px -16px rgba(2, 6, 12, 0.58);
+  --ds-card-shadow-raised:
+    0 22px 60px -36px rgba(0, 0, 0, 0.68);
+  --ds-floating-shadow:
+    0 28px 72px -34px rgba(0, 0, 0, 0.74),
+    0 2px 8px rgba(0, 0, 0, 0.32);
+  --ds-nav-shadow:
+    1px 0 0 var(--line-soft),
+    0 18px 44px -34px rgba(0, 0, 0, 0.72);
+  --ds-nav-active-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent),
+    0 10px 24px -18px rgba(56, 189, 248, 0.42);
+}
+
+.student-app-shell {
+  --ds-card-radius: var(--sa-radius-lg);
+  --ds-card-radius-compact: var(--sa-radius-md);
+  --ds-card-radius-inner: var(--sa-radius-sm);
+  --ds-card-shadow: var(--sa-shadow-card);
+  --ds-card-shadow-hover: var(--sa-shadow-card-hover);
+  --ds-card-shadow-raised: var(--sa-shadow-card-hover);
+}

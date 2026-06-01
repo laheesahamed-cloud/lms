@@ -43,7 +43,7 @@ const subscriptionUi = {
   overviewCard:
     'grid gap-2 rounded-lg border border-line-soft bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(14,165,233,0.045)),var(--surface-card)] px-[18px] py-4 shadow-md',
   overviewLabel: 'text-[11px] font-bold uppercase tracking-[0.06em] text-ink-soft',
-  overviewValue: 'text-[clamp(20px,2.2vw,26px)] leading-none text-ink-strong',
+  overviewValue: 'text-[24px] max-[640px]:text-[20px] leading-none text-ink-strong',
   overviewText: 'm-0 text-[12.5px] text-ink-soft',
   adminGrid: `${ui.managementGrid} items-start`,
   featureEditor: 'grid gap-3.5',
@@ -75,7 +75,7 @@ const subscriptionUi = {
   planTitle: 'm-0 text-lg font-extrabold text-ink-strong',
   planDescription: 'm-0 mt-1 text-[13px] leading-relaxed text-ink-soft',
   planPriceRow: 'flex items-baseline gap-3',
-  planPrice: 'text-[clamp(28px,4vw,36px)] font-extrabold leading-none text-ink-strong',
+  planPrice: 'text-[34px] max-[640px]:text-[28px] font-extrabold leading-none text-ink-strong',
   planPriceStrike: 'text-[13px] text-ink-soft line-through',
   planFeatureList: 'flex flex-wrap gap-2.5',
   assignDurationPanel: 'grid gap-2 rounded-lg border border-line-soft bg-surface-2 p-3',
@@ -1480,7 +1480,14 @@ export function AdminSubscriptionsPage() {
             </div>
           </div>
           <form className="grid gap-3 md:grid-cols-[minmax(180px,260px)_auto]" onSubmit={handleInvoiceLookup}>
-            <input className={ui.input} value={invoiceSearch} onChange={(event) => setInvoiceSearch(event.target.value.replace(/\D/g, ''))} placeholder="1122" inputMode="numeric" />
+            <input
+              className={ui.input}
+              value={invoiceSearch}
+              onChange={(event) => setInvoiceSearch(event.target.value.replace(/\D/g, ''))}
+              placeholder="1122"
+              inputMode="numeric"
+              aria-label="Invoice ID"
+            />
             <button type="submit" className={ui.primaryAction} disabled={invoiceLookupLoading || !invoiceSearch.trim()}>
               {invoiceLookupLoading ? 'Checking...' : 'Check invoice'}
             </button>
@@ -1825,26 +1832,26 @@ export function AdminSubscriptionsPage() {
             </div>
 
             <div className="mb-4 grid gap-3 md:grid-cols-[minmax(180px,1fr)_150px_140px_140px_130px_auto]">
-              <input className={ui.input} name="search" value={subscriptionFilters.search} onChange={handleSubscriptionFilterChange} placeholder="Search student or plan" />
-              <select className={ui.input} name="planId" value={subscriptionFilters.planId} onChange={handleSubscriptionFilterChange}>
+              <input className={ui.input} name="search" value={subscriptionFilters.search} onChange={handleSubscriptionFilterChange} placeholder="Search student or plan" aria-label="Search subscriptions by student or plan" />
+              <select className={ui.input} name="planId" value={subscriptionFilters.planId} onChange={handleSubscriptionFilterChange} aria-label="Filter subscriptions by plan">
                 <option value="">All plans</option>
                 {safePlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
               </select>
-              <select className={ui.input} name="status" value={subscriptionFilters.status} onChange={handleSubscriptionFilterChange}>
+              <select className={ui.input} name="status" value={subscriptionFilters.status} onChange={handleSubscriptionFilterChange} aria-label="Filter subscriptions by status">
                 <option value="">All status</option>
                 <option value="active">Active</option>
                 <option value="pending">Pending</option>
                 <option value="expired">Expired</option>
                 <option value="cancelled">Cancelled</option>
               </select>
-              <select className={ui.input} name="paymentStatus" value={subscriptionFilters.paymentStatus} onChange={handleSubscriptionFilterChange}>
+              <select className={ui.input} name="paymentStatus" value={subscriptionFilters.paymentStatus} onChange={handleSubscriptionFilterChange} aria-label="Filter subscriptions by payment status">
                 <option value="">All payments</option>
                 <option value="manual">Manual</option>
                 <option value="paid">Paid</option>
                 <option value="unpaid">Unpaid</option>
                 <option value="free_plan">Free Plan</option>
               </select>
-              <select className={ui.input} name="expiring" value={subscriptionFilters.expiring} onChange={handleSubscriptionFilterChange}>
+              <select className={ui.input} name="expiring" value={subscriptionFilters.expiring} onChange={handleSubscriptionFilterChange} aria-label="Filter subscriptions by expiry">
                 <option value="">Any expiry</option>
                 <option value="soon">Expiring soon</option>
               </select>

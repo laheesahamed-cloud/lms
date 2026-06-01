@@ -1,0 +1,111 @@
+{
+  "generatedAt": "2026-05-31T14:01:03.692Z",
+  "pages": [
+    {
+      "key": "dashboard",
+      "audit": {
+        "url": "http://localhost/lms/dashboard",
+        "tiny": [],
+        "missing": [],
+        "contrast": [],
+        "imgs": [],
+        "progress": 1,
+        "timers": 1
+      },
+      "firstFocus": {
+        "name": "Skip to main content",
+        "outline": "rgb(125, 211, 252) solid 3px",
+        "shadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "top": 10,
+        "h": 45
+      }
+    },
+    {
+      "key": "quiz-mobile",
+      "audit": {
+        "url": "http://localhost/lms/quizzes/18",
+        "tiny": [
+          {
+            "path": "button.lms-assessment-btn.lms-assessment-btn--secondary.inline-flex",
+            "name": "Show answer",
+            "w": 107,
+            "h": 42
+          },
+          {
+            "path": "button.lms-assessment-btn.lms-assessment-btn--primary.inline-flex",
+            "name": "Next",
+            "w": 107,
+            "h": 42
+          },
+          {
+            "path": "button.inline-flex.min-h-11.min-w-11",
+            "name": "Flag question",
+            "w": 72,
+            "h": 38
+          },
+          {
+            "path": "button.inline-flex.min-h-11.min-w-11",
+            "name": "Save question",
+            "w": 42,
+            "h": 38
+          },
+          {
+            "path": "button.inline-flex.min-h-11.min-w-11",
+            "name": "Report question",
+            "w": 86,
+            "h": 38
+          }
+        ],
+        "missing": [],
+        "contrast": [],
+        "imgs": [],
+        "progress": 0,
+        "timers": 0
+      },
+      "firstFocus": {
+        "name": "Skip to main content",
+        "outline": "rgb(125, 211, 252) solid 3px",
+        "shadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "top": 10,
+        "h": 45
+      }
+    },
+    {
+      "key": "review-tablet",
+      "audit": {
+        "url": "http://localhost/lms/review/111",
+        "tiny": [],
+        "missing": [],
+        "contrast": [],
+        "imgs": [],
+        "progress": 0,
+        "timers": 0
+      },
+      "firstFocus": {
+        "name": "Skip to main content",
+        "outline": "rgb(125, 211, 252) solid 3px",
+        "shadow": "rgba(125, 211, 252, 0.32) 0px 0px 0px 6px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "top": 10,
+        "h": 45
+      }
+    }
+  ],
+  "reducedMotion": {
+    "matches": true,
+    "movingCount": 2,
+    "moving": [
+      {
+        "type": "animation",
+        "cls": "lms-app-scroll-root relative isolate",
+        "name": "routeFade",
+        "d": "0.24s"
+      },
+      {
+        "type": "animation",
+        "cls": "lms-route-reveal motion-smooth animate-panelRouteFade",
+        "name": "panelRouteFade",
+        "d": "0.24s"
+      }
+    ]
+  }
+}

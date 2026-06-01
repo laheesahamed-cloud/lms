@@ -19,6 +19,23 @@ import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
 const optionLabels = ['A', 'B', 'C', 'D', 'E'];
 const draftStorageKey = 'lms.bulk-question-draft.v2';
+const DRAFT_JSON_MAX_BYTES = 2 * 1024 * 1024;
+
+function validateDraftJsonFile(file) {
+  if (!file) return '';
+  const name = String(file.name || '').trim();
+  const type = String(file.type || '').toLowerCase();
+  if (!name.toLowerCase().endsWith('.json') || (type && type !== 'application/json')) {
+    return 'Import a JSON draft file exported from this bulk question tool.';
+  }
+  if (file.size > DRAFT_JSON_MAX_BYTES) {
+    return 'Draft JSON is too large. Upload a file under 2 MB.';
+  }
+  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+    return 'Rename the JSON file without special path characters, then import again.';
+  }
+  return '';
+}
 
 function persistBulkQuestionDraft(payload) {
   try {
@@ -1339,14 +1356,22 @@ export function BulkQuestionInputPage() {
   }
 
   function handleStartNewDraft() {
+    if (!window.confirm('Start a new bulk import workspace and clear the current draft?')) return;
     resetWorkspace(true);
     setToast('Started a new bulk import workspace.');
   }
 
   function handleDeleteDraft() {
+    if (!window.confirm('Delete the stored bulk import draft?')) return;
     window.localStorage.removeItem(draftStorageKey);
     setDraftSnapshot(null);
     setToast('Stored draft deleted.');
+  }
+
+  function handleClearDraft() {
+    if (!window.confirm('Clear the current bulk import draft?')) return;
+    resetWorkspace(true);
+    setToast('Current bulk import draft cleared.');
   }
 
   function handleResumeDraft() {
@@ -1682,6 +1707,12 @@ export function BulkQuestionInputPage() {
   function handleImportDraftFile(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    const validationError = validateDraftJsonFile(file);
+    if (validationError) {
+      setError(validationError);
+      event.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -1841,13 +1872,14 @@ E) Option E`}
                 <button type="button" className={ui.secondaryAction} onClick={() => saveDraftToStorage()}>Save Draft</button>
                 <button type="button" className={ui.secondaryAction} onClick={handleExportDraftJson}>Export Draft JSON</button>
                 <button type="button" className={ui.secondaryAction} onClick={() => draftImportRef.current?.click()}>Import Draft JSON</button>
-                <button type="button" className={ui.dangerAction} onClick={() => resetWorkspace(true)}>Clear Draft</button>
+                <button type="button" className={ui.dangerAction} onClick={handleClearDraft}>Clear Draft</button>
                 <input className="shrink-0"
                   ref={draftImportRef}
                   type="file"
                   accept=".json,application/json"
                   style={{ display: 'none' }}
                   onChange={handleImportDraftFile}
+                  aria-label="Import bulk question draft JSON"
                 />
               </div>
             </div>
@@ -1971,7 +2003,7 @@ E) Option E`}
                       <span>{aiEnhanceProgress.currentLabel}</span>
                     </div>
                     <div className={bq.aiBar}>
-                      <span className="block h-full rounded-full bg-[var(--brand-gradient-primary)] transition-[width] duration-200" style={{ width: `${Math.round((aiEnhanceProgress.completed / aiEnhanceProgress.total) * 100)}%` }} />
+                      <span className="block h-full w-full origin-left rounded-full bg-[var(--brand-gradient-primary)] transition-transform duration-200" style={{ transform: `scaleX(${Math.round((aiEnhanceProgress.completed / aiEnhanceProgress.total) * 100) / 100})` }} />
                     </div>
                     <div className={bq.aiStatusList}>
                       {Object.entries(aiEnhanceProgress.items).slice(0, 20).map(([clientId, item]) => (
@@ -2261,7 +2293,7 @@ E) Option E`}
                               )}
                             </div>
                             <textarea className={cx(bq.textareaSmall, bq.textareaOption)}
-                             
+                              aria-label={currentDiagnostics?.resolved.questionType === 'sba' ? `Option ${option.optionLabel} text` : `Statement ${option.optionLabel} text`}
                               value={option.optionText}
                               onChange={(event) => handleOptionTextChange(optionIndex, event.target.value)}
                               placeholder={currentDiagnostics?.resolved.questionType === 'sba' ? `Option ${option.optionLabel}` : `Statement ${option.optionLabel}`}

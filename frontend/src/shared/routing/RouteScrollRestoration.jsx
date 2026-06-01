@@ -106,20 +106,25 @@ function scrollDocumentToTop(behavior = getScrollBehavior()) {
 function scheduleScrollToTop() {
   const nativePhone = document.documentElement?.dataset?.lmsRuntime === 'native' &&
     document.documentElement?.dataset?.lmsFormFactor === 'phone';
+  const frameIds = [];
+  const timeoutIds = [];
+  const scrollNow = () => scrollDocumentToTop('auto');
 
-  scrollDocumentToTop();
+  scrollNow();
 
   const frameOne = window.requestAnimationFrame(() => {
-    scrollDocumentToTop();
+    scrollNow();
     if (!nativePhone) {
-      window.requestAnimationFrame(() => scrollDocumentToTop());
+      const frameTwo = window.requestAnimationFrame(scrollNow);
+      frameIds.push(frameTwo);
     }
   });
-  const timeout = window.setTimeout(scrollDocumentToTop, nativePhone ? 80 : 120);
+  frameIds.push(frameOne);
+  timeoutIds.push(window.setTimeout(scrollNow, nativePhone ? 80 : 120));
 
   return () => {
-    window.cancelAnimationFrame(frameOne);
-    window.clearTimeout(timeout);
+    frameIds.forEach((frameId) => window.cancelAnimationFrame(frameId));
+    timeoutIds.forEach((timerId) => window.clearTimeout(timerId));
   };
 }
 

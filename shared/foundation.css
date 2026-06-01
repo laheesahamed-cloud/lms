@@ -231,8 +231,8 @@ a {
   :root {
     --page-pad-x: 16px;
     --page-pad-y: 16px;
-    --section-gap: 20px;
-    --card-pad: 20px;
+    --section-gap: 24px;
+    --card-pad: 24px;
     --card-pad-compact: 16px;
   }
   html,
@@ -256,8 +256,8 @@ a {
   :root {
     --page-pad-x: 16px;
     --page-pad-y: 16px;
-    --section-gap: 18px;
-    --card-pad: 20px;
+    --section-gap: 16px;
+    --card-pad: 16px;
     --card-pad-compact: 16px;
   }
 }

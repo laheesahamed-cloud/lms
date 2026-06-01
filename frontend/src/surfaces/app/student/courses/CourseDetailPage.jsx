@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   fetchStudentCourseDetail,
@@ -171,19 +171,32 @@ function findContinueLesson(subjects) {
   );
 
   return (
-    lessons.find(({ lesson }) => lesson.status === 'in_progress') ||
-    lessons.find(({ lesson }) => lesson.status === 'not_started') ||
+    lessons.find(({ lesson }) => !lesson.accessLocked && lesson.status === 'in_progress') ||
+    lessons.find(({ lesson }) => !lesson.accessLocked && lesson.status === 'not_started') ||
     lessons[0] ||
     null
   );
 }
 
-function ProgressBar({ value, className = '', fillClassName = 'bg-[var(--brand-gradient-primary)] dark:bg-[linear-gradient(90deg,#6d7cff,#22d3ee)] dark:shadow-none' }) {
+function ProgressBar({
+  value,
+  label = 'Progress',
+  className = '',
+  fillClassName = 'bg-[var(--brand-gradient-primary)] dark:bg-[linear-gradient(90deg,#6d7cff,#22d3ee)] dark:shadow-none',
+}) {
+  const progress = clampPercent(value);
   return (
-    <div className={cx('h-1.5 overflow-hidden rounded-full bg-surface-3 dark:bg-white/[0.09]', className)}>
+    <div
+      className={cx('h-1.5 overflow-hidden rounded-full bg-surface-3 dark:bg-white/[0.09]', className)}
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={progress}
+    >
       <span
         className={cx('block h-full rounded-full', fillClassName)}
-        style={{ width: `${clampPercent(value)}%` }}
+        style={{ width: `${progress}%` }}
       />
     </div>
   );
@@ -203,6 +216,10 @@ function getLessonStateLabel(lesson) {
   return 'Available';
 }
 
+function getLessonAccessMessage(lesson) {
+  return lesson.accessMessage || 'Upgrade to access this lesson';
+}
+
 function getLessonProgressValue(lesson) {
   if (lesson.accessLocked) return 0;
   if (lesson.status === 'completed') return 100;
@@ -214,7 +231,7 @@ function getLessonMetaItems(lesson) {
   const progress = getLessonProgressValue(lesson);
 
   if (lesson.accessLocked) {
-    items.push(lesson.accessMessage || 'Included with selected plans');
+    items.push(getLessonAccessMessage(lesson));
   } else if (lesson.status === 'completed') {
     items.push('Ready to review');
   } else if (progress > 0) {
@@ -229,9 +246,153 @@ function getLessonMetaItems(lesson) {
   return items.slice(0, 2);
 }
 
+function getContinueTargetLabel(target) {
+  if (!target?.lesson) return '';
+  if (target.lesson.accessLocked) return 'View Access Options';
+  return target.lesson.status === 'in_progress' ? 'Continue Lesson' : 'Start Next Lesson';
+}
+
 function formatCountLabel(count, singular, plural = `${singular}s`) {
   const numeric = Number(count || 0);
   return `${numeric} ${numeric === 1 ? singular : plural}`;
+}
+
+const COURSE_RESOURCE_TYPES = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png', 'webp', 'mp4', 'webm']);
+const ALLOWED_RESOURCE_SCAN_STATES = new Set(['clean', 'verified', 'passed', 'approved']);
+const BLOCKED_RESOURCE_SCAN_STATES = new Set(['blocked', 'failed', 'infected', 'unsafe', 'rejected']);
+
+function getSafeCourseResourceUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw || raw.includes('\\')) return '';
+  if (raw.startsWith('/') && !raw.startsWith('//') && !raw.includes('..')) return raw;
+
+  try {
+    const parsed = new URL(raw);
+    const isLocalHttp = parsed.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(parsed.hostname);
+    return parsed.protocol === 'https:' || isLocalHttp ? parsed.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+function toResourceArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string') return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function getResourceType(resource, url) {
+  const explicit = String(resource.fileType || resource.file_type || resource.mimeType || resource.type || '').trim().toLowerCase();
+  if (explicit.includes('/')) return explicit.split('/').pop();
+  if (explicit) return explicit.replace(/^\./, '');
+  const cleanUrl = String(url || '').split('?')[0].split('#')[0];
+  const extension = cleanUrl.includes('.') ? cleanUrl.split('.').pop() : '';
+  return String(extension || '').toLowerCase();
+}
+
+function normalizeCourseResource(resource, index) {
+  if (!resource || typeof resource !== 'object') return null;
+  const url = getSafeCourseResourceUrl(resource.url || resource.href || resource.fileUrl || resource.downloadUrl || resource.path);
+  const name = String(resource.name || resource.title || resource.fileName || resource.filename || `Course resource ${index + 1}`).trim();
+  const type = getResourceType(resource, url);
+  const scanStatus = String(resource.scanStatus || resource.virusScanStatus || resource.securityStatus || '').trim().toLowerCase();
+  const accessAllowed =
+    resource.canAccess !== false &&
+    resource.accessAllowed !== false &&
+    resource.authorized !== false &&
+    resource.accessLocked !== true;
+  const allowedType = COURSE_RESOURCE_TYPES.has(type);
+  const scanAllowed =
+    ALLOWED_RESOURCE_SCAN_STATES.has(scanStatus) ||
+    (scanStatus && !BLOCKED_RESOURCE_SCAN_STATES.has(scanStatus) && resource.virusScanned === true) ||
+    resource.scanned === true;
+
+  return {
+    id: resource.id || `${name}-${index}`,
+    name,
+    url,
+    type,
+    allowedType,
+    accessAllowed,
+    scanAllowed,
+    disabled: !url || !allowedType || !accessAllowed || !scanAllowed,
+    statusLabel: !accessAllowed
+      ? 'No access'
+      : !allowedType
+        ? 'Unsupported'
+        : !scanAllowed
+          ? 'Scan needed'
+          : 'Verified',
+  };
+}
+
+function getCourseResources(data) {
+  const rawResources = [
+    data?.resources,
+    data?.courseResources,
+    data?.downloads,
+    data?.attachments,
+    data?.course?.resources,
+    data?.course?.courseResources,
+    data?.course?.downloads,
+    data?.course?.attachments,
+  ].flatMap(toResourceArray);
+
+  return rawResources
+    .map(normalizeCourseResource)
+    .filter(Boolean);
+}
+
+function CourseResourcesPanel({ resources }) {
+  return (
+    <section className="course-map-resources" aria-labelledby="course-map-resources-heading">
+      <div className="course-map-resources__head">
+        <div>
+          <span className="course-map-eyebrow">Resources</span>
+          <h2 id="course-map-resources-heading">Course Downloads</h2>
+        </div>
+        <span className="course-map-count">{formatCountLabel(resources.length, 'file')}</span>
+      </div>
+
+      {resources.length ? (
+        <ol className="course-map-resource-list" aria-label="Course downloads">
+          {resources.map((resource) => (
+            <li className="course-map-resource-row" key={resource.id}>
+              <span className="course-map-resource-type">{resource.type || 'file'}</span>
+              <span className="course-map-resource-copy">
+                <strong title={resource.name}>{resource.name}</strong>
+                <em>{resource.statusLabel}</em>
+              </span>
+              {resource.disabled ? (
+                <span className="course-map-resource-state" aria-label={`${resource.name} is not available`}>
+                  Unavailable
+                </span>
+              ) : (
+                <a
+                  className="course-map-resource-action"
+                  href={resource.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Download ${resource.name}`}
+                >
+                  Download
+                </a>
+              )}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div className="course-map-resources__empty">
+          No course downloads are published for this course.
+        </div>
+      )}
+    </section>
+  );
 }
 
 export function CourseDetailPage() {
@@ -266,6 +427,7 @@ export function CourseDetailPage() {
 
   const course = data?.course || null;
   const subjects = data?.subjects || [];
+  const courseResources = useMemo(() => getCourseResources(data), [data]);
   const continueTarget = useMemo(() => findContinueLesson(subjects), [subjects]);
   const subjectPalettes = useMemo(() => buildSubjectPaletteMap(subjects), [subjects]);
 
@@ -278,7 +440,7 @@ export function CourseDetailPage() {
     ];
   }, [course, subjects.length]);
 
-  function applyLessonProgressUpdate(targetLessonId, payload) {
+  const applyLessonProgressUpdate = useCallback((targetLessonId, payload) => {
     setData((current) => {
       if (!current) return current;
 
@@ -287,8 +449,8 @@ export function CourseDetailPage() {
           const nextLessons = topic.lessons.map((lesson) => {
             if (lesson.id !== targetLessonId) return lesson;
 
-            const status = payload.status;
-            const progressPercent = payload.progressPercent;
+            const progressPercent = clampPercent(payload.progressPercent ?? lesson.progressPercent);
+            const status = payload.status || (progressPercent >= 100 ? 'completed' : progressPercent > 0 ? 'in_progress' : lesson.status);
             return {
               ...lesson,
               status,
@@ -360,7 +522,21 @@ export function CourseDetailPage() {
         subjects: nextSubjects,
       };
     });
-  }
+  }, []);
+
+  useEffect(() => {
+    function handleLessonProgress(event) {
+      const lessonId = Number(event?.detail?.lessonId || 0);
+      if (!lessonId) return;
+      applyLessonProgressUpdate(lessonId, {
+        status: event.detail?.status,
+        progressPercent: event.detail?.progressPercent,
+      });
+    }
+
+    window.addEventListener('lms:lesson-progress-updated', handleLessonProgress);
+    return () => window.removeEventListener('lms:lesson-progress-updated', handleLessonProgress);
+  }, [applyLessonProgressUpdate]);
 
   async function handleOpenLesson(lesson) {
     setBusyLessonId(lesson.id);
@@ -470,7 +646,7 @@ export function CourseDetailPage() {
           <div className="course-map-progress" aria-label={`${clampPercent(course.progressPercent)} percent complete`}>
             <strong>{clampPercent(course.progressPercent)}%</strong>
             <span>Complete</span>
-            <ProgressBar value={course.progressPercent} className="h-2" />
+            <ProgressBar value={course.progressPercent} label={`${course.courseTitle} completion`} className="h-2" />
           </div>
 
           <div className="course-map-overview__actions">
@@ -490,8 +666,13 @@ export function CourseDetailPage() {
                     topicName: continueTarget.topicName,
                   })
                 }
+                aria-label={
+                  continueTarget.lesson.accessLocked
+                    ? `${getLessonAccessMessage(continueTarget.lesson)} for ${continueTarget.lesson.lessonTitle}`
+                    : `${getContinueTargetLabel(continueTarget)}: ${continueTarget.lesson.lessonTitle}`
+                }
               >
-                {continueTarget.lesson.status === 'in_progress' ? 'Continue Lesson' : 'Start Next Lesson'}
+                {getContinueTargetLabel(continueTarget)}
               </button>
             ) : null}
           </div>
@@ -518,41 +699,42 @@ export function CourseDetailPage() {
             <span className="course-map-count">{course.completedLessonsCount || 0} / {course.totalLessonsCount || 0} lessons</span>
           </div>
 
-          <ol className="course-map-units">
+	          <ol className="course-map-units" aria-label="Course subjects and lesson hierarchy">
             {subjects.map((subject, subjectIndex) => {
               const subjectStatusLabel = formatStatus(subject.status);
 
               return (
-                <li
-                  className="course-map-unit course-map-unit--simple"
-                  key={subject.id}
-                  style={subjectAccentStyle(subjectPalettes.get(subject.id) || COURSE_SUBJECT_PALETTES[0])}
-                >
+	                <li
+	                  className="course-map-unit course-map-unit--simple"
+	                  key={subject.id}
+	                  aria-labelledby={`course-subject-${subject.id}`}
+	                  style={subjectAccentStyle(subjectPalettes.get(subject.id) || COURSE_SUBJECT_PALETTES[0])}
+	                >
                 <header className="course-map-unit__head">
                   <div className="course-map-unit__title">
                     <span>{subjectIndex + 1}</span>
                     <div>
-                      <h3>{subject.subjectName}</h3>
+	                      <h3 id={`course-subject-${subject.id}`}>{subject.subjectName}</h3>
                       <p>{formatCountLabel(subject.totalTopicsCount || subject.topics.length, 'topic')} · {formatCountLabel(subject.totalLessonsCount || 0, 'lesson')}</p>
                     </div>
                   </div>
                   <div className="course-map-unit__progress">
                     {subjectStatusLabel ? <span className={cx('course-map-status', statusTone(subject.status))}>{subjectStatusLabel}</span> : null}
                     <strong>{subject.progressPercent}%</strong>
-                    <ProgressBar value={subject.progressPercent} />
+                    <ProgressBar value={subject.progressPercent} label={`${subject.subjectName} completion`} />
                   </div>
                 </header>
 
-                <ol className="course-map-topics">
+                <ol className="course-map-topics" aria-label={`${subject.subjectName} topics`}>
                   {subject.topics.map((topic, topicIndex) => {
                     const topicStatusLabel = formatStatus(topic.status);
 
                     return (
-                      <li className="course-map-topic" key={`${subject.id}:${topic.id}`}>
+	                      <li className="course-map-topic" key={`${subject.id}:${topic.id}`} aria-labelledby={`course-topic-${topic.id}`}>
                         <header className="course-map-topic__head">
                           <div>
                             <span>{subjectIndex + 1}.{topicIndex + 1}</span>
-                            <h4>{topic.topicName}</h4>
+	                            <h4 id={`course-topic-${topic.id}`}>{topic.topicName}</h4>
                           </div>
                           <div>
                             {topicStatusLabel ? <span className={cx('course-map-status', statusTone(topic.status))}>{topicStatusLabel}</span> : null}
@@ -560,7 +742,7 @@ export function CourseDetailPage() {
                           </div>
                         </header>
 
-                        <ol className="course-map-lessons">
+	                        <ol className="course-map-lessons" aria-label={`${topic.topicName} lessons`}>
                           {topic.lessons.map((lesson, lessonIndex) => {
                             const lessonContext = {
                               ...lesson,
@@ -572,6 +754,12 @@ export function CourseDetailPage() {
                             const stateLabel = getLessonStateLabel(lesson);
                             const lessonProgress = getLessonProgressValue(lesson);
                             const lessonMetaItems = getLessonMetaItems(lesson);
+                            const lessonStateId = `lesson-${lesson.id}-state`;
+                            const lessonLockReasonId = `lesson-${lesson.id}-lock-reason`;
+                            const lessonDescription = [
+                              stateLabel ? lessonStateId : '',
+                              lesson.accessLocked ? lessonLockReasonId : '',
+                            ].filter(Boolean).join(' ') || undefined;
 
                             return (
                               <li
@@ -586,12 +774,18 @@ export function CourseDetailPage() {
                                 aria-current={lesson.status === 'in_progress' ? 'step' : undefined}
                                 style={{ '--course-map-lesson-delay': `${Math.min(lessonIndex, 8) * 90}ms` }}
                               >
+                                {lesson.accessLocked ? (
+                                  <span id={lessonLockReasonId} className="sr-only">
+                                    {getLessonAccessMessage(lesson)}
+                                  </span>
+                                ) : null}
                                 <button
                                   type="button"
                                   className="course-map-lesson-title"
                                   onClick={() => handleOpenLesson(lessonContext)}
                                   disabled={busyLessonId === lesson.id || lesson.accessLocked}
-                                  aria-describedby={stateLabel ? `lesson-${lesson.id}-state` : undefined}
+                                  aria-describedby={lessonDescription}
+                                  aria-label={`${lesson.lessonTitle}. ${stateLabel || 'Completed'}. ${lessonProgress} percent complete.${lesson.accessLocked ? ` ${getLessonAccessMessage(lesson)}` : ''}`}
                                 >
                                   <span className="course-map-lesson-order">{subjectIndex + 1}.{topicIndex + 1}.{lessonIndex + 1}</span>
                                   <span className="course-map-lesson-glyph">
@@ -608,7 +802,7 @@ export function CourseDetailPage() {
                                 </button>
 
                                 {stateLabel ? (
-                                  <span id={`lesson-${lesson.id}-state`} className={cx('course-map-status', statusTone(lesson.status))}>{stateLabel}</span>
+                                  <span id={lessonStateId} className={cx('course-map-status', statusTone(lesson.status))}>{stateLabel}</span>
                                 ) : null}
 
                                 <button
@@ -616,12 +810,25 @@ export function CourseDetailPage() {
                                   className="course-map-lesson-action"
                                   onClick={() => handleOpenLesson(lessonContext)}
                                   disabled={busyLessonId === lesson.id}
-                                  title={lesson.accessLocked ? lesson.accessMessage || 'Included with selected plans' : undefined}
+                                  aria-describedby={lessonDescription}
+                                  aria-label={
+                                    lesson.accessLocked
+                                      ? `${getLessonAccessMessage(lesson)}. View access options for ${lesson.lessonTitle}`
+                                      : `${getLessonActionLabel(lesson)} ${lesson.lessonTitle}`
+                                  }
+                                  title={lesson.accessLocked ? getLessonAccessMessage(lesson) : undefined}
                                 >
                                   {busyLessonId === lesson.id ? 'Opening...' : getLessonActionLabel(lesson)}
                                 </button>
 
-                                <div className="course-map-lesson-progress" aria-label={`${lessonProgress} percent complete`}>
+                                <div
+                                  className="course-map-lesson-progress"
+                                  role="progressbar"
+                                  aria-label={`${lesson.lessonTitle} completion`}
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                  aria-valuenow={lessonProgress}
+                                >
                                   <span style={{ width: `${lessonProgress}%` }} />
                                 </div>
                               </li>
@@ -636,8 +843,9 @@ export function CourseDetailPage() {
               );
             })}
           </ol>
-        </section>
-      </section>
-    </main>
+	        </section>
+	        <CourseResourcesPanel resources={courseResources} />
+	      </section>
+	    </main>
   );
 }

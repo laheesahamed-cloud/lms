@@ -10,7 +10,7 @@
 
   --ds-text-primary: var(--ink-strong, #0B1220);
   --ds-text-secondary: var(--ink-medium, #2A3B52);
-  --ds-text-muted: var(--ink-soft, #62758A);
+  --ds-text-muted: var(--ink-soft, #5B6C80);
 
   --ds-accent-primary: var(--color-primary, #2563EB);
   --ds-accent-secondary: var(--color-secondary, #7C3AED);

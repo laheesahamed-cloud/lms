@@ -150,7 +150,7 @@ function buildAnnotatedHtml(plainText, annotations) {
       : (annotation.type === 'note' ? '#c7d2fe' : '#fff59d');
     const noteMarker =
       annotation.type === 'note'
-        ? `<button type="button" class="ml-1.5 min-h-6 rounded-full border border-indigo-500/20 bg-indigo-200/90 px-2 py-0.5 text-[10.5px] font-extrabold text-indigo-800 shadow-none" data-annotation-id="${annotationId}" title="Open note">Note</button>`
+        ? `<button type="button" class="ml-1.5 min-h-6 rounded-full border border-indigo-500/20 bg-indigo-200/90 px-2 py-0.5 text-[11px] font-extrabold text-indigo-800 shadow-none" data-annotation-id="${annotationId}" title="Open note">Note</button>`
         : '';
 
     html += `<mark class="${annotationMarkBaseClass} ${annotationMarkToneClass[annotation.type] || annotationMarkToneClass.highlight}" data-annotation-id="${annotationId}" style="--annotation-color: ${annotationColor}">${annotatedText}${noteMarker}</mark>`;
@@ -628,6 +628,9 @@ export function StudentNotesPage() {
     if (!activeLessonId) {
       return;
     }
+    if (!window.confirm('Delete this note?')) {
+      return;
+    }
 
     setActionState((current) => ({ ...current, deletingId: annotationId }));
     try {
@@ -763,7 +766,7 @@ export function StudentNotesPage() {
                                   </span>
                                   <small className="flex flex-wrap items-center gap-1.5">
                                     {lesson.isFree ? (
-                                      <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                      <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-black uppercase text-emerald-700 dark:text-emerald-300">
                                         Free lesson
                                       </span>
                                     ) : null}

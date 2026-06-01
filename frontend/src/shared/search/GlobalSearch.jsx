@@ -2,14 +2,15 @@ import { useState, useEffect, useRef, useDeferredValue, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { isStaffRole, isStaffUser } from '../auth/roleAccess.js';
+import { useFocusTrap } from '../hooks/useFocusTrap.js';
 import { cx } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
 
 const searchUi = {
   backdrop:
-    'fixed inset-0 z-[9000] flex items-start justify-center bg-black/45 px-4 pb-4 pt-[72px] backdrop-blur animate-[fadePop_0.12s_ease_both]',
+    'fixed inset-0 z-[9000] flex items-start justify-center bg-black/45 px-4 pb-4 pt-[72px] backdrop-blur animate-overlayIn',
   modal:
-    'w-full max-w-[560px] overflow-hidden rounded-xl border border-line-medium bg-surface-glass-strong shadow-[0_24px_64px_rgba(0,0,0,0.18)] backdrop-blur-[20px] animate-[panelRouteFade_0.15s_var(--ease-out)_both] dark:border-white/10 dark:bg-[rgba(15,17,32,0.92)]',
+    'w-full max-w-[560px] overflow-hidden rounded-xl border border-line-medium bg-surface-glass-strong shadow-[0_24px_64px_rgba(0,0,0,0.18)] backdrop-blur-[20px] animate-scaleInFast dark:border-white/10 dark:bg-[rgba(15,17,32,0.92)]',
   inputRow:
     'flex items-center gap-2.5 border-b border-line-soft px-4 py-3.5 text-ink-soft',
   input:
@@ -35,14 +36,14 @@ const searchUi = {
   itemSub:
     'mt-px block text-[11.5px] text-ink-muted',
   itemType:
-    'shrink-0 text-[10.5px] font-bold uppercase tracking-[0.05em] text-ink-muted',
+    'shrink-0 text-[11px] font-bold uppercase tracking-[0.05em] text-ink-muted',
   footer:
     'flex gap-4 border-t border-line-soft px-3.5 py-2 text-[11px] text-ink-muted',
 };
 
 function SearchIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5"/>
       <path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
@@ -51,7 +52,7 @@ function SearchIcon() {
 
 function CloseIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   );
@@ -59,7 +60,7 @@ function CloseIcon() {
 
 function NoteIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <rect x="2" y="1" width="8" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" fill="none"/>
       <path d="M10 3h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
       <path d="M4.5 4.5h3M4.5 6.5h3M4.5 8.5h2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
@@ -69,7 +70,7 @@ function NoteIcon() {
 
 function QuizIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" fill="none"/>
       <path d="M4.5 5.5a2 2 0 0 1 3.5 1.3c0 1-1.5 1.5-1.5 2.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
       <circle cx="6.5" cy="10" r="0.6" fill="currentColor"/>
@@ -79,7 +80,7 @@ function QuizIcon() {
 
 function CourseIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <path d="M2.5 3.25h6.75a2.25 2.25 0 0 1 2.25 2.25v5.25H4.75A2.25 2.25 0 0 1 2.5 8.5V3.25Z" stroke="currentColor" strokeWidth="1.3" />
       <path d="M4.5 5.75h4.75M4.5 7.75h3.25" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
     </svg>
@@ -88,7 +89,7 @@ function CourseIcon() {
 
 function UserIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <circle cx="7" cy="4.75" r="2.15" stroke="currentColor" strokeWidth="1.3" />
       <path d="M3 11.75c.62-2.05 2.08-3.1 4-3.1s3.38 1.05 4 3.1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
@@ -140,6 +141,7 @@ export function GlobalSearch({ onClose }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const inputRef = useRef(null);
+  const modalRef = useRef(null);
   const [query, setQuery] = useState('');
   const [notes, setNotes] = useState([]);
   const [quizzes, setQuizzes] = useState([]);
@@ -197,14 +199,12 @@ export function GlobalSearch({ onClose }) {
     };
   }, [user?.role]);
 
-  // close on Escape
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useFocusTrap({
+    active: true,
+    containerRef: modalRef,
+    initialFocusRef: inputRef,
+    onEscape: onClose,
+  });
 
   const q = deferredQuery.trim().toLowerCase();
   const results = useMemo(() => {
@@ -299,19 +299,27 @@ export function GlobalSearch({ onClose }) {
 
   return (
     <div className={searchUi.backdrop} onClick={onClose}>
-      <div className={searchUi.modal} onClick={e => e.stopPropagation()}>
+      <div
+        ref={modalRef}
+        className={searchUi.modal}
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Global search"
+        tabIndex={-1}
+      >
         <div className={searchUi.inputRow}>
           <SearchIcon/>
           <input className={searchUi.input}
             ref={inputRef}
-           
+            aria-label={isAdmin ? 'Search admin content, courses, quizzes, and students' : 'Search your courses, lessons, and quizzes'}
             placeholder={isAdmin ? 'Search courses, lessons, quizzes, students...' : 'Search your courses, lessons, quizzes...'}
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             autoComplete="off"
           />
-          <button type="button" className={searchUi.close} onClick={onClose}><CloseIcon/></button>
+          <button type="button" className={searchUi.close} onClick={onClose} aria-label="Close search"><CloseIcon/></button>
         </div>
 
         <div className={searchUi.body}>

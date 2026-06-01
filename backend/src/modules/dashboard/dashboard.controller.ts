@@ -11,8 +11,8 @@ export class DashboardController {
   @Get('admin')
   @UseGuards(AdminGuard)
   @RequirePermissions('reports.view')
-  getAdminDashboard() {
-    return this.dashboardService.getAdminDashboard();
+  getAdminDashboard(@Headers('authorization') authorization?: string) {
+    return this.dashboardService.getAdminDashboard(authorization);
   }
 
   @Get('student')

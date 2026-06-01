@@ -112,10 +112,10 @@
   }
 
   .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button) {
-    width: 34px !important;
-    height: 34px !important;
-    min-width: 34px !important;
-    min-height: 34px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
     border-radius: 14px !important;
   }
 
@@ -137,10 +137,10 @@
   }
 
   .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button) {
-    width: 31px !important;
-    height: 31px !important;
-    min-width: 31px !important;
-    min-height: 31px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
   }
 }
 
@@ -336,12 +336,12 @@ html[data-lms-runtime='native'] {
   }
 
   :where(.lms-exam-page, .practice-review-page) :where(.lms-reading-question) {
-    font-size: clamp(16px, 4.35vw, 18px) !important;
+    font-size: 17px !important;
     line-height: 1.58 !important;
   }
 
   :where(.lms-exam-page, .practice-review-page) :where(.lms-reading-answer) {
-    font-size: clamp(14px, 3.9vw, 16px) !important;
+    font-size: 15.5px !important;
     line-height: 1.48 !important;
   }
 }

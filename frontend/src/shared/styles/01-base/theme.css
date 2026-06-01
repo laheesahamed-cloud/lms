@@ -889,6 +889,13 @@ body,
   }
 }
 
+@media (min-width: 901px) and (max-width: 1079px) {
+  .student-app-shell .student-route-page > .management-layout,
+  .student-app-shell .lms-route-page:not(.dashboard-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page) > .management-layout {
+    width: min(100%, calc(100vw - var(--sidebar-w, 224px) - var(--sidebar-shell-gap, 16px) - 48px)) !important;
+  }
+}
+
 @media (min-width: 1080px) {
   .admin-app-shell .lms-route-page > .management-layout,
   .admin-app-shell .lms-route-page .management-layout {
@@ -1533,13 +1540,6 @@ body,
   backdrop-filter: blur(18px) saturate(150%) !important;
 }
 
-:root[data-theme="light"] .lms-mobile-top-nav-backdrop {
-  --lms-mobile-top-nav-backdrop-bg: rgba(12, 24, 48, 0.075);
-  background: rgba(12, 24, 48, 0.075) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(115%) !important;
-  backdrop-filter: blur(10px) saturate(115%) !important;
-}
-
 :root[data-theme="light"] .student-app-shell :where(
   .lms-topbar .lms-topbar-menu-button,
   .lms-topbar .lms-topbar-utility > button,
@@ -1595,65 +1595,6 @@ body,
   backdrop-filter: none !important;
 }
 
-:where(.student-app-shell, .app-shell) :where(.lms-profile-menu-backdrop),
-.lms-profile-menu-backdrop {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 10045 !important;
-  border: 0 !important;
-  background: var(--lms-profile-menu-backdrop-bg, rgba(100, 116, 139, 0.14)) !important;
-  cursor: default;
-  -webkit-backdrop-filter:
-    blur(var(--lms-profile-menu-backdrop-blur, 12px))
-    saturate(var(--lms-profile-menu-backdrop-saturate, 108%)) !important;
-  backdrop-filter:
-    blur(var(--lms-profile-menu-backdrop-blur, 12px))
-    saturate(var(--lms-profile-menu-backdrop-saturate, 108%)) !important;
-  animation: lmsProfileBackdropIn 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-
-.lms-profile-menu-backdrop.is-closing {
-  pointer-events: none;
-  animation: lmsProfileBackdropOut 340ms cubic-bezier(0.4, 0, 1, 1) both;
-}
-
-body.lms-profile-menu-open :where(.student-app-shell, .app-shell) :where(.main-content, .portal-content) {
-  z-index: 10050 !important;
-}
-
-body.lms-profile-menu-open :where(.lms-sidebar) {
-  filter: blur(8px) saturate(88%);
-  -webkit-filter: blur(8px) saturate(88%);
-  opacity: 0.58;
-  pointer-events: none;
-  transition:
-    opacity 220ms cubic-bezier(0.23, 1, 0.32, 1),
-    filter 220ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-body.lms-profile-menu-open :where(.management-layout, .study-hub-shell)
-  > :not(.lms-topbar):not(.study-hub-topbar) {
-  filter: blur(8px) saturate(88%);
-  -webkit-filter: blur(8px) saturate(88%);
-  opacity: 0.62;
-  pointer-events: none;
-  transition:
-    opacity 220ms cubic-bezier(0.23, 1, 0.32, 1),
-    filter 220ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-:root[data-theme="light"] .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-bg: rgba(12, 24, 48, 0.075);
-  --lms-profile-menu-backdrop-blur: 10px;
-  --lms-profile-menu-backdrop-saturate: 115%;
-}
-
-:root[data-theme="dark"] .lms-profile-menu-backdrop {
-  --lms-profile-menu-backdrop-bg: rgba(100, 116, 139, 0.16);
-  --lms-profile-menu-backdrop-blur: 14px;
-  --lms-profile-menu-backdrop-saturate: 108%;
-}
-
 :where(.student-app-shell, .app-shell) :where(.lms-topbar.is-profile-menu-open, .study-hub-topbar.is-profile-menu-open),
 :where(.lms-topbar.is-profile-menu-open, .study-hub-topbar.is-profile-menu-open) {
   z-index: 10060 !important;
@@ -1678,20 +1619,6 @@ body.lms-profile-menu-open :where(.management-layout, .study-hub-shell)
   z-index: 10062 !important;
   filter: none !important;
   -webkit-filter: none !important;
-}
-
-.study-hub-topbar.is-profile-menu-open > :where(.lms-topbar-menu-button, .study-topbar-title),
-.study-hub-topbar.is-profile-menu-open .study-topbar-actions > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
-.lms-topbar.is-profile-menu-open :where(.lms-topbar-left, .lms-topbar-center),
-.lms-topbar.is-profile-menu-open .lms-topbar-utility > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
-.lms-topbar.is-profile-menu-open .lms-topbar-right > :not(.lms-topbar-utility):not(.lms-topbar-menu-wrap.is-profile-menu-open) {
-  opacity: 0.58;
-  filter: blur(8px) saturate(88%);
-  -webkit-filter: blur(8px) saturate(88%);
-  pointer-events: none;
-  transition:
-    opacity 220ms cubic-bezier(0.23, 1, 0.32, 1),
-    filter 220ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /* Student shell edge blending */
@@ -2478,41 +2405,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   -webkit-text-fill-color: var(--quiz-map-primary-text) !important;
 }
 
-/* Profile overlay final lock: avatar + dropdown only above the blur. */
-body.lms-profile-menu-open :where(.app-shell) {
-  position: relative !important;
-  z-index: 10050 !important;
-  pointer-events: none;
-}
-
-body.lms-profile-menu-open :where(.app-shell)::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 10055;
-  pointer-events: none;
-  background: var(--lms-profile-menu-backdrop-bg, rgba(12, 24, 48, 0.18));
-  -webkit-backdrop-filter:
-    blur(var(--lms-profile-menu-backdrop-blur, 16px))
-    saturate(var(--lms-profile-menu-backdrop-saturate, 108%));
-  backdrop-filter:
-    blur(var(--lms-profile-menu-backdrop-blur, 16px))
-    saturate(var(--lms-profile-menu-backdrop-saturate, 108%));
-  animation: lmsProfileBackdropIn 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-
-body.lms-profile-menu-closing :where(.app-shell)::after {
-  animation: lmsProfileBackdropOut 140ms cubic-bezier(0.4, 0, 1, 1) both;
-}
-
-body.lms-profile-menu-open :where(.lms-profile-menu-backdrop) {
-  z-index: 10045 !important;
-  pointer-events: auto;
-  --lms-profile-menu-backdrop-bg: rgba(12, 24, 48, 0.18);
-  --lms-profile-menu-backdrop-blur: 16px;
-  --lms-profile-menu-backdrop-saturate: 108%;
-}
-
 body.lms-profile-menu-open > .lms-profile-menu {
   animation: lmsProfileMenuSoftIn var(--lms-dropdown-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
   will-change: opacity, transform;
@@ -2540,31 +2432,12 @@ body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
   animation: lmsProfileAvatarFloatOut 180ms var(--lms-ease-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
 }
 
-.lms-profile-menu-backdrop.is-closing {
-  animation: lmsProfileBackdropOut 180ms var(--lms-ease-soft-exit, cubic-bezier(0.4, 0, 0.2, 1)) both !important;
-}
-
 body.lms-profile-menu-open :where(.student-app-shell, .app-shell) :where(.lms-topbar.is-profile-menu-open, .study-hub-topbar.is-profile-menu-open),
 body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-topbar.is-profile-menu-open) {
   z-index: 10060 !important;
   isolation: isolate !important;
   background: transparent !important;
   box-shadow: none !important;
-}
-
-body.lms-profile-menu-open .study-hub-topbar.is-profile-menu-open > :where(.lms-topbar-menu-button, .study-topbar-title),
-body.lms-profile-menu-open .study-hub-topbar.is-profile-menu-open .study-topbar-actions > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
-body.lms-profile-menu-open .lms-topbar.is-profile-menu-open :where(.lms-topbar-left, .lms-topbar-center),
-body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-utility > :not(.lms-topbar-menu-wrap.is-profile-menu-open),
-body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-right > :not(.lms-topbar-utility):not(.lms-topbar-menu-wrap.is-profile-menu-open) {
-  opacity: 0.28 !important;
-  visibility: visible !important;
-  filter: blur(10px) saturate(82%) !important;
-  -webkit-filter: blur(10px) saturate(82%) !important;
-  pointer-events: none !important;
-  transition:
-    opacity 220ms cubic-bezier(0.23, 1, 0.32, 1),
-    filter 220ms cubic-bezier(0.23, 1, 0.32, 1) !important;
 }
 
 body.lms-profile-menu-open :where(.student-app-shell, .app-shell, .lms-topbar, .study-hub-topbar) :where(.lms-topbar-menu-wrap.is-profile-menu-open) {
@@ -2923,6 +2796,79 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-side
   -webkit-text-fill-color: var(--lms-app-card-title, var(--ink-strong)) !important;
 }
 
+:root .dashboard-page .study-continue-card .study-hero-name > strong.study-hero-name-nowrap {
+  background: var(--study-primary-cta-bg, var(--brand-gradient-primary)) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-list-shell,
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-list {
+  overflow: visible !important;
+}
+
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-list {
+  gap: 10px !important;
+}
+
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category {
+  padding-left: 0 !important;
+}
+
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row {
+  border: 1px solid var(--line-soft) !important;
+  border-radius: var(--radius-md, 14px) !important;
+}
+
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category::before,
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category::after,
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category__head::before,
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row::before,
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row::after {
+  display: none !important;
+  content: none !important;
+}
+
+.student-app-shell .ai-notes-list-page .student-lessons-course-grid {
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)) !important;
+  justify-content: stretch !important;
+}
+
+.student-app-shell.student-app-shell .ai-notes-list-page .student-lessons-course-card {
+  transform: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.student-app-shell .ai-notes-list-page .student-lessons-course-card::before,
+.student-app-shell .ai-notes-list-page .student-lessons-course-card::after {
+  display: none !important;
+  content: none !important;
+}
+
+.font-\[var\(--type-font-notebook\)\],
+.student-app-shell .ai-notes-list-page :where(
+  .student-lessons-course-card,
+  .student-lessons-course-card__count,
+  .student-lessons-category__title h2,
+  .student-lessons-lesson-row,
+  .student-lessons-lesson-row__title,
+  .student-lessons-lesson-row__title-text
+),
+.student-app-shell .lms-ai-note-page :where(
+  .lms-ai-canvas-editor,
+  .lms-ai-canvas-surface,
+  .ncv-item,
+  [data-lms-canvas-input="true"]
+) {
+  font-family: var(--type-font-notebook) !important;
+}
+
 :root .dashboard-page :where(
   .study-continue-card,
   .study-action-card,
@@ -2964,5 +2910,157 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-side
     -webkit-clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
     clip-path: inset(0 0 0 0 round var(--profile-menu-trigger-radius, 12px) 24px 24px 24px);
     transform: translate3d(0, -4px, 0) scale(0.982);
+  }
+}
+
+/* Viewport-anchored transient status messages. Page content can still use
+   .lms-alert directly; only .lms-screen-status is fixed to the screen. */
+.lms-screen-status {
+  position: fixed !important;
+  top: calc(env(safe-area-inset-top, 0px) + 16px) !important;
+  right: calc(env(safe-area-inset-right, 0px) + 16px) !important;
+  left: auto !important;
+  z-index: 9500 !important;
+  width: min(440px, calc(100vw - 32px)) !important;
+  max-width: calc(100vw - 32px) !important;
+  border-radius: var(--radius-sm, 10px) !important;
+  padding: 12px 16px !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  line-height: 1.45 !important;
+  pointer-events: auto !important;
+  transform: none !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.lms-screen-status.lms-alert-success {
+  border-color: color-mix(in srgb, var(--color-success) 34%, transparent) !important;
+  background: var(--color-success-light) !important;
+  color: var(--color-success) !important;
+}
+
+.lms-screen-status.lms-alert-warning {
+  border-color: color-mix(in srgb, var(--color-warning) 36%, transparent) !important;
+  background: var(--color-warning-light) !important;
+  color: var(--color-warning) !important;
+}
+
+.lms-screen-status.lms-alert-error {
+  border-color: color-mix(in srgb, var(--color-error) 34%, transparent) !important;
+  background: var(--color-error-light) !important;
+  color: var(--color-error) !important;
+}
+
+.lms-screen-status.lms-alert-info {
+  border-color: color-mix(in srgb, var(--color-cyan) 34%, transparent) !important;
+  background: var(--color-cyan-light) !important;
+  color: var(--color-cyan) !important;
+}
+
+:root[data-theme="dark"] .lms-screen-status {
+  box-shadow: none !important;
+}
+
+:root[data-theme="dark"] .lms-screen-status.lms-alert-success {
+  border-color: rgba(52, 211, 153, 0.36) !important;
+  background: rgba(15, 55, 45, 0.94) !important;
+  color: #86EFAC !important;
+}
+
+:root[data-theme="dark"] .lms-screen-status.lms-alert-warning {
+  border-color: rgba(251, 191, 36, 0.36) !important;
+  background: rgba(63, 44, 14, 0.94) !important;
+  color: #FCD34D !important;
+}
+
+:root[data-theme="dark"] .lms-screen-status.lms-alert-error {
+  border-color: rgba(248, 113, 113, 0.38) !important;
+  background: rgba(59, 22, 28, 0.94) !important;
+  color: #FCA5A5 !important;
+}
+
+:root[data-theme="dark"] .lms-screen-status.lms-alert-info {
+  border-color: rgba(56, 189, 248, 0.36) !important;
+  background: rgba(12, 50, 68, 0.94) !important;
+  color: #7DD3FC !important;
+}
+
+@media (max-width: 640px) {
+  .lms-screen-status {
+    top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
+    right: auto !important;
+    left: 50% !important;
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
+/* WCAG release-gate hardening. This file imports last, so these rules keep
+   page-level polish from accidentally hiding keyboard focus or motion prefs. */
+html body :is(a[href], button, input, select, textarea, summary, [role="button"], [role="menuitem"], [role="tab"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 3px solid var(--a11y-focus-ring, #2563eb) !important;
+  outline-offset: var(--a11y-focus-offset, 3px) !important;
+  box-shadow:
+    0 0 0 6px var(--a11y-focus-ring-shadow, rgba(37, 99, 235, 0.22)),
+    var(--focus-existing-shadow, 0 0 #0000) !important;
+  text-decoration-thickness: max(2px, 0.12em);
+}
+
+html body :is(input, select, textarea):focus-visible {
+  border-color: var(--a11y-focus-ring, #2563eb) !important;
+}
+
+html body :is(.lms-assessment-btn, .lms-exam-nav-bubble, .lms-review-bubble, .lms-mobile-top-nav__item, .lms-mobile-bottom-nav__tab):focus-visible {
+  outline: 3px solid var(--a11y-focus-ring, #2563eb) !important;
+  outline-offset: 3px !important;
+}
+
+html body :where(.lms-review-bubble-nav, .lms-exam-question-nav) {
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)) !important;
+}
+
+html body :where(.lms-review-bubble-nav, .lms-exam-question-nav) > button {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  touch-action: manipulation;
+}
+
+@media (pointer: coarse) {
+  html body :is(button, [role="button"], [role="tab"], [role="menuitem"], select, summary) {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  html body :is(label:has(> input[type="checkbox"]), label:has(> input[type="radio"])) {
+    min-height: 44px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme][data-lms-runtime][data-visual-effects] body :is(*, *::before, *::after),
+  html[data-theme][data-lms-runtime][data-low-spec] body :is(*, *::before, *::after),
+  html[data-theme][data-lms-runtime] body :is(*, *::before, *::after),
+  html[data-theme] body :is(*, *::before, *::after) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  html body :is(.animate-spin, .animate-progressShimmer, .skeleton-pulse, .quiz-completion-capsule, .quiz-completion-mark, .quiz-completion-copy) {
+    animation: none !important;
+  }
+
+  html[data-theme] body :is(.animate-routeFade, .animate-panelRouteFade),
+  html[data-theme][data-lms-runtime] body :is(.animate-routeFade, .animate-panelRouteFade),
+  html[data-theme][data-lms-runtime][data-visual-effects] body :is(.animate-routeFade, .animate-panelRouteFade),
+  html[data-theme][data-lms-runtime][data-low-spec] body :is(.animate-routeFade, .animate-panelRouteFade) {
+    animation: none !important;
+    transition: none !important;
   }
 }

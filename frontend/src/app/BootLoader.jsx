@@ -1,4 +1,22 @@
 import { useEffect, useState } from 'react';
+import { XyndromeLogoMark } from '../shared/brand/XyndromeBrand.jsx';
+
+const bootTiming = {
+  web: {
+    minMs: 260,
+    maxMs: 1200,
+    stepGapMs: 180,
+    exitMs: 220,
+    settleMs: 0,
+  },
+  native: {
+    minMs: 520,
+    maxMs: 1600,
+    stepGapMs: 240,
+    exitMs: 240,
+    settleMs: 40,
+  },
+};
 
 const bootSteps = [
   'Starting app...',
@@ -22,8 +40,7 @@ export function BootLoader() {
     if (typeof document === 'undefined') return undefined;
 
     const native = isNativeRuntime();
-    const minBootMs = native ? 2400 : 2000;
-    const maxBootMs = native ? 3200 : 2800;
+    const timing = native ? bootTiming.native : bootTiming.web;
     const startedAt = performance.now();
     let done = false;
     let minTimeDone = false;
@@ -43,16 +60,17 @@ export function BootLoader() {
       window.__lmsBootComplete = true;
       document.body.classList.remove('app-booting');
       document.body.classList.add('app-ready');
+      setStep(4);
       setExiting(true);
       document.dispatchEvent(new CustomEvent('lms:anim-done'));
       document.dispatchEvent(new CustomEvent('lms:boot-complete'));
-      timers.push(window.setTimeout(() => setMounted(false), native ? 320 : 420));
+      timers.push(window.setTimeout(() => setMounted(false), timing.exitMs));
     }
 
     function tryFinish() {
       if (!minTimeDone || !reactIsReady || !routeIsReady) return;
       const elapsed = performance.now() - startedAt;
-      const settleDelay = native ? Math.max(0, 80 - elapsed) : 0;
+      const settleDelay = Math.max(0, timing.settleMs - elapsed);
       timers.push(window.setTimeout(finishBoot, settleDelay));
     }
 
@@ -73,7 +91,7 @@ export function BootLoader() {
       document.addEventListener('lms:route-ready', handleRouteReady);
     }
 
-    const stepGap = native ? 480 : 400;
+    const stepGap = timing.stepGapMs;
     timers.push(window.setTimeout(() => setStep(1), stepGap));
     timers.push(window.setTimeout(() => setStep(2), stepGap * 2));
     timers.push(window.setTimeout(() => setStep(3), stepGap * 3));
@@ -81,13 +99,13 @@ export function BootLoader() {
     timers.push(window.setTimeout(() => {
       minTimeDone = true;
       tryFinish();
-    }, minBootMs));
+    }, timing.minMs));
     timers.push(window.setTimeout(() => {
       reactIsReady = true;
       routeIsReady = true;
       minTimeDone = true;
       finishBoot();
-    }, maxBootMs));
+    }, timing.maxMs));
 
     return () => {
       document.removeEventListener('lms:react-ready', handleReactReady);
@@ -110,22 +128,7 @@ export function BootLoader() {
 
       <div className="abl-stage">
         <div className="abl-icon" aria-hidden="true">
-          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="url(#abl-hex)" strokeWidth="1.4" fill="none" opacity="0.65" />
-            <path d="M32 14L48 23.5V42.5L32 52L16 42.5V23.5L32 14Z" stroke="url(#abl-hex)" strokeWidth="0.9" fill="none" opacity="0.35" />
-            <path d="M32 22V42" stroke="url(#abl-cross)" strokeWidth="4.5" strokeLinecap="round" />
-            <path d="M22 32H42" stroke="url(#abl-cross)" strokeWidth="4.5" strokeLinecap="round" />
-            <defs>
-              <linearGradient id="abl-hex" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#22d3ee" />
-                <stop offset="100%" stopColor="#818cf8" />
-              </linearGradient>
-              <linearGradient id="abl-cross" x1="22" y1="22" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#06b6d4" />
-                <stop offset="100%" stopColor="#a78bfa" />
-              </linearGradient>
-            </defs>
-          </svg>
+          <XyndromeLogoMark size={native ? 58 : 60} />
         </div>
 
         <div className="abl-brand-wrap">

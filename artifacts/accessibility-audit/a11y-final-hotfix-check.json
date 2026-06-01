@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-05-31T14:03:39.548Z",
+  "dashboard": {
+    "dims": [
+      {
+        "name": "Toggle navigation",
+        "cls": "study-icon-button lms-topbar-menu-button",
+        "w": 44,
+        "h": 44
+      },
+      {
+        "name": "4 unread notifications",
+        "cls": "study-icon-button relative",
+        "w": 44,
+        "h": 44
+      },
+      {
+        "name": "Search lessons and exams",
+        "cls": "study-icon-button",
+        "w": 44,
+        "h": 44
+      },
+      {
+        "name": "Open profile menu",
+        "cls": "study-avatar study-avatar--profile",
+        "w": 44,
+        "h": 44
+      }
+    ],
+    "small": []
+  },
+  "quiz": {
+    "dims": [
+      {
+        "name": "Previous",
+        "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11",
+        "w": 107,
+        "h": 42
+      },
+      {
+        "name": "Show answer",
+        "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11",
+        "w": 107,
+        "h": 42
+      },
+      {
+        "name": "Next",
+        "cls": "lms-assessment-btn lms-assessment-btn--primary inline-flex min-h-11",
+        "w": 107,
+        "h": 42
+      },
+      {
+        "name": "Flag question",
+        "cls": "inline-flex min-h-11 min-w-11 items-center",
+        "w": 72,
+        "h": 38
+      },
+      {
+        "name": "Save question",
+        "cls": "inline-flex min-h-11 min-w-11 items-center",
+        "w": 42,
+        "h": 38
+      },
+      {
+        "name": "Report question",
+        "cls": "inline-flex min-h-11 min-w-11 items-center",
+        "w": 86,
+        "h": 38
+      }
+    ],
+    "small": [
+      {
+        "name": "Previous",
+        "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11",
+        "w": 107,
+        "h": 42
+      },
+      {
+        "name": "Show answer",
+        "cls": "lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11",
+        "w": 107,
+        "h": 42
+      },
+      {
+        "name": "Next",
+        "cls": "lms-assessment-btn lms-assessment-btn--primary inline-flex min-h-11",
+        "w": 107,
+        "h": 42
+      },
+      {
+        "name": "Flag question",
+        "cls": "inline-flex min-h-11 min-w-11 items-center",
+        "w": 72,
+        "h": 38
+      },
+      {
+        "name": "Save question",
+        "cls": "inline-flex min-h-11 min-w-11 items-center",
+        "w": 42,
+        "h": 38
+      },
+      {
+        "name": "Report question",
+        "cls": "inline-flex min-h-11 min-w-11 items-center",
+        "w": 86,
+        "h": 38
+      }
+    ]
+  },
+  "motion": {
+    "matches": true,
+    "routeName": "routeFade",
+    "routeDuration": "0.24s",
+    "panelName": "panelRouteFade",
+    "panelDuration": "0.24s"
+  }
+}

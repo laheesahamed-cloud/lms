@@ -10,6 +10,11 @@ export async function fetchGeneralSettings() {
   return response.data;
 }
 
+export async function fetchLandingPageSettings() {
+  const response = await apiClient.get('/admin/settings/landing-page');
+  return response.data;
+}
+
 export async function fetchPaymentSettings() {
   const response = await apiClient.get('/admin/settings/payments');
   return response.data;
@@ -17,6 +22,11 @@ export async function fetchPaymentSettings() {
 
 export async function fetchSmtpSettings() {
   const response = await apiClient.get('/admin/settings/smtp');
+  return response.data;
+}
+
+export async function fetchPopupAlertSettings() {
+  const response = await apiClient.get('/admin/settings/popup-alert');
   return response.data;
 }
 
@@ -50,6 +60,11 @@ export async function updateGeneralSettings(payload) {
   return response.data;
 }
 
+export async function updateLandingPageSettings(payload) {
+  const response = await apiClient.put('/admin/settings/landing-page', payload);
+  return response.data;
+}
+
 export async function updatePaymentSettings(payload) {
   const response = await apiClient.put('/admin/settings/payments', payload);
   return response.data;
@@ -57,6 +72,11 @@ export async function updatePaymentSettings(payload) {
 
 export async function updateSmtpSettings(payload) {
   const response = await apiClient.put('/admin/settings/smtp', payload);
+  return response.data;
+}
+
+export async function updatePopupAlertSettings(payload) {
+  const response = await apiClient.put('/admin/settings/popup-alert', payload);
   return response.data;
 }
 

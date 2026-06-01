@@ -1,0 +1,15 @@
+/* Route spacing: page gutters and vertical rhythm stay on the approved scale. */
+
+:where(.lms-route-page.page-wrapper:not(.student-route-page):not(.dashboard-page)) {
+  padding-inline: var(--ds-page-pad-x);
+}
+
+:where(.lms-route-page, .student-route-page, .dashboard-page) {
+  scroll-padding-block: var(--ds-section-gap);
+}
+
+@media (max-width: 600px) {
+  :where(.lms-route-page.page-wrapper:not(.student-route-page):not(.dashboard-page)) {
+    padding-inline: var(--ds-space-4);
+  }
+}

@@ -4,6 +4,7 @@ import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { PlansService } from '../plans/plans.service';
+import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
 import { SavePracticeDto } from './dto/save-practice.dto';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 
@@ -61,6 +62,7 @@ type QuestionRow = RowDataPacket & {
   question_text: string;
   explanation: string | null;
   status: 'active' | 'inactive';
+  updated_at?: string | Date | null;
 };
 
 type OptionRow = RowDataPacket & {
@@ -100,6 +102,12 @@ type TheoryRecapRow = RowDataPacket & {
   mnemonic: string | null;
 };
 
+type LatestContentVersionRow = RowDataPacket & {
+  entity_id: number;
+  version_number: number;
+  created_at: string | Date | null;
+};
+
 type QuizAccessScopeRow = RowDataPacket & {
   feature_key: string | null;
   plan_slug: string | null;
@@ -117,12 +125,26 @@ type QuizAccessProfile = {
 type LoadedQuestion = QuestionRow & {
   options: Array<{ id: number; optionLabel: string; optionText: string; isCorrect: number; whyIncorrect: string }>;
   theoryRecap: TheoryRecapData | null;
+  contentVersion: number;
+  contentVersionedAt: string | Date | null;
+  contentSourceLabel: string;
 };
 
 type PracticeSessionRecord = {
   id: number;
   status: string;
   last_question_index: number;
+};
+
+type ExamSessionRecord = RowDataPacket & {
+  id: number;
+  status: 'in_progress' | 'submitted' | 'expired';
+  started_at: string | Date | null;
+  deadline_at: string | Date | null;
+  last_question_index: number;
+  answers_json: string | null;
+  flagged_question_ids_json: string | null;
+  submitted_attempt_id: number | null;
 };
 
 const SBA_QUESTION_MARKS = 2;
@@ -270,15 +292,25 @@ export class QuizAttemptsService {
     }));
   }
 
-  async loadQuiz(authorization: string | undefined, quizId: number, mode: string, continuePractice: boolean, resetPractice: boolean) {
+  async loadQuiz(
+    authorization: string | undefined,
+    quizId: number,
+    mode: string,
+    continuePractice: boolean,
+    resetPractice: boolean,
+    questionId?: number | null
+  ) {
     if (mode !== 'practice' && mode !== 'exam') {
       throw new BadRequestException('Invalid quiz mode');
     }
 
     const user = await this.requireStudent(authorization);
     const quiz = await this.loadActiveQuiz(quizId);
-    const questions = await this.loadQuestionsForQuiz(quizId);
     const forcedMode = Number(quiz.exam_mode_only) === 1 ? 'exam' : mode;
+    const scopedQuestionId = forcedMode === 'practice' && Number.isFinite(Number(questionId)) && Number(questionId) > 0
+      ? Number(questionId)
+      : null;
+    const questions = await this.loadQuestionsForQuiz(quizId, scopedQuestionId);
 
     const isFreeQuiz = Number(quiz.is_free) === 1;
     await this.ensureStudentCanAccessQuiz(user.id, quiz);
@@ -292,9 +324,11 @@ export class QuizAttemptsService {
     }
 
     if (forcedMode === 'exam') {
+      const examSession = await this.ensureExamSession(user.id, quizId, quiz, questions);
       return {
         mode: 'exam',
         quiz: this.mapQuizForStudent(quiz),
+        examSession,
         questions: questions.map((question) => ({
           ...this.mapQuestionForActiveAttempt(question),
           savedAnswer: null,
@@ -386,6 +420,75 @@ export class QuizAttemptsService {
     }
   }
 
+  async saveExamProgress(authorization: string | undefined, quizId: number, dto: SaveExamProgressDto) {
+    const user = await this.requireStudent(authorization);
+    const quiz = await this.loadActiveQuiz(quizId);
+    await this.ensureStudentCanAccessQuiz(user.id, quiz);
+    if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
+      throw new BadRequestException('Exam mode is included with selected plans');
+    }
+
+    const questions = await this.loadQuestionsForQuiz(quizId);
+    const latestSession = await this.getLatestExamSession(user.id, quizId);
+    if (latestSession && latestSession.status !== 'in_progress') {
+      return {
+        success: false,
+        submitted: true,
+        attemptId: latestSession.submitted_attempt_id ? Number(latestSession.submitted_attempt_id) : null,
+        serverTime: this.toIsoDate(new Date()),
+        deadlineAt: this.toIsoDate(latestSession.deadline_at),
+        secondsRemaining: 0,
+      };
+    }
+    const session = await this.ensureExamSession(user.id, quizId, quiz, questions);
+    if (session.status !== 'in_progress') {
+      return {
+        success: false,
+        submitted: true,
+        attemptId: session.submittedAttemptId,
+        serverTime: this.toIsoDate(new Date()),
+        deadlineAt: session.deadlineAt,
+        secondsRemaining: 0,
+      };
+    }
+
+    const deadline = this.parseDate(session.deadlineAt);
+    const now = new Date();
+    if (deadline && deadline.getTime() <= now.getTime()) {
+      const attemptId = await this.finalizeExpiredExamSession(user.id, quizId, Number(session.id), questions);
+      return {
+        success: false,
+        timeExpired: true,
+        submitted: true,
+        attemptId,
+        serverTime: this.toIsoDate(now),
+        deadlineAt: this.toIsoDate(deadline),
+        secondsRemaining: 0,
+      };
+    }
+
+    const normalizedAnswers = this.normalizeSubmittedAnswers(dto.answers || {}, questions);
+    const flaggedIds = this.normalizeQuestionIdList(dto.flaggedQuestionIds || [], questions);
+    const questionIndex = this.normalizeQuestionIndex(dto.currentQuestionIndex, questions.length);
+
+    await this.db.execute(
+      `
+        UPDATE exam_sessions
+        SET answers_json = ?, flagged_question_ids_json = ?, last_question_index = ?, updated_at = NOW()
+        WHERE id = ? AND user_id = ? AND quiz_id = ? AND status = 'in_progress'
+      `,
+      [JSON.stringify(normalizedAnswers), JSON.stringify(flaggedIds), questionIndex, session.id, user.id, quizId]
+    );
+
+    const remainingSeconds = deadline ? Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 1000)) : null;
+    return {
+      success: true,
+      serverTime: this.toIsoDate(new Date()),
+      deadlineAt: this.toIsoDate(deadline),
+      secondsRemaining: remainingSeconds,
+    };
+  }
+
   async submitExam(authorization: string | undefined, quizId: number, dto: SubmitExamDto) {
     const user = await this.requireStudent(authorization);
     const quiz = await this.loadActiveQuiz(quizId);
@@ -394,59 +497,45 @@ export class QuizAttemptsService {
       throw new BadRequestException('Exam mode is included with selected plans');
     }
     const questions = await this.loadQuestionsForQuiz(quizId);
-    const submittedAnswers = (dto.answers || {}) as Record<string, unknown>;
+    const incomingAnswers = this.normalizeSubmittedAnswers(dto.answers || {}, questions);
 
     const connection = await this.db.getConnection();
     try {
       await connection.beginTransaction();
-
-      const [attemptResult] = await connection.execute<ResultSetHeader>(
-        `
-          INSERT INTO quiz_attempts (
-            user_id, quiz_id, attempt_mode, total_questions,
-            correct_answers, wrong_answers, unanswered_questions,
-            score, percentage, pass_status, started_at, submitted_at, status
-          ) VALUES (?, ?, 'exam', ?, 0, 0, 0, 0, 0, 'fail', NOW(), NOW(), 'submitted')
-        `,
-        [user.id, quizId, questions.length]
-      );
-
-      const attemptId = attemptResult.insertId;
-      let correctAnswers = 0;
-      let wrongAnswers = 0;
-      let unansweredQuestions = 0;
-
-      for (const question of questions) {
-        const rawAnswer = submittedAnswers[String(question.id)];
-        const status = await this.saveExamQuestionAnswers(connection, attemptId, question, rawAnswer);
-
-        if (status === 'correct') {
-          correctAnswers++;
-        } else if (status === 'wrong') {
-          wrongAnswers++;
-        } else {
-          unansweredQuestions++;
-        }
+      const session = await this.getLatestExamSession(user.id, quizId, connection, true);
+      if (session?.status === 'submitted' && session.submitted_attempt_id) {
+        await connection.commit();
+        return { success: true, attemptId: Number(session.submitted_attempt_id) };
       }
 
-      const rawScore = questions.reduce((sum, question) => {
-        const rawAnswer = submittedAnswers[String(question.id)];
-        return sum + this.calculateSubmissionQuestionScore(question, rawAnswer);
-      }, 0);
-      const score = this.scaleScoreToHundred(rawScore, questions.length);
-      const percentage = score;
-      const effectivePassingMarks = this.resolvePassingMarks(Number(quiz.passing_marks || 0));
-      const passStatus = score >= effectivePassingMarks ? 'pass' : 'fail';
+      const sessionAnswers = session ? this.parseAnswerJson(session.answers_json) : {};
+      const deadline = session ? this.parseDate(session.deadline_at) : null;
+      const canAcceptIncomingAnswers = !deadline || deadline.getTime() > Date.now();
+      const submittedAnswers = canAcceptIncomingAnswers ? incomingAnswers : sessionAnswers;
 
-      await connection.execute(
-        `
-          UPDATE quiz_attempts
-          SET correct_answers = ?, wrong_answers = ?, unanswered_questions = ?,
-              score = ?, percentage = ?, pass_status = ?
-          WHERE id = ?
-        `,
-        [correctAnswers, wrongAnswers, unansweredQuestions, score, percentage, passStatus, attemptId]
-      );
+      if (session && canAcceptIncomingAnswers) {
+        await connection.execute(
+          `
+            UPDATE exam_sessions
+            SET answers_json = ?, updated_at = NOW()
+            WHERE id = ? AND user_id = ? AND quiz_id = ? AND status = 'in_progress'
+          `,
+          [JSON.stringify(submittedAnswers), session.id, user.id, quizId]
+        );
+      }
+
+      const attemptId = await this.createExamAttempt(connection, user.id, quizId, quiz, questions, submittedAnswers);
+
+      if (session) {
+        await connection.execute(
+          `
+            UPDATE exam_sessions
+            SET status = ?, submitted_attempt_id = ?, updated_at = NOW()
+            WHERE id = ? AND user_id = ? AND quiz_id = ?
+          `,
+          [canAcceptIncomingAnswers ? 'submitted' : 'expired', attemptId, session.id, user.id, quizId]
+        );
+      }
 
       await connection.commit();
       return { success: true, attemptId };
@@ -499,7 +588,7 @@ export class QuizAttemptsService {
     const user = await this.requireStudent(authorization);
     const [attemptRows] = await this.db.execute<RowDataPacket[]>(
       `
-        SELECT qa.*, COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title, q.id AS quiz_id, q.is_general, c.course_title, t.topic_name
+        SELECT qa.*, COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title, q.id AS quiz_id, q.lesson_id, q.is_general, c.course_title, t.topic_name
         FROM quiz_attempts qa
         INNER JOIN quizzes q ON qa.quiz_id = q.id
         INNER JOIN courses c ON q.course_id = c.id
@@ -525,6 +614,7 @@ export class QuizAttemptsService {
       attempt: {
         attemptId,
         quizId: Number(attempt.quiz_id),
+        lessonId: attempt.lesson_id ? Number(attempt.lesson_id) : null,
         quizTitle: String(attempt.quiz_title),
         courseTitle: String(attempt.course_title || ''),
         topicDisplay: Number(attempt.is_general) === 1 ? 'General / Full Course Revision' : String(attempt.topic_name || 'No Topic'),
@@ -536,7 +626,7 @@ export class QuizAttemptsService {
     };
   }
 
-  async practiceReview(authorization: string | undefined, quizId: number, complete: boolean) {
+  async practiceReview(authorization: string | undefined, quizId: number, complete: boolean, questionId?: number | null) {
     const user = await this.requireStudent(authorization);
     const quiz = await this.loadActiveQuiz(quizId);
     await this.ensureStudentCanAccessQuiz(user.id, quiz);
@@ -552,7 +642,10 @@ export class QuizAttemptsService {
       );
     }
 
-    const questions = await this.loadQuestionsForQuiz(quizId);
+    const scopedQuestionId = Number.isFinite(Number(questionId)) && Number(questionId) > 0
+      ? Number(questionId)
+      : null;
+    const questions = await this.loadQuestionsForQuiz(quizId, scopedQuestionId);
     const [answerRows] = await this.db.execute<RowDataPacket[]>(
       'SELECT question_id, option_id, is_selected FROM practice_answers WHERE practice_session_id = ?',
       [session.id]
@@ -724,23 +817,28 @@ export class QuizAttemptsService {
     return quiz;
   }
 
-  private async loadQuestionsForQuiz(quizId: number) {
+  private async loadQuestionsForQuiz(quizId: number, questionId?: number | null) {
+    const scopedQuestionId = Number.isFinite(Number(questionId)) && Number(questionId) > 0
+      ? Number(questionId)
+      : null;
     const [questionRows] = await this.db.execute<QuestionRow[]>(
       `
         SELECT q.*
         FROM questions q
         INNER JOIN question_quizzes qq ON qq.question_id = q.id
         WHERE qq.quiz_id = ? AND q.status = 'active'
+          ${scopedQuestionId ? 'AND q.id = ?' : ''}
         ORDER BY qq.sort_order ASC, q.id ASC
       `,
-      [quizId]
+      scopedQuestionId ? [quizId, scopedQuestionId] : [quizId]
     );
     if (questionRows.length === 0) {
-      throw new NotFoundException('No questions linked to this quiz');
+      throw new NotFoundException(scopedQuestionId ? 'Question not found in this quiz' : 'No questions linked to this quiz');
     }
 
     const ids = questionRows.map((row) => row.id);
     const placeholders = sqlPlaceholders(ids);
+    const versionByQuestionId = await this.loadQuestionContentVersions(ids);
     const [optionRows] = await this.db.execute<OptionRow[]>(
       `
         SELECT id, question_id, option_label, option_text, is_correct, why_incorrect
@@ -782,7 +880,7 @@ export class QuizAttemptsService {
     const optionsByQuestionId = this.mapOptionsByQuestionId(optionRows);
 
     return questionRows.map((question) => ({
-      ...question,
+      ...this.withQuestionTrace(question, versionByQuestionId),
       options: (optionsByQuestionId.get(question.id) || [])
         .map((option) => ({
           id: option.id,
@@ -821,8 +919,10 @@ export class QuizAttemptsService {
       [questionId]
     );
 
+    const versionByQuestionId = await this.loadQuestionContentVersions([question.id]);
+
     return {
-      ...question,
+      ...this.withQuestionTrace(question, versionByQuestionId),
       options: optionRows.map((option) => ({
         id: option.id,
         optionLabel: option.option_label,
@@ -846,6 +946,45 @@ export class QuizAttemptsService {
     return map;
   }
 
+  private async loadQuestionContentVersions(questionIds: number[]) {
+    if (!questionIds.length) return new Map<number, { versionNumber: number; createdAt: string | Date | null }>();
+
+    const placeholders = sqlPlaceholders(questionIds);
+    const [rows] = await this.db.execute<LatestContentVersionRow[]>(
+      `
+        SELECT entity_id, MAX(version_number) AS version_number, MAX(created_at) AS created_at
+        FROM content_versions
+        WHERE entity_type = 'question' AND entity_id IN (${placeholders})
+        GROUP BY entity_id
+      `,
+      questionIds
+    );
+
+    return new Map(
+      rows.map((row) => [
+        Number(row.entity_id),
+        {
+          versionNumber: Number(row.version_number || 1),
+          createdAt: row.created_at || null,
+        },
+      ])
+    );
+  }
+
+  private withQuestionTrace(
+    question: QuestionRow,
+    versionByQuestionId: Map<number, { versionNumber: number; createdAt: string | Date | null }>
+  ) {
+    const version = versionByQuestionId.get(Number(question.id));
+
+    return {
+      ...question,
+      contentVersion: version?.versionNumber || 1,
+      contentVersionedAt: version?.createdAt || question.updated_at || null,
+      contentSourceLabel: `Question bank #${question.id}`,
+    };
+  }
+
   private parseJsonArray(value: string | null): string[] {
     if (!value) return [];
     try {
@@ -854,6 +993,77 @@ export class QuizAttemptsService {
     } catch {
       return [];
     }
+  }
+
+  private parseAnswerJson(value: string | null | undefined): Record<string, unknown> {
+    if (!value) return {};
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private parseDate(value: string | Date | null | undefined) {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isFinite(date.getTime()) ? date : null;
+  }
+
+  private toIsoDate(value: string | Date | null | undefined) {
+    const date = this.parseDate(value);
+    return date ? date.toISOString() : null;
+  }
+
+  private normalizeQuestionIndex(value: number | null | undefined, questionCount: number) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(0, Math.min(Math.trunc(numeric), Math.max(questionCount - 1, 0)));
+  }
+
+  private normalizeQuestionIdList(values: number[], questions: LoadedQuestion[]) {
+    const validIds = new Set(questions.map((question) => Number(question.id)));
+    return Array.from(new Set(
+      (values || [])
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && validIds.has(value))
+    ));
+  }
+
+  private normalizeSubmittedAnswers(rawAnswers: Record<string, unknown>, questions: LoadedQuestion[]) {
+    const normalized: Record<string, unknown> = {};
+    const questionIds = new Set(questions.map((question) => String(question.id)));
+    for (const [rawQuestionId, rawValue] of Object.entries(rawAnswers || {})) {
+      const questionId = String(Number(rawQuestionId));
+      if (!questionIds.has(questionId)) continue;
+      const question = questions.find((item) => String(item.id) === questionId);
+      if (!question) continue;
+
+      if (question.question_type === 'sba') {
+        const selectedId = Number(rawValue);
+        if (question.options.some((option) => option.id === selectedId)) {
+          normalized[questionId] = selectedId;
+        }
+        continue;
+      }
+
+      const submitted = rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)
+        ? rawValue as Record<string, unknown>
+        : {};
+      const tfMap: Record<string, number> = {};
+      for (const option of question.options) {
+        const value = submitted[String(option.id)];
+        if (value !== 0 && value !== 1 && value !== '0' && value !== '1') continue;
+        tfMap[String(option.id)] = Number(value) === 1 ? 1 : 0;
+      }
+      if (Object.keys(tfMap).length) {
+        normalized[questionId] = tfMap;
+      }
+    }
+    return normalized;
   }
 
   private async ensurePracticeSession(
@@ -899,6 +1109,149 @@ export class QuizAttemptsService {
         questions.map((question) => [question.id, this.getAnswerState(question, answerMap[question.id] || [])])
       ),
     };
+  }
+
+  private async ensureExamSession(userId: number, quizId: number, quiz: QuizRow, questions: LoadedQuestion[]) {
+    let session = await this.getLatestExamSession(userId, quizId);
+
+    if (session?.status === 'in_progress' && this.isExamSessionExpired(session)) {
+      const attemptId = await this.finalizeExpiredExamSession(userId, quizId, session.id, questions);
+      session = await this.getLatestExamSession(userId, quizId);
+      return this.mapExamSession({
+        ...(session as ExamSessionRecord),
+        status: 'expired',
+        submitted_attempt_id: attemptId,
+      });
+    }
+
+    if (!session || session.status !== 'in_progress') {
+      const durationSeconds = Math.max(Number(quiz.time_limit || 0) * 60, 0);
+      const deadlineExpression = durationSeconds > 0
+        ? 'DATE_ADD(NOW(), INTERVAL ? SECOND)'
+        : 'NULL';
+      const values = durationSeconds > 0
+        ? [userId, quizId, durationSeconds]
+        : [userId, quizId];
+      const [result] = await this.db.execute<ResultSetHeader>(
+        `
+          INSERT INTO exam_sessions (
+            user_id, quiz_id, status, started_at, deadline_at,
+            last_question_index, answers_json, flagged_question_ids_json
+          ) VALUES (?, ?, 'in_progress', NOW(), ${deadlineExpression}, 0, '{}', '[]')
+        `,
+        values
+      );
+      session = await this.getExamSessionById(result.insertId);
+    }
+
+    return this.mapExamSession(session as ExamSessionRecord);
+  }
+
+  private async getExamSessionById(sessionId: number) {
+    const [rows] = await this.db.execute<ExamSessionRecord[]>(
+      `
+        SELECT id, status, started_at, deadline_at, last_question_index,
+               answers_json, flagged_question_ids_json, submitted_attempt_id
+        FROM exam_sessions
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [sessionId]
+    );
+    return rows[0] || null;
+  }
+
+  private async getLatestExamSession(
+    userId: number,
+    quizId: number,
+    connection: PoolConnection | Pool = this.db,
+    lock = false
+  ): Promise<ExamSessionRecord | null> {
+    const [rows] = await connection.execute<ExamSessionRecord[]>(
+      `
+        SELECT id, status, started_at, deadline_at, last_question_index,
+               answers_json, flagged_question_ids_json, submitted_attempt_id
+        FROM exam_sessions
+        WHERE user_id = ? AND quiz_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        ${lock ? 'FOR UPDATE' : ''}
+      `,
+      [userId, quizId]
+    );
+    return rows[0] || null;
+  }
+
+  private mapExamSession(session: ExamSessionRecord) {
+    const serverTime = new Date();
+    const deadline = this.parseDate(session.deadline_at);
+    return {
+      id: Number(session.id),
+      status: session.status,
+      startedAt: this.toIsoDate(session.started_at),
+      deadlineAt: this.toIsoDate(session.deadline_at),
+      serverTime: this.toIsoDate(serverTime),
+      secondsRemaining: deadline ? Math.max(0, Math.ceil((deadline.getTime() - serverTime.getTime()) / 1000)) : null,
+      lastQuestionIndex: Number(session.last_question_index || 0),
+      answers: this.parseAnswerJson(session.answers_json),
+      flaggedQuestionIds: this.parseIdList(session.flagged_question_ids_json),
+      submittedAttemptId: session.submitted_attempt_id ? Number(session.submitted_attempt_id) : null,
+    };
+  }
+
+  private isExamSessionExpired(session: ExamSessionRecord) {
+    const deadline = this.parseDate(session.deadline_at);
+    return Boolean(deadline && deadline.getTime() <= Date.now());
+  }
+
+  private async finalizeExpiredExamSession(userId: number, quizId: number, sessionId: number, questions: LoadedQuestion[]) {
+    const quiz = await this.loadActiveQuiz(quizId);
+    const connection = await this.db.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [rows] = await connection.execute<ExamSessionRecord[]>(
+        `
+          SELECT id, status, answers_json, submitted_attempt_id
+          FROM exam_sessions
+          WHERE id = ? AND user_id = ? AND quiz_id = ?
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [sessionId, userId, quizId]
+      );
+      const session = rows[0];
+      if (!session) {
+        throw new NotFoundException('Exam session not found');
+      }
+      if (session.submitted_attempt_id) {
+        await connection.commit();
+        return Number(session.submitted_attempt_id);
+      }
+
+      const attemptId = await this.createExamAttempt(
+        connection,
+        userId,
+        quizId,
+        quiz,
+        questions,
+        this.parseAnswerJson(session.answers_json)
+      );
+      await connection.execute(
+        `
+          UPDATE exam_sessions
+          SET status = 'expired', submitted_attempt_id = ?, updated_at = NOW()
+          WHERE id = ? AND user_id = ? AND quiz_id = ?
+        `,
+        [attemptId, sessionId, userId, quizId]
+      );
+      await connection.commit();
+      return attemptId;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   private async getLatestPracticeSession(userId: number, quizId: number): Promise<PracticeSessionRecord | null> {
@@ -1035,6 +1388,65 @@ export class QuizAttemptsService {
     return Number(((rawScore / maxRawScore) * QUIZ_TOTAL_MARKS).toFixed(2));
   }
 
+  private async createExamAttempt(
+    connection: PoolConnection,
+    userId: number,
+    quizId: number,
+    quiz: QuizRow,
+    questions: LoadedQuestion[],
+    submittedAnswers: Record<string, unknown>
+  ) {
+    const [attemptResult] = await connection.execute<ResultSetHeader>(
+      `
+        INSERT INTO quiz_attempts (
+          user_id, quiz_id, attempt_mode, total_questions,
+          correct_answers, wrong_answers, unanswered_questions,
+          score, percentage, pass_status, started_at, submitted_at, status
+        ) VALUES (?, ?, 'exam', ?, 0, 0, 0, 0, 0, 'fail', NOW(), NOW(), 'submitted')
+      `,
+      [userId, quizId, questions.length]
+    );
+
+    const attemptId = attemptResult.insertId;
+    let correctAnswers = 0;
+    let wrongAnswers = 0;
+    let unansweredQuestions = 0;
+
+    for (const question of questions) {
+      const rawAnswer = submittedAnswers[String(question.id)];
+      const status = await this.saveExamQuestionAnswers(connection, attemptId, question, rawAnswer);
+
+      if (status === 'correct') {
+        correctAnswers++;
+      } else if (status === 'wrong') {
+        wrongAnswers++;
+      } else {
+        unansweredQuestions++;
+      }
+    }
+
+    const rawScore = questions.reduce((sum, question) => {
+      const rawAnswer = submittedAnswers[String(question.id)];
+      return sum + this.calculateSubmissionQuestionScore(question, rawAnswer);
+    }, 0);
+    const score = this.scaleScoreToHundred(rawScore, questions.length);
+    const percentage = score;
+    const effectivePassingMarks = this.resolvePassingMarks(Number(quiz.passing_marks || 0));
+    const passStatus = score >= effectivePassingMarks ? 'pass' : 'fail';
+
+    await connection.execute(
+      `
+        UPDATE quiz_attempts
+        SET correct_answers = ?, wrong_answers = ?, unanswered_questions = ?,
+            score = ?, percentage = ?, pass_status = ?
+        WHERE id = ?
+      `,
+      [correctAnswers, wrongAnswers, unansweredQuestions, score, percentage, passStatus, attemptId]
+    );
+
+    return attemptId;
+  }
+
   private async saveExamQuestionAnswers(
     connection: PoolConnection,
     attemptId: number,
@@ -1112,6 +1524,13 @@ export class QuizAttemptsService {
       questionType: question.question_type,
       questionText: question.question_text,
       explanation: question.explanation || '',
+      contentTrace: {
+        source: question.contentSourceLabel,
+        sourceId: question.id,
+        version: question.contentVersion,
+        versionLabel: `v${question.contentVersion}`,
+        versionedAt: question.contentVersionedAt,
+      },
       options: question.options,
       answerKey: this.buildAnswerKey(question),
       theoryRecap: question.theoryRecap || null,

@@ -49,10 +49,10 @@ export function ProfilePage() {
 
   return (
     <main className={ui.screenShell}>
-      <section className={cx(ui.managementLayout, 'gap-[18px]')}>
+      <section className={cx(ui.managementLayout, 'gap-section')}>
         <AppHeader title="Profile" subtitle="Account Settings" />
 
-        <section className="flex items-center gap-[18px] rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-[22px] shadow-[var(--card-shadow)] max-[900px]:items-start max-[900px]:flex-col">
+        <section className="flex items-center gap-section rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-card shadow-[var(--card-shadow)] max-[900px]:items-start max-[900px]:flex-col">
           <div className="inline-flex rounded-[24px] shadow-[var(--shadow-glow)]">
             <ProfileAvatar user={user} avatarKey={profileForm.avatarKey} size="xl" />
           </div>
@@ -64,9 +64,9 @@ export function ProfilePage() {
           <span className={cx('ml-auto max-[900px]:ml-0', statusPill(user?.status || 'active'))}>{user?.status || 'active'}</span>
         </section>
 
-        <div className="grid grid-cols-2 gap-[18px] max-[900px]:grid-cols-1">
-          <form className={cx(ui.dashboardCard, 'grid gap-4 p-[22px]')} onSubmit={handleProfileSubmit}>
-            <div className="grid gap-1.5">
+        <div className="grid grid-cols-2 gap-section max-[900px]:grid-cols-1">
+          <form className={cx(ui.dashboardCard, 'grid gap-4 p-card')} onSubmit={handleProfileSubmit}>
+            <div className="grid gap-2">
               <span className={ui.eyebrow}>Account</span>
               <h3 className="m-0 text-xl text-ink-strong">Profile details</h3>
               <p className="m-0 text-[13px] leading-relaxed text-ink-soft">Email is used for sign in and cannot be changed here.</p>
@@ -75,7 +75,7 @@ export function ProfilePage() {
             {profileStatus.error ? <div className={ui.feedbackError}>{profileStatus.error}</div> : null}
             {profileStatus.success ? <div className={ui.feedbackSuccess}>{profileStatus.success}</div> : null}
 
-            <label className="grid gap-[7px] text-[13px] font-bold text-ink-medium">
+            <label className="grid gap-2 text-[13px] font-bold text-ink-medium">
               Full name
               <input className={ui.input}
                 value={profileForm.fullName}
@@ -85,12 +85,12 @@ export function ProfilePage() {
               />
             </label>
 
-            <label className="grid gap-[7px] text-[13px] font-bold text-ink-medium">
+            <label className="grid gap-2 text-[13px] font-bold text-ink-medium">
               Email address
               <input className="cursor-not-allowed bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--line-soft))] text-ink-soft" value={user?.email || ''} readOnly aria-readonly="true" />
             </label>
 
-            <label className="grid gap-[7px] text-[13px] font-bold text-ink-medium">
+            <label className="grid gap-2 text-[13px] font-bold text-ink-medium">
               Role
               <input className="cursor-not-allowed bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--line-soft))] text-ink-soft" value={isStaff ? getStaffRoleLabel(user?.role) : 'Medical Student'} readOnly aria-readonly="true" />
             </label>
@@ -100,10 +100,10 @@ export function ProfilePage() {
                 <span className={ui.eyebrow}>Avatar</span>
                 <p className="m-0 mt-1 text-[13px] leading-normal text-ink-soft">Choose how your profile appears in the header.</p>
               </div>
-              <div className="grid grid-cols-6 gap-[9px] max-[900px]:grid-cols-3">
+              <div className="grid grid-cols-6 gap-2 max-[900px]:grid-cols-3">
                 {PROFILE_AVATARS.map((avatar) => (
                   <button className={cx(
-                      'grid min-h-[62px] cursor-pointer place-items-center rounded-lg border border-line-soft bg-surface-2 p-[7px] shadow-none transition hover:border-brand-primary/35 hover:bg-[color-mix(in_srgb,var(--surface-2)_86%,var(--color-primary-light))]',
+                      'grid min-h-16 cursor-pointer place-items-center rounded-lg border border-line-soft bg-surface-2 p-2 shadow-none transition hover:border-brand-primary/35 hover:bg-[color-mix(in_srgb,var(--surface-2)_86%,var(--color-primary-light))]',
                       profileForm.avatarKey === avatar.key && 'border-brand-primary/70 bg-[color-mix(in_srgb,var(--surface-2)_76%,var(--color-primary-light))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_16%,transparent)]'
                     )}
                     key={avatar.key}
@@ -124,8 +124,8 @@ export function ProfilePage() {
             </button>
           </form>
 
-          <form className={cx(ui.dashboardCard, 'grid gap-4 p-[22px]')} onSubmit={handlePasswordSubmit}>
-            <div className="grid gap-1.5">
+          <form className={cx(ui.dashboardCard, 'grid gap-4 p-card')} onSubmit={handlePasswordSubmit}>
+            <div className="grid gap-2">
               <span className={ui.eyebrow}>Security</span>
               <h3 className="m-0 text-xl text-ink-strong">Change password</h3>
               <p className="m-0 text-[13px] leading-relaxed text-ink-soft">Use your current password before setting a new one.</p>
@@ -140,7 +140,7 @@ export function ProfilePage() {
               onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
               required
               autoComplete="current-password"
-              labelClassName="grid gap-[7px] text-[13px] font-bold text-ink-medium"
+              labelClassName="grid gap-2 text-[13px] font-bold text-ink-medium"
             />
 
             <PasswordField
@@ -150,7 +150,7 @@ export function ProfilePage() {
               minLength={10}
               required
               autoComplete="new-password"
-              labelClassName="grid gap-[7px] text-[13px] font-bold text-ink-medium"
+              labelClassName="grid gap-2 text-[13px] font-bold text-ink-medium"
             />
 
             <PasswordField
@@ -160,7 +160,7 @@ export function ProfilePage() {
               minLength={10}
               required
               autoComplete="new-password"
-              labelClassName="grid gap-[7px] text-[13px] font-bold text-ink-medium"
+              labelClassName="grid gap-2 text-[13px] font-bold text-ink-medium"
             />
 
             <button type="submit" className={cx(ui.primaryAction, 'justify-self-start disabled:cursor-progress')} disabled={passwordStatus.loading}>

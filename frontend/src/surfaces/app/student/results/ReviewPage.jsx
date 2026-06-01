@@ -121,6 +121,7 @@ export function ReviewPage() {
       percentage: Number(data.attempt.percentage || 0),
     }
   ) : null;
+  const reviewNotesPath = data?.attempt?.lessonId ? `/study/lesson/${data.attempt.lessonId}` : '/ai-notes';
 
   return (
       <main className={reviewPageUi.screen}>
@@ -134,6 +135,7 @@ export function ReviewPage() {
             navigatorVariant="bubbles"
             exitLabel="Finish"
             onExit={() => navigate(-1)}
+            notesPath={reviewNotesPath}
           />
         ) : null}
         </section>

@@ -2,7 +2,7 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 export { ImpactStyle, NotificationType };
 
-const HAPTIC_TIMEOUT_MS = 90;
+const HAPTIC_TIMEOUT_MS = 120;
 
 function getNativeHapticBridge() {
   return typeof window !== 'undefined'
@@ -38,6 +38,12 @@ export function webVibrate(pattern = 10) {
 
 function runHaptic(effect, fallbackPattern = 10) {
   return new Promise((resolve) => {
+    const root = typeof document !== 'undefined' ? document.documentElement : null;
+    if (root?.dataset.lmsHaptics === 'off') {
+      resolve();
+      return;
+    }
+
     let settled = false;
     let timeoutId = 0;
 
@@ -93,4 +99,20 @@ export async function nativeSuccess() {
   }
 
   await runHaptic(() => Haptics.notification({ type: NotificationType.Success }), [12, 35, 18]);
+}
+
+export async function nativeWarning() {
+  if (postNativeHaptic({ type: 'notification', notificationType: 'warning' })) {
+    return;
+  }
+
+  await runHaptic(() => Haptics.notification({ type: NotificationType.Warning }), [18, 40, 18]);
+}
+
+export async function nativeError() {
+  if (postNativeHaptic({ type: 'notification', notificationType: 'error' })) {
+    return;
+  }
+
+  await runHaptic(() => Haptics.notification({ type: NotificationType.Error }), [24, 45, 24, 45, 18]);
 }

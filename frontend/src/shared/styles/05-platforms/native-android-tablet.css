@@ -1,0 +1,17 @@
+html[data-lms-runtime="native"][data-lms-os="android"][data-lms-form-factor="tablet"] {
+  --lms-android-statusbar-fallback: 28px;
+  --lms-android-navigation-fallback: 12px;
+  --lms-mobile-page-top: max(14px, calc(var(--lms-android-safe-top-content, 28px) - 8px));
+  --lms-mobile-shell-top: max(12px, calc(var(--lms-android-safe-top-content, 28px) - 10px));
+  --lms-mobile-content-bottom: max(24px, calc(var(--lms-android-safe-bottom-content, 12px) + 18px));
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"][data-lms-form-factor="tablet"] .student-app-shell :where(
+  .lms-table-shell,
+  .course-map-shell,
+  .lms-review-workspace,
+  .lms-exam-grid
+) {
+  scroll-padding-top: var(--lms-android-safe-top-content, 28px) !important;
+  scroll-padding-bottom: var(--lms-android-safe-bottom-content, 12px) !important;
+}

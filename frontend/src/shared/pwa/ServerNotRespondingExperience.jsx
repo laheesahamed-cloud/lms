@@ -33,7 +33,7 @@ const serverUi = {
   scrim: 'absolute inset-0 bg-red-950/25 backdrop-blur-[4px]',
   dialog:
     'pointer-events-auto relative z-[1] grid w-[min(430px,100%)] justify-items-center gap-3 rounded-2xl border border-red-300/15 bg-[linear-gradient(135deg,rgba(30,10,18,0.94),rgba(15,23,42,0.9))] p-6 text-center text-white shadow-2xl max-[520px]:rounded-[20px] max-[520px]:p-4',
-  badge: 'rounded-full border border-red-300/20 bg-red-400/10 px-3 py-1 text-[10.5px] font-black uppercase tracking-[0.14em] text-red-100',
+  badge: 'rounded-full border border-red-300/20 bg-red-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-red-100',
   loader: 'flex items-center gap-2 py-1',
   dot: 'size-2.5 rounded-full bg-red-200 shadow-[0_0_14px_rgba(254,202,202,0.58)] animate-bounce',
 };
@@ -102,7 +102,7 @@ export function ServerNotRespondingExperience() {
           <span className={cx(serverUi.dot, '[animation-delay:120ms]')} />
           <span className={cx(serverUi.dot, '[animation-delay:240ms]')} />
         </div>
-        <h2 className="m-0 text-[clamp(21px,4vw,30px)] font-black leading-tight">The LMS server stopped responding.</h2>
+        <h2 className="m-0 text-[28px] max-[640px]:text-[21px] font-black leading-tight">The LMS server stopped responding.</h2>
         <p className="m-0 text-sm leading-relaxed text-white/70">{activeQuote.quote}</p>
         <small className="text-xs font-bold text-white/45">{activeQuote.author}</small>
       </div>

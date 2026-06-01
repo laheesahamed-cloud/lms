@@ -28,6 +28,7 @@ export type NativePushPayload = {
   body: string;
   url?: string;
   tag?: string;
+  channelId?: string;
   data?: Record<string, unknown>;
 };
 
@@ -146,6 +147,7 @@ export class NativePushSender {
   private async sendFcm(token: string, payload: NativePushPayload): Promise<NativePushSendResult> {
     const settings = await this.resolveFcmSettings();
     if (!(await this.isFcmConfigured())) return { ok: false, error: 'FCM is not configured' };
+    const channelId = this.resolveAndroidChannelId(payload);
 
     const legacyServerKey = settings.serverKey;
     if (legacyServerKey) {
@@ -164,12 +166,13 @@ export class NativePushSender {
         data: this.toStringMap({
           url: payload.url || '/notifications',
           tag: payload.tag || 'erpm-lms-notification',
+          channelId,
           ...(payload.data || {}),
         }),
         android: {
           priority: 'HIGH',
           notification: {
-            channel_id: 'default',
+            channel_id: channelId,
             sound: 'default',
             click_action: 'OPEN_LMS_NOTIFICATION',
           },
@@ -183,6 +186,7 @@ export class NativePushSender {
   }
 
   private sendFcmLegacy(token: string, payload: NativePushPayload, serverKey: string) {
+    const channelId = this.resolveAndroidChannelId(payload);
     const body = JSON.stringify({
       to: token,
       priority: 'high',
@@ -190,10 +194,12 @@ export class NativePushSender {
         title: payload.title,
         body: payload.body,
         sound: 'default',
+        android_channel_id: channelId,
       },
       data: this.toStringMap({
         url: payload.url || '/notifications',
         tag: payload.tag || 'erpm-lms-notification',
+        channelId,
         ...(payload.data || {}),
       }),
     });
@@ -254,6 +260,34 @@ export class NativePushSender {
     }
 
     return null;
+  }
+
+  private resolveAndroidChannelId(payload: NativePushPayload) {
+    const explicit = this.normalizeAndroidChannelId(payload.channelId || payload.data?.channelId || payload.data?.androidChannelId);
+    if (explicit) return explicit;
+
+    const haystack = [
+      payload.title,
+      payload.body,
+      payload.url,
+      payload.tag,
+      payload.data?.type,
+      payload.data?.kind,
+      payload.data?.category,
+    ].map((value) => String(value || '').toLowerCase()).join(' ');
+
+    if (/\b(exam|quiz|assessment|deadline|reminder|attempt|result)\b/.test(haystack)) {
+      return 'exam_reminders';
+    }
+    if (/\b(account|security|privacy|password|payment|subscription|billing|lock|locked|login)\b/.test(haystack)) {
+      return 'account_alerts';
+    }
+    return 'course_updates';
+  }
+
+  private normalizeAndroidChannelId(value: unknown) {
+    const channelId = String(value || '').trim();
+    return ['default', 'exam_reminders', 'course_updates', 'account_alerts'].includes(channelId) ? channelId : '';
   }
 
   private async resolveFcmSettings(): Promise<FcmRuntimeSettings> {

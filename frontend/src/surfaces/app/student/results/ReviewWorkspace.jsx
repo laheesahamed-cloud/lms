@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
+import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { TheoryRecapPopupTrigger, hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/QuickTheoryRecap.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
@@ -40,7 +42,7 @@ const reviewUi = {
     'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:hidden',
   summaryGrid: 'lms-review-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5',
   summaryTile:
-    'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[9px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[clamp(17px,4.6vw,22px)] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[8px]',
+    'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[11px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[20px] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[11px] max-[420px]:[&_strong]:text-[18px]',
   nav: 'lms-review-side-nav grid min-h-0 gap-2.5',
   navHead: 'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft',
   navList: 'lms-review-nav-list grid min-h-0 gap-2 overflow-y-auto pr-1 max-[980px]:max-h-60',
@@ -52,10 +54,10 @@ const reviewUi = {
   navItemText:
     'line-clamp-2 overflow-hidden text-[13px] leading-[1.35] text-ink-strong [-webkit-box-orient:vertical] [display:-webkit-box]',
   questionCard: 'lms-review-question-card grid gap-[clamp(16px,2vw,22px)] p-[clamp(24px,3vw,40px)] max-[640px]:gap-3.5 max-[640px]:p-4',
-  questionText: 'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[15.5px] max-[640px]:leading-[1.6]',
+  questionText: 'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[16px] max-[640px]:leading-[1.6]',
   questionHead: 'flex min-h-0 items-center justify-between gap-2 max-[640px]:flex-col max-[640px]:items-start',
   questionMeta: 'flex flex-wrap items-center gap-1.5',
-  questionNumber: 'text-[10.5px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft',
+  questionNumber: 'text-[11px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft',
   questionNav:
     'lms-review-question-nav flex items-center justify-end gap-2.5 border-t border-line-soft pt-4 max-[640px]:flex-col max-[640px]:items-end max-[640px]:gap-2',
   questionNavActions:
@@ -65,7 +67,7 @@ const reviewUi = {
   optionTopline: 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start',
   optionLead: 'flex min-w-0 flex-auto items-start gap-2',
   optionLabels: 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start',
-  optionText: 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15px] font-medium leading-[1.48] text-ink-strong max-[640px]:text-sm max-[640px]:leading-[1.45]',
+  optionText: 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15.5px] font-medium leading-[1.52] text-ink-strong max-[640px]:text-[15.5px] max-[640px]:leading-[1.5]',
   explanation:
     'lms-learning-reveal-card mt-0 grid gap-3 rounded-[18px] border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_5%,var(--surface-2))_0%,var(--surface-2)_58%,color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))_100%)] p-4 shadow-[0_14px_34px_color-mix(in_srgb,var(--color-primary)_7%,transparent)] max-[640px]:rounded-[16px] max-[640px]:p-3.5',
   incorrectExplanation:
@@ -76,16 +78,22 @@ const reviewUi = {
     'flex items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] pb-2.5 max-[640px]:flex-col max-[640px]:items-start [&_h3]:m-0 [&_h3]:text-[12px] [&_h3]:font-extrabold [&_h3]:uppercase [&_h3]:tracking-[0.11em] [&_h3]:text-ink-soft max-[640px]:[&_h3]:text-[11px]',
   explanationGrid: 'grid grid-cols-1 gap-3.5',
   explanationCopy:
-    'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15px] [&_p]:font-normal [&_p]:leading-[1.72] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.66]',
+    'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15.5px] [&_p]:font-normal [&_p]:leading-[1.72] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[15.5px] max-[640px]:[&_p]:leading-[1.68]',
   studyList: 'm-0 grid list-none gap-2 p-0',
   incorrectList:
     'overflow-hidden rounded-[14px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-2))]',
   incorrectItem:
     'grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 border-t border-[color-mix(in_srgb,var(--color-warning)_14%,var(--line-soft))] px-2.5 py-2 first:border-t-0 max-[640px]:grid-cols-[22px_minmax(0,1fr)] max-[640px]:gap-1.5 max-[640px]:px-2 max-[640px]:py-1.5',
   incorrectBadge:
-    'inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[#92400e] max-[640px]:size-[22px] max-[640px]:text-[10px]',
+    'inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[#92400e] dark:text-[#fbbf24] max-[640px]:size-[22px] max-[640px]:text-[11px]',
   incorrectCopy:
-    'lms-reading-incorrect min-w-0 text-left [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[13px] [&_strong]:font-extrabold [&_strong]:leading-snug [&_strong]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.56] [&_p]:text-ink-medium max-[640px]:[&_strong]:text-[12.5px] max-[640px]:[&_p]:text-[13px] max-[640px]:[&_p]:leading-[1.52]',
+    'lms-reading-incorrect min-w-0 text-left [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[14px] [&_strong]:font-extrabold [&_strong]:leading-snug [&_strong]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.6] [&_p]:text-ink-medium max-[640px]:[&_strong]:text-[14px] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.58]',
+  trace:
+    'lms-review-trace rounded-[14px] border border-line-soft bg-surface-1 px-3 py-2.5',
+  traceList:
+    'm-0 grid gap-1.5 text-[12px] leading-snug text-ink-soft',
+  traceItem:
+    'grid grid-cols-[72px_minmax(0,1fr)] gap-2 max-[420px]:grid-cols-1 max-[420px]:gap-0.5 [&_dt]:font-extrabold [&_dt]:uppercase [&_dt]:tracking-[0.08em] [&_dt]:text-ink-muted [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:font-bold [&_dd]:text-ink-medium',
   bubbleNav: 'lms-review-bubble-nav grid grid-cols-5 gap-2',
   bubble:
     'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-80',
@@ -95,7 +103,7 @@ const reviewUi = {
   bubbleWrong: 'border-brand-error/30 bg-brand-error/12 text-brand-error',
   bubbleUnanswered: 'border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-[var(--exam-nav-idle-text)]',
   bubbleLegend:
-    'lms-review-bubble-legend mt-3 grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] items-center gap-2 text-[10.5px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded-full [&_i]:border [&_span]:inline-flex [&_span]:min-h-5 [&_span]:min-w-0 [&_span]:items-center [&_span]:gap-1.5 [&_span]:whitespace-nowrap',
+    'lms-review-bubble-legend mt-3 grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] items-center gap-2 text-[11px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded-full [&_i]:border [&_span]:inline-flex [&_span]:min-h-5 [&_span]:min-w-0 [&_span]:items-center [&_span]:gap-1.5 [&_span]:whitespace-nowrap',
   recapAction:
     'relative w-full max-w-none flex-none [&_.qtr-popup-trigger]:min-h-11 [&_.qtr-popup-trigger]:rounded-xl [&_.qtr-popup-trigger]:px-3 [&_.qtr-popup-trigger]:py-2.5 [&_.qtr-popup-trigger__label]:text-[13px] max-[640px]:w-full max-[640px]:max-w-none max-[640px]:[&_.qtr-popup-trigger]:min-h-12 max-[640px]:[&_.qtr-popup-trigger]:rounded-2xl max-[640px]:[&_.qtr-popup-trigger__concept]:max-w-[42vw]',
   questionActions:
@@ -113,13 +121,13 @@ const summaryTileToneClass = {
   wrong:
     'border-[color-mix(in_srgb,var(--color-error)_32%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_9%,var(--surface-2))] [&_strong]:text-brand-error',
   unanswered:
-    'border-[color-mix(in_srgb,#d97706_28%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_8%,var(--surface-2))] [&_strong]:text-[#d97706]',
+    'border-[color-mix(in_srgb,#d97706_28%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_8%,var(--surface-2))] [&_strong]:text-[#92400e] dark:[&_strong]:text-[#fbbf24]',
 };
 
 const chipToneClass = {
   correct: 'border-[color-mix(in_srgb,var(--color-success)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_12%,var(--surface-2))] text-brand-success',
   wrong: 'border-[color-mix(in_srgb,var(--color-error)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_11%,var(--surface-2))] text-brand-error',
-  unanswered: 'border-[color-mix(in_srgb,#d97706_24%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_9%,var(--surface-2))] text-[#b45309]',
+  unanswered: 'border-[color-mix(in_srgb,#d97706_24%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_9%,var(--surface-2))] text-[#92400e] dark:text-[#fbbf24]',
   neutral: 'border-line-soft bg-surface-2 text-ink-soft',
 };
 
@@ -138,7 +146,7 @@ const optionIconToneClass = {
     'border-[color-mix(in_srgb,var(--color-success)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-success)_18%,transparent)] text-brand-success shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-success)_12%,transparent)]',
   wrong:
     'border-[color-mix(in_srgb,var(--color-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-error)_18%,transparent)] text-brand-error shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-error)_12%,transparent)]',
-  unanswered: 'border-[color-mix(in_srgb,#d97706_30%,transparent)] bg-[color-mix(in_srgb,#d97706_14%,transparent)] text-[#b45309]',
+  unanswered: 'border-[color-mix(in_srgb,#d97706_30%,transparent)] bg-[color-mix(in_srgb,#d97706_14%,transparent)] text-[#92400e] dark:text-[#fbbf24]',
   neutral: 'border-line-soft bg-surface-2 text-ink-soft',
 };
 
@@ -153,7 +161,7 @@ const studyCardToneClass = {
 
 function reviewChipClass(tone = 'neutral') {
   return cx(
-    'inline-flex min-h-[22px] items-center gap-1.5 rounded-full border px-[7px] py-[3px] text-[10.5px] font-extrabold tracking-[0.01em]',
+    'inline-flex min-h-[22px] items-center gap-1.5 rounded-full border px-[7px] py-[3px] text-[11px] font-extrabold tracking-[0.01em]',
     chipToneClass[tone] || chipToneClass.neutral
   );
 }
@@ -175,7 +183,7 @@ function reviewOptionIconClass(tone) {
 
 function reviewStudyCardClass(tone, extra = '') {
   return cx(
-    'lms-key-points-card relative grid gap-3 rounded-[18px] border border-line-soft bg-surface-1 px-4 py-3.5 shadow-[0_12px_28px_color-mix(in_srgb,#8b5cf6_7%,transparent)] transition-colors hover:border-line-medium [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[13.5px] [&_p]:font-normal [&_p]:leading-[1.62] [&_p]:text-ink-strong max-[640px]:rounded-[16px] max-[640px]:px-3.5 max-[640px]:[&_p]:text-sm',
+    'lms-key-points-card relative grid gap-3 rounded-[18px] border border-line-soft bg-surface-1 px-4 py-3.5 shadow-[0_12px_28px_color-mix(in_srgb,#8b5cf6_7%,transparent)] transition-colors hover:border-line-medium [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[16px] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]',
     studyCardToneClass[tone],
     extra
   );
@@ -200,6 +208,20 @@ function IcoReport() {
     <svg aria-hidden="true" className="size-4" fill="none" viewBox="0 0 24 24">
       <path
         d="M12 8.25v4.25m0 3.25h.01M10.2 3.9 2.85 17.1A2.25 2.25 0 0 0 4.82 20.5h14.36a2.25 2.25 0 0 0 1.97-3.4L13.8 3.9a2.07 2.07 0 0 0-3.6 0Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function IcoNotes() {
+  return (
+    <svg aria-hidden="true" className="size-4" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M7 4.5h7.25L18 8.25V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V6a1.5 1.5 0 0 1 1-1.42Zm7 0V8.5h4M9 12h6M9 15.5h5"
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -260,6 +282,10 @@ function getQuestionStatusLabel(status) {
   return 'Unanswered';
 }
 
+function getReviewQuestionNavLabel(index, question, active = false) {
+  return `Question ${index + 1}, ${active ? 'current, ' : ''}${getQuestionStatusLabel(question?.answerStatus).toLowerCase()}`;
+}
+
 function getQuestionStatusTone(status) {
   if (status === 'correct') return 'correct';
   if (status === 'wrong') return 'wrong';
@@ -270,6 +296,51 @@ function formatBooleanAnswer(value) {
   const normalized = normalizeTrueFalseValue(value);
   if (normalized === null) return 'Unanswered';
   return normalized === 1 ? 'True' : 'False';
+}
+
+function formatTraceDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(date);
+}
+
+function getReviewTraceItems(question) {
+  const trace = question?.contentTrace || {};
+  const hierarchy = question?.theoryRecap?.hierarchy || {};
+  const hierarchySource = [hierarchy.course, hierarchy.subject, hierarchy.topic, hierarchy.lesson]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(' / ');
+  const source = String(trace.source || hierarchySource || `Question bank #${question?.id || 'current'}`).trim();
+  const versionLabel = String(trace.versionLabel || (trace.version ? `v${trace.version}` : 'v1')).trim();
+  const versionDate = formatTraceDate(trace.versionedAt);
+
+  return [
+    { label: 'Source', value: source },
+    { label: 'Version', value: versionDate ? `${versionLabel} - ${versionDate}` : versionLabel },
+  ];
+}
+
+function ReviewTrace({ question }) {
+  const items = getReviewTraceItems(question);
+
+  return (
+    <section className={reviewUi.trace} aria-label="Explanation source and content version">
+      <dl className={reviewUi.traceList}>
+        {items.map((item) => (
+          <div className={reviewUi.traceItem} key={item.label}>
+            <dt>{item.label}</dt>
+            <dd>{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
 }
 
 function ReviewStatusChip({ status }) {
@@ -309,10 +380,10 @@ function ReviewSbaOption({ option, question, displayLabel }) {
     <article className={reviewOptionCardClass(tone)}>
       <div className={reviewUi.optionTopline}>
         <div className={reviewUi.optionLead}>
-          <span className={reviewOptionIconClass(tone)}>
+          <span className={reviewOptionIconClass(tone)} aria-hidden="true">
             {displayLabel}
           </span>
-          <p className={reviewUi.optionText}>{option.optionText}</p>
+          <MedicalText as="p" className={reviewUi.optionText} text={option.optionText} />
         </div>
         <ReviewOptionLabels labels={labels} />
       </div>
@@ -331,10 +402,10 @@ function ReviewTrueFalseOption({ option, question, displayLabel }) {
     <article className={reviewOptionCardClass(tone)}>
       <div className={reviewUi.optionTopline}>
         <div className={reviewUi.optionLead}>
-          <span className={reviewOptionIconClass(tone)}>
+          <span className={reviewOptionIconClass(tone)} aria-hidden="true">
             {!answered ? displayLabel : isCorrect ? '✓' : '×'}
           </span>
-          <p className={reviewUi.optionText}>{option.optionText}</p>
+          <MedicalText as="p" className={reviewUi.optionText} text={option.optionText} />
         </div>
         <ReviewOptionLabels
           labels={[
@@ -349,7 +420,7 @@ function ReviewTrueFalseOption({ option, question, displayLabel }) {
 
 function ReviewAnswerGrid({ question }) {
   return (
-    <div className={reviewUi.optionsGrid}>
+    <div className={reviewUi.optionsGrid} aria-label="Answer options and scoring">
       {question.options.map((option, index) => (
         question.questionType === 'true_false' ? (
           <ReviewTrueFalseOption
@@ -402,15 +473,15 @@ function ReviewStudySupport({ question }) {
       {hasStudyCard ? (
         <article className={reviewStudyCardClass('theory')}>
           <h4>Key Points</h4>
-          {recap.conceptName ? <p><strong>{recap.conceptName}</strong></p> : null}
+          {recap.conceptName ? <p><MedicalText as="strong" text={recap.conceptName} /></p> : null}
           {recap.keyPoints?.length ? (
             <ul className={reviewUi.studyList}>
               {recap.keyPoints.slice(0, 4).map((point, index) => (
                 <li
-                  className="relative rounded-[12px] border border-[color-mix(in_srgb,#8b5cf6_12%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_4%,var(--surface-2))] py-2 pl-8 pr-3 text-[13px] leading-[1.48] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-sm"
+                  className="relative rounded-[12px] border border-[color-mix(in_srgb,#8b5cf6_12%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_4%,var(--surface-2))] py-2 pl-8 pr-3 text-[14.5px] leading-[1.6] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-[14.5px]"
                   key={`${index}-${point.slice(0, 16)}`}
                 >
-                  {point}
+                  <MedicalText text={point} />
                 </li>
               ))}
             </ul>
@@ -455,7 +526,7 @@ function ReviewExplanation({ question }) {
           <div className={reviewUi.explanationGrid}>
             <div className={reviewUi.explanationCopy}>
               {explanationBlocks.map((block, index) => (
-                <p key={`${index}-${block.slice(0, 16)}`}>{block}</p>
+                <MedicalText as="p" key={`${index}-${block.slice(0, 16)}`} text={block} />
               ))}
             </div>
           </div>
@@ -472,8 +543,8 @@ function ReviewExplanation({ question }) {
                 <div className={reviewUi.incorrectItem} key={item.label}>
                   <span className={reviewUi.incorrectBadge}>{item.label}</span>
                   <div className={reviewUi.incorrectCopy}>
-                    <strong>{item.text}</strong>
-                    <p>{item.reason}</p>
+                    <MedicalText as="strong" text={item.text} />
+                    <MedicalText as="p" text={item.reason} />
                   </div>
                 </div>
               ))}
@@ -481,16 +552,20 @@ function ReviewExplanation({ question }) {
           </div>
         </section>
       ) : null}
+      <ReviewTrace question={question} />
     </div>
   );
 }
 
-function ReviewExplanationEmpty() {
+function ReviewExplanationEmpty({ question }) {
   return (
-    <section className={reviewUi.explanationEmpty}>
-      <strong>Explanation</strong>
-      <span>No written explanation is available for this question.</span>
-    </section>
+    <div className="grid gap-3">
+      <section className={reviewUi.explanationEmpty}>
+        <strong>Explanation</strong>
+        <span>No written explanation is available for this question.</span>
+      </section>
+      <ReviewTrace question={question} />
+    </div>
   );
 }
 
@@ -501,7 +576,9 @@ export function ReviewWorkspace({
   exitLabel = 'Done',
   onExit = null,
   focusQuestionOnly = false,
+  notesPath = '/ai-notes',
 }) {
+  const navigate = useNavigate();
   const [activeIndex, setActiveIndex] = useState(0);
   const [savedQuestionIds, setSavedQuestionIds] = useState(() => new Set());
   const [questionActionBusy, setQuestionActionBusy] = useState(false);
@@ -510,6 +587,10 @@ export function ReviewWorkspace({
   const questionCardRef = useRef(null);
   const safeQuestions = Array.isArray(questions) ? questions : [];
   const activeQuestion = safeQuestions[activeIndex] || null;
+  const reviewAnsweredCount = summary
+    ? Number(summary.answered ?? (Number(summary.total || 0) - Number(summary.unanswered || 0)))
+    : safeQuestions.filter((question) => question.answerStatus !== 'unanswered').length;
+  const reviewProgressPercent = safeQuestions.length ? Math.round(((activeIndex + 1) / safeQuestions.length) * 100) : 0;
 
   useEffect(() => {
     setActiveIndex((current) => {
@@ -619,6 +700,20 @@ export function ReviewWorkspace({
     }
   }
 
+  function openReviewNotes() {
+    const destination = notesPath || '/ai-notes';
+    const returnToPath = typeof window === 'undefined'
+      ? undefined
+      : `${window.location.pathname}${window.location.search}`;
+
+    navigate(destination, {
+      state: {
+        returnToPath,
+        returnLabel: 'Review',
+      },
+    });
+  }
+
   return (
     <>
     <section className={shellClass}>
@@ -631,19 +726,41 @@ export function ReviewWorkspace({
               <span>Total</span>
             </div>
             <div className={cx(reviewUi.summaryTile, summaryTileToneClass.correct)}>
-              <strong>{summary.correct}</strong>
-              <span>Correct</span>
+              <strong>{reviewAnsweredCount}</strong>
+              <span>Answered</span>
             </div>
-            <div className={cx(reviewUi.summaryTile, summaryTileToneClass.wrong)}>
-              <strong>{summary.wrong}</strong>
-              <span>Wrong</span>
+            <div className={reviewUi.summaryTile}>
+              <strong>{activeIndex + 1}</strong>
+              <span>Current</span>
             </div>
             <div className={cx(reviewUi.summaryTile, summaryTileToneClass.unanswered)}>
-              <strong>{summary.unanswered}</strong>
-              <span>Unanswered</span>
+              <strong>{reviewProgressPercent}%</strong>
+              <span>Progress</span>
             </div>
           </div>
         ) : null}
+        <section className={cx(reviewUi.nav, 'lms-review-progress-card')} aria-label="Review progress">
+          <div className={reviewUi.navHead}>
+            <h3>Progress</h3>
+            <span>{reviewProgressPercent}% viewed</span>
+          </div>
+          <div
+            className="h-2 overflow-hidden rounded-full bg-surface-3"
+            role="progressbar"
+            aria-label="Review progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={reviewProgressPercent}
+          >
+            <span
+              className="block h-full rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
+              style={{ width: `${reviewProgressPercent}%` }}
+            />
+          </div>
+          <p className="m-0 text-xs font-semibold leading-relaxed text-ink-soft">
+            Question {activeIndex + 1} of {safeQuestions.length} / {activeQuestion.questionType === 'true_false' ? 'True / False' : 'SBA'}
+          </p>
+        </section>
         <div className={reviewUi.nav}>
           <div className={reviewUi.navHead}>
             <h3>Question List</h3>
@@ -655,6 +772,10 @@ export function ReviewWorkspace({
                 {safeQuestions.map((question, index) => (
                   <button className={cx(
                       reviewUi.bubble,
+                      index === activeIndex && 'is-current',
+                      index !== activeIndex && question.answerStatus === 'correct' && 'is-answered',
+                      index !== activeIndex && question.answerStatus === 'wrong' && 'is-answered',
+                      index !== activeIndex && question.answerStatus === 'unanswered' && 'is-idle',
                       index === activeIndex && reviewUi.bubbleActive,
                       index !== activeIndex && question.answerStatus === 'correct' && reviewUi.bubbleCorrect,
                       index !== activeIndex && question.answerStatus === 'wrong' && reviewUi.bubbleWrong,
@@ -665,6 +786,8 @@ export function ReviewWorkspace({
                    
                     onClick={() => setActiveIndex(index)}
                     title={`Question ${index + 1} • ${getQuestionStatusLabel(question.answerStatus)}`}
+                    aria-current={index === activeIndex ? 'step' : undefined}
+                    aria-label={getReviewQuestionNavLabel(index, question, index === activeIndex)}
                   >
                     {index + 1}
                   </button>
@@ -674,7 +797,7 @@ export function ReviewWorkspace({
                 <span><i className="border-brand-primary/30 bg-brand-primary/30" />Current</span>
                 <span><i className="border-brand-success/30 bg-brand-success/30" />Correct</span>
                 <span><i className="border-brand-error/30 bg-brand-error/30" />Wrong</span>
-                <span><i className="border-[var(--exam-nav-idle-border)] bg-[var(--exam-progress-track)]" />Unanswered</span>
+                <span><i className="is-idle" />Not answered</span>
               </div>
             </>
           ) : (
@@ -685,9 +808,11 @@ export function ReviewWorkspace({
                   type="button"
                  
                   onClick={() => setActiveIndex(index)}
+                  aria-current={index === activeIndex ? 'step' : undefined}
+                  aria-label={getReviewQuestionNavLabel(index, question, index === activeIndex)}
                 >
                   <span className={reviewUi.navItemIndex}>Q{index + 1}</span>
-                  <span className={reviewUi.navItemText}>{question.questionText}</span>
+                  <MedicalText as="span" className={reviewUi.navItemText} text={question.questionText} />
                   <ReviewStatusChip status={question.answerStatus} />
                 </button>
               ))}
@@ -699,7 +824,14 @@ export function ReviewWorkspace({
 
       <section className={focusQuestionOnly ? reviewUi.mainFocus : reviewUi.main} ref={mainRef}>
         <article className={reviewUi.questionCard} ref={questionCardRef}>
-          <p className={reviewUi.questionText}>{activeQuestion.questionText}</p>
+          <MedicalText
+            as="p"
+            className={reviewUi.questionText}
+            text={activeQuestion.questionText}
+            imageLoading="eager"
+            imageFetchPriority="high"
+            imageZoomable
+          />
 
           <div className={reviewUi.questionHead}>
             <div className={reviewUi.questionMeta}>
@@ -714,7 +846,7 @@ export function ReviewWorkspace({
           <ReviewAnswerGrid question={activeQuestion} />
 
           <div className="grid gap-3">
-            {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty />}
+            {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty question={activeQuestion} />}
             <div className={focusQuestionOnly ? '' : 'min-[1181px]:hidden'}>
               <ReviewStudySupport question={activeQuestion} />
             </div>
@@ -722,7 +854,7 @@ export function ReviewWorkspace({
 
           {questionNavigation}
 
-          {questionActionError ? <div className={ui.feedbackError}>{questionActionError}</div> : null}
+          {questionActionError ? <div className={ui.feedbackError} role="alert" aria-live="assertive">{questionActionError}</div> : null}
           <div className={reviewUi.questionActions}>
             <button
               className={cx(
@@ -735,6 +867,10 @@ export function ReviewWorkspace({
             >
               <IcoBookmark filled={activeQuestionSaved} />
               <span>{activeQuestionSaved ? 'Saved question' : 'Save question'}</span>
+            </button>
+            <button className={reviewSecondaryButtonClass} type="button" onClick={openReviewNotes}>
+              <IcoNotes />
+              <span>Open notes</span>
             </button>
             <button className={reviewSecondaryButtonClass} type="button" onClick={reportActiveQuestion} disabled={questionActionBusy}>
               <IcoReport />

@@ -295,7 +295,7 @@ html[data-lms-runtime="native"] .animate-routeFade {
   transition-property: opacity, transform !important;
   transition-duration: 160ms !important;
   opacity: 1 !important;
-  will-change: transform;
+  will-change: auto;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
@@ -313,7 +313,7 @@ html[data-lms-runtime="native"] body.app-ready .lms-route-reveal.animate-panelRo
   transition-property: opacity, transform !important;
   transition-duration: 150ms !important;
   opacity: 1 !important;
-  will-change: transform;
+  will-change: auto;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-fadePop,
@@ -328,7 +328,7 @@ html[data-lms-runtime="native"] .animate-fadePop {
   transition-property: opacity, transform !important;
   transition-duration: 150ms !important;
   opacity: 1 !important;
-  will-change: transform;
+  will-change: auto;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn,
@@ -343,7 +343,7 @@ html[data-lms-runtime="native"] .animate-scaleIn {
   transition-property: opacity, transform !important;
   transition-duration: 140ms !important;
   opacity: 1 !important;
-  will-change: transform;
+  will-change: auto;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-dropdownIn,
@@ -358,7 +358,7 @@ html[data-lms-runtime="native"] .animate-dropdownIn {
   transition-property: opacity, transform !important;
   transition-duration: 140ms !important;
   opacity: 1 !important;
-  will-change: transform;
+  will-change: auto;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-overlayIn,
@@ -372,7 +372,7 @@ html[data-lms-runtime="native"] .animate-overlayIn {
   animation-iteration-count: 1 !important;
   transition-property: opacity !important;
   transition-duration: 140ms !important;
-  will-change: opacity;
+  will-change: auto;
 }
 
 html[data-lms-runtime="native"] .motion-smooth {

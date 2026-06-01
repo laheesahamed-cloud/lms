@@ -27,7 +27,7 @@ const reportUi = {
   progressFill: 'block h-full rounded-full bg-[var(--brand-gradient-primary)]',
   heatmap: 'grid grid-cols-10 gap-1.5 max-[640px]:grid-cols-6',
   heatCell:
-    'min-h-[56px] rounded-md border border-line-soft bg-surface-2 p-1.5 text-[10px] leading-tight text-ink-muted dark:border-white/10',
+    'min-h-[56px] rounded-md border border-line-soft bg-surface-2 p-1.5 text-[11px] leading-tight text-ink-muted dark:border-white/10',
   filterGrid: 'grid gap-3 min-[760px]:grid-cols-4',
 };
 
@@ -35,7 +35,7 @@ function Metric({ label, value, hint }) {
   return (
     <article className={reportUi.metric}>
       <span className={ui.eyebrow}>{label}</span>
-      <strong className="mt-2 block text-[clamp(24px,3vw,34px)] font-extrabold leading-none text-ink-strong">{value}</strong>
+      <strong className="mt-2 block text-[30px] max-[640px]:text-[24px] font-extrabold leading-none text-ink-strong">{value}</strong>
       <p className="m-0 mt-2 text-[12.5px] text-ink-soft">{hint}</p>
     </article>
   );

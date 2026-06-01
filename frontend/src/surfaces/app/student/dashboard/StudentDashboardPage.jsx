@@ -5,7 +5,7 @@ import { listAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudentQuizzes } from '../../../../shared/api/quizAttempts.api.js';
 import { fetchStudyBookmarks } from '../../../../shared/api/studyBookmarks.api.js';
-import { fetchPlannerTasks } from '../../../../shared/api/workspace.api.js';
+import { fetchPlannerAgenda } from '../../../../shared/api/workspace.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
@@ -27,6 +27,21 @@ const defaultDashboardState = {
   dailyGoals: [],
   adaptivePlan: [],
   questionOfDay: null,
+  serverClock: {
+    nowIso: '',
+    dateKey: '',
+    timeZone: 'server-local',
+    source: 'api-server',
+  },
+  totalCourses: 0,
+  courseProgress: [],
+  courseProgressSummary: {
+    visibleCourses: 0,
+    completedLessons: 0,
+    totalLessons: 0,
+    overallProgressPercent: 0,
+    sourceLabel: 'Course lesson progress',
+  },
   performanceSnapshot: {
     readinessScore: 0,
     readinessLabel: 'Baseline not set',
@@ -37,6 +52,11 @@ const defaultDashboardState = {
     scoreTrend: 'empty',
     trendLabel: 'No exam activity yet',
     consistencyLabel: 'Start today',
+    windowLabel: 'Last 7 days',
+    comparisonLabel: 'Previous 7 days',
+    dateRangeLabel: 'Server calendar: last 7 days',
+    sourceLabel: 'Submitted quiz attempts',
+    emptyState: 'No submitted quiz attempts in this window yet.',
   },
 };
 
@@ -52,6 +72,17 @@ function normalizeDashboardState(data) {
     missedPatterns: Array.isArray(source.missedPatterns) ? source.missedPatterns : [],
     dailyGoals: Array.isArray(source.dailyGoals) ? source.dailyGoals : [],
     adaptivePlan: Array.isArray(source.adaptivePlan) ? source.adaptivePlan : [],
+    courseProgress: Array.isArray(source.courseProgress) ? source.courseProgress : [],
+    serverClock: {
+      ...defaultDashboardState.serverClock,
+      ...(source.serverClock && typeof source.serverClock === 'object' ? source.serverClock : {}),
+    },
+    courseProgressSummary: {
+      ...defaultDashboardState.courseProgressSummary,
+      ...(source.courseProgressSummary && typeof source.courseProgressSummary === 'object'
+        ? source.courseProgressSummary
+        : {}),
+    },
     performanceSnapshot: {
       ...defaultDashboardState.performanceSnapshot,
       ...(source.performanceSnapshot && typeof source.performanceSnapshot === 'object'
@@ -119,6 +150,50 @@ function formatPlannerDaysLeft(value) {
   if (days === null) return 'No due date';
   if (days < 0) return `${plural(Math.abs(days), 'day')} overdue`;
   return `${plural(days, 'day')} left`;
+}
+
+function dateKeyToUtcMs(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  return Date.UTC(Number(year), Number(month) - 1, Number(day));
+}
+
+function daysFromServerDate(dueAt, serverDateKey) {
+  const dueMs = dateKeyToUtcMs(dueAt);
+  const baseMs = dateKeyToUtcMs(serverDateKey);
+  if (dueMs === null || baseMs === null) return plannerDaysLeft(dueAt);
+  return Math.round((dueMs - baseMs) / 86400000);
+}
+
+function formatServerDueLabel(dueAt, serverDateKey) {
+  const days = daysFromServerDate(dueAt, serverDateKey);
+  if (!dueAt) return 'No due date';
+  if (days === null) return `Due ${String(dueAt).slice(0, 10)}`;
+  if (days < 0) return `${plural(Math.abs(days), 'day')} overdue`;
+  if (days === 0) return 'Due today';
+  if (days === 1) return 'Due tomorrow';
+  return `${plural(days, 'day')} left`;
+}
+
+function titleCaseLabel(value, fallback = 'Task') {
+  return String(value || fallback)
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function isAgendaItemComplete(item) {
+  return ['completed', 'done'].includes(String(item?.status || '').toLowerCase());
+}
+
+function agendaRoute(item, fallback = '/planner') {
+  const raw = String(item?.actionUrl || fallback || '/planner').trim() || '/planner';
+  if (raw.startsWith('/app/')) return raw;
+  return appRoute(raw.startsWith('/') ? raw : `/${raw}`);
+}
+
+function getAgendaCourseLabel(item) {
+  return item?.course || item?.subject || item?.topic || 'General';
 }
 
 function cleanPlannerTitle(title) {
@@ -763,6 +838,186 @@ function StudyTodoCard({ todo, onOpen }) {
   );
 }
 
+function CourseProgressCard({ courses, summary, onOpenCourse, onOpenCourses }) {
+  const visibleCourses = [...courses]
+    .sort((a, b) => Number(a.progressPercent || 0) - Number(b.progressPercent || 0))
+    .slice(0, 3);
+  const completedLessons = Number(summary?.completedLessons || 0);
+  const totalLessons = Number(summary?.totalLessons || 0);
+  const overallProgress = clampPercent(summary?.overallProgressPercent);
+
+  return (
+    <section
+      className="study-card study-course-progress-card"
+      aria-label="Course progress"
+      style={{ '--course-progress': `${overallProgress}%` }}
+    >
+      <div className="study-plan-card__head">
+        <div>
+          <span className="study-eyebrow">Course progress</span>
+          <strong>{overallProgress}% overall</strong>
+        </div>
+        <button type="button" onClick={onOpenCourses}>Courses</button>
+      </div>
+
+      <div className="study-course-overview">
+        <div
+          className="study-course-ring"
+          role="progressbar"
+          aria-label="Overall course lesson completion"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={overallProgress}
+        >
+          <span>{overallProgress}%</span>
+        </div>
+        <div>
+          <strong>{completedLessons}/{totalLessons}</strong>
+          <small>completed lessons from the course page source</small>
+        </div>
+      </div>
+
+      <div className="study-course-list">
+        {visibleCourses.length ? visibleCourses.map((course) => {
+          const progress = clampPercent(course.progressPercent);
+          return (
+            <button
+              type="button"
+              className="study-course-row"
+              key={course.id || course.courseTitle}
+              onClick={() => onOpenCourse(course)}
+            >
+              <span>
+                <strong>{course.courseTitle || 'Course'}</strong>
+                <small>{Number(course.completedLessonsCount || 0)}/{Number(course.totalLessonsCount || 0)} lessons · {course.examType || 'Medical course'}</small>
+              </span>
+              <em>{progress}%</em>
+              <i aria-hidden="true"><b style={{ width: `${progress}%` }} /></i>
+            </button>
+          );
+        }) : (
+          <p className="study-empty-copy">No active course lessons are available for this student account yet.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function UpcomingTasksCard({ items, serverDateKey, onOpenItem, onOpenPlanner }) {
+  const visibleItems = items
+    .filter((item) => item?.title && !isAgendaItemComplete(item))
+    .slice(0, 3);
+
+  return (
+    <section className="study-card study-upcoming-card" aria-label="Upcoming tasks">
+      <div className="study-plan-card__head">
+        <div>
+          <span className="study-eyebrow">Upcoming tasks</span>
+          <strong>Sorted by urgency</strong>
+        </div>
+        <button type="button" onClick={onOpenPlanner}>Planner</button>
+      </div>
+
+      <div className="study-upcoming-list">
+        {visibleItems.length ? visibleItems.map((item) => (
+          <button
+            type="button"
+            className={`study-upcoming-row is-${String(item.status || 'optional').replace(/_/g, '-')}`}
+            key={item.id}
+            onClick={() => onOpenItem(item)}
+          >
+            <span className="study-upcoming-type">{titleCaseLabel(item.type)}</span>
+            <span className="study-upcoming-copy">
+              <strong>{cleanPlannerTitle(item.title)}</strong>
+              <small>
+                {formatServerDueLabel(item.dueAt, serverDateKey)} · {getAgendaCourseLabel(item)} · {item.actionLabel || 'Open'}
+              </small>
+            </span>
+          </button>
+        )) : (
+          <p className="study-empty-copy">No upcoming planner tasks are due. Add the next exam or revision task in Planner.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ExamCountdownCard({ item, serverClock, onOpen }) {
+  const serverDateKey = serverClock?.dateKey || '';
+  const hasDueDate = Boolean(item?.dueAt);
+  const daysLeft = hasDueDate ? daysFromServerDate(item.dueAt, serverDateKey) : null;
+  const countdownValue = hasDueDate
+    ? daysLeft === 0
+      ? 'Today'
+      : daysLeft !== null
+        ? Math.max(0, daysLeft)
+        : '--'
+    : item ? 'Open' : '--';
+  const countdownLabel = hasDueDate && daysLeft !== 0 ? 'days left' : hasDueDate ? 'exam day' : 'no date set';
+
+  return (
+    <section className="study-card study-exam-countdown-card" aria-label="Exam countdown">
+      <div className="study-plan-card__head">
+        <div>
+          <span className="study-eyebrow">Exam countdown</span>
+          <strong>{item?.title || 'No exam scheduled'}</strong>
+        </div>
+        <button type="button" onClick={onOpen}>{item ? 'Open' : 'Exams'}</button>
+      </div>
+      <div className="study-exam-countdown-main">
+        <span><Icon name="calendar" /></span>
+        <div>
+          <strong>{countdownValue}</strong>
+          <small>{countdownLabel}</small>
+        </div>
+      </div>
+      <p>
+        {hasDueDate
+          ? `${formatServerDueLabel(item.dueAt, serverDateKey)} · Due ${item.dueAt}`
+          : item
+            ? 'This exam is available, but Planner has no scheduled due date.'
+            : 'Add an exam task in Planner to show a server-date countdown.'}
+      </p>
+      <small className="study-server-clock">Server date {serverDateKey || 'unknown'} · {serverClock?.timeZone || 'server-local'}</small>
+    </section>
+  );
+}
+
+function AnalyticsSnapshotCard({ snapshot, progressNote, attempts, onOpenResults }) {
+  const weeklyAttempts = Number(snapshot?.weeklyAttempts || 0);
+  const weeklyAverage = clampPercent(snapshot?.weeklyAverage);
+  const hasAnalytics = weeklyAttempts > 0 || Number(snapshot?.previousWeeklyAverage || 0) > 0;
+
+  return (
+    <section className="study-card study-analytics-card" aria-label="Learning analytics">
+      <div className="study-plan-card__head">
+        <div>
+          <span className="study-eyebrow">Learning analytics</span>
+          <strong>{snapshot?.readinessLabel || 'Baseline not set'}</strong>
+        </div>
+        <button type="button" onClick={onOpenResults}>Results</button>
+      </div>
+      <div className="study-analytics-grid">
+        <span>
+          <small>{snapshot?.windowLabel || 'Last 7 days'}</small>
+          <strong>{weeklyAttempts}</strong>
+          <em>attempts</em>
+        </span>
+        <span>
+          <small>Average</small>
+          <strong>{weeklyAverage}%</strong>
+          <em>{snapshot?.trendLabel || 'No trend yet'}</em>
+        </span>
+      </div>
+      <ScoreTrend attempts={attempts} average={weeklyAverage} />
+      <p>{hasAnalytics ? progressNote || snapshot?.trendLabel || 'Learning activity is available for review.' : snapshot?.emptyState || 'No submitted quiz attempts in this window yet.'}</p>
+      <small className="study-analytics-source">
+        {snapshot?.sourceLabel || 'Submitted quiz attempts'} · {snapshot?.comparisonLabel || 'Previous 7 days'}
+      </small>
+    </section>
+  );
+}
+
 function StudyLevelSummary({ name, progress }) {
   return (
     <section className="study-level-summary" aria-label="Study progress summary">
@@ -794,7 +1049,7 @@ export function StudentDashboardPage() {
   const [studentQuizzes, setStudentQuizzes] = useState([]);
   const [aiNotes, setAiNotes] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
-  const [plannerTasks, setPlannerTasks] = useState([]);
+  const [plannerAgendaItems, setPlannerAgendaItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -808,15 +1063,15 @@ export function StudentDashboardPage() {
 
     async function loadDashboard() {
       try {
-        const [data, quizzes, tasks] = await Promise.all([
+        const [data, quizzes, agenda] = await Promise.all([
           fetchStudentDashboard(),
           fetchStudentQuizzes().catch(() => []),
-          fetchPlannerTasks().catch(() => []),
+          fetchPlannerAgenda().catch(() => ({ items: [] })),
         ]);
         if (cancelled) return;
         setDashboard(normalizeDashboardState(data));
         setStudentQuizzes(Array.isArray(quizzes) ? quizzes : []);
-        setPlannerTasks(Array.isArray(tasks) ? tasks : []);
+        setPlannerAgendaItems(Array.isArray(agenda?.items) ? agenda.items : Array.isArray(agenda) ? agenda : []);
         cancelSecondary = runWhenIdle(async () => {
           const [notes, savedItems] = await Promise.all([
             listAiNotes().catch(() => []),
@@ -839,6 +1094,18 @@ export function StudentDashboardPage() {
       cancelSecondary();
     };
   }, [reloadKey, user?.id, user?.role, user?.status]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    function handleLessonProgressUpdate(event) {
+      const progress = Number(event?.detail?.progressPercent || 0);
+      if (event?.detail?.status === 'completed' || progress > 0) {
+        setReloadKey((key) => key + 1);
+      }
+    }
+    window.addEventListener('lms:lesson-progress-updated', handleLessonProgressUpdate);
+    return () => window.removeEventListener('lms:lesson-progress-updated', handleLessonProgressUpdate);
+  }, []);
 
   const firstName = getFirstName(user);
   const todayLabel = formatDateLabel();
@@ -898,7 +1165,11 @@ export function StudentDashboardPage() {
         ? `Your last attempt scored ${clampPercent(latestAttempt.percentage)}%. Review once, then try another focused set.`
         : 'Start with one compact practice set, review the answers, and finish with one lesson.';
 
+  const courseProgress = dashboard.courseProgress;
+  const courseProgressSummary = dashboard.courseProgressSummary;
+  const serverDateKey = dashboard.serverClock?.dateKey || '';
   const courseCount = useMemo(() => {
+    if (courseProgress.length) return courseProgress.length;
     const courseNames = new Set(
       [...studentQuizzes, ...aiNotes]
         .map((item) => item?.courseTitle || item?.courseName)
@@ -906,15 +1177,18 @@ export function StudentDashboardPage() {
         .map((name) => String(name).trim())
     );
     return courseNames.size || dashboard.totalCourses || dashboard.totalQuizzes || studentQuizzes.length || 0;
-  }, [aiNotes, dashboard.totalCourses, dashboard.totalQuizzes, studentQuizzes]);
+  }, [aiNotes, courseProgress.length, dashboard.totalCourses, dashboard.totalQuizzes, studentQuizzes]);
 
   const dashboardStats = [
     {
       label: 'Courses',
       value: courseCount,
-      hint: 'In progress',
+      hint: courseProgressSummary.totalLessons
+        ? `${clampPercent(courseProgressSummary.overallProgressPercent)}% lessons`
+        : 'In progress',
       icon: 'book',
       tone: 'cyan',
+      progress: courseProgressSummary.totalLessons ? courseProgressSummary.overallProgressPercent : null,
     },
     {
       label: 'Readiness',
@@ -980,7 +1254,7 @@ export function StudentDashboardPage() {
     keywords.some((keyword) => text.includes(keyword))
   );
   const practiceFinishedToday = dashboard.recentAttempts.some((attempt) =>
-    isSameStudyDay(attempt.completedAt || attempt.createdAt || attempt.updatedAt)
+    isSameStudyDay(attempt.submittedAt || attempt.completedAt || attempt.createdAt || attempt.updatedAt)
   ) || hasCompletedStudyItem('quiz', 'practice', 'question', 'weak_topic');
   const reviewFinished = hasCompletedStudyItem('review', 'result', 'answers');
   const lessonFinished = hasCompletedStudyItem('note', 'lesson', 'read');
@@ -1009,31 +1283,18 @@ export function StudentDashboardPage() {
     },
   ];
 
-  const nextPlannerTask = [...plannerTasks]
-    .filter((task) => task?.status !== 'done')
+  const upcomingAgendaItems = [...plannerAgendaItems]
+    .filter((item) => item?.title && !isAgendaItemComplete(item))
     .sort((a, b) => {
-      const aDays = plannerDaysLeft(a?.dueDate);
-      const bDays = plannerDaysLeft(b?.dueDate);
+      const aDays = daysFromServerDate(a?.dueAt, serverDateKey);
+      const bDays = daysFromServerDate(b?.dueAt, serverDateKey);
       const aOrder = aDays === null ? Number.POSITIVE_INFINITY : aDays;
       const bOrder = bDays === null ? Number.POSITIVE_INFINITY : bDays;
-      return aOrder - bOrder || Number(b?.id || 0) - Number(a?.id || 0);
-    })[0] || null;
-
-  const todoCard = nextPlannerTask
-    ? {
-        eyebrow: 'Planner reminder',
-        title: cleanPlannerTitle(nextPlannerTask.title),
-        text: `${formatPlannerDaysLeft(nextPlannerTask.dueDate)} · ${nextPlannerTask.description || 'Saved in your planner.'}`,
-        actionLabel: 'Open planner',
-        route: appRoute('/planner'),
-      }
-    : {
-        eyebrow: 'No plans yet',
-        title: 'Add a reminder',
-        text: 'Open Planner to add a reminder and track days left.',
-        actionLabel: 'Add reminder',
-        route: appRoute('/planner'),
-      };
+      return aOrder - bOrder || Number(b?.priority || 0) - Number(a?.priority || 0);
+    });
+  const nextExamItem = upcomingAgendaItems.find((item) => item.type === 'exam' && item.dueAt)
+    || upcomingAgendaItems.find((item) => item.type === 'exam')
+    || null;
 
   const onNavigate = (route) => {
     void nativeImpact(ImpactStyle.Light);
@@ -1125,6 +1386,20 @@ export function StudentDashboardPage() {
           ))}
         </section>
 
+        <section className="study-medical-audit-grid" aria-label="Medical LMS dashboard checks">
+          <CourseProgressCard
+            courses={courseProgress}
+            summary={courseProgressSummary}
+            onOpenCourse={(course) => onNavigate(appRoute(`/courses/${course.id}`))}
+            onOpenCourses={() => onNavigate(appRoute('/courses'))}
+          />
+          <ExamCountdownCard
+            item={nextExamItem}
+            serverClock={dashboard.serverClock}
+            onOpen={() => onNavigate(nextExamItem ? agendaRoute(nextExamItem, '/exams') : appRoute('/exams'))}
+          />
+        </section>
+
         <section className="study-card study-streak-card">
           <div className="study-streak-top">
             <span className="study-streak-icon"><StudyMascot variant="streak" mood="streak" size="sm" label="Daily streak mascot" /></span>
@@ -1165,15 +1440,18 @@ export function StudentDashboardPage() {
             onOpenPlanner={() => onNavigate(appRoute('/planner'))}
           />
 
-          <StudyTodoCard
-            todo={todoCard}
-            onOpen={() => {
-              if (todoCard.action) {
-                todoCard.action();
-                return;
-              }
-              onNavigate(todoCard.route);
-            }}
+          <UpcomingTasksCard
+            items={upcomingAgendaItems}
+            serverDateKey={serverDateKey}
+            onOpenItem={(item) => onNavigate(agendaRoute(item))}
+            onOpenPlanner={() => onNavigate(appRoute('/planner'))}
+          />
+
+          <AnalyticsSnapshotCard
+            snapshot={dashboard.performanceSnapshot}
+            progressNote={dashboard.progressNote}
+            attempts={dashboard.recentAttempts}
+            onOpenResults={() => onNavigate(appRoute('/results'))}
           />
         </div>
 

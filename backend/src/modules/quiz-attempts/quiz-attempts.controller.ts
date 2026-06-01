@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { QuizAttemptsService } from './quiz-attempts.service';
 import { SavePracticeDto } from './dto/save-practice.dto';
+import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 
 @Controller('quiz-attempts')
@@ -23,9 +24,10 @@ export class QuizAttemptsController {
     @Query('mode') mode: string,
     @Query('continue') continuePractice?: string,
     @Query('resetPractice') resetPractice?: string,
+    @Query('questionId') questionId?: string,
     @Headers('authorization') authorization?: string
   ) {
-    return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, continuePractice === '1', resetPractice === '1');
+    return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, continuePractice === '1', resetPractice === '1', questionId ? Number(questionId) : null);
   }
 
   @Post('practice/:quizId/save')
@@ -44,6 +46,15 @@ export class QuizAttemptsController {
     @Body() submitExamDto: SubmitExamDto
   ) {
     return this.quizAttemptsService.submitExam(authorization, quizId, submitExamDto);
+  }
+
+  @Post('exam/:quizId/save')
+  saveExamProgress(
+    @Param('quizId', ParseIntPipe) quizId: number,
+    @Headers('authorization') authorization: string | undefined,
+    @Body() saveExamProgressDto: SaveExamProgressDto
+  ) {
+    return this.quizAttemptsService.saveExamProgress(authorization, quizId, saveExamProgressDto);
   }
 
   @Get('result/:attemptId')
@@ -66,8 +77,9 @@ export class QuizAttemptsController {
   practiceReview(
     @Param('quizId', ParseIntPipe) quizId: number,
     @Query('complete') complete?: string,
+    @Query('questionId') questionId?: string,
     @Headers('authorization') authorization?: string
   ) {
-    return this.quizAttemptsService.practiceReview(authorization, quizId, complete === '1');
+    return this.quizAttemptsService.practiceReview(authorization, quizId, complete === '1', questionId ? Number(questionId) : null);
   }
 }
