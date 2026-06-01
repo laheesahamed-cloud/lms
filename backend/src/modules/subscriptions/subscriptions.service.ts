@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'crypto';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { basename, join } from 'path';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { PlansService } from '../plans/plans.service';
 import { SettingsService } from '../settings/settings.service';
@@ -131,6 +132,28 @@ type SubscriptionCouponRow = RowDataPacket & {
   updated_at: string;
 };
 
+const SUBSCRIPTION_LIST_COLUMNS = `
+  us.id,
+  us.user_id,
+  us.plan_id,
+  us.assigned_by,
+  us.notes,
+  us.status,
+  us.payment_status,
+  us.amount_paid,
+  us.payment_method,
+  us.payment_reference,
+  us.payment_date,
+  us.receipt_url,
+  us.access_scope,
+  us.course_ids_json,
+  us.lesson_ids_json,
+  us.start_date,
+  us.end_date,
+  us.created_at,
+  us.updated_at
+`;
+
 @Injectable()
 export class SubscriptionsService {
   private readonly unlimitedFreePlanEndDate = '9999-12-31';
@@ -188,10 +211,11 @@ export class SubscriptionsService {
     };
   }
 
-  async findAdminList() {
+  async findAdminList(pagination: PaginationInput = {}) {
+    const { limit, offset } = normalizePagination(pagination, { defaultLimit: 50, maxLimit: 100 });
     const [rows] = await this.db.execute<SubscriptionRow[]>(
       `SELECT
-         us.*,
+         ${SUBSCRIPTION_LIST_COLUMNS},
          student.full_name AS student_name,
          student.email AS student_email,
          admin.full_name AS assigned_by_name,
@@ -207,10 +231,13 @@ export class SubscriptionsService {
        INNER JOIN users student ON student.id = us.user_id
        INNER JOIN plans ON plans.id = us.plan_id
        LEFT JOIN users admin ON admin.id = us.assigned_by
-       ORDER BY us.created_at DESC, us.id DESC`
+       ORDER BY us.created_at DESC, us.id DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
     );
 
-    return Promise.all(rows.map((row) => this.mapSubscription(row)));
+    const planMap = await this.loadSubscriptionPlanMap(rows);
+    return Promise.all(rows.map((row) => this.mapSubscription(row, planMap.get(Number(row.plan_id)))));
   }
 
   async assign(dto: AssignSubscriptionDto, assignedBy: number) {
@@ -554,7 +581,32 @@ export class SubscriptionsService {
   async findAdminRequests() {
     const [rows] = await this.db.execute<SubscriptionRequestRow[]>(
       `SELECT
-         sr.*,
+         sr.id,
+         sr.user_id,
+         sr.plan_id,
+         sr.invoice_id,
+         sr.status,
+         sr.message,
+         sr.admin_note,
+         sr.requested_at,
+         sr.resolved_at,
+         sr.resolved_by,
+         sr.subscription_id,
+         sr.payment_method,
+         sr.payment_reference,
+         sr.payment_amount,
+         sr.payment_currency,
+         sr.coupon_code,
+         sr.discount_amount,
+         sr.payment_proof_name,
+         sr.payment_proof_mime,
+         CASE
+           WHEN sr.payment_proof_data_url LIKE 'data:%' AND sr.invoice_id IS NOT NULL THEN CONCAT('/uploads/payment-proofs/', sr.invoice_id)
+           ELSE sr.payment_proof_data_url
+         END AS payment_proof_data_url,
+         sr.access_scope,
+         sr.course_ids_json,
+         sr.lesson_ids_json,
          student.full_name AS student_name,
          student.email AS student_email,
          plans.name AS plan_name,
@@ -591,11 +643,11 @@ export class SubscriptionsService {
         assignedBy: adminId,
         notes: adminNote || `Approved upgrade request #${requestId}`,
         status: 'active',
-        paymentStatus: request.paymentProofDataUrl ? 'paid' : 'manual',
+        paymentStatus: this.isPaidSubscriptionRequest(request) ? 'paid' : 'manual',
         amountPaid: request.paymentAmount ?? undefined,
         paymentMethod: request.paymentMethod || undefined,
         paymentReference: request.paymentReference || undefined,
-        paymentDate: request.paymentProofDataUrl ? startDate : undefined,
+        paymentDate: this.isPaidSubscriptionRequest(request) ? startDate : undefined,
         startDate,
         endDate,
         accessScope: request.accessScope,
@@ -644,7 +696,7 @@ export class SubscriptionsService {
   async getStudentBilling(userId: number) {
     const [currentRows] = await this.db.execute<SubscriptionRow[]>(
       `SELECT
-         us.*,
+         ${SUBSCRIPTION_LIST_COLUMNS},
          plans.name AS plan_name,
          plans.regular_price AS plan_regular_price,
          plans.offer_price AS plan_offer_price,
@@ -662,7 +714,7 @@ export class SubscriptionsService {
 
     const [historyRows] = await this.db.execute<SubscriptionRow[]>(
       `SELECT
-         us.*,
+         ${SUBSCRIPTION_LIST_COLUMNS},
          admin.full_name AS assigned_by_name,
          plans.name AS plan_name,
          plans.regular_price AS plan_regular_price,
@@ -681,10 +733,11 @@ export class SubscriptionsService {
     );
 
     const availablePlans = await this.plansService.findActive();
+    const planMap = await this.loadSubscriptionPlanMap([...currentRows, ...historyRows]);
 
     return {
-      currentSubscription: currentRows[0] ? await this.mapSubscription(currentRows[0]) : null,
-      history: (await Promise.all(historyRows.map((row) => this.mapSubscription(row))))
+      currentSubscription: currentRows[0] ? await this.mapSubscription(currentRows[0], planMap.get(Number(currentRows[0].plan_id))) : null,
+      history: (await Promise.all(historyRows.map((row) => this.mapSubscription(row, planMap.get(Number(row.plan_id))))))
         .filter((subscription) => !subscription.isFreePlan),
       availablePlans,
       requests: await this.findStudentRequests(userId),
@@ -694,7 +747,9 @@ export class SubscriptionsService {
 
   async findCoupons() {
     const [rows] = await this.db.execute<SubscriptionCouponRow[]>(
-      `SELECT *
+      `SELECT
+         id, code, label, coupon_mode, discount_type, discount_value, plan_ids_json,
+         status, starts_at, expires_at, max_redemptions, redemption_count, created_at, updated_at
        FROM subscription_coupons
        ORDER BY status ASC, updated_at DESC, id DESC`
     );
@@ -710,7 +765,20 @@ export class SubscriptionsService {
 
     const [transactionRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT
-         pt.*,
+         pt.id,
+         pt.provider,
+         pt.invoice_id,
+         pt.order_id,
+         pt.status,
+         pt.amount,
+         pt.currency,
+         pt.coupon_code,
+         pt.discount_amount,
+         pt.order_note,
+         pt.payhere_payment_id,
+         pt.payment_method,
+         pt.created_at,
+         pt.updated_at,
          student.full_name AS student_name,
          student.email AS student_email,
          plans.name AS plan_name
@@ -747,7 +815,29 @@ export class SubscriptionsService {
 
     const [requestRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT
-         sr.*,
+         sr.id,
+         sr.user_id,
+         sr.plan_id,
+         sr.invoice_id,
+         sr.status,
+         sr.message,
+         sr.admin_note,
+         sr.requested_at,
+         sr.resolved_at,
+         sr.resolved_by,
+         sr.subscription_id,
+         sr.payment_method,
+         sr.payment_reference,
+         sr.payment_amount,
+         sr.payment_currency,
+         sr.coupon_code,
+         sr.discount_amount,
+         sr.payment_proof_name,
+         sr.payment_proof_mime,
+         sr.payment_proof_data_url,
+         sr.access_scope,
+         sr.course_ids_json,
+         sr.lesson_ids_json,
          student.full_name AS student_name,
          student.email AS student_email,
          plans.name AS plan_name
@@ -916,7 +1006,7 @@ export class SubscriptionsService {
     const baseFrontendUrl = this.resolveFrontendUrl();
     const returnUrl = settings.returnUrl || `${baseFrontendUrl}/lms/#/subscriptions?payment=return&order_id=${encodeURIComponent(orderId)}`;
     const cancelUrl = settings.cancelUrl || `${baseFrontendUrl}/lms/#/subscriptions?payment=cancel&order_id=${encodeURIComponent(orderId)}`;
-    const notifyUrl = settings.notifyUrl || `${this.resolveApiPublicUrl()}/subscriptions/payhere/notify`;
+    const notifyUrl = this.resolvePayHereNotifyUrl(settings.notifyUrl);
     const billingName = String(checkoutInput.billingName || student.fullName || '').trim() || student.fullName;
     const billingEmail = String(checkoutInput.billingEmail || student.email || '').trim() || student.email;
     const nameParts = this.splitName(billingName);
@@ -924,6 +1014,20 @@ export class SubscriptionsService {
     const address = String(checkoutInput.address || '').trim() || 'Student account';
     const city = String(checkoutInput.city || '').trim() || 'Colombo';
     const country = String(checkoutInput.country || '').trim() || 'Sri Lanka';
+
+    const requestId = await this.createPayHerePendingRequest({
+      userId: student.id,
+      planId: plan.id,
+      invoiceId,
+      orderId,
+      message: checkoutInput.message,
+      amount: payableAmount,
+      currency,
+      discountAmount,
+      accessScope: scope.accessScope,
+      courseIds: scope.courseIds,
+      lessonIds: scope.lessonIds,
+    });
 
     await this.db.execute(
       `
@@ -949,6 +1053,7 @@ export class SubscriptionsService {
     );
 
     await this.logAudit({
+      requestId,
       userId: student.id,
       actorId: student.id,
       eventType: 'payhere_checkout_initiated',
@@ -963,6 +1068,7 @@ export class SubscriptionsService {
       actionUrl: settings.sandboxMode ? 'https://sandbox.payhere.lk/pay/checkout' : 'https://www.payhere.lk/pay/checkout',
       invoiceId,
       orderId,
+      requestId,
       amount: amountFormatted,
       originalAmount: this.formatAmount(amount),
       discountAmount: this.formatAmount(discountAmount),
@@ -1025,6 +1131,12 @@ export class SubscriptionsService {
       throw new BadRequestException('PayHere notification was already processed');
     }
     let subscriptionId = transaction?.subscription_id ? Number(transaction.subscription_id) : null;
+    const cardRequest = await this.findPayHereRequest(
+      String(transaction.invoice_id || orderId),
+      Number(transaction.user_id),
+      Number(transaction.plan_id)
+    );
+    const paymentReference = String(body.payment_id || orderId).trim();
 
     await this.db.execute(
       `
@@ -1069,6 +1181,14 @@ export class SubscriptionsService {
         cancelExisting: true,
       });
       await this.db.execute('UPDATE payment_transactions SET subscription_id = ? WHERE id = ?', [subscriptionId, transaction.id]);
+      if (cardRequest?.id) {
+        await this.markPayHereRequestVerified({
+          requestId: cardRequest.id,
+          subscriptionId,
+          paymentReference,
+          adminNote: `PayHere payment verified automatically. Payment ID: ${paymentReference}.`,
+        });
+      }
       if (transaction.coupon_code) {
         await this.db.execute(
           'UPDATE subscription_coupons SET redemption_count = redemption_count + 1 WHERE code = ?',
@@ -1080,11 +1200,21 @@ export class SubscriptionsService {
         userId: Number(transaction.user_id),
         eventType: 'payhere_payment_paid',
         summary: `Verified PayHere payment for ${plan.name}`,
+        requestId: cardRequest?.id || null,
         details: { orderId, paymentId: body.payment_id || '', amount: payhereAmount, currency: payhereCurrency, couponCode: transaction.coupon_code || '', discountAmount: transaction.discount_amount || 0, accessScope: transaction.access_scope || 'all', courseIds: this.parseIdList(transaction.course_ids_json), lessonIds: this.parseIdList(transaction.lesson_ids_json) },
       });
     } else {
+      if (cardRequest?.id) {
+        await this.updatePayHereRequestAfterNotification({
+          requestId: cardRequest.id,
+          nextStatus,
+          paymentReference,
+          adminNote: `PayHere payment marked ${nextStatus}. Status code: ${statusCode}.`,
+        });
+      }
       await this.logAudit({
         userId: Number(transaction.user_id),
+        requestId: cardRequest?.id || null,
         eventType: `payhere_payment_${nextStatus}`,
         summary: `PayHere payment marked ${nextStatus}`,
         details: { orderId, statusCode, paymentId: body.payment_id || '', amount: payhereAmount, currency: payhereCurrency },
@@ -1222,7 +1352,15 @@ export class SubscriptionsService {
   async findAuditEvents() {
     const [rows] = await this.db.execute<SubscriptionAuditRow[]>(
       `SELECT
-         sae.*,
+         sae.id,
+         sae.subscription_id,
+         sae.request_id,
+         sae.user_id,
+         sae.actor_id,
+         sae.event_type,
+         sae.summary,
+         sae.details_json,
+         sae.created_at,
          actor.full_name AS actor_name,
          actor.email AS actor_email,
          student.full_name AS student_name,
@@ -1325,7 +1463,29 @@ export class SubscriptionsService {
   private async findStudentRequests(userId: number) {
     const [rows] = await this.db.execute<SubscriptionRequestRow[]>(
       `SELECT
-         sr.*,
+         sr.id,
+         sr.user_id,
+         sr.plan_id,
+         sr.invoice_id,
+         sr.status,
+         sr.message,
+         sr.admin_note,
+         sr.requested_at,
+         sr.resolved_at,
+         sr.resolved_by,
+         sr.subscription_id,
+         sr.payment_method,
+         sr.payment_reference,
+         sr.payment_amount,
+         sr.payment_currency,
+         sr.coupon_code,
+         sr.discount_amount,
+         sr.payment_proof_name,
+         sr.payment_proof_mime,
+         sr.payment_proof_data_url,
+         sr.access_scope,
+         sr.course_ids_json,
+         sr.lesson_ids_json,
          plans.name AS plan_name,
          plans.regular_price AS plan_regular_price,
          plans.offer_price AS plan_offer_price,
@@ -1345,15 +1505,140 @@ export class SubscriptionsService {
 
   private async findPaymentTransaction(orderId: string) {
     const [rows] = await this.db.execute<PaymentTransactionRow[]>(
-      'SELECT * FROM payment_transactions WHERE order_id = ? LIMIT 1',
+      `SELECT
+         id, order_id, invoice_id, user_id, plan_id, subscription_id, amount, currency,
+         coupon_code, discount_amount, order_note, access_scope, course_ids_json, lesson_ids_json, status
+       FROM payment_transactions
+       WHERE order_id = ?
+       LIMIT 1`,
       [orderId]
     );
     return rows[0] || null;
   }
 
+  private async createPayHerePendingRequest(input: {
+    userId: number;
+    planId: number;
+    invoiceId: string;
+    orderId: string;
+    message?: string;
+    amount: number;
+    currency: string;
+    discountAmount: number;
+    accessScope: 'all' | 'courses' | 'lessons';
+    courseIds: number[];
+    lessonIds: number[];
+  }) {
+    const [result] = await this.db.execute<ResultSetHeader>(
+      `INSERT INTO subscription_requests (
+         user_id, plan_id, invoice_id, message, payment_method, payment_reference, payment_amount, payment_currency,
+         coupon_code, discount_amount, access_scope, course_ids_json, lesson_ids_json, status
+       ) VALUES (?, ?, ?, ?, 'payhere', ?, ?, ?, NULL, ?, ?, ?, ?, 'pending')`,
+      [
+        input.userId,
+        input.planId,
+        input.invoiceId,
+        String(input.message || '').trim(),
+        input.orderId,
+        input.amount,
+        this.normalizePaymentCurrency(input.currency),
+        input.discountAmount,
+        input.accessScope,
+        JSON.stringify(input.courseIds),
+        JSON.stringify(input.lessonIds),
+      ]
+    );
+    return result.insertId;
+  }
+
+  private async findPayHereRequest(invoiceId: string, userId: number, planId: number) {
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id, status, subscription_id
+       FROM subscription_requests
+       WHERE invoice_id = ?
+         AND user_id = ?
+         AND plan_id = ?
+         AND payment_method = 'payhere'
+       ORDER BY id DESC
+       LIMIT 1`,
+      [invoiceId, userId, planId]
+    );
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      id: Number(row.id),
+      status: String(row.status || 'pending'),
+      subscriptionId: row.subscription_id ? Number(row.subscription_id) : null,
+    };
+  }
+
+  private async markPayHereRequestVerified(input: {
+    requestId: number;
+    subscriptionId: number;
+    paymentReference: string;
+    adminNote: string;
+  }) {
+    await this.db.execute(
+      `UPDATE subscription_requests
+       SET status = 'approved',
+           admin_note = ?,
+           resolved_at = NOW(),
+           resolved_by = NULL,
+           subscription_id = ?,
+           payment_reference = ?
+       WHERE id = ?`,
+      [input.adminNote, input.subscriptionId, input.paymentReference, input.requestId]
+    );
+  }
+
+  private async updatePayHereRequestAfterNotification(input: {
+    requestId: number;
+    nextStatus: PaymentTransactionRow['status'];
+    paymentReference: string;
+    adminNote: string;
+  }) {
+    if (input.nextStatus === 'paid') {
+      await this.db.execute(
+        `UPDATE subscription_requests
+         SET admin_note = ?,
+             payment_reference = ?
+         WHERE id = ? AND status = 'pending'`,
+        [input.adminNote, input.paymentReference, input.requestId]
+      );
+      return;
+    }
+
+    if (['cancelled', 'failed', 'chargedback'].includes(input.nextStatus)) {
+      await this.db.execute(
+        `UPDATE subscription_requests
+         SET status = 'cancelled',
+             admin_note = ?,
+             resolved_at = NOW(),
+             resolved_by = NULL,
+             payment_reference = ?
+         WHERE id = ? AND status = 'pending'`,
+        [input.adminNote, input.paymentReference, input.requestId]
+      );
+      return;
+    }
+
+    await this.db.execute(
+      `UPDATE subscription_requests
+       SET admin_note = ?,
+           payment_reference = ?
+       WHERE id = ? AND status = 'pending'`,
+      [input.adminNote, input.paymentReference, input.requestId]
+    );
+  }
+
   private async getCouponRowOrThrow(id: number) {
     const [rows] = await this.db.execute<SubscriptionCouponRow[]>(
-      'SELECT * FROM subscription_coupons WHERE id = ? LIMIT 1',
+      `SELECT
+         id, code, label, coupon_mode, discount_type, discount_value, plan_ids_json,
+         status, starts_at, expires_at, max_redemptions, redemption_count, created_at, updated_at
+       FROM subscription_coupons
+       WHERE id = ?
+       LIMIT 1`,
       [id]
     );
     const row = rows[0];
@@ -1367,7 +1652,12 @@ export class SubscriptionsService {
     const normalized = this.normalizeCouponCode(code);
     if (!normalized) return null;
     const [rows] = await this.db.execute<SubscriptionCouponRow[]>(
-      'SELECT * FROM subscription_coupons WHERE code = ? LIMIT 1',
+      `SELECT
+         id, code, label, coupon_mode, discount_type, discount_value, plan_ids_json,
+         status, starts_at, expires_at, max_redemptions, redemption_count, created_at, updated_at
+       FROM subscription_coupons
+       WHERE code = ?
+       LIMIT 1`,
       [normalized]
     );
     return rows[0] || null;
@@ -1375,7 +1665,33 @@ export class SubscriptionsService {
 
   private async findRequestById(id: number) {
     const [rows] = await this.db.execute<SubscriptionRequestRow[]>(
-      `SELECT sr.*, student.full_name AS student_name, student.email AS student_email, plans.name AS plan_name
+      `SELECT
+         sr.id,
+         sr.user_id,
+         sr.plan_id,
+         sr.invoice_id,
+         sr.status,
+         sr.message,
+         sr.admin_note,
+         sr.requested_at,
+         sr.resolved_at,
+         sr.resolved_by,
+         sr.subscription_id,
+         sr.payment_method,
+         sr.payment_reference,
+         sr.payment_amount,
+         sr.payment_currency,
+         sr.coupon_code,
+         sr.discount_amount,
+         sr.payment_proof_name,
+         sr.payment_proof_mime,
+         sr.payment_proof_data_url,
+         sr.access_scope,
+         sr.course_ids_json,
+         sr.lesson_ids_json,
+         student.full_name AS student_name,
+         student.email AS student_email,
+         plans.name AS plan_name
        FROM subscription_requests sr
        INNER JOIN users student ON student.id = sr.user_id
        INNER JOIN plans ON plans.id = sr.plan_id
@@ -1392,7 +1708,11 @@ export class SubscriptionsService {
 
   private async getSubscriptionOrThrow(id: number) {
     const [rows] = await this.db.execute<SubscriptionRow[]>(
-      'SELECT * FROM user_subscriptions WHERE id = ? LIMIT 1',
+      `SELECT
+         ${SUBSCRIPTION_LIST_COLUMNS}
+       FROM user_subscriptions us
+       WHERE us.id = ?
+       LIMIT 1`,
       [id]
     );
     const row = rows[0];
@@ -1595,8 +1915,19 @@ export class SubscriptionsService {
     }
   }
 
-  private async mapSubscription(row: SubscriptionRow) {
-    const plan = await this.plansService.findById(Number(row.plan_id));
+  private async loadSubscriptionPlanMap(rows: Array<Pick<SubscriptionRow, 'plan_id'>>) {
+    const planIds = Array.from(
+      new Set(
+        rows
+          .map((row) => Number(row.plan_id))
+          .filter((planId) => Number.isInteger(planId) && planId > 0)
+      )
+    );
+    return this.plansService.findByIds(planIds);
+  }
+
+  private async mapSubscription(row: SubscriptionRow, planOverride?: Awaited<ReturnType<PlansService['findById']>>) {
+    const plan = planOverride || await this.plansService.findById(Number(row.plan_id));
     const startDate = this.dateValueToText(row.start_date);
     const endDate = this.dateValueToText(row.end_date);
     const end = new Date(`${endDate}T00:00:00`);
@@ -1667,6 +1998,14 @@ export class SubscriptionsService {
 
   private isFreePlanAssignment(paymentStatus: unknown, plan: { slug?: string; name?: string; effectivePrice?: number }) {
     return this.isFreePlanPaymentStatus(paymentStatus) || this.isFreePlan(plan);
+  }
+
+  private isPaidSubscriptionRequest(request: {
+    paymentMethod?: string;
+    paymentProofDataUrl?: string;
+  }) {
+    const paymentMethod = String(request.paymentMethod || '').trim().toLowerCase();
+    return Boolean(request.paymentProofDataUrl) || paymentMethod === 'payhere';
   }
 
   private generateCheckoutHash(merchantId: string, orderId: string, amount: string, currency: string, merchantSecret: string) {
@@ -1845,17 +2184,73 @@ export class SubscriptionsService {
     return String(this.configService.get<string>('frontendUrl') || 'http://localhost:5174').replace(/\/+$/, '');
   }
 
+  private resolvePayHereNotifyUrl(configuredNotifyUrl?: string | null) {
+    const explicitNotifyUrl = this.normalizePublicPayHereUrl(configuredNotifyUrl);
+    if (explicitNotifyUrl) {
+      return explicitNotifyUrl;
+    }
+
+    const apiPublicUrl = this.resolveApiPublicUrl();
+    if (!apiPublicUrl) {
+      throw new BadRequestException('PayHere notify URL must be a public HTTPS API URL before card checkout can start.');
+    }
+
+    return `${apiPublicUrl}/subscriptions/payhere/notify`;
+  }
+
   private resolveApiPublicUrl() {
-    const configured = String(this.configService.get<string>('PAYHERE_PUBLIC_API_URL') || '').trim();
-    if (configured) {
-      return configured.replace(/\/+$/, '');
+    const candidates = [
+      this.configService.get<string>('PAYHERE_PUBLIC_API_URL'),
+      this.configService.get<string>('API_PUBLIC_URL'),
+      this.configService.get<string>('frontendUrl'),
+      this.configService.get<string>('FRONTEND_URL'),
+      this.configService.get<string>('APP_PUBLIC_URL'),
+    ];
+
+    for (const candidate of candidates) {
+      const publicUrl = this.normalizePublicPayHereUrl(candidate);
+      if (!publicUrl) continue;
+      return /\/api$/i.test(publicUrl) ? publicUrl : `${publicUrl}/api`;
     }
 
-    const frontendUrl = this.resolveFrontendUrl();
-    if (/localhost|127\.0\.0\.1/i.test(frontendUrl)) {
-      return 'http://localhost:3000/api';
+    return '';
+  }
+
+  private normalizePublicPayHereUrl(value?: string | null) {
+    const input = String(value || '').trim();
+    if (!input) return '';
+
+    let url: URL;
+    try {
+      url = new URL(input);
+    } catch {
+      return '';
     }
 
-    return `${frontendUrl}/api`;
+    if (url.protocol !== 'https:') {
+      return '';
+    }
+    if (this.isBlockedPaymentCallbackHost(url.hostname)) {
+      return '';
+    }
+
+    const path = url.pathname.replace(/\/+$/, '');
+    return `${url.origin}${path}${url.search}`;
+  }
+
+  private isBlockedPaymentCallbackHost(hostname: string) {
+    const host = String(hostname || '').trim().toLowerCase();
+    return !host ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host === '::1' ||
+      host.includes('your-public-domain') ||
+      host.includes('your-domain') ||
+      host === 'example.com' ||
+      host.endsWith('.example.com') ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
   }
 }

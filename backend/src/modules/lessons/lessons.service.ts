@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { CreateLessonDto } from './dto/create-lesson.dto';
@@ -129,7 +130,8 @@ export class LessonsService {
     topicId?: number;
     subtopicId?: number;
     status?: string;
-  }) {
+  } & PaginationInput) {
+    const { limit, offset } = normalizePagination(filters, { defaultLimit: 50, maxLimit: 100 });
     const conditions: string[] = [];
     const params: Array<string | number> = [];
 
@@ -167,7 +169,7 @@ export class LessonsService {
         l.topic_id,
         l.subtopic_id,
         l.lesson_title,
-        l.lesson_content,
+        NULL AS lesson_content,
         l.video_url,
         l.is_free,
         l.status,
@@ -180,8 +182,9 @@ export class LessonsService {
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
       ${whereClause}
-      ORDER BY l.created_at DESC, l.id DESC`,
-      params
+      ORDER BY l.created_at DESC, l.id DESC
+      LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
     );
 
     return rows.map((row) => this.mapLesson(row));

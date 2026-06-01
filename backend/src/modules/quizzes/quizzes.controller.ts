@@ -21,13 +21,19 @@ export class QuizzesController {
     @Query('search') search?: string,
     @Query('courseId') courseId?: string,
     @Query('topicId') topicId?: string,
-    @Query('status') status?: string
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('offset') offset?: string
   ) {
     return this.quizzesService.findAll({
       search,
       courseId: courseId ? parseInt(courseId, 10) : undefined,
       topicId: topicId || undefined,
       status,
+      limit: this.parsePositiveNumber(limit),
+      page: this.parsePositiveNumber(page),
+      offset: this.parseNonNegativeNumber(offset),
     });
   }
 
@@ -122,5 +128,21 @@ export class QuizzesController {
   async remove(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
     const actor = await this.authService.requireAdmin(authorization);
     return this.quizzesService.remove(id, actor);
+  }
+
+  private parsePositiveNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
+  }
+
+  private parseNonNegativeNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
   }
 }

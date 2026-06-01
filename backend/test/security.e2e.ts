@@ -58,7 +58,7 @@ const TEST_SETTINGS: Record<string, string> = {
   payment_payhere_currency: 'LKR',
   payment_payhere_return_url: '',
   payment_payhere_cancel_url: '',
-  payment_payhere_notify_url: '',
+  payment_payhere_notify_url: 'https://your-public-domain.com/api/subscriptions/payhere/notify',
   payment_payhere_checkout_title: 'xyndrome subscription',
   payment_payhere_button_label: 'Pay with PayHere',
   payment_payhere_support_text: 'Upload a receipt if you pay manually.',
@@ -362,12 +362,24 @@ class SecurityE2eDb {
       return [{ insertId: 1, affectedRows: 1 } as T, []];
     }
 
-    if (normalized.includes('SELECT * FROM question_theory_recaps WHERE question_id = ? LIMIT 1')) {
+    if (normalized.includes('FROM question_theory_recaps') && normalized.includes('WHERE question_id = ?') && normalized.includes('LIMIT 1')) {
       return [[] as T, []];
     }
 
     if (normalized.includes('FROM subscription_requests') && normalized.includes("status = 'pending'")) {
       return [[] as T, []];
+    }
+
+    if (normalized.includes('INSERT INTO subscription_requests')) {
+      return [{ insertId: 1, affectedRows: 1 } as T, []];
+    }
+
+    if (normalized.includes('FROM subscription_requests') && normalized.includes("payment_method = 'payhere'")) {
+      return [[{ id: 1, status: 'pending', subscription_id: null }] as T, []];
+    }
+
+    if (normalized.includes('UPDATE subscription_requests')) {
+      return [{ affectedRows: 1 } as T, []];
     }
 
     if (normalized.includes('INSERT IGNORE INTO system_settings')) {
@@ -395,7 +407,7 @@ class SecurityE2eDb {
       return [[...(TEST_SETTINGS[key] !== undefined ? [{ setting_value: TEST_SETTINGS[key] }] : [])] as T, []];
     }
 
-    if (normalized.includes('SELECT * FROM payment_transactions WHERE order_id = ? LIMIT 1')) {
+    if (normalized.includes('FROM payment_transactions') && normalized.includes('WHERE order_id = ?') && normalized.includes('LIMIT 1')) {
       const orderId = String(params[0] || '');
       if (orderId === 'INV-VALID' || orderId === 'INV-REPLAY') {
         return [[{
@@ -900,6 +912,9 @@ async function testPaymentProofUploadAndDownloadProtections() {
     .send({ planId: 1, billingName: 'Student A', billingEmail: 'a@example.test', userId: 200 });
   assert.equal(payHereInitiateResponse.status, 201);
   assert.equal(payHereInitiateResponse.body?.fields?.custom_1, '100');
+  assert.equal(payHereInitiateResponse.body?.fields?.notify_url, `${TEST_API_ORIGIN}/api/subscriptions/payhere/notify`);
+  const requestInsertCall = db.findCall(/INSERT INTO subscription_requests/i);
+  assert(requestInsertCall, 'PayHere initiation must create a visible subscription request');
   const transactionInsertCall = db.findCall(/INSERT INTO payment_transactions/i);
   assert(transactionInsertCall, 'PayHere initiation must create a payment transaction');
   assert.equal(transactionInsertCall.params[2], 100);

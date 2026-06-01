@@ -74,6 +74,10 @@ const SMTP_SETTING_KEYS = {
   buttonLabel: 'smtp_reset_button_label',
   footer: 'smtp_reset_footer',
 } as const;
+const LEGACY_SMTP_BRAND_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bERPM LMS\b/g, 'xyndrome'],
+  [/\bERPM\b/g, 'xyndrome'],
+];
 
 @Injectable()
 export class AuthService {
@@ -87,7 +91,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const email = loginDto.email.trim().toLowerCase();
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
+      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1',
       [email]
     );
 
@@ -173,7 +177,7 @@ export class AuthService {
     const fullName = this.getGoogleDisplayName(profile);
 
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1',
+      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1',
       [email]
     );
 
@@ -467,16 +471,24 @@ export class AuthService {
       security: values.get(SMTP_SETTING_KEYS.security) === 'ssl' ? 'ssl' : 'starttls',
       username: values.get(SMTP_SETTING_KEYS.username) || '',
       password,
-      fromName: values.get(SMTP_SETTING_KEYS.fromName) || 'xyndrome',
+      fromName: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.fromName)) || 'xyndrome',
       fromEmail: values.get(SMTP_SETTING_KEYS.fromEmail) || '',
       publicUrl,
-      subject: values.get(SMTP_SETTING_KEYS.subject) || 'Reset your xyndrome password',
-      heading: values.get(SMTP_SETTING_KEYS.heading) || 'Reset your password',
-      intro: values.get(SMTP_SETTING_KEYS.intro) || 'We received a request to reset your xyndrome password.',
+      subject: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.subject)) || 'Reset your xyndrome password',
+      heading: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.heading)) || 'Reset your password',
+      intro: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.intro)) || 'We received a request to reset your xyndrome password.',
       buttonLabel: values.get(SMTP_SETTING_KEYS.buttonLabel) || 'Reset password',
-      footer: values.get(SMTP_SETTING_KEYS.footer) || 'If you did not request this, you can safely ignore this email.',
+      footer: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.footer)) || 'If you did not request this, you can safely ignore this email.',
       configured: Boolean(values.get(SMTP_SETTING_KEYS.host) && password && values.get(SMTP_SETTING_KEYS.username) && values.get(SMTP_SETTING_KEYS.fromEmail)),
     };
+  }
+
+  private normalizeSmtpBrandText(value: string | undefined) {
+    let normalized = String(value || '').trim();
+    for (const [pattern, replacement] of LEGACY_SMTP_BRAND_REPLACEMENTS) {
+      normalized = normalized.replace(pattern, replacement);
+    }
+    return normalized;
   }
 
   private async sendPasswordResetEmail(input: {

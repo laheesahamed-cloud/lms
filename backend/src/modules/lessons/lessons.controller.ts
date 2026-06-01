@@ -30,7 +30,10 @@ export class LessonsController {
     @Query('courseId') courseId?: string,
     @Query('topicId') topicId?: string,
     @Query('subtopicId') subtopicId?: string,
-    @Query('status') status?: string
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('offset') offset?: string
   ) {
     return this.lessonsService.findAdminList({
       search,
@@ -38,6 +41,9 @@ export class LessonsController {
       topicId: topicId ? Number(topicId) : undefined,
       subtopicId: subtopicId ? Number(subtopicId) : undefined,
       status,
+      limit: this.parsePositiveNumber(limit),
+      page: this.parsePositiveNumber(page),
+      offset: this.parseNonNegativeNumber(offset),
     });
   }
 
@@ -156,5 +162,21 @@ export class LessonsController {
   ) {
     const actor = await this.authService.requireAdmin(authorization);
     return this.lessonsService.rollback(id, versionNumber, actor);
+  }
+
+  private parsePositiveNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
+  }
+
+  private parseNonNegativeNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
   }
 }

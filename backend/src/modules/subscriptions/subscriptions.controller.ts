@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, ParseIntPipe, Patch, Post, Put, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, ParseIntPipe, Patch, Post, Put, Query, Res, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { isStaffRole, roleHasPermission } from '../auth/role-permissions';
@@ -25,7 +25,12 @@ export class SubscriptionsController {
   }
 
   @Get()
-  async defaultList(@Headers('authorization') authorization?: string) {
+  async defaultList(
+    @Headers('authorization') authorization?: string,
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('offset') offset?: string
+  ) {
     const user = await this.authService.requireAuthenticatedUser(authorization);
     if (isStaffRole(user.role)) {
       if (user.status !== 'active') {
@@ -34,16 +39,29 @@ export class SubscriptionsController {
       if (!roleHasPermission(user.role, 'subscriptions.manage')) {
         throw new ForbiddenException('Your role does not have permission for this action');
       }
-      return this.subscriptionsService.findAdminList();
+      return this.subscriptionsService.findAdminList({
+        limit: this.parsePositiveNumber(limit),
+        page: this.parsePositiveNumber(page),
+        offset: this.parseNonNegativeNumber(offset),
+      });
     }
     return this.subscriptionsService.getStudentBilling(user.id);
   }
 
   @Get('admin')
   @RequirePermissions('subscriptions.manage')
-  async findAdminList(@Headers('authorization') authorization?: string) {
+  async findAdminList(
+    @Headers('authorization') authorization?: string,
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('offset') offset?: string
+  ) {
     await this.authService.requireAdmin(authorization);
-    return this.subscriptionsService.findAdminList();
+    return this.subscriptionsService.findAdminList({
+      limit: this.parsePositiveNumber(limit),
+      page: this.parsePositiveNumber(page),
+      offset: this.parseNonNegativeNumber(offset),
+    });
   }
 
   @Get('admin/requests')
@@ -210,5 +228,21 @@ export class SubscriptionsController {
   async getMine(@Headers('authorization') authorization?: string) {
     const student = await this.authService.requireStudent(authorization);
     return this.subscriptionsService.getStudentBilling(student.id);
+  }
+
+  private parsePositiveNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
+  }
+
+  private parseNonNegativeNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
   }
 }

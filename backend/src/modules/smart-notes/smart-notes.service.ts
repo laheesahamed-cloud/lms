@@ -67,7 +67,7 @@ export class SmartNotesService {
   async list(token: string) {
     const user = await this.getUser(token);
     const [rows] = await this.db.execute<SmartNoteRow[]>(
-      `SELECT id, title, raw_text, processed_qa, infographic_elements,
+      `SELECT id, user_id, title, NULL AS raw_text, NULL AS processed_qa, NULL AS infographic_elements,
               NULL AS representative_image_data, representative_image_prompt, created_at, updated_at
        FROM smart_notes WHERE user_id = ? ORDER BY updated_at DESC`,
       [user.id],
@@ -78,7 +78,11 @@ export class SmartNotesService {
   async findOne(id: number, token: string) {
     const user = await this.getUser(token);
     const [rows] = await this.db.execute<SmartNoteRow[]>(
-      'SELECT * FROM smart_notes WHERE id = ? AND user_id = ?',
+      `SELECT id, user_id, title, raw_text, processed_qa, infographic_elements,
+              representative_image_data, representative_image_prompt, created_at, updated_at
+       FROM smart_notes
+       WHERE id = ? AND user_id = ?
+       LIMIT 1`,
       [id, user.id],
     );
     if (!rows.length) throw new NotFoundException('Note not found');

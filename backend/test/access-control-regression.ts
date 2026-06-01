@@ -369,7 +369,7 @@ async function testSupportUserListIsScopedToStudents() {
   const listCall = db.calls.find((call) => /FROM users/i.test(call.sql) && /WHERE 1 = 1/i.test(call.sql));
   assert(listCall, 'support user listing must query through the users list');
   assert(/role = \?/.test(listCall.sql), 'support user listing must force a role filter');
-  assert.deepEqual(listCall.params, ['student']);
+  assert.deepEqual(listCall.params, ['student', 50, 0]);
 }
 
 async function testSupportUserListCannotRequestStaffRoles() {

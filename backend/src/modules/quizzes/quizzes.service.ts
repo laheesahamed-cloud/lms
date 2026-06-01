@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
 
@@ -101,10 +102,36 @@ export class QuizzesService {
     }
   }
 
-  async findAll(filters: { search?: string; courseId?: number; topicId?: string; status?: string }) {
+  async findAll(filters: { search?: string; courseId?: number; topicId?: string; status?: string } & PaginationInput) {
+    const { limit, offset } = normalizePagination(filters, { defaultLimit: 50, maxLimit: 100 });
     let sql = `
       SELECT
-        quizzes.*,
+        quizzes.id,
+        quizzes.course_id,
+        quizzes.topic_id,
+        quizzes.subtopic_id,
+        quizzes.lesson_id,
+        quizzes.paper_id,
+        quizzes.category,
+        quizzes.collection_tags,
+        quizzes.is_free,
+        quizzes.subtopic,
+        quizzes.is_general,
+        quizzes.exam_mode_only,
+        quizzes.admin_name,
+        quizzes.student_title,
+        quizzes.display_title_mode,
+        quizzes.quiz_title,
+        quizzes.quiz_description,
+        NULL AS blueprint_json,
+        quizzes.total_questions,
+        quizzes.total_marks,
+        quizzes.time_limit,
+        quizzes.hide_time_limit,
+        quizzes.passing_marks,
+        quizzes.hide_passing_marks,
+        quizzes.status,
+        quizzes.created_at,
         courses.course_title,
         topics.topic_name AS subject_name,
         subtopics.subtopic_name AS topic_name,
@@ -145,7 +172,8 @@ export class QuizzesService {
       params.push(filters.status);
     }
 
-    sql += ' ORDER BY quizzes.id DESC';
+    sql += ' ORDER BY quizzes.id DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
 
     const [rows] = await this.db.execute<QuizRow[]>(sql, params);
     return rows.map((row) => this.mapQuiz(row));
@@ -323,7 +351,32 @@ export class QuizzesService {
     const [rows] = await this.db.execute<QuizRow[]>(
       `
         SELECT
-          quizzes.*,
+          quizzes.id,
+          quizzes.course_id,
+          quizzes.topic_id,
+          quizzes.subtopic_id,
+          quizzes.lesson_id,
+          quizzes.paper_id,
+          quizzes.category,
+          quizzes.collection_tags,
+          quizzes.is_free,
+          quizzes.subtopic,
+          quizzes.is_general,
+          quizzes.exam_mode_only,
+          quizzes.admin_name,
+          quizzes.student_title,
+          quizzes.display_title_mode,
+          quizzes.quiz_title,
+          quizzes.quiz_description,
+          quizzes.blueprint_json,
+          quizzes.total_questions,
+          quizzes.total_marks,
+          quizzes.time_limit,
+          quizzes.hide_time_limit,
+          quizzes.passing_marks,
+          quizzes.hide_passing_marks,
+          quizzes.status,
+          quizzes.created_at,
           courses.course_title,
           topics.topic_name AS subject_name,
           subtopics.subtopic_name AS topic_name,

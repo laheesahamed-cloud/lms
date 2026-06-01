@@ -22,9 +22,19 @@ export class UsersController {
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('role') role?: string,
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('offset') offset?: string,
   ) {
     const actor = await this.authService.requireAdmin(authorization);
-    return this.usersService.findAll(actor, { search, status, role });
+    return this.usersService.findAll(actor, {
+      search,
+      status,
+      role,
+      limit: this.parsePositiveNumber(limit),
+      page: this.parsePositiveNumber(page),
+      offset: this.parseNonNegativeNumber(offset),
+    });
   }
 
   @Get('summary')
@@ -69,5 +79,21 @@ export class UsersController {
   async delete(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
     const actor = await this.authService.requireAdmin(authorization);
     return this.usersService.delete(actor, id);
+  }
+
+  private parsePositiveNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
+  }
+
+  private parseNonNegativeNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
   }
 }

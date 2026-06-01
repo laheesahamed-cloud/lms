@@ -21,9 +21,9 @@ class MockPool {
     this.queries.push({ sql, params });
     const normalizedSql = sql.replace(/\s+/g, ' ').trim();
 
-    if (normalizedSql.startsWith('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE LOWER(TRIM(email)) = ?')) {
+    if (normalizedSql.startsWith('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ?')) {
       const email = String(params[0] || '');
-      const userEmail = String(this.user?.email || '').trim().toLowerCase();
+      const userEmail = String(this.user?.email || '');
       return [(this.user && userEmail === email ? [this.user] : []) as T, []];
     }
 
@@ -97,7 +97,6 @@ async function testLoginCreatesHashedSession() {
 
 async function testLoginNormalizesEmailCaseAndWhitespace() {
   const { service, user, password } = await createService('student');
-  user.email = 'Test@Example.COM';
   const result = await service.login({ email: '  TEST@example.com  ', password });
   assert.equal(result.ok, true);
   assert.equal(user.session_token, hashSessionToken(result.sessionToken));

@@ -66,6 +66,27 @@ export class PlansService {
     return plan;
   }
 
+  async findByIds(ids: number[]) {
+    const cleanIds = Array.from(
+      new Set(
+        ids
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id) && id > 0)
+      )
+    );
+    if (cleanIds.length === 0) {
+      return new Map();
+    }
+
+    const requestedIds = new Set(cleanIds);
+    const plans = await this.listPlans(false);
+    return new Map(
+      plans
+        .filter((plan) => requestedIds.has(Number(plan.id)))
+        .map((plan) => [Number(plan.id), plan])
+    );
+  }
+
   async getFeatureCatalog() {
     const features = await this.getFeatures(false);
     return {

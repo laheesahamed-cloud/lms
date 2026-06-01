@@ -60,6 +60,8 @@ export class QuestionsController {
     @Query('ids') ids?: string,
     @Query('excludeIds') excludeIds?: string,
     @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('offset') offset?: string,
     @Query('random') random?: string
   ) {
     return this.questionsService.findAll({
@@ -78,6 +80,8 @@ export class QuestionsController {
       ids: this.parseIdList(ids),
       excludeIds: this.parseIdList(excludeIds),
       limit: this.parseLimit(limit),
+      page: this.parsePositiveNumber(page),
+      offset: this.parseNonNegativeNumber(offset),
       random: random === '1' || random === 'true',
     });
   }
@@ -267,5 +271,21 @@ export class QuestionsController {
       return undefined;
     }
     return Math.min(Math.max(Math.trunc(value), 1), 200);
+  }
+
+  private parsePositiveNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
+  }
+
+  private parseNonNegativeNumber(raw?: string) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      return undefined;
+    }
+    return Math.trunc(value);
   }
 }

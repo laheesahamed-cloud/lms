@@ -1,7 +1,9 @@
 import { apiClient } from './client.js';
 
 export async function fetchQuizzes(params) {
-  const response = await apiClient.get('/admin/quizzes', { params });
+  const requestParams = { ...(params || {}) };
+  if (!requestParams.limit) requestParams.limit = 100;
+  const response = await apiClient.get('/admin/quizzes', { params: requestParams });
   return response.data;
 }
 

@@ -5,8 +5,10 @@ export async function fetchSubscriptionAdminMeta() {
   return response.data;
 }
 
-export async function fetchAdminSubscriptions() {
-  const response = await apiClient.get('/subscriptions/admin');
+export async function fetchAdminSubscriptions(params) {
+  const requestParams = { ...(params || {}) };
+  if (!requestParams.limit) requestParams.limit = 100;
+  const response = await apiClient.get('/subscriptions/admin', { params: requestParams });
   return response.data;
 }
 

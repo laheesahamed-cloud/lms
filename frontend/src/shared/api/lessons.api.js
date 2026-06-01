@@ -6,7 +6,9 @@ export async function fetchLessonMeta() {
 }
 
 export async function fetchAdminLessons(params) {
-  const response = await apiClient.get('/admin/lessons', { params });
+  const requestParams = { ...(params || {}) };
+  if (!requestParams.limit) requestParams.limit = 100;
+  const response = await apiClient.get('/admin/lessons', { params: requestParams });
   return response.data;
 }
 

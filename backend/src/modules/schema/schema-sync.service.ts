@@ -128,6 +128,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_paper_id', 'paper_id');
       await this.ensureIndex(connection, 'plans', 'idx_plans_slug', 'slug');
       await this.ensureIndex(connection, 'users', 'idx_users_password_reset_token', 'password_reset_token');
+      await this.ensureIndex(connection, 'users', 'idx_users_session_token_expires', 'session_token, session_expires_at');
       await this.ensureIndex(connection, 'plans', 'idx_plans_sort_order', 'sort_order');
       await this.ensureIndex(connection, 'question_quizzes', 'idx_question_quizzes_quiz_sort', 'quiz_id, sort_order');
       await this.ensureIndex(connection, 'question_quizzes', 'idx_question_quizzes_question_quiz', 'question_id, quiz_id');

@@ -1,7 +1,9 @@
 import { apiClient } from './client.js';
 
 export async function fetchQuestions(params) {
-  const response = await apiClient.get('/admin/questions', { params });
+  const requestParams = { ...(params || {}) };
+  if (!requestParams.limit) requestParams.limit = 200;
+  const response = await apiClient.get('/admin/questions', { params: requestParams });
   return response.data;
 }
 

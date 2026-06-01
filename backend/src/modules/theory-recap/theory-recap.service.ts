@@ -52,7 +52,13 @@ export class TheoryRecapService {
 
   async getByQuestionId(questionId: number) {
     const [rows] = await this.db.execute<RecapRow[]>(
-      'SELECT * FROM question_theory_recaps WHERE question_id = ? LIMIT 1',
+      `SELECT
+         id, question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic, hierarchy_lesson,
+         etiology, pathophysiology, clinical_features, investigations, treatment, key_points, mnemonic,
+         generated_by, reviewed_status, created_at, updated_at
+       FROM question_theory_recaps
+       WHERE question_id = ?
+       LIMIT 1`,
       [questionId]
     );
     const row = rows[0];

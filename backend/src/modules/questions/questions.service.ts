@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { normalizePagination } from '../../common/utils/pagination';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlIdentifier, sqlPlaceholders } from '../../database/sql-safety';
 import { BulkDeleteQuestionsDto } from './dto/bulk-delete-questions.dto';
@@ -57,6 +58,8 @@ type QuestionFilters = {
   ids?: number[];
   excludeIds?: number[];
   limit?: number;
+  page?: number;
+  offset?: number;
   random?: boolean;
 };
 
@@ -167,6 +170,10 @@ export class QuestionsService {
 
     const ids = Array.from(new Set(filters.ids || [])).filter((id) => Number.isInteger(id) && id > 0);
     const excludeIds = Array.from(new Set(filters.excludeIds || [])).filter((id) => Number.isInteger(id) && id > 0);
+    const pagination = normalizePagination(filters, {
+      defaultLimit: ids.length > 0 ? Math.min(ids.length, 200) : 50,
+      maxLimit: 200,
+    });
 
     if (ids.length > 0) {
       sql += ` AND q.id IN (${sqlPlaceholders(ids)})`;
@@ -243,9 +250,11 @@ export class QuestionsService {
 
     sql += filters.random ? ' ORDER BY RAND()' : ' ORDER BY q.id DESC';
 
-    if (filters.limit && filters.limit > 0) {
-      sql += ' LIMIT ?';
-      params.push(Math.min(Math.trunc(filters.limit), 200));
+    sql += ' LIMIT ?';
+    params.push(pagination.limit);
+    if (pagination.offset > 0) {
+      sql += ' OFFSET ?';
+      params.push(pagination.offset);
     }
 
     const [rows] = await this.db.execute<QuestionRow[]>(sql, params);

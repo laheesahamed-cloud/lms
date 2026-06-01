@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as bcrypt from 'bcryptjs';
+import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { isStaffRole, USER_ROLES, UserRole } from '../auth/role-permissions';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -26,14 +27,15 @@ type UserManagementActor = {
 export class UsersService {
   constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
 
-  async findAll(actor: UserManagementActor, filters: { search?: string; status?: string; role?: string }) {
+  async findAll(actor: UserManagementActor, filters: { search?: string; status?: string; role?: string } & PaginationInput) {
     this.assertActiveStaff(actor);
+    const { limit, offset } = normalizePagination(filters, { defaultLimit: 50, maxLimit: 100 });
     let sql = `
       SELECT id, full_name, email, role, status, created_at
       FROM users
       WHERE 1 = 1
     `;
-    const params: Array<string> = [];
+    const params: Array<string | number> = [];
 
     if (filters.search?.trim()) {
       sql += ' AND (full_name LIKE ? OR email LIKE ?)';
@@ -52,7 +54,8 @@ export class UsersService {
       params.push(requestedRole);
     }
 
-    sql += ` ORDER BY FIELD(status, 'inactive', 'active'), id DESC`;
+    sql += ` ORDER BY FIELD(status, 'inactive', 'active'), id DESC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
 
     const [rows] = await this.db.execute<UserRow[]>(sql, params);
     return rows.map((row) => this.mapUser(row));
@@ -96,7 +99,14 @@ export class UsersService {
 
     const [[subscriptionRows], [attemptRows], [progressRows], [bookmarkRows]] = await Promise.all([
       this.db.execute<RowDataPacket[]>(
-        `SELECT us.*, p.name AS plan_name
+        `SELECT
+           us.id,
+           us.status,
+           us.payment_status,
+           us.start_date,
+           us.end_date,
+           us.amount_paid,
+           p.name AS plan_name
          FROM user_subscriptions us
          LEFT JOIN plans p ON p.id = us.plan_id
          WHERE us.user_id = ?
