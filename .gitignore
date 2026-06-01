@@ -25,8 +25,7 @@ frontend/.env.*
 google-services.json
 GoogleService-Info.plist
 
-dist/
-frontend/dist/
+/dist/
 frontend/dist-capacitor/
 backend/dist/
 frontend/android/.gradle/

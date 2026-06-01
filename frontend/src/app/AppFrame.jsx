@@ -37,8 +37,6 @@ const studentStudyHubPathPattern =
 const legacyProtectedPathPattern =
   /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 const adminRoutePattern = /^\/admin(?:\/|$)/;
-const adminSettingsRoutePattern = /^\/admin\/settings(?:\/|$)/;
-const appRoutePattern = /^\/app(?:\/|$)/;
 const authRoutePattern = /^\/(?:auth\/login|login)(?:\/|$)/;
 const launchPreviewRoutePattern = /^\/launch-preview\/(?:maintenance|coming-soon)(?:\/|$)/;
 
@@ -383,13 +381,6 @@ function isAdminLoginBypass(pathname = '', search = '') {
   } catch {
     return false;
   }
-}
-
-function isWebsiteSurfacePath(pathname = '') {
-  if (PLATFORM.isNative || PLATFORM.isDesktopApp) return false;
-  if (adminRoutePattern.test(pathname) || appRoutePattern.test(pathname)) return false;
-  if (legacyProtectedPathPattern.test(pathname)) return false;
-  return true;
 }
 
 function LaunchModeLoadingShell() {
@@ -911,13 +902,13 @@ export function AppFrame() {
   }, [location.pathname, location.search]);
 
   const isLaunchPreviewRoute = launchPreviewRoutePattern.test(location.pathname);
-  const isAdminSettingsRoute = adminSettingsRoutePattern.test(location.pathname);
+  const isAdminRoute = adminRoutePattern.test(location.pathname);
   const allowAdminLogin = isAdminLoginBypass(location.pathname, location.search);
   const staffCanBypassLaunchMode = isStaffUser(user);
   const isCheckingAvailability = !availabilityHydrated && !isLaunchPreviewRoute;
   const isLaunchModeForCurrentRoute =
-    availability.isMaintenance ||
-    (availability.isComingSoon && isWebsiteSurfacePath(location.pathname));
+    (availability.isMaintenance || availability.isComingSoon) &&
+    !isAdminRoute;
   const isCheckingStaffLaunchAccess =
     isLaunchModeForCurrentRoute &&
     isHydrating &&
@@ -929,15 +920,22 @@ export function AppFrame() {
     availability.isMaintenance &&
     !staffCanBypassLaunchMode &&
     !isLaunchPreviewRoute &&
-    !isAdminSettingsRoute &&
+    !isAdminRoute &&
     !allowAdminLogin;
   const showComingSoon =
     !isCheckingLaunchAccess &&
     availability.isComingSoon &&
     !staffCanBypassLaunchMode &&
     !isLaunchPreviewRoute &&
-    !allowAdminLogin &&
-    isWebsiteSurfacePath(location.pathname);
+    !isAdminRoute &&
+    !allowAdminLogin;
+  const shouldShowLaunchMode = showMaintenance || showComingSoon;
+
+  useEffect(() => {
+    if (!shouldShowLaunchMode || isLaunchPreviewRoute || location.pathname === '/') return;
+    navigate('/', { replace: true });
+  }, [isLaunchPreviewRoute, location.pathname, navigate, shouldShowLaunchMode]);
+
   const routeContent = isCheckingLaunchAccess ? (
     <LaunchModeLoadingShell />
   ) : showMaintenance ? (

@@ -13,14 +13,14 @@ const variants = {
     eyebrow: 'Maintenance',
     title: 'Maintenance',
     body: 'We are making a few updates to the learning workspace. Please check back soon.',
-    footnote: 'Website, student app, and native apps are paused.',
+    footnote: 'Only admin routes remain available.',
     badgeClass: 'border-brand-warning/28 bg-[var(--color-warning-light)] text-brand-warning',
   },
   'coming-soon': {
     eyebrow: 'Launching soon',
     title: 'Coming Soon',
     body: 'This website is getting ready for launch. The full study platform will open shortly.',
-    footnote: 'Public website only.',
+    footnote: 'Only admin routes remain available.',
     badgeClass: 'border-brand-primary/24 bg-[var(--color-primary-light)] text-brand-primary',
   },
 };
@@ -129,10 +129,10 @@ export function LaunchModePage({ mode = 'maintenance', preview = false, adminUnl
 
       <section className="mx-auto grid min-h-[calc(var(--lms-app-viewport-height,100dvh)-56px)] w-full max-w-[900px] grid-rows-[1fr_auto] place-items-center text-center">
         <div className="grid max-w-[780px] justify-items-center gap-5">
-          <div className="mb-2 inline-flex max-w-full flex-wrap items-center justify-center gap-3 sm:gap-4" role="img" aria-label="xyndrome">
-            <XyndromeLogoMark size={76} decorative />
+          <div className="launch-mode-page__brand-lockup mb-2 inline-flex max-w-full flex-nowrap items-center justify-center gap-[clamp(2px,0.8vw,8px)]" role="img" aria-label="xyndrome">
+            <XyndromeLogoMark size="clamp(82px,22vw,236px)" decorative />
             <span
-              className="font-display text-[clamp(3rem,11vw,7rem)] font-black leading-none tracking-normal"
+              className="launch-mode-page__brand-word whitespace-nowrap font-display text-[clamp(3.55rem,11vw,7.2rem)] font-black leading-none tracking-normal"
               style={{
                 color: 'var(--ink-strong)',
                 backgroundImage: 'var(--brand-gradient-primary, linear-gradient(135deg, var(--color-primary), var(--color-accent)))',
@@ -141,7 +141,7 @@ export function LaunchModePage({ mode = 'maintenance', preview = false, adminUnl
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              xyndrome
+              yndrome
             </span>
           </div>
           <p className={`m-0 inline-flex rounded-full border px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] ${variant.badgeClass}`}>

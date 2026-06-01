@@ -22,8 +22,8 @@ const modeOptions = [
     mode: 'maintenance',
     label: 'Maintenance',
     shortLabel: 'Pause all',
-    description: 'Show the maintenance screen everywhere except admin settings.',
-    scope: 'Website, app, native, and PWA show maintenance.',
+    description: 'Send visitors and students to the launch landing screen while admin routes stay open.',
+    scope: 'Only admin routes load; everyone else lands on the launch screen.',
     impact: 'Use this when you need a clean pause.',
     tone: 'text-brand-warning bg-[var(--color-warning-light)] border-brand-warning/28',
     selectedClass: 'border-brand-warning/34 bg-[color-mix(in_srgb,var(--color-warning)_7%,var(--surface-card))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-warning)_10%,transparent)]',
@@ -33,9 +33,9 @@ const modeOptions = [
     mode: 'coming-soon',
     label: 'Coming soon',
     shortLabel: 'Pre-launch',
-    description: 'Show the coming soon screen on the public website only.',
-    scope: 'Only public website routes are covered.',
-    impact: 'Students/admin routes stay available.',
+    description: 'Send visitors and students to the coming soon landing screen while admin routes stay open.',
+    scope: 'Only admin routes load; everyone else lands on the launch screen.',
+    impact: 'Use this before opening the LMS publicly.',
     tone: 'text-brand-primary bg-[var(--color-primary-light)] border-brand-primary/24',
     selectedClass: 'border-brand-primary/36 bg-[color-mix(in_srgb,var(--color-primary)_7%,var(--surface-card))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_10%,transparent)]',
     icon: 'coming-soon',
@@ -288,14 +288,16 @@ export function AdminAvailabilitySettingsPanel() {
                 <span className="text-[12.5px] font-semibold leading-relaxed opacity-90">{activeOption.impact}</span>
               </div>
               <div className="flex flex-col gap-1.5 rounded-lg border border-line-soft bg-surface-glass-subtle px-4 py-3.5">
-                <span className="text-xs text-ink-soft">Maintenance scope</span>
-                <strong className="[overflow-wrap:anywhere] text-sm leading-normal text-ink-strong">Website, app, native, and PWA routes.</strong>
+                <span className="text-xs text-ink-soft">Visitor/student routes</span>
+                <strong className="[overflow-wrap:anywhere] text-sm leading-normal text-ink-strong">Redirect to the launch landing screen.</strong>
               </div>
               <div className="flex flex-col gap-1.5 rounded-lg border border-line-soft bg-surface-glass-subtle px-4 py-3.5">
-                <span className="text-xs text-ink-soft">Coming soon scope</span>
-                <strong className="[overflow-wrap:anywhere] text-sm leading-normal text-ink-strong">Public website routes only.</strong>
+                <span className="text-xs text-ink-soft">Admin routes</span>
+                <strong className="[overflow-wrap:anywhere] text-sm leading-normal text-ink-strong">Stay available for mode changes.</strong>
               </div>
-              <p className="m-0 mt-0.5 text-[12.5px] leading-relaxed text-ink-soft">{settings?.note}</p>
+              <p className="m-0 mt-0.5 text-[12.5px] leading-relaxed text-ink-soft">
+                Live opens the full LMS. Maintenance and Coming Soon send visitors and students to the launch landing screen, while admin routes stay available for changing this setting.
+              </p>
             </div>
           </div>
         </div>

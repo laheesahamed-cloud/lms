@@ -123,6 +123,51 @@
   color: var(--xyndrome-logo-scope, #08245f);
 }
 
+.launch-mode-page .xyndrome-logo-mark {
+  --xyndrome-logo-filter: saturate(1.08) contrast(1.04);
+  z-index: 0;
+}
+
+.launch-mode-page .xyndrome-logo-mark::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  z-index: -1;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-primary) 26%, transparent), transparent 68%);
+  filter: blur(18px);
+  opacity: 0.74;
+  pointer-events: none;
+  transform: translate3d(0, 12%, 0) scale(0.92);
+}
+
+:root[data-theme="dark"] .launch-mode-page .xyndrome-logo-mark__image--dark {
+  mix-blend-mode: screen;
+}
+
+.launch-mode-page__brand-lockup {
+  transform: translate3d(0, -1px, 0);
+}
+
+.launch-mode-page__brand-word {
+  text-shadow:
+    0 1px 0 color-mix(in srgb, var(--surface-card) 72%, transparent),
+    0 12px 24px color-mix(in srgb, var(--color-primary) 24%, transparent),
+    0 26px 50px rgba(15, 23, 42, 0.18);
+}
+
+:root[data-theme="dark"] .launch-mode-page .xyndrome-logo-mark::before {
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 24%, transparent), transparent 70%);
+  opacity: 0.54;
+}
+
+:root[data-theme="dark"] .launch-mode-page__brand-word {
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 24px color-mix(in srgb, var(--color-accent) 22%, transparent),
+    0 24px 54px rgba(0, 0, 0, 0.5);
+}
+
 :root[data-theme="dark"] {
   --xyndrome-logo-scope: #dbeafe;
   --xyndrome-logo-filter:

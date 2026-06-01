@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /lms/
+Disallow: /lms/admin/
+Disallow: /lms/app/
+Disallow: /lms/dashboard
+Disallow: /lms/profile
+Disallow: /lms/courses
+Disallow: /lms/quizzes
+Disallow: /lms/results
+Disallow: /lms/review
+Disallow: /lms/ai-notes
+Disallow: /lms/subscriptions/checkout/
+
+Sitemap: https://www.xyndrome.lk/lms/sitemap.xml
