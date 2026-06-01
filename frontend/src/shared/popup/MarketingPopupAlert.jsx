@@ -126,7 +126,16 @@ export function MarketingPopupAlert({ suppressed = false }) {
     const frame = window.requestAnimationFrame(() => {
       closeButtonRef.current?.focus({ preventScroll: true });
     });
-    return () => window.cancelAnimationFrame(frame);
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closePopup();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [shouldOpen, dismissKey]);
 
   function closePopup() {
@@ -150,7 +159,7 @@ export function MarketingPopupAlert({ suppressed = false }) {
         <button
           ref={closeButtonRef}
           type="button"
-          className="absolute right-3 top-3 z-10 grid size-10 shrink-0 place-items-center rounded-md border border-line-soft bg-surface-card/95 text-ink-soft shadow-sm transition hover:bg-surface-1 hover:text-ink-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18"
+          className="absolute right-3 top-3 z-10 grid size-10 shrink-0 place-items-center rounded-md border border-line-soft bg-surface-card/95 text-ink-soft shadow-sm transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-1 hover:text-ink-strong active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18"
           aria-label="Close popup"
           onClick={closePopup}
         >

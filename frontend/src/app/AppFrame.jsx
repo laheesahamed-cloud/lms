@@ -38,6 +38,7 @@ const legacyProtectedPathPattern =
   /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 const adminRoutePattern = /^\/admin(?:\/|$)/;
 const authRoutePattern = /^\/(?:auth\/login|login)(?:\/|$)/;
+const authRecoveryRoutePattern = /^\/auth\/(?:forgot-password|reset-password)(?:\/|$)/;
 const launchPreviewRoutePattern = /^\/launch-preview\/(?:maintenance|coming-soon)(?:\/|$)/;
 
 function cx(...classes) {
@@ -939,6 +940,7 @@ export function AppFrame() {
   }, [location.pathname, location.search]);
 
   const isLaunchPreviewRoute = launchPreviewRoutePattern.test(location.pathname);
+  const isAuthRecoveryRoute = authRecoveryRoutePattern.test(location.pathname);
   const isAdminRoute = adminRoutePattern.test(location.pathname);
   const allowAdminLogin = isAdminLoginBypass(location.pathname, location.search);
   const staffCanBypassLaunchMode = isStaffUser(user);
@@ -967,6 +969,12 @@ export function AppFrame() {
     !isAdminRoute &&
     !allowAdminLogin;
   const shouldShowLaunchMode = showMaintenance || showComingSoon;
+  const shouldSuppressMarketingPopup =
+    isCheckingLaunchAccess ||
+    showMaintenance ||
+    showComingSoon ||
+    isLaunchPreviewRoute ||
+    isAuthRecoveryRoute;
 
   useEffect(() => {
     if (!shouldShowLaunchMode || isLaunchPreviewRoute || location.pathname === '/') return;
@@ -994,7 +1002,7 @@ export function AppFrame() {
             {routeContent}
           </div>
         </div>
-        <MarketingPopupAlert suppressed={isCheckingLaunchAccess || showMaintenance || showComingSoon || isLaunchPreviewRoute} />
+        <MarketingPopupAlert suppressed={shouldSuppressMarketingPopup} />
       </>
     );
   }
@@ -1008,7 +1016,7 @@ export function AppFrame() {
           {routeContent}
         </div>
       </div>
-      <MarketingPopupAlert suppressed={isCheckingLaunchAccess || showMaintenance || showComingSoon || isLaunchPreviewRoute} />
+      <MarketingPopupAlert suppressed={shouldSuppressMarketingPopup} />
     </>
   );
 }

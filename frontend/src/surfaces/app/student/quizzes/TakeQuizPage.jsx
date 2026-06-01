@@ -149,15 +149,16 @@ const practiceQuizSideNavClass =
   'lms-review-side-nav grid min-h-0 gap-2.5 rounded-[18px] border border-line-soft bg-surface-1 p-3.5 shadow-none';
 const practiceQuizNavHeadClass =
   'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft';
-const practiceQuizBubbleNavClass = 'lms-review-bubble-nav grid grid-cols-5 gap-2';
+const practiceQuizBubbleNavClass =
+  'lms-review-bubble-nav grid grid-cols-4 gap-2 min-[381px]:grid-cols-5 min-[701px]:grid-cols-6 min-[1024px]:grid-cols-8 min-[1200px]:grid-cols-5';
 const practiceQuizBubbleClass =
-  'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-80';
+  'flex aspect-square w-full min-w-0 items-center justify-center whitespace-nowrap rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-[clamp(16px,4vw,20px)] font-bold leading-none text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-80';
 const practiceQuizBubbleActiveClass = 'border-brand-primary/38 bg-brand-primary/12 text-brand-primary shadow-none';
 const practiceQuizBubbleAnsweredClass = 'border-brand-success/30 bg-brand-success/12 text-brand-success';
 const practiceQuizBubbleSavedClass = 'border-[color-mix(in_srgb,#8b5cf6_30%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_12%,var(--surface-2))] text-brand-violet';
 const practiceQuizBubbleFlaggedClass = 'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_12%,var(--surface-2))] text-[#92400e] dark:text-[#fbbf24]';
 const practiceQuizBubbleLegendClass =
-  'lms-review-bubble-legend mt-3 grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] items-center gap-2 text-[11px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded-full [&_i]:border [&_span]:inline-flex [&_span]:min-h-5 [&_span]:min-w-0 [&_span]:items-center [&_span]:gap-1.5 [&_span]:whitespace-nowrap';
+  'lms-review-bubble-legend mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded-full [&_i]:border [&_span]:inline-flex [&_span]:min-h-5 [&_span]:min-w-max [&_span]:items-center [&_span]:gap-1.5 [&_span]:whitespace-nowrap';
 const practiceQuizQuestionCardClass = 'lms-review-question-card grid gap-[clamp(16px,2vw,22px)] p-[clamp(24px,3vw,40px)] max-[640px]:gap-3.5 max-[640px]:p-4';
 const practiceQuizQuestionTextClass =
   'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[16px] max-[640px]:leading-[1.6]';
@@ -180,7 +181,7 @@ const practiceQuizOptionLabelsClass = 'flex flex-wrap justify-end gap-1.5 max-[6
 const practiceQuizOptionCardClass =
   'lms-answer-card group/answer relative grid gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,transform] duration-150 ease-out focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
 const practiceQuizOptionInteractiveClass =
-  'cursor-pointer touch-manipulation hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.997]';
+  'cursor-pointer touch-manipulation hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.98]';
 const practiceQuizOptionSelectedClass =
   'is-selected border-[color-mix(in_srgb,var(--color-primary)_38%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_7%,var(--surface-1)),color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent),0_12px_28px_-24px_color-mix(in_srgb,var(--color-primary)_38%,transparent)]';
 const practiceQuizOptionCorrectClass =
@@ -191,7 +192,7 @@ const practiceQuizOptionUnansweredClass =
   'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_6%,var(--surface-1))] shadow-[0_0_0_1px_color-mix(in_srgb,#d97706_12%,transparent)]';
 const practiceQuizTfActionsClass = 'flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start';
 const practiceQuizTfToggleClass =
-  'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-4 text-[13px] font-bold text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-colors active:opacity-85 max-[600px]:min-h-11 max-[600px]:flex-1';
+  'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-4 text-[13px] font-bold text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85 max-[600px]:min-h-11 max-[600px]:flex-1';
 const practiceQuizTfTrueActiveClass = '!border-[color-mix(in_srgb,var(--sa-ok)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_13%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_19%,var(--sa-surface))] dark:!text-emerald-100';
 const practiceQuizTfFalseActiveClass = '!border-[color-mix(in_srgb,var(--sa-danger)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
 const practiceQuizTfChoiceCorrectClass = '!border-[color-mix(in_srgb,var(--sa-ok)_34%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_14%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_20%,var(--sa-surface))] dark:!text-emerald-100';
@@ -293,20 +294,20 @@ const examThemeDarkVars = {
   '--exam-block-dot-fill': '#081426',
 };
 const examHeaderClass =
-  'lms-exam-header flex items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 py-2.5 shadow-[var(--exam-card-shadow)] backdrop-blur-[14px] max-[700px]:flex-col max-[700px]:items-stretch';
-const practiceHeaderClass = 'practice-review-header max-[700px]:!flex-row max-[700px]:!items-center max-[700px]:!justify-between max-[700px]:gap-3 max-[700px]:px-3.5 max-[700px]:py-3 [&_.quiz-header-actions]:shrink-0';
-const examHeaderBrandClass = 'flex min-w-0 items-center gap-3';
+  'lms-exam-header flex min-h-[calc(60px+env(safe-area-inset-top,0px))] items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 pb-2.5 pt-[calc(10px+env(safe-area-inset-top,0px))] shadow-[var(--exam-card-shadow)] backdrop-blur-[14px]';
+const practiceHeaderClass = 'practice-review-header max-[700px]:gap-2.5 max-[700px]:px-3 max-[700px]:pb-2.5 [&_.quiz-header-actions]:shrink-0';
+const examHeaderBrandClass = 'flex min-w-0 flex-1 items-center gap-3 max-[420px]:gap-2';
 const examHeaderLogoClass =
   'grid size-10 shrink-0 place-items-center text-[var(--xyndrome-logo-scope)]';
-const examHeaderTitleClass = 'block text-[17px] font-extrabold leading-tight text-ink-strong';
-const examHeaderSubtitleClass = 'mt-0.5 block max-w-[min(62vw,720px)] truncate text-xs text-ink-soft max-[700px]:max-w-full';
-const examHeaderActionsClass = 'quiz-header-actions flex flex-wrap items-center justify-end gap-2 max-[700px]:justify-start';
+const examHeaderTitleClass = 'block max-w-full truncate whitespace-nowrap text-[17px] font-extrabold leading-tight text-ink-strong max-[420px]:text-[15px]';
+const examHeaderSubtitleClass = 'mt-0.5 block max-w-[min(62vw,720px)] truncate whitespace-nowrap text-xs text-ink-soft max-[700px]:max-w-full max-[420px]:text-[11px]';
+const examHeaderActionsClass = 'quiz-header-actions ml-auto flex min-w-0 shrink-0 flex-nowrap items-center justify-end gap-2 max-[420px]:gap-1.5';
 const examHeaderChipClass =
   'inline-flex min-h-10 items-center gap-2 rounded-[13px] border border-[var(--exam-header-chip-border)] bg-[var(--exam-header-chip-bg)] px-3 text-sm text-ink-medium shadow-[var(--exam-header-chip-shadow)]';
 const examHeaderChipValueClass = 'text-base font-extrabold text-ink-strong';
 const examHeaderIconClass = 'inline-grid place-items-center text-ink-soft';
 const examHeaderEndClass =
-  'min-h-11 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold text-[var(--exam-end-text)] shadow-none transition-colors active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60';
+  'min-h-11 shrink-0 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold leading-none text-[var(--exam-end-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60 max-[420px]:px-3';
 const practiceHeaderEndClass = 'border-brand-primary/22 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200';
 const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(220px,280px)_minmax(0,1120px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
 const examSidebarClass = 'lms-exam-sidebar grid gap-[18px]';
@@ -329,9 +330,10 @@ const quizFlashPanelClass = 'rounded-[22px] backdrop-blur-md max-[600px]:rounded
 const quizFlashQuestionCopyClass = 'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[16px] max-[640px]:leading-[1.6]';
 const quizFlashFooterButtonClass = 'rounded-xl';
 const examQuestionStartAnchorClass = 'scroll-mt-4';
-const examQuestionNavClass = 'lms-exam-question-nav grid grid-cols-[repeat(auto-fill,minmax(34px,1fr))] gap-2 max-[900px]:grid-cols-8 max-[600px]:grid-cols-5';
+const examQuestionNavClass =
+  'lms-exam-question-nav grid grid-cols-4 gap-2 min-[381px]:grid-cols-5 min-[701px]:grid-cols-6 min-[1024px]:grid-cols-8 min-[1200px]:grid-cols-[repeat(auto-fill,minmax(44px,1fr))]';
 const examNavBubbleBaseClass =
-  'lms-exam-nav-bubble min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-85';
+  'lms-exam-nav-bubble flex aspect-square w-full min-w-0 items-center justify-center whitespace-nowrap rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-[clamp(16px,4vw,20px)] font-bold leading-none text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85';
 const examNavLegendClass = 'lms-exam-nav-legend mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-bold leading-tight text-ink-soft';
 const examNavLegendItemClass = 'inline-flex min-w-0 items-center gap-1 whitespace-nowrap';
 const examNavLegendDotClass = 'lms-exam-nav-legend-dot inline-block size-2.5 shrink-0 rounded border border-transparent';
@@ -356,13 +358,13 @@ const quizReviewIncorrectCopyClass =
 const quizReviewRecapActionClass = 'lms-study-recap-action flex justify-start';
 const quizReviewStudyListClass = 'm-0 grid list-none gap-2 p-0';
 const quizReviewStudyCardClass =
-  'lms-key-points-card relative grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-[color-mix(in_srgb,#8b5cf6_20%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_7%,var(--surface-1))_0%,var(--surface-1)_72%)] px-4 py-3.5 shadow-[var(--ds-card-shadow)] transition-colors hover:border-[color-mix(in_srgb,#8b5cf6_28%,var(--line-soft))] [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[var(--ds-card-radius-inner)] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]';
+  'lms-key-points-card relative grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-[color-mix(in_srgb,#8b5cf6_20%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_7%,var(--surface-1))_0%,var(--surface-1)_72%)] px-4 py-3.5 shadow-[var(--ds-card-shadow)] transition-[background,border-color] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,#8b5cf6_28%,var(--line-soft))] [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[var(--ds-card-radius-inner)] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]';
 const practiceKeyPointsClass = 'lms-quiz-key-points-card grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,#8b5cf6_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_5%,var(--surface-1))_0%,var(--surface-1)_74%)] p-4 shadow-none';
 const practiceKeyPointClass = 'lms-reading-incorrect rounded-[12px] border border-[color-mix(in_srgb,var(--color-primary)_12%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--surface-2))] px-3 py-2 text-left text-[14.5px] font-medium leading-[1.62] text-ink-strong';
 const examAnswerListClass = 'lms-review-options-grid grid gap-2.5';
 const examTfActionsClass = 'flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start';
 const examTfToggleClass =
-  'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-tf-border)] bg-[var(--exam-tf-bg)] px-4 text-[13px] font-bold text-[var(--exam-tf-text)] shadow-none transition-colors active:opacity-85 max-[600px]:min-h-11 max-[600px]:flex-1';
+  'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-tf-border)] bg-[var(--exam-tf-bg)] px-4 text-[13px] font-bold text-[var(--exam-tf-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85 max-[600px]:min-h-11 max-[600px]:flex-1';
 const examTfTrueActiveClass = '!border-[color-mix(in_srgb,var(--sa-ok)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-ok)_13%,var(--sa-surface))] !text-emerald-700 dark:!bg-[color-mix(in_srgb,var(--sa-ok)_19%,var(--sa-surface))] dark:!text-emerald-100';
 const examTfFalseActiveClass = '!border-[color-mix(in_srgb,var(--sa-danger)_32%,var(--sa-border))] !bg-[color-mix(in_srgb,var(--sa-danger)_12%,var(--sa-surface))] !text-red-600 dark:!bg-[color-mix(in_srgb,var(--sa-danger)_18%,var(--sa-surface))] dark:!text-red-100';
 const examMainFooterClass = 'lms-exam-main-footer grid gap-3 rounded-[18px] border border-line-soft bg-surface-2 p-3.5 shadow-none max-[700px]:hidden';
@@ -370,7 +372,7 @@ const examMainFooterActionsClass = 'lms-exam-footer-actions grid grid-cols-[minm
 const examMainFooterLeftClass = 'flex min-w-0 items-center justify-start gap-2';
 const examMainFooterRightClass = 'flex min-w-0 items-center justify-end gap-2';
 const examFooterIconButtonClass =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-3.5 text-sm font-bold text-[var(--exam-footer-btn-text)] shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-warning)_28%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-warning)_6%,var(--surface-1))] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-3.5 text-sm font-bold text-[var(--exam-footer-btn-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,var(--color-warning)_28%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-warning)_6%,var(--surface-1))] active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
 const examFooterFlagActiveClass = 'border-orange-500/30 bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200';
 const examFooterNextClass = 'border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary';
 const examModeFooterClass =
@@ -389,17 +391,17 @@ const mobileQuizBarClass =
 const mobileQuizBarTopClass = 'mb-2 flex items-center justify-between gap-3 text-[12px] font-bold text-ink-soft';
 const mobileQuizBarActionsClass = 'lms-mobile-quiz-actions grid grid-cols-[minmax(76px,0.72fr)_minmax(92px,0.9fr)_minmax(118px,1.18fr)] gap-2';
 const mobileQuizIconButtonClass =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-2.5 text-[13px] font-extrabold text-[var(--exam-footer-btn-text)] transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-45';
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-2.5 text-[13px] font-extrabold text-[var(--exam-footer-btn-text)] transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-45';
 const mobileQuizPrimaryClass =
-  'min-h-11 rounded-xl border border-brand-primary/35 bg-[var(--color-primary-light)] px-3 text-[13px] font-extrabold text-brand-primary transition-colors hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
+  'min-h-11 rounded-xl border border-brand-primary/35 bg-[var(--color-primary-light)] px-3 text-[13px] font-extrabold text-brand-primary transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
 const questionUtilityRowClass = 'lms-question-utility-row flex flex-wrap items-center justify-end gap-2 border-t border-line-soft pt-3 max-[700px]:justify-start max-[700px]:pt-2.5';
 const questionUtilityButtonClass =
-  'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-[var(--sa-border)] bg-[var(--sa-surface)] px-3.5 text-xs font-extrabold text-ink-soft shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_26%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] hover:text-brand-primary active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/25 disabled:cursor-not-allowed disabled:opacity-55 max-[520px]:flex-1';
+  'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-[var(--sa-border)] bg-[var(--sa-surface)] px-3.5 text-xs font-extrabold text-ink-soft shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,var(--color-primary)_26%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] hover:text-brand-primary active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/25 disabled:cursor-not-allowed disabled:opacity-55 max-[520px]:flex-1';
 const questionUtilityIconOnlyClass = 'lms-question-utility-icon-only px-3';
 const quizUnifiedMainCardClass =
   'lms-review-question-card grid w-full justify-self-stretch gap-[16px] p-[22px_24px] max-[640px]:gap-3.5 max-[640px]:p-3.5';
 const quizUnifiedAnswerCardClass =
-  'lms-answer-card group/answer relative grid cursor-pointer touch-manipulation gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,transform] duration-150 ease-out hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.997] focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
+  'lms-answer-card group/answer relative grid cursor-pointer touch-manipulation gap-2 overflow-hidden rounded-2xl border-[1.5px] border-line-soft bg-surface-1 px-4 py-3.5 transition-[background,border-color,transform] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))] active:scale-[0.98] focus-within:border-[color-mix(in_srgb,var(--color-primary)_32%,var(--line-soft))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_9%,transparent)]';
 const quizUnifiedAnswerSelectedClass =
   'is-selected border-[color-mix(in_srgb,var(--color-primary)_38%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_7%,var(--surface-1)),color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent),0_12px_28px_-24px_color-mix(in_srgb,var(--color-primary)_38%,transparent)]';
 const quizReviewOptionToplineClass = 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start';
@@ -792,8 +794,8 @@ function ExamModeHeader({
         <span className={examHeaderLogoClass} aria-hidden="true">
           <XyndromeLogoMark size={38} />
         </span>
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
             <strong className={examHeaderTitleClass}>{resolvedTitle}</strong>
           </div>
           {subtitle ? <small className={examHeaderSubtitleClass}>{subtitle}</small> : null}
@@ -1008,8 +1010,8 @@ function QuizCompletionOverlay({ quizLabel, onReview }) {
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const revealDelay = prefersReducedMotion ? 180 : 420;
-    const reviewDelay = prefersReducedMotion ? 900 : 2600;
+    const revealDelay = prefersReducedMotion ? 80 : 240;
+    const reviewDelay = prefersReducedMotion ? 520 : 1500;
     const revealTimer = window.setTimeout(() => {
       setTextVisible(true);
       void nativeTransientHaptic({ intensity: 0.42, sharpness: 0.78 });
@@ -1026,7 +1028,7 @@ function QuizCompletionOverlay({ quizLabel, onReview }) {
     <div className="quiz-completion-overlay fixed inset-0 z-[140] grid h-dvh w-screen place-items-center bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] p-4 backdrop-blur-2xl dark:bg-[rgba(2,6,23,0.78)]" role="dialog" aria-modal="true" aria-labelledby="quiz-complete-title">
       <section
         className={cx(
-          'quiz-completion-capsule flex transform-gpu items-center justify-center overflow-hidden border border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-card)_96%,transparent),color-mix(in_srgb,var(--surface-1)_94%,transparent))] text-left shadow-[var(--ds-floating-shadow)] transition-[width,padding,border-radius,gap,transform] duration-[720ms] ease-[cubic-bezier(0.23,1,0.32,1)] [contain:layout_paint_style] [will-change:transform] dark:border-sky-300/18 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(8,15,28,0.96))]',
+          'quiz-completion-capsule flex transform-gpu items-center justify-center overflow-hidden border border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-card)_96%,transparent),color-mix(in_srgb,var(--surface-1)_94%,transparent))] text-left shadow-[var(--ds-floating-shadow)] transition-[opacity,transform,box-shadow] duration-[260ms] ease-[var(--ease-out)] [contain:layout_paint_style] [will-change:transform] dark:border-sky-300/18 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(8,15,28,0.96))]',
           textVisible
             ? 'min-h-[104px] w-[min(420px,calc(100vw-32px))] gap-3.5 rounded-full py-3 pl-3 pr-6 max-[420px]:min-h-[96px] max-[420px]:pr-5'
             : 'size-[232px] rounded-[32px] p-5 max-[420px]:size-[206px]'
@@ -1035,11 +1037,11 @@ function QuizCompletionOverlay({ quizLabel, onReview }) {
       >
         <div
           className={cx(
-            'quiz-completion-mark relative grid shrink-0 place-items-center overflow-visible transition-[width,height,transform] duration-[720ms] ease-[cubic-bezier(0.23,1,0.32,1)] [will-change:transform]',
+            'quiz-completion-mark relative grid shrink-0 place-items-center overflow-visible transition-[opacity,transform] duration-[260ms] ease-[var(--ease-out)] [will-change:transform]',
             textVisible ? 'size-[78px] max-[420px]:size-[70px]' : 'size-[190px] max-[420px]:size-[164px]'
           )}
         >
-          <svg className={cx('quiz-completion-fallback-icon absolute left-1/2 top-1/2 size-20 origin-center -translate-x-1/2 -translate-y-1/2 transform-gpu text-brand-primary transition-transform duration-[720ms] ease-[cubic-bezier(0.23,1,0.32,1)]', textVisible ? 'scale-[0.42]' : 'scale-100')} viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <svg className={cx('quiz-completion-fallback-icon absolute left-1/2 top-1/2 size-20 origin-center -translate-x-1/2 -translate-y-1/2 transform-gpu text-brand-primary transition-transform duration-[260ms] ease-[var(--ease-out)]', textVisible ? 'scale-[0.42]' : 'scale-100')} viewBox="0 0 96 96" fill="none" aria-hidden="true">
             <circle cx="48" cy="48" r="38" fill="currentColor" opacity="0.12" />
             <path d="M30 49.2 42.2 61 67 35" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -1047,7 +1049,7 @@ function QuizCompletionOverlay({ quizLabel, onReview }) {
 
         <div
           className={cx(
-            'quiz-completion-copy grid min-w-0 gap-1 transition-[opacity,transform,max-width] duration-[540ms] ease-[cubic-bezier(0.23,1,0.32,1)]',
+            'quiz-completion-copy grid min-w-0 gap-1 transition-[opacity,transform] duration-[220ms] ease-[var(--ease-out)]',
             textVisible ? 'max-w-[260px] translate-x-0 opacity-100' : 'max-w-0 translate-x-4 opacity-0'
           )}
         >

@@ -47,7 +47,7 @@ const reviewUi = {
   navHead: 'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft',
   navList: 'lms-review-nav-list grid min-h-0 gap-2 overflow-y-auto pr-1 max-[980px]:max-h-60',
   navItem:
-    'relative grid w-full justify-items-start gap-[5px] rounded-[14px] border-[1.5px] border-line-soft bg-surface-1 px-3 py-2.5 text-left shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_25%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))]',
+    'relative grid w-full justify-items-start gap-[5px] rounded-[14px] border-[1.5px] border-line-soft bg-surface-1 px-3 py-2.5 text-left shadow-none transition-[background,border-color] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,var(--color-primary)_25%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))]',
   navItemActive:
     'border-[color-mix(in_srgb,var(--color-primary)_36%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_8%,var(--surface-1))] shadow-none before:absolute before:bottom-[20%] before:left-0 before:top-[20%] before:w-[3px] before:rounded-r-[3px] before:bg-[var(--brand-gradient-primary)] before:content-[""]',
   navItemIndex: 'text-xs font-extrabold tracking-[0.02em] text-brand-primary',
@@ -96,7 +96,7 @@ const reviewUi = {
     'grid grid-cols-[72px_minmax(0,1fr)] gap-2 max-[420px]:grid-cols-1 max-[420px]:gap-0.5 [&_dt]:font-extrabold [&_dt]:uppercase [&_dt]:tracking-[0.08em] [&_dt]:text-ink-muted [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:font-bold [&_dd]:text-ink-medium',
   bubbleNav: 'lms-review-bubble-nav grid grid-cols-5 gap-2',
   bubble:
-    'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity] duration-150 active:opacity-80',
+    'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-80',
   bubbleActive:
     'border-brand-primary/38 bg-brand-primary/12 text-brand-primary shadow-none',
   bubbleCorrect: 'border-brand-success/30 bg-brand-success/12 text-brand-success',
@@ -111,9 +111,9 @@ const reviewUi = {
 };
 
 export const reviewSecondaryButtonClass =
-  'lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center gap-2 rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-center text-sm font-bold leading-tight text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/28 hover:bg-brand-primary/8 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
+  'lms-assessment-btn lms-assessment-btn--secondary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center gap-2 rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-[18px] text-center text-sm font-bold leading-tight text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/28 hover:bg-brand-primary/8 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:scale-[0.98] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
 export const reviewPrimaryButtonClass =
-  'lms-assessment-btn lms-assessment-btn--primary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center rounded-xl border border-brand-primary/35 bg-[var(--color-primary-light)] px-[18px] text-center text-sm font-bold leading-tight text-brand-primary shadow-none transition-[background,border-color,color,opacity] duration-150 hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
+  'lms-assessment-btn lms-assessment-btn--primary inline-flex min-h-11 min-w-[112px] touch-manipulation items-center justify-center rounded-xl border border-brand-primary/35 bg-[var(--color-primary-light)] px-[18px] text-center text-sm font-bold leading-tight text-brand-primary shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-0)] active:scale-[0.98] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-55 max-[420px]:min-w-0 max-[420px]:px-3';
 
 const summaryTileToneClass = {
   correct:
@@ -183,7 +183,7 @@ function reviewOptionIconClass(tone) {
 
 function reviewStudyCardClass(tone, extra = '') {
   return cx(
-    'lms-key-points-card relative grid gap-3 rounded-[18px] border border-line-soft bg-surface-1 px-4 py-3.5 shadow-[0_12px_28px_color-mix(in_srgb,#8b5cf6_7%,transparent)] transition-colors hover:border-line-medium [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[16px] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]',
+    'lms-key-points-card relative grid gap-3 rounded-[18px] border border-line-soft bg-surface-1 px-4 py-3.5 shadow-[0_12px_28px_color-mix(in_srgb,#8b5cf6_7%,transparent)] transition-[background,border-color] duration-150 ease-[var(--ease-out)] hover:border-line-medium [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[16px] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]',
     studyCardToneClass[tone],
     extra
   );

@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
 const common_1 = require("@nestjs/common");
 const bcrypt = require("bcryptjs");
+const pagination_1 = require("../../common/utils/pagination");
 const database_tokens_1 = require("../../database/database.tokens");
 const role_permissions_1 = require("../auth/role-permissions");
 let UsersService = class UsersService {
@@ -23,6 +24,7 @@ let UsersService = class UsersService {
     }
     async findAll(actor, filters) {
         this.assertActiveStaff(actor);
+        const { limit, offset } = (0, pagination_1.normalizePagination)(filters, { defaultLimit: 50, maxLimit: 100 });
         let sql = `
       SELECT id, full_name, email, role, status, created_at
       FROM users
@@ -43,7 +45,8 @@ let UsersService = class UsersService {
             sql += ' AND role = ?';
             params.push(requestedRole);
         }
-        sql += ` ORDER BY FIELD(status, 'inactive', 'active'), id DESC`;
+        sql += ` ORDER BY FIELD(status, 'inactive', 'active'), id DESC LIMIT ? OFFSET ?`;
+        params.push(limit, offset);
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapUser(row));
     }
@@ -78,7 +81,14 @@ let UsersService = class UsersService {
         }
         this.assertCanManageTarget(actor, user);
         const [[subscriptionRows], [attemptRows], [progressRows], [bookmarkRows]] = await Promise.all([
-            this.db.execute(`SELECT us.*, p.name AS plan_name
+            this.db.execute(`SELECT
+           us.id,
+           us.status,
+           us.payment_status,
+           us.start_date,
+           us.end_date,
+           us.amount_paid,
+           p.name AS plan_name
          FROM user_subscriptions us
          LEFT JOIN plans p ON p.id = us.plan_id
          WHERE us.user_id = ?

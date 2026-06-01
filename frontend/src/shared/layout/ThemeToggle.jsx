@@ -23,7 +23,7 @@ function MoonIcon({ className = '', animated = false } = {}) {
 }
 
 const toggleButtonClass =
-  'relative isolate inline-flex size-11 min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border p-0 transition-[transform,background-color,border-color,box-shadow,color] duration-150 ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 active:translate-y-0 active:scale-[0.97]';
+  'relative isolate inline-flex size-11 min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border p-0 transition-[transform,background-color,border-color,box-shadow,color] duration-150 ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18 active:translate-y-0 active:scale-[0.98]';
 const toggleLightClass =
   'border-line-soft bg-[var(--btn-secondary-bg)] text-brand-primary shadow-none backdrop-blur-sm hover:-translate-y-px hover:border-brand-primary/24 hover:bg-brand-primary/10 hover:text-brand-primary';
 const toggleDarkClass =

@@ -166,7 +166,7 @@ export function BookmarksPage() {
               return (
                 <article
                   key={`${item.itemType}-${item.itemId}`}
-                  className="grid min-h-[86px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line-soft bg-surface-1 px-4 py-3 shadow-xs transition-[background,border-color,box-shadow] hover:border-line-medium hover:bg-surface-2/60 hover:shadow-sm max-[640px]:grid-cols-1 max-[640px]:items-start max-[640px]:gap-2.5"
+                  className="grid min-h-[86px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line-soft bg-surface-1 px-4 py-3 shadow-xs transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:border-line-medium hover:bg-surface-2/60 hover:shadow-sm max-[640px]:grid-cols-1 max-[640px]:items-start max-[640px]:gap-2.5"
                 >
                   <div className="min-w-0">
                     <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-2">
@@ -187,7 +187,7 @@ export function BookmarksPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2 max-[640px]:w-full max-[640px]:justify-between">
                     <button
-                      className="inline-flex min-h-9 items-center justify-center rounded-lg border border-brand-primary/22 bg-[var(--color-primary-light)] px-3 text-[12.5px] font-extrabold text-brand-primary shadow-none transition hover:border-brand-primary/35 hover:bg-brand-primary/12"
+                      className="inline-flex min-h-9 items-center justify-center rounded-lg border border-brand-primary/22 bg-[var(--color-primary-light)] px-3 text-[12.5px] font-extrabold text-brand-primary shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/35 hover:bg-brand-primary/12 active:scale-[0.98]"
                       type="button"
                       onClick={() => openItem(item)}
                       aria-label={`${meta.action} saved ${meta.label.toLowerCase()}`}

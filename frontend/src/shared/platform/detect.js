@@ -210,7 +210,11 @@ function getPlatformSnapshot(platform) {
 
 function notifyPlatformSubscribers(platform) {
   platformSyncSubscribers.forEach((subscriber) => {
-    subscriber(platform);
+    try {
+      subscriber(platform);
+    } catch {
+      // Keep one subscriber failure from breaking platform sync globally.
+    }
   });
 }
 

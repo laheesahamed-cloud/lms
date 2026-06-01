@@ -40,7 +40,28 @@ let QuizAttemptsService = class QuizAttemptsService {
         const accessProfile = await this.getQuizAccessProfile(user.id);
         const [rows] = await this.db.execute(`
         SELECT
-          q.*,
+          q.id,
+          q.course_id,
+          q.topic_id,
+          q.subtopic_id,
+          q.lesson_id,
+          q.subtopic,
+          q.is_general,
+          q.is_free,
+          q.exam_mode_only,
+          q.student_title,
+          q.display_title_mode,
+          q.quiz_title,
+          q.quiz_description,
+          q.total_questions,
+          q.total_marks,
+          q.time_limit,
+          q.hide_time_limit,
+          q.passing_marks,
+          q.hide_passing_marks,
+          q.status,
+          q.updated_at,
+          q.created_at,
           c.course_title,
           t.topic_name AS subject_name,
           st.subtopic_name AS topic_name,
@@ -130,7 +151,23 @@ let QuizAttemptsService = class QuizAttemptsService {
     async listResults(authorization) {
         const user = await this.requireStudent(authorization);
         const [rows] = await this.db.execute(`
-        SELECT qa.*, COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title, q.course_id, q.topic_id, q.is_general, q.subtopic, c.course_title, t.topic_name
+        SELECT
+          qa.id,
+          qa.quiz_id,
+          qa.score,
+          qa.percentage,
+          qa.correct_answers,
+          qa.wrong_answers,
+          qa.pass_status,
+          qa.submitted_at,
+          qa.created_at,
+          COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
+          q.course_id,
+          q.topic_id,
+          q.is_general,
+          q.subtopic,
+          c.course_title,
+          t.topic_name
         FROM quiz_attempts qa
         INNER JOIN quizzes q ON qa.quiz_id = q.id
         INNER JOIN courses c ON q.course_id = c.id
@@ -360,7 +397,21 @@ let QuizAttemptsService = class QuizAttemptsService {
     async result(authorization, attemptId) {
         const user = await this.requireStudent(authorization);
         const [rows] = await this.db.execute(`
-        SELECT qa.*, COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title, q.passing_marks, q.is_general, c.course_title, t.topic_name
+        SELECT
+          qa.id,
+          qa.quiz_id,
+          qa.total_questions,
+          qa.correct_answers,
+          qa.wrong_answers,
+          qa.unanswered_questions,
+          qa.score,
+          qa.percentage,
+          qa.pass_status,
+          COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
+          q.passing_marks,
+          q.is_general,
+          c.course_title,
+          t.topic_name
         FROM quiz_attempts qa
         INNER JOIN quizzes q ON qa.quiz_id = q.id
         INNER JOIN courses c ON q.course_id = c.id
@@ -391,7 +442,22 @@ let QuizAttemptsService = class QuizAttemptsService {
     async review(authorization, attemptId) {
         const user = await this.requireStudent(authorization);
         const [attemptRows] = await this.db.execute(`
-        SELECT qa.*, COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title, q.id AS quiz_id, q.lesson_id, q.is_general, c.course_title, t.topic_name
+        SELECT
+          qa.id,
+          qa.quiz_id,
+          qa.score,
+          qa.percentage,
+          qa.correct_answers,
+          qa.wrong_answers,
+          qa.unanswered_questions,
+          qa.pass_status,
+          qa.submitted_at,
+          qa.created_at,
+          COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
+          q.lesson_id,
+          q.is_general,
+          c.course_title,
+          t.topic_name
         FROM quiz_attempts qa
         INNER JOIN quizzes q ON qa.quiz_id = q.id
         INNER JOIN courses c ON q.course_id = c.id
@@ -571,7 +637,28 @@ let QuizAttemptsService = class QuizAttemptsService {
         }
         const [rows] = await this.db.execute(`
         SELECT
-          q.*,
+          q.id,
+          q.course_id,
+          q.topic_id,
+          q.subtopic_id,
+          q.lesson_id,
+          q.subtopic,
+          q.is_general,
+          q.is_free,
+          q.exam_mode_only,
+          q.student_title,
+          q.display_title_mode,
+          q.quiz_title,
+          q.quiz_description,
+          q.total_questions,
+          q.total_marks,
+          q.time_limit,
+          q.hide_time_limit,
+          q.passing_marks,
+          q.hide_passing_marks,
+          q.status,
+          q.updated_at,
+          q.created_at,
           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
           c.course_title,
           t.topic_name AS subject_name,
@@ -603,7 +690,17 @@ let QuizAttemptsService = class QuizAttemptsService {
             return cached.value;
         }
         const [questionRows] = await this.db.execute(`
-        SELECT q.*
+        SELECT
+          q.id,
+          q.course_id,
+          q.topic_id,
+          q.subtopic,
+          q.category,
+          q.question_type,
+          q.question_text,
+          q.explanation,
+          q.status,
+          q.updated_at
         FROM questions q
         INNER JOIN question_quizzes qq ON qq.question_id = q.id
         WHERE qq.quiz_id = ? AND q.status = 'active'

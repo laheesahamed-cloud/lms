@@ -8,7 +8,7 @@ const recapCardPaddedClass = cx(recapCardClass, 'px-[18px] py-4');
 const recapHeaderClass = 'qtr-header flex items-center gap-2.5 px-3.5 py-3';
 const recapHeaderButtonClass = cx(
   recapHeaderClass,
-  'qtr-header--btn w-full cursor-pointer border-0 border-b border-line-medium bg-transparent text-left [font:inherit] text-inherit transition hover:bg-surface-2 dark:border-white/10 dark:hover:bg-white/[0.05]'
+  'qtr-header--btn w-full cursor-pointer border-0 border-b border-line-medium bg-transparent text-left [font:inherit] text-inherit transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 active:scale-[0.98] dark:border-white/10 dark:hover:bg-white/[0.05]'
 );
 const recapIconClass = 'qtr-header__icon shrink-0 text-base';
 const recapTitleClass = 'qtr-header__title m-0 text-[13.5px] font-semibold leading-[1.3] text-ink-strong';
@@ -43,7 +43,7 @@ const recapScaleClasses = {
 
 const fontButtonClass = (active, sizeClass) =>
   cx(
-    'qtr-font-tools__btn h-[30px] min-w-[38px] rounded-full border-0 bg-transparent font-extrabold text-ink-soft shadow-none transition hover:text-ink-strong max-[520px]:h-7 max-[520px]:min-w-8',
+    'qtr-font-tools__btn h-[30px] min-w-[38px] rounded-full border-0 bg-transparent font-extrabold text-ink-soft shadow-none transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98] max-[520px]:h-7 max-[520px]:min-w-8',
     sizeClass,
     active && 'is-active bg-brand-primary-light text-brand-primary'
   );
@@ -416,7 +416,7 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
   return (
     <>
       <button className={cx(
-          'qtr-popup-trigger flex w-full cursor-pointer items-start gap-2.5 rounded-md border border-brand-primary/25 bg-brand-primary-light px-3 py-2.5 text-left [font:inherit] text-ink-strong transition hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--surface-elevated))] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-45 dark:border-brand-primary/25 dark:bg-brand-primary/12 dark:hover:bg-brand-primary/18 max-[520px]:gap-2.5',
+          'qtr-popup-trigger flex w-full cursor-pointer items-start gap-2.5 rounded-md border border-brand-primary/25 bg-brand-primary-light px-3 py-2.5 text-left [font:inherit] text-ink-strong transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--surface-elevated))] hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 dark:border-brand-primary/25 dark:bg-brand-primary/12 dark:hover:bg-brand-primary/18 max-[520px]:gap-2.5',
           !hasRecap && 'qtr-popup-trigger--empty opacity-45'
         )}
         type="button"
@@ -505,7 +505,7 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
                     AAA
                   </button>
                 </div>
-                <button className="qtr-popup__close flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-line-medium bg-surface-2 text-[13px] text-ink-medium transition hover:bg-surface-3 hover:text-ink-strong dark:border-white/10 dark:bg-white/[0.045] dark:hover:bg-white/[0.08]"
+                <button className="qtr-popup__close flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-line-medium bg-surface-2 text-[13px] text-ink-medium transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-3 hover:text-ink-strong active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.045] dark:hover:bg-white/[0.08]"
                   ref={closeButtonRef}
                   type="button"
                  
@@ -557,7 +557,7 @@ export function QuickTheoryRecap({ recap, context = 'review', revealed = true, g
         </div>
         <p className={recapEmptyTextClass}>No theory recap available for this question.</p>
         {onGenerate ? (
-          <button type="button" className="qtr-generate-btn rounded-sm border border-line-medium bg-surface-1 px-3.5 py-1.5 text-[12.5px] text-ink-soft transition hover:bg-surface-2 hover:text-ink-strong" onClick={onGenerate}>
+          <button type="button" className="qtr-generate-btn rounded-sm border border-line-medium bg-surface-1 px-3.5 py-1.5 text-[12.5px] text-ink-soft transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 hover:text-ink-strong active:scale-[0.98]" onClick={onGenerate}>
             Generate recap
           </button>
         ) : null}

@@ -1,0 +1,918 @@
+{
+  "targetUrl": "http://localhost/lms/app/dashboard",
+  "createdAt": "2026-06-01T17:34:25.761Z",
+  "results": [
+    {
+      "id": "desktop-1440",
+      "label": "Desktop Chrome 1440x900",
+      "viewport": "1440x900@1",
+      "profile": {
+        "mobile": false,
+        "touch": false,
+        "cpuRate": 1,
+        "network": "fast local / unthrottled"
+      },
+      "loaded": true,
+      "finalUrl": "http://localhost/lms/dashboard",
+      "screenshotPath": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/performance-audit-20260601/desktop-1440.png",
+      "timings": {
+        "ttfb": 92,
+        "fcp": 884,
+        "lcp": 1132,
+        "routeReady": 947,
+        "domContentLoaded": 577,
+        "load": 641,
+        "cls": 0.0885,
+        "longTaskCount": 6,
+        "longTaskMs": 1067
+      },
+      "api": {
+        "count": 9,
+        "slowCount": 0,
+        "p50": 126,
+        "p95": 588,
+        "max": 588,
+        "failed": 1,
+        "sample": [
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/settings/public/availability",
+            "status": 404,
+            "durationMs": 42,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": true,
+            "timestamp": "2026-06-01T17:33:51.385Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/settings/public",
+            "status": 200,
+            "durationMs": 69,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:51.412Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "authentication",
+            "method": "GET",
+            "path": "/auth/me",
+            "status": 200,
+            "durationMs": 69,
+            "targetMs": 800,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:51.413Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/planner/agenda",
+            "status": 200,
+            "durationMs": 125,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:51.888Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/quiz-attempts/quizzes",
+            "status": 200,
+            "durationMs": 126,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:51.889Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "dashboard",
+            "method": "GET",
+            "path": "/student/dashboard",
+            "status": 200,
+            "durationMs": 133,
+            "targetMs": 1000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:51.896Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/notifications",
+            "status": 200,
+            "durationMs": 588,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:52.516Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/bookmarks",
+            "status": 200,
+            "durationMs": 505,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:52.516Z"
+          }
+        ]
+      },
+      "network": {
+        "requestCount": 74,
+        "apiRequestCount": 10,
+        "failedRequestCount": 0,
+        "totalEncodedBytes": 1737600,
+        "jsBytes": 751510,
+        "cssBytes": 148003,
+        "fontBytes": 104836,
+        "imageBytes": 690517,
+        "largest": [
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/main-DCZRaJ3r.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 186569,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/app-xRQ2HTfd.css",
+            "type": "Stylesheet",
+            "status": 200,
+            "bytes": 146672,
+            "mimeType": "text/css"
+          },
+          {
+            "url": "http://localhost:3000/api/uploads/marketing-popups/1780328836735-8b504bd4-f8a1-47db-ae64-2d33fc0ddb39.png",
+            "type": "Image",
+            "status": 200,
+            "bytes": 110769,
+            "mimeType": "image/png"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/chunk-OE4NN4TA-Admg51ZH.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 93436,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9K6as8bTXq_nANBjzKo3IeZx8z6up5BeSl9D4dj_x9PpZBMlGIInHWVyNJ.woff2",
+            "type": "Font",
+            "status": 200,
+            "bytes": 77022,
+            "mimeType": "font/woff2"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/router-DIYrTjuL.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 66901,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/StudentFlashcardsPage-ColMmf3f.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 57930,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/brand/xyndrome-logo-mark-dark.webp",
+            "type": "Image",
+            "status": 200,
+            "bytes": 57442,
+            "mimeType": "image/webp"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/brand/xyndrome-logo-mark-dark.webp",
+            "type": "Image",
+            "status": 200,
+            "bytes": 57442,
+            "mimeType": "image/webp"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/brand/xyndrome-logo-mark-dark.webp",
+            "type": "Image",
+            "status": 200,
+            "bytes": 57442,
+            "mimeType": "image/webp"
+          }
+        ]
+      },
+      "errors": [],
+      "snapshot": {
+        "readyState": "complete",
+        "hasStudentShell": true,
+        "hasLogin": false,
+        "textStart": "Skip to main content\nDAILY FOCUS\nStudy Hub\n4\nCONTINUE WHERE YOU LEFT OFF\nWelcome back,\nCodex\n\nNext study move - LESSON\n\nMedicine\nCardiology · 0% ready\nStart practice\nSTUDY STATUS\nReady to begin\n\nStart with one short practice set or one lesson to build today’s progress.\n\nBased on today’s activity\n4\nC"
+      }
+    },
+    {
+      "id": "tablet-768",
+      "label": "Tablet 768x1024",
+      "viewport": "768x1024@2",
+      "profile": {
+        "mobile": true,
+        "touch": true,
+        "cpuRate": 2,
+        "network": "Wi-Fi-ish 20ms / 10Mbps"
+      },
+      "loaded": true,
+      "finalUrl": "http://localhost/lms/dashboard",
+      "screenshotPath": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/performance-audit-20260601/tablet-768.png",
+      "timings": {
+        "ttfb": 11,
+        "fcp": 972,
+        "lcp": 1424,
+        "routeReady": 1064,
+        "domContentLoaded": 144,
+        "load": 643,
+        "cls": 0.1598,
+        "longTaskCount": 4,
+        "longTaskMs": 441
+      },
+      "api": {
+        "count": 9,
+        "slowCount": 0,
+        "p50": 111,
+        "p95": 213,
+        "max": 213,
+        "failed": 1,
+        "sample": [
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/settings/public/availability",
+            "status": 404,
+            "durationMs": 28,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": true,
+            "timestamp": "2026-06-01T17:33:56.432Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "authentication",
+            "method": "GET",
+            "path": "/auth/me",
+            "status": 200,
+            "durationMs": 64,
+            "targetMs": 800,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:56.468Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/settings/public",
+            "status": 200,
+            "durationMs": 68,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:56.472Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/planner/agenda",
+            "status": 200,
+            "durationMs": 159,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:57.100Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/quiz-attempts/quizzes",
+            "status": 200,
+            "durationMs": 185,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:57.125Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "dashboard",
+            "method": "GET",
+            "path": "/student/dashboard",
+            "status": 200,
+            "durationMs": 213,
+            "targetMs": 1000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:57.153Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/bookmarks",
+            "status": 200,
+            "durationMs": 110,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:57.290Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/notifications",
+            "status": 200,
+            "durationMs": 114,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:33:57.291Z"
+          }
+        ]
+      },
+      "network": {
+        "requestCount": 68,
+        "apiRequestCount": 10,
+        "failedRequestCount": 0,
+        "totalEncodedBytes": 1444652,
+        "jsBytes": 751505,
+        "cssBytes": 147655,
+        "fontBytes": 104319,
+        "imageBytes": 398441,
+        "largest": [
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/main-DCZRaJ3r.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 186569,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/app-xRQ2HTfd.css",
+            "type": "Stylesheet",
+            "status": 200,
+            "bytes": 146672,
+            "mimeType": "text/css"
+          },
+          {
+            "url": "http://localhost:3000/api/uploads/marketing-popups/1780328836735-8b504bd4-f8a1-47db-ae64-2d33fc0ddb39.png",
+            "type": "Image",
+            "status": 200,
+            "bytes": 110769,
+            "mimeType": "image/png"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/chunk-OE4NN4TA-Admg51ZH.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 93436,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9K6as8bTXq_nANBjzKo3IeZx8z6up5BeSl9D4dj_x9PpZBMlGIInHWVyNJ.woff2",
+            "type": "Font",
+            "status": 200,
+            "bytes": 76971,
+            "mimeType": "font/woff2"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/router-DIYrTjuL.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 66900,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/StudentFlashcardsPage-ColMmf3f.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 57930,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/brand/xyndrome-logo-mark-dark.webp",
+            "type": "Image",
+            "status": 200,
+            "bytes": 57442,
+            "mimeType": "image/webp"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/client-C47O5GOd.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 52925,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/PanelLayout-MPY0gz7E.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 50238,
+            "mimeType": "application/x-javascript"
+          }
+        ]
+      },
+      "errors": [],
+      "snapshot": {
+        "readyState": "complete",
+        "hasStudentShell": true,
+        "hasLogin": false,
+        "textStart": "Skip to main content\nDAILY FOCUS\nStudy Hub\n4\nCONTINUE WHERE YOU LEFT OFF\nWelcome back,\nCodex\n\nNext study move - LESSON\n\nMedicine\nCardiology · 0% ready\nStart practice\nSTUDY STATUS\nReady to begin\n\nStart with one short practice set or one lesson to build today’s progress.\n\nBased on today’s activity\n4\nC"
+      }
+    },
+    {
+      "id": "mobile-390",
+      "label": "Mobile 390x844 mid-tier",
+      "viewport": "390x844@3",
+      "profile": {
+        "mobile": true,
+        "touch": true,
+        "cpuRate": 4,
+        "network": "mobile fast-4G 150ms / 1.6Mbps"
+      },
+      "loaded": true,
+      "finalUrl": "http://localhost/lms/dashboard",
+      "screenshotPath": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/performance-audit-20260601/mobile-390.png",
+      "timings": {
+        "ttfb": 14,
+        "fcp": 5252,
+        "lcp": 5872,
+        "routeReady": 5802,
+        "domContentLoaded": 396,
+        "load": 3579,
+        "cls": 0.4844,
+        "longTaskCount": 10,
+        "longTaskMs": 2272
+      },
+      "api": {
+        "count": 9,
+        "slowCount": 0,
+        "p50": 235,
+        "p95": 341,
+        "max": 341,
+        "failed": 1,
+        "sample": [
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/settings/public/availability",
+            "status": 404,
+            "durationMs": 206,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": true,
+            "timestamp": "2026-06-01T17:34:06.482Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "authentication",
+            "method": "GET",
+            "path": "/auth/me",
+            "status": 200,
+            "durationMs": 278,
+            "targetMs": 800,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:06.554Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/settings/public",
+            "status": 200,
+            "durationMs": 341,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:06.615Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "dashboard",
+            "method": "GET",
+            "path": "/student/dashboard",
+            "status": 200,
+            "durationMs": 235,
+            "targetMs": 1000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:08.507Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/planner/agenda",
+            "status": 200,
+            "durationMs": 242,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:08.513Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/quiz-attempts/quizzes",
+            "status": 200,
+            "durationMs": 256,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:08.528Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/notifications",
+            "status": 200,
+            "durationMs": 175,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:09.091Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/bookmarks",
+            "status": 200,
+            "durationMs": 173,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:09.276Z"
+          }
+        ]
+      },
+      "network": {
+        "requestCount": 66,
+        "apiRequestCount": 10,
+        "failedRequestCount": 0,
+        "totalEncodedBytes": 1424444,
+        "jsBytes": 701918,
+        "cssBytes": 147655,
+        "fontBytes": 104319,
+        "imageBytes": 427819,
+        "largest": [
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/main-DCZRaJ3r.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 186569,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/app-xRQ2HTfd.css",
+            "type": "Stylesheet",
+            "status": 200,
+            "bytes": 146672,
+            "mimeType": "text/css"
+          },
+          {
+            "url": "http://localhost:3000/api/uploads/marketing-popups/1780328836735-8b504bd4-f8a1-47db-ae64-2d33fc0ddb39.png",
+            "type": "Image",
+            "status": 200,
+            "bytes": 110769,
+            "mimeType": "image/png"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/chunk-OE4NN4TA-Admg51ZH.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 93436,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9K6as8bTXq_nANBjzKo3IeZx8z6up5BeSl9D4dj_x9PpZBMlGIInHWVyNJ.woff2",
+            "type": "Font",
+            "status": 200,
+            "bytes": 76971,
+            "mimeType": "font/woff2"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/router-DIYrTjuL.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 66900,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/StudentFlashcardsPage-ColMmf3f.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 57930,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/brand/xyndrome-logo-mark-dark.webp",
+            "type": "Image",
+            "status": 200,
+            "bytes": 57442,
+            "mimeType": "image/webp"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/client-C47O5GOd.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 52925,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/temp/mascots/generated/3d-neon/neon-dna-hoverboard.webp",
+            "type": "Image",
+            "status": 200,
+            "bytes": 50468,
+            "mimeType": "image/webp"
+          }
+        ]
+      },
+      "errors": [],
+      "snapshot": {
+        "readyState": "complete",
+        "hasStudentShell": true,
+        "hasLogin": false,
+        "textStart": "Skip to main content\nDAILY FOCUS\nStudy Hub\n4\nCONTINUE WHERE YOU LEFT OFF\nWelcome back,\nCodex\n\nNext study move - LESSON\n\nMedicine\nCardiology · 0% ready\nStart practice\n4\nCourses\n\n0% lessons\n\n0%\nReadiness\n\nAvg. readiness\n\n0\nStreak\n\nKeep it going\n\nCOURSE PROGRESS\n0% overall\nCourses\n0%\n0/10\ncompleted les"
+      }
+    },
+    {
+      "id": "small-phone-360",
+      "label": "Small phone 360x740 low-end",
+      "viewport": "360x740@2",
+      "profile": {
+        "mobile": true,
+        "touch": true,
+        "cpuRate": 6,
+        "network": "low-end mobile 180ms / 1.2Mbps"
+      },
+      "loaded": true,
+      "finalUrl": "http://localhost/lms/dashboard",
+      "screenshotPath": "/Applications/XAMPP/xamppfiles/htdocs/lms/artifacts/performance-audit-20260601/small-phone-360.png",
+      "timings": {
+        "ttfb": 14,
+        "fcp": 6072,
+        "lcp": 6544,
+        "routeReady": 6648,
+        "domContentLoaded": 514,
+        "load": 4619,
+        "cls": 0.0004,
+        "longTaskCount": 8,
+        "longTaskMs": 1988
+      },
+      "api": {
+        "count": 6,
+        "slowCount": 0,
+        "p50": 415,
+        "p95": 583,
+        "max": 583,
+        "failed": 1,
+        "sample": [
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/settings/public/availability",
+            "status": 404,
+            "durationMs": 263,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": true,
+            "timestamp": "2026-06-01T17:34:18.193Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "authentication",
+            "method": "GET",
+            "path": "/auth/me",
+            "status": 200,
+            "durationMs": 360,
+            "targetMs": 800,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:18.289Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/settings/public",
+            "status": 200,
+            "durationMs": 415,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:18.345Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "dashboard",
+            "method": "GET",
+            "path": "/student/dashboard",
+            "status": 200,
+            "durationMs": 555,
+            "targetMs": 1000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:23.418Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/quiz-attempts/quizzes",
+            "status": 200,
+            "durationMs": 571,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:23.435Z"
+          },
+          {
+            "event": "api_performance",
+            "group": "other",
+            "method": "GET",
+            "path": "/student/planner/agenda",
+            "status": 200,
+            "durationMs": 583,
+            "targetMs": 2000,
+            "slow": false,
+            "failed": false,
+            "timestamp": "2026-06-01T17:34:23.446Z"
+          }
+        ]
+      },
+      "network": {
+        "requestCount": 70,
+        "apiRequestCount": 10,
+        "failedRequestCount": 0,
+        "totalEncodedBytes": 1655288,
+        "jsBytes": 751506,
+        "cssBytes": 147655,
+        "fontBytes": 104319,
+        "imageBytes": 609075,
+        "largest": [
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/main-DCZRaJ3r.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 186569,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/app-xRQ2HTfd.css",
+            "type": "Stylesheet",
+            "status": 200,
+            "bytes": 146672,
+            "mimeType": "text/css"
+          },
+          {
+            "url": "http://localhost:3000/api/uploads/marketing-popups/1780328836735-8b504bd4-f8a1-47db-ae64-2d33fc0ddb39.png",
+            "type": "Image",
+            "status": 200,
+            "bytes": 110769,
+            "mimeType": "image/png"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/chunk-OE4NN4TA-Admg51ZH.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 93436,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "http://localhost/lms/pwa-icon.svg",
+            "type": "Other",
+            "status": 200,
+            "bytes": 89788,
+            "mimeType": "image/svg+xml"
+          },
+          {
+            "url": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9K6as8bTXq_nANBjzKo3IeZx8z6up5BeSl9D4dj_x9PpZBMlGIInHWVyNJ.woff2",
+            "type": "Font",
+            "status": 200,
+            "bytes": 76971,
+            "mimeType": "font/woff2"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/router-DIYrTjuL.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 66900,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/assets/chunks/StudentFlashcardsPage-ColMmf3f.js",
+            "type": "Script",
+            "status": 200,
+            "bytes": 57930,
+            "mimeType": "application/x-javascript"
+          },
+          {
+            "url": "http://localhost/lms/frontend/dist/brand/xyndrome-logo-mark-dark.webp",
+            "type": "Image",
+            "status": 200,
+            "bytes": 57442,
+            "mimeType": "image/webp"
+          }
+        ]
+      },
+      "errors": [],
+      "snapshot": {
+        "readyState": "complete",
+        "hasStudentShell": true,
+        "hasLogin": false,
+        "textStart": "Skip to main content\nDAILY FOCUS\nStudy Hub\nCONTINUE WHERE YOU LEFT OFF\nWelcome back,\nCodex\n\nNext study move - PRACTICE\n\nMedicine\nCardiology · 0% ready\nStart practice\n4\nCourses\n\n0% lessons\n\n0%\nReadiness\n\nAvg. readiness\n\n0\nStreak\n\nKeep it going\n\nCOURSE PROGRESS\n0% overall\nCourses\n0%\n0/10\ncompleted les"
+      }
+    }
+  ]
+}

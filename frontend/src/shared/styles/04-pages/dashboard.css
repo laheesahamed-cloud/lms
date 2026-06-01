@@ -323,6 +323,7 @@
   filter: blur(14px);
   content: "";
   animation: study-hero-mascot-glow 2400ms ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 .study-hero-mascot-random img {
@@ -336,6 +337,7 @@
   transform: scaleX(-1);
   transform-origin: 50% 82%;
   animation: study-hero-mascot-float 2100ms ease-in-out infinite;
+  will-change: transform;
 }
 
 .study-hero-mascot-random__spark {
@@ -360,6 +362,7 @@
     linear-gradient(45deg, transparent 43%, #7dd3fc 44% 56%, transparent 57%),
     linear-gradient(-45deg, transparent 43%, #a78bfa 44% 56%, transparent 57%);
   filter: drop-shadow(0 0 10px rgba(125, 211, 252, 0.72));
+  will-change: transform, opacity;
 }
 
 .study-hero-mascot-random__spark--two {
@@ -393,6 +396,7 @@
   animation-name: study-hero-mascot-ray-fall;
   animation-delay: -340ms;
   animation-duration: 3000ms;
+  will-change: transform, opacity;
 }
 
 .study-hero-mascot-random__spark--four {

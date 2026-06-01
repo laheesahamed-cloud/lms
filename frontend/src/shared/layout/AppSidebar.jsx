@@ -233,13 +233,13 @@ function getInitials(user) {
 
 const sidebarUi = {
   shell:
-    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[width,transform,opacity] duration-[var(--lms-sidebar-duration,280ms)] ease-[var(--lms-ease-soft,cubic-bezier(0.22,1,0.36,1))] [contain:layout_paint] [height:100dvh] [min-height:100dvh] shadow-[var(--ds-nav-shadow)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[var(--ds-card-radius)]',
+    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[width,transform,opacity] duration-[var(--lms-sidebar-duration,220ms)] ease-[var(--lms-ease-soft,cubic-bezier(0.22,1,0.36,1))] [contain:layout_paint] [height:100dvh] [min-height:100dvh] shadow-[var(--ds-nav-shadow)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[var(--ds-card-radius)]',
   shellLight:
     '',
   open: 'max-[900px]:translate-x-0',
   collapsed: 'min-[901px]:w-[var(--sidebar-w-collapsed)]',
   mobileClose:
-    'ml-auto hidden size-9 min-h-9 items-center justify-center rounded-full border border-line-soft bg-surface-2 p-0 text-ink-soft shadow-none transition-[transform,background,color] duration-150 ease-[var(--ease-out)] hover:bg-surface-3 hover:text-ink-strong active:scale-[0.97] max-[900px]:inline-flex',
+    'ml-auto hidden size-9 min-h-9 items-center justify-center rounded-full border border-line-soft bg-surface-2 p-0 text-ink-soft shadow-none transition-[transform,background,color] duration-150 ease-[var(--ease-out)] hover:bg-surface-3 hover:text-ink-strong active:scale-[0.98] max-[900px]:inline-flex',
   logoRow:
     'relative flex min-h-[var(--admin-header-h)] items-center gap-3 border-b border-[var(--line-soft)] px-4 py-3',
   logoRowCollapsed:

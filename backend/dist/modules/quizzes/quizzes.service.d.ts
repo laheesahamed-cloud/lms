@@ -1,4 +1,5 @@
 import { Pool } from 'mysql2/promise';
+import { PaginationInput } from '../../common/utils/pagination';
 import { AuthService } from '../auth/auth.service';
 type ContentActor = {
     id: number;
@@ -20,7 +21,7 @@ export declare class QuizzesService {
         courseId?: number;
         topicId?: string;
         status?: string;
-    }): Promise<{
+    } & PaginationInput): Promise<{
         id: number;
         courseId: number;
         topicId: number | null;

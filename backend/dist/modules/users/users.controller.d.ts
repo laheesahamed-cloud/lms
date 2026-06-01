@@ -7,11 +7,11 @@ export declare class UsersController {
     private readonly usersService;
     private readonly authService;
     constructor(usersService: UsersService, authService: AuthService);
-    findAll(authorization?: string, search?: string, status?: string, role?: string): Promise<{
+    findAll(authorization?: string, search?: string, status?: string, role?: string, limit?: string, page?: string, offset?: string): Promise<{
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
         status: "active" | "inactive";
         createdAt: string | null;
     }[]>;
@@ -27,7 +27,7 @@ export declare class UsersController {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
             status: "active" | "inactive";
             createdAt: string | null;
         };
@@ -65,19 +65,19 @@ export declare class UsersController {
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
         status: string;
     }>;
     update(authorization: string | undefined, id: number, updateUserDto: UpdateUserDto): Promise<{
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
         status: "active" | "inactive";
         createdAt: string | null;
     } | {
         status: "active" | "inactive";
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
         email: string;
         fullName: string;
         ok: boolean;
@@ -92,4 +92,6 @@ export declare class UsersController {
         ok: boolean;
         id: number;
     }>;
+    private parsePositiveNumber;
+    private parseNonNegativeNumber;
 }

@@ -119,6 +119,14 @@
   opacity: 1;
 }
 
+html[data-lms-runtime="native"]:not([data-theme="dark"]) .xyndrome-logo-mark.xyndrome-logo-mark--dark .xyndrome-logo-mark__image--light {
+  opacity: 1;
+}
+
+html[data-lms-runtime="native"]:not([data-theme="dark"]) .xyndrome-logo-mark.xyndrome-logo-mark--dark .xyndrome-logo-mark__image--dark {
+  opacity: 0;
+}
+
 .xyndrome-logo-scope {
   color: var(--xyndrome-logo-scope, #08245f);
 }

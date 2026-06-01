@@ -31,7 +31,7 @@ const reviewPageUi = {
   scoreValue:
     'text-base font-bold text-ink-strong max-[420px]:text-sm',
   actionButton:
-    'inline-flex min-h-10 shrink-0 items-center justify-center rounded-[13px] border px-4 text-sm font-semibold transition-[background,border-color,color,opacity] duration-150 active:opacity-85 max-[420px]:min-h-9 max-[420px]:px-3 max-[420px]:text-[12px]',
+    'inline-flex min-h-10 shrink-0 items-center justify-center rounded-[13px] border px-4 text-sm font-semibold transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85 max-[420px]:min-h-9 max-[420px]:px-3 max-[420px]:text-[12px]',
   actionSecondary:
     'border-line-soft bg-surface-glass-subtle text-ink-medium hover:border-brand-primary/22 hover:bg-brand-primary/7 hover:text-brand-primary dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-200',
 };

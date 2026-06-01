@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchSmtpSettings, updateSmtpSettings } from '../../../../shared/api/settings.api.js';
+import { XyndromeBrand } from '../../../../shared/brand/XyndromeBrand.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { PasswordField } from '../../../../shared/ui/PasswordField.jsx';
 
@@ -194,7 +195,19 @@ export function AdminSmtpSettingsPanel() {
 
             <div className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-sm">
               <div className="bg-[linear-gradient(135deg,#2563EB,#0EA5E9)] px-5 py-4 text-white">
-                <div className="text-[11px] font-extrabold uppercase tracking-[0.08em]">xyndrome</div>
+                <XyndromeBrand
+                  className="max-w-full"
+                  markSize={34}
+                  logoVariant="dark"
+                  subtitle="Password reset"
+                  textClassName="!text-[19px] !text-white"
+                  subtitleClassName="!text-[10px] !text-white/70"
+                  style={{
+                    '--xyndrome-logo-scope': '#dbeafe',
+                    '--xyndrome-brand-text': '#ffffff',
+                    '--xyndrome-brand-muted': 'rgba(255,255,255,0.7)',
+                  }}
+                />
                 <h3 className="m-0 mt-2 text-[22px] font-black leading-tight">{form.heading}</h3>
               </div>
               <div className="grid gap-4 p-5">

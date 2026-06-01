@@ -31,6 +31,10 @@ export default defineConfig(({ command }) => ({
 
           return 'assets/[name][extname]';
         },
+        manualChunks: (id) => {
+          if (id.includes('node_modules/react-dom/')) return 'vendor-react-dom';
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-router') || id.includes('node_modules/zustand/')) return 'vendor-react';
+        },
       },
     },
   },

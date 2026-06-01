@@ -40,14 +40,18 @@ let SmartNotesService = class SmartNotesService {
     }
     async list(token) {
         const user = await this.getUser(token);
-        const [rows] = await this.db.execute(`SELECT id, title, raw_text, processed_qa, infographic_elements,
+        const [rows] = await this.db.execute(`SELECT id, user_id, title, NULL AS raw_text, NULL AS processed_qa, NULL AS infographic_elements,
               NULL AS representative_image_data, representative_image_prompt, created_at, updated_at
        FROM smart_notes WHERE user_id = ? ORDER BY updated_at DESC`, [user.id]);
         return rows.map((r) => this.deserialize(r));
     }
     async findOne(id, token) {
         const user = await this.getUser(token);
-        const [rows] = await this.db.execute('SELECT * FROM smart_notes WHERE id = ? AND user_id = ?', [id, user.id]);
+        const [rows] = await this.db.execute(`SELECT id, user_id, title, raw_text, processed_qa, infographic_elements,
+              representative_image_data, representative_image_prompt, created_at, updated_at
+       FROM smart_notes
+       WHERE id = ? AND user_id = ?
+       LIMIT 1`, [id, user.id]);
         if (!rows.length)
             throw new common_1.NotFoundException('Note not found');
         return this.deserialize(rows[0]);

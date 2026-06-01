@@ -134,7 +134,7 @@ function CourseCard({ course, onOpen }) {
       onClick={onOpen}
       aria-label={`Open ${course.courseTitle}`}
       className={cx(
-        'lms-quiz-card lms-quiz-course-card student-course-card student-course-card--simple lms-card-clickable group grid min-h-[112px] gap-3.5 rounded-[var(--ds-card-radius)] border border-line-soft bg-surface-card p-4 text-left shadow-[var(--ds-card-shadow)] outline-none transition-[border-color,background,transform] duration-150 hover:border-brand-primary/18 hover:bg-surface-2/35 focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:p-3.5',
+        'lms-quiz-card lms-quiz-course-card student-course-card student-course-card--simple lms-card-clickable group grid min-h-[112px] gap-3.5 rounded-[var(--ds-card-radius)] border border-line-soft bg-surface-card p-4 text-left shadow-[var(--ds-card-shadow)] outline-none transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/18 hover:bg-surface-2/35 active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/18 dark:border-white/[0.07] dark:bg-[rgba(6,10,18,0.92)] dark:hover:bg-white/[0.035] max-[520px]:min-h-[100px] max-[520px]:rounded-[var(--ds-card-radius-compact)] max-[520px]:p-3.5',
         `student-course-card--${visual.key}`
       )}
     >

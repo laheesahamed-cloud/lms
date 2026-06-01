@@ -93,12 +93,24 @@ html[data-motion-paused] body :where(
   .study-hub-shell > .study-action-grid,
   .study-hub-shell > .study-question-card,
   .study-hub-shell > .study-level-summary,
-  .student-app-shell .student-route-page:not(.dashboard-page) :where(
-    .management-layout > section,
-    .management-layout > article,
-    .management-layout > .lms-page-header-card,
-    .study-hub-shell > section:not(.study-hub-topbar),
-    .study-hub-shell > article
+  .student-app-shell :where(
+    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+    .dashboard-page.study-hub-page:is(
+      .student-courses-page,
+      .lms-course-detail-page,
+      .student-quiz-map-page,
+      .student-billing-page,
+      .student-checkout-page,
+      .student-bookmarks-page,
+      .student-notifications-page,
+      .student-flashcards-page,
+      .student-notes-page,
+      .student-results-page,
+      .study-planner-page,
+      .ai-notes-list-page
+    )
+  ) :where(.management-layout, .study-hub-shell) > :where(
+    :not(style):not(script):not(.study-hub-topbar)
   )
 ) {
   animation-delay: 0ms !important;
@@ -112,16 +124,29 @@ html[data-motion-paused] body :where(
   .study-hub-shell > .study-action-grid,
   .study-hub-shell > .study-question-card,
   .study-hub-shell > .study-level-summary,
-  .student-app-shell .student-route-page:not(.dashboard-page) :where(
-    .management-layout > section,
-    .management-layout > article,
-    .management-layout > .lms-page-header-card,
-    .study-hub-shell > section:not(.study-hub-topbar),
-    .study-hub-shell > article
+  .student-app-shell :where(
+    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+    .dashboard-page.study-hub-page:is(
+      .student-courses-page,
+      .lms-course-detail-page,
+      .student-quiz-map-page,
+      .student-billing-page,
+      .student-checkout-page,
+      .student-bookmarks-page,
+      .student-notifications-page,
+      .student-flashcards-page,
+      .student-notes-page,
+      .student-results-page,
+      .study-planner-page,
+      .ai-notes-list-page
+    )
+  ) :where(.management-layout, .study-hub-shell) > :where(
+    :not(style):not(script):not(.study-hub-topbar)
   )
 ) {
-  animation-duration: 1ms !important;
-  transform: none !important;
+  animation-duration: 140ms !important;
+  animation-timing-function: var(--lms-motion-ease-out, cubic-bezier(0.23, 1, 0.32, 1)) !important;
+  will-change: opacity, transform;
 }
 
 :root[data-low-spec] .quiz-completion-overlay,

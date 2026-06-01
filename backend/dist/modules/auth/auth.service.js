@@ -42,6 +42,10 @@ const SMTP_SETTING_KEYS = {
     buttonLabel: 'smtp_reset_button_label',
     footer: 'smtp_reset_footer',
 };
+const LEGACY_SMTP_BRAND_REPLACEMENTS = [
+    [/\bERPM LMS\b/g, 'xyndrome'],
+    [/\bERPM\b/g, 'xyndrome'],
+];
 let AuthService = AuthService_1 = class AuthService {
     constructor(db, configService) {
         this.db = db;
@@ -50,7 +54,7 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async login(loginDto) {
         const email = loginDto.email.trim().toLowerCase();
-        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1', [email]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1', [email]);
         const user = rows[0];
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid email or password');
@@ -113,7 +117,7 @@ let AuthService = AuthService_1 = class AuthService {
         const profile = await this.verifyGoogleCredential(googleLoginDto.credential);
         const email = String(profile.email || '').trim().toLowerCase();
         const fullName = this.getGoogleDisplayName(profile);
-        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1', [email]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1', [email]);
         let user = rows[0];
         if (!user) {
             const randomPassword = await bcrypt.hash(`google:${profile.sub}:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
@@ -170,7 +174,10 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async requestPasswordReset(forgotPasswordDto) {
         const email = forgotPasswordDto.email.trim().toLowerCase();
-        const [rows] = await this.db.execute('SELECT id, email FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1', [email]);
+        let [rows] = await this.db.execute('SELECT id, email FROM users WHERE email = ? LIMIT 1', [email]);
+        if (!rows.length) {
+            [rows] = await this.db.execute('SELECT id, email FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1', [email]);
+        }
         const user = rows[0];
         if (!user) {
             return {
@@ -335,16 +342,23 @@ let AuthService = AuthService_1 = class AuthService {
             security: values.get(SMTP_SETTING_KEYS.security) === 'ssl' ? 'ssl' : 'starttls',
             username: values.get(SMTP_SETTING_KEYS.username) || '',
             password,
-            fromName: values.get(SMTP_SETTING_KEYS.fromName) || 'xyndrome',
+            fromName: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.fromName)) || 'xyndrome',
             fromEmail: values.get(SMTP_SETTING_KEYS.fromEmail) || '',
             publicUrl,
-            subject: values.get(SMTP_SETTING_KEYS.subject) || 'Reset your xyndrome password',
-            heading: values.get(SMTP_SETTING_KEYS.heading) || 'Reset your password',
-            intro: values.get(SMTP_SETTING_KEYS.intro) || 'We received a request to reset your xyndrome password.',
+            subject: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.subject)) || 'Reset your xyndrome password',
+            heading: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.heading)) || 'Reset your password',
+            intro: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.intro)) || 'We received a request to reset your xyndrome password.',
             buttonLabel: values.get(SMTP_SETTING_KEYS.buttonLabel) || 'Reset password',
-            footer: values.get(SMTP_SETTING_KEYS.footer) || 'If you did not request this, you can safely ignore this email.',
+            footer: this.normalizeSmtpBrandText(values.get(SMTP_SETTING_KEYS.footer)) || 'If you did not request this, you can safely ignore this email.',
             configured: Boolean(values.get(SMTP_SETTING_KEYS.host) && password && values.get(SMTP_SETTING_KEYS.username) && values.get(SMTP_SETTING_KEYS.fromEmail)),
         };
+    }
+    normalizeSmtpBrandText(value) {
+        let normalized = String(value || '').trim();
+        for (const [pattern, replacement] of LEGACY_SMTP_BRAND_REPLACEMENTS) {
+            normalized = normalized.replace(pattern, replacement);
+        }
+        return normalized;
     }
     async sendPasswordResetEmail(input) {
         const { settings, resetUrl, to } = input;
