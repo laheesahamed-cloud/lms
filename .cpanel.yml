@@ -1,0 +1,34 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/xyndrome/public_html/lms/
+    - export ROOTPATH=/home/xyndrome/public_html/
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/frontend
+    - /bin/rm -rf $DEPLOYPATH/assets
+    - /bin/rm -rf $DEPLOYPATH/brand
+    - /bin/rm -rf $DEPLOYPATH/lms-assets
+    - /bin/rm -rf $DEPLOYPATH/medical
+    - /bin/rm -rf $DEPLOYPATH/offline
+    - /bin/rm -rf $DEPLOYPATH/temp
+    - /bin/rm -rf $DEPLOYPATH/frontend/dist
+    - /bin/cp -R frontend/dist $DEPLOYPATH/frontend/
+    - /bin/cp frontend/dist/index.html $DEPLOYPATH/index.html
+    - /bin/cp frontend/dist/.htaccess $DEPLOYPATH/.htaccess
+    - /bin/cp frontend/dist/manifest.webmanifest $DEPLOYPATH/manifest.webmanifest
+    - /bin/cp frontend/dist/sw.js $DEPLOYPATH/sw.js
+    - /bin/cp frontend/dist/apple-touch-icon.png $DEPLOYPATH/apple-touch-icon.png
+    - /bin/cp frontend/dist/pwa-icon-192.png $DEPLOYPATH/pwa-icon-192.png
+    - /bin/cp frontend/dist/pwa-icon-512.png $DEPLOYPATH/pwa-icon-512.png
+    - /bin/cp frontend/dist/pwa-icon.svg $DEPLOYPATH/pwa-icon.svg
+    - /bin/cp frontend/dist/pwa-maskable-512.png $DEPLOYPATH/pwa-maskable-512.png
+    - /bin/cp frontend/dist/pwa-maskable.svg $DEPLOYPATH/pwa-maskable.svg
+    - /bin/cp -R frontend/dist/brand $DEPLOYPATH
+    - /bin/cp -R frontend/dist/lms-assets $DEPLOYPATH
+    - /bin/cp -R frontend/dist/medical $DEPLOYPATH
+    - /bin/cp -R frontend/dist/offline $DEPLOYPATH
+    - /bin/cp -R frontend/dist/temp $DEPLOYPATH
+    - /bin/cp frontend/dist/robots.txt $DEPLOYPATH/robots.txt
+    - /bin/cp frontend/dist/sitemap.xml $DEPLOYPATH/sitemap.xml
+    - /bin/cp frontend/dist/robots.txt $ROOTPATH/robots.txt
+    - /bin/cp frontend/dist/sitemap.xml $ROOTPATH/sitemap.xml
