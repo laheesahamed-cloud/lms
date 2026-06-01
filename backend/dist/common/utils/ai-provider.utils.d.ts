@@ -1,0 +1,12 @@
+export declare const AI_PROVIDER_KEYS: readonly ["openai", "gemini", "claude", "openrouter"];
+export type AiProviderKey = (typeof AI_PROVIDER_KEYS)[number];
+export declare const AI_PROVIDER_LABELS: Record<AiProviderKey, string>;
+export declare const AI_PROVIDER_MODE_OPTIONS: Record<AiProviderKey, string[]>;
+export declare function isAiProviderKey(value: string): value is AiProviderKey;
+export declare function getDefaultModelForProvider(providerKey: AiProviderKey): "gpt-4.1-mini" | "gemini-1.5-flash" | "claude-3-5-sonnet-latest" | "openai/gpt-4o-mini";
+export declare function getDefaultBaseUrlForProvider(providerKey: AiProviderKey): "" | "https://api.openai.com/v1/chat/completions" | "https://api.anthropic.com/v1/messages" | "https://openrouter.ai/api/v1/chat/completions";
+export declare function normalizeAiProviderBaseUrl(providerKey: AiProviderKey, value?: string | null): string;
+export declare function buildEncryptionKey(secret: string): NonSharedBuffer;
+export declare function encryptSecret(value: string, secret: string): string;
+export declare function decryptSecret(value: string, secret: string): string;
+export declare function maskSecret(value: string): string;

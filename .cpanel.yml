@@ -32,3 +32,5 @@ deployment:
     - /bin/cp frontend/dist/sitemap.xml $DEPLOYPATH/sitemap.xml
     - /bin/cp frontend/dist/robots.txt $ROOTPATH/robots.txt
     - /bin/cp frontend/dist/sitemap.xml $ROOTPATH/sitemap.xml
+    - /bin/mkdir -p backend/tmp
+    - /bin/touch backend/tmp/restart.txt

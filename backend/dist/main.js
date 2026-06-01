@@ -1,0 +1,641 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.configureApp = configureApp;
+exports.bootstrap = bootstrap;
+const core_1 = require("@nestjs/core");
+const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
+const crypto_1 = require("crypto");
+const express = require('express');
+const { json, urlencoded } = express;
+const path = require('path');
+const app_module_1 = require("./app.module");
+const auth_service_1 = require("./modules/auth/auth.service");
+const performance_metrics_1 = require("./performance-metrics");
+const rateLimitBuckets = new Map();
+const contentRateLimitBuckets = new Map();
+const contentDeviceBuckets = new Map();
+const SECURITY_BUCKET_PRUNE_INTERVAL_MS = 60_000;
+let lastSecurityBucketPruneAt = 0;
+const AUDITABLE_PATH_PATTERNS = [
+    /^\/api\/auth\/login$/,
+    /^\/api\/auth\/forgot-password$/,
+    /^\/api\/auth\/reset-password$/,
+    /^\/api\/questions\/import/,
+    /^\/api\/ai/,
+    /^\/api\/admin(?:\/|$)/,
+    /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review)(?:\/|$)/,
+];
+function extractCookieValue(cookieHeader, name) {
+    return String(cookieHeader || '')
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${name}=`))
+        ?.slice(name.length + 1) || '';
+}
+function isUnsafeMethod(method) {
+    return !['GET', 'HEAD', 'OPTIONS'].includes(String(method || 'GET').toUpperCase());
+}
+function hasSessionCookie(cookieHeader) {
+    return Boolean(extractCookieValue(cookieHeader, 'lms_session'));
+}
+function isLocalOrigin(origin) {
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+}
+function isPrivateLanOrigin(origin) {
+    return /^https?:\/\/(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/i.test(origin);
+}
+function isCapacitorOrigin(origin) {
+    return /^(capacitor|ionic):\/\/localhost$/i.test(origin);
+}
+function splitUrlList(value) {
+    return String(value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+function toOrigin(value) {
+    const clean = String(value || '').trim();
+    if (!clean)
+        return '';
+    try {
+        return new URL(clean).origin;
+    }
+    catch {
+        return '';
+    }
+}
+function cspJoin(values) {
+    return Array.from(new Set(values.filter(Boolean))).join(' ');
+}
+function getConfiguredFrontendOrigins(configService) {
+    return Array.from(new Set([
+        configService.get('frontendUrl'),
+        configService.get('FRONTEND_URL'),
+        configService.get('APP_PUBLIC_URL'),
+        ...splitUrlList(configService.get('FRONTEND_URLS')),
+    ].map(toOrigin).filter(Boolean)));
+}
+function buildContentSecurityPolicy(frontendOrigins, apiOrigin, allowLanOrigins) {
+    const runtimeOrigins = Array.from(new Set([...frontendOrigins, apiOrigin].filter(Boolean)));
+    const nativeSources = ['capacitor://localhost', 'ionic://localhost'];
+    const localDevSources = allowLanOrigins
+        ? ['http:', 'http://localhost:*', 'http://127.0.0.1:*']
+        : [];
+    return [
+        "default-src 'none'",
+        `connect-src ${cspJoin(["'self'", ...runtimeOrigins, ...localDevSources, ...nativeSources])}`,
+        `script-src ${cspJoin(["'self'", ...nativeSources])}`,
+        `frame-src ${cspJoin(["'self'", ...nativeSources])}`,
+        `img-src ${cspJoin(["'self'", 'data:', 'blob:', ...runtimeOrigins, ...localDevSources])}`,
+        `style-src ${cspJoin(["'self'", "'unsafe-inline'", ...nativeSources])}`,
+        "frame-ancestors 'none'",
+        "base-uri 'none'",
+        "form-action 'none'",
+    ].join('; ');
+}
+function assertProductionConfig(configService, frontendOrigins, allowLanOrigins) {
+    const nodeEnv = configService.get('NODE_ENV') || 'development';
+    if (nodeEnv !== 'production')
+        return;
+    const failures = [];
+    const hasPublicFrontendOrigin = frontendOrigins.some((origin) => !isLocalOrigin(origin) && !isPrivateLanOrigin(origin));
+    const settingsEncryptionKey = String(configService.get('SETTINGS_ENCRYPTION_KEY') || '').trim();
+    const dbPassword = String(configService.get('database.password') || '').trim();
+    if (!hasPublicFrontendOrigin) {
+        failures.push('Set FRONTEND_URL or FRONTEND_URLS to the live HTTPS frontend origin before production startup.');
+    }
+    if (allowLanOrigins) {
+        failures.push('ALLOW_LAN_ORIGINS must be false in production.');
+    }
+    if (settingsEncryptionKey.length < 32 || /^change-this/i.test(settingsEncryptionKey)) {
+        failures.push('SETTINGS_ENCRYPTION_KEY must be a long random production secret.');
+    }
+    if (!dbPassword) {
+        failures.push('DB_PASSWORD must be set for the production database user.');
+    }
+    if (failures.length) {
+        throw new Error(`Production configuration is not safe to start:\n- ${failures.join('\n- ')}`);
+    }
+}
+function isAllowedOrigin(origin, configuredFrontendOrigins, allowLanOrigins) {
+    return configuredFrontendOrigins.includes(origin) ||
+        isCapacitorOrigin(origin) ||
+        (allowLanOrigins && (isLocalOrigin(origin) || isPrivateLanOrigin(origin)));
+}
+function isAuditablePath(path) {
+    return AUDITABLE_PATH_PATTERNS.some((pattern) => pattern.test(path));
+}
+function isStudentContentPath(path) {
+    return /^\/api\/(?:student\/)?(?:lessons\/student|ai-notes(?:\/student)?|quiz-attempts|quizzes\/\d+\/cards|courses\/student|dashboard\/student\/activity)(?:\/|$)/.test(path) ||
+        /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review|courses)(?:\/|$)/.test(path);
+}
+function normalizeRateLimitPath(path) {
+    return path
+        .replace(/\?.*$/, '')
+        .replace(/\/\d+(?=\/|$)/g, '/:id');
+}
+function extractRouteItemId(path) {
+    const match = path.match(/\/(\d+)(?:\/|$)/);
+    return match ? Number(match[1]) : null;
+}
+function getRequestIp(req) {
+    return String(req.ip || req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+}
+function pruneExpiringBucketMap(map, now) {
+    for (const [key, bucket] of map) {
+        if (bucket.resetAt <= now) {
+            map.delete(key);
+        }
+    }
+}
+function pruneSecurityBuckets(now = Date.now()) {
+    if (now - lastSecurityBucketPruneAt < SECURITY_BUCKET_PRUNE_INTERVAL_MS) {
+        return;
+    }
+    lastSecurityBucketPruneAt = now;
+    pruneExpiringBucketMap(rateLimitBuckets, now);
+    pruneExpiringBucketMap(contentRateLimitBuckets, now);
+    pruneExpiringBucketMap(contentDeviceBuckets, now);
+}
+function stableRequestActor(value) {
+    const clean = String(value || '').trim();
+    if (!clean)
+        return '';
+    return (0, crypto_1.createHash)('sha256').update(clean).digest('hex').slice(0, 16);
+}
+function getAuthRateLimitPolicy(path) {
+    const normalizedPath = normalizeRateLimitPath(path.replace(/\?.*$/, ''));
+    if (normalizedPath === '/api/auth/login' || normalizedPath === '/api/auth/google') {
+        return { windowMs: 15 * 60_000, maxRequests: 8 };
+    }
+    if (normalizedPath === '/api/auth/forgot-password') {
+        return { windowMs: 60 * 60_000, maxRequests: 5 };
+    }
+    if (normalizedPath === '/api/auth/reset-password') {
+        return { windowMs: 15 * 60_000, maxRequests: 10 };
+    }
+    return { windowMs: 60_000, maxRequests: 20 };
+}
+function getConfigNumber(configService, key, fallback) {
+    const value = Number(configService.get(key));
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+function updateContentDeviceAudit(userId, ip, userAgent) {
+    const now = Date.now();
+    const windowMs = 15 * 60_000;
+    const existing = contentDeviceBuckets.get(userId);
+    const bucket = !existing || existing.resetAt <= now
+        ? { resetAt: now + windowMs, ips: new Set(), agents: new Set() }
+        : existing;
+    bucket.ips.add(ip);
+    if (userAgent)
+        bucket.agents.add(userAgent.slice(0, 120));
+    contentDeviceBuckets.set(userId, bucket);
+    if (bucket.ips.size > 3 || bucket.agents.size > 5) {
+        console.warn(JSON.stringify({
+            event: 'content_multi_device_warning',
+            userId,
+            ipCount: bucket.ips.size,
+            userAgentCount: bucket.agents.size,
+        }));
+    }
+}
+function rewriteApiBoundary(path, method) {
+    const suffix = path.replace(/^\/api\/(?:admin|student)\/?/, '');
+    const parts = suffix.split('/').filter(Boolean);
+    const [resource, ...rest] = parts;
+    const restPath = rest.length ? `/${rest.join('/')}` : '';
+    if (path === '/api/admin' || path === '/api/admin/')
+        return '/api/dashboard/admin';
+    if (path === '/api/student' || path === '/api/student/')
+        return '/api/dashboard/student';
+    if (path.startsWith('/api/admin/')) {
+        if (resource === 'dashboard')
+            return `/api/dashboard/admin${restPath}`;
+        if (resource === 'ai-notes') {
+            if (rest[0] === 'generate')
+                return '/api/ai-notes/generate';
+            return `/api/ai-notes/admin${restPath}`;
+        }
+        if (resource === 'announcements')
+            return `/api/announcements/admin${restPath}`;
+        if (resource === 'reports')
+            return `/api/reports/admin${restPath}`;
+        if (resource === 'question-reports')
+            return `/api/question-reports/admin${restPath}`;
+        if (resource === 'push')
+            return `/api/push/admin${restPath}`;
+        if (resource === 'subscriptions') {
+            if (rest[0] === 'assign')
+                return '/api/subscriptions/assign';
+            if (rest[0] === 'requests' && rest[2] === 'resolve')
+                return `/api/subscriptions/requests/${rest[1]}/resolve`;
+            if (rest[0] && ['extend', 'renew', 'cancel', 'payment'].includes(rest[1] || '')) {
+                return `/api/subscriptions/${rest[0]}/${rest[1]}`;
+            }
+            return `/api/subscriptions/admin${restPath}`;
+        }
+        if (resource === 'plans') {
+            return method === 'GET' && !rest.length ? '/api/plans/admin' : `/api/plans${restPath}`;
+        }
+        if (resource === 'lessons') {
+            return method === 'GET' && !rest.length ? '/api/lessons/admin' : `/api/lessons${restPath}`;
+        }
+        if (resource && ['courses', 'topics', 'subtopics', 'questions', 'quizzes', 'users', 'settings', 'setup', 'papers', 'theory-recap', 'smart-notes', 'ai'].includes(resource)) {
+            return `/api/${resource}${restPath}`;
+        }
+    }
+    if (path.startsWith('/api/student/')) {
+        if (resource === 'dashboard') {
+            if (rest[0] === 'activity')
+                return '/api/dashboard/student/activity';
+            return '/api/dashboard/student';
+        }
+        if (resource === 'courses') {
+            if (rest[0] === 'lessons' && rest[2] === 'progress')
+                return `/api/courses/student/lessons/${rest[1]}/progress`;
+            return `/api/courses/student${restPath}`;
+        }
+        if (resource === 'lessons')
+            return `/api/lessons/student${restPath}`;
+        if (resource === 'ai-notes') {
+            if (rest[0] === 'lesson' && rest[1])
+                return `/api/ai-notes/student/lesson/${rest[1]}`;
+            return `/api/ai-notes${restPath}`;
+        }
+        if (resource === 'quizzes') {
+            if (rest[0] && rest[1] === 'cards')
+                return `/api/quizzes/${rest[0]}/cards`;
+            return rest.length ? `/api/quiz-attempts/quiz/${rest[0]}` : '/api/quiz-attempts/quizzes';
+        }
+        if (resource === 'quiz-attempts')
+            return `/api/quiz-attempts${restPath}`;
+        if (resource === 'results') {
+            return `/api/results${restPath}`;
+        }
+        if (resource === 'practice-review' && rest[0])
+            return `/api/quiz-attempts/practice-review/${rest[0]}`;
+        if (resource === 'subscriptions') {
+            if (!rest.length)
+                return '/api/subscriptions/me';
+            if (rest[0] === 'request')
+                return '/api/subscriptions/request';
+            if (rest[0] === 'payhere' && rest[1] === 'initiate')
+                return '/api/subscriptions/payhere/initiate';
+            if (rest[0] === 'manual-payment' && rest[1] === 'request')
+                return '/api/subscriptions/manual-payment/request';
+            return `/api/subscriptions${restPath}`;
+        }
+        if (resource === 'bookmarks')
+            return `/api/study-bookmarks${restPath}`;
+        if (resource === 'notifications')
+            return `/api/notifications${restPath}`;
+        if (resource === 'planner')
+            return `/api/study-planner${restPath}`;
+        if (resource === 'question-reports')
+            return `/api/question-reports${restPath}`;
+        if (resource === 'push')
+            return `/api/push${restPath}`;
+        if (resource === 'theory-recap')
+            return `/api/theory-recap${restPath}`;
+    }
+    return '';
+}
+function rewriteRequestUrl(req, targetPath) {
+    const originalUrl = String(req.url || '');
+    const queryIndex = originalUrl.indexOf('?');
+    const query = queryIndex >= 0 ? originalUrl.slice(queryIndex) : '';
+    req.url = `${targetPath}${query}`;
+}
+function restoreApiPrefixForMountedApp(req, _res, next) {
+    const path = String(req.path || req.url || '');
+    if (path === '/' || path.startsWith('/api') || path.startsWith('/uploads')) {
+        next();
+        return;
+    }
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    rewriteRequestUrl(req, `/api${normalizedPath}`);
+    next();
+}
+async function configureApp(app) {
+    const configService = app.get(config_1.ConfigService);
+    const authService = app.get(auth_service_1.AuthService);
+    const bodyLimit = configService.get('bodyLimit') || configService.get('BODY_LIMIT') || '8mb';
+    const nodeEnv = configService.get('NODE_ENV') || 'development';
+    const enableAccessLogs = nodeEnv !== 'production' || configService.get('ENABLE_ACCESS_LOGS') === 'true';
+    const enableSecurityAccessLogs = enableAccessLogs || configService.get('ENABLE_SECURITY_ACCESS_LOGS') === 'true';
+    const enableContentAccessLogs = enableAccessLogs || configService.get('ENABLE_CONTENT_ACCESS_LOGS') === 'true';
+    const allowLanOrigins = configService.get('ALLOW_LAN_ORIGINS') === 'true' || nodeEnv !== 'production';
+    const configuredFrontendOrigins = getConfiguredFrontendOrigins(configService);
+    const configuredApiOrigin = toOrigin(configService.get('API_PUBLIC_URL')) || toOrigin(configService.get('APP_PUBLIC_URL'));
+    assertProductionConfig(configService, configuredFrontendOrigins, allowLanOrigins);
+    const uploadsRoot = path.join(process.cwd(), 'uploads');
+    const contentSecurityPolicy = buildContentSecurityPolicy(configuredFrontendOrigins, configuredApiOrigin, allowLanOrigins);
+    app.use('/uploads/payment-proofs', (_req, res) => {
+        res.status(404).json({ message: 'File not found' });
+    });
+    app.use('/uploads', express.static(uploadsRoot, {
+        index: false,
+        dotfiles: 'deny',
+        setHeaders: (res) => {
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            res.setHeader('Content-Disposition', 'attachment');
+        },
+    }));
+    app.use(restoreApiPrefixForMountedApp);
+    app.use((req, res, next) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Frame-Options', 'DENY');
+        res.setHeader('Referrer-Policy', 'no-referrer');
+        res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+        res.setHeader('Content-Security-Policy', contentSecurityPolicy);
+        res.removeHeader('X-Powered-By');
+        next();
+    });
+    app.use((req, res, next) => {
+        const startedAt = Date.now();
+        const path = String(req.path || req.url || '');
+        if (!path.startsWith('/api/health/client-performance')) {
+            res.on('finish', () => {
+                (0, performance_metrics_1.recordApiRequestMetric)({
+                    method: String(req.method || 'GET').toUpperCase(),
+                    path,
+                    statusCode: Number(res.statusCode || 0),
+                    durationMs: Date.now() - startedAt,
+                });
+            });
+        }
+        next();
+    });
+    app.use((req, res, next) => {
+        const startedAt = Date.now();
+        const path = String(req.path || req.url || '');
+        if (!enableSecurityAccessLogs || !isAuditablePath(path)) {
+            next();
+            return;
+        }
+        res.on('finish', () => {
+            const ip = String(req.ip || req.socket?.remoteAddress || 'unknown');
+            const method = String(req.method || 'GET').toUpperCase();
+            const statusCode = Number(res.statusCode || 0);
+            const durationMs = Date.now() - startedAt;
+            console.info(JSON.stringify({
+                event: 'security_access',
+                method,
+                path,
+                statusCode,
+                durationMs,
+                ip,
+                userAgent: String(req.headers?.['user-agent'] || '').slice(0, 160),
+            }));
+        });
+        next();
+    });
+    app.use((req, _res, next) => {
+        if (!req.headers?.authorization) {
+            const cookieToken = extractCookieValue(req.headers?.cookie, 'lms_session');
+            if (cookieToken) {
+                req.headers.authorization = `Bearer ${decodeURIComponent(cookieToken)}`;
+                req.lmsAuthFromCookie = true;
+            }
+        }
+        next();
+    });
+    app.use((req, res, next) => {
+        const origin = String(req.headers?.origin || '');
+        if (origin && isAllowedOrigin(origin, configuredFrontendOrigins, allowLanOrigins)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+            res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', String(req.headers?.['access-control-request-headers'] || 'Authorization,Content-Type'));
+            res.setHeader('Vary', 'Origin');
+        }
+        if (String(req.method || '').toUpperCase() === 'OPTIONS') {
+            res.status(204).end();
+            return;
+        }
+        next();
+    });
+    app.use((req, res, next) => {
+        const method = String(req.method || 'GET').toUpperCase();
+        const unsafeMethod = isUnsafeMethod(method);
+        const origin = String(req.headers?.origin || '');
+        const secFetchSite = String(req.headers?.['sec-fetch-site'] || '').toLowerCase();
+        if (unsafeMethod && origin && !isAllowedOrigin(origin, configuredFrontendOrigins, allowLanOrigins)) {
+            res.status(403).json({ message: 'Request origin is not allowed' });
+            return;
+        }
+        if (unsafeMethod && (req.lmsAuthFromCookie || hasSessionCookie(req.headers?.cookie))) {
+            if (!origin && secFetchSite && !['same-origin', 'same-site', 'none'].includes(secFetchSite)) {
+                res.status(403).json({ message: 'Cross-site cookie request was blocked' });
+                return;
+            }
+            if (origin && !isAllowedOrigin(origin, configuredFrontendOrigins, allowLanOrigins)) {
+                res.status(403).json({ message: 'Cross-site cookie request was blocked' });
+                return;
+            }
+        }
+        next();
+    });
+    app.use(async (req, res, next) => {
+        const path = String(req.path || req.url || '');
+        const isAdminPath = path.startsWith('/api/admin/');
+        const isSensitivePath = isAdminPath ||
+            path.startsWith('/api/auth/') ||
+            path.startsWith('/api/ai') ||
+            path.includes('/import') ||
+            path.includes('/generate');
+        if (!isSensitivePath) {
+            next();
+            return;
+        }
+        const authPolicy = path.startsWith('/api/auth/') ? getAuthRateLimitPolicy(path) : null;
+        let rateLimitUser = null;
+        if (!authPolicy && req.headers?.authorization) {
+            try {
+                rateLimitUser = await authService.requireAdmin(req.headers.authorization);
+                req.lmsUser = rateLimitUser;
+            }
+            catch {
+                rateLimitUser = null;
+            }
+        }
+        const windowMs = authPolicy?.windowMs || 60_000;
+        const adminMaxRequests = getConfigNumber(configService, 'ADMIN_RATE_LIMIT_PER_MINUTE', 240);
+        const maxRequests = authPolicy?.maxRequests || (rateLimitUser ? adminMaxRequests : (isAdminPath ? 60 : 10));
+        const method = String(req.method || 'GET').toUpperCase();
+        const ip = getRequestIp(req);
+        const normalizedPath = normalizeRateLimitPath(path);
+        const actorKey = rateLimitUser?.id ? `admin:${rateLimitUser.id}` : `ip:${ip}`;
+        const key = `${actorKey}:${method}:${normalizedPath}`;
+        const now = Date.now();
+        pruneSecurityBuckets(now);
+        const bucket = rateLimitBuckets.get(key);
+        if (!bucket || bucket.resetAt <= now) {
+            rateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
+            next();
+            return;
+        }
+        bucket.count += 1;
+        if (bucket.count > maxRequests) {
+            const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+            res.setHeader('Retry-After', String(retryAfterSeconds));
+            console.warn(JSON.stringify({
+                event: 'api_rate_limited',
+                actor: rateLimitUser?.id ? `admin:${rateLimitUser.id}` : 'anonymous',
+                method,
+                path: normalizedPath,
+                count: bucket.count,
+                maxRequests,
+                retryAfterSeconds,
+                ip,
+            }));
+            res.status(429).json({ message: 'Too many requests. Please wait a moment and try again.' });
+            return;
+        }
+        next();
+    });
+    app.use(async (req, res, next) => {
+        const path = String(req.path || req.url || '');
+        const method = String(req.method || 'GET').toUpperCase();
+        const isAdminBoundary = path === '/api/admin' || path.startsWith('/api/admin/');
+        const isStudentBoundary = path === '/api/student' || path.startsWith('/api/student/');
+        if (!isAdminBoundary && !isStudentBoundary) {
+            next();
+            return;
+        }
+        try {
+            if (isAdminBoundary) {
+                const admin = req.lmsUser || await authService.requireAdmin(req.headers?.authorization);
+                req.lmsUser = admin;
+            }
+            else {
+                const student = await authService.requireStudent(req.headers?.authorization);
+                req.lmsUser = student;
+            }
+            const rewrittenPath = rewriteApiBoundary(path, method);
+            if (!rewrittenPath) {
+                res.status(404).json({ message: 'API boundary route was not found' });
+                return;
+            }
+            rewriteRequestUrl(req, rewrittenPath);
+            next();
+        }
+        catch (error) {
+            const statusCode = Number(error?.status || error?.statusCode || 401);
+            res.status(statusCode).json({ message: error?.message || 'Access denied' });
+        }
+    });
+    app.use((req, res, next) => {
+        const path = String(req.path || req.url || '');
+        if (!isStudentContentPath(path)) {
+            next();
+            return;
+        }
+        const method = String(req.method || 'GET').toUpperCase();
+        const ip = getRequestIp(req);
+        const userAgent = String(req.headers?.['user-agent'] || '');
+        const authenticatedUserId = req.lmsUser?.id ? String(req.lmsUser.id) : '';
+        const authorizationFingerprint = stableRequestActor(String(req.headers?.authorization || ''));
+        const actorKey = authenticatedUserId
+            ? `user:${authenticatedUserId}`
+            : authorizationFingerprint
+                ? `auth:${authorizationFingerprint}`
+                : 'anonymous';
+        const userId = authenticatedUserId || 'anonymous';
+        const normalizedPath = normalizeRateLimitPath(path);
+        const now = Date.now();
+        pruneSecurityBuckets(now);
+        const windowMs = 60_000;
+        const maxRequests = method === 'GET' ? 70 : 100;
+        const key = `${actorKey}:${ip}:${method}:${normalizedPath}`;
+        const bucket = contentRateLimitBuckets.get(key);
+        if (!bucket || bucket.resetAt <= now) {
+            contentRateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs, warnedAt: 0 });
+        }
+        else {
+            bucket.count += 1;
+            if (bucket.count > Math.floor(maxRequests * 0.75) && now - bucket.warnedAt > 15_000) {
+                bucket.warnedAt = now;
+                console.warn(JSON.stringify({
+                    event: 'content_rapid_access_warning',
+                    userId,
+                    actor: authenticatedUserId ? `user:${authenticatedUserId}` : actorKey === 'anonymous' ? 'anonymous' : 'authenticated-token',
+                    method,
+                    path: normalizedPath,
+                    count: bucket.count,
+                    ip,
+                }));
+            }
+            if (bucket.count > maxRequests) {
+                console.warn(JSON.stringify({
+                    event: 'content_rate_limited',
+                    userId,
+                    actor: authenticatedUserId ? `user:${authenticatedUserId}` : actorKey === 'anonymous' ? 'anonymous' : 'authenticated-token',
+                    method,
+                    path: normalizedPath,
+                    count: bucket.count,
+                    ip,
+                }));
+                res.status(429).json({ message: 'Too many content requests. Please wait a moment and try again.' });
+                return;
+            }
+        }
+        if (authenticatedUserId) {
+            updateContentDeviceAudit(userId, ip, userAgent);
+        }
+        if (enableContentAccessLogs) {
+            const startedAt = Date.now();
+            res.on('finish', () => {
+                console.info(JSON.stringify({
+                    event: 'content_access',
+                    userId,
+                    method,
+                    path: normalizedPath,
+                    itemId: extractRouteItemId(path),
+                    statusCode: Number(res.statusCode || 0),
+                    durationMs: Date.now() - startedAt,
+                    ip,
+                    userAgent: userAgent.slice(0, 160),
+                }));
+            });
+        }
+        next();
+    });
+    app.use(json({ limit: bodyLimit, strict: true }));
+    app.use(urlencoded({ limit: bodyLimit, extended: true, parameterLimit: 1000 }));
+    const corsOrigin = (origin, callback) => {
+        if (!origin) {
+            callback(null, true);
+            return;
+        }
+        if (isAllowedOrigin(origin, configuredFrontendOrigins, allowLanOrigins)) {
+            callback(null, true);
+            return;
+        }
+        callback(new Error(`CORS blocked for origin: ${origin}`), false);
+    };
+    app.setGlobalPrefix('api');
+    app.enableCors({
+        origin: corsOrigin,
+        credentials: true,
+    });
+    app.useGlobalPipes(new common_1.ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+    }));
+}
+async function bootstrap() {
+    const app = await core_1.NestFactory.create(app_module_1.AppModule, { bodyParser: false });
+    await configureApp(app);
+    const configService = app.get(config_1.ConfigService);
+    await app.listen(configService.get('port') || 3000, '0.0.0.0');
+}
+if (require.main === module) {
+    bootstrap();
+}
+//# sourceMappingURL=main.js.map

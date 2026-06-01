@@ -27,11 +27,11 @@ GoogleService-Info.plist
 
 /dist/
 frontend/dist-capacitor/
-backend/dist/
 frontend/android/.gradle/
 frontend/android/app/build/
 frontend/android/build/
 frontend/ios/**/DerivedData/
+backend/tmp/
 
 .runtime/
 release/

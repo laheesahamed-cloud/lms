@@ -317,6 +317,18 @@ function rewriteRequestUrl(req: any, targetPath: string) {
   req.url = `${targetPath}${query}`;
 }
 
+function restoreApiPrefixForMountedApp(req: any, _res: any, next: any) {
+  const path = String(req.path || req.url || '');
+  if (path === '/' || path.startsWith('/api') || path.startsWith('/uploads')) {
+    next();
+    return;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  rewriteRequestUrl(req, `/api${normalizedPath}`);
+  next();
+}
+
 export async function configureApp(app: INestApplication) {
   const configService = app.get(ConfigService);
   const authService = app.get(AuthService);
@@ -345,6 +357,8 @@ export async function configureApp(app: INestApplication) {
       res.setHeader('Content-Disposition', 'attachment');
     },
   }));
+
+  app.use(restoreApiPrefixForMountedApp);
 
   app.use((req: any, res: any, next: any) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
