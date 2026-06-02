@@ -6,6 +6,7 @@ import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { ui } from '../../../shared/styles/tailwindClasses.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../shared/utils/routeForwarding.js';
 import { PasswordField } from '../../../shared/ui/PasswordField.jsx';
+import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
 
 const auth = {
   shell: 'grid min-h-dvh place-items-center bg-page px-6 py-6',
@@ -93,6 +94,7 @@ export function RegisterPage() {
   }
 
   const feedbackId = status.error ? 'register-error' : status.success ? 'register-success' : undefined;
+  const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));
 
   return (
     <main className={auth.shell}>
@@ -116,8 +118,16 @@ export function RegisterPage() {
             <p className={auth.formHeadText}>New student accounts open the real dashboard immediately with the default Free plan.</p>
           </div>
 
-          {status.error   ? <div id="register-error" className={ui.feedbackError} role="alert" aria-live="assertive">{status.error}</div>   : null}
-          {status.success ? <div id="register-success" className={ui.feedbackSuccess} role="status" aria-live="polite">{status.success}</div> : null}
+          {status.error ? (
+            <AuthFeedbackNotice id="register-error" tone="error" onDismiss={clearFeedback}>
+              {status.error}
+            </AuthFeedbackNotice>
+          ) : null}
+          {status.success ? (
+            <AuthFeedbackNotice id="register-success" tone="success" onDismiss={clearFeedback}>
+              {status.success}
+            </AuthFeedbackNotice>
+          ) : null}
 
           <label className={ui.formLabel} htmlFor="register-full-name">
             Full name

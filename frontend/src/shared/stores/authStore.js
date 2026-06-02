@@ -4,22 +4,35 @@ import { setUnauthorizedHandler } from '../api/client.js';
 import { fetchCurrentUser, login, loginWithGoogle, logout, register } from '../api/auth.api.js';
 import { detectPlatform } from '../platform/detect.js';
 import { clearStoredAuth, getAuthToken, getBootstrapAuth, setAuthToken, setStoredAuthUser } from './authToken.js';
+import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 
 let hydratePromise = null;
 let authMutationVersion = 0;
+const PUBLIC_AUTH_PATHS = new Set([
+  '/login',
+  '/register',
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+]);
+
+function getNormalizedPublicPathname() {
+  if (typeof window === 'undefined') {
+    return '/';
+  }
+
+  return (window.location.pathname || '/')
+    .replace(/^\/lms(?:\/frontend\/dist)?(?=\/|$)/, '')
+    .replace(/\/+$/, '') || '/';
+}
 
 function isPublicAuthRoute() {
   if (typeof window === 'undefined') {
     return false;
   }
 
-  const pathname = window.location.pathname || '';
-  return pathname.endsWith('/login') ||
-    pathname.endsWith('/register') ||
-    pathname.endsWith('/auth/login') ||
-    pathname.endsWith('/auth/register') ||
-    pathname.endsWith('/auth/forgot-password') ||
-    pathname.endsWith('/auth/reset-password');
+  return PUBLIC_AUTH_PATHS.has(getNormalizedPublicPathname());
 }
 
 function finishSignedOut(set) {
@@ -32,7 +45,47 @@ function finishSignedOut(set) {
     isAuthenticated: false,
     isHydrating: false,
     isSigningOut: false,
+    sessionExpiredLock: null,
   });
+}
+
+function createSessionExpiredNotice() {
+  return {
+    type: 'warning',
+    message: 'Your session expired. Please sign in again to continue.',
+  };
+}
+
+function isTemporarySessionLookupFailure(error) {
+  const status = Number(error?.response?.status || 0);
+  const data = error?.response?.data;
+  return error?.code === 'ECONNABORTED' ||
+    error?.code === 'ERR_NETWORK' ||
+    error?.message === 'Network Error' ||
+    !error?.response ||
+    status >= 500 ||
+    data?.code === 'DATABASE_UNAVAILABLE' ||
+    data?.checks?.database?.ok === false;
+}
+
+function preserveAuthDuringTemporaryHydrateFailure(set, get, error) {
+  if (!isTemporarySessionLookupFailure(error) || isPublicAuthRoute()) {
+    return false;
+  }
+
+  const current = get();
+  const token = current.token || getAuthToken();
+  const user = current.user || null;
+  const hasLocalAuthSnapshot = Boolean(current.isAuthenticated || user || token);
+
+  set({
+    token,
+    user,
+    isAuthenticated: hasLocalAuthSnapshot,
+    isHydrating: !hasLocalAuthSnapshot,
+    isSigningOut: false,
+  });
+  return true;
 }
 
 function syncNativePushAfterAuth() {
@@ -50,6 +103,8 @@ export const useAuthStore = create((set, get) => ({
   isHydrating: Boolean(bootstrapAuth.token && !bootstrapAuth.user),
   isAuthenticated: Boolean(bootstrapAuth.token && bootstrapAuth.user),
   isSigningOut: false,
+  authNotice: null,
+  sessionExpiredLock: null,
 
   hydrate: async () => {
     if (hydratePromise) {
@@ -73,8 +128,11 @@ export const useAuthStore = create((set, get) => ({
           isHydrating: false,
         });
         setStoredAuthUser(data.user);
-      } catch {
+      } catch (error) {
         if (hydrateVersion !== authMutationVersion) {
+          return;
+        }
+        if (preserveAuthDuringTemporaryHydrateFailure(set, get, error)) {
           return;
         }
         finishSignedOut(set);
@@ -103,6 +161,8 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: true,
       isHydrating: false,
       isSigningOut: false,
+      authNotice: null,
+      sessionExpiredLock: null,
     });
     syncNativePushAfterAuth();
     return data;
@@ -123,6 +183,8 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: true,
       isHydrating: false,
       isSigningOut: false,
+      authNotice: null,
+      sessionExpiredLock: null,
     });
     syncNativePushAfterAuth();
     return data;
@@ -143,6 +205,8 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: true,
       isHydrating: false,
       isSigningOut: false,
+      authNotice: null,
+      sessionExpiredLock: null,
     });
     syncNativePushAfterAuth();
     return data;
@@ -170,10 +234,23 @@ export const useAuthStore = create((set, get) => ({
       user: null,
       isAuthenticated: false,
       isSigningOut: false,
+      authNotice: null,
+      sessionExpiredLock: null,
     });
   },
 
-  forceSignOut: () => {
+  forceSignOut: (options = {}) => {
+    const current = get();
+    const isPublicAuthPage = isPublicAuthRoute();
+    const notice = createSessionExpiredNotice();
+    const shouldLockCurrentPage =
+      options?.reason === 'session-expired' &&
+      !isPublicAuthPage &&
+      Boolean(current.isAuthenticated || current.user || current.token);
+    const shouldShowSessionNotice =
+      options?.reason === 'session-expired' &&
+      !isPublicAuthPage &&
+      Boolean(current.isAuthenticated || current.user || current.token);
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     clearStoredAuth();
@@ -183,14 +260,30 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: false,
       isHydrating: false,
       isSigningOut: false,
+      authNotice: shouldShowSessionNotice ? notice : null,
+      sessionExpiredLock: shouldLockCurrentPage
+        ? {
+            from: getCurrentForwardPath(),
+            message: notice.message,
+          }
+        : null,
     });
+    return shouldLockCurrentPage;
   },
 
   setUser: (user) => {
     set({ user });
   },
+
+  consumeAuthNotice: () => {
+    set({ authNotice: null });
+  },
+
+  clearSessionExpiredLock: () => {
+    set({ authNotice: null, sessionExpiredLock: null });
+  },
 }));
 
 setUnauthorizedHandler(() => {
-  useAuthStore.getState().forceSignOut();
+  return useAuthStore.getState().forceSignOut({ reason: 'session-expired' });
 });
