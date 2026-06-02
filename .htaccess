@@ -10,7 +10,15 @@
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
+  RewriteCond %{REQUEST_URI} \.(?:js|mjs|css|map|json|webmanifest|txt|xml|png|jpe?g|gif|webp|svg|ico|woff2?|ttf)$ [NC]
+  RewriteRule ^ - [R=404,L]
+
   RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
 </IfModule>
 
 <IfModule mod_expires.c>

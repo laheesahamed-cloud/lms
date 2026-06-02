@@ -6,9 +6,19 @@
 
   RewriteBase /lms/frontend/dist/
   RewriteRule ^index\.html$ - [L]
+
+  RewriteCond %{REQUEST_URI} \.(?:js|mjs|css|map|json|webmanifest|txt|xml|png|jpe?g|gif|webp|svg|ico|woff2?|ttf)$ [NC]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ - [R=404,L]
+
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /lms/frontend/dist/index.html [L]
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
 </IfModule>
 
 <IfModule mod_expires.c>

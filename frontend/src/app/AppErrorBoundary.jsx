@@ -4,15 +4,46 @@ import { detectPlatform } from '../shared/platform/detect.js';
 import { requestSpaNavigation } from '../shared/routing/spaNavigation.js';
 
 const PLATFORM = detectPlatform();
+const BUILD_ASSET_RECOVERY_RELOAD_KEY = 'lms_build_asset_recovery_reload_at';
+const BUILD_ASSET_RECOVERY_RELOAD_WINDOW_MS = 30_000;
+
+function isRecoverableBuildAssetError(error) {
+  const message = String(error?.message || error || '');
+  return /valid JavaScript MIME type|dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk/i.test(message);
+}
+
+function canReloadForBuildAssetError() {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const lastReloadAt = Number(window.sessionStorage.getItem(BUILD_ASSET_RECOVERY_RELOAD_KEY) || 0);
+    if (lastReloadAt && Date.now() - lastReloadAt < BUILD_ASSET_RECOVERY_RELOAD_WINDOW_MS) {
+      return false;
+    }
+    window.sessionStorage.setItem(BUILD_ASSET_RECOVERY_RELOAD_KEY, String(Date.now()));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { error: null };
+    this.state = { error: null, recovering: false };
   }
 
   static getDerivedStateFromError(error) {
     return { error };
+  }
+
+  componentDidCatch(error) {
+    if (!isRecoverableBuildAssetError(error) || !canReloadForBuildAssetError()) {
+      return;
+    }
+
+    this.setState({ recovering: true });
+    window.setTimeout(() => window.location.reload(), 80);
   }
 
   render() {
@@ -20,7 +51,9 @@ export class AppErrorBoundary extends Component {
       return this.props.children;
     }
 
-    const message = this.state.error?.message || 'The screen could not be rendered.';
+    const message = this.state.recovering
+      ? 'Refreshing the latest app files...'
+      : this.state.error?.message || 'The screen could not be rendered.';
 
     const native = PLATFORM.isNative;
     const pageBackground = native ? 'var(--lms-login-dark-bg, #060d22)' : 'var(--app-bg, var(--page-background, #ffffff))';
@@ -70,6 +103,7 @@ export class AppErrorBoundary extends Component {
               this.setState({ error: null });
               requestSpaNavigation(PLATFORM.isNative ? '/dashboard' : '/lms/dashboard', { replace: true });
             }}
+            disabled={this.state.recovering}
             style={{
               minHeight: 42,
               border: '1px solid #bfdbfe',
@@ -78,9 +112,10 @@ export class AppErrorBoundary extends Component {
               color: '#1d4ed8',
               fontWeight: 800,
               padding: '0 14px',
+              opacity: this.state.recovering ? 0.7 : 1,
             }}
           >
-            Return to dashboard
+            {this.state.recovering ? 'Refreshing...' : 'Return to dashboard'}
           </button>
         </section>
       </main>
