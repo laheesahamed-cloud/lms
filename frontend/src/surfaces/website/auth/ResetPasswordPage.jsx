@@ -6,11 +6,13 @@ import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
 import { PasswordField } from '../../../shared/ui/PasswordField.jsx';
+import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const token = useMemo(() => searchParams.get('token') || '', [searchParams]);
   const [status, setStatus] = useState({ loading: false, error: '', success: '' });
+  const [tokenNoticeDismissed, setTokenNoticeDismissed] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -31,7 +33,9 @@ export function ResetPasswordPage() {
     }
   }
 
-  const feedbackId = !token ? 'reset-password-token-error' : status.error ? 'reset-password-error' : status.success ? 'reset-password-success' : undefined;
+  const showTokenNotice = !token && !tokenNoticeDismissed;
+  const feedbackId = showTokenNotice ? 'reset-password-token-error' : status.error ? 'reset-password-error' : status.success ? 'reset-password-success' : undefined;
+  const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));
 
   return (
     <main className={ui.authRouteScene} style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 'clamp(18px,4vw,44px)', background: 'var(--page-background)' }}>
@@ -50,9 +54,21 @@ export function ResetPasswordPage() {
             <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.62 }}>Use at least 10 characters with uppercase, lowercase, and a number.</p>
           </div>
 
-          {!token && <div id="reset-password-token-error" className={ui.feedbackError} role="alert" aria-live="assertive">Reset token is missing. Create a fresh reset link.</div>}
-          {status.error && <div id="reset-password-error" className={ui.feedbackError} role="alert" aria-live="assertive">{status.error}</div>}
-          {status.success && <div id="reset-password-success" className={ui.feedbackSuccess} role="status" aria-live="polite">{status.success}</div>}
+          {showTokenNotice ? (
+            <AuthFeedbackNotice id="reset-password-token-error" tone="error" onDismiss={() => setTokenNoticeDismissed(true)}>
+              Reset token is missing. Create a fresh reset link.
+            </AuthFeedbackNotice>
+          ) : null}
+          {status.error ? (
+            <AuthFeedbackNotice id="reset-password-error" tone="error" onDismiss={clearFeedback}>
+              {status.error}
+            </AuthFeedbackNotice>
+          ) : null}
+          {status.success ? (
+            <AuthFeedbackNotice id="reset-password-success" tone="success" onDismiss={clearFeedback}>
+              {status.success}
+            </AuthFeedbackNotice>
+          ) : null}
 
           <PasswordField
             label="New password"

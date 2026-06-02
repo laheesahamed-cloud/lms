@@ -2266,13 +2266,19 @@
 .study-soft-icon--strong { background: var(--sa-primary-soft);              color: var(--sa-primary); }
 
 /* ============================================================
-   PRESS FEEDBACK
+   PRESS FEEDBACK - every tappable element confirms the press
    ============================================================ */
 .study-icon-button:active,
 .study-button:active,
 .study-square-action:active,
 .study-action-card:active,
-.study-answer-option:active {
+.study-answer-option:active,
+.study-plan-row:active,
+.study-course-row:active,
+.study-topic-row:active,
+.study-upcoming-row:active,
+.study-streak-link:active,
+.study-question-toggle:active {
   transform: scale(0.97);
 }
 
@@ -2676,9 +2682,15 @@
   will-change: transform;
 }
 
-.study-action-card:hover {
-  transform: translateY(-1px);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .study-action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: none;
+  }
+
+  .study-action-card:hover > span {
+    transform: scale(1.08);
+  }
 }
 
 :root[data-theme="dark"] .study-action-card:hover,
@@ -2686,21 +2698,19 @@
   box-shadow: none;
 }
 
-.study-action-card:hover > span {
-  transform: scale(1.06);
-}
-
 .study-action-card > span {
   transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Hero card subtle lift on hover */
+/* Hero card subtle lift on hover - pointer devices only */
 .study-continue-card {
   transition: transform var(--lms-motion-duration-hover, 150ms) var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
 }
 
-.study-continue-card:hover {
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .study-continue-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 /* ── Readiness progress rail — animate from 0 to value ─────────── */
