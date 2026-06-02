@@ -1,6 +1,7 @@
 import { apiClient } from './client.js';
 
 const PUBLIC_SETTINGS_CACHE_TTL_MS = 15_000;
+const PUBLIC_AVAILABILITY_TIMEOUT_MS = 2500;
 let publicSettingsCache = null;
 let publicSettingsPromise = null;
 
@@ -79,6 +80,9 @@ export async function fetchPublicAvailabilitySettings() {
   const response = await apiClient.get('/settings/public/availability', {
     __suppressServerStatus: true,
     __skipNetworkActivity: true,
+    __skipTimeoutRetry: true,
+    __skipApiBaseFallback: true,
+    timeout: PUBLIC_AVAILABILITY_TIMEOUT_MS,
   });
   return response.data;
 }
