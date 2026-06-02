@@ -118,7 +118,7 @@
   --sa-page-width-mobile: min(390px, calc(100% - 24px));
   --sa-page-width-compact: min(100% - 16px, 390px);
   --sa-page-width-tablet: min(720px, calc(100% - 32px));
-  --sa-page-width-desktop: min(880px, calc(100% - 48px));
+  --sa-page-width-desktop: min(1200px, calc(100% - 48px));
   --sa-page-padding-top: calc(max(8px, env(safe-area-inset-top, 0px)) + 4px);
   --sa-page-padding-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 8px);
   --sa-page-padding-compact-top: calc(max(8px, env(safe-area-inset-top, 0px)) + 4px);
@@ -1094,7 +1094,7 @@
   :root[data-theme='dark'] .lms-mobile-top-nav {
     border-color: rgba(203, 213, 225, 0.13) !important;
     background:
-      linear-gradient(180deg, rgba(23, 35, 48, 0.82), rgba(18, 28, 38, 0.72)) !important;
+      linear-gradient(180deg, rgba(8, 8, 13, 0.82), rgba(10, 10, 15, 0.72)) !important;
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.08),
       inset 0 26px 48px rgba(255, 255, 255, 0.035),
@@ -1110,7 +1110,7 @@
   :root[data-theme='dark'] .lms-mobile-top-nav--plain::before {
     border-color: rgba(203, 213, 225, 0.13);
     background:
-      linear-gradient(180deg, rgba(23, 35, 48, 0.72), rgba(18, 28, 38, 0.54));
+      linear-gradient(180deg, rgba(8, 8, 13, 0.72), rgba(10, 10, 15, 0.54));
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.08),
       inset 0 22px 42px rgba(255, 255, 255, 0.035),
@@ -1331,13 +1331,13 @@
 :root[data-theme="dark"] .student-app-shell,
 .student-app-shell[data-theme="dark"] {
   --sa-bg:            var(--app-bg);
-  --sa-bg-grad-1:     #172330;
-  --sa-bg-grad-2:     #0f1720;
-  --sa-surface:       rgba(8, 13, 20, 0.96);
-  --sa-surface-2:     #172330;
-  --sa-surface-raised: rgba(11, 18, 27, 0.98);
-  --sa-surface-rgb:   8, 13, 20;
-  --sa-surface-2-rgb: 12, 19, 29;
+  --sa-bg-grad-1:     #0e0e16;
+  --sa-bg-grad-2:     #0a0a0f;
+  --sa-surface:       rgba(10, 10, 15, 0.97);
+  --sa-surface-2:     #111117;
+  --sa-surface-raised: rgba(16, 16, 22, 0.98);
+  --sa-surface-rgb:   10, 10, 15;
+  --sa-surface-2-rgb: 14, 14, 20;
 
   --sa-ink:      #eef3f8;
   --sa-ink-deep: #f8fafc;
@@ -1384,19 +1384,19 @@
   --sa-shadow-cta:        0 10px 24px -8px rgba(96, 165, 250, 0.5), inset 0 1px 0 rgba(255,255,255,.14);
   --sa-shadow-warn:       0 6px 14px -4px rgba(245, 168, 78, 0.4);
   --sa-card-bg:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008) 38%, rgba(148, 163, 184, 0.014)),
-    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(8, 13, 20, 0.97) 56%, rgba(5, 8, 13, 0.98));
+    linear-gradient(145deg, rgba(255, 255, 255, 0.030), rgba(255, 255, 255, 0.010) 38%, rgba(200, 210, 230, 0.016)),
+    linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.98) 56%, rgba(5, 5, 9, 0.99));
   --sa-card-bg-hover:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.014) 42%, rgba(148, 163, 184, 0.022)),
-    linear-gradient(145deg, rgba(14, 22, 33, 0.97), rgba(8, 13, 20, 0.98));
+    linear-gradient(145deg, rgba(255, 255, 255, 0.044), rgba(255, 255, 255, 0.018) 42%, rgba(200, 210, 230, 0.024)),
+    linear-gradient(145deg, rgba(14, 14, 20, 0.97), rgba(10, 10, 15, 0.99));
   --sa-feature-card-bg:
-    radial-gradient(circle at 86% 20%, rgba(148, 163, 184, 0.07), transparent 34%),
-    radial-gradient(circle at 96% 92%, rgba(96, 113, 135, 0.05), transparent 42%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.026), transparent 42%),
-    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(8, 13, 20, 0.98));
+    radial-gradient(circle at 86% 20%, rgba(108, 176, 255, 0.07), transparent 34%),
+    radial-gradient(circle at 96% 92%, rgba(123, 143, 255, 0.05), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.028), transparent 42%),
+    linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.99));
   --sa-soft-tile-bg:
-    linear-gradient(135deg, rgba(148, 163, 184, 0.055), rgba(96, 113, 135, 0.035)),
-    rgba(23, 35, 48, 0.72);
+    linear-gradient(135deg, rgba(108, 176, 255, 0.06), rgba(123, 143, 255, 0.04)),
+    rgba(14, 14, 20, 0.72);
 
   /* Global token rebind, dark variant */
   --surface-0: var(--sa-bg);
@@ -1406,9 +1406,9 @@
   --surface-4: rgba(255, 255, 255, 0.05);
   --surface-card: var(--sa-surface);
   --surface-card-elevated: var(--sa-surface-raised);
-  --surface-glass: rgba(18, 28, 38, 0.78);
-  --surface-glass-strong: rgba(18, 28, 38, 0.9);
-  --surface-glass-subtle: rgba(23, 35, 48, 0.66);
+  --surface-glass: rgba(10, 10, 15, 0.78);
+  --surface-glass-strong: rgba(10, 10, 15, 0.9);
+  --surface-glass-subtle: rgba(8, 8, 13, 0.66);
 
   --line-soft: var(--sa-border);
   --line-medium: var(--sa-border-strong);
@@ -1438,7 +1438,7 @@
   --brand-primary-soft:  rgba(96,165,250,.12);
   --brand-gradient-primary: var(--sa-grad);
   --brand-gradient-vivid:   var(--sa-grad);
-  --brand-gradient-hero:    linear-gradient(135deg, #172330 0%, #2563eb 62%, #38bdf8 100%);
+  --brand-gradient-hero:    linear-gradient(135deg, #080c14 0%, #2563eb 62%, #38bdf8 100%);
   --brand-shadow-soft: 0 6px 20px rgba(96,165,250,.14);
   --brand-shadow-md:   0 10px 28px rgba(96,165,250,.16);
   --brand-shadow-lg:   0 18px 44px rgba(96,165,250,.18);
@@ -1836,7 +1836,7 @@
   --profile-menu-hover: rgba(203, 213, 225, 0.08);
   --profile-menu-grad: linear-gradient(135deg, rgba(148, 163, 184, 0.08), rgba(96, 113, 135, 0.05));
   background:
-    linear-gradient(180deg, rgba(23, 35, 48, 0.88), rgba(18, 28, 38, 0.82)),
+    linear-gradient(180deg, rgba(8, 8, 13, 0.88), rgba(10, 10, 15, 0.82)),
     var(--profile-menu-grad) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -1988,7 +1988,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   --profile-menu-muted: #cbd6e3;
   border-color: rgba(203, 213, 225, 0.14) !important;
   background:
-    linear-gradient(180deg, rgba(23, 35, 48, 0.92), rgba(18, 28, 38, 0.88)) !important;
+    linear-gradient(180deg, rgba(8, 8, 13, 0.92), rgba(10, 10, 15, 0.88)) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 24px 56px -24px rgba(2, 6, 12, 0.62) !important;
@@ -2027,7 +2027,7 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 
 :root[data-theme='dark'] .lms-profile-avatar-floating {
   border-color: rgba(203, 213, 225, 0.16);
-  background: rgba(23, 35, 48, 0.86);
+  background: rgba(8, 8, 13, 0.86);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 18px 36px -18px rgba(2, 6, 12, 0.62);

@@ -26,11 +26,11 @@
   --lms-global-card-bg:
     linear-gradient(
       180deg,
-      rgba(8, 18, 45, 0.96) 0%,
-      rgba(6, 12, 29, 0.97) 58%,
-      rgba(4, 7, 14, 0.98) 100%
+      rgba(14, 14, 20, 0.97) 0%,
+      rgba(10, 10, 15, 0.98) 58%,
+      rgba(7, 7, 11, 0.99) 100%
     );
-  --lms-global-card-border: rgba(148, 163, 184, 0.15);
+  --lms-global-card-border: rgba(200, 210, 230, 0.10);
   --lms-global-card-shadow: var(--ds-card-shadow-raised);
   --lms-app-card-bg: var(--lms-global-card-bg);
   --lms-app-list-card-bg: var(--lms-global-card-bg);

@@ -204,7 +204,7 @@ html[data-lms-runtime="native"][data-lms-os="android"] .lms-mobile-bottom-nav__l
 }
 
 html[data-theme="dark"] .lms-native-network-status {
-  background: color-mix(in srgb, var(--surface-card, #1c2631) 94%, transparent);
+  background: color-mix(in srgb, var(--surface-card, #111117) 94%, transparent);
   color: var(--ink-strong, #e3ebf5);
 }
 

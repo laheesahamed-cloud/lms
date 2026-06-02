@@ -61,7 +61,11 @@
       "Bash(python3 scripts/search.py \"glassmorphism premium dashboard\" --domain style -n 4)",
       "Bash(python3 scripts/search.py \"entrance stagger reveal performant\" --domain ux -n 4)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(open http://localhost:8899/real-mockup.html)",
+      "Bash(sed -i '' 's/#1c2631/#111117/g; s/#19232e/#0f0f15/g; s/#222d39/#1a1a22/g' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/05-platforms/native.css)",
+      "Bash(sed -i '' 's/#1c2631/#111117/g' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/05-platforms/native-android.css)"
     ]
   }
 }

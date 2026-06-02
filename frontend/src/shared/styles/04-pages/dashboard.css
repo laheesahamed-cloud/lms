@@ -236,7 +236,7 @@
 .student-app-shell[data-theme="dark"] .study-loading-card {
   border-color: transparent;
   background:
-    linear-gradient(145deg, rgba(12, 20, 31, 0.96), rgba(8, 13, 20, 0.97)),
+    linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.98)),
     var(--sa-surface);
   box-shadow:
     0 18px 42px -34px rgba(2, 6, 12, 0.62);
@@ -265,9 +265,9 @@
 .student-app-shell[data-theme="dark"] .study-continue-card {
   border: 0;
   background:
-    radial-gradient(circle at 84% 12%, rgba(56, 189, 248, 0.18), transparent 34%),
-    radial-gradient(circle at 100% 92%, rgba(109, 53, 223, 0.22), transparent 48%),
-    linear-gradient(145deg, rgba(10, 15, 27, 0.99), rgba(3, 6, 14, 0.99));
+    radial-gradient(circle at 84% 12%, rgba(96, 165, 250, 0.10), transparent 36%),
+    radial-gradient(circle at 100% 92%, rgba(96, 165, 250, 0.08), transparent 50%),
+    linear-gradient(145deg, rgba(8, 8, 14, 0.99), rgba(4, 4, 9, 0.99));
   box-shadow: none;
 }
 
@@ -2482,7 +2482,7 @@
   }
 
   .study-hub-topbar    { grid-column: 1 / -1; }
-  .study-continue-card { grid-column: 1 / -1; min-height: 220px; }
+  .study-continue-card { grid-column: 1 / -1; min-height: 300px; }
 
   .study-streak-card,
   .study-readiness-stack,
@@ -4249,7 +4249,7 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
 
 @media (min-width: 1080px) {
   .study-hub-page .study-hero-grid {
-    grid-template-columns: minmax(0, 2.15fr) minmax(220px, 0.85fr);
+    grid-template-columns: minmax(0, 2.4fr) minmax(280px, 1fr);
   }
 
   .study-hub-page .study-hero-grid > .study-continue-card,
@@ -4258,10 +4258,10 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
   }
 
   .study-hub-page .study-hero-grid > .study-mood-card {
-    min-height: 286px;
-    height: 286px;
+    min-height: 300px;
+    height: 300px;
     align-content: center;
-    padding: 18px;
+    padding: 22px;
   }
 
   .study-hub-page .study-hero-grid .study-continue-card__copy {

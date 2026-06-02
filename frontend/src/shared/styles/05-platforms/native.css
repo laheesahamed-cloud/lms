@@ -41,18 +41,18 @@ html[data-lms-runtime="native"]:not([data-theme="dark"]) {
 }
 
 html[data-lms-runtime="native"][data-theme="dark"] {
-  --app-bg: var(--lms-login-dark-bg, linear-gradient(148deg, #04091a 0%, #0a1230 45%, #060d22 100%));
+  --app-bg: var(--lms-login-dark-bg);
   --page-background: var(--app-bg);
-  --app-bg-solid: var(--lms-login-dark-bg-solid, #060d22);
-  --surface-0: var(--lms-login-dark-bg-solid, #060d22);
-  --surface-1: #1c2631;
-  --surface-2: #19232e;
-  --surface-3: #222d39;
-  --surface-4: #2a3848;
-  --surface-card: #1c2631;
-  --surface-card-elevated: #222d39;
-  --surface-glass: rgba(28, 38, 49, 0.78);
-  --surface-glass-strong: rgba(28, 38, 49, 0.9);
+  --app-bg-solid: var(--lms-login-dark-bg-solid, #0a0a0f);
+  --surface-0: var(--lms-login-dark-bg-solid, #0a0a0f);
+  --surface-1: #111117;
+  --surface-2: #0f0f15;
+  --surface-3: #1a1a22;
+  --surface-4: #20202a;
+  --surface-card: #111117;
+  --surface-card-elevated: #17171f;
+  --surface-glass: rgba(10, 10, 15, 0.82);
+  --surface-glass-strong: rgba(10, 10, 15, 0.94);
   --surface-glass-subtle: rgba(32, 43, 54, 0.66);
   --line-soft: rgba(205, 219, 235, 0.10);
   --line-medium: rgba(205, 219, 235, 0.16);
@@ -125,7 +125,7 @@ html[data-lms-runtime="native"][data-theme="dark"] .student-app-shell {
   --sa-shadow-card-hover: var(--shadow-md);
   --sa-card-bg: var(--surface-card);
   --lms-app-card-bg: var(--surface-card);
-  --lms-app-list-card-bg: var(--surface-card-soft, #19232e);
+  --lms-app-list-card-bg: var(--surface-card-soft, #0f0f15);
   --lms-app-card-border: var(--line-soft);
   --lms-app-card-shadow: var(--shadow-sm);
   --lms-app-list-card-shadow: var(--shadow-xs);
