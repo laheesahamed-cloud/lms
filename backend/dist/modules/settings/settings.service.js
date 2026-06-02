@@ -221,7 +221,24 @@ let SettingsService = SettingsService_1 = class SettingsService {
             landingPage: this.getLandingPageContentFromRaw(values.get(LANDING_PAGE_SETTING_KEY) || ''),
             popupAlert: this.serializePublicPopupAlertSettings(popupAlert),
             availability: this.serializeAvailabilitySettings(this.normalizeAvailabilityMode(values.get(AVAILABILITY_MODE_SETTING_KEY), 'live')),
+            auth: this.getPublicAuthSettings(),
         };
+    }
+    getPublicAuthSettings() {
+        const googleClientId = this.getPublicGoogleClientId();
+        return {
+            googleClientId,
+            googleConfigured: Boolean(googleClientId),
+        };
+    }
+    getPublicGoogleClientId() {
+        const primaryClientId = String(this.configService.get('GOOGLE_CLIENT_ID') || '').trim();
+        if (primaryClientId)
+            return primaryClientId;
+        return String(this.configService.get('GOOGLE_CLIENT_IDS') || '')
+            .split(',')
+            .map((clientId) => clientId.trim())
+            .find(Boolean) || '';
     }
     async updateGeneralSettings(input) {
         const whatsappNumber = this.normalizeWhatsAppNumber(input.whatsappNumber);

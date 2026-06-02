@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../../shared/api/client.js';
+import { fetchPublicSettings } from '../../../shared/api/settings.api.js';
 import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
 import { detectPlatform } from '../../../shared/platform/detect.js';
 import { XyndromeBrand } from '../../../shared/brand/XyndromeBrand.jsx';
@@ -557,7 +558,7 @@ const ANIM_CSS = `
   }
 `;
 
-const GOOGLE_CLIENT_ID = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
+const STATIC_GOOGLE_CLIENT_ID = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
 
 function loadGoogleIdentityScript() {
@@ -1075,6 +1076,11 @@ export function LoginPage() {
   const consumeAuthNotice = useAuthStore((s) => s.consumeAuthNotice);
 
   const [status,       setStatus]       = useState({ loading: false, error: '', success: '' });
+  const [googleClientId, setGoogleClientId] = useState(STATIC_GOOGLE_CLIENT_ID);
+  const [googleConfigStatus, setGoogleConfigStatus] = useState({
+    loading: !STATIC_GOOGLE_CLIENT_ID,
+    error: '',
+  });
   const [showPassword, setShowPassword] = useState(false);
   const googleButtonRef = useRef(null);
   const fromParam = new URLSearchParams(location.search).get('from') || '';
@@ -1153,14 +1159,42 @@ export function LoginPage() {
   }, [authNotice, consumeAuthNotice, requestedPath]);
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !googleButtonRef.current) return undefined;
+    if (STATIC_GOOGLE_CLIENT_ID) return undefined;
+
+    let cancelled = false;
+    setGoogleConfigStatus({ loading: true, error: '' });
+    fetchPublicSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        const runtimeGoogleClientId = String(settings?.auth?.googleClientId || '').trim();
+        setGoogleClientId(runtimeGoogleClientId);
+        setGoogleConfigStatus({
+          loading: false,
+          error: runtimeGoogleClientId ? '' : 'Google sign-in is not configured on the server yet.',
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setGoogleConfigStatus({
+          loading: false,
+          error: getErrorMessage(err, 'Google sign-in settings could not load'),
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!googleClientId || !googleButtonRef.current) return undefined;
 
     let cancelled = false;
     loadGoogleIdentityScript()
       .then((google) => {
         if (cancelled || !googleButtonRef.current) return;
         google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
+          client_id: googleClientId,
           callback: handleGoogleCredential,
           ux_mode: 'popup',
         });
@@ -1182,7 +1216,7 @@ export function LoginPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [googleClientId]);
 
   const feedbackId = status.error ? 'login-error' : status.success ? 'login-success' : undefined;
   const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));
@@ -1347,7 +1381,7 @@ export function LoginPage() {
 
             <div className="lms-auth-divider">or</div>
 
-            {GOOGLE_CLIENT_ID ? (
+            {googleClientId ? (
               <div
                 ref={googleButtonRef}
                 aria-label="Continue with Google"
@@ -1357,7 +1391,12 @@ export function LoginPage() {
               <button
                 type="button"
                 className="lms-google-btn"
-                onClick={() => setStatus({ loading: false, error: 'Add VITE_GOOGLE_CLIENT_ID in frontend/.env and GOOGLE_CLIENT_ID in backend/.env, then restart both servers.', success: '' })}
+                disabled={googleConfigStatus.loading}
+                onClick={() => setStatus({
+                  loading: false,
+                  error: googleConfigStatus.error || 'Add GOOGLE_CLIENT_ID in the backend server environment, then restart the API.',
+                  success: '',
+                })}
               >
                 <span className="lms-google-mark" aria-hidden="true">
                   <svg width="16" height="16" viewBox="0 0 24 24">
@@ -1367,7 +1406,7 @@ export function LoginPage() {
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38z"/>
                   </svg>
                 </span>
-                <span>Sign in with Google</span>
+                <span>{googleConfigStatus.loading ? 'Loading Google sign-in...' : 'Sign in with Google'}</span>
               </button>
             )}
 

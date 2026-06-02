@@ -249,6 +249,10 @@ type PublicSettingsResponse = {
   landingPage: LandingPageContent;
   popupAlert: Record<string, unknown>;
   availability: SerializedAvailabilitySettings;
+  auth: {
+    googleClientId: string;
+    googleConfigured: boolean;
+  };
 };
 
 @Injectable()
@@ -352,7 +356,26 @@ export class SettingsService {
       availability: this.serializeAvailabilitySettings(
         this.normalizeAvailabilityMode(values.get(AVAILABILITY_MODE_SETTING_KEY), 'live')
       ),
+      auth: this.getPublicAuthSettings(),
     };
+  }
+
+  private getPublicAuthSettings() {
+    const googleClientId = this.getPublicGoogleClientId();
+    return {
+      googleClientId,
+      googleConfigured: Boolean(googleClientId),
+    };
+  }
+
+  private getPublicGoogleClientId() {
+    const primaryClientId = String(this.configService.get<string>('GOOGLE_CLIENT_ID') || '').trim();
+    if (primaryClientId) return primaryClientId;
+
+    return String(this.configService.get<string>('GOOGLE_CLIENT_IDS') || '')
+      .split(',')
+      .map((clientId) => clientId.trim())
+      .find(Boolean) || '';
   }
 
   async updateGeneralSettings(input: { whatsappNumber?: string }) {

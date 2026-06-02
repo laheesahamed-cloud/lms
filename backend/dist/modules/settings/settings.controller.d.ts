@@ -134,6 +134,10 @@ export declare class SettingsController {
             isComingSoon: boolean;
             scope: "all" | "website" | "none";
         };
+        auth: {
+            googleClientId: string;
+            googleConfigured: boolean;
+        };
     }>;
     getPublicAvailabilitySettings(): Promise<{
         ok: boolean;

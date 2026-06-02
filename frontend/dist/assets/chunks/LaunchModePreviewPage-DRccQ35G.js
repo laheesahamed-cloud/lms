@@ -1,0 +1,1 @@
+import{f as e,h as t,i as n}from"./vendor-react-DtNPVVqW.js";import{t as r}from"./LaunchModePage-B9GoeTBd.js";var i=t();function a(){let{mode:t}=e();return t!==`maintenance`&&t!==`coming-soon`?(0,i.jsx)(n,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:t,preview:!0})}export{a as LaunchModePreviewPage};

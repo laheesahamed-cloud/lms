@@ -115,6 +115,10 @@ type PublicSettingsResponse = {
     landingPage: LandingPageContent;
     popupAlert: Record<string, unknown>;
     availability: SerializedAvailabilitySettings;
+    auth: {
+        googleClientId: string;
+        googleConfigured: boolean;
+    };
 };
 export declare class SettingsService {
     private readonly db;
@@ -194,6 +198,8 @@ export declare class SettingsService {
         availability: SerializedAvailabilitySettings;
     }>;
     private buildPublicSettings;
+    private getPublicAuthSettings;
+    private getPublicGoogleClientId;
     updateGeneralSettings(input: {
         whatsappNumber?: string;
     }): Promise<{
