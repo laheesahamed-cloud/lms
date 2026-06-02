@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../utils/routeForwarding.js';
 import { isStaffUser, userHasPermissions } from './roleAccess.js';
@@ -21,6 +21,50 @@ function GateShell({ label }) {
   );
 }
 
+function SessionExpiredLock({ lock }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const clearSessionExpiredLock = useAuthStore((state) => state.clearSessionExpiredLock);
+  const from = getSafeForwardPath(
+    lock?.from || `${location.pathname}${location.search}${location.hash}`,
+    `${location.pathname}${location.search}${location.hash}`
+  );
+  const loginTarget = `/auth/login?from=${encodeURIComponent(from || '/')}`;
+
+  function continueToLogin() {
+    clearSessionExpiredLock();
+    navigate(loginTarget, { replace: true });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[12000] grid cursor-pointer place-items-center bg-[rgba(15,23,42,0.48)] px-4 py-8 backdrop-blur-sm"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="session-expired-lock-title"
+      aria-describedby="session-expired-lock-message"
+      onClick={continueToLogin}
+    >
+      <section className="w-[min(420px,100%)] cursor-pointer rounded-[var(--radius-md)] border border-line-soft bg-surface-card p-6 text-center text-ink-strong shadow-[0_28px_80px_-42px_rgba(15,23,42,0.65)]">
+        <span className={gateUi.eyebrow}>Session locked</span>
+        <h1 id="session-expired-lock-title" className="mb-2 mt-3 text-xl font-extrabold text-ink-strong">
+          Please sign in again
+        </h1>
+        <p id="session-expired-lock-message" className="m-0 text-[14px] font-semibold leading-relaxed text-ink-soft">
+          {lock?.message || 'Your session expired. Please sign in again to continue.'}
+        </p>
+        <button
+          type="button"
+          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] bg-brand-primary px-5 text-[13px] font-extrabold text-white shadow-none"
+          onClick={continueToLogin}
+        >
+          Sign in again
+        </button>
+      </section>
+    </div>
+  );
+}
+
 function getSafeFromPath(location) {
   const from = new URLSearchParams(location.search).get('from');
   return getSafeForwardPath(from);
@@ -37,12 +81,17 @@ export function ProtectedRoute({ children, role, allowPending = false, requiredF
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isHydrating = useAuthStore((state) => state.isHydrating);
+  const sessionExpiredLock = useAuthStore((state) => state.sessionExpiredLock);
 
   if (isHydrating) {
     return <GateShell label="Checking your session..." />;
   }
 
   if (!isAuthenticated || !user) {
+    if (sessionExpiredLock) {
+      return <SessionExpiredLock lock={sessionExpiredLock} />;
+    }
+
     const from = `${location.pathname}${location.search}${location.hash}`;
     return <Navigate to={`/auth/login?from=${encodeURIComponent(from)}`} replace />;
   }

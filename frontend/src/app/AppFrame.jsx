@@ -306,7 +306,7 @@ function cssColorToHex(value) {
 
   const rgbMatch = color.match(/^rgba?\(([^)]+)\)$/i);
   if (rgbMatch) {
-    const channels = rgbMatch[1].split(/[\s,\/]+/).filter(Boolean).slice(0, 3);
+    const channels = rgbMatch[1].split(/[\s,/]+/).filter(Boolean).slice(0, 3);
     if (channels.length === 3) {
       return rgbToHex(...channels.map(parseRgbChannel));
     }

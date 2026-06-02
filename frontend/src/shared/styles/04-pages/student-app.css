@@ -101,9 +101,9 @@
   --sa-font-display: var(--type-font-display);
   --sa-font-sans: var(--type-font-body);
 
-  --sa-ease: cubic-bezier(0.32, 0.72, 0.32, 1);
-  --sa-dur: 160ms;
-  --lms-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --sa-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --sa-dur: 150ms;
+  --lms-ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
   --lms-ease-soft-exit: cubic-bezier(0.4, 0, 0.2, 1);
   --lms-sidebar-duration: 220ms;
   --lms-dropdown-duration: 220ms;
@@ -1358,23 +1358,23 @@
   --sa-purple-soft: rgba(56, 189, 248, 0.055);
   --sa-purple-rgb:  56, 189, 248;
 
-  --sa-warn:      #f5a84e;
-  --sa-warn-soft: rgba(245, 168, 78, 0.14);
-  --sa-warn-deep: #ffd9a8;
-  --sa-warn-rgb:  245, 168, 78;
-  --sa-warn-deep-rgb: 255, 217, 168;
-  --sa-danger:      #fb7185;
-  --sa-danger-soft: rgba(251, 113, 133, 0.12);
-  --sa-danger-deep: #ffb8c0;
-  --sa-danger-rgb:  251, 113, 133;
-  --sa-ok:      #34d399;
-  --sa-ok-soft: rgba(52, 211, 153, 0.12);
-  --sa-ok-deep: #bbf7d0;
-  --sa-ok-rgb:  52, 211, 153;
+  --sa-warn:      #fcd34d;
+  --sa-warn-soft: rgba(252, 211, 77, 0.14);
+  --sa-warn-deep: #fef08a;
+  --sa-warn-rgb:  252, 211, 77;
+  --sa-warn-deep-rgb: 254, 240, 138;
+  --sa-danger:      #fca5a5;
+  --sa-danger-soft: rgba(252, 165, 165, 0.12);
+  --sa-danger-deep: #fecaca;
+  --sa-danger-rgb:  252, 165, 165;
+  --sa-ok:      #6ee7b7;
+  --sa-ok-soft: rgba(110, 231, 183, 0.12);
+  --sa-ok-deep: #d1fae5;
+  --sa-ok-rgb:  110, 231, 183;
 
   --sa-grad:      linear-gradient(135deg, #3b82f6 0%, #38bdf8 60%, #818cf8 100%);
   --sa-grad-soft: linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(56, 189, 248, 0.09) 100%);
-  --sa-grad-warm: linear-gradient(135deg, rgba(245, 168, 78, 0.14) 0%, rgba(245, 168, 78, 0.22) 100%);
+  --sa-grad-warm: linear-gradient(135deg, rgba(252, 211, 77, 0.14) 0%, rgba(252, 211, 77, 0.22) 100%);
 
   --app-bg: var(--sa-bg);
   --page-background: var(--sa-bg);
@@ -1476,9 +1476,9 @@
   font-size: var(--type-size-base);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-body);
-  --lms-student-page-enter-duration: 200ms;
+  --lms-student-page-enter-duration: 220ms;
   --lms-student-page-enter-ease: var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
-  --lms-student-page-enter-y: 6px;
+  --lms-student-page-enter-y: 4px;
 }
 
 /* Display font everywhere headings live */
@@ -3230,8 +3230,8 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 
 /* ── Staggered entrance for student main pages ──────────────── */
 @keyframes lms-page-fade-up {
-  from { opacity: 0; transform: translate3d(0, var(--lms-student-page-enter-y), 0); }
-  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .student-app-shell :where(
@@ -3260,19 +3260,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 .student-app-shell :where(
   .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
   .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
-) :where(.management-layout, .study-hub-shell) > :nth-child(1) { animation-delay:  12ms; }
-.student-app-shell :where(
-  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
-) :where(.management-layout, .study-hub-shell) > :nth-child(2) { animation-delay:  48ms; }
-.student-app-shell :where(
-  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
-) :where(.management-layout, .study-hub-shell) > :nth-child(3) { animation-delay:  84ms; }
-.student-app-shell :where(
-  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
-) :where(.management-layout, .study-hub-shell) > :nth-child(n+4) { animation-delay: 120ms; }
+) :where(.management-layout, .study-hub-shell) > * { animation-delay: 0ms; }
 
 @media (max-width: 700px) {
   .student-app-shell {

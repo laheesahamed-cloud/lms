@@ -194,15 +194,15 @@ const topbarUi = {
   profileDropdown:
     'lms-profile-menu w-[min(320px,calc(100vw_-_24px))] max-[520px]:top-[calc(var(--lms-safe-top,0px)+68px)]',
   notificationDropdown:
-    'w-[min(330px,calc(100vw_-_24px))] rounded-[var(--radius-sm)] bg-surface-card shadow-none max-[520px]:fixed max-[520px]:inset-x-3 max-[520px]:top-[70px] max-[520px]:max-h-[calc(100dvh-86px)] max-[520px]:w-auto max-[520px]:origin-top max-[520px]:rounded-[var(--radius-sm)]',
+    'w-[min(330px,calc(100vw_-_24px))] rounded-[var(--radius-sm)] bg-surface-card shadow-none max-[520px]:fixed max-[520px]:inset-x-2.5 max-[520px]:top-[calc(env(safe-area-inset-top,0px)+64px)] max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-76px)] max-[520px]:w-auto max-[520px]:origin-top max-[520px]:rounded-[var(--radius-sm)] max-[380px]:inset-x-2 max-[380px]:top-[calc(env(safe-area-inset-top,0px)+58px)]',
   dropdownHead:
     'flex min-w-0 items-center justify-between gap-3 border-b border-line-soft px-4 py-3.5 max-[520px]:px-3.5 max-[520px]:py-3 [&_div]:min-w-0 [&_small]:mt-1 [&_small]:block [&_small]:truncate [&_small]:text-xs [&_small]:font-medium [&_small]:text-ink-soft [&_strong]:block [&_strong]:truncate [&_strong]:text-sm [&_strong]:font-extrabold [&_strong]:text-ink-strong',
   dropdownClose:
-    'inline-flex size-8 min-h-8 min-w-8 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-0 text-ink-soft transition-[background,border-color,color] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 hover:text-brand-primary',
+    'inline-flex size-8 min-h-8 min-w-8 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-0 text-ink-soft transition-[background,border-color,color,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 hover:text-brand-primary active:scale-[0.96] max-[520px]:size-10 max-[520px]:min-h-10 max-[520px]:min-w-10',
   dropdownSection: 'grid gap-1 border-t border-line-soft p-2 first:border-t-0',
-  notificationList: 'grid max-h-[min(320px,calc(100dvh-210px))] gap-1 overflow-y-auto p-2 [-webkit-overflow-scrolling:touch] max-[520px]:max-h-[calc(100dvh-224px)] max-[520px]:p-1.5',
+  notificationList: 'grid max-h-[min(320px,calc(100dvh-210px))] gap-1 overflow-y-auto overscroll-contain p-2 [-webkit-overflow-scrolling:touch] max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-178px)] max-[520px]:p-1.5 max-[380px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-168px)]',
   notificationItem:
-    'grid min-h-0 w-full grid-cols-[8px_minmax(0,1fr)] items-start gap-2 rounded-[var(--radius-sm)] border-0 bg-transparent px-2.5 py-2 text-left transition-colors duration-150 hover:bg-surface-2 active:bg-surface-2 max-[520px]:gap-2',
+    'grid min-h-0 w-full grid-cols-[8px_minmax(0,1fr)] items-start gap-2 rounded-[var(--radius-sm)] border-0 bg-transparent px-2.5 py-2 text-left transition-colors duration-150 hover:bg-surface-2 active:bg-surface-2 max-[520px]:min-h-12 max-[520px]:gap-2 max-[380px]:px-2',
   notificationItemRead: 'opacity-80',
   notificationDot: 'mt-1.5 size-2 rounded-full bg-brand-primary max-[520px]:mt-2',
   notificationDotRead: 'bg-ink-muted/35',

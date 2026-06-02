@@ -161,7 +161,9 @@ export const useThemeStore = create((set, get) => ({
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(THEME_KEY, theme);
-      } catch {}
+      } catch {
+        // Ignore storage failures; the in-memory theme still applies.
+      }
     }
 
     applyTheme(theme);
@@ -176,7 +178,9 @@ export const useThemeStore = create((set, get) => ({
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(THEME_KEY, theme);
-      } catch {}
+      } catch {
+        // Ignore storage failures; the in-memory theme still applies.
+      }
     }
 
     commitTheme(theme, { animate: false });
@@ -191,7 +195,9 @@ export const useThemeStore = create((set, get) => ({
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(ACCENT_THEME_KEY, accentTheme);
-      } catch {}
+      } catch {
+        // Ignore storage failures; the in-memory accent still applies.
+      }
     }
 
     commitAccentTheme(accentTheme);

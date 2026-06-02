@@ -20,6 +20,7 @@ import {
   regenerateTheoryRecap,
   upsertTheoryRecap,
 } from '../../../../shared/api/theoryRecap.api.js';
+import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import {
   generateQuestionExplanation,
@@ -80,7 +81,7 @@ function validateQuestionImportFile(file) {
   if (file.size > QUESTION_IMPORT_MAX_BYTES) {
     return 'Question CSV is too large. Upload a file under 2 MB.';
   }
-  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+  if (!name || name.length > 180 || hasUnsafeFileNameCharacters(name)) {
     return 'Rename the CSV without special path characters, then import again.';
   }
   return '';

@@ -126,6 +126,11 @@ export async function updateSmtpSettings(payload) {
   return response.data;
 }
 
+export async function sendSmtpTestEmail(payload) {
+  const response = await apiClient.post('/admin/settings/smtp/test', payload);
+  return response.data;
+}
+
 export async function updatePopupAlertSettings(payload) {
   const response = await apiClient.put('/admin/settings/popup-alert', payload);
   return response.data;

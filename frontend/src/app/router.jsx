@@ -270,7 +270,7 @@ function RoleSwitch({ admin, student, adminPermissions = [] }) {
   const user = useAuthStore((state) => state.user);
   if (isStaffUser(user)) {
     if (adminPermissions.length && !userHasPermissions(user, adminPermissions)) {
-      return <Navigate to={getRoleHome(user)} replace />;
+      return <Navigate to={roleHomePath(user)} replace />;
     }
     return admin;
   }

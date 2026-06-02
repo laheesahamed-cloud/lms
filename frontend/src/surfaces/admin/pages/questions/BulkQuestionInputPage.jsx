@@ -16,6 +16,7 @@ import {
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { TheoryRecapAdminSection } from './QuestionsPage.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
 
 const optionLabels = ['A', 'B', 'C', 'D', 'E'];
 const draftStorageKey = 'lms.bulk-question-draft.v2';
@@ -31,7 +32,7 @@ function validateDraftJsonFile(file) {
   if (file.size > DRAFT_JSON_MAX_BYTES) {
     return 'Draft JSON is too large. Upload a file under 2 MB.';
   }
-  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+  if (!name || name.length > 180 || hasUnsafeFileNameCharacters(name)) {
     return 'Rename the JSON file without special path characters, then import again.';
   }
   return '';
@@ -201,29 +202,29 @@ export function normalizeWhitespace(value) {
 
 function stripQuestionPrefix(line) {
   return line
-    .replace(/^\s*(?:question|ques|q)\s*\d+\s*[\.\):\-]?\s*/i, '')
-    .replace(/^\s*\d+\s*[\.\):\-]\s*/i, '')
+    .replace(/^\s*(?:question|ques|q)\s*\d+\s*[.):_-]?\s*/i, '')
+    .replace(/^\s*\d+\s*[.):_-]\s*/i, '')
     .trim();
 }
 
 function detectOptionLine(line) {
-  return String(line || '').match(/^\s*([A-Ea-e])\s*[\.\)\-:]\s*(.*?)\s*$/);
+  return String(line || '').match(/^\s*([A-Ea-e])\s*[.)_: -]\s*(.*?)\s*$/);
 }
 
 function detectAnswerLine(line) {
-  return String(line || '').match(/^\s*(?:correct\s*answer|answer)\s*[:\-]?\s*([A-Ea-e]|true|false)\b/i);
+  return String(line || '').match(/^\s*(?:correct\s*answer|answer)\s*[:-]?\s*([A-Ea-e]|true|false)\b/i);
 }
 
 function detectExplanationLine(line) {
-  return String(line || '').match(/^\s*(?:answer\s+explanation|explanation)\s*[:\-]?\s*(.*)$/i);
+  return String(line || '').match(/^\s*(?:answer\s+explanation|explanation)\s*[:-]?\s*(.*)$/i);
 }
 
 function detectWhyIncorrectHeader(line) {
-  return String(line || '').match(/^\s*(?:why\s+(?:other\s+answers\s+are\s+)?incorrect|why\s+incorrect|incorrect\s+answers?)\s*[:\-]?\s*(.*)$/i);
+  return String(line || '').match(/^\s*(?:why\s+(?:other\s+answers\s+are\s+)?incorrect|why\s+incorrect|incorrect\s+answers?)\s*[:-]?\s*(.*)$/i);
 }
 
 function detectWhyIncorrectLine(line) {
-  return String(line || '').match(/^\s*([A-Ea-e])\s*[:\-]\s*(.*?)\s*$/);
+  return String(line || '').match(/^\s*([A-Ea-e])\s*[:-]\s*(.*?)\s*$/);
 }
 
 function detectQuestionHeader(line) {
@@ -378,7 +379,7 @@ export function parseJsonQuestions(rawInput, defaults) {
   try {
     parsedRoot = JSON.parse(cleaned);
   } catch (error) {
-    throw new Error('This JSON could not be parsed. Check commas, quotes, and any extra pasted markup.');
+    throw new Error('This JSON could not be parsed. Check commas, quotes, and any extra pasted markup.', { cause: error });
   }
 
   const records = Array.isArray(parsedRoot)
@@ -401,7 +402,7 @@ export function parseJsonQuestions(rawInput, defaults) {
     const warnings = [];
 
     let questionType = isTrueFalse ? 'true_false' : 'sba';
-    let options = buildOptions();
+    let options;
 
     if (questionType === 'true_false') {
       if (!statements.length) {
@@ -1506,7 +1507,7 @@ export function BulkQuestionInputPage() {
   }
 
   function handleParseQuestions() {
-    let parsedQuestions = [];
+    let parsedQuestions;
 
     try {
       parsedQuestions = (inputMode === 'json' ? parseJsonQuestions(rawInput, globalDefaults) : parseRawQuestions(rawInput, globalDefaults)).map((question) => ({

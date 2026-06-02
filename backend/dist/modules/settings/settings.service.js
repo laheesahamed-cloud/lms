@@ -11,10 +11,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var SettingsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SettingsService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
+const nodemailer = require("nodemailer");
 const crypto_1 = require("crypto");
 const promises_1 = require("fs/promises");
 const path_1 = require("path");
@@ -134,10 +136,11 @@ const FCM_SETTING_KEYS = {
     serviceAccountPath: 'fcm_service_account_path',
     serviceAccountJson: 'fcm_service_account_json',
 };
-let SettingsService = class SettingsService {
+let SettingsService = SettingsService_1 = class SettingsService {
     constructor(db, configService) {
         this.db = db;
         this.configService = configService;
+        this.logger = new common_1.Logger(SettingsService_1.name);
         this.publicSettingsCache = null;
         this.publicAvailabilityCache = null;
     }
@@ -393,6 +396,52 @@ let SettingsService = class SettingsService {
             this.saveSettingValue(SMTP_SETTING_KEYS.footer, next.footer),
         ]);
         return this.getSmtpSettings();
+    }
+    async sendSmtpTestEmail(toEmail) {
+        const settings = await this.getRawSmtpSettings();
+        if (!settings.enabled) {
+            throw new common_1.BadRequestException('Enable SMTP before sending a test email.');
+        }
+        if (!settings.host || !settings.port || !settings.username || !settings.password || !settings.fromEmail) {
+            throw new common_1.BadRequestException('Save SMTP host, port, username, password, and sender email before sending a test email.');
+        }
+        const sentAt = new Date();
+        const transporter = nodemailer.createTransport({
+            host: settings.host,
+            port: settings.port,
+            secure: settings.security === 'ssl',
+            auth: {
+                user: settings.username,
+                pass: settings.password,
+            },
+        });
+        const subject = 'xyndrome SMTP test email';
+        const text = [
+            'SMTP test email',
+            '',
+            'Your xyndrome SMTP settings can send email successfully.',
+            `Sent at: ${sentAt.toISOString()}`,
+            `From: ${settings.fromName} <${settings.fromEmail}>`,
+        ].join('\n');
+        try {
+            await transporter.sendMail({
+                from: `"${settings.fromName.replace(/"/g, '')}" <${settings.fromEmail}>`,
+                to: String(toEmail || '').trim().toLowerCase(),
+                subject,
+                text,
+                html: this.renderSmtpTestHtml(settings, sentAt),
+            });
+        }
+        catch (error) {
+            const errorCode = String(error?.code || error?.responseCode || error?.name || 'smtp_test_error');
+            this.logger.warn(`SMTP test email failed: ${errorCode}`);
+            throw new common_1.BadGatewayException('SMTP test email failed. Check host, port, security, username, password, and sender email.');
+        }
+        return {
+            ok: true,
+            message: `Test email sent to ${String(toEmail || '').trim().toLowerCase()}.`,
+            sentAt: sentAt.toISOString(),
+        };
     }
     async updatePopupAlertSettings(input) {
         const current = await this.getRawPopupAlertSettings();
@@ -771,6 +820,30 @@ let SettingsService = class SettingsService {
             normalized = normalized.replace(pattern, replacement);
         }
         return normalized;
+    }
+    renderSmtpTestHtml(settings, sentAt) {
+        const safe = (value) => String(value || '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        }[char] || char));
+        return `
+      <div style="margin:0;padding:28px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+        <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:16px;overflow:hidden;">
+          <div style="padding:22px 24px;background:#2563eb;color:#ffffff;">
+            <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">xyndrome</div>
+            <h1 style="margin:8px 0 0;font-size:24px;line-height:1.2;">SMTP test email</h1>
+          </div>
+          <div style="padding:24px;font-size:14px;line-height:1.7;color:#334155;">
+            <p style="margin:0 0 14px;">Your xyndrome SMTP settings can send email successfully.</p>
+            <p style="margin:0;color:#64748b;">Sent at: ${safe(sentAt.toISOString())}</p>
+            <p style="margin:8px 0 0;color:#64748b;">From: ${safe(settings.fromName)} &lt;${safe(settings.fromEmail)}&gt;</p>
+          </div>
+        </div>
+      </div>
+    `;
     }
     async getRawPopupAlertSettings() {
         const values = await this.getSettingMap(Object.values(POPUP_ALERT_SETTING_KEYS));
@@ -1274,7 +1347,7 @@ let SettingsService = class SettingsService {
     }
 };
 exports.SettingsService = SettingsService;
-exports.SettingsService = SettingsService = __decorate([
+exports.SettingsService = SettingsService = SettingsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, config_1.ConfigService])

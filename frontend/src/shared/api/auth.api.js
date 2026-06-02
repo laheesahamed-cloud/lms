@@ -51,6 +51,7 @@ export async function fetchCurrentUser(options = {}) {
   const response = await apiClient.get('/auth/me', {
     __skipNetworkActivity: Boolean(options.silent),
     __suppressServerStatus: Boolean(options.silent),
+    __suppressUnauthorizedSessionNotice: Boolean(options.silent),
     timeout: options.timeout ?? 5000,
   });
   return response.data;

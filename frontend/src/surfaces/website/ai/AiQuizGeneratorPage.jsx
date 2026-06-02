@@ -245,7 +245,7 @@ async function fillMissingWhyIncorrect({ questionType, questionText, explanation
 
     return completed;
   } catch (error) {
-    throw new Error(getErrorMessage(error, 'Unable to generate why-answer reasoning. Try saving again or uncheck Why-answer reasoning.'));
+    throw new Error(getErrorMessage(error, 'Unable to generate why-answer reasoning. Try saving again or uncheck Why-answer reasoning.'), { cause: error });
   }
 }
 
@@ -256,7 +256,7 @@ async function generateRequiredTheoryRecaps(questionIds) {
       await generateTheoryRecap(questionId);
       generatedCount += 1;
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Questions were saved, but Quick Theory Recap generation failed. Try generating recaps from the question bank.'));
+      throw new Error(getErrorMessage(error, 'Questions were saved, but Quick Theory Recap generation failed. Try generating recaps from the question bank.'), { cause: error });
     }
   }
   return generatedCount;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { fetchSmtpSettings, updateSmtpSettings } from '../../../../shared/api/settings.api.js';
+import { fetchSmtpSettings, sendSmtpTestEmail, updateSmtpSettings } from '../../../../shared/api/settings.api.js';
 import { XyndromeBrand } from '../../../../shared/brand/XyndromeBrand.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { PasswordField } from '../../../../shared/ui/PasswordField.jsx';
@@ -45,7 +45,8 @@ function toForm(data) {
 export function AdminSmtpSettingsPanel() {
   const [settings, setSettings] = useState(null);
   const [form, setForm] = useState(defaultForm);
-  const [status, setStatus] = useState({ loading: true, saving: false, error: '', success: '' });
+  const [testEmail, setTestEmail] = useState('');
+  const [status, setStatus] = useState({ loading: true, saving: false, testing: false, error: '', success: '' });
 
   useEffect(() => {
     loadSettings();
@@ -57,6 +58,7 @@ export function AdminSmtpSettingsPanel() {
       const data = await fetchSmtpSettings();
       setSettings(data);
       setForm(toForm(data));
+      setTestEmail((current) => current || data?.fromEmail || '');
       setStatus((current) => ({ ...current, loading: false }));
     } catch (error) {
       setStatus((current) => ({ ...current, loading: false, error: getErrorMessage(error, 'Unable to load SMTP settings') }));
@@ -82,6 +84,19 @@ export function AdminSmtpSettingsPanel() {
       setStatus((current) => ({ ...current, saving: false, success: 'SMTP settings saved successfully.' }));
     } catch (error) {
       setStatus((current) => ({ ...current, saving: false, error: getErrorMessage(error, 'Unable to save SMTP settings') }));
+    }
+  }
+
+  async function handleTestEmail(event) {
+    event.preventDefault();
+    const recipient = testEmail.trim();
+    setStatus((current) => ({ ...current, testing: true, error: '', success: '' }));
+
+    try {
+      const data = await sendSmtpTestEmail({ toEmail: recipient });
+      setStatus((current) => ({ ...current, testing: false, success: data.message || 'SMTP test email sent.' }));
+    } catch (error) {
+      setStatus((current) => ({ ...current, testing: false, error: getErrorMessage(error, 'Unable to send SMTP test email') }));
     }
   }
 
@@ -192,6 +207,31 @@ export function AdminSmtpSettingsPanel() {
                 {settings?.configured ? 'SMTP details saved' : 'Host, username, password, and sender email required'}
               </strong>
             </div>
+
+            <form className="grid gap-3 rounded-lg border border-line-soft bg-surface-glass-subtle p-4" onSubmit={handleTestEmail}>
+              <strong className="text-sm text-ink-strong">Send test email</strong>
+              <label className={ui.formLabel}>
+                Recipient email
+                <input
+                  className={ui.input}
+                  type="email"
+                  value={testEmail}
+                  onChange={(event) => setTestEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  required
+                />
+              </label>
+              <button
+                className={ui.secondaryAction}
+                type="submit"
+                disabled={status.testing || status.saving || !settings?.configured || !settings?.enabled}
+              >
+                {status.testing ? 'Sending test...' : 'Send test email'}
+              </button>
+              <p className="m-0 text-[12px] leading-relaxed text-ink-soft">
+                Save SMTP settings first. The test uses saved encrypted credentials, not unsaved form values.
+              </p>
+            </form>
 
             <div className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-sm">
               <div className="bg-[linear-gradient(135deg,#2563EB,#0EA5E9)] px-5 py-4 text-white">

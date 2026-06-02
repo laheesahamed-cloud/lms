@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchPopupAlertSettings, updatePopupAlertSettings } from '../../../../shared/api/settings.api.js';
 import { ui } from '../../../../shared/styles/tailwindClasses.js';
+import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
 import { resolvePublicAssetUrl } from '../../../../shared/utils/publicAssetUrl.js';
 
 const MAX_IMAGE_BYTES = 2_000_000;
@@ -53,7 +54,7 @@ function validatePopupImageFile(file) {
   if (file.size > MAX_IMAGE_BYTES) {
     return 'Popup image must be 2 MB or smaller.';
   }
-  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+  if (!name || name.length > 180 || hasUnsafeFileNameCharacters(name)) {
     return 'Rename the image without special path characters, then upload again.';
   }
   return '';

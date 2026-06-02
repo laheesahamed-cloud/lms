@@ -9,6 +9,7 @@ import {
 } from '../../../../shared/api/ai.api.js';
 import { fetchTheoryRecap, generateTheoryRecap } from '../../../../shared/api/theoryRecap.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
+import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
 import {
   buildGlobalDefaults,
   createEmptyQuestion,
@@ -75,7 +76,7 @@ function validateQuizDraftJsonFile(file) {
   if (file.size > QUIZ_DRAFT_JSON_MAX_BYTES) {
     return 'Quiz draft JSON is too large. Upload a file under 2 MB.';
   }
-  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+  if (!name || name.length > 180 || hasUnsafeFileNameCharacters(name)) {
     return 'Rename the JSON file without special path characters, then import again.';
   }
   return '';

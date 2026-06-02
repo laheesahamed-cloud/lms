@@ -8,6 +8,7 @@ import { UpdateLandingPageSettingsDto } from './dto/update-landing-page-settings
 import { UpdateAvailabilitySettingsDto, VerifyAvailabilityUnlockDto } from './dto/update-availability-settings.dto';
 import { UpdatePaymentSettingsDto } from './dto/update-payment-settings.dto';
 import { UpdateSmtpSettingsDto } from './dto/update-smtp-settings.dto';
+import { TestSmtpSettingsDto } from './dto/test-smtp-settings.dto';
 import { UpdatePopupAlertSettingsDto } from './dto/update-popup-alert-settings.dto';
 import { UpdateApnsSettingsDto } from './dto/update-apns-settings.dto';
 import { UpdateFcmSettingsDto } from './dto/update-fcm-settings.dto';
@@ -160,6 +161,16 @@ export class SettingsController {
   ) {
     await this.authService.requireAdmin(authorization);
     return this.settingsService.updateSmtpSettings(dto);
+  }
+
+  @Post('smtp/test')
+  @RequirePermissions('settings.manage')
+  async testSmtpSettings(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: TestSmtpSettingsDto
+  ) {
+    await this.authService.requireAdmin(authorization);
+    return this.settingsService.sendSmtpTestEmail(dto.toEmail);
   }
 
   @Put('popup-alert')

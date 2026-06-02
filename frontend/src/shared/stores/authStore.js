@@ -4,22 +4,35 @@ import { setUnauthorizedHandler } from '../api/client.js';
 import { fetchCurrentUser, login, loginWithGoogle, logout, register } from '../api/auth.api.js';
 import { detectPlatform } from '../platform/detect.js';
 import { clearStoredAuth, getAuthToken, getBootstrapAuth, setAuthToken, setStoredAuthUser } from './authToken.js';
+import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 
 let hydratePromise = null;
 let authMutationVersion = 0;
+const PUBLIC_AUTH_PATHS = new Set([
+  '/login',
+  '/register',
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+]);
+
+function getNormalizedPublicPathname() {
+  if (typeof window === 'undefined') {
+    return '/';
+  }
+
+  return (window.location.pathname || '/')
+    .replace(/^\/lms(?:\/frontend\/dist)?(?=\/|$)/, '')
+    .replace(/\/+$/, '') || '/';
+}
 
 function isPublicAuthRoute() {
   if (typeof window === 'undefined') {
     return false;
   }
 
-  const pathname = window.location.pathname || '';
-  return pathname.endsWith('/login') ||
-    pathname.endsWith('/register') ||
-    pathname.endsWith('/auth/login') ||
-    pathname.endsWith('/auth/register') ||
-    pathname.endsWith('/auth/forgot-password') ||
-    pathname.endsWith('/auth/reset-password');
+  return PUBLIC_AUTH_PATHS.has(getNormalizedPublicPathname());
 }
 
 function finishSignedOut(set) {
@@ -32,6 +45,7 @@ function finishSignedOut(set) {
     isAuthenticated: false,
     isHydrating: false,
     isSigningOut: false,
+    sessionExpiredLock: null,
   });
 }
 
@@ -90,6 +104,7 @@ export const useAuthStore = create((set, get) => ({
   isAuthenticated: Boolean(bootstrapAuth.token && bootstrapAuth.user),
   isSigningOut: false,
   authNotice: null,
+  sessionExpiredLock: null,
 
   hydrate: async () => {
     if (hydratePromise) {
@@ -147,6 +162,7 @@ export const useAuthStore = create((set, get) => ({
       isHydrating: false,
       isSigningOut: false,
       authNotice: null,
+      sessionExpiredLock: null,
     });
     syncNativePushAfterAuth();
     return data;
@@ -168,6 +184,7 @@ export const useAuthStore = create((set, get) => ({
       isHydrating: false,
       isSigningOut: false,
       authNotice: null,
+      sessionExpiredLock: null,
     });
     syncNativePushAfterAuth();
     return data;
@@ -189,6 +206,7 @@ export const useAuthStore = create((set, get) => ({
       isHydrating: false,
       isSigningOut: false,
       authNotice: null,
+      sessionExpiredLock: null,
     });
     syncNativePushAfterAuth();
     return data;
@@ -217,14 +235,22 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: false,
       isSigningOut: false,
       authNotice: null,
+      sessionExpiredLock: null,
     });
   },
 
   forceSignOut: (options = {}) => {
     const current = get();
+    const isPublicAuthPage = isPublicAuthRoute();
+    const notice = createSessionExpiredNotice();
+    const shouldLockCurrentPage =
+      options?.reason === 'session-expired' &&
+      !isPublicAuthPage &&
+      Boolean(current.isAuthenticated || current.user || current.token);
     const shouldShowSessionNotice =
       options?.reason === 'session-expired' &&
-      (current.isAuthenticated || current.user || current.token || !isPublicAuthRoute());
+      !isPublicAuthPage &&
+      Boolean(current.isAuthenticated || current.user || current.token);
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     clearStoredAuth();
@@ -234,8 +260,15 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: false,
       isHydrating: false,
       isSigningOut: false,
-      authNotice: shouldShowSessionNotice ? createSessionExpiredNotice() : null,
+      authNotice: shouldShowSessionNotice ? notice : null,
+      sessionExpiredLock: shouldLockCurrentPage
+        ? {
+            from: getCurrentForwardPath(),
+            message: notice.message,
+          }
+        : null,
     });
+    return shouldLockCurrentPage;
   },
 
   setUser: (user) => {
@@ -245,8 +278,12 @@ export const useAuthStore = create((set, get) => ({
   consumeAuthNotice: () => {
     set({ authNotice: null });
   },
+
+  clearSessionExpiredLock: () => {
+    set({ authNotice: null, sessionExpiredLock: null });
+  },
 }));
 
 setUnauthorizedHandler(() => {
-  useAuthStore.getState().forceSignOut({ reason: 'session-expired' });
+  return useAuthStore.getState().forceSignOut({ reason: 'session-expired' });
 });

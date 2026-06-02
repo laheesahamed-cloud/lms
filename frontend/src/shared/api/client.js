@@ -227,8 +227,7 @@ function redirectToLoginIfNeeded() {
     return;
   }
 
-  const path = window.location.pathname || '';
-  const publicPath = path.replace(/^\/lms(?:\/frontend\/dist)?(?=\/|$)/, '') || '/';
+  const publicPath = getNormalizedPublicPathname(window.location.pathname || '');
   if (
     publicPath === '/' ||
     publicPath === '/login' ||
@@ -250,9 +249,15 @@ function redirectToLoginIfNeeded() {
   requestSpaNavigation(`${loginPath}${forwardQuery}`, { replace: true });
 }
 
+function getNormalizedPublicPathname(pathname) {
+  return String(pathname || '/')
+    .replace(/^\/lms(?:\/frontend\/dist)?(?=\/|$)/, '')
+    .replace(/\/+$/, '') || '/';
+}
+
 function isApiFreePreviewRoute() {
   if (typeof window === 'undefined') return false;
-  const path = window.location.pathname || '';
+  const path = getNormalizedPublicPathname(window.location.pathname || '');
   return /^\/lms\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path) ||
     /^\/lms\/launch-preview\//i.test(path) ||
     /^\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path) ||
@@ -396,8 +401,10 @@ apiClient.interceptors.response.use(
 
     if (status === 401 && !isAuthPageRequest && !isRoleScopeMismatch) {
       clearStoredAuth();
-      unauthorizedHandler?.();
-      redirectToLoginIfNeeded();
+      const handledUnauthorized = !requestConfig?.__suppressUnauthorizedSessionNotice && unauthorizedHandler?.() === true;
+      if (!handledUnauthorized) {
+        redirectToLoginIfNeeded();
+      }
     }
 
     return Promise.reject(error);

@@ -2,6 +2,7 @@ import { forwardRef, memo, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useThemeStore } from '../../../../shared/stores/themeStore.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
 
 if (typeof document !== 'undefined' && !document.getElementById('canvas-study-styles')) {
   const sty = document.createElement('style');
@@ -37,7 +38,7 @@ function validateCanvasImageFile(file) {
   if (file.size > CANVAS_IMAGE_MAX_BYTES) {
     return 'Canvas image is too large. Upload an image under 6 MB.';
   }
-  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+  if (!name || name.length > 180 || hasUnsafeFileNameCharacters(name)) {
     return 'Rename the image without special path characters, then upload again.';
   }
   return '';
@@ -309,7 +310,7 @@ function ExpandImageIcon() {
 
 function splitExamTrap(text) {
   const raw = String(text || '').trim();
-  const match = raw.match(/^\[?\s*(exam\s*trap|trap|warning)\s*\]?\s*[:\-]?\s*/i);
+  const match = raw.match(/^\[?\s*(exam\s*trap|trap|warning)\s*\]?\s*[:-]?\s*/i);
   if (!match) return { isExamTrap: false, text: raw };
   return { isExamTrap: true, text: raw.slice(match[0].length).trim() };
 }

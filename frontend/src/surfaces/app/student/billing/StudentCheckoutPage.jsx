@@ -5,6 +5,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
 
 function getPlanDurationLabel(plan) {
   const days = Number(plan?.durationDays || 0);
@@ -93,7 +94,7 @@ function validatePaymentProofFile(file) {
   if (file.size > PAYMENT_PROOF_MAX_BYTES) {
     return 'Payment proof is too large. Please upload a file under 4MB.';
   }
-  if (!name || name.length > 180 || /[\\/<>:"|?*\x00-\x1F]/.test(name)) {
+  if (!name || name.length > 180 || hasUnsafeFileNameCharacters(name)) {
     return 'Rename the proof file without special path characters, then upload again.';
   }
   return '';

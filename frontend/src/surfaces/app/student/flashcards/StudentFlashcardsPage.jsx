@@ -120,7 +120,7 @@ function cleanStudyText(value) {
     .replace(/\[EXAM TRAP\]/gi, 'Exam trap:')
     .replace(/\[HIGH YIELD\]/gi, '')
     .replace(/\[KEY POINT\]/gi, '')
-    .replace(/^\(?\d+[\).:-]?\s*/, '')
+    .replace(/^\(?\d+[).:-]?\s*/, '')
     .replace(/^[-•]\s*/, '')
     .replace(/^→\s*/, '')
     .replace(/\s*:\s*/g, ': ')

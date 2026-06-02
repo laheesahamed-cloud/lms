@@ -6,6 +6,7 @@ import { UpdateLandingPageSettingsDto } from './dto/update-landing-page-settings
 import { UpdateAvailabilitySettingsDto, VerifyAvailabilityUnlockDto } from './dto/update-availability-settings.dto';
 import { UpdatePaymentSettingsDto } from './dto/update-payment-settings.dto';
 import { UpdateSmtpSettingsDto } from './dto/update-smtp-settings.dto';
+import { TestSmtpSettingsDto } from './dto/test-smtp-settings.dto';
 import { UpdatePopupAlertSettingsDto } from './dto/update-popup-alert-settings.dto';
 import { UpdateApnsSettingsDto } from './dto/update-apns-settings.dto';
 import { UpdateFcmSettingsDto } from './dto/update-fcm-settings.dto';
@@ -192,7 +193,7 @@ export declare class SettingsController {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -216,7 +217,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -415,7 +416,7 @@ export declare class SettingsController {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -430,6 +431,11 @@ export declare class SettingsController {
         configured: boolean;
         ok: boolean;
     }>;
+    testSmtpSettings(authorization: string | undefined, dto: TestSmtpSettingsDto): Promise<{
+        ok: boolean;
+        message: string;
+        sentAt: string;
+    }>;
     updatePopupAlertSettings(authorization: string | undefined, dto: UpdatePopupAlertSettingsDto): Promise<{
         recommendedImage: {
             width: number;
@@ -439,7 +445,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;

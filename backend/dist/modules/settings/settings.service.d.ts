@@ -119,6 +119,7 @@ type PublicSettingsResponse = {
 export declare class SettingsService {
     private readonly db;
     private readonly configService;
+    private readonly logger;
     private publicSettingsCache;
     private publicAvailabilityCache;
     constructor(db: Pool, configService: ConfigService);
@@ -312,7 +313,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -336,7 +337,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -451,7 +452,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -466,6 +467,11 @@ export declare class SettingsService {
         configured: boolean;
         ok: boolean;
     }>;
+    sendSmtpTestEmail(toEmail: string): Promise<{
+        ok: boolean;
+        message: string;
+        sentAt: string;
+    }>;
     updatePopupAlertSettings(input: Partial<PopupAlertSettings> & {
         imageDataUrl?: string;
     }): Promise<{
@@ -477,7 +483,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "login" | "all" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -777,6 +783,7 @@ export declare class SettingsService {
     private getRawPaymentSettings;
     private getRawSmtpSettings;
     private normalizeSmtpBrandText;
+    private renderSmtpTestHtml;
     private getRawPopupAlertSettings;
     private getRawPopupAlertSettingsFromValues;
     getRawApnsSettings(): Promise<ApnsSettings>;

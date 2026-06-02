@@ -10,6 +10,7 @@ import { clearServerNotResponding } from '../../../shared/stores/serverStatusSto
 import { requestSpaNavigation } from '../../../shared/routing/spaNavigation.js';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../shared/utils/routeForwarding.js';
+import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
 
 /* ── Animation keyframes ─────────────────────────────────────────────────────── */
 const ANIM_CSS = `
@@ -1139,13 +1140,17 @@ export function LoginPage() {
 
   useEffect(() => {
     if (!authNotice?.message) return;
+    if (!requestedPath) {
+      consumeAuthNotice();
+      return;
+    }
 
     setStatus((current) => {
       if (current.loading) return current;
       return { loading: false, error: authNotice.message, success: '' };
     });
     consumeAuthNotice();
-  }, [authNotice, consumeAuthNotice]);
+  }, [authNotice, consumeAuthNotice, requestedPath]);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !googleButtonRef.current) return undefined;
@@ -1180,6 +1185,7 @@ export function LoginPage() {
   }, []);
 
   const feedbackId = status.error ? 'login-error' : status.success ? 'login-success' : undefined;
+  const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));
 
   return (
     <main className={cx(ui.authRouteScene, 'lms-login-page')} style={{ display: 'flex', minHeight: '100dvh', overflowX: 'hidden', overflowY: 'auto', background: 'var(--lms-login-page-bg, var(--page-background))' }}>
@@ -1239,8 +1245,16 @@ export function LoginPage() {
             </div>
 
             {/* ── Feedback banners ── */}
-            {status.error   && <div id="login-error" className={ui.feedbackError} role="alert" aria-live="assertive">{status.error}</div>}
-            {status.success && <div id="login-success" className={ui.feedbackSuccess} role="status" aria-live="polite">{status.success}</div>}
+            {status.error ? (
+              <AuthFeedbackNotice id="login-error" tone="error" onDismiss={clearFeedback}>
+                {status.error}
+              </AuthFeedbackNotice>
+            ) : null}
+            {status.success ? (
+              <AuthFeedbackNotice id="login-success" tone="success" onDismiss={clearFeedback}>
+                {status.success}
+              </AuthFeedbackNotice>
+            ) : null}
 
             {/* ── Email ── */}
             <div className="lms-field-wrap grid gap-1.5">

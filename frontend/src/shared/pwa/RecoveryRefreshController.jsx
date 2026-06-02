@@ -20,7 +20,7 @@ function hasRecentAuthSuccess() {
     return false;
   }
 
-  let timestamp = 0;
+  let timestamp;
   try {
     timestamp = Number(window.sessionStorage.getItem('lms_recent_auth_success') || 0);
   } catch {

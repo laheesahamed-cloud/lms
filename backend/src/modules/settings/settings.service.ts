@@ -1,7 +1,8 @@
-import { BadGatewayException, BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Pool, RowDataPacket } from 'mysql2/promise';
+import * as nodemailer from 'nodemailer';
 import { randomUUID } from 'crypto';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
@@ -252,6 +253,7 @@ type PublicSettingsResponse = {
 
 @Injectable()
 export class SettingsService {
+  private readonly logger = new Logger(SettingsService.name);
   private publicSettingsCache: { expiresAt: number; value: PublicSettingsResponse } | null = null;
   private publicAvailabilityCache: { expiresAt: number; value: SerializedAvailabilitySettings } | null = null;
 
@@ -567,6 +569,57 @@ export class SettingsService {
     ]);
 
     return this.getSmtpSettings();
+  }
+
+  async sendSmtpTestEmail(toEmail: string) {
+    const settings = await this.getRawSmtpSettings();
+    if (!settings.enabled) {
+      throw new BadRequestException('Enable SMTP before sending a test email.');
+    }
+
+    if (!settings.host || !settings.port || !settings.username || !settings.password || !settings.fromEmail) {
+      throw new BadRequestException('Save SMTP host, port, username, password, and sender email before sending a test email.');
+    }
+
+    const sentAt = new Date();
+    const transporter = nodemailer.createTransport({
+      host: settings.host,
+      port: settings.port,
+      secure: settings.security === 'ssl',
+      auth: {
+        user: settings.username,
+        pass: settings.password,
+      },
+    });
+
+    const subject = 'xyndrome SMTP test email';
+    const text = [
+      'SMTP test email',
+      '',
+      'Your xyndrome SMTP settings can send email successfully.',
+      `Sent at: ${sentAt.toISOString()}`,
+      `From: ${settings.fromName} <${settings.fromEmail}>`,
+    ].join('\n');
+
+    try {
+      await transporter.sendMail({
+        from: `"${settings.fromName.replace(/"/g, '')}" <${settings.fromEmail}>`,
+        to: String(toEmail || '').trim().toLowerCase(),
+        subject,
+        text,
+        html: this.renderSmtpTestHtml(settings, sentAt),
+      });
+    } catch (error) {
+      const errorCode = String((error as any)?.code || (error as any)?.responseCode || (error as any)?.name || 'smtp_test_error');
+      this.logger.warn(`SMTP test email failed: ${errorCode}`);
+      throw new BadGatewayException('SMTP test email failed. Check host, port, security, username, password, and sender email.');
+    }
+
+    return {
+      ok: true,
+      message: `Test email sent to ${String(toEmail || '').trim().toLowerCase()}.`,
+      sentAt: sentAt.toISOString(),
+    };
   }
 
   async updatePopupAlertSettings(input: Partial<PopupAlertSettings> & { imageDataUrl?: string }) {
@@ -1046,6 +1099,32 @@ export class SettingsService {
       normalized = normalized.replace(pattern, replacement);
     }
     return normalized;
+  }
+
+  private renderSmtpTestHtml(settings: SmtpSettings, sentAt: Date) {
+    const safe = (value: string) => String(value || '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }[char] || char));
+
+    return `
+      <div style="margin:0;padding:28px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+        <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:16px;overflow:hidden;">
+          <div style="padding:22px 24px;background:#2563eb;color:#ffffff;">
+            <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">xyndrome</div>
+            <h1 style="margin:8px 0 0;font-size:24px;line-height:1.2;">SMTP test email</h1>
+          </div>
+          <div style="padding:24px;font-size:14px;line-height:1.7;color:#334155;">
+            <p style="margin:0 0 14px;">Your xyndrome SMTP settings can send email successfully.</p>
+            <p style="margin:0;color:#64748b;">Sent at: ${safe(sentAt.toISOString())}</p>
+            <p style="margin:8px 0 0;color:#64748b;">From: ${safe(settings.fromName)} &lt;${safe(settings.fromEmail)}&gt;</p>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   private async getRawPopupAlertSettings(): Promise<PopupAlertSettings> {

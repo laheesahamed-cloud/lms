@@ -9,7 +9,7 @@ export declare class PushNotificationsController {
     getSettings(authorization?: string): Promise<{
         supported: boolean;
         vapidEnabled: boolean;
-        deliveryMode: "inside" | "outside" | "both";
+        deliveryMode: "outside" | "inside" | "both";
         outsideEnabled: boolean;
         nativeEnabled: boolean;
     }>;
@@ -33,7 +33,7 @@ export declare class PushNotificationsController {
     }>;
     updateSettings(authorization: string | undefined, body: any): Promise<{
         ok: boolean;
-        deliveryMode: "inside" | "outside" | "both";
+        deliveryMode: "outside" | "inside" | "both";
     }>;
     subscribe(authorization: string | undefined, userAgent: string | undefined, body: any): Promise<{
         ok: boolean;
@@ -44,7 +44,7 @@ export declare class PushNotificationsController {
     }>;
     saveNativeToken(authorization: string | undefined, body: any): Promise<{
         ok: boolean;
-        deliveryMode: "inside" | "outside" | "both";
+        deliveryMode: "outside" | "inside" | "both";
         nativeEnabled: boolean;
     }>;
     deleteNativeToken(authorization: string | undefined, body: any): Promise<{
@@ -52,7 +52,7 @@ export declare class PushNotificationsController {
     }>;
     sendAdminNotification(authorization: string | undefined, body: any): Promise<{
         ok: boolean;
-        deliveryType: "inside" | "outside" | "both";
+        deliveryType: "outside" | "inside" | "both";
         inAppCreated: number;
         sent: number;
         failed: number;

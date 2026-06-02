@@ -6,6 +6,7 @@ import { XyndromeBrand } from '../../../shared/brand/XyndromeBrand.jsx';
 import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
+import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
 
 function AuthLogo() {
   return (
@@ -41,6 +42,7 @@ export function ForgotPasswordPage() {
 
   const resetHref = status.resetPath ? `/lms${status.resetPath}` : '';
   const feedbackId = status.error ? 'forgot-password-error' : status.success ? 'forgot-password-success' : undefined;
+  const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));
 
   return (
     <main className={ui.authRouteScene} style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 'clamp(18px,4vw,44px)', background: 'var(--page-background)' }}>
@@ -60,8 +62,16 @@ export function ForgotPasswordPage() {
             <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.62 }}>Enter your account email and we’ll create a secure reset link.</p>
           </div>
 
-          {status.error && <div id="forgot-password-error" className={ui.feedbackError} role="alert" aria-live="assertive">{status.error}</div>}
-          {status.success && <div id="forgot-password-success" className={ui.feedbackSuccess} role="status" aria-live="polite">{status.success}</div>}
+          {status.error ? (
+            <AuthFeedbackNotice id="forgot-password-error" tone="error" onDismiss={clearFeedback}>
+              {status.error}
+            </AuthFeedbackNotice>
+          ) : null}
+          {status.success ? (
+            <AuthFeedbackNotice id="forgot-password-success" tone="success" onDismiss={clearFeedback}>
+              {status.success}
+            </AuthFeedbackNotice>
+          ) : null}
 
           {resetHref ? (
             <div className="grid gap-2 rounded-xl border border-brand-primary/20 bg-[var(--color-primary-light)] p-3 text-[13px] text-ink-medium">

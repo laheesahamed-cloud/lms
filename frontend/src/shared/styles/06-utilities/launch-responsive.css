@@ -3178,31 +3178,31 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
   }
 
   :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-answered {
-    border-color: #34d399 !important;
-    background: rgba(16, 185, 129, 0.26) !important;
-    color: #ecfdf5 !important;
+    border-color: #6ee7b7 !important;
+    background: rgba(110, 231, 183, 0.18) !important;
+    color: #d1fae5 !important;
   }
 
   :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-idle {
-    border-color: #fbbf24 !important;
-    background: rgba(245, 158, 11, 0.28) !important;
-    color: #fff7ed !important;
+    border-color: #fcd34d !important;
+    background: rgba(252, 211, 77, 0.18) !important;
+    color: #fef9c3 !important;
   }
 
   :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-current {
     border-color: #60a5fa !important;
-    background: rgba(59, 130, 246, 0.28) !important;
+    background: rgba(96, 165, 250, 0.20) !important;
     color: #eff6ff !important;
   }
 
   :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-answer-card.is-correct, .lms-answer-card.is-selected) {
-    border-color: #34d399 !important;
-    background: linear-gradient(180deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.16)) !important;
+    border-color: #6ee7b7 !important;
+    background: linear-gradient(180deg, rgba(110, 231, 183, 0.20), rgba(52, 211, 153, 0.13)) !important;
   }
 
   :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-answer-card.is-unanswered) {
-    border-color: #fbbf24 !important;
-    background: linear-gradient(180deg, rgba(245, 158, 11, 0.22), rgba(180, 83, 9, 0.16)) !important;
+    border-color: #fcd34d !important;
+    background: linear-gradient(180deg, rgba(252, 211, 77, 0.20), rgba(251, 191, 36, 0.13)) !important;
   }
 
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-quiz-action-grid) {

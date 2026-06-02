@@ -6,6 +6,10 @@ const LEGACY_BUILD_BASENAME = '/lms/frontend/dist';
 const protectedLegacyPathPattern =
   /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 
+function hasAsciiControlCharacters(value) {
+  return Array.from(value).some((char) => char.charCodeAt(0) <= 31);
+}
+
 function splitPath(path) {
   const hashIndex = path.indexOf('#');
   const beforeHash = hashIndex >= 0 ? path.slice(0, hashIndex) : path;
@@ -33,7 +37,7 @@ function stripKnownBasename(path) {
 export function getSafeForwardPath(rawPath, fallback = '') {
   if (typeof rawPath !== 'string') return fallback;
   const trimmed = rawPath.trim();
-  if (!trimmed || trimmed.startsWith('//') || /[\u0000-\u001f]/.test(trimmed)) {
+  if (!trimmed || trimmed.startsWith('//') || hasAsciiControlCharacters(trimmed)) {
     return fallback;
   }
 
