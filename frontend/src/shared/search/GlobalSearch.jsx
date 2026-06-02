@@ -238,7 +238,8 @@ export function GlobalSearch({ onClose }) {
         id: c.id,
         title: c.title || c.courseTitle || c.name || 'Course',
         sub: isAdmin ? 'Course management' : 'Course library',
-        url: rolePath(isAdmin ? '/courses' : `/courses/${c.id}`, isAdmin),
+        url: rolePath('/courses', isAdmin),
+        state: isAdmin ? undefined : { selectedCourseId: c.id },
       }));
 
     const quizResults = quizzes
@@ -287,13 +288,13 @@ export function GlobalSearch({ onClose }) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(i => Math.min(i + 1, results.length - 1)); }
     if (e.key === 'ArrowUp')   { e.preventDefault(); setSelected(i => Math.max(i - 1, 0)); }
     if (e.key === 'Enter' && results[selected]) {
-      navigate(results[selected].url);
+      navigate(results[selected].url, { state: results[selected].state });
       onClose();
     }
   }
 
-  function go(url) {
-    navigate(url);
+  function go(result) {
+    navigate(result.url, { state: result.state });
     onClose();
   }
 
@@ -336,7 +337,7 @@ export function GlobalSearch({ onClose }) {
                   <button className={cx(searchUi.item, i === selected && searchUi.itemSelected)}
                     type="button"
                    
-                    onClick={() => go(r.url)}
+                    onClick={() => go(r)}
                     onMouseEnter={() => setSelected(i)}
                   >
                     <span className={cx(searchUi.itemIcon, resultIconClass(r.type))}>

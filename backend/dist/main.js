@@ -10,6 +10,7 @@ const express = require('express');
 const { json, urlencoded } = express;
 const path = require('path');
 const app_module_1 = require("./app.module");
+const database_exception_filter_1 = require("./common/filters/database-exception.filter");
 const auth_service_1 = require("./modules/auth/auth.service");
 const performance_metrics_1 = require("./performance-metrics");
 const rateLimitBuckets = new Map();
@@ -648,6 +649,7 @@ async function configureApp(app) {
         origin: corsOrigin,
         credentials: true,
     });
+    app.useGlobalFilters(new database_exception_filter_1.DatabaseExceptionFilter(app.get(core_1.HttpAdapterHost)));
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
         transform: true,

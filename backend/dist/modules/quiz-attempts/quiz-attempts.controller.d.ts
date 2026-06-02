@@ -1,5 +1,6 @@
 import { QuizAttemptsService } from './quiz-attempts.service';
 import { SavePracticeDto } from './dto/save-practice.dto';
+import { SavePracticeProgressDto } from './dto/save-practice-progress.dto';
 import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 export declare class QuizAttemptsController {
@@ -86,7 +87,7 @@ export declare class QuizAttemptsController {
         };
         examSession: {
             id: number;
-            status: "in_progress" | "submitted" | "expired";
+            status: "expired" | "in_progress" | "submitted";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;
@@ -138,12 +139,55 @@ export declare class QuizAttemptsController {
             id: number;
             lastQuestionIndex: number;
             showContinuePopup: boolean;
+            revealedQuestionIds: number[];
         };
         questions: {
             savedAnswer: {
                 selectedIds: number[];
                 tfMap: Record<number, number>;
             };
+            id: number;
+            questionType: "sba" | "true_false";
+            questionText: string;
+            contentTrace: {
+                source: string;
+                sourceId: number;
+                version: number;
+                versionLabel: string;
+                versionedAt: string | Date | null;
+            };
+            options: {
+                id: number;
+                optionLabel: string;
+                optionText: string;
+            }[];
+            canRevealAnswer: boolean;
+        }[];
+        examSession?: undefined;
+    }>;
+    savePractice(quizId: number, authorization: string | undefined, savePracticeDto: SavePracticeDto): Promise<{
+        success: boolean;
+    }>;
+    savePracticeDraft(quizId: number, authorization: string | undefined, savePracticeProgressDto: SavePracticeProgressDto): Promise<{
+        success: boolean;
+        sessionId: number;
+        status: "in_progress" | "completed";
+        lastQuestionIndex: number;
+        revealedQuestionIds: number[];
+    }>;
+    finishPractice(quizId: number, authorization: string | undefined, savePracticeProgressDto: SavePracticeProgressDto): Promise<{
+        success: boolean;
+        sessionId: number;
+        status: "in_progress" | "completed";
+        lastQuestionIndex: number;
+        revealedQuestionIds: number[];
+    }>;
+    prewarmPracticeAnswer(quizId: number, questionId: number, authorization: string | undefined): Promise<{
+        success: boolean;
+    }>;
+    revealPracticeAnswer(quizId: number, questionId: number, authorization: string | undefined): Promise<{
+        question: Record<string, unknown> | {
+            canRevealAnswer: boolean;
             id: number;
             questionType: "sba" | "true_false";
             questionText: string;
@@ -196,11 +240,7 @@ export declare class QuizAttemptsController {
                 keyPoints: string[];
                 mnemonic: string;
             } | null;
-        }[];
-        examSession?: undefined;
-    }>;
-    savePractice(quizId: number, authorization: string | undefined, savePracticeDto: SavePracticeDto): Promise<{
-        success: boolean;
+        };
     }>;
     submitExam(quizId: number, authorization: string | undefined, submitExamDto: SubmitExamDto): Promise<{
         success: boolean;

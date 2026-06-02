@@ -1972,6 +1972,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
           aria-hidden={!flipped}
         >
           <button
+            type="button"
             className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
               disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px]"
@@ -1980,6 +1981,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
             Again
           </button>
           <button
+            type="button"
             className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
               disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px] [&_svg]:shrink-0 max-[380px]:[&_svg]:size-3.5"
@@ -1988,6 +1990,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
             <IcReview/> Hard
           </button>
           <button
+            type="button"
             className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
               disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px] [&_svg]:shrink-0 max-[380px]:[&_svg]:size-3.5"
@@ -1996,6 +1999,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
             <IcKnow/> Good
           </button>
           <button
+            type="button"
             className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
               transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
               disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px]"
@@ -2073,14 +2077,15 @@ function ResultPhase({ quiz, result, onRetry, onRetryMissed, onBack }) {
 
           <div className="grid w-full max-w-72 gap-2.5">
             {learningIds.size > 0 && (
-              <button className={ui.primaryAction} onClick={onRetryMissed}>
+              <button type="button" className={ui.primaryAction} onClick={onRetryMissed}>
                 Retry Missed Cards ({learningIds.size})
               </button>
             )}
-            <button className={ui.secondaryAction} onClick={onRetry}>
+            <button type="button" className={ui.secondaryAction} onClick={onRetry}>
               Restart Deck
             </button>
             <button
+              type="button"
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-transparent px-4
                 text-sm font-bold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98]
                 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"

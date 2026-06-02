@@ -1,0 +1,1 @@
+var e=!1,t=new Set;function n(){for(let n of t)n(e)}function r(){e||(e=!0,n())}function i(){e&&(e=!1,n())}function a(n){return t.add(n),n(e),()=>{t.delete(n)}}function o(){return e}export{a as i,o as n,r,i as t};

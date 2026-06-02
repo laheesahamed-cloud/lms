@@ -12,6 +12,7 @@ import { NativeAndroidStatusAnnouncer } from '../shared/platform/native/NativeAn
 import { LaunchModePage } from '../shared/launch/LaunchModePage.jsx';
 import { hasRecentLaunchAdminUnlock } from '../shared/launch/launchUnlock.js';
 import { canNavigateBack, safeNavigateBack } from '../shared/routing/safeBack.js';
+import { installSpaNavigationHandler } from '../shared/routing/spaNavigation.js';
 import { MarketingPopupAlert } from '../shared/popup/MarketingPopupAlert.jsx';
 
 const PLATFORM = detectPlatform();
@@ -504,6 +505,8 @@ export function AppFrame() {
   useEffect(() => {
     useAvailabilityStore.getState().hydrate();
   }, []);
+
+  useEffect(() => installSpaNavigationHandler(navigate), [navigate]);
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;

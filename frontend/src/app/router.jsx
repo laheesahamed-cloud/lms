@@ -211,7 +211,6 @@ function usePrefersReducedMotion() {
 
 const RouteReveal = memo(function RouteReveal({ children }) {
   const location = useLocation();
-  const routeKey = `${location.pathname}${location.search}`;
   const prefersReducedMotion = usePrefersReducedMotion();
   const routeRevealClassName = [
     'lms-route-reveal',
@@ -229,7 +228,7 @@ const RouteReveal = memo(function RouteReveal({ children }) {
         detail: {
           pathname: location.pathname,
           search: location.search,
-          routeKey,
+          routeKey: `${location.pathname}${location.search}`,
         },
       }));
     });
@@ -238,10 +237,10 @@ const RouteReveal = memo(function RouteReveal({ children }) {
       cancelled = true;
       window.cancelAnimationFrame(raf);
     };
-  }, [location.pathname, location.search, routeKey]);
+  }, [location.pathname, location.search]);
 
   return (
-    <div className={routeRevealClassName} key={routeKey}>
+    <div className={routeRevealClassName}>
       {children}
     </div>
   );

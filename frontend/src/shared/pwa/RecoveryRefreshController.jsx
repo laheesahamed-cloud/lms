@@ -30,7 +30,7 @@ function hasRecentAuthSuccess() {
 }
 
 async function pingHealth() {
-  const response = await fetch(`${API_BASE_URL}/health`, {
+  const response = await fetch(`${API_BASE_URL}/health/ready`, {
     method: 'GET',
     cache: 'no-store',
     credentials: 'include',

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Patch, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Patch, Post, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { SESSION_TTL_DAYS } from './auth-token.util';
@@ -21,10 +21,11 @@ export class AuthController {
   async login(
     @Body() loginDto: LoginDto,
     @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
     const result = await this.authService.login(loginDto);
-    this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
+    this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;
     }
@@ -36,10 +37,11 @@ export class AuthController {
   async register(
     @Body() registerDto: RegisterDto,
     @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
     const result = await this.authService.register(registerDto);
-    this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
+    this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;
     }
@@ -51,10 +53,11 @@ export class AuthController {
   async googleLogin(
     @Body() googleLoginDto: GoogleLoginDto,
     @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
     const result = await this.authService.loginWithGoogle(googleLoginDto);
-    this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
+    this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;
     }
@@ -68,8 +71,13 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Headers('authorization') authorization: string | undefined, @Headers('cookie') cookie: string | undefined, @Res({ passthrough: true }) response: any) {
-    this.clearSessionCookie(response);
+  async logout(
+    @Headers('authorization') authorization: string | undefined,
+    @Headers('cookie') cookie: string | undefined,
+    @Req() request: any,
+    @Res({ passthrough: true }) response: any
+  ) {
+    this.clearSessionCookie(response, request);
     return this.authService.logout(authorization || this.authorizationFromCookie(cookie));
   }
 
@@ -93,26 +101,32 @@ export class AuthController {
     return this.authService.changePassword(authorization, changePasswordDto);
   }
 
-  private setSessionCookie(response: any, token: string, ttlDays = SESSION_TTL_DAYS) {
+  private setSessionCookie(response: any, request: any, token: string, ttlDays = SESSION_TTL_DAYS) {
     response.cookie('lms_session', token, {
       httpOnly: true,
-      secure: this.shouldUseSecureSessionCookie(),
+      secure: this.shouldUseSecureSessionCookie(request),
       sameSite: 'lax',
       path: '/',
       maxAge: ttlDays * 24 * 60 * 60 * 1000,
     });
   }
 
-  private clearSessionCookie(response: any) {
+  private clearSessionCookie(response: any, request: any) {
+    const secure = this.shouldUseSecureSessionCookie(request);
     response.clearCookie('lms_session', {
       httpOnly: true,
-      secure: this.shouldUseSecureSessionCookie(),
+      secure,
       sameSite: 'lax',
       path: '/',
     });
   }
 
-  private shouldUseSecureSessionCookie() {
+  private shouldUseSecureSessionCookie(request?: any) {
+    const explicit = this.getBooleanConfig('SESSION_COOKIE_SECURE') ?? this.getBooleanConfig('COOKIE_SECURE');
+    if (explicit !== null) return explicit;
+
+    if (this.isInsecureLocalOrLanRequest(request)) return false;
+
     if (this.configService.get<string>('NODE_ENV') === 'production') return true;
 
     const configuredUrls = [
@@ -136,6 +150,39 @@ export class AuthController {
         return false;
       }
     });
+  }
+
+  private getBooleanConfig(name: string) {
+    const value = this.configService.get<string>(name);
+    const normalized = String(value || '').trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+    return null;
+  }
+
+  private isInsecureLocalOrLanRequest(request?: any) {
+    const host = String(request?.headers?.host || '').trim();
+    const forwardedProto = String(request?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
+    const protocol = forwardedProto || String(request?.protocol || '').trim();
+    const origin = String(request?.headers?.origin || '').trim();
+    const referer = String(request?.headers?.referer || '').trim();
+    const requestUrl = host ? `${protocol || 'http'}://${host}` : '';
+
+    return [requestUrl, origin, referer].some((value) => this.isInsecureLocalOrLanUrl(value));
+  }
+
+  private isInsecureLocalOrLanUrl(value: string) {
+    if (!value) return false;
+
+    try {
+      const url = new URL(value);
+      return url.protocol === 'http:' && (
+        /^(localhost|127\.0\.0\.1)$/i.test(url.hostname) ||
+        /^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/i.test(url.hostname)
+      );
+    } catch {
+      return false;
+    }
   }
 
   private shouldExposeSessionToken(nativeHeader: string | undefined) {

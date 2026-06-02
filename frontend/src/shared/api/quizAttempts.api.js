@@ -71,6 +71,28 @@ export async function savePracticeAnswer(quizId, payload) {
   return response.data;
 }
 
+export async function savePracticeDraft(quizId, payload) {
+  const response = await apiClient.post(`/student/quiz-attempts/practice/${quizId}/draft`, payload);
+  clearStudentQuizzesCache();
+  return response.data;
+}
+
+export async function finishPracticeAttempt(quizId, payload) {
+  const response = await apiClient.post(`/student/quiz-attempts/practice/${quizId}/finish`, payload);
+  clearStudentQuizzesCache();
+  return response.data;
+}
+
+export async function prewarmPracticeAnswer(quizId, questionId) {
+  const response = await apiClient.post(`/student/quiz-attempts/practice/${quizId}/answer/${questionId}/prewarm`);
+  return response.data;
+}
+
+export async function revealPracticeAnswer(quizId, questionId) {
+  const response = await apiClient.get(`/student/quiz-attempts/practice/${quizId}/answer/${questionId}/reveal`);
+  return response.data;
+}
+
 export async function submitExam(quizId, payload) {
   const response = await apiClient.post(`/student/quiz-attempts/exam/${quizId}/submit`, payload);
   clearStudentQuizzesCache();

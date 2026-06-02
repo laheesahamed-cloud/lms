@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
@@ -6,6 +6,7 @@ const express = require('express') as any;
 const { json, urlencoded } = express;
 const path = require('path');
 import { AppModule } from './app.module';
+import { DatabaseExceptionFilter } from './common/filters/database-exception.filter';
 import { AuthService } from './modules/auth/auth.service';
 import { recordApiRequestMetric } from './performance-metrics';
 
@@ -708,6 +709,7 @@ export async function configureApp(app: INestApplication) {
     origin: corsOrigin,
     credentials: true,
   });
+  app.useGlobalFilters(new DatabaseExceptionFilter(app.get(HttpAdapterHost)));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

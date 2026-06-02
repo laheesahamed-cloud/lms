@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchStudentCourses } from '../../../../shared/api/courses.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { CourseDetailPage } from './CourseDetailPage.jsx';
 
 function BookIcon() {
   return (
@@ -174,9 +175,12 @@ function CourseCard({ course, onOpen }) {
 
 export function StudentCoursesPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedCourseId, setSelectedCourseId] = useState(() => location.state?.selectedCourseId || null);
+  const [courseDetailCache, setCourseDetailCache] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -198,6 +202,45 @@ export function StudentCoursesPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setSelectedCourseId(location.state?.selectedCourseId || null);
+  }, [location.state?.selectedCourseId]);
+
+  const handleSelectCourse = useCallback((courseId) => {
+    setSelectedCourseId(courseId);
+    navigate('.', {
+      state: {
+        ...(location.state || {}),
+        selectedCourseId: courseId,
+      },
+    });
+  }, [location.state, navigate]);
+
+  const handleBackToAllCourses = useCallback(() => {
+    setSelectedCourseId(null);
+    const nextState = { ...(location.state || {}) };
+    delete nextState.selectedCourseId;
+    navigate('.', { replace: true, state: nextState });
+  }, [location.state, navigate]);
+
+  const handleCourseDataChange = useCallback((courseId, data) => {
+    setCourseDetailCache((current) => {
+      if (current[courseId] === data) return current;
+      return { ...current, [courseId]: data };
+    });
+  }, []);
+
+  if (selectedCourseId) {
+    return (
+      <CourseDetailPage
+        courseId={selectedCourseId}
+        initialData={courseDetailCache[selectedCourseId] || null}
+        onBack={handleBackToAllCourses}
+        onDataChange={handleCourseDataChange}
+      />
+    );
+  }
 
   return (
     <main className="dashboard-page study-hub-page student-courses-page">
@@ -236,7 +279,7 @@ export function StudentCoursesPage() {
                   <CourseCard
                     key={course.id}
                     course={course}
-                    onOpen={() => navigate(`/courses/${course.id}`)}
+                    onOpen={() => handleSelectCourse(course.id)}
                   />
                 ))
               : null}

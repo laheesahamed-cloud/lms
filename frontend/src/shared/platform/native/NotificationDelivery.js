@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { deleteNativePushToken, saveNativePushToken } from '../../api/pushNotifications.api.js';
+import { requestSpaNavigation } from '../../routing/spaNavigation.js';
 
 let nativeHandlersInstalled = false;
 let androidChannelsPromise = null;
@@ -210,7 +211,7 @@ export async function installNativePushNotificationHandlers() {
   await PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
     const targetUrl = normalizeNativeNotificationUrl(event?.notification?.data?.url);
     if (!targetUrl) return;
-    window.location.href = targetUrl;
+    requestSpaNavigation(targetUrl);
   });
 }
 

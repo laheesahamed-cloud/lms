@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LMS — 4 Dark Mode Theme Suggestions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  background: #0a0a0f;
+  color: #e8eaf0;
+  min-height: 100vh;
+  padding: 40px 24px 80px;
+}
+
+/* ── Selector Header ───────────────────────────────── */
+.page-header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+.page-header h1 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #f0f2f8;
+  letter-spacing: -0.5px;
+  margin-bottom: 10px;
+}
+.page-header p {
+  font-size: 15px;
+  color: #7a8096;
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+.current-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7a8096;
+  margin-bottom: 18px;
+  letter-spacing: 0.4px;
+}
+.current-badge span { color: #ef4444; }
+
+/* ── Theme Grid ────────────────────────────────────── */
+.themes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* ── Theme Card Wrapper ─────────────────────────────── */
+.theme-card {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, transform 0.2s;
+  cursor: pointer;
+}
+.theme-card:hover { transform: translateY(-4px); }
+.theme-card.t1:hover { border-color: #00e5cc; }
+.theme-card.t2:hover { border-color: #a78bfa; }
+.theme-card.t3:hover { border-color: #fb923c; }
+.theme-card.t4:hover { border-color: #34d399; }
+
+.theme-label {
+  padding: 14px 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.theme-label .name { font-size: 16px; font-weight: 700; }
+.theme-label .tagline { font-size: 12px; font-weight: 500; opacity: 0.7; margin-top: 2px; }
+.theme-label .badge {
+  font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 10px;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+
+/* ── MOCKUP shell ────────────────────────────────────── */
+.mockup {
+  width: 100%;
+  height: 480px;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 54px 1fr;
+}
+
+/* ═══════════════════════════════════════════════════════
+   THEME 1 — OBSIDIAN CARBON
+   Pure carbon black + electric teal/cyan
+   ════════════════════════════════════════════════════════ */
+.t1 .theme-label { background: #070b0e; }
+.t1 .theme-label .name { color: #00e5cc; }
+.t1 .theme-label .tagline { color: #4a6070; }
+.t1 .theme-label .badge { background: rgba(0,229,204,0.12); color: #00e5cc; }
+
+.t1 .mockup {
+  background:
+    radial-gradient(ellipse 60% 40% at 75% 0%, rgba(0,229,204,0.07) 0%, transparent 60%),
+    linear-gradient(180deg, #070b0e 0%, #060a0d 100%);
+}
+
+/* T1 Topbar */
+.t1 .mock-topbar {
+  background: rgba(7,11,14,0.95);
+  border-bottom: 1px solid rgba(0,229,204,0.10);
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; padding: 0 20px;
+  gap: 12px;
+}
+.t1 .mock-logo {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, #00e5cc 0%, #0891b2 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #070b0e; flex-shrink: 0;
+}
+.t1 .mock-search {
+  flex: 1; height: 30px; border-radius: 8px;
+  background: rgba(0,229,204,0.05); border: 1px solid rgba(0,229,204,0.12);
+  max-width: 240px;
+}
+.t1 .mock-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #00e5cc, #0891b2);
+  margin-left: auto;
+}
+
+/* T1 Body */
+.t1 .mock-body {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  overflow: hidden;
+}
+.t1 .mock-sidebar {
+  background: rgba(7,11,14,0.98);
+  border-right: 1px solid rgba(0,229,204,0.08);
+  display: flex; flex-direction: column;
+  align-items: center; padding: 14px 0; gap: 10px;
+}
+.t1 .side-icon {
+  width: 34px; height: 34px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.t1 .side-icon.active {
+  background: rgba(0,229,204,0.14);
+  box-shadow: 0 0 0 1px rgba(0,229,204,0.22);
+}
+.t1 .mock-content { padding: 16px; overflow: hidden; }
+
+.t1 .section-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #00e5cc; opacity: 0.7;
+  margin-bottom: 10px;
+}
+.t1 .stat-row {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 8px;
+  margin-bottom: 12px;
+}
+.t1 .stat-card {
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(0,229,204,0.09);
+  padding: 10px;
+}
+.t1 .stat-num { font-size: 18px; font-weight: 800; color: #00e5cc; }
+.t1 .stat-lbl { font-size: 8px; color: #4a6070; margin-top: 1px; }
+.t1 .course-list { display: flex; flex-direction: column; gap: 6px; }
+.t1 .course-item {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(0,229,204,0.07);
+  border-radius: 10px; padding: 8px 10px;
+}
+.t1 .course-dot {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+}
+.t1 .course-info { flex: 1; min-width: 0; }
+.t1 .course-title { font-size: 9px; font-weight: 600; color: #c8d8e8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t1 .course-prog-bg { height: 3px; background: rgba(0,229,204,0.1); border-radius: 2px; margin-top: 4px; }
+.t1 .course-prog { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #00e5cc, #0891b2); }
+.t1 .cta-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(135deg, #00e5cc 0%, #0891b2 100%);
+  border: none; border-radius: 8px; padding: 6px 12px;
+  font-size: 9px; font-weight: 700; color: #070b0e; margin-top: 10px; cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════════════════
+   THEME 2 — MIDNIGHT AURORA
+   Deep obsidian + aurora purple/violet gradient
+   ════════════════════════════════════════════════════════ */
+.t2 .theme-label { background: #0c0814; }
+.t2 .theme-label .name { color: #c084fc; }
+.t2 .theme-label .tagline { color: #4e3d6a; }
+.t2 .theme-label .badge { background: rgba(192,132,252,0.12); color: #c084fc; }
+
+.t2 .mockup {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(139,92,246,0.18) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 30% at 90% 60%, rgba(244,114,182,0.08) 0%, transparent 50%),
+    linear-gradient(180deg, #0c0814 0%, #080611 100%);
+}
+
+.t2 .mock-topbar {
+  background: rgba(12,8,20,0.92);
+  border-bottom: 1px solid rgba(139,92,246,0.15);
+  backdrop-filter: blur(20px);
+  display: flex; align-items: center; padding: 0 20px; gap: 12px;
+}
+.t2 .mock-logo {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.t2 .mock-search {
+  flex: 1; height: 30px; border-radius: 8px;
+  background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.18);
+  max-width: 240px;
+}
+.t2 .mock-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #a78bfa, #ec4899);
+  margin-left: auto;
+}
+.t2 .mock-body {
+  display: grid; grid-template-columns: 60px 1fr; overflow: hidden;
+}
+.t2 .mock-sidebar {
+  background: rgba(10,6,18,0.98);
+  border-right: 1px solid rgba(139,92,246,0.10);
+  display: flex; flex-direction: column;
+  align-items: center; padding: 14px 0; gap: 10px;
+}
+.t2 .side-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.t2 .side-icon.active {
+  background: rgba(139,92,246,0.18);
+  box-shadow: 0 0 0 1px rgba(139,92,246,0.28), 0 4px 16px rgba(139,92,246,0.20);
+}
+.t2 .mock-content { padding: 16px; overflow: hidden; }
+.t2 .section-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #a78bfa; opacity: 0.8; margin-bottom: 10px; }
+.t2 .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+.t2 .stat-card {
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(139,92,246,0.14);
+  padding: 10px;
+  position: relative; overflow: hidden;
+}
+.t2 .stat-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(139,92,246,0.07) 0%, transparent 60%);
+}
+.t2 .stat-num { font-size: 18px; font-weight: 800; background: linear-gradient(135deg, #c084fc, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.t2 .stat-lbl { font-size: 8px; color: #4e3d6a; margin-top: 1px; }
+.t2 .course-list { display: flex; flex-direction: column; gap: 6px; }
+.t2 .course-item {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(139,92,246,0.10);
+  border-radius: 10px; padding: 8px 10px;
+}
+.t2 .course-dot { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; }
+.t2 .course-info { flex: 1; min-width: 0; }
+.t2 .course-title { font-size: 9px; font-weight: 600; color: #c4b5fd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t2 .course-prog-bg { height: 3px; background: rgba(139,92,246,0.12); border-radius: 2px; margin-top: 4px; }
+.t2 .course-prog { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #a78bfa, #ec4899); }
+.t2 .cta-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  border: none; border-radius: 8px; padding: 6px 12px;
+  font-size: 9px; font-weight: 700; color: #fff; margin-top: 10px; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(139,92,246,0.30);
+}
+
+/* ═══════════════════════════════════════════════════════
+   THEME 3 — VOLCANIC EMBER
+   Pitch black charcoal + amber/orange warm glow
+   ════════════════════════════════════════════════════════ */
+.t3 .theme-label { background: #0e0a06; }
+.t3 .theme-label .name { color: #fb923c; }
+.t3 .theme-label .tagline { color: #50381a; }
+.t3 .theme-label .badge { background: rgba(251,146,60,0.12); color: #fb923c; }
+
+.t3 .mockup {
+  background:
+    radial-gradient(ellipse 50% 40% at 20% 100%, rgba(251,146,60,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 80% 0%, rgba(239,68,68,0.07) 0%, transparent 55%),
+    linear-gradient(180deg, #0e0a06 0%, #0a0704 100%);
+}
+
+.t3 .mock-topbar {
+  background: rgba(14,10,6,0.96);
+  border-bottom: 1px solid rgba(251,146,60,0.10);
+  display: flex; align-items: center; padding: 0 20px; gap: 12px;
+}
+.t3 .mock-logo {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.t3 .mock-search {
+  flex: 1; height: 30px; border-radius: 8px;
+  background: rgba(251,146,60,0.05); border: 1px solid rgba(251,146,60,0.13);
+  max-width: 240px;
+}
+.t3 .mock-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #fb923c, #ef4444);
+  margin-left: auto;
+}
+.t3 .mock-body {
+  display: grid; grid-template-columns: 60px 1fr; overflow: hidden;
+}
+.t3 .mock-sidebar {
+  background: rgba(10,7,4,0.99);
+  border-right: 1px solid rgba(251,146,60,0.08);
+  display: flex; flex-direction: column;
+  align-items: center; padding: 14px 0; gap: 10px;
+}
+.t3 .side-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.t3 .side-icon.active {
+  background: rgba(251,146,60,0.15);
+  box-shadow: 0 0 0 1px rgba(251,146,60,0.25), 0 4px 14px rgba(251,146,60,0.18);
+}
+.t3 .mock-content { padding: 16px; overflow: hidden; }
+.t3 .section-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #fb923c; opacity: 0.8; margin-bottom: 10px; }
+.t3 .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+.t3 .stat-card {
+  border-radius: 12px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(251,146,60,0.11);
+  padding: 10px;
+  position: relative; overflow: hidden;
+}
+.t3 .stat-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(251,146,60,0.06) 0%, transparent 60%);
+}
+.t3 .stat-num { font-size: 18px; font-weight: 800; color: #fb923c; }
+.t3 .stat-lbl { font-size: 8px; color: #50381a; margin-top: 1px; }
+.t3 .course-list { display: flex; flex-direction: column; gap: 6px; }
+.t3 .course-item {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(251,146,60,0.09);
+  border-radius: 10px; padding: 8px 10px;
+}
+.t3 .course-dot { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; }
+.t3 .course-info { flex: 1; min-width: 0; }
+.t3 .course-title { font-size: 9px; font-weight: 600; color: #d4b896; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t3 .course-prog-bg { height: 3px; background: rgba(251,146,60,0.12); border-radius: 2px; margin-top: 4px; }
+.t3 .course-prog { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #fb923c, #ef4444); }
+.t3 .cta-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  border: none; border-radius: 8px; padding: 6px 12px;
+  font-size: 9px; font-weight: 700; color: #fff; margin-top: 10px; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(249,115,22,0.30);
+}
+
+/* ═══════════════════════════════════════════════════════
+   THEME 4 — ABYSS GREEN
+   Deep blackened teal + bioluminescent emerald
+   ════════════════════════════════════════════════════════ */
+.t4 .theme-label { background: #040f0c; }
+.t4 .theme-label .name { color: #34d399; }
+.t4 .theme-label .tagline { color: #1a3d30; }
+.t4 .theme-label .badge { background: rgba(52,211,153,0.12); color: #34d399; }
+
+.t4 .mockup {
+  background:
+    radial-gradient(ellipse 55% 40% at 30% -5%, rgba(52,211,153,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 85% 85%, rgba(16,185,129,0.07) 0%, transparent 50%),
+    linear-gradient(180deg, #040f0c 0%, #030b08 100%);
+}
+
+.t4 .mock-topbar {
+  background: rgba(4,15,12,0.96);
+  border-bottom: 1px solid rgba(52,211,153,0.10);
+  display: flex; align-items: center; padding: 0 20px; gap: 12px;
+}
+.t4 .mock-logo {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, #34d399 0%, #0891b2 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #030b08; flex-shrink: 0;
+}
+.t4 .mock-search {
+  flex: 1; height: 30px; border-radius: 8px;
+  background: rgba(52,211,153,0.05); border: 1px solid rgba(52,211,153,0.12);
+  max-width: 240px;
+}
+.t4 .mock-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #34d399, #0891b2);
+  margin-left: auto;
+}
+.t4 .mock-body {
+  display: grid; grid-template-columns: 60px 1fr; overflow: hidden;
+}
+.t4 .mock-sidebar {
+  background: rgba(3,10,8,0.99);
+  border-right: 1px solid rgba(52,211,153,0.08);
+  display: flex; flex-direction: column;
+  align-items: center; padding: 14px 0; gap: 10px;
+}
+.t4 .side-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.t4 .side-icon.active {
+  background: rgba(52,211,153,0.14);
+  box-shadow: 0 0 0 1px rgba(52,211,153,0.22), 0 4px 14px rgba(52,211,153,0.16);
+}
+.t4 .mock-content { padding: 16px; overflow: hidden; }
+.t4 .section-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #34d399; opacity: 0.8; margin-bottom: 10px; }
+.t4 .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+.t4 .stat-card {
+  border-radius: 12px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(52,211,153,0.11);
+  padding: 10px;
+  position: relative; overflow: hidden;
+}
+.t4 .stat-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(52,211,153,0.06) 0%, transparent 60%);
+}
+.t4 .stat-num { font-size: 18px; font-weight: 800; color: #34d399; }
+.t4 .stat-lbl { font-size: 8px; color: #1a3d30; margin-top: 1px; }
+.t4 .course-list { display: flex; flex-direction: column; gap: 6px; }
+.t4 .course-item {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(52,211,153,0.08);
+  border-radius: 10px; padding: 8px 10px;
+}
+.t4 .course-dot { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; }
+.t4 .course-info { flex: 1; min-width: 0; }
+.t4 .course-title { font-size: 9px; font-weight: 600; color: #a7d9c6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t4 .course-prog-bg { height: 3px; background: rgba(52,211,153,0.12); border-radius: 2px; margin-top: 4px; }
+.t4 .course-prog { height: 3px; border-radius: 2px; background: linear-gradient(90deg, #34d399, #0891b2); }
+.t4 .cta-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(135deg, #10b981 0%, #0891b2 100%);
+  border: none; border-radius: 8px; padding: 6px 12px;
+  font-size: 9px; font-weight: 700; color: #fff; margin-top: 10px; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(16,185,129,0.28);
+}
+
+/* ── Theme Comparison Table ──────────────────────────── */
+.comparison {
+  max-width: 1280px;
+  margin: 48px auto 0;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.comparison-title {
+  padding: 20px 28px 16px;
+  font-size: 14px; font-weight: 700; color: #9aa0b8;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.comparison table {
+  width: 100%; border-collapse: collapse;
+}
+.comparison th, .comparison td {
+  padding: 13px 20px; text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 13px;
+}
+.comparison th { color: #5a607a; font-weight: 600; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
+.comparison td { color: #c0c8e0; }
+.comparison tr:last-child td { border-bottom: none; }
+.comparison .swatch {
+  display: inline-block; width: 14px; height: 14px;
+  border-radius: 4px; margin-right: 6px; vertical-align: middle;
+}
+.vibe-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 6px;
+  font-size: 11px; font-weight: 600;
+}
+
+/* ── Footer note ─────────────────────────────────────── */
+.footer-note {
+  text-align: center; margin-top: 48px;
+  font-size: 12px; color: #3a4060; line-height: 1.8;
+}
+.footer-note strong { color: #5a6080; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="current-badge"><span>✕</span> Current: "Neutral Night" — #151c24 navy-grey, generic indigo accents</div>
+  <h1>4 Dark Mode Theme Proposals</h1>
+  <p>Scan of your LMS codebase — hover each card to preview, pick one to implement. All use your Plus Jakarta Sans font and existing token structure.</p>
+</div>
+
+<div class="themes-grid">
+
+  <!-- ══ THEME 1 ══ -->
+  <div class="theme-card t1">
+    <div class="theme-label">
+      <div>
+        <div class="name">1 — Obsidian Carbon</div>
+        <div class="tagline">True black + electric teal — sharp, surgical, premium</div>
+      </div>
+      <div class="badge">Cyber / Tech</div>
+    </div>
+    <div class="mockup">
+      <div class="mock-topbar">
+        <div class="mock-logo">X</div>
+        <div class="mock-search"></div>
+        <div class="mock-avatar"></div>
+      </div>
+      <div class="mock-body">
+        <div class="mock-sidebar">
+          <div class="side-icon active">🏠</div>
+          <div class="side-icon">📚</div>
+          <div class="side-icon">📊</div>
+          <div class="side-icon">⚙️</div>
+        </div>
+        <div class="mock-content">
+          <div class="section-label">Study Progress</div>
+          <div class="stat-row">
+            <div class="stat-card">
+              <div class="stat-num">87%</div>
+              <div class="stat-lbl">Completion</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">24</div>
+              <div class="stat-lbl">Lessons Done</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">6h</div>
+              <div class="stat-lbl">This Week</div>
+            </div>
+          </div>
+          <div class="section-label">Active Courses</div>
+          <div class="course-list">
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#00e5cc,#0891b2)"></div>
+              <div class="course-info">
+                <div class="course-title">Anatomy & Physiology — Module 4</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:72%"></div></div>
+              </div>
+            </div>
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"></div>
+              <div class="course-info">
+                <div class="course-title">Biochemistry Fundamentals</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:45%"></div></div>
+              </div>
+            </div>
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"></div>
+              <div class="course-info">
+                <div class="course-title">Pathology — Inflammation</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:30%"></div></div>
+              </div>
+            </div>
+          </div>
+          <button class="cta-btn">▶ Continue Learning</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ THEME 2 ══ -->
+  <div class="theme-card t2">
+    <div class="theme-label">
+      <div>
+        <div class="name">2 — Midnight Aurora</div>
+        <div class="tagline">Deep obsidian + violet/pink aurora glow — immersive, dreamy</div>
+      </div>
+      <div class="badge">Aurora / Galaxy</div>
+    </div>
+    <div class="mockup">
+      <div class="mock-topbar">
+        <div class="mock-logo">X</div>
+        <div class="mock-search"></div>
+        <div class="mock-avatar"></div>
+      </div>
+      <div class="mock-body">
+        <div class="mock-sidebar">
+          <div class="side-icon active">🏠</div>
+          <div class="side-icon">📚</div>
+          <div class="side-icon">📊</div>
+          <div class="side-icon">⚙️</div>
+        </div>
+        <div class="mock-content">
+          <div class="section-label">Study Progress</div>
+          <div class="stat-row">
+            <div class="stat-card">
+              <div class="stat-num">87%</div>
+              <div class="stat-lbl">Completion</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">24</div>
+              <div class="stat-lbl">Lessons Done</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">6h</div>
+              <div class="stat-lbl">This Week</div>
+            </div>
+          </div>
+          <div class="section-label">Active Courses</div>
+          <div class="course-list">
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#a78bfa,#ec4899)"></div>
+              <div class="course-info">
+                <div class="course-title">Anatomy & Physiology — Module 4</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:72%"></div></div>
+              </div>
+            </div>
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"></div>
+              <div class="course-info">
+                <div class="course-title">Biochemistry Fundamentals</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:45%"></div></div>
+              </div>
+            </div>
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#c084fc,#60a5fa)"></div>
+              <div class="course-info">
+                <div class="course-title">Pathology — Inflammation</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:30%"></div></div>
+              </div>
+            </div>
+          </div>
+          <button class="cta-btn">▶ Continue Learning</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ THEME 3 ══ -->
+  <div class="theme-card t3">
+    <div class="theme-label">
+      <div>
+        <div class="name">3 — Volcanic Ember</div>
+        <div class="tagline">Pitch-black + warm amber/orange glow — focused, intense</div>
+      </div>
+      <div class="badge">Warm / Bold</div>
+    </div>
+    <div class="mockup">
+      <div class="mock-topbar">
+        <div class="mock-logo">X</div>
+        <div class="mock-search"></div>
+        <div class="mock-avatar"></div>
+      </div>
+      <div class="mock-body">
+        <div class="mock-sidebar">
+          <div class="side-icon active">🏠</div>
+          <div class="side-icon">📚</div>
+          <div class="side-icon">📊</div>
+          <div class="side-icon">⚙️</div>
+        </div>
+        <div class="mock-content">
+          <div class="section-label">Study Progress</div>
+          <div class="stat-row">
+            <div class="stat-card">
+              <div class="stat-num">87%</div>
+              <div class="stat-lbl">Completion</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">24</div>
+              <div class="stat-lbl">Lessons Done</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">6h</div>
+              <div class="stat-lbl">This Week</div>
+            </div>
+          </div>
+          <div class="section-label">Active Courses</div>
+          <div class="course-list">
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#f97316,#ef4444)"></div>
+              <div class="course-info">
+                <div class="course-title">Anatomy & Physiology — Module 4</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:72%"></div></div>
+              </div>
+            </div>
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#fbbf24,#f97316)"></div>
+              <div class="course-info">
+                <div class="course-title">Biochemistry Fundamentals</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:45%"></div></div>
+              </div>
+            </div>
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#ef4444,#be185d)"></div>
+              <div class="course-info">
+                <div class="course-title">Pathology — Inflammation</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:30%"></div></div>
+              </div>
+            </div>
+          </div>
+          <button class="cta-btn">▶ Continue Learning</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ THEME 4 ══ -->
+  <div class="theme-card t4">
+    <div class="theme-label">
+      <div>
+        <div class="name">4 — Abyss Green</div>
+        <div class="tagline">Blackened deep-sea + bioluminescent emerald — calm, focus</div>
+      </div>
+      <div class="badge">Nature / Calm</div>
+    </div>
+    <div class="mockup">
+      <div class="mock-topbar">
+        <div class="mock-logo">X</div>
+        <div class="mock-search"></div>
+        <div class="mock-avatar"></div>
+      </div>
+      <div class="mock-body">
+        <div class="mock-sidebar">
+          <div class="side-icon active">🏠</div>
+          <div class="side-icon">📚</div>
+          <div class="side-icon">📊</div>
+          <div class="side-icon">⚙️</div>
+        </div>
+        <div class="mock-content">
+          <div class="section-label">Study Progress</div>
+          <div class="stat-row">
+            <div class="stat-card">
+              <div class="stat-num">87%</div>
+              <div class="stat-lbl">Completion</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">24</div>
+              <div class="stat-lbl">Lessons Done</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">6h</div>
+              <div class="stat-lbl">This Week</div>
+            </div>
+          </div>
+          <div class="section-label">Active Courses</div>
+          <div class="course-list">
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#34d399,#0891b2)"></div>
+              <div class="course-info">
+                <div class="course-title">Anatomy & Physiology — Module 4</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:72%"></div></div>
+              </div>
+            </div>
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#10b981,#34d399)"></div>
+              <div class="course-info">
+                <div class="course-title">Biochemistry Fundamentals</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:45%"></div></div>
+              </div>
+            </div>
+            <div class="course-item">
+              <div class="course-dot" style="background:linear-gradient(135deg,#6ee7b7,#0891b2)"></div>
+              <div class="course-info">
+                <div class="course-title">Pathology — Inflammation</div>
+                <div class="course-prog-bg"><div class="course-prog" style="width:30%"></div></div>
+              </div>
+            </div>
+          </div>
+          <button class="cta-btn">▶ Continue Learning</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Comparison Table -->
+<div class="comparison">
+  <div class="comparison-title">Side-by-Side Breakdown</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Theme</th>
+        <th>Background</th>
+        <th>Accent</th>
+        <th>Vibe</th>
+        <th>Best For</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong style="color:#00e5cc">1 — Obsidian Carbon</strong></td>
+        <td><span class="swatch" style="background:#070b0e"></span> #070b0e</td>
+        <td><span class="swatch" style="background:#00e5cc"></span> Electric Teal</td>
+        <td><span class="vibe-pill" style="background:rgba(0,229,204,0.1);color:#00e5cc">Cyber · Sharp</span></td>
+        <td>Power users, night study sessions</td>
+      </tr>
+      <tr>
+        <td><strong style="color:#c084fc">2 — Midnight Aurora</strong></td>
+        <td><span class="swatch" style="background:#0c0814"></span> #0c0814</td>
+        <td><span class="swatch" style="background:#a78bfa"></span> Violet / Pink</td>
+        <td><span class="vibe-pill" style="background:rgba(167,139,250,0.1);color:#a78bfa">Dreamy · Immersive</span></td>
+        <td>Long reading, focus flow, premium feel</td>
+      </tr>
+      <tr>
+        <td><strong style="color:#fb923c">3 — Volcanic Ember</strong></td>
+        <td><span class="swatch" style="background:#0e0a06"></span> #0e0a06</td>
+        <td><span class="swatch" style="background:#fb923c"></span> Amber / Orange</td>
+        <td><span class="vibe-pill" style="background:rgba(251,146,60,0.1);color:#fb923c">Warm · Intense</span></td>
+        <td>Medical content, bold personality</td>
+      </tr>
+      <tr>
+        <td><strong style="color:#34d399">4 — Abyss Green</strong></td>
+        <td><span class="swatch" style="background:#040f0c"></span> #040f0c</td>
+        <td><span class="swatch" style="background:#34d399"></span> Emerald / Teal</td>
+        <td><span class="vibe-pill" style="background:rgba(52,211,153,0.1);color:#34d399">Calm · Natural</span></td>
+        <td>Eye comfort, long study sessions</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer-note">
+  All 4 themes plug directly into <strong>shared/theme.css</strong> — zero layout changes needed.<br>
+  Tell me which one you pick and I'll apply the full token set site-wide.
+</div>
+
+</body>
+</html>

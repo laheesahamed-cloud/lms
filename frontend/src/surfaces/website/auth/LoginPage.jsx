@@ -7,6 +7,7 @@ import { XyndromeBrand } from '../../../shared/brand/XyndromeBrand.jsx';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
 import { clearServerNotResponding } from '../../../shared/stores/serverStatusStore.js';
+import { requestSpaNavigation } from '../../../shared/routing/spaNavigation.js';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../shared/utils/routeForwarding.js';
 
@@ -1058,7 +1059,7 @@ function forceNativeRoute(path) {
 
   window.setTimeout(() => {
     if (window.location.pathname !== targetPathname) {
-      window.location.replace(target);
+      requestSpaNavigation(target, { replace: true });
     }
   }, 650);
 }
@@ -1069,6 +1070,8 @@ export function LoginPage() {
   const location = useLocation();
   const signIn   = useAuthStore((s) => s.signIn);
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
+  const authNotice = useAuthStore((s) => s.authNotice);
+  const consumeAuthNotice = useAuthStore((s) => s.consumeAuthNotice);
 
   const [status,       setStatus]       = useState({ loading: false, error: '', success: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -1133,6 +1136,16 @@ export function LoginPage() {
       setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in with Google'), success: '' });
     }
   }
+
+  useEffect(() => {
+    if (!authNotice?.message) return;
+
+    setStatus((current) => {
+      if (current.loading) return current;
+      return { loading: false, error: authNotice.message, success: '' };
+    });
+    consumeAuthNotice();
+  }, [authNotice, consumeAuthNotice]);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !googleButtonRef.current) return undefined;

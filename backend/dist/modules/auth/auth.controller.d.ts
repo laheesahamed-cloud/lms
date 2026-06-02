@@ -11,7 +11,7 @@ export declare class AuthController {
     private readonly authService;
     private readonly configService;
     constructor(authService: AuthService, configService: ConfigService);
-    login(loginDto: LoginDto, nativeHeader: string | undefined, response: any): Promise<{
+    login(loginDto: LoginDto, nativeHeader: string | undefined, request: any, response: any): Promise<{
         ok: boolean;
         sessionTtlDays: number;
         redirectPath: string;
@@ -19,7 +19,7 @@ export declare class AuthController {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -65,7 +65,7 @@ export declare class AuthController {
             };
         };
     }>;
-    register(registerDto: RegisterDto, nativeHeader: string | undefined, response: any): Promise<{
+    register(registerDto: RegisterDto, nativeHeader: string | undefined, request: any, response: any): Promise<{
         ok: boolean;
         sessionTtlDays: number;
         redirectPath: string;
@@ -73,7 +73,7 @@ export declare class AuthController {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -119,7 +119,7 @@ export declare class AuthController {
             };
         };
     }>;
-    googleLogin(googleLoginDto: GoogleLoginDto, nativeHeader: string | undefined, response: any): Promise<{
+    googleLogin(googleLoginDto: GoogleLoginDto, nativeHeader: string | undefined, request: any, response: any): Promise<{
         ok: boolean;
         sessionTtlDays: number;
         redirectPath: string;
@@ -127,7 +127,7 @@ export declare class AuthController {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -179,7 +179,7 @@ export declare class AuthController {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -226,7 +226,7 @@ export declare class AuthController {
         };
         redirectPath: string;
     }>;
-    logout(authorization: string | undefined, cookie: string | undefined, response: any): Promise<{
+    logout(authorization: string | undefined, cookie: string | undefined, request: any, response: any): Promise<{
         ok: boolean;
     }>;
     requestPasswordReset(forgotPasswordDto: ForgotPasswordDto): Promise<{
@@ -254,7 +254,7 @@ export declare class AuthController {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
             permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
             status: "active" | "inactive";
             avatarKey: string;
@@ -306,6 +306,9 @@ export declare class AuthController {
     private setSessionCookie;
     private clearSessionCookie;
     private shouldUseSecureSessionCookie;
+    private getBooleanConfig;
+    private isInsecureLocalOrLanRequest;
+    private isInsecureLocalOrLanUrl;
     private shouldExposeSessionToken;
     private authorizationFromCookie;
 }

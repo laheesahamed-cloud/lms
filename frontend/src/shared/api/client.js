@@ -4,6 +4,7 @@ import { beginNetworkActivity, endNetworkActivity } from '../stores/networkActiv
 import { clearServerNotResponding, markServerNotResponding } from '../stores/serverStatusStore.js';
 import { detectPlatform } from '../platform/detect.js';
 import { getLoginPath, resolveApiBaseUrl, resolveApiBaseUrls } from '../platform/config.js';
+import { requestSpaNavigation } from '../routing/spaNavigation.js';
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
@@ -133,7 +134,8 @@ function classifyApiRequest(config) {
   if (/^\/auth\/(?:login|register|me|refresh|logout)$/.test(path)) return 'authentication';
   if (/^\/(?:student\/)?dashboard/.test(path)) return 'dashboard';
   if (method === 'GET' && /^\/(?:student\/)?quiz-attempts\/quiz\/:id$/.test(path)) return 'questionFetch';
-  if (/^\/(?:student\/)?quiz-attempts\/(?:practice|exam)\/:id\/(?:save|submit)$/.test(path)) return 'answerSave';
+  if (/^\/(?:student\/)?quiz-attempts\/(?:practice|exam)\/:id\/(?:save|submit|draft|finish)$/.test(path)) return 'answerSave';
+  if (/^\/(?:student\/)?quiz-attempts\/practice\/:id\/answer\/:id\/(?:prewarm|reveal)$/.test(path)) return 'answerSave';
   if (method === 'GET' && /^\/(?:student\/)?quiz-attempts\/(?:result|review|practice-review)\/:id/.test(path)) return 'reviewData';
   return 'other';
 }
@@ -167,6 +169,11 @@ function recordApiPerformance(config, { status = 0, failed = false } = {}) {
     window.__lmsApiPerformance.splice(0, window.__lmsApiPerformance.length - API_PERFORMANCE_WINDOW_LIMIT);
   }
   window.dispatchEvent?.(new CustomEvent('lms:api-performance', { detail: record }));
+}
+
+function shouldClearServerStatusAfterSuccess(response) {
+  const path = normalizeApiPath(response?.config?.url || '');
+  return path !== '/health' && path !== '/health/client-performance';
 }
 
 function canRetryTimeoutRequest(config, settings) {
@@ -240,7 +247,7 @@ function redirectToLoginIfNeeded() {
   const from = getCurrentForwardPath();
   const forwardQuery = from ? `?from=${encodeURIComponent(from)}` : '';
   const loginPath = getLoginPath(detectPlatform());
-  window.location.href = `${loginPath}${forwardQuery}`;
+  requestSpaNavigation(`${loginPath}${forwardQuery}`, { replace: true });
 }
 
 function isApiFreePreviewRoute() {
@@ -250,6 +257,17 @@ function isApiFreePreviewRoute() {
     /^\/lms\/launch-preview\//i.test(path) ||
     /^\/(?:ai\/|auth\/|login|register|terms|privacy-policy|refund-policy|cookie-policy|$)/i.test(path) ||
     /^\/launch-preview\//i.test(path);
+}
+
+function responseHasDatabaseUnavailableSignal(response) {
+  const data = response?.data;
+  return data?.code === 'DATABASE_UNAVAILABLE' ||
+    data?.checks?.database?.ok === false ||
+    data?.service === 'lms-api' && data?.checks?.database?.ok === false;
+}
+
+function isUnavailableProxyStatus(status) {
+  return status === 502 || status === 504;
 }
 
 function getNextApiFallbackUrl(currentBaseUrl, triedBaseUrls = []) {
@@ -269,7 +287,9 @@ apiClient.interceptors.response.use(
       apiClient.defaults.baseURL = responseBaseUrl;
     }
     finalizeNetworkActivity(response?.config);
-    clearServerNotResponding();
+    if (shouldClearServerStatusAfterSuccess(response)) {
+      clearServerNotResponding();
+    }
     return response;
   },
   async (error) => {
@@ -341,6 +361,8 @@ apiClient.interceptors.response.use(
       failed: true,
     });
 
+    const status = error?.response?.status;
+    const isDatabaseUnavailable = responseHasDatabaseUnavailableSignal(error?.response);
     const isLikelyServerNotResponding =
       !requestConfig?.__suppressServerStatus &&
       typeof navigator !== 'undefined' &&
@@ -349,14 +371,15 @@ apiClient.interceptors.response.use(
         error?.code === 'ECONNABORTED' ||
         error?.code === 'ERR_NETWORK' ||
         error?.message === 'Network Error' ||
-        !error?.response
+        !error?.response ||
+        isDatabaseUnavailable ||
+        isUnavailableProxyStatus(status)
       );
 
     if (isLikelyServerNotResponding) {
       markServerNotResponding();
     }
 
-    const status = error?.response?.status;
     const serverMessage = error?.response?.data?.message;
     const normalizedMessage = Array.isArray(serverMessage)
       ? serverMessage.join(' ')

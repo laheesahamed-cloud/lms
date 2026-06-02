@@ -986,7 +986,7 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
   return (
     <div className="student-lessons-detail space-y-4">
       <div className="student-lessons-detail-toolbar">
-        <button className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
+        <button type="button" className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
           <IcoChevron />
           <span>Back</span>
         </button>
@@ -1000,11 +1000,12 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
 
       {subjects.length > 1 ? (
         <div className="student-lessons-filter-bar">
-          <button className={cx('student-lessons-filter-chip', !activeSubject && 'is-active')} onClick={() => setActiveSubject(null)}>
+          <button type="button" className={cx('student-lessons-filter-chip', !activeSubject && 'is-active')} onClick={() => setActiveSubject(null)}>
             All subjects
           </button>
           {subjects.map((subject) => (
             <button
+              type="button"
               key={subject.label}
               className={cx('student-lessons-filter-chip', activeSubject === subject.label && 'is-active')}
               onClick={() => setActiveSubject(activeSubject === subject.label ? null : subject.label)}

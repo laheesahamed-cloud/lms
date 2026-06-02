@@ -1294,9 +1294,9 @@ export function StudentDashboardPage() {
     || upcomingAgendaItems.find((item) => item.type === 'exam')
     || null;
 
-  const onNavigate = (route) => {
+  const onNavigate = (route, options) => {
     void nativeImpact(ImpactStyle.Light);
-    if (route) navigate(route);
+    if (route) navigate(route, options);
   };
 
   if (loading) {
@@ -1388,7 +1388,7 @@ export function StudentDashboardPage() {
           <CourseProgressCard
             courses={courseProgress}
             summary={courseProgressSummary}
-            onOpenCourse={(course) => onNavigate(appRoute(`/courses/${course.id}`))}
+            onOpenCourse={(course) => onNavigate(appRoute('/courses'), { state: { selectedCourseId: course.id } })}
             onOpenCourses={() => onNavigate(appRoute('/courses'))}
           />
           <ExamCountdownCard

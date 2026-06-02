@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { loadStudentQuiz, saveExamProgress, savePracticeAnswer, submitExam } from '../../../../shared/api/quizAttempts.api.js';
+import {
+  finishPracticeAttempt,
+  loadStudentQuiz,
+  prewarmPracticeAnswer,
+  revealPracticeAnswer,
+  saveExamProgress,
+  savePracticeAnswer,
+  savePracticeDraft,
+  submitExam,
+} from '../../../../shared/api/quizAttempts.api.js';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -723,6 +732,132 @@ function clearExamDraft(quizId) {
   }
 }
 
+const PRACTICE_DRAFT_TTL_MS = 72 * 60 * 60 * 1000;
+
+function getPracticeDraftStorageKey(quizId) {
+  return `lms.practiceDraft.${quizId}`;
+}
+
+function getPracticeDraftSecretKey(quizId) {
+  return `lms.practiceDraftSecret.${quizId}`;
+}
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+  return window.btoa(binary);
+}
+
+function base64ToBytes(value) {
+  const binary = window.atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function getOrCreatePracticeDraftSecret(quizId) {
+  const existing = window.sessionStorage.getItem(getPracticeDraftSecretKey(quizId));
+  if (existing) return existing;
+  const secret = new Uint8Array(32);
+  window.crypto.getRandomValues(secret);
+  const encoded = bytesToBase64(secret);
+  window.sessionStorage.setItem(getPracticeDraftSecretKey(quizId), encoded);
+  return encoded;
+}
+
+async function getPracticeDraftCryptoKey(quizId) {
+  if (typeof window === 'undefined' || !window.crypto?.subtle || !window.crypto?.getRandomValues) return null;
+  const secret = getOrCreatePracticeDraftSecret(quizId);
+  const digest = await window.crypto.subtle.digest('SHA-256', base64ToBytes(secret));
+  return window.crypto.subtle.importKey('raw', digest, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+async function writePracticeDraft(quizId, draft) {
+  if (typeof window === 'undefined') return;
+  try {
+    const payload = {
+      ...draft,
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      expiresAt: Date.now() + PRACTICE_DRAFT_TTL_MS,
+    };
+    const serialized = JSON.stringify(payload);
+    const key = await getPracticeDraftCryptoKey(quizId);
+    if (!key) {
+      window.localStorage.setItem(getPracticeDraftStorageKey(quizId), JSON.stringify({
+        version: 1,
+        encoding: 'plain',
+        payload: window.btoa(unescape(encodeURIComponent(serialized))),
+        updatedAt: payload.updatedAt,
+        expiresAt: payload.expiresAt,
+      }));
+      return;
+    }
+
+    const iv = new Uint8Array(12);
+    window.crypto.getRandomValues(iv);
+    const encrypted = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      new TextEncoder().encode(serialized)
+    );
+    window.localStorage.setItem(getPracticeDraftStorageKey(quizId), JSON.stringify({
+      version: 1,
+      encoding: 'aes-gcm',
+      iv: bytesToBase64(iv),
+      payload: bytesToBase64(new Uint8Array(encrypted)),
+      updatedAt: payload.updatedAt,
+      expiresAt: payload.expiresAt,
+    }));
+  } catch {
+    // Practice recovery is best-effort; DB draft save remains authoritative on exit.
+  }
+}
+
+async function readPracticeDraft(quizId, sessionId) {
+  if (typeof window === 'undefined') return null;
+  try {
+    const envelope = JSON.parse(window.localStorage.getItem(getPracticeDraftStorageKey(quizId)) || 'null');
+    if (!envelope || Number(envelope.expiresAt || 0) <= Date.now()) {
+      clearPracticeDraft(quizId);
+      return null;
+    }
+
+    let serialized = '';
+    if (envelope.encoding === 'plain') {
+      serialized = decodeURIComponent(escape(window.atob(String(envelope.payload || ''))));
+    } else {
+      const key = await getPracticeDraftCryptoKey(quizId);
+      if (!key || !envelope.iv || !envelope.payload) return null;
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: base64ToBytes(envelope.iv) },
+        key,
+        base64ToBytes(envelope.payload)
+      );
+      serialized = new TextDecoder().decode(decrypted);
+    }
+
+    const draft = JSON.parse(serialized);
+    return draft && Number(draft.sessionId) === Number(sessionId) ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearPracticeDraft(quizId) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(getPracticeDraftStorageKey(quizId));
+    window.sessionStorage.removeItem(getPracticeDraftSecretKey(quizId));
+  } catch {
+    // Nothing to clear if storage is unavailable.
+  }
+}
+
 function getPreferredScrollBehavior() {
   if (typeof window === 'undefined') return 'auto';
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
@@ -1105,6 +1240,9 @@ export function TakeQuizPage() {
   const examAutosaveInFlightRef = useRef(false);
   const examAutosaveQueuedRef = useRef(false);
   const didHydrateExamStateRef = useRef(false);
+  const practiceDraftWriteTimerRef = useRef(null);
+  const practiceDraftSaveInFlightRef = useRef(false);
+  const practiceDraftSaveQueuedRef = useRef(false);
 
   useEffect(() => {
     async function load() {
@@ -1119,12 +1257,22 @@ export function TakeQuizPage() {
           }),
           fetchStudyBookmarks().catch(() => []),
         ]);
+        const localPracticeDraft = payload.mode === 'practice'
+          ? await readPracticeDraft(quizId, payload.practiceSession?.id)
+          : null;
+        const shuffledQuestions = payload.questions.map((question) => ({
+          ...question,
+          options: shuffleArray(question.options),
+        }));
+        const cachedPracticeQuestions = payload.mode === 'practice' &&
+          Array.isArray(localPracticeDraft?.questions) &&
+          localPracticeDraft.questions.length === payload.questions.length &&
+          localPracticeDraft.questions.every((question) => payload.questions.some((item) => Number(item.id) === Number(question.id)))
+          ? localPracticeDraft.questions
+          : null;
         const shuffledPayload = {
           ...payload,
-          questions: payload.questions.map((question) => ({
-            ...question,
-            options: shuffleArray(question.options),
-          })),
+          questions: cachedPracticeQuestions || shuffledQuestions,
         };
 
         if (payload.mode === 'exam' && payload.examSession?.submittedAttemptId) {
@@ -1142,7 +1290,7 @@ export function TakeQuizPage() {
                 Math.max(shuffledPayload.questions.length - 1, 0)
               ))
             : Math.max(0, Math.min(
-                Number(payload.practiceSession?.lastQuestionIndex || 0),
+                Number(localPracticeDraft?.currentQuestionIndex ?? payload.practiceSession?.lastQuestionIndex ?? 0),
                 Math.max(shuffledPayload.questions.length - 1, 0)
               ))
         );
@@ -1157,7 +1305,14 @@ export function TakeQuizPage() {
             .map((item) => Number(item.itemId))
             .filter(Boolean)
         ));
-        setRevealedAnswerIds(new Set());
+        setRevealedAnswerIds(new Set(
+          payload.mode === 'practice'
+            ? [
+                ...(Array.isArray(payload.practiceSession?.revealedQuestionIds) ? payload.practiceSession.revealedQuestionIds : []),
+                ...(Array.isArray(localPracticeDraft?.revealedQuestionIds) ? localPracticeDraft.revealedQuestionIds : []),
+              ].map(Number).filter(Boolean)
+            : []
+        ));
         setHasAutoSubmitted(false);
 
         const initial = {};
@@ -1181,6 +1336,9 @@ export function TakeQuizPage() {
               : normalizeTfAnswerMap(savedExamAnswer);
           }
         });
+        if (payload.mode === 'practice' && localPracticeDraft?.answers && typeof localPracticeDraft.answers === 'object') {
+          Object.assign(initial, localPracticeDraft.answers);
+        }
         setAnswers(initial);
         answersRef.current = initial;
         if (payload.mode === 'exam' && Array.isArray(localExamDraft?.flaggedQuestionIds)) {
@@ -1217,13 +1375,22 @@ export function TakeQuizPage() {
   const currentQuestionBookmarked = currentQuestion ? bookmarkedQuestionIds.has(currentQuestion.id) : false;
   const currentQuestionRevealed = currentQuestion ? revealedAnswerIds.has(currentQuestion.id) : false;
   const currentQuestionCanReveal = Boolean(
-    currentQuestion && !isExam && (
+    currentQuestion && !isExam && (currentQuestion.canRevealAnswer || (
       hasQuestionAnswerKey(currentQuestion) ||
       currentQuestion.options?.some(hasOptionAnswerKey) ||
       currentQuestion.options?.length ||
       String(currentQuestion.explanation || '').trim() ||
       getIncorrectOptionReasons(currentQuestion).length ||
       currentQuestion.theoryRecap !== undefined
+    ))
+  );
+  const currentQuestionRevealReady = Boolean(
+    currentQuestionRevealed && currentQuestion && (
+      hasQuestionAnswerKey(currentQuestion) ||
+      currentQuestion.options?.some(hasOptionAnswerKey) ||
+      String(currentQuestion.explanation || '').trim() ||
+      getIncorrectOptionReasons(currentQuestion).length ||
+      currentQuestion.theoryRecap
     )
   );
   const shouldBlockQuizExit = Boolean(data && !loading && !isSingleQuestionPractice && !practiceReadyForReview && !hasAutoSubmitted);
@@ -1280,12 +1447,22 @@ export function TakeQuizPage() {
     );
 
     if (shouldLeave) {
+      if (!isExam && data?.mode === 'practice' && !isSingleQuestionPractice && !practiceReadyForReview) {
+        void persistPracticeDraftToDatabase({
+          nextIndex: currentIndex,
+          silent: true,
+          clearLocalOnSuccess: true,
+        }).finally(() => {
+          quizExitBlocker.proceed();
+        });
+        return;
+      }
       quizExitBlocker.proceed();
       return;
     }
 
     quizExitBlocker.reset();
-  }, [isExam, quizExitBlocker]);
+  }, [currentIndex, data?.mode, isExam, isSingleQuestionPractice, practiceReadyForReview, quizExitBlocker]);
 
   useEffect(() => {
     hasSkippedInitialPracticeScrollRef.current = false;
@@ -1339,6 +1516,69 @@ export function TakeQuizPage() {
     };
     answersRef.current = next;
     setAnswers(next);
+  }
+
+  function getPracticeProgressPayload(nextIndex = currentIndex) {
+    return {
+      answers: normalizeAnswersForBackend(answersRef.current || answers, data?.questions || []),
+      currentQuestionIndex: Math.max(0, Math.min(nextIndex, Math.max((data?.questions?.length || 1) - 1, 0))),
+      revealedQuestionIds: Array.from(revealedAnswerIds).map(Number).filter(Boolean),
+    };
+  }
+
+  function writePracticeRecoveryDraft(nextIndex = currentIndex) {
+    if (isExam || !data?.questions?.length || hasAutoSubmitted) return;
+    void writePracticeDraft(quizId, {
+      sessionId: data.practiceSession?.id,
+      questions: data.questions,
+      ...getPracticeProgressPayload(nextIndex),
+    });
+  }
+
+  async function persistPracticeDraftToDatabase({ nextIndex = currentIndex, silent = false, clearLocalOnSuccess = false } = {}) {
+    if (isExam || !data?.questions?.length || isSingleQuestionPractice || practiceReadyForReview) return true;
+    if (practiceDraftSaveInFlightRef.current) {
+      practiceDraftSaveQueuedRef.current = true;
+      return true;
+    }
+
+    practiceDraftSaveInFlightRef.current = true;
+    if (!silent) setSaving(true);
+    writePracticeRecoveryDraft(nextIndex);
+    try {
+      const result = await savePracticeDraft(quizId, getPracticeProgressPayload(nextIndex));
+      if (result?.success && clearLocalOnSuccess) {
+        clearPracticeDraft(quizId);
+      }
+      return Boolean(result?.success);
+    } catch (draftError) {
+      if (!silent) {
+        setError(getErrorMessage(draftError, 'Unable to save practice progress'));
+      }
+      return false;
+    } finally {
+      practiceDraftSaveInFlightRef.current = false;
+      if (!silent) setSaving(false);
+      if (practiceDraftSaveQueuedRef.current) {
+        practiceDraftSaveQueuedRef.current = false;
+        void persistPracticeDraftToDatabase({ nextIndex: currentIndex, silent: true, clearLocalOnSuccess });
+      }
+    }
+  }
+
+  function mergePracticeRevealQuestion(current, revealed) {
+    if (!revealed) return current;
+    const revealedOptions = new Map((revealed.options || []).map((option) => [Number(option.id), option]));
+    const mergedOptions = (current.options || []).map((option) => ({
+      ...option,
+      ...(revealedOptions.get(Number(option.id)) || {}),
+    }));
+    return {
+      ...current,
+      ...revealed,
+      options: mergedOptions.length ? mergedOptions : (revealed.options || current.options || []),
+      savedAnswer: current.savedAnswer ?? revealed.savedAnswer ?? null,
+    };
   }
 
   async function practiceSave(nextIdx = currentIndex) {
@@ -1471,10 +1711,12 @@ export function TakeQuizPage() {
   async function goTo(idx) {
     const bounded = Math.max(0, Math.min(idx, (data?.questions?.length || 1) - 1));
     setError('');
-    if (data?.mode === 'practice' && !(await practiceSave(bounded))) return;
+    if (data?.mode === 'practice' && isSingleQuestionPractice && !(await practiceSave(bounded))) return;
     setCurrentIndex(bounded);
     if (data?.mode === 'exam') {
       void persistExamProgress({ nextIndex: bounded, silent: true });
+    } else if (data?.mode === 'practice') {
+      writePracticeRecoveryDraft(bounded);
     }
   }
 
@@ -1483,10 +1725,22 @@ export function TakeQuizPage() {
     setError('');
     setPracticeCompleting(true);
     if (data?.mode === 'practice') {
-      const saved = await practiceSave(currentIndex);
-      if (!saved) {
-        setPracticeCompleting(false);
-        return;
+      if (isSingleQuestionPractice) {
+        const saved = await practiceSave(currentIndex);
+        if (!saved) {
+          setPracticeCompleting(false);
+          return;
+        }
+      } else {
+        writePracticeRecoveryDraft(currentIndex);
+        try {
+          await finishPracticeAttempt(quizId, getPracticeProgressPayload(currentIndex));
+          clearPracticeDraft(quizId);
+        } catch (finishError) {
+          setError(getErrorMessage(finishError, 'Unable to finish practice'));
+          setPracticeCompleting(false);
+          return;
+        }
       }
     }
     if (isSingleQuestionPractice) {
@@ -1583,18 +1837,149 @@ export function TakeQuizPage() {
     }
   }
 
-  function revealCurrentAnswer() {
+  async function revealCurrentAnswer() {
     if (!currentQuestion || !currentQuestionCanReveal) return;
     const questionId = currentQuestion.id;
     setError('');
-    setRevealedAnswerIds((current) => {
-      if (current.has(questionId)) return current;
-      const next = new Set(current);
-      next.add(questionId);
-      return next;
-    });
-    void nativeImpact(ImpactStyle.Light);
+    setQuestionActionBusy(true);
+    try {
+      const result = await revealPracticeAnswer(quizId, questionId);
+      setData((current) => {
+        if (!current?.questions?.length) return current;
+        return {
+          ...current,
+          questions: current.questions.map((question) => (
+            Number(question.id) === Number(questionId)
+              ? mergePracticeRevealQuestion(question, result?.question)
+              : question
+          )),
+        };
+      });
+      setRevealedAnswerIds((current) => {
+        if (current.has(questionId)) return current;
+        const next = new Set(current);
+        next.add(questionId);
+        return next;
+      });
+      void nativeImpact(ImpactStyle.Light);
+    } catch (revealError) {
+      setError(getErrorMessage(revealError, 'Unable to show this answer'));
+    } finally {
+      setQuestionActionBusy(false);
+    }
   }
+
+  useEffect(() => {
+    if (isExam || !data?.questions?.length || !currentQuestion?.id || practiceReadyForReview) return undefined;
+    const ids = [
+      currentQuestion.id,
+      data.questions[currentIndex + 1]?.id,
+      data.questions[currentIndex - 1]?.id,
+    ].map(Number).filter(Boolean);
+
+    let cancelled = false;
+    ids.forEach((questionId) => {
+      prewarmPracticeAnswer(quizId, questionId).catch(() => {
+        if (!cancelled) {
+          // Reveal remains available through the click path if prewarm misses.
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentIndex, currentQuestion?.id, data?.questions, isExam, practiceReadyForReview, quizId]);
+
+  useEffect(() => {
+    if (
+      isExam ||
+      !currentQuestion?.id ||
+      !currentQuestionRevealed ||
+      hasQuestionAnswerKey(currentQuestion) ||
+      currentQuestion.options?.some(hasOptionAnswerKey)
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    revealPracticeAnswer(quizId, currentQuestion.id)
+      .then((result) => {
+        if (cancelled) return;
+        setData((current) => {
+          if (!current?.questions?.length) return current;
+          return {
+            ...current,
+            questions: current.questions.map((question) => (
+              Number(question.id) === Number(currentQuestion.id)
+                ? mergePracticeRevealQuestion(question, result?.question)
+                : question
+            )),
+          };
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentQuestion, currentQuestionRevealed, isExam, quizId]);
+
+  useEffect(() => {
+    if (isExam || !data?.questions?.length || loading || practiceReadyForReview || isSingleQuestionPractice) {
+      return undefined;
+    }
+
+    if (practiceDraftWriteTimerRef.current) {
+      window.clearTimeout(practiceDraftWriteTimerRef.current);
+    }
+
+    practiceDraftWriteTimerRef.current = window.setTimeout(() => {
+      writePracticeRecoveryDraft(currentIndex);
+    }, 220);
+
+    return () => {
+      if (practiceDraftWriteTimerRef.current) {
+        window.clearTimeout(practiceDraftWriteTimerRef.current);
+        practiceDraftWriteTimerRef.current = null;
+      }
+    };
+  }, [answers, currentIndex, data?.questions, isExam, isSingleQuestionPractice, loading, practiceReadyForReview, revealedAnswerIds]);
+
+  useEffect(() => {
+    if (isExam || !data?.questions?.length || loading || practiceReadyForReview || isSingleQuestionPractice) {
+      return undefined;
+    }
+
+    const saveForPauseOrExit = () => {
+      writePracticeRecoveryDraft(currentIndex);
+      void persistPracticeDraftToDatabase({
+        nextIndex: currentIndex,
+        silent: true,
+        clearLocalOnSuccess: true,
+      });
+    };
+    const saveLocalOnly = () => {
+      writePracticeRecoveryDraft(currentIndex);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveForPauseOrExit();
+      }
+    };
+
+    window.addEventListener('pagehide', saveForPauseOrExit);
+    window.addEventListener('offline', saveLocalOnly);
+    window.addEventListener('online', saveForPauseOrExit);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pagehide', saveForPauseOrExit);
+      window.removeEventListener('offline', saveLocalOnly);
+      window.removeEventListener('online', saveForPauseOrExit);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [answers, currentIndex, data, isExam, isSingleQuestionPractice, loading, practiceReadyForReview, quizId, revealedAnswerIds]);
 
   useEffect(() => {
     if (!isExam || !data?.questions?.length || !didHydrateExamStateRef.current || hasAutoSubmitted) {
@@ -1704,6 +2089,8 @@ export function TakeQuizPage() {
     const questionTypeLabel = isSbaQuestion(currentQuestion) ? 'SBA' : 'True / False';
     const practiceEndLabel = isSingleQuestionPractice ? 'Done' : 'Finish';
     const practiceEndBusyLabel = isSingleQuestionPractice ? 'Saving...' : 'Submitting...';
+    const practiceAnswerVisible = currentQuestionRevealReady;
+    const practiceRevealLoading = currentQuestionRevealed && !currentQuestionRevealReady;
 
     return (
       <main className={practiceQuizScreenShellClass}>
@@ -1824,14 +2211,15 @@ export function TakeQuizPage() {
                   <div className={practiceQuizQuestionMetaClass}>
                     <span className={practiceQuizQuestionNumberClass}>Question {currentIndex + 1} of {totalQuestions}</span>
                     <span className={quizReviewChipClass('neutral')}>{questionTypeLabel}</span>
-                    {currentQuestionRevealed ? <span className={quizReviewChipClass('correct')}>Explanation shown</span> : null}
+	                    {practiceAnswerVisible ? <span className={quizReviewChipClass('correct')}>Explanation shown</span> : null}
+	                    {practiceRevealLoading ? <span className={quizReviewChipClass('neutral')}>Loading answer</span> : null}
                   </div>
                   <span className={quizReviewChipClass(currentQuestionAnswered ? 'neutral' : 'unanswered')}>
                     {currentQuestionAnswered ? 'Answered' : 'Unanswered'}
                   </span>
                 </div>
                 <p className="sr-only" aria-live="polite">
-                  Question {currentIndex + 1} of {totalQuestions}. {currentQuestionAnswered ? 'Answered.' : 'Not answered.'} {currentQuestionRevealed ? 'Explanation is shown.' : ''}
+	                  Question {currentIndex + 1} of {totalQuestions}. {currentQuestionAnswered ? 'Answered.' : 'Not answered.'} {practiceAnswerVisible ? 'Explanation is shown.' : ''}
                 </p>
 
                 <div className={practiceQuizOptionsGridClass}>
@@ -1839,8 +2227,8 @@ export function TakeQuizPage() {
                     currentQuestion.options.map((option, optionIndex) => {
                       const isSelected = Number(answers[currentQuestion.id]) === option.id;
                       const isCorrect = isCorrectOption(option);
-                      const isWrong = currentQuestionRevealed && isSelected && !isCorrect;
-                      const optionTone = currentQuestionRevealed && isCorrect
+	                      const isWrong = practiceAnswerVisible && isSelected && !isCorrect;
+	                      const optionTone = practiceAnswerVisible && isCorrect
                         ? 'correct'
                         : isWrong
                           ? 'wrong'
@@ -1875,7 +2263,7 @@ export function TakeQuizPage() {
                               <span className={quizReviewOptionIconClass(optionTone)} aria-hidden="true">{letterLabel}</span>
                               <MedicalText as="span" className={practiceQuizOptionTextClass} text={option.optionText} />
                             </span>
-                            {currentQuestionRevealed ? (
+	                            {practiceAnswerVisible ? (
                               <span className={practiceQuizOptionLabelsClass}>
                                 {isSelected ? (
                                   <span className={quizReviewChipClass(isCorrect ? 'correct' : 'wrong')}>
@@ -1902,7 +2290,7 @@ export function TakeQuizPage() {
                       const selectedLabel = hasSelectedValue ? (selectedValue === 1 ? 'True' : 'False') : 'Not answered';
                       const correctLabel = correctValue === 1 ? 'True' : 'False';
                       const letterLabel = getOptionDisplayLabel(option, optionIndex);
-                      const answerTone = currentQuestionRevealed
+	                      const answerTone = practiceAnswerVisible
                         ? !hasSelectedValue
                           ? 'unanswered'
                           : selectedCorrect
@@ -1930,7 +2318,7 @@ export function TakeQuizPage() {
                               </span>
                               <MedicalText as="span" className={practiceQuizOptionTextClass} text={option.optionText} />
                             </div>
-                            {currentQuestionRevealed ? (
+	                            {practiceAnswerVisible ? (
                               <span className={practiceQuizOptionLabelsClass}>
                                 <span className={quizReviewChipClass(selectedCorrect ? 'correct' : hasSelectedValue ? 'wrong' : 'unanswered')}>
                                   Your Answer: {selectedLabel}
@@ -1945,9 +2333,9 @@ export function TakeQuizPage() {
                             <button
                               className={cx(
                                 practiceQuizTfToggleClass,
-                                !currentQuestionRevealed && selectedValue === 1 && practiceQuizTfTrueActiveClass,
-                                currentQuestionRevealed && correctValue === 1 && practiceQuizTfChoiceCorrectClass,
-                                currentQuestionRevealed && selectedValue === 1 && correctValue !== 1 && practiceQuizTfChoiceWrongClass
+	                                !practiceAnswerVisible && selectedValue === 1 && practiceQuizTfTrueActiveClass,
+	                                practiceAnswerVisible && correctValue === 1 && practiceQuizTfChoiceCorrectClass,
+	                                practiceAnswerVisible && selectedValue === 1 && correctValue !== 1 && practiceQuizTfChoiceWrongClass
                               )}
                               type="button"
                               aria-pressed={selectedValue === 1}
@@ -1959,9 +2347,9 @@ export function TakeQuizPage() {
                             <button
                               className={cx(
                                 practiceQuizTfToggleClass,
-                                !currentQuestionRevealed && selectedValue === 0 && practiceQuizTfFalseActiveClass,
-                                currentQuestionRevealed && correctValue === 0 && practiceQuizTfChoiceCorrectClass,
-                                currentQuestionRevealed && selectedValue === 0 && correctValue !== 0 && practiceQuizTfChoiceWrongClass
+	                                !practiceAnswerVisible && selectedValue === 0 && practiceQuizTfFalseActiveClass,
+	                                practiceAnswerVisible && correctValue === 0 && practiceQuizTfChoiceCorrectClass,
+	                                practiceAnswerVisible && selectedValue === 0 && correctValue !== 0 && practiceQuizTfChoiceWrongClass
                               )}
                               type="button"
                               aria-pressed={selectedValue === 0}
@@ -1979,13 +2367,13 @@ export function TakeQuizPage() {
 
                 <PracticeInlineLearningSupport
                   currentQuestion={currentQuestion}
-                  currentQuestionRevealed={currentQuestionRevealed}
+	                  currentQuestionRevealed={practiceAnswerVisible}
                   showStudySupport={false}
                 />
 
                 <PracticeStudySupport
                   currentQuestion={currentQuestion}
-                  revealed={currentQuestionRevealed}
+	                  revealed={practiceAnswerVisible}
                   className="max-[1180px]:grid min-[1181px]:hidden"
                 />
 
@@ -2006,12 +2394,12 @@ export function TakeQuizPage() {
                     <div className={quizActionReviewGroupClass}>
                       <button
                         className={reviewSecondaryButtonClass}
-                        type="button"
-                        onClick={revealCurrentAnswer}
-                        disabled={currentQuestionRevealed || !currentQuestionCanReveal}
-                      >
-                        {currentQuestionRevealed ? 'Shown' : currentQuestionCanReveal ? 'Show answer' : 'Review'}
-                      </button>
+	                        type="button"
+	                        onClick={revealCurrentAnswer}
+	                        disabled={questionActionBusy || practiceRevealLoading || currentQuestionRevealed || !currentQuestionCanReveal}
+	                      >
+	                        {questionActionBusy || practiceRevealLoading ? 'Loading...' : currentQuestionRevealed ? 'Shown' : currentQuestionCanReveal ? 'Show answer' : 'Review'}
+	                      </button>
                     </div>
 
                     <div className={quizActionPrimaryGroupClass}>
@@ -2051,7 +2439,7 @@ export function TakeQuizPage() {
             <aside className={practiceQuizAsideClass}>
               <PracticeStudySupport
                 currentQuestion={currentQuestion}
-                revealed={currentQuestionRevealed}
+	                revealed={practiceAnswerVisible}
               />
             </aside>
           </section>

@@ -313,6 +313,18 @@ class SecurityE2eDb {
       return [[] as T, []];
     }
 
+    if (normalized.includes('DELETE FROM practice_answers WHERE practice_session_id = ?')) {
+      return [{ affectedRows: 1 } as T, []];
+    }
+
+    if (normalized.includes('INSERT INTO practice_answers')) {
+      return [{ insertId: 1, affectedRows: 1 } as T, []];
+    }
+
+    if (normalized.includes('UPDATE practice_sessions') && normalized.includes('revealed_question_ids_json')) {
+      return [{ affectedRows: 1 } as T, []];
+    }
+
     if (normalized.includes('FROM exam_sessions') && normalized.includes('WHERE user_id = ? AND quiz_id = ?')) {
       return [[] as T, []];
     }
@@ -1279,6 +1291,80 @@ async function testStudentLearningOwnershipAndEntitlementRoutes() {
   const practiceSessionInsertCall = db.findCall(/INSERT INTO practice_sessions/i);
   assert(practiceSessionInsertCall, 'practice quiz load must create a session when none exists');
   assert.deepEqual(practiceSessionInsertCall.params, [100, 501]);
+  const practiceQuestion = practiceLoadResponse.body?.questions?.[0];
+  assert(practiceQuestion, 'practice load must return a question');
+  assert.equal(practiceQuestion.answerKey, undefined, 'practice load must not include answerKey before reveal');
+  assert.equal(practiceQuestion.explanation, undefined, 'practice load must not include explanation before reveal');
+  assert.equal(practiceQuestion.theoryRecap, undefined, 'practice load must not include theory recap before reveal');
+  assert.equal(practiceQuestion.options?.[0]?.isCorrect, undefined, 'practice load must not include option correctness before reveal');
+  assert.equal(practiceQuestion.options?.[0]?.whyIncorrect, undefined, 'practice load must not include whyIncorrect before reveal');
+  assert.equal(practiceQuestion.canRevealAnswer, true);
+
+  db.reset();
+  const anonymousRevealResponse = await request(app.getHttpServer())
+    .get('/api/quiz-attempts/practice/501/answer/701/reveal');
+  assert.equal(anonymousRevealResponse.status, 401);
+  assert(!JSON.stringify(anonymousRevealResponse.body).includes('Correct'), 'anonymous reveal must not leak answer content');
+  assert(!db.findCall(/FROM questions q/i), 'anonymous reveal must not load question content');
+
+  db.reset();
+  const anonymousDraftResponse = await request(app.getHttpServer())
+    .post('/api/quiz-attempts/practice/501/draft')
+    .send({ answers: { 701: 801 }, currentQuestionIndex: 0, revealedQuestionIds: [701] });
+  assert.equal(anonymousDraftResponse.status, 401);
+  assert(!db.findCall(/practice_sessions/i), 'anonymous practice draft must not touch practice sessions');
+
+  db.reset();
+  const practicePrewarmResponse = await request(app.getHttpServer())
+    .post('/api/quiz-attempts/practice/501/answer/701/prewarm')
+    .set('Authorization', auth(TOKENS.studentA));
+  assert.equal(practicePrewarmResponse.status, 201);
+  assert.equal(practicePrewarmResponse.body?.success, true);
+  assert(db.findCall(/FROM questions q/i), 'prewarm must load the authorized question server-side');
+
+  db.reset();
+  const practiceRevealResponse = await request(app.getHttpServer())
+    .get('/api/quiz-attempts/practice/501/answer/701/reveal')
+    .set('Authorization', auth(TOKENS.studentA));
+  assert.equal(practiceRevealResponse.status, 200);
+  assert(practiceRevealResponse.body?.question?.answerKey, 'authorized reveal must return answerKey for one question');
+  assert.equal(practiceRevealResponse.body?.question?.options?.[0]?.isCorrect, 1);
+  assert(!db.findCall(/FROM questions q/i), 'reveal should use the prewarmed server-side cache when available');
+
+  db.reset();
+  const spoofedPracticeDraftResponse = await request(app.getHttpServer())
+    .post('/api/quiz-attempts/practice/501/draft')
+    .set('Authorization', auth(TOKENS.studentA))
+    .send({ answers: { 701: 801 }, currentQuestionIndex: 9, revealedQuestionIds: [701, 999], userId: 200 });
+  assert.equal(spoofedPracticeDraftResponse.status, 400);
+  assert(!db.findCall(/UPDATE practice_sessions SET status = \?/i), 'practice draft with spoofed userId must be rejected before saving');
+
+  db.reset();
+  const practiceDraftResponse = await request(app.getHttpServer())
+    .post('/api/quiz-attempts/practice/501/draft')
+    .set('Authorization', auth(TOKENS.studentA))
+    .send({ answers: { 701: 801 }, currentQuestionIndex: 9, revealedQuestionIds: [701, 999] });
+  assert.equal(practiceDraftResponse.status, 201);
+  assert.equal(practiceDraftResponse.body?.status, 'in_progress');
+  assert.deepEqual(practiceDraftResponse.body?.revealedQuestionIds, [701]);
+  const practiceDraftUpdateCall = db.findCall(/UPDATE practice_sessions SET status = \?/i);
+  assert(practiceDraftUpdateCall, 'practice draft must update the authenticated practice session');
+  assert.equal(practiceDraftUpdateCall.params[0], 'in_progress');
+  assert.equal(practiceDraftUpdateCall.params[1], 0);
+  assert.equal(practiceDraftUpdateCall.params[2], '[701]');
+  assert.equal(practiceDraftUpdateCall.params[4], 100);
+  assert.equal(practiceDraftUpdateCall.params[5], 501);
+
+  db.reset();
+  const practiceFinishResponse = await request(app.getHttpServer())
+    .post('/api/quiz-attempts/practice/501/finish')
+    .set('Authorization', auth(TOKENS.studentA))
+    .send({ answers: { 701: 801 }, currentQuestionIndex: 0, revealedQuestionIds: [701] });
+  assert.equal(practiceFinishResponse.status, 201);
+  assert.equal(practiceFinishResponse.body?.status, 'completed');
+  const practiceFinishUpdateCall = db.findCall(/UPDATE practice_sessions SET status = \?/i);
+  assert(practiceFinishUpdateCall, 'practice finish must update the authenticated practice session');
+  assert.equal(practiceFinishUpdateCall.params[0], 'completed');
 
   db.reset();
   const practiceSaveResponse = await request(app.getHttpServer())

@@ -2,6 +2,7 @@ import { Pool } from 'mysql2/promise';
 import { PlansService } from '../plans/plans.service';
 import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
 import { SavePracticeDto } from './dto/save-practice.dto';
+import { SavePracticeProgressDto } from './dto/save-practice-progress.dto';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 type TheoryRecapData = {
     conceptName: string;
@@ -24,6 +25,7 @@ export declare class QuizAttemptsService {
     private readonly plansService;
     private readonly activeQuizCache;
     private readonly quizQuestionCache;
+    private readonly practiceRevealCache;
     constructor(db: Pool, plansService: PlansService);
     listQuizzes(authorization?: string): Promise<{
         id: number;
@@ -106,7 +108,7 @@ export declare class QuizAttemptsService {
         };
         examSession: {
             id: number;
-            status: "in_progress" | "submitted" | "expired";
+            status: "expired" | "in_progress" | "submitted";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;
@@ -158,12 +160,55 @@ export declare class QuizAttemptsService {
             id: number;
             lastQuestionIndex: number;
             showContinuePopup: boolean;
+            revealedQuestionIds: number[];
         };
         questions: {
             savedAnswer: {
                 selectedIds: number[];
                 tfMap: Record<number, number>;
             };
+            id: number;
+            questionType: "sba" | "true_false";
+            questionText: string;
+            contentTrace: {
+                source: string;
+                sourceId: number;
+                version: number;
+                versionLabel: string;
+                versionedAt: string | Date | null;
+            };
+            options: {
+                id: number;
+                optionLabel: string;
+                optionText: string;
+            }[];
+            canRevealAnswer: boolean;
+        }[];
+        examSession?: undefined;
+    }>;
+    savePractice(authorization: string | undefined, quizId: number, dto: SavePracticeDto): Promise<{
+        success: boolean;
+    }>;
+    savePracticeDraft(authorization: string | undefined, quizId: number, dto: SavePracticeProgressDto): Promise<{
+        success: boolean;
+        sessionId: number;
+        status: "in_progress" | "completed";
+        lastQuestionIndex: number;
+        revealedQuestionIds: number[];
+    }>;
+    finishPractice(authorization: string | undefined, quizId: number, dto: SavePracticeProgressDto): Promise<{
+        success: boolean;
+        sessionId: number;
+        status: "in_progress" | "completed";
+        lastQuestionIndex: number;
+        revealedQuestionIds: number[];
+    }>;
+    prewarmPracticeAnswer(authorization: string | undefined, quizId: number, questionId: number): Promise<{
+        success: boolean;
+    }>;
+    revealPracticeAnswer(authorization: string | undefined, quizId: number, questionId: number): Promise<{
+        question: Record<string, unknown> | {
+            canRevealAnswer: boolean;
             id: number;
             questionType: "sba" | "true_false";
             questionText: string;
@@ -201,12 +246,9 @@ export declare class QuizAttemptsService {
                 statements?: undefined;
             };
             theoryRecap: TheoryRecapData | null;
-        }[];
-        examSession?: undefined;
+        };
     }>;
-    savePractice(authorization: string | undefined, quizId: number, dto: SavePracticeDto): Promise<{
-        success: boolean;
-    }>;
+    private savePracticeProgress;
     saveExamProgress(authorization: string | undefined, quizId: number, dto: SaveExamProgressDto): Promise<{
         success: boolean;
         submitted: boolean;
@@ -405,17 +447,21 @@ export declare class QuizAttemptsService {
     private loadActiveQuiz;
     private loadQuestionsForQuiz;
     private loadQuestionForPracticeSave;
+    private loadPracticeRevealPayload;
     private mapOptionsByQuestionId;
     private loadQuestionContentVersions;
     private withQuestionTrace;
     private parseJsonArray;
+    private parseNumberJsonArray;
     private parseAnswerJson;
     private parseDate;
     private toIsoDate;
     private normalizeQuestionIndex;
     private normalizeQuestionIdList;
     private normalizeSubmittedAnswers;
+    private replacePracticeAnswers;
     private ensurePracticeSession;
+    private getOrCreatePracticeSessionForWrite;
     private ensureExamSession;
     private getExamSessionById;
     private getLatestExamSession;
@@ -434,6 +480,8 @@ export declare class QuizAttemptsService {
     private saveExamQuestionAnswers;
     private mapQuizForStudent;
     private mapQuestion;
+    private mapQuestionForPracticeAttempt;
+    private mapPracticeRevealQuestion;
     private buildAnswerKey;
     private mapQuestionForActiveAttempt;
     private mapReviewQuestion;

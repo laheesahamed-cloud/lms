@@ -1,4 +1,4 @@
-import { isRouteErrorResponse, Link, useRouteError } from 'react-router-dom';
+import { isRouteErrorResponse, Link, useLocation, useNavigate, useRouteError } from 'react-router-dom';
 
 const routeErrorUi = {
   screenShell:
@@ -13,6 +13,8 @@ const routeErrorUi = {
 
 export function AppRouteError() {
   const error = useRouteError();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const title = isRouteErrorResponse(error)
     ? `${error.status} ${error.statusText || 'Route error'}`
@@ -31,8 +33,12 @@ export function AppRouteError() {
         <h1 className="m-0 font-display text-[36px] max-[640px]:text-[28px] font-extrabold leading-tight text-ink-strong">{title}</h1>
         <p className="m-0 text-[15px] leading-relaxed text-ink-soft">{message}</p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <button className={routeErrorUi.primaryAction} type="button" onClick={() => window.location.reload()}>
-            Reload page
+          <button
+            className={routeErrorUi.primaryAction}
+            type="button"
+            onClick={() => navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true })}
+          >
+            Retry screen
           </button>
           <Link className={routeErrorUi.secondaryAction} to="/auth/login">
             Back to login

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   fetchStudentCourseDetail,
   updateStudentLessonProgress,
@@ -395,18 +395,49 @@ function CourseResourcesPanel({ resources }) {
   );
 }
 
-export function CourseDetailPage() {
+export function CourseDetailPage({
+  courseId: courseIdProp,
+  initialData = null,
+  onBack,
+  onDataChange,
+}) {
   const navigate = useNavigate();
-  const { courseId } = useParams();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const params = useParams();
+  const courseId = courseIdProp ?? params.courseId;
+  const coursesPath = location.pathname.startsWith('/app') ? '/app/courses' : '/courses';
+  const [data, setData] = useState(() => initialData || null);
+  const [loading, setLoading] = useState(() => !initialData);
   const [error, setError] = useState('');
   const [busyLessonId, setBusyLessonId] = useState(null);
+
+  const handleBackToCourses = useCallback(() => {
+    if (typeof onBack === 'function') {
+      onBack();
+      return;
+    }
+
+    navigate(coursesPath);
+  }, [coursesPath, navigate, onBack]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      if (!courseId) {
+        setData(null);
+        setLoading(false);
+        return;
+      }
+
+      if (initialData) {
+        setData(initialData);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError('');
       try {
         const response = await fetchStudentCourseDetail(courseId);
 
@@ -423,7 +454,13 @@ export function CourseDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [courseId]);
+  }, [courseId, initialData]);
+
+  useEffect(() => {
+    if (courseId && data) {
+      onDataChange?.(courseId, data);
+    }
+  }, [courseId, data, onDataChange]);
 
   const course = data?.course || null;
   const subjects = data?.subjects || [];
@@ -546,9 +583,10 @@ export function CourseDetailPage() {
         navigate('/subscriptions', {
           state: {
             lockedFeature: 'lessonsAccess',
-            from: `/courses/${courseId}`,
+            from: coursesPath,
             accessScope: 'lessons',
             lessonIds: [lesson.id],
+            selectedCourseId: Number(courseId),
             customSelectionNote: `Selected lesson: ${lesson.lessonTitle}`,
           },
         });
@@ -574,7 +612,8 @@ export function CourseDetailPage() {
 
       navigate(`/ai-notes/${matchingNote.id}?view=study`, {
         state: {
-          returnToPath: `/courses/${courseId}`,
+          returnToPath: coursesPath,
+          returnState: { selectedCourseId: Number(courseId) },
           returnLabel: course?.courseTitle || 'Course',
           courseId: Number(courseId),
           sourceCourse: course?.courseTitle || null,
@@ -615,7 +654,7 @@ export function CourseDetailPage() {
         <section className="study-hub-shell course-detail-shell">
           <AppHeader title="Course" subtitle="Lesson Map" />
           <div className="course-map-page-actions">
-            <button type="button" className={ui.secondaryAction} onClick={() => navigate('/courses')}>
+            <button type="button" className={ui.secondaryAction} onClick={handleBackToCourses}>
               Back to Courses
             </button>
           </div>
@@ -650,7 +689,7 @@ export function CourseDetailPage() {
           </div>
 
           <div className="course-map-overview__actions">
-            <button type="button" className={ui.secondaryAction} onClick={() => navigate('/courses')}>
+            <button type="button" className={ui.secondaryAction} onClick={handleBackToCourses}>
               Back to Courses
             </button>
             {continueTarget ? (

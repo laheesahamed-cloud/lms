@@ -1,0 +1,1179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>xyndrome Dark Mode Theme Mockups</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page-bg: #0b0d11;
+      --page-surface: #11151b;
+      --page-line: rgba(220, 228, 238, 0.12);
+      --page-text: #f3f7fb;
+      --page-muted: #9ca8b8;
+      --radius: 8px;
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--page-bg);
+      color: var(--page-text);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        linear-gradient(180deg, #10141a 0%, #080a0e 100%);
+      color: var(--page-text);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .page {
+      width: min(1480px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 34px 0 56px;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #86efac;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+      overflow-wrap: break-word;
+    }
+
+    h1 {
+      max-width: 780px;
+      margin-bottom: 10px;
+      font-size: clamp(30px, 5vw, 56px);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 760px;
+      margin-bottom: 0;
+      color: var(--page-muted);
+      font-size: 16px;
+    }
+
+    .scan-notes {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--page-line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .scan-note {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 10px;
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+
+    .scan-dot {
+      width: 8px;
+      height: 8px;
+      margin-top: 8px;
+      border-radius: 999px;
+      background: #67e8f9;
+      box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.12);
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+    }
+
+    .theme-card {
+      --bg: #101417;
+      --sidebar: #0c1012;
+      --surface: #171d22;
+      --surface-2: #20282e;
+      --surface-3: #273139;
+      --line: rgba(193, 211, 219, 0.16);
+      --line-strong: rgba(193, 211, 219, 0.28);
+      --text: #f0f7f7;
+      --muted: #a8bac0;
+      --faint: #6f838a;
+      --accent: #38d1c2;
+      --accent-2: #7dd3fc;
+      --accent-3: #a7f3d0;
+      --success: #74d88b;
+      --warning: #f4c061;
+      --danger: #ff8f8f;
+      --button-text: #061010;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
+    }
+
+    .theme-card:hover {
+      border-color: var(--line-strong);
+      transform: translateY(-1px);
+      transition: transform 180ms var(--ease-out), border-color 180ms var(--ease-out);
+    }
+
+    .theme--graphite {
+      --bg: #101417;
+      --sidebar: #0c1012;
+      --surface: #171d22;
+      --surface-2: #20282e;
+      --surface-3: #273139;
+      --line: rgba(193, 211, 219, 0.16);
+      --line-strong: rgba(193, 211, 219, 0.30);
+      --text: #f0f7f7;
+      --muted: #a8bac0;
+      --faint: #70858b;
+      --accent: #38d1c2;
+      --accent-2: #7dd3fc;
+      --accent-3: #a7f3d0;
+      --success: #74d88b;
+      --warning: #f4c061;
+      --danger: #ff8f8f;
+      --button-text: #061010;
+    }
+
+    .theme--ink {
+      --bg: #050607;
+      --sidebar: #000000;
+      --surface: #0d1014;
+      --surface-2: #151a20;
+      --surface-3: #202833;
+      --line: rgba(219, 228, 240, 0.13);
+      --line-strong: rgba(143, 181, 255, 0.34);
+      --text: #f6f8fb;
+      --muted: #aab4c1;
+      --faint: #778391;
+      --accent: #8fb5ff;
+      --accent-2: #67e8f9;
+      --accent-3: #f3c969;
+      --success: #82d39b;
+      --warning: #f3c969;
+      --danger: #ee8585;
+      --button-text: #050607;
+    }
+
+    .theme--evergreen {
+      --bg: #08110f;
+      --sidebar: #050c0a;
+      --surface: #111c18;
+      --surface-2: #1a2721;
+      --surface-3: #24352d;
+      --line: rgba(190, 225, 206, 0.15);
+      --line-strong: rgba(74, 222, 128, 0.30);
+      --text: #eef8f0;
+      --muted: #adc4b6;
+      --faint: #788f80;
+      --accent: #4ade80;
+      --accent-2: #2dd4bf;
+      --accent-3: #bfdbfe;
+      --success: #86efac;
+      --warning: #facc15;
+      --danger: #fb7185;
+      --button-text: #03100a;
+    }
+
+    .theme--plum {
+      --bg: #151118;
+      --sidebar: #0f0b12;
+      --surface: #1e1922;
+      --surface-2: #29222f;
+      --surface-3: #352d3c;
+      --line: rgba(230, 209, 255, 0.14);
+      --line-strong: rgba(240, 171, 252, 0.30);
+      --text: #faf5ff;
+      --muted: #c9b7d5;
+      --faint: #927fa0;
+      --accent: #f0abfc;
+      --accent-2: #67e8f9;
+      --accent-3: #fda4af;
+      --success: #86efac;
+      --warning: #fde68a;
+      --danger: #fda4af;
+      --button-text: #170719;
+    }
+
+    .theme-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(120deg, color-mix(in srgb, var(--accent) 11%, var(--surface)), var(--surface));
+    }
+
+    .theme-index {
+      margin: 0 0 4px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .theme-head h2 {
+      margin-bottom: 4px;
+      color: var(--text);
+      font-size: 21px;
+      line-height: 1.15;
+    }
+
+    .theme-head p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .theme-badge {
+      align-self: start;
+      padding: 7px 10px;
+      border: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .screen {
+      display: grid;
+      grid-template-columns: 94px minmax(0, 1fr);
+      min-height: 500px;
+      background: var(--bg);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 18px 14px;
+      border-right: 1px solid var(--line);
+      background: var(--sidebar);
+    }
+
+    .logo {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .logo-mark {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: var(--button-text);
+      box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 24%, transparent);
+    }
+
+    .logo-mark svg,
+    .nav-item svg,
+    .icon-button svg,
+    .mini-icon svg,
+    .action svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .brand {
+      display: grid;
+      min-width: 0;
+    }
+
+    .brand strong {
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .brand span {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 9px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .nav-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav-item {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      color: var(--muted);
+    }
+
+    .nav-item.is-active {
+      border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      color: var(--accent);
+    }
+
+    .sidebar-spacer {
+      flex: 1;
+    }
+
+    .avatar-mini {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .workspace {
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title-stack {
+      min-width: 0;
+    }
+
+    .title-stack h3 {
+      margin-bottom: 2px;
+      color: var(--text);
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .title-stack span {
+      display: block;
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .search {
+      display: flex;
+      align-items: center;
+      width: 130px;
+      height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--faint);
+      font-size: 12px;
+    }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 118px;
+      gap: 18px;
+      align-items: center;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background:
+        linear-gradient(140deg, color-mix(in srgb, var(--accent) 15%, var(--surface)) 0%, var(--surface) 58%, color-mix(in srgb, var(--accent-2) 10%, var(--surface)) 100%);
+    }
+
+    .hero-label {
+      margin-bottom: 5px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero h3 {
+      margin-bottom: 8px;
+      color: var(--text);
+      font-size: 25px;
+      line-height: 1.1;
+    }
+
+    .hero p {
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: var(--button-text);
+      font-size: 13px;
+      font-weight: 900;
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
+    .action:active {
+      transform: scale(0.98);
+    }
+
+    .hero-visual {
+      display: grid;
+      place-items: center;
+      width: 110px;
+      height: 110px;
+      border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+      border-radius: 10px;
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--accent) 18%, var(--surface-2)), var(--surface-2));
+      color: var(--accent);
+    }
+
+    .hero-visual svg {
+      width: 58px;
+      height: 58px;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat-card,
+    .panel,
+    .quiz-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .stat-card {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      align-items: center;
+      min-height: 78px;
+      padding: 12px;
+    }
+
+    .mini-icon {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--accent) 13%, transparent);
+      color: var(--accent);
+    }
+
+    .stat-card span {
+      display: block;
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .stat-card strong {
+      display: block;
+      color: var(--text);
+      font-size: 22px;
+      line-height: 1.1;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 12px;
+    }
+
+    .panel,
+    .quiz-panel {
+      padding: 14px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .panel h3,
+    .quiz-panel h3 {
+      margin-bottom: 3px;
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .panel p,
+    .quiz-panel p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 10px;
+      border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .course-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .course-row {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+
+    .course-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .course-meta span:last-child {
+      color: var(--success);
+    }
+
+    .track {
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--text) 12%, transparent);
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+
+    .answer-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .answer {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 9px;
+      align-items: center;
+      min-height: 43px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .answer-letter {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--surface-3);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .answer.is-selected {
+      border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+      background: color-mix(in srgb, var(--accent) 13%, var(--surface-2));
+    }
+
+    .answer.is-selected .answer-letter {
+      background: var(--accent);
+      color: var(--button-text);
+    }
+
+    .token-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding: 14px 18px 18px;
+      border-top: 1px solid var(--line);
+      background: color-mix(in srgb, var(--bg) 76%, #000);
+    }
+
+    .token {
+      min-width: 0;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .swatch {
+      display: block;
+      width: 100%;
+      height: 24px;
+      margin-bottom: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      border-radius: 5px;
+      background: var(--swatch);
+    }
+
+    .token span:last-child {
+      display: block;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .recommendations {
+      margin-top: 24px;
+      padding: 20px;
+      border: 1px solid var(--page-line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .recommendations h2 {
+      margin-bottom: 12px;
+      font-size: 20px;
+    }
+
+    .rec-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .rec {
+      padding: 12px;
+      border: 1px solid var(--page-line);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.20);
+    }
+
+    .rec strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #f8fafc;
+    }
+
+    .rec span {
+      color: var(--page-muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1180px) {
+      .intro,
+      .theme-grid,
+      .rec-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: calc(100% - 24px);
+        padding-top: 22px;
+      }
+
+      .intro,
+      .theme-grid,
+      .rec-grid,
+      .scan-notes,
+      .theme-card,
+      .theme-head,
+      .screen,
+      .workspace,
+      .panel,
+      .quiz-panel,
+      .answer,
+      .course-row {
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .lead,
+      .scan-note span,
+      .theme-head p,
+      .hero p,
+      .panel p,
+      .quiz-panel p,
+      .course-meta span,
+      .answer span:last-child {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .screen {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        flex-direction: row;
+        align-items: center;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .nav-stack {
+        grid-auto-flow: column;
+        grid-auto-columns: 42px;
+        overflow-x: auto;
+      }
+
+      .sidebar-spacer,
+      .brand {
+        display: none;
+      }
+
+      .hero,
+      .content-grid,
+      .stat-row,
+      .token-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-visual,
+      .search {
+        display: none;
+      }
+
+      .theme-head {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Dark mode scan</p>
+        <h1 id="page-title">Four dark theme directions for xyndrome.</h1>
+        <p class="lead">I scanned the current React/Vite LMS tokens and dark screenshots. The current mode is readable, but the background, cards, quiz panels, and sidebar are too close in value, so the whole product feels like one dense navy sheet.</p>
+      </div>
+      <div class="scan-notes" aria-label="Scan notes">
+        <div class="scan-note"><span class="scan-dot"></span><span>Use clearer surface steps: page, sidebar, card, input, selected state.</span></div>
+        <div class="scan-note"><span class="scan-dot"></span><span>Keep accents medical and useful, not decorative glow.</span></div>
+        <div class="scan-note"><span class="scan-dot"></span><span>Make quiz answer states and progress bars pop without screaming.</span></div>
+        <div class="scan-note"><span class="scan-dot"></span><span>Preserve the current token model so implementation stays contained.</span></div>
+      </div>
+    </section>
+
+    <section class="theme-grid" aria-label="Dark theme mockups">
+      <article class="theme-card theme--graphite">
+        <header class="theme-head">
+          <div>
+            <p class="theme-index">Option 1</p>
+            <h2>Clinical Graphite</h2>
+            <p>Best all-rounder: neutral charcoal, teal clinical accents, softer contrast for long study sessions.</p>
+          </div>
+          <span class="theme-badge">Recommended</span>
+        </header>
+        <div class="screen">
+          <aside class="sidebar" aria-label="Mock sidebar">
+            <div class="logo">
+              <div class="logo-mark">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/><path d="M8 4h8M8 20h8"/></svg>
+              </div>
+              <div class="brand"><strong>xyndrome</strong><span>Student Portal</span></div>
+            </div>
+            <div class="nav-stack">
+              <div class="nav-item is-active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V6.5A2.5 2.5 0 0 1 6.5 4H20v16H6.5A2.5 2.5 0 0 1 4 17.5"/><path d="M8 7h8"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M8 19V9"/><path d="M12 19V13"/><path d="M16 19V7"/><path d="M20 19V11"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>
+            </div>
+            <div class="sidebar-spacer"></div>
+            <div class="avatar-mini">LA</div>
+          </aside>
+          <section class="workspace" aria-label="Mock LMS workspace">
+            <div class="topbar">
+              <div class="title-stack"><h3>Study Hub</h3><span>Daily focus</span></div>
+              <div class="top-actions"><div class="search">Search lessons</div><div class="icon-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M10 21h4"/></svg></div></div>
+            </div>
+            <div class="hero">
+              <div>
+                <div class="hero-label">Next study move</div>
+                <h3>Practice in progress</h3>
+                <p>Review mistakes before starting a new set. Rheumatology is 18 percent ready.</p>
+                <button class="action"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Resume practice</button>
+              </div>
+              <div class="hero-visual"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8v48"/><path d="M18 16c14 8 22 24 28 40"/><path d="M46 16c-14 8-22 24-28 40"/><path d="M20 24h24M18 36h28M20 48h24"/></svg></div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></span><div><span>Courses</span><strong>4</strong></div></div>
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><circle cx="12" cy="12" r="3"/></svg></span><div><span>Readiness</span><strong>18%</strong></div></div>
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-6"/></svg></span><div><span>Score</span><strong>88</strong></div></div>
+            </div>
+            <div class="content-grid">
+              <div class="panel">
+                <div class="panel-head"><div><h3>Course progress</h3><p>2 of 10 lessons completed</p></div><span class="pill">Courses</span></div>
+                <div class="course-list">
+                  <div class="course-row"><div class="course-meta"><span>Gynacology and Obstetrics</span><span>0%</span></div><div class="track"><div class="fill" style="width: 8%"></div></div></div>
+                  <div class="course-row"><div class="course-meta"><span>Paediatrics</span><span>12%</span></div><div class="track"><div class="fill" style="width: 12%"></div></div></div>
+                  <div class="course-row"><div class="course-meta"><span>Surgery</span><span>32%</span></div><div class="track"><div class="fill" style="width: 32%"></div></div></div>
+                </div>
+              </div>
+              <div class="quiz-panel">
+                <h3>Quiz preview</h3>
+                <p>Selected answers need stronger contrast than the current navy-on-navy treatment.</p>
+                <div class="answer-list">
+                  <div class="answer"><span class="answer-letter">A</span><span>GI infection may precipitate this disease</span></div>
+                  <div class="answer is-selected"><span class="answer-letter">B</span><span>Review answer with explanation</span></div>
+                  <div class="answer"><span class="answer-letter">C</span><span>ANA is likely positive</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="token-strip">
+          <div class="token"><span class="swatch" style="--swatch:#101417"></span><span>Page #101417</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#171d22"></span><span>Card #171d22</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#38d1c2"></span><span>Accent #38d1c2</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#f0f7f7"></span><span>Text #f0f7f7</span></div>
+        </div>
+      </article>
+
+      <article class="theme-card theme--ink">
+        <header class="theme-head">
+          <div>
+            <p class="theme-index">Option 2</p>
+            <h2>Ink and Ice</h2>
+            <p>High-contrast OLED direction with black page chrome, blue-cyan actions, and amber learning highlights.</p>
+          </div>
+          <span class="theme-badge">Sharpest</span>
+        </header>
+        <div class="screen">
+          <aside class="sidebar" aria-label="Mock sidebar">
+            <div class="logo">
+              <div class="logo-mark">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/><path d="M8 4h8M8 20h8"/></svg>
+              </div>
+              <div class="brand"><strong>xyndrome</strong><span>Student Portal</span></div>
+            </div>
+            <div class="nav-stack">
+              <div class="nav-item is-active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V6.5A2.5 2.5 0 0 1 6.5 4H20v16H6.5A2.5 2.5 0 0 1 4 17.5"/><path d="M8 7h8"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M8 19V9"/><path d="M12 19V13"/><path d="M16 19V7"/><path d="M20 19V11"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>
+            </div>
+            <div class="sidebar-spacer"></div>
+            <div class="avatar-mini">LA</div>
+          </aside>
+          <section class="workspace" aria-label="Mock LMS workspace">
+            <div class="topbar">
+              <div class="title-stack"><h3>Study Hub</h3><span>Daily focus</span></div>
+              <div class="top-actions"><div class="search">Search lessons</div><div class="icon-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M10 21h4"/></svg></div></div>
+            </div>
+            <div class="hero">
+              <div>
+                <div class="hero-label">Next study move</div>
+                <h3>Practice in progress</h3>
+                <p>Review mistakes before starting a new set. Rheumatology is 18 percent ready.</p>
+                <button class="action"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Resume practice</button>
+              </div>
+              <div class="hero-visual"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8v48"/><path d="M18 16c14 8 22 24 28 40"/><path d="M46 16c-14 8-22 24-28 40"/><path d="M20 24h24M18 36h28M20 48h24"/></svg></div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></span><div><span>Courses</span><strong>4</strong></div></div>
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><circle cx="12" cy="12" r="3"/></svg></span><div><span>Readiness</span><strong>18%</strong></div></div>
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-6"/></svg></span><div><span>Score</span><strong>88</strong></div></div>
+            </div>
+            <div class="content-grid">
+              <div class="panel">
+                <div class="panel-head"><div><h3>Course progress</h3><p>2 of 10 lessons completed</p></div><span class="pill">Courses</span></div>
+                <div class="course-list">
+                  <div class="course-row"><div class="course-meta"><span>Gynacology and Obstetrics</span><span>0%</span></div><div class="track"><div class="fill" style="width: 8%"></div></div></div>
+                  <div class="course-row"><div class="course-meta"><span>Paediatrics</span><span>12%</span></div><div class="track"><div class="fill" style="width: 12%"></div></div></div>
+                  <div class="course-row"><div class="course-meta"><span>Surgery</span><span>32%</span></div><div class="track"><div class="fill" style="width: 32%"></div></div></div>
+                </div>
+              </div>
+              <div class="quiz-panel">
+                <h3>Quiz preview</h3>
+                <p>Best if you want the app to feel faster and more technical.</p>
+                <div class="answer-list">
+                  <div class="answer"><span class="answer-letter">A</span><span>GI infection may precipitate this disease</span></div>
+                  <div class="answer is-selected"><span class="answer-letter">B</span><span>Review answer with explanation</span></div>
+                  <div class="answer"><span class="answer-letter">C</span><span>ANA is likely positive</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="token-strip">
+          <div class="token"><span class="swatch" style="--swatch:#050607"></span><span>Page #050607</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#0d1014"></span><span>Card #0d1014</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#8fb5ff"></span><span>Accent #8fb5ff</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#f6f8fb"></span><span>Text #f6f8fb</span></div>
+        </div>
+      </article>
+
+      <article class="theme-card theme--evergreen">
+        <header class="theme-head">
+          <div>
+            <p class="theme-index">Option 3</p>
+            <h2>Evergreen Study</h2>
+            <p>Calm medical mood with green-teal progress language and less blue-purple brand baggage.</p>
+          </div>
+          <span class="theme-badge">Calmest</span>
+        </header>
+        <div class="screen">
+          <aside class="sidebar" aria-label="Mock sidebar">
+            <div class="logo">
+              <div class="logo-mark">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/><path d="M8 4h8M8 20h8"/></svg>
+              </div>
+              <div class="brand"><strong>xyndrome</strong><span>Student Portal</span></div>
+            </div>
+            <div class="nav-stack">
+              <div class="nav-item is-active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V6.5A2.5 2.5 0 0 1 6.5 4H20v16H6.5A2.5 2.5 0 0 1 4 17.5"/><path d="M8 7h8"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M8 19V9"/><path d="M12 19V13"/><path d="M16 19V7"/><path d="M20 19V11"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>
+            </div>
+            <div class="sidebar-spacer"></div>
+            <div class="avatar-mini">LA</div>
+          </aside>
+          <section class="workspace" aria-label="Mock LMS workspace">
+            <div class="topbar">
+              <div class="title-stack"><h3>Study Hub</h3><span>Daily focus</span></div>
+              <div class="top-actions"><div class="search">Search lessons</div><div class="icon-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M10 21h4"/></svg></div></div>
+            </div>
+            <div class="hero">
+              <div>
+                <div class="hero-label">Next study move</div>
+                <h3>Practice in progress</h3>
+                <p>Review mistakes before starting a new set. Rheumatology is 18 percent ready.</p>
+                <button class="action"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Resume practice</button>
+              </div>
+              <div class="hero-visual"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8v48"/><path d="M18 16c14 8 22 24 28 40"/><path d="M46 16c-14 8-22 24-28 40"/><path d="M20 24h24M18 36h28M20 48h24"/></svg></div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></span><div><span>Courses</span><strong>4</strong></div></div>
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><circle cx="12" cy="12" r="3"/></svg></span><div><span>Readiness</span><strong>18%</strong></div></div>
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-6"/></svg></span><div><span>Score</span><strong>88</strong></div></div>
+            </div>
+            <div class="content-grid">
+              <div class="panel">
+                <div class="panel-head"><div><h3>Course progress</h3><p>2 of 10 lessons completed</p></div><span class="pill">Courses</span></div>
+                <div class="course-list">
+                  <div class="course-row"><div class="course-meta"><span>Gynacology and Obstetrics</span><span>0%</span></div><div class="track"><div class="fill" style="width: 8%"></div></div></div>
+                  <div class="course-row"><div class="course-meta"><span>Paediatrics</span><span>12%</span></div><div class="track"><div class="fill" style="width: 12%"></div></div></div>
+                  <div class="course-row"><div class="course-meta"><span>Surgery</span><span>32%</span></div><div class="track"><div class="fill" style="width: 32%"></div></div></div>
+                </div>
+              </div>
+              <div class="quiz-panel">
+                <h3>Quiz preview</h3>
+                <p>Good for a medical product that should feel calmer and more organic.</p>
+                <div class="answer-list">
+                  <div class="answer"><span class="answer-letter">A</span><span>GI infection may precipitate this disease</span></div>
+                  <div class="answer is-selected"><span class="answer-letter">B</span><span>Review answer with explanation</span></div>
+                  <div class="answer"><span class="answer-letter">C</span><span>ANA is likely positive</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="token-strip">
+          <div class="token"><span class="swatch" style="--swatch:#08110f"></span><span>Page #08110f</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#111c18"></span><span>Card #111c18</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#4ade80"></span><span>Accent #4ade80</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#eef8f0"></span><span>Text #eef8f0</span></div>
+        </div>
+      </article>
+
+      <article class="theme-card theme--plum">
+        <header class="theme-head">
+          <div>
+            <p class="theme-index">Option 4</p>
+            <h2>Plum Signal</h2>
+            <p>More expressive and premium: warm plum surfaces with cyan contrast so it does not collapse into purple fog.</p>
+          </div>
+          <span class="theme-badge">Boldest</span>
+        </header>
+        <div class="screen">
+          <aside class="sidebar" aria-label="Mock sidebar">
+            <div class="logo">
+              <div class="logo-mark">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/><path d="M8 4h8M8 20h8"/></svg>
+              </div>
+              <div class="brand"><strong>xyndrome</strong><span>Student Portal</span></div>
+            </div>
+            <div class="nav-stack">
+              <div class="nav-item is-active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V6.5A2.5 2.5 0 0 1 6.5 4H20v16H6.5A2.5 2.5 0 0 1 4 17.5"/><path d="M8 7h8"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M8 19V9"/><path d="M12 19V13"/><path d="M16 19V7"/><path d="M20 19V11"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg></div>
+              <div class="nav-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>
+            </div>
+            <div class="sidebar-spacer"></div>
+            <div class="avatar-mini">LA</div>
+          </aside>
+          <section class="workspace" aria-label="Mock LMS workspace">
+            <div class="topbar">
+              <div class="title-stack"><h3>Study Hub</h3><span>Daily focus</span></div>
+              <div class="top-actions"><div class="search">Search lessons</div><div class="icon-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M10 21h4"/></svg></div></div>
+            </div>
+            <div class="hero">
+              <div>
+                <div class="hero-label">Next study move</div>
+                <h3>Practice in progress</h3>
+                <p>Review mistakes before starting a new set. Rheumatology is 18 percent ready.</p>
+                <button class="action"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Resume practice</button>
+              </div>
+              <div class="hero-visual"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8v48"/><path d="M18 16c14 8 22 24 28 40"/><path d="M46 16c-14 8-22 24-28 40"/><path d="M20 24h24M18 36h28M20 48h24"/></svg></div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg></span><div><span>Courses</span><strong>4</strong></div></div>
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><circle cx="12" cy="12" r="3"/></svg></span><div><span>Readiness</span><strong>18%</strong></div></div>
+              <div class="stat-card"><span class="mini-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-6"/></svg></span><div><span>Score</span><strong>88</strong></div></div>
+            </div>
+            <div class="content-grid">
+              <div class="panel">
+                <div class="panel-head"><div><h3>Course progress</h3><p>2 of 10 lessons completed</p></div><span class="pill">Courses</span></div>
+                <div class="course-list">
+                  <div class="course-row"><div class="course-meta"><span>Gynacology and Obstetrics</span><span>0%</span></div><div class="track"><div class="fill" style="width: 8%"></div></div></div>
+                  <div class="course-row"><div class="course-meta"><span>Paediatrics</span><span>12%</span></div><div class="track"><div class="fill" style="width: 12%"></div></div></div>
+                  <div class="course-row"><div class="course-meta"><span>Surgery</span><span>32%</span></div><div class="track"><div class="fill" style="width: 32%"></div></div></div>
+                </div>
+              </div>
+              <div class="quiz-panel">
+                <h3>Quiz preview</h3>
+                <p>Use if you want more personality, but keep course status colors semantic.</p>
+                <div class="answer-list">
+                  <div class="answer"><span class="answer-letter">A</span><span>GI infection may precipitate this disease</span></div>
+                  <div class="answer is-selected"><span class="answer-letter">B</span><span>Review answer with explanation</span></div>
+                  <div class="answer"><span class="answer-letter">C</span><span>ANA is likely positive</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="token-strip">
+          <div class="token"><span class="swatch" style="--swatch:#151118"></span><span>Page #151118</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#1e1922"></span><span>Card #1e1922</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#f0abfc"></span><span>Accent #f0abfc</span></div>
+          <div class="token"><span class="swatch" style="--swatch:#faf5ff"></span><span>Text #faf5ff</span></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="recommendations" aria-labelledby="recommendation-title">
+      <h2 id="recommendation-title">Four suggestions from the scan</h2>
+      <div class="rec-grid">
+        <div class="rec"><strong>Pick one accent family.</strong><span>The current dark mode mixes blue, violet, cyan, and purple; tighten it to one primary accent and one support accent.</span></div>
+        <div class="rec"><strong>Raise card contrast.</strong><span>Use at least four visible surface steps so dashboard cards and quiz panels do not blend into the page.</span></div>
+        <div class="rec"><strong>Reduce colored glow.</strong><span>Use borders and fills for state, not heavy glow. It will look more clinical and less game-like.</span></div>
+        <div class="rec"><strong>Keep semantic colors stable.</strong><span>Success, warning, danger, and selected answers should remain instantly recognizable across themes.</span></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

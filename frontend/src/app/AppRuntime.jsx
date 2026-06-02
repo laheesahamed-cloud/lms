@@ -10,6 +10,7 @@ import { AppRouter } from './router.jsx';
 const OfflineExperience = lazy(() => import('../shared/pwa/OfflineExperience.jsx').then((module) => ({ default: module.OfflineExperience })));
 const RecoveryRefreshController = lazy(() => import('../shared/pwa/RecoveryRefreshController.jsx').then((module) => ({ default: module.RecoveryRefreshController })));
 const MacChromiumScrollFix = lazy(() => import('../shared/pwa/MacChromiumScrollFix.jsx').then((module) => ({ default: module.MacChromiumScrollFix })));
+const ServerNotRespondingExperience = lazy(() => import('../shared/pwa/ServerNotRespondingExperience.jsx').then((module) => ({ default: module.ServerNotRespondingExperience })));
 
 export function AppRuntime() {
   if (getPlatformConfig().blockDirectAppHost) {
@@ -26,6 +27,10 @@ export function AppRuntime() {
               <AppRouter />
             </Suspense>
           </AppErrorBoundary>
+          <Suspense fallback={null}>
+            <RecoveryRefreshController />
+            <ServerNotRespondingExperience />
+          </Suspense>
           <PwaRuntimeEffects />
         </AppProviders>
       </PlatformProvider>
@@ -42,7 +47,6 @@ function PwaRuntimeEffects() {
 
   return (
     <Suspense fallback={null}>
-      <RecoveryRefreshController />
       <MacChromiumScrollFix />
       <OfflineExperience />
     </Suspense>

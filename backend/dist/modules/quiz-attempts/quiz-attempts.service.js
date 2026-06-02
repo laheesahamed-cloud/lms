@@ -24,12 +24,14 @@ const QUIZ_TOTAL_MARKS = 100;
 const QUIZ_PASS_MARK = 45;
 const TRUE_FALSE_STATEMENTS_PER_QUESTION = 5;
 const QUIZ_CONTENT_CACHE_MS = 30000;
+const PRACTICE_REVEAL_CACHE_MS = 120000;
 let QuizAttemptsService = class QuizAttemptsService {
     constructor(db, plansService) {
         this.db = db;
         this.plansService = plansService;
         this.activeQuizCache = new Map();
         this.quizQuestionCache = new Map();
+        this.practiceRevealCache = new Map();
     }
     async listQuizzes(authorization) {
         const user = await this.requireStudent(authorization);
@@ -223,7 +225,7 @@ let QuizAttemptsService = class QuizAttemptsService {
         }
         const practiceState = await this.ensurePracticeSession(user.id, quizId, questions, continuePractice, resetPractice);
         const questionsWithAnswers = questions.map((question) => ({
-            ...this.mapQuestion(question),
+            ...this.mapQuestionForPracticeAttempt(question),
             savedAnswer: practiceState.answerMap[question.id] || null,
         }));
         return {
@@ -233,6 +235,7 @@ let QuizAttemptsService = class QuizAttemptsService {
                 id: practiceState.sessionId,
                 lastQuestionIndex: practiceState.lastQuestionIndex,
                 showContinuePopup: practiceState.showContinuePopup,
+                revealedQuestionIds: practiceState.revealedQuestionIds,
             },
             questions: questionsWithAnswers,
         };
@@ -278,6 +281,63 @@ let QuizAttemptsService = class QuizAttemptsService {
             await connection.execute('UPDATE practice_sessions SET last_question_index = ?, updated_at = NOW() WHERE id = ?', [dto.questionIndex, session.id]);
             await connection.commit();
             return { success: true };
+        }
+        catch (error) {
+            await connection.rollback();
+            throw error;
+        }
+        finally {
+            connection.release();
+        }
+    }
+    async savePracticeDraft(authorization, quizId, dto) {
+        return this.savePracticeProgress(authorization, quizId, dto, 'in_progress');
+    }
+    async finishPractice(authorization, quizId, dto) {
+        return this.savePracticeProgress(authorization, quizId, dto, 'completed');
+    }
+    async prewarmPracticeAnswer(authorization, quizId, questionId) {
+        const user = await this.requireStudent(authorization);
+        await this.loadPracticeRevealPayload(user.id, quizId, questionId);
+        return { success: true };
+    }
+    async revealPracticeAnswer(authorization, quizId, questionId) {
+        const user = await this.requireStudent(authorization);
+        const question = await this.loadPracticeRevealPayload(user.id, quizId, questionId);
+        return { question };
+    }
+    async savePracticeProgress(authorization, quizId, dto, status) {
+        const user = await this.requireStudent(authorization);
+        const quiz = await this.loadActiveQuiz(quizId);
+        await this.ensureStudentCanAccessQuiz(user.id, quiz);
+        if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'practice_mode'))) {
+            throw new common_1.BadRequestException('Practice mode is included with selected plans');
+        }
+        if (Number(quiz.exam_mode_only) === 1) {
+            throw new common_1.BadRequestException('This quiz is exam mode only');
+        }
+        const questions = await this.loadQuestionsForQuiz(quizId);
+        const normalizedAnswers = this.normalizeSubmittedAnswers(dto.answers || {}, questions);
+        const revealedQuestionIds = this.normalizeQuestionIdList(dto.revealedQuestionIds || [], questions);
+        const questionIndex = this.normalizeQuestionIndex(dto.currentQuestionIndex, questions.length);
+        const session = await this.getOrCreatePracticeSessionForWrite(user.id, quizId);
+        const connection = await this.db.getConnection();
+        try {
+            await connection.beginTransaction();
+            await this.replacePracticeAnswers(connection, Number(session.id), questions, normalizedAnswers);
+            await connection.execute(`
+          UPDATE practice_sessions
+          SET status = ?, last_question_index = ?, revealed_question_ids_json = ?, updated_at = NOW()
+          WHERE id = ? AND user_id = ? AND quiz_id = ?
+        `, [status, questionIndex, JSON.stringify(revealedQuestionIds), session.id, user.id, quizId]);
+            await connection.commit();
+            return {
+                success: true,
+                sessionId: Number(session.id),
+                status,
+                lastQuestionIndex: questionIndex,
+                revealedQuestionIds,
+            };
         }
         catch (error) {
             await connection.rollback();
@@ -766,6 +826,26 @@ let QuizAttemptsService = class QuizAttemptsService {
         }
         return question;
     }
+    async loadPracticeRevealPayload(userId, quizId, questionId) {
+        const cacheKey = `${userId}:${quizId}:${questionId}`;
+        const now = Date.now();
+        const cached = this.practiceRevealCache.get(cacheKey);
+        if (cached && cached.expiresAt > now) {
+            return cached.value;
+        }
+        const quiz = await this.loadActiveQuiz(quizId);
+        await this.ensureStudentCanAccessQuiz(userId, quiz);
+        if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(userId, 'practice_mode'))) {
+            throw new common_1.BadRequestException('Practice mode is included with selected plans');
+        }
+        if (Number(quiz.exam_mode_only) === 1) {
+            throw new common_1.BadRequestException('This quiz is exam mode only');
+        }
+        const question = await this.loadQuestionForPracticeSave(quizId, questionId);
+        const value = this.mapPracticeRevealQuestion(question);
+        this.practiceRevealCache.set(cacheKey, { value, expiresAt: now + PRACTICE_REVEAL_CACHE_MS });
+        return value;
+    }
     mapOptionsByQuestionId(optionRows) {
         const map = new Map();
         for (const option of optionRows) {
@@ -810,6 +890,19 @@ let QuizAttemptsService = class QuizAttemptsService {
         try {
             const parsed = JSON.parse(value);
             return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+        }
+        catch {
+            return [];
+        }
+    }
+    parseNumberJsonArray(value) {
+        if (!value)
+            return [];
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed)
+                ? Array.from(new Set(parsed.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)))
+                : [];
         }
         catch {
             return [];
@@ -881,6 +974,26 @@ let QuizAttemptsService = class QuizAttemptsService {
         }
         return normalized;
     }
+    async replacePracticeAnswers(connection, sessionId, questions, normalizedAnswers) {
+        await connection.execute('DELETE FROM practice_answers WHERE practice_session_id = ?', [sessionId]);
+        for (const question of questions) {
+            const rawAnswer = normalizedAnswers[String(question.id)];
+            if (question.question_type === 'sba') {
+                const selectedId = rawAnswer === null || rawAnswer === undefined || rawAnswer === '' ? null : Number(rawAnswer);
+                if (!selectedId || !question.options.some((option) => option.id === selectedId))
+                    continue;
+                await connection.execute('INSERT INTO practice_answers (practice_session_id, question_id, option_id, is_selected) VALUES (?, ?, ?, 1)', [sessionId, question.id, selectedId]);
+                continue;
+            }
+            const tfSubmitted = typeof rawAnswer === 'object' && rawAnswer !== null ? rawAnswer : {};
+            for (const option of question.options) {
+                const value = tfSubmitted[String(option.id)];
+                if (value !== 0 && value !== 1 && value !== '0' && value !== '1')
+                    continue;
+                await connection.execute('INSERT INTO practice_answers (practice_session_id, question_id, option_id, is_selected) VALUES (?, ?, ?, ?)', [sessionId, question.id, option.id, Number(value) === 1 ? 1 : 0]);
+            }
+        }
+    }
     async ensurePracticeSession(userId, quizId, questions, continuePractice, resetPractice) {
         let session = await this.getLatestPracticeSession(userId, quizId);
         if (!session) {
@@ -902,7 +1015,20 @@ let QuizAttemptsService = class QuizAttemptsService {
             sessionId: Number(session.id),
             lastQuestionIndex: Number(session.last_question_index || 0),
             showContinuePopup: session.status === 'in_progress' && answeredCount > 0 && !continuePractice,
+            revealedQuestionIds: this.parseNumberJsonArray(session.revealed_question_ids_json || null),
             answerMap: Object.fromEntries(questions.map((question) => [question.id, this.getAnswerState(question, answerMap[question.id] || [])])),
+        };
+    }
+    async getOrCreatePracticeSessionForWrite(userId, quizId) {
+        const session = await this.getLatestPracticeSession(userId, quizId);
+        if (session)
+            return session;
+        const [result] = await this.db.execute("INSERT INTO practice_sessions (user_id, quiz_id, status, last_question_index) VALUES (?, ?, 'in_progress', 0)", [userId, quizId]);
+        return {
+            id: result.insertId,
+            status: 'in_progress',
+            last_question_index: 0,
+            revealed_question_ids_json: null,
         };
     }
     async ensureExamSession(userId, quizId, quiz, questions) {
@@ -1015,7 +1141,7 @@ let QuizAttemptsService = class QuizAttemptsService {
     }
     async getLatestPracticeSession(userId, quizId) {
         const [rows] = await this.db.execute(`
-        SELECT id, status, last_question_index
+        SELECT id, status, last_question_index, revealed_question_ids_json
         FROM practice_sessions
         WHERE user_id = ? AND quiz_id = ?
         ORDER BY id DESC
@@ -1027,6 +1153,7 @@ let QuizAttemptsService = class QuizAttemptsService {
                 id: Number(row.id),
                 status: String(row.status),
                 last_question_index: Number(row.last_question_index || 0),
+                revealed_question_ids_json: row.revealed_question_ids_json ? String(row.revealed_question_ids_json) : null,
             }
             : null;
     }
@@ -1243,6 +1370,34 @@ let QuizAttemptsService = class QuizAttemptsService {
             options: question.options,
             answerKey: this.buildAnswerKey(question),
             theoryRecap: question.theoryRecap || null,
+        };
+    }
+    mapQuestionForPracticeAttempt(question) {
+        return {
+            id: question.id,
+            questionType: question.question_type,
+            questionText: question.question_text,
+            contentTrace: {
+                source: question.contentSourceLabel,
+                sourceId: question.id,
+                version: question.contentVersion,
+                versionLabel: `v${question.contentVersion}`,
+                versionedAt: question.contentVersionedAt,
+            },
+            options: question.options.map((option) => ({
+                id: option.id,
+                optionLabel: option.optionLabel,
+                optionText: option.optionText,
+            })),
+            canRevealAnswer: Boolean(question.options.length ||
+                String(question.explanation || '').trim() ||
+                question.theoryRecap),
+        };
+    }
+    mapPracticeRevealQuestion(question) {
+        return {
+            ...this.mapQuestion(question),
+            canRevealAnswer: true,
         };
     }
     buildAnswerKey(question) {

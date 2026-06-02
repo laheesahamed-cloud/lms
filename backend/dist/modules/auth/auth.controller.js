@@ -29,27 +29,27 @@ let AuthController = class AuthController {
         this.authService = authService;
         this.configService = configService;
     }
-    async login(loginDto, nativeHeader, response) {
+    async login(loginDto, nativeHeader, request, response) {
         const result = await this.authService.login(loginDto);
-        this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
+        this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
             return result;
         }
         const { sessionToken: _sessionToken, ...safeResult } = result;
         return safeResult;
     }
-    async register(registerDto, nativeHeader, response) {
+    async register(registerDto, nativeHeader, request, response) {
         const result = await this.authService.register(registerDto);
-        this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
+        this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
             return result;
         }
         const { sessionToken: _sessionToken, ...safeResult } = result;
         return safeResult;
     }
-    async googleLogin(googleLoginDto, nativeHeader, response) {
+    async googleLogin(googleLoginDto, nativeHeader, request, response) {
         const result = await this.authService.loginWithGoogle(googleLoginDto);
-        this.setSessionCookie(response, result.sessionToken, result.sessionTtlDays);
+        this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
             return result;
         }
@@ -59,8 +59,8 @@ let AuthController = class AuthController {
     me(authorization) {
         return this.authService.me(authorization);
     }
-    async logout(authorization, cookie, response) {
-        this.clearSessionCookie(response);
+    async logout(authorization, cookie, request, response) {
+        this.clearSessionCookie(response, request);
         return this.authService.logout(authorization || this.authorizationFromCookie(cookie));
     }
     requestPasswordReset(forgotPasswordDto) {
@@ -75,24 +75,30 @@ let AuthController = class AuthController {
     changePassword(authorization, changePasswordDto) {
         return this.authService.changePassword(authorization, changePasswordDto);
     }
-    setSessionCookie(response, token, ttlDays = auth_token_util_1.SESSION_TTL_DAYS) {
+    setSessionCookie(response, request, token, ttlDays = auth_token_util_1.SESSION_TTL_DAYS) {
         response.cookie('lms_session', token, {
             httpOnly: true,
-            secure: this.shouldUseSecureSessionCookie(),
+            secure: this.shouldUseSecureSessionCookie(request),
             sameSite: 'lax',
             path: '/',
             maxAge: ttlDays * 24 * 60 * 60 * 1000,
         });
     }
-    clearSessionCookie(response) {
+    clearSessionCookie(response, request) {
+        const secure = this.shouldUseSecureSessionCookie(request);
         response.clearCookie('lms_session', {
             httpOnly: true,
-            secure: this.shouldUseSecureSessionCookie(),
+            secure,
             sameSite: 'lax',
             path: '/',
         });
     }
-    shouldUseSecureSessionCookie() {
+    shouldUseSecureSessionCookie(request) {
+        const explicit = this.getBooleanConfig('SESSION_COOKIE_SECURE') ?? this.getBooleanConfig('COOKIE_SECURE');
+        if (explicit !== null)
+            return explicit;
+        if (this.isInsecureLocalOrLanRequest(request))
+            return false;
         if (this.configService.get('NODE_ENV') === 'production')
             return true;
         const configuredUrls = [
@@ -117,6 +123,36 @@ let AuthController = class AuthController {
             }
         });
     }
+    getBooleanConfig(name) {
+        const value = this.configService.get(name);
+        const normalized = String(value || '').trim().toLowerCase();
+        if (['true', '1', 'yes', 'on'].includes(normalized))
+            return true;
+        if (['false', '0', 'no', 'off'].includes(normalized))
+            return false;
+        return null;
+    }
+    isInsecureLocalOrLanRequest(request) {
+        const host = String(request?.headers?.host || '').trim();
+        const forwardedProto = String(request?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
+        const protocol = forwardedProto || String(request?.protocol || '').trim();
+        const origin = String(request?.headers?.origin || '').trim();
+        const referer = String(request?.headers?.referer || '').trim();
+        const requestUrl = host ? `${protocol || 'http'}://${host}` : '';
+        return [requestUrl, origin, referer].some((value) => this.isInsecureLocalOrLanUrl(value));
+    }
+    isInsecureLocalOrLanUrl(value) {
+        if (!value)
+            return false;
+        try {
+            const url = new URL(value);
+            return url.protocol === 'http:' && (/^(localhost|127\.0\.0\.1)$/i.test(url.hostname) ||
+                /^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/i.test(url.hostname));
+        }
+        catch {
+            return false;
+        }
+    }
     shouldExposeSessionToken(nativeHeader) {
         return /^(1|true|native|ios|android)$/i.test(String(nativeHeader || '').trim());
     }
@@ -134,27 +170,30 @@ __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Headers)('x-lms-native')),
-    __param(2, (0, common_1.Res)({ passthrough: true })),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [login_dto_1.LoginDto, Object, Object]),
+    __metadata("design:paramtypes", [login_dto_1.LoginDto, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
 __decorate([
     (0, common_1.Post)('register'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Headers)('x-lms-native')),
-    __param(2, (0, common_1.Res)({ passthrough: true })),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [register_dto_1.RegisterDto, Object, Object]),
+    __metadata("design:paramtypes", [register_dto_1.RegisterDto, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "register", null);
 __decorate([
     (0, common_1.Post)('google'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Headers)('x-lms-native')),
-    __param(2, (0, common_1.Res)({ passthrough: true })),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [google_login_dto_1.GoogleLoginDto, Object, Object]),
+    __metadata("design:paramtypes", [google_login_dto_1.GoogleLoginDto, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "googleLogin", null);
 __decorate([
@@ -168,9 +207,10 @@ __decorate([
     (0, common_1.Post)('logout'),
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Headers)('cookie')),
-    __param(2, (0, common_1.Res)({ passthrough: true })),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:paramtypes", [Object, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 __decorate([

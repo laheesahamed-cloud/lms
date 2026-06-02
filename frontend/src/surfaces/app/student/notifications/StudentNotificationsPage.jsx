@@ -57,8 +57,8 @@ export function StudentNotificationsPage() {
             <p>{item.body}</p>
           </div>
           <div className={notificationActionsClass}>
-            {safeActionPath ? <button className={cx(ui.ghostSmall, 'max-[520px]:w-auto')} onClick={() => navigate(safeActionPath)}>Open</button> : <span />}
-            {item.kind === 'announcement' && !item.read ? <button className={cx(ui.secondaryAction, 'max-[520px]:w-auto')} onClick={async () => { await markNotificationRead(item.id); await load(); }}>Mark read</button> : null}
+            {safeActionPath ? <button type="button" className={cx(ui.ghostSmall, 'max-[520px]:w-auto')} onClick={() => navigate(safeActionPath)}>Open</button> : <span />}
+            {item.kind === 'announcement' && !item.read ? <button type="button" className={cx(ui.secondaryAction, 'max-[520px]:w-auto')} onClick={async () => { await markNotificationRead(item.id); await load(); }}>Mark read</button> : null}
           </div>
         </article>
       );

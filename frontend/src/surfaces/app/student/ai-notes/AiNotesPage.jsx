@@ -2588,7 +2588,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
 
   function handleBack() {
     if (location.state?.returnToPath) {
-      navigate(location.state.returnToPath);
+      navigate(location.state.returnToPath, { state: location.state.returnState || undefined });
       return;
     }
     safeNavigateBack(navigate, { fallbackPath: '/ai-notes', currentPath: location.pathname });

@@ -35,6 +35,45 @@ function finishSignedOut(set) {
   });
 }
 
+function createSessionExpiredNotice() {
+  return {
+    type: 'warning',
+    message: 'Your session expired. Please sign in again to continue.',
+  };
+}
+
+function isTemporarySessionLookupFailure(error) {
+  const status = Number(error?.response?.status || 0);
+  const data = error?.response?.data;
+  return error?.code === 'ECONNABORTED' ||
+    error?.code === 'ERR_NETWORK' ||
+    error?.message === 'Network Error' ||
+    !error?.response ||
+    status >= 500 ||
+    data?.code === 'DATABASE_UNAVAILABLE' ||
+    data?.checks?.database?.ok === false;
+}
+
+function preserveAuthDuringTemporaryHydrateFailure(set, get, error) {
+  if (!isTemporarySessionLookupFailure(error) || isPublicAuthRoute()) {
+    return false;
+  }
+
+  const current = get();
+  const token = current.token || getAuthToken();
+  const user = current.user || null;
+  const hasLocalAuthSnapshot = Boolean(current.isAuthenticated || user || token);
+
+  set({
+    token,
+    user,
+    isAuthenticated: hasLocalAuthSnapshot,
+    isHydrating: !hasLocalAuthSnapshot,
+    isSigningOut: false,
+  });
+  return true;
+}
+
 function syncNativePushAfterAuth() {
   if (!detectPlatform().isNative) return;
   import('../platform/native/NotificationDelivery.js')
@@ -50,6 +89,7 @@ export const useAuthStore = create((set, get) => ({
   isHydrating: Boolean(bootstrapAuth.token && !bootstrapAuth.user),
   isAuthenticated: Boolean(bootstrapAuth.token && bootstrapAuth.user),
   isSigningOut: false,
+  authNotice: null,
 
   hydrate: async () => {
     if (hydratePromise) {
@@ -73,8 +113,11 @@ export const useAuthStore = create((set, get) => ({
           isHydrating: false,
         });
         setStoredAuthUser(data.user);
-      } catch {
+      } catch (error) {
         if (hydrateVersion !== authMutationVersion) {
+          return;
+        }
+        if (preserveAuthDuringTemporaryHydrateFailure(set, get, error)) {
           return;
         }
         finishSignedOut(set);
@@ -103,6 +146,7 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: true,
       isHydrating: false,
       isSigningOut: false,
+      authNotice: null,
     });
     syncNativePushAfterAuth();
     return data;
@@ -123,6 +167,7 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: true,
       isHydrating: false,
       isSigningOut: false,
+      authNotice: null,
     });
     syncNativePushAfterAuth();
     return data;
@@ -143,6 +188,7 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: true,
       isHydrating: false,
       isSigningOut: false,
+      authNotice: null,
     });
     syncNativePushAfterAuth();
     return data;
@@ -170,10 +216,15 @@ export const useAuthStore = create((set, get) => ({
       user: null,
       isAuthenticated: false,
       isSigningOut: false,
+      authNotice: null,
     });
   },
 
-  forceSignOut: () => {
+  forceSignOut: (options = {}) => {
+    const current = get();
+    const shouldShowSessionNotice =
+      options?.reason === 'session-expired' &&
+      (current.isAuthenticated || current.user || current.token || !isPublicAuthRoute());
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     clearStoredAuth();
@@ -183,14 +234,19 @@ export const useAuthStore = create((set, get) => ({
       isAuthenticated: false,
       isHydrating: false,
       isSigningOut: false,
+      authNotice: shouldShowSessionNotice ? createSessionExpiredNotice() : null,
     });
   },
 
   setUser: (user) => {
     set({ user });
   },
+
+  consumeAuthNotice: () => {
+    set({ authNotice: null });
+  },
 }));
 
 setUnauthorizedHandler(() => {
-  useAuthStore.getState().forceSignOut();
+  useAuthStore.getState().forceSignOut({ reason: 'session-expired' });
 });

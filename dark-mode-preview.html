@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Void Black — Applied Dark Mode Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared/theme.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  background: var(--page-background);
+  color: var(--ink-strong);
+  min-height: 100vh;
+  padding: 0;
+}
+
+/* ── Layout shell ─────────────────────────────────────── */
+.shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: 60px 1fr;
+  min-height: 100vh;
+}
+
+/* ── Topbar ───────────────────────────────────────────── */
+.topbar {
+  grid-column: 1 / -1;
+  background: var(--topbar-bg);
+  border-bottom: 1px solid var(--line-soft);
+  backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 16px; font-weight: 800; color: var(--ink-strong);
+}
+.topbar-logo-mark {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: var(--brand-gradient-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; color: #fff;
+  flex-shrink: 0;
+}
+.topbar-search {
+  flex: 1; max-width: 320px;
+  height: 36px; border-radius: var(--radius-md);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  padding: 0 14px;
+  font-size: 13px; color: var(--ink-medium);
+  font-family: inherit;
+  outline: none;
+}
+.topbar-search::placeholder { color: var(--ink-muted); }
+.topbar-search:focus { border-color: var(--accent); box-shadow: var(--input-focus-shadow); }
+.topbar-right {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 12px;
+}
+.topbar-badge {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent-surface);
+  border: 1px solid var(--accent-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; cursor: pointer;
+}
+.topbar-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--cta-gradient);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff;
+}
+
+/* ── Sidebar ──────────────────────────────────────────── */
+.sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  padding: 20px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.sidebar-section {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--ink-muted);
+  padding: 14px 12px 6px;
+}
+.sidebar-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 500; color: var(--ink-soft);
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.sidebar-item:hover { background: var(--state-hover); color: var(--ink-medium); }
+.sidebar-item.active {
+  background: var(--accent-surface);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.sidebar-item.active .s-icon { color: var(--accent); }
+.s-icon { font-size: 16px; width: 20px; flex-shrink: 0; }
+
+/* ── Main content ─────────────────────────────────────── */
+.main {
+  padding: 28px 32px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 28px;
+}
+
+/* ── Page title ───────────────────────────────────────── */
+.page-heading { display: flex; align-items: center; justify-content: space-between; }
+.page-heading h1 { font-size: 22px; font-weight: 800; color: var(--ink-strong); }
+.page-heading p { font-size: 13px; color: var(--ink-muted); margin-top: 3px; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--btn-primary-bg);
+  border: none; border-radius: var(--radius-md);
+  padding: 10px 18px; font-size: 13px; font-weight: 700;
+  color: #fff; cursor: pointer; font-family: inherit;
+}
+
+/* ── Stat cards ───────────────────────────────────────── */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+}
+.stat-card {
+  background: var(--surface-card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute;
+  top: 0; right: 0; width: 80px; height: 80px;
+  border-radius: 50%;
+  background: var(--accent-surface);
+  transform: translate(30%, -30%);
+}
+.stat-label { font-size: 11px; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-value { font-size: 28px; font-weight: 800; color: var(--ink-strong); margin-top: 8px; line-height: 1; }
+.stat-sub { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+.stat-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--success-surface); color: var(--success);
+  border-radius: var(--radius-full); padding: 2px 8px;
+  font-size: 11px; font-weight: 600; margin-top: 8px;
+}
+.stat-chip.warn { background: var(--warning-surface); color: var(--warning); }
+
+/* ── Two-col layout ───────────────────────────────────── */
+.two-col { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+
+/* ── Course list card ─────────────────────────────────── */
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.card-head {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-head h3 { font-size: 14px; font-weight: 700; color: var(--ink-strong); }
+.card-head a { font-size: 12px; color: var(--accent); font-weight: 600; cursor: pointer; }
+.course-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.course-row:last-child { border-bottom: none; }
+.course-row:hover { background: var(--state-hover); }
+.course-icon {
+  width: 42px; height: 42px; border-radius: var(--radius-md);
+  flex-shrink: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 18px;
+}
+.course-info { flex: 1; min-width: 0; }
+.course-name { font-size: 13px; font-weight: 600; color: var(--ink-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.course-meta { font-size: 11px; color: var(--ink-muted); margin-top: 3px; }
+.prog-wrap { margin-top: 6px; }
+.prog-bg { height: 4px; background: var(--line-medium); border-radius: 2px; }
+.prog-fill { height: 4px; border-radius: 2px; background: var(--cta-gradient); }
+.prog-label { font-size: 10px; color: var(--ink-soft); margin-top: 3px; }
+.course-badge {
+  font-size: 11px; font-weight: 600; padding: 3px 10px;
+  border-radius: var(--radius-full); flex-shrink: 0;
+}
+.badge-green { background: var(--success-surface); color: var(--success); }
+.badge-blue  { background: var(--accent-surface);  color: var(--accent-strong); }
+.badge-warn  { background: var(--warning-surface); color: var(--warning); }
+
+/* ── Right panel ──────────────────────────────────────── */
+.panel-stack { display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Streak card ──────────────────────────────────────── */
+.streak-card {
+  background: var(--hero-card-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-card-elevated);
+}
+.streak-title { font-size: 12px; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.streak-num { font-size: 40px; font-weight: 800; color: var(--accent-strong); line-height: 1; margin-top: 6px; }
+.streak-sub { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+.week-dots { display: flex; gap: 6px; margin-top: 14px; }
+.dot {
+  flex: 1; height: 6px; border-radius: 3px;
+  background: var(--line-medium);
+}
+.dot.done { background: var(--cta-gradient); }
+.dot.today { background: var(--accent-strong); box-shadow: 0 0 8px rgba(165,180,252,0.5); }
+
+/* ── Upcoming card ────────────────────────────────────── */
+.upcoming-item {
+  display: flex; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.upcoming-item:last-child { border-bottom: none; padding-bottom: 0; }
+.upcoming-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  margin-top: 5px; flex-shrink: 0;
+}
+.upcoming-title { font-size: 13px; font-weight: 600; color: var(--ink-strong); }
+.upcoming-meta { font-size: 11px; color: var(--ink-muted); margin-top: 2px; }
+
+/* ── Badge applied notice ─────────────────────────────── */
+.applied-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--success-surface);
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius-full);
+  padding: 5px 14px; font-size: 12px; font-weight: 600;
+  color: var(--success); position: fixed; bottom: 24px; right: 24px;
+  z-index: 999;
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-mark">X</div>
+      xyndrome LMS
+    </div>
+    <input class="topbar-search" type="text" placeholder="Search courses, lessons…">
+    <div class="topbar-right">
+      <div class="topbar-badge">🔔</div>
+      <div class="topbar-avatar">EM</div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-item active"><span class="s-icon">🏠</span> Dashboard</div>
+    <div class="sidebar-item"><span class="s-icon">📚</span> My Courses</div>
+    <div class="sidebar-item"><span class="s-icon">📝</span> Quizzes</div>
+    <div class="sidebar-item"><span class="s-icon">📊</span> Results</div>
+    <div class="sidebar-section">Account</div>
+    <div class="sidebar-item"><span class="s-icon">👤</span> Profile</div>
+    <div class="sidebar-item"><span class="s-icon">⚙️</span> Settings</div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Page heading -->
+    <div class="page-heading">
+      <div>
+        <h1>Good evening, Emma 👋</h1>
+        <p>You have 3 lessons to complete today. Keep it up!</p>
+      </div>
+      <button class="btn-primary">▶ Resume Learning</button>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Completion</div>
+        <div class="stat-value">87%</div>
+        <div class="stat-sub">Anatomy & Physiology</div>
+        <div class="stat-chip">↑ +4% this week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Lessons Done</div>
+        <div class="stat-value">124</div>
+        <div class="stat-sub">Across all courses</div>
+        <div class="stat-chip">↑ +6 today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Study Hours</div>
+        <div class="stat-value">6.2h</div>
+        <div class="stat-sub">This week</div>
+        <div class="stat-chip warn">↓ -1.4h vs last</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg. Score</div>
+        <div class="stat-value">91%</div>
+        <div class="stat-sub">Last 10 quizzes</div>
+        <div class="stat-chip">↑ +3pts</div>
+      </div>
+    </div>
+
+    <!-- Main two-col -->
+    <div class="two-col">
+
+      <!-- Course list -->
+      <div class="card">
+        <div class="card-head">
+          <h3>Active Courses</h3>
+          <a>View all →</a>
+        </div>
+
+        <div class="course-row">
+          <div class="course-icon" style="background:linear-gradient(135deg,#6cb0ff22,#7b8fff22)">🫀</div>
+          <div class="course-info">
+            <div class="course-name">Anatomy & Physiology — Module 4</div>
+            <div class="course-meta">Dr. Sarah Chen · 18 lessons remaining</div>
+            <div class="prog-wrap">
+              <div class="prog-bg"><div class="prog-fill" style="width:72%"></div></div>
+              <div class="prog-label">72% complete</div>
+            </div>
+          </div>
+          <div class="course-badge badge-blue">In Progress</div>
+        </div>
+
+        <div class="course-row">
+          <div class="course-icon" style="background:linear-gradient(135deg,#8b5cf622,#6cb0ff22)">🧬</div>
+          <div class="course-info">
+            <div class="course-name">Biochemistry Fundamentals</div>
+            <div class="course-meta">Prof. James Okafor · 31 lessons remaining</div>
+            <div class="prog-wrap">
+              <div class="prog-bg"><div class="prog-fill" style="width:45%"></div></div>
+              <div class="prog-label">45% complete</div>
+            </div>
+          </div>
+          <div class="course-badge badge-warn">Needs Review</div>
+        </div>
+
+        <div class="course-row">
+          <div class="course-icon" style="background:linear-gradient(135deg,#6ee7b722,#5eead422)">🦠</div>
+          <div class="course-info">
+            <div class="course-name">Microbiology — Bacterial Infections</div>
+            <div class="course-meta">Dr. Amara Diallo · 8 lessons remaining</div>
+            <div class="prog-wrap">
+              <div class="prog-bg"><div class="prog-fill" style="width:88%"></div></div>
+              <div class="prog-label">88% complete</div>
+            </div>
+          </div>
+          <div class="course-badge badge-green">Almost done!</div>
+        </div>
+
+        <div class="course-row">
+          <div class="course-icon" style="background:linear-gradient(135deg,#fcd34d22,#fb923c22)">💊</div>
+          <div class="course-info">
+            <div class="course-name">Pharmacology — Drug Classifications</div>
+            <div class="course-meta">Prof. Nina Kovacs · 22 lessons remaining</div>
+            <div class="prog-wrap">
+              <div class="prog-bg"><div class="prog-fill" style="width:30%"></div></div>
+              <div class="prog-label">30% complete</div>
+            </div>
+          </div>
+          <div class="course-badge badge-blue">In Progress</div>
+        </div>
+      </div>
+
+      <!-- Right panel -->
+      <div class="panel-stack">
+
+        <!-- Streak -->
+        <div class="streak-card">
+          <div class="streak-title">🔥 Study Streak</div>
+          <div class="streak-num">12</div>
+          <div class="streak-sub">Days in a row — personal best!</div>
+          <div class="week-dots">
+            <div class="dot done"></div>
+            <div class="dot done"></div>
+            <div class="dot done"></div>
+            <div class="dot done"></div>
+            <div class="dot done"></div>
+            <div class="dot today"></div>
+            <div class="dot"></div>
+          </div>
+        </div>
+
+        <!-- Upcoming -->
+        <div class="card">
+          <div class="card-head">
+            <h3>Upcoming</h3>
+            <a>See calendar →</a>
+          </div>
+          <div style="padding:4px 20px 16px">
+            <div class="upcoming-item">
+              <div class="upcoming-dot" style="background:var(--accent)"></div>
+              <div>
+                <div class="upcoming-title">Anatomy Quiz — Chapter 9</div>
+                <div class="upcoming-meta">Tomorrow, 09:00 AM · 40 questions</div>
+              </div>
+            </div>
+            <div class="upcoming-item">
+              <div class="upcoming-dot" style="background:var(--warning)"></div>
+              <div>
+                <div class="upcoming-title">Biochem Assignment Due</div>
+                <div class="upcoming-meta">Wed, Jun 4 · Protein Synthesis Essay</div>
+              </div>
+            </div>
+            <div class="upcoming-item">
+              <div class="upcoming-dot" style="background:var(--success)"></div>
+              <div>
+                <div class="upcoming-title">Live Revision — Microbiology</div>
+                <div class="upcoming-meta">Fri, Jun 6 · 2:00 PM · Zoom</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="applied-badge">✓ Void Black theme — live preview</div>
+
+</body>
+</html>

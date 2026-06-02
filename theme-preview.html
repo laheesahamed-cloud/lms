@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dark Theme Previews</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: #0a0a0a;
+  padding: 32px;
+  min-height: 100vh;
+}
+
+h1 {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-align: center;
+  letter-spacing: -0.3px;
+}
+.subtitle {
+  color: #888;
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ─── THEME CARD SHELL ─────────────────────────────── */
+.theme-card {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.theme-label {
+  padding: 14px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.theme-label .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+.theme-label .desc {
+  font-weight: 400;
+  font-size: 11.5px;
+  opacity: 0.6;
+  margin-left: auto;
+}
+
+/* ─── MINI DASHBOARD SHELL ────────────────────────── */
+.dash {
+  display: flex;
+  height: 340px;
+}
+.sidebar {
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 0;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.sidebar .logo {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+.sidebar .nav-icon {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  opacity: 0.45;
+}
+.sidebar .nav-icon.active { opacity: 1; }
+
+.main {
+  flex: 1;
+  overflow: hidden;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 4px;
+}
+.topbar-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+}
+.search-bar {
+  height: 26px;
+  border-radius: 13px;
+  width: 100px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  opacity: 0.5;
+  font-weight: 500;
+}
+
+/* Hero welcome card */
+.hero-card {
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-card::after {
+  content: '';
+  position: absolute;
+  right: 10px; top: -10px;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  opacity: 0.12;
+}
+.hero-card .eyebrow {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.hero-card .title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+.hero-card .sub {
+  font-size: 10px;
+  opacity: 0.6;
+}
+.hero-card .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  width: fit-content;
+  margin-top: 4px;
+}
+
+/* Stat row */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.stat-card {
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.stat-card .stat-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-bottom: 4px;
+}
+.stat-card .stat-val {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.stat-card .stat-sub {
+  font-size: 9px;
+  opacity: 0.5;
+  margin-top: 1px;
+}
+
+/* Course row */
+.course-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.course-card {
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.course-card .tag {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 7px;
+  border-radius: 8px;
+  font-size: 8.5px;
+  font-weight: 600;
+  width: fit-content;
+}
+.course-card .course-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+}
+.course-card .progress-track {
+  height: 3px;
+  border-radius: 2px;
+  margin-top: 2px;
+  width: 100%;
+  opacity: 0.2;
+}
+.course-card .progress-fill {
+  height: 3px;
+  border-radius: 2px;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   THEME 1 — MIDNIGHT PURPLE
+═══════════════════════════════════════════════════════ */
+.t-purple { background: #120920; }
+.t-purple .theme-label { background: #1A1030; color: #EDE9FE; border-bottom: 1px solid rgba(167,139,250,0.15); }
+.t-purple .dot { background: #A78BFA; }
+.t-purple .sidebar { background: #0E071A; border-right: 1px solid rgba(167,139,250,0.10); }
+.t-purple .sidebar .logo { background: linear-gradient(135deg, #A78BFA, #F472B6); }
+.t-purple .sidebar .nav-icon { color: #A78BFA; }
+.t-purple .sidebar .nav-icon.active { background: rgba(167,139,250,0.15); }
+.t-purple .main { background: #120920; }
+.t-purple .topbar-title { color: #EDE9FE; }
+.t-purple .search-bar { background: #1F1340; color: #C4B5FD; border: 1px solid rgba(167,139,250,0.15); }
+.t-purple .avatar { background: linear-gradient(135deg, #A78BFA, #F472B6); color: #fff; }
+.t-purple .hero-card { background: linear-gradient(135deg, #2D1B69 0%, #1E1048 60%, #2D1558 100%); border: 1px solid rgba(167,139,250,0.2); color: #EDE9FE; }
+.t-purple .hero-card::after { background: #A78BFA; }
+.t-purple .hero-card .btn { background: rgba(167,139,250,0.2); color: #C4B5FD; border: 1px solid rgba(167,139,250,0.3); }
+.t-purple .stat-card { background: #1A1030; border: 1px solid rgba(167,139,250,0.10); color: #EDE9FE; }
+.t-purple .stat-card .stat-val { color: #A78BFA; }
+.t-purple .course-card { background: #160B2C; border: 1px solid rgba(167,139,250,0.10); color: #EDE9FE; }
+.t-purple .course-card .tag { background: rgba(167,139,250,0.15); color: #C4B5FD; }
+.t-purple .progress-track { background: #C4B5FD; }
+.t-purple .progress-fill { background: linear-gradient(90deg, #A78BFA, #F472B6); }
+
+
+/* ═══════════════════════════════════════════════════════
+   THEME 2 — DEEP OCEAN
+═══════════════════════════════════════════════════════ */
+.t-ocean { background: #060E1E; }
+.t-ocean .theme-label { background: #0B1628; color: #E0F2FE; border-bottom: 1px solid rgba(34,211,238,0.12); }
+.t-ocean .dot { background: #22D3EE; }
+.t-ocean .sidebar { background: #040B18; border-right: 1px solid rgba(34,211,238,0.08); }
+.t-ocean .sidebar .logo { background: linear-gradient(135deg, #22D3EE, #34D399); }
+.t-ocean .sidebar .nav-icon { color: #22D3EE; }
+.t-ocean .sidebar .nav-icon.active { background: rgba(34,211,238,0.12); }
+.t-ocean .main { background: #060E1E; }
+.t-ocean .topbar-title { color: #E0F2FE; }
+.t-ocean .search-bar { background: #0F1C35; color: #7DD3FC; border: 1px solid rgba(34,211,238,0.12); }
+.t-ocean .avatar { background: linear-gradient(135deg, #22D3EE, #34D399); color: #fff; }
+.t-ocean .hero-card { background: linear-gradient(135deg, #0C2A4A 0%, #0A1E35 60%, #082840 100%); border: 1px solid rgba(34,211,238,0.18); color: #E0F2FE; }
+.t-ocean .hero-card::after { background: #22D3EE; }
+.t-ocean .hero-card .btn { background: rgba(34,211,238,0.15); color: #67E8F9; border: 1px solid rgba(34,211,238,0.25); }
+.t-ocean .stat-card { background: #0B1628; border: 1px solid rgba(34,211,238,0.08); color: #E0F2FE; }
+.t-ocean .stat-card .stat-val { color: #22D3EE; }
+.t-ocean .course-card { background: #09152A; border: 1px solid rgba(34,211,238,0.08); color: #E0F2FE; }
+.t-ocean .course-card .tag { background: rgba(52,211,153,0.15); color: #6EE7B7; }
+.t-ocean .progress-track { background: #7DD3FC; }
+.t-ocean .progress-fill { background: linear-gradient(90deg, #22D3EE, #34D399); }
+
+
+/* ═══════════════════════════════════════════════════════
+   THEME 3 — WARM CHARCOAL
+═══════════════════════════════════════════════════════ */
+.t-warm { background: #161210; }
+.t-warm .theme-label { background: #1E1A14; color: #FEF3C7; border-bottom: 1px solid rgba(251,191,36,0.12); }
+.t-warm .dot { background: #FBBF24; }
+.t-warm .sidebar { background: #110E0B; border-right: 1px solid rgba(251,191,36,0.08); }
+.t-warm .sidebar .logo { background: linear-gradient(135deg, #FBBF24, #FB923C); }
+.t-warm .sidebar .nav-icon { color: #FBBF24; }
+.t-warm .sidebar .nav-icon.active { background: rgba(251,191,36,0.12); }
+.t-warm .main { background: #161210; }
+.t-warm .topbar-title { color: #FEF3C7; }
+.t-warm .search-bar { background: #26211A; color: #FCD34D; border: 1px solid rgba(251,191,36,0.12); }
+.t-warm .avatar { background: linear-gradient(135deg, #FBBF24, #FB923C); color: #1a1008; }
+.t-warm .hero-card { background: linear-gradient(135deg, #3D2A0A 0%, #2A1E0B 60%, #341A06 100%); border: 1px solid rgba(251,191,36,0.20); color: #FEF3C7; }
+.t-warm .hero-card::after { background: #FBBF24; }
+.t-warm .hero-card .btn { background: rgba(251,191,36,0.15); color: #FCD34D; border: 1px solid rgba(251,191,36,0.28); }
+.t-warm .stat-card { background: #1E1A14; border: 1px solid rgba(251,191,36,0.08); color: #FEF3C7; }
+.t-warm .stat-card .stat-val { color: #FBBF24; }
+.t-warm .course-card { background: #1A1510; border: 1px solid rgba(251,191,36,0.08); color: #FEF3C7; }
+.t-warm .course-card .tag { background: rgba(251,191,36,0.14); color: #FCD34D; }
+.t-warm .progress-track { background: #FCD34D; }
+.t-warm .progress-fill { background: linear-gradient(90deg, #FBBF24, #FB923C); }
+
+
+/* ═══════════════════════════════════════════════════════
+   THEME 4 — OLED BLACK
+═══════════════════════════════════════════════════════ */
+.t-oled { background: #000000; }
+.t-oled .theme-label { background: #0A0A0A; color: #F1F5F9; border-bottom: 1px solid rgba(59,130,246,0.14); }
+.t-oled .dot { background: #3B82F6; }
+.t-oled .sidebar { background: #000000; border-right: 1px solid rgba(59,130,246,0.10); }
+.t-oled .sidebar .logo { background: linear-gradient(135deg, #3B82F6, #8B5CF6); }
+.t-oled .sidebar .nav-icon { color: #3B82F6; }
+.t-oled .sidebar .nav-icon.active { background: rgba(59,130,246,0.12); }
+.t-oled .main { background: #000000; }
+.t-oled .topbar-title { color: #F1F5F9; }
+.t-oled .search-bar { background: #111111; color: #93C5FD; border: 1px solid rgba(59,130,246,0.15); }
+.t-oled .avatar { background: linear-gradient(135deg, #3B82F6, #8B5CF6); color: #fff; }
+.t-oled .hero-card { background: linear-gradient(135deg, #0D2557 0%, #0A1A40 60%, #12103A 100%); border: 1px solid rgba(59,130,246,0.22); color: #F1F5F9; }
+.t-oled .hero-card::after { background: #3B82F6; }
+.t-oled .hero-card .btn { background: rgba(59,130,246,0.18); color: #93C5FD; border: 1px solid rgba(59,130,246,0.3); }
+.t-oled .stat-card { background: #0A0A0A; border: 1px solid rgba(59,130,246,0.10); color: #F1F5F9; }
+.t-oled .stat-card .stat-val { color: #60A5FA; }
+.t-oled .course-card { background: #080808; border: 1px solid rgba(59,130,246,0.10); color: #F1F5F9; }
+.t-oled .course-card .tag { background: rgba(139,92,246,0.15); color: #C4B5FD; }
+.t-oled .progress-track { background: #93C5FD; }
+.t-oled .progress-fill { background: linear-gradient(90deg, #3B82F6, #8B5CF6); }
+
+</style>
+</head>
+<body>
+<h1>Dark Mode Theme Options</h1>
+<p class="subtitle">Pick one and I'll apply it to your LMS — click to zoom</p>
+
+<div class="grid">
+
+  <!-- 1. MIDNIGHT PURPLE -->
+  <div class="theme-card t-purple">
+    <div class="theme-label">
+      <div class="dot"></div>
+      1 — Midnight Purple
+      <span class="desc">Rich · Premium · Modern</span>
+    </div>
+    <div class="dash">
+      <div class="sidebar t-purple">
+        <div class="logo"></div>
+        <div class="nav-icon active">📚</div>
+        <div class="nav-icon">📊</div>
+        <div class="nav-icon">🎯</div>
+        <div class="nav-icon">⚙️</div>
+      </div>
+      <div class="main t-purple">
+        <div class="topbar">
+          <div class="topbar-title">Dashboard</div>
+          <div class="topbar-right">
+            <div class="search-bar">Search…</div>
+            <div class="avatar">EI</div>
+          </div>
+        </div>
+        <div class="hero-card">
+          <div class="eyebrow">Good morning</div>
+          <div class="title">Welcome back, Emma 👋</div>
+          <div class="sub">You have 3 quizzes due this week</div>
+          <div class="btn">Continue Studying →</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-label">Progress</div>
+            <div class="stat-val">74%</div>
+            <div class="stat-sub">Anatomy</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Streak</div>
+            <div class="stat-val">12🔥</div>
+            <div class="stat-sub">days</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Score</div>
+            <div class="stat-val">88</div>
+            <div class="stat-sub">avg this week</div>
+          </div>
+        </div>
+        <div class="course-row">
+          <div class="course-card">
+            <div class="tag">Anatomy</div>
+            <div class="course-title">Upper Limb & Joints</div>
+            <div class="progress-track"><div class="progress-fill" style="width:68%"></div></div>
+          </div>
+          <div class="course-card">
+            <div class="tag">Physiology</div>
+            <div class="course-title">Cardiac Output</div>
+            <div class="progress-track"><div class="progress-fill" style="width:42%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DEEP OCEAN -->
+  <div class="theme-card t-ocean">
+    <div class="theme-label">
+      <div class="dot"></div>
+      2 — Deep Ocean
+      <span class="desc">Sharp · Focused · Technical</span>
+    </div>
+    <div class="dash">
+      <div class="sidebar t-ocean">
+        <div class="logo"></div>
+        <div class="nav-icon active">📚</div>
+        <div class="nav-icon">📊</div>
+        <div class="nav-icon">🎯</div>
+        <div class="nav-icon">⚙️</div>
+      </div>
+      <div class="main t-ocean">
+        <div class="topbar">
+          <div class="topbar-title">Dashboard</div>
+          <div class="topbar-right">
+            <div class="search-bar">Search…</div>
+            <div class="avatar">EI</div>
+          </div>
+        </div>
+        <div class="hero-card">
+          <div class="eyebrow">Good morning</div>
+          <div class="title">Welcome back, Emma 👋</div>
+          <div class="sub">You have 3 quizzes due this week</div>
+          <div class="btn">Continue Studying →</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-label">Progress</div>
+            <div class="stat-val">74%</div>
+            <div class="stat-sub">Anatomy</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Streak</div>
+            <div class="stat-val">12🔥</div>
+            <div class="stat-sub">days</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Score</div>
+            <div class="stat-val">88</div>
+            <div class="stat-sub">avg this week</div>
+          </div>
+        </div>
+        <div class="course-row">
+          <div class="course-card">
+            <div class="tag">Anatomy</div>
+            <div class="course-title">Upper Limb & Joints</div>
+            <div class="progress-track"><div class="progress-fill" style="width:68%"></div></div>
+          </div>
+          <div class="course-card">
+            <div class="tag">Physiology</div>
+            <div class="course-title">Cardiac Output</div>
+            <div class="progress-track"><div class="progress-fill" style="width:42%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. WARM CHARCOAL -->
+  <div class="theme-card t-warm">
+    <div class="theme-label">
+      <div class="dot"></div>
+      3 — Warm Charcoal
+      <span class="desc">Cozy · Easy-on-eyes · Long sessions</span>
+    </div>
+    <div class="dash">
+      <div class="sidebar t-warm">
+        <div class="logo"></div>
+        <div class="nav-icon active">📚</div>
+        <div class="nav-icon">📊</div>
+        <div class="nav-icon">🎯</div>
+        <div class="nav-icon">⚙️</div>
+      </div>
+      <div class="main t-warm">
+        <div class="topbar">
+          <div class="topbar-title">Dashboard</div>
+          <div class="topbar-right">
+            <div class="search-bar">Search…</div>
+            <div class="avatar">EI</div>
+          </div>
+        </div>
+        <div class="hero-card">
+          <div class="eyebrow">Good morning</div>
+          <div class="title">Welcome back, Emma 👋</div>
+          <div class="sub">You have 3 quizzes due this week</div>
+          <div class="btn">Continue Studying →</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-label">Progress</div>
+            <div class="stat-val">74%</div>
+            <div class="stat-sub">Anatomy</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Streak</div>
+            <div class="stat-val">12🔥</div>
+            <div class="stat-sub">days</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Score</div>
+            <div class="stat-val">88</div>
+            <div class="stat-sub">avg this week</div>
+          </div>
+        </div>
+        <div class="course-row">
+          <div class="course-card">
+            <div class="tag">Anatomy</div>
+            <div class="course-title">Upper Limb & Joints</div>
+            <div class="progress-track"><div class="progress-fill" style="width:68%"></div></div>
+          </div>
+          <div class="course-card">
+            <div class="tag">Physiology</div>
+            <div class="course-title">Cardiac Output</div>
+            <div class="progress-track"><div class="progress-fill" style="width:42%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. OLED BLACK -->
+  <div class="theme-card t-oled">
+    <div class="theme-label">
+      <div class="dot"></div>
+      4 — OLED Black
+      <span class="desc">Max contrast · Battery-friendly</span>
+    </div>
+    <div class="dash">
+      <div class="sidebar t-oled">
+        <div class="logo"></div>
+        <div class="nav-icon active">📚</div>
+        <div class="nav-icon">📊</div>
+        <div class="nav-icon">🎯</div>
+        <div class="nav-icon">⚙️</div>
+      </div>
+      <div class="main t-oled">
+        <div class="topbar">
+          <div class="topbar-title">Dashboard</div>
+          <div class="topbar-right">
+            <div class="search-bar">Search…</div>
+            <div class="avatar">EI</div>
+          </div>
+        </div>
+        <div class="hero-card">
+          <div class="eyebrow">Good morning</div>
+          <div class="title">Welcome back, Emma 👋</div>
+          <div class="sub">You have 3 quizzes due this week</div>
+          <div class="btn">Continue Studying →</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-label">Progress</div>
+            <div class="stat-val">74%</div>
+            <div class="stat-sub">Anatomy</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Streak</div>
+            <div class="stat-val">12🔥</div>
+            <div class="stat-sub">days</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Score</div>
+            <div class="stat-val">88</div>
+            <div class="stat-sub">avg this week</div>
+          </div>
+        </div>
+        <div class="course-row">
+          <div class="course-card">
+            <div class="tag">Anatomy</div>
+            <div class="course-title">Upper Limb & Joints</div>
+            <div class="progress-track"><div class="progress-fill" style="width:68%"></div></div>
+          </div>
+          <div class="course-card">
+            <div class="tag">Physiology</div>
+            <div class="course-title">Cardiac Output</div>
+            <div class="progress-track"><div class="progress-fill" style="width:42%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

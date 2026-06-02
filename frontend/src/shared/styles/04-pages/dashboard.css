@@ -15,14 +15,14 @@
   letter-spacing: 0;
 }
 
-/* In dark mode, give the dashboard a deeper navy stage with cards floating on it. */
+/* In dark mode — Void Black: near-pure black stage, cards float above it. */
 :root[data-theme="dark"] .dashboard-page,
 .student-app-shell[data-theme="dark"] .dashboard-page,
 :root[data-theme="dark"] .student-route-page,
 .student-app-shell[data-theme="dark"] .student-route-page {
   --sa-bg: var(--app-bg);
-  --sa-surface: rgba(12, 18, 28, 0.9);
-  --sa-surface-2: #111c2c;
+  --sa-surface: rgba(10, 10, 15, 0.92);
+  --sa-surface-2: #111117;
   background: var(--sa-bg) !important;
 }
 
