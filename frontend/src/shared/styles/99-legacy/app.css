@@ -2643,13 +2643,6 @@
   }
 
   /* ── Low-spec device overrides ─────────────────────────── */
-  :root[data-low-spec]:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) *,
-  :root[data-low-spec]:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) *::before,
-  :root[data-low-spec]:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) *::after {
-    animation-duration: 1ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 80ms !important;
-  }
   :root[data-low-spec] .glass-card,
   :root[data-low-spec] .premium-primary-button,
   :root[data-low-spec] .premium-secondary-button,
@@ -2786,11 +2779,6 @@
     background:
       radial-gradient(ellipse 100% 70% at 50% -12%, rgba(97, 165, 246, 0.055), rgba(97, 165, 246, 0) 70%),
       linear-gradient(180deg, #151c24 0%, #131b23 54%, #111820 100%) !important;
-  }
-
-  :root[data-visual-effects='balanced'] .lp-hcard,
-  :root[data-visual-effects='balanced'] .lp-plan-card--featured {
-    animation: none !important;
   }
 
   :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-routeFade {

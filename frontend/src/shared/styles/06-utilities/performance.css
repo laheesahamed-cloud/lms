@@ -62,7 +62,7 @@ html[data-motion-paused] body :where(
   .study-mascot__flame,
   .study-mascot__sparkles path
 ) {
-  animation: none !important;
+  will-change: auto !important;
 }
 
 :root[data-low-spec] :where(.quiz-completion-overlay, .quiz-completion-capsule),
@@ -108,7 +108,6 @@ html[data-motion-paused] body :where(
 :root[data-low-spec] .study-streak-icon::before,
 :root[data-low-spec] .study-streak-icon::after,
 :root[data-low-spec] .study-hero-mascot-random::before {
-  animation: none !important;
   will-change: auto !important;
 }
 
