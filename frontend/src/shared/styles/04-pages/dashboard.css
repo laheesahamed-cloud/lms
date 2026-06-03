@@ -54,6 +54,8 @@
     --sa-page-padding,
     calc(max(8px, env(safe-area-inset-top, 0px)) + 4px) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 6px)
   );
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 /* ============================================================
@@ -837,6 +839,21 @@
   0% { transform: translateY(14px) scale(0.72); opacity: 0; }
   18% { opacity: 0.75; }
   100% { transform: translateY(-18px) scale(1.08); opacity: 0; }
+}
+
+/* Pause flame + mascot animations when their card is off-screen.
+   JS adds .is-offscreen to .study-streak-card and .study-continue-card.
+   This avoids burning GPU when user has scrolled past them. */
+.study-streak-card.is-offscreen .study-streak-icon,
+.study-streak-card.is-offscreen .study-streak-icon::before,
+.study-streak-card.is-offscreen .study-streak-icon::after,
+.study-streak-card.is-offscreen .study-fire-outer,
+.study-streak-card.is-offscreen .study-fire-inner,
+.study-continue-card.is-offscreen .study-hero-mascot-random,
+.study-continue-card.is-offscreen .study-hero-mascot-random img,
+.study-continue-card.is-offscreen .study-hero-mascot-random__spark,
+.study-continue-card.is-offscreen .study-dust-particle {
+  animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2545,7 +2562,6 @@
   filter: blur(70px);
   pointer-events: none;
   z-index: 0;
-  will-change: transform;
 }
 
 .dashboard-page::before,
@@ -2679,13 +2695,13 @@
   transition:
     transform    var(--lms-motion-duration-hover, 150ms) var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
     border-color 180ms ease;
-  will-change: transform;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .study-action-card:hover {
     transform: translateY(-2px);
     box-shadow: none;
+    will-change: transform;
   }
 
   .study-action-card:hover > span {
@@ -2797,6 +2813,8 @@
   z-index: 0;
   overflow: hidden;
   display: none;
+  isolation: isolate;
+  contain: strict;
 }
 
 :root[data-theme="dark"] .study-dust-layer,
@@ -3156,6 +3174,14 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   color: #3b82f6;
 }
 
+:root[data-theme="dark"] .dashboard-page.study-hub-page .study-continue-card,
+.student-app-shell[data-theme="dark"] .dashboard-page.study-hub-page .study-continue-card {
+  background:
+    radial-gradient(circle at 86% 14%, rgba(108, 176, 255, 0.22), transparent 38%),
+    radial-gradient(circle at 100% 90%, rgba(108, 176, 255, 0.14), transparent 46%),
+    linear-gradient(145deg, rgba(8, 8, 14, 0.99), rgba(4, 4, 9, 0.99));
+}
+
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-hero-name,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-hero-name > span,
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-hero-lead b,
@@ -3196,6 +3222,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   border: 0;
   border-radius: 18px;
   padding: 9px;
+  contain: layout style;
   background:
     radial-gradient(circle at 18% 20%, rgba(96, 165, 250, 0.16), transparent 45%),
     var(--sa-soft-tile-bg);

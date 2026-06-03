@@ -35,7 +35,7 @@ const interactiveCard =
   `${cardBase} lms-card-interactive transition-[background,border-color,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/20`;
 
 const screenFeedbackBase =
-  'lms-alert lms-screen-status fixed right-[calc(env(safe-area-inset-right,0px)+20px)] top-[calc(env(safe-area-inset-top,0px)+52px)] z-[9500] w-[min(440px,calc(100vw-40px))] max-w-[calc(100vw-40px)] rounded-[var(--radius-md)] border px-4 py-3 text-[13px] font-extrabold leading-normal shadow-[0_18px_45px_-28px_rgba(15,23,42,0.45)] max-[640px]:left-1/2 max-[640px]:right-auto max-[640px]:top-[calc(env(safe-area-inset-top,0px)+34px)] max-[640px]:w-[calc(100vw-28px)] max-[640px]:-translate-x-1/2';
+  'lms-alert lms-screen-status fixed right-[calc(env(safe-area-inset-right,0px)+20px)] top-[calc(env(safe-area-inset-top,0px)+52px)] z-[9500] w-[min(430px,calc(100vw-40px))] max-w-[calc(100vw-40px)] rounded-[var(--radius-md)] border px-4 py-3 text-[13px] font-extrabold leading-normal shadow-[0_18px_42px_-28px_rgba(15,23,42,0.48)] max-[640px]:left-[calc(env(safe-area-inset-left,0px)+12px)] max-[640px]:right-[calc(env(safe-area-inset-right,0px)+12px)] max-[640px]:top-[calc(env(safe-area-inset-top,0px)+12px)] max-[640px]:w-auto max-[640px]:max-w-none max-[420px]:text-[12.5px]';
 
 // ── Exports ──────────────────────────────────────────────────
 
@@ -265,11 +265,11 @@ export const ui = {
 
   // ── Toasts ────────────────────────────────────────────────
   toastContainer:
-    'fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+16px)] z-[140] flex justify-center px-4 pointer-events-none',
+    'fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+12px)] z-[9500] flex justify-center px-3 pointer-events-none',
   toastContainerCenter:
     'items-start',
   toast:
-    'lms-alert lms-toast inline-flex min-w-[min(420px,calc(100%_-_32px))] max-w-[540px] items-center gap-2 rounded-[var(--radius-sm)] border border-line-soft bg-surface-card px-4 py-3 text-[13px] font-bold text-ink-strong shadow-none animate-slideDownFade',
+    'lms-alert lms-toast pointer-events-auto inline-flex w-[min(430px,calc(100vw-24px))] max-w-[calc(100vw-24px)] items-center gap-2 rounded-[var(--radius-md)] border border-line-soft bg-surface-card px-4 py-3 text-[13px] font-bold text-ink-strong shadow-[0_18px_42px_-28px_rgba(15,23,42,0.48)]',
   toastSuccess:
     'border-brand-success/24 bg-[var(--color-success-light)] text-brand-success',
   toastWarning:

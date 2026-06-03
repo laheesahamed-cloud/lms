@@ -49,7 +49,7 @@ export declare class AiNotesController {
         title: string;
         rawText: string | null;
         noteData: unknown;
-        engineKey: "openai" | "gemini";
+        engineKey: "gemini" | "openai";
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
@@ -105,7 +105,7 @@ export declare class AiNotesController {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "openai" | "gemini" | "claude" | "openrouter";
+            key: "gemini" | "openai" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -163,7 +163,7 @@ export declare class AiNotesController {
         title: string;
         rawText: string | null;
         noteData: unknown;
-        engineKey: "openai" | "gemini";
+        engineKey: "gemini" | "openai";
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
@@ -199,7 +199,7 @@ export declare class AiNotesController {
         id: number;
         title: string;
         rawText: string | null;
-        engineKey: "openai" | "gemini";
+        engineKey: "gemini" | "openai";
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
@@ -243,7 +243,7 @@ export declare class AiNotesController {
         id: number;
         title: string;
         rawText: string | null;
-        engineKey: "openai" | "gemini";
+        engineKey: "gemini" | "openai";
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
@@ -287,7 +287,7 @@ export declare class AiNotesController {
         id: number;
         title: string;
         rawText: string | null;
-        engineKey: "openai" | "gemini";
+        engineKey: "gemini" | "openai";
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;

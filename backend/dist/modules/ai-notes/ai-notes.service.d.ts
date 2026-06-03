@@ -146,7 +146,7 @@ export declare class AiNotesService {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "openai" | "gemini" | "claude" | "openrouter";
+            key: "gemini" | "openai" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -357,7 +357,6 @@ export declare class AiNotesService {
     private parseIdList;
     private resolveEffectiveAccessScope;
     private canAccessStudentNote;
-    private estimateFlashcardCount;
     private mapStudentNote;
     private buildPrompt;
     private splitIntoPages;

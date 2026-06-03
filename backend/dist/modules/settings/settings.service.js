@@ -25,6 +25,7 @@ const sql_safety_1 = require("../../database/sql-safety");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const WHATSAPP_NUMBER_SETTING_KEY = 'contact_whatsapp_number';
 const LANDING_PAGE_SETTING_KEY = 'landing_page_content';
+const POPUP_ALERT_PUBLIC_MANIFEST_FILE = 'popup-alert.json';
 const AVAILABILITY_MODE_SETTING_KEY = 'site_availability_mode';
 const AVAILABILITY_UNLOCK_CODE_SETTING_KEY = 'site_availability_unlock_code';
 const AVAILABILITY_MODES = ['live', 'maintenance', 'coming-soon'];
@@ -502,6 +503,7 @@ let SettingsService = SettingsService_1 = class SettingsService {
             this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageBytes, String(next.imageBytes || 0)),
             this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.version, next.version),
         ]);
+        await this.writePopupAlertManifest(next);
         this.clearPublicSettingsCache();
         return this.getPopupAlertSettings();
     }
@@ -956,6 +958,11 @@ let SettingsService = SettingsService_1 = class SettingsService {
             return { enabled: false };
         }
         return this.serializePopupAlertSettings(settings);
+    }
+    async writePopupAlertManifest(settings) {
+        const uploadDir = (0, path_1.join)(process.cwd(), 'uploads', 'marketing-popups');
+        await (0, promises_1.mkdir)(uploadDir, { recursive: true });
+        await (0, promises_1.writeFile)((0, path_1.join)(uploadDir, POPUP_ALERT_PUBLIC_MANIFEST_FILE), `${JSON.stringify(this.serializePublicPopupAlertSettings(settings))}\n`, 'utf8');
     }
     serializeApnsSettings(settings) {
         return {

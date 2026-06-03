@@ -6,6 +6,7 @@ import { RequirePermissions } from '../auth/permissions.decorator';
 const MARKETING_POPUP_MIME_TYPES: Record<string, string> = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
+  json: 'application/json; charset=utf-8',
   png: 'image/png',
   webp: 'image/webp',
 };
@@ -42,7 +43,7 @@ export class UploadsController {
   @Get('marketing-popups/:fileName')
   async getMarketingPopupImage(@Param('fileName') fileName: string, @Res() response: any) {
     const cleanFileName = String(fileName || '').trim();
-    if (!/^[A-Za-z0-9._-]+\.(?:jpe?g|png|webp)$/i.test(cleanFileName)) {
+    if (!/^[A-Za-z0-9._-]+\.(?:jpe?g|png|webp|json)$/i.test(cleanFileName)) {
       throw new BadRequestException('Invalid upload file name');
     }
 
@@ -65,7 +66,12 @@ export class UploadsController {
 
     response.setHeader('Content-Type', mimeType);
     response.setHeader('Content-Length', String(fileStats.size));
-    response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    response.setHeader(
+      'Cache-Control',
+      extension === 'json'
+        ? 'public, max-age=15, stale-while-revalidate=300'
+        : 'public, max-age=31536000, immutable'
+    );
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.sendFile(filePath);
   }

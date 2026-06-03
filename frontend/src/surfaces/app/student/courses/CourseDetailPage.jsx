@@ -8,6 +8,7 @@ import { getLessonAiNote, listAiNotes } from '../../../../shared/api/aiNotes.api
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 
 const COURSE_SUBJECT_PALETTES = [
   { key: 'rose', group: 'warm', match: /(cardio|heart|coronar|arrhythm|myocard)/i, rgb: '214, 91, 145', bg: 'rgba(253, 242, 248, 0.86)', soft: 'rgba(214, 91, 145, 0.13)', border: 'rgba(214, 91, 145, 0.25)', text: '#d65b91' },
@@ -669,7 +670,7 @@ export function CourseDetailPage({
       <section className="study-hub-shell course-detail-shell">
         <AppHeader title={course.courseTitle} subtitle="Course lesson map" />
 
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
         <section className="course-map-overview" aria-labelledby="course-map-title">
           <div className="course-map-overview__copy">

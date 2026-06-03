@@ -170,6 +170,72 @@ let QuestionsService = class QuestionsService {
         const [rows] = await this.db.execute(sql, params);
         return rows.map((row) => this.mapQuestionSummary(row));
     }
+    async countByFilters(filters) {
+        let sql = `
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN COALESCE(qql.quiz_count, 0) = 0 THEN 1 ELSE 0 END) AS unused,
+        SUM(CASE WHEN COALESCE(qql.quiz_count, 0) > 0 THEN 1 ELSE 0 END) AS used
+      FROM questions q
+      LEFT JOIN subtopics st ON st.id = q.subtopic_id
+      LEFT JOIN papers p ON p.id = q.paper_id
+      LEFT JOIN (
+        SELECT question_id, COUNT(DISTINCT quiz_id) AS quiz_count
+        FROM question_quizzes
+        GROUP BY question_id
+      ) qql ON qql.question_id = q.id
+      WHERE 1 = 1
+    `;
+        const params = [];
+        if (filters.search?.trim()) {
+            sql += ' AND (q.question_text LIKE ? OR q.keywords_text LIKE ? OR q.subtopic LIKE ? OR st.subtopic_name LIKE ? OR p.paper_title LIKE ?)';
+            const like = `%${filters.search.trim()}%`;
+            params.push(like, like, like, like, like);
+        }
+        if (filters.keywords?.trim()) {
+            sql += ' AND q.keywords_text LIKE ?';
+            params.push(`%${filters.keywords.trim()}%`);
+        }
+        if (filters.status === 'active' || filters.status === 'inactive') {
+            sql += ' AND q.status = ?';
+            params.push(filters.status);
+        }
+        if (filters.type === 'sba' || filters.type === 'true_false') {
+            sql += ' AND q.question_type = ?';
+            params.push(filters.type);
+        }
+        if (filters.category === 'mock' || filters.category === 'past_paper' || filters.category === 'past' || filters.category === 'ai') {
+            sql += " AND (q.question_category = ? OR (q.question_category IS NULL AND q.category = ?))";
+            params.push(this.normalizeCategory(filters.category), this.normalizeLegacyCategory(filters.category));
+        }
+        if (filters.courseId && filters.courseId > 0) {
+            sql += ' AND q.course_id = ?';
+            params.push(filters.courseId);
+        }
+        if (filters.subjectId && filters.subjectId > 0) {
+            sql += ' AND q.topic_id = ?';
+            params.push(filters.subjectId);
+        }
+        if (filters.topicId && filters.topicId > 0) {
+            sql += ' AND q.subtopic_id = ?';
+            params.push(filters.topicId);
+        }
+        if (filters.lessonId && filters.lessonId > 0) {
+            sql += ' AND q.lesson_id = ?';
+            params.push(filters.lessonId);
+        }
+        if (filters.paperId && filters.paperId > 0) {
+            sql += ' AND q.paper_id = ?';
+            params.push(filters.paperId);
+        }
+        const [rows] = await this.db.execute(sql, params);
+        const row = rows[0] || {};
+        return {
+            total: Number(row.total || 0),
+            unused: Number(row.unused || 0),
+            used: Number(row.used || 0),
+        };
+    }
     async meta() {
         const [courseRows] = await this.db.execute("SELECT id, course_title FROM courses WHERE status = 'active' ORDER BY course_title ASC");
         const [subjectRows] = await this.db.execute("SELECT id, course_id, topic_name FROM topics WHERE status = 'active' ORDER BY topic_name ASC");

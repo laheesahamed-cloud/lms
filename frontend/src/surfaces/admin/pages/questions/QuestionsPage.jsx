@@ -30,6 +30,7 @@ import {
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 
 const recapAdminSectionClass = 'mt-1 overflow-hidden rounded-lg border border-line-soft bg-surface-1';
@@ -954,12 +955,14 @@ export function QuestionsPage() {
         {error ? <div className={ui.feedbackError}>{error}</div> : null}
         {toast && createPortal(
           <div className={cx(ui.toastContainer, ui.toastContainerCenter)} role="status" aria-live="polite">
-            <div className={cx(ui.toast, toast.type === 'success' ? ui.toastSuccess : ui.toastError)}>
-              <span className={ui.toastIcon} aria-hidden="true">
-                {toast.type === 'success' ? '✓' : '⚠'}
-              </span>
-              <span>{toast.text}</span>
-            </div>
+            <FeedbackNotice
+              tone={toast.type === 'success' ? 'success' : 'error'}
+              variant="toast"
+              onDismiss={() => setToast(null)}
+              resetKey={toast.text}
+            >
+              {toast.text}
+            </FeedbackNotice>
           </div>,
           document.body
         )}

@@ -9,6 +9,7 @@ import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { AiQuizGeneratorForm } from './components/AiQuizGeneratorForm.jsx';
 import { AiQuizPreview } from './components/AiQuizPreview.jsx';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../shared/ui/FeedbackNotice.jsx';
 
 const defaultForm = {
   courseId: '',
@@ -663,8 +664,8 @@ export function AiQuizGeneratorPage({
           <p>{heroDescription}</p>
         </div>
 
-        {status.error ? <div className={ui.feedbackError}>{status.error}</div> : null}
-        {status.success ? <div className={ui.feedbackSuccess}>{status.success}</div> : null}
+        {status.error ? <FeedbackNotice tone="error">{status.error}</FeedbackNotice> : null}
+        {status.success ? <FeedbackNotice tone="success">{status.success}</FeedbackNotice> : null}
 
         <div className={cx(ui.managementGrid, ui.aiGeneratorGrid)}>
           <AiQuizGeneratorForm

@@ -4,6 +4,7 @@ import { fetchStudentCourses } from '../../../../shared/api/courses.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { CourseDetailPage } from './CourseDetailPage.jsx';
 
 function BookIcon() {
@@ -247,7 +248,7 @@ export function StudentCoursesPage() {
       <section className="study-hub-shell">
         <AppHeader title="Courses" subtitle="Study Library" />
 
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
         <section className="grid gap-4">
           <div className="flex flex-wrap items-end justify-between gap-3">

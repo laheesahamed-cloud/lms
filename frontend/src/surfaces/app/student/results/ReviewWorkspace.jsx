@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { TheoryRecapPopupTrigger, hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/QuickTheoryRecap.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
@@ -854,7 +855,7 @@ export function ReviewWorkspace({
 
           {questionNavigation}
 
-          {questionActionError ? <div className={ui.feedbackError} role="alert" aria-live="assertive">{questionActionError}</div> : null}
+          {questionActionError ? <FeedbackNotice tone="error">{questionActionError}</FeedbackNotice> : null}
           <div className={reviewUi.questionActions}>
             <button
               className={cx(

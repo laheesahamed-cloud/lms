@@ -25,6 +25,7 @@ const QUIZ_PASS_MARK = 45;
 const TRUE_FALSE_STATEMENTS_PER_QUESTION = 5;
 const QUIZ_CONTENT_CACHE_MS = 30000;
 const PRACTICE_REVEAL_CACHE_MS = 120000;
+const DYNAMIC_RANDOMIZATION_FEATURE = 'dynamic_quiz_randomization';
 let QuizAttemptsService = class QuizAttemptsService {
     constructor(db, plansService) {
         this.db = db;
@@ -35,9 +36,10 @@ let QuizAttemptsService = class QuizAttemptsService {
     }
     async listQuizzes(authorization) {
         const user = await this.requireStudent(authorization);
-        const [canPractice, canExam] = await Promise.all([
+        const [canPractice, canExam, canDynamicRandomization] = await Promise.all([
             this.plansService.hasFeatureAccess(user.id, 'practice_mode'),
             this.plansService.hasFeatureAccess(user.id, 'exam_mode'),
+            this.plansService.hasFeatureAccess(user.id, DYNAMIC_RANDOMIZATION_FEATURE),
         ]);
         const accessProfile = await this.getQuizAccessProfile(user.id);
         const [rows] = await this.db.execute(`
@@ -53,6 +55,7 @@ let QuizAttemptsService = class QuizAttemptsService {
           q.exam_mode_only,
           q.student_title,
           q.display_title_mode,
+          q.randomization_mode,
           q.quiz_title,
           q.quiz_description,
           q.total_questions,
@@ -109,6 +112,13 @@ let QuizAttemptsService = class QuizAttemptsService {
         return rows.map((row) => {
             const canAccessQuiz = this.canAccessQuiz(row, accessProfile);
             const isFree = Number(row.is_free) === 1;
+            const isDynamic = this.isDynamicQuiz(row);
+            const canUseDynamic = !isDynamic || isFree || canDynamicRandomization;
+            const accessMessage = !canAccessQuiz
+                ? 'Your subscription does not include this course question bank.'
+                : !canUseDynamic
+                    ? 'Dynamic randomized quizzes are included with premium plans.'
+                    : '';
             return {
                 id: row.id,
                 courseId: row.course_id,
@@ -142,11 +152,12 @@ let QuizAttemptsService = class QuizAttemptsService {
                 practiceAnsweredCount: Number(row.practice_answered_count || 0),
                 isCompleted: Number(row.exam_attempt_count || 0) > 0 || Number(row.practice_completed_count || 0) > 0,
                 isFree,
-                canAccess: canAccessQuiz,
-                accessLocked: !canAccessQuiz,
-                accessMessage: canAccessQuiz ? '' : 'Your subscription does not include this course question bank.',
-                canPracticeMode: canAccessQuiz && (canPractice || isFree),
-                canExamMode: canAccessQuiz && (canExam || isFree),
+                randomizationMode: this.resolveRandomizationMode(row.randomization_mode),
+                canAccess: canAccessQuiz && canUseDynamic,
+                accessLocked: !canAccessQuiz || !canUseDynamic,
+                accessMessage,
+                canPracticeMode: canAccessQuiz && canUseDynamic && (canPractice || isFree),
+                canExamMode: canAccessQuiz && canUseDynamic && (canExam || isFree),
             };
         });
     }
@@ -202,9 +213,9 @@ let QuizAttemptsService = class QuizAttemptsService {
         const scopedQuestionId = forcedMode === 'practice' && Number.isFinite(Number(questionId)) && Number(questionId) > 0
             ? Number(questionId)
             : null;
-        const questions = await this.loadQuestionsForQuiz(quizId, scopedQuestionId);
         const isFreeQuiz = Number(quiz.is_free) === 1;
         await this.ensureStudentCanAccessQuiz(user.id, quiz);
+        await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
         if (forcedMode === 'practice' && !isFreeQuiz && !(await this.plansService.hasFeatureAccess(user.id, 'practice_mode'))) {
             throw new common_1.BadRequestException('Practice mode is included with selected plans');
         }
@@ -212,19 +223,19 @@ let QuizAttemptsService = class QuizAttemptsService {
             throw new common_1.BadRequestException('Exam mode is included with selected plans');
         }
         if (forcedMode === 'exam') {
-            const examSession = await this.ensureExamSession(user.id, quizId, quiz, questions);
+            const examState = await this.ensureExamSession(user.id, quizId, quiz);
             return {
                 mode: 'exam',
                 quiz: this.mapQuizForStudent(quiz),
-                examSession,
-                questions: questions.map((question) => ({
+                examSession: examState.session,
+                questions: examState.questions.map((question) => ({
                     ...this.mapQuestionForActiveAttempt(question),
                     savedAnswer: null,
                 })),
             };
         }
-        const practiceState = await this.ensurePracticeSession(user.id, quizId, questions, continuePractice, resetPractice);
-        const questionsWithAnswers = questions.map((question) => ({
+        const practiceState = await this.ensurePracticeSession(user.id, quiz, continuePractice, resetPractice, scopedQuestionId);
+        const questionsWithAnswers = practiceState.questions.map((question) => ({
             ...this.mapQuestionForPracticeAttempt(question),
             savedAnswer: practiceState.answerMap[question.id] || null,
         }));
@@ -244,19 +255,20 @@ let QuizAttemptsService = class QuizAttemptsService {
         const user = await this.requireStudent(authorization);
         const quiz = await this.loadActiveQuiz(quizId);
         await this.ensureStudentCanAccessQuiz(user.id, quiz);
+        await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
         if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'practice_mode'))) {
             throw new common_1.BadRequestException('Practice mode is included with selected plans');
         }
         if (Number(quiz.exam_mode_only) === 1) {
             throw new common_1.BadRequestException('This quiz is exam mode only');
         }
-        const question = await this.loadQuestionForPracticeSave(quizId, dto.questionId);
-        if (!question) {
-            throw new common_1.NotFoundException('Question not found in this quiz');
-        }
         const session = await this.getLatestPracticeSession(user.id, quizId);
         if (!session) {
             throw new common_1.NotFoundException('Practice session not found');
+        }
+        const question = await this.loadQuestionForPracticeSave(quiz, session, dto.questionId);
+        if (!question) {
+            throw new common_1.NotFoundException('Question not found in this quiz');
         }
         const connection = await this.db.getConnection();
         try {
@@ -310,30 +322,31 @@ let QuizAttemptsService = class QuizAttemptsService {
         const user = await this.requireStudent(authorization);
         const quiz = await this.loadActiveQuiz(quizId);
         await this.ensureStudentCanAccessQuiz(user.id, quiz);
+        await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
         if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'practice_mode'))) {
             throw new common_1.BadRequestException('Practice mode is included with selected plans');
         }
         if (Number(quiz.exam_mode_only) === 1) {
             throw new common_1.BadRequestException('This quiz is exam mode only');
         }
-        const questions = await this.loadQuestionsForQuiz(quizId);
+        const practiceState = await this.ensurePracticeSession(user.id, quiz, true, false);
+        const questions = practiceState.questions;
         const normalizedAnswers = this.normalizeSubmittedAnswers(dto.answers || {}, questions);
         const revealedQuestionIds = this.normalizeQuestionIdList(dto.revealedQuestionIds || [], questions);
         const questionIndex = this.normalizeQuestionIndex(dto.currentQuestionIndex, questions.length);
-        const session = await this.getOrCreatePracticeSessionForWrite(user.id, quizId);
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
-            await this.replacePracticeAnswers(connection, Number(session.id), questions, normalizedAnswers);
+            await this.replacePracticeAnswers(connection, Number(practiceState.sessionId), questions, normalizedAnswers);
             await connection.execute(`
           UPDATE practice_sessions
           SET status = ?, last_question_index = ?, revealed_question_ids_json = ?, updated_at = NOW()
           WHERE id = ? AND user_id = ? AND quiz_id = ?
-        `, [status, questionIndex, JSON.stringify(revealedQuestionIds), session.id, user.id, quizId]);
+        `, [status, questionIndex, JSON.stringify(revealedQuestionIds), practiceState.sessionId, user.id, quizId]);
             await connection.commit();
             return {
                 success: true,
-                sessionId: Number(session.id),
+                sessionId: Number(practiceState.sessionId),
                 status,
                 lastQuestionIndex: questionIndex,
                 revealedQuestionIds,
@@ -351,10 +364,10 @@ let QuizAttemptsService = class QuizAttemptsService {
         const user = await this.requireStudent(authorization);
         const quiz = await this.loadActiveQuiz(quizId);
         await this.ensureStudentCanAccessQuiz(user.id, quiz);
+        await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
         if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
             throw new common_1.BadRequestException('Exam mode is included with selected plans');
         }
-        const questions = await this.loadQuestionsForQuiz(quizId);
         const latestSession = await this.getLatestExamSession(user.id, quizId);
         if (latestSession && latestSession.status !== 'in_progress') {
             return {
@@ -366,7 +379,8 @@ let QuizAttemptsService = class QuizAttemptsService {
                 secondsRemaining: 0,
             };
         }
-        const session = await this.ensureExamSession(user.id, quizId, quiz, questions);
+        const examState = await this.ensureExamSession(user.id, quizId, quiz);
+        const { session, questions } = examState;
         if (session.status !== 'in_progress') {
             return {
                 success: false,
@@ -411,19 +425,24 @@ let QuizAttemptsService = class QuizAttemptsService {
         const user = await this.requireStudent(authorization);
         const quiz = await this.loadActiveQuiz(quizId);
         await this.ensureStudentCanAccessQuiz(user.id, quiz);
+        await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
         if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
             throw new common_1.BadRequestException('Exam mode is included with selected plans');
         }
-        const questions = await this.loadQuestionsForQuiz(quizId);
-        const incomingAnswers = this.normalizeSubmittedAnswers(dto.answers || {}, questions);
+        await this.ensureExamSession(user.id, quizId, quiz);
         const connection = await this.db.getConnection();
         try {
             await connection.beginTransaction();
             const session = await this.getLatestExamSession(user.id, quizId, connection, true);
-            if (session?.status === 'submitted' && session.submitted_attempt_id) {
+            if (session?.submitted_attempt_id && (session.status === 'submitted' || session.status === 'expired')) {
                 await connection.commit();
                 return { success: true, attemptId: Number(session.submitted_attempt_id) };
             }
+            if (!session || session.status !== 'in_progress') {
+                throw new common_1.NotFoundException('Exam session not found');
+            }
+            const questions = await this.loadQuestionsForExamSession(quiz, session);
+            const incomingAnswers = this.normalizeSubmittedAnswers(dto.answers || {}, questions);
             const sessionAnswers = session ? this.parseAnswerJson(session.answers_json) : {};
             const deadline = session ? this.parseDate(session.deadline_at) : null;
             const canAcceptIncomingAnswers = !deadline || deadline.getTime() > Date.now();
@@ -510,6 +529,7 @@ let QuizAttemptsService = class QuizAttemptsService {
           qa.correct_answers,
           qa.wrong_answers,
           qa.unanswered_questions,
+          qa.question_ids_json,
           qa.pass_status,
           qa.submitted_at,
           qa.created_at,
@@ -529,7 +549,8 @@ let QuizAttemptsService = class QuizAttemptsService {
         if (!attempt) {
             throw new common_1.NotFoundException('Review not found');
         }
-        const questions = await this.loadQuestionsForQuiz(Number(attempt.quiz_id));
+        const attemptQuestionIds = this.parseNumberJsonArray(attempt.question_ids_json ? String(attempt.question_ids_json) : null);
+        const questions = await this.loadQuestionsForQuiz(Number(attempt.quiz_id), null, attemptQuestionIds.length ? attemptQuestionIds : undefined);
         const [answerRows] = await this.db.execute('SELECT question_id, option_id, is_selected FROM student_answers WHERE attempt_id = ?', [attemptId]);
         const answerMap = this.groupAnswerRows(answerRows);
         return {
@@ -551,6 +572,7 @@ let QuizAttemptsService = class QuizAttemptsService {
         const user = await this.requireStudent(authorization);
         const quiz = await this.loadActiveQuiz(quizId);
         await this.ensureStudentCanAccessQuiz(user.id, quiz);
+        await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
         const session = await this.getLatestPracticeSession(user.id, quizId);
         if (!session) {
             throw new common_1.NotFoundException('No practice session found');
@@ -561,7 +583,7 @@ let QuizAttemptsService = class QuizAttemptsService {
         const scopedQuestionId = Number.isFinite(Number(questionId)) && Number(questionId) > 0
             ? Number(questionId)
             : null;
-        const questions = await this.loadQuestionsForQuiz(quizId, scopedQuestionId);
+        const questions = await this.loadQuestionsForPracticeSession(quiz, session, scopedQuestionId);
         const [answerRows] = await this.db.execute('SELECT question_id, option_id, is_selected FROM practice_answers WHERE practice_session_id = ?', [session.id]);
         const answerMap = this.groupAnswerRows(answerRows);
         const reviewed = questions.map((question) => this.mapReviewQuestion(question, answerMap[question.id] || []));
@@ -625,6 +647,20 @@ let QuizAttemptsService = class QuizAttemptsService {
         if (!this.canAccessQuiz(quiz, accessProfile)) {
             throw new common_1.BadRequestException('This quiz is included with selected course plans');
         }
+    }
+    async ensureStudentCanUseDynamicQuiz(userId, quiz) {
+        if (!this.isDynamicQuiz(quiz) || Number(quiz.is_free) === 1) {
+            return;
+        }
+        if (!(await this.plansService.hasFeatureAccess(userId, DYNAMIC_RANDOMIZATION_FEATURE))) {
+            throw new common_1.BadRequestException('Dynamic randomized quizzes are included with premium plans');
+        }
+    }
+    resolveRandomizationMode(value) {
+        return value === 'dynamic' ? 'dynamic' : 'static';
+    }
+    isDynamicQuiz(quiz) {
+        return this.resolveRandomizationMode(quiz.randomization_mode) === 'dynamic';
     }
     async getQuizAccessProfile(userId) {
         const [rows] = await this.db.execute(`
@@ -702,12 +738,16 @@ let QuizAttemptsService = class QuizAttemptsService {
           q.topic_id,
           q.subtopic_id,
           q.lesson_id,
+          q.paper_id,
           q.subtopic,
+          q.category,
           q.is_general,
           q.is_free,
           q.exam_mode_only,
           q.student_title,
           q.display_title_mode,
+          q.blueprint_json,
+          q.randomization_mode,
           q.quiz_title,
           q.quiz_description,
           q.total_questions,
@@ -739,34 +779,67 @@ let QuizAttemptsService = class QuizAttemptsService {
         this.activeQuizCache.set(quizId, { value: quiz, expiresAt: now + QUIZ_CONTENT_CACHE_MS });
         return quiz;
     }
-    async loadQuestionsForQuiz(quizId, questionId) {
+    async loadQuestionsForQuiz(quizId, questionId, questionIds) {
         const scopedQuestionId = Number.isFinite(Number(questionId)) && Number(questionId) > 0
             ? Number(questionId)
             : null;
-        const cacheKey = `${quizId}:${scopedQuestionId || 'all'}`;
+        const frozenQuestionIds = Array.from(new Set(questionIds || []))
+            .map((id) => Number(id))
+            .filter((id) => Number.isInteger(id) && id > 0);
+        const cacheKey = `${quizId}:${scopedQuestionId || 'all'}:${frozenQuestionIds.length ? `ids:${frozenQuestionIds.join(',')}` : 'links'}`;
         const now = Date.now();
         const cached = this.quizQuestionCache.get(cacheKey);
         if (cached && cached.expiresAt > now) {
             return cached.value;
         }
-        const [questionRows] = await this.db.execute(`
-        SELECT
-          q.id,
-          q.course_id,
-          q.topic_id,
-          q.subtopic,
-          q.category,
-          q.question_type,
-          q.question_text,
-          q.explanation,
-          q.status,
-          q.updated_at
-        FROM questions q
-        INNER JOIN question_quizzes qq ON qq.question_id = q.id
-        WHERE qq.quiz_id = ? AND q.status = 'active'
-          ${scopedQuestionId ? 'AND q.id = ?' : ''}
-        ORDER BY qq.sort_order ASC, q.id ASC
-      `, scopedQuestionId ? [quizId, scopedQuestionId] : [quizId]);
+        let questionRows = [];
+        if (frozenQuestionIds.length > 0) {
+            const requestedIds = scopedQuestionId
+                ? frozenQuestionIds.filter((id) => id === scopedQuestionId)
+                : frozenQuestionIds;
+            if (requestedIds.length === 0) {
+                throw new common_1.NotFoundException('Question not found in this quiz');
+            }
+            const [rows] = await this.db.execute(`
+          SELECT
+            q.id,
+            q.course_id,
+            q.topic_id,
+            q.subtopic,
+            q.category,
+            q.question_type,
+            q.question_text,
+            q.explanation,
+            q.status,
+            q.updated_at
+          FROM questions q
+          WHERE q.id IN (${(0, sql_safety_1.sqlPlaceholders)(requestedIds)})
+            AND q.status = 'active'
+        `, requestedIds);
+            const orderById = new Map(frozenQuestionIds.map((id, index) => [id, index]));
+            questionRows = rows.sort((left, right) => ((orderById.get(Number(left.id)) ?? 0) - (orderById.get(Number(right.id)) ?? 0)));
+        }
+        else {
+            const [rows] = await this.db.execute(`
+          SELECT
+            q.id,
+            q.course_id,
+            q.topic_id,
+            q.subtopic,
+            q.category,
+            q.question_type,
+            q.question_text,
+            q.explanation,
+            q.status,
+            q.updated_at
+          FROM questions q
+          INNER JOIN question_quizzes qq ON qq.question_id = q.id
+          WHERE qq.quiz_id = ? AND q.status = 'active'
+            ${scopedQuestionId ? 'AND q.id = ?' : ''}
+          ORDER BY qq.sort_order ASC, q.id ASC
+        `, scopedQuestionId ? [quizId, scopedQuestionId] : [quizId]);
+            questionRows = rows;
+        }
         if (questionRows.length === 0) {
             throw new common_1.NotFoundException(scopedQuestionId ? 'Question not found in this quiz' : 'No questions linked to this quiz');
         }
@@ -819,12 +892,178 @@ let QuizAttemptsService = class QuizAttemptsService {
         this.quizQuestionCache.set(cacheKey, { value: loadedQuestions, expiresAt: now + QUIZ_CONTENT_CACHE_MS });
         return loadedQuestions;
     }
-    async loadQuestionForPracticeSave(quizId, questionId) {
-        const [question] = await this.loadQuestionsForQuiz(quizId, questionId);
+    async loadQuestionForPracticeSave(quiz, session, questionId) {
+        const [question] = await this.loadQuestionsForPracticeSession(quiz, session, questionId);
         if (!question) {
             throw new common_1.NotFoundException('Question not found in this quiz');
         }
         return question;
+    }
+    async loadQuestionsForPracticeSession(quiz, session, questionId) {
+        const questionIds = await this.resolvePracticeSessionQuestionIds(quiz, session);
+        return this.loadQuestionsForQuiz(quiz.id, questionId, questionIds);
+    }
+    async loadQuestionsForExamSession(quiz, session) {
+        const questionIds = await this.resolveExamSessionQuestionIds(quiz, session);
+        return this.loadQuestionsForQuiz(quiz.id, null, questionIds);
+    }
+    async resolvePracticeSessionQuestionIds(quiz, session) {
+        const savedIds = this.parseNumberJsonArray(session.question_ids_json || null);
+        if (!this.isDynamicQuiz(quiz)) {
+            return savedIds.length ? savedIds : undefined;
+        }
+        if (savedIds.length) {
+            return savedIds;
+        }
+        const questionIds = await this.generateDynamicQuestionIds(quiz);
+        await this.db.execute("UPDATE practice_sessions SET question_ids_json = ?, revealed_question_ids_json = '[]', updated_at = NOW() WHERE id = ?", [JSON.stringify(questionIds), session.id]);
+        session.question_ids_json = JSON.stringify(questionIds);
+        session.revealed_question_ids_json = '[]';
+        return questionIds;
+    }
+    async resolveExamSessionQuestionIds(quiz, session) {
+        const savedIds = this.parseNumberJsonArray(session.question_ids_json || null);
+        if (!this.isDynamicQuiz(quiz)) {
+            return savedIds.length ? savedIds : undefined;
+        }
+        if (savedIds.length) {
+            return savedIds;
+        }
+        const questionIds = await this.generateDynamicQuestionIds(quiz);
+        await this.db.execute('UPDATE exam_sessions SET question_ids_json = ?, updated_at = NOW() WHERE id = ?', [JSON.stringify(questionIds), session.id]);
+        session.question_ids_json = JSON.stringify(questionIds);
+        return questionIds;
+    }
+    async generateDynamicQuestionIds(quiz) {
+        const sections = this.parseBlueprint(quiz.blueprint_json).sections
+            .filter((section) => Number(section.targetCount) > 0);
+        if (!sections.length) {
+            throw new common_1.BadRequestException('Dynamic randomized quizzes need at least one blueprint section with a target count');
+        }
+        const selectedIds = [];
+        const selectedSet = new Set();
+        for (const section of sections) {
+            const targetCount = Math.min(Math.max(Math.trunc(Number(section.targetCount) || 0), 0), 500);
+            if (targetCount <= 0)
+                continue;
+            const params = [];
+            let sql = `
+        SELECT q.id
+        FROM questions q
+        WHERE q.status = 'active'
+      `;
+            const courseId = section.courseId || Number(quiz.course_id || 0) || null;
+            const subjectId = section.subjectId || (Number(quiz.is_general) === 1 ? null : Number(quiz.topic_id || 0) || null);
+            const topicId = section.topicId || (Number(quiz.is_general) === 1 ? null : Number(quiz.subtopic_id || 0) || null);
+            const lessonId = section.lessonId || (Number(quiz.is_general) === 1 ? null : Number(quiz.lesson_id || 0) || null);
+            const paperId = section.paperId || Number(quiz.paper_id || 0) || null;
+            const category = section.category || String(quiz.category || '').trim();
+            if (courseId) {
+                sql += ' AND q.course_id = ?';
+                params.push(courseId);
+            }
+            if (subjectId) {
+                sql += ' AND q.topic_id = ?';
+                params.push(subjectId);
+            }
+            if (topicId) {
+                sql += ' AND q.subtopic_id = ?';
+                params.push(topicId);
+            }
+            if (lessonId) {
+                sql += ' AND q.lesson_id = ?';
+                params.push(lessonId);
+            }
+            if (paperId) {
+                sql += ' AND q.paper_id = ?';
+                params.push(paperId);
+            }
+            if (category) {
+                sql += " AND (q.question_category = ? OR (q.question_category IS NULL AND q.category = ?))";
+                params.push(this.normalizeQuestionCategory(category), this.normalizeLegacyQuestionCategory(category));
+            }
+            if (section.questionType) {
+                sql += ' AND q.question_type = ?';
+                params.push(section.questionType);
+            }
+            if (selectedIds.length) {
+                sql += ` AND q.id NOT IN (${(0, sql_safety_1.sqlPlaceholders)(selectedIds)})`;
+                params.push(...selectedIds);
+            }
+            sql += ' ORDER BY RAND() LIMIT ?';
+            params.push(targetCount);
+            const [rows] = await this.db.execute(sql, params);
+            const drawnIds = rows
+                .map((row) => Number(row.id))
+                .filter((id) => Number.isInteger(id) && id > 0 && !selectedSet.has(id));
+            if (drawnIds.length < targetCount) {
+                throw new common_1.BadRequestException(`Not enough active questions for ${section.title || 'a blueprint section'}. Requested ${targetCount}, found ${drawnIds.length}.`);
+            }
+            for (const id of drawnIds) {
+                selectedSet.add(id);
+                selectedIds.push(id);
+            }
+        }
+        if (!selectedIds.length) {
+            throw new common_1.BadRequestException('Dynamic randomized quizzes need at least one matching active question');
+        }
+        return selectedIds;
+    }
+    optionalPositiveId(value) {
+        const numeric = Number(value);
+        return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+    }
+    normalizeBlueprintPayload(blueprint) {
+        if (!blueprint || typeof blueprint !== 'object') {
+            return { sections: [] };
+        }
+        const rawSections = Array.isArray(blueprint.sections)
+            ? blueprint.sections
+            : [];
+        return {
+            sections: rawSections.slice(0, 30).map((rawSection, index) => {
+                const section = rawSection && typeof rawSection === 'object'
+                    ? rawSection
+                    : {};
+                const rawQuestionType = String(section.questionType || '').trim();
+                const targetCount = Number(section.targetCount);
+                return {
+                    id: String(section.id || `section-${index + 1}`).trim().slice(0, 80) || `section-${index + 1}`,
+                    title: String(section.title || `Section ${index + 1}`).trim().slice(0, 120),
+                    targetCount: Number.isFinite(targetCount) ? Math.min(Math.max(Math.trunc(targetCount), 0), 500) : 0,
+                    courseId: this.optionalPositiveId(section.courseId),
+                    subjectId: this.optionalPositiveId(section.subjectId),
+                    topicId: this.optionalPositiveId(section.topicId),
+                    lessonId: this.optionalPositiveId(section.lessonId),
+                    paperId: this.optionalPositiveId(section.paperId),
+                    category: String(section.category || '').trim().slice(0, 80),
+                    questionType: rawQuestionType === 'sba' || rawQuestionType === 'true_false' ? rawQuestionType : '',
+                };
+            }),
+        };
+    }
+    parseBlueprint(raw) {
+        if (!raw) {
+            return { sections: [] };
+        }
+        try {
+            return this.normalizeBlueprintPayload(JSON.parse(raw));
+        }
+        catch {
+            return { sections: [] };
+        }
+    }
+    normalizeQuestionCategory(category) {
+        const value = String(category || '').trim();
+        if (value === 'past')
+            return 'past_paper';
+        return value;
+    }
+    normalizeLegacyQuestionCategory(category) {
+        const value = String(category || '').trim();
+        if (value === 'past_paper')
+            return 'past';
+        return value;
     }
     async loadPracticeRevealPayload(userId, quizId, questionId) {
         const cacheKey = `${userId}:${quizId}:${questionId}`;
@@ -835,13 +1074,18 @@ let QuizAttemptsService = class QuizAttemptsService {
         }
         const quiz = await this.loadActiveQuiz(quizId);
         await this.ensureStudentCanAccessQuiz(userId, quiz);
+        await this.ensureStudentCanUseDynamicQuiz(userId, quiz);
         if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(userId, 'practice_mode'))) {
             throw new common_1.BadRequestException('Practice mode is included with selected plans');
         }
         if (Number(quiz.exam_mode_only) === 1) {
             throw new common_1.BadRequestException('This quiz is exam mode only');
         }
-        const question = await this.loadQuestionForPracticeSave(quizId, questionId);
+        const session = await this.getLatestPracticeSession(userId, quizId);
+        if (!session) {
+            throw new common_1.NotFoundException('Practice session not found');
+        }
+        const question = await this.loadQuestionForPracticeSave(quiz, session, questionId);
         const value = this.mapPracticeRevealQuestion(question);
         this.practiceRevealCache.set(cacheKey, { value, expiresAt: now + PRACTICE_REVEAL_CACHE_MS });
         return value;
@@ -994,17 +1238,46 @@ let QuizAttemptsService = class QuizAttemptsService {
             }
         }
     }
-    async ensurePracticeSession(userId, quizId, questions, continuePractice, resetPractice) {
+    async ensurePracticeSession(userId, quiz, continuePractice, resetPractice, questionId) {
+        const quizId = Number(quiz.id);
         let session = await this.getLatestPracticeSession(userId, quizId);
         if (!session) {
-            const [result] = await this.db.execute("INSERT INTO practice_sessions (user_id, quiz_id, status, last_question_index) VALUES (?, ?, 'in_progress', 0)", [userId, quizId]);
-            session = { id: result.insertId, status: 'in_progress', last_question_index: 0 };
+            const questionIds = this.isDynamicQuiz(quiz) ? await this.generateDynamicQuestionIds(quiz) : [];
+            const [result] = await this.db.execute(`
+          INSERT INTO practice_sessions (
+            user_id, quiz_id, status, last_question_index,
+            question_ids_json, revealed_question_ids_json
+          ) VALUES (?, ?, 'in_progress', 0, ?, '[]')
+        `, [userId, quizId, questionIds.length ? JSON.stringify(questionIds) : null]);
+            session = {
+                id: result.insertId,
+                status: 'in_progress',
+                last_question_index: 0,
+                question_ids_json: questionIds.length ? JSON.stringify(questionIds) : null,
+                revealed_question_ids_json: '[]',
+            };
         }
         else if (resetPractice || session.status === 'completed') {
+            const questionIds = this.isDynamicQuiz(quiz) ? await this.generateDynamicQuestionIds(quiz) : [];
             await this.db.execute('DELETE FROM practice_answers WHERE practice_session_id = ?', [session.id]);
-            await this.db.execute("UPDATE practice_sessions SET status = 'in_progress', last_question_index = 0, updated_at = NOW() WHERE id = ?", [session.id]);
-            session = { ...session, status: 'in_progress', last_question_index: 0 };
+            await this.db.execute(`
+          UPDATE practice_sessions
+          SET status = 'in_progress',
+              last_question_index = 0,
+              question_ids_json = ?,
+              revealed_question_ids_json = '[]',
+              updated_at = NOW()
+          WHERE id = ?
+        `, [questionIds.length ? JSON.stringify(questionIds) : null, session.id]);
+            session = {
+                ...session,
+                status: 'in_progress',
+                last_question_index: 0,
+                question_ids_json: questionIds.length ? JSON.stringify(questionIds) : null,
+                revealed_question_ids_json: '[]',
+            };
         }
+        const questions = await this.loadQuestionsForPracticeSession(quiz, session, questionId);
         const [answerRows] = await this.db.execute('SELECT question_id, option_id, is_selected FROM practice_answers WHERE practice_session_id = ?', [session.id]);
         const answerMap = this.groupAnswerRows(answerRows);
         const answeredCount = questions.reduce((count, question) => {
@@ -1016,54 +1289,59 @@ let QuizAttemptsService = class QuizAttemptsService {
             lastQuestionIndex: Number(session.last_question_index || 0),
             showContinuePopup: session.status === 'in_progress' && answeredCount > 0 && !continuePractice,
             revealedQuestionIds: this.parseNumberJsonArray(session.revealed_question_ids_json || null),
+            questions,
             answerMap: Object.fromEntries(questions.map((question) => [question.id, this.getAnswerState(question, answerMap[question.id] || [])])),
         };
     }
-    async getOrCreatePracticeSessionForWrite(userId, quizId) {
-        const session = await this.getLatestPracticeSession(userId, quizId);
-        if (session)
-            return session;
-        const [result] = await this.db.execute("INSERT INTO practice_sessions (user_id, quiz_id, status, last_question_index) VALUES (?, ?, 'in_progress', 0)", [userId, quizId]);
-        return {
-            id: result.insertId,
-            status: 'in_progress',
-            last_question_index: 0,
-            revealed_question_ids_json: null,
-        };
-    }
-    async ensureExamSession(userId, quizId, quiz, questions) {
+    async ensureExamSession(userId, quizId, quiz) {
         let session = await this.getLatestExamSession(userId, quizId);
         if (session?.status === 'in_progress' && this.isExamSessionExpired(session)) {
+            const questions = await this.loadQuestionsForExamSession(quiz, session);
             const attemptId = await this.finalizeExpiredExamSession(userId, quizId, session.id, questions);
             session = await this.getLatestExamSession(userId, quizId);
-            return this.mapExamSession({
-                ...session,
-                status: 'expired',
-                submitted_attempt_id: attemptId,
-            });
+            if (!session) {
+                throw new common_1.NotFoundException('Exam session not found');
+            }
+            return {
+                session: this.mapExamSession({
+                    ...session,
+                    status: 'expired',
+                    submitted_attempt_id: attemptId,
+                }),
+                questions,
+            };
         }
         if (!session || session.status !== 'in_progress') {
+            const questionIds = this.isDynamicQuiz(quiz) ? await this.generateDynamicQuestionIds(quiz) : [];
             const durationSeconds = Math.max(Number(quiz.time_limit || 0) * 60, 0);
             const deadlineExpression = durationSeconds > 0
                 ? 'DATE_ADD(NOW(), INTERVAL ? SECOND)'
                 : 'NULL';
+            const questionIdsJson = questionIds.length ? JSON.stringify(questionIds) : null;
             const values = durationSeconds > 0
-                ? [userId, quizId, durationSeconds]
-                : [userId, quizId];
+                ? [userId, quizId, durationSeconds, questionIdsJson]
+                : [userId, quizId, questionIdsJson];
             const [result] = await this.db.execute(`
           INSERT INTO exam_sessions (
             user_id, quiz_id, status, started_at, deadline_at,
-            last_question_index, answers_json, flagged_question_ids_json
-          ) VALUES (?, ?, 'in_progress', NOW(), ${deadlineExpression}, 0, '{}', '[]')
+            question_ids_json, last_question_index, answers_json, flagged_question_ids_json
+          ) VALUES (?, ?, 'in_progress', NOW(), ${deadlineExpression}, ?, 0, '{}', '[]')
         `, values);
             session = await this.getExamSessionById(result.insertId);
+            if (!session) {
+                throw new common_1.NotFoundException('Exam session not found');
+            }
         }
-        return this.mapExamSession(session);
+        const questions = await this.loadQuestionsForExamSession(quiz, session);
+        return {
+            session: this.mapExamSession(session),
+            questions,
+        };
     }
     async getExamSessionById(sessionId) {
         const [rows] = await this.db.execute(`
         SELECT id, status, started_at, deadline_at, last_question_index,
-               answers_json, flagged_question_ids_json, submitted_attempt_id
+               question_ids_json, answers_json, flagged_question_ids_json, submitted_attempt_id
         FROM exam_sessions
         WHERE id = ?
         LIMIT 1
@@ -1073,7 +1351,7 @@ let QuizAttemptsService = class QuizAttemptsService {
     async getLatestExamSession(userId, quizId, connection = this.db, lock = false) {
         const [rows] = await connection.execute(`
         SELECT id, status, started_at, deadline_at, last_question_index,
-               answers_json, flagged_question_ids_json, submitted_attempt_id
+               question_ids_json, answers_json, flagged_question_ids_json, submitted_attempt_id
         FROM exam_sessions
         WHERE user_id = ? AND quiz_id = ?
         ORDER BY id DESC
@@ -1141,7 +1419,7 @@ let QuizAttemptsService = class QuizAttemptsService {
     }
     async getLatestPracticeSession(userId, quizId) {
         const [rows] = await this.db.execute(`
-        SELECT id, status, last_question_index, revealed_question_ids_json
+        SELECT id, status, last_question_index, question_ids_json, revealed_question_ids_json
         FROM practice_sessions
         WHERE user_id = ? AND quiz_id = ?
         ORDER BY id DESC
@@ -1153,6 +1431,7 @@ let QuizAttemptsService = class QuizAttemptsService {
                 id: Number(row.id),
                 status: String(row.status),
                 last_question_index: Number(row.last_question_index || 0),
+                question_ids_json: row.question_ids_json ? String(row.question_ids_json) : null,
                 revealed_question_ids_json: row.revealed_question_ids_json ? String(row.revealed_question_ids_json) : null,
             }
             : null;
@@ -1261,11 +1540,11 @@ let QuizAttemptsService = class QuizAttemptsService {
     async createExamAttempt(connection, userId, quizId, quiz, questions, submittedAnswers) {
         const [attemptResult] = await connection.execute(`
         INSERT INTO quiz_attempts (
-          user_id, quiz_id, attempt_mode, total_questions,
+          user_id, quiz_id, question_ids_json, attempt_mode, total_questions,
           correct_answers, wrong_answers, unanswered_questions,
           score, percentage, pass_status, started_at, submitted_at, status
-        ) VALUES (?, ?, 'exam', ?, 0, 0, 0, 0, 0, 'fail', NOW(), NOW(), 'submitted')
-      `, [userId, quizId, questions.length]);
+        ) VALUES (?, ?, ?, 'exam', ?, 0, 0, 0, 0, 0, 'fail', NOW(), NOW(), 'submitted')
+      `, [userId, quizId, JSON.stringify(questions.map((question) => Number(question.id))), questions.length]);
         const attemptId = attemptResult.insertId;
         let correctAnswers = 0;
         let wrongAnswers = 0;
@@ -1343,6 +1622,7 @@ let QuizAttemptsService = class QuizAttemptsService {
             isGeneral: Number(quiz.is_general) === 1,
             isFree: Number(quiz.is_free) === 1,
             examModeOnly: Number(quiz.exam_mode_only) === 1,
+            randomizationMode: this.resolveRandomizationMode(quiz.randomization_mode),
             quizTitle: quiz.quiz_title,
             quizDescription: quiz.quiz_description || '',
             totalQuestions: Number(quiz.total_questions || 0),

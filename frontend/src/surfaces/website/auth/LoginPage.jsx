@@ -563,7 +563,7 @@ const GOOGLE_SCRIPT_ID = 'google-identity-services';
 
 function loadGoogleIdentityScript() {
   if (typeof window === 'undefined') return Promise.reject(new Error('Google sign-in is not available here'));
-  if (window.google?.accounts?.id) return Promise.resolve(window.google);
+  if (window.google?.accounts?.oauth2) return Promise.resolve(window.google);
 
   return new Promise((resolve, reject) => {
     const existing = document.getElementById(GOOGLE_SCRIPT_ID);
@@ -1071,18 +1071,19 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const signIn   = useAuthStore((s) => s.signIn);
-  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
+  const signInWithGoogleCode = useAuthStore((s) => s.signInWithGoogleCode);
   const authNotice = useAuthStore((s) => s.authNotice);
   const consumeAuthNotice = useAuthStore((s) => s.consumeAuthNotice);
 
   const [status,       setStatus]       = useState({ loading: false, error: '', success: '' });
+  const [googleSdk, setGoogleSdk] = useState(null);
   const [googleClientId, setGoogleClientId] = useState(STATIC_GOOGLE_CLIENT_ID);
   const [googleConfigStatus, setGoogleConfigStatus] = useState({
     loading: !STATIC_GOOGLE_CLIENT_ID,
     error: '',
   });
   const [showPassword, setShowPassword] = useState(false);
-  const googleButtonRef = useRef(null);
+  const googleCodeClientRef = useRef(null);
   const fromParam = new URLSearchParams(location.search).get('from') || '';
   const requestedPath = getSafeForwardPath(fromParam);
 
@@ -1127,20 +1128,54 @@ export function LoginPage() {
     }
   }
 
-  async function handleGoogleCredential(response) {
-    const credential = String(response?.credential || '');
-    if (!credential) {
-      setStatus({ loading: false, error: 'Google did not return a sign-in token. Please try again.', success: '' });
+  async function handleGoogleCode(response) {
+    const error = String(response?.error || '').trim();
+    const code = String(response?.code || '').trim();
+    if (error || !code) {
+      setStatus({
+        loading: false,
+        error: error || 'Google did not return a sign-in code. Please try again.',
+        success: '',
+      });
       return;
     }
 
     const startedAt = performance.now();
     setStatus({ loading: true, error: '', success: '' });
     try {
-      const data = await signInWithGoogle(credential);
+      const data = await signInWithGoogleCode({
+        code,
+        redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
+      });
       await completeSignIn(data, startedAt);
     } catch (err) {
       setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in with Google'), success: '' });
+    }
+  }
+
+  function handleGoogleButtonClick() {
+    if (status.loading) return;
+
+    if (googleConfigStatus.error && !googleClientId) {
+      setStatus({ loading: false, error: googleConfigStatus.error, success: '' });
+      return;
+    }
+
+    const client = googleCodeClientRef.current;
+    if (!client) {
+      setStatus({
+        loading: false,
+        error: 'Google sign-in is still preparing. Please try again in a moment.',
+        success: '',
+      });
+      return;
+    }
+
+    setStatus({ loading: false, error: '', success: '' });
+    try {
+      client.requestCode();
+    } catch (err) {
+      setStatus({ loading: false, error: getErrorMessage(err, 'Google sign-in could not open'), success: '' });
     }
   }
 
@@ -1187,36 +1222,51 @@ export function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (!googleClientId || !googleButtonRef.current) return undefined;
-
     let cancelled = false;
     loadGoogleIdentityScript()
       .then((google) => {
-        if (cancelled || !googleButtonRef.current) return;
-        google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: handleGoogleCredential,
-          ux_mode: 'popup',
-        });
-        google.accounts.id.renderButton(googleButtonRef.current, {
-          theme: 'outline',
-          size: 'large',
-          shape: 'rectangular',
-          text: 'continue_with',
-          logo_alignment: 'left',
-          width: googleButtonRef.current.offsetWidth || 320,
-        });
+        if (!cancelled) {
+          setGoogleSdk(google);
+        }
       })
       .catch((err) => {
         if (!cancelled) {
-          setStatus({ loading: false, error: err.message || 'Google sign-in could not load', success: '' });
+          setGoogleConfigStatus((current) => ({
+            ...current,
+            error: current.error || err.message || 'Google sign-in could not load',
+          }));
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [googleClientId]);
+  }, []);
+
+  useEffect(() => {
+    if (!googleClientId || !googleSdk?.accounts?.oauth2) {
+      googleCodeClientRef.current = null;
+      return undefined;
+    }
+
+    googleCodeClientRef.current = googleSdk.accounts.oauth2.initCodeClient({
+      client_id: googleClientId,
+      scope: 'openid email profile',
+      ux_mode: 'popup',
+      callback: handleGoogleCode,
+      error_callback: (err) => {
+        setStatus({
+          loading: false,
+          error: err?.message || err?.type || 'Google sign-in popup could not open',
+          success: '',
+        });
+      },
+    });
+
+    return () => {
+      googleCodeClientRef.current = null;
+    };
+  }, [googleClientId, googleSdk]);
 
   const feedbackId = status.error ? 'login-error' : status.success ? 'login-success' : undefined;
   const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));
@@ -1381,34 +1431,23 @@ export function LoginPage() {
 
             <div className="lms-auth-divider">or</div>
 
-            {googleClientId ? (
-              <div
-                ref={googleButtonRef}
-                aria-label="Continue with Google"
-                style={{ minHeight: 44, width: '100%', display: 'flex', justifyContent: 'center' }}
-              />
-            ) : (
-              <button
-                type="button"
-                className="lms-google-btn"
-                disabled={googleConfigStatus.loading}
-                onClick={() => setStatus({
-                  loading: false,
-                  error: googleConfigStatus.error || 'Add GOOGLE_CLIENT_ID in the backend server environment, then restart the API.',
-                  success: '',
-                })}
-              >
-                <span className="lms-google-mark" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38z"/>
-                  </svg>
-                </span>
-                <span>{googleConfigStatus.loading ? 'Loading Google sign-in...' : 'Sign in with Google'}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              className="lms-google-btn"
+              disabled={status.loading}
+              aria-busy={status.loading}
+              onClick={handleGoogleButtonClick}
+            >
+              <span className="lms-google-mark" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38z"/>
+                </svg>
+              </span>
+              <span>{status.loading ? 'Signing in...' : 'Continue with Google'}</span>
+            </button>
 
             {/* ── Register link ── */}
             <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--ink-soft)', margin: 0 }}>

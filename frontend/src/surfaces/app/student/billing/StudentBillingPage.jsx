@@ -5,6 +5,7 @@ import { fetchMySubscription, requestSubscription } from '../../../../shared/api
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { formatPaymentStatus } from '../../../../shared/utils/paymentStatus.js';
 
 function featureMessageForKey(featureKey) {
@@ -549,10 +550,10 @@ export function StudentBillingPage() {
           subtitle="Plan Access"
         />
 
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
-        {success ? <div className={ui.feedbackSuccess}>{success}</div> : null}
-        {upgradeMessage ? <div className={ui.feedbackError}>{upgradeMessage}</div> : null}
-        {purchaseSelectionNote ? <div className={ui.feedbackSuccess}>{purchaseSelectionNote}</div> : null}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
+        {success ? <FeedbackNotice tone="success">{success}</FeedbackNotice> : null}
+        {upgradeMessage ? <FeedbackNotice tone="error">{upgradeMessage}</FeedbackNotice> : null}
+        {purchaseSelectionNote ? <FeedbackNotice tone="success">{purchaseSelectionNote}</FeedbackNotice> : null}
 
         <section className={cx(ui.panelCard, 'max-[520px]:p-3.5')}>
           <div className={ui.panelTop}>

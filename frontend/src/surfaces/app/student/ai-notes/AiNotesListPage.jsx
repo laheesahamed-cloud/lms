@@ -4,6 +4,7 @@ import { listAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 
 function runWhenIdle(task) {
@@ -430,12 +431,11 @@ export function AiNotesListPage({
           subtitle="Lesson Notes"
         />
 
-        {error && (
-          <div className={cx(ui.feedbackError, 'flex items-center justify-between gap-3')}>
+        {error ? (
+          <FeedbackNotice tone="error" onDismiss={() => setError('')}>
             {error}
-            <button className="ml-3 font-bold" onClick={() => setError('')}>✕</button>
-          </div>
-        )}
+          </FeedbackNotice>
+        ) : null}
 
         {loading ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">

@@ -60,6 +60,7 @@ export declare class QuizAttemptsService {
         practiceAnsweredCount: number;
         isCompleted: boolean;
         isFree: boolean;
+        randomizationMode: "static" | "dynamic";
         canAccess: boolean;
         accessLocked: boolean;
         accessMessage: string;
@@ -96,6 +97,7 @@ export declare class QuizAttemptsService {
             isGeneral: boolean;
             isFree: boolean;
             examModeOnly: boolean;
+            randomizationMode: "static" | "dynamic";
             quizTitle: string;
             quizDescription: string;
             totalQuestions: number;
@@ -108,7 +110,7 @@ export declare class QuizAttemptsService {
         };
         examSession: {
             id: number;
-            status: "expired" | "in_progress" | "submitted";
+            status: "in_progress" | "submitted" | "expired";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;
@@ -146,6 +148,7 @@ export declare class QuizAttemptsService {
             isGeneral: boolean;
             isFree: boolean;
             examModeOnly: boolean;
+            randomizationMode: "static" | "dynamic";
             quizTitle: string;
             quizDescription: string;
             totalQuestions: number;
@@ -367,6 +370,7 @@ export declare class QuizAttemptsService {
             isGeneral: boolean;
             isFree: boolean;
             examModeOnly: boolean;
+            randomizationMode: "static" | "dynamic";
             quizTitle: string;
             quizDescription: string;
             totalQuestions: number;
@@ -440,6 +444,9 @@ export declare class QuizAttemptsService {
     private requireStudent;
     private extractToken;
     private ensureStudentCanAccessQuiz;
+    private ensureStudentCanUseDynamicQuiz;
+    private resolveRandomizationMode;
+    private isDynamicQuiz;
     private getQuizAccessProfile;
     private parseIdList;
     private resolveEffectiveAccessScope;
@@ -447,6 +454,16 @@ export declare class QuizAttemptsService {
     private loadActiveQuiz;
     private loadQuestionsForQuiz;
     private loadQuestionForPracticeSave;
+    private loadQuestionsForPracticeSession;
+    private loadQuestionsForExamSession;
+    private resolvePracticeSessionQuestionIds;
+    private resolveExamSessionQuestionIds;
+    private generateDynamicQuestionIds;
+    private optionalPositiveId;
+    private normalizeBlueprintPayload;
+    private parseBlueprint;
+    private normalizeQuestionCategory;
+    private normalizeLegacyQuestionCategory;
     private loadPracticeRevealPayload;
     private mapOptionsByQuestionId;
     private loadQuestionContentVersions;
@@ -461,7 +478,6 @@ export declare class QuizAttemptsService {
     private normalizeSubmittedAnswers;
     private replacePracticeAnswers;
     private ensurePracticeSession;
-    private getOrCreatePracticeSessionForWrite;
     private ensureExamSession;
     private getExamSessionById;
     private getLatestExamSession;

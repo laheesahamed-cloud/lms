@@ -1140,13 +1140,119 @@ function playNativeCompletionBell() {
   }
 }
 
+const quizCompletionBurstParticles = [
+  { kind: 'star', x: -86, y: -62, rotate: -18, delay: 40, color: '#f59e0b' },
+  { kind: 'star', x: 82, y: -56, rotate: 22, delay: 90, color: '#fbbf24' },
+  { kind: 'dash', x: -92, y: 38, rotate: 32, delay: 120, color: '#fb923c' },
+  { kind: 'dash', x: 96, y: 34, rotate: -28, delay: 150, color: '#f97316' },
+  { kind: 'dot', x: -46, y: -92, rotate: 0, delay: 75, color: '#86efac' },
+  { kind: 'dot', x: 48, y: -90, rotate: 0, delay: 140, color: '#22c55e' },
+  { kind: 'dash', x: -28, y: 94, rotate: -18, delay: 190, color: '#fde047' },
+  { kind: 'dash', x: 34, y: 92, rotate: 18, delay: 220, color: '#fdba74' },
+];
+
+function QuizCompletionBurst() {
+  return (
+    <div className="quiz-completion-burst pointer-events-none absolute inset-0" aria-hidden="true">
+      <span className="quiz-completion-burst-halo absolute left-1/2 top-1/2 size-[118px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-success/10 max-[420px]:size-[104px]" />
+      {quizCompletionBurstParticles.map((particle, index) => (
+        <span
+          className={`quiz-completion-particle quiz-completion-particle--${particle.kind}`}
+          key={`${particle.kind}-${index}`}
+          style={{
+            '--particle-x': `${particle.x}px`,
+            '--particle-y': `${particle.y}px`,
+            '--particle-rotate': `${particle.rotate}deg`,
+            '--particle-delay': `${particle.delay}ms`,
+            '--particle-color': particle.color,
+          }}
+        >
+          {particle.kind === 'star' ? (
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="m12 2.4 2.4 6.2 6.6.4-5.1 4.2 1.7 6.4-5.6-3.5-5.6 3.5 1.7-6.4L3 9l6.6-.4L12 2.4Z" />
+            </svg>
+          ) : null}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+const quizCompletionOverlayStyles = `
+  .quiz-completion-burst-halo {
+    animation: quiz-completion-halo 840ms var(--ease-out) both;
+  }
+
+  .quiz-completion-particle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    color: var(--particle-color);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.58);
+    animation: quiz-completion-particle 980ms var(--ease-out) var(--particle-delay) both;
+  }
+
+  .quiz-completion-particle--star {
+    width: 18px;
+    height: 18px;
+  }
+
+  .quiz-completion-particle--dash {
+    width: 28px;
+    height: 8px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .quiz-completion-particle--dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  @keyframes quiz-completion-halo {
+    0% { opacity: 0; transform: scale(0.72); }
+    42% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0.28; transform: scale(1.18); }
+  }
+
+  @keyframes quiz-completion-particle {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) rotate(0deg) scale(0.58);
+    }
+    18% {
+      opacity: 1;
+    }
+    68% {
+      opacity: 1;
+      transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) rotate(var(--particle-rotate)) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) rotate(var(--particle-rotate)) scale(0.82);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .quiz-completion-burst-halo,
+    .quiz-completion-particle {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+`;
+
 function QuizCompletionOverlay({ quizLabel, onReview }) {
   const [textVisible, setTextVisible] = useState(false);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const revealDelay = prefersReducedMotion ? 80 : 240;
-    const reviewDelay = prefersReducedMotion ? 520 : 1500;
+    const revealDelay = prefersReducedMotion ? 80 : 700;
+    const reviewDelay = prefersReducedMotion ? 520 : 2050;
     const revealTimer = window.setTimeout(() => {
       setTextVisible(true);
       void nativeTransientHaptic({ intensity: 0.42, sharpness: 0.78 });
@@ -1160,10 +1266,11 @@ function QuizCompletionOverlay({ quizLabel, onReview }) {
   }, [onReview]);
 
   const overlay = (
-    <div className="quiz-completion-overlay fixed inset-0 z-[140] grid h-dvh w-screen place-items-center bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] p-4 backdrop-blur-2xl dark:bg-[rgba(2,6,23,0.78)]" role="dialog" aria-modal="true" aria-labelledby="quiz-complete-title">
+    <div className="quiz-completion-overlay fixed inset-0 z-[140] grid h-dvh w-screen place-items-center bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] p-4 backdrop-blur-[12px] dark:bg-[rgba(2,6,23,0.78)]" role="dialog" aria-modal="true" aria-labelledby="quiz-complete-title">
+      <style>{quizCompletionOverlayStyles}</style>
       <section
         className={cx(
-          'quiz-completion-capsule flex transform-gpu items-center justify-center overflow-hidden border border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-card)_96%,transparent),color-mix(in_srgb,var(--surface-1)_94%,transparent))] text-left shadow-[var(--ds-floating-shadow)] transition-[opacity,transform,box-shadow] duration-[260ms] ease-[var(--ease-out)] [contain:layout_paint_style] [will-change:transform] dark:border-sky-300/18 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(8,15,28,0.96))]',
+          'quiz-completion-capsule flex items-center justify-center overflow-hidden border border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-card)_96%,transparent),color-mix(in_srgb,var(--surface-1)_94%,transparent))] text-left shadow-none transition-[opacity,transform,width,min-height,border-radius,padding,gap] duration-[340ms] ease-[var(--ease-out)] [contain:layout_paint_style] [will-change:transform] dark:border-sky-300/18 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(8,15,28,0.96))]',
           textVisible
             ? 'min-h-[104px] w-[min(420px,calc(100vw-32px))] gap-3.5 rounded-full py-3 pl-3 pr-6 max-[420px]:min-h-[96px] max-[420px]:pr-5'
             : 'size-[232px] rounded-[32px] p-5 max-[420px]:size-[206px]'
@@ -1172,11 +1279,12 @@ function QuizCompletionOverlay({ quizLabel, onReview }) {
       >
         <div
           className={cx(
-            'quiz-completion-mark relative grid shrink-0 place-items-center overflow-visible transition-[opacity,transform] duration-[260ms] ease-[var(--ease-out)] [will-change:transform]',
+            'quiz-completion-mark relative grid shrink-0 place-items-center overflow-visible transition-[opacity,transform,width,height] duration-[420ms] ease-[var(--ease-out)] [will-change:transform]',
             textVisible ? 'size-[78px] max-[420px]:size-[70px]' : 'size-[190px] max-[420px]:size-[164px]'
           )}
         >
-          <svg className={cx('quiz-completion-fallback-icon absolute left-1/2 top-1/2 size-20 origin-center -translate-x-1/2 -translate-y-1/2 transform-gpu text-brand-primary transition-transform duration-[260ms] ease-[var(--ease-out)]', textVisible ? 'scale-[0.42]' : 'scale-100')} viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <QuizCompletionBurst />
+          <svg className={cx('quiz-completion-fallback-icon absolute left-1/2 top-1/2 size-20 origin-center -translate-x-1/2 -translate-y-1/2 text-brand-success transition-transform duration-[420ms] ease-[var(--ease-out)]', textVisible ? 'scale-[0.42]' : 'scale-100')} viewBox="0 0 96 96" fill="none" aria-hidden="true">
             <circle cx="48" cy="48" r="38" fill="currentColor" opacity="0.12" />
             <path d="M30 49.2 42.2 61 67 35" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -1184,8 +1292,8 @@ function QuizCompletionOverlay({ quizLabel, onReview }) {
 
         <div
           className={cx(
-            'quiz-completion-copy grid min-w-0 gap-1 transition-[opacity,transform] duration-[220ms] ease-[var(--ease-out)]',
-            textVisible ? 'max-w-[260px] translate-x-0 opacity-100' : 'max-w-0 translate-x-4 opacity-0'
+            'quiz-completion-copy grid min-w-0 gap-1 overflow-hidden transition-[opacity,transform,max-width] duration-[420ms] ease-[var(--ease-out)]',
+            textVisible ? 'max-w-[260px] translate-x-0 opacity-100 delay-[70ms]' : 'max-w-0 translate-x-4 opacity-0 delay-0'
           )}
         >
           <p className="m-0 text-[11px] font-extrabold uppercase tracking-[0.12em] text-brand-primary">Quiz finished</p>

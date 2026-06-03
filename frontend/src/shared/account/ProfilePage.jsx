@@ -6,6 +6,7 @@ import { PROFILE_AVATARS, ProfileAvatar } from '../ui/ProfileAvatar.jsx';
 import { useAuthStore } from '../stores/authStore.js';
 import { getStaffRoleLabel, isStaffUser } from '../auth/roleAccess.js';
 import { cx, statusPill, ui } from '../styles/tailwindClasses.js';
+import { FeedbackNotice } from '../ui/FeedbackNotice.jsx';
 import { PasswordField } from '../ui/PasswordField.jsx';
 
 export function ProfilePage() {
@@ -72,8 +73,8 @@ export function ProfilePage() {
               <p className="m-0 text-[13px] leading-relaxed text-ink-soft">Email is used for sign in and cannot be changed here.</p>
             </div>
 
-            {profileStatus.error ? <div className={ui.feedbackError}>{profileStatus.error}</div> : null}
-            {profileStatus.success ? <div className={ui.feedbackSuccess}>{profileStatus.success}</div> : null}
+            {profileStatus.error ? <FeedbackNotice tone="error">{profileStatus.error}</FeedbackNotice> : null}
+            {profileStatus.success ? <FeedbackNotice tone="success">{profileStatus.success}</FeedbackNotice> : null}
 
             <label className="grid gap-2 text-[13px] font-bold text-ink-medium">
               Full name
@@ -131,8 +132,8 @@ export function ProfilePage() {
               <p className="m-0 text-[13px] leading-relaxed text-ink-soft">Use your current password before setting a new one.</p>
             </div>
 
-            {passwordStatus.error ? <div className={ui.feedbackError}>{passwordStatus.error}</div> : null}
-            {passwordStatus.success ? <div className={ui.feedbackSuccess}>{passwordStatus.success}</div> : null}
+            {passwordStatus.error ? <FeedbackNotice tone="error">{passwordStatus.error}</FeedbackNotice> : null}
+            {passwordStatus.success ? <FeedbackNotice tone="success">{passwordStatus.success}</FeedbackNotice> : null}
 
             <PasswordField
               label="Current password"

@@ -5,6 +5,7 @@ import { SESSION_TTL_DAYS } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { GoogleCodeLoginDto } from './dto/google-code-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -57,6 +58,24 @@ export class AuthController {
     @Res({ passthrough: true }) response: any
   ) {
     const result = await this.authService.loginWithGoogle(googleLoginDto);
+    this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+    if (this.shouldExposeSessionToken(nativeHeader)) {
+      return result;
+    }
+    const { sessionToken: _sessionToken, ...safeResult } = result;
+    return safeResult;
+  }
+
+  @Post('google/code')
+  async googleCodeLogin(
+    @Body() googleCodeLoginDto: GoogleCodeLoginDto,
+    @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Headers('x-requested-with') requestedWith: string | undefined,
+    @Headers('origin') origin: string | undefined,
+    @Req() request: any,
+    @Res({ passthrough: true }) response: any
+  ) {
+    const result = await this.authService.loginWithGoogleCode(googleCodeLoginDto, { origin, requestedWith });
     this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;

@@ -1,111 +1,38 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getServerNotRespondingState, subscribeToServerStatus } from '../stores/serverStatusStore.js';
-import { cx } from '../styles/tailwindClasses.js';
+import { SystemStatusOverlay } from '../ui/SystemStatusOverlay.jsx';
 
-const STORAGE_KEY = 'erpm-lms-server-stop-quotes';
-
-const defaultQuotes = [
-  {
-    quote: 'The server seems to be in a prolonged ward round. Clinical patience is advised.',
-    author: 'xyndrome',
-  },
-  {
-    quote: 'The backend is not answering right now, but your future consultant energy remains intact.',
-    author: 'xyndrome',
-  },
-  {
-    quote: 'This feels like asking for CT results at 4:59 PM. We are still waiting professionally.',
-    author: 'xyndrome',
-  },
-  {
-    quote: 'Server response currently absent. Please continue supportive care and calm revision.',
-    author: 'xyndrome',
-  },
-  {
-    quote: 'The internet is here. The server is emotionally unavailable.',
-    author: 'xyndrome',
-  },
-];
-
-const serverUi = {
-  rootBase: 'pointer-events-none isolate',
-  rootLive: 'fixed inset-0 z-[9999] grid place-items-center p-5 max-[520px]:p-3 max-[520px]:pb-[calc(12px+env(safe-area-inset-bottom,0px))] max-[520px]:pt-[calc(12px+env(safe-area-inset-top,0px))]',
-  scrim: 'absolute inset-0 bg-red-950/25 backdrop-blur-[4px]',
-  dialog:
-    'pointer-events-auto relative z-[1] grid w-[min(430px,100%)] justify-items-center gap-3 rounded-2xl border border-red-300/15 bg-[linear-gradient(135deg,rgba(30,10,18,0.94),rgba(15,23,42,0.9))] p-6 text-center text-white shadow-2xl max-[520px]:rounded-[20px] max-[520px]:p-4',
-  badge: 'rounded-full border border-red-300/20 bg-red-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-red-100',
-  loader: 'flex items-center gap-2 py-1',
-  dot: 'size-2.5 rounded-full bg-red-200 shadow-[0_0_14px_rgba(254,202,202,0.58)] animate-bounce',
-};
-
-function loadCachedQuotes() {
-  if (typeof window === 'undefined') {
-    return defaultQuotes;
+function getOnlineState() {
+  if (typeof navigator === 'undefined') {
+    return true;
   }
 
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultQuotes));
-      return defaultQuotes;
-    }
-
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
-    }
-  } catch {
-    return defaultQuotes;
-  }
-
-  return defaultQuotes;
+  return navigator.onLine;
 }
 
 export function ServerNotRespondingExperience() {
   const [visible, setVisible] = useState(() => getServerNotRespondingState());
-  const [quoteIndex, setQuoteIndex] = useState(0);
-  const [quotes] = useState(() => loadCachedQuotes());
+  const [isOnline, setIsOnline] = useState(getOnlineState);
 
   useEffect(() => subscribeToServerStatus(setVisible), []);
 
   useEffect(() => {
-    if (!visible || quotes.length < 2) {
-      return undefined;
+    function handleOnlineStatus() {
+      setIsOnline(getOnlineState());
     }
 
-    const intervalId = window.setInterval(() => {
-      setQuoteIndex((current) => (current + 1) % quotes.length);
-    }, 3800);
+    window.addEventListener('online', handleOnlineStatus);
+    window.addEventListener('offline', handleOnlineStatus);
 
     return () => {
-      window.clearInterval(intervalId);
+      window.removeEventListener('online', handleOnlineStatus);
+      window.removeEventListener('offline', handleOnlineStatus);
     };
-  }, [quotes.length, visible]);
+  }, []);
 
-  const activeQuote = useMemo(() => quotes[quoteIndex % quotes.length] || defaultQuotes[0], [quoteIndex, quotes]);
-
-  if (!visible) {
+  if (!visible || !isOnline) {
     return null;
   }
 
-  return (
-    <section
-      className={cx(serverUi.rootBase, serverUi.rootLive)}
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      <div className={serverUi.scrim} />
-      <div className={serverUi.dialog}>
-        <div className={serverUi.badge}>Server Pause</div>
-        <div className={serverUi.loader} aria-hidden="true">
-          <span className={serverUi.dot} />
-          <span className={cx(serverUi.dot, '[animation-delay:120ms]')} />
-          <span className={cx(serverUi.dot, '[animation-delay:240ms]')} />
-        </div>
-        <h2 className="m-0 text-[28px] max-[640px]:text-[21px] font-black leading-tight">The LMS server stopped responding.</h2>
-        <p className="m-0 text-sm leading-relaxed text-white/70">{activeQuote.quote}</p>
-        <small className="text-xs font-bold text-white/45">{activeQuote.author}</small>
-      </div>
-    </section>
-  );
+  return <SystemStatusOverlay variant="server" zIndex={10000} />;
 }

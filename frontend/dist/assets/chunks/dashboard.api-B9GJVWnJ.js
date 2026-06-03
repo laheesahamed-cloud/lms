@@ -1,1 +1,0 @@
-import{n as e}from"./cache-DQZm5Ip0.js";import{n as t}from"./client-DbP6Av09.js";var n=e({ttlMs:1e4,load:()=>t.get(`/admin/dashboard`).then(e=>e.data)}),r=e({ttlMs:15e3,load:()=>t.get(`/student/dashboard`).then(e=>e.data)}),i=()=>n.get(),a=()=>r.get();async function o(e){let n=await t.post(`/student/dashboard/activity`,e);return r.clear(),n.data}export{a as n,o as r,i as t};

@@ -20,6 +20,7 @@ const permissions_decorator_1 = require("../auth/permissions.decorator");
 const MARKETING_POPUP_MIME_TYPES = {
     jpg: 'image/jpeg',
     jpeg: 'image/jpeg',
+    json: 'application/json; charset=utf-8',
     png: 'image/png',
     webp: 'image/webp',
 };
@@ -47,7 +48,7 @@ let UploadsController = class UploadsController {
     }
     async getMarketingPopupImage(fileName, response) {
         const cleanFileName = String(fileName || '').trim();
-        if (!/^[A-Za-z0-9._-]+\.(?:jpe?g|png|webp)$/i.test(cleanFileName)) {
+        if (!/^[A-Za-z0-9._-]+\.(?:jpe?g|png|webp|json)$/i.test(cleanFileName)) {
             throw new common_1.BadRequestException('Invalid upload file name');
         }
         const extension = cleanFileName.split('.').pop()?.toLowerCase() || '';
@@ -66,7 +67,9 @@ let UploadsController = class UploadsController {
         }
         response.setHeader('Content-Type', mimeType);
         response.setHeader('Content-Length', String(fileStats.size));
-        response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        response.setHeader('Cache-Control', extension === 'json'
+            ? 'public, max-age=15, stale-while-revalidate=300'
+            : 'public, max-age=31536000, immutable');
         response.setHeader('X-Content-Type-Options', 'nosniff');
         response.sendFile(filePath);
     }

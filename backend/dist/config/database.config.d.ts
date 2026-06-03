@@ -11,6 +11,8 @@ declare const _default: () => {
         connectionLimit: number;
         maxIdle: number;
         idleTimeout: number;
+        connectTimeout: number;
+        queueLimit: number;
     };
 };
 export default _default;

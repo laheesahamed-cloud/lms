@@ -115,6 +115,18 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async loginWithGoogle(googleLoginDto) {
         const profile = await this.verifyGoogleCredential(googleLoginDto.credential);
+        return this.loginWithGoogleProfile(profile);
+    }
+    async loginWithGoogleCode(googleCodeLoginDto, context = {}) {
+        if (String(context.requestedWith || '').toLowerCase() !== 'xmlhttprequest') {
+            throw new common_1.BadRequestException('Google sign-in request is invalid');
+        }
+        const redirectUri = this.resolveGoogleCodeRedirectUri(context.origin || googleCodeLoginDto.redirectUri);
+        const idToken = await this.exchangeGoogleAuthorizationCode(googleCodeLoginDto.code, redirectUri);
+        const profile = await this.verifyGoogleCredential(idToken);
+        return this.loginWithGoogleProfile(profile);
+    }
+    async loginWithGoogleProfile(profile) {
         const email = String(profile.email || '').trim().toLowerCase();
         const fullName = this.getGoogleDisplayName(profile);
         const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1', [email]);
@@ -437,6 +449,55 @@ ${settings.footer}`;
             .split(',')
             .map((item) => item.trim())
             .filter(Boolean);
+    }
+    getPrimaryGoogleClientId() {
+        return this.getGoogleClientIds()[0] || '';
+    }
+    getGoogleClientSecret() {
+        return String(this.configService.get('GOOGLE_CLIENT_SECRET') || '').trim();
+    }
+    resolveGoogleCodeRedirectUri(rawOrigin) {
+        const raw = String(rawOrigin || '').trim();
+        if (!raw) {
+            throw new common_1.BadRequestException('Google sign-in origin is missing');
+        }
+        try {
+            return new URL(raw).origin;
+        }
+        catch {
+            throw new common_1.BadRequestException('Google sign-in origin is invalid');
+        }
+    }
+    async exchangeGoogleAuthorizationCode(code, redirectUri) {
+        const clientId = this.getPrimaryGoogleClientId();
+        const clientSecret = this.getGoogleClientSecret();
+        if (!clientId) {
+            throw new common_1.BadRequestException('Google sign-in is not configured yet');
+        }
+        if (!clientSecret) {
+            throw new common_1.BadRequestException('Google sign-in server secret is not configured yet');
+        }
+        const response = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                code,
+                client_id: clientId,
+                client_secret: clientSecret,
+                redirect_uri: redirectUri,
+                grant_type: 'authorization_code',
+            }),
+        });
+        const tokenPayload = await response.json().catch(() => ({}));
+        if (!response.ok || tokenPayload.error) {
+            const errorMessage = tokenPayload.error_description || tokenPayload.error || 'Google sign-in authorization code is invalid';
+            this.logger.warn(`Google code exchange failed: ${errorMessage}`);
+            throw new common_1.UnauthorizedException('Google sign-in authorization code is invalid');
+        }
+        if (!tokenPayload.id_token) {
+            throw new common_1.UnauthorizedException('Google sign-in did not return an identity token');
+        }
+        return tokenPayload.id_token;
     }
     async verifyGoogleCredential(credential) {
         const clientIds = this.getGoogleClientIds();

@@ -2274,6 +2274,9 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   background: var(--sa-card-bg);
   color: var(--sa-ink);
   box-shadow: var(--ds-card-shadow);
+  contain: layout style;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
   transition: border-color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease), box-shadow var(--sa-dur) var(--sa-ease);
 }
 

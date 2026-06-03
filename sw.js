@@ -1,17 +1,17 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
-const DEFAULT_ICON = '/lms/pwa-icon.svg';
+const DEFAULT_ICON = '/lms/favicon-light-192.png';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'xyndrome-lms-shell-20260602-notifications-v1';
+const CACHE_NAME = 'xyndrome-lms-shell-20260603-assets-v3';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',
   '/lms/manifest.webmanifest',
-  '/lms/pwa-icon.svg',
+  '/lms/favicon-light-32.png',
+  '/lms/favicon-light-180.png',
+  '/lms/favicon-light-192.png',
+  '/lms/favicon-light-512.png',
   '/lms/pwa-maskable.svg',
-  '/lms/pwa-icon-192.png',
-  '/lms/pwa-icon-512.png',
   '/lms/pwa-maskable-512.png',
-  '/lms/apple-touch-icon.png',
   '/lms/frontend/dist/index.html',
 ];
 
@@ -24,6 +24,28 @@ function offlineProtectedResponse() {
     '<!doctype html><title>Protected content unavailable</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#05070d;color:#f8fafc;font-family:system-ui,sans-serif;text-align:center;padding:24px"><main><h1>Protected content is online-only</h1><p>Please reconnect and reload to continue.</p></main></body>',
     { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
   );
+}
+
+function buildAssetContentTypeIsValid(request, response) {
+  if (!response || !response.ok) return false;
+
+  const pathname = new URL(request.url).pathname;
+  const contentType = response.headers.get('content-type') || '';
+
+  if (pathname.endsWith('.css')) {
+    return contentType.includes('text/css');
+  }
+
+  return contentType.includes('javascript') ||
+    contentType.includes('ecmascript');
+}
+
+function missingBuildAssetResponse() {
+  return new Response('', {
+    status: 404,
+    statusText: 'Build asset not found',
+    headers: { 'Cache-Control': 'no-store' },
+  });
 }
 
 self.addEventListener('install', (event) => {
@@ -103,17 +125,20 @@ self.addEventListener('fetch', (event) => {
   if (isVersionedBuildAsset) {
     event.respondWith(
       caches.match(request, { ignoreSearch: true }).then((cached) => {
+        const validCached = buildAssetContentTypeIsValid(request, cached) ? cached : null;
         const network = fetch(request)
           .then((response) => {
-            if (response && response.ok) {
+            if (buildAssetContentTypeIsValid(request, response)) {
               const copy = response.clone();
               caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
+              return response;
             }
-            return response;
-          })
-          .catch(() => cached);
 
-        return cached || network;
+            return validCached || missingBuildAssetResponse();
+          })
+          .catch(() => validCached || missingBuildAssetResponse());
+
+        return validCached || network;
       })
     );
     return;

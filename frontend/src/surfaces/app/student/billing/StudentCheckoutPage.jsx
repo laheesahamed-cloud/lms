@@ -5,6 +5,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
 
 function getPlanDurationLabel(plan) {
@@ -257,8 +258,8 @@ export function StudentCheckoutPage() {
           )}
         />
 
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
-        {success ? <div className={ui.feedbackSuccess}>{success}</div> : null}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
+        {success ? <FeedbackNotice tone="success">{success}</FeedbackNotice> : null}
         {loading ? <div className={ui.emptyBox}>Loading checkout...</div> : null}
         {!loading && !plan ? (
           <div className={ui.emptyBox}>This plan is not available. Please choose another subscription plan.</div>
@@ -301,7 +302,7 @@ export function StudentCheckoutPage() {
                   </div>
                 </div>
 
-                {customSelectionNote ? <div className={ui.feedbackSuccess}>{customSelectionNote}</div> : null}
+                {customSelectionNote ? <FeedbackNotice tone="success">{customSelectionNote}</FeedbackNotice> : null}
 
                 {planBenefitGroups.length ? (
                   <div className="grid gap-2">
@@ -400,9 +401,9 @@ export function StudentCheckoutPage() {
                     </div>
                   </div>
                   <form className={ui.stackForm} onSubmit={handleManualSubmit}>
-                    <div className={ui.warningFeedback}>
+                    <FeedbackNotice tone="warning">
                       Your package will activate only after the admin verifies this payment proof.
-                    </div>
+                    </FeedbackNotice>
                     <label className={ui.formLabel}>
                       Coupon code
                       <input className={ui.input} value={couponCode} onChange={(event) => setCouponCode(event.target.value)} placeholder="Optional bank transfer coupon" autoComplete="off" />

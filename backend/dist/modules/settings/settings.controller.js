@@ -170,12 +170,14 @@ __decorate([
 ], SettingsController.prototype, "getAvailabilitySettings", null);
 __decorate([
     (0, common_1.Get)('public'),
+    (0, common_1.Header)('Cache-Control', 'public, max-age=15, stale-while-revalidate=60'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], SettingsController.prototype, "getPublicSettings", null);
 __decorate([
     (0, common_1.Get)('public/availability'),
+    (0, common_1.Header)('Cache-Control', 'public, max-age=5, stale-while-revalidate=30'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)

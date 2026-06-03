@@ -5,6 +5,7 @@ import { fetchStudentResults } from '../../../../shared/api/quizAttempts.api.js'
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 
 function formatPercentage(value) {
@@ -237,7 +238,7 @@ export function ResultsListPage() {
           subtitle={focusQuizId ? 'Filtered Results' : 'Performance'}
         />
 
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
         <section className="student-results-hero lms-page-header-card" aria-label="Results summary">
           <div className="student-results-hero__score" aria-label="Exam performance trend">
@@ -319,9 +320,26 @@ export function ResultsListPage() {
             <div className={ui.tableShell}>
               <table className={cx(ui.modernTable, 'min-w-[720px]')}>
                 <tbody>
-                  <tr>
-                    <td colSpan="5" className={ui.tableEmpty}>Loading results...</td>
-                  </tr>
+                  {[0, 1, 2, 3, 4].map((row) => (
+                    <tr key={row} className="student-results-attempt-row" aria-hidden="true">
+                      <td className={ui.tableCell}>
+                        <div className={cx(ui.shimmer, 'h-[14px] w-[200px] max-w-full rounded-md')} />
+                        <div className={cx(ui.shimmer, 'mt-2 h-[11px] w-[120px] rounded-md')} />
+                      </td>
+                      <td className={ui.tableCell}>
+                        <div className={cx(ui.shimmer, 'h-[13px] w-[72px] rounded-md')} />
+                      </td>
+                      <td className={ui.tableCell}>
+                        <div className={cx(ui.shimmer, 'h-[15px] w-[48px] rounded-md')} />
+                      </td>
+                      <td className={ui.tableCell}>
+                        <div className={cx(ui.shimmer, 'h-[22px] w-[84px] rounded-full')} />
+                      </td>
+                      <td className={cx(ui.tableCell, 'text-right')}>
+                        <div className={cx(ui.shimmer, 'ml-auto size-5 rounded-md')} />
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

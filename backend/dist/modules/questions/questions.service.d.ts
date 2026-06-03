@@ -56,6 +56,11 @@ export declare class QuestionsService {
         quizCount: number;
         contentVersion: number | null;
     }[]>;
+    countByFilters(filters: QuestionFilters): Promise<{
+        total: number;
+        unused: number;
+        used: number;
+    }>;
     meta(): Promise<{
         courses: {
             id: number;

@@ -100,6 +100,12 @@ __decorate([
     __metadata("design:type", Object)
 ], CreateQuizDto.prototype, "blueprint", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsIn)(['static', 'dynamic']),
+    __metadata("design:type", String)
+], CreateQuizDto.prototype, "randomizationMode", void 0);
+__decorate([
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(1),
     __metadata("design:type", Number)
@@ -127,7 +133,6 @@ __decorate([
 ], CreateQuizDto.prototype, "status", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.ArrayMinSize)(1),
     (0, class_validator_1.IsInt)({ each: true }),
     __metadata("design:type", Array)
 ], CreateQuizDto.prototype, "questionIds", void 0);

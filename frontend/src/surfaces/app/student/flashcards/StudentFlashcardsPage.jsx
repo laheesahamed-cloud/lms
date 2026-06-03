@@ -4,6 +4,7 @@ import { getAiNote, listAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudentLessons } from '../../../../shared/api/lessons.api.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 
 /* ─────────────────────────────────────────
    STYLES
@@ -107,7 +108,7 @@ function plainText(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
 const FLASHCARD_SESSION_PREFIX = 'lms.flashcards.session.';
 const FLASHCARD_REVIEW_STATS_KEY = 'lms.flashcards.reviewStats.v1';
 const FLASHCARD_BAD_IDS_KEY = 'lms.flashcards.badIds.v1';
-const FLASHCARD_DECK_STATS_KEY = 'lms.flashcards.deckStats.v1';
+const FLASHCARD_DECK_STATS_KEY = 'lms.flashcards.deckStats.v2';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LEARNING_STEP_MS = 10 * 60 * 1000;
 const HARD_STEP_MS = 30 * 60 * 1000;
@@ -238,6 +239,11 @@ function writeDeckStatsCacheEntry(note, cardCount) {
   } catch {
     // Deck counts are only a convenience for the browser list.
   }
+}
+
+function getApprovedCardCount(note) {
+  const approvedCount = Number(note?.approvedFlashcardCount);
+  return Number.isFinite(approvedCount) ? approvedCount : null;
 }
 
 function reportBadCard(card) {
@@ -471,16 +477,6 @@ function reviewStatus(card, stats = readReviewStats()) {
   return getCardSchedule(card, stats);
 }
 
-function dedupeLines(lines) {
-  const seen = new Set();
-  return lines.filter((line) => {
-    const key = line.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
 function isLowSignalLine(line) {
   const text = cleanStudyText(line);
   const normalized = text.toLowerCase();
@@ -489,138 +485,6 @@ function isLowSignalLine(line) {
   if (/^(read|see|refer to|discuss|learn|understand)\b/i.test(text)) return true;
   if (/^(page|slide|chapter|lesson)\s+\d+/i.test(text)) return true;
   return normalized.split(/\s+/).length <= 2 && /^(types?|causes?|features?|symptoms?|management|treatment|diagnosis|summary|overview)$/.test(normalized);
-}
-
-function notePages(note) {
-  const data = note?.noteData || {};
-  if (Array.isArray(data.pages)) return data.pages;
-  if (Array.isArray(data.sections) || data.summary_box || data.key_points) return [data];
-  return [];
-}
-
-function inferCardType(heading) {
-  const h = heading.toLowerCase();
-  if (/\b(definition|define|what is|overview|introduction|concept)\b/.test(h)) return 'definition';
-  if (/\b(mechanism|pathophysiology|pathogenesis|physiology)\b/.test(h)) return 'mechanism';
-  if (/\b(clinical features?|signs?( and symptoms?)?|symptoms?|presentation|manifestation)\b/.test(h)) return 'features';
-  if (/\b(treatment|management|therapy|therapeutic|pharmacolog|drug)\b/.test(h)) return 'management';
-  if (/\b(classification|types?|categories|variants?|spectrum)\b/.test(h)) return 'classification';
-  if (/\b(causes?|etiology|aetiology|risk factors?|predisposing)\b/.test(h)) return 'causes';
-  if (/\b(diagnosis|investigation|workup|test|labs?|imaging|diagnostic)\b/.test(h)) return 'diagnosis';
-  if (/\b(complications?|prognosis|outcome|sequelae)\b/.test(h)) return 'complications';
-  return 'explain';
-}
-
-function readableTopic(heading, hierarchy) {
-  const lesson = cleanStudyText(hierarchy?.lesson || '');
-  const clean = cleanStudyText(heading)
-    .replace(/\b(definition of|types of|classification of|causes of|management of|treatment of|investigations? for|diagnosis of|complications? of|clinical features? of|features of|pathophysiology of|mechanism of|overview of|summary of|key points? for)\b/gi, '')
-    .replace(/^(the |a |an )/i, '')
-    .trim();
-  const generic = /^(definition|overview|introduction|clinical features?|features?|symptoms?|signs?|causes?|etiology|aetiology|risk factors?|pathophysiology|mechanism|classification|types?|investigations?|diagnosis|workup|management|treatment|complications?|prognosis|summary|key points?|exam points?|important points?)(\s*(and|\/|&)\s*(definition|classification|overview|clinical features?|features?|symptoms?|signs?|causes?|etiology|aetiology|risk factors?|pathophysiology|mechanism|types?|investigations?|diagnosis|workup|management|treatment|complications?|prognosis|summary|key points?|exam points?|important points?))*$/i.test(clean);
-  return (lesson && generic) ? lesson : (clean || lesson || 'this lesson');
-}
-
-function isVagueHeading(heading, hierarchy) {
-  const text = cleanStudyText(heading).toLowerCase();
-  const lesson = lessonTopic(hierarchy).toLowerCase();
-  if (!text) return true;
-  if (/^(introduction|overview|summary|recap|conclusion|learning objectives?|objectives?|contents?|notes?)$/.test(text)) return true;
-  if (lesson && text === lesson) return false;
-  return false;
-}
-
-function lessonTopic(hierarchy, fallback = '') {
-  return cleanStudyText(hierarchy?.lesson || fallback || 'this lesson');
-}
-
-function headingHas(heading, pattern) {
-  return pattern.test(cleanStudyText(heading).toLowerCase());
-}
-
-function conciseFocus(heading, hierarchy) {
-  const topic = readableTopic(heading, hierarchy);
-  const lesson = lessonTopic(hierarchy, topic);
-  const normalizedTopic = topic.toLowerCase();
-  const normalizedLesson = lesson.toLowerCase();
-
-  if (!normalizedTopic || normalizedTopic === 'this lesson') return lesson;
-  if (normalizedTopic === normalizedLesson) return lesson;
-  if (normalizedTopic.includes(normalizedLesson)) return topic;
-  if (normalizedLesson.includes(normalizedTopic) && normalizedTopic.length < 8) return lesson;
-  return topic;
-}
-
-function buildQuestion(heading, type, hierarchy) {
-  const focus = conciseFocus(heading, hierarchy);
-  const lesson = lessonTopic(hierarchy, focus);
-  const hasDefinition = headingHas(heading, /\bdefinition|overview|introduction|what is\b/);
-  const hasClassification = headingHas(heading, /\bclassification|types?|categories\b/);
-
-  if (hasDefinition && hasClassification) {
-    return `Define ${lesson} and classify it.`;
-  }
-
-  const prompts = {
-    definition: `What is ${focus}?`,
-    mechanism: `What is the key mechanism or pathophysiology of ${focus}?`,
-    features: `A patient may have ${focus}. Which clinical features support this?`,
-    management: `A patient has ${focus}. What is the management plan?`,
-    classification: `How is ${focus} classified?`,
-    causes: `What causes or risk factors are linked to ${focus}?`,
-    diagnosis: `A patient may have ${focus}. What investigations or diagnostic steps are most useful?`,
-    complications: `What complications should you watch for in ${focus}?`,
-    keypoints: `What should you remember about ${lesson}?`,
-    summary: `Summarize ${lesson} in a structured way.`,
-    explain: focus.toLowerCase() === lesson.toLowerCase()
-      ? `What are the most important facts about ${lesson}?`
-      : `What are the important facts about ${focus} in ${lesson}?`,
-  };
-
-  return prompts[type] || prompts.explain;
-}
-
-function answerPriority(type, line) {
-  const text = line.toLowerCase();
-  const priority = {
-    definition: ['definition', 'means', 'characterized', 'core', 'key'],
-    mechanism: ['cause', 'trigger', 'leads to', 'pathway', 'mechanism', 'therefore'],
-    features: ['symptom', 'sign', 'pain', 'fever', 'presentation', 'clinical'],
-    diagnosis: ['history', 'examination', 'blood', 'lab', 'test', 'imaging', 'ct', 'mri', 'x-ray', 'diagnosis'],
-    management: ['initial', 'first', 'acute', 'stabil', 'treatment', 'drug', 'follow', 'refer', 'surgery'],
-    classification: ['type', 'class', 'stage', 'grade', 'group'],
-    causes: ['common', 'cause', 'risk', 'etiology', 'secondary', 'primary'],
-    complications: ['acute', 'chronic', 'complication', 'prognosis', 'mortality'],
-  }[type] || [];
-  const index = priority.findIndex((word) => text.includes(word));
-  return index === -1 ? priority.length + 1 : index;
-}
-
-function trimAnswerLine(line) {
-  const clean = cleanStudyText(line);
-  if (clean.length <= 220) return clean;
-  const sentenceEnd = clean.slice(0, 220).search(/[.!?](?=\s|$)/);
-  if (sentenceEnd >= 80) return clean.slice(0, sentenceEnd + 1);
-  return `${clean.slice(0, 217).trim()}...`;
-}
-
-function formatAnswerBullets(type, bullets, callout = '') {
-  const cleaned = dedupeLines(
-    [...(bullets || []), callout]
-      .map(trimAnswerLine)
-      .filter((line) => !isLowSignalLine(line))
-  );
-
-  return cleaned
-    .map((line, index) => ({ line, index, rank: answerPriority(type, line) }))
-    .sort((a, b) => (a.rank - b.rank) || (a.index - b.index))
-    .map((item) => item.line)
-    .slice(0, 8);
-}
-
-function formatAnswerText(lines, fallback = '') {
-  const answerLines = lines?.length ? lines : [cleanStudyText(fallback)].filter(Boolean);
-  return answerLines.join('\n');
 }
 
 function cardDifficulty(type, answerBullets, answerText = '') {
@@ -728,8 +592,8 @@ function buildInitialDeckStats(notes) {
   const cache = readDeckStatsCache();
   return (notes || []).reduce((acc, note) => {
     if (isLessonPlaceholder(note)) return acc;
-    const serverCardCount = Number(note.cardCount);
-    if (Number.isFinite(serverCardCount)) {
+    const serverCardCount = getApprovedCardCount(note);
+    if (serverCardCount !== null) {
       acc[note.id] = {
         cardCount: serverCardCount,
         loading: false,
@@ -809,10 +673,10 @@ function hasDeckCardCount(stat) {
 
 function getDeckMetrics(note, deckStats = {}, reviewStats = readReviewStats()) {
   const stat = deckStats[note?.id] || {};
-  const serverCardCount = Number(note?.cardCount);
+  const serverCardCount = getApprovedCardCount(note);
   const cardCount = hasDeckCardCount(stat)
     ? Number(stat.cardCount)
-    : Number.isFinite(serverCardCount)
+    : serverCardCount !== null
       ? serverCardCount
       : null;
   const review = getNoteReviewCounts(note, reviewStats);
@@ -820,7 +684,7 @@ function getDeckMetrics(note, deckStats = {}, reviewStats = readReviewStats()) {
 
   return {
     cardCount,
-    cardCountPending: Boolean(stat.loading) || (!hasDeckCardCount(stat) && !Number.isFinite(serverCardCount) && !stat.unavailable),
+    cardCountPending: Boolean(stat.loading) || (!hasDeckCardCount(stat) && serverCardCount === null && !stat.unavailable),
     newCount,
     dueCount: review.dueCount,
     overdueCount: review.overdueCount,
@@ -835,10 +699,6 @@ function getDeckMetrics(note, deckStats = {}, reviewStats = readReviewStats()) {
     availableToday: review.reviewCount + Math.min(newCount || 0, DAILY_NEW_CARD_LIMIT),
     nextDueAt: review.nextDueAt,
   };
-}
-
-function buildMnemonicQuestion(acronym, context) {
-  return `In ${context}, what does ${acronym} stand for?`;
 }
 
 function buildReviewedFlashcards(note, hierarchy) {
@@ -866,88 +726,13 @@ function buildReviewedFlashcards(note, hierarchy) {
 }
 
 function buildLessonCards(note) {
-  const cards = [];
   const hierarchy = {
     course:  note.courseTitle  || '',
     subject: note.topicName    || '',
     topic:   note.subtopicName || '',
     lesson:  note.lessonTitle  || note.title || '',
   };
-  const reviewedCards = buildReviewedFlashcards(note, hierarchy);
-  if (reviewedCards.length > 0) return finalizeDeck(reviewedCards);
-
-  notePages(note).forEach((page, pi) => {
-    (page.sections || []).forEach((sec, si) => {
-      const heading  = cleanStudyText(sec.heading);
-      if (!heading) return;
-
-      const bullets  = (sec.bullets || []).map(cleanStudyText).filter(Boolean);
-      const callout  = cleanStudyText(sec.callout);
-      const mnemonic = cleanStudyText(sec.mnemonic);
-
-      if ((bullets.length || callout) && !isVagueHeading(heading, hierarchy)) {
-        const type = inferCardType(heading);
-        const answerBullets = formatAnswerBullets(type, bullets, callout);
-        if (answerBullets.length) {
-          const answerText = formatAnswerText(answerBullets, callout);
-          cards.push({
-            id:           `${note.id ?? pi}-${pi}-${si}`,
-            questionType: type,
-            questionText: buildQuestion(heading, type, hierarchy),
-            answerBullets,
-            answerText,
-            callout:      callout && !answerBullets.includes(callout) ? callout : '',
-            mnemonic:     '',
-            difficulty:   cardDifficulty(type, answerBullets, answerText),
-            context:      heading,
-            hierarchy,
-          });
-        }
-      }
-
-      // Separate mnemonic card when acronym found
-      if (mnemonic) {
-        const acronym = mnemonic.match(/\b([A-Z]{2,})\b/)?.[1];
-        if (acronym) {
-          const mnemonicTopic = lessonTopic(hierarchy, heading);
-          const mnemonicContext = heading && heading.toLowerCase() !== mnemonicTopic.toLowerCase()
-            ? `${mnemonicTopic} - ${heading}`
-            : mnemonicTopic;
-          cards.push({
-            id:           `${note.id ?? pi}-${pi}-${si}-mn`,
-            questionType: 'mnemonic',
-            questionText: buildMnemonicQuestion(acronym, mnemonicContext),
-            answerBullets: [],
-            answerText:   mnemonic,
-            callout:      '',
-            mnemonic,
-            difficulty:   'Easy',
-            context:      mnemonicContext,
-            hierarchy,
-          });
-        }
-      }
-    });
-
-    const sum = cleanStudyText(page.summary_box);
-    if (sum) {
-      const title = cleanStudyText(page.title) || note.lessonTitle || note.title || 'this topic';
-      cards.push({
-        id:           `${note.id ?? pi}-${pi}-sum`,
-        questionType: 'summary',
-        questionText: buildQuestion(title, 'summary', hierarchy),
-        answerBullets: [],
-        answerText:   sum,
-        callout:      '',
-        mnemonic:     '',
-        difficulty:   cardDifficulty('summary', [], sum),
-        context:      title,
-        hierarchy,
-      });
-    }
-  });
-
-  return finalizeDeck(cards);
+  return finalizeDeck(buildReviewedFlashcards(note, hierarchy));
 }
 
 /* ─────────────────────────────────────────
@@ -1670,7 +1455,7 @@ function PickPhase({
       <style>{ANIM_CSS}</style>
       <section className="study-hub-shell grid max-w-[1080px] gap-4">
 
-        {error && <div className={ui.feedbackError}>{error}</div>}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
         <section className="grid gap-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -2256,7 +2041,7 @@ export function StudentFlashcardsPage() {
       const fullNote = note.noteData ? note : await getAiNote(note.id);
       const cards = selectQueueCards(buildLessonCards(fullNote), 'all', 80);
       if (cards.length === 0) {
-        setError('This lesson does not have enough note content for flashcards yet.');
+        setError('This lesson does not have approved flashcards yet.');
         setPhase('pick');
         return;
       }
@@ -2282,7 +2067,7 @@ export function StudentFlashcardsPage() {
       .filter((note) => !note.accessLocked)
       .filter((note) => !isLessonPlaceholder(note));
     if (!unlockedNotes.length) {
-      setError('No available lessons are ready in this deck.');
+      setError('No available lessons have approved flashcards yet.');
       return;
     }
     if (unlockedNotes.length === 1) {
@@ -2297,7 +2082,7 @@ export function StudentFlashcardsPage() {
       const queue = selectQueueCards(cards, 'quick', 80);
       const studyCards = queue.length ? queue : selectQueueCards(cards, 'all', 80);
       if (!studyCards.length) {
-        setError('This deck does not have enough note content for flashcards yet.');
+        setError('This deck does not have approved flashcards yet.');
         setPhase('pick');
         return;
       }

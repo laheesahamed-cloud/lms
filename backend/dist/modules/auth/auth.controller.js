@@ -20,6 +20,7 @@ const auth_token_util_1 = require("./auth-token.util");
 const login_dto_1 = require("./dto/login.dto");
 const register_dto_1 = require("./dto/register.dto");
 const google_login_dto_1 = require("./dto/google-login.dto");
+const google_code_login_dto_1 = require("./dto/google-code-login.dto");
 const update_profile_dto_1 = require("./dto/update-profile.dto");
 const change_password_dto_1 = require("./dto/change-password.dto");
 const forgot_password_dto_1 = require("./dto/forgot-password.dto");
@@ -49,6 +50,15 @@ let AuthController = class AuthController {
     }
     async googleLogin(googleLoginDto, nativeHeader, request, response) {
         const result = await this.authService.loginWithGoogle(googleLoginDto);
+        this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+        if (this.shouldExposeSessionToken(nativeHeader)) {
+            return result;
+        }
+        const { sessionToken: _sessionToken, ...safeResult } = result;
+        return safeResult;
+    }
+    async googleCodeLogin(googleCodeLoginDto, nativeHeader, requestedWith, origin, request, response) {
+        const result = await this.authService.loginWithGoogleCode(googleCodeLoginDto, { origin, requestedWith });
         this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
             return result;
@@ -196,6 +206,18 @@ __decorate([
     __metadata("design:paramtypes", [google_login_dto_1.GoogleLoginDto, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "googleLogin", null);
+__decorate([
+    (0, common_1.Post)('google/code'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('x-lms-native')),
+    __param(2, (0, common_1.Headers)('x-requested-with')),
+    __param(3, (0, common_1.Headers)('origin')),
+    __param(4, (0, common_1.Req)()),
+    __param(5, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [google_code_login_dto_1.GoogleCodeLoginDto, Object, Object, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "googleCodeLogin", null);
 __decorate([
     (0, common_1.Get)('me'),
     __param(0, (0, common_1.Headers)('authorization')),

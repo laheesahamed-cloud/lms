@@ -1105,6 +1105,23 @@ export function StudentDashboardPage() {
     return () => window.removeEventListener('lms:lesson-progress-updated', handleLessonProgressUpdate);
   }, []);
 
+  // Pause GPU-heavy infinite animations when their card scrolls off-screen
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') return undefined;
+    const targets = document.querySelectorAll('.study-streak-card, .study-continue-card');
+    if (!targets.length) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          entry.target.classList.toggle('is-offscreen', !entry.isIntersecting);
+        });
+      },
+      { threshold: 0, rootMargin: '100px' }
+    );
+    targets.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [loading]);
+
   const firstName = getFirstName(user);
   const todayLabel = formatDateLabel();
   const inProgressQuiz = useMemo(

@@ -13,6 +13,7 @@ import { recordStudyActivity } from '../../../../shared/api/dashboard.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { getVideoEmbed } from '../../../../shared/utils/videoEmbed.js';
 
 const notesLayoutClass = 'grid grid-cols-[minmax(260px,320px)_minmax(0,1fr)_minmax(280px,360px)] items-start gap-5 max-[900px]:grid-cols-1';
@@ -687,7 +688,7 @@ export function StudentNotesPage() {
           subtitle="Study Notebook"
         />
 
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
         <div className={cx(notesLayoutClass, studyMode && notesStudyLayoutClass)}>
           {libraryOpen ? (

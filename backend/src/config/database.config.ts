@@ -11,5 +11,7 @@ export default () => ({
     connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '8', 10),
     maxIdle: parseInt(process.env.DB_MAX_IDLE || '4', 10),
     idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT || '60000', 10),
+    connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT || '10000', 10),
+    queueLimit: parseInt(process.env.DB_QUEUE_LIMIT || '100', 10),
   },
 });

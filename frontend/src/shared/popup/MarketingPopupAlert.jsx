@@ -6,6 +6,8 @@ import { ui } from '../styles/tailwindClasses.js';
 import { resolvePublicAssetUrl } from '../utils/publicAssetUrl.js';
 
 const POPUP_DISMISS_PREFIX = 'lms_popup_alert_dismissed';
+const POPUP_CACHE_KEY = 'lms_popup_alert_public_cache';
+const POPUP_API_MANIFEST_URL = '/api/uploads/marketing-popups/popup-alert.json';
 const websiteProtectedPathPattern =
   /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 
@@ -57,6 +59,17 @@ function hasPopupContent(alert) {
   return Boolean(alert?.imageUrl);
 }
 
+function getSiteBasePath() {
+  const base = String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+  return base.endsWith('/frontend/dist/')
+    ? base.slice(0, -'frontend/dist/'.length)
+    : base;
+}
+
+function getStaticPopupManifestUrl() {
+  return `${getSiteBasePath()}uploads/marketing-popups/popup-alert.json`;
+}
+
 function readDismissed(key) {
   if (typeof window === 'undefined') return false;
   try {
@@ -75,12 +88,36 @@ function writeDismissed(key) {
   }
 }
 
+function readCachedPopupAlert() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = JSON.parse(window.localStorage.getItem(POPUP_CACHE_KEY) || 'null');
+    return cached && typeof cached === 'object' ? cached : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedPopupAlert(alert) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (!alert || typeof alert !== 'object') {
+      window.localStorage.removeItem(POPUP_CACHE_KEY);
+      return;
+    }
+    window.localStorage.setItem(POPUP_CACHE_KEY, JSON.stringify(alert));
+  } catch {
+    // The live settings fetch remains the source of truth if local storage is unavailable.
+  }
+}
+
 export function MarketingPopupAlert({ suppressed = false }) {
   const location = useLocation();
   const closeButtonRef = useRef(null);
-  const [alert, setAlert] = useState(null);
+  const initialAlert = useMemo(() => readCachedPopupAlert(), []);
+  const [alert, setAlert] = useState(initialAlert);
   const [dismissedKey, setDismissedKey] = useState('');
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(() => Boolean(initialAlert));
 
   const imageUrl = useMemo(() => resolvePublicAssetUrl(alert?.imageUrl), [alert?.imageUrl]);
   const dismissKey = useMemo(() => getDismissKey(alert), [alert]);
@@ -96,14 +133,42 @@ export function MarketingPopupAlert({ suppressed = false }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadPopupAlert({ force = false } = {}) {
+    function applyPopupAlert(nextAlert) {
+      setAlert(nextAlert);
+      writeCachedPopupAlert(nextAlert);
+      setLoaded(true);
+    }
+
+    async function loadPopupAlertManifest() {
+      const manifestUrls = [getStaticPopupManifestUrl(), resolvePublicAssetUrl(POPUP_API_MANIFEST_URL)]
+        .filter(Boolean);
+
+      try {
+        for (const manifestUrl of manifestUrls) {
+          const response = await fetch(manifestUrl, {
+            cache: 'no-store',
+            headers: { Accept: 'application/json' },
+          });
+          if (!response.ok) continue;
+          const nextAlert = await response.json();
+          if (cancelled || !nextAlert || typeof nextAlert !== 'object') return;
+          applyPopupAlert(nextAlert);
+          return;
+        }
+      } catch {
+        // The settings API below remains the fallback when the static manifest is unavailable.
+      }
+    }
+
+    async function loadPopupAlertSettings({ force = false } = {}) {
       try {
         const settings = await fetchPublicSettings({ force });
         if (cancelled) return;
-        setAlert(settings?.popupAlert || { enabled: false });
+        const nextAlert = settings?.popupAlert || { enabled: false };
+        applyPopupAlert(nextAlert);
       } catch {
         if (!cancelled) {
-          setAlert({ enabled: false });
+          setAlert((current) => current || { enabled: false });
         }
       } finally {
         if (!cancelled) {
@@ -112,8 +177,12 @@ export function MarketingPopupAlert({ suppressed = false }) {
       }
     }
 
-    loadPopupAlert();
-    const refreshPopupAlert = () => loadPopupAlert({ force: true });
+    loadPopupAlertManifest();
+    loadPopupAlertSettings();
+    const refreshPopupAlert = () => {
+      loadPopupAlertManifest();
+      loadPopupAlertSettings({ force: true });
+    };
     window.addEventListener?.('lms:popup-alert-refresh', refreshPopupAlert);
     return () => {
       cancelled = true;

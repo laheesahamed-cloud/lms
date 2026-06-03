@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { fetchAttemptResult } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 
 export function ResultPage() {
@@ -61,7 +62,7 @@ export function ResultPage() {
   return (
       <main className={cx(ui.studentScreenShell, 'dashboard-page study-hub-page practice-review-page student-result-detail-page')}>
         <section className="study-hub-shell practice-review-shell student-result-detail-layout">
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
         {result ? (
           <>
           <section className="student-result-detail-hero">

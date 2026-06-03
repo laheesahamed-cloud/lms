@@ -43,6 +43,7 @@ type AiProviderRow = RowDataPacket & {
 
 const WHATSAPP_NUMBER_SETTING_KEY = 'contact_whatsapp_number';
 const LANDING_PAGE_SETTING_KEY = 'landing_page_content';
+const POPUP_ALERT_PUBLIC_MANIFEST_FILE = 'popup-alert.json';
 const AVAILABILITY_MODE_SETTING_KEY = 'site_availability_mode';
 const AVAILABILITY_UNLOCK_CODE_SETTING_KEY = 'site_availability_unlock_code';
 const AVAILABILITY_MODES = ['live', 'maintenance', 'coming-soon'] as const;
@@ -689,6 +690,7 @@ export class SettingsService {
       this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.imageBytes, String(next.imageBytes || 0)),
       this.saveSettingValue(POPUP_ALERT_SETTING_KEYS.version, next.version),
     ]);
+    await this.writePopupAlertManifest(next);
     this.clearPublicSettingsCache();
 
     return this.getPopupAlertSettings();
@@ -1256,6 +1258,16 @@ export class SettingsService {
     }
 
     return this.serializePopupAlertSettings(settings);
+  }
+
+  private async writePopupAlertManifest(settings: PopupAlertSettings) {
+    const uploadDir = join(process.cwd(), 'uploads', 'marketing-popups');
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(
+      join(uploadDir, POPUP_ALERT_PUBLIC_MANIFEST_FILE),
+      `${JSON.stringify(this.serializePublicPopupAlertSettings(settings))}\n`,
+      'utf8'
+    );
   }
 
   private serializeApnsSettings(settings: ApnsSettings) {

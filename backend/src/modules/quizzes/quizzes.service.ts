@@ -62,6 +62,7 @@ type QuizRow = RowDataPacket & {
   quiz_title: string;
   quiz_description: string | null;
   blueprint_json: string | null;
+  randomization_mode: 'static' | 'dynamic' | null;
   total_questions: number;
   total_marks: number;
   time_limit: number;
@@ -124,6 +125,7 @@ export class QuizzesService {
         quizzes.quiz_title,
         quizzes.quiz_description,
         NULL AS blueprint_json,
+        quizzes.randomization_mode,
         quizzes.total_questions,
         quizzes.total_marks,
         quizzes.time_limit,
@@ -369,6 +371,7 @@ export class QuizzesService {
           quizzes.quiz_title,
           quizzes.quiz_description,
           quizzes.blueprint_json,
+          quizzes.randomization_mode,
           quizzes.total_questions,
           quizzes.total_marks,
           quizzes.time_limit,
@@ -423,15 +426,16 @@ export class QuizzesService {
     try {
       await connection.beginTransaction();
       const questionIds = this.cleanQuestionIds(createQuizDto.questionIds);
-      const totalQuestions = questionIds.length;
+      const linkedQuestionIds = this.resolveRandomizationMode(createQuizDto.randomizationMode) === 'dynamic' ? [] : questionIds;
+      const totalQuestions = this.resolveQuizQuestionCount(createQuizDto, questionIds);
       const totalMarks = totalQuestions;
 
       const [result] = await connection.execute<ResultSetHeader>(
         `
           INSERT INTO quizzes (
             course_id, topic_id, subtopic_id, lesson_id, paper_id, category, collection_tags, is_free, subtopic, is_general, exam_mode_only, admin_name, student_title, display_title_mode, quiz_title,
-            quiz_description, blueprint_json, total_questions, total_marks, time_limit, hide_time_limit, passing_marks, hide_passing_marks, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            quiz_description, blueprint_json, randomization_mode, total_questions, total_marks, time_limit, hide_time_limit, passing_marks, hide_passing_marks, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           createQuizDto.courseId,
@@ -451,6 +455,7 @@ export class QuizzesService {
           this.resolveStudentTitle(createQuizDto),
           (createQuizDto.quizDescription || '').trim(),
           this.stringifyBlueprint(createQuizDto.blueprint),
+          this.resolveRandomizationMode(createQuizDto.randomizationMode),
           totalQuestions,
           totalMarks,
           createQuizDto.timeLimit,
@@ -461,8 +466,8 @@ export class QuizzesService {
         ]
       );
 
-      await this.replaceQuestionLinks(connection, result.insertId, questionIds);
-      await this.appendKeywordsToQuestions(connection, questionIds, createQuizDto.collectionTags);
+      await this.replaceQuestionLinks(connection, result.insertId, linkedQuestionIds);
+      await this.appendKeywordsToQuestions(connection, linkedQuestionIds, createQuizDto.collectionTags);
       const snapshot = this.buildQuizSnapshot(createQuizDto);
       await this.recordContentVersion(connection, 'quiz', result.insertId, snapshot, this.getActorId(actor));
       await this.setWorkflowState(connection, 'quiz', result.insertId, createQuizDto.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
@@ -504,6 +509,7 @@ export class QuizzesService {
       quizTitle: updateQuizDto.quizTitle ?? existing.studentTitle ?? existing.quizTitle,
       quizDescription: updateQuizDto.quizDescription ?? existing.quizDescription ?? '',
       blueprint: updateQuizDto.blueprint ?? existing.blueprint ?? null,
+      randomizationMode: this.resolveRandomizationMode(updateQuizDto.randomizationMode ?? existing.randomizationMode),
       timeLimit: updateQuizDto.timeLimit ?? existing.timeLimit,
       hideTimeLimit: updateQuizDto.hideTimeLimit ?? (existing.hideTimeLimit === 1 ? 1 : 0),
       passingMarks: updateQuizDto.passingMarks ?? this.resolvePassingMarks(existing.passingMarks),
@@ -520,7 +526,8 @@ export class QuizzesService {
     try {
       await connection.beginTransaction();
       const questionIds = this.cleanQuestionIds(merged.questionIds);
-      const totalQuestions = questionIds.length;
+      const linkedQuestionIds = this.resolveRandomizationMode(merged.randomizationMode) === 'dynamic' ? [] : questionIds;
+      const totalQuestions = this.resolveQuizQuestionCount(merged, questionIds);
       const totalMarks = totalQuestions;
 
       await connection.execute(
@@ -543,6 +550,7 @@ export class QuizzesService {
             quiz_title = ?,
             quiz_description = ?,
             blueprint_json = ?,
+            randomization_mode = ?,
             total_questions = ?,
             total_marks = ?,
             time_limit = ?,
@@ -570,6 +578,7 @@ export class QuizzesService {
           this.resolveStudentTitle(merged),
           (merged.quizDescription || '').trim(),
           this.stringifyBlueprint(merged.blueprint),
+          this.resolveRandomizationMode(merged.randomizationMode),
           totalQuestions,
           totalMarks,
           merged.timeLimit,
@@ -581,8 +590,8 @@ export class QuizzesService {
         ]
       );
 
-      await this.replaceQuestionLinks(connection, id, questionIds);
-      await this.appendKeywordsToQuestions(connection, questionIds, merged.collectionTags);
+      await this.replaceQuestionLinks(connection, id, linkedQuestionIds);
+      await this.appendKeywordsToQuestions(connection, linkedQuestionIds, merged.collectionTags);
       const snapshot = this.buildQuizSnapshot(merged);
       await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
       await this.setWorkflowState(connection, 'quiz', id, merged.status === 'active' ? 'published' : 'draft', this.getActorId(actor));
@@ -704,14 +713,15 @@ export class QuizzesService {
     this.validateQuiz(snapshot);
     this.assertCanSaveStatus(actor, snapshot.status);
     const questionIds = this.cleanQuestionIds(snapshot.questionIds);
+    const linkedQuestionIds = this.resolveRandomizationMode(snapshot.randomizationMode) === 'dynamic' ? [] : questionIds;
     const workflowState: ContentWorkflowState = snapshot.status === 'active' ? 'published' : 'draft';
     const connection = await this.db.getConnection();
 
     try {
       await connection.beginTransaction();
       await this.writeQuizSnapshot(connection, id, snapshot);
-      await this.replaceQuestionLinks(connection, id, questionIds);
-      await this.appendKeywordsToQuestions(connection, questionIds, snapshot.collectionTags);
+      await this.replaceQuestionLinks(connection, id, linkedQuestionIds);
+      await this.appendKeywordsToQuestions(connection, linkedQuestionIds, snapshot.collectionTags);
       await this.recordContentVersion(connection, 'quiz', id, snapshot, this.getActorId(actor));
       await this.setWorkflowState(connection, 'quiz', id, workflowState, this.getActorId(actor));
       await this.recordContentAudit(connection, {
@@ -761,13 +771,37 @@ export class QuizzesService {
       throw new BadRequestException('Please select a subject before selecting a lesson');
     }
 
-    if (this.cleanQuestionIds(quiz.questionIds).length === 0) {
+    const questionIds = this.cleanQuestionIds(quiz.questionIds || []);
+    const randomizationMode = this.resolveRandomizationMode(quiz.randomizationMode);
+    const blueprintQuestionCount = this.getBlueprintQuestionCount(quiz.blueprint);
+
+    if (randomizationMode === 'static' && questionIds.length === 0) {
       throw new BadRequestException('Please add at least one question to the quiz');
+    }
+
+    if (randomizationMode === 'dynamic' && blueprintQuestionCount <= 0) {
+      throw new BadRequestException('Dynamic randomized quizzes need at least one blueprint section with a target count');
     }
   }
 
-  private cleanQuestionIds(questionIds: number[]) {
-    return Array.from(new Set(questionIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)));
+  private cleanQuestionIds(questionIds: number[] = []) {
+    return Array.from(new Set((questionIds || []).map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)));
+  }
+
+  private resolveRandomizationMode(value?: string | null): 'static' | 'dynamic' {
+    return value === 'dynamic' ? 'dynamic' : 'static';
+  }
+
+  private getBlueprintQuestionCount(blueprint: unknown) {
+    return this.normalizeBlueprintPayload(blueprint).sections.reduce((total, section) => {
+      return total + Math.max(0, Number(section.targetCount || 0));
+    }, 0);
+  }
+
+  private resolveQuizQuestionCount(quiz: CreateQuizDto, questionIds = this.cleanQuestionIds(quiz.questionIds)) {
+    return this.resolveRandomizationMode(quiz.randomizationMode) === 'dynamic'
+      ? this.getBlueprintQuestionCount(quiz.blueprint)
+      : questionIds.length;
   }
 
   private buildQuizSnapshot(quiz: CreateQuizDto) {
@@ -789,12 +823,13 @@ export class QuizzesService {
       quizTitle: this.resolveStudentTitle(quiz),
       quizDescription: quiz.quizDescription || '',
       blueprint: this.normalizeBlueprintPayload(quiz.blueprint),
+      randomizationMode: this.resolveRandomizationMode(quiz.randomizationMode),
       timeLimit: quiz.timeLimit,
       hideTimeLimit: quiz.hideTimeLimit,
       passingMarks: this.resolvePassingMarks(quiz.passingMarks),
       hidePassingMarks: quiz.hidePassingMarks,
       status: quiz.status,
-      questionIds: this.cleanQuestionIds(quiz.questionIds),
+      questionIds: this.resolveRandomizationMode(quiz.randomizationMode) === 'dynamic' ? [] : this.cleanQuestionIds(quiz.questionIds),
     };
   }
 
@@ -817,6 +852,7 @@ export class QuizzesService {
       quizTitle: quiz.quizTitle,
       quizDescription: quiz.quizDescription || '',
       blueprint: quiz.blueprint || null,
+      randomizationMode: this.resolveRandomizationMode(quiz.randomizationMode),
       timeLimit: Number(quiz.timeLimit),
       hideTimeLimit: quiz.hideTimeLimit === 1 ? 1 : 0,
       passingMarks: this.resolvePassingMarks(quiz.passingMarks),
@@ -875,6 +911,7 @@ export class QuizzesService {
 
   private async writeQuizSnapshot(connection: PoolConnection, id: number, quiz: CreateQuizDto) {
     const questionIds = this.cleanQuestionIds(quiz.questionIds);
+    const totalQuestions = this.resolveQuizQuestionCount(quiz, questionIds);
     await connection.execute(
       `
         UPDATE quizzes SET
@@ -895,6 +932,7 @@ export class QuizzesService {
           quiz_title = ?,
           quiz_description = ?,
           blueprint_json = ?,
+          randomization_mode = ?,
           total_questions = ?,
           total_marks = ?,
           time_limit = ?,
@@ -922,8 +960,9 @@ export class QuizzesService {
         this.resolveStudentTitle(quiz),
         (quiz.quizDescription || '').trim(),
         this.stringifyBlueprint(quiz.blueprint),
-        questionIds.length,
-        questionIds.length,
+        this.resolveRandomizationMode(quiz.randomizationMode),
+        totalQuestions,
+        totalQuestions,
         quiz.timeLimit,
         quiz.hideTimeLimit,
         this.resolvePassingMarks(quiz.passingMarks),
@@ -976,6 +1015,7 @@ export class QuizzesService {
       quizTitle: String(snapshot.quizTitle || snapshot.studentTitle || ''),
       quizDescription: String(snapshot.quizDescription || ''),
       blueprint: this.normalizeBlueprintPayload(snapshot.blueprint),
+      randomizationMode: this.resolveRandomizationMode(snapshot.randomizationMode),
       timeLimit: Math.max(1, Number(snapshot.timeLimit || 1)),
       hideTimeLimit: Number(snapshot.hideTimeLimit) === 1 ? 1 : 0,
       passingMarks: this.resolvePassingMarks(Number(snapshot.passingMarks || DEFAULT_PASSING_MARKS)),
@@ -1253,6 +1293,7 @@ export class QuizzesService {
       quizTitle: String(row.student_title || row.quiz_title || ''),
       quizDescription: row.quiz_description || '',
       blueprint: this.parseBlueprint(row.blueprint_json),
+      randomizationMode: this.resolveRandomizationMode(row.randomization_mode),
       totalQuestions: Number(row.total_questions || 0),
       totalMarks: Number(row.total_marks || 0),
       timeLimit: Number(row.time_limit || 0),

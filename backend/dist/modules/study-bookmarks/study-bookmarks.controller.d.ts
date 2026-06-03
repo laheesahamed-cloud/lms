@@ -8,7 +8,7 @@ export declare class StudyBookmarksController {
     list(authorization?: string): Promise<{
         id: number;
         userId: number;
-        itemType: "question" | "quiz" | "ai_note";
+        itemType: "quiz" | "ai_note" | "question";
         itemId: number;
         title: string;
         examModeOnly: boolean;

@@ -1548,34 +1548,6 @@ ${input.sourceText}`;
     return false;
   }
 
-  private estimateFlashcardCount(noteData: unknown) {
-    const pages = Array.isArray((noteData as { pages?: unknown[] } | null)?.pages)
-      ? (noteData as { pages: unknown[] }).pages
-      : [];
-
-    return pages.reduce<number>((total, page) => {
-      const row = page as {
-        sections?: Array<{ heading?: unknown; bullets?: unknown[]; callout?: unknown; mnemonic?: unknown }>;
-        summary_box?: unknown;
-        key_points?: unknown[];
-      };
-      const sectionCount = Array.isArray(row.sections)
-        ? row.sections.reduce((count, section) => {
-            const hasHeading = String(section?.heading || '').trim().length > 0;
-            const hasBullets = Array.isArray(section?.bullets) && section.bullets.some((item) => String(item || '').trim());
-            const hasCallout = String(section?.callout || '').trim().length > 0;
-            const hasMnemonic = String(section?.mnemonic || '').trim().length > 0;
-            return count + (hasHeading && (hasBullets || hasCallout) ? 1 : 0) + (hasMnemonic ? 1 : 0);
-          }, 0)
-        : 0;
-      const summaryCount = String(row.summary_box || '').trim() ? 1 : 0;
-      const keyPointCount = Array.isArray(row.key_points)
-        ? row.key_points.filter((point) => String(point || '').trim()).length
-        : 0;
-      return total + sectionCount + summaryCount + keyPointCount;
-    }, 0);
-  }
-
   private mapStudentNote(
     row: AiNoteRow,
     hasNotesAccess: boolean,
@@ -1589,7 +1561,7 @@ ${input.sourceText}`;
     return {
       ...note,
       approvedFlashcardCount,
-      cardCount: approvedFlashcardCount > 0 ? approvedFlashcardCount : this.estimateFlashcardCount(note.noteData),
+      cardCount: approvedFlashcardCount,
       canAccess,
       accessLocked: !canAccess,
       upgradeLabel: hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',

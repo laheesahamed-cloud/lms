@@ -1,17 +1,17 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
-const DEFAULT_ICON = '/lms/pwa-icon.svg';
+const DEFAULT_ICON = '/lms/favicon-light-192.png';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'xyndrome-lms-shell-20260602-assets-v2';
+const CACHE_NAME = 'xyndrome-lms-shell-20260603-assets-v3';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',
   '/lms/manifest.webmanifest',
-  '/lms/pwa-icon.svg',
+  '/lms/favicon-light-32.png',
+  '/lms/favicon-light-180.png',
+  '/lms/favicon-light-192.png',
+  '/lms/favicon-light-512.png',
   '/lms/pwa-maskable.svg',
-  '/lms/pwa-icon-192.png',
-  '/lms/pwa-icon-512.png',
   '/lms/pwa-maskable-512.png',
-  '/lms/apple-touch-icon.png',
   '/lms/frontend/dist/index.html',
 ];
 

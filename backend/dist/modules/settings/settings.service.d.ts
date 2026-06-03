@@ -797,6 +797,7 @@ export declare class SettingsService {
     private serializeSmtpSettings;
     private serializePopupAlertSettings;
     private serializePublicPopupAlertSettings;
+    private writePopupAlertManifest;
     private serializeApnsSettings;
     private serializeFcmSettings;
     private serializePaymentSettings;

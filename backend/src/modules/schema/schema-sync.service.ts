@@ -82,6 +82,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'quizzes', 'student_title', 'VARCHAR(255) NULL AFTER admin_name');
       await this.ensureColumn(connection, 'quizzes', 'display_title_mode', "VARCHAR(20) NOT NULL DEFAULT 'number' AFTER student_title");
       await this.ensureColumn(connection, 'quizzes', 'blueprint_json', 'LONGTEXT NULL AFTER quiz_description');
+      await this.ensureColumn(connection, 'quizzes', 'randomization_mode', "VARCHAR(20) NOT NULL DEFAULT 'static' AFTER blueprint_json");
       await this.ensureColumn(connection, 'lessons', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER video_url');
       await this.ensureColumn(connection, 'ai_illustrated_notes', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_public');
       await this.ensureColumn(connection, 'plans', 'slug', 'VARCHAR(160) NULL AFTER name');
@@ -124,6 +125,9 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'subscription_coupons', 'plan_ids_json', 'TEXT NULL AFTER discount_value');
       await this.ensureColumn(connection, 'question_quizzes', 'sort_order', 'INT NOT NULL DEFAULT 0');
       await this.ensureColumn(connection, 'practice_sessions', 'revealed_question_ids_json', 'TEXT NULL AFTER last_question_index');
+      await this.ensureColumn(connection, 'practice_sessions', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
+      await this.ensureColumn(connection, 'exam_sessions', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
+      await this.ensureColumn(connection, 'quiz_attempts', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_practice', 'TINYINT(1) NOT NULL DEFAULT 1');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_exam', 'TINYINT(1) NOT NULL DEFAULT 0');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_review', 'TINYINT(1) NOT NULL DEFAULT 1');

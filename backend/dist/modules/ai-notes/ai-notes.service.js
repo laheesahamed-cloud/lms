@@ -1310,28 +1310,6 @@ ${input.sourceText}`;
             return true;
         return false;
     }
-    estimateFlashcardCount(noteData) {
-        const pages = Array.isArray(noteData?.pages)
-            ? noteData.pages
-            : [];
-        return pages.reduce((total, page) => {
-            const row = page;
-            const sectionCount = Array.isArray(row.sections)
-                ? row.sections.reduce((count, section) => {
-                    const hasHeading = String(section?.heading || '').trim().length > 0;
-                    const hasBullets = Array.isArray(section?.bullets) && section.bullets.some((item) => String(item || '').trim());
-                    const hasCallout = String(section?.callout || '').trim().length > 0;
-                    const hasMnemonic = String(section?.mnemonic || '').trim().length > 0;
-                    return count + (hasHeading && (hasBullets || hasCallout) ? 1 : 0) + (hasMnemonic ? 1 : 0);
-                }, 0)
-                : 0;
-            const summaryCount = String(row.summary_box || '').trim() ? 1 : 0;
-            const keyPointCount = Array.isArray(row.key_points)
-                ? row.key_points.filter((point) => String(point || '').trim()).length
-                : 0;
-            return total + sectionCount + summaryCount + keyPointCount;
-        }, 0);
-    }
     mapStudentNote(row, hasNotesAccess, accessProfile, options = {}) {
         const note = this.deserialize(row);
         const canAccess = this.canAccessStudentNote(note, hasNotesAccess, accessProfile);
@@ -1340,7 +1318,7 @@ ${input.sourceText}`;
         return {
             ...note,
             approvedFlashcardCount,
-            cardCount: approvedFlashcardCount > 0 ? approvedFlashcardCount : this.estimateFlashcardCount(note.noteData),
+            cardCount: approvedFlashcardCount,
             canAccess,
             accessLocked: !canAccess,
             upgradeLabel: hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',

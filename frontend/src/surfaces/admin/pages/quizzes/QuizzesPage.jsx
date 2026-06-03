@@ -20,7 +20,7 @@ function getStatusLabel(status) {
 }
 
 function getQuizTitle(quiz) {
-  return quiz.adminName || quiz.quizTitle || quiz.studentTitle || `Quiz #${quiz.id}`;
+  return quiz.adminName || quiz.quizTitle || quiz.studentTitle || `Assessment #${quiz.id}`;
 }
 
 function getQuizSubtitle(quiz) {
@@ -130,6 +130,9 @@ function QuizMapRow({ quiz, index, onEdit, onView, onDelete, deletingId }) {
                 <span className={statusPill(quiz.status)}>
                   {getStatusLabel(quiz.status)}
                 </span>
+                <span className="inline-flex h-5 items-center rounded px-1.5 text-[11px] font-black uppercase leading-none text-ink-soft bg-surface-2">
+                  {quiz.randomizationMode === 'dynamic' ? 'Dynamic' : 'Static'}
+                </span>
               </span>
               <strong className="block truncate text-[14px] font-extrabold leading-snug text-ink-strong dark:text-slate-100">{title}</strong>
               {subtitle ? (
@@ -144,16 +147,16 @@ function QuizMapRow({ quiz, index, onEdit, onView, onDelete, deletingId }) {
             </button>
             <button className={ui.iconButton}
               type="button"
-              aria-label={`Edit quiz ${title}`}
-              title="Edit quiz"
+              aria-label={`Edit assessment ${title}`}
+              title="Edit assessment"
               onClick={() => onEdit(quiz.id)}
             >
               <EditActionIcon />
             </button>
             <button className={ui.dangerIconButton}
               type="button"
-              aria-label={`Delete quiz ${title}`}
-              title="Delete quiz"
+              aria-label={`Delete assessment ${title}`}
+              title="Delete assessment"
               onClick={() => onDelete(quiz)}
               disabled={deletingId === quiz.id}
             >
@@ -173,20 +176,20 @@ function QuizMap({ quizzes, loading, onEdit, onView, onDelete, deletingId }) {
     <section className={cx(ui.panelCard, 'grid gap-4')}>
       <div className={ui.panelTop}>
         <div>
-          <h2 className={ui.panelTitle}>Quiz Lesson Map</h2>
-          <p className={ui.panelText}>Quizzes are grouped like the lesson map: course, subject, topic, then quiz set.</p>
+          <h2 className={ui.panelTitle}>Assessment Map</h2>
+          <p className={ui.panelText}>Assessments are grouped by course, subject, topic, and set.</p>
         </div>
       </div>
 
       {loading ? (
         <div className="rounded-3xl border border-dashed border-line-medium bg-surface-2/50 px-5 py-8 text-center text-sm font-bold text-ink-soft">
-          Loading quizzes...
+          Loading assessments...
         </div>
       ) : null}
 
       {!loading && groupedCourses.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-line-medium bg-surface-2/50 px-5 py-8 text-center text-sm font-bold text-ink-soft">
-          No quizzes found for the selected filters.
+          No assessments found for the selected filters.
         </div>
       ) : null}
 
@@ -202,7 +205,7 @@ function QuizMap({ quizzes, loading, onEdit, onView, onDelete, deletingId }) {
                 <h3 className="truncate text-[18px] font-black text-ink-strong dark:text-slate-100">{course.name}</h3>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] font-black uppercase tracking-[0.05em] text-ink-soft max-[720px]:justify-start">
-                <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1">{course.total} quizzes</span>
+                <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1">{course.total} assessments</span>
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-emerald-700 dark:text-emerald-300">{course.active} active</span>
                 <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-amber-700 dark:text-amber-300">{course.draft} draft</span>
               </div>
@@ -216,7 +219,7 @@ function QuizMap({ quizzes, loading, onEdit, onView, onDelete, deletingId }) {
                       <span className="text-[11px] font-black uppercase tracking-[0.14em] text-ink-soft">Subject</span>
                       <h4 className="text-[15px] font-black text-ink-strong dark:text-slate-100">{subject.name}</h4>
                     </div>
-                    <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-black text-ink-soft">{subject.total} quizzes</span>
+                    <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-black text-ink-soft">{subject.total} assessments</span>
                   </div>
 
                   <div className="grid gap-4">
@@ -289,7 +292,7 @@ export function QuizzesPage() {
       setCourses(meta.courses || []);
       setSubjects(meta.subjects || []);
     } catch (loadError) {
-      setError(getErrorMessage(loadError, 'Unable to load quiz metadata'));
+      setError(getErrorMessage(loadError, 'Unable to load assessment metadata'));
     }
   }
 
@@ -305,7 +308,7 @@ export function QuizzesPage() {
       setQuizzes(data);
       setError('');
     } catch (loadError) {
-      setError(getErrorMessage(loadError, 'Unable to load quizzes'));
+      setError(getErrorMessage(loadError, 'Unable to load assessments'));
     } finally {
       setLoading(false);
     }
@@ -345,10 +348,10 @@ export function QuizzesPage() {
 
     try {
       await deleteQuiz(quiz.id);
-      setSuccess('Quiz deleted successfully.');
+      setSuccess('Assessment deleted successfully.');
       await loadQuizzes(filters);
     } catch (deleteError) {
-      setError(getErrorMessage(deleteError, 'Unable to delete quiz'));
+      setError(getErrorMessage(deleteError, 'Unable to delete assessment'));
     } finally {
       setDeletingId(null);
     }
@@ -367,9 +370,9 @@ export function QuizzesPage() {
 
         <section className={overviewGrid}>
           <article className={overviewCard}>
-            <span className={overviewLabel}>Visible quizzes</span>
+            <span className={overviewLabel}>Visible assessments</span>
             <strong className={overviewValue}>{quizzes.length}</strong>
-            <p className={overviewText}>All quizzes matching the current search and filters.</p>
+            <p className={overviewText}>All assessments matching the current search and filters.</p>
           </article>
           <article className={overviewCard}>
             <span className={overviewLabel}>Active</span>
@@ -386,11 +389,11 @@ export function QuizzesPage() {
         <section className={cx(ui.panelCard, 'grid gap-[18px]')}>
           <div className={ui.panelTop}>
             <div>
-              <h2>Quiz Library</h2>
-              <p>Filter the assessment catalog, review status, and jump into the builder when needed.</p>
+              <h2>Assessment Library</h2>
+              <p>Filter the catalog, review status, and jump into the builder when needed.</p>
             </div>
             <div className={ui.buttonRow}>
-              <button className={ui.primaryAction} type="button" onClick={() => navigate('/quizzes/new')}>Create Quiz</button>
+              <button className={ui.primaryAction} type="button" onClick={() => navigate('/quizzes/new')}>Create Assessment</button>
             </div>
           </div>
 

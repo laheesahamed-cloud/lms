@@ -74,6 +74,20 @@ let QuestionsController = class QuestionsController {
     meta() {
         return this.questionsService.meta();
     }
+    counts(search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, keywords) {
+        return this.questionsService.countByFilters({
+            search,
+            status,
+            type,
+            category,
+            keywords,
+            courseId: courseId ? Number(courseId) : undefined,
+            subjectId: subjectId ? Number(subjectId) : undefined,
+            topicId: topicId ? Number(topicId) : undefined,
+            lessonId: lessonId ? Number(lessonId) : undefined,
+            paperId: paperId ? Number(paperId) : undefined,
+        });
+    }
     async exportQuestions(authorization, search, status, type, courseId, subjectId, topicId, lessonId, paperId, category, unclassified, keywords, usage, response) {
         const actor = await this.authService.requireAdmin(authorization);
         const workbook = await this.questionsService.exportWorkbook({
@@ -205,6 +219,22 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], QuestionsController.prototype, "meta", null);
+__decorate([
+    (0, common_1.Get)('counts'),
+    __param(0, (0, common_1.Query)('search')),
+    __param(1, (0, common_1.Query)('status')),
+    __param(2, (0, common_1.Query)('type')),
+    __param(3, (0, common_1.Query)('courseId')),
+    __param(4, (0, common_1.Query)('subjectId')),
+    __param(5, (0, common_1.Query)('topicId')),
+    __param(6, (0, common_1.Query)('lessonId')),
+    __param(7, (0, common_1.Query)('paperId')),
+    __param(8, (0, common_1.Query)('category')),
+    __param(9, (0, common_1.Query)('keywords')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:returntype", void 0)
+], QuestionsController.prototype, "counts", null);
 __decorate([
     (0, common_1.Get)('export/workbook'),
     __param(0, (0, common_1.Headers)('authorization')),

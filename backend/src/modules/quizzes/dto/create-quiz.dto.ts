@@ -1,4 +1,4 @@
-import { ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class CreateQuizDto {
   @IsInt()
@@ -69,6 +69,11 @@ export class CreateQuizDto {
   @IsOptional()
   blueprint?: Record<string, unknown> | null;
 
+  @IsOptional()
+  @IsString()
+  @IsIn(['static', 'dynamic'])
+  randomizationMode?: 'static' | 'dynamic';
+
   @IsInt()
   @Min(1)
   timeLimit!: number;
@@ -91,7 +96,6 @@ export class CreateQuizDto {
   status!: 'active' | 'inactive';
 
   @IsArray()
-  @ArrayMinSize(1)
   @IsInt({ each: true })
   questionIds!: number[];
 }

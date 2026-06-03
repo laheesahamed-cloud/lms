@@ -11,6 +11,7 @@ import { ADMIN_SESSION_TTL_DAYS, SESSION_TTL_DAYS, createSessionExpiry, extractB
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { GoogleCodeLoginDto } from './dto/google-code-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -50,6 +51,17 @@ type GoogleTokenInfo = {
   given_name?: string;
   family_name?: string;
   picture?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type GoogleTokenResponse = {
+  id_token?: string;
+  access_token?: string;
+  expires_in?: number;
+  token_type?: string;
+  scope?: string;
+  refresh_token?: string;
   error?: string;
   error_description?: string;
 };
@@ -173,6 +185,24 @@ export class AuthService {
 
   async loginWithGoogle(googleLoginDto: GoogleLoginDto) {
     const profile = await this.verifyGoogleCredential(googleLoginDto.credential);
+    return this.loginWithGoogleProfile(profile);
+  }
+
+  async loginWithGoogleCode(
+    googleCodeLoginDto: GoogleCodeLoginDto,
+    context: { origin?: string; requestedWith?: string } = {}
+  ) {
+    if (String(context.requestedWith || '').toLowerCase() !== 'xmlhttprequest') {
+      throw new BadRequestException('Google sign-in request is invalid');
+    }
+
+    const redirectUri = this.resolveGoogleCodeRedirectUri(context.origin || googleCodeLoginDto.redirectUri);
+    const idToken = await this.exchangeGoogleAuthorizationCode(googleCodeLoginDto.code, redirectUri);
+    const profile = await this.verifyGoogleCredential(idToken);
+    return this.loginWithGoogleProfile(profile);
+  }
+
+  private async loginWithGoogleProfile(profile: GoogleTokenInfo) {
     const email = String(profile.email || '').trim().toLowerCase();
     const fullName = this.getGoogleDisplayName(profile);
 
@@ -586,6 +616,65 @@ ${settings.footer}`;
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean);
+  }
+
+  private getPrimaryGoogleClientId() {
+    return this.getGoogleClientIds()[0] || '';
+  }
+
+  private getGoogleClientSecret() {
+    return String(this.configService.get<string>('GOOGLE_CLIENT_SECRET') || '').trim();
+  }
+
+  private resolveGoogleCodeRedirectUri(rawOrigin?: string) {
+    const raw = String(rawOrigin || '').trim();
+    if (!raw) {
+      throw new BadRequestException('Google sign-in origin is missing');
+    }
+
+    try {
+      return new URL(raw).origin;
+    } catch {
+      throw new BadRequestException('Google sign-in origin is invalid');
+    }
+  }
+
+  private async exchangeGoogleAuthorizationCode(code: string, redirectUri: string) {
+    const clientId = this.getPrimaryGoogleClientId();
+    const clientSecret = this.getGoogleClientSecret();
+
+    if (!clientId) {
+      throw new BadRequestException('Google sign-in is not configured yet');
+    }
+
+    if (!clientSecret) {
+      throw new BadRequestException('Google sign-in server secret is not configured yet');
+    }
+
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+    const tokenPayload = await response.json().catch(() => ({})) as GoogleTokenResponse;
+
+    if (!response.ok || tokenPayload.error) {
+      const errorMessage = tokenPayload.error_description || tokenPayload.error || 'Google sign-in authorization code is invalid';
+      this.logger.warn(`Google code exchange failed: ${errorMessage}`);
+      throw new UnauthorizedException('Google sign-in authorization code is invalid');
+    }
+
+    if (!tokenPayload.id_token) {
+      throw new UnauthorizedException('Google sign-in did not return an identity token');
+    }
+
+    return tokenPayload.id_token;
   }
 
   private async verifyGoogleCredential(credential: string) {

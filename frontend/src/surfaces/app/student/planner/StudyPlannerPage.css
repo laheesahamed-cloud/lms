@@ -667,6 +667,7 @@
   height: 58px;
   border-radius: 8px;
   background: var(--sa-soft-tile-bg, rgba(119, 137, 165, 0.08));
+  animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 @media (min-width: 760px) {

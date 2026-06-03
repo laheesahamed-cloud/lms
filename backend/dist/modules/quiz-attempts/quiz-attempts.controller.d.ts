@@ -39,6 +39,7 @@ export declare class QuizAttemptsController {
         practiceAnsweredCount: number;
         isCompleted: boolean;
         isFree: boolean;
+        randomizationMode: "static" | "dynamic";
         canAccess: boolean;
         accessLocked: boolean;
         accessMessage: string;
@@ -75,6 +76,7 @@ export declare class QuizAttemptsController {
             isGeneral: boolean;
             isFree: boolean;
             examModeOnly: boolean;
+            randomizationMode: "static" | "dynamic";
             quizTitle: string;
             quizDescription: string;
             totalQuestions: number;
@@ -87,7 +89,7 @@ export declare class QuizAttemptsController {
         };
         examSession: {
             id: number;
-            status: "expired" | "in_progress" | "submitted";
+            status: "in_progress" | "submitted" | "expired";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;
@@ -125,6 +127,7 @@ export declare class QuizAttemptsController {
             isGeneral: boolean;
             isFree: boolean;
             examModeOnly: boolean;
+            randomizationMode: "static" | "dynamic";
             quizTitle: string;
             quizDescription: string;
             totalQuestions: number;
@@ -375,6 +378,7 @@ export declare class QuizAttemptsController {
             isGeneral: boolean;
             isFree: boolean;
             examModeOnly: boolean;
+            randomizationMode: "static" | "dynamic";
             quizTitle: string;
             quizDescription: string;
             totalQuestions: number;

@@ -3481,21 +3481,21 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-assessment-btn--p
 
 html[data-lms-runtime="native"] .quiz-completion-overlay {
   background: color-mix(in srgb, var(--surface-0, var(--app-bg-solid)) 70%, transparent) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(118%) !important;
-  backdrop-filter: blur(24px) saturate(118%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(112%) !important;
+  backdrop-filter: blur(12px) saturate(112%) !important;
 }
 
 html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-overlay {
   background: color-mix(in srgb, var(--surface-0, #0b121b) 76%, transparent) !important;
 }
 
-html[data-lms-runtime="native"] .quiz-completion-capsule {
+html[data-lms-runtime="native"] :where(.quiz-completion-capsule, .quiz-completion-intro) {
   border-color: color-mix(in srgb, var(--color-primary, #2563eb) 28%, var(--line-soft)) !important;
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface-card, #fbfcff) 96%, transparent), color-mix(in srgb, var(--surface-1, #fbfcff) 92%, transparent)) !important;
   box-shadow: 0 24px 58px -34px color-mix(in srgb, var(--color-primary, #2563eb) 28%, rgba(15, 23, 42, 0.28)) !important;
 }
 
-html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-capsule {
+html[data-lms-runtime="native"][data-theme="dark"] :where(.quiz-completion-capsule, .quiz-completion-intro) {
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface-card, #0b121b) 94%, #f8fafc 3%), color-mix(in srgb, var(--surface-1, #111827) 92%, #020617 6%)) !important;
   box-shadow: 0 24px 60px -36px rgba(0, 0, 0, 0.68) !important;
 }

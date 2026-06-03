@@ -12,6 +12,11 @@ export async function fetchQuestionsMeta() {
   return response.data;
 }
 
+export async function fetchQuestionCounts(params) {
+  const response = await apiClient.get('/admin/questions/counts', { params: params || {} });
+  return response.data;
+}
+
 export async function fetchQuestion(id) {
   const response = await apiClient.get(`/admin/questions/${id}`);
   return response.data;

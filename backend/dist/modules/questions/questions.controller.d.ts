@@ -63,6 +63,11 @@ export declare class QuestionsController {
         }[];
         keywordSuggestions: string[];
     }>;
+    counts(search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, keywords?: string): Promise<{
+        total: number;
+        unused: number;
+        used: number;
+    }>;
     exportQuestions(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, response?: any): Promise<void>;
     exportQuestionsLegacy(authorization?: string, search?: string, status?: string, type?: string, courseId?: string, subjectId?: string, topicId?: string, lessonId?: string, paperId?: string, category?: string, unclassified?: string, keywords?: string, usage?: string, response?: any): Promise<void>;
     importQuestions(authorization: string | undefined, file: any): Promise<{

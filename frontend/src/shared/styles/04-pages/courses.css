@@ -1098,6 +1098,7 @@
   overflow: hidden;
   border-radius: var(--radius-md);
   background: var(--surface-2);
+  animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 .student-app-shell .course-map-skeleton--title {

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Headers, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { CreateAiProviderDto } from './dto/create-ai-provider.dto';
@@ -50,11 +50,13 @@ export class SettingsController {
   }
 
   @Get('public')
+  @Header('Cache-Control', 'public, max-age=15, stale-while-revalidate=60')
   async getPublicSettings() {
     return this.settingsService.getPublicSettings();
   }
 
   @Get('public/availability')
+  @Header('Cache-Control', 'public, max-age=5, stale-while-revalidate=30')
   async getPublicAvailabilitySettings() {
     return this.settingsService.getPublicAvailabilitySettings();
   }

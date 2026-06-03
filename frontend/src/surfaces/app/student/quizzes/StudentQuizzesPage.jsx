@@ -7,6 +7,7 @@ import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { preloadRouteByPath } from '../../../../app/router.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 import { getQuizTitleText } from './quizLabels.js';
@@ -1376,7 +1377,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
           }
         />
 
-        {error && <div className={ui.feedbackError}>{error}</div>}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
         {loading ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">

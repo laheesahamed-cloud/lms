@@ -91,6 +91,33 @@ export class QuestionsController {
     return this.questionsService.meta();
   }
 
+  @Get('counts')
+  counts(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('type') type?: string,
+    @Query('courseId') courseId?: string,
+    @Query('subjectId') subjectId?: string,
+    @Query('topicId') topicId?: string,
+    @Query('lessonId') lessonId?: string,
+    @Query('paperId') paperId?: string,
+    @Query('category') category?: string,
+    @Query('keywords') keywords?: string,
+  ) {
+    return this.questionsService.countByFilters({
+      search,
+      status,
+      type,
+      category,
+      keywords,
+      courseId: courseId ? Number(courseId) : undefined,
+      subjectId: subjectId ? Number(subjectId) : undefined,
+      topicId: topicId ? Number(topicId) : undefined,
+      lessonId: lessonId ? Number(lessonId) : undefined,
+      paperId: paperId ? Number(paperId) : undefined,
+    });
+  }
+
   @Get('export/workbook')
   async exportQuestions(
     @Headers('authorization') authorization?: string,

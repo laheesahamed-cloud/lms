@@ -38,6 +38,7 @@ export declare class QuizzesController {
                 questionType: string;
             }[];
         };
+        randomizationMode: "static" | "dynamic";
         totalQuestions: number;
         totalMarks: number;
         timeLimit: number;
@@ -157,6 +158,7 @@ export declare class QuizzesController {
                 questionType: string;
             }[];
         };
+        randomizationMode: "static" | "dynamic";
         totalQuestions: number;
         totalMarks: number;
         timeLimit: number;

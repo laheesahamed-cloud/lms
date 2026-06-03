@@ -47,11 +47,27 @@ export async function loginWithGoogle(payload) {
   return response.data;
 }
 
+export async function loginWithGoogleCode(payload) {
+  const native = detectPlatform().isNative;
+  const response = await apiClient.post('/auth/google/code', payload, {
+    headers: {
+      ...(nativeAuthHeaders() || {}),
+      'X-Requested-With': 'XmlHttpRequest',
+    },
+    params: nativeAuthParams(),
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : undefined,
+    __skipApiBaseFallback: native,
+    __skipTimeoutRetry: native,
+  });
+  return response.data;
+}
+
 export async function fetchCurrentUser(options = {}) {
   const response = await apiClient.get('/auth/me', {
     __skipNetworkActivity: Boolean(options.silent),
     __suppressServerStatus: Boolean(options.silent),
     __suppressUnauthorizedSessionNotice: Boolean(options.silent),
+    __skipTimeoutRetry: Boolean(options.silent),
     timeout: options.timeout ?? 5000,
   });
   return response.data;

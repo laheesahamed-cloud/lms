@@ -53,6 +53,7 @@ export declare class QuizzesService {
                 questionType: string;
             }[];
         };
+        randomizationMode: "static" | "dynamic";
         totalQuestions: number;
         totalMarks: number;
         timeLimit: number;
@@ -157,6 +158,7 @@ export declare class QuizzesService {
                 questionType: string;
             }[];
         };
+        randomizationMode: "static" | "dynamic";
         totalQuestions: number;
         totalMarks: number;
         timeLimit: number;
@@ -217,6 +219,9 @@ export declare class QuizzesService {
     }>;
     private validateQuiz;
     private cleanQuestionIds;
+    private resolveRandomizationMode;
+    private getBlueprintQuestionCount;
+    private resolveQuizQuestionCount;
     private buildQuizSnapshot;
     private buildQuizSnapshotFromEntity;
     private transitionWorkflow;

@@ -387,7 +387,7 @@
     }
 
     .shimmer,
-    .skeleton-pulse::after {
+    .skeleton-pulse {
       animation: none !important;
       transform: none !important;
     }
@@ -1111,80 +1111,24 @@
   }
 
   /* ── Progress placeholders ─────────────────────────────── */
-  .shimmer {
-    position: relative;
-    overflow: hidden;
-    background:
-      linear-gradient(
-        100deg,
-        color-mix(in srgb, var(--surface-2) 92%, var(--color-primary) 4%) 0%,
-        color-mix(in srgb, var(--surface-2) 78%, white 16%) 42%,
-        color-mix(in srgb, var(--surface-2) 92%, var(--color-primary) 4%) 84%
-      );
-    background-size: 220% 100%;
-    border-radius: var(--radius-sm);
-    animation: shimmer 1.6s ease-in-out infinite;
-    isolation: isolate;
-  }
-
-  /* ── Static skeletons — for loading states ─────────────── */
+  /* ── Skeletons — gentle fade loop for loading states ────── */
+  .shimmer,
   .skeleton-pulse {
-    position: relative;
-    overflow: hidden;
-    background: color-mix(in srgb, var(--surface-2) 94%, var(--color-primary) 3%);
+    background: color-mix(in srgb, var(--surface-2) 88%, var(--color-primary) 5%);
     border-radius: var(--radius-sm);
-    isolation: isolate;
+    animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
   }
 
-  .skeleton-pulse::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(
-        100deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.34) 42%,
-        transparent 74%
-      );
-    transform: translate3d(-110%, 0, 0);
-    animation: lmsSkeletonShimmer 1.6s ease-in-out infinite;
-    will-change: transform;
-    pointer-events: none;
+  @keyframes lmsSkeletonFade {
+    0%   { opacity: 0.28; }
+    45%  { opacity: 1; }
+    55%  { opacity: 1; }
+    100% { opacity: 0.28; }
   }
 
-  @keyframes lmsSkeletonShimmer {
-    0% {
-      transform: translate3d(-110%, 0, 0);
-    }
-    100% {
-      transform: translate3d(110%, 0, 0);
-    }
-  }
-
-  :root[data-theme='dark'] .shimmer {
-    background:
-      linear-gradient(
-        100deg,
-        rgba(30, 41, 59, 0.74) 0%,
-        rgba(51, 65, 85, 0.78) 42%,
-        rgba(30, 41, 59, 0.74) 84%
-      );
-    background-size: 220% 100%;
-  }
-
+  :root[data-theme='dark'] .shimmer,
   :root[data-theme='dark'] .skeleton-pulse {
-    background: rgba(30, 41, 59, 0.68);
-  }
-
-  :root[data-theme='dark'] .skeleton-pulse::after {
-    background:
-      linear-gradient(
-        100deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.10) 42%,
-        transparent 74%
-      );
+    background: rgba(232, 234, 240, 0.08);
   }
 
   /* ── Metric card accent strips ─────────────────────────── */
@@ -2741,11 +2685,9 @@
   :root[data-low-spec] .lp-cta-orb {
     display: none !important;
   }
-  :root[data-low-spec] .skeleton-pulse::after {
-    animation: lmsSkeletonShimmer 1.8s ease-in-out infinite !important;
-  }
-  :root[data-low-spec] .shimmer {
-    animation: shimmer 1.8s ease-in-out infinite !important;
+  :root[data-low-spec] .shimmer,
+  :root[data-low-spec] .skeleton-pulse {
+    animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite !important;
   }
   :root[data-low-spec] [data-content-visibility='auto'] {
     content-visibility: auto;
@@ -2879,13 +2821,9 @@
     animation: progressShimmer 2.2s var(--ease-std, ease) infinite 0.6s !important;
   }
 
-  :root[data-visual-effects='balanced'] .shimmer {
-    animation: shimmer 1.6s ease-in-out infinite !important;
-  }
-
-  :root[data-visual-effects='balanced'] .skeleton-pulse::after {
-    display: block !important;
-    animation: lmsSkeletonShimmer 1.6s ease-in-out infinite !important;
+  :root[data-visual-effects='balanced'] .shimmer,
+  :root[data-visual-effects='balanced'] .skeleton-pulse {
+    animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite !important;
   }
 
   :root[data-visual-effects='balanced'] .lms-topbar {
@@ -2915,9 +2853,9 @@
       .animate-dropdownIn,
       .animate-overlayIn,
       .animate-progressShimmer,
-      .shimmer
-    ),
-    :root[data-visual-effects='balanced'] .skeleton-pulse::after {
+      .shimmer,
+      .skeleton-pulse
+    ) {
       animation: none !important;
       transform: none !important;
     }

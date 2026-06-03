@@ -27,6 +27,7 @@ export const DEFAULT_SUBSCRIPTION_FEATURES: SubscriptionFeatureSeed[] = [
   { featureKey: 'mock_paper_access', featureName: 'Mock paper access', description: 'Allows students to use mock paper collections.', category: 'Question Bank' },
   { featureKey: 'practice_mode', featureName: 'Practice mode', description: 'Enables guided practice sessions.', category: 'Exams & Practice' },
   { featureKey: 'exam_mode', featureName: 'Exam mode', description: 'Enables timed exam mode.', category: 'Exams & Practice' },
+  { featureKey: 'dynamic_quiz_randomization', featureName: 'Dynamic quiz randomization', description: 'Unlocks premium randomized quizzes that freeze a fresh question set per attempt.', category: 'Exams & Practice' },
   { featureKey: 'results_tracking', featureName: 'Results tracking', description: 'Shows quiz results and review history.', category: 'Exams & Practice' },
   { featureKey: 'report_question', featureName: 'Report question', description: 'Lets students report issues with questions.', category: 'Exams & Practice' },
   { featureKey: 'notes_canvas_study_mode', featureName: 'Lessons study mode', description: 'Unlocks interactive lessons and AI study sheets.', category: 'Lessons & Study Tools' },
@@ -50,6 +51,7 @@ const mcqFeatureKeys = [
   'results_tracking',
   'report_question',
 ];
+const premiumExamFeatureKeys = ['dynamic_quiz_randomization'];
 const lessonFeatureKeys = [
   ...baseFeatureKeys,
   'lessons_access_full',
@@ -152,7 +154,10 @@ const recommendedPlans = [
     durationKey: '6m',
     recommended: 0,
     sortOrder: 4,
-    featureKeys: fullPrepFeatureKeys,
+    featureKeys: [
+      ...fullPrepFeatureKeys,
+      ...premiumExamFeatureKeys,
+    ],
   },
 ] as const;
 

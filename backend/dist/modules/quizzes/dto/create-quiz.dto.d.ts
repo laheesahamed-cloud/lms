@@ -16,6 +16,7 @@ export declare class CreateQuizDto {
     quizTitle?: string;
     quizDescription?: string;
     blueprint?: Record<string, unknown> | null;
+    randomizationMode?: 'static' | 'dynamic';
     timeLimit: number;
     hideTimeLimit: 0 | 1;
     passingMarks: number;

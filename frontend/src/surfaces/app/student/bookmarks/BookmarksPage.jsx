@@ -5,6 +5,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { StudentPageHero } from '../components/StudentPageHero.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 
 function TrashIcon() { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3h8M4.5 1.75h3M4 3v6.25m4-6.25v6.25M3 3l.4 6.2A1 1 0 0 0 4.4 10h3.2a1 1 0 0 0 1-.8L9 3" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
@@ -101,7 +102,7 @@ export function BookmarksPage() {
       <section className="study-hub-shell">
         <AppHeader title="Saved" subtitle="Bookmarks" />
 
-        {error && <div className={ui.feedbackError}>{error}</div>}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
         <StudentPageHero
           title="Saved items"

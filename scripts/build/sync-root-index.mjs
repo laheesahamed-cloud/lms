@@ -13,6 +13,10 @@ const rootPublicFiles = [
   ['robots.txt', 'robots.txt'],
   ['sitemap.xml', 'sitemap.xml'],
   ['apple-touch-icon.png', 'apple-touch-icon.png'],
+  ['favicon-light-32.png', 'favicon-light-32.png'],
+  ['favicon-light-180.png', 'favicon-light-180.png'],
+  ['favicon-light-192.png', 'favicon-light-192.png'],
+  ['favicon-light-512.png', 'favicon-light-512.png'],
 ];
 
 async function assertExists(filePath, label) {

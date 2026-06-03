@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { clearAllTimedApiCaches } from '../api/cache.js';
 import { setUnauthorizedHandler } from '../api/client.js';
-import { fetchCurrentUser, login, loginWithGoogle, logout, register } from '../api/auth.api.js';
+import { fetchCurrentUser, login, loginWithGoogle, loginWithGoogleCode, logout, register } from '../api/auth.api.js';
 import { detectPlatform } from '../platform/detect.js';
 import { clearStoredAuth, getAuthToken, getBootstrapAuth, setAuthToken, setStoredAuthUser } from './authToken.js';
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
@@ -192,6 +192,28 @@ export const useAuthStore = create((set, get) => ({
 
   signInWithGoogle: async (credential) => {
     const data = await loginWithGoogle({ credential });
+    if (detectPlatform().isNative && !data.sessionToken) {
+      throw new Error('Native Google sign-in did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
+    }
+    authMutationVersion += 1;
+    clearAllTimedApiCaches();
+    setAuthToken(data.sessionToken || '');
+    setStoredAuthUser(data.user);
+    set({
+      token: data.sessionToken || '',
+      user: data.user,
+      isAuthenticated: true,
+      isHydrating: false,
+      isSigningOut: false,
+      authNotice: null,
+      sessionExpiredLock: null,
+    });
+    syncNativePushAfterAuth();
+    return data;
+  },
+
+  signInWithGoogleCode: async (payload) => {
+    const data = await loginWithGoogleCode(payload);
     if (detectPlatform().isNative && !data.sessionToken) {
       throw new Error('Native Google sign-in did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
     }

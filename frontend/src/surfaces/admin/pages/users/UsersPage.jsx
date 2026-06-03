@@ -5,6 +5,7 @@ import { createUser, deleteUser, fetchUsers, fetchUsersSummary, updateUser, upda
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIcons.jsx';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { PasswordField } from '../../../../shared/ui/PasswordField.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../../../../shared/utils/userIdentity.js';
@@ -407,12 +408,14 @@ export function UsersPage() {
 
         {toast && createPortal(
           <div className={ui.toastContainer} role="status" aria-live="polite">
-            <div className={cx(ui.toast, toast.type === 'success' ? ui.toastSuccess : ui.toastError)}>
-              <span className={ui.toastIcon} aria-hidden="true">
-                {toast.type === 'success' ? '✓' : '⚠'}
-              </span>
-              <span>{toast.text}</span>
-            </div>
+            <FeedbackNotice
+              tone={toast.type === 'success' ? 'success' : 'error'}
+              variant="toast"
+              onDismiss={() => setToast(null)}
+              resetKey={toast.text}
+            >
+              {toast.text}
+            </FeedbackNotice>
           </div>,
           document.body
         )}

@@ -4,6 +4,7 @@ import { fetchAttemptReview } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 
@@ -129,7 +130,7 @@ export function ReviewPage() {
       <main className={reviewPageUi.screen}>
         <section className={reviewPageUi.layout}>
         {data ? <ReviewHeader attempt={data.attempt} onBack={goBack} /> : null}
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
         {data ? (
           <ReviewWorkspace
             questions={data.questions}

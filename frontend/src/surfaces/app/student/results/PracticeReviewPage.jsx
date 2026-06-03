@@ -5,6 +5,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
+import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 
 const reviewPageUi = {
@@ -131,7 +132,7 @@ export function PracticeReviewPage() {
           onQuizzes={() => navigate('/quizzes')}
           onHome={() => navigate('/dashboard')}
         />
-        {error ? <div className={ui.feedbackError}>{error}</div> : null}
+        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
         {data ? (
           <ReviewWorkspace
             questions={data.questions}
