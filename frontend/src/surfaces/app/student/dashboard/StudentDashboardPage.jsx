@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchStudentDashboard } from '../../../../shared/api/dashboard.api.js';
-import { listAiNotes } from '../../../../shared/api/aiNotes.api.js';
+import { fetchStudentDashboard, readStudentDashboardCache } from '../../../../shared/api/dashboard.api.js';
+import { listAiNotes, readAiNotesCache } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { fetchStudentQuizzes } from '../../../../shared/api/quizAttempts.api.js';
-import { fetchStudyBookmarks } from '../../../../shared/api/studyBookmarks.api.js';
-import { fetchPlannerAgenda } from '../../../../shared/api/workspace.api.js';
+import { fetchStudentQuizzes, readStudentQuizzesCache } from '../../../../shared/api/quizAttempts.api.js';
+import { fetchStudyBookmarks, readStudyBookmarksCache } from '../../../../shared/api/studyBookmarks.api.js';
+import { fetchPlannerAgenda, readPlannerAgendaCache } from '../../../../shared/api/workspace.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
+import { preloadRouteByPath } from '../../../../app/routePreloading.js';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { ImpactStyle, nativeImpact, nativeSuccess, webVibrate } from '../../../../shared/utils/nativeHaptics.js';
@@ -118,14 +119,6 @@ function formatNumber(value) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(Number(value || 0));
 }
 
-function formatDateLabel(date = new Date()) {
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
-}
-
 function parsePlannerDate(value) {
   if (!value) return null;
   const raw = String(value);
@@ -143,13 +136,6 @@ function plannerDaysLeft(value) {
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const target = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
   return Math.round((target.getTime() - start.getTime()) / 86400000);
-}
-
-function formatPlannerDaysLeft(value) {
-  const days = plannerDaysLeft(value);
-  if (days === null) return 'No due date';
-  if (days < 0) return `${plural(Math.abs(days), 'day')} overdue`;
-  return `${plural(days, 'day')} left`;
 }
 
 function dateKeyToUtcMs(value) {
@@ -222,10 +208,6 @@ function getTopicLabel(item, fallback = 'General medicine') {
   const topic = item?.topicName || item?.title || '';
   if (course && topic) return `${course} / ${topic}`;
   return course || topic || fallback;
-}
-
-function getQuizTitle(quiz, fallback = 'Focused exam') {
-  return quiz?.studentTitle || quiz?.quizTitle || quiz?.title || fallback;
 }
 
 function isSameStudyDay(value, reference = new Date()) {
@@ -305,6 +287,10 @@ function buildDashboardLevelProgress(dashboard) {
 
 function appRoute(path) {
   return `/app${path}`;
+}
+
+function preloadStudyRoute(route) {
+  if (route) preloadRouteByPath(route);
 }
 
 function Icon({ name }) {
@@ -432,45 +418,6 @@ function DashboardHeroMascot({ mascot }) {
   );
 }
 
-function QuickActionArt({ type }) {
-  if (type === 'practice') {
-    return (
-      <svg className="study-action-art study-action-art--target" viewBox="0 0 120 120" aria-hidden="true">
-        <circle cx="78" cy="64" r="38" />
-        <circle cx="78" cy="64" r="25" />
-        <circle cx="78" cy="64" r="10" fill="currentColor" opacity=".14" />
-        <path d="M15 82c16-18 28-24 43-20 11 3 17 0 25-10" />
-        <path d="M63 52l20 0 0-20" />
-        <path d="M64 51l32-32" />
-      </svg>
-    );
-  }
-  if (type === 'lesson') {
-    return (
-      <svg className="study-action-art study-action-art--lesson" viewBox="0 0 120 120" aria-hidden="true">
-        <path d="M27 35c14-4 29-2 43 8v53c-14-9-29-12-43-8z" fill="currentColor" opacity=".08" />
-        <path d="M70 43c12-9 27-11 43-6v53c-15-5-29-3-43 6z" fill="currentColor" opacity=".08" />
-        <path d="M27 35c14-4 29-2 43 8v53c-14-9-29-12-43-8z" />
-        <path d="M70 43c12-9 27-11 43-6v53c-15-5-29-3-43 6z" />
-        <path d="M70 43v53" />
-        <path d="M39 54h18M39 67h22M39 80h16" />
-        <path d="M84 54h18M84 67h14" />
-      </svg>
-    );
-  }
-  return (
-    <svg className="study-action-art study-action-art--review" viewBox="0 0 120 120" aria-hidden="true">
-      <rect x="31" y="25" width="58" height="72" rx="9" fill="currentColor" opacity=".08" />
-      <path d="M31 25h43l15 15v57H31z" />
-      <path d="M74 25v16h15" />
-      <path d="M44 52h29M44 65h23M44 78h17" />
-      <circle cx="79" cy="78" r="18" fill="currentColor" opacity=".08" />
-      <path d="M69 78l7 7 16-20" />
-      <path d="M23 39h-7v66h55v-7" />
-    </svg>
-  );
-}
-
 const DUST_PARTICLES = [
   { left: '8%',  delay: 0,    duration: 14 },
   { left: '18%', delay: 3.2,  duration: 16 },
@@ -503,28 +450,9 @@ function DashboardDustLayer() {
   );
 }
 
-function StethoscopeMark() {
+function StudyButton({ children, tone = 'primary', icon = null, onClick, ...buttonProps }) {
   return (
-    <svg className="study-hero-mark" viewBox="0 0 180 180" role="img" aria-label="Study progress illustration">
-      <defs>
-        <linearGradient id="study-hero-mark-gradient" x1="22" y1="26" x2="152" y2="154" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#38bdf8" />
-          <stop offset="1" stopColor="#3b82f6" />
-        </linearGradient>
-      </defs>
-      <circle cx="90" cy="90" r="78" fill="rgba(56,189,248,0.15)" />
-      <path d="M56 43v35c0 18 14 32 32 32s32-14 32-32V43" stroke="url(#study-hero-mark-gradient)" strokeWidth="12" strokeLinecap="round" />
-      <path d="M88 110v12c0 16 13 29 29 29s29-13 29-29v-12" stroke="#060c1a" strokeWidth="12" strokeLinecap="round" />
-      <circle cx="146" cy="105" r="16" fill="#ffffff" stroke="#060c1a" strokeWidth="9" />
-      <circle cx="56" cy="43" r="10" fill="#ffffff" />
-      <circle cx="120" cy="43" r="10" fill="#ffffff" />
-    </svg>
-  );
-}
-
-function StudyButton({ children, tone = 'primary', icon = null, onClick }) {
-  return (
-    <button type="button" className={`study-button study-button--${tone}`} onClick={onClick}>
+    <button type="button" className={`study-button study-button--${tone}`} {...buttonProps} onClick={onClick}>
       {icon ? <Icon name={icon} /> : null}
       <span>{children}</span>
     </button>
@@ -590,38 +518,6 @@ function ScoreTrend({ attempts, average }) {
       <path d="M0 26H100" stroke="rgba(20,28,64,0.08)" strokeWidth="1" />
       <polyline points={points} fill="none" stroke="#3d5afe" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
-  );
-}
-
-function TopicList({ title, items, emptyText, tone }) {
-  return (
-    <section className="study-card study-topic-card">
-      <div className="study-card__head">
-        <div>
-          <span className="study-eyebrow">{title}</span>
-          <h2>{tone === 'strong' ? 'Strong areas' : 'Focus areas'}</h2>
-        </div>
-        <span className={`study-soft-icon study-soft-icon--${tone}`}><Icon name={tone === 'strong' ? 'spark' : 'target'} /></span>
-      </div>
-      <div className="study-topic-list">
-        {items.length ? items.slice(0, 4).map((item, index) => (
-          <button
-            type="button"
-            className="study-topic-row"
-            key={`${item.courseTitle || 'course'}-${item.topicName || item.title || index}`}
-          >
-            <span className={`study-topic-dot study-topic-dot--${tone}`} />
-            <span>
-              <strong>{item.topicName || item.title || 'Untitled topic'}</strong>
-              <small>{item.courseTitle || item.courseName || 'General course'}</small>
-            </span>
-            <em>{clampPercent(item.averagePercentage || item.score || item.masteryScore)}%</em>
-          </button>
-        )) : (
-          <p className="study-empty-copy">{emptyText}</p>
-        )}
-      </div>
-    </section>
   );
 }
 
@@ -762,7 +658,7 @@ function DailyQuestionCard({ question }) {
   );
 }
 
-function StudyMoodCard({ mood, todayLabel, className = '' }) {
+function StudyMoodCard({ mood, className = '' }) {
   const cardClassName = ['study-card study-mood-card', className].filter(Boolean).join(' ');
 
   return (
@@ -795,7 +691,7 @@ function StudyPlanCard({ items, onOpenPlanner }) {
           <span className="study-eyebrow">Study plan</span>
           <strong>Today's route</strong>
         </div>
-        <button type="button" onClick={onOpenPlanner}>Planner</button>
+        <button type="button" onPointerDown={() => preloadStudyRoute(appRoute('/planner'))} onTouchStart={() => preloadStudyRoute(appRoute('/planner'))} onFocus={() => preloadStudyRoute(appRoute('/planner'))} onClick={onOpenPlanner}>Planner</button>
       </div>
       <div className="study-plan-list">
         {visibleItems.map((item, index) => (
@@ -803,6 +699,9 @@ function StudyPlanCard({ items, onOpenPlanner }) {
             type="button"
             className={`study-plan-row ${item.completed ? 'is-complete' : ''}`}
             key={item.label || item.title}
+            onPointerDown={() => preloadStudyRoute(item.route)}
+            onTouchStart={() => preloadStudyRoute(item.route)}
+            onFocus={() => preloadStudyRoute(item.route)}
             onClick={item.action}
           >
             <span className="study-plan-row__icon"><Icon name={icons[index] || 'calendar'} /></span>
@@ -817,21 +716,6 @@ function StudyPlanCard({ items, onOpenPlanner }) {
           </button>
         ))}
       </div>
-    </section>
-  );
-}
-
-function StudyTodoCard({ todo, onOpen }) {
-  return (
-    <section className="study-card study-todo-card" aria-label="Today todo">
-      <div className="study-todo-copy">
-        <span className="study-eyebrow">{todo.eyebrow}</span>
-        <strong>{todo.title}</strong>
-        <small>{todo.text}</small>
-      </div>
-      <button type="button" className="study-todo-action" onClick={onOpen}>
-        {todo.actionLabel}
-      </button>
     </section>
   );
 }
@@ -855,7 +739,7 @@ function CourseProgressCard({ courses, summary, onOpenCourse, onOpenCourses }) {
           <span className="study-eyebrow">Course progress</span>
           <strong>{overallProgress}% overall</strong>
         </div>
-        <button type="button" onClick={onOpenCourses}>Courses</button>
+        <button type="button" onPointerDown={() => preloadStudyRoute(appRoute('/courses'))} onTouchStart={() => preloadStudyRoute(appRoute('/courses'))} onFocus={() => preloadStudyRoute(appRoute('/courses'))} onClick={onOpenCourses}>Courses</button>
       </div>
 
       <div className="study-course-overview">
@@ -883,6 +767,9 @@ function CourseProgressCard({ courses, summary, onOpenCourse, onOpenCourses }) {
               type="button"
               className="study-course-row"
               key={course.id || course.courseTitle}
+              onPointerDown={() => preloadStudyRoute(appRoute('/courses'))}
+              onTouchStart={() => preloadStudyRoute(appRoute('/courses'))}
+              onFocus={() => preloadStudyRoute(appRoute('/courses'))}
               onClick={() => onOpenCourse(course)}
             >
               <span>
@@ -913,7 +800,7 @@ function UpcomingTasksCard({ items, serverDateKey, onOpenItem, onOpenPlanner }) 
           <span className="study-eyebrow">Upcoming tasks</span>
           <strong>Sorted by urgency</strong>
         </div>
-        <button type="button" onClick={onOpenPlanner}>Planner</button>
+        <button type="button" onPointerDown={() => preloadStudyRoute(appRoute('/planner'))} onTouchStart={() => preloadStudyRoute(appRoute('/planner'))} onFocus={() => preloadStudyRoute(appRoute('/planner'))} onClick={onOpenPlanner}>Planner</button>
       </div>
 
       <div className="study-upcoming-list">
@@ -922,6 +809,9 @@ function UpcomingTasksCard({ items, serverDateKey, onOpenItem, onOpenPlanner }) 
             type="button"
             className={`study-upcoming-row is-${String(item.status || 'optional').replace(/_/g, '-')}`}
             key={item.id}
+            onPointerDown={() => preloadStudyRoute(agendaRoute(item))}
+            onTouchStart={() => preloadStudyRoute(agendaRoute(item))}
+            onFocus={() => preloadStudyRoute(agendaRoute(item))}
             onClick={() => onOpenItem(item)}
           >
             <span className="study-upcoming-type">{titleCaseLabel(item.type)}</span>
@@ -952,6 +842,7 @@ function ExamCountdownCard({ item, serverClock, onOpen }) {
         : '--'
     : item ? 'Open' : '--';
   const countdownLabel = hasDueDate && daysLeft !== 0 ? 'days left' : hasDueDate ? 'exam day' : 'no date set';
+  const openRoute = item ? agendaRoute(item, '/exams') : appRoute('/exams');
 
   return (
     <section className="study-card study-exam-countdown-card" aria-label="Exam countdown">
@@ -960,7 +851,7 @@ function ExamCountdownCard({ item, serverClock, onOpen }) {
           <span className="study-eyebrow">Exam countdown</span>
           <strong>{item?.title || 'No exam scheduled'}</strong>
         </div>
-        <button type="button" onClick={onOpen}>{item ? 'Open' : 'Exams'}</button>
+        <button type="button" onPointerDown={() => preloadStudyRoute(openRoute)} onTouchStart={() => preloadStudyRoute(openRoute)} onFocus={() => preloadStudyRoute(openRoute)} onClick={onOpen}>{item ? 'Open' : 'Exams'}</button>
       </div>
       <div className="study-exam-countdown-main">
         <span><Icon name="calendar" /></span>
@@ -993,7 +884,7 @@ function AnalyticsSnapshotCard({ snapshot, progressNote, attempts, onOpenResults
           <span className="study-eyebrow">Learning analytics</span>
           <strong>{snapshot?.readinessLabel || 'Baseline not set'}</strong>
         </div>
-        <button type="button" onClick={onOpenResults}>Results</button>
+        <button type="button" onPointerDown={() => preloadStudyRoute(appRoute('/results'))} onTouchStart={() => preloadStudyRoute(appRoute('/results'))} onFocus={() => preloadStudyRoute(appRoute('/results'))} onClick={onOpenResults}>Results</button>
       </div>
       <div className="study-analytics-grid">
         <span>
@@ -1043,12 +934,15 @@ function StudyLevelSummary({ name, progress }) {
 export function StudentDashboardPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const [dashboard, setDashboard] = useState(defaultDashboardState);
-  const [studentQuizzes, setStudentQuizzes] = useState([]);
-  const [aiNotes, setAiNotes] = useState([]);
-  const [bookmarks, setBookmarks] = useState([]);
-  const [plannerAgendaItems, setPlannerAgendaItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [dashboard, setDashboard] = useState(() => normalizeDashboardState(readStudentDashboardCache() || defaultDashboardState));
+  const [studentQuizzes, setStudentQuizzes] = useState(() => readStudentQuizzesCache() || []);
+  const [aiNotes, setAiNotes] = useState(() => readAiNotesCache() || []);
+  const [bookmarks, setBookmarks] = useState(() => readStudyBookmarksCache() || []);
+  const [plannerAgendaItems, setPlannerAgendaItems] = useState(() => {
+    const agenda = readPlannerAgendaCache();
+    return Array.isArray(agenda?.items) ? agenda.items : Array.isArray(agenda) ? agenda : [];
+  });
+  const [loading, setLoading] = useState(() => readStudentDashboardCache() === undefined);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [heroMascot] = useState(pickDashboardHeroMascot);
@@ -1056,18 +950,20 @@ export function StudentDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     let cancelSecondary = () => {};
-    setLoading(true);
+    setLoading(readStudentDashboardCache() === undefined);
     setError('');
 
     async function loadDashboard() {
       try {
-        const [data, quizzes, agenda] = await Promise.all([
-          fetchStudentDashboard(),
+        const data = await fetchStudentDashboard();
+        if (cancelled) return;
+        setDashboard(normalizeDashboardState(data));
+        setLoading(false);
+        const [quizzes, agenda] = await Promise.all([
           fetchStudentQuizzes().catch(() => []),
           fetchPlannerAgenda().catch(() => ({ items: [] })),
         ]);
         if (cancelled) return;
-        setDashboard(normalizeDashboardState(data));
         setStudentQuizzes(Array.isArray(quizzes) ? quizzes : []);
         setPlannerAgendaItems(Array.isArray(agenda?.items) ? agenda.items : Array.isArray(agenda) ? agenda : []);
         cancelSecondary = runWhenIdle(async () => {
@@ -1091,7 +987,7 @@ export function StudentDashboardPage() {
       cancelled = true;
       cancelSecondary();
     };
-  }, [reloadKey, user?.id, user?.role, user?.status]);
+  }, [reloadKey, user?.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -1123,7 +1019,6 @@ export function StudentDashboardPage() {
   }, [loading]);
 
   const firstName = getFirstName(user);
-  const todayLabel = formatDateLabel();
   const inProgressQuiz = useMemo(
     () => studentQuizzes.find((quiz) => quiz.practiceSessionId),
     [studentQuizzes]
@@ -1169,16 +1064,6 @@ export function StudentDashboardPage() {
         ? appRoute(`/ai-notes/${recommendedNote.id}`)
         : appRoute('/quizzes');
   const continueLabel = inProgressQuiz ? 'Resume practice' : nextQuizId ? 'Start practice' : recommendedNote?.id ? 'Review lesson' : 'Open quizzes';
-  const continueTitle = inProgressQuiz || recommendedQuiz
-    ? getQuizTitle(inProgressQuiz || recommendedQuiz)
-    : recommendedNote?.title || 'Build today\'s study rhythm';
-  const continueText = inProgressQuiz
-    ? `Next question ${Number(inProgressQuiz.lastQuestionIndex || 0) + 1}. Keep the set moving while it is fresh.`
-    : weakTopic
-      ? `${weakTopic.topicName} is the best place to gain marks today.`
-      : latestAttempt
-        ? `Your last attempt scored ${clampPercent(latestAttempt.percentage)}%. Review once, then try another focused set.`
-        : 'Start with one compact practice set, review the answers, and finish with one lesson.';
 
   const courseProgress = dashboard.courseProgress;
   const courseProgressSummary = dashboard.courseProgressSummary;
@@ -1226,31 +1111,37 @@ export function StudentDashboardPage() {
     {
       label: 'Exams',
       icon: 'exam',
+      route: appRoute('/exams'),
       onClick: () => navigate(appRoute('/exams')),
     },
     {
       label: 'Planner',
       icon: 'calendar',
+      route: appRoute('/planner'),
       onClick: () => navigate(appRoute('/planner')),
     },
     {
       label: 'Q-Bank',
       icon: 'target',
+      route: appRoute('/quizzes'),
       onClick: () => navigate(appRoute('/quizzes')),
     },
     {
       label: 'Notes',
       icon: 'doc',
+      route: appRoute('/ai-notes'),
       onClick: () => navigate(appRoute('/ai-notes')),
     },
     {
       label: 'Bookmarks',
       icon: 'bookmark',
+      route: appRoute('/bookmarks'),
       onClick: () => navigate(appRoute('/bookmarks')),
     },
     {
       label: 'Weak areas',
       icon: 'chart',
+      route: weakTopic ? continueTarget : appRoute('/results'),
       onClick: () => navigate(weakTopic ? continueTarget : appRoute('/results')),
     },
   ];
@@ -1280,6 +1171,7 @@ export function StudentDashboardPage() {
       title: weakTopic ? `Answer questions on ${weakTopic.topicName}` : 'Do one focused practice set',
       detail: weakTopic ? weakTopic.courseTitle : 'Use any short set you can finish today',
       completed: practiceFinishedToday,
+      route: continueTarget,
       action: () => navigate(continueTarget),
     },
     {
@@ -1287,6 +1179,7 @@ export function StudentDashboardPage() {
       title: latestAttemptId ? 'Review your latest answers' : 'Check your results page',
       detail: latestAttemptId ? getTopicLabel(latestAttempt, 'Latest result') : 'Create a result by completing an exam',
       completed: reviewFinished,
+      route: latestAttemptId ? appRoute(`/review/${latestAttemptId}`) : appRoute('/results'),
       action: () => navigate(latestAttemptId ? appRoute(`/review/${latestAttemptId}`) : appRoute('/results')),
     },
     {
@@ -1294,6 +1187,7 @@ export function StudentDashboardPage() {
       title: recommendedNote?.title || 'Open one lesson note',
       detail: recommendedNote ? getTopicLabel(recommendedNote, 'Suggested note') : `${bookmarks.length} saved study items`,
       completed: lessonFinished,
+      route: recommendedNote?.id ? appRoute(`/ai-notes/${recommendedNote.id}`) : appRoute('/ai-notes'),
       action: () => navigate(recommendedNote?.id ? appRoute(`/ai-notes/${recommendedNote.id}`) : appRoute('/ai-notes')),
     },
   ];
@@ -1318,19 +1212,24 @@ export function StudentDashboardPage() {
 
   if (loading) {
     return (
-      <main className="dashboard-page study-hub-page">
+      <main className="dashboard-page study-hub-page" aria-busy="true">
         <div className="study-hub-shell">
-          <div className="study-loading-card">
-            <div className="grid w-full max-w-[760px] gap-4" aria-hidden="true">
-              <span className="skeleton-pulse h-6 w-44 rounded-full" />
-              <span className="skeleton-pulse h-24 rounded-[18px]" />
-              <div className="grid grid-cols-3 gap-3 max-[720px]:grid-cols-1">
-                <span className="skeleton-pulse h-24 rounded-[18px]" />
-                <span className="skeleton-pulse h-24 rounded-[18px]" />
-                <span className="skeleton-pulse h-24 rounded-[18px]" />
-              </div>
-              <span className="skeleton-pulse h-32 rounded-[18px]" />
+          <AppHeader title="Study Hub" subtitle="Daily Focus" />
+          <div className="study-dashboard-loading grid gap-4" aria-hidden="true">
+            <div className="study-hero-grid">
+              <span className="skeleton-pulse min-h-[300px] rounded-[26px]" />
+              <span className="skeleton-pulse min-h-[300px] rounded-[26px]" />
             </div>
+            <section className="study-metric-grid">
+              <span className="skeleton-pulse min-h-[112px] rounded-[22px]" />
+              <span className="skeleton-pulse min-h-[112px] rounded-[22px]" />
+              <span className="skeleton-pulse min-h-[112px] rounded-[22px]" />
+            </section>
+            <section className="study-medical-audit-grid">
+              <span className="skeleton-pulse min-h-[260px] rounded-[22px]" />
+              <span className="skeleton-pulse min-h-[260px] rounded-[22px]" />
+            </section>
+            <span className="skeleton-pulse min-h-[220px] rounded-[22px]" />
           </div>
         </div>
       </main>
@@ -1357,7 +1256,7 @@ export function StudentDashboardPage() {
   return (
     <main className="dashboard-page study-hub-page">
       <DashboardDustLayer />
-      <div className="study-hub-shell">
+      <div className="study-hub-shell study-hub-shell--ready">
         <AppHeader title="Study Hub" subtitle="Daily Focus" />
 
         <div className="study-hero-grid">
@@ -1376,15 +1275,15 @@ export function StudentDashboardPage() {
                 <span>{recommendedQuiz?.topicName || weakTopic?.topicName || recommendedNote?.topicName || 'Hernia'} · {readinessScore}% ready</span>
               </div>
               <div className="study-hero-actions">
-                <StudyButton tone="primary" icon="play" onClick={() => onNavigate(continueTarget)}>{continueLabel}</StudyButton>
-                <button type="button" className="study-square-action" aria-label="Open exams" onClick={() => onNavigate(appRoute('/quizzes'))}>
+                <StudyButton tone="primary" icon="play" onPointerDown={() => preloadStudyRoute(continueTarget)} onTouchStart={() => preloadStudyRoute(continueTarget)} onFocus={() => preloadStudyRoute(continueTarget)} onClick={() => onNavigate(continueTarget)}>{continueLabel}</StudyButton>
+                <button type="button" className="study-square-action" aria-label="Open exams" onPointerDown={() => preloadStudyRoute(appRoute('/quizzes'))} onTouchStart={() => preloadStudyRoute(appRoute('/quizzes'))} onFocus={() => preloadStudyRoute(appRoute('/quizzes'))} onClick={() => onNavigate(appRoute('/quizzes'))}>
                   <Icon name="doc" />
                 </button>
               </div>
             </div>
           </section>
 
-          <StudyMoodCard mood={studyMood} todayLabel={todayLabel} className="study-mood-card--desktop" />
+          <StudyMoodCard mood={studyMood} className="study-mood-card--desktop" />
         </div>
 
         <section className="study-metric-grid" aria-label="Dashboard stats">
@@ -1430,7 +1329,7 @@ export function StudentDashboardPage() {
           <StreakHeatmap streak={dashboard.quizDayStreak} goalsCompleted={dashboard.dailyGoalsCompleted} />
           <div className="study-streak-footer">
             <span>Past 4 weeks · <b>{Math.max(dashboard.quizDayStreak, dashboard.dailyGoalsCompleted)}</b> active days</span>
-            <button type="button" className="study-streak-link" onClick={() => onNavigate(appRoute('/results'))}>
+            <button type="button" className="study-streak-link" onPointerDown={() => preloadStudyRoute(appRoute('/results'))} onTouchStart={() => preloadStudyRoute(appRoute('/results'))} onFocus={() => preloadStudyRoute(appRoute('/results'))} onClick={() => onNavigate(appRoute('/results'))}>
               View history <span aria-hidden="true">&gt;</span>
             </button>
           </div>
@@ -1442,7 +1341,7 @@ export function StudentDashboardPage() {
 
         <section className="study-action-grid" aria-label="Quick actions">
           {quickActions.map((action) => (
-            <button type="button" className="study-action-card" key={action.label} onClick={() => onNavigate(null) || action.onClick()}>
+            <button type="button" className="study-action-card" key={action.label} onPointerDown={() => preloadStudyRoute(action.route)} onTouchStart={() => preloadStudyRoute(action.route)} onFocus={() => preloadStudyRoute(action.route)} onClick={() => onNavigate(null) || action.onClick()}>
               <span><Icon name={action.icon} /></span>
               <strong>{action.label}</strong>
             </button>
@@ -1470,7 +1369,7 @@ export function StudentDashboardPage() {
           />
         </div>
 
-        <StudyMoodCard mood={studyMood} todayLabel={todayLabel} className="study-mood-card--mobile" />
+        <StudyMoodCard mood={studyMood} className="study-mood-card--mobile" />
 
         <DailyQuestionCard question={dashboard.questionOfDay} />
 

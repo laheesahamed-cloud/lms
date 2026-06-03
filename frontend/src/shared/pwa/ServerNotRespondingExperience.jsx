@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getServerNotRespondingState, subscribeToServerStatus } from '../stores/serverStatusStore.js';
 import { SystemStatusOverlay } from '../ui/SystemStatusOverlay.jsx';
+import { isPublicWebsiteRoute } from '../routing/publicRoutes.js';
 
 function getOnlineState() {
   if (typeof navigator === 'undefined') {
@@ -13,6 +14,9 @@ function getOnlineState() {
 export function ServerNotRespondingExperience() {
   const [visible, setVisible] = useState(() => getServerNotRespondingState());
   const [isOnline, setIsOnline] = useState(getOnlineState);
+  const [isPublicRoute, setIsPublicRoute] = useState(() => (
+    typeof window !== 'undefined' && isPublicWebsiteRoute(window.location?.pathname || '/')
+  ));
 
   useEffect(() => subscribeToServerStatus(setVisible), []);
 
@@ -30,7 +34,22 @@ export function ServerNotRespondingExperience() {
     };
   }, []);
 
-  if (!visible || !isOnline) {
+  useEffect(() => {
+    function syncRouteState() {
+      setIsPublicRoute(isPublicWebsiteRoute(window.location?.pathname || '/'));
+    }
+
+    window.addEventListener('popstate', syncRouteState);
+    window.addEventListener('lms:route-location-change', syncRouteState);
+    syncRouteState();
+
+    return () => {
+      window.removeEventListener('popstate', syncRouteState);
+      window.removeEventListener('lms:route-location-change', syncRouteState);
+    };
+  }, []);
+
+  if (!visible || !isOnline || isPublicRoute) {
     return null;
   }
 

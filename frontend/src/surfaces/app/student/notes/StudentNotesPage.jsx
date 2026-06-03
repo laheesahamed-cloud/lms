@@ -221,18 +221,6 @@ function buildLessonNote(lesson) {
   return [lesson.courseTitle, lesson.topicName, lesson.subtopicName].filter(Boolean).join(' • ');
 }
 
-function buildLessonPills(lesson) {
-  if (!lesson) {
-    return [];
-  }
-
-  const pills = [lesson.courseTitle, lesson.topicName, lesson.subtopicName].filter(Boolean);
-  if (lesson.videoUrl) {
-    pills.push('Video linked');
-  }
-  return pills.slice(0, 4);
-}
-
 function createEmptyComposer() {
   return {
     mode: 'create',

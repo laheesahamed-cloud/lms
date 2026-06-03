@@ -1,7 +1,8 @@
 import { Suspense, lazy } from 'react';
 import { AppProviders } from './providers.jsx';
 import { AppErrorBoundary } from './AppErrorBoundary.jsx';
-import { PlatformProvider, usePlatform } from '../shared/platform/PlatformProvider.jsx';
+import { PlatformProvider } from '../shared/platform/PlatformProvider.jsx';
+import { usePlatform } from '../shared/platform/PlatformContext.js';
 import { getPlatformConfig } from '../shared/platform/config.js';
 import { AppOnlyBrowserGate } from '../shared/platform/AppOnlyBrowserGate.jsx';
 import { BootLoader } from './BootLoader.jsx';

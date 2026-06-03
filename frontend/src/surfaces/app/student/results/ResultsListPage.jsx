@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { fetchStudentDashboard } from '../../../../shared/api/dashboard.api.js';
-import { fetchStudentResults } from '../../../../shared/api/quizAttempts.api.js';
+import { fetchStudentDashboard, readStudentDashboardCache } from '../../../../shared/api/dashboard.api.js';
+import { fetchStudentResults, readStudentResultsCache } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -184,9 +184,9 @@ export function ResultsListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const focusQuizId = searchParams.get('quizId') ? Number(searchParams.get('quizId')) : null;
-  const [results, setResults] = useState([]);
-  const [dashboardInsights, setDashboardInsights] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [results, setResults] = useState(() => readStudentResultsCache() || []);
+  const [dashboardInsights, setDashboardInsights] = useState(() => readStudentDashboardCache() || null);
+  const [loading, setLoading] = useState(() => readStudentResultsCache() === undefined);
   const [error, setError] = useState('');
   const visibleResults = useMemo(() => {
     if (!focusQuizId) return results;
@@ -202,21 +202,31 @@ export function ResultsListPage() {
   const missedPatterns = Array.isArray(dashboardInsights?.missedPatterns) ? dashboardInsights.missedPatterns.slice(0, 3) : [];
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       try {
-        const [resultData, dashboardData] = await Promise.all([
-          fetchStudentResults(),
-          fetchStudentDashboard().catch(() => null),
-        ]);
+        const resultData = await fetchStudentResults();
+        if (cancelled) return;
         setResults(resultData);
-        setDashboardInsights(dashboardData);
       } catch (loadError) {
+        if (cancelled) return;
         setError(getErrorMessage(loadError, 'Unable to load results'));
-      } finally {
-        setLoading(false);
       }
+      if (!cancelled) setLoading(false);
     }
+
+    async function loadInsights() {
+      const dashboardData = await fetchStudentDashboard().catch(() => null);
+      if (!cancelled) setDashboardInsights(dashboardData);
+    }
+
     load();
+    loadInsights();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function openAttemptReview(attemptId) {

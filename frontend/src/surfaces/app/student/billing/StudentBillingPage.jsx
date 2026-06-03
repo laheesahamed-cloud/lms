@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { fetchStudentCourses } from '../../../../shared/api/courses.api.js';
-import { fetchMySubscription, requestSubscription } from '../../../../shared/api/subscriptions.api.js';
+import { fetchStudentCourses, readStudentCoursesCache } from '../../../../shared/api/courses.api.js';
+import { fetchMySubscription, readMySubscriptionCache, requestSubscription } from '../../../../shared/api/subscriptions.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -26,25 +26,6 @@ function featureMessageForKey(featureKey) {
   }
   return '';
 }
-
-const featureKeyAliases = {
-  aiNotes: ['notes_canvas_study_mode'],
-  notesAccess: ['notes_canvas_study_mode'],
-  notesCanvasStudyMode: ['notes_canvas_study_mode'],
-  lessonsAccess: ['lessons_access_full', 'lessons_access_limited', 'notes_canvas_study_mode'],
-  advancedInsights: ['performance_analytics', 'weak_area_analysis', 'progress_tracking_advanced'],
-  analytics: ['performance_analytics', 'weak_area_analysis', 'progress_tracking_advanced'],
-  performanceAnalytics: ['performance_analytics'],
-  weakAreaAnalysis: ['weak_area_analysis'],
-  practiceMode: ['practice_mode'],
-  examMode: ['exam_mode'],
-  aiTools: ['ai_quiz_generator'],
-  aiQuizGenerator: ['ai_quiz_generator'],
-  resultsTracking: ['results_tracking'],
-  reportQuestion: ['report_question'],
-  pastPaperAccess: ['past_paper_access'],
-  mockPaperAccess: ['mock_paper_access'],
-};
 
 const comparisonRows = [
   { label: 'Lessons', note: 'Notes and lesson library access', keys: ['lessons_access_full', 'lessons_access_limited', 'notes_canvas_study_mode'] },
@@ -225,27 +206,42 @@ const billingUi = {
     'hidden gap-3 max-[760px]:grid',
 };
 
+function normalizeBillingData(data) {
+  return {
+    currentSubscription: data?.currentSubscription || null,
+    history: Array.isArray(data?.history) ? data.history : [],
+    availablePlans: Array.isArray(data?.availablePlans) ? data.availablePlans : [],
+    requests: Array.isArray(data?.requests) ? data.requests : [],
+    payment: data?.payment || null,
+  };
+}
+
+function getCourseOptions(courses) {
+  const courseItems = (Array.isArray(courses) ? courses : [])
+    .map((course) => ({
+      id: Number(course.id),
+      label: course.courseTitle || course.title || course.name || `Course ${course.id}`,
+      subtitle: course.description || '',
+    }))
+    .filter((course) => course.id > 0 && course.label);
+  return Array.from(new Map(courseItems.map((course) => [course.id, course])).values());
+}
+
 export function StudentBillingPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const customPlanSearch = new URLSearchParams(location.search);
   const shouldOpenCustomPlanner = customPlanSearch.get('custom') === '1';
   const customRequestMode = customPlanSearch.get('request') === '1';
-  const [billing, setBilling] = useState({
-    currentSubscription: null,
-    history: [],
-    availablePlans: [],
-    requests: [],
-    payment: null,
-  });
-  const [loading, setLoading] = useState(true);
+  const [billing, setBilling] = useState(() => normalizeBillingData(readMySubscriptionCache()));
+  const [loading, setLoading] = useState(() => readMySubscriptionCache() === undefined);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [requestingPlanId, setRequestingPlanId] = useState(null);
   const [payingPlanId, setPayingPlanId] = useState(null);
   const [customPlan, setCustomPlan] = useState({ subject: 'all', content: 'full', duration: '3m' });
   const [customCourseIds, setCustomCourseIds] = useState([]);
-  const [courseOptions, setCourseOptions] = useState([]);
+  const [courseOptions, setCourseOptions] = useState(() => getCourseOptions(readStudentCoursesCache()));
   const [customModalOpen, setCustomModalOpen] = useState(false);
 
   useEffect(() => {
@@ -264,13 +260,7 @@ export function StudentBillingPage() {
   async function load() {
     try {
       const data = await fetchMySubscription();
-      setBilling({
-        currentSubscription: data?.currentSubscription || null,
-        history: Array.isArray(data?.history) ? data.history : [],
-        availablePlans: Array.isArray(data?.availablePlans) ? data.availablePlans : [],
-        requests: Array.isArray(data?.requests) ? data.requests : [],
-        payment: data?.payment || null,
-      });
+      setBilling(normalizeBillingData(data));
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load subscription details'));
     } finally {
@@ -280,16 +270,8 @@ export function StudentBillingPage() {
 
   async function loadCourseOptions() {
     try {
-      const courses = await fetchStudentCourses({ force: true });
-      const courseItems = (Array.isArray(courses) ? courses : [])
-        .map((course) => ({
-          id: Number(course.id),
-          label: course.courseTitle || course.title || course.name || `Course ${course.id}`,
-          subtitle: course.description || '',
-        }))
-        .filter((course) => course.id > 0 && course.label);
-      const unique = Array.from(new Map(courseItems.map((course) => [course.id, course])).values());
-      setCourseOptions(unique);
+      const courses = await fetchStudentCourses();
+      setCourseOptions(getCourseOptions(courses));
     } catch {
       setCourseOptions([]);
     }
@@ -302,11 +284,16 @@ export function StudentBillingPage() {
   const requests = (Array.isArray(billing.requests) ? billing.requests : []).filter(Boolean);
   const lockedFeature = location.state?.lockedFeature || '';
   const purchaseScope = location.state?.accessScope || '';
-  const purchaseCourseIds = Array.isArray(location.state?.courseIds) ? location.state.courseIds.map(Number).filter(Boolean) : [];
-  const purchaseLessonIds = Array.isArray(location.state?.lessonIds) ? location.state.lessonIds.map(Number).filter(Boolean) : [];
+  const purchaseCourseIds = useMemo(
+    () => (Array.isArray(location.state?.courseIds) ? location.state.courseIds.map(Number).filter(Boolean) : []),
+    [location.state?.courseIds]
+  );
+  const purchaseLessonIds = useMemo(
+    () => (Array.isArray(location.state?.lessonIds) ? location.state.lessonIds.map(Number).filter(Boolean) : []),
+    [location.state?.lessonIds]
+  );
   const purchaseSelectionNote = String(location.state?.customSelectionNote || '').trim();
   const upgradeMessage = featureMessageForKey(lockedFeature);
-  const lockedFeatureKeys = featureKeyAliases[lockedFeature] || [];
 
   const recommendedPlanId = useMemo(() => {
     const recommended = availablePlans.find((plan) => plan?.recommended);

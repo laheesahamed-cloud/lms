@@ -20,7 +20,7 @@ import {
   sampleJsonFormat,
   saveQuestionRecord,
   validateQuestion,
-} from '../questions/BulkQuestionInputPage.jsx';
+} from '../questions/bulkQuestionInputUtils.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 
 const defaultForm = {
@@ -1193,6 +1193,18 @@ export function QuizBuilderPage() {
     currentLabel: '',
     items: {},
   });
+  const formRef = useRef(defaultForm);
+  const filtersRef = useRef(defaultFilters);
+  const loadQuestionPoolRef = useRef(null);
+  const saveBulkDraftRef = useRef(null);
+
+  useEffect(() => {
+    formRef.current = form;
+  }, [form]);
+
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
 
   useEffect(() => {
     async function load() {
@@ -1249,7 +1261,7 @@ export function QuizBuilderPage() {
           }));
 
           if (nextForm.questionIds.length > 0) {
-            await loadQuestionPool(defaultFilters, {
+            await loadQuestionPoolRef.current?.(defaultFilters, {
               ids: nextForm.questionIds,
               mergeOnly: true,
               silent: true,
@@ -1257,7 +1269,7 @@ export function QuizBuilderPage() {
           }
         }
 
-        await loadQuestionPool(initialFilters, { silent: true });
+        await loadQuestionPoolRef.current?.(initialFilters, { silent: true });
       } catch (loadError) {
         setError(getErrorMessage(loadError, 'Unable to load assessment builder'));
       } finally {
@@ -1278,7 +1290,7 @@ export function QuizBuilderPage() {
       setBulkRawInput(String(parsed.rawInput || ''));
       setBulkInputMode(String(parsed.inputMode || 'text'));
       setBulkQuestions(Array.isArray(parsed.questions) ? parsed.questions : []);
-      setBulkGlobalDefaults(parsed.globalDefaults || resolveQuizBulkDefaults(form, filters.questionType));
+      setBulkGlobalDefaults(parsed.globalDefaults || resolveQuizBulkDefaults(formRef.current, filtersRef.current.questionType));
       setBulkCurrentIndex(Math.max(0, Number(parsed.currentIndex) || 0));
       setBulkQueueSearch(String(parsed.queueSearch || ''));
       setBulkQueueStatusFilter(String(parsed.queueStatusFilter || 'all'));
@@ -1304,7 +1316,7 @@ export function QuizBuilderPage() {
 
   useEffect(() => {
     if (!bulkRawInput.trim() && !bulkQuestions.length) return;
-    saveBulkDraft({ quiet: true });
+    saveBulkDraftRef.current?.({ quiet: true });
   }, [bulkCurrentIndex, bulkGlobalDefaults, bulkInputMode, bulkQueueSearch, bulkQueueStatusFilter, bulkQuestions, bulkRawInput]);
 
   useEffect(() => {
@@ -1315,7 +1327,18 @@ export function QuizBuilderPage() {
   useEffect(() => {
     if (loading) return undefined;
     const timeout = window.setTimeout(() => {
-      loadQuestionPool(filters);
+      loadQuestionPoolRef.current?.({
+        category: filters.category,
+        courseId: filters.courseId,
+        keywords: filters.keywords,
+        lessonId: filters.lessonId,
+        paperId: filters.paperId,
+        questionType: filters.questionType,
+        questionUsage: filters.questionUsage,
+        search: filters.search,
+        subjectId: filters.subjectId,
+        topicId: filters.topicId,
+      });
     }, 260);
     return () => window.clearTimeout(timeout);
   }, [
@@ -1466,11 +1489,20 @@ export function QuizBuilderPage() {
     }
 
     let cancelled = false;
-    async function loadBlueprintCounts() {
-      const entries = await Promise.all(
-        blueprintSections.map(async (section) => {
-          try {
-            const counts = await fetchQuestionCounts(buildQuestionCountParams(buildBlueprintFilters(section, form)));
+	    async function loadBlueprintCounts() {
+	      const blueprintFilterForm = {
+	        category: form.category,
+	        courseId: form.courseId,
+	        isGeneral: form.isGeneral,
+	        lessonId: form.lessonId,
+	        paperId: form.paperId,
+	        subjectId: form.subjectId,
+	        topicId: form.topicId,
+	      };
+	      const entries = await Promise.all(
+	        blueprintSections.map(async (section) => {
+	          try {
+	            const counts = await fetchQuestionCounts(buildQuestionCountParams(buildBlueprintFilters(section, blueprintFilterForm)));
             return [
               section.id,
               {
@@ -1646,6 +1678,9 @@ export function QuizBuilderPage() {
       }
     }
   }
+
+  saveBulkDraftRef.current = saveBulkDraft;
+  loadQuestionPoolRef.current = loadQuestionPool;
 
   function syncHierarchyFilters(next) {
     setFilters((current) => ({
@@ -1885,7 +1920,7 @@ export function QuizBuilderPage() {
         const missingCount = Math.max(Number(section.targetCount || 0) - selectedCount, 0);
         if (missingCount <= 0) continue;
 
-        // eslint-disable-next-line no-await-in-loop
+         
         const rows = await fetchQuestions(buildQuestionPoolParams(buildBlueprintFilters(section, form), {
           random: true,
           limit: Math.min(missingCount * 3, 200),
@@ -2139,7 +2174,7 @@ export function QuizBuilderPage() {
       setBulkAiItemStatus(question.clientId, { status: 'processing', error: '' });
 
       try {
-        // eslint-disable-next-line no-await-in-loop
+         
         await enhanceQuizBulkQuestion(question);
         setBulkAiItemStatus(question.clientId, { status: 'completed', error: '' });
       } catch (err) {
@@ -2502,7 +2537,7 @@ export function QuizBuilderPage() {
       let savedCount = 0;
       const savedIds = [];
       for (const index of readyIndexes) {
-        // eslint-disable-next-line no-await-in-loop
+         
         const savedId = await saveBulkQuestionAtIndex(index);
         if (savedId) {
           savedIds.push(savedId);
@@ -2543,7 +2578,7 @@ export function QuizBuilderPage() {
       let savedCount = 0;
       const savedIds = [];
       for (const index of validIndexes) {
-        // eslint-disable-next-line no-await-in-loop
+         
         const savedId = await saveBulkQuestionAtIndex(index);
         if (savedId) {
           savedIds.push(savedId);

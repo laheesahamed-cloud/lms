@@ -349,32 +349,6 @@ function uniqueCards(cards) {
   });
 }
 
-function intervalLabel(dueAt) {
-  if (!dueAt) return '';
-  const diff = dueAt - Date.now();
-  if (diff <= 0) return 'ready now';
-  const minutes = Math.ceil(diff / (60 * 1000));
-  if (minutes < 60) return `in ${minutes} min`;
-  const hours = Math.ceil(minutes / 60);
-  if (hours < 24) return `in ${hours} hr`;
-  const days = Math.ceil(hours / 24);
-  return `in ${days} day${days === 1 ? '' : 's'}`;
-}
-
-function formatLastReviewed(value) {
-  const time = value ? Date.parse(value) : 0;
-  if (!Number.isFinite(time) || !time) return 'Not reviewed';
-  const diff = Date.now() - time;
-  if (diff < 60 * 60 * 1000) return 'Reviewed today';
-  if (diff < DAY_MS) return 'Reviewed today';
-  const days = Math.floor(diff / DAY_MS);
-  if (days === 1) return 'Reviewed yesterday';
-  if (days < 7) return `Reviewed ${days} days ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 5) return `Reviewed ${weeks} wk${weeks === 1 ? '' : 's'} ago`;
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(time));
-}
-
 function scheduleFromRating(previous, rating, now = Date.now()) {
   const oldEase = Number(previous?.ease) || 2.5;
   const oldInterval = Number(previous?.intervalDays) || 0;
@@ -524,14 +498,6 @@ function finalizeDeck(cards) {
       seen.add(key);
       return true;
     });
-}
-
-function prioritizeCards(cards) {
-  const stats = readReviewStats();
-  return [...cards]
-    .map((card) => ({ card, status: reviewStatus(card, stats), tie: Math.random() }))
-    .sort((a, b) => (b.status.score - a.status.score) || (a.tie - b.tie))
-    .map((item) => item.card);
 }
 
 function dueQueueRank(status) {
@@ -1902,6 +1868,7 @@ export function StudentFlashcardsPage() {
   const [error,    setError]    = useState('');
   const [starting, setStarting] = useState(false);
   const [deckStats, setDeckStats] = useState({});
+  const deckStatsRef = useRef({});
 
   const [activeQuiz,  setActiveQuiz]  = useState(null);
   const [activeCards, setActiveCards] = useState([]);
@@ -1919,7 +1886,7 @@ export function StudentFlashcardsPage() {
       })
       .catch(e => setError(getErrorMessage(e, 'Unable to load flashcard decks')))
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   useEffect(() => {
@@ -1932,13 +1899,17 @@ export function StudentFlashcardsPage() {
   }, [autoNoteId, notes]);
 
   useEffect(() => {
+    deckStatsRef.current = deckStats;
+  }, [deckStats]);
+
+  useEffect(() => {
     if (!notes.length) return undefined;
     let cancelled = false;
     const pending = notes
       .filter((note) => !note.accessLocked)
       .filter((note) => !isLessonPlaceholder(note))
-      .filter((note) => !hasDeckCardCount(deckStats[note.id]))
-      .filter((note) => !deckStats[note.id]?.unavailable)
+      .filter((note) => !hasDeckCardCount(deckStatsRef.current[note.id]))
+      .filter((note) => !deckStatsRef.current[note.id]?.unavailable)
       .filter((note) => !deckCountLoadingRef.current.has(note.id));
 
     if (!pending.length) return undefined;

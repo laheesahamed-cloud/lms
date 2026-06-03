@@ -1481,9 +1481,9 @@
   font-size: var(--type-size-base);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-body);
-  --lms-student-page-enter-duration: 220ms;
-  --lms-student-page-enter-ease: var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
-  --lms-student-page-enter-y: 4px;
+  --lms-route-enter-duration: 300ms;
+  --lms-panel-route-duration: 300ms;
+  --lms-card-enter-duration: 300ms;
 }
 
 /* Display font everywhere headings live */
@@ -3238,12 +3238,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   transform: scale(0.98);
 }
 
-/* ── Staggered entrance for student main pages ──────────────── */
-@keyframes lms-page-fade-up {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
+/* ── Student page entrance: reuse the dashboard fade-up rhythm ── */
 .student-app-shell :where(
   .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
   .dashboard-page.study-hub-page:is(
@@ -3263,43 +3258,36 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 ) :where(.management-layout, .study-hub-shell) > :where(
   :not(style):not(script):not(.study-hub-topbar)
 ) {
-  animation: lms-page-fade-up var(--lms-student-page-enter-duration) var(--lms-student-page-enter-ease) both;
+  animation: study-fade-up var(--lms-card-enter-duration, 300ms) var(--lms-motion-ease-out, ease-out) both;
   backface-visibility: hidden;
 }
 
 .student-app-shell :where(
   .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
   .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
-) :where(.management-layout, .study-hub-shell) > * { animation-delay: 0ms; }
+) :where(.management-layout, .study-hub-shell) > :where(:not(style):not(script):not(.study-hub-topbar)):nth-child(2) {
+  animation-delay: 45ms;
+}
 
-@media (max-width: 700px) {
-  .student-app-shell {
-    --lms-student-page-enter-duration: 180ms;
-    --lms-student-page-enter-y: 3px;
-  }
+.student-app-shell :where(
+  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+) :where(.management-layout, .study-hub-shell) > :where(:not(style):not(script):not(.study-hub-topbar)):nth-child(3) {
+  animation-delay: 90ms;
+}
 
-  .student-app-shell :where(
-    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-    .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
-  ) :where(.management-layout, .study-hub-shell) > :where(
-    :not(style):not(script):not(.study-hub-topbar)
-  ) {
-    animation-delay: 0ms;
-  }
+.student-app-shell :where(
+  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+) :where(.management-layout, .study-hub-shell) > :where(:not(style):not(script):not(.study-hub-topbar)):nth-child(4) {
+  animation-delay: 135ms;
+}
 
-  .student-app-shell :where(
-    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-    .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
-  ) :where(.management-layout, .study-hub-shell) > :nth-child(2) {
-    animation-delay: 18ms;
-  }
-
-  .student-app-shell :where(
-    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-    .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
-  ) :where(.management-layout, .study-hub-shell) > :nth-child(n+3) {
-    animation-delay: 32ms;
-  }
+.student-app-shell :where(
+  .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+) :where(.management-layout, .study-hub-shell) > :where(:not(style):not(script):not(.study-hub-topbar)):nth-child(n+5) {
+  animation-delay: 180ms;
 }
 
 /* ── Unified section heads — match dashboard's eyebrow + small */

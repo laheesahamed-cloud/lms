@@ -16,18 +16,13 @@ function IcoSteth()    { return <svg width="22" height="22" viewBox="0 0 22 22" 
 function IcoNotes()    { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="2" width="13" height="17" rx="2.5" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M6 6h7M6 9.5h7M6 13h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M16 6h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function IcoQuiz()     { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M8 9a2.5 2.5 0 1 1 3.5 2.3c-.5.2-.8.7-.8 1.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="11" cy="15" r=".9" fill="currentColor"/></svg>; }
 function IcoChart()    { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 18V11l4-4 4 4 4-6 4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 18h16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
-function IcoBrain()    { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M9 4a5 5 0 0 0-5 5c0 1.8.9 3.4 2.3 4.4L7 18h8l.7-4.6A5 5 0 1 0 9 4z" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M11 4v14M8 8l3 3M14 8l-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>; }
 function IcoMoon()     { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M19 12.5A9 9 0 1 1 9.5 3a7 7 0 0 0 9.5 9.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
 function IcoBookmark() { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M5 3h12a1 1 0 0 1 1 1v15l-7-4-7 4V4a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/></svg>; }
-function IcoScalpel()  { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 18L14 8l4-1-1 4L7 21l-3-3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/><path d="M14 8l1-4 3 3-4 1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none" opacity=".7"/></svg>; }
 function IcoStar()     { return <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M6 .5l1.39 2.82 3.11.45-2.25 2.19.53 3.1L6 7.5l-2.78 1.56.53-3.1L1.5 3.77l3.11-.45z"/></svg>; }
 function IcoX()        { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>; }
 function IcoChevron()  { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function IcoMenu()     { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M2.5 5h15M2.5 10h15M2.5 15h15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/></svg>; }
 function IcoClose()    { return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/></svg>; }
-function IcoMicro()    { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M11 12v6M8 18h6M7 8a4 4 0 0 0 4 4 4 4 0 0 0 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
-function IcoBaby()     { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M5 19c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M14 10.5c1.5 0 3 .7 3 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity=".6"/></svg>; }
-function IcoPeople()   { return <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="8" cy="7" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M2 19c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="16" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.3" opacity=".65"/><path d="M19 19c0-2.8-1.35-5-3-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity=".65"/></svg>; }
 
 /* trust pill mini icons (14px) */
 function IcoSteth14()  { return <svg width="13" height="13" viewBox="0 0 22 22" fill="none"><circle cx="16" cy="16" r="3" stroke="currentColor" strokeWidth="1.6"/><path d="M5 4a2 2 0 0 0-2 2v3a6 6 0 0 0 6 6h1a6 6 0 0 0 6-6V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M5 4h4M7 4V2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>; }
@@ -46,7 +41,6 @@ const lpSectionHeadClass = cx(lpRevealClass, 'lp-section-head mx-auto mb-12 max-
 const lpSectionEyebrowClass = 'mb-3 inline-block text-[11.5px] font-extrabold uppercase tracking-[0.1em] text-blue-400';
 const lpSectionTitleClass = 'm-0 mb-3.5 text-[36px] max-[640px]:text-[28px] font-black leading-tight tracking-normal text-white';
 const lpSectionTextClass = 'm-0 text-[15px] leading-relaxed text-white/50';
-const lpPlanGridClass = 'grid grid-cols-3 gap-4 max-[860px]:grid-cols-1';
 const lpRootClass =
   'lp lp-v3 landing-page dark-page group/lp isolate overflow-x-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(37,99,235,0.12),transparent_38%),linear-gradient(180deg,#0F1720_0%,#111A23_42%,#0D141C_100%)] text-white';
 const lpShellClass = 'lp-shell mx-auto w-[min(1180px,calc(100%_-_40px))]';
@@ -74,11 +68,6 @@ const lpHeroClass =
 const lpHeroBgClass = 'absolute inset-0 z-0 overflow-hidden pointer-events-none [contain:paint] translate-z-0';
 const lpHeroBgGridClass =
   'absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.032)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.032)_1px,transparent_1px)] bg-[length:60px_60px] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_40%,black,transparent)] [transform:translate3d(0,var(--lp-grid-y),0)]';
-const lpHeroOrbClass =
-  'lp-hero-orb absolute rounded-full opacity-25 blur-[36px] [transform:translate3d(0,var(--lp-orb-y),0)] max-[860px]:opacity-[0.14] max-[860px]:blur-[22px] motion-reduce:!animate-none motion-reduce:!transform-none motion-reduce:!transition-none';
-const lpHeroOrbAClass = 'lp-hero-orb--a right-[-100px] top-[-100px] size-[520px] bg-blue-600 [--lp-orb-y:var(--lp-orb-a-y)]';
-const lpHeroOrbBClass = 'lp-hero-orb--b bottom-[-80px] left-[20%] size-[430px] bg-violet-600 [--lp-orb-y:var(--lp-orb-b-y)]';
-const lpHeroOrbCClass = 'lp-hero-orb--c left-[-60px] top-[30%] size-[300px] bg-emerald-600 opacity-20 [--lp-orb-y:var(--lp-orb-c-y)] max-[860px]:opacity-[0.14]';
 const lpDepthDotClass =
   'lp-depth-dot absolute size-[7px] rounded-full bg-blue-300/75 opacity-[0.34] shadow-[0_0_24px_rgba(59,130,246,0.6)] [transform:translate3d(0,var(--lp-dot-y),0)] max-[860px]:opacity-[0.18] motion-reduce:!animate-none motion-reduce:!transform-none motion-reduce:!transition-none';
 const lpDepthDotAClass = 'lp-depth-dot--a left-[11%] top-[22%] [--lp-dot-y:var(--lp-dot-a-y)]';
@@ -117,7 +106,6 @@ const lpPreviewLabelClass = 'text-[11px] font-extrabold tracking-[0.04em] text-w
 const lpPreviewBodyClass = 'relative z-[1] px-3.5 py-3 text-[11px] leading-[1.55] max-[640px]:px-3 max-[640px]:py-[11px]';
 const lpSectionClass = 'lp-section scroll-mt-[30vh] py-[76px] [content-visibility:auto] [contain-intrinsic-size:760px] max-[860px]:py-14 max-[640px]:py-11';
 const lpAltSectionClass = 'bg-[linear-gradient(180deg,rgba(0,0,0,0.2),rgba(0,0,0,0.36)),rgba(255,255,255,0.012)]';
-const lpCardGrid3Class = 'grid grid-cols-3 gap-4 max-[1024px]:grid-cols-2 max-[640px]:grid-cols-1 max-[640px]:gap-3';
 const lpFeatureBentoClass = 'lp-feature-grid grid grid-cols-3 gap-4 max-[1024px]:grid-cols-2 max-[640px]:grid-cols-1 max-[640px]:gap-3';
 const lpFeatureCardClass =
   cx(lpRevealClass, 'relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.046),rgba(255,255,255,0.022)),#121C26] px-[22px] py-6 shadow-[0_12px_26px_rgba(2,6,23,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:-translate-y-1.5 hover:border-[color-mix(in_srgb,var(--fc)_30%,transparent)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.038))] hover:shadow-[0_24px_56px_rgba(2,6,23,0.28)] [contain:layout_paint]');

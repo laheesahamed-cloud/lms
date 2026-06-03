@@ -26,8 +26,6 @@
   --lms-platform-motion-enter: var(--lms-motion-ease-out);
   --lms-native-motion-enter: var(--lms-motion-ease-out);
 
-  --lms-student-page-enter-duration: var(--lms-motion-duration-card);
-  --lms-student-page-enter-ease: var(--lms-motion-ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -37,6 +35,5 @@
     --lms-card-enter-duration: 1ms;
     --lms-dropdown-duration: 1ms;
     --lms-modal-duration: 1ms;
-    --lms-student-page-enter-duration: 1ms;
   }
 }

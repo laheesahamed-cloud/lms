@@ -14,7 +14,7 @@
   transform: none;
 }
 
-:where(.lms-skeleton-card, .route-skeleton__card) {
+:where(.lms-skeleton-card) {
   min-height: var(--ds-loading-min-block);
   padding: var(--ds-card-pad);
 }

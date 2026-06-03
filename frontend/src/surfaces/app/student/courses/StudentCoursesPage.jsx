@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { fetchStudentCourses } from '../../../../shared/api/courses.api.js';
+import { fetchStudentCourses, readStudentCoursesCache } from '../../../../shared/api/courses.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -125,7 +125,6 @@ function CourseCard({ course, onOpen }) {
   const progress = clampPercent(course.progressPercent);
   const status = getCourseStatus(progress);
   const { totalLessons, completedLessons, remainingLessons } = getLessonCounts(course);
-  const subjects = Number(course.subjectCount || 0);
   const visual = getCourseVisual(course, Number(course.id || 0));
   const leftLabel = totalLessons ? `${remainingLessons} left` : 'No lessons yet';
   const metaLabel = `${totalLessons} lessons · ${completedLessons} done · ${leftLabel}`;
@@ -177,8 +176,8 @@ function CourseCard({ course, onOpen }) {
 export function StudentCoursesPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [courses, setCourses] = useState(() => readStudentCoursesCache() || []);
+  const [loading, setLoading] = useState(() => readStudentCoursesCache() === undefined);
   const [error, setError] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState(() => location.state?.selectedCourseId || null);
   const [courseDetailCache, setCourseDetailCache] = useState({});

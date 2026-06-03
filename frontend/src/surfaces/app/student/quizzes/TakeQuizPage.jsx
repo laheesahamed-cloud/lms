@@ -18,7 +18,8 @@ import { XyndromeLogoMark } from '../../../../shared/brand/XyndromeBrand.jsx';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { useThemeStore } from '../../../../shared/stores/themeStore.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
-import { TheoryRecapPopupTrigger, hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/QuickTheoryRecap.jsx';
+import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
+import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/quickTheoryRecapUtils.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel } from './quizLabels.js';
 import { reviewPrimaryButtonClass, reviewSecondaryButtonClass } from '../results/ReviewWorkspace.jsx';
@@ -337,7 +338,6 @@ const examProgressBarClass = 'h-[7px] overflow-hidden rounded-full border border
 const examProgressFillClass = 'block h-full rounded-[inherit] bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] shadow-none';
 const quizFlashPanelClass = 'rounded-[22px] backdrop-blur-md max-[600px]:rounded-[18px]';
 const quizFlashQuestionCopyClass = 'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[16px] max-[640px]:leading-[1.6]';
-const quizFlashFooterButtonClass = 'rounded-xl';
 const examQuestionStartAnchorClass = 'scroll-mt-4';
 const examQuestionNavClass =
   'lms-exam-question-nav grid grid-cols-4 gap-2 min-[381px]:grid-cols-5 min-[701px]:grid-cols-6 min-[1024px]:grid-cols-8 min-[1200px]:grid-cols-[repeat(auto-fill,minmax(44px,1fr))]';
@@ -368,8 +368,6 @@ const quizReviewRecapActionClass = 'lms-study-recap-action flex justify-start';
 const quizReviewStudyListClass = 'm-0 grid list-none gap-2 p-0';
 const quizReviewStudyCardClass =
   'lms-key-points-card relative grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-[color-mix(in_srgb,#8b5cf6_20%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_7%,var(--surface-1))_0%,var(--surface-1)_72%)] px-4 py-3.5 shadow-[var(--ds-card-shadow)] transition-[background,border-color] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,#8b5cf6_28%,var(--line-soft))] [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[var(--ds-card-radius-inner)] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]';
-const practiceKeyPointsClass = 'lms-quiz-key-points-card grid gap-2.5 rounded-[14px] border border-[color-mix(in_srgb,#8b5cf6_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_5%,var(--surface-1))_0%,var(--surface-1)_74%)] p-4 shadow-none';
-const practiceKeyPointClass = 'lms-reading-incorrect rounded-[12px] border border-[color-mix(in_srgb,var(--color-primary)_12%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_4%,var(--surface-2))] px-3 py-2 text-left text-[14.5px] font-medium leading-[1.62] text-ink-strong';
 const examAnswerListClass = 'lms-review-options-grid grid gap-2.5';
 const examTfActionsClass = 'flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start';
 const examTfToggleClass =
@@ -380,8 +378,6 @@ const examMainFooterClass = 'lms-exam-main-footer grid gap-3 rounded-[18px] bord
 const examMainFooterActionsClass = 'lms-exam-footer-actions grid grid-cols-[minmax(112px,0.72fr)_minmax(132px,0.86fr)] items-center justify-between gap-2.5 max-[900px]:grid-cols-2';
 const examMainFooterLeftClass = 'flex min-w-0 items-center justify-start gap-2';
 const examMainFooterRightClass = 'flex min-w-0 items-center justify-end gap-2';
-const examFooterIconButtonClass =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-3.5 text-sm font-bold text-[var(--exam-footer-btn-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,var(--color-warning)_28%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-warning)_6%,var(--surface-1))] active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-55';
 const examFooterFlagActiveClass = 'border-orange-500/30 bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200';
 const examFooterNextClass = 'border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary';
 const examModeFooterClass =
@@ -416,7 +412,6 @@ const quizUnifiedAnswerSelectedClass =
 const quizReviewOptionToplineClass = 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start';
 const quizReviewOptionLeadClass = 'flex min-w-0 flex-auto items-start gap-2';
 const quizReviewOptionTextClass = 'lms-reading-answer m-0 min-w-0 flex-auto whitespace-pre-line text-left text-[15.5px] font-medium leading-[1.52] text-ink-strong max-[640px]:text-[15.5px] max-[640px]:leading-[1.5]';
-const quizReviewOptionLabelsClass = 'flex flex-wrap justify-end gap-1.5 max-[640px]:justify-start';
 const quizReviewChipToneClass = {
   correct: 'border-[color-mix(in_srgb,var(--color-success)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_12%,var(--surface-2))] text-brand-success',
   wrong: 'border-[color-mix(in_srgb,var(--color-error)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_11%,var(--surface-2))] text-brand-error',
@@ -908,7 +903,7 @@ function ExamModeHeader({
   secondaryValue,
   onEndSession,
   saving,
-  theme,
+  theme: _theme,
   workspaceLabel = 'Exam workspace',
   endLabel = 'End session',
   className = '',
@@ -1351,6 +1346,11 @@ export function TakeQuizPage() {
   const practiceDraftWriteTimerRef = useRef(null);
   const practiceDraftSaveInFlightRef = useRef(false);
   const practiceDraftSaveQueuedRef = useRef(false);
+  const persistExamProgressRef = useRef(null);
+  const persistPracticeDraftToDatabaseRef = useRef(null);
+  const writeCurrentExamRecoveryDraftRef = useRef(null);
+  const writePracticeRecoveryDraftRef = useRef(null);
+  const handleSubmitRef = useRef(null);
 
   useEffect(() => {
     async function load() {
@@ -1504,8 +1504,6 @@ export function TakeQuizPage() {
   const shouldBlockQuizExit = Boolean(data && !loading && !isSingleQuestionPractice && !practiceReadyForReview && !hasAutoSubmitted);
   const quizExitBlocker = useBlocker(shouldBlockQuizExit);
 
-  const examDurationSeconds = isExam ? Math.max(Number(data?.quiz?.timeLimit || 0) * 60, 0) : 0;
-
   useEffect(() => {
     const platform = detectPlatform();
     if (!platform.isNative || !platform.isAndroid || !shouldBlockQuizExit || typeof window === 'undefined' || typeof document === 'undefined') {
@@ -1515,9 +1513,9 @@ export function TakeQuizPage() {
     document.documentElement.dataset.lmsNativeBackGuard = 'quiz';
 
     function handleAndroidBack() {
-      writeCurrentExamRecoveryDraft(currentIndex);
+      writeCurrentExamRecoveryDraftRef.current?.(currentIndex);
       if (isExam) {
-        void persistExamProgress({ nextIndex: currentIndex, silent: true });
+        void persistExamProgressRef.current?.({ nextIndex: currentIndex, silent: true });
       }
     }
 
@@ -1556,11 +1554,11 @@ export function TakeQuizPage() {
 
     if (shouldLeave) {
       if (!isExam && data?.mode === 'practice' && !isSingleQuestionPractice && !practiceReadyForReview) {
-        void persistPracticeDraftToDatabase({
+        void Promise.resolve(persistPracticeDraftToDatabaseRef.current?.({
           nextIndex: currentIndex,
           silent: true,
           clearLocalOnSuccess: true,
-        }).finally(() => {
+        })).finally(() => {
           quizExitBlocker.proceed();
         });
         return;
@@ -1592,18 +1590,20 @@ export function TakeQuizPage() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [currentIndex, currentQuestion?.id, data, isExam]);
+  }, [currentIndex, currentQuestion, data, isExam]);
+
+  const examSession = data?.examSession;
 
   useEffect(() => {
-    if (!isExam || !data?.examSession?.deadlineAt) return undefined;
+    if (!isExam || !examSession?.deadlineAt) return undefined;
 
     const timer = window.setInterval(() => {
-      setSecondsRemaining(getExamSecondsRemaining(data.examSession, examClockRef));
+      setSecondsRemaining(getExamSecondsRemaining(examSession, examClockRef));
     }, 1000);
 
-    setSecondsRemaining(getExamSecondsRemaining(data.examSession, examClockRef));
+    setSecondsRemaining(getExamSecondsRemaining(examSession, examClockRef));
     return () => window.clearInterval(timer);
-  }, [data?.examSession?.deadlineAt, isExam]);
+  }, [examSession, isExam]);
 
   function updateSba(questionId, optionId) {
     setError('');
@@ -1885,6 +1885,12 @@ export function TakeQuizPage() {
     }
   }
 
+  persistExamProgressRef.current = persistExamProgress;
+  persistPracticeDraftToDatabaseRef.current = persistPracticeDraftToDatabase;
+  writeCurrentExamRecoveryDraftRef.current = writeCurrentExamRecoveryDraft;
+  writePracticeRecoveryDraftRef.current = writePracticeRecoveryDraft;
+  handleSubmitRef.current = handleSubmit;
+
   function requestExamSubmit() {
     if (saving) return;
     setConfirmExamSubmitOpen(true);
@@ -1893,7 +1899,7 @@ export function TakeQuizPage() {
   useEffect(() => {
     if (!isExam || secondsRemaining !== 0 || saving || hasAutoSubmitted) return;
     setHasAutoSubmitted(true);
-    handleSubmit();
+    handleSubmitRef.current?.();
   }, [isExam, secondsRemaining, saving, hasAutoSubmitted]);
 
   function toggleFlagCurrentQuestion() {
@@ -2043,7 +2049,7 @@ export function TakeQuizPage() {
     }
 
     practiceDraftWriteTimerRef.current = window.setTimeout(() => {
-      writePracticeRecoveryDraft(currentIndex);
+      writePracticeRecoveryDraftRef.current?.(currentIndex);
     }, 220);
 
     return () => {
@@ -2060,15 +2066,15 @@ export function TakeQuizPage() {
     }
 
     const saveForPauseOrExit = () => {
-      writePracticeRecoveryDraft(currentIndex);
-      void persistPracticeDraftToDatabase({
+      writePracticeRecoveryDraftRef.current?.(currentIndex);
+      void persistPracticeDraftToDatabaseRef.current?.({
         nextIndex: currentIndex,
         silent: true,
         clearLocalOnSuccess: true,
       });
     };
     const saveLocalOnly = () => {
-      writePracticeRecoveryDraft(currentIndex);
+      writePracticeRecoveryDraftRef.current?.(currentIndex);
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -2099,7 +2105,7 @@ export function TakeQuizPage() {
     }
 
     examAutosaveTimerRef.current = window.setTimeout(() => {
-      void persistExamProgress({ nextIndex: currentIndex });
+      void persistExamProgressRef.current?.({ nextIndex: currentIndex });
     }, 650);
 
     return () => {
@@ -2116,11 +2122,11 @@ export function TakeQuizPage() {
     }
 
     const saveForPauseOrNetworkChange = () => {
-      writeCurrentExamRecoveryDraft(currentIndex);
-      void persistExamProgress({ nextIndex: currentIndex, silent: true });
+      writeCurrentExamRecoveryDraftRef.current?.(currentIndex);
+      void persistExamProgressRef.current?.({ nextIndex: currentIndex, silent: true });
     };
     const saveLocalDraftOnly = () => {
-      writeCurrentExamRecoveryDraft(currentIndex);
+      writeCurrentExamRecoveryDraftRef.current?.(currentIndex);
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {

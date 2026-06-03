@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { usePlatform, usePlatformComponent } from '../platform/PlatformProvider.jsx';
+import { usePlatform, usePlatformComponent } from '../platform/PlatformContext.js';
 import { NativeHeaderInstallAction } from '../platform/native/HeaderInstallAction.jsx';
 
 const WebHeaderInstallAction = lazy(() =>

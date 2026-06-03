@@ -5,22 +5,18 @@ import { AppRouteError } from './AppRouteError.jsx';
 import { AppErrorBoundary } from './AppErrorBoundary.jsx';
 import { AppFrame } from './AppFrame.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { isStaffUser, roleRouteMode, userHasPermissions } from '../shared/auth/roleAccess.js';
-import { shouldPreloadRoutes } from '../shared/utils/performanceProfile.js';
+import { isStaffUser, userHasPermissions } from '../shared/auth/roleAccess.js';
 import { detectPlatform } from '../shared/platform/detect.js';
 import { getRouterBasename, normalizeLegacyBuildPath } from '../shared/platform/config.js';
+import { XyndromeLogoMark } from '../shared/brand/XyndromeBrand.jsx';
+import { configureRoutePreloaders } from './routePreloading.js';
 
 const PLATFORM = detectPlatform();
 const ROUTER_BASENAME = getRouterBasename(PLATFORM);
-const ROUTE_FALLBACK_DELAY_MS = 260;
+const ROUTE_FALLBACK_DELAY_MS = 220;
 const routeUi = {
   screenShell:
     'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5',
-  routeSkeleton: 'route-skeleton',
-  routeSkeletonTop: 'route-skeleton__top',
-  routeSkeletonGrid: 'route-skeleton__grid',
-  routeSkeletonCard: 'route-skeleton__card',
-  shimmer: 'skeleton-pulse',
 };
 
 normalizeLegacyBuildPath(PLATFORM);
@@ -141,40 +137,15 @@ function dynamicRoutePreloader(path) {
   return null;
 }
 
-export function preloadRouteByPath(path, role = useAuthStore.getState().user?.role) {
-  if (!path || !shouldPreloadRoutes()) {
-    return;
-  }
-
-  const cleanPath = path.replace(/^\/(?:admin|app|student)(?=\/|$)/, '') || '/dashboard';
-  const preloadRole = roleRouteMode(role);
-  const preload =
-    dynamicRoutePreloader(cleanPath) ||
-    roleRoutePreloaders[preloadRole]?.get(cleanPath) ||
-    commonRoutePreloaders.get(cleanPath);
-  if (typeof preload === 'function') {
-    preload().catch(() => {});
-  }
-}
+configureRoutePreloaders({ commonRoutePreloaders, roleRoutePreloaders, dynamicRoutePreloader });
 
 function RouteFallback() {
   return (
     <main className={routeUi.screenShell} aria-busy="true">
-      <div className={routeUi.routeSkeleton}>
-        <div className={routeUi.routeSkeletonTop}>
-          <span className={routeUi.shimmer} />
-          <span className={routeUi.shimmer} />
-          <span className={routeUi.shimmer} />
-        </div>
-        <div className={routeUi.routeSkeletonGrid}>
-          {[1, 2, 3].map((item) => (
-            <div className={routeUi.routeSkeletonCard} key={item}>
-              <span className={routeUi.shimmer} />
-              <span className={routeUi.shimmer} />
-              <span className={routeUi.shimmer} />
-            </div>
-          ))}
-        </div>
+      <div className="grid min-h-[42dvh] place-items-center">
+        <span className="skeleton-pulse grid size-16 place-items-center rounded-full bg-surface-card shadow-[var(--ds-card-shadow)]">
+          <XyndromeLogoMark size={44} />
+        </span>
       </div>
     </main>
   );
@@ -580,7 +551,7 @@ const studentPanelRoutes = [
   },
 ];
 
-export const router = createBrowserRouter([
+const router = createBrowserRouter([
   {
     path: '/',
     element: <AppFrame />,
@@ -713,7 +684,11 @@ export const router = createBrowserRouter([
         children: studentPanelRoutes,
       },
       {
-        element: withLayoutSuspense(<PanelLayout />),
+        element: withLayoutSuspense(
+          <ProtectedRoute allowPending>
+            <PanelLayout />
+          </ProtectedRoute>
+        ),
         children: [
           {
             path: 'dashboard',

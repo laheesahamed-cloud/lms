@@ -17,9 +17,9 @@ const statusCopy = {
   server: {
     accent: '#1f9d76',
     icon: 'stethoscope',
-    label: 'Quick pause',
-    title: 'Quick pause.',
-    message: 'Please wait.',
+    label: 'Server check',
+    title: 'Server not responding.',
+    message: 'Trying to reconnect.',
   },
   offline: {
     accent: '#2563eb',

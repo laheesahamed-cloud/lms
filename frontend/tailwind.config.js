@@ -91,7 +91,7 @@ export default {
       },
       keyframes: {
         routeFade: {
-          from: { opacity: '0', transform: 'translateY(8px)' },
+          from: { opacity: '0.82', transform: 'translateY(8px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
         authRouteFade: {
@@ -99,7 +99,7 @@ export default {
           to: { opacity: '1', transform: 'translateY(0)' },
         },
         panelRouteFade: {
-          from: { opacity: '0', transform: 'translateY(8px)' },
+          from: { opacity: '0.84', transform: 'translateY(8px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
         fadePop: {

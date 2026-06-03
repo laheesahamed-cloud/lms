@@ -2367,7 +2367,7 @@ function getVideoCaptionUrl(note) {
 }
 function BackIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M9.5 3.5l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 // ── Main page ─────────────────────────────────────────────────────────────────
-export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabel='Lessons' }) {
+export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Lesson', backLabel: _backLabel='Lessons' }) {
   const { id, lessonId } = useParams();
   const navigate  = useNavigate();
   const location  = useLocation();
@@ -2759,7 +2759,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle='Lesson', backLabe
   const pages = localData?.pages || EMPTY_CANVAS_PAGES;
   const studentCanvasData = useMemo(
     () => mergeStudentCanvasPages(pages, note || {}),
-    [pages, note?.courseTitle, note?.lessonTitle, note?.title]
+    [pages, note]
   );
 
   if (loading) return (

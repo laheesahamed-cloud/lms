@@ -43,7 +43,15 @@ export function createTimedApiCache({ ttlMs = 15000, key = () => 'default', load
         return data;
       })
       .catch((error) => {
-        entries.delete(cacheKey);
+        if (current?.data !== undefined && requestEpoch === timedApiCacheEpoch) {
+          entries.set(cacheKey, {
+            data: current.data,
+            timestamp: current.timestamp || 0,
+            promise: null,
+          });
+        } else {
+          entries.delete(cacheKey);
+        }
         throw error;
       });
 
@@ -56,7 +64,13 @@ export function createTimedApiCache({ ttlMs = 15000, key = () => 'default', load
     return promise;
   }
 
+  function peek(...args) {
+    const cacheKey = String(key(...args));
+    const current = entries.get(cacheKey);
+    return current?.data;
+  }
+
   timedApiCacheClearers.add(clear);
 
-  return { clear, get };
+  return { clear, get, peek };
 }

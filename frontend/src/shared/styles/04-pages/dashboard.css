@@ -220,8 +220,7 @@
 .study-card,
 .study-continue-card,
 .study-action-card,
-.study-error-card,
-.study-loading-card {
+.study-error-card {
   border: 0;
   border-radius: 20px;
   background: var(--sa-surface);
@@ -231,11 +230,9 @@
 :root[data-theme="dark"] .study-card,
 :root[data-theme="dark"] .study-action-card,
 :root[data-theme="dark"] .study-error-card,
-:root[data-theme="dark"] .study-loading-card,
 .student-app-shell[data-theme="dark"] .study-card,
 .student-app-shell[data-theme="dark"] .study-action-card,
-.student-app-shell[data-theme="dark"] .study-error-card,
-.student-app-shell[data-theme="dark"] .study-loading-card {
+.student-app-shell[data-theme="dark"] .study-error-card {
   border-color: transparent;
   background:
     linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.98)),
@@ -1822,8 +1819,7 @@
 }
 
 /* ============================================================
-   CARD HEAD — used by DailyQuestionCard (hidden there) and
-   TopicList when rendered.
+   CARD HEAD — used by DailyQuestionCard.
    ============================================================ */
 .study-card__head {
   display: flex;
@@ -2234,9 +2230,8 @@
 }
 
 /* ============================================================
-   LOADING / ERROR STATES
+   ERROR STATE
    ============================================================ */
-.study-loading-card,
 .study-error-card {
   display: grid;
   min-height: 300px;
@@ -2292,7 +2287,6 @@
 .study-answer-option:active,
 .study-plan-row:active,
 .study-course-row:active,
-.study-topic-row:active,
 .study-upcoming-row:active,
 .study-streak-link:active,
 .study-question-toggle:active {
@@ -2670,7 +2664,7 @@
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
-/* Dashboard cards — no per-card animation; the route-level fade handles entrance */
+/* Dashboard sections use one calm entrance; no extra stagger during load. */
 .study-hub-shell > .study-continue-card,
 .study-hub-shell > .study-streak-card,
 .study-hub-shell > .study-readiness-stack,
@@ -2683,9 +2677,19 @@
 
 /* Topbar fades in without lift so it doesn't feel jumpy */
 @keyframes study-fade-in {
-  from { opacity: 0; }
+  from { opacity: 0.88; }
   to   { opacity: 1; }
 }
+
+.study-dashboard-loading .skeleton-pulse {
+  animation-duration: 2.2s;
+  animation-delay: var(--lms-panel-route-duration, 300ms);
+}
+
+.study-hub-shell--ready > :where(:not(.study-hub-topbar)) {
+  animation: study-fade-up var(--lms-card-enter-duration, 300ms) var(--lms-motion-ease-out, ease-out) both;
+}
+
 .study-hub-shell > .study-hub-topbar {
   animation: study-fade-in var(--lms-card-enter-duration, 220ms) var(--lms-motion-ease-out, ease-out) both;
 }

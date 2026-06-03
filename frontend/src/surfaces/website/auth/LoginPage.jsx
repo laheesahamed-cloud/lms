@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../../shared/api/client.js';
 import { fetchPublicSettings } from '../../../shared/api/settings.api.js';
@@ -12,6 +12,7 @@ import { requestSpaNavigation } from '../../../shared/routing/spaNavigation.js';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../shared/utils/routeForwarding.js';
 import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
+import { preloadRouteByPath } from '../../../app/routePreloading.js';
 
 /* ── Animation keyframes ─────────────────────────────────────────────────────── */
 const ANIM_CSS = `
@@ -114,16 +115,6 @@ const ANIM_CSS = `
     100%{ stroke-dashoffset:760;opacity:0    }
   }
   @keyframes lmsMeter      { from{transform:scaleX(0)} to{transform:scaleX(1)} }
-  @keyframes lmsLoginRing  { to{transform:rotate(360deg)} }
-  @keyframes lmsLoginCheck { from{stroke-dashoffset:42;opacity:0} to{stroke-dashoffset:0;opacity:1} }
-  @keyframes lmsOverlayIn  { from{opacity:0} to{opacity:1} }
-  @keyframes lmsPortalHold { from{opacity:0;transform:scale(.985)} to{opacity:1;transform:scale(1)} }
-  @keyframes lmsPortalZoom {
-    0%  { opacity:1; transform:scale(1);  border-radius:12px  }
-    68% { opacity:1; transform:scale(44); border-radius:999px }
-    100%{ opacity:1; transform:scale(62); border-radius:999px }
-  }
-  @keyframes lmsPortalOut { from{opacity:1;transform:scale(1)} to{opacity:0;transform:scale(.96)} }
   @keyframes lmsGlowPulse { 0%,100%{opacity:.45} 50%{opacity:.8} }
   @keyframes lmsCrossPulse{ 0%,100%{opacity:.7;filter:drop-shadow(0 0 8px rgba(34,211,238,.3))} 50%{opacity:1;filter:drop-shadow(0 0 20px rgba(34,211,238,.65))} }
   @keyframes lmsGoogleMobileIn {
@@ -339,12 +330,6 @@ const ANIM_CSS = `
     }
   }
 
-  .lms-login-overlay { animation:lmsOverlayIn 160ms var(--ease-os) both; }
-  .lms-login-portal  { animation:lmsPortalHold 120ms var(--ease-os) both; transform-origin:center; }
-  .lms-login-portal.is-success { animation:lmsPortalZoom 560ms cubic-bezier(.23,1,.32,1) both; }
-  .lms-login-portal.is-success .lms-portal-content { animation:lmsPortalOut 150ms ease both; }
-  .lms-login-ring  { animation:lmsLoginRing 780ms linear infinite; }
-  .lms-login-check { stroke-dasharray:42; animation:lmsLoginCheck 260ms var(--ease-os) 90ms both; }
   .lms-tab-link    { transition:background 150ms var(--ease-os), color 150ms ease; }
   .lms-field-wrap:focus-within .lms-field-label { color:#2563eb; transition:color 180ms ease; }
   :root:not([data-theme='dark']) .lms-auth-form-panel {
@@ -548,8 +533,8 @@ const ANIM_CSS = `
   .lms-form-card { animation: none !important; transform: none !important; }
 
   @media (prefers-reduced-motion:reduce) {
-    .lms-float,.lms-glow-pulse,.lms-ecg,.lms-ecg-full,.lms-ecg-dot,.lms-login-ring,.lms-google-btn,.lms-google-btn::after { animation:none!important; }
-    .lms-stagger>*,.lms-brand-stagger>*,.lms-login-overlay,.lms-login-portal {
+    .lms-float,.lms-glow-pulse,.lms-ecg,.lms-ecg-full,.lms-ecg-dot,.lms-google-btn,.lms-google-btn::after { animation:none!important; }
+    .lms-stagger>*,.lms-brand-stagger>* {
       animation:lmsFade 200ms ease forwards!important; animation-delay:0ms!important;
     }
     .lms-meter-fill { animation:none!important; transform:scaleX(1)!important; }
@@ -582,59 +567,6 @@ function loadGoogleIdentityScript() {
     script.onerror = () => reject(new Error('Google sign-in could not load'));
     document.head.appendChild(script);
   });
-}
-
-/* ── Medical vitals illustration card ───────────────────────────────────────── */
-function MedVitalsCard() {
-  return (
-    <div style={{
-      borderRadius: 14, border: '1px solid rgba(255,255,255,.11)',
-      background: 'rgba(255,255,255,.055)',
-      padding: '12px 14px',
-      display: 'flex', gap: 13, alignItems: 'center',
-      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-      maxWidth: 360,
-    }}>
-      {/* Heart + ECG icon */}
-      <div style={{
-        width: 46, height: 46, borderRadius: 13, flexShrink: 0,
-        background: 'linear-gradient(135deg, rgba(251,113,133,.16), rgba(34,211,238,.14))',
-        border: '1px solid rgba(251,113,133,.28)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M12 20.5C12 20.5 3 15.5 3 9C3 6.2 5.2 4 8 4C9.7 4 11 5 12 6.3C13 5 14.3 4 16 4C18.8 4 21 6.2 21 9C21 15.5 12 20.5 12 20.5Z"
-            stroke="#FB7185" strokeWidth="1.6" strokeLinejoin="round" fill="rgba(251,113,133,.12)"/>
-        </svg>
-      </div>
-      {/* Vitals data */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize:11, fontWeight: 700, color: 'rgba(148,163,184,.65)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 7 }}>
-          Patient Vitals
-        </div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          {[
-            { label: 'HR', value: '72', unit: 'bpm', color: '#FB7185' },
-            { label: 'SpO₂', value: '98', unit: '%', color: '#34D399' },
-            { label: 'BP', value: '120/80', unit: '', color: '#60A5FA' },
-          ].map(({ label, value, unit, color }) => (
-            <div key={label}>
-              <div style={{ fontSize:11.5, color: 'rgba(148,163,184,.56)', marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color, lineHeight: 1.1 }}>
-                {value}
-                {unit && <span style={{ fontSize:11, fontWeight: 600, color: 'rgba(148,163,184,.6)', marginLeft: 1 }}>{unit}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Mini waveform */}
-      <svg width="58" height="28" viewBox="0 0 58 28" fill="none" style={{ flexShrink: 0, opacity: .72 }} aria-hidden="true">
-        <path d="M0,14 L7,14 L9,10 L12,18 L13,3 L16,27 L18,14 L27,14 L29,11 L31,14 L44,14 L46,10 L49,18 L50,3 L53,27 L55,14 L58,14"
-          stroke="#22D3EE" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </div>
-  );
 }
 
 /* ── Medical subject pills ────────────────────────────────────────────────────── */
@@ -990,39 +922,6 @@ const LoginBrand = memo(function LoginBrand() {
   );
 });
 
-/* ── Login motion overlay ─────────────────────────────────────────────────────── */
-function LoginMotionOverlay({ phase = 'loading', rect = null }) {
-  if (!rect) return null;
-  return (
-    <div className="lms-login-overlay fixed inset-0 z-[1000] bg-transparent" role="status" aria-live="polite">
-      <div
-        className={cx('lms-login-portal fixed grid place-items-center overflow-hidden text-white', phase === 'success' && 'is-success')}
-        style={{
-          left: rect.left, top: rect.top, width: rect.width, height: rect.height,
-          borderRadius: Math.max(12, rect.height / 2),
-          background: 'linear-gradient(135deg, #1D4ED8, #2563EB)',
-          boxShadow: '0 8px 32px rgba(37,99,235,.42)',
-        }}
-      >
-        <span className="lms-portal-content inline-flex items-center gap-2 whitespace-nowrap px-4 text-sm font-black">
-          {phase === 'success' ? (
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-              <path className="lms-login-check" d="M4 9.2L7.2 12.3L14 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          ) : (
-            <span
-              className="lms-login-ring"
-              style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,.35)', borderTopColor: '#fff', flexShrink: 0 }}
-              aria-hidden="true"
-            />
-          )}
-          {phase === 'success' ? 'Opening workspace' : 'Signing in...'}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 const PLATFORM = detectPlatform();
 
 function showNativeDocument() {
@@ -1087,7 +986,7 @@ export function LoginPage() {
   const fromParam = new URLSearchParams(location.search).get('from') || '';
   const requestedPath = getSafeForwardPath(fromParam);
 
-  async function completeSignIn(data, startedAt) {
+  const completeSignIn = useCallback(async (data, startedAt) => {
     clearServerNotResponding();
     try {
       window.sessionStorage.setItem('lms_recent_auth_success', String(Date.now()));
@@ -1096,6 +995,7 @@ export function LoginPage() {
     }
     const defaultHome = data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard';
     const nextPath = canonicalizeForwardPathForUser(requestedPath, data.user) || data.redirectPath || defaultHome;
+    preloadRouteByPath(nextPath, data.user?.role);
 
     const remaining = Math.max(0, 360 - (performance.now() - startedAt));
     if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
@@ -1106,7 +1006,7 @@ export function LoginPage() {
     } else {
       navigate(nextPath);
     }
-  }
+  }, [navigate, requestedPath]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -1128,7 +1028,7 @@ export function LoginPage() {
     }
   }
 
-  async function handleGoogleCode(response) {
+  const handleGoogleCode = useCallback(async (response) => {
     const error = String(response?.error || '').trim();
     const code = String(response?.code || '').trim();
     if (error || !code) {
@@ -1151,7 +1051,7 @@ export function LoginPage() {
     } catch (err) {
       setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in with Google'), success: '' });
     }
-  }
+  }, [completeSignIn, signInWithGoogleCode]);
 
   function handleGoogleButtonClick() {
     if (status.loading) return;
@@ -1266,7 +1166,7 @@ export function LoginPage() {
     return () => {
       googleCodeClientRef.current = null;
     };
-  }, [googleClientId, googleSdk]);
+  }, [googleClientId, googleSdk, handleGoogleCode]);
 
   const feedbackId = status.error ? 'login-error' : status.success ? 'login-success' : undefined;
   const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));

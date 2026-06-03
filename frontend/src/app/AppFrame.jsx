@@ -13,6 +13,7 @@ import { LaunchModePage } from '../shared/launch/LaunchModePage.jsx';
 import { hasRecentLaunchAdminUnlock } from '../shared/launch/launchUnlock.js';
 import { canNavigateBack, safeNavigateBack } from '../shared/routing/safeBack.js';
 import { installSpaNavigationHandler } from '../shared/routing/spaNavigation.js';
+import { isPublicWebsiteRoute } from '../shared/routing/publicRoutes.js';
 import { MarketingPopupAlert } from '../shared/popup/MarketingPopupAlert.jsx';
 
 const PLATFORM = detectPlatform();
@@ -499,12 +500,18 @@ export function AppFrame() {
   const availability = useAvailabilityStore((state) => state.availability);
   const availabilityHydrated = useAvailabilityStore((state) => state.hydrated);
   const secureContentActive = isSecureContentRoute(location);
+  const isPublicWebsitePage = isPublicWebsiteRoute(location.pathname);
 
   useSecureContentMode(secureContentActive);
 
   useEffect(() => {
+    if (isPublicWebsitePage) return;
     useAvailabilityStore.getState().hydrate();
-  }, []);
+  }, [isPublicWebsitePage]);
+
+  useEffect(() => {
+    window.dispatchEvent(new Event('lms:route-location-change'));
+  }, [location.pathname, location.search, location.hash]);
 
   useEffect(() => installSpaNavigationHandler(navigate), [navigate]);
 
@@ -765,7 +772,7 @@ export function AppFrame() {
     let listenerHandle = null;
     let removed = false;
 
-    function handleAndroidBack(event = {}) {
+    function handleAndroidBack(_event = {}) {
       const dialog = getTopModalDialog();
       if (dialog) {
         const dismissButton = findDialogDismissButton(dialog);
@@ -850,6 +857,8 @@ export function AppFrame() {
     location.pathname === '/register';
   const activeAuthRouteSceneClass = isAuthRoute && authRouteSceneClass;
 
+  const shouldRouteAsStaff = isStaffUser(user);
+
   useLayoutEffect(() => {
     if (isHydrating || !isAuthenticated || !user?.role) return;
     if (user.role === 'student' && user.status === 'active' && location.pathname === '/app/pending') {
@@ -864,9 +873,9 @@ export function AppFrame() {
     if (!isLegacyProtectedPath) return;
 
     const cleanPath = location.pathname === '/billing' ? '/subscriptions' : location.pathname;
-    const prefix = isStaffUser(user) ? '/admin' : '';
+    const prefix = shouldRouteAsStaff ? '/admin' : '';
     navigate(`${prefix}${cleanPath}${location.search}${location.hash}`, { replace: true });
-  }, [isAuthenticated, isHydrating, location.hash, location.pathname, location.search, navigate, user?.role, user?.status]);
+  }, [isAuthenticated, isHydrating, location.hash, location.pathname, location.search, navigate, shouldRouteAsStaff, user?.role, user?.status]);
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return;
@@ -947,7 +956,7 @@ export function AppFrame() {
   const isAdminRoute = adminRoutePattern.test(location.pathname);
   const allowAdminLogin = isAdminLoginBypass(location.pathname, location.search);
   const staffCanBypassLaunchMode = isStaffUser(user);
-  const isCheckingAvailability = !availabilityHydrated && !isLaunchPreviewRoute;
+  const isCheckingAvailability = !isPublicWebsitePage && !availabilityHydrated && !isLaunchPreviewRoute;
   const isLaunchModeForCurrentRoute =
     (availability.isMaintenance || availability.isComingSoon) &&
     !isAdminRoute;
@@ -960,6 +969,7 @@ export function AppFrame() {
   const showMaintenance =
     !isCheckingLaunchAccess &&
     availability.isMaintenance &&
+    !isPublicWebsitePage &&
     !staffCanBypassLaunchMode &&
     !isLaunchPreviewRoute &&
     !isAdminRoute &&
@@ -967,6 +977,7 @@ export function AppFrame() {
   const showComingSoon =
     !isCheckingLaunchAccess &&
     availability.isComingSoon &&
+    !isPublicWebsitePage &&
     !staffCanBypassLaunchMode &&
     !isLaunchPreviewRoute &&
     !isAdminRoute &&

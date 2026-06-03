@@ -1,9 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { applyPlatformAttributes, detectPlatform, installPlatformAttributeSync } from './detect.js';
 import { getPlatformConfig } from './config.js';
-import { selectPlatformValue } from './select.js';
-
-const PlatformContext = createContext(getPlatformConfig(applyPlatformAttributes()));
+import { PlatformContext, usePlatformComponent } from './PlatformContext.js';
 
 export function PlatformProvider({ children }) {
   const [platform, setPlatform] = useState(() => applyPlatformAttributes(detectPlatform()));
@@ -17,22 +15,6 @@ export function PlatformProvider({ children }) {
       {children}
     </PlatformContext.Provider>
   );
-}
-
-export function usePlatform() {
-  return useContext(PlatformContext);
-}
-
-export function usePlatformValue(overrides, fallback) {
-  const { platform } = usePlatform();
-  return useMemo(
-    () => selectPlatformValue(overrides, fallback, platform),
-    [fallback, overrides, platform]
-  );
-}
-
-export function usePlatformComponent(overrides, fallback) {
-  return usePlatformValue(overrides, fallback);
 }
 
 export function PlatformSlot({ components, fallback: FallbackComponent, componentProps = {} }) {

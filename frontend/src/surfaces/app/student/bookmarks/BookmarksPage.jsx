@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
+import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { StudentPageHero } from '../components/StudentPageHero.jsx';
@@ -55,16 +55,20 @@ function formatSavedDate(value) {
 
 export function BookmarksPage() {
   const navigate  = useNavigate();
-  const [items,   setItems]   = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [items,   setItems]   = useState(() => readStudyBookmarksCache() || []);
+  const [loading, setLoading] = useState(() => readStudyBookmarksCache() === undefined);
   const [error,   setError]   = useState('');
   const [filter,  setFilter]  = useState('all');
 
   useEffect(() => {
+    let cancelled = false;
     fetchStudyBookmarks()
-      .then(setItems)
-      .catch(e => setError(getErrorMessage(e, 'Unable to load bookmarks')))
-      .finally(() => setLoading(false));
+      .then((rows) => { if (!cancelled) setItems(rows); })
+      .catch(e => { if (!cancelled) setError(getErrorMessage(e, 'Unable to load bookmarks')); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleRemove(e, item) {

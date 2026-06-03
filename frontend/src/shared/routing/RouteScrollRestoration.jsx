@@ -4,7 +4,7 @@ import { useLocation, useNavigationType } from 'react-router-dom';
 const scrollPositions = new Map();
 const MAX_SAVED_SCROLL_POSITIONS = 80;
 
-export const DEFAULT_SCROLL_RESTORATION_EXCLUDED_ROUTES = [
+const DEFAULT_SCROLL_RESTORATION_EXCLUDED_ROUTES = [
   '/quiz',
   '/question',
   '/exam',

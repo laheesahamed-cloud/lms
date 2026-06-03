@@ -1,4 +1,14 @@
 import { apiClient } from './client.js';
+import { createTimedApiCache } from './cache.js';
+
+const mySubscriptionCache = createTimedApiCache({
+  ttlMs: 30_000,
+  load: () => apiClient.get('/subscriptions/me').then((response) => response.data),
+});
+
+export function clearMySubscriptionCache() {
+  mySubscriptionCache.clear();
+}
 
 export async function fetchSubscriptionAdminMeta() {
   const response = await apiClient.get('/subscriptions/admin/meta');
@@ -61,16 +71,19 @@ export async function assignSubscription(payload) {
 
 export async function requestSubscription(payload) {
   const response = await apiClient.post('/subscriptions/request', payload);
+  clearMySubscriptionCache();
   return response.data;
 }
 
 export async function initiatePayHereCheckout(payload) {
   const response = await apiClient.post('/subscriptions/payhere/initiate', payload);
+  clearMySubscriptionCache();
   return response.data;
 }
 
 export async function requestManualPayment(payload) {
   const response = await apiClient.post('/subscriptions/manual-payment/request', payload);
+  clearMySubscriptionCache();
   return response.data;
 }
 
@@ -99,7 +112,11 @@ export async function updateSubscriptionPayment(id, payload) {
   return response.data;
 }
 
-export async function fetchMySubscription() {
-  const response = await apiClient.get('/subscriptions/me');
-  return response.data;
+export async function fetchMySubscription({ force = false } = {}) {
+  if (force) clearMySubscriptionCache();
+  return mySubscriptionCache.get();
+}
+
+export function readMySubscriptionCache() {
+  return mySubscriptionCache.peek();
 }

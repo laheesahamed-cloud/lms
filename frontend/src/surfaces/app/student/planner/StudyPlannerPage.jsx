@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchStudentDashboard } from '../../../../shared/api/dashboard.api.js';
+import { fetchStudentDashboard, readStudentDashboardCache } from '../../../../shared/api/dashboard.api.js';
 import {
   createPlannerTask,
   deletePlannerTask,
   fetchPlannerAgenda,
   fetchPlannerSuggestions,
+  readPlannerAgendaCache,
   updatePlannerTask,
 } from '../../../../shared/api/workspace.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -554,8 +555,8 @@ function PlannerSection({ section, onAction, onTaskStatus, onTaskEdit, onTaskDel
 
 export function StudyPlannerPage() {
   const navigate = useNavigate();
-  const [agenda, setAgenda] = useState(() => normalizeAgenda(null));
-  const [dashboard, setDashboard] = useState(null);
+  const [agenda, setAgenda] = useState(() => normalizeAgenda(readPlannerAgendaCache()));
+  const [dashboard, setDashboard] = useState(() => readStudentDashboardCache() || null);
   const [flashcardItem, setFlashcardItem] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [view, setView] = useState('agenda');
@@ -563,22 +564,23 @@ export function StudyPlannerPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => readPlannerAgendaCache() === undefined);
   const [saving, setSaving] = useState('');
   const [message, setMessage] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [taskForm, setTaskForm] = useState(() => emptyTaskForm());
 
   async function loadPlanner() {
-    setLoading(true);
+    setLoading(readPlannerAgendaCache() === undefined);
     setMessage('');
     try {
-      const [agendaData, dashboardData, suggestionData] = await Promise.all([
-        fetchPlannerAgenda(),
+      const agendaData = await fetchPlannerAgenda();
+      setAgenda(normalizeAgenda(agendaData));
+      setLoading(false);
+      const [dashboardData, suggestionData] = await Promise.all([
         fetchStudentDashboard().catch(() => null),
         fetchPlannerSuggestions().catch(() => []),
       ]);
-      setAgenda(normalizeAgenda(agendaData));
       setDashboard(dashboardData);
       setSuggestions(normalizeSuggestions(suggestionData));
       setFlashcardItem(flashcardDueItem());
@@ -586,7 +588,6 @@ export function StudyPlannerPage() {
       setAgenda(normalizeAgenda(null));
       setSuggestions([]);
       setMessage('Planner data could not be loaded right now.');
-    } finally {
       setLoading(false);
     }
   }

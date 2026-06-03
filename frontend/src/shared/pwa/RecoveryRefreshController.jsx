@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { API_BASE_URL } from '../api/client.js';
 import { clearServerNotResponding, getServerNotRespondingState, subscribeToServerStatus } from '../stores/serverStatusStore.js';
+import { isPublicWebsiteRoute } from '../routing/publicRoutes.js';
 
 const HEALTH_CHECK_INTERVAL_MS = 2200;
 
@@ -10,7 +11,8 @@ function isNoAutoRefreshRoute() {
   }
 
   const routeText = `${window.location.pathname || ''}${window.location.hash || ''}`;
-  return /\/ai-notes(?:\/|$)/.test(routeText) ||
+  return isPublicWebsiteRoute(window.location.pathname || '/') ||
+    /\/ai-notes(?:\/|$)/.test(routeText) ||
     /\/(?:auth\/)?(?:login|register)(?:\/|$)/.test(routeText) ||
     /\/auth\/(?:forgot-password|reset-password)(?:\/|$)/.test(routeText);
 }
@@ -68,6 +70,24 @@ export function RecoveryRefreshController() {
     return () => {
       window.removeEventListener('online', handleOnlineStatus);
       window.removeEventListener('offline', handleOnlineStatus);
+    };
+  }, []);
+
+  useEffect(() => {
+    function syncRouteState() {
+      if (isNoAutoRefreshRoute()) {
+        clearServerNotResponding();
+        recoveryNeededRef.current = false;
+      }
+    }
+
+    window.addEventListener('popstate', syncRouteState);
+    window.addEventListener('lms:route-location-change', syncRouteState);
+    syncRouteState();
+
+    return () => {
+      window.removeEventListener('popstate', syncRouteState);
+      window.removeEventListener('lms:route-location-change', syncRouteState);
     };
   }, []);
 

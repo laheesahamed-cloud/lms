@@ -317,10 +317,6 @@ function hasBlockMedicalContent(value) {
   return lines.some((line, index) => isTableStart(lines, index)) || lines.some((line) => /^\s*\[\^[^\]]+\]:/.test(line));
 }
 
-export const medicalTextTestHooks = {
-  hasBlockMedicalContent,
-};
-
 export function MedicalText({
   as: Component = 'span',
   text,

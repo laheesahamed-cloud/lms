@@ -254,27 +254,27 @@ html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .l
 }
 
 @keyframes nativeRouteFade {
-  from { opacity: 1; transform: translate3d(0, 8px, 0); }
+  from { opacity: 0.84; transform: translate3d(0, 8px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @keyframes nativePanelRouteFade {
-  from { opacity: 1; transform: translate3d(0, 6px, 0); }
+  from { opacity: 0.86; transform: translate3d(0, 7px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @keyframes nativeFadePop {
-  from { opacity: 1; transform: translate3d(0, 7px, 0) scale(0.985); }
+  from { opacity: 0; transform: translate3d(0, 7px, 0) scale(0.985); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
 @keyframes nativeScaleIn {
-  from { opacity: 1; transform: translate3d(0, 4px, 0) scale(0.985); }
+  from { opacity: 0; transform: translate3d(0, 4px, 0) scale(0.985); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
 @keyframes nativeDropdownIn {
-  from { opacity: 1; transform: translate3d(0, -4px, 0) scale(0.985); }
+  from { opacity: 0; transform: translate3d(0, -4px, 0) scale(0.985); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
@@ -286,15 +286,14 @@ html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .l
 html[data-lms-runtime="native"][data-visual-effects] .animate-routeFade,
 html[data-lms-runtime="native"][data-low-spec] .animate-routeFade,
 html[data-lms-runtime="native"] .animate-routeFade {
-  animation: nativeRouteFade 0.22s var(--lms-native-motion-enter) both !important;
+  animation: nativeRouteFade var(--lms-route-enter-duration, 300ms) var(--lms-native-motion-enter) both !important;
   animation-name: nativeRouteFade !important;
-  animation-duration: 0.22s !important;
+  animation-duration: var(--lms-route-enter-duration, 300ms) !important;
   animation-timing-function: var(--lms-native-motion-enter) !important;
   animation-fill-mode: both !important;
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
   transition-duration: 160ms !important;
-  opacity: 1 !important;
   will-change: auto;
 }
 
@@ -304,15 +303,14 @@ html[data-lms-runtime="native"][data-low-spec] .animate-panelRouteFade,
 html[data-lms-runtime="native"][data-low-spec] body.app-ready .lms-route-reveal.animate-panelRouteFade,
 html[data-lms-runtime="native"] .animate-panelRouteFade,
 html[data-lms-runtime="native"] body.app-ready .lms-route-reveal.animate-panelRouteFade {
-  animation: nativePanelRouteFade 0.20s var(--lms-native-motion-enter) both !important;
+  animation: nativePanelRouteFade var(--lms-panel-route-duration, 300ms) var(--lms-native-motion-enter) both !important;
   animation-name: nativePanelRouteFade !important;
-  animation-duration: 0.20s !important;
+  animation-duration: var(--lms-panel-route-duration, 300ms) !important;
   animation-timing-function: var(--lms-native-motion-enter) !important;
   animation-fill-mode: both !important;
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
   transition-duration: 150ms !important;
-  opacity: 1 !important;
   will-change: auto;
 }
 
@@ -327,7 +325,6 @@ html[data-lms-runtime="native"] .animate-fadePop {
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
   transition-duration: 150ms !important;
-  opacity: 1 !important;
   will-change: auto;
 }
 
@@ -342,7 +339,6 @@ html[data-lms-runtime="native"] .animate-scaleIn {
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
   transition-duration: 140ms !important;
-  opacity: 1 !important;
   will-change: auto;
 }
 
@@ -357,7 +353,6 @@ html[data-lms-runtime="native"] .animate-dropdownIn {
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
   transition-duration: 140ms !important;
-  opacity: 1 !important;
   will-change: auto;
 }
 

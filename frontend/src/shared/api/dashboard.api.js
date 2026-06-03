@@ -15,6 +15,8 @@ export const fetchAdminDashboard = () => adminDashboardCache.get();
 
 export const fetchStudentDashboard = () => studentDashboardCache.get();
 
+export const readStudentDashboardCache = () => studentDashboardCache.peek();
+
 export function clearDashboardCache() {
   adminDashboardCache.clear();
   studentDashboardCache.clear();

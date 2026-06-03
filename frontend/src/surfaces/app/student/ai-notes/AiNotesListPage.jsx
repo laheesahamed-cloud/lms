@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { listAiNotes } from '../../../../shared/api/aiNotes.api.js';
-import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
+import { listAiNotes, readAiNotesCache } from '../../../../shared/api/aiNotes.api.js';
+import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
@@ -98,10 +98,6 @@ function buildHierarchy(notes) {
     .map(([, v]) => v);
 }
 
-function fmtDate(iso) {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
 // ── Icons ─────────────────────────────────────────────────────────────────────
 function CourseIcon() {
   return <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3.5 5.5C5.5 5.5 8 6 10 7.5C12 6 14.5 5.5 16.5 5.5V16C14.5 16 12 16.5 10 18C8 16.5 5.5 16 3.5 16V5.5Z" stroke="currentColor" strokeWidth="1.55" strokeLinejoin="round"/><path d="M10 7.5V18" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>;
@@ -121,18 +117,8 @@ function CheckIcon() {
 function SaveIcon() {
   return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.6C4.5 2.85 5.1 2.25 5.85 2.25h4.3c.75 0 1.35.6 1.35 1.35v10.15L8 11.65l-3.5 2.1V3.6Z" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
-function LockIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M4.5 7V5.6C4.5 3.7 6 2.25 8 2.25S11.5 3.7 11.5 5.6V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <rect x="3.25" y="7" width="9.5" height="6.25" rx="1.6" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M8 9.3v1.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 // ── Course card (hub view) ────────────────────────────────────────────────────
-function CourseCard({ course, onClick, isDark }) {
+function CourseCard({ course, onClick }) {
   const subjects = [...course.subjects.values()];
   const count = subjects.reduce((n, s) => n + s.notes.length, 0);
 
@@ -340,13 +326,15 @@ export function AiNotesListPage({
   engineKey = 'gemini',
   routeBase = '/ai-notes',
   headerTitle = 'Lessons',
-  defaultSubtitle = 'Illustrated clinical lessons for focused revision.',
+  defaultSubtitle: _defaultSubtitle = 'Illustrated clinical lessons for focused revision.',
 }) {
   const isDark = useDark();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [notes, setNotes] = useState([]);
-  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
-  const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState(() => readAiNotesCache({ engine: engineKey }) || []);
+  const [bookmarkedIds, setBookmarkedIds] = useState(() => new Set(
+    (readStudyBookmarksCache() || []).filter(b => b.itemType === 'ai_note').map(b => b.itemId)
+  ));
+  const [loading, setLoading] = useState(() => readAiNotesCache({ engine: engineKey }) === undefined);
   const [error, setError] = useState('');
   const selectedCourse = searchParams.get('course');
 
@@ -355,7 +343,7 @@ export function AiNotesListPage({
     let cancelBookmarks = () => {};
     async function load() {
     try {
-      setLoading(true); setError('');
+      setLoading(readAiNotesCache({ engine: engineKey }) === undefined); setError('');
       const noteRows = await listAiNotes({ engine: engineKey });
       if (cancelled) return;
       setNotes(noteRows);
@@ -472,7 +460,7 @@ export function AiNotesListPage({
               </div>
               <div className="student-lessons-course-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
                 {hierarchy.map((course, i) => (
-                  <CourseCard key={i} course={course} isDark={isDark} onClick={() => selectCourse(course.label)} />
+                  <CourseCard key={i} course={course} onClick={() => selectCourse(course.label)} />
                 ))}
               </div>
             </section>

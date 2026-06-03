@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { fetchPublicSettings } from '../api/settings.api.js';
@@ -130,6 +130,11 @@ export function MarketingPopupAlert({ suppressed = false }) {
     dismissedKey !== dismissKey &&
     !readDismissed(dismissKey);
 
+  const closePopup = useCallback(() => {
+    writeDismissed(dismissKey);
+    setDismissedKey(dismissKey);
+  }, [dismissKey]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -205,12 +210,7 @@ export function MarketingPopupAlert({ suppressed = false }) {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [shouldOpen, dismissKey]);
-
-  function closePopup() {
-    writeDismissed(dismissKey);
-    setDismissedKey(dismissKey);
-  }
+  }, [shouldOpen, closePopup]);
 
   if (!shouldOpen || typeof document === 'undefined') {
     return null;

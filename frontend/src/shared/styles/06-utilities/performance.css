@@ -11,9 +11,8 @@ body.app-booting :where(.animate-spin, .animate-progressShimmer) {
   animation-play-state: paused !important;
 }
 
-body.app-booting :where(.skeleton-pulse, .shimmer) {
+body.app-booting :where(.lms-route-reveal.animate-panelRouteFade, .animate-routeFade) {
   animation-play-state: paused !important;
-  will-change: auto !important;
 }
 
 body.app-booting :where(.lms-screen-status, .lms-toast) {
@@ -112,34 +111,6 @@ html[data-motion-paused] body :where(
 }
 
 :root[data-low-spec] :where(
-  .study-hub-shell > .study-continue-card,
-  .study-hub-shell > .study-streak-card,
-  .study-hub-shell > .study-readiness-stack,
-  .study-hub-shell > .study-section-head,
-  .study-hub-shell > .study-action-grid,
-  .study-hub-shell > .study-question-card,
-  .study-hub-shell > .study-level-summary,
-  .student-app-shell :where(
-    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-    .dashboard-page.study-hub-page:is(
-      .student-courses-page,
-      .lms-course-detail-page,
-      .student-quiz-map-page,
-      .student-billing-page,
-      .student-checkout-page,
-      .student-bookmarks-page,
-      .student-notifications-page,
-      .student-flashcards-page,
-      .student-notes-page,
-      .student-results-page,
-      .study-planner-page,
-      .ai-notes-list-page
-    )
-  ) :where(.management-layout, .study-hub-shell) > :where(
-    :not(style):not(script):not(.study-hub-topbar)
-  )
-),
-:root[data-visual-effects='balanced'] :where(
   .study-hub-shell > .study-continue-card,
   .study-hub-shell > .study-streak-card,
   .study-hub-shell > .study-readiness-stack,

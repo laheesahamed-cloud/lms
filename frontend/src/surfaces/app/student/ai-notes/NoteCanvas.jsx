@@ -804,27 +804,6 @@ function EArea({ value, onChange, placeholder, className, style, minRows = 2, on
   );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   BULLET LIST
-══════════════════════════════════════════════════════════════ */
-function BulletList({ bullets, accentColor, highlightColors }) {
-  return (
-    <ul className={noteCanvasUi.bullets}>
-      {bullets.map((b, i) => {
-        const sub = b.startsWith('→ ') || b.startsWith('→');
-        return (
-          <li key={i} className={cx(noteCanvasUi.bullet, sub && noteCanvasUi.subBullet)}>
-            {sub
-              ? <span className={noteCanvasUi.subArrow} style={{ color: accentColor }}>↳</span>
-              : <span className={noteCanvasUi.bulletDot} style={{ background: accentColor }}/>}
-            <span className="min-w-0 break-words"><RichText text={sub ? b.replace(/^→\s*/, '') : b} accentColor={accentColor} highlightColors={highlightColors} highlightIndex={i}/></span>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 /* ── Checkable bullets: click to mark as studied (read mode) ── */
 function CheckableBullet({ bulletKey, text, isSub, accentColor, highlightColors, highlightIndex = 0, done, onToggle }) {
   return (
@@ -2220,7 +2199,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   const [compressing,     setCompressing]     = useState(false);
   const [fileError,       setFileError]       = useState('');
   const [draggingIndex,   setDraggingIndex]   = useState(null);
-  const [focusMode,       setFocusMode]       = useState(false);
+  const [focusMode]       = useState(false);
   const [lightboxImage,   setLightboxImage]   = useState(null);
 
   /* Hidden file inputs */

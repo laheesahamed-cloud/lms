@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { createUser, deleteUser, fetchUsers, fetchUsersSummary, updateUser, updateUserStatus } from '../../../../shared/api/users.api.js';
@@ -127,50 +127,6 @@ function UserOverviewCards({ summary, activeQuickFilter, onQuickFilter }) {
   );
 }
 
-function UserStatsCard({ summary }) {
-  return (
-    <section className={cx(ui.panelCard, 'grid gap-4')}>
-      <div>
-        <div>
-          <span className={ui.eyebrow}>User Overview</span>
-          <h2 className={ui.panelTitle}>Total Users</h2>
-        </div>
-      </div>
-
-      <div className="grid gap-1 rounded-lg border border-line-soft bg-surface-2 p-4">
-        <strong className="text-4xl font-black text-ink-strong">{summary.totalUsers}</strong>
-        <span className="text-xs font-bold uppercase tracking-[0.06em] text-ink-soft">Total Users</span>
-      </div>
-
-      <div className="h-px bg-line-soft" />
-
-      <div className="flex flex-wrap gap-2">
-        <span className={statusPill('active')}>Active {summary.activeUsers}</span>
-        <span className={statusPill('pending')}>Pending {summary.pendingUsers}</span>
-      </div>
-
-      <div className="h-px bg-line-soft" />
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex items-center gap-3 rounded-lg border border-line-soft bg-surface-2 p-3">
-          <span className="grid size-9 place-items-center rounded-md bg-brand-primary-light text-brand-primary" aria-hidden="true">👤</span>
-          <div>
-            <strong className="block text-lg font-black text-ink-strong">{summary.adminUsers}</strong>
-            <span className="text-xs font-bold text-ink-soft">Admins</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg border border-line-soft bg-surface-2 p-3">
-          <span className="grid size-9 place-items-center rounded-md bg-brand-primary-light text-brand-primary" aria-hidden="true">🎓</span>
-          <div>
-            <strong className="block text-lg font-black text-ink-strong">{summary.studentUsers}</strong>
-            <span className="text-xs font-bold text-ink-soft">Students</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export function UsersPage() {
   const navigate = useNavigate();
   const [filters, setFilters] = useState(initialFilters);
@@ -191,25 +147,11 @@ export function UsersPage() {
   const [editingUserId, setEditingUserId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    loadUsers(initialFilters);
-    loadSummary();
+  const showToast = useCallback((text, type = 'success') => {
+    setToast({ text, type });
   }, []);
 
-  useEffect(() => {
-    const filterKey = getFilterKey(filters);
-    if (filterKey === lastLoadedFilterKeyRef.current) {
-      return undefined;
-    }
-
-    const timeout = window.setTimeout(() => {
-      loadUsers(filters);
-    }, 260);
-
-    return () => window.clearTimeout(timeout);
-  }, [filters]);
-
-  async function loadUsers(nextFilters = filters) {
+  const loadUsers = useCallback(async (nextFilters = initialFilters) => {
     lastLoadedFilterKeyRef.current = getFilterKey(nextFilters);
     const requestId = usersRequestIdRef.current + 1;
     usersRequestIdRef.current = requestId;
@@ -230,16 +172,34 @@ export function UsersPage() {
         setLoading(false);
       }
     }
-  }
+  }, [showToast]);
 
-  async function loadSummary() {
+  const loadSummary = useCallback(async () => {
     try {
       const data = await fetchUsersSummary();
       setSummary(data);
     } catch {
       // Summary is supportive, not critical.
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadUsers(initialFilters);
+    loadSummary();
+  }, [loadSummary, loadUsers]);
+
+  useEffect(() => {
+    const filterKey = getFilterKey(filters);
+    if (filterKey === lastLoadedFilterKeyRef.current) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => {
+      loadUsers(filters);
+    }, 260);
+
+    return () => window.clearTimeout(timeout);
+  }, [filters, loadUsers]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -288,10 +248,6 @@ export function UsersPage() {
     setFilters(initialFilters);
     setQuickFilter('all');
     await loadUsers(initialFilters);
-  }
-
-  function showToast(text, type = 'success') {
-    setToast({ text, type });
   }
 
   useEffect(() => {

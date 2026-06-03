@@ -4,7 +4,7 @@ import { AppSidebar, MobileBottomNav, MobileTopNav } from './AppSidebar.jsx';
 import { GlobalSearch } from '../search/GlobalSearch.jsx';
 import { detectPlatform } from '../platform/detect.js';
 import { useAuthStore } from '../stores/authStore.js';
-import { preloadRouteByPath } from '../../app/router.jsx';
+import { preloadRouteByPath } from '../../app/routePreloading.js';
 import { isStaffUser, roleRouteMode } from '../auth/roleAccess.js';
 import { getRoutePreloadLimit } from '../utils/performanceProfile.js';
 import { cx } from '../styles/tailwindClasses.js';
@@ -62,11 +62,15 @@ const adminWarmRoutes = [
 const studentWarmRoutes = [
   '/dashboard',
   '/courses',
-  '/flashcards',
   '/quizzes',
-  '/exams',
   '/results',
+  '/profile',
+  '/subscriptions',
   '/ai-notes',
+  '/planner',
+  '/flashcards',
+  '/exams',
+  '/bookmarks',
 ];
 
 export function AppShell({ children, desktopSidebarToggle = false, desktopSidebarHiddenByDefault = false }) {
@@ -259,8 +263,8 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     const warm = () => {
       targets.forEach((path, index) => {
         const delay = PLATFORM.isNative
-          ? index * (PLATFORM.isPhone ? 260 : 80)
-          : index * 160;
+          ? index * (PLATFORM.isPhone ? 120 : 60)
+          : index * (PLATFORM.isPhone ? 110 : 90);
         timers.push(window.setTimeout(() => {
           warmedRouteKeysRef.current.add(`${user.role}:${path}`);
           preloadRouteByPath(path, user.role);
@@ -272,15 +276,15 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
 
     if (PLATFORM.isNative && window.__lmsBootComplete !== true) {
       const afterBoot = () => {
-        timers.push(window.setTimeout(warm, PLATFORM.isPhone ? 900 : 120));
+        timers.push(window.setTimeout(warm, PLATFORM.isPhone ? 320 : 100));
       };
       document.addEventListener('lms:boot-complete', afterBoot, { once: true });
       cleanup = () => document.removeEventListener('lms:boot-complete', afterBoot);
     } else if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(warm, { timeout: PLATFORM.isNative ? (PLATFORM.isPhone ? 1400 : 300) : 1200 });
+      const idleId = window.requestIdleCallback(warm, { timeout: PLATFORM.isNative ? (PLATFORM.isPhone ? 650 : 260) : 520 });
       cleanup = () => window.cancelIdleCallback(idleId);
     } else {
-      const timer = window.setTimeout(warm, PLATFORM.isNative ? (PLATFORM.isPhone ? 1000 : 180) : 500);
+      const timer = window.setTimeout(warm, PLATFORM.isNative ? (PLATFORM.isPhone ? 420 : 150) : 240);
       cleanup = () => window.clearTimeout(timer);
     }
 

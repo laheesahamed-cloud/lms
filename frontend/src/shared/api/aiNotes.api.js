@@ -61,6 +61,8 @@ const studentAiNotesCache = createTimedApiCache({
 
 export const listAiNotes = (options = {}) => studentAiNotesCache.get(options);
 
+export const readAiNotesCache = (options = {}) => studentAiNotesCache.peek(options);
+
 export function clearStudentAiNotesCache() {
   studentAiNotesCache.clear();
 }

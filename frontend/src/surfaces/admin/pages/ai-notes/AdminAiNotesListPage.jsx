@@ -43,7 +43,7 @@ export function AdminAiNotesListPage({
   engineKey = 'gemini',
   routeBase = '/ai-notes',
   pageTitle = 'Lessons',
-  pageSubtitle = 'Create lessons — students see active ones in their Lessons section',
+  pageSubtitle: _pageSubtitle = 'Create lessons — students see active ones in their Lessons section',
   createLabel = 'New Lesson',
 }) {
   const navigate = useNavigate();

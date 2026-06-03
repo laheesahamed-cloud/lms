@@ -420,7 +420,10 @@ function BankTransferProofPreview({ request }) {
 
     async function loadPreview() {
       try {
-        resolved = await resolveProofPreviewUrl(request);
+        resolved = await resolveProofPreviewUrl({
+          invoiceId: request?.invoiceId,
+          paymentProofDataUrl: request?.paymentProofDataUrl,
+        });
         if (!cancelled) setPreviewUrl(resolved.url);
       } catch {
         if (!cancelled) setPreviewError('Unable to preview this uploaded proof. Try downloading it or ask the student to upload it again.');

@@ -171,7 +171,7 @@ function requestNotificationPermissionSafely() {
       } else {
         finish(Notification.permission);
       }
-    } catch (error) {
+    } catch (_error) {
       finish(Notification.permission);
     }
 

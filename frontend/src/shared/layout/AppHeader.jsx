@@ -9,6 +9,7 @@ import { HeaderInstallAction } from './HeaderInstallAction.jsx';
 import { getStaffRoleLabel, isStaffUser, roleRouteMode, userHasPermission } from '../auth/roleAccess.js';
 import { cx } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
+import { preloadRouteByPath } from '../../app/routePreloading.js';
 
 const PROFILE_MENU_EXIT_MS = 180;
 const PROFILE_MENU_ID = 'lms-profile-menu';
@@ -509,7 +510,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     navigate('/auth/login');
   }
 
-  async function loadNotifications() {
+  const loadNotifications = useCallback(async () => {
     if (!user?.id || user.role !== 'student') {
       setNotifications([]);
       return;
@@ -524,7 +525,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
     } finally {
       setNotificationsLoading(false);
     }
-  }
+  }, [user?.id, user?.role]);
 
   async function handleNotificationRead(item) {
     if (!item?.id || item.read) {
@@ -565,7 +566,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
 
   useEffect(() => {
     loadNotifications();
-  }, [user?.id]);
+  }, [loadNotifications]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -736,7 +737,15 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       </div>
 
       <div className={topbarUi.dropdownSection}>
-        <button type="button" role="menuitem" className={topbarUi.menuItem} onClick={() => handleNavigate(profilePath)}>
+        <button
+          type="button"
+          role="menuitem"
+          className={topbarUi.menuItem}
+          onPointerDown={() => preloadRouteByPath(profilePath, user?.role)}
+          onTouchStart={() => preloadRouteByPath(profilePath, user?.role)}
+          onFocus={() => preloadRouteByPath(profilePath, user?.role)}
+          onClick={() => handleNavigate(profilePath)}
+        >
           <ProfileIcon />
           <span>Profile</span>
         </button>

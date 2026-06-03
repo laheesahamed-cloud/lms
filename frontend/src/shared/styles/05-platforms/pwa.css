@@ -5,9 +5,9 @@ html[data-lms-runtime="pwa"] {
 html[data-lms-runtime="pwa"][data-visual-effects] .animate-routeFade,
 html[data-lms-runtime="pwa"][data-low-spec] .animate-routeFade,
 html[data-lms-runtime="pwa"] .animate-routeFade {
-  animation: routeFade 0.28s var(--lms-platform-motion-enter) both !important;
+  animation: routeFade var(--lms-route-enter-duration, 300ms) var(--lms-platform-motion-enter) both !important;
   animation-name: routeFade !important;
-  animation-duration: 0.28s !important;
+  animation-duration: var(--lms-route-enter-duration, 300ms) !important;
   animation-timing-function: var(--lms-platform-motion-enter) !important;
   animation-fill-mode: both !important;
   animation-iteration-count: 1 !important;
@@ -16,9 +16,9 @@ html[data-lms-runtime="pwa"] .animate-routeFade {
 html[data-lms-runtime="pwa"][data-visual-effects] .animate-panelRouteFade,
 html[data-lms-runtime="pwa"][data-low-spec] .animate-panelRouteFade,
 html[data-lms-runtime="pwa"] .animate-panelRouteFade {
-  animation: panelRouteFade 0.24s var(--lms-platform-motion-enter) both !important;
+  animation: panelRouteFade var(--lms-panel-route-duration, 300ms) var(--lms-platform-motion-enter) both !important;
   animation-name: panelRouteFade !important;
-  animation-duration: 0.24s !important;
+  animation-duration: var(--lms-panel-route-duration, 300ms) !important;
   animation-timing-function: var(--lms-platform-motion-enter) !important;
   animation-fill-mode: both !important;
   animation-iteration-count: 1 !important;

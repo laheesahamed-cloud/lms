@@ -42,7 +42,7 @@ function cleanVideoUrl(value) {
 function cleanNoteDataForSave(data) {
   return {
     pages: (data?.pages || []).map(p => {
-      // eslint-disable-next-line no-unused-vars
+       
       const { illustrationData: _drop, ...clean } = p;
       if (!clean.sections) return clean;
       return {

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
-import { preloadRouteByPath } from '../../app/router.jsx';
+import { preloadRouteByPath } from '../../app/routePreloading.js';
 import { isStaffUser, roleRouteMode, userHasPermissions } from '../auth/roleAccess.js';
 import { XyndromeLogoMark } from '../brand/XyndromeBrand.jsx';
 import { cx } from '../styles/tailwindClasses.js';
@@ -305,7 +305,7 @@ const sidebarUi = {
 };
 
 /* ── Flyout panel (collapsed mode submenu) ─────────────────────── */
-function FlyoutPanel({ group, onClose }) {
+function FlyoutPanel({ group, role, onClose }) {
   const panelRef = useRef(null);
 
   useEffect(() => {
@@ -327,6 +327,9 @@ function FlyoutPanel({ group, onClose }) {
           to={child.to}
           end={isExactNavPath(child.to)}
           className={({ isActive }) => cx(sidebarUi.flyoutItem, isActive && sidebarUi.flyoutItemActive)}
+          onPointerDown={() => preloadRouteByPath(child.to, role)}
+          onTouchStart={() => preloadRouteByPath(child.to, role)}
+          onFocus={() => preloadRouteByPath(child.to, role)}
           onClick={onClose}
         >
           {child.label}
@@ -345,7 +348,7 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
 
   const itemRef = useRef(null);
 
-  function handleMouseEnter() {
+  function handlePreloadGroup() {
     item.children?.forEach((child) => preloadRouteByPath(child.to, role));
     if (isCollapsed) setFlyoutOpen(true);
   }
@@ -379,8 +382,10 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
             onToggle(item.label);
           }
         }}
-        onMouseEnter={handleMouseEnter}
-        onFocus={handleMouseEnter}
+        onPointerDown={handlePreloadGroup}
+        onTouchStart={handlePreloadGroup}
+        onMouseEnter={handlePreloadGroup}
+        onFocus={handlePreloadGroup}
         aria-expanded={isGroupOpen || flyoutOpen}
         aria-current={isActive ? 'page' : undefined}
       >
@@ -399,6 +404,8 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
               to={child.to}
               end={isExactNavPath(child.to)}
               className={({ isActive: a }) => cx(sidebarUi.submenuItem, a && sidebarUi.submenuItemActive)}
+              onPointerDown={() => preloadRouteByPath(child.to, role)}
+              onTouchStart={() => preloadRouteByPath(child.to, role)}
               onMouseEnter={() => preloadRouteByPath(child.to, role)}
               onFocus={() => preloadRouteByPath(child.to, role)}
               onClick={onClose}
@@ -412,7 +419,7 @@ function GroupNavItem({ item, index, role, isCollapsed, isGroupOpen, onToggle, o
 
       {/* Collapsed mode: flyout panel */}
       {isCollapsed && flyoutOpen && (
-        <FlyoutPanel group={item} onClose={() => setFlyoutOpen(false)} />
+        <FlyoutPanel group={item} role={role} onClose={() => setFlyoutOpen(false)} />
       )}
     </div>
   );
@@ -426,7 +433,7 @@ export function AppSidebar({
   isOverlayNav = false,
   isExamFocusMode = false,
   onClose = () => {},
-  onSearchOpen = () => {},
+  onSearchOpen: _onSearchOpen = () => {},
 }) {
   const user = useAuthStore((state) => state.user);
   const location = useLocation();
@@ -534,6 +541,8 @@ export function AppSidebar({
                 isActive && sidebarUi.linkActive,
                 isCollapsed && sidebarUi.linkCollapsed
               )}
+              onPointerDown={() => preloadRouteByPath(item.to, user?.role)}
+              onTouchStart={() => preloadRouteByPath(item.to, user?.role)}
               onMouseEnter={() => preloadRouteByPath(item.to, user?.role)}
               onFocus={() => preloadRouteByPath(item.to, user?.role)}
               onClick={onClose}
@@ -795,6 +804,7 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
                       to={child.to}
                       end={isExactNavPath(child.to)}
                       onPointerDown={() => preloadRouteByPath(child.to, role)}
+                      onTouchStart={() => preloadRouteByPath(child.to, role)}
                       onFocus={() => preloadRouteByPath(child.to, role)}
                       onClick={onClose}
                       className={({ isActive }) => cx('lms-mobile-top-nav__item is-child', isActive && 'is-active')}
@@ -814,6 +824,7 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
                 to={item.to}
                 end={isExactNavPath(item.to)}
                 onPointerDown={() => preloadRouteByPath(item.to, role)}
+                onTouchStart={() => preloadRouteByPath(item.to, role)}
                 onFocus={() => preloadRouteByPath(item.to, role)}
                 onClick={onClose}
                 className={({ isActive }) => cx('lms-mobile-top-nav__item', isActive && 'is-active')}

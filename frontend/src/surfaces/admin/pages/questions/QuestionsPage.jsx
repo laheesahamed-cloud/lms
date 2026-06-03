@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
@@ -229,12 +229,14 @@ function adminFieldsToRecap(fields) {
   };
 }
 
+const questionInitialFilters = { search: '', status: '', type: '', category: '', unclassified: '', usage: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' };
+
 export function QuestionsPage() {
   const navigate = useNavigate();
   const importInputRef = useRef(null);
   const [questions, setQuestions] = useState([]);
   const [meta, setMeta] = useState({ courses: [], subjects: [], topics: [], lessons: [], papers: [], keywordSuggestions: [] });
-  const [filters, setFilters] = useState({ search: '', status: '', type: '', category: '', unclassified: '', usage: '', keywords: '', courseId: '', subjectId: '', topicId: '', lessonId: '', paperId: '' });
+  const [filters, setFilters] = useState(questionInitialFilters);
   const [form, setForm] = useState(buildDefaultForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -258,17 +260,13 @@ export function QuestionsPage() {
   const [toast, setToast] = useState(null);
   const [error, setError] = useState('');
   const [recap, setRecap] = useState(null);
-  const [recapLoading, setRecapLoading] = useState(false);
+  const [recapLoading] = useState(false);
   const [recapSaving, setRecapSaving] = useState(false);
   const [recapGenerating, setRecapGenerating] = useState(false);
   const [whyGenerating, setWhyGenerating] = useState(false);
   const [explanationGenerating, setExplanationGenerating] = useState(false);
   const [learningContentGenerating, setLearningContentGenerating] = useState(false);
   const [recapError, setRecapError] = useState('');
-
-  useEffect(() => {
-    Promise.all([loadQuestions(), loadMeta()]);
-  }, []);
 
   useEffect(() => {
     if (!toast) {
@@ -343,7 +341,7 @@ export function QuestionsPage() {
   const selectedLinkedQuestionCount = selectedVisibleQuestions.filter((question) => Number(question.quizCount || 0) > 0).length;
   const selectedLinkedQuizCount = selectedVisibleQuestions.reduce((total, question) => total + Number(question.quizCount || 0), 0);
 
-  async function loadQuestions(nextFilters = filters) {
+  const loadQuestions = useCallback(async (nextFilters = questionInitialFilters) => {
     setLoading(true);
 
     try {
@@ -360,7 +358,7 @@ export function QuestionsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   function resetComposer() {
     setModalOpen(false);
@@ -375,14 +373,18 @@ export function QuestionsPage() {
     setToast({ text, type });
   }
 
-  async function loadMeta() {
+  const loadMeta = useCallback(async () => {
     try {
       const data = await fetchQuestionsMeta();
       setMeta(data);
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load question form metadata'));
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    Promise.all([loadQuestions(questionInitialFilters), loadMeta()]);
+  }, [loadMeta, loadQuestions]);
 
   function handleFilterChange(event) {
     const { name, value } = event.target;

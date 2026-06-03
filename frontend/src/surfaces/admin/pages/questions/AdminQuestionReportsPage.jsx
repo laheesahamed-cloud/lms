@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { fetchAdminQuestionReports, updateQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -24,7 +24,7 @@ export function AdminQuestionReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  async function load(nextFilter = filter) {
+  const load = useCallback(async (nextFilter = 'open') => {
     setLoading(true);
     setError('');
     try {
@@ -35,11 +35,11 @@ export function AdminQuestionReportsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    load().catch(() => {});
-  }, []);
+    load('open').catch(() => {});
+  }, [load]);
 
   async function changeFilter(nextFilter) {
     setFilter(nextFilter);
@@ -48,7 +48,7 @@ export function AdminQuestionReportsPage() {
 
   async function setStatus(item, status) {
     await updateQuestionReport(item.id, { status });
-    await load();
+    await load(filter);
   }
 
   return (

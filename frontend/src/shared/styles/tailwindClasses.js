@@ -327,14 +327,6 @@ export const ui = {
   // ── Skeleton ──────────────────────────────────────────────
   shimmer:
     'shimmer rounded-[var(--radius-sm)]',
-  routeSkeleton:
-    'glass-card mx-auto grid w-full max-w-page gap-4 p-5',
-  routeSkeletonTop:
-    'grid gap-3 [&_span:nth-child(1)]:h-7 [&_span:nth-child(1)]:w-[min(360px,70%)] [&_span:nth-child(2)]:h-4 [&_span:nth-child(2)]:w-[min(560px,88%)] [&_span:nth-child(3)]:h-10 [&_span:nth-child(3)]:w-[min(440px,76%)]',
-  routeSkeletonGrid:
-    'grid grid-cols-3 gap-4 max-[900px]:grid-cols-1',
-  routeSkeletonCard:
-    'grid gap-3 rounded-[var(--radius-md)] border border-line-soft bg-surface-card p-4 [&_span:nth-child(1)]:h-4 [&_span:nth-child(1)]:w-1/2 [&_span:nth-child(2)]:h-20 [&_span:nth-child(2)]:w-full [&_span:nth-child(3)]:h-3 [&_span:nth-child(3)]:w-4/5',
 };
 
 // ── Helpers ──────────────────────────────────────────────────

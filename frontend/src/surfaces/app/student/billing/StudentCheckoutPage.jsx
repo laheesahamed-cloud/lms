@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { fetchMySubscription, initiatePayHereCheckout, requestManualPayment } from '../../../../shared/api/subscriptions.api.js';
+import { fetchMySubscription, initiatePayHereCheckout, readMySubscriptionCache, requestManualPayment } from '../../../../shared/api/subscriptions.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
@@ -61,6 +61,13 @@ function getPlanBenefitGroups(plan) {
   return groups.filter((group) => group.keys.some((key) => featureKeys.has(key))).slice(0, 3);
 }
 
+function getCheckoutBilling(data) {
+  return {
+    availablePlans: Array.isArray(data?.availablePlans) ? data.availablePlans : [],
+    payment: data?.payment || null,
+  };
+}
+
 function submitHostedCheckout(checkout) {
   if (!checkout?.actionUrl || !checkout?.fields) {
     throw new Error('PayHere checkout details were not returned by the server.');
@@ -117,10 +124,16 @@ export function StudentCheckoutPage() {
   const user = useAuthStore((state) => state.user);
   const customSelectionNote = String(location.state?.customSelectionNote || '').trim();
   const accessScope = location.state?.accessScope || 'all';
-  const courseIds = Array.isArray(location.state?.courseIds) ? location.state.courseIds.map(Number).filter(Boolean) : [];
-  const lessonIds = Array.isArray(location.state?.lessonIds) ? location.state.lessonIds.map(Number).filter(Boolean) : [];
-  const [billing, setBilling] = useState({ availablePlans: [], payment: null });
-  const [loading, setLoading] = useState(true);
+  const courseIds = useMemo(
+    () => (Array.isArray(location.state?.courseIds) ? location.state.courseIds.map(Number).filter(Boolean) : []),
+    [location.state?.courseIds]
+  );
+  const lessonIds = useMemo(
+    () => (Array.isArray(location.state?.lessonIds) ? location.state.lessonIds.map(Number).filter(Boolean) : []),
+    [location.state?.lessonIds]
+  );
+  const [billing, setBilling] = useState(() => getCheckoutBilling(readMySubscriptionCache()));
+  const [loading, setLoading] = useState(() => readMySubscriptionCache() === undefined);
   const [submitting, setSubmitting] = useState(false);
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -151,14 +164,11 @@ export function StudentCheckoutPage() {
   }, [user?.fullName, user?.email]);
 
   async function load() {
-    setLoading(true);
+    setLoading(readMySubscriptionCache() === undefined);
     setError('');
     try {
       const data = await fetchMySubscription();
-      setBilling({
-        availablePlans: Array.isArray(data?.availablePlans) ? data.availablePlans : [],
-        payment: data?.payment || null,
-      });
+      setBilling(getCheckoutBilling(data));
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load checkout details'));
     } finally {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { deleteQuiz, fetchQuizzes, fetchQuizzesMeta } from '../../../../shared/api/quizzes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -255,21 +255,18 @@ function QuizMap({ quizzes, loading, onEdit, onView, onDelete, deletingId }) {
   );
 }
 
+const quizInitialFilters = { search: '', courseId: '', subjectId: '', status: '' };
+
 export function QuizzesPage() {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [quizzes, setQuizzes] = useState([]);
-  const [filters, setFilters] = useState({ search: '', courseId: '', subjectId: '', status: '' });
+  const [filters, setFilters] = useState(quizInitialFilters);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  useEffect(() => {
-    loadMeta();
-    loadQuizzes();
-  }, []);
 
   const visibleSubjects = useMemo(
     () => subjects.filter((subject) => !filters.courseId || String(subject.courseId) === String(filters.courseId)),
@@ -286,7 +283,7 @@ export function QuizzesPage() {
     [quizzes]
   );
 
-  async function loadMeta() {
+  const loadMeta = useCallback(async () => {
     try {
       const meta = await fetchQuizzesMeta();
       setCourses(meta.courses || []);
@@ -294,9 +291,9 @@ export function QuizzesPage() {
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load assessment metadata'));
     }
-  }
+  }, []);
 
-  async function loadQuizzes(nextFilters = filters) {
+  const loadQuizzes = useCallback(async (nextFilters = quizInitialFilters) => {
     setLoading(true);
     try {
       const params = {};
@@ -312,7 +309,12 @@ export function QuizzesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadMeta();
+    loadQuizzes(quizInitialFilters);
+  }, [loadMeta, loadQuizzes]);
 
   function handleFilterChange(event) {
     const { name, value } = event.target;

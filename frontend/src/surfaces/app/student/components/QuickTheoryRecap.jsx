@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cx } from '../../../../shared/styles/tailwindClasses.js';
+import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from './quickTheoryRecapUtils.js';
 
 const recapCardClass =
   'quick-theory-recap overflow-hidden rounded-lg border border-line-medium bg-surface-elevated text-ink-strong shadow-card dark:border-white/10 dark:bg-[rgba(8,14,26,0.98)]';
@@ -47,66 +48,6 @@ const fontButtonClass = (active, sizeClass) =>
     sizeClass,
     active && 'is-active bg-brand-primary-light text-brand-primary'
   );
-
-function normalizeRecapArray(value) {
-  if (Array.isArray(value)) {
-    return value.map(String).map((item) => item.trim()).filter(Boolean);
-  }
-
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) return [];
-
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        return parsed.map(String).map((item) => item.trim()).filter(Boolean);
-      }
-    } catch {
-      // Fall back to line-based admin drafts.
-    }
-
-    return trimmed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
-  }
-
-  return [];
-}
-
-export function normalizeQuickTheoryRecap(recap) {
-  if (!recap) return null;
-
-  const hierarchy = recap.hierarchy || {};
-  return {
-    ...recap,
-    conceptName: recap.conceptName || recap.concept_name || '',
-    hierarchy: {
-      course: hierarchy.course || recap.hierarchyCourse || recap.hierarchy_course || '',
-      subject: hierarchy.subject || recap.hierarchySubject || recap.hierarchy_subject || '',
-      topic: hierarchy.topic || recap.hierarchyTopic || recap.hierarchy_topic || '',
-      lesson: hierarchy.lesson || recap.hierarchyLesson || recap.hierarchy_lesson || '',
-    },
-    etiology: normalizeRecapArray(recap.etiology),
-    pathophysiology: normalizeRecapArray(recap.pathophysiology),
-    clinicalFeatures: normalizeRecapArray(recap.clinicalFeatures || recap.clinical_features),
-    investigations: normalizeRecapArray(recap.investigations),
-    treatment: normalizeRecapArray(recap.treatment),
-    keyPoints: normalizeRecapArray(recap.keyPoints || recap.key_points),
-    mnemonic: String(recap.mnemonic || '').trim(),
-  };
-}
-
-export function hasQuickTheoryRecapContent(recap) {
-  const normalized = normalizeQuickTheoryRecap(recap);
-  return Boolean(normalized && (
-    normalized.etiology.length ||
-    normalized.pathophysiology.length ||
-    normalized.clinicalFeatures.length ||
-    normalized.investigations.length ||
-    normalized.treatment.length ||
-    normalized.keyPoints.length ||
-    normalized.mnemonic
-  ));
-}
 
 function RecapSection({ icon, title, items, tone = 'default', scale = 'md' }) {
   if (!items || items.length === 0) return null;
@@ -211,18 +152,18 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
     dragging: false,
   });
 
-  function resetPopupDrag() {
+  const resetPopupDrag = useCallback(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     dialog.style.transform = '';
     dialog.style.opacity = '';
     dialog.style.transition = '';
-  }
+  }, []);
 
-  function closePopup() {
+  const closePopup = useCallback(() => {
     resetPopupDrag();
     setOpen(false);
-  }
+  }, [resetPopupDrag]);
 
   function beginPopupDrag(target, x, y, pointerId, captureTarget = null) {
     if (!(target instanceof Element)) return;
@@ -404,11 +345,11 @@ export function TheoryRecapPopupTrigger({ recap, context = 'review', revealed = 
       document.removeEventListener('keydown', onKey);
       if (previousActive && typeof previousActive.focus === 'function') previousActive.focus();
     };
-  }, [open]);
+  }, [closePopup, open]);
 
   useEffect(() => {
     if (!open) resetPopupDrag();
-  }, [open]);
+  }, [open, resetPopupDrag]);
 
   const hasRecap = hasQuickTheoryRecapContent(normalizedRecap);
   const popupScaleClass = recapScaleClasses[fontScale] || recapScaleClasses.md;

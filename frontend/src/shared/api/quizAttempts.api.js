@@ -1,12 +1,18 @@
 import { apiClient } from './client.js';
+import { createTimedApiCache } from './cache.js';
+import { clearDashboardCache } from './dashboard.api.js';
 
 const STUDENT_QUIZZES_CACHE_MS = 30_000;
+const STUDENT_RESULTS_CACHE_MS = 15_000;
 const studentQuizLoadRequests = new Map();
-let studentQuizzesCache = {
-  data: null,
-  timestamp: 0,
-  promise: null,
-};
+const studentQuizzesCache = createTimedApiCache({
+  ttlMs: STUDENT_QUIZZES_CACHE_MS,
+  load: () => apiClient.get('/student/quiz-attempts/quizzes').then((response) => response.data),
+});
+const studentResultsCache = createTimedApiCache({
+  ttlMs: STUDENT_RESULTS_CACHE_MS,
+  load: () => apiClient.get('/student/quiz-attempts/results').then((response) => response.data),
+});
 
 function serializeParams(params = {}) {
   return Object.entries(params || {})
@@ -17,37 +23,25 @@ function serializeParams(params = {}) {
 }
 
 export function clearStudentQuizzesCache() {
-  studentQuizzesCache = {
-    data: null,
-    timestamp: 0,
-    promise: null,
-  };
+  studentQuizzesCache.clear();
+}
+
+export function clearStudentResultsCache() {
+  studentResultsCache.clear();
+}
+
+function clearStudentQuizOutcomeCaches() {
+  clearStudentQuizzesCache();
+  clearStudentResultsCache();
+  clearDashboardCache();
 }
 
 export async function fetchStudentQuizzes() {
-  const now = Date.now();
-  if (studentQuizzesCache.data && now - studentQuizzesCache.timestamp < STUDENT_QUIZZES_CACHE_MS) {
-    return studentQuizzesCache.data;
-  }
-  if (studentQuizzesCache.promise) {
-    return studentQuizzesCache.promise;
-  }
+  return studentQuizzesCache.get();
+}
 
-  studentQuizzesCache.promise = apiClient.get('/student/quiz-attempts/quizzes')
-    .then((response) => {
-      studentQuizzesCache = {
-        data: response.data,
-        timestamp: Date.now(),
-        promise: null,
-      };
-      return response.data;
-    })
-    .catch((error) => {
-      studentQuizzesCache.promise = null;
-      throw error;
-    });
-
-  return studentQuizzesCache.promise;
+export function readStudentQuizzesCache() {
+  return studentQuizzesCache.peek();
 }
 
 export async function loadStudentQuiz(quizId, params) {
@@ -79,7 +73,7 @@ export async function savePracticeDraft(quizId, payload) {
 
 export async function finishPracticeAttempt(quizId, payload) {
   const response = await apiClient.post(`/student/quiz-attempts/practice/${quizId}/finish`, payload);
-  clearStudentQuizzesCache();
+  clearStudentQuizOutcomeCaches();
   return response.data;
 }
 
@@ -95,7 +89,7 @@ export async function revealPracticeAnswer(quizId, questionId) {
 
 export async function submitExam(quizId, payload) {
   const response = await apiClient.post(`/student/quiz-attempts/exam/${quizId}/submit`, payload);
-  clearStudentQuizzesCache();
+  clearStudentQuizOutcomeCaches();
   return response.data;
 }
 
@@ -120,6 +114,9 @@ export async function fetchPracticeReview(quizId, params) {
 }
 
 export async function fetchStudentResults() {
-  const response = await apiClient.get('/student/quiz-attempts/results');
-  return response.data;
+  return studentResultsCache.get();
+}
+
+export function readStudentResultsCache() {
+  return studentResultsCache.peek();
 }

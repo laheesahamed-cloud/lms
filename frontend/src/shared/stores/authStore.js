@@ -5,34 +5,17 @@ import { fetchCurrentUser, login, loginWithGoogle, loginWithGoogleCode, logout, 
 import { detectPlatform } from '../platform/detect.js';
 import { clearStoredAuth, getAuthToken, getBootstrapAuth, setAuthToken, setStoredAuthUser } from './authToken.js';
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
+import { isPublicWebsiteRoute } from '../routing/publicRoutes.js';
 
 let hydratePromise = null;
 let authMutationVersion = 0;
-const PUBLIC_AUTH_PATHS = new Set([
-  '/login',
-  '/register',
-  '/auth/login',
-  '/auth/register',
-  '/auth/forgot-password',
-  '/auth/reset-password',
-]);
-
-function getNormalizedPublicPathname() {
-  if (typeof window === 'undefined') {
-    return '/';
-  }
-
-  return (window.location.pathname || '/')
-    .replace(/^\/lms(?:\/frontend\/dist)?(?=\/|$)/, '')
-    .replace(/\/+$/, '') || '/';
-}
 
 function isPublicAuthRoute() {
   if (typeof window === 'undefined') {
     return false;
   }
 
-  return PUBLIC_AUTH_PATHS.has(getNormalizedPublicPathname());
+  return isPublicWebsiteRoute(window.location.pathname || '/');
 }
 
 function finishSignedOut(set) {
@@ -77,6 +60,9 @@ function preserveAuthDuringTemporaryHydrateFailure(set, get, error) {
   const token = current.token || getAuthToken();
   const user = current.user || null;
   const hasLocalAuthSnapshot = Boolean(current.isAuthenticated || user || token);
+  if (!hasLocalAuthSnapshot) {
+    return false;
+  }
 
   set({
     token,
@@ -114,6 +100,14 @@ export const useAuthStore = create((set, get) => ({
     const hydrateVersion = authMutationVersion;
     hydratePromise = (async () => {
       try {
+        const current = get();
+        const token = current.token || getAuthToken();
+        const hasLocalAuthSnapshot = Boolean(current.isAuthenticated || current.user || token);
+        if (!hasLocalAuthSnapshot && isPublicAuthRoute()) {
+          finishSignedOut(set);
+          return;
+        }
+
         const data = await fetchCurrentUser({
           silent: isPublicAuthRoute(),
           timeout: isPublicAuthRoute() ? 2500 : 5000,
@@ -294,6 +288,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   setUser: (user) => {
+    setStoredAuthUser(user);
     set({ user });
   },
 

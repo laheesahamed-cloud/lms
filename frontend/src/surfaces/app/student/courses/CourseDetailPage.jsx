@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   fetchStudentCourseDetail,
+  readStudentCourseDetailCache,
   updateStudentLessonProgress,
 } from '../../../../shared/api/courses.api.js';
 import { getLessonAiNote, listAiNotes } from '../../../../shared/api/aiNotes.api.js';
@@ -407,8 +408,8 @@ export function CourseDetailPage({
   const params = useParams();
   const courseId = courseIdProp ?? params.courseId;
   const coursesPath = location.pathname.startsWith('/app') ? '/app/courses' : '/courses';
-  const [data, setData] = useState(() => initialData || null);
-  const [loading, setLoading] = useState(() => !initialData);
+  const [data, setData] = useState(() => initialData || readStudentCourseDetailCache(courseId) || null);
+  const [loading, setLoading] = useState(() => !(initialData || readStudentCourseDetailCache(courseId)));
   const [error, setError] = useState('');
   const [busyLessonId, setBusyLessonId] = useState(null);
 
@@ -431,8 +432,9 @@ export function CourseDetailPage({
         return;
       }
 
-      if (initialData) {
-        setData(initialData);
+      const cachedData = initialData || readStudentCourseDetailCache(courseId);
+      if (cachedData) {
+        setData(cachedData);
         setLoading(false);
         return;
       }
@@ -464,7 +466,7 @@ export function CourseDetailPage({
   }, [courseId, data, onDataChange]);
 
   const course = data?.course || null;
-  const subjects = data?.subjects || [];
+  const subjects = useMemo(() => data?.subjects || [], [data?.subjects]);
   const courseResources = useMemo(() => getCourseResources(data), [data]);
   const continueTarget = useMemo(() => findContinueLesson(subjects), [subjects]);
   const subjectPalettes = useMemo(() => buildSubjectPaletteMap(subjects), [subjects]);

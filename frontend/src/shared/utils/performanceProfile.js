@@ -1,16 +1,4 @@
-import { resolveApiBaseUrl } from '../platform/config.js';
-
 let motionResourceGuardCleanup = null;
-let performanceMonitoringCleanup = null;
-
-const PERFORMANCE_TARGETS = {
-  firstRouteReady: 2000,
-  routeReady: 1500,
-  lcp: 2500,
-  inp: 200,
-  cls: 0.1,
-};
-const ENABLE_CLIENT_PERFORMANCE_BEACONS = import.meta.env.VITE_ENABLE_CLIENT_PERFORMANCE_BEACONS === 'true';
 
 export function isLowSpecDevice() {
   if (typeof navigator === 'undefined') return false;
@@ -145,151 +133,14 @@ export function installMotionResourceGuards() {
   return motionResourceGuardCleanup;
 }
 
-function sendClientPerformanceMetric(metric) {
-  if (typeof window === 'undefined' || !ENABLE_CLIENT_PERFORMANCE_BEACONS) return;
-  const payload = JSON.stringify({
-    ...metric,
-    timestamp: new Date().toISOString(),
-  });
-  const url = `${resolveApiBaseUrl()}/health/client-performance`;
-
-  try {
-    if (navigator.sendBeacon?.(url, new Blob([payload], { type: 'application/json' }))) {
-      return;
-    }
-  } catch {
-    // Beacon delivery is best-effort.
-  }
-
-  try {
-    fetch(url, {
-      method: 'POST',
-      body: payload,
-      headers: { 'Content-Type': 'application/json' },
-      keepalive: true,
-    }).catch(() => {});
-  } catch {
-    // Ignore unsupported keepalive/fetch environments.
-  }
-}
-
-function recordClientPerformanceMetric(metric) {
-  if (typeof window === 'undefined') return;
-  const record = {
-    route: window.location?.pathname || '',
-    ...metric,
-  };
-
-  window.__lmsClientPerformance = Array.isArray(window.__lmsClientPerformance)
-    ? window.__lmsClientPerformance
-    : [];
-  window.__lmsClientPerformance.push(record);
-  if (window.__lmsClientPerformance.length > 120) {
-    window.__lmsClientPerformance.splice(0, window.__lmsClientPerformance.length - 120);
-  }
-
-  sendClientPerformanceMetric(record);
-}
-
-export function installPerformanceMonitoring() {
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return () => {};
-  }
-
-  if (document.documentElement.dataset.lmsRuntime === 'native') {
-    return () => {};
-  }
-
-  if (performanceMonitoringCleanup) return performanceMonitoringCleanup;
-
-  let firstRouteRecorded = false;
-  let cumulativeLayoutShift = 0;
-  const observers = [];
-
-  const handleRouteReady = (event) => {
-    const value = Math.round(performance.now());
-    const route = `${event?.detail?.pathname || window.location.pathname || ''}${event?.detail?.search || ''}`;
-    recordClientPerformanceMetric({
-      metric: firstRouteRecorded ? 'routeReady' : 'firstRouteReady',
-      route,
-      value,
-      target: firstRouteRecorded ? PERFORMANCE_TARGETS.routeReady : PERFORMANCE_TARGETS.firstRouteReady,
-    });
-    firstRouteRecorded = true;
-  };
-
-  document.addEventListener('lms:route-ready', handleRouteReady);
-
-  if ('PerformanceObserver' in window) {
-    try {
-      const lcpObserver = new PerformanceObserver((entryList) => {
-        const entries = entryList.getEntries();
-        const latest = entries[entries.length - 1];
-        if (!latest) return;
-        recordClientPerformanceMetric({
-          metric: 'lcp',
-          value: Math.round(latest.startTime),
-          target: PERFORMANCE_TARGETS.lcp,
-        });
-      });
-      lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
-      observers.push(lcpObserver);
-    } catch {
-      // LCP observer is unavailable in older WebViews.
-    }
-
-    try {
-      const clsObserver = new PerformanceObserver((entryList) => {
-        for (const entry of entryList.getEntries()) {
-          if (!entry.hadRecentInput) cumulativeLayoutShift += Number(entry.value || 0);
-        }
-        recordClientPerformanceMetric({
-          metric: 'cls',
-          value: Number(cumulativeLayoutShift.toFixed(3)),
-          target: PERFORMANCE_TARGETS.cls,
-        });
-      });
-      clsObserver.observe({ type: 'layout-shift', buffered: true });
-      observers.push(clsObserver);
-    } catch {
-      // CLS observer is unavailable in older WebViews.
-    }
-
-    try {
-      const inpObserver = new PerformanceObserver((entryList) => {
-        const slowest = entryList.getEntries().reduce((max, entry) => Math.max(max, Number(entry.duration || 0)), 0);
-        if (!slowest) return;
-        recordClientPerformanceMetric({
-          metric: 'inp',
-          value: Math.round(slowest),
-          target: PERFORMANCE_TARGETS.inp,
-        });
-      });
-      inpObserver.observe({ type: 'event', buffered: true, durationThreshold: 40 });
-      observers.push(inpObserver);
-    } catch {
-      // INP/event timing is not universally supported.
-    }
-  }
-
-  performanceMonitoringCleanup = () => {
-    document.removeEventListener('lms:route-ready', handleRouteReady);
-    observers.forEach((observer) => observer.disconnect());
-    performanceMonitoringCleanup = null;
-  };
-
-  return performanceMonitoringCleanup;
-}
-
 export function shouldPreloadRoutes() {
-  if (typeof document !== 'undefined' && document.documentElement.dataset.lmsRuntime === 'native') {
-    return false;
-  }
   return !getBrowserPerformanceProfile().saveData;
 }
 
 export function getRoutePreloadLimit() {
   if (!shouldPreloadRoutes()) return 0;
-  if (isLowSpecDevice()) return 1;
-  return shouldUseBalancedVisualEffects() ? 2 : 4;
+  const root = typeof document !== 'undefined' ? document.documentElement : null;
+  const isPhone = root?.dataset.lmsFormFactor === 'phone';
+  if (isLowSpecDevice()) return isPhone ? 3 : 2;
+  return 6;
 }

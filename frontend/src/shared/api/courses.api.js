@@ -1,13 +1,17 @@
 import { apiClient } from './client.js';
+import { createTimedApiCache } from './cache.js';
 
 const STUDENT_COURSES_CACHE_MS = 60_000;
 const STUDENT_COURSE_DETAIL_CACHE_MS = 60_000;
-let studentCoursesCache = {
-  data: null,
-  timestamp: 0,
-  promise: null,
-};
-const studentCourseDetailCache = new Map();
+const studentCoursesCache = createTimedApiCache({
+  ttlMs: STUDENT_COURSES_CACHE_MS,
+  load: () => apiClient.get('/student/courses').then((response) => response.data),
+});
+const studentCourseDetailCache = createTimedApiCache({
+  ttlMs: STUDENT_COURSE_DETAIL_CACHE_MS,
+  key: (courseId) => String(courseId || ''),
+  load: (courseId) => apiClient.get(`/student/courses/${courseId}`).then((response) => response.data),
+});
 
 export async function fetchCourses() {
   const response = await apiClient.get('/admin/courses');
@@ -15,37 +19,16 @@ export async function fetchCourses() {
 }
 
 export async function fetchStudentCourses({ force = false } = {}) {
-  const now = Date.now();
-  if (!force && studentCoursesCache.data && now - studentCoursesCache.timestamp < STUDENT_COURSES_CACHE_MS) {
-    return studentCoursesCache.data;
-  }
-  if (!force && studentCoursesCache.promise) {
-    return studentCoursesCache.promise;
-  }
+  if (force) studentCoursesCache.clear();
+  return studentCoursesCache.get();
+}
 
-  studentCoursesCache.promise = apiClient.get('/student/courses')
-    .then((response) => {
-      studentCoursesCache = {
-        data: response.data,
-        timestamp: Date.now(),
-        promise: null,
-      };
-      return response.data;
-    })
-    .catch((error) => {
-      studentCoursesCache.promise = null;
-      throw error;
-    });
-
-  return studentCoursesCache.promise;
+export function readStudentCoursesCache() {
+  return studentCoursesCache.peek();
 }
 
 export function clearStudentCoursesCache() {
-  studentCoursesCache = {
-    data: null,
-    timestamp: 0,
-    promise: null,
-  };
+  studentCoursesCache.clear();
 }
 
 export function clearStudentCourseDetailCache(courseId) {
@@ -54,7 +37,7 @@ export function clearStudentCourseDetailCache(courseId) {
     return;
   }
 
-  studentCourseDetailCache.delete(String(courseId));
+  studentCourseDetailCache.clear(String(courseId));
 }
 
 export async function fetchStudentCoursesUncached() {
@@ -63,39 +46,12 @@ export async function fetchStudentCoursesUncached() {
 }
 
 export async function fetchStudentCourseDetail(courseId, { force = false } = {}) {
-  const key = String(courseId || '');
-  const now = Date.now();
-  const cached = studentCourseDetailCache.get(key);
+  if (force) studentCourseDetailCache.clear(String(courseId || ''));
+  return studentCourseDetailCache.get(courseId);
+}
 
-  if (!force && cached?.data && now - cached.timestamp < STUDENT_COURSE_DETAIL_CACHE_MS) {
-    return cached.data;
-  }
-
-  if (!force && cached?.promise) {
-    return cached.promise;
-  }
-
-  const promise = apiClient.get(`/student/courses/${courseId}`)
-    .then((response) => {
-      studentCourseDetailCache.set(key, {
-        data: response.data,
-        timestamp: Date.now(),
-        promise: null,
-      });
-      return response.data;
-    })
-    .catch((error) => {
-      studentCourseDetailCache.delete(key);
-      throw error;
-    });
-
-  studentCourseDetailCache.set(key, {
-    data: cached?.data,
-    timestamp: cached?.timestamp || 0,
-    promise,
-  });
-
-  return promise;
+export function readStudentCourseDetailCache(courseId) {
+  return studentCourseDetailCache.peek(courseId);
 }
 
 export async function updateStudentLessonProgress(lessonId, payload) {
