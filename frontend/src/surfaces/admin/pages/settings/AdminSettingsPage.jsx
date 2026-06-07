@@ -42,10 +42,10 @@ const settingsCategories = [
     panel: <AdminAvailabilitySettingsPanel />,
   },
   {
-    id: 'payhere',
-    label: 'PayHere',
-    title: 'PayHere payments',
-    description: 'Configure sandbox checkout, callback URLs, and the student payment experience without editing environment files.',
+    id: 'payment',
+    label: 'Payment',
+    title: 'Payment settings',
+    description: 'Configure PayHere checkout, bank transfer details, and the student payment experience without editing environment files.',
     panel: <AdminPaymentSettingsPanel />,
   },
   {

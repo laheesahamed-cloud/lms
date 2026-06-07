@@ -25,6 +25,9 @@ let ResultsService = class ResultsService {
     review(authorization, attemptId) {
         return this.quizAttemptsService.review(authorization, attemptId);
     }
+    completeReview(authorization, attemptId) {
+        return this.quizAttemptsService.completeReview(authorization, attemptId);
+    }
 };
 exports.ResultsService = ResultsService;
 exports.ResultsService = ResultsService = __decorate([

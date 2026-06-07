@@ -25,6 +25,9 @@ let ResultsController = class ResultsController {
     review(attemptId, authorization) {
         return this.resultsService.review(authorization, attemptId);
     }
+    completeReview(attemptId, authorization) {
+        return this.resultsService.completeReview(authorization, attemptId);
+    }
     detail(attemptId, authorization) {
         return this.resultsService.detail(authorization, attemptId);
     }
@@ -45,6 +48,14 @@ __decorate([
     __metadata("design:paramtypes", [Number, String]),
     __metadata("design:returntype", void 0)
 ], ResultsController.prototype, "review", null);
+__decorate([
+    (0, common_1.Post)('review/:attemptId/complete'),
+    __param(0, (0, common_1.Param)('attemptId', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:returntype", void 0)
+], ResultsController.prototype, "completeReview", null);
 __decorate([
     (0, common_1.Get)(':attemptId'),
     __param(0, (0, common_1.Param)('attemptId', common_1.ParseIntPipe)),

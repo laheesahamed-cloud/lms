@@ -10,8 +10,8 @@ const sections = [
     list: [
       'Account details such as name, email address, password, role, status, and contact information you choose to provide.',
       'Learning activity such as quiz attempts, answers, scores, bookmarks, lesson progress, generated study content, and subscription access history.',
-      'Payment and order details such as plan, coupon code, order ID, transaction status, amount, currency, PayHere payment reference, and bank transfer slip or screenshot uploads.',
-      'Technical information such as device/browser details, login sessions, IP-related security logs, and usage activity needed to operate the LMS.',
+      'Payment and order details such as plan, coupon code, order ID, transaction status, amount, currency, billing contact details, PayHere payment reference, and bank transfer slip or screenshot uploads.',
+      'Technical information such as IP address, device/browser details, login sessions, security logs, cookies, local storage, and usage activity needed to operate the LMS.',
     ],
   },
   {
@@ -27,7 +27,7 @@ const sections = [
   },
   {
     title: '3. Payments',
-    body: 'Online card or payment details are handled by PayHere or the active payment provider. xyndrome stores order and transaction records, but does not store full card numbers or sensitive card verification data on our servers.',
+    body: 'Online card and payment details are handled by PayHere or the active payment provider. xyndrome stores order and transaction records, but does not store full card numbers, card security codes, or sensitive card verification data on LMS servers.',
   },
   {
     title: '4. Coupons and Billing Details',
@@ -41,14 +41,14 @@ const sections = [
     title: '6. Sharing Information',
     body: 'We do not sell student personal information. We may share limited information only when needed to operate the LMS, process payments, provide support, protect the platform, or comply with lawful requests.',
     list: [
-      'Payment processors such as PayHere receive the checkout information needed to process your payment.',
+      'Payment processors such as PayHere receive the checkout and billing information needed to process payments and send payment status notifications.',
       'Service providers may process hosting, email, analytics, storage, or security information on our behalf.',
       'Admins and authorized staff may access student account, subscription, and learning records only for platform operations and support.',
     ],
   },
   {
     title: '7. Security',
-    body: 'We use reasonable technical and administrative safeguards to protect account, payment, and learning data. No internet system is perfectly secure, so students should also protect their password and avoid sharing account access.',
+    body: 'We use reasonable technical and administrative safeguards to protect account, payment, and learning data. No internet system is perfectly secure, so students should protect passwords, keep devices secure, and avoid sharing account access.',
   },
   {
     title: '8. Data Retention',
@@ -72,7 +72,7 @@ const sections = [
   },
   {
     title: '12. Changes to This Policy',
-    body: 'We may update this Privacy Policy when the platform, payment flow, legal requirements, or operating practices change. The latest version will be available on this page.',
+    body: 'We may update this Privacy Policy when the platform, payment flow, legal requirements, or operating practices change. The latest version will be posted on this page with the updated date.',
   },
   {
     title: '13. Contact',
@@ -85,7 +85,7 @@ export function PrivacyPolicyPage() {
     <main className="min-h-dvh px-[clamp(20px,4vw,40px)] py-[clamp(40px,6vw,80px)]">
       <PageMeta
         title="Privacy Policy"
-        description="Privacy policy for xyndrome student accounts, learning activity, subscriptions, payment records, security logs, and support."
+        description="Privacy policy for xyndrome student accounts, learning activity, PayHere payments, subscriptions, security logs, and support."
         path="/privacy-policy"
       />
       <div className="mx-auto grid w-full max-w-[900px] gap-6">
@@ -108,7 +108,7 @@ export function PrivacyPolicyPage() {
           <div className={ui.eyebrow}>Student Data Protection</div>
           <h1 className="mt-3 mb-4 font-display text-[28px] font-extrabold leading-tight text-ink-strong">Privacy Policy</h1>
           <p className="m-0 text-[14.5px] leading-[1.75] text-ink-soft">
-            Last updated: May 8, 2026. This policy explains how xyndrome collects, uses, protects, and shares
+            Last updated: June 6, 2026. This policy explains how xyndrome collects, uses, protects, and shares
             information when students use the website, learning tools, subscriptions, coupons, and PayHere checkout.
           </p>
 

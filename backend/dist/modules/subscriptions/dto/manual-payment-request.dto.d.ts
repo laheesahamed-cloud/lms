@@ -7,7 +7,7 @@ export declare class ManualPaymentRequestDto {
     paymentReference?: string;
     proofFileName?: string;
     proofMimeType?: string;
-    proofDataUrl: string;
+    proofDataUrl?: string;
     message?: string;
     accessScope?: 'all' | 'courses' | 'lessons';
     courseIds?: number[];

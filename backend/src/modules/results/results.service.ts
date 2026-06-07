@@ -16,4 +16,8 @@ export class ResultsService {
   review(authorization: string | undefined, attemptId: number) {
     return this.quizAttemptsService.review(authorization, attemptId);
   }
+
+  completeReview(authorization: string | undefined, attemptId: number) {
+    return this.quizAttemptsService.completeReview(authorization, attemptId);
+  }
 }

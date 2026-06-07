@@ -111,6 +111,10 @@ let SubscriptionsController = class SubscriptionsController {
         const student = await this.authService.requireStudent(authorization);
         return this.subscriptionsService.requestManualPayment(student.id, dto);
     }
+    async cancelStudentPendingInvoice(authorization, id) {
+        const student = await this.authService.requireStudent(authorization);
+        return this.subscriptionsService.cancelStudentPendingInvoice(student.id, id);
+    }
     async handlePayHereNotify(body) {
         return this.subscriptionsService.handlePayHereNotification(body);
     }
@@ -287,6 +291,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, manual_payment_request_dto_1.ManualPaymentRequestDto]),
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "requestManualPayment", null);
+__decorate([
+    (0, common_1.Delete)('requests/:id'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "cancelStudentPendingInvoice", null);
 __decorate([
     (0, common_1.Post)('payhere/notify'),
     __param(0, (0, common_1.Body)()),

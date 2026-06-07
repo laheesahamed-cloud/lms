@@ -20,6 +20,11 @@ body.app-booting :where(.lms-screen-status, .lms-toast) {
   will-change: auto !important;
 }
 
+.lms-route-reveal.animate-panelRouteFade {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 html[data-motion-paused] body *,
 html[data-motion-paused] body *::before,
 html[data-motion-paused] body *::after {
@@ -64,11 +69,6 @@ html[data-motion-paused] body :where(
   will-change: auto !important;
 }
 
-:root[data-low-spec] :where(.quiz-completion-overlay, .quiz-completion-capsule),
-:root[data-visual-effects='balanced'] :where(.quiz-completion-overlay, .quiz-completion-capsule) {
-  will-change: auto !important;
-}
-
 :root[data-low-spec] :where(.lms-screen-status, .lms-toast),
 :root[data-visual-effects='balanced'] :where(.lms-screen-status, .lms-toast) {
   animation-duration: 180ms !important;
@@ -108,83 +108,4 @@ html[data-motion-paused] body :where(
 :root[data-low-spec] .study-streak-icon::after,
 :root[data-low-spec] .study-hero-mascot-random::before {
   will-change: auto !important;
-}
-
-:root[data-low-spec] :where(
-  .study-hub-shell > .study-continue-card,
-  .study-hub-shell > .study-streak-card,
-  .study-hub-shell > .study-readiness-stack,
-  .study-hub-shell > .study-section-head,
-  .study-hub-shell > .study-action-grid,
-  .study-hub-shell > .study-question-card,
-  .study-hub-shell > .study-level-summary,
-  .student-app-shell :where(
-    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-    .dashboard-page.study-hub-page:is(
-      .student-courses-page,
-      .lms-course-detail-page,
-      .student-quiz-map-page,
-      .student-billing-page,
-      .student-checkout-page,
-      .student-bookmarks-page,
-      .student-notifications-page,
-      .student-flashcards-page,
-      .student-notes-page,
-      .student-results-page,
-      .study-planner-page,
-      .ai-notes-list-page
-    )
-  ) :where(.management-layout, .study-hub-shell) > :where(
-    :not(style):not(script):not(.study-hub-topbar)
-  )
-) {
-  animation-delay: 0ms !important;
-}
-
-:root[data-low-spec] :where(
-  .study-hub-shell > .study-continue-card,
-  .study-hub-shell > .study-streak-card,
-  .study-hub-shell > .study-readiness-stack,
-  .study-hub-shell > .study-section-head,
-  .study-hub-shell > .study-action-grid,
-  .study-hub-shell > .study-question-card,
-  .study-hub-shell > .study-level-summary,
-  .student-app-shell :where(
-    .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-    .dashboard-page.study-hub-page:is(
-      .student-courses-page,
-      .lms-course-detail-page,
-      .student-quiz-map-page,
-      .student-billing-page,
-      .student-checkout-page,
-      .student-bookmarks-page,
-      .student-notifications-page,
-      .student-flashcards-page,
-      .student-notes-page,
-      .student-results-page,
-      .study-planner-page,
-      .ai-notes-list-page
-    )
-  ) :where(.management-layout, .study-hub-shell) > :where(
-    :not(style):not(script):not(.study-hub-topbar)
-  )
-) {
-  animation-duration: 140ms !important;
-  animation-timing-function: var(--lms-motion-ease-out, cubic-bezier(0.23, 1, 0.32, 1)) !important;
-  will-change: opacity, transform;
-}
-
-:root[data-low-spec] .quiz-completion-overlay,
-:root[data-visual-effects='balanced'] .quiz-completion-overlay {
-  -webkit-backdrop-filter: blur(6px) !important;
-  backdrop-filter: blur(6px) !important;
-}
-
-:root[data-low-spec] .quiz-completion-capsule,
-:root[data-low-spec] .quiz-completion-intro,
-:root[data-low-spec] .quiz-completion-mark,
-:root[data-visual-effects='balanced'] .quiz-completion-capsule,
-:root[data-visual-effects='balanced'] .quiz-completion-intro,
-:root[data-visual-effects='balanced'] .quiz-completion-mark {
-  will-change: transform, opacity !important;
 }

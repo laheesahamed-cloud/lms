@@ -13,10 +13,6 @@
   border-radius: var(--ds-nav-radius) !important;
 }
 
-.lms-sidebar-link:where(:hover, :focus-visible) {
-  transform: none;
-}
-
 .lms-sidebar-link[aria-current="page"],
 .lms-sidebar-link.nav-active-glow {
   box-shadow: var(--ds-nav-active-shadow) !important;

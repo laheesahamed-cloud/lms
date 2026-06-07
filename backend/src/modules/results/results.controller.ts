@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Headers, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { ResultsService } from './results.service';
 
 @Controller('results')
@@ -16,6 +16,14 @@ export class ResultsController {
     @Headers('authorization') authorization?: string
   ) {
     return this.resultsService.review(authorization, attemptId);
+  }
+
+  @Post('review/:attemptId/complete')
+  completeReview(
+    @Param('attemptId', ParseIntPipe) attemptId: number,
+    @Headers('authorization') authorization?: string
+  ) {
+    return this.resultsService.completeReview(authorization, attemptId);
   }
 
   @Get(':attemptId')

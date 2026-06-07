@@ -342,6 +342,16 @@ apiClient.interceptors.response.use(
 
 export function getErrorMessage(error, fallback = 'Something went wrong') {
   const serverMessage = error?.response?.data?.message;
+  const platform = detectPlatform();
+  const nativeApiMessage = () => {
+    if (platform.isIos) {
+      return `Cannot reach the LMS API at ${API_BASE_URL}. Check your internet connection, then reopen the app.`;
+    }
+    if (platform.isAndroid) {
+      return `Cannot reach the LMS API at ${API_BASE_URL}. On Android, use your computer or server LAN address for local testing, not localhost, then rebuild the app.`;
+    }
+    return `Cannot reach the LMS API at ${API_BASE_URL}. Check your internet connection, then reopen the app.`;
+  };
 
   if (Array.isArray(serverMessage)) {
     return serverMessage.join(', ');
@@ -352,23 +362,25 @@ export function getErrorMessage(error, fallback = 'Something went wrong') {
   }
 
   if (error?.code === 'ECONNABORTED') {
-    if (detectPlatform().isNative) {
-      return `Cannot reach the LMS API at ${API_BASE_URL}. On Android, use your computer or server LAN address, not localhost, then rebuild the app.`;
+    if (platform.isNative) {
+      return nativeApiMessage();
     }
 
     return `The LMS API at ${API_BASE_URL} is taking too long to respond after automatic recovery.`;
   }
 
   if (error?.code === 'ERR_CANCELED' || error?.name === 'AbortError') {
-    return `The LMS API at ${API_BASE_URL} did not finish the sign-in request. Check that the Android device can reach the API server.`;
+    return platform.isNative
+      ? nativeApiMessage()
+      : `The LMS API at ${API_BASE_URL} did not finish the request. Check that the API server is reachable.`;
   }
 
   if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {
     if (isApiFreePreviewRoute()) {
       return fallback;
     }
-    if (detectPlatform().isNative) {
-      return `Cannot reach the LMS API at ${API_BASE_URL}. On Android, use your computer or server LAN address, not localhost, then rebuild the app.`;
+    if (platform.isNative) {
+      return nativeApiMessage();
     }
 
     return `Cannot reach the LMS API. Tried: ${formatApiBaseUrlList()}. Make sure the API server is running on port 3000.`;

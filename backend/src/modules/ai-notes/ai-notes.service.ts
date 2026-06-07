@@ -19,6 +19,7 @@ import { hashSessionToken } from '../auth/auth-token.util';
 import { PlansService } from '../plans/plans.service';
 
 const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
+const FLASHCARD_IMAGE_LIMIT = 3;
 
 export interface NoteSection {
   heading: string;
@@ -80,6 +81,8 @@ type LessonFlashcardRow = RowDataPacket & {
   question: string;
   answer: string;
   source_hint: string | null;
+  image_url: string | null;
+  image_fit: 'contain' | 'cover' | null;
   status: LessonFlashcardStatus;
   sort_order: number;
   generated_by: LessonFlashcardGeneratedBy;
@@ -299,7 +302,7 @@ export class AiNotesService {
 
   async adminCreateFlashcard(
     id: number,
-    payload: { question?: string; answer?: string; sourceHint?: string; status?: LessonFlashcardStatus },
+    payload: { question?: string; answer?: string; sourceHint?: string; imageUrl?: string; imageUrls?: string[]; imageFit?: 'contain' | 'cover'; status?: LessonFlashcardStatus },
     token: string,
     engineKey: CanvasEngineKey = 'gemini',
   ) {
@@ -313,8 +316,8 @@ export class AiNotesService {
     const [result] = await this.db.execute<ResultSetHeader>(
       `
         INSERT INTO lesson_flashcards
-          (note_id, lesson_id, question, answer, source_hint, status, sort_order, generated_by, reviewed_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', ?)
+          (note_id, lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)
       `,
       [
         id,
@@ -322,6 +325,8 @@ export class AiNotesService {
         clean.question,
         clean.answer,
         clean.sourceHint || null,
+        this.serializeFlashcardImageUrls(clean.imageUrls),
+        clean.imageFit,
         status,
         sortOrder,
         status === 'approved' ? admin.id : null,
@@ -391,7 +396,7 @@ export class AiNotesService {
   async adminUpdateFlashcard(
     id: number,
     cardId: number,
-    patch: { question?: string; answer?: string; sourceHint?: string; status?: LessonFlashcardStatus; sortOrder?: number },
+    patch: { question?: string; answer?: string; sourceHint?: string; imageUrl?: string; imageUrls?: string[]; imageFit?: 'contain' | 'cover'; status?: LessonFlashcardStatus; sortOrder?: number },
     token: string,
     engineKey: CanvasEngineKey = 'gemini',
   ) {
@@ -401,6 +406,10 @@ export class AiNotesService {
     const question = patch.question !== undefined ? this.cleanFlashcardText(patch.question, 1000) : existing.question;
     const answer = patch.answer !== undefined ? this.cleanFlashcardText(patch.answer, 3000) : existing.answer;
     const sourceHint = patch.sourceHint !== undefined ? this.cleanFlashcardText(patch.sourceHint, 500) : existing.sourceHint;
+    const imageUrls = patch.imageUrls !== undefined || patch.imageUrl !== undefined
+      ? this.cleanFlashcardImageUrls(patch.imageUrls ?? patch.imageUrl)
+      : existing.imageUrls;
+    const imageFit = patch.imageFit !== undefined ? this.normalizeFlashcardImageFit(patch.imageFit) : existing.imageFit;
     const status = patch.status !== undefined ? this.normalizeFlashcardStatus(patch.status) : existing.status;
     const sortOrder = Number.isFinite(Number(patch.sortOrder)) ? Number(patch.sortOrder) : existing.sortOrder;
 
@@ -409,13 +418,15 @@ export class AiNotesService {
     await this.db.execute(
       `
         UPDATE lesson_flashcards
-        SET question = ?, answer = ?, source_hint = ?, status = ?, sort_order = ?, reviewed_by = ?
+        SET question = ?, answer = ?, source_hint = ?, image_url = ?, image_fit = ?, status = ?, sort_order = ?, reviewed_by = ?
         WHERE id = ? AND note_id = ?
       `,
       [
         question,
         answer,
         sourceHint || null,
+        this.serializeFlashcardImageUrls(imageUrls),
+        imageFit,
         status,
         sortOrder,
         status === 'approved' ? admin.id : existing.reviewedBy || null,
@@ -644,7 +655,7 @@ export class AiNotesService {
   private async findFlashcardRowsForNote(noteId: number) {
     const [rows] = await this.db.execute<LessonFlashcardRow[]>(
       `
-        SELECT id, note_id, lesson_id, question, answer, source_hint, status, sort_order, generated_by, reviewed_by, created_at, updated_at
+        SELECT id, note_id, lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by, created_at, updated_at
         FROM lesson_flashcards
         WHERE note_id = ?
         ORDER BY status = 'approved' DESC, sort_order ASC, id ASC
@@ -661,7 +672,7 @@ export class AiNotesService {
   private async findApprovedFlashcardsForNote(noteId: number) {
     const [rows] = await this.db.execute<LessonFlashcardRow[]>(
       `
-        SELECT id, note_id, lesson_id, question, answer, source_hint, status, sort_order, generated_by, reviewed_by, created_at, updated_at
+        SELECT id, note_id, lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by, created_at, updated_at
         FROM lesson_flashcards
         WHERE note_id = ? AND status = 'approved'
         ORDER BY sort_order ASC, id ASC
@@ -674,7 +685,7 @@ export class AiNotesService {
   private async findFlashcardById(cardId: number, noteId: number) {
     const [rows] = await this.db.execute<LessonFlashcardRow[]>(
       `
-        SELECT id, note_id, lesson_id, question, answer, source_hint, status, sort_order, generated_by, reviewed_by, created_at, updated_at
+        SELECT id, note_id, lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by, created_at, updated_at
         FROM lesson_flashcards
         WHERE id = ? AND note_id = ?
         LIMIT 1
@@ -710,6 +721,7 @@ export class AiNotesService {
   }
 
   private mapFlashcard(row: LessonFlashcardRow) {
+    const imageUrls = this.parseFlashcardImageUrls(row.image_url);
     return {
       id: row.id,
       noteId: row.note_id,
@@ -717,6 +729,9 @@ export class AiNotesService {
       question: row.question,
       answer: row.answer,
       sourceHint: row.source_hint || '',
+      imageUrl: imageUrls[0] || '',
+      imageUrls,
+      imageFit: this.normalizeFlashcardImageFit(row.image_fit || 'contain'),
       status: row.status,
       sortOrder: Number(row.sort_order || 0),
       generatedBy: row.generated_by || 'ai',
@@ -726,12 +741,18 @@ export class AiNotesService {
     };
   }
 
-  private normalizeFlashcardInput(payload: { question?: string; answer?: string; sourceHint?: string }) {
+  private normalizeFlashcardInput(payload: { question?: string; answer?: string; sourceHint?: string; imageUrl?: string; imageUrls?: string[]; imageFit?: string }) {
     return {
       question: this.cleanFlashcardText(payload.question, 1000),
       answer: this.cleanFlashcardText(payload.answer, 3000),
       sourceHint: this.cleanFlashcardText(payload.sourceHint, 500),
+      imageUrls: this.cleanFlashcardImageUrls(payload.imageUrls ?? payload.imageUrl),
+      imageFit: this.normalizeFlashcardImageFit(payload.imageFit),
     };
+  }
+
+  private normalizeFlashcardImageFit(value: unknown): 'contain' | 'cover' {
+    return value === 'cover' ? 'cover' : 'contain';
   }
 
   private normalizeFlashcardStatus(value: string | undefined): LessonFlashcardStatus {
@@ -746,6 +767,47 @@ export class AiNotesService {
       .trim()
       .slice(0, limit)
       .trim();
+  }
+
+  private cleanFlashcardImageUrl(value: unknown) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (raw.length > 1_500_000) {
+      throw new BadRequestException('Flashcard image is too large. Use a compressed image under 1 MB.');
+    }
+    if (/^https?:\/\/\S+$/i.test(raw)) return raw;
+    if (/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(raw)) return raw.replace(/\s+/g, '');
+    throw new BadRequestException('Flashcard image must be an http(s) image URL or PNG/JPG/WebP/GIF data image.');
+  }
+
+  private cleanFlashcardImageUrls(value: unknown) {
+    const rawItems = Array.isArray(value) ? value : [value];
+    const unique = new Set<string>();
+    for (const item of rawItems) {
+      const cleaned = this.cleanFlashcardImageUrl(item);
+      if (cleaned) unique.add(cleaned);
+      if (unique.size >= FLASHCARD_IMAGE_LIMIT) break;
+    }
+    return Array.from(unique);
+  }
+
+  private parseFlashcardImageUrls(value: unknown) {
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+    if (raw.startsWith('[')) {
+      try {
+        return this.cleanFlashcardImageUrls(JSON.parse(raw));
+      } catch {
+        return [];
+      }
+    }
+    return this.cleanFlashcardImageUrls(raw);
+  }
+
+  private serializeFlashcardImageUrls(value: unknown) {
+    const urls = this.cleanFlashcardImageUrls(value);
+    if (!urls.length) return null;
+    return urls.length === 1 ? urls[0] : JSON.stringify(urls);
   }
 
   private assertValidFlashcard(question: string, answer: string) {

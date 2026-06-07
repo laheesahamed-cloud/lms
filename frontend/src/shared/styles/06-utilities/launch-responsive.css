@@ -25,8 +25,7 @@
 }
 
 html,
-body,
-#root {
+body {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -49,20 +48,8 @@ body {
 .lms-route-page {
   min-width: 0 !important;
   max-width: 100% !important;
-  overflow-x: clip !important;
+  overflow-x: visible !important;
   background: var(--app-bg, var(--page-background, #dce6f4));
-}
-
-@supports not (overflow: clip) {
-  .lms-app-scroll-root,
-  .app-shell,
-  .portal-shell,
-  .main-content,
-  .portal-content,
-  .portal-content__frame,
-  .lms-route-page {
-    overflow-x: hidden !important;
-  }
 }
 
 .app-shell,
@@ -401,7 +388,6 @@ body {
     margin-left: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
-    padding-bottom: 0 !important;
   }
 
   .student-app-shell .dashboard-page,
@@ -416,7 +402,6 @@ body {
     width: min(100% - 24px, 760px) !important;
     max-width: min(100% - 24px, 760px) !important;
     padding-top: var(--lms-mobile-shell-top, max(10px, var(--lms-safe-top))) !important;
-    padding-bottom: calc(var(--lms-mobile-content-bottom, 92px) + 12px + var(--lms-safe-bottom)) !important;
   }
 
   .student-app-shell .study-hub-topbar {
@@ -514,7 +499,7 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
 html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] body.study-hub-screen :where(#root, .lms-app-scroll-root, .app-shell, .student-app-shell, .main-content, .page-content) {
   background: var(--lms-native-chrome-bg, var(--app-bg)) !important;
   background-color: var(--lms-native-chrome-bg-solid, var(--app-bg-solid, var(--surface-0, #0b121b))) !important;
-  background-attachment: fixed !important;
+  background-attachment: scroll !important;
   background-size: 100vw 100dvh !important;
 }
 
@@ -964,13 +949,6 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
     min-width: 0 !important;
   }
 
-  .student-app-shell :where(.lms-review-nav-actions) {
-    display: flex !important;
-    justify-content: flex-end !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-  }
-
   .student-app-shell :where(.lms-question-utility-row) {
     display: flex !important;
     justify-content: flex-end !important;
@@ -1160,9 +1138,7 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
   }
 
   .student-app-shell .practice-review-page .lms-quiz-action-review,
-  .student-app-shell .lms-review-page .lms-quiz-action-review,
-  .student-app-shell .practice-review-page .lms-review-nav-actions,
-  .student-app-shell .lms-review-page .lms-review-nav-actions {
+  .student-app-shell .lms-review-page .lms-quiz-action-review {
     display: flex !important;
     justify-content: flex-end !important;
     flex-wrap: wrap !important;
@@ -1474,7 +1450,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
   }
 
   .student-app-shell :where(.practice-review-page, .lms-review-page)
-    :where(.lms-quiz-action-grid, .lms-review-nav-actions) {
+    :where(.lms-quiz-action-grid) {
     display: flex !important;
     justify-content: flex-end !important;
     flex-wrap: wrap !important;
@@ -1670,7 +1646,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
   }
 
   .student-app-shell :where(.practice-review-page, .lms-review-page)
-    :where(.lms-quiz-action-grid, .lms-review-nav-actions, .lms-question-utility-row) {
+    :where(.lms-quiz-action-grid, .lms-question-utility-row) {
     display: flex !important;
     justify-content: flex-end !important;
     flex-wrap: wrap !important;
@@ -1823,7 +1799,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     line-height: 1.45 !important;
   }
 
-  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-review-nav-actions, .lms-question-utility-row) {
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-question-utility-row) {
     display: flex !important;
     justify-content: flex-end !important;
     flex-wrap: wrap !important;
@@ -1971,7 +1947,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     line-height: 1.45 !important;
   }
 
-  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-review-nav-actions, .lms-question-utility-row) {
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-question-utility-row) {
     display: flex !important;
     justify-content: flex-end !important;
     flex-wrap: wrap !important;
@@ -2125,7 +2101,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     line-height: 1.45 !important;
   }
 
-  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-review-nav-actions, .lms-question-utility-row) {
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-question-utility-row) {
     display: flex !important;
     justify-content: flex-end !important;
     flex-wrap: wrap !important;
@@ -2279,7 +2255,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     line-height: 1.45 !important;
   }
 
-  .student-app-shell .lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-review-nav-actions, .lms-question-utility-row) {
+  .student-app-shell .lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-question-utility-row) {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 8px !important;
@@ -2594,7 +2570,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     line-height: 1.45 !important;
   }
 
-  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-review-nav-actions, .lms-question-utility-row) {
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-question-utility-row) {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 8px !important;
@@ -2946,19 +2922,19 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     padding: 0 !important;
   }
 
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-header, .practice-review-header) {
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
+  body .student-app-shell.student-app-shell :where(.practice-review-page, .lms-review-page) :where(.practice-review-header) {
+    border: 1px solid var(--sa-border, var(--line-soft)) !important;
+    border-radius: var(--sa-radius-lg, 18px) !important;
+    background: var(--sa-card-bg, var(--surface-card)) !important;
+    box-shadow: var(--ds-card-shadow) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(116%) !important;
+    backdrop-filter: blur(14px) saturate(116%) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     gap: 10px !important;
     min-height: calc(60px + var(--lms-safe-top, env(safe-area-inset-top, 0px))) !important;
-    padding: calc(10px + var(--lms-safe-top, env(safe-area-inset-top, 0px))) 0 8px !important;
+    padding: calc(10px + var(--lms-safe-top, env(safe-area-inset-top, 0px))) 12px 10px !important;
   }
 
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-header, .practice-review-header) > :first-child {
@@ -2981,8 +2957,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
   }
 
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.quiz-header-actions) {
-    flex: 0 0 auto !important;
-    flex-wrap: nowrap !important;
     justify-content: flex-end !important;
     min-width: 0 !important;
     margin-left: auto !important;
@@ -3212,7 +3186,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     width: 100% !important;
   }
 
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-footer-actions, .lms-review-nav-actions) {
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-footer-actions) {
     display: flex !important;
     justify-content: flex-end !important;
     flex-wrap: wrap !important;
@@ -3479,27 +3453,6 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-assessment-btn--p
   border-color: color-mix(in srgb, var(--color-primary) 34%, var(--line-soft)) !important;
 }
 
-html[data-lms-runtime="native"] .quiz-completion-overlay {
-  background: color-mix(in srgb, var(--surface-0, var(--app-bg-solid)) 70%, transparent) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(112%) !important;
-  backdrop-filter: blur(12px) saturate(112%) !important;
-}
-
-html[data-lms-runtime="native"][data-theme="dark"] .quiz-completion-overlay {
-  background: color-mix(in srgb, var(--surface-0, #0b121b) 76%, transparent) !important;
-}
-
-html[data-lms-runtime="native"] :where(.quiz-completion-capsule, .quiz-completion-intro) {
-  border-color: color-mix(in srgb, var(--color-primary, #2563eb) 28%, var(--line-soft)) !important;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-card, #fbfcff) 96%, transparent), color-mix(in srgb, var(--surface-1, #fbfcff) 92%, transparent)) !important;
-  box-shadow: 0 24px 58px -34px color-mix(in srgb, var(--color-primary, #2563eb) 28%, rgba(15, 23, 42, 0.28)) !important;
-}
-
-html[data-lms-runtime="native"][data-theme="dark"] :where(.quiz-completion-capsule, .quiz-completion-intro) {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-card, #0b121b) 94%, #f8fafc 3%), color-mix(in srgb, var(--surface-1, #111827) 92%, #020617 6%)) !important;
-  box-shadow: 0 24px 60px -36px rgba(0, 0, 0, 0.68) !important;
-}
-
 @media (max-width: 700px) {
   html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-header, .practice-review-header) {
     border-radius: 18px !important;
@@ -3524,9 +3477,6 @@ html[data-lms-runtime="native"][data-theme="dark"] :where(.quiz-completion-capsu
     bottom: max(8px, var(--lms-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
   }
 
-  html[data-lms-runtime="native"] .quiz-completion-overlay {
-    padding-inline: max(14px, var(--lms-safe-left, env(safe-area-inset-left, 0px)), var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;
-  }
 }
 
 .lms-ai-note-page.is-writing-mode :where(.lms-ai-canvas-shell, .lms-ai-note-main) {
@@ -3700,7 +3650,7 @@ html[data-lms-runtime="native"][data-lms-os="ios"] .student-app-shell :where(but
   white-space: normal;
 }
 
-html[data-lms-runtime="native"][data-lms-os="ios"] :where(.lms-modal-backdrop, .quiz-completion-overlay) {
+html[data-lms-runtime="native"][data-lms-os="ios"] :where(.lms-modal-backdrop) {
   padding-top: max(var(--lms-ios-modal-gutter), var(--lms-ios-safe-top-content)) !important;
   padding-bottom: max(var(--lms-ios-modal-gutter), var(--lms-ios-safe-bottom-content)) !important;
   padding-left: max(var(--lms-ios-modal-gutter), var(--lms-safe-left, env(safe-area-inset-left, 0px))) !important;

@@ -59,6 +59,8 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'ai_illustrated_notes', 'lesson_id',   'INT NULL');
       await this.ensureColumn(connection, 'ai_illustrated_notes', 'engine_key',  "VARCHAR(32) NOT NULL DEFAULT 'gemini' AFTER raw_text");
       await this.ensureColumn(connection, 'ai_illustrated_notes', 'video_url',   'VARCHAR(1000) NULL AFTER lesson_id');
+      await this.ensureColumn(connection, 'lesson_flashcards', 'image_url', 'LONGTEXT NULL AFTER source_hint');
+      await this.ensureColumn(connection, 'lesson_flashcards', 'image_fit', "ENUM('contain','cover') NOT NULL DEFAULT 'contain' AFTER image_url");
       await this.ensureColumn(connection, 'questions', 'subtopic_id', 'INT NULL AFTER topic_id');
       await this.ensureColumn(connection, 'questions', 'lesson_id', 'INT NULL AFTER subtopic_id');
       await this.ensureColumn(connection, 'questions', 'paper_id', 'INT NULL AFTER lesson_id');
@@ -128,6 +130,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'practice_sessions', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
       await this.ensureColumn(connection, 'exam_sessions', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
       await this.ensureColumn(connection, 'quiz_attempts', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
+      await this.ensureColumn(connection, 'quiz_attempts', 'reviewed_at', 'DATETIME NULL AFTER submitted_at');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_practice', 'TINYINT(1) NOT NULL DEFAULT 1');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_exam', 'TINYINT(1) NOT NULL DEFAULT 0');
       await this.ensureColumn(connection, 'quizzes', 'show_theory_recap_in_review', 'TINYINT(1) NOT NULL DEFAULT 1');
@@ -719,6 +722,8 @@ export class SchemaSyncService implements OnModuleInit {
         question TEXT NOT NULL,
         answer TEXT NOT NULL,
         source_hint TEXT NULL,
+        image_url LONGTEXT NULL,
+        image_fit ENUM('contain','cover') NOT NULL DEFAULT 'contain',
         status ENUM('draft','approved','rejected') NOT NULL DEFAULT 'draft',
         sort_order INT NOT NULL DEFAULT 0,
         generated_by ENUM('ai','manual') NOT NULL DEFAULT 'ai',

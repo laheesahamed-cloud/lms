@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   finishPracticeAttempt,
@@ -23,7 +22,7 @@ import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../compon
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel } from './quizLabels.js';
 import { reviewPrimaryButtonClass, reviewSecondaryButtonClass } from '../results/ReviewWorkspace.jsx';
-import { ImpactStyle, nativeImpact, nativeSuccess, nativeTransientHaptic } from '../../../../shared/utils/nativeHaptics.js';
+import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
@@ -1096,215 +1095,6 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
   );
 }
 
-function playNativeCompletionBell() {
-  if (typeof window === 'undefined') return;
-
-  const platform = detectPlatform();
-  if (!platform.isNative || (!platform.isPhone && !platform.isTablet)) return;
-
-  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextCtor) return;
-
-  try {
-    const audioContext = new AudioContextCtor();
-    const now = audioContext.currentTime;
-    const masterGain = audioContext.createGain();
-    masterGain.gain.setValueAtTime(0.0001, now);
-    masterGain.gain.exponentialRampToValueAtTime(0.16, now + 0.018);
-    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.72);
-    masterGain.connect(audioContext.destination);
-
-    [659.25, 987.77].forEach((frequency, index) => {
-      const oscillator = audioContext.createOscillator();
-      const toneGain = audioContext.createGain();
-      const startAt = now + index * 0.055;
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(frequency, startAt);
-      toneGain.gain.setValueAtTime(index === 0 ? 0.82 : 0.54, startAt);
-      oscillator.connect(toneGain);
-      toneGain.connect(masterGain);
-      oscillator.start(startAt);
-      oscillator.stop(now + 0.62 + index * 0.04);
-    });
-
-    window.setTimeout(() => {
-      audioContext.close?.().catch(() => {});
-    }, 900);
-  } catch {
-    // Native sound is a nice-to-have; never block quiz completion.
-  }
-}
-
-const quizCompletionBurstParticles = [
-  { kind: 'star', x: -86, y: -62, rotate: -18, delay: 40, color: '#f59e0b' },
-  { kind: 'star', x: 82, y: -56, rotate: 22, delay: 90, color: '#fbbf24' },
-  { kind: 'dash', x: -92, y: 38, rotate: 32, delay: 120, color: '#fb923c' },
-  { kind: 'dash', x: 96, y: 34, rotate: -28, delay: 150, color: '#f97316' },
-  { kind: 'dot', x: -46, y: -92, rotate: 0, delay: 75, color: '#86efac' },
-  { kind: 'dot', x: 48, y: -90, rotate: 0, delay: 140, color: '#22c55e' },
-  { kind: 'dash', x: -28, y: 94, rotate: -18, delay: 190, color: '#fde047' },
-  { kind: 'dash', x: 34, y: 92, rotate: 18, delay: 220, color: '#fdba74' },
-];
-
-function QuizCompletionBurst() {
-  return (
-    <div className="quiz-completion-burst pointer-events-none absolute inset-0" aria-hidden="true">
-      <span className="quiz-completion-burst-halo absolute left-1/2 top-1/2 size-[118px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-success/10 max-[420px]:size-[104px]" />
-      {quizCompletionBurstParticles.map((particle, index) => (
-        <span
-          className={`quiz-completion-particle quiz-completion-particle--${particle.kind}`}
-          key={`${particle.kind}-${index}`}
-          style={{
-            '--particle-x': `${particle.x}px`,
-            '--particle-y': `${particle.y}px`,
-            '--particle-rotate': `${particle.rotate}deg`,
-            '--particle-delay': `${particle.delay}ms`,
-            '--particle-color': particle.color,
-          }}
-        >
-          {particle.kind === 'star' ? (
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="m12 2.4 2.4 6.2 6.6.4-5.1 4.2 1.7 6.4-5.6-3.5-5.6 3.5 1.7-6.4L3 9l6.6-.4L12 2.4Z" />
-            </svg>
-          ) : null}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-const quizCompletionOverlayStyles = `
-  .quiz-completion-burst-halo {
-    animation: quiz-completion-halo 840ms var(--ease-out) both;
-  }
-
-  .quiz-completion-particle {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    color: var(--particle-color);
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.58);
-    animation: quiz-completion-particle 980ms var(--ease-out) var(--particle-delay) both;
-  }
-
-  .quiz-completion-particle--star {
-    width: 18px;
-    height: 18px;
-  }
-
-  .quiz-completion-particle--dash {
-    width: 28px;
-    height: 8px;
-    border-radius: 999px;
-    background: currentColor;
-  }
-
-  .quiz-completion-particle--dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: currentColor;
-  }
-
-  @keyframes quiz-completion-halo {
-    0% { opacity: 0; transform: scale(0.72); }
-    42% { opacity: 1; transform: scale(1); }
-    100% { opacity: 0.28; transform: scale(1.18); }
-  }
-
-  @keyframes quiz-completion-particle {
-    0% {
-      opacity: 0;
-      transform: translate(-50%, -50%) rotate(0deg) scale(0.58);
-    }
-    18% {
-      opacity: 1;
-    }
-    68% {
-      opacity: 1;
-      transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) rotate(var(--particle-rotate)) scale(1);
-    }
-    100% {
-      opacity: 0;
-      transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) rotate(var(--particle-rotate)) scale(0.82);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .quiz-completion-burst-halo,
-    .quiz-completion-particle {
-      animation-duration: 0.01ms !important;
-      animation-delay: 0ms !important;
-      animation-iteration-count: 1 !important;
-    }
-  }
-`;
-
-function QuizCompletionOverlay({ quizLabel, onReview }) {
-  const [textVisible, setTextVisible] = useState(false);
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-    const revealDelay = prefersReducedMotion ? 80 : 700;
-    const reviewDelay = prefersReducedMotion ? 520 : 2050;
-    const revealTimer = window.setTimeout(() => {
-      setTextVisible(true);
-      void nativeTransientHaptic({ intensity: 0.42, sharpness: 0.78 });
-    }, revealDelay);
-    const reviewTimer = window.setTimeout(onReview, reviewDelay);
-
-    return () => {
-      window.clearTimeout(revealTimer);
-      window.clearTimeout(reviewTimer);
-    };
-  }, [onReview]);
-
-  const overlay = (
-    <div className="quiz-completion-overlay fixed inset-0 z-[140] grid h-dvh w-screen place-items-center bg-[color-mix(in_srgb,var(--surface-0)_76%,transparent)] p-4 backdrop-blur-[12px] dark:bg-[rgba(2,6,23,0.78)]" role="dialog" aria-modal="true" aria-labelledby="quiz-complete-title">
-      <style>{quizCompletionOverlayStyles}</style>
-      <section
-        className={cx(
-          'quiz-completion-capsule flex items-center justify-center overflow-hidden border border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-card)_96%,transparent),color-mix(in_srgb,var(--surface-1)_94%,transparent))] text-left shadow-none transition-[opacity,transform,width,min-height,border-radius,padding,gap] duration-[340ms] ease-[var(--ease-out)] [contain:layout_paint_style] [will-change:transform] dark:border-sky-300/18 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(8,15,28,0.96))]',
-          textVisible
-            ? 'min-h-[104px] w-[min(420px,calc(100vw-32px))] gap-3.5 rounded-full py-3 pl-3 pr-6 max-[420px]:min-h-[96px] max-[420px]:pr-5'
-            : 'size-[232px] rounded-[32px] p-5 max-[420px]:size-[206px]'
-        )}
-        aria-live="polite"
-      >
-        <div
-          className={cx(
-            'quiz-completion-mark relative grid shrink-0 place-items-center overflow-visible transition-[opacity,transform,width,height] duration-[420ms] ease-[var(--ease-out)] [will-change:transform]',
-            textVisible ? 'size-[78px] max-[420px]:size-[70px]' : 'size-[190px] max-[420px]:size-[164px]'
-          )}
-        >
-          <QuizCompletionBurst />
-          <svg className={cx('quiz-completion-fallback-icon absolute left-1/2 top-1/2 size-20 origin-center -translate-x-1/2 -translate-y-1/2 text-brand-success transition-transform duration-[420ms] ease-[var(--ease-out)]', textVisible ? 'scale-[0.42]' : 'scale-100')} viewBox="0 0 96 96" fill="none" aria-hidden="true">
-            <circle cx="48" cy="48" r="38" fill="currentColor" opacity="0.12" />
-            <path d="M30 49.2 42.2 61 67 35" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-
-        <div
-          className={cx(
-            'quiz-completion-copy grid min-w-0 gap-1 overflow-hidden transition-[opacity,transform,max-width] duration-[420ms] ease-[var(--ease-out)]',
-            textVisible ? 'max-w-[260px] translate-x-0 opacity-100 delay-[70ms]' : 'max-w-0 translate-x-4 opacity-0 delay-0'
-          )}
-        >
-          <p className="m-0 text-[11px] font-extrabold uppercase tracking-[0.12em] text-brand-primary">Quiz finished</p>
-          <h2 id="quiz-complete-title" className="m-0 truncate text-[18px] font-extrabold leading-tight text-ink-strong max-[420px]:text-[16px]">
-            Wait for review
-          </h2>
-          <span className="truncate text-[11px] font-bold text-ink-soft dark:text-sky-100/72">{quizLabel} review is opening</span>
-        </div>
-      </section>
-    </div>
-  );
-
-  if (typeof document === 'undefined') return overlay;
-  return createPortal(overlay, document.body);
-}
-
 export function TakeQuizPage() {
   const navigate = useNavigate();
   const { quizId } = useParams();
@@ -1331,7 +1121,6 @@ export function TakeQuizPage() {
   const [hasAutoSubmitted, setHasAutoSubmitted] = useState(false);
   const [confirmExamSubmitOpen, setConfirmExamSubmitOpen] = useState(false);
   const [practiceCompleting, setPracticeCompleting] = useState(false);
-  const [practiceReadyForReview, setPracticeReadyForReview] = useState(false);
   const [questionActionBusy, setQuestionActionBusy] = useState(false);
   const questionContentRef = useRef(null);
   const hasSkippedInitialPracticeScrollRef = useRef(false);
@@ -1501,7 +1290,7 @@ export function TakeQuizPage() {
       currentQuestion.theoryRecap
     )
   );
-  const shouldBlockQuizExit = Boolean(data && !loading && !isSingleQuestionPractice && !practiceReadyForReview && !hasAutoSubmitted);
+  const shouldBlockQuizExit = Boolean(data && !loading && !isSingleQuestionPractice && !hasAutoSubmitted);
   const quizExitBlocker = useBlocker(shouldBlockQuizExit);
 
   useEffect(() => {
@@ -1529,7 +1318,7 @@ export function TakeQuizPage() {
   }, [answers, currentIndex, data, flaggedQuestionIds, hasAutoSubmitted, isExam, quizId, shouldBlockQuizExit]);
 
   useEffect(() => {
-    if (!data || loading || practiceReadyForReview || hasAutoSubmitted) {
+    if (!data || loading || hasAutoSubmitted) {
       return undefined;
     }
 
@@ -1541,7 +1330,7 @@ export function TakeQuizPage() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [data, hasAutoSubmitted, loading, practiceReadyForReview]);
+  }, [data, hasAutoSubmitted, loading]);
 
   useEffect(() => {
     if (quizExitBlocker.state !== 'blocked') return;
@@ -1553,7 +1342,7 @@ export function TakeQuizPage() {
     );
 
     if (shouldLeave) {
-      if (!isExam && data?.mode === 'practice' && !isSingleQuestionPractice && !practiceReadyForReview) {
+      if (!isExam && data?.mode === 'practice' && !isSingleQuestionPractice) {
         void Promise.resolve(persistPracticeDraftToDatabaseRef.current?.({
           nextIndex: currentIndex,
           silent: true,
@@ -1568,7 +1357,7 @@ export function TakeQuizPage() {
     }
 
     quizExitBlocker.reset();
-  }, [currentIndex, data?.mode, isExam, isSingleQuestionPractice, practiceReadyForReview, quizExitBlocker]);
+  }, [currentIndex, data?.mode, isExam, isSingleQuestionPractice, quizExitBlocker]);
 
   useEffect(() => {
     hasSkippedInitialPracticeScrollRef.current = false;
@@ -1644,7 +1433,7 @@ export function TakeQuizPage() {
   }
 
   async function persistPracticeDraftToDatabase({ nextIndex = currentIndex, silent = false, clearLocalOnSuccess = false } = {}) {
-    if (isExam || !data?.questions?.length || isSingleQuestionPractice || practiceReadyForReview) return true;
+    if (isExam || !data?.questions?.length || isSingleQuestionPractice) return true;
     if (practiceDraftSaveInFlightRef.current) {
       practiceDraftSaveQueuedRef.current = true;
       return true;
@@ -1829,7 +1618,7 @@ export function TakeQuizPage() {
   }
 
   async function finishPractice() {
-    if (practiceCompleting || practiceReadyForReview) return;
+    if (practiceCompleting) return;
     setError('');
     setPracticeCompleting(true);
     if (data?.mode === 'practice') {
@@ -1856,10 +1645,8 @@ export function TakeQuizPage() {
       navigate('/bookmarks');
       return;
     }
-    playNativeCompletionBell();
-    void nativeSuccess();
-    setPracticeReadyForReview(true);
     setPracticeCompleting(false);
+    handlePracticeReviewOpen();
   }
 
   async function handleSubmit() {
@@ -1984,7 +1771,7 @@ export function TakeQuizPage() {
   }
 
   useEffect(() => {
-    if (isExam || !data?.questions?.length || !currentQuestion?.id || practiceReadyForReview) return undefined;
+    if (isExam || !data?.questions?.length || !currentQuestion?.id) return undefined;
     const ids = [
       currentQuestion.id,
       data.questions[currentIndex + 1]?.id,
@@ -2003,7 +1790,7 @@ export function TakeQuizPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentIndex, currentQuestion?.id, data?.questions, isExam, practiceReadyForReview, quizId]);
+  }, [currentIndex, currentQuestion?.id, data?.questions, isExam, quizId]);
 
   useEffect(() => {
     if (
@@ -2040,7 +1827,7 @@ export function TakeQuizPage() {
   }, [currentQuestion, currentQuestionRevealed, isExam, quizId]);
 
   useEffect(() => {
-    if (isExam || !data?.questions?.length || loading || practiceReadyForReview || isSingleQuestionPractice) {
+    if (isExam || !data?.questions?.length || loading || isSingleQuestionPractice) {
       return undefined;
     }
 
@@ -2058,10 +1845,10 @@ export function TakeQuizPage() {
         practiceDraftWriteTimerRef.current = null;
       }
     };
-  }, [answers, currentIndex, data?.questions, isExam, isSingleQuestionPractice, loading, practiceReadyForReview, revealedAnswerIds]);
+  }, [answers, currentIndex, data?.questions, isExam, isSingleQuestionPractice, loading, revealedAnswerIds]);
 
   useEffect(() => {
-    if (isExam || !data?.questions?.length || loading || practiceReadyForReview || isSingleQuestionPractice) {
+    if (isExam || !data?.questions?.length || loading || isSingleQuestionPractice) {
       return undefined;
     }
 
@@ -2093,7 +1880,7 @@ export function TakeQuizPage() {
       window.removeEventListener('online', saveForPauseOrExit);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [answers, currentIndex, data, isExam, isSingleQuestionPractice, loading, practiceReadyForReview, quizId, revealedAnswerIds]);
+  }, [answers, currentIndex, data, isExam, isSingleQuestionPractice, loading, quizId, revealedAnswerIds]);
 
   useEffect(() => {
     if (!isExam || !data?.questions?.length || !didHydrateExamStateRef.current || hasAutoSubmitted) {
@@ -2209,13 +1996,6 @@ export function TakeQuizPage() {
     return (
       <main className={practiceQuizScreenShellClass}>
         <section className={practiceQuizLayoutClass}>
-          {practiceReadyForReview && !isSingleQuestionPractice ? (
-            <QuizCompletionOverlay
-              quizLabel={getQuizNumberLabel(data.quiz)}
-              onReview={handlePracticeReviewOpen}
-            />
-          ) : null}
-
           <ExamModeHeader
             title={data.quiz.quizTitle}
             quizLabel={getQuizNumberLabel(data.quiz)}

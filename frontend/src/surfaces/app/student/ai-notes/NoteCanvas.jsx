@@ -49,38 +49,38 @@ const noteCanvasUi = {
     'break-words rounded-[3px] px-1 font-semibold not-italic text-slate-700 dark:text-white',
   boldTerm: 'break-words font-bold text-blue-700 dark:text-[#ff8a80]',
   editInput:
-    "block w-full rounded-[5px] border border-transparent bg-transparent px-0.5 py-px font-[var(--type-font-notebook)] text-[inherit] leading-[inherit] text-[inherit] shadow-none outline-none transition placeholder:opacity-45 hover:border-indigo-500/10 hover:bg-white/20 focus:border-indigo-500/25 focus:bg-white/28 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.08)] dark:hover:border-indigo-300/10 dark:hover:bg-white/[0.025] dark:focus:border-indigo-300/20 dark:focus:bg-white/[0.045]",
+    "block w-full rounded-[5px] border border-transparent bg-transparent px-0.5 py-px text-[inherit] leading-[inherit] text-[inherit] shadow-none outline-none transition placeholder:opacity-45 hover:border-indigo-500/10 hover:bg-white/20 focus:border-indigo-500/25 focus:bg-white/28 dark:hover:border-indigo-300/10 dark:hover:bg-white/[0.025] dark:focus:border-indigo-300/20 dark:focus:bg-white/[0.045]",
   editArea:
-    "block min-h-0 w-full resize-none rounded-[7px] border border-transparent bg-transparent px-0.5 py-px font-[var(--type-font-notebook)] text-[inherit] leading-[1.6] text-[inherit] shadow-none outline-none transition placeholder:opacity-45 hover:border-indigo-500/10 hover:bg-white/20 focus:border-indigo-500/25 focus:bg-white/28 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.08)] dark:hover:border-indigo-300/10 dark:hover:bg-white/[0.025] dark:focus:border-indigo-300/20 dark:focus:bg-white/[0.045]",
+    "block min-h-0 w-full resize-none rounded-[7px] border border-transparent bg-transparent px-0.5 py-px text-[inherit] leading-[1.6] text-[inherit] shadow-none outline-none transition placeholder:opacity-45 hover:border-indigo-500/10 hover:bg-white/20 focus:border-indigo-500/25 focus:bg-white/28 dark:hover:border-indigo-300/10 dark:hover:bg-white/[0.025] dark:focus:border-indigo-300/20 dark:focus:bg-white/[0.045]",
   editHint:
     "mb-1 pl-0.5 font-[var(--type-font-body)] text-[11px] tracking-[0.2px] opacity-45",
   bullets: 'm-0 mb-2 flex list-none flex-col gap-[5px] p-0',
   bullet:
-    "min-w-0 flex items-start gap-2 break-words font-[var(--type-font-notebook)] text-[14.5px] leading-[1.58] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[15px]",
+    "min-w-0 flex items-start gap-2 break-words text-[14.5px] leading-[1.58] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[15px]",
   subBullet: 'pl-[18px] text-[13.5px] opacity-90 dark:opacity-100 dark:text-[#b8caf0] max-[520px]:text-[14px]',
   subArrow: 'mt-0.5 shrink-0 text-xs opacity-75 dark:opacity-100',
   bulletDot: 'mt-[5px] size-[7px] shrink-0 rounded-full dark:shadow-[0_0_6px_currentColor]',
   summaryFrags: 'flex flex-wrap items-center gap-2',
   summaryFrag:
-    "min-w-0 max-w-full break-words rounded-md border border-blue-700/15 bg-blue-700/[0.08] px-2.5 py-1 font-[var(--type-font-notebook)] text-[13px] leading-[1.5] text-[#1e3a5f] dark:border-white/10 dark:bg-white/[0.06] dark:text-[rgba(220,230,255,0.92)]",
+    "min-w-0 max-w-full break-words rounded-md border border-blue-700/15 bg-blue-700/[0.08] px-2.5 py-1 text-[13px] leading-[1.5] text-[#1e3a5f] dark:border-white/10 dark:bg-white/[0.06] dark:text-[rgba(220,230,255,0.92)]",
   wrapOuter: 'relative',
   canvas:
-    "relative mx-auto w-full max-w-[1120px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-[#fffdf8] bg-[radial-gradient(circle,rgba(87,69,39,0.055)_1.2px,transparent_1.2px)] bg-[length:22px_22px] font-[var(--type-font-notebook)] text-[#3b465f] shadow-[0_14px_38px_rgba(91,64,35,0.10),0_2px_8px_rgba(15,23,42,0.04)] dark:border-white/10 dark:bg-[#0d0f1a] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.055)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_8px_40px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)] max-[640px]:max-w-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:shadow-none max-[640px]:dark:shadow-none print:max-w-full print:rounded-none print:shadow-none",
+    "relative mx-auto w-full max-w-[1120px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-[#fffdf8] bg-[radial-gradient(circle,rgba(87,69,39,0.055)_1.2px,transparent_1.2px)] bg-[length:22px_22px] text-[#3b465f] shadow-[0_1px_3px_rgba(91,64,35,0.05)] dark:border-white/10 dark:bg-[#0d0f1a] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.055)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05)] max-[640px]:max-w-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:shadow-none max-[640px]:dark:shadow-none print:max-w-full print:rounded-none print:shadow-none",
   editable: '!overflow-visible',
   overviewWrap: 'relative z-[4] flex justify-center',
   overviewBadge:
     "rounded-b-xl bg-[#d9c7ee] px-7 py-1 font-[var(--type-font-body)] text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#4b2d71] shadow-[0_2px_8px_rgba(76,45,113,0.10)] dark:bg-violet-400/25 dark:text-violet-100",
   header:
-    'relative z-[3] mx-5 mb-2 mt-4 min-w-0 overflow-hidden rounded-[20px] border border-[#eadfce] bg-[radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.10),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(16,185,129,0.10),transparent_38%),radial-gradient(circle,rgba(87,69,39,0.045)_1px,transparent_1px),rgba(255,255,255,0.82)] bg-[length:auto,auto,18px_18px,auto] px-5 py-4 shadow-[0_10px_30px_rgba(91,64,35,0.09),0_2px_8px_rgba(15,23,42,0.04)] backdrop-blur-sm dark:border-white/10 dark:bg-[radial-gradient(circle_at_100%_0%,rgba(96,165,250,0.14),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(52,211,153,0.10),transparent_38%),radial-gradient(circle,rgba(255,255,255,0.055)_1px,transparent_1px),rgba(255,255,255,0.055)] max-[520px]:mx-2 max-[520px]:px-2.5 max-[520px]:py-3',
+    'relative z-[3] mx-5 mb-2 mt-4 min-w-0 overflow-hidden rounded-[20px] border border-[#eadfce] bg-[radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.10),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(16,185,129,0.10),transparent_38%),radial-gradient(circle,rgba(87,69,39,0.045)_1px,transparent_1px),rgba(255,255,255,0.82)] bg-[length:auto,auto,18px_18px,auto] px-5 py-4 backdrop-blur-sm dark:border-white/10 dark:bg-[radial-gradient(circle_at_100%_0%,rgba(96,165,250,0.14),transparent_34%),radial-gradient(circle_at_0%_100%,rgba(52,211,153,0.10),transparent_38%),radial-gradient(circle,rgba(255,255,255,0.055)_1px,transparent_1px),rgba(255,255,255,0.055)] max-[520px]:mx-2 max-[520px]:px-2.5 max-[520px]:py-3',
   headerInner: 'relative flex items-center justify-between gap-4 max-[720px]:items-start max-[720px]:flex-col',
   titleCluster: 'min-w-0 flex-1',
   titleRow: 'flex min-w-0 flex-wrap items-center gap-2.5',
   leafMark:
     'inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-100/75 text-[25px] shadow-[0_8px_18px_rgba(16,185,129,0.12)] dark:border-emerald-300/20 dark:bg-emerald-300/10',
   title:
-    "m-0 min-w-0 flex-1 break-words font-[var(--type-font-notebook)] text-[38px] font-bold leading-[1.05] text-slate-700 dark:text-[#f0f4ff] dark:[text-shadow:0_0_26px_rgba(160,180,255,0.16)] max-[520px]:w-full max-[520px]:text-[30px]",
+    "m-0 min-w-0 flex-1 break-words text-[38px] font-bold leading-[1.05] text-slate-700 dark:text-[#f0f4ff] dark:[text-shadow:0_0_26px_rgba(160,180,255,0.16)] max-[520px]:w-full max-[520px]:text-[30px]",
   titleReadOnly:
-    "flex w-full items-center justify-center bg-transparent px-0 py-0 text-center font-[var(--type-font-notebook)] text-[42px] font-bold leading-[1.02] text-slate-700 shadow-none dark:text-[#f5f8ff] max-[520px]:text-[34px]",
+    "flex w-full items-center justify-center bg-transparent px-0 py-0 text-center text-[42px] font-bold leading-[1.02] text-slate-700 shadow-none dark:text-[#f5f8ff] max-[520px]:text-[34px]",
   titleMedicalIcon:
     'flex size-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/22 bg-sky-300/10 text-sky-200 shadow-[0_0_18px_rgba(96,165,250,0.18)] max-[520px]:size-9 max-[520px]:rounded-xl [&_svg]:size-7 max-[520px]:[&_svg]:size-5',
   subtitle:
@@ -95,7 +95,7 @@ const noteCanvasUi = {
   sectionGrid: 'grid min-w-0 grid-cols-2 gap-0.5 px-5 py-2 max-[640px]:grid-cols-1 max-[520px]:px-2',
   sectionGridOne: '!grid-cols-1 [&>*]:col-span-1',
   section:
-    'group/canvas-card relative min-w-0 break-inside-avoid overflow-hidden rounded-[14px] border border-[#eadfce] bg-white/[0.72] shadow-[0_2px_10px_rgba(91,64,35,0.055)] hover:-translate-y-[3px] hover:shadow-[0_8px_24px_rgba(91,64,35,0.12),0_2px_8px_rgba(15,23,42,0.04)] transition-[transform,box-shadow] duration-200 dark:border-white/10 dark:bg-white/[0.045] dark:shadow-[0_2px_12px_rgba(2,6,12,0.35)] dark:hover:shadow-[0_8px_32px_rgba(2,6,12,0.58),0_2px_8px_rgba(2,6,12,0.28)] dark:backdrop-blur',
+    'group/canvas-card relative min-w-0 break-inside-avoid overflow-hidden rounded-[14px] border border-[#eadfce]/65 bg-[#fffdf8]/45 transition-colors duration-200 hover:border-[#e2d4bd]/80 hover:bg-[#fffdf8]/70 dark:border-white/[0.07] dark:bg-white/[0.025] dark:hover:bg-white/[0.045]',
   cardMedicalIcon:
     'pointer-events-none absolute right-2.5 top-2.5 z-[4] flex size-7 items-center justify-center rounded-full border bg-white/42 opacity-65 shadow-[0_4px_12px_rgba(15,23,42,0.08)] dark:bg-slate-950/20 max-[520px]:right-2 max-[520px]:top-2 max-[520px]:size-6 [&_svg]:size-[16px] max-[520px]:[&_svg]:size-[14px]',
   imageSection: '',
@@ -172,7 +172,7 @@ const noteCanvasUi = {
     "m-0 inline-flex w-fit max-w-full break-words rounded-md px-2.5 py-0.5 font-[var(--type-font-body)] text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-700 dark:text-[#f0f4ff]",
   sectionExtras: 'mt-1 flex flex-col gap-1.5',
   callout:
-    "flex min-w-0 items-start gap-2 break-words rounded-lg border border-black/[0.05] bg-amber-50/70 px-3 py-2 font-[var(--type-font-notebook)] text-[14.5px] leading-[1.52] text-slate-700 dark:!border-[rgba(180,200,255,0.18)] dark:bg-white/[0.055] dark:text-[#c8d8ff] max-[520px]:text-[15px]",
+    "flex min-w-0 items-start gap-2 break-words rounded-lg border border-black/[0.05] bg-amber-50/70 px-3 py-2 text-[14.5px] leading-[1.52] text-slate-700 dark:!border-[rgba(180,200,255,0.18)] dark:bg-white/[0.055] dark:text-[#c8d8ff] max-[520px]:text-[15px]",
   calloutArrow: 'shrink-0 text-sm',
   examTrapPill:
     "inline-flex shrink-0 items-center rounded-full border border-red-400/25 bg-red-400/14 px-2 py-0.5 font-[var(--type-font-body)] text-[11px] font-extrabold uppercase tracking-[0.08em] text-red-600 dark:border-red-300/22 dark:bg-red-300/12 dark:text-red-200",
@@ -180,25 +180,25 @@ const noteCanvasUi = {
     'rotate-[-0.6deg] rounded-lg border-[1.5px] border-[rgba(180,130,0,0.3)] bg-[rgba(220,160,0,0.08)] px-3 py-2.5 dark:border-[rgba(255,210,0,0.35)] dark:bg-[rgba(100,70,0,0.35)] dark:shadow-[0_0_14px_rgba(255,210,0,0.08)]',
   mnemonicLabel: 'mb-[5px] text-[11px] font-extrabold uppercase tracking-[1.2px] text-amber-800 dark:text-[#ffe57a]',
   mnemonicText:
-    "whitespace-pre-line font-[var(--type-font-notebook)] text-[13px] leading-[1.55] text-amber-900 dark:text-[#fff0b0]",
+    "whitespace-pre-line text-[13px] leading-[1.55] text-amber-900 dark:text-[#fff0b0]",
   sticky:
     'relative rounded-lg border border-black/[0.05] px-3 py-2 opacity-95 shadow-[0_3px_10px_rgba(91,64,35,0.06)] dark:!border-[rgba(180,200,255,0.18)] dark:bg-white/[0.055] dark:shadow-none',
   stickyPin:
     'absolute left-1/2 top-[-5px] size-2.5 -translate-x-1/2 rounded-full bg-white/30 shadow-[0_0_6px_rgba(255,255,255,0.2)]',
   stickyText:
-    "m-0 font-[var(--type-font-notebook)] text-[14.5px] font-semibold leading-[1.52] text-slate-700 dark:font-semibold dark:text-[#c8d8ff] max-[520px]:text-[15px]",
+    "m-0 text-[14.5px] font-semibold leading-[1.52] text-slate-700 dark:font-semibold dark:text-[#c8d8ff] max-[520px]:text-[15px]",
   keyPoints:
-    'relative mx-5 mb-3 mt-1 overflow-hidden rounded-[14px] border border-[#f3c77f]/70 px-4 py-3.5 shadow-[0_2px_10px_rgba(91,64,35,0.055)] dark:border-white/[0.07] dark:shadow-[0_2px_12px_rgba(0,0,0,0.3)] max-[520px]:mx-2 max-[520px]:px-3',
+    'relative mx-5 mb-3 mt-1 overflow-hidden rounded-[14px] border border-[#f3c77f]/70 px-4 py-3.5 dark:border-white/[0.07] max-[520px]:mx-2 max-[520px]:px-3',
   keyPointsLabel:
-    "mb-2.5 flex items-center gap-1.5 font-[var(--type-font-notebook)] text-[13px] font-bold uppercase tracking-[0.8px] text-slate-600 dark:text-[rgba(200,220,255,0.7)]",
+    "mb-2.5 flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-[0.8px] text-slate-600 dark:text-[rgba(200,220,255,0.7)]",
   keyPointsList: 'flex flex-wrap gap-2',
   keyChip:
-    "max-w-full break-words rounded-lg border border-black/[0.05] px-3 py-1.5 font-[var(--type-font-notebook)] text-[14px] font-bold text-slate-700 shadow-[0_1px_4px_rgba(91,64,35,0.08)] dark:text-[#e5ecff] dark:shadow-[0_2px_8px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.05)] max-[520px]:text-[14.5px]",
+    "max-w-full break-words rounded-lg border border-black/[0.05] px-3 py-1.5 text-[14px] font-bold text-slate-700 shadow-[0_1px_4px_rgba(91,64,35,0.08)] dark:text-[#e5ecff] dark:shadow-[0_2px_8px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.05)] max-[520px]:text-[14.5px]",
   keyChipEdit: 'cursor-text focus:outline focus:outline-2 focus:outline-white/50',
   summary:
-    'relative mx-5 mb-5 overflow-hidden rounded-[14px] border border-cyan-600/20 px-5 py-4 shadow-[0_2px_10px_rgba(91,64,35,0.055)] dark:border-white/10 dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] max-[520px]:mx-2 max-[520px]:px-3',
+    'relative mx-5 mb-5 overflow-hidden rounded-[14px] border border-cyan-600/20 px-5 py-4 dark:border-white/10 max-[520px]:mx-2 max-[520px]:px-3',
   summaryLabel:
-    "mb-2 flex items-center gap-1.5 font-[var(--type-font-notebook)] text-xs font-bold uppercase tracking-[0.8px] text-blue-700/65 dark:text-[rgba(150,180,255,0.7)]",
+    "mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.8px] text-blue-700/65 dark:text-[rgba(150,180,255,0.7)]",
   footer:
     'border-t border-black/[0.06] px-[22px] py-2.5 text-right text-[11px] tracking-[0.3px] text-slate-500/55 dark:border-t-white/[0.06] dark:text-white/20',
   toolbar:
@@ -2170,15 +2170,11 @@ const DECO = [
   { id:'sparkle', svg:<svg viewBox="0 0 40 40" fill="none" width="34" height="34"><path d="M20 4l2.5 13.5L36 20l-13.5 2.5L20 36l-2.5-13.5L4 20l13.5-2.5L20 4z" fill="#B3E5FC" stroke="#0288D1" strokeWidth="1.2"/></svg>, style:{top:95,right:4,rotate:'-8deg',opacity:0.7} },
 ];
 function DecoStickers() {
-  return (
-    <>
-      {DECO.map(s => (
-        <div key={s.id} style={{ position:'absolute', ...s.style, transform:`rotate(${s.style.rotate})`, pointerEvents:'none', zIndex:2, filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.12))' }}>
-          {s.svg}
-        </div>
-      ))}
-    </>
-  );
+  // Auto-scattered decorations (stars/hearts/pencils) made the clinical notes feel
+  // cluttered and toy-like. Kept off for a calm, GoodNotes-style surface; learners
+  // can still place their own stickers (UserSticker), which stay fully intact.
+  void DECO;
+  return null;
 }
 
 /* ══════════════════════════════════════════════════════════════

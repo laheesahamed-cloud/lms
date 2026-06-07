@@ -43,9 +43,9 @@ export const ui = {
 
   // ── Layout ────────────────────────────────────────────────
   screenShell:
-    'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-4 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-4',
+    'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-4 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-4',
   studentScreenShell:
-    'lms-route-page student-route-page page page-wrapper page-content app-content min-h-dvh w-full max-w-full min-w-0 overflow-x-hidden text-ink-strong',
+    'lms-route-page student-route-page page page-wrapper page-content app-content min-h-dvh w-full max-w-full min-w-0 text-ink-strong',
   managementLayout:
     'management-layout mx-auto grid w-full max-w-page min-w-0 gap-section max-[520px]:gap-4',
   studentManagementLayout:
@@ -53,11 +53,11 @@ export const ui = {
   managementGrid:
     'grid gap-section',
   routeScene:
-    'relative isolate min-h-dvh overflow-x-hidden',
+    'relative isolate min-h-dvh',
   authRouteScene:
     'auth-route-scene',
   panelRouteScene:
-    'min-h-full overflow-x-hidden',
+    'min-h-full',
   fadePop:
     'animate-fadePop',
   aiGeneratorGrid:
@@ -202,11 +202,11 @@ export const ui = {
   quizListFilters: 'grid grid-cols-4 gap-4 max-[900px]:grid-cols-1 [&_label]:min-w-0',
   filterActions: 'self-end justify-start flex-nowrap',
   input:
-    'lms-native-field w-full min-h-[var(--control-h)] rounded-[var(--radius-sm)] border-[1.5px] border-[var(--input-border)] bg-[var(--input-bg)] px-4 py-3 text-[13.5px] leading-normal text-ink-strong shadow-[inset_0_1px_2px_rgba(11,18,32,0.03)] transition-[border-color,box-shadow,background] duration-150 ease-out [-webkit-appearance:none] placeholder:text-ink-muted [&:hover:not(:focus)]:border-line-strong focus:border-brand-primary focus:bg-surface-card focus:outline-none focus:shadow-[var(--input-focus-shadow),inset_0_1px_2px_rgba(11,18,32,0.03)]',
+    'lms-native-field w-full min-h-[var(--control-h)] rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-4 py-3 text-[13.5px] leading-normal text-ink-strong shadow-[inset_0_1px_2px_rgba(11,18,32,0.03)] transition-colors duration-150 ease-out [-webkit-appearance:none] placeholder:text-ink-muted [&:hover:not(:focus)]:border-line-strong focus:border-line-strong focus:outline-none',
   textarea:
-    'w-full min-h-24 resize-y rounded-[var(--radius-sm)] border-[1.5px] border-[var(--input-border)] bg-[var(--input-bg)] px-4 py-3 text-[13.5px] leading-normal text-ink-strong shadow-[inset_0_1px_2px_rgba(11,18,32,0.03)] transition-[border-color,box-shadow,background] duration-150 ease-out [-webkit-appearance:none] placeholder:text-ink-muted [&:hover:not(:focus)]:border-line-strong focus:border-brand-primary focus:bg-surface-card focus:outline-none focus:shadow-[var(--input-focus-shadow),inset_0_1px_2px_rgba(11,18,32,0.03)]',
+    'w-full min-h-24 resize-y rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-4 py-3 text-[13.5px] leading-normal text-ink-strong shadow-[inset_0_1px_2px_rgba(11,18,32,0.03)] transition-colors duration-150 ease-out [-webkit-appearance:none] placeholder:text-ink-muted [&:hover:not(:focus)]:border-line-strong focus:border-line-strong focus:outline-none',
   tagInputShell:
-    'grid gap-2 rounded-[var(--radius-sm)] border-[1.5px] border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 focus-within:border-brand-primary focus-within:shadow-[var(--input-focus-shadow)]',
+    'grid gap-2 rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 focus-within:border-line-strong',
   tagList:   'flex min-h-0 flex-wrap gap-2',
   tagChip:
     'inline-flex items-center gap-1 rounded-full border border-brand-primary/18 bg-[var(--color-primary-light)] px-3 py-1 text-xs font-bold text-brand-primary [&_button]:size-4 [&_button]:min-h-0 [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-transparent [&_button]:p-0 [&_button]:text-sm [&_button]:leading-none [&_button]:text-inherit [&_button]:opacity-60 [&_button]:shadow-none hover:[&_button]:opacity-100 hover:[&_button]:translate-y-0 hover:[&_button]:bg-transparent hover:[&_button]:shadow-none',

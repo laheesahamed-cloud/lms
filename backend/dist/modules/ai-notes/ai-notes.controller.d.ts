@@ -31,12 +31,18 @@ declare class CreateLessonFlashcardDto {
     question: string;
     answer: string;
     sourceHint?: string;
+    imageUrl?: string;
+    imageUrls?: string[];
+    imageFit?: 'contain' | 'cover';
     status?: 'draft' | 'approved' | 'rejected';
 }
 declare class UpdateLessonFlashcardDto {
     question?: string;
     answer?: string;
     sourceHint?: string;
+    imageUrl?: string;
+    imageUrls?: string[];
+    imageFit?: 'contain' | 'cover';
     status?: 'draft' | 'approved' | 'rejected';
     sortOrder?: number;
 }
@@ -80,6 +86,9 @@ export declare class AiNotesController {
         question: string;
         answer: string;
         sourceHint: string;
+        imageUrl: string;
+        imageUrls: string[];
+        imageFit: "contain" | "cover";
         status: "draft" | "approved" | "rejected";
         sortOrder: number;
         generatedBy: "ai" | "manual";
@@ -94,6 +103,9 @@ export declare class AiNotesController {
         question: string;
         answer: string;
         sourceHint: string;
+        imageUrl: string;
+        imageUrls: string[];
+        imageFit: "contain" | "cover";
         status: "draft" | "approved" | "rejected";
         sortOrder: number;
         generatedBy: "ai" | "manual";
@@ -116,6 +128,9 @@ export declare class AiNotesController {
             question: string;
             answer: string;
             sourceHint: string;
+            imageUrl: string;
+            imageUrls: string[];
+            imageFit: "contain" | "cover";
             status: "draft" | "approved" | "rejected";
             sortOrder: number;
             generatedBy: "ai" | "manual";
@@ -131,6 +146,9 @@ export declare class AiNotesController {
         question: string;
         answer: string;
         sourceHint: string;
+        imageUrl: string;
+        imageUrls: string[];
+        imageFit: "contain" | "cover";
         status: "draft" | "approved" | "rejected";
         sortOrder: number;
         generatedBy: "ai" | "manual";
@@ -226,6 +244,9 @@ export declare class AiNotesController {
             question: string;
             answer: string;
             sourceHint: string;
+            imageUrl: string;
+            imageUrls: string[];
+            imageFit: "contain" | "cover";
             status: "draft" | "approved" | "rejected";
             sortOrder: number;
             generatedBy: "ai" | "manual";
@@ -270,6 +291,9 @@ export declare class AiNotesController {
             question: string;
             answer: string;
             sourceHint: string;
+            imageUrl: string;
+            imageUrls: string[];
+            imageFit: "contain" | "cover";
             status: "draft" | "approved" | "rejected";
             sortOrder: number;
             generatedBy: "ai" | "manual";

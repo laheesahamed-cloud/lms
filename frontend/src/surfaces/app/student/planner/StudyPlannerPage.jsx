@@ -16,10 +16,10 @@ const FLASHCARD_REVIEW_STATS_KEY = 'lms.flashcards.reviewStats.v1';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const VIEW_OPTIONS = [
-  { key: 'agenda', label: 'Agenda' },
-  { key: 'week', label: 'Week' },
-  { key: 'course', label: 'Course' },
-  { key: 'completed', label: 'Completed' },
+  { key: 'agenda', label: 'By date' },
+  { key: 'week', label: 'Next 7 days' },
+  { key: 'course', label: 'By course' },
+  { key: 'completed', label: 'Done' },
 ];
 
 const STATUS_LABELS = {
@@ -613,6 +613,34 @@ export function StudyPlannerPage() {
   const upcomingCount = (counts.upcoming || 0) + (counts.optional || 0) + (counts.locked || 0);
   const personalTasks = allItems.filter((item) => item.source === 'planner_task');
   const plannerInsights = useMemo(() => buildPlannerInsights(allItems, today), [allItems, today]);
+  const startHere = useMemo(() => {
+    if (overdueCount > 0) {
+      return {
+        title: 'Clear overdue work first',
+        body: `${overdueCount} item${overdueCount === 1 ? '' : 's'} need attention before today gets heavier.`,
+        action: 'Overdue',
+      };
+    }
+    if (dueTodayCount > 0) {
+      return {
+        title: 'Start today\'s study work',
+        body: `${dueTodayCount} item${dueTodayCount === 1 ? ' is' : 's are'} ready for today. Open the first one and mark personal tasks done as you finish.`,
+        action: 'Today',
+      };
+    }
+    if (upcomingCount > 0) {
+      return {
+        title: 'Prepare the next task',
+        body: `${upcomingCount} upcoming item${upcomingCount === 1 ? '' : 's'} are waiting. Use Next 7 days to see what is closest.`,
+        action: 'Upcoming',
+      };
+    }
+    return {
+      title: 'Build your study plan',
+      body: 'Add a personal task or complete lessons and quizzes so xyndrome can build your study agenda.',
+      action: 'Plan',
+    };
+  }, [dueTodayCount, overdueCount, upcomingCount]);
   const visibleSuggestions = useMemo(() => {
     const existingTitles = new Set(personalTasks.map((item) => item.title.trim().toLowerCase()));
     return suggestions.filter((item) => !existingTitles.has(item.task.title.trim().toLowerCase()));
@@ -728,13 +756,31 @@ export function StudyPlannerPage() {
   }
 
   return (
-    <main className="student-route-page dashboard-page study-hub-page study-planner-page">
+    <main className="dashboard-page study-hub-page study-planner-page">
       <div className="study-hub-shell study-planner-shell">
-        <AppHeader title="Planner" subtitle="Agenda, course timeline, and personal tasks" />
+        <AppHeader title="Planner" subtitle="Today's study plan" />
+
+        <section className="planner-start-card" aria-label="Planner priority">
+          <div>
+            <span>{startHere.action}</span>
+            <h2>{loading ? 'Loading your study plan' : startHere.title}</h2>
+            <p>{loading ? 'Getting today\'s tasks, course work, and personal reminders.' : startHere.body}</p>
+          </div>
+          <button
+            type="button"
+            className="planner-action"
+            onClick={() => {
+              setView(overdueCount > 0 || dueTodayCount > 0 ? 'agenda' : upcomingCount > 0 ? 'week' : 'agenda');
+              setStatusFilter(overdueCount > 0 ? 'overdue' : dueTodayCount > 0 ? 'due_today' : '');
+            }}
+          >
+            Show priority
+          </button>
+        </section>
 
         <section className="planner-summary-strip" aria-label="Planner summary">
           <article>
-            <span>Today</span>
+            <span>Due today</span>
             <strong>{loading ? '...' : dueTodayCount}</strong>
           </article>
           <article>
@@ -742,19 +788,19 @@ export function StudyPlannerPage() {
             <strong>{loading ? '...' : overdueCount}</strong>
           </article>
           <article>
-            <span>In progress</span>
+            <span>Doing now</span>
             <strong>{loading ? '...' : inProgressCount}</strong>
           </article>
           <article>
-            <span>Upcoming</span>
+            <span>Next</span>
             <strong>{loading ? '...' : upcomingCount}</strong>
           </article>
           <article>
-            <span>Study load</span>
+            <span>Today time</span>
             <strong>{loading ? '...' : (formatMinutes(plannerInsights.estimatedToday) || '0')}</strong>
           </article>
           <article>
-            <span>Completed</span>
+            <span>Done</span>
             <strong>{loading ? '...' : completedCount}</strong>
           </article>
         </section>

@@ -54,6 +54,11 @@ export class UpdatePaymentSettingsDto {
   supportText?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  bankTransferDetails?: string;
+
+  @IsOptional()
   @IsBoolean()
   autoActivatePaidSubscriptions?: boolean;
 }

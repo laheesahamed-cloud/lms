@@ -18,7 +18,7 @@ import { MarketingPopupAlert } from '../shared/popup/MarketingPopupAlert.jsx';
 
 const PLATFORM = detectPlatform();
 const NATIVE_PUSH_PROMPT_KEY = 'lms_native_push_permission_prompted';
-const routeSceneBaseClass = 'relative isolate min-h-dvh overflow-x-hidden';
+const routeSceneBaseClass = 'relative isolate min-h-dvh';
 const authRouteSceneClass = 'auth-route-scene';
 let nativeHapticsModulePromise = null;
 let componentStateId = 0;
@@ -393,17 +393,6 @@ function isAdminLoginBypass(pathname = '', search = '') {
   }
 }
 
-function LaunchModeLoadingShell() {
-  return (
-    <main className="grid min-h-dvh place-items-center bg-[var(--app-bg,var(--page-background,#dce6f4))] px-4 text-ink-strong">
-      <section className="grid w-[min(420px,100%)] gap-2 rounded-lg border border-line-soft bg-surface-glass-strong p-6 text-center shadow-[var(--ds-card-shadow)]">
-        <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-brand-primary">Status</span>
-        <h1 className="m-0 text-base font-extrabold text-ink-strong">Checking site availability...</h1>
-      </section>
-    </main>
-  );
-}
-
 function getNativeHapticsModule() {
   nativeHapticsModulePromise ??= import('../shared/utils/nativeHaptics.js');
   return nativeHapticsModulePromise;
@@ -412,31 +401,20 @@ function getNativeHapticsModule() {
 function syncAppScrollContract() {
   if (typeof document === 'undefined') return;
 
-  const appTouchAction = PLATFORM.isNative ? 'auto' : 'pan-y';
   const visualViewportHeight = getVisualViewportHeight();
-  const nativeViewportHeight = 'var(--lms-app-viewport-height, 100dvh)';
-  const appViewportHeight = PLATFORM.isNative ? nativeViewportHeight : 'auto';
-  const appViewportMinHeight = PLATFORM.isNative ? nativeViewportHeight : '100%';
-  const appScrollHeight = PLATFORM.isNative ? nativeViewportHeight : 'auto';
-  const appScrollMinHeight = PLATFORM.isNative ? nativeViewportHeight : '100dvh';
-  const appScrollMaxHeight = PLATFORM.isNative ? nativeViewportHeight : 'none';
 
   setCssPropertyIfChanged(document.documentElement, '--lms-app-viewport-height', visualViewportHeight);
 
-  if (typeof window !== 'undefined' && typeof window.__lmsUnlockScroll === 'function') {
-    window.__lmsUnlockScroll();
+  if (!PLATFORM.isNative) {
+    return;
   }
 
+  const appTouchAction = 'auto';
   const root = document.getElementById('root');
   const documentRoots = [document.documentElement, document.body].filter(Boolean);
 
   documentRoots.forEach((element) => {
-    setCssPropertyIfChanged(element, 'height', appViewportHeight, 'important');
-    setCssPropertyIfChanged(element, 'min-height', appViewportMinHeight, 'important');
     setStyleIfChanged(element, 'maxWidth', '100%');
-    setCssPropertyIfChanged(element, 'overflow-x', PLATFORM.isNative ? 'hidden' : 'clip', 'important');
-    setCssPropertyIfChanged(element, 'overflow-y', PLATFORM.isNative ? 'hidden' : 'auto', 'important');
-    setStyleIfChanged(element, 'overscrollBehavior', PLATFORM.isNative ? 'none' : '');
     setStyleIfChanged(element, 'background', 'var(--app-bg, var(--page-background, #060d22))');
     setStyleIfChanged(element, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #060d22))');
     setStyleIfChanged(element, 'color', '');
@@ -444,50 +422,22 @@ function syncAppScrollContract() {
 
   setStyleIfChanged(document.body, 'position', 'relative');
   setStyleIfChanged(document.body, 'inset', 'auto');
-  setCssPropertyIfChanged(document.body, 'height', appViewportHeight, 'important');
-  setCssPropertyIfChanged(document.body, 'min-height', appViewportMinHeight, 'important');
-  setStyleIfChanged(document.body, 'paddingLeft', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-left)');
-  setStyleIfChanged(document.body, 'paddingRight', PLATFORM.isNative ? '0px' : 'env(safe-area-inset-right)');
+  setStyleIfChanged(document.body, 'paddingLeft', '0px');
+  setStyleIfChanged(document.body, 'paddingRight', '0px');
 
   if (root) {
-    setCssPropertyIfChanged(root, 'height', appViewportHeight, 'important');
-    setCssPropertyIfChanged(root, 'min-height', appViewportMinHeight, 'important');
     setStyleIfChanged(root, 'maxWidth', '100%');
-    setCssPropertyIfChanged(root, 'overflow-x', PLATFORM.isNative ? 'hidden' : 'clip', 'important');
-    setCssPropertyIfChanged(root, 'overflow-y', PLATFORM.isNative ? 'hidden' : 'visible', 'important');
-    setStyleIfChanged(root, 'overscrollBehavior', PLATFORM.isNative ? 'none' : '');
     setStyleIfChanged(root, 'touchAction', appTouchAction);
     setStyleIfChanged(root, 'background', 'var(--app-bg, var(--page-background, #060d22))');
     setStyleIfChanged(root, 'backgroundColor', 'var(--app-bg-solid, var(--app-bg, #060d22))');
     setStyleIfChanged(root, 'color', '');
-    setStyleIfChanged(root, 'webkitOverflowScrolling', 'touch');
   }
 
   document.querySelectorAll('.lms-app-scroll-root').forEach((element) => {
-    setStyleIfChanged(element, 'width', PLATFORM.isNative ? '100vw' : '');
-    setStyleIfChanged(element, 'maxWidth', PLATFORM.isNative ? '100vw' : '100%');
+    setStyleIfChanged(element, 'width', '100vw');
+    setStyleIfChanged(element, 'maxWidth', '100vw');
     setStyleIfChanged(element, 'marginLeft', '0px');
     setStyleIfChanged(element, 'marginRight', '0px');
-    setCssPropertyIfChanged(element, 'height', appScrollHeight, 'important');
-    setCssPropertyIfChanged(element, 'min-height', appScrollMinHeight, 'important');
-    setCssPropertyIfChanged(element, 'max-height', appScrollMaxHeight, 'important');
-    setCssPropertyIfChanged(element, 'overflow-x', PLATFORM.isNative ? 'hidden' : 'clip', 'important');
-    setCssPropertyIfChanged(element, 'overflow-y', PLATFORM.isNative ? 'auto' : 'visible', 'important');
-    setStyleIfChanged(element, 'overscrollBehaviorX', 'none');
-    setStyleIfChanged(element, 'overscrollBehaviorY', PLATFORM.isNative ? 'contain' : 'auto');
-    setStyleIfChanged(element, 'touchAction', appTouchAction);
-    setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
-  });
-
-  document.querySelectorAll('.portal-shell, .portal-content, .portal-content__frame, .lms-route-page, .student-route-page').forEach((element) => {
-    setStyleIfChanged(element, 'height', 'auto');
-    setStyleIfChanged(element, 'minHeight', '100%');
-    setStyleIfChanged(element, 'maxHeight', 'none');
-    setCssPropertyIfChanged(element, 'overflow-x', PLATFORM.isNative ? 'hidden' : 'visible', 'important');
-    setCssPropertyIfChanged(element, 'overflow-y', 'visible', 'important');
-    setStyleIfChanged(element, 'overscrollBehavior', 'none');
-    setStyleIfChanged(element, 'touchAction', appTouchAction);
-    setStyleIfChanged(element, 'webkitOverflowScrolling', 'touch');
   });
 }
 
@@ -498,7 +448,6 @@ export function AppFrame() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isHydrating = useAuthStore((state) => state.isHydrating);
   const availability = useAvailabilityStore((state) => state.availability);
-  const availabilityHydrated = useAvailabilityStore((state) => state.hydrated);
   const secureContentActive = isSecureContentRoute(location);
   const isPublicWebsitePage = isPublicWebsiteRoute(location.pathname);
 
@@ -631,7 +580,8 @@ export function AppFrame() {
       (focusable[0] || dialog).focus({ preventScroll: true });
     }
 
-    annotateComponentStateSemantics(document);
+    addAnnotationRoot(document.body);
+    scheduleAnnotation();
     const observer = PLATFORM.isNative ? null : new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === 'childList') {
@@ -647,7 +597,7 @@ export function AppFrame() {
     });
     observer?.observe(document.body, {
       attributes: true,
-      attributeFilter: ['class', 'role', 'aria-selected'],
+      attributeFilter: ['role', 'aria-selected'],
       childList: true,
       subtree: true,
     });
@@ -956,18 +906,7 @@ export function AppFrame() {
   const isAdminRoute = adminRoutePattern.test(location.pathname);
   const allowAdminLogin = isAdminLoginBypass(location.pathname, location.search);
   const staffCanBypassLaunchMode = isStaffUser(user);
-  const isCheckingAvailability = !isPublicWebsitePage && !availabilityHydrated && !isLaunchPreviewRoute;
-  const isLaunchModeForCurrentRoute =
-    (availability.isMaintenance || availability.isComingSoon) &&
-    !isAdminRoute;
-  const isCheckingStaffLaunchAccess =
-    isLaunchModeForCurrentRoute &&
-    isHydrating &&
-    !isLaunchPreviewRoute &&
-    !allowAdminLogin;
-  const isCheckingLaunchAccess = isCheckingAvailability || isCheckingStaffLaunchAccess;
   const showMaintenance =
-    !isCheckingLaunchAccess &&
     availability.isMaintenance &&
     !isPublicWebsitePage &&
     !staffCanBypassLaunchMode &&
@@ -975,7 +914,6 @@ export function AppFrame() {
     !isAdminRoute &&
     !allowAdminLogin;
   const showComingSoon =
-    !isCheckingLaunchAccess &&
     availability.isComingSoon &&
     !isPublicWebsitePage &&
     !staffCanBypassLaunchMode &&
@@ -984,7 +922,6 @@ export function AppFrame() {
     !allowAdminLogin;
   const shouldShowLaunchMode = showMaintenance || showComingSoon;
   const shouldSuppressMarketingPopup =
-    isCheckingLaunchAccess ||
     showMaintenance ||
     showComingSoon ||
     isLaunchPreviewRoute ||
@@ -995,9 +932,7 @@ export function AppFrame() {
     navigate('/', { replace: true });
   }, [isLaunchPreviewRoute, location.pathname, navigate, shouldShowLaunchMode]);
 
-  const routeContent = isCheckingLaunchAccess ? (
-    <LaunchModeLoadingShell />
-  ) : showMaintenance ? (
+  const routeContent = showMaintenance ? (
     <LaunchModePage mode="maintenance" adminUnlockHref="/auth/login?admin=1&from=%2Fadmin%2Fsettings" />
   ) : showComingSoon ? (
     <LaunchModePage mode="coming-soon" adminUnlockHref="/auth/login?admin=1&from=%2Fadmin%2Fsettings" />

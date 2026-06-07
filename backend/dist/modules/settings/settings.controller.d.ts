@@ -158,6 +158,7 @@ export declare class SettingsController {
         enabled: boolean;
         currency: "LKR";
         buttonLabel: string;
+        bankTransferDetails: string;
         configured: boolean;
         sandboxMode?: undefined;
         checkoutTitle?: undefined;
@@ -180,6 +181,7 @@ export declare class SettingsController {
         checkoutTitle: string;
         buttonLabel: string;
         supportText: string;
+        bankTransferDetails: string;
         configured: boolean;
         merchantId: string;
         hasMerchantSecret: boolean;
@@ -381,6 +383,7 @@ export declare class SettingsController {
         enabled: boolean;
         currency: "LKR";
         buttonLabel: string;
+        bankTransferDetails: string;
         configured: boolean;
         sandboxMode?: undefined;
         checkoutTitle?: undefined;
@@ -403,6 +406,7 @@ export declare class SettingsController {
         checkoutTitle: string;
         buttonLabel: string;
         supportText: string;
+        bankTransferDetails: string;
         configured: boolean;
         merchantId: string;
         hasMerchantSecret: boolean;

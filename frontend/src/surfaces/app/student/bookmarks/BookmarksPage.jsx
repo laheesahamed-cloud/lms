@@ -21,6 +21,23 @@ function isExamBookmark(item) {
   return item.itemType === 'quiz' && (item.examModeOnly === true || Number(item.examModeOnly) === 1);
 }
 
+function isNoteBookmark(item) {
+  return item.itemType === 'note' || item.itemType === 'ai_note';
+}
+
+const TYPE_GROUPS = [
+  { key: 'quiz', label: 'Quizzes', match: (item) => item.itemType === 'quiz' && !isExamBookmark(item) },
+  { key: 'exam', label: 'Exams', match: isExamBookmark },
+  { key: 'question', label: 'Questions', match: (item) => item.itemType === 'question' },
+  { key: 'note', label: 'Notes', match: isNoteBookmark },
+];
+
+function isSavedThisWeek(value) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && Date.now() - time <= 7 * 24 * 60 * 60 * 1000;
+}
+
 function getItemMeta(item) {
   const isExam = isExamBookmark(item);
   const isQuiz = item.itemType === 'quiz' && !isExam;
@@ -85,13 +102,23 @@ export function BookmarksPage() {
   const quizCount = items.filter(i => i.itemType === 'quiz' && !isExamBookmark(i)).length;
   const examCount = items.filter(isExamBookmark).length;
   const questionCount = items.filter(i => i.itemType === 'question').length;
-  const noteCount = items.filter(i => i.itemType === 'note' || i.itemType === 'ai_note').length;
+  const noteCount = items.filter(isNoteBookmark).length;
+  const thisWeekCount = items.filter(i => isSavedThisWeek(i.createdAt)).length;
+
+  const overviewStats = [
+    { label: 'Saved', value: items.length },
+    { label: 'Quizzes', value: quizCount },
+    { label: 'Exams', value: examCount },
+    { label: 'Questions', value: questionCount },
+    { label: 'Notes', value: noteCount },
+    { label: 'This week', value: thisWeekCount },
+  ];
 
   const visible = items.filter(item => {
     if (filter === 'quiz') return item.itemType === 'quiz' && !isExamBookmark(item);
     if (filter === 'exam') return isExamBookmark(item);
     if (filter === 'question') return item.itemType === 'question';
-    if (filter === 'note') return item.itemType === 'note' || item.itemType === 'ai_note';
+    if (filter === 'note') return isNoteBookmark(item);
     return true;
   });
 
@@ -99,6 +126,54 @@ export function BookmarksPage() {
     if (item.itemType === 'quiz') navigate(`/quizzes/${item.itemId}?mode=${isExamBookmark(item) ? 'exam' : 'practice'}`);
     else if (item.itemType === 'question') navigate(item.quizId ? `/quizzes/${item.quizId}?mode=practice&questionId=${item.itemId}` : '/quizzes');
     else navigate(`/ai-notes/${item.itemId}`);
+  }
+
+  function renderItem(item) {
+    const meta = getItemMeta(item);
+    const contextLine = getContextLine(item, meta.title);
+    const savedDate = formatSavedDate(item.createdAt);
+    return (
+      <article
+        key={`${item.itemType}-${item.itemId}`}
+        className="grid min-h-[86px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line-soft bg-surface-1 px-4 py-3 shadow-xs transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:border-line-medium hover:bg-surface-2/60 hover:shadow-sm max-[640px]:grid-cols-1 max-[640px]:items-start max-[640px]:gap-2.5"
+      >
+        <div className="min-w-0">
+          <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-2">
+            <span className={cx(
+              'inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.05em]',
+              meta.isQuiz || meta.isQuestion
+                ? 'border-violet-500/18 bg-violet-500/8 text-violet-600 dark:text-violet-200'
+                : 'border-emerald-500/18 bg-emerald-500/8 text-emerald-600 dark:text-emerald-200'
+            )}>{meta.label}</span>
+            <span className="text-[11.5px] font-semibold text-ink-muted">{savedDate}</span>
+          </div>
+          <h3 className="m-0 overflow-hidden text-[14.5px] font-extrabold leading-snug text-ink-strong [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+            {meta.title}
+          </h3>
+          {contextLine ? (
+            <p className="m-0 mt-1 truncate text-[12px] font-medium text-ink-muted">{contextLine}</p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-2 max-[640px]:w-full max-[640px]:justify-between">
+          <button
+            className="inline-flex min-h-9 items-center justify-center rounded-lg border border-brand-primary/22 bg-[var(--color-primary-light)] px-3 text-[12.5px] font-extrabold text-brand-primary shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/35 hover:bg-brand-primary/12 active:scale-[0.98]"
+            type="button"
+            onClick={() => openItem(item)}
+            aria-label={`${meta.action} saved ${meta.label.toLowerCase()}`}
+          >
+            {meta.action}
+          </button>
+          <button className={ui.dangerIconButton}
+            type="button"
+            onClick={e => handleRemove(e, item)}
+            title="Remove bookmark"
+            aria-label="Remove saved item"
+          >
+            <TrashIcon/>
+          </button>
+        </div>
+      </article>
+    );
   }
 
   return (
@@ -111,14 +186,21 @@ export function BookmarksPage() {
         <StudentPageHero
           title="Saved items"
           subtitle="Your bookmarked notes, questions, quizzes, and exams in one clean place."
-          metrics={[
-            { label: 'Bookmarked', value: items.length },
-            { label: 'Quizzes', value: quizCount },
-            { label: 'Exams', value: examCount },
-            { label: 'Questions', value: questionCount },
-            { label: 'Notes', value: noteCount },
-          ]}
         />
+
+        {!loading && items.length ? (
+          <div className="grid grid-cols-2 gap-2.5 min-[520px]:grid-cols-3 min-[860px]:grid-cols-6">
+            {overviewStats.map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-xl border border-line-soft bg-surface-card px-3.5 py-3 shadow-xs dark:border-white/[0.07] dark:bg-white/[0.035]"
+              >
+                <strong className="block text-[22px] font-black leading-none text-ink-strong dark:text-white">{stat.value}</strong>
+                <span className="mt-1.5 block truncate text-[11px] font-bold uppercase tracking-[0.07em] text-ink-soft dark:text-white/58">{stat.label}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap gap-2 rounded-lg border border-line-soft bg-surface-glass-strong p-2 shadow-xs">
           {TYPE_FILTERS.map(f => (
@@ -163,52 +245,21 @@ export function BookmarksPage() {
             </button>
           </div>
         ) : (
-          <div className="grid gap-2.5">
-            {visible.map(item => {
-              const meta = getItemMeta(item);
-              const contextLine = getContextLine(item, meta.title);
-              const savedDate = formatSavedDate(item.createdAt);
+          <div className="grid gap-5">
+            {TYPE_GROUPS.map(group => {
+              const groupItems = visible.filter(group.match);
+              if (!groupItems.length) return null;
               return (
-                <article
-                  key={`${item.itemType}-${item.itemId}`}
-                  className="grid min-h-[86px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line-soft bg-surface-1 px-4 py-3 shadow-xs transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:border-line-medium hover:bg-surface-2/60 hover:shadow-sm max-[640px]:grid-cols-1 max-[640px]:items-start max-[640px]:gap-2.5"
-                >
-                  <div className="min-w-0">
-                    <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-2">
-                      <span className={cx(
-                        'inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.05em]',
-                        meta.isQuiz || meta.isQuestion
-                          ? 'border-violet-500/18 bg-violet-500/8 text-violet-600 dark:text-violet-200'
-                          : 'border-emerald-500/18 bg-emerald-500/8 text-emerald-600 dark:text-emerald-200'
-                      )}>{meta.label}</span>
-                      <span className="text-[11.5px] font-semibold text-ink-muted">{savedDate}</span>
-                    </div>
-                    <h3 className="m-0 overflow-hidden text-[14.5px] font-extrabold leading-snug text-ink-strong [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
-                      {meta.title}
-                    </h3>
-                    {contextLine ? (
-                      <p className="m-0 mt-1 truncate text-[12px] font-medium text-ink-muted">{contextLine}</p>
-                    ) : null}
+                <div key={group.key} className="grid gap-2.5">
+                  <div className="flex items-center gap-2.5 px-0.5">
+                    <h2 className="m-0 text-[13px] font-black uppercase tracking-[0.07em] text-ink-medium dark:text-white/70">{group.label}</h2>
+                    <span className="rounded-full bg-brand-primary-light px-2 py-0.5 text-[11px] font-extrabold text-brand-primary">{groupItems.length}</span>
+                    <span className="h-px flex-1 bg-line-soft dark:bg-white/10" />
                   </div>
-                  <div className="flex shrink-0 items-center gap-2 max-[640px]:w-full max-[640px]:justify-between">
-                    <button
-                      className="inline-flex min-h-9 items-center justify-center rounded-lg border border-brand-primary/22 bg-[var(--color-primary-light)] px-3 text-[12.5px] font-extrabold text-brand-primary shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/35 hover:bg-brand-primary/12 active:scale-[0.98]"
-                      type="button"
-                      onClick={() => openItem(item)}
-                      aria-label={`${meta.action} saved ${meta.label.toLowerCase()}`}
-                    >
-                      {meta.action}
-                    </button>
-                    <button className={ui.dangerIconButton}
-                      type="button"
-                      onClick={e => handleRemove(e, item)}
-                      title="Remove bookmark"
-                      aria-label="Remove saved item"
-                    >
-                      <TrashIcon/>
-                    </button>
+                  <div className="grid gap-2.5">
+                    {groupItems.map(renderItem)}
                   </div>
-                </article>
+                </div>
               );
             })}
           </div>

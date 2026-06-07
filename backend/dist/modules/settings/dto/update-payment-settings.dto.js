@@ -79,6 +79,12 @@ __decorate([
 ], UpdatePaymentSettingsDto.prototype, "supportText", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(2000),
+    __metadata("design:type", String)
+], UpdatePaymentSettingsDto.prototype, "bankTransferDetails", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdatePaymentSettingsDto.prototype, "autoActivatePaidSubscriptions", void 0);

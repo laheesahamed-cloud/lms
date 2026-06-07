@@ -333,22 +333,18 @@ export class SubscriptionsService {
     const proofDataUrl = String(dto.proofDataUrl || '').trim();
     const proofMimeType = String(dto.proofMimeType || '').trim().toLowerCase();
 
-    if (!proofDataUrl) {
-      throw new BadRequestException('Please upload a payment slip or screenshot');
-    }
-    if (!/^data:(image\/(png|jpe?g|webp)|application\/pdf);base64,/i.test(proofDataUrl)) {
-      throw new BadRequestException('Payment proof must be a PNG, JPG, WEBP, or PDF file');
-    }
-    if (proofDataUrl.length > 4_500_000) {
-      throw new BadRequestException('Payment proof is too large. Please upload a smaller screenshot or PDF');
-    }
-
-    const [existingRows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT id FROM subscription_requests WHERE user_id = ? AND plan_id = ? AND status = 'pending' LIMIT 1`,
+    const [existingRows] = await this.db.execute<SubscriptionRequestRow[]>(
+      `SELECT id, invoice_id, payment_proof_data_url
+       FROM subscription_requests
+       WHERE user_id = ? AND plan_id = ? AND status = 'pending'
+         AND (payment_method = 'bank_transfer' OR payment_method IS NULL)
+       ORDER BY id DESC
+       LIMIT 1`,
       [student.id, plan.id]
     );
-    if (existingRows[0]) {
-      throw new BadRequestException('You already have a pending request for this plan');
+    const existing = existingRows[0] || null;
+    if (existing?.payment_proof_data_url) {
+      throw new BadRequestException('You already uploaded payment proof for this plan');
     }
 
     const messageParts = [
@@ -367,45 +363,93 @@ export class SubscriptionsService {
       throw new BadRequestException('Coupon cannot reduce a bank transfer payment to zero. Please contact admin for manual access.');
     }
     const currency = String(plan.currency || 'LKR').toUpperCase();
-    const invoiceId = await this.generateInvoiceId();
-    const savedProof = await this.savePaymentProofFile(invoiceId, proofDataUrl);
-    const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO subscription_requests (
-         user_id, plan_id, invoice_id, message, payment_method, payment_reference, payment_amount, payment_currency,
-         coupon_code, discount_amount, payment_proof_name, payment_proof_mime, payment_proof_data_url,
-         access_scope, course_ids_json, lesson_ids_json, status
-       ) VALUES (?, ?, ?, ?, 'bank_transfer', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [
-        student.id,
-        plan.id,
-        invoiceId,
-        messageParts.join('\n'),
-        String(dto.paymentReference || '').trim() || null,
-        payableAmount,
-        currency,
-        coupon?.code || null,
-        discountAmount,
-        savedProof.fileName,
-        savedProof.mimeType || proofMimeType || null,
-        savedProof.publicPath,
-        scope.accessScope,
-        JSON.stringify(scope.courseIds),
-        JSON.stringify(scope.lessonIds),
-      ]
-    );
+    const invoiceId = String(existing?.invoice_id || '') || await this.generateInvoiceId();
+    const message = messageParts.join('\n');
+    let requestId = existing ? Number(existing.id) : 0;
 
-    await this.logAudit({
-      requestId: result.insertId,
-      userId: student.id,
-      actorId: student.id,
-      eventType: 'bank_transfer_uploaded',
-      summary: `${student.email} uploaded bank transfer proof for ${plan.name}`,
-      details: { planId: plan.id, amount: payableAmount, originalAmount: amount, discountAmount, couponCode: coupon?.code || '', currency, invoiceId, paymentReference: dto.paymentReference || '', proofFileName: savedProof.fileName, ...scope },
-    });
+    if (!existing) {
+      const [result] = await this.db.execute<ResultSetHeader>(
+        `INSERT INTO subscription_requests (
+           user_id, plan_id, invoice_id, message, payment_method, payment_reference, payment_amount, payment_currency,
+           coupon_code, discount_amount, access_scope, course_ids_json, lesson_ids_json, status
+         ) VALUES (?, ?, ?, ?, 'bank_transfer', ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+        [
+          student.id,
+          plan.id,
+          invoiceId,
+          message,
+          String(dto.paymentReference || '').trim() || null,
+          payableAmount,
+          currency,
+          coupon?.code || null,
+          discountAmount,
+          scope.accessScope,
+          JSON.stringify(scope.courseIds),
+          JSON.stringify(scope.lessonIds),
+        ]
+      );
+      requestId = result.insertId;
+
+      await this.logAudit({
+        requestId,
+        userId: student.id,
+        actorId: student.id,
+        eventType: 'bank_transfer_invoice_created',
+        summary: `${student.email} created bank transfer invoice ${invoiceId} for ${plan.name}`,
+        details: { planId: plan.id, amount: payableAmount, originalAmount: amount, discountAmount, couponCode: coupon?.code || '', currency, invoiceId, ...scope },
+      });
+    } else {
+      await this.db.execute(
+        `UPDATE subscription_requests
+         SET invoice_id = ?, payment_method = 'bank_transfer',
+             message = ?, payment_reference = ?, payment_amount = ?, payment_currency = ?,
+             coupon_code = ?, discount_amount = ?, access_scope = ?, course_ids_json = ?, lesson_ids_json = ?
+         WHERE id = ?`,
+        [
+          invoiceId,
+          message,
+          String(dto.paymentReference || '').trim() || null,
+          payableAmount,
+          currency,
+          coupon?.code || null,
+          discountAmount,
+          scope.accessScope,
+          JSON.stringify(scope.courseIds),
+          JSON.stringify(scope.lessonIds),
+          requestId,
+        ]
+      );
+    }
+
+    if (proofDataUrl) {
+      if (!/^data:(image\/(png|jpe?g|webp)|application\/pdf);base64,/i.test(proofDataUrl)) {
+        throw new BadRequestException('Payment proof must be a PNG, JPG, WEBP, or PDF file');
+      }
+      if (proofDataUrl.length > 4_500_000) {
+        throw new BadRequestException('Payment proof is too large. Please upload a smaller screenshot or PDF');
+      }
+
+      const savedProof = await this.savePaymentProofFile(invoiceId, proofDataUrl);
+      await this.db.execute(
+        `UPDATE subscription_requests
+         SET payment_proof_name = ?, payment_proof_mime = ?, payment_proof_data_url = ?
+         WHERE id = ?`,
+        [savedProof.fileName, savedProof.mimeType || proofMimeType || null, savedProof.publicPath, requestId]
+      );
+
+      await this.logAudit({
+        requestId,
+        userId: student.id,
+        actorId: student.id,
+        eventType: 'bank_transfer_uploaded',
+        summary: `${student.email} uploaded bank transfer proof for ${plan.name}`,
+        details: { planId: plan.id, amount: payableAmount, originalAmount: amount, discountAmount, couponCode: coupon?.code || '', currency, invoiceId, paymentReference: dto.paymentReference || '', proofFileName: savedProof.fileName, ...scope },
+      });
+    }
 
     return {
       ok: true,
-      id: result.insertId,
+      id: requestId,
       invoiceId,
       amount: this.formatAmount(payableAmount),
       originalAmount: this.formatAmount(amount),
@@ -413,7 +457,65 @@ export class SubscriptionsService {
       couponCode: coupon?.code || '',
       couponMode: coupon?.couponMode || '',
       currency,
+      proofUploaded: Boolean(proofDataUrl),
     };
+  }
+
+  async cancelStudentPendingInvoice(userId: number, requestId: number) {
+    const request = await this.findRequestById(requestId);
+    if (request.userId !== userId) {
+      throw new NotFoundException('Pending invoice not found');
+    }
+    if (request.status !== 'pending') {
+      throw new BadRequestException('Only pending invoices can be removed');
+    }
+    if (!request.invoiceId || !['bank_transfer', 'payhere'].includes(request.paymentMethod)) {
+      throw new BadRequestException('Only pending invoices can be removed');
+    }
+    if (request.paymentProofDataUrl) {
+      throw new BadRequestException('Payment proof is already uploaded. Please wait for admin approval.');
+    }
+
+    const [result] = await this.db.execute<ResultSetHeader>(
+      `UPDATE subscription_requests
+       SET status = 'cancelled',
+           admin_note = 'Cancelled by student before payment proof upload.',
+           resolved_at = NOW(),
+           resolved_by = NULL
+       WHERE id = ? AND user_id = ? AND status = 'pending' AND payment_proof_data_url IS NULL`,
+      [requestId, userId]
+    );
+
+    if (result.affectedRows !== 1) {
+      throw new BadRequestException('Unable to remove this pending invoice');
+    }
+
+    if (request.paymentMethod === 'payhere') {
+      await this.db.execute(
+        `UPDATE payment_transactions
+         SET status = 'cancelled'
+         WHERE user_id = ?
+           AND (order_id = ? OR invoice_id = ?)
+           AND status IN ('initiated', 'pending')`,
+        [userId, request.invoiceId, request.invoiceId]
+      );
+    }
+
+    await this.logAudit({
+      requestId,
+      userId,
+      actorId: userId,
+      eventType: 'student_invoice_cancelled',
+      summary: `Student removed pending invoice ${request.invoiceId}`,
+      details: {
+        planId: request.planId,
+        planName: request.planName,
+        invoiceId: request.invoiceId,
+        paymentMethod: request.paymentMethod,
+      },
+    });
+
+    return { ok: true, id: requestId, invoiceId: request.invoiceId };
   }
 
   private async savePaymentProofFile(invoiceId: string, proofDataUrl: string) {
@@ -620,6 +722,10 @@ export class SubscriptionsService {
        INNER JOIN users student ON student.id = sr.user_id
        INNER JOIN plans ON plans.id = sr.plan_id
        LEFT JOIN users admin ON admin.id = sr.resolved_by
+       WHERE sr.invoice_id IS NULL
+          OR sr.payment_proof_data_url IS NOT NULL
+          OR sr.status = 'approved'
+          OR sr.subscription_id IS NOT NULL
        ORDER BY FIELD(sr.status, 'pending', 'approved', 'rejected', 'cancelled'), sr.requested_at DESC, sr.id DESC`
     );
 

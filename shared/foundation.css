@@ -92,7 +92,7 @@ a:active,
 #root {
   min-height: 100vh;
   min-height: 100dvh;
-  overflow-x: hidden;
+  overflow: visible;
   background: var(--page-background);
 }
 
@@ -218,7 +218,7 @@ a {
   }
   #root {
     min-height: 100dvh;
-    overflow-x: hidden;
+    overflow: visible;
   }
   body::before {
     content: none;
@@ -236,8 +236,7 @@ a {
     --card-pad-compact: 16px;
   }
   html,
-  body,
-  #root {
+  body {
     height: auto;
     min-height: 100%;
     overflow-y: auto;

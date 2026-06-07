@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getAiNote, listAiNotes } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudentLessons } from '../../../../shared/api/lessons.api.js';
+import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 
@@ -69,6 +70,57 @@ const ANIM_CSS = `
 .fc-card-back-bg {
   background-color: var(--surface-1);
   background-image: radial-gradient(ellipse at 12% 12%, rgba(16,185,129,0.09), transparent 42%);
+}
+.fc-answer-block {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 0.625rem;
+}
+.fc-answer-copy {
+  min-height: 0;
+  overflow: hidden;
+}
+.fc-answer-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.fc-answer-gallery {
+  display: grid;
+  gap: 0.5rem;
+}
+.fc-answer-gallery img {
+  width: 100%;
+  border-radius: 0.5rem;
+}
+.fc-answer-gallery-1 img {
+  height: clamp(8.25rem, 24dvh, 13rem);
+}
+.fc-answer-gallery-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.fc-answer-gallery-2 img {
+  height: clamp(5.75rem, 17dvh, 8.5rem);
+}
+.fc-answer-gallery-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.fc-answer-gallery-3 img {
+  height: clamp(4.5rem, 14dvh, 7rem);
+}
+@media (max-width: 460px) {
+  .fc-answer-text {
+    -webkit-line-clamp: 4;
+  }
+  .fc-answer-gallery {
+    gap: 0.375rem;
+  }
+  .fc-answer-gallery-3 img {
+    height: clamp(3.75rem, 12dvh, 5.5rem);
+  }
 }
 `;
 
@@ -674,6 +726,10 @@ function buildReviewedFlashcards(note, hierarchy) {
     .map((row, index) => {
       const question = cleanStudyText(row.question);
       const answer = cleanStudyText(row.answer);
+      const imageUrls = (Array.isArray(row.imageUrls) ? row.imageUrls : [row.imageUrl])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .slice(0, 3);
       if (!question || !answer) return null;
       return {
         id: `${note.id ?? 'note'}-qna-${row.id || index}`,
@@ -681,6 +737,9 @@ function buildReviewedFlashcards(note, hierarchy) {
         questionText: question,
         answerBullets: [],
         answerText: answer,
+        imageUrl: imageUrls[0] || '',
+        imageUrls,
+        imageFit: row.imageFit === 'cover' ? 'cover' : 'contain',
         callout: cleanStudyText(row.sourceHint),
         mnemonic: '',
         difficulty: cardDifficulty('explain', [], answer),
@@ -825,7 +884,11 @@ function ReviewStatusBadge({ card }) {
    ANSWER BLOCK (back face)
 ───────────────────────────────────────── */
 function AnswerBlock({ card }) {
-  const { answerBullets, answerText, mnemonic, questionType, callout } = card;
+  const { answerBullets, answerText, imageUrl, imageUrls, imageFit, mnemonic, questionType } = card;
+  const galleryImages = (Array.isArray(imageUrls) ? imageUrls : [imageUrl])
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .slice(0, 3);
 
   const mnemonicNode = mnemonic && (
     <div className="grid gap-2 rounded-xl border p-4"
@@ -842,12 +905,12 @@ function AnswerBlock({ card }) {
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="fc-answer-block">
       {answerBullets && answerBullets.length > 0 ? (
-        <ul className="m-0 grid list-none gap-2 p-0">
+        <ul className="fc-answer-copy m-0 grid list-none gap-2 p-0">
           {answerBullets.map((bullet, i) => (
             <li key={`${i}-${bullet.slice(0, 12)}`}
-              className="flex gap-2.5 rounded-lg border border-line-soft bg-surface-2 px-3 py-2.5 text-[13.5px] font-semibold leading-relaxed text-ink-strong">
+              className="flex gap-2.5 rounded-lg border border-line-soft bg-surface-2 px-3 py-2 text-[13px] font-semibold leading-snug text-ink-strong">
               <span className="mt-2 size-1.5 shrink-0 rounded-full"
                 style={{ background: '#3B82F6' }} aria-hidden="true" />
               {bullet}
@@ -855,18 +918,30 @@ function AnswerBlock({ card }) {
           ))}
         </ul>
       ) : (
-        <p className="m-0 text-[15px] font-semibold leading-relaxed text-ink-strong whitespace-pre-line">
+        <p className="fc-answer-copy fc-answer-text m-0 text-[14px] font-semibold leading-relaxed text-ink-strong whitespace-pre-line">
           {answerText}
         </p>
       )}
-      {callout && (
-        <div className="rounded-xl border p-3.5"
-          style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.20)' }}>
-          <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-widest"
-            style={{ color: '#D97706' }}>Note</span>
-          <p className="m-0 text-[13px] font-semibold text-ink-medium">{callout}</p>
-        </div>
-      )}
+      {galleryImages.length ? (
+        <figure
+          className={cx(
+            'fc-answer-gallery m-0 overflow-hidden rounded-xl border border-line-soft bg-surface-2 p-2',
+            galleryImages.length === 1 && 'fc-answer-gallery-1',
+            galleryImages.length === 2 && 'fc-answer-gallery-2',
+            galleryImages.length >= 3 && 'fc-answer-gallery-3'
+          )}
+        >
+          {galleryImages.map((src, index) => (
+            <img
+              key={`${src.slice(0, 30)}-${index}`}
+              className={cx(imageFit === 'cover' ? 'object-cover' : 'object-contain')}
+              src={src}
+              alt=""
+              loading="lazy"
+            />
+          ))}
+        </figure>
+      ) : null}
       {mnemonic && mnemonicNode}
     </div>
   );
@@ -1088,14 +1163,20 @@ function formatDeckMetric(value, unknown = false) {
 }
 
 function CountCell({ value, unknown = false, tone }) {
-  const tones = {
-    new: 'text-sky-700 dark:text-sky-300',
-    learn: 'text-amber-700 dark:text-amber-300',
-    due: 'text-brand-primary',
-    total: 'text-ink-muted',
+  const active = value > 0 || (unknown && value === 0);
+  const activeTones = {
+    new: 'bg-sky-500/12 text-sky-700 ring-1 ring-inset ring-sky-500/22 dark:bg-sky-400/14 dark:text-sky-300 dark:ring-sky-400/24',
+    learn: 'bg-amber-500/14 text-amber-700 ring-1 ring-inset ring-amber-500/24 dark:bg-amber-400/14 dark:text-amber-300 dark:ring-amber-400/26',
+    due: 'bg-brand-primary/12 text-brand-primary ring-1 ring-inset ring-brand-primary/22',
+    total: 'bg-surface-2 text-ink-muted ring-1 ring-inset ring-line-soft',
   };
   return (
-    <span className={cx('inline-flex min-w-5 justify-end rounded-md px-0.5 py-0 text-right text-[11.5px] font-black tabular-nums max-[640px]:min-w-5 max-[640px]:text-[11px] max-[380px]:text-[11px]', tones[tone])}>
+    <span
+      className={cx(
+        'inline-flex min-w-[1.5rem] items-center justify-center rounded-full px-1.5 py-0.5 text-center text-[11.5px] font-black leading-none tabular-nums max-[640px]:min-w-[1.35rem] max-[640px]:px-1 max-[640px]:text-[11px] max-[380px]:px-0.5',
+        active ? activeTones[tone] : 'text-ink-soft/55 dark:text-white/25'
+      )}
+    >
       {formatDeckMetric(value, unknown)}
     </span>
   );
@@ -1233,9 +1314,9 @@ function FlashcardDeckRow({ node, expanded, starting, onToggle, onStartScope, on
           </span>
         </div>
       </th>
-      <td className={cx('px-1 text-right align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
-      <td className={cx('px-1 text-right align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
-      <td className={cx('px-1.5 text-right align-middle max-[640px]:px-1', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
+      <td className={cx('px-1 text-center align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
+      <td className={cx('px-1 text-center align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
+      <td className={cx('px-1 pr-1.5 text-center align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
     </tr>
   );
 }
@@ -1246,7 +1327,7 @@ function FlashcardDeckLoading() {
       {[1, 2, 3, 4, 5].map(i => (
         <div
           key={i}
-          className="grid min-h-[40px] grid-cols-[minmax(0,1fr)_40px_44px_40px] items-center gap-1.5 border-t border-line-soft px-2.5 py-2 dark:border-white/[0.07] max-[640px]:grid-cols-[minmax(0,1fr)_34px_38px_34px] max-[640px]:px-1.5 max-[380px]:grid-cols-[minmax(0,1fr)_30px_34px_30px]"
+          className="grid min-h-[40px] grid-cols-[minmax(0,1fr)_52px_56px_52px] items-center gap-1.5 border-t border-line-soft px-2.5 py-2 dark:border-white/[0.07] max-[640px]:grid-cols-[minmax(0,1fr)_44px_48px_44px] max-[640px]:px-1.5 max-[380px]:grid-cols-[minmax(0,1fr)_38px_42px_38px]"
         >
           <div className={ui.shimmer} style={{ height: 13, width: `${70 - i * 7}%`, marginLeft: i > 1 ? 16 : 0, borderRadius: 999 }} />
           <div className={ui.shimmer} style={{ height: 16, borderRadius: 8 }} />
@@ -1322,16 +1403,16 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
           </caption>
           <colgroup>
             <col />
-            <col className="w-[40px] max-[640px]:w-[34px] max-[380px]:w-[30px]" />
-            <col className="w-[44px] max-[640px]:w-[38px] max-[380px]:w-[34px]" />
-            <col className="w-[40px] max-[640px]:w-[34px] max-[380px]:w-[30px]" />
+            <col className="w-[52px] max-[640px]:w-[44px] max-[380px]:w-[38px]" />
+            <col className="w-[56px] max-[640px]:w-[48px] max-[380px]:w-[42px]" />
+            <col className="w-[52px] max-[640px]:w-[44px] max-[380px]:w-[38px]" />
           </colgroup>
-          <thead className="bg-surface-1/70 dark:bg-white/[0.025]">
+          <thead className="border-b border-line-soft bg-surface-1/70 dark:border-white/[0.07] dark:bg-white/[0.025]">
             <tr>
               <th scope="col" className={cx(headerClass, 'text-left')}>Deck</th>
-              <th scope="col" className={cx(headerClass, 'text-right text-sky-700 dark:text-sky-300')}>New</th>
-              <th scope="col" className={cx(headerClass, 'text-right text-amber-700 dark:text-amber-300')}>Learn</th>
-              <th scope="col" className={cx(headerClass, 'text-right text-brand-primary')}>Due</th>
+              <th scope="col" className={cx(headerClass, 'text-center text-sky-700 dark:text-sky-300')}>New</th>
+              <th scope="col" className={cx(headerClass, 'text-center text-amber-700 dark:text-amber-300')}>Learn</th>
+              <th scope="col" className={cx(headerClass, 'text-center text-brand-primary')}>Due</th>
             </tr>
           </thead>
           <tbody>
@@ -1420,6 +1501,7 @@ function PickPhase({
     <main className="dashboard-page study-hub-page student-flashcards-page min-h-dvh">
       <style>{ANIM_CSS}</style>
       <section className="study-hub-shell grid max-w-[1080px] gap-4">
+        <AppHeader title="Flashcards" subtitle="Spaced Review" />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
@@ -1497,7 +1579,8 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
   const advancingRef = useRef(false);
   const advanceRef = useRef(null);
   const advanceTimerRef = useRef(null);
-  const pointerRef = useRef({ x: 0, y: 0, moved: false });
+  const pointerRef = useRef({ x: 0, y: 0, moved: false, dx: 0, swiping: false, canSwipe: false });
+  const cardWrapRef = useRef(null);
 
   useEffect(() => { flippedRef.current = flipped; }, [flipped]);
   useEffect(() => { advancingRef.current = advancing; }, [advancing]);
@@ -1515,6 +1598,12 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
 
   const card     = cards[idx];
   const progress = ((idx + 1) / cards.length) * 100;
+
+  // Reset any leftover swipe transform when a new card appears.
+  useEffect(() => {
+    const el = cardWrapRef.current;
+    if (el) { el.style.transition = 'none'; el.style.transform = ''; el.style.opacity = ''; }
+  }, [idx]);
 
   function flip() {
     if (advancingRef.current) return;
@@ -1561,16 +1650,53 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const SWIPE_THRESHOLD = 90;
+
   function handleCardPointerDown(event) {
-    pointerRef.current = { x: event.clientX, y: event.clientY, moved: false };
+    pointerRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      moved: false,
+      dx: 0,
+      swiping: false,
+      canSwipe: event.pointerType === 'touch',
+    };
   }
 
   function handleCardPointerMove(event) {
-    const dx = Math.abs(event.clientX - pointerRef.current.x);
-    const dy = Math.abs(event.clientY - pointerRef.current.y);
-    if (dx > 8 || dy > 8) {
-      pointerRef.current.moved = true;
+    const dx = event.clientX - pointerRef.current.x;
+    const dy = event.clientY - pointerRef.current.y;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) pointerRef.current.moved = true;
+    // Live drag-to-swipe only once the answer is shown and the motion is horizontal.
+    if (pointerRef.current.canSwipe && flippedRef.current && !advancingRef.current && Math.abs(dx) > Math.abs(dy)) {
+      pointerRef.current.dx = dx;
+      pointerRef.current.swiping = true;
+      const el = cardWrapRef.current;
+      if (el) {
+        el.style.transition = 'none';
+        el.style.transform = `translateX(${dx}px) rotate(${dx * 0.03}deg)`;
+        el.style.opacity = String(Math.max(0.45, 1 - Math.abs(dx) / 600));
+      }
     }
+  }
+
+  function handleCardPointerEnd() {
+    const el = cardWrapRef.current;
+    const dx = pointerRef.current.dx || 0;
+    if (pointerRef.current.swiping && flippedRef.current && !advancingRef.current && Math.abs(dx) > SWIPE_THRESHOLD) {
+      if (el) {
+        el.style.transition = 'transform 0.25s ease-in, opacity 0.25s ease-in';
+        el.style.transform = `translateX(${dx > 0 ? 620 : -620}px) rotate(${dx > 0 ? 14 : -14}deg)`;
+        el.style.opacity = '0';
+      }
+      advanceRef.current(dx > 0 ? 'good' : 'again'); // swipe right = recalled, left = review
+    } else if (el && pointerRef.current.swiping) {
+      el.style.transition = 'transform 0.3s cubic-bezier(0.34,1.45,0.5,1), opacity 0.3s ease';
+      el.style.transform = '';
+      el.style.opacity = '';
+    }
+    pointerRef.current.swiping = false;
+    pointerRef.current.dx = 0;
   }
 
   function handleCardClick(event) {
@@ -1627,9 +1753,13 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
 
         {/* Card */}
         <div
+          ref={cardWrapRef}
           className="mx-auto mb-5 min-h-[420px] w-full max-w-[800px] cursor-pointer touch-pan-y [perspective:1400px] max-[600px]:min-h-[360px]"
           onPointerDown={handleCardPointerDown}
           onPointerMove={handleCardPointerMove}
+          onPointerUp={handleCardPointerEnd}
+          onPointerCancel={handleCardPointerEnd}
+          onPointerLeave={handleCardPointerEnd}
           onClick={handleCardClick}
           role="button"
           tabIndex={0}
@@ -1642,7 +1772,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
             }
           }}
         >
-          <div className="relative min-h-[420px] w-full transition-transform duration-500 [transform-style:preserve-3d] max-[600px]:min-h-[360px]"
+          <div className="relative min-h-[420px] w-full transition-transform duration-[600ms] ease-[cubic-bezier(0.34,1.4,0.5,1)] will-change-transform [transform-style:preserve-3d] max-[600px]:min-h-[360px]"
             style={{ transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
 
             {/* FRONT */}
@@ -1680,7 +1810,7 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
 
             {/* BACK */}
             <div
-              className="fc-card-back-bg absolute inset-0 flex flex-col gap-4 overflow-y-auto rounded-2xl border border-line-soft p-8 shadow-lg [backface-visibility:hidden] [transform:rotateY(180deg)] max-[600px]:p-5"
+              className="fc-card-back-bg absolute inset-0 flex flex-col gap-3 overflow-hidden rounded-2xl border border-line-soft p-8 shadow-lg [backface-visibility:hidden] [transform:rotateY(180deg)] max-[600px]:p-5"
               aria-hidden={!flipped}
             >
               <div className="flex items-center justify-between gap-3">
@@ -1695,14 +1825,14 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
                 )}
               </div>
 
-              <div className="flex-1">
+              <div className="min-h-0 flex-1 overflow-hidden">
                 <AnswerBlock card={card}/>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <button
                   type="button"
-                  className="inline-flex min-h-8 items-center rounded-full border border-line-soft bg-surface-2 px-3 text-[11px] font-extrabold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="inline-flex min-h-6 items-center rounded-full border border-line-soft bg-surface-2 px-2 text-[10px] font-bold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
                   onClick={handleReportCard}
                   disabled={isReported}
                 >

@@ -1,0 +1,179 @@
+/* ============================================================
+   xyndrome — Landing Page v2 (editorial "minimal brand echo")
+   Cream/near-black base · 8 pastel accents · indigo brand echo.
+   Scoped to .lpv2 so it never leaks into the app/dashboard.
+   ============================================================ */
+
+/* The global mobile-safety rule `html, body { overflow-x: hidden }`
+   (06-utilities/launch-responsive.css) forces the browser to compute
+   overflow-y to `auto`, which turns <body> into a non-scrolling scroll
+   container and breaks every `position: sticky` pin on the landing page
+   (e.g. ScrollMorphFeatures' 4-scene crossfade scrolled past without
+   stopping). `overflow-x: clip` clips horizontal overflow exactly the same
+   but keeps overflow-y `visible`, so sticky pins work. Scoped via :has() so
+   it only applies while the landing page (.lpv2) is mounted. */
+html:has(main.lpv2),
+body:has(main.lpv2) {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+
+/* One-card-per-scroll snapping for the feature showcase (ScrollMorphFeatures).
+   Toggled on <html> by JS only while that pinned section fully covers the
+   viewport, so a momentum fling settles on the next card instead of skipping
+   two. `proximity` (not mandatory) keeps it gentle — it never traps the user. */
+html.lpv2-snap-active {
+  scroll-snap-type: y proximity;
+}
+.lpv2 .lpv2-snap-point {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.lpv2 {
+  /* Base canvas */
+  --lpv2-cream: #fafaf7;
+  --lpv2-offwhite: #faf9f6;
+  --lpv2-graylight: #f5f4f0;
+  --lpv2-ink: #111118;
+  --lpv2-ink-soft: #6b7280;
+
+  /* Pastel accent system (all must appear across the page) */
+  --pastel-rose: #ffd6d6;       /* Cardiology */
+  --pastel-sky: #d6f0ff;        /* Pharmacology */
+  --pastel-lavender: #e8d6ff;   /* Neurology */
+  --pastel-mint: #d6ffe8;       /* Pathology */
+  --pastel-peach: #fff3d6;      /* Biochemistry */
+  --pastel-pink: #ffd6f0;       /* Microbiology */
+  --pastel-sage: #e8f5e9;       /* Surgery */
+  --pastel-coral: #ffe8d6;      /* Anatomy */
+
+  /* Brand echo — REAL dashboard indigo (used sparingly) */
+  --brand-indigo: #2563eb;
+  --brand-violet: #7c3aed;
+  --brand-dark: #111118;
+  --brand-grad: linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%);
+
+  /* Typography */
+  --lpv2-font-display: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+  --lpv2-font-ui: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --lpv2-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* Springy easings (Emil Kowalski) */
+  --lpv2-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --lpv2-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  background: var(--lpv2-cream);
+  color: var(--lpv2-ink);
+  font-family: var(--lpv2-font-ui);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.75s var(--lpv2-expo), color 0.75s var(--lpv2-expo);
+}
+
+.lpv2 .font-display { font-family: var(--lpv2-font-display); font-weight: 400; letter-spacing: -0.01em; }
+.lpv2 .font-mono { font-family: var(--lpv2-font-mono); }
+
+/* Tactile press shared by landing buttons (Emil Kowalski) */
+.lpv2 .lpv2-press {
+  transition: transform 0.18s var(--lpv2-spring), box-shadow 0.25s var(--lpv2-spring), background-color 0.25s var(--lpv2-spring), filter 0.25s var(--lpv2-spring);
+}
+.lpv2 .lpv2-press:hover { transform: translateY(-3px); }
+.lpv2 .lpv2-press:active { transform: scale(0.97); }
+
+/* Section rhythm helpers */
+.lpv2 .lpv2-section {
+  position: relative;
+  padding: clamp(64px, 10vw, 132px) 0;
+  transition: background-color 0.75s var(--lpv2-expo), color 0.75s var(--lpv2-expo);
+}
+.lpv2 .lpv2-shell { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
+
+.lpv2.lpv2--subject-dark {
+  background: #070310;
+  color: #f8fafc;
+}
+
+.lpv2.lpv2--subject-dark .lpv2-subject-gallery {
+  background-color: #070310 !important;
+  color: #f8fafc;
+}
+
+.lpv2.lpv2--subject-dark .lpv2-subject-gallery h2 {
+  color: #f8fafc !important;
+  transition: color 0.75s var(--lpv2-expo);
+}
+
+.lpv2 .lpv2-subject-card {
+  border-color: rgba(37, 99, 235, 0.15);
+  background:
+    radial-gradient(circle at 84% 18%, rgba(96, 165, 250, 0.2), transparent 34%),
+    radial-gradient(circle at 96% 92%, rgba(167, 139, 250, 0.16), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(236, 245, 255, 0.92) 100%);
+  box-shadow: 0 18px 42px -30px rgba(59, 130, 246, 0.34);
+  transition:
+    transform 0.2s ease-out,
+    box-shadow 0.2s ease-out,
+    background-color 0.75s var(--lpv2-expo),
+    border-color 0.75s var(--lpv2-expo),
+    color 0.75s var(--lpv2-expo);
+}
+
+.lpv2 .lpv2-subject-card-title,
+.lpv2 .lpv2-subject-card-meta,
+.lpv2 .lpv2-subject-card-count,
+.lpv2 .lpv2-subject-card-track {
+  transition:
+    background-color 0.75s var(--lpv2-expo),
+    color 0.75s var(--lpv2-expo);
+}
+
+.lpv2.lpv2--subject-dark .lpv2-subject-gallery .lpv2-subject-card {
+  background:
+    radial-gradient(circle at 86% 14%, rgba(108, 176, 255, 0.22), transparent 38%),
+    radial-gradient(circle at 100% 90%, rgba(108, 176, 255, 0.14), transparent 46%),
+    linear-gradient(145deg, rgba(8, 8, 14, 0.99), rgba(4, 4, 9, 0.99)) !important;
+  border-color: transparent !important;
+  box-shadow: 0 22px 54px -36px rgba(3, 9, 20, 0.78) !important;
+}
+
+.lpv2.lpv2--subject-dark .lpv2-subject-gallery .lpv2-subject-card-title {
+  color: #f8fafc !important;
+}
+
+.lpv2.lpv2--subject-dark .lpv2-subject-gallery .lpv2-subject-card-meta {
+  color: rgba(248, 250, 252, 0.64) !important;
+}
+
+.lpv2.lpv2--subject-dark .lpv2-subject-gallery .lpv2-subject-card-count {
+  color: #9db0ff !important;
+}
+
+.lpv2.lpv2--subject-dark .lpv2-subject-gallery .lpv2-subject-card-track {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Thin brand-echo divider line */
+.lpv2 .lpv2-brand-rule { height: 2px; width: 100%; background: var(--brand-indigo); opacity: 0.9; }
+
+/* Floating subject pills */
+@keyframes lpv2Float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+
+/* Testimonials marquee (two rows, opposite directions) */
+.lpv2 .lpv2-marquee-track-l { animation: lpv2MarqueeL 40s linear infinite; }
+.lpv2 .lpv2-marquee-track-r { animation: lpv2MarqueeR 40s linear infinite; }
+@keyframes lpv2MarqueeL { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes lpv2MarqueeR { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .lpv2 [class*="lpv2-marquee-track"] { animation: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lpv2 .lpv2-press:hover,
+  .lpv2 .lpv2-press:active { transform: none; }
+}

@@ -394,11 +394,6 @@
   }
 
   :root {
-    --lms-safe-top: env(safe-area-inset-top, 0px);
-    --lms-safe-right: env(safe-area-inset-right, 0px);
-    --lms-safe-bottom: env(safe-area-inset-bottom, 0px);
-    --lms-tabbar-safe-bottom: min(env(safe-area-inset-bottom, 0px), 12px);
-    --lms-safe-left: env(safe-area-inset-left, 0px);
     --safe-top: var(--lms-safe-top);
     --safe-right: var(--lms-safe-right);
     --safe-bottom: var(--lms-safe-bottom);
@@ -406,21 +401,16 @@
     --app-bg: var(--page-background);
     --app-light-bg: var(--page-background);
     --app-dark-bg: #151c24;
-    --lms-tabbar-bg: var(--surface-card, #fbfcff);
-    --lms-tabbar-content-shift: 0px;
     --lms-tabbar-row-height: 64px;
     --header-height: 64px;
-    --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-tabbar-safe-bottom));
+    --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-safe-bottom));
     --lms-mobile-nav-height: var(--bottom-nav-height);
     --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 12px);
-    --lms-safe-top-spacer: var(--safe-top);
     --lms-min-touch-target: 44px;
-    --lms-fluid-page-gutter: clamp(14px, 3vw, var(--page-pad-x));
   }
 
   :root[data-theme='dark'] {
     --app-bg: var(--page-background);
-    --lms-tabbar-bg: #222d39;
   }
 
   * {
@@ -429,33 +419,14 @@
 
   html,
   body,
-  #root,
   #__next {
     margin: 0;
     padding: 0;
     width: 100%;
     min-height: 100%;
     max-width: 100%;
-    overflow-x: hidden;
     background: var(--app-bg, #151c24);
     background-color: var(--app-bg, #151c24);
-  }
-
-  html {
-    background: var(--app-bg, #151c24);
-    background-color: var(--app-bg, #151c24);
-    scroll-behavior: smooth;
-  }
-
-  body {
-    min-height: 100dvh;
-    max-width: 100%;
-    background: var(--app-bg, #151c24);
-    background-color: var(--app-bg, #151c24);
-    overscroll-behavior: none;
-    position: relative;
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
   }
 
   .app,
@@ -468,18 +439,12 @@
     width: 100%;
     max-width: 100%;
     min-height: 100dvh;
-    overflow-x: hidden;
     background: var(--app-bg, #151c24);
     background-color: var(--app-bg, #151c24);
   }
 
   .app-shell {
     position: relative;
-  }
-
-  .lms-app-scroll-root {
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
   }
 
   :where(a[href], button, [role="button"], input, select, textarea, summary) {
@@ -559,79 +524,10 @@
     background-color: var(--app-bg, #151c24);
   }
 
-  .app-safe-top-spacer {
-    height: var(--lms-safe-top-spacer);
-    min-height: var(--lms-safe-top-spacer);
-    flex-shrink: 0;
-    background: var(--app-bg);
-    background-color: var(--app-bg);
-    border: 0;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .app-safe-bottom-spacer {
-    height: var(--safe-bottom);
-    min-height: var(--safe-bottom);
-    flex-shrink: 0;
-    background: var(--app-bg);
-    background-color: var(--app-bg);
-    border: 0;
-    box-shadow: none;
-  }
-
-  .app-content-with-header {
-    padding-top: 16px;
-    padding-bottom: var(--lms-mobile-content-bottom);
-  }
-
-  .app-content-no-header {
-    padding-top: 16px;
-    padding-bottom: calc(var(--safe-bottom) + 24px);
-  }
-
   .app-header {
     height: var(--header-height);
     margin-left: 16px;
     margin-right: 16px;
-  }
-
-  .app-bottom-nav,
-  .bottom-nav,
-  .bottom-navbar,
-  .mobile-nav,
-  .tab-bar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0 !important;
-    height: var(--bottom-nav-height);
-    min-height: var(--bottom-nav-height);
-    margin-bottom: 0 !important;
-    margin: 0 !important;
-    padding: 0;
-    background: var(--lms-tabbar-bg);
-    background-color: var(--lms-tabbar-bg);
-    background-clip: border-box;
-    border: 0;
-    border-top: 1px solid rgba(203, 213, 225, 0.85);
-    border-radius: 0;
-    box-shadow: 0 -1px 8px rgba(15, 23, 42, 0.045);
-    transform: none !important;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    z-index: 9999;
-  }
-
-  .lms-mobile-bottom-nav::after {
-    display: none;
-    content: none;
-    pointer-events: none;
-  }
-
-  .lms-mobile-bottom-nav > div {
-    transform: translateY(var(--lms-tabbar-content-shift));
   }
 
   .lms-mobile-bottom-nav a,
@@ -644,17 +540,6 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  :root[data-theme='dark'] .app-bottom-nav,
-  :root[data-theme='dark'] .bottom-nav,
-  :root[data-theme='dark'] .bottom-navbar,
-  :root[data-theme='dark'] .mobile-nav,
-  :root[data-theme='dark'] .tab-bar {
-    background: #151c24;
-    background-color: #151c24;
-    border-top-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 -2px 14px rgba(0, 0, 0, 0.28);
-  }
-
   :root[data-theme='dark'] .app,
   :root[data-theme='dark'] .app-shell,
   :root[data-theme='dark'] .page,
@@ -664,32 +549,14 @@
   :root[data-theme='dark'] .main-content,
   :root[data-theme='dark'] .page-content,
   :root[data-theme='dark'] .app-content,
-  :root[data-theme='dark'] .portal-content,
-  :root[data-theme='dark'] .app-safe-top-spacer,
-  :root[data-theme='dark'] .app-safe-bottom-spacer {
+  :root[data-theme='dark'] .portal-content {
     background: var(--app-dark-bg);
     background-color: var(--app-dark-bg);
   }
 
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"],
-  html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] {
-    --lms-safe-top-spacer: clamp(10px, calc(var(--lms-safe-top) - 24px), 34px);
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-route-page,
-  html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] .lms-route-page {
-    padding-top: 8px !important;
-  }
-
-  .main-content,
-  .page-content,
-  .app-content {
-    padding-bottom: var(--lms-mobile-content-bottom);
-  }
-
-  .app-drawer {
-    height: 100dvh;
-  }
+.app-drawer {
+  height: 100dvh;
+}
 
   /* ── Page backgrounds ──────────────────────────────────── */
   .dark-bg {
@@ -1189,11 +1056,6 @@
     min-width: 0;
   }
 
-  .lms-route-page {
-    padding-left: max(var(--lms-fluid-page-gutter), var(--lms-safe-left));
-    padding-right: max(var(--lms-fluid-page-gutter), var(--lms-safe-right));
-  }
-
   .lms-sidebar {
     contain: layout paint style;
     position: fixed !important;
@@ -1463,152 +1325,7 @@
     background-color: var(--app-bg);
   }
 
-  .lms-app-scroll-root {
-    width: 100%;
-    max-width: 100%;
-    min-height: 100dvh;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior-x: none;
-    overscroll-behavior-y: auto;
-    touch-action: pan-y;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .lms-app-scroll-root::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
-  }
-
-  html {
-    min-height: 100% !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-    background: var(--app-bg, #151c24) !important;
-    background-color: var(--app-bg, #151c24) !important;
-  }
-
-  body {
-    position: relative !important;
-    width: 100%;
-    max-width: 100%;
-    min-height: 100dvh;
-    overflow-x: hidden !important;
-    overscroll-behavior: none !important;
-    background: var(--app-bg, #151c24) !important;
-    background-color: var(--app-bg, #151c24) !important;
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-
-  #root {
-    width: 100%;
-    min-height: 100%;
-    max-width: 100%;
-    overflow-x: hidden !important;
-    background: var(--app-bg, #151c24) !important;
-    background-color: var(--app-bg, #151c24) !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Legacy iOS overrides now keep the document flush instead of fixed/inset. */
-  @supports (-webkit-touch-callout: none) {
-    html {
-      min-height: 100%;
-      overflow-x: hidden !important;
-    }
-
-    body {
-      position: relative !important;
-      inset: auto !important;
-      min-height: 100dvh;
-      overflow-x: hidden !important;
-    }
-  }
-
-  .portal-shell {
-    height: auto !important;
-    min-height: 100dvh;
-    overflow-x: hidden !important;
-    overflow-y: visible !important;
-    touch-action: pan-y;
-  }
-
-  .portal-content {
-    height: auto !important;
-    min-height: 100dvh;
-    overflow-x: hidden !important;
-    overflow-y: visible !important;
-    overscroll-behavior-x: none;
-    overscroll-behavior-y: none;
-    touch-action: pan-y;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  @media (hover: none) and (pointer: coarse) {
-    .portal-content,
-    .auth-route-scene {
-      overflow-y: visible !important;
-      touch-action: pan-y;
-      -webkit-overflow-scrolling: touch;
-    }
-  }
-
   @media (display-mode: standalone), (display-mode: window-controls-overlay) {
-    html[data-lms-runtime="pwa"],
-    html[data-lms-runtime="pwa"] body,
-    html[data-lms-runtime="pwa"] #root {
-      height: auto !important;
-      min-height: 100dvh !important;
-      overflow-x: hidden !important;
-      overscroll-behavior: none !important;
-      scroll-padding-bottom: calc(var(--lms-mobile-content-bottom) + 12px);
-      touch-action: pan-y !important;
-    }
-
-    html[data-lms-runtime="pwa"] {
-      overflow-x: hidden !important;
-    }
-
-    html[data-lms-runtime="pwa"] body {
-      position: relative !important;
-      inset: auto !important;
-      overflow-x: hidden !important;
-    }
-
-    html[data-lms-runtime="pwa"] #root {
-      overflow-y: visible !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    html[data-lms-runtime="pwa"] .lms-app-scroll-root {
-      overflow-x: hidden !important;
-      overflow-y: auto !important;
-      overscroll-behavior-x: none !important;
-      overscroll-behavior-y: auto !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    html[data-lms-runtime="pwa"] .portal-shell {
-      height: auto !important;
-      min-height: 100dvh !important;
-      overflow-x: hidden !important;
-      overflow-y: visible !important;
-      touch-action: pan-y !important;
-    }
-
-    html[data-lms-runtime="pwa"] .portal-content,
-    html[data-lms-runtime="pwa"] .auth-route-scene {
-      overflow-y: visible !important;
-      overscroll-behavior-x: none !important;
-      overscroll-behavior-y: none !important;
-      touch-action: pan-y !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
     html[data-lms-runtime="pwa"] .lms-topbar {
       background: color-mix(in srgb, var(--topbar-bg) 94%, transparent);
       backdrop-filter: blur(16px);
@@ -1642,75 +1359,6 @@
     }
   }
 
-  @media (max-width: 900px) {
-    html,
-    body,
-    #root {
-      height: auto !important;
-      min-height: 100dvh !important;
-      overflow-x: hidden !important;
-      overscroll-behavior: none !important;
-      scroll-padding-bottom: calc(var(--lms-mobile-content-bottom) + 12px);
-      touch-action: pan-y !important;
-    }
-
-    html,
-    body {
-      overflow-x: hidden !important;
-    }
-
-    body {
-      position: relative !important;
-      inset: auto !important;
-    }
-
-    #root {
-      overflow-y: visible !important;
-    }
-
-    .lms-app-scroll-root {
-      position: relative !important;
-      inset: auto !important;
-      height: auto !important;
-      min-height: 100% !important;
-      max-height: none !important;
-      overflow-x: hidden !important;
-      overflow-y: auto !important;
-      overscroll-behavior-x: none !important;
-      overscroll-behavior-y: auto !important;
-      touch-action: pan-y !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .portal-shell,
-    .portal-content,
-    .portal-content__frame,
-    .motion-smooth,
-    .lms-route-page {
-      height: auto !important;
-      max-height: none !important;
-      overflow-x: hidden !important;
-      overflow-y: visible !important;
-      overscroll-behavior-x: none !important;
-      overscroll-behavior-y: none !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .portal-shell,
-    .portal-content {
-      min-height: 100svh !important;
-      scroll-padding-bottom: calc(var(--lms-mobile-content-bottom) + 12px);
-    }
-
-    .lms-route-page {
-      padding-top: 14px !important;
-      padding-bottom: calc(var(--lms-mobile-content-bottom) + 12px) !important;
-      min-height: 100svh;
-      background: var(--app-bg);
-      background-color: var(--app-bg);
-    }
-  }
-
   @media (max-width: 520px) {
     button,
     a,
@@ -1729,10 +1377,6 @@
       min-height: var(--lms-min-touch-target);
     }
 
-    .portal-content__frame {
-      padding-inline: max(0px, var(--lms-safe-left)) max(0px, var(--lms-safe-right));
-    }
-
     .lms-topbar {
       border-radius: 16px;
       box-shadow:
@@ -1748,90 +1392,6 @@
     box-shadow:
       0 1px 0 rgba(255,255,255,0.55) inset,
       0 12px 30px rgba(15,23,42,0.065);
-  }
-
-  /* iOS PWAs keep one flush viewport background and prevent sideways drift. */
-  @media (hover: none) and (pointer: coarse) {
-    html,
-    body,
-    #root,
-    .lms-app-scroll-root,
-    .portal-shell,
-    .portal-content,
-    .portal-content__frame,
-    .motion-smooth,
-    .lms-route-page {
-      overscroll-behavior: none !important;
-      touch-action: pan-y !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    html,
-    body {
-      overflow-x: hidden !important;
-    }
-
-    body {
-      position: relative !important;
-      inset: auto !important;
-    }
-
-    #root {
-      height: auto !important;
-      min-height: 100dvh !important;
-      overflow-x: hidden !important;
-      overflow-y: visible !important;
-      scroll-behavior: smooth;
-    }
-  }
-
-  @media (display-mode: standalone), (display-mode: window-controls-overlay) {
-    html[data-lms-runtime="pwa"] {
-      --lms-tabbar-safe-bottom: 8px;
-      --lms-tabbar-content-shift: 0px;
-      --lms-tabbar-row-height: 64px;
-      --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-tabbar-safe-bottom));
-      --lms-mobile-nav-height: var(--bottom-nav-height);
-      --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 10px);
-    }
-
-    html[data-lms-runtime="pwa"],
-    html[data-lms-runtime="pwa"] body,
-    html[data-lms-runtime="pwa"] #root,
-    html[data-lms-runtime="pwa"] .lms-app-scroll-root,
-    html[data-lms-runtime="pwa"] .portal-shell,
-    html[data-lms-runtime="pwa"] .portal-content,
-    html[data-lms-runtime="pwa"] .portal-content__frame,
-    html[data-lms-runtime="pwa"] .motion-smooth,
-    html[data-lms-runtime="pwa"] .lms-route-page {
-      overscroll-behavior: none !important;
-      touch-action: pan-y !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    html[data-lms-runtime="pwa"],
-    html[data-lms-runtime="pwa"] body {
-      overflow-x: hidden !important;
-    }
-
-    html[data-lms-runtime="pwa"] body {
-      position: relative !important;
-      inset: auto !important;
-    }
-
-    html[data-lms-runtime="pwa"] #root {
-      height: auto !important;
-      min-height: 100dvh !important;
-      overflow-x: hidden !important;
-      overflow-y: visible !important;
-    }
-
-    html[data-lms-runtime="pwa"] .lms-app-scroll-root {
-      overflow-x: hidden !important;
-      overflow-y: auto !important;
-      overscroll-behavior-x: none !important;
-      overscroll-behavior-y: auto !important;
-    }
   }
 
   :root[data-theme='dark'] .lms-topbar {
@@ -1853,26 +1413,9 @@
       margin-inline: max(0px, var(--lms-safe-left)) max(0px, var(--lms-safe-right));
     }
 
-    .portal-content {
-      padding-bottom: var(--lms-mobile-content-bottom) !important;
-    }
-  }
-
-  @media (min-width: 768px) and (max-width: 1180px) and (orientation: portrait) and (any-pointer: coarse),
-         (min-width: 768px) and (max-width: 1180px) and (orientation: portrait) and (pointer: coarse) {
   }
 
   @media (hover: none) and (pointer: coarse) {
-    .lms-route-page {
-      padding-left: max(14px, var(--lms-safe-left)) !important;
-      padding-right: max(14px, var(--lms-safe-right)) !important;
-      padding-top: 14px !important;
-      padding-bottom: var(--lms-mobile-content-bottom) !important;
-      min-height: 100svh !important;
-      background: var(--app-bg) !important;
-      background-color: var(--app-bg) !important;
-    }
-
     .lms-topbar {
       position: relative !important;
       top: auto !important;
@@ -1944,22 +1487,6 @@
       min-height: 42px !important;
     }
 
-    .lms-mobile-bottom-nav {
-      display: flex !important;
-      bottom: 0 !important;
-      height: var(--bottom-nav-height) !important;
-      min-height: var(--bottom-nav-height) !important;
-      margin: 0 !important;
-      margin-bottom: 0 !important;
-      padding: 0 !important;
-      border: 0 !important;
-      transform: none !important;
-      z-index: 9999 !important;
-    }
-
-    :root[data-theme='dark'] .lms-mobile-bottom-nav {
-      border-top-color: rgba(255, 255, 255, 0.12) !important;
-    }
   }
 
   @media (hover: hover) and (pointer: fine) and (min-width: 1181px) {
@@ -1970,34 +1497,12 @@
 
   /* Native app baseline: Capacitor WebViews need their own density,
      safe-area, input, and scroll constraints independent of browser CSS. */
-  html[data-lms-runtime="native"] {
-    --lms-min-touch-target: 46px;
-    --control-h: max(44px, var(--control-h));
-    --lms-fluid-page-gutter: clamp(16px, 3.4vw, 28px);
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-  }
-
-  html[data-lms-runtime="native"],
-  html[data-lms-runtime="native"] body,
-  html[data-lms-runtime="native"] #root,
-  html[data-lms-runtime="native"] .native-app-frame,
-  html[data-lms-runtime="native"] .lms-app-scroll-root,
-  html[data-lms-runtime="native"] .app-shell,
-  html[data-lms-runtime="native"] .portal-shell,
-  html[data-lms-runtime="native"] .portal-content {
-    width: 100%;
-    max-width: 100%;
-    background: var(--app-bg) !important;
-    background-color: var(--app-bg) !important;
-    overflow-x: hidden !important;
-  }
-
-  html[data-lms-runtime="native"] .lms-app-scroll-root {
-    overscroll-behavior-x: none !important;
-    overscroll-behavior-y: contain !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
+html[data-lms-runtime="native"] {
+  --lms-min-touch-target: 46px;
+  --control-h: max(44px, var(--control-h));
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 
   html[data-lms-runtime="native"] :where(button, a[href], [role="button"]) {
     min-height: var(--lms-min-touch-target);
@@ -2008,194 +1513,6 @@
     min-height: var(--lms-min-touch-target);
     max-width: 100%;
     font-size: 16px !important;
-  }
-
-  html[data-lms-runtime="native"] :where(.lms-route-page, .management-layout, .glass-card, .lms-course-card, .lms-table-shell) {
-    min-width: 0;
-  }
-
-  html[data-lms-runtime="native"] .lms-route-page {
-    padding-left: max(var(--lms-fluid-page-gutter), var(--lms-safe-left)) !important;
-    padding-right: max(var(--lms-fluid-page-gutter), var(--lms-safe-right)) !important;
-  }
-
-  html[data-lms-runtime="native"] .lms-table-shell,
-  html[data-lms-runtime="native"] :where(.overflow-x-auto, [class*="overflow-x-auto"]) {
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="tablet"] {
-    --lms-native-page-x: clamp(22px, 4vw, 40px);
-    --lms-native-section-gap: 22px;
-    --lms-native-card-pad: 22px;
-    --lms-safe-top-spacer: max(14px, min(calc(var(--lms-safe-top) + 8px), 42px));
-    --lms-tabbar-safe-bottom: max(var(--lms-safe-bottom), 10px);
-    --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 18px);
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .lms-route-page {
-    padding-top: 16px !important;
-    padding-left: max(var(--lms-native-page-x), var(--lms-safe-left)) !important;
-    padding-right: max(var(--lms-native-page-x), var(--lms-safe-right)) !important;
-    padding-bottom: calc(var(--lms-mobile-content-bottom) + 8px) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .management-layout,
-  html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .lms-route-page > section {
-    width: 100%;
-    max-width: min(1180px, calc(100vw - (var(--lms-native-page-x) * 2))) !important;
-    gap: var(--lms-native-section-gap) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .lms-topbar {
-    margin-bottom: var(--lms-native-section-gap) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .lms-topbar-actions {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 10px !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .glass-card,
-  html[data-lms-runtime="native"][data-lms-form-factor="tablet"] .lms-course-card {
-    border-radius: 20px !important;
-  }
-
-  /* Native phone safe-area polish: keep content below the camera cutout and
-     make bottom tabs include the real home-indicator inset. */
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] {
-    --lms-native-page-x: 18px;
-    --lms-native-section-gap: 18px;
-    --lms-native-card-gap: 14px;
-    --lms-native-card-pad: 18px;
-    --lms-native-card-radius: 22px;
-    --lms-safe-top-spacer: max(18px, min(calc(var(--lms-safe-top) + 6px), 54px));
-    --lms-tabbar-safe-bottom: max(var(--lms-safe-bottom), 16px);
-    --lms-tabbar-row-height: 62px;
-    --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-tabbar-safe-bottom));
-    --lms-mobile-nav-height: var(--bottom-nav-height);
-    --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 14px);
-    --lms-native-sticky-top: max(8px, var(--lms-safe-top));
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"],
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] body,
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] #root {
-    height: var(--lms-app-viewport-height, 100dvh) !important;
-    min-height: var(--lms-app-viewport-height, 100dvh) !important;
-    overflow: hidden !important;
-    overscroll-behavior: none !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] body,
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] #root,
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .app-shell,
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .portal-shell,
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .portal-content {
-    background: var(--app-bg) !important;
-    background-color: var(--app-bg) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-app-scroll-root {
-    height: var(--lms-app-viewport-height, 100dvh) !important;
-    min-height: var(--lms-app-viewport-height, 100dvh) !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    overscroll-behavior-x: none !important;
-    overscroll-behavior-y: contain !important;
-    -webkit-overflow-scrolling: touch !important;
-    scroll-behavior: smooth !important;
-    background: var(--app-bg) !important;
-    background-color: var(--app-bg) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .app-safe-top-spacer {
-    height: var(--lms-safe-top-spacer) !important;
-    min-height: var(--lms-safe-top-spacer) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-topbar {
-    padding-top: calc(var(--lms-safe-top) + 18px) !important;
-    padding-left: max(var(--lms-native-page-x), var(--lms-safe-left)) !important;
-    padding-right: max(var(--lms-native-page-x), var(--lms-safe-right)) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-route-page {
-    padding-top: 12px !important;
-    padding-left: max(var(--lms-native-page-x), var(--lms-safe-left)) !important;
-    padding-right: max(var(--lms-native-page-x), var(--lms-safe-right)) !important;
-    padding-bottom: calc(var(--lms-mobile-content-bottom) + 4px) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-topbar {
-    margin-bottom: var(--lms-native-section-gap) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .ai-note-focus-mode > .app-safe-top-spacer {
-    display: none !important;
-    height: 0 !important;
-    min-height: 0 !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .management-layout,
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-route-page > section {
-    gap: var(--lms-native-section-gap) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .glass-card,
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-course-card,
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-floating-panel {
-    border-radius: var(--lms-native-card-radius) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-topbar {
-    top: 0 !important;
-    z-index: 1200 !important;
-    padding-top: calc(var(--lms-safe-top) + 4px) !important;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-topbar-inner {
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    align-items: center !important;
-    gap: 6px 10px !important;
-    padding: 7px 14px 8px !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-topbar-inner > :first-child {
-    grid-column: 2;
-    grid-row: 1;
-    justify-content: flex-end !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-topbar-inner > :nth-child(2) {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-topbar-actions {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-content: flex-start !important;
-    gap: 7px !important;
-    overflow-x: auto !important;
-    padding-bottom: 0 !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-topbar-actions button {
-    min-height: 36px !important;
-    border-radius: 11px !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-canvas-shell {
-    gap: 10px !important;
-    padding: 8px 6px calc(var(--lms-mobile-content-bottom) + 8px) !important;
-  }
-
-  html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-main button[style*="position: sticky"] {
-    top: calc(var(--lms-safe-top) + 88px) !important;
   }
 
   .lp-nav {
@@ -2584,12 +1901,6 @@
     border-spacing: 0;
   }
 
-  .portal-content :where(.overflow-x-auto, [class*="overflow-x-auto"]) {
-    max-width: 100%;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-
   .lms-table-shell {
     background:
       linear-gradient(90deg, var(--surface-card) 0, transparent 18px),
@@ -2675,8 +1986,7 @@
   :root[data-low-spec] .lp-cta-orb {
     display: none !important;
   }
-  :root[data-low-spec] .shimmer,
-  :root[data-low-spec] .skeleton-pulse {
+  :root[data-low-spec] .shimmer {
     animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite !important;
   }
   :root[data-low-spec] [data-content-visibility='auto'] {
@@ -2806,8 +2116,7 @@
     animation: progressShimmer 2.2s var(--ease-std, ease) infinite 0.6s !important;
   }
 
-  :root[data-visual-effects='balanced'] .shimmer,
-  :root[data-visual-effects='balanced'] .skeleton-pulse {
+  :root[data-visual-effects='balanced'] .shimmer {
     animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite !important;
   }
 
@@ -2895,12 +2204,6 @@
     transform: translateZ(0);
   }
 
-  html[data-lms-runtime="native"] :where(input, textarea, select, [contenteditable="true"]):focus {
-    font-size: 16px !important;
-    scroll-margin-top: calc(var(--lms-safe-top, 0px) + 24px);
-    scroll-margin-bottom: calc(var(--lms-mobile-content-bottom) + 24px);
-  }
-
   html[data-lms-runtime="native"] :where(input, textarea)::placeholder {
     font-size: 16px !important;
   }
@@ -2934,62 +2237,6 @@
   html[data-lms-runtime="native"] .lms-insight-stagger > *,
   html[data-lms-runtime="native"] [style*="animation-delay"] {
     animation-delay: 0ms !important;
-  }
-
-  html[data-lms-runtime="native"],
-  html[data-lms-runtime="native"] body,
-  html[data-lms-runtime="native"] #root {
-    margin: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    overflow-x: hidden !important;
-    background: var(--app-bg, #151c24) !important;
-    background-color: var(--app-bg, #151c24) !important;
-  }
-
-  html[data-lms-runtime="native"] .native-app-frame {
-    position: relative !important;
-    left: 0 !important;
-    right: auto !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    height: var(--lms-app-viewport-height, 100dvh) !important;
-    min-height: var(--lms-app-viewport-height, 100dvh) !important;
-    max-height: var(--lms-app-viewport-height, 100dvh) !important;
-    border: 0 !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-    background: var(--app-bg, #151c24) !important;
-    background-color: var(--app-bg, #151c24) !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    overscroll-behavior-x: none !important;
-    overscroll-behavior-y: contain !important;
-    scroll-behavior: smooth !important;
-    scroll-padding-top: var(--lms-safe-top, 0px);
-    scroll-padding-bottom: calc(var(--lms-mobile-content-bottom) + var(--lms-safe-bottom, 0px) + 16px);
-    touch-action: pan-y !important;
-    -webkit-overflow-scrolling: touch !important;
-    backface-visibility: hidden;
-  }
-
-  html[data-lms-runtime="native"] .native-app-frame > :where(.app-shell, .portal-shell, .lms-route-page) {
-    transform: translateZ(0);
-  }
-
-  html[data-lms-runtime="native"] :where(.lms-app-scroll-root, .portal-shell, .portal-content, .portal-content__frame, .motion-smooth, .lms-route-page) {
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-  }
-
-  html[data-lms-runtime="native"] :where(.lms-app-scroll-root, .portal-shell, .portal-content, .portal-content__frame, .motion-smooth, .lms-route-page)::-webkit-scrollbar {
-    width: 0 !important;
-    height: 0 !important;
-    display: none !important;
   }
 
   html[data-lms-runtime="native"] .qtr-popup__scroller {

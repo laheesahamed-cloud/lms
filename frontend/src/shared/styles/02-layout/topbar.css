@@ -38,19 +38,16 @@
   transform: translateY(5px);
 }
 
-.app-shell:not(.mobile-top-nav-mode):not(.sidebar-collapsed):not(.sidebar-hidden) .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(1),
 .app-shell.mobile-top-nav-mode.sidebar-open .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(1) {
   transform: rotate(45deg);
 }
 
-.app-shell:not(.mobile-top-nav-mode):not(.sidebar-collapsed):not(.sidebar-hidden) .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(2),
 .app-shell.mobile-top-nav-mode.sidebar-open .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(2) {
   width: 4px;
   opacity: 0;
   transform: scaleX(0.25);
 }
 
-.app-shell:not(.mobile-top-nav-mode):not(.sidebar-collapsed):not(.sidebar-hidden) .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(3),
 .app-shell.mobile-top-nav-mode.sidebar-open .lms-topbar-menu-button .lms-nav-toggle-icon span:nth-child(3) {
   transform: rotate(-45deg);
 }

@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Headers, HttpCode, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
-import { Allow, IsIn, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { Allow, ArrayMaxSize, IsArray, IsIn, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { AiNotesService } from './ai-notes.service';
@@ -88,6 +88,15 @@ class CreateLessonFlashcardDto {
   @IsOptional() @IsString() @MaxLength(500)
   sourceHint?: string;
 
+  @IsOptional() @IsString() @MaxLength(1500000)
+  imageUrl?: string;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1500000, { each: true })
+  imageUrls?: string[];
+
+  @IsOptional() @IsIn(['contain', 'cover'])
+  imageFit?: 'contain' | 'cover';
+
   @IsOptional() @IsIn(['draft', 'approved', 'rejected'])
   status?: 'draft' | 'approved' | 'rejected';
 }
@@ -101,6 +110,15 @@ class UpdateLessonFlashcardDto {
 
   @IsOptional() @IsString() @MaxLength(500)
   sourceHint?: string;
+
+  @IsOptional() @IsString() @MaxLength(1500000)
+  imageUrl?: string;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1500000, { each: true })
+  imageUrls?: string[];
+
+  @IsOptional() @IsIn(['contain', 'cover'])
+  imageFit?: 'contain' | 'cover';
 
   @IsOptional() @IsIn(['draft', 'approved', 'rejected'])
   status?: 'draft' | 'approved' | 'rejected';

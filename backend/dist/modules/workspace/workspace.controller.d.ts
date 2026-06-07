@@ -58,7 +58,7 @@ export declare class WorkspaceController {
         dueDate: string;
         status: string;
         category: "general" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-        priority: "high" | "low" | "medium";
+        priority: "low" | "medium" | "high";
         estimatedMinutes: number | null;
         createdAt: any;
         updatedAt: any;

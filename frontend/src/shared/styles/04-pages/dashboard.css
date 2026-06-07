@@ -55,7 +55,7 @@
     calc(max(8px, env(safe-area-inset-top, 0px)) + 4px) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 6px)
   );
   touch-action: pan-y;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
 }
 
 /* ============================================================
@@ -1212,7 +1212,6 @@
   padding: 0 11px;
   border: 1px solid rgba(var(--sa-primary-rgb), 0.18);
   border-radius: 999px;
-  background: rgba(var(--sa-primary-rgb), 0.08);
   color: var(--sa-primary);
   cursor: pointer;
   font: inherit;
@@ -1978,7 +1977,8 @@
   padding-bottom: 8px;
 }
 
-.study-question-card.is-collapsed .study-answer-list {
+.study-question-card.is-collapsed:not(.has-desktop-answers) .study-answer-list {
+  display: none;
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -2554,6 +2554,9 @@
   position: fixed;
   border-radius: 999px;
   filter: blur(70px);
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: transform;
   pointer-events: none;
   z-index: 0;
 }
@@ -3052,7 +3055,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 
 .study-hub-page .study-hub-shell {
   width: min(390px, calc(100% - 24px));
-  padding: calc(max(7px, env(safe-area-inset-top, 0px)) + 3px) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 18px);
 }
 
 .study-hub-page .study-hub-topbar {
@@ -4175,7 +4177,6 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
   background: rgba(15, 23, 42, 0.52);
 }
 
-.study-hub-page .study-plan-card__head button,
 .study-hub-page .study-plan-row i {
   background: rgba(96, 165, 250, 0.14);
 }
@@ -4192,10 +4193,6 @@ body.study-hub-screen .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-n
 }
 
 @media (min-width: 760px) and (max-width: 1079px) {
-  .study-hub-page .study-hub-shell {
-    padding-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 8px);
-  }
-
   .study-hub-page .study-hero-grid {
     grid-template-columns: minmax(0, 2fr) minmax(210px, 1fr);
     gap: 14px;

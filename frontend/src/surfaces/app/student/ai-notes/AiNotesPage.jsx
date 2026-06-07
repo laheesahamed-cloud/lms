@@ -12,8 +12,6 @@ import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { cx } from '../../../../shared/styles/tailwindClasses.js';
 import { NoteCanvas } from './NoteCanvas.jsx';
 
-const KL = { fontFamily: 'var(--type-font-notebook)' };
-
 let drawingAudioContext = null;
 let lastDrawingSoundAt = 0;
 let activeDrawingSound = null;
@@ -25,6 +23,7 @@ const DRAWING_SOUND_MODES = [
 const DRAWING_SOUND_STORAGE_KEY = 'lms.aiNotes.drawingSoundMode';
 const SECRET_STUDY_EFFECTS = ['fart', 'dog', 'cat', 'boing', 'squeak'];
 const EMPTY_CANVAS_PAGES = [];
+const OFFLINE_NOTE_CACHE_PREFIX = 'lms.aiNotes.offline.note.';
 let lastSecretStudyEffect = '';
 let currentSecretStudyEffect = '';
 let lastSecretStudyEffectAt = 0;
@@ -436,13 +435,13 @@ function modulateDrawingStrokeSound(previous, point, mode = 'spen') {
     return;
   }
   if (!sound) {
-    postNativeDrawingSound('modulate', soundMode, volume, true, { rate, brightness, roughness, wavePulse });
+    postNativeDrawingSound('modulate', soundMode, soundMode === 'secret' ? volume : volume * 1.72, true, { rate, brightness, roughness, wavePulse });
     return;
   }
   try {
     const now = sound.context.currentTime;
     const responseTime = 0.007 - veryFastWriting * 0.003;
-    sound.gain.gain.setTargetAtTime(volume * (0.19 + soundVerticalStroke * 0.025), now, responseTime);
+    sound.gain.gain.setTargetAtTime(volume * (0.32 + soundVerticalStroke * 0.045), now, responseTime);
     sound.source.playbackRate.setTargetAtTime(rate, now, responseTime);
     sound.source.detune?.setTargetAtTime?.(
       (directionTexture - 0.5) * 76
@@ -457,7 +456,7 @@ function modulateDrawingStrokeSound(previous, point, mode = 'spen') {
     sound.filter.frequency.setTargetAtTime(brightness, now, responseTime);
     sound.filter.Q.setTargetAtTime(0.48 + roughness * (1.35 - veryFastWriting * 0.28), now, responseTime);
     if (sound.textureGain && sound.textureFilter && sound.textureSource) {
-      const textureVolume = 0.0099 * clampNumber(movement + directionChange * (0.24 - smallHandwriting * 0.08 - minimalStroke * 0.05) + slowWriting * 0.18 + smallHandwriting * 0.16 + smallAverageHandwriting * 0.18 + smallFastHandwriting * 0.2 + minimalStraightHandwriting * 0.04 + veryFastWriting * 0.22 + soundVerticalStroke * 0.3 + soundVerticalDrag * 0.38 - minimalHorizontalHandwriting * 0.04, 0, 1);
+      const textureVolume = 0.017 * clampNumber(movement + directionChange * (0.24 - smallHandwriting * 0.08 - minimalStroke * 0.05) + slowWriting * 0.18 + smallHandwriting * 0.16 + smallAverageHandwriting * 0.18 + smallFastHandwriting * 0.2 + minimalStraightHandwriting * 0.04 + veryFastWriting * 0.22 + soundVerticalStroke * 0.3 + soundVerticalDrag * 0.38 - minimalHorizontalHandwriting * 0.04, 0, 1);
       sound.textureGain.gain.setTargetAtTime(textureVolume, now, responseTime);
       sound.textureFilter.frequency.setTargetAtTime(brightness * (1.54 + fastWriting * 0.25 + soundVerticalStroke * 0.14 + soundVerticalDrag * 0.18 - smallHandwriting * 0.12 - minimalHorizontalHandwriting * 0.05) + 220, now, responseTime);
       sound.textureFilter.Q.setTargetAtTime(0.7 + roughness * (1.56 - veryFastWriting * 0.42) + soundVerticalStroke * 0.16 + soundVerticalDrag * 0.22 - minimalHorizontalHandwriting * 0.04, now, responseTime);
@@ -465,7 +464,7 @@ function modulateDrawingStrokeSound(previous, point, mode = 'spen') {
       sound.textureSource.detune?.setTargetAtTime?.((segmentTexture - 0.5) * (110 - minimalStroke * 24) + directionChange * (56 + fastWriting * 52 - smallHandwriting * 16 - minimalStroke * 12) + soundVerticalStroke * 34 + soundVerticalDrag * 62, now, responseTime);
     }
     if (sound.verticalGain && sound.verticalFilter && sound.verticalSource) {
-      const verticalVolume = 0.0435 * clampNumber(soundVerticalDrag * (0.68 + speed * 0.46) + soundVerticalStroke * (0.14 + fastWriting * 0.18) + minimalVerticalHandwriting * 0.26 + smallFastHandwriting * verticalStroke * 0.2, 0, 1);
+      const verticalVolume = 0.074 * clampNumber(soundVerticalDrag * (0.68 + speed * 0.46) + soundVerticalStroke * (0.14 + fastWriting * 0.18) + minimalVerticalHandwriting * 0.26 + smallFastHandwriting * verticalStroke * 0.2, 0, 1);
       sound.verticalGain.gain.setTargetAtTime(verticalVolume, now, Math.max(0.006, responseTime * 0.72));
       sound.verticalFilter.frequency.setTargetAtTime(580 + brightness * (1.04 - minimalVerticalHandwriting * 0.1 - cleanVerticalHandwriting * 0.06) + soundVerticalDrag * (410 - minimalVerticalHandwriting * 105) + veryFastWriting * 420, now, responseTime);
       sound.verticalFilter.Q.setTargetAtTime(0.9 + soundVerticalDrag * (1.18 - minimalVerticalHandwriting * 0.28 - cleanVerticalHandwriting * 0.24) + fastWriting * 0.48, now, responseTime);
@@ -487,7 +486,7 @@ function startDrawingStrokeSound(mode = 'spen') {
   try {
     const context = getDrawingAudioContext();
     if (!context) {
-      postNativeDrawingSound('start', soundMode, soundMode === 'secret' ? 0.26 : 0.14, true);
+      postNativeDrawingSound('start', soundMode, soundMode === 'secret' ? 0.26 : 0.24, true);
       return;
     }
     if (context.state === 'suspended') {
@@ -533,7 +532,7 @@ function startDrawingStrokeSound(mode = 'spen') {
     gain.gain.setValueAtTime(0.001, context.currentTime);
     textureGain.gain.setValueAtTime(0.001, context.currentTime);
     verticalGain.gain.setValueAtTime(0.001, context.currentTime);
-    gain.gain.linearRampToValueAtTime(0.004, context.currentTime + 0.008);
+    gain.gain.linearRampToValueAtTime(0.009, context.currentTime + 0.008);
     source.connect(filter);
     filter.connect(gain);
     gain.connect(context.destination);
@@ -621,6 +620,18 @@ const STICKERS  = ['⭐','🔥','💡','🏆','✅','⚠️','❤️','👍','�
 const DRAW_COLORS = ['#1f2937', '#2563eb', '#7c3aed', '#dc2626', '#047857', '#f59e0b'];
 const DRAW_WIDTHS = [3, 5, 8];
 const HIGHLIGHT_COLORS = ['#fde047', '#86efac', '#93c5fd', '#f0abfc'];
+
+// Real sticky-note paper colors (classic Post-it palette). Each note picks one.
+const STICKY_NOTE_COLORS = [
+  { key:'yellow', bg:'#fff59d', bg2:'#ffe97a', edge:'#f6dd5b', ink:'#5a4a10', tape:'rgba(190,165,40,.34)' },
+  { key:'pink',   bg:'#ffd0e0', bg2:'#ffb6d2', edge:'#ffa6c8', ink:'#7a2347', tape:'rgba(200,90,140,.30)' },
+  { key:'blue',   bg:'#bfe3ff', bg2:'#a6d6ff', edge:'#93ccff', ink:'#1d456e', tape:'rgba(70,135,200,.30)' },
+  { key:'green',  bg:'#c7f0cf', bg2:'#aae8b9', edge:'#97e1aa', ink:'#1d6638', tape:'rgba(60,165,95,.30)' },
+  { key:'purple', bg:'#e0d4ff', bg2:'#cdb8ff', edge:'#c1a8ff', ink:'#472d78', tape:'rgba(135,95,205,.30)' },
+  { key:'orange', bg:'#ffdcab', bg2:'#ffca85', edge:'#ffbd6e', ink:'#7a3d0f', tape:'rgba(210,120,40,.30)' },
+];
+const STICKY_NOTE_FONT = "'Bradley Hand','Segoe Print','Comic Sans MS','Chalkboard SE',cursive";
+const getStickyColor = (key) => STICKY_NOTE_COLORS.find(c => c.key === key) || STICKY_NOTE_COLORS[0];
 
 function clampNumber(value, min, max) {
   const number = Number(value);
@@ -873,6 +884,60 @@ function studentCanvasPersonalStorageKey(noteId) {
   return noteId ? `lms.studentCanvas.personal.${noteId}` : '';
 }
 
+function offlineNoteCacheKeys({ id, lessonId, noteId }) {
+  return [
+    noteId ? `${OFFLINE_NOTE_CACHE_PREFIX}note.${noteId}` : '',
+    lessonId ? `${OFFLINE_NOTE_CACHE_PREFIX}lesson.${lessonId}` : '',
+    id ? `${OFFLINE_NOTE_CACHE_PREFIX}route.${id}` : '',
+  ].filter(Boolean);
+}
+
+function writeOfflineNoteCache(data, { id, lessonId }) {
+  if (!data || typeof window === 'undefined') return;
+  const noteId = data.id || id || lessonId;
+  const keys = offlineNoteCacheKeys({ id, lessonId, noteId });
+  if (!keys.length) return;
+  const payload = {
+    cachedAt: Date.now(),
+    data,
+  };
+  try {
+    keys.forEach((key) => window.localStorage.setItem(key, JSON.stringify(payload)));
+  } catch {
+    // Offline note cache is a convenience; personal writing has its own storage.
+  }
+}
+
+function readOfflineNoteCache({ id, lessonId }) {
+  if (typeof window === 'undefined') return null;
+  const keys = offlineNoteCacheKeys({ id, lessonId, noteId: id });
+  for (const key of keys) {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(key) || 'null');
+      if (parsed?.data) return parsed.data;
+    } catch {
+      // Try the next cache key.
+    }
+  }
+  return null;
+}
+
+function writePersonalLayerToDevice(key, nextLayer) {
+  if (!key || typeof window === 'undefined') return false;
+  try {
+    const payload = {
+      ...normalizePersonalLayer(nextLayer),
+      savedAt: Date.now(),
+      storage: 'device',
+      sync: 'local-only',
+    };
+    window.localStorage.setItem(key, JSON.stringify(payload));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function normalizePersonalLayer(saved) {
   if (Array.isArray(saved)) return { stickers:saved, strokes:[] };
   if (!saved || typeof saved !== 'object') return { stickers:[], strokes:[] };
@@ -912,6 +977,14 @@ function TrashIcon({ size = 14 }) {
 // ── Floating sticker ──────────────────────────────────────────────────────────
 function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
   const dr = useRef(null), el = useRef(null);
+  const taRef = useRef(null);
+  // Auto-grow the note to fit its text so typing feels like writing straight on
+  // the sticky paper (no fixed "text box").
+  useEffect(() => {
+    if (s.type !== 'note' || !editable) return;
+    const ta = taRef.current;
+    if (ta) { ta.style.height = 'auto'; ta.style.height = `${ta.scrollHeight}px`; }
+  }, [s.text, s.type, editable, s.w]);
   function onPD(e) {
     if (!editable) return;
     e.stopPropagation(); e.preventDefault();
@@ -951,25 +1024,44 @@ function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
     <div ref={el} onPointerDown={onPD} onPointerMove={onPM} onPointerUp={finishDrag} onPointerCancel={finishDrag}
       className="group/fs absolute select-none leading-none"
       style={{ left:s.x, top:s.y, cursor:editable?'grab':'default', zIndex:20, transform:`rotate(${s.r||0}deg)`, touchAction:editable?'none':'auto' }}>
-      {s.type === 'note' ? (
-        <div
-          className="rounded-xl border border-amber-300/70 bg-amber-100/95 p-3 text-slate-700 shadow-[0_12px_24px_rgba(120,72,20,.16)]"
-          style={{ width:s.w || 180, minHeight:s.h || 96, ...KL }}
-        >
-          <div className="absolute left-1/2 top-[-5px] size-3 -translate-x-1/2 rounded-full bg-amber-400 shadow-sm" />
-          {editable ? (
-            <textarea className="block min-h-[72px] w-full resize-y border-0 bg-transparent text-[15px] font-bold leading-snug outline-none"
-              value={s.text || ''}
-              onPointerDown={e => e.stopPropagation()}
-              onChange={e => onUpdate({ ...s, text:e.target.value })}
-              placeholder="Write your note..."
-              aria-label="Personal sticky note text"
-            />
-          ) : (
-            <p className="m-0 whitespace-pre-wrap text-[15px] font-bold leading-snug">{s.text}</p>
-          )}
-        </div>
-      ) : (
+      {s.type === 'note' ? (() => {
+        const c = getStickyColor(s.color);
+        const w = s.w || 194;
+        return (
+          <div
+            className="lms-sticky-note relative overflow-hidden"
+            onClick={editable ? () => taRef.current?.focus() : undefined}
+            style={{
+              width: w, minHeight: 96,
+              background: `linear-gradient(155deg, ${c.bg} 0%, ${c.bg2} 100%)`,
+              color: c.ink,
+              padding: '18px 15px 16px',
+              borderRadius: 2,
+              boxShadow: '0 14px 26px rgba(60,42,12,.20), 0 3px 8px rgba(60,42,12,.14), inset 0 1px 0 rgba(255,255,255,.42)',
+            }}
+          >
+            {/* translucent tape across the top */}
+            <span aria-hidden="true" className="absolute left-1/2 top-[-10px]" style={{ width:62, height:20, background:c.tape, borderRadius:2, transform:'translateX(-50%) rotate(-2.5deg)', boxShadow:'0 1px 3px rgba(0,0,0,.10)', backdropFilter:'blur(1px)' }} />
+            {/* peeled / folded bottom-right corner */}
+            <span aria-hidden="true" className="absolute bottom-0 right-0" style={{ width:0, height:0, borderStyle:'solid', borderWidth:'0 0 22px 22px', borderColor:`transparent transparent ${c.edge} transparent` }} />
+            <span aria-hidden="true" className="absolute bottom-0 right-0" style={{ width:22, height:22, background:`linear-gradient(135deg, transparent 46%, rgba(0,0,0,.10) 54%)` }} />
+            {editable ? (
+              <textarea ref={taRef}
+                className="block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none placeholder:opacity-45"
+                rows={1}
+                style={{ appearance:'none', WebkitAppearance:'none', background:'transparent', border:'none', boxShadow:'none', fontFamily: STICKY_NOTE_FONT, fontSize:18, fontWeight:700, lineHeight:1.36, color:c.ink, caretColor:c.ink, minHeight:54 }}
+                value={s.text || ''}
+                onPointerDown={e => e.stopPropagation()}
+                onChange={e => { e.currentTarget.style.height='auto'; e.currentTarget.style.height=`${e.currentTarget.scrollHeight}px`; onUpdate({ ...s, text:e.target.value }); }}
+                placeholder="Tap and type…"
+                aria-label="Personal sticky note text"
+              />
+            ) : (
+              <p className="m-0 whitespace-pre-wrap" style={{ fontFamily: STICKY_NOTE_FONT, fontSize:18, fontWeight:700, lineHeight:1.36, color:c.ink }}>{s.text}</p>
+            )}
+          </div>
+        );
+      })() : (
         <span className="text-2xl">{s.emoji}</span>
       )}
       {editable && <button className="absolute -right-2 -top-2 hidden size-4 items-center justify-center rounded-full bg-red-500 text-[11px] text-white group-hover/fs:flex"
@@ -988,6 +1080,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   penColor,
   penWidth,
   soundMode = 'spen',
+  zoomScale = 1,
   stylusOnly = true,
   onCommitStroke,
 }) {
@@ -999,6 +1092,14 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   const stylusTouchUntilRef = useRef(0);
   const strokesRef = useRef(strokes);
   const [eraserCursor, setEraserCursor] = useState(null);
+
+  function getHostLayoutSize() {
+    const host = parentRef.current;
+    if (!host) return null;
+    const width = Math.max(1, Math.round(host.offsetWidth || host.clientWidth || host.scrollWidth || 1));
+    const height = Math.max(1, Math.round(host.offsetHeight || host.clientHeight || host.scrollHeight || 1));
+    return { width, height };
+  }
 
   const prepareCanvas = useCallback((canvas, width, height, dpr) => {
     if (!canvas) return null;
@@ -1024,10 +1125,14 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     const highlightCanvas = highlightCanvasEl.current;
     const host = parentRef.current;
     if (!inkCanvas || !highlightCanvas || !host) return;
-    const rect = host.getBoundingClientRect();
-    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 4));
-    const width = Math.max(1, Math.round(rect.width));
-    const height = Math.max(1, Math.round(rect.height));
+    const size = getHostLayoutSize();
+    if (!size) return;
+    const { width, height } = size;
+    const baseDpr = Math.max(1, window.devicePixelRatio || 1);
+    const scaleDpr = Math.max(1, Number(zoomScale) || 1);
+    const maxDprByArea = Math.sqrt(48000000 / Math.max(1, width * height));
+    const maxDprBySide = Math.min(16384 / width, 16384 / height);
+    const dpr = Math.max(1, Math.min(baseDpr * scaleDpr, 6, maxDprByArea, maxDprBySide));
     const inkCtx = prepareCanvas(inkCanvas, width, height, dpr);
     const highlightCtx = prepareCanvas(highlightCanvas, width, height, dpr);
     if (!inkCtx || !highlightCtx) return;
@@ -1043,16 +1148,18 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
       drawEraserStroke(highlightCtx, stroke, width, height);
       drawEraserStroke(inkCtx, stroke, width, height);
     });
-  }, [parentRef, prepareCanvas]);
+  }, [parentRef, prepareCanvas, zoomScale]);
 
   function canvasMetrics() {
-    const host = parentRef.current;
-    if (!host) return null;
-    const rect = host.getBoundingClientRect();
-    return {
-      width: Math.max(1, Math.round(rect.width)),
-      height: Math.max(1, Math.round(rect.height)),
-    };
+    return getHostLayoutSize();
+  }
+
+  function stableZoomScale() {
+    return Math.max(1, Math.min(3, Number(zoomScale) || 1));
+  }
+
+  function pageStableWidth(screenWidth, minimumPageWidth = 0.75) {
+    return Math.max(minimumPageWidth, (Number(screenWidth) || 1) / stableZoomScale());
   }
 
   function drawLiveEraserSegment(stroke, fromPoint, toPoint, metrics) {
@@ -1157,7 +1264,7 @@ function appendPointToCurrentStroke(event) {
   }
 
   function eraserBrushWidth() {
-    return Math.max(22, (Number(penWidth) || 5) * 7);
+    return pageStableWidth(Math.max(22, (Number(penWidth) || 5) * 7), 8);
   }
 
   function updateEraserCursor(event) {
@@ -1316,10 +1423,14 @@ function appendPointToCurrentStroke(event) {
       return;
     }
     const isHighlighter = drawTool === 'highlighter';
+    const basePenWidth = Number(penWidth) || 5;
+    const strokeWidth = isHighlighter
+      ? pageStableWidth(Math.max(10, basePenWidth * 2.4), 4)
+      : pageStableWidth(basePenWidth, 0.75);
     currentStrokeRef.current = {
       id: `stroke-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       color: penColor,
-      width: isHighlighter ? Math.max(10, penWidth * 2.4) : penWidth,
+      width: strokeWidth,
       opacity: isHighlighter ? 0.36 : 0.98,
       tool: drawTool,
       points: [point],
@@ -1415,7 +1526,7 @@ function appendPointToCurrentStroke(event) {
     setEraserCursor(null);
   }
 
-  const eraserDiameter = `${Math.round(eraserCursor?.size || Math.max(20, (Number(penWidth) || 5) * 8))}px`;
+  const eraserDiameter = `${Math.round(eraserCursor?.size || pageStableWidth(Math.max(20, (Number(penWidth) || 5) * 8), 8))}px`;
 
   return (
     <>
@@ -1691,7 +1802,7 @@ function FloatingWritingPalette({
           borderRadius:999,
           background:drawMode ? (isDark ? 'linear-gradient(180deg,rgba(96,165,250,.28),rgba(37,99,235,.18))' : '#eff6ff') : panelBg,
           color:drawMode ? (isDark ? '#dbeafe' : '#1d4ed8') : tx,
-          boxShadow:isDark ? '0 18px 42px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.12)' : '0 18px 42px rgba(15,23,42,.18)',
+          boxShadow:isDark ? '0 4px 14px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.10)' : '0 3px 12px rgba(15,23,42,.10)',
           cursor:'pointer',
           opacity:isEditing || drawMode ? 1 : .96,
           WebkitTapHighlightColor:'transparent',
@@ -1710,6 +1821,14 @@ function SmoothCanvasMotion() {
       @keyframes lmsToastIn {
         from { opacity: 0; transform: translate3d(-50%, 10px, 0) scale(.98); }
         to { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1); }
+      }
+      /* The global "html, body { overflow-x: hidden }" rule forces overflow-y to
+         auto, which makes <body> a non-scrolling scroll container and breaks
+         position: sticky (the header would scroll away). overflow-x: clip keeps
+         overflow-y visible so the sticky header pins on screen. Scoped via :has. */
+      html:has(.lms-ai-note-page), body:has(.lms-ai-note-page) {
+        overflow-x: clip !important;
+        overflow-y: visible !important;
       }
       .lms-ai-canvas-shell {
         animation: none;
@@ -1771,8 +1890,8 @@ function SmoothCanvasMotion() {
         margin: 0 auto;
         border: 1px solid var(--lms-ai-note-progress-border);
         border-radius: 18px 18px 0 0;
-        background: color-mix(in srgb, var(--lms-ai-note-progress-bg) 88%, transparent);
-        box-shadow: 0 18px 46px rgba(15, 23, 42, 0.18);
+        background: color-mix(in srgb, var(--lms-ai-note-progress-bg) 92%, transparent);
+        box-shadow: 0 -1px 12px rgba(15, 23, 42, 0.05);
         padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
         pointer-events: auto;
         -webkit-backdrop-filter: blur(18px) saturate(1.08);
@@ -1999,7 +2118,7 @@ function WatchVideoModal({ open, url, captionUrl = '', onClose, isDark }) {
       <div className="w-full max-w-4xl overflow-hidden rounded-2xl border shadow-2xl" style={{ background:panelBg, borderColor:line, animation:'lmsVideoDialogIn 220ms cubic-bezier(.16,1,.3,1) both' }}>
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4" style={{ borderColor:line }}>
           <div>
-            <div id={titleId} style={{ ...KL, fontSize:24, fontWeight:800, color:text }}>Watch lesson video</div>
+            <div id={titleId} style={{ fontSize:24, fontWeight:800, color:text }}>Watch lesson video</div>
             <div className="text-xs" style={{ color:muted }}>Video added by your instructor.</div>
           </div>
           <button className="inline-flex size-9 items-center justify-center rounded-full border text-sm font-black"
@@ -2054,13 +2173,13 @@ function WatchVideoModal({ open, url, captionUrl = '', onClose, isDark }) {
               </video>
             ) : embed?.type === 'blocked' ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-                <div style={{ ...KL, fontSize:22, color:text }}>This lesson video cannot be played securely.</div>
+                <div style={{ fontSize:22, color:text }}>This lesson video cannot be played securely.</div>
                 <div className="max-w-sm text-xs leading-relaxed" style={{ color:muted }}>Ask your instructor to upload an embeddable protected video instead of a public link.</div>
               </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
                 <div style={{ fontSize:40 }}>🎬</div>
-                <div style={{ ...KL, fontSize:20, fontWeight:800, color:text }}>No video available yet</div>
+                <div style={{ fontSize:20, fontWeight:800, color:text }}>No video available yet</div>
                 <div className="max-w-sm text-xs leading-relaxed" style={{ color:muted }}>Your instructor hasn't added a video for this lesson yet.</div>
               </div>
             )}
@@ -2097,7 +2216,7 @@ function WatchVideoPanel({ videoUrl, onOpenVideo, isDark }) {
           <span className="block text-[11px] font-semibold text-white/75">{videoUrl ? 'Click to play securely' : 'Instructor can add a protected video'}</span>
         </span>
       </button>
-      <p style={{ ...KL, fontSize:11.5, lineHeight:1.45, color:muted, margin:'9px 3px 0' }}>
+      <p style={{ fontSize:11.5, lineHeight:1.45, color:muted, margin:'9px 3px 0' }}>
         {videoUrl ? 'Video plays inside the LMS without exposing the source link.' : 'Ask your instructor to add the lesson video.'}
       </p>
     </div>
@@ -2144,7 +2263,7 @@ function RightPanel({
           <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.1em', textTransform:'uppercase', color:isDark?'#a78bfa':'#6d28d9' }}>Practice MCQ</span>
         </div>
         <span style={{ background:isDark?`${mcq.bg}18`:mcq.bg, border:`1px solid ${mcq.c}40`, color:mcq.c, borderRadius:99, padding:'2px 9px', fontSize:11, fontWeight:700, display:'inline-block', marginBottom:10 }}>{mcq.tag}</span>
-        <p style={{ ...KL, fontSize:11.5, lineHeight:1.55, color:isDark?'rgba(200,210,255,.65)':'#6b7280', marginBottom:12 }}>
+        <p style={{ fontSize:11.5, lineHeight:1.55, color:isDark?'rgba(200,210,255,.65)':'#6b7280', marginBottom:12 }}>
           Test knowledge on <strong style={{ color:isDark?'#a78bfa':'#5b21b6' }}>{note?.title||'this topic'}</strong>.
         </p>
         <button className="w-full" onClick={() => navigate('/quizzes')}
@@ -2279,7 +2398,7 @@ function RightPanel({
           <span>💡</span>
           <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:isDark?'#fbbf24':'#92400e', fontFamily:'var(--type-font-body)' }}>Revision Tip</span>
         </div>
-        <p style={{ ...KL, fontSize:11.5, lineHeight:1.6, color:isDark?'#fde68a':'#78350f', margin:0 }}>
+        <p style={{ fontSize:11.5, lineHeight:1.6, color:isDark?'#fde68a':'#78350f', margin:0 }}>
           {nativeWritingEnabled
             ? (isEditing
               ? 'Personalize mode lets you move stickers, write sticky notes, and draw on the lesson with Apple Pencil or S Pen. The instructor lesson stays protected.'
@@ -2294,6 +2413,207 @@ function RightPanel({
 }
 
 const MemoRightPanel = memo(RightPanel);
+
+// ── GoodNotes-style top tool toolbar (shown in Personalize mode) ──────────────
+// Horizontal, flat tool strip docked above the canvas. Pen / highlighter / colors
+// / width / undo / clear / writing-sound + emojis + sticky notes. The canvas
+// underneath keeps the exact reading-mode width — tools live on top, not beside.
+function CanvasTopToolbar({
+  isDark, nativeWritingEnabled,
+  drawMode, drawTool, penColor, penWidth, soundMode, strokeCount,
+  onSelectTool, onStopDraw, onPenColorChange, onPenWidthChange, onSoundModeChange,
+  onUndoStroke, onClearStrokes, onStickerAdd, onNoteAdd,
+}) {
+  const [menu, setMenu] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!menu) return undefined;
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setMenu(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [menu]);
+
+  const bd = isDark ? 'rgba(255,255,255,.1)' : '#e8e3d8';
+  const ink = isDark ? 'rgba(226,232,240,.9)' : '#3b465f';
+  const muted = isDark ? 'rgba(200,210,255,.5)' : '#9ca3af';
+  const colors = drawTool === 'highlighter' ? HIGHLIGHT_COLORS : DRAW_COLORS;
+  const seg = (active, danger) => ({
+    display:'inline-flex', alignItems:'center', gap:6, minHeight:34, padding:'0 11px',
+    borderRadius:9, fontSize:12, fontWeight:800, cursor:'pointer', whiteSpace:'nowrap',
+    border:`1px solid ${active ? (isDark?'rgba(96,165,250,.5)':'#2563eb') : (danger ? (isDark?'rgba(220,38,38,.32)':'rgba(220,38,38,.3)') : bd)}`,
+    background: active ? (isDark?'rgba(96,165,250,.16)':'#eff6ff') : 'transparent',
+    color: active ? (isDark?'#bfdbfe':'#1d4ed8') : (danger ? (isDark?'#fca5a5':'#b91c1c') : ink),
+  });
+  const cell = { width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:9, border:`1px solid ${bd}`, background:isDark?'rgba(255,255,255,.04)':'#f9fafb', fontSize:15, cursor:'pointer' };
+  const Divider = () => <span style={{ width:1, height:22, background:bd, flexShrink:0 }} />;
+
+  return (
+    <div ref={ref} className="lms-ai-note-tooltop" style={{
+      position:'relative', width:'fit-content', maxWidth:'100%',
+      display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'center', gap:7, padding:'6px 8px',
+      borderRadius:14, border:`1px solid ${bd}`, background:isDark?'rgba(18,20,31,.6)':'rgba(255,255,255,.7)',
+    }}>
+      {nativeWritingEnabled && (<>
+        <button type="button" style={seg(drawMode && drawTool === 'pen')} onClick={() => onSelectTool('pen')}><PenIcon /> Pen</button>
+        <button type="button" style={seg(drawMode && drawTool === 'highlighter')} onClick={() => onSelectTool('highlighter')}>
+          <span style={{ width:13, height:13, borderRadius:3, background:'#fde047', border:'1px solid rgba(0,0,0,.15)' }} /> Highlighter
+        </button>
+        {drawMode && <button type="button" style={seg(false)} onClick={onStopDraw}>Stop</button>}
+        <Divider />
+        <div style={{ display:'flex', gap:5 }}>
+          {colors.map(c => (
+            <button key={c} type="button" onClick={() => onPenColorChange(c)} aria-label={`Pen color ${c}`} aria-pressed={penColor === c}
+              style={{ width:24, height:24, borderRadius:7, background:c, cursor:'pointer', border: penColor === c ? `2.5px solid ${isDark?'#f8fafc':'#111827'}` : `1px solid ${bd}` }} />
+          ))}
+        </div>
+        <Divider />
+        <div style={{ display:'flex', gap:5 }}>
+          {DRAW_WIDTHS.map(w => (
+            <button key={w} type="button" onClick={() => onPenWidthChange(w)} aria-label={`Pen width ${w}`} aria-pressed={penWidth === w}
+              style={{ width:30, height:30, borderRadius:8, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+                border:`1px solid ${penWidth === w ? (isDark?'rgba(167,139,250,.5)':'#7c3aed') : bd}`, background: penWidth === w ? (isDark?'rgba(167,139,250,.14)':'#f5f3ff') : 'transparent' }}>
+              <span style={{ display:'block', width:'62%', height:w, borderRadius:99, background:penColor }} />
+            </button>
+          ))}
+        </div>
+        <Divider />
+        <button type="button" onClick={onUndoStroke} disabled={!strokeCount} style={{ ...seg(false), opacity:strokeCount?1:.4, cursor:strokeCount?'pointer':'not-allowed' }}><UndoIcon /> Undo</button>
+        <button type="button" onClick={onClearStrokes} disabled={!strokeCount} style={{ ...seg(false, !!strokeCount), opacity:strokeCount?1:.5, cursor:strokeCount?'pointer':'not-allowed' }}><TrashIcon /> Clear</button>
+        <button type="button" onClick={onSoundModeChange} title="Writing sound" style={seg(false)}>🔊 {DRAWING_SOUND_MODES.find(m => m.id === soundMode)?.label || 'Sound'}</button>
+        <Divider />
+      </>)}
+      <div style={{ position:'relative' }}>
+        <button type="button" style={seg(menu)} onClick={() => setMenu(v => !v)}>😊 Stickers</button>
+        {menu && (
+          <div style={{ position:'absolute', top:'calc(100% + 8px)', left:0, zIndex:80, width:272, padding:12, borderRadius:14, border:`1px solid ${bd}`, background:isDark?'#12141f':'#fff', boxShadow:'0 12px 30px rgba(15,23,42,.16)' }}>
+            <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:muted, marginBottom:8 }}>Sticky notes</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:9, marginBottom:13 }}>
+              {STICKY_NOTE_COLORS.map(sc => (
+                <button key={sc.key} type="button" title={`Add ${sc.key} sticky note`} onClick={() => { onNoteAdd(sc.key); setMenu(false); }}
+                  className="lms-smooth-action"
+                  style={{ position:'relative', width:40, height:40, borderRadius:3, cursor:'pointer', border:'1px solid rgba(0,0,0,.07)', padding:0,
+                    background:`linear-gradient(155deg, ${sc.bg} 0%, ${sc.bg2} 100%)`,
+                    boxShadow:'0 3px 8px rgba(60,42,12,.16), inset 0 1px 0 rgba(255,255,255,.5)' }}>
+                  <span aria-hidden="true" style={{ position:'absolute', left:'50%', top:-3, width:17, height:6, background:sc.tape, borderRadius:1, transform:'translateX(-50%) rotate(-6deg)' }} />
+                  <span aria-hidden="true" style={{ position:'absolute', bottom:0, right:0, width:0, height:0, borderStyle:'solid', borderWidth:'0 0 9px 9px', borderColor:`transparent transparent ${sc.edge} transparent` }} />
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:muted, marginBottom:7 }}>Emojis</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+              {ICONS_LIB.map((ic, i) => <button key={i} type="button" style={cell} onClick={() => onStickerAdd(ic)} title="Pin to lesson">{ic}</button>)}
+            </div>
+            <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:muted, marginBottom:7 }}>Decorative</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+              {DECOS_LIB.map((d, i) => <button key={i} type="button" style={cell} onClick={() => onStickerAdd(d)} title="Pin to lesson">{d}</button>)}
+            </div>
+          </div>
+        )}
+      </div>
+      <button type="button" style={seg(false)} onClick={onNoteAdd}>📝 Sticky note</button>
+    </div>
+  );
+}
+
+// ── Native pinch-to-zoom viewport ─────────────────────────────────────────────
+// On native apps only: two-finger pinch zooms the canvas (1×–3×) and two-finger
+// drag pans. Single-finger / stylus is never intercepted, so page scroll and pen
+// drawing keep working. On web it renders children unchanged (zero impact).
+function NativeZoomViewport({ enabled, storageKey = '', onZoomChange, children }) {
+  const hostRef = useRef(null);
+  const innerRef = useRef(null);
+  const st = useRef({ scale: 1, tx: 0, ty: 0 });
+  const g = useRef(null);
+  const raf = useRef(0);
+
+  useEffect(() => {
+    if (enabled) return undefined;
+    onZoomChange?.(1);
+    return undefined;
+  }, [enabled, onZoomChange]);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const host = hostRef.current, inner = innerRef.current;
+    if (!host || !inner) return undefined;
+    if (storageKey && typeof window !== 'undefined') {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem(storageKey) || 'null');
+        if (saved && Number(saved.scale) > 1) {
+          st.current = {
+            scale: Math.max(1, Math.min(3, Number(saved.scale) || 1)),
+            tx: Number(saved.tx) || 0,
+            ty: Number(saved.ty) || 0,
+          };
+        }
+      } catch {
+        // Zoom memory is optional.
+      }
+    }
+    const apply = () => {
+      raf.current = 0;
+      const { scale, tx, ty } = st.current;
+      inner.style.transform = `translate3d(${tx}px,${ty}px,0) scale(${scale})`;
+      onZoomChange?.(scale);
+      if (storageKey && typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(storageKey, JSON.stringify({ scale, tx, ty, savedAt: Date.now() }));
+        } catch {
+          // Zoom memory is optional.
+        }
+      }
+    };
+    const schedule = () => { if (!raf.current) raf.current = requestAnimationFrame(apply); };
+    const D = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const M = t => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+    const onStart = e => {
+      if (e.touches.length !== 2) return;
+      const r = host.getBoundingClientRect();
+      const m = M(e.touches);
+      g.current = { d0: D(e.touches) || 1, s0: st.current.scale, tx0: st.current.tx, ty0: st.current.ty, ax: m.x - r.left, ay: m.y - r.top, mx: m.x, my: m.y };
+    };
+    const onMove = e => {
+      if (!g.current || e.touches.length !== 2) return;
+      e.preventDefault();
+      const d = D(e.touches), m = M(e.touches);
+      const scale = Math.max(1, Math.min(3, g.current.s0 * (d / g.current.d0)));
+      const k = scale / g.current.s0;
+      let tx = g.current.ax - (g.current.ax - g.current.tx0) * k + (m.x - g.current.mx);
+      let ty = g.current.ay - (g.current.ay - g.current.ty0) * k + (m.y - g.current.my);
+      if (scale <= 1.001) { tx = 0; ty = 0; }
+      st.current = { scale, tx, ty };
+      schedule();
+    };
+    const onEnd = e => {
+      if (e.touches.length < 2) g.current = null;
+      if (st.current.scale <= 1.02 && (st.current.tx || st.current.ty || st.current.scale !== 1)) {
+        st.current = { scale: 1, tx: 0, ty: 0 };
+        schedule();
+      }
+    };
+    host.addEventListener('touchstart', onStart, { passive: false });
+    host.addEventListener('touchmove', onMove, { passive: false });
+    host.addEventListener('touchend', onEnd);
+    host.addEventListener('touchcancel', onEnd);
+    apply();
+    return () => {
+      host.removeEventListener('touchstart', onStart);
+      host.removeEventListener('touchmove', onMove);
+      host.removeEventListener('touchend', onEnd);
+      host.removeEventListener('touchcancel', onEnd);
+      if (raf.current) cancelAnimationFrame(raf.current);
+    };
+  }, [enabled, storageKey, onZoomChange]);
+
+  if (!enabled) return children;
+  return (
+    <div ref={hostRef} className="lms-ai-zoom-host" style={{ position: 'relative', touchAction: 'pan-y' }}>
+      <div ref={innerRef} className="lms-ai-zoom-inner" style={{ transformOrigin: '0 0', willChange: 'transform' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 // ── Canvas card grid (one page) ───────────────────────────────────────────────
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -2399,13 +2719,21 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
   const [lessonCompleted, setLessonCompleted] = useState(false);
   const [completionBusy, setCompletionBusy] = useState(false);
   const [personalSaveStatus, setPersonalSaveStatus] = useState('');
+  const [nativeZoomScale, setNativeZoomScale] = useState(1);
   const [isOffline, setIsOffline] = useState(() => (typeof navigator === 'undefined' ? false : !navigator.onLine));
   const sidRef = useRef(0);
   const saveTimerRef = useRef(null);
   const personalStatusTimerRef = useRef(null);
 
   const nativeWritingEnabled = true;
+  const personalStorageId = note?.id || id || lessonId;
+  const personalLayerStorageKey = studentCanvasPersonalStorageKey(personalStorageId);
+  const nativeZoomStorageKey = personalStorageId ? `lms.aiNotes.zoom.${personalStorageId}` : '';
   const notify = msg => { setToast(msg); setTimeout(() => setToast(null), 2200); };
+  const handleNativeZoomChange = useCallback((scale) => {
+    const nextScale = Math.max(1, Math.min(3, Number(scale) || 1));
+    setNativeZoomScale(previous => (Math.abs(previous - nextScale) < 0.015 ? previous : nextScale));
+  }, []);
   const showPersonalSaveStatus = useCallback((message, clearAfter = 0) => {
     setPersonalSaveStatus(message);
     if (personalStatusTimerRef.current) clearTimeout(personalStatusTimerRef.current);
@@ -2438,8 +2766,10 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     (lessonId ? getLessonAiNote(Number(lessonId),{engine:engineKey}) : getAiNote(Number(id),{engine:engineKey}))
       .then(data => { if (!cancelled) {
         const baseData = normalizeNoteData(data.noteData);
+        writeOfflineNoteCache(data, { id, lessonId });
         setNote(data);
         setLocalData(baseData);
+        setError('');
         setVideoUrl(data.videoUrl || '');
         setVideoCaptionUrl(getVideoCaptionUrl(data));
         setLessonCompleted(Boolean(
@@ -2450,10 +2780,28 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       }
         recordStudyActivity({ activityType:'ai_note_viewed', itemId:Number(data.id||id||lessonId) }).catch(()=>{});
       })
-      .catch(e => { if (!cancelled) setError(getErrorMessage(e,'Failed to load lesson.')); })
+      .catch(e => { if (!cancelled) {
+        const cached = readOfflineNoteCache({ id, lessonId });
+        if (cached) {
+          const baseData = normalizeNoteData(cached.noteData);
+          setNote({ ...cached, offlineCached: true });
+          setLocalData(baseData);
+          setVideoUrl(cached.videoUrl || '');
+          setVideoCaptionUrl(getVideoCaptionUrl(cached));
+          setLessonCompleted(Boolean(
+            cached.lessonCompleted ||
+            cached.lessonProgressStatus === 'completed' ||
+            Number(cached.lessonProgressPercent || 0) >= 100
+          ));
+          setError('');
+          showPersonalSaveStatus('Offline mode - lesson and writing are saved on this device');
+          return;
+        }
+        setError(getErrorMessage(e,'Failed to load lesson.'));
+      } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [engineKey, id, lessonId]);
+  }, [engineKey, id, lessonId, showPersonalSaveStatus]);
 
   useEffect(() => {
     let frame = 0;
@@ -2526,10 +2874,9 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
   }, [note?.id, localData?.pages?.length]);
 
   useEffect(() => {
-    const key = studentCanvasPersonalStorageKey(note?.id || id || lessonId);
-    if (!key || typeof window === 'undefined') return;
+    if (!personalLayerStorageKey || typeof window === 'undefined') return;
     try {
-      const saved = window.localStorage.getItem(key);
+      const saved = window.localStorage.getItem(personalLayerStorageKey);
       const personalLayer = normalizePersonalLayer(saved ? JSON.parse(saved) : null);
       setStickers(personalLayer.stickers);
       setStrokes(personalLayer.strokes);
@@ -2537,7 +2884,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       setStickers([]);
       setStrokes([]);
     }
-  }, [id, lessonId, nativeWritingEnabled, note?.id]);
+  }, [nativeWritingEnabled, personalLayerStorageKey]);
 
   useEffect(() => () => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -2565,26 +2912,16 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
   }, [personalSaveStatus, showPersonalSaveStatus]);
 
   const savePersonalItems = useCallback((nextLayer) => {
-    const key = studentCanvasPersonalStorageKey(note?.id || id || lessonId);
-    if (!key || typeof window === 'undefined') return;
+    if (!personalLayerStorageKey || typeof window === 'undefined') return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    showPersonalSaveStatus('Saving personal notes...');
-    saveTimerRef.current = setTimeout(() => {
-      const write = () => {
-        try {
-          window.localStorage.setItem(key, JSON.stringify(nextLayer));
-          showPersonalSaveStatus(isOffline ? 'Offline - personal notes saved on this device' : 'Personal notes saved', 2200);
-        } catch {
-          showPersonalSaveStatus('Save failed - device storage may be full');
-        }
-      };
-      if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(write, { timeout:800 });
-      } else {
-        write();
-      }
-    }, 120);
-  }, [id, isOffline, lessonId, note?.id, showPersonalSaveStatus]);
+    const saved = writePersonalLayerToDevice(personalLayerStorageKey, nextLayer);
+    showPersonalSaveStatus(
+      saved
+        ? (isOffline ? 'Offline - personal notes saved on this device' : 'Personal notes saved on this device')
+        : 'Save failed - device storage may be full',
+      saved ? 2200 : 0
+    );
+  }, [isOffline, personalLayerStorageKey, showPersonalSaveStatus]);
 
   function handleBack() {
     if (location.state?.returnToPath) {
@@ -2633,13 +2970,15 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     });
     notify(`${emoji} pinned`);
   }, [isEditing, savePersonalItems, strokes]);
-  const addStickyNote = useCallback(() => {
+  const addStickyNote = useCallback((presetColor) => {
     if (!isEditing) {
       notify('Click Personalize first to add sticky notes');
       return;
     }
+    const preset = typeof presetColor === 'string' && STICKY_NOTE_COLORS.some(c => c.key === presetColor) ? presetColor : null;
     setStickers(ss => {
-      const next = [...ss, { id:`st${++sidRef.current}`, type:'note', text:'My note', x:54+Math.random()*130, y:70+Math.random()*90, r:Math.round(Math.random()*8-4), w:180, h:96 }];
+      const color = preset || STICKY_NOTE_COLORS[ss.filter(s => s.type === 'note').length % STICKY_NOTE_COLORS.length].key;
+      const next = [...ss, { id:`st${++sidRef.current}`, type:'note', text:'', color, x:54+Math.random()*130, y:70+Math.random()*90, r:Math.round(Math.random()*7-3.5), w:194, h:110 }];
       savePersonalItems({ stickers:next, strokes });
       return next;
     });
@@ -2803,103 +3142,117 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     >
       <SmoothCanvasMotion />
       {/* Top bar */}
-      <div className="lms-ai-note-topbar" style={{ position:'relative', zIndex:40, background:topBg, borderBottom:`1px solid ${topBd}` }}>
-        <div className="lms-ai-note-topbar-inner" style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr)', alignItems:'center', gap:10, maxWidth:1680, margin:'0 auto', padding:'calc(10px + env(safe-area-inset-top, 0px)) 24px 12px' }}>
-          <div className="lms-ai-note-title-block" style={{ minWidth:0, overflow:'hidden' }}>
+      <div className="lms-ai-note-topbar" style={{ position:'sticky', top:0, zIndex:45, background:topBg, borderBottom:`1px solid ${topBd}`, WebkitBackdropFilter:'blur(8px)', backdropFilter:'blur(8px)' }}>
+        <div className="lms-ai-note-topbar-inner" style={{ display:'flex', alignItems:'center', gap:14, maxWidth:1680, margin:'0 auto', padding:'calc(8px + env(safe-area-inset-top, 0px)) 20px 8px', minWidth:0 }}>
+          {/* Left — back + title + breadcrumb */}
+          <button className="lms-ai-note-back-button lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', minHeight:38, fontSize:12, fontWeight:700, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
+            <BackIcon/> Lessons
+          </button>
+          <div className="lms-ai-note-title-block" style={{ minWidth:0, flex:1, overflow:'hidden' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
-              <div style={{ ...KL, minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasTitle}</div>
+              <div style={{ minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasTitle}</div>
               {note.isFree ? (
                 <span style={{ flexShrink:0, border:'1px solid rgba(16,185,129,.25)', background:'rgba(16,185,129,.12)', color:isDark?'#86efac':'#047857', borderRadius:999, padding:'2px 8px', fontSize:11, fontWeight:900, textTransform:'uppercase' }}>
-                  Free lesson
+                  Free
                 </span>
               ) : null}
             </div>
             {canvasContext && <div style={{ fontSize:11, color:isDark?'rgba(200,210,255,.45)':'#9ca3af', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasContext}</div>}
-            <div className="lms-ai-note-control-row">
-              <button className="lms-ai-note-back-button lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', fontSize:12, fontWeight:700, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
-                <BackIcon/> Lessons
-              </button>
-              <ThemeToggle />
-              <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
-                onClick={() => navigate(`/flashcards?noteId=${note.id || id || lessonId}`)}
-                disabled={isLocked}
-                style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : 1, boxShadow:lessonButtonShadow }}>
-                Flashcards
-              </button>
-              <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
-                onClick={toggleEditing}
-                disabled={isLocked}
-                style={{
-                  display:'flex',
-                  alignItems:'center',
-                  gap:6,
-                  border:`1px solid ${isEditing ? (isDark ? 'rgba(167,139,250,.42)' : '#7c3aed') : btnBd}`,
-                  background:isEditing ? (isDark ? 'linear-gradient(180deg,rgba(167,139,250,.22),rgba(96,165,250,.10))' : '#f5f3ff') : btnBg,
-                  borderRadius:12,
-                  padding:'0 12px',
-                  fontSize:11,
-                  fontWeight:800,
-                  color:isEditing ? (isDark ? '#ddd6fe' : '#6d28d9') : btnTx,
-                  cursor:'pointer',
-                  opacity:isLocked ? 0.4 : 1,
-                  boxShadow:isEditing && isDark ? '0 10px 24px rgba(88,28,135,.18), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
-                }}
-              >
-                {isEditing ? 'Done' : 'Personalize'}
-              </button>
-              {nativeWritingEnabled && (
-                <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
-                  onClick={() => {
-                    if (!isEditing) {
-                      setIsEditing(true);
-                      setDrawMode(true);
-                      return;
-                    }
-                    setDrawMode(value => !value);
-                  }}
-                  disabled={isLocked}
-                  aria-pressed={drawMode}
-                  style={{
-                    display:'flex',
-                    alignItems:'center',
-                    gap:6,
-                    border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.46)' : '#2563eb') : btnBd}`,
-                    background:drawMode ? (isDark ? 'rgba(96,165,250,.16)' : '#eff6ff') : btnBg,
-                    borderRadius:12,
-                    padding:'0 12px',
-                    fontSize:11,
-                    fontWeight:900,
-                    color:drawMode ? (isDark ? '#bfdbfe' : '#1d4ed8') : btnTx,
-                    cursor:'pointer',
-                    opacity:isLocked ? 0.4 : 1,
-                    boxShadow:drawMode && isDark ? '0 10px 24px rgba(37,99,235,.16), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
-                  }}
-                >
-                  <PenIcon /> {drawMode ? 'Stop Pen' : 'Pencil / S Pen'}
-                </button>
-              )}
-            </div>
+          </div>
+          {/* Right — status + theme + actions */}
+          <div className="lms-ai-note-topbar-actions" style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0, minWidth:0 }}>
             {(isEditing || personalSaveStatus || isOffline) ? (
-              <div
-                aria-live="polite"
-                role="status"
+              <span className="lms-ai-note-status-pill" aria-live="polite" role="status"
+                style={{ fontSize:11, fontWeight:700, maxWidth:170, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+                  color:personalSaveStatus.startsWith('Save failed') ? (isDark ? '#fca5a5' : '#b91c1c') : (isDark ? 'rgba(200,210,255,.55)' : '#6b7280') }}>
+                {personalSaveStatus || 'Autosaved locally'}
+              </span>
+            ) : null}
+            <ThemeToggle />
+            <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
+              onClick={openVideo}
+              disabled={isLocked}
+              title={videoUrl ? 'Watch the lesson video' : 'No video added yet'}
+              style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', minHeight:38, fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : (videoUrl ? 1 : 0.62), boxShadow:lessonButtonShadow }}>
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M3 2.2v7.6a.5.5 0 0 0 .77.42l6-3.8a.5.5 0 0 0 0-.84l-6-3.8A.5.5 0 0 0 3 2.2Z"/></svg>
+              Video
+            </button>
+            <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
+              onClick={() => navigate('/quizzes')}
+              disabled={isLocked}
+              title="Practice MCQs on this topic"
+              style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', minHeight:38, fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : 1, boxShadow:lessonButtonShadow }}>
+              MCQ
+            </button>
+            <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
+              onClick={toggleEditing}
+              disabled={isLocked}
+              style={{
+                display:'flex', alignItems:'center', gap:6, minHeight:38,
+                border:`1px solid ${isEditing ? (isDark ? 'rgba(167,139,250,.42)' : '#7c3aed') : btnBd}`,
+                background:isEditing ? (isDark ? 'linear-gradient(180deg,rgba(167,139,250,.22),rgba(96,165,250,.10))' : '#f5f3ff') : btnBg,
+                borderRadius:12, padding:'0 13px', fontSize:11, fontWeight:800,
+                color:isEditing ? (isDark ? '#ddd6fe' : '#6d28d9') : btnTx,
+                cursor:'pointer', opacity:isLocked ? 0.4 : 1,
+                boxShadow:isEditing && isDark ? '0 10px 24px rgba(88,28,135,.18), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
+              }}
+            >
+              {isEditing ? 'Done' : 'Personalize'}
+            </button>
+            {nativeWritingEnabled && (
+              <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
+                onClick={() => {
+                  if (!isEditing) { setIsEditing(true); setDrawMode(true); return; }
+                  setDrawMode(value => !value);
+                }}
+                disabled={isLocked}
+                aria-pressed={drawMode}
                 style={{
-                  marginTop:4,
-                  fontSize:11,
-                  fontWeight:700,
-                  color:personalSaveStatus.startsWith('Save failed')
-                    ? (isDark ? '#fca5a5' : '#b91c1c')
-                    : (isDark ? 'rgba(200,210,255,.55)' : '#6b7280'),
-                  whiteSpace:'nowrap',
-                  overflow:'hidden',
-                  textOverflow:'ellipsis',
+                  display:'flex', alignItems:'center', gap:6, minHeight:38,
+                  border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.46)' : '#2563eb') : btnBd}`,
+                  background:drawMode ? (isDark ? 'rgba(96,165,250,.16)' : '#eff6ff') : btnBg,
+                  borderRadius:12, padding:'0 12px', fontSize:11, fontWeight:900,
+                  color:drawMode ? (isDark ? '#bfdbfe' : '#1d4ed8') : btnTx,
+                  cursor:'pointer', opacity:isLocked ? 0.4 : 1,
+                  boxShadow:drawMode && isDark ? '0 10px 24px rgba(37,99,235,.16), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
                 }}
               >
-                {personalSaveStatus || 'Personal notes autosave locally'}
-              </div>
-            ) : null}
+                <PenIcon /> {drawMode ? 'Stop Pen' : 'Pencil / S Pen'}
+              </button>
+            )}
           </div>
         </div>
+        {/* Personalize tool toolbar lives inside the sticky header so it stays pinned
+            on screen while scrolling/drawing. (The toolbar's own position:sticky is
+            broken by the global overflow-x rule, so we pin the whole header instead.) */}
+        {canEdit && (
+          <div className="lms-ai-note-tooltop-row" style={{ borderTop:`1px solid ${topBd}`, padding:'8px 14px', display:'flex', justifyContent:'center', background:isDark?'rgba(10,12,22,.35)':'rgba(250,250,247,.6)' }}>
+            <CanvasTopToolbar
+              isDark={isDark}
+              nativeWritingEnabled={nativeWritingEnabled}
+              drawMode={drawMode}
+              drawTool={drawTool}
+              penColor={penColor}
+              penWidth={penWidth}
+              soundMode={soundMode}
+              strokeCount={strokes.length}
+              onSelectTool={(tool) => {
+                setDrawMode(true);
+                setDrawTool(tool);
+                if (tool === 'highlighter' && !HIGHLIGHT_COLORS.includes(penColor)) setPenColor(HIGHLIGHT_COLORS[0]);
+                if (tool === 'pen' && HIGHLIGHT_COLORS.includes(penColor)) setPenColor(DRAW_COLORS[1]);
+              }}
+              onStopDraw={() => setDrawMode(false)}
+              onPenColorChange={setPenColor}
+              onPenWidthChange={setPenWidth}
+              onSoundModeChange={() => updateSoundMode(soundMode === 'spen' ? 'secret' : 'spen')}
+              onUndoStroke={undoStroke}
+              onClearStrokes={clearStrokes}
+              onStickerAdd={addSticker}
+              onNoteAdd={addStickyNote}
+            />
+          </div>
+        )}
       </div>
 
       {!isLocked && pages.length > 0 && typeof document !== 'undefined' ? createPortal(
@@ -2925,37 +3278,15 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
         document.body
       ) : null}
 
-      {!isLocked && nativeWritingEnabled && typeof document !== 'undefined' ? createPortal(
-        <FloatingWritingPalette
-          isDark={isDark}
-          isEditing={isEditing}
-          drawMode={drawMode}
-          drawTool={drawTool}
-          penColor={penColor}
-          penWidth={penWidth}
-          soundMode={soundMode}
-          strokeCount={strokes.length}
-          onActivate={() => {
-            if (!isEditing) setIsEditing(true);
-            setDrawMode(true);
-          }}
-          onToolChange={(tool) => {
-            setDrawTool(tool);
-            if (tool === 'highlighter' && !HIGHLIGHT_COLORS.includes(penColor)) setPenColor(HIGHLIGHT_COLORS[0]);
-            if (tool === 'pen' && HIGHLIGHT_COLORS.includes(penColor)) setPenColor(DRAW_COLORS[1]);
-          }}
-          onPenColorChange={setPenColor}
-          onPenWidthChange={setPenWidth}
-          onSoundModeChange={updateSoundMode}
-          onUndoStroke={undoStroke}
-          onClearStrokes={clearStrokes}
-        />,
-        document.body
-      ) : null}
+      {/* Pen tools now live in the GoodNotes-style CanvasTopToolbar above the canvas
+          (Personalize mode), replacing the old floating writing palette. */}
 
-      {/* Body */}
-      <div className="lms-ai-canvas-shell mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:px-4 max-[640px]:px-0 max-[520px]:gap-3">
+      {/* Body — one full-width canvas column, just like reading mode. Tools live in
+          the top toolbar (Personalize), never in a side panel. The two-class
+          --solo selector beats the responsive grid-template !important media rules. */}
+      <div className="lms-ai-canvas-shell lms-ai-canvas-shell--solo mx-auto grid !max-w-[1160px] !grid-cols-[minmax(0,1fr)] gap-0 px-6 py-5 max-[1180px]:px-4 max-[640px]:px-0 max-[520px]:px-0">
         <section className="lms-ai-note-main min-w-0">
+          <NativeZoomViewport enabled={platform.isNative && !isLocked} storageKey={nativeZoomStorageKey} onZoomChange={handleNativeZoomChange}>
           <div ref={canvasRef} style={{ position:'relative', minWidth:0, maxWidth:'100%' }}>
             {nativeWritingEnabled && (
               <PersonalDrawingLayer
@@ -2967,6 +3298,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
                 penColor={penColor}
                 penWidth={penWidth}
                 soundMode={soundMode}
+                zoomScale={nativeZoomScale}
                 stylusOnly
                 onCommitStroke={commitStroke}
               />
@@ -2991,28 +3323,8 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
               </div>
             )}
           </div>
+          </NativeZoomViewport>
         </section>
-        <aside className="lms-ai-note-right-panel min-w-0">
-          <MemoRightPanel
-            onStickerAdd={addSticker}
-            note={note}
-            isDark={isDark}
-            isEditing={canEdit}
-            videoUrl={videoUrl}
-            onNoteAdd={addStickyNote}
-            onOpenVideo={openVideo}
-            nativeWritingEnabled={nativeWritingEnabled}
-            drawMode={drawMode}
-            penColor={penColor}
-            penWidth={penWidth}
-            strokeCount={strokes.length}
-            onToggleDraw={toggleDrawMode}
-            onPenColorChange={setPenColor}
-            onPenWidthChange={setPenWidth}
-            onUndoStroke={undoStroke}
-            onClearStrokes={clearStrokes}
-          />
-        </aside>
       </div>
 
       <WatchVideoModal
@@ -3025,7 +3337,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
 
       {toast && (
         <div className="lms-toast" style={{ position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:50 }}>
-          <div style={{ ...KL, display:'flex', alignItems:'center', gap:8, border:`1px solid ${topBd}`, background:isDark?'#1a1d2e':'#fbfcff', borderRadius:16, padding:'10px 20px', fontSize:13, fontWeight:600, color:isDark?'#f0f4ff':'#374151', boxShadow:'0 8px 32px rgba(0,0,0,.15)' }}>{toast}</div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, border:`1px solid ${topBd}`, background:isDark?'#1a1d2e':'#fbfcff', borderRadius:16, padding:'10px 20px', fontSize:13, fontWeight:600, color:isDark?'#f0f4ff':'#374151', boxShadow:'0 8px 32px rgba(0,0,0,.15)' }}>{toast}</div>
         </div>
       )}
 

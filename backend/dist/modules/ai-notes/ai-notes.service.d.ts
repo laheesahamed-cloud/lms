@@ -114,6 +114,9 @@ export declare class AiNotesService {
         question: string;
         answer: string;
         sourceHint: string;
+        imageUrl: string;
+        imageUrls: string[];
+        imageFit: "contain" | "cover";
         status: LessonFlashcardStatus;
         sortOrder: number;
         generatedBy: LessonFlashcardGeneratedBy;
@@ -125,6 +128,9 @@ export declare class AiNotesService {
         question?: string;
         answer?: string;
         sourceHint?: string;
+        imageUrl?: string;
+        imageUrls?: string[];
+        imageFit?: 'contain' | 'cover';
         status?: LessonFlashcardStatus;
     }, token: string, engineKey?: CanvasEngineKey): Promise<{
         id: number;
@@ -133,6 +139,9 @@ export declare class AiNotesService {
         question: string;
         answer: string;
         sourceHint: string;
+        imageUrl: string;
+        imageUrls: string[];
+        imageFit: "contain" | "cover";
         status: LessonFlashcardStatus;
         sortOrder: number;
         generatedBy: LessonFlashcardGeneratedBy;
@@ -157,6 +166,9 @@ export declare class AiNotesService {
             question: string;
             answer: string;
             sourceHint: string;
+            imageUrl: string;
+            imageUrls: string[];
+            imageFit: "contain" | "cover";
             status: LessonFlashcardStatus;
             sortOrder: number;
             generatedBy: LessonFlashcardGeneratedBy;
@@ -169,6 +181,9 @@ export declare class AiNotesService {
         question?: string;
         answer?: string;
         sourceHint?: string;
+        imageUrl?: string;
+        imageUrls?: string[];
+        imageFit?: 'contain' | 'cover';
         status?: LessonFlashcardStatus;
         sortOrder?: number;
     }, token: string, engineKey?: CanvasEngineKey): Promise<{
@@ -178,6 +193,9 @@ export declare class AiNotesService {
         question: string;
         answer: string;
         sourceHint: string;
+        imageUrl: string;
+        imageUrls: string[];
+        imageFit: "contain" | "cover";
         status: LessonFlashcardStatus;
         sortOrder: number;
         generatedBy: LessonFlashcardGeneratedBy;
@@ -230,6 +248,9 @@ export declare class AiNotesService {
             question: string;
             answer: string;
             sourceHint: string;
+            imageUrl: string;
+            imageUrls: string[];
+            imageFit: "contain" | "cover";
             status: LessonFlashcardStatus;
             sortOrder: number;
             generatedBy: LessonFlashcardGeneratedBy;
@@ -274,6 +295,9 @@ export declare class AiNotesService {
             question: string;
             answer: string;
             sourceHint: string;
+            imageUrl: string;
+            imageUrls: string[];
+            imageFit: "contain" | "cover";
             status: LessonFlashcardStatus;
             sortOrder: number;
             generatedBy: LessonFlashcardGeneratedBy;
@@ -325,8 +349,13 @@ export declare class AiNotesService {
     private insertGeneratedFlashcards;
     private mapFlashcard;
     private normalizeFlashcardInput;
+    private normalizeFlashcardImageFit;
     private normalizeFlashcardStatus;
     private cleanFlashcardText;
+    private cleanFlashcardImageUrl;
+    private cleanFlashcardImageUrls;
+    private parseFlashcardImageUrls;
+    private serializeFlashcardImageUrls;
     private assertValidFlashcard;
     private flashcardSignature;
     private normalizeGeneratedFlashcards;

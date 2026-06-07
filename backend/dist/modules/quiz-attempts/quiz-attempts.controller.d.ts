@@ -59,6 +59,7 @@ export declare class QuizAttemptsController {
         wrongAnswers: number;
         passStatus: string;
         submittedAt: any;
+        reviewedAt: any;
     }[]>;
     loadQuiz(quizId: number, mode: string, continuePractice?: string, resetPractice?: string, questionId?: string, authorization?: string): Promise<{
         mode: string;
@@ -89,7 +90,7 @@ export declare class QuizAttemptsController {
         };
         examSession: {
             id: number;
-            status: "in_progress" | "submitted" | "expired";
+            status: "expired" | "in_progress" | "submitted";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;
@@ -362,6 +363,10 @@ export declare class QuizAttemptsController {
                 mnemonic: string;
             } | null;
         }[];
+    }>;
+    completeReview(attemptId: number, authorization?: string): Promise<{
+        attemptId: number;
+        reviewed: boolean;
     }>;
     practiceReview(quizId: number, complete?: string, questionId?: string, authorization?: string): Promise<{
         quiz: {

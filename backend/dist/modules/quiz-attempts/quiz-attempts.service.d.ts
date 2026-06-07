@@ -80,6 +80,7 @@ export declare class QuizAttemptsService {
         wrongAnswers: number;
         passStatus: string;
         submittedAt: any;
+        reviewedAt: any;
     }[]>;
     loadQuiz(authorization: string | undefined, quizId: number, mode: string, continuePractice: boolean, resetPractice: boolean, questionId?: number | null): Promise<{
         mode: string;
@@ -110,7 +111,7 @@ export declare class QuizAttemptsService {
         };
         examSession: {
             id: number;
-            status: "in_progress" | "submitted" | "expired";
+            status: "expired" | "in_progress" | "submitted";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;
@@ -354,6 +355,10 @@ export declare class QuizAttemptsService {
             };
             theoryRecap: TheoryRecapData | null;
         }[];
+    }>;
+    completeReview(authorization: string | undefined, attemptId: number): Promise<{
+        attemptId: number;
+        reviewed: boolean;
     }>;
     practiceReview(authorization: string | undefined, quizId: number, complete: boolean, questionId?: number | null): Promise<{
         quiz: {

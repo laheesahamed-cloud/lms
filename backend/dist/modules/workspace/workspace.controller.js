@@ -198,7 +198,7 @@ __decorate([
 ], WorkspaceController.prototype, "createQuestionReport", null);
 __decorate([
     (0, common_1.Get)('question-reports/admin'),
-    (0, permissions_decorator_1.RequirePermissions)('content.review'),
+    (0, permissions_decorator_1.RequirePermissions)('questions.manage'),
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Query)('status')),
     __metadata("design:type", Function),
@@ -223,7 +223,7 @@ __decorate([
 ], WorkspaceController.prototype, "createLegacyQuestionReview", null);
 __decorate([
     (0, common_1.Patch)('question-reports/admin/:id'),
-    (0, permissions_decorator_1.RequirePermissions)('content.review'),
+    (0, permissions_decorator_1.RequirePermissions)('questions.manage'),
     __param(0, (0, common_1.Headers)('authorization')),
     __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(2, (0, common_1.Body)()),

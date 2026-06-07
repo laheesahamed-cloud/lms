@@ -138,7 +138,7 @@ html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where
   border-radius: var(--lms-app-card-radius, 18px) !important;
 }
 
-html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-modal-backdrop, .quiz-completion-overlay) {
+html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-modal-backdrop) {
   padding-top: max(16px, var(--lms-android-safe-top-content, 24px)) !important;
   padding-bottom: max(16px, var(--lms-android-safe-bottom-content, 16px)) !important;
   padding-left: max(16px, var(--lms-safe-left, env(safe-area-inset-left, 0px))) !important;
@@ -150,19 +150,6 @@ html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-native-modal,
   border-radius: var(--lms-android-sheet-radius) !important;
   overscroll-behavior: contain !important;
   -webkit-overflow-scrolling: touch !important;
-}
-
-html[data-lms-runtime="native"][data-lms-os="android"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
-  bottom: 0 !important;
-  padding-left: max(0px, var(--lms-safe-left, env(safe-area-inset-left, 0px))) !important;
-  padding-right: max(0px, var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;
-}
-
-html[data-lms-runtime="native"][data-lms-os="android"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner {
-  height: var(--bottom-nav-height, 80px) !important;
-  min-height: var(--bottom-nav-height, 80px) !important;
-  padding-bottom: max(10px, var(--lms-tabbar-safe-bottom, 16px)) !important;
-  border-radius: 20px 20px 0 0 !important;
 }
 
 html[data-lms-runtime="native"][data-lms-os="android"] .lms-mobile-bottom-nav__tab {
@@ -217,7 +204,7 @@ html[data-theme="dark"] .lms-native-network-status {
 }
 
 @media (max-width: 520px) {
-  html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-modal-backdrop, .quiz-completion-overlay) {
+  html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-modal-backdrop) {
     place-items: end center !important;
     padding-left: max(10px, var(--lms-safe-left, env(safe-area-inset-left, 0px))) !important;
     padding-right: max(10px, var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;

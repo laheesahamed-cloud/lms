@@ -48,7 +48,7 @@ export function ProtectedRoute({ children, role, allowPending = false, requiredF
   const sessionExpiredLock = useAuthStore((state) => state.sessionExpiredLock);
 
   if (isHydrating) {
-    return <SystemStatusOverlay variant="auth" zIndex={9000} />;
+    return null;
   }
 
   if (!isAuthenticated || !user) {
@@ -96,7 +96,7 @@ export function PublicOnlyRoute({ children }) {
   const isHydrating = useAuthStore((state) => state.isHydrating);
 
   if (isHydrating && (isAuthenticated || user)) {
-    return <SystemStatusOverlay variant="auth" zIndex={9000} />;
+    return null;
   }
 
   if (isAuthenticated && user) {

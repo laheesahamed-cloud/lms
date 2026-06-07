@@ -5,6 +5,26 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
+import { useCountUp } from '../../../../shared/hooks/useCountUp.js';
+
+// Score ring whose conic-gradient sweep + percentage count up together on mount.
+function ScoreRing({ percentage, isPassed, score, totalMarks }) {
+  const animated = useCountUp(percentage, { duration: 1100, decimals: 1 });
+  const deg = Math.max(0, Math.min(100, animated)) * 3.6;
+  const ringStyle = {
+    background: `conic-gradient(${isPassed ? 'var(--sa-ok)' : 'var(--sa-warn)'} ${deg}deg, color-mix(in srgb, var(--sa-surface-2) 86%, transparent) 0deg)`,
+  };
+  return (
+    <div className="student-result-score-card" aria-label={`${percentage.toFixed(2)} percent score`}>
+      <div className="student-result-score-ring" style={ringStyle}>
+        <div>
+          <strong>{animated.toFixed(1)}%</strong>
+          <span>{score.toFixed(2)} / {totalMarks}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function ResultPage() {
   const { attemptId } = useParams();
@@ -39,10 +59,6 @@ export function ResultPage() {
   const isPassed = result?.passStatus === 'pass';
   const unanswered = result?.unansweredQuestions || 0;
   const answered = result ? Math.max(Number(result.totalQuestions || 0) - unanswered, 0) : 0;
-  const boundedPercentage = Math.max(0, Math.min(100, percentage));
-  const ringStyle = {
-    background: `conic-gradient(${isPassed ? 'var(--sa-ok)' : 'var(--sa-warn)'} ${boundedPercentage * 3.6}deg, color-mix(in srgb, var(--sa-surface-2) 86%, transparent) 0deg)`,
-  };
   const accuracyNote = percentage >= 80
     ? 'Excellent command. Keep this topic warm with a short review later.'
     : percentage >= 60
@@ -85,14 +101,7 @@ export function ResultPage() {
                 </div>
               </div>
 
-              <div className="student-result-score-card" aria-label={`${percentage.toFixed(2)} percent score`}>
-                <div className="student-result-score-ring" style={ringStyle}>
-                  <div>
-                    <strong>{percentage.toFixed(1)}%</strong>
-                    <span>{score.toFixed(2)} / {totalMarks}</span>
-                  </div>
-                </div>
-              </div>
+              <ScoreRing percentage={percentage} isPassed={isPassed} score={score} totalMarks={totalMarks} />
           </section>
 
             <section className="student-result-stat-grid lms-quiz-set-card" aria-label="Attempt score breakdown">

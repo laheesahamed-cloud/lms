@@ -98,6 +98,142 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
   );
 }
 
+function getQuizScopeKey(quiz) {
+  if (quiz.isGeneral) return 'full-course';
+  if (quiz.lessonId) return 'lesson';
+  return 'subject';
+}
+
+function getSubjectPoolLabel(quiz) {
+  return quiz.subjectName || quiz.topicName || 'Subject revision';
+}
+
+const QUIZ_SCOPE_OPTIONS = [
+  {
+    key: 'lesson',
+    title: 'Lesson-wise',
+    description: 'Practice sets attached to specific lessons.',
+  },
+  {
+    key: 'subject',
+    title: 'Subject-wise',
+    description: 'Mixed quiz from all lessons under one subject.',
+  },
+  {
+    key: 'full-course',
+    title: 'Full course revision',
+    description: 'Mixed sets covering the whole course.',
+  },
+];
+
+function QuizScopePicker({ courseName, quizzes, onBack, onSelect, pageMode = 'practice' }) {
+  const isExamPage = pageMode === 'exam';
+  const setLabel = isExamPage ? 'exam set' : 'practice set';
+  const counts = quizzes.reduce((acc, quiz) => {
+    const key = getQuizScopeKey(quiz);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <section className="student-lessons-detail space-y-4">
+      <div className="student-lessons-detail-toolbar">
+        <button type="button" className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
+          <IcoChevron />
+          <span>Back</span>
+        </button>
+        <div className="student-lessons-detail-course-name">
+          {courseName || 'General'}
+        </div>
+        <div className="student-lessons-detail-title">
+          <strong>Choose practice type</strong>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
+        {QUIZ_SCOPE_OPTIONS.map((option) => {
+          const count = counts[option.key] || 0;
+          return (
+            <button
+              type="button"
+              key={option.key}
+              className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 focus-visible:ring-4 focus-visible:ring-brand-primary/22"
+              disabled={count === 0}
+              onClick={() => onSelect(option.key)}
+            >
+              <div className="student-lessons-course-card__top flex items-start justify-between gap-4 px-5 py-5">
+                <div className="min-w-0">
+                  <h2 className="m-0 text-[16px] font-black leading-tight text-ink-strong">{option.title}</h2>
+                  <p className="m-0 mt-1 text-[12.5px] font-semibold leading-relaxed text-ink-soft">{option.description}</p>
+                </div>
+                <div className="student-lessons-course-card__count shrink-0 text-right">
+                  <div className="text-[30px] font-extrabold leading-none text-ink-strong">{count}</div>
+                  <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{setLabel}{count === 1 ? '' : 's'}</div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function SubjectPoolPicker({ courseName, quizzes, onBack, onSelect, pageMode = 'practice' }) {
+  const isExamPage = pageMode === 'exam';
+  const setLabel = isExamPage ? 'exam set' : 'practice set';
+  const subjectPools = useMemo(() => {
+    const map = new Map();
+    quizzes.forEach((quiz) => {
+      const label = getSubjectPoolLabel(quiz);
+      if (!map.has(label)) map.set(label, []);
+      map.get(label).push(quiz);
+    });
+    return [...map.entries()]
+      .map(([label, items]) => ({ label, quizzes: items }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }, [quizzes]);
+
+  return (
+    <section className="student-lessons-detail space-y-4">
+      <div className="student-lessons-detail-toolbar">
+        <button type="button" className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
+          <IcoChevron />
+          <span>Back</span>
+        </button>
+        <div className="student-lessons-detail-course-name">
+          {courseName || 'General'}
+        </div>
+        <div className="student-lessons-detail-title">
+          <strong>Choose subject</strong>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
+        {subjectPools.map((subject) => (
+          <button
+            type="button"
+            key={subject.label}
+            className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/22"
+            onClick={() => onSelect(subject.label)}
+          >
+            <div className="student-lessons-course-card__top flex items-start justify-between gap-4 px-5 py-5">
+              <div className="min-w-0">
+                <h2 className="m-0 text-[16px] font-black leading-tight text-ink-strong">{subject.label}</h2>
+                <p className="m-0 mt-1 text-[12.5px] font-semibold leading-relaxed text-ink-soft">Questions mixed from all lessons under this subject.</p>
+              </div>
+              <div className="student-lessons-course-card__count shrink-0 text-right">
+                <div className="text-[30px] font-extrabold leading-none text-ink-strong">{subject.quizzes.length}</div>
+                <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{setLabel}{subject.quizzes.length === 1 ? '' : 's'}</div>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode = 'practice' }) {
   const isExamPage = pageMode === 'exam';
   const title = getQuizTitleText(quiz) || quiz.quizTitle || `Untitled ${isExamPage ? 'exam' : 'practice set'}`;
@@ -142,21 +278,24 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
   );
 }
 
-function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, navigate, pageMode }) {
+function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, navigate, pageMode, scope }) {
   const isExamPage = pageMode === 'exam';
   const setLabel = isExamPage ? 'Exam Set' : 'Practice Set';
   const setLabelLower = setLabel.toLowerCase();
+  const groupingLabel = scope === 'lesson' ? 'lesson' : scope === 'full-course' ? 'revision group' : 'subject';
   const [activeSubject, setActiveSubject] = useState(null);
   const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
   const subjects = useMemo(() => {
     const map = new Map();
     sortQuizzesByHierarchy(quizzes).forEach((quiz) => {
-      const label = quiz.subjectName || (quiz.isGeneral ? 'General / Full Course Revision' : 'General');
+      const label = scope === 'lesson'
+        ? quiz.lessonTitle || quiz.subjectName || 'Lesson practice'
+        : quiz.subjectName || (quiz.isGeneral ? 'General / Full Course Revision' : 'General');
       if (!map.has(label)) map.set(label, []);
       map.get(label).push(quiz);
     });
     return [...map.entries()].map(([label, items]) => ({ label, quizzes: items }));
-  }, [quizzes]);
+  }, [quizzes, scope]);
   const visibleSubjects = activeSubject ? subjects.filter(subject => subject.label === activeSubject) : subjects;
 
   useEffect(() => {
@@ -202,7 +341,7 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
       {subjects.length > 1 ? (
         <div className="student-lessons-filter-bar">
           <button type="button" className={cx('student-lessons-filter-chip', !activeSubject && 'is-active')} onClick={() => setActiveSubject(null)}>
-            All subjects
+            All {groupingLabel}s
           </button>
           {subjects.map((subject) => (
             <button
@@ -269,6 +408,8 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     (readStudyBookmarksCache() || []).filter(b => b.itemType === 'quiz').map(b => b.itemId)
   ));
   const [courseFilter,  setCourseFilter]  = useState('all');
+  const [scopeFilter, setScopeFilter] = useState('');
+  const [subjectPoolFilter, setSubjectPoolFilter] = useState('');
   const [accessPromptQuiz, setAccessPromptQuiz] = useState(null);
 
   useEffect(() => {
@@ -353,10 +494,28 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
 
   function handleSelectCourse(courseName) {
     setCourseFilter(courseName);
+    setScopeFilter('');
+    setSubjectPoolFilter('');
   }
 
   function handleBackToCourses() {
     setCourseFilter('all');
+    setScopeFilter('');
+    setSubjectPoolFilter('');
+  }
+
+  function handleBackToScopes() {
+    setScopeFilter('');
+    setSubjectPoolFilter('');
+  }
+
+  function handleSelectScope(scope) {
+    setScopeFilter(scope);
+    setSubjectPoolFilter('');
+  }
+
+  function handleBackToSubjectPools() {
+    setSubjectPoolFilter('');
   }
 
   const modeQuizzes = useMemo(
@@ -377,6 +536,17 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   const visible = useMemo(
     () => modeQuizzes.filter(q => courseFilter === 'all' || (q.courseTitle || 'General') === courseFilter),
     [modeQuizzes, courseFilter],
+  );
+  const scopedVisible = useMemo(
+    () => visible.filter((quiz) => (
+      (!scopeFilter || getQuizScopeKey(quiz) === scopeFilter)
+      && (!subjectPoolFilter || getSubjectPoolLabel(quiz) === subjectPoolFilter)
+    )),
+    [scopeFilter, subjectPoolFilter, visible],
+  );
+  const subjectScopeQuizzes = useMemo(
+    () => visible.filter((quiz) => getQuizScopeKey(quiz) === 'subject'),
+    [visible],
   );
 
   return (
@@ -409,17 +579,34 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
           ) : (
             <CoursePicker courses={courseCards} onSelect={handleSelectCourse} pageMode={pageMode} />
           )
-        ) : visible.length === 0 ? (
+        ) : !scopeFilter ? (
+          <QuizScopePicker
+            courseName={courseFilter}
+            quizzes={visible}
+            onBack={handleBackToCourses}
+            onSelect={handleSelectScope}
+            pageMode={pageMode}
+          />
+        ) : scopeFilter === 'subject' && !subjectPoolFilter ? (
+          <SubjectPoolPicker
+            courseName={courseFilter}
+            quizzes={subjectScopeQuizzes}
+            onBack={handleBackToScopes}
+            onSelect={setSubjectPoolFilter}
+            pageMode={pageMode}
+          />
+        ) : scopedVisible.length === 0 ? (
           <section>
             <QuizLessonDetail
               courseName={courseFilter}
-              quizzes={visible}
-              onBack={handleBackToCourses}
+              quizzes={scopedVisible}
+              onBack={scopeFilter === 'subject' ? handleBackToSubjectPools : handleBackToScopes}
               bookmarkedIds={bookmarkedIds}
               onBookmark={handleBookmark}
               onAccessNeeded={setAccessPromptQuiz}
               navigate={navigate}
               pageMode={pageMode}
+              scope={scopeFilter}
             />
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
               <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'No matching exams mascot' : 'No matching Q-Bank sets mascot'} />
@@ -430,13 +617,14 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
           <section>
             <QuizLessonDetail
               courseName={courseFilter}
-              quizzes={visible}
-              onBack={handleBackToCourses}
+              quizzes={scopedVisible}
+              onBack={scopeFilter === 'subject' ? handleBackToSubjectPools : handleBackToScopes}
               bookmarkedIds={bookmarkedIds}
               onBookmark={handleBookmark}
               onAccessNeeded={setAccessPromptQuiz}
               navigate={navigate}
               pageMode={pageMode}
+              scope={scopeFilter}
             />
           </section>
         )}

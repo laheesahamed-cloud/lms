@@ -8,16 +8,11 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { isStaffUser, userHasPermissions } from '../shared/auth/roleAccess.js';
 import { detectPlatform } from '../shared/platform/detect.js';
 import { getRouterBasename, normalizeLegacyBuildPath } from '../shared/platform/config.js';
-import { XyndromeLogoMark } from '../shared/brand/XyndromeBrand.jsx';
 import { configureRoutePreloaders } from './routePreloading.js';
+import { LoginPage } from '../surfaces/website/auth/LoginPage.jsx';
 
 const PLATFORM = detectPlatform();
 const ROUTER_BASENAME = getRouterBasename(PLATFORM);
-const ROUTE_FALLBACK_DELAY_MS = 220;
-const routeUi = {
-  screenShell:
-    'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 overflow-x-hidden px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-3.5 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-3.5',
-};
 
 normalizeLegacyBuildPath(PLATFORM);
 
@@ -30,7 +25,6 @@ function lazyNamed(loader, exportName) {
 }
 
 const LandingPage  = lazyNamed(() => import('../surfaces/website/pages/LandingPage.jsx'),               'LandingPage');
-const LoginPage    = lazyNamed(() => import('../surfaces/website/auth/LoginPage.jsx'),          'LoginPage');
 const RegisterPage = lazyNamed(() => import('../surfaces/website/auth/RegisterPage.jsx'),       'RegisterPage');
 const ForgotPasswordPage = lazyNamed(() => import('../surfaces/website/auth/ForgotPasswordPage.jsx'), 'ForgotPasswordPage');
 const ResetPasswordPage = lazyNamed(() => import('../surfaces/website/auth/ResetPasswordPage.jsx'), 'ResetPasswordPage');
@@ -139,29 +133,6 @@ function dynamicRoutePreloader(path) {
 
 configureRoutePreloaders({ commonRoutePreloaders, roleRoutePreloaders, dynamicRoutePreloader });
 
-function RouteFallback() {
-  return (
-    <main className={routeUi.screenShell} aria-busy="true">
-      <div className="grid min-h-[42dvh] place-items-center">
-        <span className="skeleton-pulse grid size-16 place-items-center rounded-full bg-surface-card shadow-[var(--ds-card-shadow)]">
-          <XyndromeLogoMark size={44} />
-        </span>
-      </div>
-    </main>
-  );
-}
-
-function DelayedRouteFallback() {
-  const [showFallback, setShowFallback] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setShowFallback(true), ROUTE_FALLBACK_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  return showFallback ? <RouteFallback /> : null;
-}
-
 function usePrefersReducedMotion() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
@@ -220,7 +191,7 @@ const RouteReveal = memo(function RouteReveal({ children }) {
 function withSuspense(element) {
   return (
     <AppErrorBoundary>
-      <Suspense fallback={<DelayedRouteFallback />}>
+      <Suspense fallback={null}>
         <RouteReveal>{element}</RouteReveal>
       </Suspense>
     </AppErrorBoundary>
@@ -230,7 +201,7 @@ function withSuspense(element) {
 function withLayoutSuspense(element) {
   return (
     <AppErrorBoundary>
-      <Suspense fallback={<DelayedRouteFallback />}>
+      <Suspense fallback={null}>
         {element}
       </Suspense>
     </AppErrorBoundary>
@@ -267,7 +238,7 @@ function LegacyRoleRedirect({ targetPath = '' }) {
   const isHydrating = useAuthStore((state) => state.isHydrating);
   const location = useLocation();
 
-  if (isHydrating) return <RouteFallback />;
+  if (isHydrating) return null;
 
   if (!isAuthenticated || !user) {
     const from = `${location.pathname}${location.search}${location.hash}`;
@@ -283,7 +254,7 @@ function RoleHomeRedirect() {
   const isHydrating = useAuthStore((state) => state.isHydrating);
   const location = useLocation();
 
-  if (isHydrating) return <RouteFallback />;
+  if (isHydrating) return null;
 
   if (!isAuthenticated || !user) {
     const from = `${location.pathname}${location.search}${location.hash}`;
@@ -788,7 +759,7 @@ const router = createBrowserRouter([
           {
             path: 'question-reports',
             element: (
-              <ProtectedRoute role="admin" requiredPermissions={['content.review']}>
+              <ProtectedRoute role="admin" requiredPermissions={['questions.manage']}>
                 {withSuspense(<AdminQuestionReportsPage />)}
               </ProtectedRoute>
             ),

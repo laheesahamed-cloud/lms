@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchStudentCourses, readStudentCoursesCache } from '../../../../shared/api/courses.api.js';
-import { fetchMySubscription, readMySubscriptionCache, requestSubscription } from '../../../../shared/api/subscriptions.api.js';
+import { cancelPendingSubscriptionInvoice, fetchMySubscription, readMySubscriptionCache, requestSubscription } from '../../../../shared/api/subscriptions.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -239,6 +239,7 @@ export function StudentBillingPage() {
   const [success, setSuccess] = useState('');
   const [requestingPlanId, setRequestingPlanId] = useState(null);
   const [payingPlanId, setPayingPlanId] = useState(null);
+  const [cancellingInvoiceId, setCancellingInvoiceId] = useState(null);
   const [customPlan, setCustomPlan] = useState({ subject: 'all', content: 'full', duration: '3m' });
   const [customCourseIds, setCustomCourseIds] = useState([]);
   const [courseOptions, setCourseOptions] = useState(() => getCourseOptions(readStudentCoursesCache()));
@@ -284,6 +285,7 @@ export function StudentBillingPage() {
   const requests = (Array.isArray(billing.requests) ? billing.requests : []).filter(Boolean);
   const lockedFeature = location.state?.lockedFeature || '';
   const purchaseScope = location.state?.accessScope || '';
+  const paymentNotice = String(location.state?.paymentNotice || '').trim();
   const purchaseCourseIds = useMemo(
     () => (Array.isArray(location.state?.courseIds) ? location.state.courseIds.map(Number).filter(Boolean) : []),
     [location.state?.courseIds]
@@ -319,6 +321,16 @@ export function StudentBillingPage() {
       .filter((request) => request?.status === 'pending')
       .map((request) => Number(request.planId))
   ), [requests]);
+  const pendingInvoiceRequests = useMemo(() => (
+    requests.filter((request) => (
+      request?.status === 'pending'
+      && request?.invoiceId
+      && (request?.paymentMethod === 'bank_transfer' || request?.paymentMethod === 'payhere')
+    ))
+  ), [requests]);
+  const pendingInvoiceByPlanId = useMemo(() => new Map(
+    pendingInvoiceRequests.map((request) => [Number(request.planId), request])
+  ), [pendingInvoiceRequests]);
   const currentIsFreePlan = isFreePlanSubscription(current);
   const currentDaysRemaining = currentIsFreePlan ? 0 : Math.max(0, Number(current?.daysRemaining || 0));
   const currentDurationDays = Math.max(1, Number(current?.planDurationDays || 0));
@@ -421,8 +433,53 @@ export function StudentBillingPage() {
   }, [customCourseIds, customPlan.subject, customSelectionNote, selectedCustomPlan]);
 
   function handleCheckoutPlan(plan, extraState = {}) {
+    const pendingInvoice = pendingInvoiceByPlanId.get(Number(plan.id));
+    if (pendingInvoice?.paymentProofDataUrl) {
+      setSuccess('Payment proof already uploaded. Waiting for admin approval.');
+      setPayingPlanId(null);
+      return;
+    }
+
     setPayingPlanId(plan.id);
-    navigate(`/subscriptions/checkout/${plan.id}`, { state: { ...purchaseCheckoutState, ...extraState } });
+    navigate(`/subscriptions/checkout/${plan.id}`, {
+      state: {
+        ...purchaseCheckoutState,
+        ...extraState,
+        createManualInvoice: !pendingInvoice?.invoiceId,
+        paymentCartNotice: pendingInvoice?.invoiceId
+          ? `This package is already in your payment cart. Invoice #${pendingInvoice.invoiceId} is ready. Upload your bank slip to continue.`
+          : '',
+      },
+    });
+  }
+
+  async function handleRemovePendingInvoice(request) {
+    if (!request?.id || request?.status !== 'pending') return;
+    if (request.paymentProofDataUrl) {
+      setError('Payment proof is already uploaded. Please wait for admin approval or contact support.');
+      return;
+    }
+
+    const invoiceId = String(request.invoiceId || '').trim();
+    const confirmed = window.confirm(
+      invoiceId
+        ? `Remove pending invoice #${invoiceId}? You can create a new invoice for this package afterwards.`
+        : 'Remove this pending invoice? You can create a new invoice for this package afterwards.'
+    );
+    if (!confirmed) return;
+
+    setError('');
+    setSuccess('');
+    setCancellingInvoiceId(request.id);
+    try {
+      await cancelPendingSubscriptionInvoice(request.id);
+      setSuccess(invoiceId ? `Invoice #${invoiceId} removed.` : 'Pending invoice removed.');
+      await load();
+    } catch (cancelError) {
+      setError(getErrorMessage(cancelError, 'Unable to remove pending invoice'));
+    } finally {
+      setCancellingInvoiceId(null);
+    }
   }
 
   function scrollToComparison() {
@@ -457,6 +514,8 @@ export function StudentBillingPage() {
     const marketing = planMarketing[plan.slug] || {};
     const primaryBadge = options.badge || marketing.badge || (isRecommended ? 'Most Popular' : '');
     const canOpenCheckout = !options.requestOnly && !isCurrent && Number(plan.effectivePrice || 0) > 0;
+    const pendingInvoice = pendingInvoiceByPlanId.get(Number(plan.id));
+    const pendingInvoiceProofUploaded = Boolean(pendingInvoice?.paymentProofDataUrl);
     const featureLabels = (Array.isArray(plan.enabledFeatures) ? plan.enabledFeatures : [])
       .map((feature) => feature?.featureName)
       .filter(Boolean)
@@ -507,11 +566,11 @@ export function StudentBillingPage() {
           {canOpenCheckout ? (
             <button
               type="button"
-              className={ui.primaryAction}
+              className={pendingInvoice ? ui.secondaryAction : ui.primaryAction}
               disabled={payingPlanId === plan.id}
               onClick={() => handleCheckoutPlan(plan, options.checkoutState || {})}
             >
-              {payingPlanId === plan.id ? 'Opening checkout...' : 'Choose plan'}
+              {pendingInvoiceProofUploaded ? 'Waiting for approval' : pendingInvoice ? 'Continue payment' : payingPlanId === plan.id ? 'Opening checkout...' : 'Choose plan'}
             </button>
           ) : null}
           {options.requestOnly ? (
@@ -534,13 +593,64 @@ export function StudentBillingPage() {
       <section className="study-hub-shell">
         <AppHeader
           title="Subscriptions"
-          subtitle="Plan Access"
+          breadcrumbPlacement="below"
+          breadcrumbInteractive={false}
+          breadcrumbUppercaseCurrent
         />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
         {success ? <FeedbackNotice tone="success">{success}</FeedbackNotice> : null}
         {upgradeMessage ? <FeedbackNotice tone="error">{upgradeMessage}</FeedbackNotice> : null}
         {purchaseSelectionNote ? <FeedbackNotice tone="success">{purchaseSelectionNote}</FeedbackNotice> : null}
+        {paymentNotice ? <FeedbackNotice tone="success">{paymentNotice}</FeedbackNotice> : null}
+        {pendingInvoiceRequests.length ? (
+          <section className={cx(ui.panelCard, 'border-amber-500/25 bg-amber-500/8 max-[520px]:p-3.5')}>
+            <div className={ui.panelTop}>
+              <div>
+                <h2 className={ui.panelTitle}>Pending invoice</h2>
+                <p className={ui.panelText}>Complete your bank transfer or wait for admin approval. A new invoice will not be created for the same package.</p>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              {pendingInvoiceRequests.map((request) => {
+                const proofUploaded = Boolean(request.paymentProofDataUrl);
+                return (
+                  <article className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line-soft bg-surface-card px-4 py-3 shadow-xs" key={request.id}>
+                    <div className="min-w-0">
+                      <strong className="block text-sm text-ink-strong">{request.planName}</strong>
+                      <span className="mt-1 block text-[12px] font-semibold text-ink-soft">
+                        Invoice #{request.invoiceId} • {request.paymentCurrency || request.planCurrency} {Number(request.paymentAmount || request.planEffectivePrice || 0).toFixed(2)}
+                      </span>
+                      <span className="mt-1 block text-[12px] font-semibold text-ink-soft">
+                        {proofUploaded ? 'Payment proof uploaded. Waiting for admin approval.' : 'Upload your bank slip to complete this payment.'}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className={proofUploaded ? ui.secondaryAction : ui.primaryAction}
+                        disabled={proofUploaded}
+                        onClick={() => navigate(`/subscriptions/checkout/${request.planId}`)}
+                      >
+                        {proofUploaded ? 'Waiting for approval' : 'View invoice'}
+                      </button>
+                      {!proofUploaded ? (
+                        <button
+                          type="button"
+                          className={ui.secondaryAction}
+                          disabled={cancellingInvoiceId === request.id}
+                          onClick={() => handleRemovePendingInvoice(request)}
+                        >
+                          {cancellingInvoiceId === request.id ? 'Removing...' : 'Remove'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         <section className={cx(ui.panelCard, 'max-[520px]:p-3.5')}>
           <div className={ui.panelTop}>
@@ -934,6 +1044,14 @@ export function StudentBillingPage() {
                       <div className="grid gap-1 text-[12px] font-semibold text-ink-soft">
                         <span>Requested: {formatRequestDateTime(request.requestedAt)}</span>
                         {request.invoiceId ? <span>Invoice: #{request.invoiceId}</span> : null}
+                        {request.paymentMethod ? (
+                          <span>{request.paymentMethod === 'payhere' ? 'Card / PayHere' : 'Bank transfer'}</span>
+                        ) : null}
+                        {request.paymentAmount !== null && request.paymentAmount !== undefined ? (
+                          <span>
+                            Amount: {request.paymentCurrency || request.planCurrency} {Number(request.paymentAmount).toFixed(2)}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     <span className={cx('rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.1em]', tone.badge)}>

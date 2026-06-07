@@ -172,7 +172,7 @@ const adminLinks = [
   { to: '/courses',       label: 'Courses',       icon: 'Courses', requiredPermissions: ['content.manage'] },
   { to: '/structure',     label: 'Structure',     icon: 'Structure', requiredPermissions: ['content.manage'] },
   { to: '/questions',     label: 'Questions',     icon: 'Questions', requiredPermissions: ['questions.manage'] },
-  { to: '/question-reports', label: 'Question Reports', icon: 'Questions', requiredPermissions: ['content.review'] },
+  { to: '/question-reports', label: 'Question Reports', icon: 'Questions', requiredPermissions: ['questions.manage'] },
   { to: '/quizzes',       label: 'Assessments',   icon: 'Quizzes', requiredPermissions: ['quizzes.manage'] },
   {
     label: 'AI Tools',
@@ -259,12 +259,12 @@ const sidebarUi = {
   group:
     'relative flex flex-col gap-1',
   link:
-    'group relative flex h-[42px] min-h-[42px] items-center gap-2.5 rounded-[var(--ds-nav-radius)] border border-transparent px-3 text-[13.5px] font-semibold text-ink-soft no-underline shadow-none transition-[background,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 hover:text-ink-strong active:scale-[0.985]',
+    'group relative flex h-[42px] min-h-[42px] items-center gap-2.5 rounded-[var(--ds-nav-radius)] border border-transparent px-3 text-[13.5px] font-semibold text-ink-soft no-underline shadow-none transition-[background,border-color,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 hover:text-ink-strong active:scale-[0.985]',
   linkActive:
     'nav-active-glow border-transparent text-brand-primary shadow-[var(--ds-nav-active-shadow)] hover:bg-transparent',
   linkCollapsed: 'min-[901px]:h-[48px] min-[901px]:min-h-[48px] min-[901px]:justify-center min-[901px]:px-0',
   icon:
-    'grid size-[30px] min-h-[30px] min-w-[30px] shrink-0 place-items-center rounded-[10px] text-ink-soft transition-[background,color] duration-150 group-hover:bg-[var(--color-primary-light)] group-hover:text-brand-primary',
+    'grid size-[30px] min-h-[30px] min-w-[30px] shrink-0 place-items-center rounded-[10px] text-ink-soft transition-[background,color] duration-150 ease-[var(--ease-out)] group-hover:bg-[var(--color-primary-light)] group-hover:text-brand-primary',
   iconActive:
     '!bg-[var(--color-primary-light)] !text-brand-primary shadow-[var(--ds-nav-active-shadow)]',
   iconCollapsed:

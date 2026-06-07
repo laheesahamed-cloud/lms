@@ -164,6 +164,15 @@ export class SubscriptionsController {
     return this.subscriptionsService.requestManualPayment(student.id, dto);
   }
 
+  @Delete('requests/:id')
+  async cancelStudentPendingInvoice(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number
+  ) {
+    const student = await this.authService.requireStudent(authorization);
+    return this.subscriptionsService.cancelStudentPendingInvoice(student.id, id);
+  }
+
   @Post('payhere/notify')
   async handlePayHereNotify(@Body() body: Record<string, string | undefined>) {
     return this.subscriptionsService.handlePayHereNotification(body);

@@ -80,6 +80,7 @@ const PAYMENT_SETTING_KEYS = {
     checkoutTitle: 'payment_payhere_checkout_title',
     buttonLabel: 'payment_payhere_button_label',
     supportText: 'payment_payhere_support_text',
+    bankTransferDetails: 'payment_bank_transfer_details',
     autoActivatePaidSubscriptions: 'payment_payhere_auto_activate_paid_subscriptions',
 };
 const SMTP_SETTING_KEYS = {
@@ -349,6 +350,9 @@ let SettingsService = SettingsService_1 = class SettingsService {
             supportText: input.supportText !== undefined
                 ? this.normalizeOptionalValue(input.supportText)
                 : current.supportText,
+            bankTransferDetails: input.bankTransferDetails !== undefined
+                ? this.normalizeOptionalValue(input.bankTransferDetails)
+                : current.bankTransferDetails,
             autoActivatePaidSubscriptions: input.autoActivatePaidSubscriptions ?? current.autoActivatePaidSubscriptions,
         };
         await Promise.all([
@@ -363,6 +367,7 @@ let SettingsService = SettingsService_1 = class SettingsService {
             this.saveSettingValue(PAYMENT_SETTING_KEYS.checkoutTitle, next.checkoutTitle),
             this.saveSettingValue(PAYMENT_SETTING_KEYS.buttonLabel, next.buttonLabel),
             this.saveSettingValue(PAYMENT_SETTING_KEYS.supportText, next.supportText),
+            this.saveSettingValue(PAYMENT_SETTING_KEYS.bankTransferDetails, next.bankTransferDetails),
             this.saveSettingValue(PAYMENT_SETTING_KEYS.autoActivatePaidSubscriptions, next.autoActivatePaidSubscriptions ? 'true' : 'false'),
         ]);
         return this.getPaymentSettings();
@@ -808,6 +813,7 @@ let SettingsService = SettingsService_1 = class SettingsService {
             buttonLabel: values.get(PAYMENT_SETTING_KEYS.buttonLabel) || 'Pay with PayHere',
             supportText: values.get(PAYMENT_SETTING_KEYS.supportText) ||
                 'Sandbox payments are simulated by PayHere and no real card will be charged.',
+            bankTransferDetails: values.get(PAYMENT_SETTING_KEYS.bankTransferDetails) || '',
             autoActivatePaidSubscriptions: this.parseBoolean(values.get(PAYMENT_SETTING_KEYS.autoActivatePaidSubscriptions), true),
         };
     }
@@ -994,6 +1000,7 @@ let SettingsService = SettingsService_1 = class SettingsService {
                 enabled: settings.enabled,
                 currency: settings.currency,
                 buttonLabel: settings.buttonLabel,
+                bankTransferDetails: settings.bankTransferDetails,
                 configured: Boolean(settings.merchantId && settings.merchantSecret),
             };
         }
@@ -1004,6 +1011,7 @@ let SettingsService = SettingsService_1 = class SettingsService {
             checkoutTitle: settings.checkoutTitle,
             buttonLabel: settings.buttonLabel,
             supportText: settings.supportText,
+            bankTransferDetails: settings.bankTransferDetails,
             configured: Boolean(settings.merchantId && settings.merchantSecret),
             merchantId: settings.merchantId,
             hasMerchantSecret: Boolean(settings.merchantSecret),

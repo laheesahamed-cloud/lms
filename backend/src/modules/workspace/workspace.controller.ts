@@ -96,7 +96,7 @@ export class WorkspaceController {
   }
 
   @Get('question-reports/admin')
-  @RequirePermissions('content.review')
+  @RequirePermissions('questions.manage')
   listQuestionReports(@Headers('authorization') authorization?: string, @Query('status') status?: string) {
     return this.workspaceService.listQuestionReports(authorization, status);
   }
@@ -114,7 +114,7 @@ export class WorkspaceController {
   }
 
   @Patch('question-reports/admin/:id')
-  @RequirePermissions('content.review')
+  @RequirePermissions('questions.manage')
   updateQuestionReport(
     @Headers('authorization') authorization: string | undefined,
     @Param('id', ParseIntPipe) id: number,

@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useCountUp } from '../../../../shared/hooks/useCountUp.js';
 import { fetchStudentDashboard, readStudentDashboardCache } from '../../../../shared/api/dashboard.api.js';
 import { listAiNotes, readAiNotesCache } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -459,21 +461,45 @@ function StudyButton({ children, tone = 'primary', icon = null, onClick, ...butt
   );
 }
 
-function MetricCard({ label, value, hint, icon, tone, progress = null }) {
+function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0 }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-40px' });
+  const reduce = useReducedMotion();
+
+  // Count up the leading number of `value` (handles numbers and strings like "78%").
+  const match = String(value).match(/^(\d+(?:\.\d+)?)(.*)$/s);
+  const target = match ? parseFloat(match[1]) : null;
+  const suffix = match ? match[2] : '';
+  const counted = useCountUp(target ?? 0, { active: inView && target !== null, duration: 900 });
+  const display = target !== null ? `${counted}${suffix}` : value;
+
+  const railPct = progress !== null ? clampPercent(progress) : 0;
+
   return (
-    <article className={`study-metric study-metric--${tone}`}>
+    <motion.article
+      ref={ref}
+      className={`study-metric study-metric--${tone}`}
+      initial={reduce ? false : { opacity: 0, y: 14 }}
+      animate={inView ? { opacity: 1, y: 0 } : undefined}
+      transition={{ delay: index * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
       <span className="study-metric__icon"><Icon name={icon} /></span>
       <div>
-        <strong>{value}</strong>
+        <strong className="tabular-nums">{display}</strong>
         <span>{label}</span>
         <p>{hint}</p>
       </div>
       {progress !== null ? (
         <div className="study-mini-rail" aria-hidden="true">
-          <span style={{ width: `${clampPercent(progress)}%` }} />
+          <motion.span
+            initial={reduce ? false : { width: 0 }}
+            animate={inView ? { width: `${railPct}%` } : undefined}
+            transition={{ delay: 0.2 + index * 0.08, duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+            style={reduce ? { width: `${railPct}%` } : undefined}
+          />
         </div>
       ) : null}
-    </article>
+    </motion.article>
   );
 }
 
@@ -1287,7 +1313,7 @@ export function StudentDashboardPage() {
         </div>
 
         <section className="study-metric-grid" aria-label="Dashboard stats">
-          {dashboardStats.map((metric) => (
+          {dashboardStats.map((metric, index) => (
             <MetricCard
               key={metric.label}
               label={metric.label}
@@ -1296,6 +1322,7 @@ export function StudentDashboardPage() {
               icon={metric.icon}
               tone={metric.tone}
               progress={metric.progress}
+              index={index}
             />
           ))}
         </section>

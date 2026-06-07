@@ -43,7 +43,8 @@ export class ManualPaymentRequestDto {
   proofMimeType?: string;
 
   @IsString()
-  proofDataUrl!: string;
+  @IsOptional()
+  proofDataUrl?: string;
 
   @IsString()
   @IsOptional()

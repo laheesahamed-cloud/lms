@@ -170,6 +170,25 @@ __decorate([
 ], CreateLessonFlashcardDto.prototype, "sourceHint", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(1500000),
+    __metadata("design:type", String)
+], CreateLessonFlashcardDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMaxSize)(3),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.MaxLength)(1500000, { each: true }),
+    __metadata("design:type", Array)
+], CreateLessonFlashcardDto.prototype, "imageUrls", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['contain', 'cover']),
+    __metadata("design:type", String)
+], CreateLessonFlashcardDto.prototype, "imageFit", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsIn)(['draft', 'approved', 'rejected']),
     __metadata("design:type", String)
 ], CreateLessonFlashcardDto.prototype, "status", void 0);
@@ -195,6 +214,25 @@ __decorate([
     (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
 ], UpdateLessonFlashcardDto.prototype, "sourceHint", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(1500000),
+    __metadata("design:type", String)
+], UpdateLessonFlashcardDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMaxSize)(3),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.MaxLength)(1500000, { each: true }),
+    __metadata("design:type", Array)
+], UpdateLessonFlashcardDto.prototype, "imageUrls", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['contain', 'cover']),
+    __metadata("design:type", String)
+], UpdateLessonFlashcardDto.prototype, "imageFit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsIn)(['draft', 'approved', 'rejected']),

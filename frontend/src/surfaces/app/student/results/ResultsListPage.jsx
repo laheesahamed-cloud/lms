@@ -60,6 +60,9 @@ function getAttemptReviewStatus(result) {
   if (percentage > 0 && percentage < 40) {
     return { label: 'Failed', tone: 'failed' };
   }
+  if (result?.reviewedAt) {
+    return { label: 'Reviewed', tone: 'reviewed' };
+  }
   return { label: 'Needs review', tone: 'review' };
 }
 

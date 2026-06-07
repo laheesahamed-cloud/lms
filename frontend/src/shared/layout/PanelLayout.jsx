@@ -10,7 +10,7 @@ export function PanelLayout() {
       desktopSidebarToggle={desktopSidebarToggle}
       desktopSidebarHiddenByDefault={desktopSidebarHiddenByDefault}
     >
-      <div className="min-h-full overflow-x-hidden">
+      <div className="min-h-full">
         <Outlet />
       </div>
     </AppShell>

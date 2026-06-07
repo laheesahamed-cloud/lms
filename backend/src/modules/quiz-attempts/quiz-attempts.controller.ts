@@ -110,6 +110,14 @@ export class QuizAttemptsController {
     return this.quizAttemptsService.review(authorization, attemptId);
   }
 
+  @Post('review/:attemptId/complete')
+  completeReview(
+    @Param('attemptId', ParseIntPipe) attemptId: number,
+    @Headers('authorization') authorization?: string
+  ) {
+    return this.quizAttemptsService.completeReview(authorization, attemptId);
+  }
+
   @Get('practice-review/:quizId')
   practiceReview(
     @Param('quizId', ParseIntPipe) quizId: number,

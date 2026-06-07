@@ -62,6 +62,89 @@ function getNoteDataSize(data) {
   return JSON.stringify(data).length;
 }
 
+const FLASHCARD_IMAGE_MAX_BYTES = 1024 * 1024;
+const FLASHCARD_IMAGE_TARGET_BYTES = 900 * 1024;
+const FLASHCARD_IMAGE_LIMIT = 3;
+
+function dataUrlByteLength(dataUrl) {
+  const base64 = String(dataUrl || '').split(',')[1] || '';
+  return Math.ceil((base64.length * 3) / 4);
+}
+
+function normalizeFlashcardImageUrls(card) {
+  const rawItems = Array.isArray(card?.imageUrls) ? card.imageUrls : [card?.imageUrl];
+  const urls = rawItems
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+  return Array.from(new Set(urls)).slice(0, FLASHCARD_IMAGE_LIMIT);
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Image read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function canvasToDataUrl(canvas, type, quality) {
+  const dataUrl = canvas.toDataURL(type, quality);
+  return type === 'image/webp' && !dataUrl.startsWith('data:image/webp')
+    ? canvas.toDataURL('image/jpeg', quality)
+    : dataUrl;
+}
+
+async function optimizeFlashcardImage(file) {
+  const original = await readFileAsDataUrl(file);
+  if (file.size <= FLASHCARD_IMAGE_MAX_BYTES && dataUrlByteLength(original) <= FLASHCARD_IMAGE_MAX_BYTES) {
+    return { src: original, optimized: false, size: file.size };
+  }
+
+  const url = URL.createObjectURL(file);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = url;
+    });
+
+    const attempts = [
+      [1400, 0.92],
+      [1400, 0.88],
+      [1200, 0.9],
+      [1200, 0.86],
+      [1000, 0.88],
+      [1000, 0.82],
+      [800, 0.84],
+    ];
+
+    let best = '';
+    for (const [maxWidth, quality] of attempts) {
+      let width = image.naturalWidth || image.width;
+      let height = image.naturalHeight || image.height;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d', { alpha: true }).drawImage(image, 0, 0, width, height);
+      const next = canvasToDataUrl(canvas, 'image/webp', quality);
+      if (!best || dataUrlByteLength(next) < dataUrlByteLength(best)) best = next;
+      if (dataUrlByteLength(next) <= FLASHCARD_IMAGE_TARGET_BYTES) {
+        return { src: next, optimized: true, size: dataUrlByteLength(next), width, height };
+      }
+    }
+
+    return { src: best, optimized: true, size: dataUrlByteLength(best) };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function flashcardStatusClass(status) {
   if (status === 'approved') return 'border-brand-success/28 bg-[var(--color-success-light)] text-brand-success';
   if (status === 'rejected') return 'border-brand-error/24 bg-brand-error/8 text-brand-error';
@@ -136,6 +219,8 @@ const editorUi = {
     'min-h-[86px] resize-y rounded-[var(--radius-sm)] border border-line-soft bg-surface-card px-3 py-2 text-[13px] font-semibold leading-relaxed text-ink-strong outline-none transition-colors focus:border-brand-primary',
   flashcardSource:
     'text-[11px] font-semibold leading-relaxed text-ink-muted',
+  flashcardImagePreview:
+    'mt-2 aspect-video w-full rounded-[var(--radius-sm)] border border-line-soft bg-surface-card p-1',
   flashcardEmpty:
     'rounded-[var(--radius-sm)] border border-dashed border-line-medium bg-surface-1 p-4 text-center text-[13px] font-semibold leading-relaxed text-ink-soft',
   loadingFallback: 'p-12 text-center text-ink-muted',
@@ -210,6 +295,7 @@ export function AdminAiNotesEditorPage({
   const [flashcardCount, setFlashcardCount] = useState(24);
   const [flashcardMessage, setFlashcardMessage] = useState('');
   const [savingCardId, setSavingCardId] = useState(null);
+  const [bulkApprovingFlashcards, setBulkApprovingFlashcards] = useState(false);
 
   useEffect(() => (
     () => {
@@ -526,6 +612,48 @@ export function AdminAiNotesEditorPage({
     )));
   }
 
+  function handleFlashcardImageAt(cardId, index, value) {
+    setFlashcards((current) => current.map((card) => {
+      if (String(card.id) !== String(cardId)) return card;
+      const nextImages = normalizeFlashcardImageUrls(card);
+      nextImages[index] = value;
+      const imageUrls = nextImages.map((item) => String(item || '').trim()).filter(Boolean).slice(0, FLASHCARD_IMAGE_LIMIT);
+      return { ...card, imageUrl: imageUrls[0] || '', imageUrls, dirty: true };
+    }));
+  }
+
+  function handleRemoveFlashcardImage(cardId, index) {
+    handleFlashcardImageAt(cardId, index, '');
+  }
+
+  async function handleFlashcardImageFile(cardId, file) {
+    if (!file) return;
+    if (!file.type?.startsWith('image/')) {
+      setFlashcardMessage('Choose a PNG, JPG, WebP, or GIF image for the flashcard.');
+      return;
+    }
+    setFlashcardMessage('Optimizing flashcard image...');
+    try {
+      const image = await optimizeFlashcardImage(file);
+      if (!image.src || image.size > FLASHCARD_IMAGE_MAX_BYTES) {
+        setFlashcardMessage('Could not reduce this image below 1 MB. Try a simpler JPG/WebP around 1200 x 800 px.');
+        return;
+      }
+      setFlashcards((current) => current.map((card) => {
+        if (String(card.id) !== String(cardId)) return card;
+        const imageUrls = normalizeFlashcardImageUrls(card);
+        const targetIndex = imageUrls.length < FLASHCARD_IMAGE_LIMIT ? imageUrls.length : FLASHCARD_IMAGE_LIMIT - 1;
+        imageUrls[targetIndex] = image.src;
+        return { ...card, imageUrl: imageUrls[0] || '', imageUrls, dirty: true };
+      }));
+      setFlashcardMessage(image.optimized
+        ? `Image optimized to ${Math.max(1, Math.round(image.size / 1024))} KB. Save the flashcard to keep it.`
+        : 'Image is already under 1 MB. Save the flashcard to keep it.');
+    } catch {
+      setFlashcardMessage('Could not optimize that image. Try a PNG, JPG, WebP, or GIF under 1 MB.');
+    }
+  }
+
   function handleAddFlashcard() {
     const tempId = `new-${Date.now()}`;
     setFlashcards((current) => [
@@ -544,7 +672,7 @@ export function AdminAiNotesEditorPage({
     setFlashcardMessage('Draft card added. Write the question and answer, then approve it.');
   }
 
-  async function handleSaveFlashcard(card, nextStatus) {
+  function buildFlashcardPayload(card, nextStatus) {
     const statusValue = nextStatus || card.status || 'draft';
     const payload = {
       question: String(card.question || '').trim(),
@@ -552,7 +680,17 @@ export function AdminAiNotesEditorPage({
       sourceHint: String(card.sourceHint || '').trim(),
       status: statusValue,
     };
+    const imageUrls = normalizeFlashcardImageUrls(card);
+    payload.imageUrls = imageUrls;
+    if (imageUrls.length) {
+      payload.imageUrl = imageUrls[0];
+    }
+    payload.imageFit = card.imageFit === 'cover' ? 'cover' : 'contain';
+    return payload;
+  }
 
+  async function handleSaveFlashcard(card, nextStatus) {
+    const payload = buildFlashcardPayload(card, nextStatus);
     setSavingCardId(card.id);
     setFlashcardMessage('');
     try {
@@ -562,11 +700,39 @@ export function AdminAiNotesEditorPage({
       setFlashcards((current) => current.map((item) => (
         String(item.id) === String(card.id) ? { ...saved, dirty: false, isNew: false } : item
       )));
-      setFlashcardMessage(statusValue === 'approved' ? 'Flashcard approved for students.' : 'Flashcard saved.');
+      setFlashcardMessage(payload.status === 'approved' ? 'Flashcard approved for students.' : 'Flashcard saved.');
     } catch (err) {
       setFlashcardMessage(getErrorMessage(err, 'Could not save flashcard'));
     } finally {
       setSavingCardId(null);
+    }
+  }
+
+  async function handleBulkApproveFlashcards() {
+    const drafts = flashcards.filter((card) => card.status === 'draft');
+    if (!drafts.length || bulkApprovingFlashcards) return;
+    setBulkApprovingFlashcards(true);
+    setSavingCardId('bulk');
+    setFlashcardMessage(`Approving ${drafts.length} flashcard${drafts.length === 1 ? '' : 's'}...`);
+    const savedCards = [];
+    try {
+      for (const card of drafts) {
+        const payload = buildFlashcardPayload(card, 'approved');
+        const saved = card.isNew
+          ? await adminCreateLessonFlashcard(Number(id), payload, { engine: engineKey })
+          : await adminUpdateLessonFlashcard(Number(id), card.id, payload, { engine: engineKey });
+        savedCards.push({ previousId: card.id, saved });
+      }
+      setFlashcards((current) => current.map((item) => {
+        const match = savedCards.find((row) => String(row.previousId) === String(item.id));
+        return match ? { ...match.saved, dirty: false, isNew: false } : item;
+      }));
+      setFlashcardMessage(`${savedCards.length} flashcard${savedCards.length === 1 ? '' : 's'} approved for students.`);
+    } catch (err) {
+      setFlashcardMessage(getErrorMessage(err, 'Could not bulk approve flashcards'));
+    } finally {
+      setSavingCardId(null);
+      setBulkApprovingFlashcards(false);
     }
   }
 
@@ -862,6 +1028,14 @@ export function AdminAiNotesEditorPage({
               <span className={cx(editorUi.flashcardStatus, 'border-brand-primary/20 bg-[var(--color-primary-light)] text-brand-primary')}>
                 {draftFlashcardCount} draft
               </span>
+              <button
+                className={cx(ui.successAction, 'min-h-7 px-2.5 py-0.5 text-[11px]')}
+                type="button"
+                onClick={handleBulkApproveFlashcards}
+                disabled={bulkApprovingFlashcards || flashcardsGenerating || savingCardId || draftFlashcardCount === 0}
+              >
+                <DoneIcon/> {bulkApprovingFlashcards ? 'Approving...' : `Approve Drafts`}
+              </button>
             </div>
 
             {flashcardMessage && (
@@ -885,6 +1059,7 @@ export function AdminAiNotesEditorPage({
               <div className={editorUi.flashcardGrid}>
                 {flashcards.map((card, index) => {
                   const isSaving = String(savingCardId) === String(card.id);
+                  const imageUrls = normalizeFlashcardImageUrls(card);
                   return (
                     <article key={card.id} className={editorUi.flashcardItem}>
                       <div className={editorUi.flashcardItemHead}>
@@ -958,6 +1133,71 @@ export function AdminAiNotesEditorPage({
                           placeholder="Pathophysiology"
                         />
                       </label>
+                      <div className={editorUi.flashcardLabel}>
+                        Images
+                        {Array.from({ length: FLASHCARD_IMAGE_LIMIT }).map((_, imageIndex) => (
+                          <div key={imageIndex} className="flex items-center gap-2">
+                            <input
+                              className={cx(ui.input, 'min-h-9 py-1.5 text-xs')}
+                              value={imageUrls[imageIndex] || ''}
+                              onChange={(event) => handleFlashcardImageAt(card.id, imageIndex, event.target.value)}
+                              placeholder={`Image ${imageIndex + 1} URL`}
+                            />
+                            {imageUrls[imageIndex] ? (
+                              <button
+                                type="button"
+                                className={cx(ui.ghostSmallDanger, 'min-h-8 px-2 text-[11px]')}
+                                onClick={() => handleRemoveFlashcardImage(card.id, imageIndex)}
+                              >
+                                Remove
+                              </button>
+                            ) : null}
+                          </div>
+                        ))}
+                        <input
+                          className="text-[11px] font-semibold normal-case tracking-normal text-ink-muted file:mr-3 file:min-h-8 file:rounded-[var(--radius-sm)] file:border file:border-line-soft file:bg-surface-card file:px-3 file:text-xs file:font-extrabold file:text-ink-strong"
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={(event) => handleFlashcardImageFile(card.id, event.target.files?.[0])}
+                        />
+                        <span className={editorUi.flashcardSource}>
+                          Add up to 3 images. Recommended: 1200 x 675 px or 16:9, WebP/JPG under 500 KB. Upload any shape, then choose fit full image or crop to fill.
+                        </span>
+                        <div className="inline-flex w-fit rounded-[var(--radius-sm)] border border-line-soft bg-surface-card p-1 normal-case tracking-normal">
+                          {[
+                            ['contain', 'Fit full image'],
+                            ['cover', 'Crop to fill'],
+                          ].map(([value, label]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              className={cx(
+                                'min-h-8 rounded-[var(--radius-xs)] px-3 text-[11px] font-extrabold transition-colors',
+                                (card.imageFit || 'contain') === value
+                                  ? 'bg-brand-primary text-white'
+                                  : 'text-ink-muted hover:bg-surface-2 hover:text-ink-strong'
+                              )}
+                              onClick={() => handleFlashcardField(card.id, 'imageFit', value)}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        {imageUrls.length ? (
+                          <div className="grid gap-2 sm:grid-cols-3">
+                            {imageUrls.map((imageUrl, imageIndex) => (
+                              <div key={`${imageUrl.slice(0, 30)}-${imageIndex}`} className={editorUi.flashcardImagePreview}>
+                                <img
+                                  className={cx('h-full w-full rounded-[calc(var(--radius-sm)-2px)]', (card.imageFit || 'contain') === 'cover' ? 'object-cover' : 'object-contain')}
+                                  src={imageUrl}
+                                  alt=""
+                                  loading="lazy"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     </article>
                   );
                 })}

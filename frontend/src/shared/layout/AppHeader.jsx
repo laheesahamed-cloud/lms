@@ -189,13 +189,13 @@ const topbarUi = {
     'absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full border-2 border-surface-card bg-[#991b1b] px-1 text-[11px] font-extrabold leading-4 text-white',
   profileButton:
     'inline-flex size-9 min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-1 text-left shadow-none transition-[background,border-color,color] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 max-[520px]:size-11 max-[520px]:min-h-11 max-[520px]:min-w-11',
-  menuWrap: 'lms-topbar-menu-wrap relative z-[60]',
+  menuWrap: 'lms-topbar-menu-wrap',
   dropdown:
-    'lms-floating-panel motion-smooth absolute right-0 top-[calc(100%+8px)] z-[1200] w-[min(360px,calc(100vw_-_24px))] origin-top-right overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-[var(--ds-floating-shadow)] animate-dropdownIn max-[520px]:fixed max-[520px]:inset-x-3 max-[520px]:top-[70px] max-[520px]:w-auto max-[520px]:origin-top max-[520px]:rounded-[18px]',
+    'lms-floating-panel motion-smooth absolute right-0 top-[calc(100%+8px)] z-[1200] w-[min(360px,calc(100vw_-_24px))] origin-top-right overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-[var(--ds-floating-shadow)] animate-dropdownIn',
   profileDropdown:
-    'lms-profile-menu w-[min(320px,calc(100vw_-_24px))] max-[520px]:top-[calc(var(--lms-safe-top,0px)+68px)]',
+    'lms-profile-menu w-[min(320px,calc(100vw_-_24px))]',
   notificationDropdown:
-    'w-[min(330px,calc(100vw_-_24px))] rounded-[var(--radius-sm)] bg-surface-card shadow-none max-[520px]:fixed max-[520px]:inset-x-2.5 max-[520px]:top-[calc(env(safe-area-inset-top,0px)+64px)] max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-76px)] max-[520px]:w-auto max-[520px]:origin-top max-[520px]:rounded-[var(--radius-sm)] max-[380px]:inset-x-2 max-[380px]:top-[calc(env(safe-area-inset-top,0px)+58px)]',
+    'w-[min(330px,calc(100vw_-_24px))] rounded-[var(--radius-sm)] bg-surface-card shadow-none max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-76px)] max-[520px]:rounded-[var(--radius-sm)]',
   dropdownHead:
     'flex min-w-0 items-center justify-between gap-3 border-b border-line-soft px-4 py-3.5 max-[520px]:px-3.5 max-[520px]:py-3 [&_div]:min-w-0 [&_small]:mt-1 [&_small]:block [&_small]:truncate [&_small]:text-xs [&_small]:font-medium [&_small]:text-ink-soft [&_strong]:block [&_strong]:truncate [&_strong]:text-sm [&_strong]:font-extrabold [&_strong]:text-ink-strong',
   dropdownClose:
@@ -225,7 +225,9 @@ const breadcrumbUi = {
   item: 'flex min-w-0 items-center gap-1',
   button:
     'min-w-0 max-w-[12rem] truncate rounded-md px-1 py-0.5 text-ink-muted transition-colors duration-150 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/25',
+  plain: 'min-w-0 max-w-[12rem] truncate text-ink-muted',
   current: 'min-w-0 max-w-[16rem] truncate px-1 py-0.5 text-ink-soft',
+  currentPlain: 'min-w-0 max-w-[16rem] truncate text-ink-soft',
   separator: 'text-ink-muted/55',
 };
 
@@ -345,7 +347,7 @@ function buildBreadcrumbItems(pathname, user, title) {
   });
 }
 
-function RouteBreadcrumbs({ items, onNavigate, className = '' }) {
+function RouteBreadcrumbs({ items, onNavigate, className = '', interactive = true, uppercaseCurrent = false }) {
   if (!items.length) return null;
 
   return (
@@ -353,14 +355,20 @@ function RouteBreadcrumbs({ items, onNavigate, className = '' }) {
       <ol className={breadcrumbUi.list}>
         {items.map((item, index) => {
           const isCurrent = index === items.length - 1;
+          const label = uppercaseCurrent && isCurrent ? item.label.toUpperCase() : item.label;
           return (
             <li className={breadcrumbUi.item} key={`${item.label}-${index}`}>
               {index > 0 ? <span className={breadcrumbUi.separator} aria-hidden="true">/</span> : null}
-              {isCurrent || !item.to ? (
-                <span className={breadcrumbUi.current} aria-current={isCurrent ? 'page' : undefined}>{item.label}</span>
+              {isCurrent || !item.to || !interactive ? (
+                <span
+                  className={interactive ? (isCurrent ? breadcrumbUi.current : breadcrumbUi.button) : (isCurrent ? breadcrumbUi.currentPlain : breadcrumbUi.plain)}
+                  aria-current={isCurrent ? 'page' : undefined}
+                >
+                  {label}
+                </span>
               ) : (
                 <button type="button" className={breadcrumbUi.button} onClick={() => onNavigate(item.to)}>
-                  {item.label}
+                  {label}
                 </button>
               )}
             </li>
@@ -377,7 +385,7 @@ function rolePath(path, role) {
   return `${roleRouteMode(role) === 'admin' ? '/admin' : '/app'}${path}`;
 }
 
-export function AppHeader({ title, subtitle, actions = null, className = '' }) {
+export function AppHeader({ title, subtitle, actions = null, className = '', breadcrumbPlacement = 'above', breadcrumbInteractive = true, breadcrumbUppercaseCurrent = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
@@ -651,9 +659,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
       const compact = viewportWidth <= 520;
       const triggerSize = Math.round(Math.max(rect.width, rect.height));
       const triggerRadius = parseFloat(window.getComputedStyle(trigger).borderTopLeftRadius) || 12;
-      const top = compact
-        ? Math.min(Math.max(rect.bottom + gap, 68), viewportHeight - edge)
-        : Math.min(rect.bottom + gap, viewportHeight - edge);
+      const top = Math.min(rect.bottom + gap, viewportHeight - edge);
 
       updateStyleIfChanged(profileAvatarStyleRef, setProfileAvatarStyle, {
         position: 'fixed',
@@ -841,6 +847,14 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
   ) : null;
 
   if (user?.role === 'student') {
+    const breadcrumbNode = breadcrumbs.length ? (
+      <RouteBreadcrumbs
+        items={breadcrumbs}
+        onNavigate={navigate}
+        interactive={breadcrumbInteractive}
+        uppercaseCurrent={breadcrumbUppercaseCurrent}
+      />
+    ) : null;
     return (
       <>
         {profileAvatarPortal}
@@ -852,12 +866,11 @@ export function AppHeader({ title, subtitle, actions = null, className = '' }) {
           </button>
 
           <div className="study-topbar-title">
-            {breadcrumbs.length ? (
-              <RouteBreadcrumbs items={breadcrumbs} onNavigate={navigate} />
-            ) : subtitle ? (
+            {breadcrumbPlacement !== 'below' && breadcrumbNode ? breadcrumbNode : subtitle ? (
               <span>{subtitle}</span>
             ) : null}
             <h1>{title}</h1>
+            {breadcrumbPlacement === 'below' ? breadcrumbNode : null}
           </div>
 
           <div className="study-topbar-actions">

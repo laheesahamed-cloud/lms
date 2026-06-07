@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { fetchMySubscription, initiatePayHereCheckout, readMySubscriptionCache, requestManualPayment } from '../../../../shared/api/subscriptions.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -6,6 +6,7 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
+import { SuccessBurst } from '../../../../shared/ui/SuccessBurst.jsx';
 import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
 
 function getPlanDurationLabel(plan) {
@@ -30,40 +31,10 @@ function getAccessScopeLabel(accessScope, courseIds, lessonIds) {
   return 'Full plan coverage';
 }
 
-function getPlanBenefitGroups(plan) {
-  const featureKeys = new Set((Array.isArray(plan?.enabledFeatures) ? plan.enabledFeatures : [])
-    .map((feature) => String(feature.featureKey || feature.key || '').trim())
-    .filter(Boolean));
-
-  const groups = [
-    {
-      label: 'Learn',
-      detail: 'Lessons and study materials',
-      keys: ['lessons_access_full', 'lessons_access_limited', 'notes_canvas_study_mode'],
-    },
-    {
-      label: 'Practice',
-      detail: 'Question practice and exam preparation',
-      keys: ['question_bank_full', 'question_bank_limited', 'practice_mode', 'exam_mode', 'mock_paper_access', 'past_paper_access'],
-    },
-    {
-      label: 'Review',
-      detail: 'Results, progress, and revision history',
-      keys: ['results_tracking', 'progress_tracking_basic', 'progress_tracking_advanced', 'performance_analytics', 'weak_area_analysis'],
-    },
-    {
-      label: 'Support',
-      detail: 'Help tools and student support features',
-      keys: ['report_question', 'ai_quiz_generator'],
-    },
-  ];
-
-  return groups.filter((group) => group.keys.some((key) => featureKeys.has(key))).slice(0, 3);
-}
-
 function getCheckoutBilling(data) {
   return {
     availablePlans: Array.isArray(data?.availablePlans) ? data.availablePlans : [],
+    requests: Array.isArray(data?.requests) ? data.requests : [],
     payment: data?.payment || null,
   };
 }
@@ -123,6 +94,8 @@ export function StudentCheckoutPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const customSelectionNote = String(location.state?.customSelectionNote || '').trim();
+  const paymentCartNotice = String(location.state?.paymentCartNotice || '').trim();
+  const shouldCreateManualInvoice = Boolean(location.state?.createManualInvoice);
   const accessScope = location.state?.accessScope || 'all';
   const courseIds = useMemo(
     () => (Array.isArray(location.state?.courseIds) ? location.state.courseIds.map(Number).filter(Boolean) : []),
@@ -139,9 +112,12 @@ export function StudentCheckoutPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [paymentMode, setPaymentMode] = useState('');
+  const [manualInvoice, setManualInvoice] = useState(null);
+  const [manualInvoiceLoading, setManualInvoiceLoading] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [proofFile, setProofFile] = useState(null);
+  const invoiceAutoCreatePlanRef = useRef('');
   const [form, setForm] = useState({
     billingName: user?.fullName || '',
     billingEmail: user?.email || '',
@@ -164,10 +140,10 @@ export function StudentCheckoutPage() {
   }, [user?.fullName, user?.email]);
 
   async function load() {
-    setLoading(readMySubscriptionCache() === undefined);
+    setLoading(true);
     setError('');
     try {
-      const data = await fetchMySubscription();
+      const data = await fetchMySubscription({ force: true });
       setBilling(getCheckoutBilling(data));
     } catch (loadError) {
       setError(getErrorMessage(loadError, 'Unable to load checkout details'));
@@ -179,8 +155,44 @@ export function StudentCheckoutPage() {
   const plan = useMemo(() => {
     return billing.availablePlans.find((item) => String(item?.id) === String(planId)) || null;
   }, [billing.availablePlans, planId]);
-  const planBenefitGroups = useMemo(() => getPlanBenefitGroups(plan), [plan]);
   const accessScopeLabel = useMemo(() => getAccessScopeLabel(accessScope, courseIds, lessonIds), [accessScope, courseIds, lessonIds]);
+  const bankTransferDetails = String(billing.payment?.bankTransferDetails || '').trim();
+  const pendingManualRequest = useMemo(() => {
+    return (Array.isArray(billing.requests) ? billing.requests : []).find((request) => (
+      request?.status === 'pending'
+      && Number(request?.planId) === Number(planId)
+      && (request?.invoiceId || request?.paymentMethod === 'bank_transfer')
+    )) || null;
+  }, [billing.requests, planId]);
+  const pendingProofUploaded = Boolean(pendingManualRequest?.paymentProofDataUrl);
+  const pendingCartMessage = pendingManualRequest?.invoiceId && !pendingProofUploaded
+    ? `This package is already in your payment cart. Invoice #${pendingManualRequest.invoiceId} is ready. Upload your bank slip to continue.`
+    : '';
+
+  useEffect(() => {
+    if (!pendingManualRequest?.invoiceId || manualInvoice?.invoiceId) return;
+    setManualInvoice({
+      id: pendingManualRequest.id,
+      invoiceId: pendingManualRequest.invoiceId,
+      amount: pendingManualRequest.paymentAmount,
+      currency: pendingManualRequest.paymentCurrency || pendingManualRequest.planCurrency,
+      proofUploaded: Boolean(pendingManualRequest.paymentProofDataUrl),
+    });
+    setPaymentMode('manual');
+  }, [manualInvoice?.invoiceId, pendingManualRequest]);
+
+  useEffect(() => {
+    if (!shouldCreateManualInvoice || loading || !plan || pendingProofUploaded || manualInvoice?.invoiceId || manualInvoiceLoading) return;
+    const autoCreatePlanKey = String(plan.id);
+    if (invoiceAutoCreatePlanRef.current === autoCreatePlanKey) return;
+    invoiceAutoCreatePlanRef.current = autoCreatePlanKey;
+    setPaymentMode('manual');
+    createManualInvoice().then((invoice) => {
+      if (!invoice?.invoiceId) {
+        invoiceAutoCreatePlanRef.current = '';
+      }
+    });
+  }, [loading, manualInvoice?.invoiceId, manualInvoiceLoading, pendingProofUploaded, plan, shouldCreateManualInvoice]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -191,6 +203,40 @@ export function StudentCheckoutPage() {
     navigate('/subscriptions', {
       state: { fromCheckout: true },
     });
+  }
+
+  async function createManualInvoice() {
+    if (!plan) return null;
+    if (pendingManualRequest?.invoiceId) {
+      const invoice = {
+        id: pendingManualRequest.id,
+        invoiceId: pendingManualRequest.invoiceId,
+        amount: pendingManualRequest.paymentAmount,
+        currency: pendingManualRequest.paymentCurrency || pendingManualRequest.planCurrency,
+        proofUploaded: Boolean(pendingManualRequest.paymentProofDataUrl),
+      };
+      setManualInvoice(invoice);
+      return invoice;
+    }
+    setManualInvoiceLoading(true);
+    setError('');
+    try {
+      const invoice = await requestManualPayment({
+        planId: plan.id,
+        couponCode: couponCode.trim() || undefined,
+        message: customSelectionNote || undefined,
+        accessScope,
+        courseIds: accessScope === 'courses' ? courseIds : [],
+        lessonIds: accessScope === 'lessons' ? lessonIds : [],
+      });
+      setManualInvoice(invoice);
+      return invoice;
+    } catch (invoiceError) {
+      setError(getErrorMessage(invoiceError, 'Unable to create bank transfer invoice'));
+      return null;
+    } finally {
+      setManualInvoiceLoading(false);
+    }
   }
 
   async function handleSubmit(event) {
@@ -228,6 +274,10 @@ export function StudentCheckoutPage() {
     setError('');
     setSuccess('');
     try {
+      const invoice = manualInvoice || await createManualInvoice();
+      if (!invoice?.invoiceId) {
+        throw new Error('Unable to create invoice before uploading proof');
+      }
       const proofDataUrl = await readProofFile(proofFile);
       const result = await requestManualPayment({
         planId: plan.id,
@@ -241,13 +291,16 @@ export function StudentCheckoutPage() {
         courseIds: accessScope === 'courses' ? courseIds : [],
         lessonIds: accessScope === 'lessons' ? lessonIds : [],
       });
-      setSuccess(result?.couponCode
+      setManualInvoice(result);
+      const successMessage = result?.couponCode
         ? `Payment proof uploaded. Invoice #${result.invoiceId || 'created'} is waiting for admin approval. Coupon ${result.couponCode} applied; bank transfer amount is ${result.currency || plan.currency} ${result.amount}.`
-        : `Payment proof uploaded. Invoice #${result?.invoiceId || 'created'} is waiting for admin approval.`);
+        : `Payment proof uploaded. Invoice #${result?.invoiceId || 'created'} is waiting for admin approval.`;
+      setSuccess(successMessage);
       setProofFile(null);
       setPaymentReference('');
       setCouponCode('');
       await load();
+      navigate('/subscriptions', { state: { paymentNotice: successMessage } });
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Unable to upload bank transfer proof'));
     } finally {
@@ -259,17 +312,23 @@ export function StudentCheckoutPage() {
     <main className="dashboard-page study-hub-page student-checkout-page">
       <section className="study-hub-shell">
         <AppHeader
-          title="Checkout"
-          subtitle="Plan Checkout"
-          actions={(
-            <button className={cx(ui.secondaryAction, 'whitespace-nowrap')} type="button" onClick={goBackToPlans}>
-              Back to plans
-            </button>
-          )}
+          title="Subscriptions"
+          subtitle="Plan Access"
         />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
-        {success ? <FeedbackNotice tone="success">{success}</FeedbackNotice> : null}
+        {paymentCartNotice || pendingCartMessage ? (
+          <FeedbackNotice tone="warning">{paymentCartNotice || pendingCartMessage}</FeedbackNotice>
+        ) : null}
+        {pendingProofUploaded ? (
+          <FeedbackNotice tone="success">Payment proof already uploaded. Waiting for admin approval.</FeedbackNotice>
+        ) : null}
+        {success ? (
+          <div className="flex flex-col items-center gap-3 py-2">
+            <SuccessBurst />
+            <FeedbackNotice tone="success">{success}</FeedbackNotice>
+          </div>
+        ) : null}
         {loading ? <div className={ui.emptyBox}>Loading checkout...</div> : null}
         {!loading && !plan ? (
           <div className={ui.emptyBox}>This plan is not available. Please choose another subscription plan.</div>
@@ -289,44 +348,46 @@ export function StudentCheckoutPage() {
                   <span className="ml-2 text-sm font-semibold text-ink-muted line-through">{plan.currency} {Number(plan.regularPrice).toFixed(2)}</span>
                 ) : null}
               </div>
-              <div className="grid gap-3 rounded-xl border border-line-soft bg-surface-2 p-3.5">
+              <div className="grid gap-3 border-t border-line-soft pt-4">
                 <div>
-                  <span className={ui.eyebrow}>Quick summary</span>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-extrabold text-ink-soft">
-                    <span className={ui.tablePill}>xyndrome</span>
-                    <span aria-hidden="true">/</span>
-                    <span className={ui.tablePill}>{plan.name}</span>
-                    <span aria-hidden="true">/</span>
-                    <span className={ui.tablePill}>{accessScopeLabel}</span>
-                  </div>
+                  <span className={ui.eyebrow}>Plan details</span>
+                  <p className="m-0 mt-2 text-[13px] font-semibold leading-relaxed text-ink-soft">
+                    {accessScopeLabel} for {plan.name}. Access begins after payment confirmation.
+                  </p>
                 </div>
 
-                <div className="grid gap-2 text-[13px] leading-relaxed text-ink-soft">
-                  <div className="flex items-start justify-between gap-3 rounded-lg bg-surface-card px-3 py-2">
-                    <span>Duration</span>
-                    <strong className="text-right text-ink-strong">{getPlanDurationLabel(plan)}</strong>
+                <dl className="m-0 grid divide-y divide-line-soft text-[13px] leading-relaxed text-ink-soft">
+                  <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 py-2 max-[520px]:grid-cols-1 max-[520px]:gap-1">
+                    <dt className="font-bold text-ink-muted">Access</dt>
+                    <dd className="m-0 font-bold text-ink-strong">{getPlanDurationLabel(plan)}</dd>
                   </div>
-                  <div className="flex items-start justify-between gap-3 rounded-lg bg-surface-card px-3 py-2">
-                    <span>Activation</span>
-                    <strong className="text-right text-ink-strong">After payment confirmation</strong>
+                  <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 py-2 max-[520px]:grid-cols-1 max-[520px]:gap-1">
+                    <dt className="font-bold text-ink-muted">Coverage</dt>
+                    <dd className="m-0 font-bold text-ink-strong">{accessScopeLabel}</dd>
                   </div>
-                </div>
+                  <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3 py-2 max-[520px]:grid-cols-1 max-[520px]:gap-1">
+                    <dt className="font-bold text-ink-muted">Activation</dt>
+                    <dd className="m-0 font-bold text-ink-strong">After payment confirmation</dd>
+                  </div>
+                </dl>
 
                 {customSelectionNote ? <FeedbackNotice tone="success">{customSelectionNote}</FeedbackNotice> : null}
-
-                {planBenefitGroups.length ? (
-                  <div className="grid gap-2">
-                    {planBenefitGroups.map((group) => (
-                      <div className="flex items-start justify-between gap-3 rounded-lg border border-line-soft bg-surface-card px-3 py-2" key={group.label}>
-                        <div>
-                          <strong className="block text-[13px] text-ink-strong">{group.label}</strong>
-                          <span className="text-[12px] leading-relaxed text-ink-soft">{group.detail}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
               </div>
+              {paymentMode === 'manual' ? (
+                <div className="grid gap-2 rounded-xl border border-line-soft bg-surface-2 p-3.5">
+                  <span className={ui.eyebrow}>Bank details</span>
+                  <p className="m-0 whitespace-pre-line text-[13px] leading-relaxed text-ink-medium">
+                    {bankTransferDetails || 'Bank transfer details are not configured yet. Add them in Admin Settings > Payment before students transfer payment.'}
+                  </p>
+                </div>
+              ) : null}
+              {pendingManualRequest?.invoiceId ? (
+                <FeedbackNotice tone={pendingProofUploaded ? 'success' : 'warning'}>
+                  {pendingProofUploaded
+                    ? `Invoice #${pendingManualRequest.invoiceId} is waiting for admin approval.`
+                    : `Invoice #${pendingManualRequest.invoiceId} is already created. Upload your bank slip to complete payment.`}
+                </FeedbackNotice>
+              ) : null}
             </section>
 
             <div className="grid gap-5">
@@ -348,9 +409,15 @@ export function StudentCheckoutPage() {
                   <button
                     type="button"
                     className={paymentMode === 'manual' ? ui.primaryAction : ui.secondaryAction}
-                    onClick={() => setPaymentMode('manual')}
+                    disabled={pendingProofUploaded}
+                    onClick={() => {
+                      setPaymentMode('manual');
+                      if (!manualInvoice && !manualInvoiceLoading) {
+                        createManualInvoice();
+                      }
+                    }}
                   >
-                    Bank transfer
+                    {pendingProofUploaded ? 'Waiting for approval' : pendingManualRequest?.invoiceId ? 'View invoice' : 'Bank transfer'}
                   </button>
                 </div>
               </section>
@@ -411,6 +478,17 @@ export function StudentCheckoutPage() {
                     </div>
                   </div>
                   <form className={ui.stackForm} onSubmit={handleManualSubmit}>
+                    {manualInvoiceLoading ? (
+                      <FeedbackNotice tone="warning">Creating your invoice...</FeedbackNotice>
+                    ) : manualInvoice?.invoiceId ? (
+                      <div className="grid gap-1 rounded-xl border border-brand-primary/25 bg-brand-primary/8 p-3.5">
+                        <span className={ui.eyebrow}>Invoice</span>
+                        <strong className="text-lg text-ink-strong">#{manualInvoice.invoiceId}</strong>
+                        <p className="m-0 text-[12.5px] leading-relaxed text-ink-soft">
+                          Use this invoice number when uploading your bank slip.
+                        </p>
+                      </div>
+                    ) : null}
                     <FeedbackNotice tone="warning">
                       Your package will activate only after the admin verifies this payment proof.
                     </FeedbackNotice>
@@ -444,8 +522,8 @@ export function StudentCheckoutPage() {
                     </label>
                     {proofFile ? <div className={ui.tableSubtext}>{proofFile.name}</div> : null}
                     <div className={ui.buttonRow}>
-                      <button className={ui.primaryAction} type="submit" disabled={manualSubmitting || submitting}>
-                        {manualSubmitting ? 'Uploading proof...' : 'Upload proof for admin approval'}
+                      <button className={ui.primaryAction} type="submit" disabled={pendingProofUploaded || manualSubmitting || submitting || manualInvoiceLoading}>
+                        {pendingProofUploaded ? 'Waiting for approval' : manualSubmitting ? 'Uploading proof...' : 'Upload proof for admin approval'}
                       </button>
                       <button className={ui.secondaryAction} type="button" onClick={goBackToPlans} disabled={manualSubmitting}>
                         Change plan

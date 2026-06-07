@@ -10,5 +10,6 @@ export declare class UpdatePaymentSettingsDto {
     checkoutTitle?: string;
     buttonLabel?: string;
     supportText?: string;
+    bankTransferDetails?: string;
     autoActivatePaidSubscriptions?: boolean;
 }

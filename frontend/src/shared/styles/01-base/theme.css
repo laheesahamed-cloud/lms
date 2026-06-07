@@ -571,8 +571,7 @@ html:not([data-lms-runtime="native"]) body .lms-app-scroll-root {
   height: auto !important;
   min-height: 100dvh !important;
   max-height: none !important;
-  overflow-x: clip !important;
-  overflow-y: visible !important;
+  overflow: visible !important;
   overscroll-behavior-y: auto !important;
   touch-action: pan-y !important;
   -webkit-overflow-scrolling: touch;
@@ -1592,14 +1591,6 @@ body,
   backdrop-filter: blur(28px) saturate(160%) !important;
 }
 
-:root[data-theme="light"] .lms-mobile-top-nav.lms-mobile-top-nav--plain {
-  border-color: transparent !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-}
-
 :root[data-theme="light"] .lms-mobile-top-nav--plain::before,
 :root[data-theme="light"] .lms-mobile-top-nav__plain-close {
   border-color: rgba(86, 112, 150, 0.16) !important;
@@ -1719,17 +1710,6 @@ body,
   background-color: transparent !important;
 }
 
-:root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model {
-  border-color: rgba(86, 112, 150, 0.08) !important;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 251, 255, 0.78)) !important;
-  box-shadow:
-    18px 0 46px -42px rgba(37, 99, 235, 0.38),
-    0 24px 54px -46px rgba(37, 99, 235, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    inset -1px 0 0 rgba(255, 255, 255, 0.36) !important;
-}
-
 :root[data-theme="dark"] body.study-hub-screen,
 :root[data-theme="dark"] body.study-hub-screen :where(
   #root,
@@ -1799,60 +1779,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-}
-
-@media (min-width: 901px) {
-  body.study-hub-screen .lms-sidebar--student-model:not(.is-overlay-nav) {
-    overflow: hidden !important;
-    isolation: isolate;
-  }
-
-  body.study-hub-screen .lms-sidebar--student-model:not(.is-overlay-nav) > :where(
-    .lms-sidebar-brand,
-    .lms-sidebar-nav,
-    .lms-sidebar-student-footer
-  ) {
-    position: relative;
-    z-index: 1;
-  }
-
-  body.study-hub-screen .lms-sidebar--student-model:not(.is-overlay-nav)::after {
-    content: "";
-    position: absolute;
-    inset-inline: -1px;
-    bottom: -1px;
-    z-index: 0;
-    height: 128px;
-    pointer-events: none;
-    border-radius: 0 0 24px 0;
-  }
-
-  :root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model:not(.is-overlay-nav) {
-    border-color: transparent !important;
-    background:
-      linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.88) 0%,
-        rgba(255, 255, 255, 0.8) 58%,
-        rgba(238, 244, 252, 0.58) 100%
-      ) !important;
-    box-shadow:
-      22px 0 58px -54px rgba(37, 99, 235, 0.34),
-      0 28px 64px -56px rgba(37, 99, 235, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.66) !important;
-  }
-
-  :root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model:not(.is-overlay-nav)::after {
-    background:
-      radial-gradient(circle at 0% 100%, rgba(220, 230, 244, 0.62), transparent 58%),
-      radial-gradient(circle at 100% 100%, rgba(220, 230, 244, 0.48), transparent 56%),
-      linear-gradient(180deg, rgba(238, 244, 252, 0), rgba(220, 230, 244, 0.34));
-  }
-
-  :root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-student-footer {
-    border-top-color: rgba(86, 112, 150, 0.08) !important;
-  }
-
 }
 
 /* Student route dashboard tone lock */
@@ -2794,7 +2720,6 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-side
   .study-todo-card,
   .study-mood-card,
   .study-question-card,
-  .student-result-summary-card,
   .student-result-detail-hero,
   .student-result-stat-card,
   .student-result-insight-card,
@@ -2907,24 +2832,6 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-side
 .student-app-shell .ai-notes-list-page .student-lessons-course-card::after {
   display: none !important;
   content: none !important;
-}
-
-.font-\[var\(--type-font-notebook\)\],
-.student-app-shell .ai-notes-list-page :where(
-  .student-lessons-course-card,
-  .student-lessons-course-card__count,
-  .student-lessons-category__title h2,
-  .student-lessons-lesson-row,
-  .student-lessons-lesson-row__title,
-  .student-lessons-lesson-row__title-text
-),
-.student-app-shell .lms-ai-note-page :where(
-  .lms-ai-canvas-editor,
-  .lms-ai-canvas-surface,
-  .ncv-item,
-  [data-lms-canvas-input="true"]
-) {
-  font-family: var(--type-font-notebook) !important;
 }
 
 :root .dashboard-page :where(
@@ -3313,7 +3220,7 @@ html body :where(.lms-review-bubble-nav, .lms-exam-question-nav) > button {
     transition-delay: 0ms !important;
   }
 
-  html body :is(.animate-spin, .animate-progressShimmer, .skeleton-pulse, .quiz-completion-capsule, .quiz-completion-mark, .quiz-completion-copy) {
+  html body :is(.animate-spin, .animate-progressShimmer, .skeleton-pulse) {
     animation: none !important;
   }
 

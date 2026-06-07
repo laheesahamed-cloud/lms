@@ -16,6 +16,7 @@ const defaultForm = {
   checkoutTitle: 'xyndrome subscription',
   buttonLabel: 'Pay with PayHere',
   supportText: 'Sandbox payments are simulated by PayHere and no real card will be charged.',
+  bankTransferDetails: '',
   autoActivatePaidSubscriptions: true,
 };
 
@@ -33,6 +34,7 @@ function toForm(data) {
     checkoutTitle: data?.checkoutTitle || defaultForm.checkoutTitle,
     buttonLabel: data?.buttonLabel || defaultForm.buttonLabel,
     supportText: data?.supportText || defaultForm.supportText,
+    bankTransferDetails: data?.bankTransferDetails || '',
     autoActivatePaidSubscriptions: data?.autoActivatePaidSubscriptions !== false,
   };
 }
@@ -102,6 +104,11 @@ export function AdminPaymentSettingsPanel() {
       ) : (
         <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(280px,0.9fr)] items-start gap-[18px] max-[900px]:grid-cols-1">
           <form className={ui.stackForm} onSubmit={handleSubmit}>
+            <div>
+              <span className={ui.eyebrow}>PayHere details</span>
+              <h3 className="m-0 mt-2 text-base font-black text-ink-strong">Hosted card checkout</h3>
+            </div>
+
             <div className="grid gap-3 rounded-lg border border-line-soft bg-surface-glass-subtle p-4">
               <label className={ui.checkboxRow}>
                 <input
@@ -182,9 +189,25 @@ export function AdminPaymentSettingsPanel() {
               </label>
             </div>
 
+            <div>
+              <span className={ui.eyebrow}>Bank details</span>
+              <h3 className="m-0 mt-2 text-base font-black text-ink-strong">Bank transfer instructions</h3>
+            </div>
+
+            <label className={ui.formLabel}>
+              Bank transfer details
+              <textarea
+                className={ui.textarea}
+                value={form.bankTransferDetails}
+                onChange={(event) => patchForm({ bankTransferDetails: event.target.value })}
+                placeholder={'Bank name:\nAccount name:\nAccount number:\nBranch:\nReference:'}
+                rows={7}
+              />
+            </label>
+
             <div className={ui.buttonRow}>
               <button className={ui.primaryAction} type="submit" disabled={status.saving}>
-                {status.saving ? 'Saving...' : 'Save PayHere settings'}
+                {status.saving ? 'Saving...' : 'Save payment settings'}
               </button>
               <button type="button" className={ui.secondaryAction} onClick={loadSettings} disabled={status.saving}>
                 Refresh
@@ -206,9 +229,6 @@ export function AdminPaymentSettingsPanel() {
                     : 'Ready for live checkout'
                   : 'Merchant ID and secret required'}
               </strong>
-            </div>
-            <div className={ui.warningFeedback}>
-              PayHere cannot send server notifications to localhost. Use the notify URL override with a public HTTPS URL when testing callbacks.
             </div>
             <p className="m-0 mt-0.5 text-[12.5px] leading-relaxed text-ink-soft">{settings?.note}</p>
           </div>

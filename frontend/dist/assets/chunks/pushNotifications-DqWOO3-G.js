@@ -1,0 +1,1 @@
+import{d as e,s as t}from"./config-YnG89Ri8.js";import"./pushNotifications.api-ucVE_gCd.js";var n=`/lms/sw.js`,r=`/lms/`;async function i(){if(!t(e())||typeof window>`u`||!(`serviceWorker`in navigator))return null;let i=n,a=r;return navigator.serviceWorker.register(i,{scope:a})}export{i as registerLmsServiceWorker};

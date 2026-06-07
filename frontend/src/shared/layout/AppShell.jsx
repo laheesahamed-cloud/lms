@@ -21,11 +21,11 @@ function shouldUseMobileNavigation(platform = detectPlatform()) {
 
 const shellUi = {
   shell:
-    'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] overflow-x-hidden bg-[#dce6f4] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[var(--app-bg-solid)]',
+    'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] bg-[#dce6f4] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[var(--app-bg-solid)]',
   shellMobile: '',
   shellQuizFocus: '',
   content:
-    'main-content app-content page-content portal-content relative z-[1] min-h-[100dvh] min-w-0 overflow-x-hidden overflow-y-visible pb-[var(--lms-mobile-content-bottom)] [-webkit-overflow-scrolling:touch] min-[901px]:ml-[calc(var(--sidebar-w)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w)_-_var(--sidebar-shell-gap))] min-[901px]:pb-6 max-[900px]:ml-0 max-[900px]:w-full max-[900px]:pt-0',
+    'main-content app-content page-content portal-content relative z-[1] min-h-[100dvh] min-w-0 overflow-y-visible pb-[var(--lms-mobile-content-bottom)] [-webkit-overflow-scrolling:touch] min-[901px]:ml-[calc(var(--sidebar-w)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w)_-_var(--sidebar-shell-gap))] min-[901px]:pb-6 max-[900px]:ml-0 max-[900px]:w-full max-[900px]:pt-0',
   contentAiFocus: '',
   contentCompactFocus:
     'min-[901px]:!ml-0 min-[901px]:!w-full',
@@ -207,10 +207,6 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     if (!sidebarOpen || hideGlobalSidebar || typeof document === 'undefined') {
       return undefined;
     }
-    if (typeof window !== 'undefined' && window.innerWidth <= 900) {
-      return undefined;
-    }
-
     function handleOutsidePointer(event) {
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -281,10 +277,10 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
       document.addEventListener('lms:boot-complete', afterBoot, { once: true });
       cleanup = () => document.removeEventListener('lms:boot-complete', afterBoot);
     } else if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(warm, { timeout: PLATFORM.isNative ? (PLATFORM.isPhone ? 650 : 260) : 520 });
+      const idleId = window.requestIdleCallback(warm, { timeout: PLATFORM.isNative ? (PLATFORM.isPhone ? 650 : 260) : 900 });
       cleanup = () => window.cancelIdleCallback(idleId);
     } else {
-      const timer = window.setTimeout(warm, PLATFORM.isNative ? (PLATFORM.isPhone ? 420 : 150) : 240);
+      const timer = window.setTimeout(warm, PLATFORM.isNative ? (PLATFORM.isPhone ? 420 : 150) : 900);
       cleanup = () => window.clearTimeout(timer);
     }
 

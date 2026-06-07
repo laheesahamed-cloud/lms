@@ -126,17 +126,6 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
   height: 18px;
 }
 
-@media (max-width: 900px) {
-  .student-app-shell > .main-content {
-    padding-bottom: 0 !important;
-  }
-
-  .student-app-shell .lms-route-page.student-route-page,
-  .student-app-shell .lms-route-page.dashboard-page {
-    padding-bottom: 0 !important;
-  }
-}
-
 .lms-mobile-bottom-nav__tab {
   position: relative;
   min-width: 0;

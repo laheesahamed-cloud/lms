@@ -30,7 +30,7 @@ export declare class SubscriptionsController {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -79,7 +79,7 @@ export declare class SubscriptionsController {
             featureKey: string;
             description: string;
             category: string;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             createdAt: string | null;
             updatedAt: string | null;
         }[];
@@ -250,7 +250,7 @@ export declare class SubscriptionsController {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -321,6 +321,7 @@ export declare class SubscriptionsController {
             enabled: boolean;
             currency: "LKR";
             buttonLabel: string;
+            bankTransferDetails: string;
             configured: boolean;
             sandboxMode?: undefined;
             checkoutTitle?: undefined;
@@ -339,6 +340,7 @@ export declare class SubscriptionsController {
             checkoutTitle: string;
             buttonLabel: string;
             supportText: string;
+            bankTransferDetails: string;
             configured: boolean;
             merchantId: string;
             hasMerchantSecret: boolean;
@@ -458,7 +460,7 @@ export declare class SubscriptionsController {
         discountType: "fixed" | "percent";
         discountValue: number;
         planIds: number[];
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         startsAt: string;
         expiresAt: string;
         maxRedemptions: number | null;
@@ -611,6 +613,12 @@ export declare class SubscriptionsController {
         couponCode: string;
         couponMode: string;
         currency: string;
+        proofUploaded: boolean;
+    }>;
+    cancelStudentPendingInvoice(authorization: string | undefined, id: number): Promise<{
+        ok: boolean;
+        id: number;
+        invoiceId: string;
     }>;
     handlePayHereNotify(body: Record<string, string | undefined>): Promise<{
         ok: boolean;
@@ -752,7 +760,7 @@ export declare class SubscriptionsController {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -823,6 +831,7 @@ export declare class SubscriptionsController {
             enabled: boolean;
             currency: "LKR";
             buttonLabel: string;
+            bankTransferDetails: string;
             configured: boolean;
             sandboxMode?: undefined;
             checkoutTitle?: undefined;
@@ -841,6 +850,7 @@ export declare class SubscriptionsController {
             checkoutTitle: string;
             buttonLabel: string;
             supportText: string;
+            bankTransferDetails: string;
             configured: boolean;
             merchantId: string;
             hasMerchantSecret: boolean;

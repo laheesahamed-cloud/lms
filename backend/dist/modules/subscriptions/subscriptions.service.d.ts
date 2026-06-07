@@ -34,7 +34,7 @@ export declare class SubscriptionsService {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -83,7 +83,7 @@ export declare class SubscriptionsService {
             featureKey: string;
             description: string;
             category: string;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             createdAt: string | null;
             updatedAt: string | null;
         }[];
@@ -157,6 +157,12 @@ export declare class SubscriptionsService {
         couponCode: string;
         couponMode: string;
         currency: string;
+        proofUploaded: boolean;
+    }>;
+    cancelStudentPendingInvoice(userId: number, requestId: number): Promise<{
+        ok: boolean;
+        id: number;
+        invoiceId: string;
     }>;
     private savePaymentProofFile;
     getPaymentProofFile(invoiceId: string): Promise<{
@@ -325,7 +331,7 @@ export declare class SubscriptionsService {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -396,6 +402,7 @@ export declare class SubscriptionsService {
             enabled: boolean;
             currency: "LKR";
             buttonLabel: string;
+            bankTransferDetails: string;
             configured: boolean;
             sandboxMode?: undefined;
             checkoutTitle?: undefined;
@@ -414,6 +421,7 @@ export declare class SubscriptionsService {
             checkoutTitle: string;
             buttonLabel: string;
             supportText: string;
+            bankTransferDetails: string;
             configured: boolean;
             merchantId: string;
             hasMerchantSecret: boolean;
@@ -432,7 +440,7 @@ export declare class SubscriptionsService {
         discountType: "fixed" | "percent";
         discountValue: number;
         planIds: number[];
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         startsAt: string;
         expiresAt: string;
         maxRedemptions: number | null;

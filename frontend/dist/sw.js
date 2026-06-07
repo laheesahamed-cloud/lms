@@ -1,7 +1,7 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
 const DEFAULT_ICON = '/lms/favicon-light-192.png';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'xyndrome-lms-shell-20260603-assets-v3';
+const CACHE_NAME = 'xyndrome-lms-shell-20260607-assets-v4';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',

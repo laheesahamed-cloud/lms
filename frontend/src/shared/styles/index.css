@@ -45,6 +45,7 @@
 @import "./04-pages/profile.css";
 @import "./04-pages/auth.css";
 @import "./04-pages/landing.css";
+@import "./04-pages/landing-v2.css";
 @import "./04-pages/admin.css";
 
 @import "./05-platforms/platform-runtime.css";

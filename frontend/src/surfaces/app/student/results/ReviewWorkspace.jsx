@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -61,9 +60,9 @@ const reviewUi = {
   questionMeta: 'flex flex-wrap items-center gap-1.5',
   questionNumber: 'text-[11px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft',
   questionNav:
-    'lms-review-question-nav flex items-center justify-end gap-2.5 border-t border-line-soft pt-4 max-[640px]:flex-col max-[640px]:items-end max-[640px]:gap-2',
+    'lms-review-question-nav flex items-center justify-end gap-2.5 border-t border-line-soft pt-4 max-[640px]:items-end max-[640px]:gap-2',
   questionNavActions:
-    'lms-review-nav-actions flex min-w-0 flex-wrap items-center justify-end gap-2.5 max-[640px]:grid max-[640px]:grid-cols-1 max-[640px]:justify-items-end',
+    'lms-review-nav-actions flex min-w-0 items-center justify-end gap-2.5',
   position: 'lms-review-position text-xs font-extrabold text-ink-soft',
   optionsGrid: 'lms-review-options-grid grid gap-3 max-[640px]:gap-2.5',
   optionTopline: 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start',
@@ -90,12 +89,6 @@ const reviewUi = {
     'inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[#92400e] dark:text-[#fbbf24] max-[640px]:size-[22px] max-[640px]:text-[11px]',
   incorrectCopy:
     'lms-reading-incorrect min-w-0 text-left [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[14px] [&_strong]:font-extrabold [&_strong]:leading-snug [&_strong]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.6] [&_p]:text-ink-medium max-[640px]:[&_strong]:text-[14px] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.58]',
-  trace:
-    'lms-review-trace rounded-[14px] border border-line-soft bg-surface-1 px-3 py-2.5',
-  traceList:
-    'm-0 grid gap-1.5 text-[12px] leading-snug text-ink-soft',
-  traceItem:
-    'grid grid-cols-[72px_minmax(0,1fr)] gap-2 max-[420px]:grid-cols-1 max-[420px]:gap-0.5 [&_dt]:font-extrabold [&_dt]:uppercase [&_dt]:tracking-[0.08em] [&_dt]:text-ink-muted [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:font-bold [&_dd]:text-ink-medium',
   bubbleNav: 'lms-review-bubble-nav grid grid-cols-5 gap-2',
   bubble:
     'min-h-9 rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-sm font-bold text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-80',
@@ -109,7 +102,7 @@ const reviewUi = {
   recapAction:
     'relative w-full max-w-none flex-none [&_.qtr-popup-trigger]:min-h-11 [&_.qtr-popup-trigger]:rounded-xl [&_.qtr-popup-trigger]:px-3 [&_.qtr-popup-trigger]:py-2.5 [&_.qtr-popup-trigger__label]:text-[13px] max-[640px]:w-full max-[640px]:max-w-none max-[640px]:[&_.qtr-popup-trigger]:min-h-12 max-[640px]:[&_.qtr-popup-trigger]:rounded-2xl max-[640px]:[&_.qtr-popup-trigger__concept]:max-w-[42vw]',
   questionActions:
-    'lms-question-utility-row flex flex-wrap items-center justify-end gap-2.5 border-t border-line-soft pt-3 max-[640px]:justify-end max-[520px]:grid max-[520px]:grid-cols-1 max-[520px]:justify-items-end',
+    'lms-question-utility-row flex flex-wrap items-center justify-end gap-2.5 border-t border-line-soft pt-3 max-[640px]:justify-end',
 };
 
 export const reviewSecondaryButtonClass =
@@ -219,20 +212,6 @@ function IcoReport() {
   );
 }
 
-function IcoNotes() {
-  return (
-    <svg aria-hidden="true" className="size-4" fill="none" viewBox="0 0 24 24">
-      <path
-        d="M7 4.5h7.25L18 8.25V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V6a1.5 1.5 0 0 1 1-1.42Zm7 0V8.5h4M9 12h6M9 15.5h5"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-    </svg>
-  );
-}
-
 function getPreferredScrollBehavior() {
   if (typeof window === 'undefined') return 'auto';
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
@@ -298,51 +277,6 @@ function formatBooleanAnswer(value) {
   const normalized = normalizeTrueFalseValue(value);
   if (normalized === null) return 'Unanswered';
   return normalized === 1 ? 'True' : 'False';
-}
-
-function formatTraceDate(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
-}
-
-function getReviewTraceItems(question) {
-  const trace = question?.contentTrace || {};
-  const hierarchy = question?.theoryRecap?.hierarchy || {};
-  const hierarchySource = [hierarchy.course, hierarchy.subject, hierarchy.topic, hierarchy.lesson]
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-    .join(' / ');
-  const source = String(trace.source || hierarchySource || `Question bank #${question?.id || 'current'}`).trim();
-  const versionLabel = String(trace.versionLabel || (trace.version ? `v${trace.version}` : 'v1')).trim();
-  const versionDate = formatTraceDate(trace.versionedAt);
-
-  return [
-    { label: 'Source', value: source },
-    { label: 'Version', value: versionDate ? `${versionLabel} - ${versionDate}` : versionLabel },
-  ];
-}
-
-function ReviewTrace({ question }) {
-  const items = getReviewTraceItems(question);
-
-  return (
-    <section className={reviewUi.trace} aria-label="Explanation source and content version">
-      <dl className={reviewUi.traceList}>
-        {items.map((item) => (
-          <div className={reviewUi.traceItem} key={item.label}>
-            <dt>{item.label}</dt>
-            <dd>{item.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
 }
 
 function ReviewStatusChip({ status }) {
@@ -554,19 +488,17 @@ function ReviewExplanation({ question }) {
           </div>
         </section>
       ) : null}
-      <ReviewTrace question={question} />
     </div>
   );
 }
 
-function ReviewExplanationEmpty({ question }) {
+function ReviewExplanationEmpty() {
   return (
     <div className="grid gap-3">
       <section className={reviewUi.explanationEmpty}>
         <strong>Explanation</strong>
         <span>No written explanation is available for this question.</span>
       </section>
-      <ReviewTrace question={question} />
     </div>
   );
 }
@@ -578,9 +510,7 @@ export function ReviewWorkspace({
   exitLabel = 'Done',
   onExit = null,
   focusQuestionOnly = false,
-  notesPath = '/ai-notes',
 }) {
-  const navigate = useNavigate();
   const [activeIndex, setActiveIndex] = useState(0);
   const [savedQuestionIds, setSavedQuestionIds] = useState(() => new Set());
   const [questionActionBusy, setQuestionActionBusy] = useState(false);
@@ -700,20 +630,6 @@ export function ReviewWorkspace({
     } finally {
       setQuestionActionBusy(false);
     }
-  }
-
-  function openReviewNotes() {
-    const destination = notesPath || '/ai-notes';
-    const returnToPath = typeof window === 'undefined'
-      ? undefined
-      : `${window.location.pathname}${window.location.search}`;
-
-    navigate(destination, {
-      state: {
-        returnToPath,
-        returnLabel: 'Review',
-      },
-    });
   }
 
   return (
@@ -848,7 +764,7 @@ export function ReviewWorkspace({
           <ReviewAnswerGrid question={activeQuestion} />
 
           <div className="grid gap-3">
-            {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty question={activeQuestion} />}
+            {hasExplanation ? <ReviewExplanation question={activeQuestion} /> : <ReviewExplanationEmpty />}
             <div className={focusQuestionOnly ? '' : 'min-[1181px]:hidden'}>
               <ReviewStudySupport question={activeQuestion} />
             </div>
@@ -869,10 +785,6 @@ export function ReviewWorkspace({
             >
               <IcoBookmark filled={activeQuestionSaved} />
               <span>{activeQuestionSaved ? 'Saved question' : 'Save question'}</span>
-            </button>
-            <button className={reviewSecondaryButtonClass} type="button" onClick={openReviewNotes}>
-              <IcoNotes />
-              <span>Open notes</span>
             </button>
             <button className={reviewSecondaryButtonClass} type="button" onClick={reportActiveQuestion} disabled={questionActionBusy}>
               <IcoReport />

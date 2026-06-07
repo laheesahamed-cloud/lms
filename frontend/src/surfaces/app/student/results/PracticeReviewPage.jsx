@@ -26,7 +26,7 @@ const reviewPageUi = {
   subtitle:
     'mt-0.5 block max-w-[min(680px,52vw)] truncate text-xs text-ink-soft max-[760px]:max-w-full',
   actions:
-    'quiz-header-actions flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 max-[700px]:justify-end max-[420px]:gap-1.5',
+    'quiz-header-actions flex min-w-0 flex-wrap items-center justify-end gap-2 max-[700px]:justify-end max-[420px]:gap-1.5',
   scoreChip:
     'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-[13px] border border-line-soft bg-surface-glass-subtle px-3 text-sm text-ink-medium shadow-xs dark:border-white/10 max-[420px]:min-h-9 max-[420px]:px-2.5 max-[420px]:text-[12px]',
   scoreValue:
@@ -121,8 +121,6 @@ export function PracticeReviewPage() {
     );
   }
 
-  const reviewNotesPath = data?.quiz?.lessonId ? `/study/lesson/${data.quiz.lessonId}` : '/ai-notes';
-
   return (
       <main className={reviewPageUi.screen}>
         <section className={reviewPageUi.layout}>
@@ -140,7 +138,6 @@ export function PracticeReviewPage() {
             navigatorVariant="bubbles"
             exitLabel="Finish"
             onExit={() => navigate('/quizzes')}
-            notesPath={reviewNotesPath}
           />
         ) : null}
         </section>

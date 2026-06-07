@@ -6,6 +6,12 @@ import {
   updateStudentLessonProgress,
 } from '../../../../shared/api/courses.api.js';
 import { getLessonAiNote, listAiNotes } from '../../../../shared/api/aiNotes.api.js';
+import {
+  fetchStudentQuizzes,
+  fetchStudentResults,
+  readStudentQuizzesCache,
+  readStudentResultsCache,
+} from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -32,31 +38,6 @@ function getBaseSubjectPalette(label) {
     COURSE_SUBJECT_PALETTES[Math.abs(hashSubjectPalette(text)) % COURSE_SUBJECT_PALETTES.length];
 }
 
-function buildSubjectPaletteMap(subjects) {
-  const assigned = new Map();
-  let previousGroup = '';
-  let previousKey = '';
-
-  subjects.forEach((subject, index) => {
-    let palette = getBaseSubjectPalette(subject.subjectName);
-    if ((palette.group === previousGroup || palette.key === previousKey) && COURSE_SUBJECT_PALETTES.length > 1) {
-      const start = Math.abs(hashSubjectPalette(`${subject.subjectName}-${index}`)) % COURSE_SUBJECT_PALETTES.length;
-      for (let offset = 0; offset < COURSE_SUBJECT_PALETTES.length; offset += 1) {
-        const next = COURSE_SUBJECT_PALETTES[(start + offset) % COURSE_SUBJECT_PALETTES.length];
-        if (next.group !== previousGroup && next.key !== previousKey) {
-          palette = next;
-          break;
-        }
-      }
-    }
-    assigned.set(subject.id, palette);
-    previousGroup = palette.group;
-    previousKey = palette.key;
-  });
-
-  return assigned;
-}
-
 function subjectAccentStyle(palette) {
   return {
     '--course-map-accent-rgb': palette.rgb,
@@ -67,58 +48,13 @@ function subjectAccentStyle(palette) {
   };
 }
 
-function LessonGlyph({ lesson }) {
-  if (lesson.accessLocked) {
-    return (
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M6.5 8V6.6a3.5 3.5 0 0 1 7 0V8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        <rect x="4.5" y="8" width="11" height="8" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      </svg>
-    );
-  }
-
-  if (lesson.status === 'completed') {
-    return (
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="m5 10 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  if (lesson.status === 'in_progress') {
-    return (
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <path d="M4 10h4l2-5 3 10 2-5h1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M6 4.5h8M7 4.5v4.2a4 4 0 1 0 6 0V4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function clampPercent(value) {
   const numeric = Number(value || 0);
   return Math.max(0, Math.min(100, numeric));
 }
 
-function formatStatus(status) {
-  if (status === 'completed') return '';
-  if (status === 'in_progress') return 'In Progress';
-  return 'Not Started';
-}
-
 function normalizeLookup(value) {
   return String(value || '').trim().toLowerCase();
-}
-
-function statusTone(status) {
-  if (status === 'completed') return 'border-brand-primary/24 bg-[var(--color-primary-light)] text-brand-primary dark:border-sky-300/22 dark:bg-sky-400/10 dark:text-sky-100';
-  if (status === 'in_progress') return 'border-brand-primary/24 bg-[var(--color-primary-light)] text-brand-primary dark:border-cyan-300/24 dark:bg-cyan-300/10 dark:text-cyan-100';
-  return 'border-line-medium bg-surface-2 text-ink-soft dark:border-slate-300/14 dark:bg-slate-300/7 dark:text-slate-300';
 }
 
 function estimateStudyTime(course) {
@@ -204,20 +140,6 @@ function ProgressBar({
   );
 }
 
-function getLessonActionLabel(lesson) {
-  if (lesson.accessLocked) return 'View Plans';
-  if (lesson.status === 'completed') return 'Review';
-  if (lesson.status === 'in_progress') return 'Continue';
-  return lesson.actionLabel || 'Start';
-}
-
-function getLessonStateLabel(lesson) {
-  if (lesson.accessLocked) return 'Locked';
-  if (lesson.status === 'completed') return '';
-  if (lesson.status === 'in_progress') return 'Current';
-  return 'Available';
-}
-
 function getLessonAccessMessage(lesson) {
   return lesson.accessMessage || 'Upgrade to access this lesson';
 }
@@ -228,35 +150,453 @@ function getLessonProgressValue(lesson) {
   return clampPercent(lesson.progressPercent);
 }
 
-function getLessonMetaItems(lesson) {
-  const items = [];
-  const progress = getLessonProgressValue(lesson);
-
-  if (lesson.accessLocked) {
-    items.push(getLessonAccessMessage(lesson));
-  } else if (lesson.status === 'completed') {
-    items.push('Ready to review');
-  } else if (progress > 0) {
-    items.push(`${progress}% complete`);
-  } else {
-    items.push(lesson.duration || '~15 min');
-  }
-
-  if (lesson.lessonType) items.push(lesson.lessonType);
-  if (lesson.isFree) items.push('Free access');
-
-  return items.slice(0, 2);
-}
-
-function getContinueTargetLabel(target) {
-  if (!target?.lesson) return '';
-  if (target.lesson.accessLocked) return 'View Access Options';
-  return target.lesson.status === 'in_progress' ? 'Continue Lesson' : 'Start Next Lesson';
-}
-
 function formatCountLabel(count, singular, plural = `${singular}s`) {
   const numeric = Number(count || 0);
   return `${numeric} ${numeric === 1 ? singular : plural}`;
+}
+
+function getAllLessons(subjects) {
+  return subjects.flatMap((subject) =>
+    (subject.topics || []).flatMap((topic) =>
+      (topic.lessons || []).map((lesson) => ({
+        ...lesson,
+        subjectId: subject.id,
+        topicId: topic.id,
+        subjectName: subject.subjectName,
+        topicName: topic.topicName,
+      }))
+    )
+  );
+}
+
+function matchCourseRecord(row, course) {
+  if (!course || !row) return false;
+  const courseId = Number(course.id || course.courseId || 0);
+  const rowCourseId = Number(row.courseId || row.course_id || 0);
+  if (courseId && rowCourseId && courseId === rowCourseId) return true;
+  const courseTitle = normalizeLookup(course.courseTitle);
+  const rowCourseTitle = normalizeLookup(row.courseTitle || row.courseName || row.course);
+  return Boolean(courseTitle && rowCourseTitle && courseTitle === rowCourseTitle);
+}
+
+function formatAttemptDate(value) {
+  if (!value) return 'No attempts yet';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'No attempts yet';
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function getWeakExamAreas(results) {
+  const groups = new Map();
+  results.forEach((result) => {
+    const score = Number(result.percentage || result.score || 0);
+    const label = String(result.topicDisplay || result.topicName || result.sectionTitle || '').trim();
+    if (!label || !Number.isFinite(score) || score >= 60) return;
+    const current = groups.get(label) || { label, attempts: 0, total: 0 };
+    current.attempts += 1;
+    current.total += score;
+    groups.set(label, current);
+  });
+
+  return [...groups.values()]
+    .map((area) => ({
+      ...area,
+      average: Math.round(area.total / area.attempts),
+    }))
+    .sort((a, b) => a.average - b.average)
+    .slice(0, 3);
+}
+
+function getTopicAnalytics(subjects) {
+  return subjects.flatMap((subject) =>
+    (subject.topics || []).map((topic) => {
+      const lessons = topic.lessons || [];
+      const totalLessons = Number(topic.totalLessonsCount || lessons.length || 0);
+      const completedLessons = Number(topic.completedLessonsCount || lessons.filter((lesson) => lesson.status === 'completed').length || 0);
+      const lockedLessons = lessons.filter((lesson) => lesson.accessLocked).length;
+      const progress = clampPercent(topic.progressPercent ?? (totalLessons ? (completedLessons / totalLessons) * 100 : 0));
+      const hasCurrent = lessons.some((lesson) => lesson.status === 'in_progress');
+      const allLocked = totalLessons > 0 && lockedLessons >= totalLessons;
+      const nextLesson =
+        lessons.find((lesson) => !lesson.accessLocked && lesson.status === 'in_progress') ||
+        lessons.find((lesson) => !lesson.accessLocked && lesson.status === 'not_started') ||
+        lessons.find((lesson) => !lesson.accessLocked) ||
+        lessons[0] ||
+        null;
+      const status = allLocked
+        ? 'Locked'
+        : hasCurrent
+          ? 'Current'
+          : progress >= 80 || (totalLessons > 0 && completedLessons >= totalLessons)
+            ? 'Strong'
+            : progress <= 35 || completedLessons === 0
+              ? 'Needs work'
+              : 'Developing';
+
+      return {
+        id: `${subject.id}:${topic.id}`,
+        subjectId: subject.id,
+        topicId: topic.id,
+        subjectName: subject.subjectName,
+        topicName: topic.topicName,
+        totalLessons,
+        completedLessons,
+        lockedLessons,
+        progress,
+        status,
+        nextLesson: nextLesson ? {
+          ...nextLesson,
+          subjectId: subject.id,
+          topicId: topic.id,
+          subjectName: subject.subjectName,
+          topicName: topic.topicName,
+        } : null,
+      };
+    })
+  );
+}
+
+function buildCourseAnalytics(course, subjects, resources, quizzes = [], results = []) {
+  const lessons = getAllLessons(subjects);
+  const totalLessons = lessons.length || Number(course?.totalLessonsCount || 0);
+  const completedLessons = lessons.filter((lesson) => lesson.status === 'completed').length || Number(course?.completedLessonsCount || 0);
+  const activeLessons = lessons.filter((lesson) => lesson.status === 'in_progress').length;
+  const lockedLessons = lessons.filter((lesson) => lesson.accessLocked).length;
+  const freeLessons = lessons.filter((lesson) => lesson.isFree).length;
+  const availableLessons = Math.max(0, totalLessons - lockedLessons);
+  const notStartedLessons = lessons.filter((lesson) => !lesson.accessLocked && lesson.status === 'not_started').length;
+  const startedLessons = lessons.filter((lesson) => lesson.status === 'completed' || lesson.status === 'in_progress').length;
+  const examLikeLessons = lessons.filter((lesson) => {
+    const haystack = `${lesson.lessonTitle || ''} ${lesson.lessonType || ''} ${lesson.actionLabel || ''}`;
+    return /(exam|quiz|practice|assessment|mock|test)/i.test(haystack);
+  });
+  const linkedQuizzes = (Array.isArray(quizzes) ? quizzes : []).filter((quiz) => matchCourseRecord(quiz, course));
+  const linkedQuizIds = new Set(linkedQuizzes.map((quiz) => Number(quiz.id || quiz.quizId || 0)).filter(Boolean));
+  const courseResults = (Array.isArray(results) ? results : []).filter((result) => {
+    const resultQuizId = Number(result.quizId || result.quiz_id || 0);
+    return matchCourseRecord(result, course) || (resultQuizId && linkedQuizIds.has(resultQuizId));
+  });
+  const scores = courseResults
+    .map((result) => Number(result.percentage || result.score || 0))
+    .filter((score) => Number.isFinite(score) && score > 0);
+  const averageScore = scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : null;
+  const bestScore = scores.length ? Math.round(Math.max(...scores)) : null;
+  const lastAttempt = [...courseResults].sort((a, b) =>
+    new Date(b.submittedAt || b.createdAt || b.updatedAt || 0).getTime() -
+    new Date(a.submittedAt || a.createdAt || a.updatedAt || 0).getTime()
+  )[0] || null;
+  const weakExamAreas = getWeakExamAreas(courseResults);
+  const verifiedResources = resources.filter((resource) => !resource.disabled).length;
+  const courseProgress = clampPercent(course?.progressPercent ?? (totalLessons ? (completedLessons / totalLessons) * 100 : 0));
+  const accessLabel = lockedLessons > 0
+    ? `${availableLessons}/${totalLessons || availableLessons} unlocked`
+    : course?.isFree
+      ? 'Free access'
+      : 'Unlocked';
+  const topicAnalytics = getTopicAnalytics(subjects);
+  const strongTopics = topicAnalytics.filter((topic) => topic.status === 'Strong');
+  const currentTopics = topicAnalytics.filter((topic) => topic.status === 'Current');
+  const weakTopics = topicAnalytics
+    .filter((topic) => topic.status === 'Needs work' || topic.status === 'Locked')
+    .sort((a, b) => a.progress - b.progress)
+    .slice(0, 6);
+  const recommendationLesson =
+    lessons.find((lesson) => !lesson.accessLocked && lesson.status === 'in_progress') ||
+    lessons.find((lesson) => !lesson.accessLocked && lesson.status === 'not_started') ||
+    lessons.find((lesson) => !lesson.accessLocked && lesson.status === 'completed') ||
+    lessons.find((lesson) => lesson.accessLocked) ||
+    null;
+  const recommendation = recommendationLesson ? {
+    lesson: recommendationLesson,
+    label: recommendationLesson.accessLocked
+      ? 'View Access Options'
+      : recommendationLesson.status === 'completed'
+        ? 'Review Finished Lesson'
+        : recommendationLesson.status === 'in_progress'
+          ? 'Continue Lesson'
+          : 'Start Next Lesson',
+    reason: recommendationLesson.accessLocked
+      ? getLessonAccessMessage(recommendationLesson)
+      : recommendationLesson.status === 'completed'
+        ? 'Everything visible is finished. Review a completed lesson to keep it safe.'
+        : recommendationLesson.status === 'in_progress'
+          ? `You are ${getLessonProgressValue(recommendationLesson)}% into this lesson.`
+          : 'This is the next available unfinished lesson.',
+  } : null;
+
+  return {
+    totalLessons,
+    completedLessons,
+    activeLessons,
+    lockedLessons,
+    freeLessons,
+    availableLessons,
+    notStartedLessons,
+    startedLessons,
+    examLikeLessons,
+    verifiedResources,
+    resourceCount: resources.length,
+    courseProgress,
+    accessLabel,
+    estimatedTime: estimateStudyTime(course),
+    topicAnalytics,
+    strongTopics,
+    currentTopics,
+    weakTopics,
+    linkedQuizzes,
+    courseResults,
+    averageScore,
+    bestScore,
+    lastAttempt,
+    weakExamAreas,
+    recommendation,
+  };
+}
+
+function CourseAnalyticsHero({ course, analytics, onBack, onOpenLesson }) {
+  const recommendation = analytics.recommendation;
+  return (
+    <section className="course-analytics-hero" aria-labelledby="course-analytics-title">
+      <div className="course-analytics-hero__copy">
+        <span className="course-map-eyebrow">Course analytics</span>
+        <h1 id="course-analytics-title">{course.courseTitle}</h1>
+        <p>
+          {formatCountLabel(analytics.completedLessons, 'lesson')} finished from {formatCountLabel(analytics.totalLessons, 'lesson')} · {analytics.estimatedTime}
+        </p>
+      </div>
+
+      <div className="course-analytics-score" aria-label={`${analytics.courseProgress} percent complete`}>
+        <strong>{analytics.courseProgress}%</strong>
+        <span>Complete</span>
+      </div>
+
+      <div className="course-analytics-hero__actions">
+        <button type="button" className={ui.secondaryAction} onClick={onBack}>
+          Back to Courses
+        </button>
+        {recommendation ? (
+          <button type="button" className={ui.primaryAction} onClick={() => onOpenLesson(recommendation.lesson)}>
+            {recommendation.label}
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function BigProgressChart({ analytics }) {
+  const segments = [
+    { key: 'finished', label: 'Finished', value: analytics.completedLessons, tone: 'done' },
+    { key: 'active', label: 'In progress', value: analytics.activeLessons, tone: 'active' },
+    { key: 'remaining', label: 'Not started', value: analytics.notStartedLessons, tone: 'remaining' },
+    { key: 'locked', label: 'Locked', value: analytics.lockedLessons, tone: 'locked' },
+  ];
+  const total = Math.max(analytics.totalLessons, 1);
+
+  return (
+    <section className="course-analytics-panel course-progress-panel" aria-labelledby="course-progress-chart-title">
+      <div className="course-analytics-panel__head">
+        <div>
+          <span className="course-map-eyebrow">Progress chart</span>
+          <h2 id="course-progress-chart-title">Finished vs Remaining</h2>
+        </div>
+        <span className="course-map-count">{analytics.completedLessons} / {analytics.totalLessons || 0} lessons</span>
+      </div>
+
+      <div className="course-progress-chart" aria-label="Course lesson progress chart">
+        {segments.map((segment) => (
+          <span
+            key={segment.key}
+            className={`is-${segment.tone}`}
+            style={{ width: `${(segment.value / total) * 100}%` }}
+            title={`${segment.label}: ${segment.value}`}
+          />
+        ))}
+      </div>
+
+      <div className="course-progress-legend">
+        {segments.map((segment) => (
+          <span key={segment.key}><i className={`is-${segment.tone}`} /> {segment.label} <b>{segment.value}</b></span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RecommendationPanel({ analytics, onOpenLesson }) {
+  const recommendation = analytics.recommendation;
+  return (
+    <section className="course-analytics-panel course-recommendation-panel" aria-labelledby="course-recommendation-title">
+      <div>
+        <span className="course-map-eyebrow">Next move</span>
+        <h2 id="course-recommendation-title">{recommendation?.lesson?.lessonTitle || 'No lesson available'}</h2>
+        <p>{recommendation?.reason || 'This course does not have a visible next lesson yet.'}</p>
+      </div>
+      {recommendation ? (
+        <button type="button" className={ui.primaryAction} onClick={() => onOpenLesson(recommendation.lesson)}>
+          {recommendation.label}
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+function AccessDetailsPanel({ analytics }) {
+  const stats = [
+    { label: 'Unlocked', value: analytics.availableLessons },
+    { label: 'Locked', value: analytics.lockedLessons },
+    { label: 'Free', value: analytics.freeLessons },
+    { label: 'Verified files', value: `${analytics.verifiedResources}/${analytics.resourceCount}` },
+  ];
+  return (
+    <section className="course-analytics-panel course-access-details" aria-labelledby="course-access-title">
+      <div className="course-analytics-panel__head">
+        <div>
+          <span className="course-map-eyebrow">Access details</span>
+          <h2 id="course-access-title">{analytics.accessLabel}</h2>
+        </div>
+      </div>
+      <div className="course-access-grid">
+        {stats.map((item) => (
+          <div key={item.label}>
+            <strong>{item.value}</strong>
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function QBankPanel({ analytics }) {
+  const hasQBank = analytics.linkedQuizzes.length || analytics.courseResults.length;
+  const stats = [
+    { label: 'Linked sets', value: analytics.linkedQuizzes.length },
+    { label: 'Finished attempts', value: analytics.courseResults.length },
+    { label: 'Average', value: analytics.averageScore === null ? '--' : `${analytics.averageScore}%` },
+    { label: 'Best', value: analytics.bestScore === null ? '--' : `${analytics.bestScore}%` },
+  ];
+  return (
+    <section className="course-analytics-panel course-qbank-panel" aria-labelledby="course-qbank-title">
+      <div className="course-analytics-panel__head">
+        <div>
+          <span className="course-map-eyebrow">QBank / Exams</span>
+          <h2 id="course-qbank-title">{hasQBank ? 'Practice Performance' : 'No QBank linked yet'}</h2>
+          <p>{hasQBank ? `Last attempt ${formatAttemptDate(analytics.lastAttempt?.submittedAt || analytics.lastAttempt?.createdAt)}` : 'No real quiz or exam data is linked to this course yet.'}</p>
+        </div>
+      </div>
+      {hasQBank ? (
+        <>
+          <div className="course-qbank-grid">
+            {stats.map((item) => (
+              <div key={item.label}>
+                <strong>{item.value}</strong>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+          {analytics.weakExamAreas.length ? (
+            <div className="course-qbank-weak">
+              {analytics.weakExamAreas.map((area) => (
+                <span key={area.label}>
+                  <strong>{area.average}%</strong>
+                  {area.label}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="course-analytics-empty">No weak exam areas found from completed attempts yet.</div>
+          )}
+        </>
+      ) : (
+        <div className="course-analytics-empty">Complete or link a course quiz to show attempts, average score, best score, and weak exam areas here.</div>
+      )}
+    </section>
+  );
+}
+
+function WeakStrongPanel({ analytics, onOpenLesson }) {
+  const rows = [
+    ...analytics.currentTopics,
+    ...analytics.weakTopics,
+    ...analytics.strongTopics.slice(0, 3),
+  ].filter((topic, index, list) => list.findIndex((item) => item.id === topic.id) === index).slice(0, 8);
+
+  return (
+    <section className="course-analytics-panel course-strength-panel" aria-labelledby="course-strength-title">
+      <div className="course-analytics-panel__head">
+        <div>
+          <span className="course-map-eyebrow">Weak vs strong</span>
+          <h2 id="course-strength-title">Where to Improve</h2>
+          <p>Based on real topic progress and lesson status.</p>
+        </div>
+      </div>
+      {rows.length ? (
+        <div className="course-strength-list">
+          {rows.map((topic) => (
+            <article className={`course-strength-row is-${topic.status.toLowerCase().replace(/\s+/g, '-')}`} key={topic.id}>
+              <div>
+                <span>{topic.subjectName}</span>
+                <strong>{topic.topicName}</strong>
+                <small>{topic.completedLessons}/{topic.totalLessons} lessons</small>
+              </div>
+              <div>
+                <b>{topic.progress}%</b>
+                <em>{topic.status}</em>
+                <ProgressBar value={topic.progress} label={`${topic.topicName} progress`} />
+              </div>
+              {topic.nextLesson ? (
+                <button type="button" onClick={() => onOpenLesson(topic.nextLesson)}>
+                  Open
+                </button>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="course-analytics-empty">No topic progress is available yet.</div>
+      )}
+    </section>
+  );
+}
+
+function SubjectBreakdownPanel({ subjects, analytics, onOpenLesson }) {
+  return (
+    <section className="course-analytics-panel course-subject-breakdown" aria-labelledby="course-subject-breakdown-title">
+      <div className="course-analytics-panel__head">
+        <div>
+          <span className="course-map-eyebrow">Subject breakdown</span>
+          <h2 id="course-subject-breakdown-title">Course Coverage</h2>
+        </div>
+        <span className="course-map-count">{formatCountLabel(subjects.length, 'subject')}</span>
+      </div>
+      <div className="course-subject-grid">
+        {subjects.map((subject) => {
+          const topics = analytics.topicAnalytics.filter((topic) => topic.subjectId === subject.id);
+          const nextTopic = topics.find((topic) => topic.nextLesson && topic.status === 'Current') ||
+            topics.find((topic) => topic.nextLesson && topic.status === 'Needs work') ||
+            topics.find((topic) => topic.nextLesson);
+          const progress = clampPercent(subject.progressPercent);
+          const status = progress >= 80 ? 'Strong' : progress <= 35 ? 'Needs work' : 'Developing';
+          return (
+            <article className="course-subject-card" key={subject.id} style={subjectAccentStyle(getBaseSubjectPalette(subject.subjectName))}>
+              <div>
+                <span>{status}</span>
+                <h3>{subject.subjectName}</h3>
+                <p>{formatCountLabel(subject.totalTopicsCount || subject.topics?.length || 0, 'topic')} · {subject.completedLessonsCount || 0}/{subject.totalLessonsCount || 0} lessons</p>
+              </div>
+              <ProgressBar value={progress} label={`${subject.subjectName} progress`} />
+              {nextTopic?.nextLesson ? (
+                <button type="button" onClick={() => onOpenLesson(nextTopic.nextLesson)}>
+                  Open next
+                </button>
+              ) : null}
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 const COURSE_RESOURCE_TYPES = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png', 'webp', 'mp4', 'webm']);
@@ -468,17 +808,32 @@ export function CourseDetailPage({
   const course = data?.course || null;
   const subjects = useMemo(() => data?.subjects || [], [data?.subjects]);
   const courseResources = useMemo(() => getCourseResources(data), [data]);
-  const continueTarget = useMemo(() => findContinueLesson(subjects), [subjects]);
-  const subjectPalettes = useMemo(() => buildSubjectPaletteMap(subjects), [subjects]);
+  const [studentQuizzes, setStudentQuizzes] = useState(() => readStudentQuizzesCache() || []);
+  const [studentResults, setStudentResults] = useState(() => readStudentResultsCache() || []);
+  const courseAnalytics = useMemo(
+    () => buildCourseAnalytics(course, subjects, courseResources, studentQuizzes, studentResults),
+    [course, subjects, courseResources, studentQuizzes, studentResults]
+  );
 
-  const overviewStats = useMemo(() => {
-    if (!course) return [];
-    return [
-      { label: 'Subjects', value: course.totalSubjectsCount ?? subjects.length, icon: 'subject' },
-      { label: 'Lessons', value: course.totalLessonsCount ?? 0, icon: 'lesson' },
-      { label: 'Study Time', value: estimateStudyTime(course), icon: 'time' },
-    ];
-  }, [course, subjects.length]);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAssessmentData() {
+      const [quizRows, resultRows] = await Promise.all([
+        fetchStudentQuizzes().catch(() => readStudentQuizzesCache() || []),
+        fetchStudentResults().catch(() => readStudentResultsCache() || []),
+      ]);
+
+      if (cancelled) return;
+      setStudentQuizzes(Array.isArray(quizRows) ? quizRows : []);
+      setStudentResults(Array.isArray(resultRows) ? resultRows : []);
+    }
+
+    loadAssessmentData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const applyLessonProgressUpdate = useCallback((targetLessonId, payload) => {
     setData((current) => {
@@ -670,223 +1025,28 @@ export function CourseDetailPage({
   return (
     <main className="dashboard-page study-hub-page student-notes-page lms-course-detail-page lms-course-map-page">
       <section className="study-hub-shell course-detail-shell">
-        <AppHeader title={course.courseTitle} subtitle="Course lesson map" />
+        <AppHeader title={course.courseTitle} subtitle="Course analytics" />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
-        <section className="course-map-overview" aria-labelledby="course-map-title">
-          <div className="course-map-overview__copy">
-            <span className="course-map-eyebrow">Course</span>
-            <h1 id="course-map-title">{course.courseTitle}</h1>
-            <p className="course-map-context">
-              Course
-              <span aria-hidden="true">/</span>
-              <strong>{course.courseTitle}</strong>
-            </p>
-          </div>
+        <CourseAnalyticsHero
+          course={course}
+          analytics={courseAnalytics}
+          onBack={handleBackToCourses}
+          onOpenLesson={handleOpenLesson}
+        />
 
-          <div className="course-map-progress" aria-label={`${clampPercent(course.progressPercent)} percent complete`}>
-            <strong>{clampPercent(course.progressPercent)}%</strong>
-            <span>Complete</span>
-            <ProgressBar value={course.progressPercent} label={`${course.courseTitle} completion`} className="h-2" />
-          </div>
+        <BigProgressChart analytics={courseAnalytics} />
 
-          <div className="course-map-overview__actions">
-            <button type="button" className={ui.secondaryAction} onClick={handleBackToCourses}>
-              Back to Courses
-            </button>
-            {continueTarget ? (
-              <button
-                type="button"
-                className={ui.primaryAction}
-                onClick={() =>
-                  handleOpenLesson({
-                    ...continueTarget.lesson,
-                    subjectId: continueTarget.subjectId,
-                    topicId: continueTarget.topicId,
-                    subjectName: continueTarget.subjectName,
-                    topicName: continueTarget.topicName,
-                  })
-                }
-                aria-label={
-                  continueTarget.lesson.accessLocked
-                    ? `${getLessonAccessMessage(continueTarget.lesson)} for ${continueTarget.lesson.lessonTitle}`
-                    : `${getContinueTargetLabel(continueTarget)}: ${continueTarget.lesson.lessonTitle}`
-                }
-              >
-                {getContinueTargetLabel(continueTarget)}
-              </button>
-            ) : null}
-          </div>
+        <div className="course-analytics-grid-main">
+          <RecommendationPanel analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
+          <AccessDetailsPanel analytics={courseAnalytics} />
+        </div>
 
-          <dl className="course-map-stats" aria-label="Course overview">
-            {overviewStats.map((item) => (
-              <div key={item.label}>
-                <dt>{item.label}</dt>
-                <dd>{item.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <section className="course-map-shell" aria-labelledby="course-map-heading">
-          <div className="course-map-shell__head">
-            <div>
-              <span className="course-map-eyebrow">Learning Path</span>
-              <h2 id="course-map-heading">Lesson Map</h2>
-              <p>
-                {formatCountLabel(subjects.length, 'subject')} · {formatCountLabel(course.totalLessonsCount || 0, 'lesson')}
-              </p>
-            </div>
-            <span className="course-map-count">{course.completedLessonsCount || 0} / {course.totalLessonsCount || 0} lessons</span>
-          </div>
-
-	          <ol className="course-map-units" aria-label="Course subjects and lesson hierarchy">
-            {subjects.map((subject, subjectIndex) => {
-              const subjectStatusLabel = formatStatus(subject.status);
-
-              return (
-	                <li
-	                  className="course-map-unit course-map-unit--simple"
-	                  key={subject.id}
-	                  aria-labelledby={`course-subject-${subject.id}`}
-	                  style={subjectAccentStyle(subjectPalettes.get(subject.id) || COURSE_SUBJECT_PALETTES[0])}
-	                >
-                <header className="course-map-unit__head">
-                  <div className="course-map-unit__title">
-                    <span>{subjectIndex + 1}</span>
-                    <div>
-	                      <h3 id={`course-subject-${subject.id}`}>{subject.subjectName}</h3>
-                      <p>{formatCountLabel(subject.totalTopicsCount || subject.topics.length, 'topic')} · {formatCountLabel(subject.totalLessonsCount || 0, 'lesson')}</p>
-                    </div>
-                  </div>
-                  <div className="course-map-unit__progress">
-                    {subjectStatusLabel ? <span className={cx('course-map-status', statusTone(subject.status))}>{subjectStatusLabel}</span> : null}
-                    <strong>{subject.progressPercent}%</strong>
-                    <ProgressBar value={subject.progressPercent} label={`${subject.subjectName} completion`} />
-                  </div>
-                </header>
-
-                <ol className="course-map-topics" aria-label={`${subject.subjectName} topics`}>
-                  {subject.topics.map((topic, topicIndex) => {
-                    const topicStatusLabel = formatStatus(topic.status);
-
-                    return (
-	                      <li className="course-map-topic" key={`${subject.id}:${topic.id}`} aria-labelledby={`course-topic-${topic.id}`}>
-                        <header className="course-map-topic__head">
-                          <div>
-                            <span>{subjectIndex + 1}.{topicIndex + 1}</span>
-	                            <h4 id={`course-topic-${topic.id}`}>{topic.topicName}</h4>
-                          </div>
-                          <div>
-                            {topicStatusLabel ? <span className={cx('course-map-status', statusTone(topic.status))}>{topicStatusLabel}</span> : null}
-                            <small>{topic.completedLessonsCount || 0}/{topic.totalLessonsCount || 0} lessons</small>
-                          </div>
-                        </header>
-
-	                        <ol className="course-map-lessons" aria-label={`${topic.topicName} lessons`}>
-                          {topic.lessons.map((lesson, lessonIndex) => {
-                            const lessonContext = {
-                              ...lesson,
-                              subjectId: subject.id,
-                              topicId: topic.id,
-                              subjectName: subject.subjectName,
-                              topicName: topic.topicName,
-                            };
-                            const stateLabel = getLessonStateLabel(lesson);
-                            const lessonProgress = getLessonProgressValue(lesson);
-                            const lessonMetaItems = getLessonMetaItems(lesson);
-                            const lessonStateId = `lesson-${lesson.id}-state`;
-                            const lessonLockReasonId = `lesson-${lesson.id}-lock-reason`;
-                            const lessonDescription = [
-                              stateLabel ? lessonStateId : '',
-                              lesson.accessLocked ? lessonLockReasonId : '',
-                            ].filter(Boolean).join(' ') || undefined;
-
-                            return (
-                              <li
-                                className={cx(
-                                  'course-map-lesson-row',
-                                  lesson.status === 'completed' && 'is-done',
-                                  lesson.status === 'in_progress' && 'is-active',
-                                  !lesson.accessLocked && lesson.status === 'not_started' && 'is-available',
-                                  lesson.accessLocked && 'is-locked'
-                                )}
-                                key={lesson.id}
-                                aria-current={lesson.status === 'in_progress' ? 'step' : undefined}
-                                style={{ '--course-map-lesson-delay': `${Math.min(lessonIndex, 8) * 90}ms` }}
-                              >
-                                {lesson.accessLocked ? (
-                                  <span id={lessonLockReasonId} className="sr-only">
-                                    {getLessonAccessMessage(lesson)}
-                                  </span>
-                                ) : null}
-                                <button
-                                  type="button"
-                                  className="course-map-lesson-title"
-                                  onClick={() => handleOpenLesson(lessonContext)}
-                                  disabled={busyLessonId === lesson.id || lesson.accessLocked}
-                                  aria-describedby={lessonDescription}
-                                  aria-label={`${lesson.lessonTitle}. ${stateLabel || 'Completed'}. ${lessonProgress} percent complete.${lesson.accessLocked ? ` ${getLessonAccessMessage(lesson)}` : ''}`}
-                                >
-                                  <span className="course-map-lesson-order">{subjectIndex + 1}.{topicIndex + 1}.{lessonIndex + 1}</span>
-                                  <span className="course-map-lesson-glyph">
-                                    <LessonGlyph lesson={lesson} />
-                                  </span>
-                                  <span className="course-map-lesson-copy">
-                                    <strong>{lesson.lessonTitle}</strong>
-                                    <span className="course-map-lesson-meta">
-                                      {lessonMetaItems.map((item) => (
-                                        <em key={item}>{item}</em>
-                                      ))}
-                                    </span>
-                                  </span>
-                                </button>
-
-                                {stateLabel ? (
-                                  <span id={lessonStateId} className={cx('course-map-status', statusTone(lesson.status))}>{stateLabel}</span>
-                                ) : null}
-
-                                <button
-                                  type="button"
-                                  className="course-map-lesson-action"
-                                  onClick={() => handleOpenLesson(lessonContext)}
-                                  disabled={busyLessonId === lesson.id}
-                                  aria-describedby={lessonDescription}
-                                  aria-label={
-                                    lesson.accessLocked
-                                      ? `${getLessonAccessMessage(lesson)}. View access options for ${lesson.lessonTitle}`
-                                      : `${getLessonActionLabel(lesson)} ${lesson.lessonTitle}`
-                                  }
-                                  title={lesson.accessLocked ? getLessonAccessMessage(lesson) : undefined}
-                                >
-                                  {busyLessonId === lesson.id ? 'Opening...' : getLessonActionLabel(lesson)}
-                                </button>
-
-                                <div
-                                  className="course-map-lesson-progress"
-                                  role="progressbar"
-                                  aria-label={`${lesson.lessonTitle} completion`}
-                                  aria-valuemin={0}
-                                  aria-valuemax={100}
-                                  aria-valuenow={lessonProgress}
-                                >
-                                  <span style={{ width: `${lessonProgress}%` }} />
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      </li>
-                    );
-                  })}
-                </ol>
-                </li>
-              );
-            })}
-          </ol>
-	        </section>
-	        <CourseResourcesPanel resources={courseResources} />
+        <QBankPanel analytics={courseAnalytics} />
+        <WeakStrongPanel analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
+        <SubjectBreakdownPanel subjects={subjects} analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
+        <CourseResourcesPanel resources={courseResources} />
 	      </section>
 	    </main>
   );

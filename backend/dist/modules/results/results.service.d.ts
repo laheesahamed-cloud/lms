@@ -15,6 +15,7 @@ export declare class ResultsService {
         wrongAnswers: number;
         passStatus: string;
         submittedAt: any;
+        reviewedAt: any;
     }[]>;
     detail(authorization: string | undefined, attemptId: number): Promise<{
         attemptId: number;
@@ -104,5 +105,9 @@ export declare class ResultsService {
                 mnemonic: string;
             } | null;
         }[];
+    }>;
+    completeReview(authorization: string | undefined, attemptId: number): Promise<{
+        attemptId: number;
+        reviewed: boolean;
     }>;
 }

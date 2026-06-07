@@ -173,6 +173,7 @@ let QuizAttemptsService = class QuizAttemptsService {
           qa.wrong_answers,
           qa.pass_status,
           qa.submitted_at,
+          qa.reviewed_at,
           qa.created_at,
           COALESCE(NULLIF(q.student_title, ''), q.quiz_title) AS quiz_title,
           q.course_id,
@@ -201,6 +202,7 @@ let QuizAttemptsService = class QuizAttemptsService {
             wrongAnswers: Number(row.wrong_answers || 0),
             passStatus: String(row.pass_status || 'fail'),
             submittedAt: row.submitted_at || row.created_at || null,
+            reviewedAt: row.reviewed_at || null,
         }));
     }
     async loadQuiz(authorization, quizId, mode, continuePractice, resetPractice, questionId) {
@@ -567,6 +569,19 @@ let QuizAttemptsService = class QuizAttemptsService {
             },
             questions: questions.map((question) => this.mapReviewQuestion(question, answerMap[question.id] || [])),
         };
+    }
+    async completeReview(authorization, attemptId) {
+        const user = await this.requireStudent(authorization);
+        const [result] = await this.db.execute(`
+        UPDATE quiz_attempts
+        SET reviewed_at = COALESCE(reviewed_at, NOW())
+        WHERE id = ? AND user_id = ?
+        LIMIT 1
+      `, [attemptId, user.id]);
+        if (result.affectedRows === 0) {
+            throw new common_1.NotFoundException('Review not found');
+        }
+        return { attemptId, reviewed: true };
     }
     async practiceReview(authorization, quizId, complete, questionId) {
         const user = await this.requireStudent(authorization);

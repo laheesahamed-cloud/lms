@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchAttemptReview } from '../../../../shared/api/quizAttempts.api.js';
+import { completeAttemptReview, fetchAttemptReview } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -26,7 +26,7 @@ const reviewPageUi = {
   subtitle:
     'mt-0.5 block max-w-[min(680px,52vw)] truncate text-xs text-ink-soft max-[760px]:max-w-full',
   actions:
-    'quiz-header-actions flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 max-[700px]:justify-end max-[420px]:gap-1.5',
+    'quiz-header-actions flex min-w-0 flex-wrap items-center justify-end gap-2 max-[700px]:justify-end max-[420px]:gap-1.5',
   scoreChip:
     'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-[13px] border border-line-soft bg-surface-glass-subtle px-3 text-sm text-ink-medium shadow-xs dark:border-white/10 max-[420px]:min-h-9 max-[420px]:px-2.5 max-[420px]:text-[12px]',
   scoreValue:
@@ -86,6 +86,14 @@ export function ReviewPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const goBack = () => safeNavigateBack(navigate, { fallbackPath: '/results' });
+  const finishReview = async () => {
+    try {
+      await completeAttemptReview(attemptId);
+      goBack();
+    } catch (finishError) {
+      setError(getErrorMessage(finishError, 'Unable to finish review'));
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -124,8 +132,6 @@ export function ReviewPage() {
       percentage: Number(data.attempt.percentage || 0),
     }
   ) : null;
-  const reviewNotesPath = data?.attempt?.lessonId ? `/study/lesson/${data.attempt.lessonId}` : '/ai-notes';
-
   return (
       <main className={reviewPageUi.screen}>
         <section className={reviewPageUi.layout}>
@@ -137,8 +143,7 @@ export function ReviewPage() {
             summary={summary}
             navigatorVariant="bubbles"
             exitLabel="Finish"
-            onExit={goBack}
-            notesPath={reviewNotesPath}
+            onExit={finishReview}
           />
         ) : null}
         </section>

@@ -15,6 +15,7 @@ export declare class ResultsController {
         wrongAnswers: number;
         passStatus: string;
         submittedAt: any;
+        reviewedAt: any;
     }[]>;
     review(attemptId: number, authorization?: string): Promise<{
         attempt: {
@@ -89,6 +90,10 @@ export declare class ResultsController {
                 mnemonic: string;
             } | null;
         }[];
+    }>;
+    completeReview(attemptId: number, authorization?: string): Promise<{
+        attemptId: number;
+        reviewed: boolean;
     }>;
     detail(attemptId: number, authorization?: string): Promise<{
         attemptId: number;

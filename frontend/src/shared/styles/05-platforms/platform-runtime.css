@@ -47,17 +47,11 @@
   }
 
   html[data-lms-runtime="pwa"] {
-    --lms-tabbar-safe-bottom: 8px;
-    --lms-tabbar-content-shift: 0px;
     --lms-tabbar-row-height: 68px;
-    --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-tabbar-safe-bottom));
+    --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-safe-bottom));
     --lms-mobile-nav-height: var(--bottom-nav-height);
     --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 10px);
     -webkit-text-size-adjust: 100%;
-  }
-
-  html[data-lms-runtime="pwa"] .lms-route-page {
-    padding-top: 6px !important;
   }
 
   html[data-lms-runtime="pwa"] .lms-topbar {
@@ -96,15 +90,4 @@
     display: none !important;
   }
 
-  html[data-lms-form-factor="phone"] {
-    --lms-platform-content-density: compact;
-  }
-
-  html[data-lms-form-factor="tablet"] {
-    --lms-platform-content-density: comfortable;
-  }
-
-  html[data-lms-target="native-ios-phone"] {
-    --lms-native-bottom-safe-extra: env(safe-area-inset-bottom, 0px);
-  }
 }

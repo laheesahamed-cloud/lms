@@ -141,6 +141,6 @@ export function getRoutePreloadLimit() {
   if (!shouldPreloadRoutes()) return 0;
   const root = typeof document !== 'undefined' ? document.documentElement : null;
   const isPhone = root?.dataset.lmsFormFactor === 'phone';
-  if (isLowSpecDevice()) return isPhone ? 3 : 2;
-  return 6;
+  if (isLowSpecDevice()) return isPhone ? 1 : 2;
+  return isPhone ? 2 : 3;
 }

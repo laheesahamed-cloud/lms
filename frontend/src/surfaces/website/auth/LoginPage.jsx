@@ -102,11 +102,10 @@ const ANIM_CSS = `
     --lms-brand-lower-art-opacity: .13;
   }
 
-  @keyframes lmsUp    { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes lmsUp    { from{opacity:0;transform:translate3d(0,14px,0)} to{opacity:1;transform:translate3d(0,0,0)} }
   @keyframes lmsFade  { from{opacity:0} to{opacity:1} }
   @keyframes lmsFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
-  @keyframes lmsSlideIn { from{opacity:0;transform:translateX(-14px)} to{opacity:1;transform:translateX(0)} }
-
+  @keyframes lmsSlideIn { from{opacity:0;transform:translate3d(-14px,0,0)} to{opacity:1;transform:translate3d(0,0,0)} }
   @keyframes lmsEcgDraw {
     0%  { stroke-dashoffset:760; opacity:0   }
     6%  { opacity:1                          }
@@ -129,23 +128,23 @@ const ANIM_CSS = `
     100% { transform:translateX(130%) skewX(-18deg); opacity:0; }
   }
 
-  .lms-stagger>*        { opacity:0; animation:lmsUp 400ms var(--ease-os) forwards; }
-  .lms-stagger>*:nth-child(1){ animation-delay: 55ms }
-  .lms-stagger>*:nth-child(2){ animation-delay:110ms }
-  .lms-stagger>*:nth-child(3){ animation-delay:165ms }
-  .lms-stagger>*:nth-child(4){ animation-delay:220ms }
-  .lms-stagger>*:nth-child(5){ animation-delay:275ms }
-  .lms-stagger>*:nth-child(6){ animation-delay:330ms }
-  .lms-stagger>*:nth-child(7){ animation-delay:385ms }
-  .lms-stagger>*:nth-child(8){ animation-delay:440ms }
-  .lms-stagger>*:nth-child(9){ animation-delay:495ms }
+  .lms-stagger>*        { opacity:0; animation:lmsUp 400ms var(--ease-os) forwards; backface-visibility:hidden; -webkit-backface-visibility:hidden; transform-style:preserve-3d; }
+  .lms-stagger>*:nth-child(1){ opacity:1; animation:none; transform:none }
+  .lms-stagger>*:nth-child(2){ animation-delay: 55ms }
+  .lms-stagger>*:nth-child(3){ animation-delay:110ms }
+  .lms-stagger>*:nth-child(4){ animation-delay:165ms }
+  .lms-stagger>*:nth-child(5){ animation-delay:220ms }
+  .lms-stagger>*:nth-child(6){ animation-delay:275ms }
+  .lms-stagger>*:nth-child(7){ animation-delay:330ms }
+  .lms-stagger>*:nth-child(8){ animation-delay:385ms }
+  .lms-stagger>*:nth-child(9){ animation-delay:440ms }
 
-  .lms-brand-stagger>*        { opacity:0; animation:lmsSlideIn 520ms var(--ease-os) forwards; }
-  .lms-brand-stagger>*:nth-child(1){ animation-delay: 80ms }
-  .lms-brand-stagger>*:nth-child(2){ animation-delay:160ms }
-  .lms-brand-stagger>*:nth-child(3){ animation-delay:240ms }
-  .lms-brand-stagger>*:nth-child(4){ animation-delay:320ms }
-  .lms-brand-stagger>*:nth-child(5){ animation-delay:400ms }
+  .lms-brand-stagger>*        { opacity:0; animation:lmsSlideIn 520ms var(--ease-os) forwards; backface-visibility:hidden; -webkit-backface-visibility:hidden; transform-style:preserve-3d; }
+  .lms-brand-stagger>*:nth-child(1){ opacity:1; animation:none; transform:none }
+  .lms-brand-stagger>*:nth-child(2){ animation-delay: 80ms }
+  .lms-brand-stagger>*:nth-child(3){ animation-delay:160ms }
+  .lms-brand-stagger>*:nth-child(4){ animation-delay:240ms }
+  .lms-brand-stagger>*:nth-child(5){ animation-delay:320ms }
 
   .lms-float       { animation:lmsFloat      6.5s ease-in-out infinite; }
   .lms-glow-pulse  { animation:lmsGlowPulse  4.5s ease-in-out infinite; }
@@ -291,20 +290,20 @@ const ANIM_CSS = `
     content: "";
   }
   :root[data-theme='dark'] .lms-google-btn {
-    border-color: rgba(96,165,250,.22);
+    border-color: rgba(203,213,225,.24);
     background:
-      linear-gradient(135deg, rgba(15,23,42,.82), rgba(2,6,23,.76)),
-      rgba(15,23,42,.74);
-    color: #e2e8f0;
+      linear-gradient(135deg, rgba(20,30,48,.94), rgba(9,14,26,.92)),
+      rgba(15,23,42,.88);
+    color: #F4F8FF;
     box-shadow:
-      0 18px 34px -26px rgba(96,165,250,.6),
-      inset 0 1px 0 rgba(255,255,255,.08);
+      0 12px 28px -24px rgba(96,165,250,.42),
+      inset 0 1px 0 rgba(255,255,255,.12);
   }
   :root[data-theme='dark'] .lms-google-btn:hover {
-    border-color: rgba(96,165,250,.36);
+    border-color: rgba(203,213,225,.34);
     box-shadow:
-      0 22px 40px -28px rgba(96,165,250,.76),
-      inset 0 1px 0 rgba(255,255,255,.1);
+      0 16px 34px -28px rgba(96,165,250,.62),
+      inset 0 1px 0 rgba(255,255,255,.14);
   }
 
   @media (max-width: 640px) {
@@ -331,7 +330,6 @@ const ANIM_CSS = `
   }
 
   .lms-tab-link    { transition:background 150ms var(--ease-os), color 150ms ease; }
-  .lms-field-wrap:focus-within .lms-field-label { color:#2563eb; transition:color 180ms ease; }
   :root:not([data-theme='dark']) .lms-auth-form-panel {
     background:
       linear-gradient(180deg, rgba(255,255,255,.96), rgba(245,249,255,.98)) !important;
@@ -389,9 +387,6 @@ const ANIM_CSS = `
   :root:not([data-theme='dark']) .lms-login-form .lms-field-label {
     color: #1e293b !important;
   }
-  .lms-login-form input {
-    border-width: 1px !important;
-  }
   :root:not([data-theme='dark']) .lms-login-form input {
     border-color: rgba(37,99,235,.12) !important;
     background:
@@ -406,53 +401,20 @@ const ANIM_CSS = `
     opacity: .78 !important;
   }
   :root[data-theme='dark'] .lms-login-form input {
-    border-color: rgba(148,163,184,.18) !important;
-    background: rgba(2,6,23,.74) !important;
-    color: #EAF1FB !important;
+    border-color: rgba(203,213,225,.24) !important;
+    background: rgba(8,13,24,.84) !important;
+    color: #F4F8FF !important;
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.035),
-      0 1px 0 rgba(0,0,0,.18) !important;
+      inset 0 1px 0 rgba(255,255,255,.045),
+      0 1px 0 rgba(0,0,0,.14) !important;
   }
   :root[data-theme='dark'] .lms-login-form input::placeholder {
-    color: #94A3B8 !important;
-    opacity: .72 !important;
+    color: #B5C1D1 !important;
+    opacity: .82 !important;
   }
   .lms-login-form input:focus {
-    border-color: #2563EB !important;
-    box-shadow:
-      0 0 0 3px rgba(37,99,235,.12),
-      0 12px 24px -22px rgba(37,99,235,.72) !important;
+    border-color: var(--line-strong) !important;
     outline: none !important;
-  }
-  :root[data-theme='dark'] .lms-login-form input:focus {
-    border-color: #3B82F6 !important;
-    box-shadow: 0 0 0 3px rgba(59,130,246,.18) !important;
-  }
-  .lms-login-form input:focus-visible {
-    outline: 2px solid rgba(37,99,235,.42) !important;
-    outline-offset: 2px !important;
-    box-shadow:
-      0 0 0 3px rgba(37,99,235,.12),
-      0 12px 24px -22px rgba(37,99,235,.72) !important;
-  }
-  html body .lms-login-form input:focus-visible {
-    outline: 2px solid rgba(37,99,235,.42) !important;
-    outline-offset: 2px !important;
-    box-shadow:
-      0 0 0 3px rgba(37,99,235,.12),
-      0 12px 24px -22px rgba(37,99,235,.72) !important;
-  }
-  :root[data-theme='dark'] .lms-login-form input:focus-visible {
-    outline-color: rgba(96,165,250,.48) !important;
-    box-shadow:
-      0 0 0 3px rgba(59,130,246,.18),
-      0 12px 24px -22px rgba(37,99,235,.72) !important;
-  }
-  html[data-theme='dark'] body .lms-login-form input:focus-visible {
-    outline-color: rgba(96,165,250,.48) !important;
-    box-shadow:
-      0 0 0 3px rgba(59,130,246,.18),
-      0 12px 24px -22px rgba(37,99,235,.72) !important;
   }
   .lms-login-password-toggle svg {
     stroke-width: 1.65;
@@ -476,6 +438,11 @@ const ANIM_CSS = `
   /* ── Form heading: stronger text contrast ── */
   :root:not([data-theme='dark']) .lms-login-form h2 { color: #0B1220 !important; }
   :root:not([data-theme='dark']) .lms-login-form .lms-form-sub { color: #42526D !important; }
+  :root[data-theme='dark'] .lms-login-form .lms-field-label { color: #DCE6F3 !important; }
+  :root[data-theme='dark'] .lms-login-form .lms-form-sub { color: #B9C5D4 !important; }
+  :root[data-theme='dark'] .lms-auth-divider { color: #AEBACC; }
+  :root[data-theme='dark'] .lms-auth-divider::before,
+  :root[data-theme='dark'] .lms-auth-divider::after { background: rgba(203,213,225,.16); }
   :root:not([data-theme='dark']) .lms-auth-divider {
     color: #64748B;
   }
@@ -499,16 +466,22 @@ const ANIM_CSS = `
     background:
       linear-gradient(180deg, #FBFCFF, #F1F7FF);
   }
-  :root[data-theme='dark'] .lms-login-form h2 { color: #F1F5F9 !important; }
+  :root[data-theme='dark'] .lms-login-form h2 { color: #F8FBFF !important; }
   .lms-form-card {
     border-color: var(--lms-global-card-border, var(--lms-app-card-border)) !important;
     background: var(--lms-global-card-bg, var(--lms-app-card-bg)) !important;
     box-shadow: var(--lms-global-card-shadow, var(--lms-app-card-shadow)) !important;
     animation: none !important;
     transform: none !important;
+    contain: layout paint style;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  :root[data-theme='dark'] .lms-form-card {
+    border-color: rgba(203,213,225,.18) !important;
+    background: rgba(8,12,21,.92) !important;
   }
 
-  /* ── ECG monitor band animations ── */
   @keyframes lmsEcgDrawFull {
     0%   { stroke-dashoffset: 1420; opacity: 0;   }
     5%   { opacity: 1;                             }
@@ -519,10 +492,6 @@ const ANIM_CSS = `
   @keyframes lmsEcgDotPulse {
     0%, 100% { opacity: .60; }
     50%       { opacity: 1;   }
-  }
-  @keyframes lmsCardBreath {
-    0%, 100% { transform: scale(1);       }
-    50%       { transform: scale(1.0032);  }
   }
 
   .lms-ecg-full { stroke-dasharray: 1420; animation: lmsEcgDrawFull 6.5s linear infinite; }
@@ -1203,13 +1172,13 @@ export function LoginPage() {
         </div>
 
         {/* Centered form area */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px 24px', overflowY: 'auto' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px 24px', overflowY: 'visible' }}>
           <div
             className="lms-form-card"
-            style={{ width: '100%', maxWidth: 404, borderRadius: 22, border: '1px solid var(--line-soft)', padding: 'clamp(28px,3.5vw,36px)' }}
+            style={{ width: '100%', maxWidth: 404, borderRadius: 22, border: '1px solid var(--line-soft)', padding: 'clamp(22px,3vw,32px)' }}
           >
           <form
-            style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 20 }}
+            style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 18 }}
             className="lms-stagger lms-login-form"
             onSubmit={handleSubmit}
             noValidate

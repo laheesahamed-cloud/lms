@@ -108,6 +108,12 @@ export async function fetchAttemptReview(attemptId) {
   return response.data;
 }
 
+export async function completeAttemptReview(attemptId) {
+  const response = await apiClient.post(`/student/quiz-attempts/review/${attemptId}/complete`);
+  clearStudentResultsCache();
+  return response.data;
+}
+
 export async function fetchPracticeReview(quizId, params) {
   const response = await apiClient.get(`/student/quiz-attempts/practice-review/${quizId}`, { params });
   return response.data;

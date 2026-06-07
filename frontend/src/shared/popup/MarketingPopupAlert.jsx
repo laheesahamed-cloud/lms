@@ -118,11 +118,13 @@ export function MarketingPopupAlert({ suppressed = false }) {
   const [alert, setAlert] = useState(initialAlert);
   const [dismissedKey, setDismissedKey] = useState('');
   const [loaded, setLoaded] = useState(() => Boolean(initialAlert));
+  const [landingReadStarted, setLandingReadStarted] = useState(false);
 
   const imageUrl = useMemo(() => resolvePublicAssetUrl(alert?.imageUrl), [alert?.imageUrl]);
   const dismissKey = useMemo(() => getDismissKey(alert), [alert]);
   const shouldOpen =
     !suppressed &&
+    (normalizePlacement(alert?.placement) !== 'landing' || landingReadStarted) &&
     loaded &&
     alert?.enabled &&
     hasPopupContent(alert) &&
@@ -194,6 +196,21 @@ export function MarketingPopupAlert({ suppressed = false }) {
       window.removeEventListener?.('lms:popup-alert-refresh', refreshPopupAlert);
     };
   }, []);
+
+  useEffect(() => {
+    if (!shouldShowForPath(alert, location.pathname) || normalizePlacement(alert?.placement) !== 'landing') {
+      setLandingReadStarted(true);
+      return undefined;
+    }
+    if (typeof window === 'undefined') return undefined;
+    const markReadStarted = () => setLandingReadStarted(true);
+    const timer = window.setTimeout(markReadStarted, 9000);
+    window.addEventListener('scroll', markReadStarted, { passive: true, once: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('scroll', markReadStarted);
+    };
+  }, [alert, location.pathname]);
 
   useEffect(() => {
     if (!shouldOpen) return;

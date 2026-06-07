@@ -65,7 +65,16 @@
       "mcp__Claude_in_Chrome__tabs_context_mcp",
       "Bash(open http://localhost:8899/real-mockup.html)",
       "Bash(sed -i '' 's/#1c2631/#111117/g; s/#19232e/#0f0f15/g; s/#222d39/#1a1a22/g' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/05-platforms/native.css)",
-      "Bash(sed -i '' 's/#1c2631/#111117/g' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/05-platforms/native-android.css)"
+      "Bash(sed -i '' 's/#1c2631/#111117/g' /Applications/XAMPP/xamppfiles/htdocs/lms/frontend/src/shared/styles/05-platforms/native-android.css)",
+      "Bash(curl -s -o /dev/null -w \"5174/lms/ -> %{http_code}\\\\n\" http://localhost:5174/lms/)",
+      "Bash(curl -s -o /dev/null -w \"5173/ -> %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(lsof -nP -iTCP -sTCP:LISTEN)",
+      "Bash(node -e \"const j=require\\('./cinhero.json'\\);require\\('fs'\\).writeFileSync\\('cinhero.tsx',j.files[0].content\\);console.log\\('wrote',require\\('fs'\\).statSync\\('cinhero.tsx'\\).size,'bytes'\\)\")",
+      "Bash(node -e \"console.log\\('gsap', require\\('./package.json'\\).dependencies.gsap\\)\")",
+      "Bash(node -e \"console.log\\('frontend gsap:', require\\('./package.json'\\).dependencies.gsap\\)\")",
+      "Bash(grep -rn \"@keyframes panelRouteFade\\\\|panelRouteFade$\\\\|keyframes panelRouteFade\" src)",
+      "Bash(sed -n '2770,2840p' src/shared/styles/99-legacy/app.css)",
+      "Bash(node)"
     ]
   }
 }

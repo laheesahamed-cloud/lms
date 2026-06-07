@@ -87,6 +87,12 @@ export async function requestManualPayment(payload) {
   return response.data;
 }
 
+export async function cancelPendingSubscriptionInvoice(id) {
+  const response = await apiClient.delete(`/subscriptions/requests/${id}`);
+  clearMySubscriptionCache();
+  return response.data;
+}
+
 export async function resolveSubscriptionRequest(id, payload) {
   const response = await apiClient.patch(`/subscriptions/requests/${id}/resolve`, payload);
   return response.data;
