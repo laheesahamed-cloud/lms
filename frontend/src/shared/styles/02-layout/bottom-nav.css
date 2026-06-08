@@ -1,6 +1,7 @@
 /* ============================================================
    Mobile Bottom Nav
    Dark navy bottom bar with top-only rounded corners.
+   iOS 18-style floating pill indicator with spring animation.
    ============================================================ */
 
 .lms-mobile-bottom-nav--student {
@@ -68,7 +69,7 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--stude
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.94) 100%);
   -webkit-backdrop-filter: saturate(140%) blur(14px);
   backdrop-filter: saturate(140%) blur(14px);
-  color: #26314c;
+  color: #0F172A;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
@@ -126,8 +127,42 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
   height: 18px;
 }
 
+/* ── iOS 18 floating pill indicator ───────────────────────────────────────── */
+.lms-mobile-bottom-nav__pill {
+  position: absolute;
+  top: 8px;
+  bottom: max(8px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+  left: 0;
+  width: calc(100% / 5);
+  border-radius: 14px;
+  pointer-events: none;
+  z-index: 0;
+  background: rgba(37, 99, 235, 0.11);
+  box-shadow:
+    0 0 0 1px rgba(37, 99, 235, 0.10),
+    0 4px 12px -6px rgba(37, 99, 235, 0.22);
+  transform: translateX(calc(var(--pill-index, 0) * 100%));
+  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+:root[data-theme="dark"] .lms-mobile-bottom-nav__pill,
+.student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__pill {
+  background: rgba(99, 140, 255, 0.13);
+  box-shadow:
+    0 0 0 1px rgba(99, 140, 255, 0.14),
+    0 4px 14px -6px rgba(59, 90, 255, 0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lms-mobile-bottom-nav__pill {
+    transition: none;
+  }
+}
+
 .lms-mobile-bottom-nav__tab {
   position: relative;
+  z-index: 1;
   min-width: 0;
   height: 56px;
   min-height: 52px;
@@ -148,13 +183,12 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
   text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 180ms cubic-bezier(0.32, 0.72, 0.32, 1),
-              color 180ms cubic-bezier(0.32, 0.72, 0.32, 1),
+  transition: color 180ms cubic-bezier(0.32, 0.72, 0.32, 1),
               transform 180ms cubic-bezier(0.32, 0.72, 0.32, 1);
 }
 
 .lms-mobile-bottom-nav__tab:hover {
-  color: #26314c;
+  color: #0F172A;
 }
 
 :root[data-theme="dark"] .lms-mobile-bottom-nav__tab,
@@ -182,17 +216,17 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
 }
 
 .lms-mobile-bottom-nav__tab.is-active {
-  /* Light mode active — solid blue tint with deep blue text */
-  background: rgba(37, 99, 235, 0.12);
+  /* Pill handles the background — tab only needs a color shift */
+  background: transparent;
   color: #2563eb;
-  box-shadow: var(--ds-nav-active-shadow);
+  box-shadow: none;
 }
 
 :root[data-theme="dark"] .lms-mobile-bottom-nav__tab.is-active,
 .student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__tab.is-active {
-  background: var(--state-selected);
+  background: transparent;
   color: var(--accent-strong);
-  box-shadow: var(--ds-nav-active-shadow);
+  box-shadow: none;
 }
 
 .lms-mobile-bottom-nav__icon {
@@ -210,6 +244,25 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
 
 .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-nav__icon svg {
   stroke-width: 2;
+}
+
+/* Active icon gets a subtle lift — iOS tab bar micro-animation */
+.lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-nav__icon {
+  transform: translateY(-1px) scale(1.08);
+  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lms-mobile-bottom-nav__tab:not(.is-active) .lms-mobile-bottom-nav__icon {
+  transform: translateY(0) scale(1);
+  transition: transform 200ms cubic-bezier(0.32, 0.72, 0.32, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lms-mobile-bottom-nav__tab.is-active .lms-mobile-bottom-nav__icon,
+  .lms-mobile-bottom-nav__tab:not(.is-active) .lms-mobile-bottom-nav__icon {
+    transform: none;
+    transition: none;
+  }
 }
 
 .lms-mobile-bottom-nav__label {

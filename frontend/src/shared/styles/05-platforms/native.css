@@ -1,10 +1,22 @@
 html[data-lms-runtime="native"] {
   --lms-app-card-radius: 18px;
   --lms-app-card-pad: clamp(15px, 3.2vw, 22px);
+  /* Micro-interaction easing (dropdowns, popovers, scale-in) — stays fast */
   --lms-native-motion-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Full-page slide easing — iOS-style decelerate with slight spring character */
+  --lms-native-motion-route: cubic-bezier(0.22, 1, 0.36, 1);
   --lms-native-chrome-bg: var(--app-bg);
   --lms-native-chrome-bg-solid: var(--app-bg-solid, var(--surface-0, #0b121b));
   --lms-native-top-surface: var(--lms-native-chrome-bg, var(--app-bg));
+  /* Slide direction: 1 = forward (left), -1 = back (right). Set by bottom nav onClick. */
+  --lms-slide-dir: 1;
+}
+
+html[data-lms-runtime="native"],
+html[data-lms-runtime="native"] body,
+html[data-lms-runtime="native"] #root {
+  background: var(--sa-bg, var(--app-bg, #eff1fb)) !important;
+  background-color: var(--app-bg-solid, #dce6f4) !important;
 }
 
 html[data-lms-runtime="native"]:not([data-theme="dark"]) {
@@ -132,6 +144,14 @@ html[data-lms-runtime="native"][data-theme="dark"] .student-app-shell {
   --lms-app-card-muted: var(--ink-soft);
 }
 
+@media (min-width: 901px) {
+  html[data-lms-runtime="native"] .student-app-shell:not(.mobile-top-nav-mode):not(.sidebar-hidden) .lms-sidebar:not(.is-overlay-nav) {
+    --lms-native-sidebar-top-offset: max(var(--lms-safe-top, env(safe-area-inset-top, 0px)), 0px);
+    top: calc(var(--sidebar-float-gap, 16px) + var(--lms-native-sidebar-top-offset)) !important;
+    max-height: calc(100dvh - var(--sidebar-float-gap, 16px) - var(--sidebar-float-gap, 16px) - var(--lms-native-sidebar-top-offset)) !important;
+  }
+}
+
 html[data-lms-runtime="native"] :where(
   body,
   #root,
@@ -144,7 +164,7 @@ html[data-lms-runtime="native"] :where(
   .dashboard-page,
   .student-route-page
 ) {
-  background: var(--app-bg) !important;
+  background: var(--sa-bg, var(--app-bg)) !important;
   background-color: var(--app-bg-solid) !important;
   color: var(--ink-strong);
 }
@@ -175,6 +195,11 @@ html[data-lms-runtime="native"] .student-app-shell :where(
   .lms-app-card-muted
 ) {
   color: var(--ink-soft) !important;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-topbar, .study-hub-topbar) {
+  position: static !important;
+  top: auto !important;
 }
 
 html[data-lms-runtime="native"] .student-app-shell :where(
@@ -243,8 +268,10 @@ html[data-lms-runtime="native"][data-theme="dark"] .lms-mobile-bottom-nav__tab {
 }
 
 html[data-lms-runtime="native"] .lms-mobile-bottom-nav__tab.is-active {
+  /* Pill handles the visual indicator — only override color */
   color: var(--color-primary, #2563eb) !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary, #2563eb) 16%, transparent) inset !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .lms-course-card, .lms-quiz-card) {
@@ -254,8 +281,8 @@ html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .l
 }
 
 @keyframes nativeRouteFade {
-  from { opacity: 0.84; transform: translate3d(0, 8px, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
+  from { opacity: 0.18; transform: translate3d(calc(var(--lms-slide-dir, 1) * 32px), 0, 0); }
+  to   { opacity: 1;    transform: translate3d(0, 0, 0); }
 }
 
 @keyframes nativePanelRouteFade {
@@ -286,15 +313,14 @@ html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .l
 html[data-lms-runtime="native"][data-visual-effects] .animate-routeFade,
 html[data-lms-runtime="native"][data-low-spec] .animate-routeFade,
 html[data-lms-runtime="native"] .animate-routeFade {
-  animation: nativeRouteFade var(--lms-route-enter-duration, 300ms) var(--lms-native-motion-enter) both !important;
+  animation: nativeRouteFade var(--lms-route-enter-duration, 340ms) var(--lms-native-motion-route) both !important;
   animation-name: nativeRouteFade !important;
-  animation-duration: var(--lms-route-enter-duration, 300ms) !important;
-  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-duration: var(--lms-route-enter-duration, 340ms) !important;
+  animation-timing-function: var(--lms-native-motion-route) !important;
   animation-fill-mode: both !important;
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
-  transition-duration: 160ms !important;
-  will-change: auto;
+  transition-duration: 340ms !important;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
@@ -311,7 +337,6 @@ html[data-lms-runtime="native"] body.app-ready .lms-route-reveal.animate-panelRo
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
   transition-duration: 150ms !important;
-  will-change: auto;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-fadePop,
@@ -325,7 +350,6 @@ html[data-lms-runtime="native"] .animate-fadePop {
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
   transition-duration: 150ms !important;
-  will-change: auto;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn,
@@ -339,7 +363,6 @@ html[data-lms-runtime="native"] .animate-scaleIn {
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
   transition-duration: 140ms !important;
-  will-change: auto;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-dropdownIn,
@@ -353,7 +376,6 @@ html[data-lms-runtime="native"] .animate-dropdownIn {
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
   transition-duration: 140ms !important;
-  will-change: auto;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-overlayIn,
@@ -367,7 +389,6 @@ html[data-lms-runtime="native"] .animate-overlayIn {
   animation-iteration-count: 1 !important;
   transition-property: opacity !important;
   transition-duration: 140ms !important;
-  will-change: auto;
 }
 
 html[data-lms-runtime="native"] .motion-smooth {

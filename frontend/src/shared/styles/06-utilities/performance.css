@@ -17,7 +17,6 @@ body.app-booting :where(.lms-route-reveal.animate-panelRouteFade, .animate-route
 
 body.app-booting :where(.lms-screen-status, .lms-toast) {
   animation-duration: 120ms !important;
-  will-change: auto !important;
 }
 
 .lms-route-reveal.animate-panelRouteFade {
@@ -33,47 +32,10 @@ html[data-motion-paused] body *::after {
   transition-duration: 1ms !important;
 }
 
-html[data-motion-paused] body :where(
-  .portal-shell-ambient,
-  .lp-hero-orb,
-  .lp-depth-dot,
-  .lp-path-trace,
-  .lp-cta-orb,
-  .study-mascot__svg,
-  .study-mascot__bob,
-  .study-mascot__run,
-  .study-mascot__pulse,
-  .study-mascot__flame,
-  .study-mascot__sparkles path,
-  .animate-progressShimmer,
-  .skeleton-pulse,
-  .shimmer
-) {
-  will-change: auto !important;
-}
-
-:root[data-low-spec] :where(
-  .study-mascot__bob,
-  .study-mascot__run,
-  .study-mascot__pulse,
-  .study-mascot__flame,
-  .study-mascot__sparkles path
-),
-:root[data-visual-effects='balanced'] :where(
-  .study-mascot__bob,
-  .study-mascot__run,
-  .study-mascot__pulse,
-  .study-mascot__flame,
-  .study-mascot__sparkles path
-) {
-  will-change: auto !important;
-}
-
 :root[data-low-spec] :where(.lms-screen-status, .lms-toast),
 :root[data-visual-effects='balanced'] :where(.lms-screen-status, .lms-toast) {
   animation-duration: 180ms !important;
   box-shadow: 0 12px 30px -24px rgba(15, 23, 42, 0.38) !important;
-  will-change: auto !important;
 }
 
 :root[data-low-spec] :where(
@@ -93,19 +55,4 @@ html[data-motion-paused] body :where(
   .student-route-page
 )::after {
   animation: none !important;
-  will-change: auto !important;
-}
-
-:root[data-low-spec] :where(
-  .study-streak-icon,
-  .study-streak-icon svg,
-  .study-fire-outer,
-  .study-fire-inner,
-  .study-hero-mascot-random img,
-  .study-hero-mascot-random__spark
-),
-:root[data-low-spec] .study-streak-icon::before,
-:root[data-low-spec] .study-streak-icon::after,
-:root[data-low-spec] .study-hero-mascot-random::before {
-  will-change: auto !important;
 }

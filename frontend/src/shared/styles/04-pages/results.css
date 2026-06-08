@@ -26,7 +26,7 @@
     radial-gradient(circle at 78% 4%, rgba(37, 99, 235, 0.12), transparent 30%),
     radial-gradient(circle at 10% 0%, rgba(20, 184, 166, 0.09), transparent 32%),
     linear-gradient(180deg, #eef4fc 0%, #e4ecf7 46%, #dce6f4 100%) !important;
-  color: #2f3b57 !important;
+  color: #0F172A !important;
 }
 
 .student-app-shell .student-results-hero {
@@ -390,7 +390,7 @@
     radial-gradient(circle at 86% 20%, rgba(96, 165, 250, 0.2), transparent 34%),
     radial-gradient(circle at 96% 92%, rgba(124, 58, 237, 0.13), transparent 42%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(238, 245, 255, 0.94) 100%);
-  color: #2f3b57;
+  color: #0F172A;
   box-shadow: 0 22px 52px -34px rgba(37, 99, 235, 0.3);
 }
 
@@ -399,7 +399,7 @@
   border-color: transparent;
   background: transparent;
   box-shadow: none;
-  color: #26314c;
+  color: #0F172A;
 }
 
 :root[data-theme="light"] .student-app-shell .student-results-hero__score::before,
@@ -419,8 +419,8 @@
 
 :root[data-theme="light"] .student-app-shell .student-results-performance-top h2,
 .student-app-shell[data-theme="light"] .student-results-performance-top h2 {
-  color: #2f3b57;
-  -webkit-text-fill-color: #2f3b57;
+  color: #0F172A;
+  -webkit-text-fill-color: #0F172A;
 }
 
 :root[data-theme="light"] .student-app-shell .student-results-performance-top p,
@@ -428,7 +428,7 @@
 .student-app-shell[data-theme="light"] .student-results-performance-top p,
 .student-app-shell[data-theme="light"] .result-chart-card p {
   color: #5b6a82;
-  -webkit-text-fill-color: #5f6c86;
+  -webkit-text-fill-color: #64748B;
 }
 
 :root[data-theme="light"] .student-app-shell .result-score-ring,
@@ -438,7 +438,7 @@
 
 :root[data-theme="light"] .student-app-shell .result-score-ring text:first-of-type,
 .student-app-shell[data-theme="light"] .result-score-ring text:first-of-type {
-  fill: #2f3b57;
+  fill: #0F172A;
 }
 
 :root[data-theme="light"] .student-app-shell .result-score-ring text:last-of-type,
@@ -483,14 +483,14 @@
 
 :root[data-theme="light"] .student-app-shell .student-results-performance-stat strong,
 .student-app-shell[data-theme="light"] .student-results-performance-stat strong {
-  color: var(--results-stat-ink, #2f3b57);
-  -webkit-text-fill-color: var(--results-stat-ink, #2f3b57);
+  color: var(--results-stat-ink, #0F172A);
+  -webkit-text-fill-color: var(--results-stat-ink, #0F172A);
 }
 
 :root[data-theme="light"] .student-app-shell .student-results-performance-stat small,
 .student-app-shell[data-theme="light"] .student-results-performance-stat small {
-  color: color-mix(in srgb, var(--results-stat-ink, #2f3b57) 72%, #66758f);
-  -webkit-text-fill-color: color-mix(in srgb, var(--results-stat-ink, #2f3b57) 72%, #66758f);
+  color: color-mix(in srgb, var(--results-stat-ink, #0F172A) 72%, #66758f);
+  -webkit-text-fill-color: color-mix(in srgb, var(--results-stat-ink, #0F172A) 72%, #66758f);
 }
 
 :root[data-theme="light"] .student-app-shell .result-chart-card,

@@ -128,7 +128,7 @@ export function BootLoader() {
 
       <div className="abl-stage">
         <div className="abl-icon" aria-hidden="true">
-          <XyndromeLogoMark size={native ? 58 : 60} />
+          <XyndromeLogoMark size={native ? 58 : 60} logoVariant="light" />
         </div>
 
         <div className="abl-brand-wrap">

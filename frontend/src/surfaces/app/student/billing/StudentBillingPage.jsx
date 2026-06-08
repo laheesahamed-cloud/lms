@@ -712,8 +712,8 @@ export function StudentBillingPage() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-surface-2">
                       <span
-                        className="block h-full rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
-                        style={{ width: `${currentProgressPercent}%` }}
+                        className="block h-full w-full origin-left rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
+                        style={{ transform: `scaleX(${currentProgressPercent / 100})` }}
                       />
                     </div>
                   </div>

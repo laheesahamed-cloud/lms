@@ -320,13 +320,13 @@ export function QuestionsPage() {
       ),
     [meta.lessons, filters.courseId, filters.subjectId, filters.topicId]
   );
-  const selectedVisibleIds = useMemo(
-    () => questions.filter((question) => selectedQuestionIds.has(question.id)).map((question) => question.id),
-    [questions, selectedQuestionIds]
-  );
   const selectedVisibleQuestions = useMemo(
     () => questions.filter((question) => selectedQuestionIds.has(question.id)),
     [questions, selectedQuestionIds]
+  );
+  const selectedVisibleIds = useMemo(
+    () => selectedVisibleQuestions.map((question) => question.id),
+    [selectedVisibleQuestions]
   );
   const selectedKeywordPreview = useMemo(
     () => Array.from(new Set(
@@ -337,9 +337,39 @@ export function QuestionsPage() {
     )).slice(0, 8),
     [selectedVisibleQuestions]
   );
+  const questionTypeCounts = useMemo(
+    () =>
+      questions.reduce(
+        (counts, question) => {
+          if (question.questionType === 'sba') {
+            counts.sba += 1;
+          } else if (question.questionType === 'true_false') {
+            counts.trueFalse += 1;
+          }
+          return counts;
+        },
+        { sba: 0, trueFalse: 0 }
+      ),
+    [questions]
+  );
+  const selectedLinkSummary = useMemo(
+    () =>
+      selectedVisibleQuestions.reduce(
+        (summary, question) => {
+          const quizCount = Number(question.quizCount || 0);
+          if (quizCount > 0) {
+            summary.questionCount += 1;
+            summary.quizCount += quizCount;
+          }
+          return summary;
+        },
+        { questionCount: 0, quizCount: 0 }
+      ),
+    [selectedVisibleQuestions]
+  );
   const allVisibleSelected = questions.length > 0 && selectedVisibleIds.length === questions.length;
-  const selectedLinkedQuestionCount = selectedVisibleQuestions.filter((question) => Number(question.quizCount || 0) > 0).length;
-  const selectedLinkedQuizCount = selectedVisibleQuestions.reduce((total, question) => total + Number(question.quizCount || 0), 0);
+  const selectedLinkedQuestionCount = selectedLinkSummary.questionCount;
+  const selectedLinkedQuizCount = selectedLinkSummary.quizCount;
 
   const loadQuestions = useCallback(async (nextFilters = questionInitialFilters) => {
     setLoading(true);
@@ -977,8 +1007,8 @@ export function QuestionsPage() {
                 <p>{loading ? 'Loading questions...' : `${questions.length} question(s) loaded from the live course structure hierarchy`}</p>
               </div>
               <div className={ui.questionBankActions}>
-                <span className={ui.tablePill}>{questions.filter((question) => question.questionType === 'sba').length} SBA</span>
-                <span className={ui.tablePill}>{questions.filter((question) => question.questionType === 'true_false').length} T/F</span>
+                <span className={ui.tablePill}>{questionTypeCounts.sba} SBA</span>
+                <span className={ui.tablePill}>{questionTypeCounts.trueFalse} T/F</span>
                 <button type="button" className={ui.secondaryAction} onClick={handleExportQuestions} disabled={exporting || importing}>
                   {exporting ? 'Exporting...' : 'Export CSV'}
                 </button>

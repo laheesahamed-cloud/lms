@@ -247,20 +247,73 @@ export function ScrollMorphFeatures() {
       const distance = rect.height - window.innerHeight;
       // rect.top goes from 0 (pin start) to -distance (pin end).
       progress.set(distance > 0 ? clamp01(-rect.top / distance) : 0);
-      // Enable one-card-per-scroll snapping only while the pinned section fully
-      // covers the viewport, so a fling settles on the next card instead of
-      // skipping past two or three. Scoped here so the rest of the page never snaps.
-      const covers = rect.top <= 1 && rect.bottom >= window.innerHeight - 1;
-      document.documentElement.classList.toggle('lpv2-snap-active', covers);
     };
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
     update();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll, { passive: true });
+
+    // ── One gesture = one scene (discrete step navigation) ───────────────────
+    // While the section is fully pinned, each wheel tick / swipe advances exactly
+    // ONE scene, regardless of how hard you scroll. A cooldown that extends while
+    // you keep scrolling means even a long fling only moves one scene. At the first
+    // or last scene the gesture is released so the page scrolls out normally.
+    const N = SCENES.length;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    let cooling = false;
+    let coolTimer = 0;
+    const cool = () => { clearTimeout(coolTimer); coolTimer = setTimeout(() => { cooling = false; }, 760); };
+    const m = () => {
+      const rect = el.getBoundingClientRect();
+      const dist = el.offsetHeight - window.innerHeight;
+      return { rect, dist, absTop: rect.top + window.scrollY };
+    };
+    const active = () => {
+      const { rect } = m();
+      return rect.top <= 1 && rect.bottom >= window.innerHeight - 1;
+    };
+    const currentScene = () => {
+      const { rect, dist } = m();
+      const p = dist > 0 ? clamp01(-rect.top / dist) : 0;
+      return Math.max(0, Math.min(N - 1, Math.round(p * N - 0.5)));
+    };
+    const goTo = (i) => {
+      const { absTop, dist } = m();
+      const top = Math.round(absTop + ((i + 0.5) / N) * dist);
+      window.scrollTo({ top, behavior: reduceMotion ? 'auto' : 'smooth' });
+    };
+    const tryStep = (dir) => {
+      const next = currentScene() + dir;
+      if (next < 0 || next > N - 1) return false; // at an edge → let the page scroll out
+      if (cooling) { cool(); return true; }       // mid-gesture → swallow, keep cooldown alive
+      cooling = true;
+      goTo(next);
+      cool();
+      return true;
+    };
+    const onWheel = (e) => {
+      if (!active()) return;
+      if (tryStep(e.deltaY > 0 ? 1 : -1)) e.preventDefault();
+    };
+    let touchY = null;
+    const onTouchStart = (e) => { touchY = e.touches[0]?.clientY ?? null; };
+    const onTouchMove = (e) => {
+      if (!active() || touchY == null) return;
+      const dy = touchY - (e.touches[0]?.clientY ?? touchY);
+      if (Math.abs(dy) < 22) return;
+      if (tryStep(dy > 0 ? 1 : -1)) { e.preventDefault(); touchY = e.touches[0].clientY; }
+    };
+    window.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
-      document.documentElement.classList.remove('lpv2-snap-active');
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      clearTimeout(coolTimer);
       if (frame) cancelAnimationFrame(frame);
     };
   }, [progress]);

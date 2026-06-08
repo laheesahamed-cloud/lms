@@ -409,6 +409,11 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
   const [profileMenuStyle, setProfileMenuStyle] = useState(null);
   const [profileAvatarStyle, setProfileAvatarStyle] = useState(null);
   const profileVisible = profileOpen || profileClosing;
+  const shouldPortalNativeStudentHeader =
+    user?.role === 'student' &&
+    typeof document !== 'undefined' &&
+    document.documentElement.dataset.lmsRuntime === 'native' &&
+    document.documentElement.dataset.lmsFormFactor === 'phone';
 
   const unreadNotifications = useMemo(() => sortLatestNotifications(notifications.filter((item) => !item.read)), [notifications]);
   const recentNotifications = useMemo(() => sortLatestNotifications(notifications), [notifications]);
@@ -855,74 +860,105 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
         uppercaseCurrent={breadcrumbUppercaseCurrent}
       />
     ) : null;
+
+    const studentHeader = (
+      <header
+        className={cx(
+          'study-hub-topbar',
+          shouldPortalNativeStudentHeader && 'lms-native-portaled-topbar',
+          profileVisible && 'is-profile-menu-open',
+          className
+        )}
+      >
+        <button type="button" className="study-icon-button lms-topbar-menu-button" aria-label="Toggle navigation" onClick={toggleSidebar}>
+          <NavToggleIcon />
+        </button>
+
+        <div className="study-topbar-title">
+          {breadcrumbPlacement !== 'below' && breadcrumbNode ? breadcrumbNode : subtitle ? (
+            <span>{subtitle}</span>
+          ) : null}
+          <h1>{title}</h1>
+          {breadcrumbPlacement === 'below' ? breadcrumbNode : null}
+        </div>
+
+        <div className="study-topbar-actions">
+          <div className={topbarUi.menuWrap} ref={notificationRef}>
+            <button
+              type="button"
+              className="study-icon-button relative"
+              aria-label={unreadNotifications.length ? `${unreadNotifications.length} unread notifications` : 'Notifications'}
+              aria-controls={NOTIFICATION_MENU_ID}
+              aria-expanded={notificationsOpen ? 'true' : 'false'}
+              aria-haspopup="dialog"
+              onClick={() => {
+                setNotificationsOpen((current) => {
+                  if (!current) loadNotifications();
+                  return !current;
+                });
+                closeProfileMenu();
+              }}
+            >
+              <BellIcon />
+              {unreadNotifications.length ? <span className={topbarUi.countBadge}>{unreadNotifications.length}</span> : null}
+            </button>
+            {notificationMenu}
+          </div>
+
+          <button type="button" className="study-icon-button" aria-label="Search lessons and exams" onClick={openSearch}>
+            <SearchIcon />
+          </button>
+
+          <div className={cx(topbarUi.menuWrap, profileVisible && 'is-profile-menu-open')} ref={profileRef}>
+            <button
+              ref={profileButtonRef}
+              type="button"
+              className={cx('study-avatar study-avatar--profile', profileVisible && 'is-profile-avatar-open')}
+              aria-label="Open profile menu"
+              aria-controls={PROFILE_MENU_ID}
+              aria-expanded={profileOpen ? 'true' : 'false'}
+              aria-haspopup="menu"
+              onClick={toggleProfileMenu}
+            >
+              <ProfileAvatar user={user} />
+            </button>
+
+          </div>
+        </div>
+
+        {actions ? <div className={cx('lms-topbar-actions', topbarUi.actionsSlot)}>{actions}</div> : null}
+      </header>
+    );
+
+    const mobileCopy = (
+      <div className={topbarUi.mobileCopy}>
+        <div>{title}</div>
+      </div>
+    );
+
+    if (shouldPortalNativeStudentHeader) {
+      return (
+        <>
+          {profileAvatarPortal}
+          {profileMenuLayer}
+          {createPortal(
+            <div className="lms-native-topbar-layer" data-lms-native-topbar-layer="student">
+              {studentHeader}
+            </div>,
+            document.body
+          )}
+          <div className="lms-native-topbar-spacer" aria-hidden="true" />
+          {mobileCopy}
+        </>
+      );
+    }
+
     return (
       <>
         {profileAvatarPortal}
         {profileMenuLayer}
-
-        <header className={cx('study-hub-topbar', profileVisible && 'is-profile-menu-open', className)}>
-          <button type="button" className="study-icon-button lms-topbar-menu-button" aria-label="Toggle navigation" onClick={toggleSidebar}>
-            <NavToggleIcon />
-          </button>
-
-          <div className="study-topbar-title">
-            {breadcrumbPlacement !== 'below' && breadcrumbNode ? breadcrumbNode : subtitle ? (
-              <span>{subtitle}</span>
-            ) : null}
-            <h1>{title}</h1>
-            {breadcrumbPlacement === 'below' ? breadcrumbNode : null}
-          </div>
-
-          <div className="study-topbar-actions">
-            <div className={topbarUi.menuWrap} ref={notificationRef}>
-              <button
-                type="button"
-                className="study-icon-button relative"
-                aria-label={unreadNotifications.length ? `${unreadNotifications.length} unread notifications` : 'Notifications'}
-                aria-controls={NOTIFICATION_MENU_ID}
-                aria-expanded={notificationsOpen ? 'true' : 'false'}
-                aria-haspopup="dialog"
-                onClick={() => {
-                  setNotificationsOpen((current) => {
-                    if (!current) loadNotifications();
-                    return !current;
-                  });
-                  closeProfileMenu();
-                }}
-              >
-                <BellIcon />
-                {unreadNotifications.length ? <span className={topbarUi.countBadge}>{unreadNotifications.length}</span> : null}
-              </button>
-              {notificationMenu}
-            </div>
-
-            <button type="button" className="study-icon-button" aria-label="Search lessons and exams" onClick={openSearch}>
-              <SearchIcon />
-            </button>
-
-            <div className={cx(topbarUi.menuWrap, profileVisible && 'is-profile-menu-open')} ref={profileRef}>
-              <button
-                ref={profileButtonRef}
-                type="button"
-                className={cx('study-avatar study-avatar--profile', profileVisible && 'is-profile-avatar-open')}
-                aria-label="Open profile menu"
-                aria-controls={PROFILE_MENU_ID}
-                aria-expanded={profileOpen ? 'true' : 'false'}
-                aria-haspopup="menu"
-                onClick={toggleProfileMenu}
-              >
-                <ProfileAvatar user={user} />
-              </button>
-
-            </div>
-          </div>
-
-          {actions ? <div className={cx('lms-topbar-actions', topbarUi.actionsSlot)}>{actions}</div> : null}
-        </header>
-
-        <div className={topbarUi.mobileCopy}>
-          <div>{title}</div>
-        </div>
+        {studentHeader}
+        {mobileCopy}
       </>
     );
   }

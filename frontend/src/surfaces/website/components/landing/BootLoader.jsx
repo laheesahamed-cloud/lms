@@ -92,8 +92,8 @@ export function BootLoader({ onFinished }) {
             {/* Progress bar */}
             <div className="h-[3px] w-[min(280px,70vw)] overflow-hidden rounded-full bg-white/10">
               <div
-                className="h-full rounded-full transition-[width] duration-150 ease-linear"
-                style={{ width: `${progress}%`, background: 'linear-gradient(90deg, #4aa3f4, #5274f3, #6d35df)' }}
+                className="h-full w-full origin-left rounded-full transition-transform duration-150 ease-linear"
+                style={{ transform: `scaleX(${progress / 100})`, background: 'linear-gradient(90deg, #4aa3f4, #5274f3, #6d35df)' }}
               />
             </div>
             <span className="font-mono text-[10px] tracking-[0.3em] text-white/30">{progress}%</span>

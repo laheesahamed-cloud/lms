@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>xyndrome</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.erpm.medical.lms</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIRequiresFullScreen</key>
+	<false/>
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleDefault</string>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+
+	<!-- API Configuration -->
+	<key>API_BASE_URL</key>
+	<string>https://xyndrome.lk/api</string>
+
+	<!-- App Transport Security -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+	</dict>
+
+	<!-- Privacy strings (required for App Store) -->
+	<key>NSCameraUsageDescription</key>
+	<string>Used to upload payment proof photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used to select payment proof images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Used to save study materials to your photo library.</string>
+
+	<!-- Push notifications background mode -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- URL schemes for deep linking -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.erpm.medical.lms</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>xyndrome</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Minimum iOS version -->
+	<key>MinimumOSVersion</key>
+	<string>17.0</string>
+</dict>
+</plist>

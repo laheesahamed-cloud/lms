@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getAiNote, listAiNotes } from '../../../../shared/api/aiNotes.api.js';
+import { getAiNoteWithFallback, listStudentAiNotesAcrossEngines } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudentLessons } from '../../../../shared/api/lessons.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -264,7 +264,7 @@ function readDeckStatsCache() {
 }
 
 function deckStatsCacheKey(note) {
-  return `${note?.id || 'deck'}:${note?.updatedAt || ''}`;
+  return `${note?.engine || 'gemini'}:${note?.id || 'deck'}:${note?.updatedAt || ''}`;
 }
 
 function getCachedDeckStats(note, cache = readDeckStatsCache()) {
@@ -2006,7 +2006,7 @@ export function StudentFlashcardsPage() {
 
   useEffect(() => {
     Promise.all([
-      listAiNotes(),
+      listStudentAiNotesAcrossEngines(),
       fetchStudentLessons().catch(() => []),
     ])
       .then(([noteRows, lessonRows]) => {
@@ -2064,7 +2064,7 @@ export function StudentFlashcardsPage() {
           }));
 
           try {
-            const fullNote = note.noteData ? note : await getAiNote(note.id);
+            const fullNote = note.noteData ? note : await getAiNoteWithFallback(note.id, { engine: note.engine });
             const cardCount = buildLessonCards(fullNote).length;
             writeDeckStatsCacheEntry(note, cardCount);
             if (cancelled) return;
@@ -2108,7 +2108,7 @@ export function StudentFlashcardsPage() {
     if (!unlockedNotes.length) return [];
     const sampleNotes = unlockedNotes.slice(0, maxNotes);
     const fullNotes = await Promise.all(
-      sampleNotes.map((note) => note.noteData ? Promise.resolve(note) : getAiNote(note.id))
+      sampleNotes.map((note) => note.noteData ? Promise.resolve(note) : getAiNoteWithFallback(note.id, { engine: note.engine }))
     );
     return uniqueCards(fullNotes.flatMap((note) => buildLessonCards(note)));
   }
@@ -2139,7 +2139,7 @@ export function StudentFlashcardsPage() {
     }
 
     try {
-      const fullNote = note.noteData ? note : await getAiNote(note.id);
+      const fullNote = note.noteData ? note : await getAiNoteWithFallback(note.id, { engine: note.engine });
       const cards = selectQueueCards(buildLessonCards(fullNote), 'all', 80);
       if (cards.length === 0) {
         setError('This lesson does not have approved flashcards yet.');

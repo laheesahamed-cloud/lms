@@ -83,7 +83,6 @@ body {
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     contain: paint;
-    will-change: auto;
   }
 
   .lms-sidebar:not(.is-overlay-nav) {
@@ -94,7 +93,6 @@ body {
       opacity 140ms var(--lms-motion-soft) !important;
     backface-visibility: hidden;
     contain: layout paint;
-    will-change: auto;
   }
 
   .lms-sidebar:not(.is-overlay-nav).is-collapsed {
@@ -243,7 +241,6 @@ body {
   ) {
     transition-duration: 1ms !important;
     animation-duration: 1ms !important;
-    will-change: auto !important;
   }
 }
 
@@ -323,7 +320,6 @@ body {
       background-color 160ms ease-out !important;
     backface-visibility: hidden;
     contain: paint;
-    will-change: auto !important;
   }
 
   .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode):not(:has(:is(.lms-exam-page, .practice-review-page, .lms-review-page, .student-notes-page))) .main-content {
@@ -855,10 +851,6 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
     overflow: visible !important;
   }
 
-  :root[data-theme="dark"] .student-app-shell :where(.lms-exam-main-card, .lms-review-question-card) {
-    box-shadow: 0 18px 42px -28px rgba(0, 0, 0, 0.56) !important;
-  }
-
   .student-app-shell :where(
     .lms-exam-sidebar > section,
     .lms-review-sidebar > .lms-review-summary-grid,
@@ -1064,12 +1056,6 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
     overflow: visible !important;
   }
 
-  :root[data-theme="dark"] .student-app-shell .lms-exam-page .lms-exam-main-card,
-  :root[data-theme="dark"] .student-app-shell .practice-review-page .lms-review-question-card,
-  :root[data-theme="dark"] .student-app-shell .lms-review-page .lms-review-question-card {
-    box-shadow: 0 18px 38px -30px rgba(0, 0, 0, 0.72) !important;
-  }
-
   .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
   .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
   .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
@@ -1248,7 +1234,7 @@ body.lms-profile-menu-open .lms-topbar.is-profile-menu-open .lms-topbar-right > 
 body.lms-profile-menu-open > .lms-profile-menu {
   position: fixed !important;
   z-index: 10081 !important;
-  border: 1px solid rgba(86, 112, 150, 0.18) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(247, 250, 255, 0.58)),
     linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(56, 189, 248, 0.10)) !important;
@@ -1301,7 +1287,7 @@ body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-t
 
 :root[data-visual-effects] body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile-menu),
 body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile-menu) {
-  border-color: rgba(86, 112, 150, 0.18) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(247, 250, 255, 0.56)),
     linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(56, 189, 248, 0.08)) !important;
@@ -1328,7 +1314,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
   body.lms-profile-menu-open > .lms-profile-avatar-floating {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
-    will-change: auto !important;
   }
 }
 
@@ -1590,11 +1575,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     padding: 12px !important;
     gap: 11px !important;
     overflow: visible !important;
-  }
-
-  :root[data-theme="dark"] .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page)
-    :where(.lms-exam-main-card, .lms-review-question-card) {
-    box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.68) !important;
   }
 
   .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page)
@@ -1917,11 +1897,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     overflow: visible !important;
   }
 
-  :root[data-theme="dark"] body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-exam-main-card, .lms-review-question-card) {
-    background: var(--surface-card, var(--surface-1, #0f172a)) !important;
-    box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.68) !important;
-  }
-
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-review-options-grid) {
     gap: 8px !important;
     margin-top: 0 !important;
@@ -2071,11 +2046,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     overflow: visible !important;
   }
 
-  :root[data-theme="dark"] body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-exam-main-card, .lms-review-question-card) {
-    background: var(--surface-card, var(--surface-1, #0f172a)) !important;
-    box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.68) !important;
-  }
-
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-review-options-grid) {
     gap: 8px !important;
     margin-top: 0 !important;
@@ -2223,11 +2193,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     padding: 12px !important;
     gap: 11px !important;
     overflow: visible !important;
-  }
-
-  :root[data-theme="dark"] .student-app-shell .lms-quiz-taking-page :where(.lms-exam-main-card, .lms-review-question-card) {
-    background: var(--surface-card, var(--surface-1, #0f172a)) !important;
-    box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.68) !important;
   }
 
   .student-app-shell .lms-quiz-taking-page :where(.lms-review-options-grid) {
@@ -2398,13 +2363,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     overflow: visible !important;
   }
 
-  :root[data-theme="dark"] .student-app-shell .lms-exam-page .lms-exam-main-card,
-  :root[data-theme="dark"] .student-app-shell .practice-review-page .lms-review-question-card,
-  :root[data-theme="dark"] .student-app-shell .lms-review-page .lms-review-question-card {
-    background: var(--surface-card, var(--surface-1, #0f172a)) !important;
-    box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.68) !important;
-  }
-
   .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
   .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
   .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
@@ -2453,11 +2411,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     padding: 12px !important;
   }
 
-  html[data-theme="dark"] body .student-app-shell .lms-exam-page .lms-exam-main-card {
-    background: var(--surface-card, var(--surface-1, #0f172a)) !important;
-    box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.68) !important;
-  }
-
   :root[data-theme] body .student-app-shell.student-app-shell
     .lms-exam-page.lms-exam-page
     .lms-exam-header.lms-exam-header {
@@ -2479,12 +2432,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     padding: 12px !important;
   }
 
-  :root[data-theme="dark"] body .student-app-shell.student-app-shell
-    .lms-exam-page.lms-exam-page
-    .lms-exam-main-card.lms-exam-main-card {
-    background: var(--surface-card, var(--surface-1, #0f172a)) !important;
-    box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.68) !important;
-  }
 }
 
 @media (max-width: 380px) {
@@ -2636,11 +2583,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     background: var(--surface-card, var(--surface-1)) !important;
     box-shadow: 0 14px 30px -28px rgba(15, 23, 42, 0.34) !important;
     padding: 10px !important;
-  }
-
-  :root[data-theme="dark"] body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-exam-sidebar > section, .lms-review-summary-tile, .lms-review-side-nav, .lms-review-explanation-side > section) {
-    background: var(--surface-card, var(--surface-1, #0f172a)) !important;
-    box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.68) !important;
   }
 
   body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-review-bubble-nav, .lms-exam-question-nav) {
@@ -2824,11 +2766,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     padding: 7px 4px !important;
   }
 
-  :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.practice-review-page, .lms-review-page) :where(.lms-review-summary-tile, .lms-review-side-nav, .lms-review-explanation-side > section, .lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card) {
-    background: var(--surface-card, var(--surface-1, #0f172a)) !important;
-    box-shadow: 0 16px 34px -28px rgba(0, 0, 0, 0.68) !important;
-  }
-
   body .student-app-shell.student-app-shell :where(.practice-review-page, .lms-review-page) :where(.lms-review-bubble-nav) {
     display: grid !important;
     grid-template-columns: repeat(var(--lms-quiz-nav-cols, 7), minmax(0, 1fr)) !important;
@@ -2887,26 +2824,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-grid, .lms-review-workspace) {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) !important;
-  }
-
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-sidebar, .lms-review-sidebar) {
-    order: 1 !important;
-  }
-
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-review-summary-grid) {
-    order: 1 !important;
-  }
-
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-practice-progress-card, .lms-review-progress-card) {
-    order: 2 !important;
-  }
-
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-practice-question-key, .lms-review-side-nav:not(.lms-review-progress-card)) {
-    order: 3 !important;
-  }
-
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-main-card, .lms-review-main, .lms-review-main--focus) {
-    order: 4 !important;
   }
 
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.study-hub-shell, .practice-review-shell) {
@@ -2980,10 +2897,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     overflow: visible !important;
   }
 
-  :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-main-card, .lms-review-question-card) {
-    box-shadow: 0 18px 38px -30px rgba(0, 0, 0, 0.72) !important;
-  }
-
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-review-options-grid) {
     gap: 7px !important;
     margin-top: 0 !important;
@@ -2995,10 +2908,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     background: color-mix(in srgb, var(--surface-1, #fbfcff) 88%, var(--surface-2, #f8fafc)) !important;
     box-shadow: none !important;
     padding: 10px 11px !important;
-  }
-
-  :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-answer-card) {
-    background: color-mix(in srgb, var(--surface-1, #0f172a) 88%, #f8fafc 4%) !important;
   }
 
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-reading-question) {
@@ -3539,12 +3448,6 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-assessment-btn--p
     max-width: 100% !important;
   }
 
-  body .student-app-shell.student-app-shell.quiz-focus-mode .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-exam-grid) {
-    grid-template-columns: minmax(210px, 260px) minmax(0, 1fr) !important;
-    max-width: 1180px !important;
-    margin-inline: auto !important;
-  }
-
   body .student-app-shell.student-app-shell.quiz-focus-mode .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-review-workspace:not(.lms-review-workspace--focus)) {
     grid-template-columns: minmax(0, 1fr) !important;
     max-width: 1040px !important;
@@ -3570,14 +3473,14 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-assessment-btn--p
   }
 
   .student-app-shell.quiz-focus-mode :where(.lms-exam-sidebar, .lms-review-sidebar, .lms-review-explanation-side) {
-    order: 2 !important;
+    order: 3 !important;
     position: static !important;
     max-height: none !important;
     overflow: visible !important;
   }
 
   .student-app-shell.quiz-focus-mode :where(.lms-review-explanation-side) {
-    order: 3 !important;
+    order: 2 !important;
   }
 }
 

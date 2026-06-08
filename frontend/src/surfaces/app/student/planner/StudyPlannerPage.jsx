@@ -6,6 +6,7 @@ import {
   deletePlannerTask,
   fetchPlannerAgenda,
   fetchPlannerSuggestions,
+  fetchPlannerTasks,
   readPlannerAgendaCache,
   updatePlannerTask,
 } from '../../../../shared/api/workspace.api.js';
@@ -186,6 +187,100 @@ function normalizeAgenda(data) {
       lessons: Array.isArray(data?.filters?.lessons) ? data.filters.lessons : [],
     },
     summary: data?.summary || { today: 0, overdue: 0, upcoming: 0, completed: 0, total: 0 },
+  };
+}
+
+function normalizePlannerTaskRows(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.tasks)) return data.tasks;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
+
+function plannerStatusForTask(task, todayValue = todayIso()) {
+  const rawStatus = String(task?.status || '').trim().toLowerCase();
+  if (rawStatus === 'done' || rawStatus === 'completed') return 'completed';
+  if (rawStatus === 'in_progress') return 'in_progress';
+  const dueAt = task?.dueDate || task?.dueAt || task?.due_date || task?.due_at || '';
+  const days = daysFromToday(dueAt, todayValue);
+  if (days === null) return 'optional';
+  if (days < 0) return 'overdue';
+  if (days === 0) return 'due_today';
+  return 'upcoming';
+}
+
+function plannerTaskPriorityScore(status, priority) {
+  const statusPriority = status === 'overdue'
+    ? 100
+    : status === 'due_today'
+      ? 88
+      : status === 'upcoming'
+        ? 48
+        : status === 'completed'
+          ? 4
+          : 28;
+  const taskPriorityBoost = priority === 'high' ? 14 : priority === 'medium' ? 6 : 0;
+  return status === 'completed' ? statusPriority : statusPriority + taskPriorityBoost;
+}
+
+function plannerTaskToAgendaItem(task, todayValue = todayIso()) {
+  const sourceId = Number(task?.id || task?.sourceId || task?.source_id || 0);
+  const title = String(task?.title || '').trim();
+  if (!sourceId || !title) return null;
+  const category = normalizeTaskCategory(task?.category);
+  const priority = normalizeTaskPriority(task?.priority);
+  const status = plannerStatusForTask(task, todayValue);
+  const dueAt = task?.dueDate || task?.dueAt || task?.due_date || task?.due_at || '';
+  const done = status === 'completed';
+  return {
+    id: `task-${sourceId}`,
+    source: 'planner_task',
+    sourceId,
+    type: category === 'general' ? 'task' : category,
+    title,
+    course: '',
+    subject: '',
+    topic: '',
+    lesson: '',
+    status,
+    dueAt,
+    completedAt: done ? task?.updatedAt || task?.updated_at || task?.completedAt || task?.completed_at || task?.createdAt || task?.created_at || null : null,
+    progress: done ? 100 : 0,
+    actionUrl: '/planner',
+    actionLabel: done ? 'View task' : 'Mark complete',
+    locked: false,
+    accessMessage: '',
+    priority: plannerTaskPriorityScore(status, priority),
+    meta: {
+      description: String(task?.description || ''),
+      category,
+      priority,
+      estimatedMinutes: Number.isFinite(Number(task?.estimatedMinutes ?? task?.estimated_minutes))
+        ? Number(task?.estimatedMinutes ?? task?.estimated_minutes)
+        : null,
+      createdAt: task?.createdAt || task?.created_at || null,
+      updatedAt: task?.updatedAt || task?.updated_at || null,
+    },
+  };
+}
+
+function mergeAgendaWithPlannerTasks(agenda, taskData, todayValue = todayIso()) {
+  const normalizedAgenda = normalizeAgenda(agenda);
+  const existingTaskIds = new Set(
+    normalizedAgenda.items
+      .filter((item) => item?.source === 'planner_task' && item?.sourceId)
+      .map((item) => Number(item.sourceId))
+  );
+  const fallbackTaskItems = normalizePlannerTaskRows(taskData)
+    .map((task) => plannerTaskToAgendaItem(task, todayValue))
+    .filter(Boolean)
+    .filter((item) => !existingTaskIds.has(Number(item.sourceId)));
+
+  if (!fallbackTaskItems.length) return normalizedAgenda;
+  return {
+    ...normalizedAgenda,
+    items: [...normalizedAgenda.items, ...fallbackTaskItems],
   };
 }
 
@@ -487,7 +582,7 @@ function PlannerRow({ item, onAction, onTaskStatus, onTaskEdit, onTaskDelete, sa
         </div>
         {progress !== null ? (
           <div className="planner-progress" role="progressbar" aria-label={`${progress}% progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
-            <span style={{ width: `${progress}%` }} />
+            <span style={{ width: '100%', transform: `scaleX(${progress / 100})`, transformOrigin: 'left center' }} />
           </div>
         ) : null}
       </div>
@@ -574,8 +669,11 @@ export function StudyPlannerPage() {
     setLoading(readPlannerAgendaCache() === undefined);
     setMessage('');
     try {
-      const agendaData = await fetchPlannerAgenda();
-      setAgenda(normalizeAgenda(agendaData));
+      const [agendaData, taskData] = await Promise.all([
+        fetchPlannerAgenda(),
+        fetchPlannerTasks().catch(() => []),
+      ]);
+      setAgenda(mergeAgendaWithPlannerTasks(agendaData, taskData));
       setLoading(false);
       const [dashboardData, suggestionData] = await Promise.all([
         fetchStudentDashboard().catch(() => null),

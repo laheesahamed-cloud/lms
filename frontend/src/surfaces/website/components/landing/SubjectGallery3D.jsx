@@ -66,10 +66,10 @@ function TiltCard({ s, index }) {
         </div>
         <div className="lpv2-subject-card-track relative z-[1] h-2 overflow-hidden rounded-full bg-white/55 shadow-[inset_0_1px_2px_rgba(17,17,24,0.08)]">
           <motion.span
-            className="block h-full rounded-full shadow-[0_0_18px_rgba(82,116,243,0.4)]"
+            className="block h-full w-full origin-left rounded-full shadow-[0_0_18px_rgba(82,116,243,0.4)]"
             style={{ background: 'linear-gradient(90deg, #22D3EE 0%, #5274F3 48%, #6D35DF 100%)' }}
-            initial={{ width: 0 }}
-            whileInView={{ width: `${s.mastery}%` }}
+            initial={{ scaleX: 0 }}
+            whileInView={{ scaleX: s.mastery / 100 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           />

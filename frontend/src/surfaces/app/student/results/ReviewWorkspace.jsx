@@ -28,6 +28,80 @@ function normalizeTrueFalseValue(value) {
   return null;
 }
 
+function firstNonEmptyValue(values) {
+  for (const value of values) {
+    const text = typeof value === 'string' ? value.trim() : value;
+    if (text !== undefined && text !== null && text !== '') return text;
+  }
+  return '';
+}
+
+function formatExplanationBlocks(text) {
+  return String(text || '')
+    .split(/\r?\n+/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+}
+
+function getQuestionExplanationText(question) {
+  return String(firstNonEmptyValue([
+    question?.explanation,
+    question?.answerExplanation,
+    question?.answer_explanation,
+    question?.reviewExplanation,
+    question?.review_explanation,
+    question?.rationale,
+    question?.explanationText,
+    question?.explanation_text,
+  ]) || '');
+}
+
+function getQuestionRecapPayload(question) {
+  const direct = firstNonEmptyValue([
+    question?.theoryRecap,
+    question?.theory_recap,
+    question?.quickTheoryRecap,
+    question?.quick_theory_recap,
+  ]);
+  if (direct) return direct;
+  if (!question) return null;
+  const flatRecap = {
+    conceptName: question.conceptName || question.concept_name || question.topicName || question.topic_name || '',
+    hierarchy: question.hierarchy || {},
+    etiology: question.etiology,
+    pathophysiology: question.pathophysiology,
+    clinicalFeatures: question.clinicalFeatures || question.clinical_features,
+    investigations: question.investigations,
+    treatment: question.treatment,
+    keyPoints: question.keyPoints || question.key_points,
+    mnemonic: question.mnemonic,
+  };
+  return hasQuickTheoryRecapContent(flatRecap) ? flatRecap : null;
+}
+
+function hasQuestionRecapPayload(question) {
+  if (!question) return false;
+  return Boolean(
+    Object.prototype.hasOwnProperty.call(question, 'theoryRecap') ||
+    Object.prototype.hasOwnProperty.call(question, 'theory_recap') ||
+    Object.prototype.hasOwnProperty.call(question, 'quickTheoryRecap') ||
+    Object.prototype.hasOwnProperty.call(question, 'quick_theory_recap') ||
+    getQuestionRecapPayload(question)
+  );
+}
+
+function getOptionIncorrectReason(option) {
+  return String(firstNonEmptyValue([
+    option?.whyIncorrect,
+    option?.why_incorrect,
+    option?.incorrectExplanation,
+    option?.incorrect_explanation,
+    option?.distractorExplanation,
+    option?.distractor_explanation,
+    option?.reason,
+  ]) || '').trim();
+}
+
 const reviewUi = {
   shell:
     'lms-review-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1199px]:grid-cols-1',
@@ -379,18 +453,19 @@ function ReviewAnswerGrid({ question }) {
 }
 
 function hasReviewExplanation(question) {
-  const hasDatabaseExplanation = String(question.explanation || '').trim();
+  const hasDatabaseExplanation = getQuestionExplanationText(question).trim();
   const isTrueFalse = question?.questionType === 'true_false' || question?.question_type === 'true_false';
   const hasIncorrectReasons = (question.options || []).some(
-    (option) => (isTrueFalse || !isCorrectOption(option)) && String(option.whyIncorrect || '').trim()
+    (option) => (isTrueFalse || !isCorrectOption(option)) && getOptionIncorrectReason(option)
   );
 
   return Boolean(hasDatabaseExplanation || hasIncorrectReasons);
 }
 
 function ReviewStudySupport({ question }) {
-  const recap = normalizeQuickTheoryRecap(question?.theoryRecap);
-  const hasRecap = Boolean(question && Object.prototype.hasOwnProperty.call(question, 'theoryRecap'));
+  const recapPayload = getQuestionRecapPayload(question);
+  const recap = normalizeQuickTheoryRecap(recapPayload);
+  const hasRecap = hasQuestionRecapPayload(question);
   const hasStudyCard = hasQuickTheoryRecapContent(recap);
 
   if (!hasRecap && !hasStudyCard) return null;
@@ -430,20 +505,17 @@ function ReviewStudySupport({ question }) {
 
 function ReviewExplanation({ question }) {
   const isTrueFalse = question?.questionType === 'true_false' || question?.question_type === 'true_false';
-  const explanationBlocks = String(question.explanation || '')
-    .split(/\r?\n+/)
-    .map((block) => block.trim())
-    .filter(Boolean);
+  const explanationBlocks = formatExplanationBlocks(getQuestionExplanationText(question));
   const incorrectReasons = (question.options || [])
     .map((option, index) => ({
       ...option,
       displayLabel: DISPLAY_OPTION_LABELS[index] || option.optionLabel || String(index + 1),
     }))
-    .filter((option) => (isTrueFalse || !isCorrectOption(option)) && String(option.whyIncorrect || '').trim())
+    .filter((option) => (isTrueFalse || !isCorrectOption(option)) && getOptionIncorrectReason(option))
     .map((option) => ({
       label: option.displayLabel,
       text: option.optionText,
-      reason: String(option.whyIncorrect || '').trim(),
+      reason: getOptionIncorrectReason(option),
     }));
   if (explanationBlocks.length === 0 && incorrectReasons.length === 0) return null;
   const explanationTitle = explanationBlocks.length
@@ -671,8 +743,8 @@ export function ReviewWorkspace({
             aria-valuenow={reviewProgressPercent}
           >
             <span
-              className="block h-full rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
-              style={{ width: `${reviewProgressPercent}%` }}
+              className="block h-full w-full origin-left rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
+              style={{ transform: `scaleX(${reviewProgressPercent / 100})` }}
             />
           </div>
           <p className="m-0 text-xs font-semibold leading-relaxed text-ink-soft">

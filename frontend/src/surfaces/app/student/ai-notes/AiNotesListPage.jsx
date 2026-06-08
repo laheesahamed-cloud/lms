@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { listAiNotes, readAiNotesCache } from '../../../../shared/api/aiNotes.api.js';
+import { listStudentAiNotesAcrossEngines, readAiNotesCache } from '../../../../shared/api/aiNotes.api.js';
 import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -301,8 +301,9 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
                       isSaved={bookmarkedIds.has(note.id)}
                       onSave={onToggleBookmark}
                       style={{ '--lesson-row-delay': `${Math.min(index, 8) * 18}ms` }}
-                      onStart={() => navigate(`${routeBase}/${note.id}`, {
+                      onStart={() => navigate(`${routeBase}/${note.id}${note.engine ? `?engine=${encodeURIComponent(note.engine)}` : ''}`, {
                         state: {
+                          engineKey: note.engine || null,
                           lessonId: note.lessonId || null,
                           returnToPath: `${routeBase}${course.label ? `?course=${encodeURIComponent(course.label)}` : ''}`,
                           returnTo: 'list',
@@ -344,7 +345,7 @@ export function AiNotesListPage({
     async function load() {
     try {
       setLoading(readAiNotesCache({ engine: engineKey }) === undefined); setError('');
-      const noteRows = await listAiNotes({ engine: engineKey });
+      const noteRows = await listStudentAiNotesAcrossEngines({ engine: engineKey });
       if (cancelled) return;
       setNotes(noteRows);
       cancelBookmarks = runWhenIdle(async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createQuiz, fetchQuiz, fetchQuizzesMeta, updateQuiz } from '../../../../shared/api/quizzes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -447,7 +447,7 @@ function buildQuestionPreview(text, wordLimit = 4) {
   return `${words.slice(0, wordLimit).join(' ')}...`;
 }
 
-function QuestionListCard({ question, selected, disabled = false, onToggle }) {
+const QuestionListCard = memo(function QuestionListCard({ question, selected, disabled = false, onToggle }) {
   const usageLabel = selected ? 'Used in this assessment' : question.usedInAnyQuiz ? 'Used' : 'Fresh';
   return (
     <article className={cx(qb.questionCard, selected && qb.questionCardSelected)}>
@@ -492,7 +492,7 @@ function QuestionListCard({ question, selected, disabled = false, onToggle }) {
       </button>
     </article>
   );
-}
+});
 
 function buildDuplicateMap(questions) {
   const map = new Map();
@@ -707,8 +707,8 @@ function BulkAddQuestionsPanel({
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-surface-3">
                 <span
-                  className="block h-full rounded-full bg-[var(--brand-gradient-primary)]"
-                  style={{ width: `${aiProgress.total ? Math.round((aiProgress.completed / aiProgress.total) * 100) : 0}%` }}
+                  className="block h-full w-full origin-left rounded-full bg-[var(--brand-gradient-primary)]"
+                  style={{ transform: `scaleX(${aiProgress.total ? Math.round((aiProgress.completed / aiProgress.total) * 100) / 100 : 0})` }}
                 />
               </div>
               <div className="grid max-h-44 gap-2 overflow-y-auto">
@@ -1405,6 +1405,14 @@ export function QuizBuilderPage() {
   }, [meta.categories]);
 
   const bulkDefaults = bulkGlobalDefaults;
+  const selectedQuestionIdSet = useMemo(
+    () => new Set(form.questionIds),
+    [form.questionIds]
+  );
+  const questionById = useMemo(
+    () => new Map(meta.questions.map((question) => [question.id, question])),
+    [meta.questions]
+  );
   const visibleQuestionIdSet = useMemo(
     () => (visibleQuestionIds ? new Set(visibleQuestionIds) : null),
     [visibleQuestionIds]
@@ -1417,7 +1425,7 @@ export function QuizBuilderPage() {
     return meta.questions.filter((question) => {
       if (visibleQuestionIdSet && !visibleQuestionIdSet.has(question.id)) return false;
 
-      const selectedInCurrentQuiz = form.questionIds.includes(question.id);
+      const selectedInCurrentQuiz = selectedQuestionIdSet.has(question.id);
       const usedForUsageFilter = question.usedInAnyQuiz || selectedInCurrentQuiz;
 
       if (filters.courseId && String(question.courseId) !== String(filters.courseId)) return false;
@@ -1452,12 +1460,11 @@ export function QuizBuilderPage() {
 
       return true;
     });
-  }, [filters, form.questionIds, meta.questions, visibleQuestionIdSet]);
+  }, [filters, meta.questions, selectedQuestionIdSet, visibleQuestionIdSet]);
 
   const selectedQuestions = useMemo(() => {
-    const byId = new Map(meta.questions.map((question) => [question.id, question]));
-    return form.questionIds.map((id) => byId.get(id)).filter(Boolean);
-  }, [form.questionIds, meta.questions]);
+    return form.questionIds.map((id) => questionById.get(id)).filter(Boolean);
+  }, [form.questionIds, questionById]);
 
   const blueprintSections = useMemo(
     () => normalizeBlueprint(form.blueprint).sections,
@@ -1972,14 +1979,6 @@ export function QuizBuilderPage() {
     }
   }
 
-  function addQuestion(questionId) {
-    setForm((current) => (
-      current.questionIds.includes(questionId)
-        ? current
-        : { ...current, questionIds: [...current.questionIds, questionId] }
-    ));
-  }
-
   function removeQuestion(questionId) {
     setForm((current) => ({
       ...current,
@@ -1992,13 +1991,13 @@ export function QuizBuilderPage() {
     removeQuestion(questionId);
   }
 
-  function toggleQuestion(questionId) {
-    if (form.questionIds.includes(questionId)) {
-      removeQuestion(questionId);
-      return;
-    }
-    addQuestion(questionId);
-  }
+  const toggleQuestion = useCallback((questionId) => {
+    setForm((current) => (
+      current.questionIds.includes(questionId)
+        ? { ...current, questionIds: current.questionIds.filter((id) => id !== questionId) }
+        : { ...current, questionIds: [...current.questionIds, questionId] }
+    ));
+  }, []);
 
   function addAllFilteredQuestions() {
     setForm((current) => ({
@@ -3324,7 +3323,7 @@ export function QuizBuilderPage() {
                         <QuestionListCard
                           key={question.id}
                           question={question}
-                          selected={form.questionIds.includes(question.id)}
+                          selected={selectedQuestionIdSet.has(question.id)}
                           disabled={isDynamicQuiz}
                           onToggle={toggleQuestion}
                         />

@@ -117,7 +117,6 @@
       padding-left var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
       transform var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
     contain: paint;
-    will-change: auto;
   }
 
   .lms-sidebar:not(.is-overlay-nav) {
@@ -133,7 +132,6 @@
     backface-visibility: hidden;
     contain: layout paint;
     transform: translate3d(0, 0, 0);
-    will-change: auto;
   }
 
   .lms-sidebar:not(.is-overlay-nav).is-collapsed {
@@ -145,11 +143,11 @@
   }
 
   .app-shell.sidebar-motion-active:not(.mobile-top-nav-mode) .main-content {
-    will-change: margin-left, width, padding-left, transform;
+    will-change: transform;
   }
 
   .lms-sidebar:not(.is-overlay-nav).is-animating {
-    will-change: width, transform, opacity;
+    will-change: transform, opacity;
   }
 }
 
@@ -163,7 +161,6 @@
     transition-timing-function:
       var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
       var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
-    will-change: auto;
   }
 
   .app-shell.sidebar-motion-active :where(.app-drawer, .lms-sidebar.is-overlay-nav) {
@@ -177,6 +174,5 @@
   .lms-sidebar {
     transition: none !important;
     animation: none !important;
-    will-change: auto !important;
   }
 }

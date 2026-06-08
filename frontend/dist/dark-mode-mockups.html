@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dark Mode Mockups — Xyndrome LMS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; background: #060610; color: #fff; min-height: 100vh; }
+
+  /* ── PICKER BAR ── */
+  .picker { display: flex; gap: 12px; padding: 28px 32px 0; align-items: center; }
+  .picker-label { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #5a6280; margin-right: 4px; }
+  .pick-btn {
+    padding: 9px 22px; border-radius: 100px; border: 1.5px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.04); color: rgba(255,255,255,.5);
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s;
+    font-family: inherit; letter-spacing: -.01em;
+  }
+  .pick-btn:hover { color: rgba(255,255,255,.85); border-color: rgba(255,255,255,.22); }
+  .pick-btn.active { color: #fff; border-color: transparent; }
+  #btn-a.active { background: linear-gradient(135deg, #3b5aff 0%, #7c3aed 100%); box-shadow: 0 4px 24px rgba(59,90,255,.38); }
+  #btn-b.active { background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%); box-shadow: 0 4px 24px rgba(14,165,233,.36); }
+  #btn-c.active { background: linear-gradient(135deg, #a855f7 0%, #ec4899 60%, #f97316 100%); box-shadow: 0 4px 24px rgba(168,85,247,.36); }
+
+  .subtitle { font-size: 11.5px; color: #3d4568; margin-left: auto; letter-spacing: -.01em; }
+
+  /* ── STAGE ── */
+  .stage { position: relative; padding: 28px 32px 48px; overflow: hidden; }
+  .stage::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    transition: background .6s ease;
+  }
+
+  /* theme A — Indigo Void */
+  .stage[data-theme="a"]::before {
+    background:
+      radial-gradient(ellipse 680px 480px at 15% 8%, rgba(59,90,255,.055) 0%, transparent 70%),
+      radial-gradient(ellipse 520px 360px at 88% 18%, rgba(124,58,237,.05) 0%, transparent 65%),
+      radial-gradient(ellipse 400px 300px at 50% 90%, rgba(79,70,229,.042) 0%, transparent 60%);
+  }
+
+  /* theme B — Arctic Cyan */
+  .stage[data-theme="b"]::before {
+    background:
+      radial-gradient(ellipse 700px 500px at 12% 6%, rgba(14,165,233,.052) 0%, transparent 70%),
+      radial-gradient(ellipse 480px 340px at 85% 16%, rgba(6,182,212,.048) 0%, transparent 62%),
+      radial-gradient(ellipse 380px 280px at 55% 92%, rgba(99,102,241,.038) 0%, transparent 58%);
+  }
+
+  /* theme C — Nebula */
+  .stage[data-theme="c"]::before {
+    background:
+      radial-gradient(ellipse 640px 440px at 10% 5%, rgba(168,85,247,.052) 0%, transparent 68%),
+      radial-gradient(ellipse 520px 380px at 90% 20%, rgba(236,72,153,.042) 0%, transparent 65%),
+      radial-gradient(ellipse 360px 260px at 48% 88%, rgba(167,139,250,.04) 0%, transparent 55%);
+  }
+
+  /* ── THEME TOKEN SETS ── */
+  [data-theme="a"] {
+    --card-bg: rgba(12,14,30,.68);
+    --card-border: rgba(130,150,255,.09);
+    --card-border-top: rgba(180,195,255,.13);
+    --card-glow: rgba(59,90,255,.12);
+    --chip-bg: rgba(59,90,255,.12);
+    --chip-color: #8fa5ff;
+    --accent: #3b5aff;
+    --accent2: #7c3aed;
+    --streak-glow: rgba(59,90,255,.22);
+    --tag-ok: rgba(34,197,94,.14);
+    --tag-ok-c: #4ade80;
+    --tag-warn: rgba(234,179,8,.12);
+    --tag-warn-c: #fbbf24;
+    --bar1: #3b5aff; --bar2: #5b7aff; --bar3: #8fa5ff;
+    --progress: #3b5aff;
+    --avatar-bg: rgba(59,90,255,.18);
+    --ink: #eef2ff;
+    --ink2: #8893b4;
+    --ink3: #4e5b7a;
+  }
+  [data-theme="b"] {
+    --card-bg: rgba(6,14,28,.72);
+    --card-border: rgba(100,220,255,.08);
+    --card-border-top: rgba(150,240,255,.12);
+    --card-glow: rgba(14,165,233,.11);
+    --chip-bg: rgba(6,182,212,.12);
+    --chip-color: #67e8f9;
+    --accent: #0ea5e9;
+    --accent2: #6366f1;
+    --streak-glow: rgba(6,182,212,.22);
+    --tag-ok: rgba(6,182,212,.14);
+    --tag-ok-c: #22d3ee;
+    --tag-warn: rgba(234,179,8,.12);
+    --tag-warn-c: #fbbf24;
+    --bar1: #0ea5e9; --bar2: #38bdf8; --bar3: #7dd3fc;
+    --progress: #0ea5e9;
+    --avatar-bg: rgba(14,165,233,.18);
+    --ink: #e0f8ff;
+    --ink2: #7fb8d4;
+    --ink3: #3a6178;
+  }
+  [data-theme="c"] {
+    --card-bg: rgba(14,8,26,.70);
+    --card-border: rgba(200,130,255,.08);
+    --card-border-top: rgba(220,170,255,.11);
+    --card-glow: rgba(168,85,247,.12);
+    --chip-bg: rgba(168,85,247,.14);
+    --chip-color: #d8b4fe;
+    --accent: #a855f7;
+    --accent2: #ec4899;
+    --streak-glow: rgba(168,85,247,.22);
+    --tag-ok: rgba(34,197,94,.14);
+    --tag-ok-c: #4ade80;
+    --tag-warn: rgba(236,72,153,.14);
+    --tag-warn-c: #f472b6;
+    --bar1: #a855f7; --bar2: #c084fc; --bar3: #e879f9;
+    --progress: #a855f7;
+    --avatar-bg: rgba(168,85,247,.18);
+    --ink: #f5eeff;
+    --ink2: #a88ec0;
+    --ink3: #5e4a7a;
+  }
+
+  /* ── GRID ── */
+  .dashboard { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto auto; gap: 14px; position: relative; z-index: 1; max-width: 1060px; margin: 0 auto; }
+
+  /* ── BASE CARD ── */
+  .card {
+    border-radius: 20px;
+    border: 1px solid var(--card-border);
+    border-top-color: var(--card-border-top);
+    background: var(--card-bg);
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    box-shadow: 0 1px 0 var(--card-border-top) inset, 0 24px 56px -24px rgba(0,0,0,.72), 0 0 0 0 var(--card-glow);
+    padding: 20px 22px;
+    transition: box-shadow .3s ease, transform .25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(145deg, rgba(255,255,255,.028) 0%, transparent 55%);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 1px 0 var(--card-border-top) inset, 0 32px 64px -24px rgba(0,0,0,.82), 0 0 42px -14px var(--card-glow);
+  }
+
+  /* ── HERO / CONTINUE CARD (full width) ── */
+  .card-hero { grid-column: 1 / -1; padding: 24px 26px; }
+  .hero-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .hero-left { flex: 1; min-width: 0; }
+  .hero-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--chip-color); opacity: .8; margin-bottom: 6px; }
+  .hero-title { font-size: 22px; font-weight: 800; color: var(--ink); line-height: 1.2; letter-spacing: -.03em; margin-bottom: 8px; }
+  .hero-sub { font-size: 13px; color: var(--ink2); line-height: 1.5; max-width: 340px; }
+  .hero-cta {
+    display: inline-flex; align-items: center; gap: 7px;
+    margin-top: 16px; padding: 11px 22px;
+    border-radius: 100px;
+    background: var(--accent);
+    color: #fff; font-size: 13.5px; font-weight: 700;
+    box-shadow: 0 8px 28px -8px var(--card-glow);
+    letter-spacing: -.01em; white-space: nowrap;
+  }
+  .hero-progress-wrap { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .hero-ring { position: relative; width: 82px; height: 82px; }
+  .hero-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .hero-ring-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+  .hero-ring-pct { font-size: 22px; font-weight: 900; color: var(--ink); letter-spacing: -.04em; }
+  .hero-ring-sub { font-size: 9.5px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: .06em; margin-top: -1px; }
+
+  /* ── STAT CARD ── */
+  .card-stat {}
+  .stat-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); margin-bottom: 10px; }
+  .stat-value { font-size: 36px; font-weight: 950; color: var(--ink); letter-spacing: -.05em; line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .stat-sub { font-size: 12px; color: var(--ink2); }
+  .stat-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 700; margin-top: 10px; }
+  .chip-ok { background: var(--tag-ok); color: var(--tag-ok-c); }
+  .chip-warn { background: var(--tag-warn); color: var(--tag-warn-c); }
+
+  /* ── STREAK CARD ── */
+  .card-streak { background: var(--card-bg); }
+  .streak-top { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .streak-icon { width: 42px; height: 42px; border-radius: 14px; background: var(--chip-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .streak-icon svg { width: 22px; height: 22px; }
+  .streak-count { font-size: 32px; font-weight: 950; color: var(--ink); letter-spacing: -.05em; line-height: 1; }
+  .streak-label { font-size: 12px; color: var(--ink2); margin-top: 1px; }
+  .heatmap { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3.5px; }
+  .hm-cell { aspect-ratio: 1; border-radius: 3px; background: rgba(255,255,255,.055); }
+  .hm-cell.l1 { background: var(--chip-bg); }
+  .hm-cell.l2 { background: color-mix(in srgb, var(--accent) 38%, transparent); }
+  .hm-cell.l3 { background: color-mix(in srgb, var(--accent) 65%, transparent); }
+  .hm-cell.l4 { background: var(--accent); }
+
+  /* ── PLAN CARD ── */
+  .card-plan { grid-column: 1 / span 2; }
+  .plan-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.046); }
+  .plan-row:last-child { border-bottom: none; }
+  .plan-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .plan-text { flex: 1; min-width: 0; }
+  .plan-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .plan-sub { font-size: 11.5px; color: var(--ink2); margin-top: 1px; }
+  .plan-bar-wrap { width: 60px; flex-shrink: 0; }
+  .plan-bar-bg { height: 4px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .plan-bar-fill { height: 100%; border-radius: 99px; background: var(--progress); transition: width .4s ease; }
+
+  /* ── ANALYTICS CARD ── */
+  .card-analytics { grid-row: span 1; }
+  .analytics-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); margin-bottom: 14px; }
+  .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .analytics-cell { background: rgba(255,255,255,.038); border-radius: 13px; padding: 12px 13px; border: 1px solid rgba(255,255,255,.055); }
+  .analytics-val { font-size: 22px; font-weight: 950; color: var(--ink); letter-spacing: -.04em; }
+  .analytics-key { font-size: 10.5px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: .07em; margin-top: 2px; }
+
+  /* ── SCORE CHART (mini SVG) ── */
+  .chart-wrap { margin-top: 14px; }
+  .chart-svg { width: 100%; height: 48px; overflow: visible; }
+
+  /* ── BAR CHART CARD ── */
+  .card-bar { grid-column: 1 / span 2; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 64px; margin-top: 14px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bar-fill { width: 100%; border-radius: 5px 5px 0 0; min-height: 4px; transition: height .4s ease; }
+  .bar-day { font-size: 9.5px; font-weight: 700; color: var(--ink3); text-transform: uppercase; }
+
+  /* ── SECTION LABEL ── */
+  .section-label { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .section-label span { flex: 1; }
+
+  /* ── OVERLAY LEGEND ── */
+  .legend {
+    display: flex; align-items: center; gap: 28px; justify-content: center;
+    padding: 16px 32px 0; position: relative; z-index: 1;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4e5b7a; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── THEME NAME BADGE ── */
+  .theme-badge {
+    position: absolute; top: 20px; right: 20px; z-index: 10;
+    padding: 5px 14px; border-radius: 100px;
+    font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  }
+  [data-theme="a"] .theme-badge { background: rgba(59,90,255,.18); color: #8fa5ff; border: 1px solid rgba(59,90,255,.22); }
+  [data-theme="b"] .theme-badge { background: rgba(14,165,233,.16); color: #67e8f9; border: 1px solid rgba(6,182,212,.2); }
+  [data-theme="c"] .theme-badge { background: rgba(168,85,247,.16); color: #d8b4fe; border: 1px solid rgba(168,85,247,.22); }
+
+  /* ── CARD HEADER ── */
+  .card-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .card-hd-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
+  .card-hd-badge { font-size: 11px; font-weight: 700; color: var(--chip-color); background: var(--chip-bg); padding: 3px 9px; border-radius: 100px; }
+
+  /* transition */
+  .stage * { transition-property: background, border-color, box-shadow, color; transition-duration: .4s; transition-timing-function: ease; }
+  .stage { transition: all .5s ease; }
+</style>
+</head>
+<body>
+
+<!-- PICKER -->
+<div class="picker">
+  <span class="picker-label">Dark Mode</span>
+  <button class="pick-btn active" id="btn-a" onclick="setTheme('a')">A — Indigo Void</button>
+  <button class="pick-btn" id="btn-b" onclick="setTheme('b')">B — Arctic Cyan</button>
+  <button class="pick-btn" id="btn-c" onclick="setTheme('c')">C — Nebula Drift</button>
+  <span class="subtitle">Click to switch • All at ~4–6% opacity overlays</span>
+</div>
+
+<!-- STAGE -->
+<div class="stage" id="stage" data-theme="a">
+  <div class="theme-badge" id="theme-badge">A — Indigo Void</div>
+
+  <div class="dashboard">
+
+    <!-- HERO -->
+    <div class="card card-hero">
+      <div class="hero-inner">
+        <div class="hero-left">
+          <div class="hero-eyebrow">Continue Learning</div>
+          <div class="hero-title">Cardiovascular System<br>Anatomy & Physiology</div>
+          <div class="hero-sub">Module 4 of 9 · Cardiac output, heart sounds, and ECG interpretation</div>
+          <div class="hero-cta">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5l7 4.5-7 4.5V3.5z"/></svg>
+            Resume Session
+          </div>
+        </div>
+        <div class="hero-progress-wrap">
+          <div class="hero-ring">
+            <svg width="82" height="82" viewBox="0 0 82 82">
+              <circle cx="41" cy="41" r="34" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="6"/>
+              <circle id="ring-arc" cx="41" cy="41" r="34" fill="none" stroke-width="6"
+                stroke-dasharray="213.6" stroke-dashoffset="64.1" stroke-linecap="round"/>
+            </svg>
+            <div class="hero-ring-label">
+              <div class="hero-ring-pct">70%</div>
+              <div class="hero-ring-sub">done</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAT: SCORE -->
+    <div class="card card-stat">
+      <div class="card-hd">
+        <div class="card-hd-title">Avg Score</div>
+        <div class="card-hd-badge">↑ +4%</div>
+      </div>
+      <div class="stat-value">84<span style="font-size:.52em;opacity:.5">%</span></div>
+      <div class="stat-sub">Last 7 attempts</div>
+      <div class="chart-wrap">
+        <svg class="chart-svg" viewBox="0 0 100 48" preserveAspectRatio="none">
+          <path d="M0 38H100" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+          <path d="M0 24H100" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+          <path d="M0 10H100" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+          <polyline class="chart-line" points="0,36 16,30 32,32 48,18 64,20 80,10 100,14"
+            fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+          <polyline class="chart-fill-base" points="0,36 16,30 32,32 48,18 64,20 80,10 100,14 100,48 0,48"
+            stroke="none"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- STAT: STREAK -->
+    <div class="card card-stat">
+      <div class="card-hd">
+        <div class="card-hd-title">Study Streak</div>
+        <div class="card-hd-badge">🔥 On fire</div>
+      </div>
+      <div class="stat-value">12<span style="font-size:.4em;font-weight:700;opacity:.6"> days</span></div>
+      <div class="stat-sub">Personal best: 21 days</div>
+      <div class="stat-chip chip-ok" style="margin-top:12px">✓ Goal reached today</div>
+    </div>
+
+    <!-- STAT: EXAMS -->
+    <div class="card card-stat">
+      <div class="card-hd">
+        <div class="card-hd-title">Next Exam</div>
+        <div class="card-hd-badge chip-warn" style="background:var(--tag-warn);color:var(--tag-warn-c)">3 days left</div>
+      </div>
+      <div class="stat-value" style="font-size:28px;padding-top:4px">USMLE<br><span style="font-size:.7em;opacity:.7">Step 1</span></div>
+      <div class="stat-sub" style="margin-top:8px">Mock exam · Fri 9am</div>
+    </div>
+
+    <!-- PLAN CARD -->
+    <div class="card card-plan">
+      <div class="card-hd">
+        <div class="card-hd-title">Study Plan</div>
+        <div class="card-hd-badge">Week 14</div>
+      </div>
+      <div class="plan-row">
+        <div class="plan-dot" style="background: var(--bar1)"></div>
+        <div class="plan-text">
+          <div class="plan-name">Cardiology Deep Dive</div>
+          <div class="plan-sub">12 / 18 topics · 3h left</div>
+        </div>
+        <div class="plan-bar-wrap">
+          <div class="plan-bar-bg"><div class="plan-bar-fill" style="width:67%"></div></div>
+        </div>
+      </div>
+      <div class="plan-row">
+        <div class="plan-dot" style="background: var(--bar2)"></div>
+        <div class="plan-text">
+          <div class="plan-name">Pharmacology MCQs</div>
+          <div class="plan-sub">240 / 480 questions</div>
+        </div>
+        <div class="plan-bar-wrap">
+          <div class="plan-bar-bg"><div class="plan-bar-fill" style="width:50%; background: var(--bar2)"></div></div>
+        </div>
+      </div>
+      <div class="plan-row">
+        <div class="plan-dot" style="background: var(--bar3)"></div>
+        <div class="plan-text">
+          <div class="plan-name">Pathology Notes</div>
+          <div class="plan-sub">Review AI canvas · 1.5h</div>
+        </div>
+        <div class="plan-bar-wrap">
+          <div class="plan-bar-bg"><div class="plan-bar-fill" style="width:24%; background: var(--bar3)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS CARD -->
+    <div class="card card-analytics">
+      <div class="card-hd">
+        <div class="card-hd-title">Performance</div>
+      </div>
+      <div class="analytics-grid">
+        <div class="analytics-cell">
+          <div class="analytics-val">1,240</div>
+          <div class="analytics-key">Qs Done</div>
+        </div>
+        <div class="analytics-cell">
+          <div class="analytics-val">84%</div>
+          <div class="analytics-key">Accuracy</div>
+        </div>
+        <div class="analytics-cell">
+          <div class="analytics-val">42h</div>
+          <div class="analytics-key">Study Time</div>
+        </div>
+        <div class="analytics-cell">
+          <div class="analytics-val">Top 8%</div>
+          <div class="analytics-key">Rank</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BAR CHART CARD -->
+    <div class="card card-bar">
+      <div class="card-hd">
+        <div class="card-hd-title">Daily Questions</div>
+        <div class="card-hd-badge">This week</div>
+      </div>
+      <div class="bar-chart">
+        <div class="bar-col">
+          <div class="bar-fill" style="height:32px;background:var(--bar1);opacity:.6"></div>
+          <div class="bar-day">M</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-fill" style="height:52px;background:var(--bar1);opacity:.75"></div>
+          <div class="bar-day">T</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-fill" style="height:28px;background:var(--bar1);opacity:.55"></div>
+          <div class="bar-day">W</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-fill" style="height:60px;background:var(--bar1)"></div>
+          <div class="bar-day">T</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-fill" style="height:44px;background:var(--bar2)"></div>
+          <div class="bar-day">F</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-fill" style="height:20px;background:var(--bar3);opacity:.6"></div>
+          <div class="bar-day">S</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-fill" style="height:10px;background:rgba(255,255,255,.1)"></div>
+          <div class="bar-day">S</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEATMAP CARD -->
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-hd-title">Activity · 3mo</div>
+      </div>
+      <div class="heatmap">
+        <!-- Row 1 (13 cells) -->
+        <div class="hm-cell l2"></div><div class="hm-cell l3"></div><div class="hm-cell l1"></div><div class="hm-cell l4"></div><div class="hm-cell l2"></div><div class="hm-cell"></div><div class="hm-cell l3"></div><div class="hm-cell l2"></div><div class="hm-cell l4"></div><div class="hm-cell l1"></div><div class="hm-cell l3"></div><div class="hm-cell l2"></div><div class="hm-cell l4"></div>
+        <!-- Row 2 -->
+        <div class="hm-cell l1"></div><div class="hm-cell l2"></div><div class="hm-cell l4"></div><div class="hm-cell l3"></div><div class="hm-cell l1"></div><div class="hm-cell l2"></div><div class="hm-cell"></div><div class="hm-cell l3"></div><div class="hm-cell l2"></div><div class="hm-cell l4"></div><div class="hm-cell l1"></div><div class="hm-cell"></div><div class="hm-cell l3"></div>
+        <!-- Row 3 -->
+        <div class="hm-cell l3"></div><div class="hm-cell"></div><div class="hm-cell l2"></div><div class="hm-cell l1"></div><div class="hm-cell l3"></div><div class="hm-cell l4"></div><div class="hm-cell l2"></div><div class="hm-cell l1"></div><div class="hm-cell l3"></div><div class="hm-cell"></div><div class="hm-cell l2"></div><div class="hm-cell l4"></div><div class="hm-cell l1"></div>
+        <!-- Row 4 -->
+        <div class="hm-cell l4"></div><div class="hm-cell l3"></div><div class="hm-cell l1"></div><div class="hm-cell l2"></div><div class="hm-cell l4"></div><div class="hm-cell l1"></div><div class="hm-cell l3"></div><div class="hm-cell"></div><div class="hm-cell l1"></div><div class="hm-cell l2"></div><div class="hm-cell l4"></div><div class="hm-cell l3"></div><div class="hm-cell l2"></div>
+        <!-- Row 5 -->
+        <div class="hm-cell l1"></div><div class="hm-cell l4"></div><div class="hm-cell l3"></div><div class="hm-cell"></div><div class="hm-cell l2"></div><div class="hm-cell l3"></div><div class="hm-cell l4"></div><div class="hm-cell l2"></div><div class="hm-cell"></div><div class="hm-cell l3"></div><div class="hm-cell l1"></div><div class="hm-cell l4"></div><div class="hm-cell l2"></div>
+        <!-- Row 6 -->
+        <div class="hm-cell l2"></div><div class="hm-cell l1"></div><div class="hm-cell"></div><div class="hm-cell l3"></div><div class="hm-cell l1"></div><div class="hm-cell l2"></div><div class="hm-cell l1"></div><div class="hm-cell l4"></div><div class="hm-cell l2"></div><div class="hm-cell l1"></div><div class="hm-cell l3"></div><div class="hm-cell l1"></div><div class="hm-cell l4"></div>
+        <!-- Row 7 -->
+        <div class="hm-cell l3"></div><div class="hm-cell l2"></div><div class="hm-cell l4"></div><div class="hm-cell l1"></div><div class="hm-cell l3"></div><div class="hm-cell"></div><div class="hm-cell l2"></div><div class="hm-cell l3"></div><div class="hm-cell l4"></div><div class="hm-cell l2"></div><div class="hm-cell"></div><div class="hm-cell l3"></div><div class="hm-cell l4"></div>
+      </div>
+    </div>
+
+  </div><!-- /dashboard -->
+</div><!-- /stage -->
+
+<!-- THEME DETAIL LEGEND -->
+<div id="legend-row" style="padding: 24px 32px 32px; max-width: 1060px; margin: 0 auto;">
+  <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 4px;">
+
+    <div id="leg-a" class="leg-card" style="border-radius:16px; padding: 18px 20px; border: 1.5px solid rgba(59,90,255,.18); background: rgba(12,14,30,.5);">
+      <div style="font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#8fa5ff; margin-bottom:8px;">A — Indigo Void</div>
+      <div style="font-size:12.5px; color:#6272a4; line-height:1.6;">
+        Deep cosmic void. <strong style="color:#8893b4">Indigo + violet</strong> orbs at 5–6% opacity, top-left and top-right corners. Coldest, most focused feel — clinical precision. Cards are very near-black with a hairline indigo edge highlight.<br><br>
+        <span style="color:#3d4e75;">Best for: focus sessions, exam mode, night studying.</span>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+        <span style="padding:3px 10px; border-radius:99px; background:rgba(59,90,255,.14); color:#8fa5ff; font-size:11px; font-weight:700;">#3B5AFF indigo</span>
+        <span style="padding:3px 10px; border-radius:99px; background:rgba(124,58,237,.12); color:#b48dff; font-size:11px; font-weight:700;">#7C3AED violet</span>
+        <span style="padding:3px 10px; border-radius:99px; background:rgba(79,70,229,.1); color:#a5b0ff; font-size:11px; font-weight:700;">#4F46E5 bottom</span>
+      </div>
+    </div>
+
+    <div id="leg-b" class="leg-card" style="border-radius:16px; padding: 18px 20px; border: 1.5px solid rgba(14,165,233,.16); background: rgba(6,14,28,.5);">
+      <div style="font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#67e8f9; margin-bottom:8px;">B — Arctic Cyan</div>
+      <div style="font-size:12.5px; color:#4a7a8a; line-height:1.6;">
+        Clean polar atmosphere. <strong style="color:#6ba8b8">Cyan + sky blue</strong> halos at 4–5% opacity — like winter starlight. Cards have an icy top-edge shimmer. Feels the most native-iOS, clinical-white-space coded.<br><br>
+        <span style="color:#2d5465;">Best for: default day-to-day use, reading, quiz sessions.</span>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+        <span style="padding:3px 10px; border-radius:99px; background:rgba(14,165,233,.14); color:#67e8f9; font-size:11px; font-weight:700;">#0EA5E9 sky</span>
+        <span style="padding:3px 10px; border-radius:99px; background:rgba(6,182,212,.12); color:#22d3ee; font-size:11px; font-weight:700;">#06B6D4 cyan</span>
+        <span style="padding:3px 10px; border-radius:99px; background:rgba(99,102,241,.1); color:#a5b4fc; font-size:11px; font-weight:700;">#6366F1 base</span>
+      </div>
+    </div>
+
+    <div id="leg-c" class="leg-card" style="border-radius:16px; padding: 18px 20px; border: 1.5px solid rgba(168,85,247,.16); background: rgba(14,8,26,.5);">
+      <div style="font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#d8b4fe; margin-bottom:8px;">C — Nebula Drift</div>
+      <div style="font-size:12.5px; color:#6a4a80; line-height:1.6;">
+        Warm galaxy. <strong style="color:#9a78b0">Purple + fuchsia</strong> nebula clouds at 4–5% opacity. The warmest dark mode — feels alive. Cards have a violet inner haze. Most editorial and engaging.<br><br>
+        <span style="color:#4a2e62;">Best for: dashboard overview, motivational displays, streaks.</span>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+        <span style="padding:3px 10px; border-radius:99px; background:rgba(168,85,247,.14); color:#d8b4fe; font-size:11px; font-weight:700;">#A855F7 purple</span>
+        <span style="padding:3px 10px; border-radius:99px; background:rgba(236,72,153,.12); color:#f9a8d4; font-size:11px; font-weight:700;">#EC4899 fuchsia</span>
+        <span style="padding:3px 10px; border-radius:99px; background:rgba(167,139,250,.1); color:#c4b5fd; font-size:11px; font-weight:700;">#A78BFA lavender</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // CSS vars that need dynamic injection per theme (ring color, chart line)
+  const themes = {
+    a: {
+      label: 'A — Indigo Void',
+      ring: '#3b5aff',
+      line: '#3b5aff',
+      fill: 'rgba(59,90,255,.1)',
+    },
+    b: {
+      label: 'B — Arctic Cyan',
+      ring: '#0ea5e9',
+      line: '#0ea5e9',
+      fill: 'rgba(14,165,233,.1)',
+    },
+    c: {
+      label: 'C — Nebula Drift',
+      ring: '#a855f7',
+      line: '#a855f7',
+      fill: 'rgba(168,85,247,.1)',
+    },
+  };
+
+  function setTheme(t) {
+    const stage = document.getElementById('stage');
+    stage.setAttribute('data-theme', t);
+
+    // buttons
+    ['a','b','c'].forEach(x => {
+      document.getElementById('btn-'+x).classList.toggle('active', x === t);
+    });
+
+    const th = themes[t];
+    document.getElementById('theme-badge').textContent = th.label;
+
+    // ring gradient
+    document.getElementById('ring-arc').setAttribute('stroke', th.ring);
+
+    // chart line + fill
+    document.querySelectorAll('.chart-line').forEach(el => el.setAttribute('stroke', th.line));
+    document.querySelectorAll('.chart-fill-base').forEach(el => el.setAttribute('fill', th.fill));
+  }
+
+  // init
+  setTheme('a');
+</script>
+</body>
+</html>

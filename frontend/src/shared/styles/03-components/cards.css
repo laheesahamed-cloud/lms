@@ -24,13 +24,9 @@
 
 :root[data-theme='dark'] {
   --lms-global-card-bg:
-    linear-gradient(
-      180deg,
-      rgba(14, 14, 20, 0.97) 0%,
-      rgba(10, 10, 15, 0.98) 58%,
-      rgba(7, 7, 11, 0.99) 100%
-    );
-  --lms-global-card-border: rgba(200, 210, 230, 0.10);
+    linear-gradient(145deg, rgba(200,210,220,.075) 0%, rgba(180,195,210,.038) 50%, rgba(160,175,190,.016) 100%),
+    rgba(28, 30, 38, 0.86);
+  --lms-global-card-border: rgba(180, 190, 205, 0.11);
   --lms-global-card-shadow: var(--ds-card-shadow-raised);
   --lms-app-card-bg: var(--lms-global-card-bg);
   --lms-app-list-card-bg: var(--lms-global-card-bg);
@@ -39,6 +35,55 @@
   --lms-app-list-card-shadow: var(--lms-global-card-shadow);
   --lms-app-card-title: rgba(255, 255, 255, 0.94);
   --lms-app-card-muted: rgba(226, 232, 240, 0.68);
+}
+
+/* ── iOS-native frosted glass — dark mode only ──────────────────────────── */
+:root[data-theme='dark'] :where(
+  .glass-card,
+  .card-surface,
+  .bg-surface-card,
+  .bg-surface-card-elevated,
+  .surface-card,
+  .lms-card,
+  .lms-global-card,
+  .lms-app-card,
+  .lms-course-card,
+  .student-course-card,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .lms-page-header-card,
+  .lms-hero-card,
+  .lms-form-card,
+  .lms-floating-panel,
+  .lms-alert,
+  .study-card,
+  .study-continue-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-action-card,
+  .study-plan-card,
+  .study-analytics-card,
+  .study-exam-countdown-card,
+  .study-upcoming-card,
+  .planner-panel,
+  .planner-hero-card,
+  .results-performance-board,
+  .results-focus-board,
+  .student-results-focus,
+  .student-results-history
+) {
+  -webkit-backdrop-filter: blur(18px) saturate(1.35) !important;
+  backdrop-filter: blur(18px) saturate(1.35) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(210, 220, 230, 0.09),
+    0 22px 60px -36px rgba(0, 0, 0, 0.72),
+    0 2px 28px -12px rgba(59, 90, 255, 0.042) !important;
+  border-top-color: rgba(200, 210, 225, 0.13) !important;
 }
 
 :where(
@@ -83,6 +128,41 @@
 
 :where(.lms-card-interactive, .lms-course-card, .student-course-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):active {
   box-shadow: var(--ds-card-shadow-pressed) !important;
+}
+
+/* ── Dark mode: flat cards, no hover lift ──────────────────────────────── */
+:root[data-theme="dark"] :where(
+  .lms-card,
+  .lms-global-card,
+  .lms-app-card,
+  .lms-card-interactive,
+  .lms-course-card,
+  .student-course-card,
+  .lms-quiz-card,
+  .lms-quiz-course-card,
+  .lms-quiz-subject-card,
+  .lms-quiz-topic-card,
+  .lms-quiz-set-card,
+  .study-card,
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-todo-card,
+  .study-plan-card,
+  .study-mood-card,
+  .study-analytics-card,
+  .study-exam-countdown-card,
+  .study-upcoming-card,
+  .planner-panel,
+  .planner-hero-card
+):where(:hover, :focus-visible, :active) {
+  transform: none !important;
+}
+
+:root[data-theme="dark"] .study-action-card:hover > span,
+:root[data-theme="dark"] .study-continue-card:hover {
+  transform: none !important;
 }
 
 :where(.lms-card-title) {

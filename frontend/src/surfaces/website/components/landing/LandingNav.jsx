@@ -58,7 +58,7 @@ export function LandingNav({ ctaTo = '/register', signInTo = '/login' }) {
             <a
               key={l.label}
               href={l.href}
-              className={['relative text-[14px] font-semibold no-underline transition-colors duration-200 after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-0 after:bg-[#2563eb] after:transition-[width] after:duration-300 hover:after:w-full', linkColor].join(' ')}
+              className={['relative text-[14px] font-semibold no-underline transition-colors duration-200 after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-[#2563eb] after:transition-transform after:duration-300 hover:after:scale-x-100', linkColor].join(' ')}
             >
               {l.label}
             </a>

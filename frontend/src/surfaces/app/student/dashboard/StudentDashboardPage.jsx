@@ -492,10 +492,10 @@ function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0
       {progress !== null ? (
         <div className="study-mini-rail" aria-hidden="true">
           <motion.span
-            initial={reduce ? false : { width: 0 }}
-            animate={inView ? { width: `${railPct}%` } : undefined}
-            transition={{ delay: 0.2 + index * 0.08, duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-            style={reduce ? { width: `${railPct}%` } : undefined}
+            initial={reduce ? false : { scaleX: 0 }}
+            animate={inView || reduce ? { scaleX: railPct / 100 } : undefined}
+            transition={reduce ? { duration: 0 } : { delay: 0.2 + index * 0.08, duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+            style={{ width: '100%', originX: 0 }}
           />
         </div>
       ) : null}
@@ -539,9 +539,9 @@ function ScoreTrend({ attempts, average }) {
 
   return (
     <svg className="study-score-chart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0 82H100" stroke="rgba(20,28,64,0.08)" strokeWidth="1" />
-      <path d="M0 54H100" stroke="rgba(20,28,64,0.08)" strokeWidth="1" />
-      <path d="M0 26H100" stroke="rgba(20,28,64,0.08)" strokeWidth="1" />
+      <path d="M0 82H100" stroke="var(--sa-border)" strokeWidth="1" />
+      <path d="M0 54H100" stroke="var(--sa-border)" strokeWidth="1" />
+      <path d="M0 26H100" stroke="var(--sa-border)" strokeWidth="1" />
       <polyline points={points} fill="none" stroke="#3d5afe" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
@@ -699,7 +699,7 @@ function StudyMoodCard({ mood, className = '' }) {
       </div>
       <p>{mood.text}</p>
       <div className="study-mood-meter" aria-label={`${mood.value}: ${mood.meter}%`}>
-        <span style={{ width: `${clampPercent(mood.meter)}%` }} />
+        <span style={{ width: '100%', transform: `scaleX(${clampPercent(mood.meter) / 100})`, transformOrigin: 'left center' }} />
       </div>
       <small>Based on today’s activity</small>
     </section>
@@ -803,7 +803,7 @@ function CourseProgressCard({ courses, summary, onOpenCourse, onOpenCourses }) {
                 <small>{Number(course.completedLessonsCount || 0)}/{Number(course.totalLessonsCount || 0)} lessons · {course.examType || 'Medical course'}</small>
               </span>
               <em>{progress}%</em>
-              <i aria-hidden="true"><b style={{ width: `${progress}%` }} /></i>
+              <i aria-hidden="true"><b style={{ width: '100%', transform: `scaleX(${progress / 100})`, transformOrigin: 'left center' }} /></i>
             </button>
           );
         }) : (

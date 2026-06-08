@@ -8,16 +8,13 @@ if (typeof document !== 'undefined' && !document.getElementById('canvas-study-st
   const sty = document.createElement('style');
   sty.id = 'canvas-study-styles';
   sty.textContent = [
-    '@keyframes ncvCardIn{from{opacity:0;transform:translateY(18px) scale(0.975)}to{opacity:1;transform:translateY(0) scale(1)}}',
     '@keyframes ncvLightboxBackdropIn{from{opacity:0}to{opacity:1}}',
     '@keyframes ncvLightboxPanelIn{from{opacity:0;transform:translateY(12px) scale(0.985)}to{opacity:1;transform:translateY(0) scale(1)}}',
-    '.ncv-enter{opacity:0!important}',
-    '.ncv-entered{animation:ncvCardIn 0.26s cubic-bezier(0.16,1,0.3,1) both}',
     '.ncv-lightbox-backdrop{animation:ncvLightboxBackdropIn 0.18s cubic-bezier(0.22,1,0.36,1) both}',
     '.ncv-lightbox-panel{animation:ncvLightboxPanelIn 0.22s cubic-bezier(0.22,1,0.36,1) both}',
     '.focus-canvas .ncv-item{transition:opacity 160ms cubic-bezier(0.16,1,0.3,1),transform 160ms cubic-bezier(0.16,1,0.3,1),box-shadow 160ms cubic-bezier(0.16,1,0.3,1);opacity:0.3}',
     '.focus-canvas .ncv-item:hover{opacity:1!important;transform:translateY(-3px) scale(1.014);z-index:12;position:relative}',
-    '@media (prefers-reduced-motion: reduce){.ncv-entered,.ncv-lightbox-backdrop,.ncv-lightbox-panel{animation:none!important}.focus-canvas .ncv-item{transition:none!important}}',
+    '@media (prefers-reduced-motion: reduce){.ncv-lightbox-backdrop,.ncv-lightbox-panel{animation:none!important}.focus-canvas .ncv-item{transition:none!important}}',
   ].join('');
   document.head.appendChild(sty);
 }
@@ -595,7 +592,7 @@ function ImageLightbox({ image, onClose }) {
    RICH TEXT — ==highlight== and **bold**
 ══════════════════════════════════════════════════════════════ */
 function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
-  const theme = useThemeStore(s => s.theme);
+  const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   if (!text) return null;
   const markColors = getHighlightPalette(highlightColors, accentColor);
   const parts = [];
@@ -1768,24 +1765,6 @@ function MasonryItem({ children, span = 'half', columns = 2, editable = false, d
     return () => observer.disconnect();
   }, [children]);
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
-    el.classList.add('ncv-enter');
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        el.style.animationDelay = `${Math.min(index * 55, 330)}ms`;
-        el.classList.remove('ncv-enter');
-        el.classList.add('ncv-entered');
-        obs.disconnect();
-      },
-      { threshold: 0.06, rootMargin: '0px 0px -20px 0px' }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [index]);
-
   const normalizedSpan = span === 'single' ? 'half' : span;
   const colSpan = normalizedSpan === 'full'
     ? '1 / -1'
@@ -2160,24 +2139,6 @@ function CanvasToolbar({ data, onPatch, onAddTextSection, onAddImageSection, onA
 }
 
 /* ══════════════════════════════════════════════════════════════
-   FIXED DECORATIVE STICKERS
-══════════════════════════════════════════════════════════════ */
-const DECO = [
-  { id:'star',    svg:<svg viewBox="0 0 60 60" fill="none" width="52" height="52"><path d="M30 5l5.5 16H52l-13.5 9.8 5.2 16L30 37.5l-13.7 9.3 5.2-16L8 21h16.5L30 5z" fill="#FFE082" stroke="#F9A825" strokeWidth="1.5"/></svg>, style:{top:10,right:10,rotate:'18deg',opacity:0.8} },
-  { id:'heart1',  svg:<svg viewBox="0 0 40 36" fill="none" width="36" height="32"><path d="M20 33S4 22 4 11a9 9 0 0 1 16-5.6A9 9 0 0 1 36 11C36 22 20 33 20 33z" fill="#FFCDD2" stroke="#E53935" strokeWidth="1.5"/></svg>, style:{top:105,left:6,rotate:'-15deg',opacity:0.85} },
-  { id:'heart2',  svg:<svg viewBox="0 0 40 36" fill="none" width="30" height="26"><path d="M20 33S4 22 4 11a9 9 0 0 1 16-5.6A9 9 0 0 1 36 11C36 22 20 33 20 33z" fill="#FFCDD2" stroke="#E53935" strokeWidth="1.5"/></svg>, style:{bottom:110,right:6,rotate:'12deg',opacity:0.75} },
-  { id:'pencil',  svg:<svg viewBox="0 0 60 60" fill="none" width="42" height="42"><rect x="12" y="10" width="12" height="36" rx="3" transform="rotate(-30 12 10)" fill="#FFF9C4" stroke="#F9A825" strokeWidth="1.5"/><path d="M10 44l-4 8 8-2-4-6z" fill="#F9A825"/><rect x="10" y="10" width="12" height="6" rx="2" transform="rotate(-30 10 10)" fill="#FFCC02"/></svg>, style:{bottom:85,left:6,rotate:'25deg',opacity:0.65} },
-  { id:'sparkle', svg:<svg viewBox="0 0 40 40" fill="none" width="34" height="34"><path d="M20 4l2.5 13.5L36 20l-13.5 2.5L20 36l-2.5-13.5L4 20l13.5-2.5L20 4z" fill="#B3E5FC" stroke="#0288D1" strokeWidth="1.2"/></svg>, style:{top:95,right:4,rotate:'-8deg',opacity:0.7} },
-];
-function DecoStickers() {
-  // Auto-scattered decorations (stars/hearts/pencils) made the clinical notes feel
-  // cluttered and toy-like. Kept off for a calm, GoodNotes-style surface; learners
-  // can still place their own stickers (UserSticker), which stay fully intact.
-  void DECO;
-  return null;
-}
-
-/* ══════════════════════════════════════════════════════════════
    MAIN CANVAS
 ══════════════════════════════════════════════════════════════ */
 export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable = false, onDataChange }, ref) {
@@ -2482,8 +2443,6 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
         style={canvasStyle}
         onClick={handleCanvasClick}
       >
-        <DecoStickers/>
-
         {(data.canvasStickers || []).map(sticker => (
           <UserSticker
             key={sticker.id}

@@ -1046,7 +1046,6 @@
 
   /* ── Smooth motion utility ─────────────────────────────── */
   .motion-smooth {
-    will-change: auto;
     backface-visibility: visible;
     transform: none;
   }
@@ -1966,7 +1965,7 @@ html[data-lms-runtime="native"] {
   }
   :root[data-low-spec] .lms-sidebar,
   :root[data-low-spec] .portal-content {
-    transition-property: transform, width, margin-left, opacity !important;
+    transition-property: transform, opacity !important;
     transition-duration: 120ms !important;
   }
   :root[data-low-spec] .portal-shell {
@@ -1996,14 +1995,6 @@ html[data-lms-runtime="native"] {
   :root[data-low-spec] .lp,
   .lp.lp-motion-disabled {
     background: #111820 !important;
-  }
-  :root[data-low-spec] .lp *,
-  :root[data-low-spec] .lp *::before,
-  :root[data-low-spec] .lp *::after,
-  .lp.lp-motion-disabled *,
-  .lp.lp-motion-disabled *::before,
-  .lp.lp-motion-disabled *::after {
-    will-change: auto !important;
   }
   :root[data-low-spec] .lp-hero,
   .lp.lp-motion-disabled .lp-hero {
@@ -2074,12 +2065,6 @@ html[data-lms-runtime="native"] {
   :root[data-visual-effects='balanced'] .lp,
   :root[data-visual-effects='balanced'] .lp.lp-motion-disabled {
     background: #111820 !important;
-  }
-
-  :root[data-visual-effects='balanced'] .lp *,
-  :root[data-visual-effects='balanced'] .lp *::before,
-  :root[data-visual-effects='balanced'] .lp *::after {
-    will-change: auto !important;
   }
 
   :root[data-visual-effects='balanced'] .lp-hero {

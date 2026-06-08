@@ -477,6 +477,7 @@ export function AppSidebar({
         <XyndromeLogoMark
           className={cx('lms-sidebar-brand-mark', sidebarUi.brandIcon, isCollapsed && sidebarUi.brandIconCollapsed)}
           size={isCollapsed ? 40 : 44}
+          logoVariant="light"
         />
 
         <div className={cx('lms-sidebar-wordmark', sidebarUi.wordmark)}>
@@ -752,7 +753,7 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
       >
         {!isStudentMenu && (
           <header className="lms-mobile-top-nav__head">
-            <XyndromeLogoMark className="lms-mobile-top-nav__mark" size={38} />
+            <XyndromeLogoMark className="lms-mobile-top-nav__mark" size={38} logoVariant="light" />
 
             <div className="lms-mobile-top-nav__brand">
               <strong>
@@ -847,18 +848,30 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
 
 export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {} }) {
   const user = useAuthStore((s) => s.user);
+  const location = useLocation();
 
   if (user?.role !== 'student' || isExamFocusMode) return null;
 
   const items = prefixLinks(mobileNavItems, user?.role);
+
+  // Compute active tab index for the iOS 18 floating pill
+  const activeIndex = items.findIndex(
+    (item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+  );
+  const pillIndex = activeIndex < 0 ? 0 : activeIndex;
 
   const nav = (
     <nav
       className="lms-mobile-bottom-nav lms-mobile-bottom-nav--student fixed inset-x-0 bottom-0 z-[9999] isolate pointer-events-none min-[901px]:hidden"
       aria-label="Mobile navigation"
     >
-      <div className="lms-mobile-bottom-nav__inner pointer-events-auto">
-        {items.map((item) => {
+      <div
+        className="lms-mobile-bottom-nav__inner pointer-events-auto"
+        style={{ '--pill-index': pillIndex }}
+      >
+        {/* iOS 18-style floating pill — slides behind the active tab */}
+        <span className="lms-mobile-bottom-nav__pill" aria-hidden="true" />
+        {items.map((item, idx) => {
           const IconComp = Icons[item.icon] || Icons.Mission;
           return (
             <NavLink
@@ -867,7 +880,12 @@ export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {}
               end={isExactNavPath(item.to)}
               onPointerDown={() => preloadRouteByPath(item.to, user?.role)}
               onTouchStart={() => preloadRouteByPath(item.to, user?.role)}
-              onClick={onNavigate}
+              onClick={(e) => {
+                // Set slide direction before navigation so the keyframe picks it up
+                const dir = idx >= pillIndex ? '1' : '-1';
+                document.documentElement.style.setProperty('--lms-slide-dir', dir);
+                onNavigate(e);
+              }}
               aria-label={item.label}
               className={({ isActive }) => cx('lms-mobile-bottom-nav__tab', isActive && 'is-active')}
             >

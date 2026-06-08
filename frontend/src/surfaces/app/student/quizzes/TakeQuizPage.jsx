@@ -15,7 +15,6 @@ import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { XyndromeLogoMark } from '../../../../shared/brand/XyndromeBrand.jsx';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
-import { useThemeStore } from '../../../../shared/stores/themeStore.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
 import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/quickTheoryRecapUtils.js';
@@ -76,6 +75,87 @@ function normalizeAnswersForBackend(answerMap, questions = []) {
     if (Object.keys(tfAnswers).length) normalized[questionId] = tfAnswers;
   }
   return normalized;
+}
+
+function firstNonEmptyValue(values) {
+  for (const value of values) {
+    const text = typeof value === 'string' ? value.trim() : value;
+    if (text !== undefined && text !== null && text !== '') return text;
+  }
+  return '';
+}
+
+function getSubmittedAttemptId(result) {
+  const raw = firstNonEmptyValue([
+    result?.attemptId,
+    result?.submittedAttemptId,
+    result?.attempt?.id,
+    result?.attempt?.attemptId,
+    result?.result?.attemptId,
+    result?.result?.id,
+    result?.id,
+  ]);
+  const numeric = Number(raw);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function getQuestionExplanationText(question) {
+  return String(firstNonEmptyValue([
+    question?.explanation,
+    question?.answerExplanation,
+    question?.answer_explanation,
+    question?.reviewExplanation,
+    question?.review_explanation,
+    question?.rationale,
+    question?.explanationText,
+    question?.explanation_text,
+  ]) || '');
+}
+
+function getQuestionRecapPayload(question) {
+  const direct = firstNonEmptyValue([
+    question?.theoryRecap,
+    question?.theory_recap,
+    question?.quickTheoryRecap,
+    question?.quick_theory_recap,
+  ]);
+  if (direct) return direct;
+  if (!question) return null;
+  const flatRecap = {
+    conceptName: question.conceptName || question.concept_name || question.topicName || question.topic_name || '',
+    hierarchy: question.hierarchy || {},
+    etiology: question.etiology,
+    pathophysiology: question.pathophysiology,
+    clinicalFeatures: question.clinicalFeatures || question.clinical_features,
+    investigations: question.investigations,
+    treatment: question.treatment,
+    keyPoints: question.keyPoints || question.key_points,
+    mnemonic: question.mnemonic,
+  };
+  return hasQuickTheoryRecapContent(flatRecap) ? flatRecap : null;
+}
+
+function hasQuestionRecapPayload(question) {
+  if (!question) return false;
+  return Boolean(
+    Object.prototype.hasOwnProperty.call(question, 'theoryRecap') ||
+    Object.prototype.hasOwnProperty.call(question, 'theory_recap') ||
+    Object.prototype.hasOwnProperty.call(question, 'quickTheoryRecap') ||
+    Object.prototype.hasOwnProperty.call(question, 'quick_theory_recap') ||
+    getQuestionRecapPayload(question)
+  );
+}
+
+function getOptionIncorrectReason(option) {
+  return String(firstNonEmptyValue([
+    option?.whyIncorrect,
+    option?.why_incorrect,
+    option?.incorrectExplanation,
+    option?.incorrect_explanation,
+    option?.distractorExplanation,
+    option?.distractor_explanation,
+    option?.reason,
+  ]) || '').trim();
 }
 
 function hasOptionAnswerKey(option) {
@@ -309,7 +389,7 @@ const examHeaderBrandClass = 'flex min-w-0 flex-1 items-center gap-3 max-[420px]
 const examHeaderLogoClass =
   'grid size-10 shrink-0 place-items-center text-[var(--xyndrome-logo-scope)]';
 const examHeaderTitleClass = 'block max-w-full truncate whitespace-nowrap text-[17px] font-extrabold leading-tight text-ink-strong max-[420px]:text-[15px]';
-const examHeaderSubtitleClass = 'mt-0.5 block max-w-[min(62vw,720px)] truncate whitespace-nowrap text-xs text-ink-soft max-[700px]:max-w-full max-[420px]:text-[11px]';
+const examHeaderSubtitleClass = 'mt-0 block max-w-[min(62vw,720px)] truncate whitespace-nowrap text-[6px] leading-[0.9] text-ink-soft max-[700px]:max-w-full max-[420px]:text-[6px]';
 const examHeaderActionsClass = 'quiz-header-actions ml-auto flex min-w-0 shrink-0 flex-nowrap items-center justify-end gap-2 max-[420px]:gap-1.5';
 const examHeaderChipClass =
   'inline-flex min-h-10 items-center gap-2 rounded-[13px] border border-[var(--exam-header-chip-border)] bg-[var(--exam-header-chip-bg)] px-3 text-sm text-ink-medium shadow-[var(--exam-header-chip-shadow)]';
@@ -318,7 +398,7 @@ const examHeaderIconClass = 'inline-grid place-items-center text-ink-soft';
 const examHeaderEndClass =
   'min-h-11 shrink-0 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold leading-none text-[var(--exam-end-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60 max-[420px]:px-3';
 const practiceHeaderEndClass = 'border-brand-primary/22 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200';
-const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(220px,280px)_minmax(0,1120px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[900px]:grid-cols-1';
+const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(220px,280px)_minmax(0,1120px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-1';
 const examSidebarClass = 'lms-exam-sidebar grid gap-[18px]';
 const examPanelClass =
   'border border-[var(--exam-card-border)] bg-[var(--exam-card-bg)] p-[18px] shadow-[var(--exam-card-shadow)]';
@@ -334,7 +414,7 @@ const examProgressToplineClass = 'mb-3 mt-3.5 flex items-center justify-between 
 const examProgressCurrentClass = 'text-base font-bold text-ink-strong';
 const examProgressPercentClass = 'text-[13px] text-ink-soft';
 const examProgressBarClass = 'h-[7px] overflow-hidden rounded-full border border-[var(--exam-card-border)] bg-[var(--exam-progress-track)]';
-const examProgressFillClass = 'block h-full rounded-[inherit] bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] shadow-none';
+const examProgressFillClass = 'block h-full w-full origin-left rounded-[inherit] bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] shadow-none';
 const quizFlashPanelClass = 'rounded-[22px] backdrop-blur-md max-[600px]:rounded-[18px]';
 const quizFlashQuestionCopyClass = 'lms-reading-question m-0 max-w-[82ch] whitespace-pre-line text-left text-[16px] font-medium leading-[1.62] tracking-normal text-ink-strong [text-wrap:pretty] max-[640px]:text-[16px] max-[640px]:leading-[1.6]';
 const examQuestionStartAnchorClass = 'scroll-mt-4';
@@ -393,7 +473,7 @@ const examBlockDotCurrentClass = 'border-brand-primary bg-brand-primary/35';
 const mobileQuizBarClass =
   'lms-mobile-quiz-bar fixed inset-x-0 bottom-0 z-[95] hidden rounded-t-[var(--ds-card-radius)] border-x-0 border-b-0 border-t border-[var(--exam-card-border)] bg-[var(--exam-card-bg)] px-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-3 shadow-[var(--ds-floating-shadow)] backdrop-blur-xl max-[700px]:block';
 const mobileQuizBarTopClass = 'mb-2 flex items-center justify-between gap-3 text-[12px] font-bold text-ink-soft';
-const mobileQuizBarActionsClass = 'lms-mobile-quiz-actions grid grid-cols-[minmax(76px,0.72fr)_minmax(92px,0.9fr)_minmax(118px,1.18fr)] gap-2';
+const mobileQuizBarActionsClass = 'lms-mobile-quiz-actions grid grid-cols-[minmax(76px,0.72fr)_minmax(118px,1.18fr)_minmax(92px,0.9fr)] gap-2';
 const mobileQuizIconButtonClass =
   'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--exam-footer-btn-border)] bg-[var(--exam-footer-btn-bg)] px-2.5 text-[13px] font-extrabold text-[var(--exam-footer-btn-text)] transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,var(--color-primary)_22%,var(--line-soft))] hover:bg-[color-mix(in_srgb,var(--color-primary)_5%,var(--surface-1))] active:scale-[0.98] active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 disabled:cursor-not-allowed disabled:opacity-45';
 const mobileQuizPrimaryClass =
@@ -523,11 +603,14 @@ function MobileQuizActionBar({
         aria-valuemax={100}
         aria-valuenow={progressPercent}
       >
-        <span className={examProgressFillClass} style={{ width: `${progressPercent}%` }} />
+        <span className={examProgressFillClass} style={{ transform: `scaleX(${progressPercent / 100})` }} />
       </div>
       <div className={cx(mobileQuizBarActionsClass, 'mt-2')}>
         <button type="button" className={mobileQuizIconButtonClass} onClick={onPrevious} disabled={currentIndex === 0 || saving} aria-label="Previous question">
           Previous
+        </button>
+        <button type="button" className={mobileQuizPrimaryClass} onClick={isLast ? onFinish : onNext} disabled={saving}>
+          {isLast ? (isExam ? saving ? 'Submitting...' : 'Submit' : 'Finish') : saving ? 'Saving...' : 'Next'}
         </button>
         <button
           type="button"
@@ -542,9 +625,6 @@ function MobileQuizActionBar({
               {currentQuestionFlagged ? 'Flagged' : 'Flag'}
             </>
           ) : currentQuestionRevealed ? 'Shown' : canRevealAnswers ? 'Show' : 'Review'}
-        </button>
-        <button type="button" className={mobileQuizPrimaryClass} onClick={isLast ? onFinish : onNext} disabled={saving}>
-          {isLast ? (isExam ? saving ? 'Submitting...' : 'Submit' : 'Finish') : saving ? 'Saving...' : 'Next'}
         </button>
       </div>
     </nav>
@@ -921,7 +1001,7 @@ function ExamModeHeader({
     <header className={cx(examHeaderClass, quizFlashPanelClass, className)}>
       <div className={examHeaderBrandClass}>
         <span className={examHeaderLogoClass} aria-hidden="true">
-          <XyndromeLogoMark size={38} />
+          <XyndromeLogoMark size={38} logoVariant="light" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
@@ -987,17 +1067,18 @@ function getIncorrectOptionReasons(question) {
       ...option,
       displayLabel: DISPLAY_OPTION_LABELS[index] || option.optionLabel || String(index + 1),
     }))
-    .filter((option) => (isTrueFalse || !isCorrectOption(option)) && String(option.whyIncorrect || '').trim())
+    .filter((option) => (isTrueFalse || !isCorrectOption(option)) && getOptionIncorrectReason(option))
     .map((option) => ({
       label: option.displayLabel,
       text: option.optionText,
-      reason: String(option.whyIncorrect || '').trim(),
+      reason: getOptionIncorrectReason(option),
     }));
 }
 
 function PracticeStudySupport({ currentQuestion, revealed = true, className = '' }) {
-  const recap = normalizeQuickTheoryRecap(currentQuestion?.theoryRecap);
-  const hasRecap = Boolean(currentQuestion && Object.prototype.hasOwnProperty.call(currentQuestion, 'theoryRecap'));
+  const recapPayload = getQuestionRecapPayload(currentQuestion);
+  const recap = normalizeQuickTheoryRecap(recapPayload);
+  const hasRecap = hasQuestionRecapPayload(currentQuestion);
   const hasStudyCard = revealed && hasQuickTheoryRecapContent(recap);
 
   if (!hasRecap && !hasStudyCard) return null;
@@ -1038,7 +1119,7 @@ function PracticeStudySupport({ currentQuestion, revealed = true, className = ''
 
 function PracticeInlineLearningSupport({ currentQuestion, currentQuestionRevealed, className = '', showStudySupport = false }) {
   const incorrectReasons = getIncorrectOptionReasons(currentQuestion);
-  const explanationBlocks = formatPrimaryExplanationBlocks(currentQuestion?.explanation, incorrectReasons.length > 0);
+  const explanationBlocks = formatPrimaryExplanationBlocks(getQuestionExplanationText(currentQuestion), incorrectReasons.length > 0);
   const explanationTitle = explanationBlocks.length
     ? 'Explanation'
     : incorrectReasons.length
@@ -1098,8 +1179,20 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
 export function TakeQuizPage() {
   const navigate = useNavigate();
   const { quizId } = useParams();
-  const theme = useThemeStore((state) => state.theme);
-  const examThemeVars = theme === 'dark' ? examThemeDarkVars : examThemeLightVars;
+  const examSectionRef = useRef(null);
+  useEffect(() => {
+    const apply = () => {
+      const vars = document.documentElement.dataset.theme === 'dark'
+        ? examThemeDarkVars : examThemeLightVars;
+      const el = examSectionRef.current;
+      if (!el) return;
+      for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v);
+    };
+    apply();
+    const obs = new MutationObserver(apply);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode') || 'practice';
   const continuePractice = searchParams.get('continue') === '1';
@@ -1276,18 +1369,18 @@ export function TakeQuizPage() {
       hasQuestionAnswerKey(currentQuestion) ||
       currentQuestion.options?.some(hasOptionAnswerKey) ||
       currentQuestion.options?.length ||
-      String(currentQuestion.explanation || '').trim() ||
+      getQuestionExplanationText(currentQuestion).trim() ||
       getIncorrectOptionReasons(currentQuestion).length ||
-      currentQuestion.theoryRecap !== undefined
+      hasQuestionRecapPayload(currentQuestion)
     ))
   );
   const currentQuestionRevealReady = Boolean(
     currentQuestionRevealed && currentQuestion && (
       hasQuestionAnswerKey(currentQuestion) ||
       currentQuestion.options?.some(hasOptionAnswerKey) ||
-      String(currentQuestion.explanation || '').trim() ||
+      getQuestionExplanationText(currentQuestion).trim() ||
       getIncorrectOptionReasons(currentQuestion).length ||
-      currentQuestion.theoryRecap
+      getQuestionRecapPayload(currentQuestion)
     )
   );
   const shouldBlockQuizExit = Boolean(data && !loading && !isSingleQuestionPractice && !hasAutoSubmitted);
@@ -1508,6 +1601,7 @@ export function TakeQuizPage() {
 
   function syncExamSessionFromSave(result) {
     if (!result?.serverTime) return;
+    const submittedAttemptId = getSubmittedAttemptId(result);
     syncExamClock(examClockRef, result.serverTime);
     setData((current) => {
       if (!current?.examSession) return current;
@@ -1518,7 +1612,7 @@ export function TakeQuizPage() {
           serverTime: result.serverTime,
           deadlineAt: result.deadlineAt ?? current.examSession.deadlineAt,
           secondsRemaining: result.secondsRemaining ?? current.examSession.secondsRemaining,
-          submittedAttemptId: result.attemptId ?? current.examSession.submittedAttemptId,
+          submittedAttemptId: submittedAttemptId ?? current.examSession.submittedAttemptId,
         },
       };
     });
@@ -1568,13 +1662,14 @@ export function TakeQuizPage() {
       });
       clearExamAutosaveRetry();
       syncExamSessionFromSave(result);
+      const submittedAttemptId = getSubmittedAttemptId(result);
       if (result?.success) {
         clearExamDraft(quizId);
       }
-      if (result?.attemptId && result?.submitted) {
+      if (submittedAttemptId && result?.submitted) {
         clearExamDraft(quizId);
         setHasAutoSubmitted(true);
-        navigate(`/results/${result.attemptId}`, { replace: true });
+        navigate(`/results/${submittedAttemptId}`, { replace: true });
       }
       if (result?.timeExpired) {
         setSecondsRemaining(0);
@@ -1660,10 +1755,14 @@ export function TakeQuizPage() {
       const result = await submitExam(quizId, {
         answers: normalizeAnswersForBackend(answersRef.current || answers, data?.questions || []),
       });
+      const submittedAttemptId = getSubmittedAttemptId(result);
+      if (!submittedAttemptId) {
+        throw new Error('Exam submitted, but no result id was returned.');
+      }
       clearExamAutosaveRetry();
       clearExamDraft(quizId);
       setHasAutoSubmitted(true);
-      navigate(`/results/${result.attemptId}`);
+      navigate(`/results/${submittedAttemptId}`);
     } catch (e) {
       setError(getErrorMessage(e, 'Unable to submit exam'));
       setHasAutoSubmitted(false);
@@ -2004,7 +2103,6 @@ export function TakeQuizPage() {
             secondaryValue="Practice"
             onEndSession={finishPractice}
             saving={saving || practiceCompleting || questionActionBusy}
-            theme={theme}
             workspaceLabel=""
             endLabel={practiceCompleting ? practiceEndBusyLabel : practiceEndLabel}
             className={practiceHeaderClass}
@@ -2038,8 +2136,8 @@ export function TakeQuizPage() {
                   aria-valuenow={progressPercent}
                 >
                   <span
-                    className="block h-full rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
-                    style={{ width: `${progressPercent}%` }}
+                    className="block h-full w-full origin-left rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
+                    style={{ transform: `scaleX(${progressPercent / 100})` }}
                   />
                 </div>
                 <p className="m-0 text-xs font-semibold leading-relaxed text-ink-soft">
@@ -2344,7 +2442,7 @@ export function TakeQuizPage() {
 
   return (
     <main className={examScreenShellClass}>
-      <section className={examLayoutClass} style={examThemeVars}>
+      <section ref={examSectionRef} className={examLayoutClass}>
         <ExamModeHeader
           title={data.quiz.quizTitle}
           quizLabel={getQuizNumberLabel(data.quiz)}
@@ -2353,7 +2451,6 @@ export function TakeQuizPage() {
           secondaryValue={formatDuration(secondsRemaining)}
           onEndSession={requestExamSubmit}
           saving={saving || questionActionBusy}
-          theme={theme}
         />
 
         {error ? <div className={ui.feedbackError} role="alert" aria-live="assertive">{error}</div> : null}
@@ -2384,7 +2481,7 @@ export function TakeQuizPage() {
                 aria-valuemax={100}
                 aria-valuenow={progressPercent}
               >
-                <span className={examProgressFillClass} style={{ width: `${progressPercent}%` }} />
+                <span className={examProgressFillClass} style={{ transform: `scaleX(${progressPercent / 100})` }} />
               </div>
             </section>
 

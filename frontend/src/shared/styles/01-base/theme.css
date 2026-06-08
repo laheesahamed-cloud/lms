@@ -6,9 +6,11 @@
 
 :root {
   --lms-login-dark-bg:
-    radial-gradient(ellipse 100% 55% at 50% -5%, rgba(96, 165, 250, 0.08) 0%, rgba(56, 189, 248, 0.04) 38%, rgba(96, 165, 250, 0) 65%),
-    radial-gradient(ellipse 60% 40% at 0% 50%, rgba(56, 189, 248, 0.03) 0%, transparent 55%),
-    linear-gradient(180deg, #080c14 0%, #07090f 54%, #06070c 100%);
+    radial-gradient(ellipse 72% 52% at 0% 0%,   rgba(59, 90, 255, 0.058) 0%, transparent 68%),
+    radial-gradient(ellipse 58% 44% at 100% 4%, rgba(6, 182, 212, 0.050) 0%, transparent 62%),
+    radial-gradient(ellipse 44% 36% at 96% 96%, rgba(99, 102, 241, 0.038) 0%, transparent 58%),
+    radial-gradient(ellipse 48% 34% at 4%  92%, rgba(14, 165, 233, 0.032) 0%, transparent 55%),
+    linear-gradient(180deg, #070a14 0%, #06070f 54%, #050608 100%);
   --lms-login-dark-bg-solid: #0a0a0f;
   --app-dark-bg: var(--lms-login-dark-bg);
   --app-bg: var(--page-background);
@@ -239,10 +241,10 @@
   --color-border-medium: var(--line-medium);
   --color-border-strong: var(--line-strong);
 
-  --ink-strong: #eef3f8;
-  --ink-medium: #cbd6e3;
-  --ink-soft: #a3afbd;
-  --ink-muted: #8491a3;
+  --ink-strong: #F8FAFC;
+  --ink-medium: #CBD5E1;
+  --ink-soft: #94A3B8;
+  --ink-muted: #64748B;
   --text-primary: var(--ink-strong);
   --text-secondary: var(--ink-medium);
   --text-muted: var(--ink-soft);
@@ -383,9 +385,11 @@
   .form-select,
   .form-textarea
 ) {
-  border-color: var(--line-medium) !important;
-  background: rgba(8, 8, 13, 0.88) !important;
+  border-color: rgba(110, 150, 255, 0.14) !important;
+  background: rgba(8, 10, 20, 0.72) !important;
   color: var(--ink-strong) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
 }
 
 :root[data-theme="dark"] :where(
@@ -607,14 +611,14 @@ body.student-quiz-night-screen .student-app-shell {
   --surface-card-elevated: rgba(11, 18, 27, 0.98);
   --btn-secondary-bg: rgba(31, 42, 56, 0.76);
 
-  --sa-ink: #eef3f8;
+  --sa-ink: #F8FAFC;
   --sa-ink-deep: #f8fafc;
-  --sa-text-2: #a3afbd;
-  --sa-text-3: #8491a3;
-  --ink-strong: #eef3f8;
-  --ink-medium: #cbd6e3;
-  --ink-soft: #a3afbd;
-  --ink-muted: #8491a3;
+  --sa-text-2: #94A3B8;
+  --sa-text-3: #64748B;
+  --ink-strong: #F8FAFC;
+  --ink-medium: #CBD5E1;
+  --ink-soft: #94A3B8;
+  --ink-muted: #64748B;
 
   --sa-border: rgba(203, 213, 225, 0.13);
   --sa-border-soft: rgba(203, 213, 225, 0.09);
@@ -790,7 +794,7 @@ html body.student-quiz-night-screen,
 html body.student-quiz-night-screen #root {
   background: var(--lms-login-dark-bg-solid) !important;
   background-image: var(--quiz-night-bg) !important;
-  color: #eef3f8 !important;
+  color: #F8FAFC !important;
 }
 
 body.student-quiz-night-screen .student-app-shell .student-quiz-night-page {
@@ -1126,7 +1130,7 @@ body,
     radial-gradient(circle at 10% 0%, rgba(20, 184, 166, 0.09), transparent 32%),
     linear-gradient(180deg, #eef4fc 0%, #e4ecf7 46%, #dce6f4 100%) !important;
   background-color: #dce6f4 !important;
-  color: #2f3b57 !important;
+  color: #0F172A !important;
 }
 
 :root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page,
@@ -1144,20 +1148,20 @@ body,
   --sa-surface-raised: rgba(255, 255, 255, 0.96);
   --sa-surface-rgb: 255, 255, 255;
   --sa-surface-2-rgb: 246, 249, 254;
-  --sa-ink: #2f3b57;
-  --sa-ink-deep: #26314c;
-  --sa-text-2: #5f6c86;
-  --sa-text-3: #8793a8;
-  --ink-strong: #2f3b57;
-  --ink-medium: #34425d;
-  --ink-soft: #5f6c86;
-  --ink-muted: #8793a8;
-  --sa-border: rgba(86, 112, 150, 0.16);
-  --sa-border-soft: rgba(86, 112, 150, 0.11);
+  --sa-ink: #0F172A;
+  --sa-ink-deep: #0F172A;
+  --sa-text-2: #475569;
+  --sa-text-3: #64748B;
+  --ink-strong: #0F172A;
+  --ink-medium: #475569;
+  --ink-soft: #64748B;
+  --ink-muted: #94A3B8;
+  --sa-border: rgba(15, 23, 42, 0.10);
+  --sa-border-soft: rgba(15, 23, 42, 0.08);
   --sa-border-strong: rgba(37, 99, 235, 0.2);
-  --sa-border-rgb: 86, 112, 150;
-  --line-soft: rgba(86, 112, 150, 0.16);
-  --line-medium: rgba(86, 112, 150, 0.24);
+  --sa-border-rgb: 15, 23, 42;
+  --line-soft: rgba(15, 23, 42, 0.08);
+  --line-medium: rgba(15, 23, 42, 0.12);
   --line-strong: rgba(37, 99, 235, 0.24);
   --sa-primary: #2563eb;
   --sa-primary-deep: #1d4ed8;
@@ -1176,28 +1180,28 @@ body,
 
 :root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model,
 :root[data-theme="light"] body.student-quiz-night-screen :where(.lms-sidebar, .lms-sidebar--student-model, .lms-mobile-top-nav) {
-  --student-sidebar-ink: #26314c;
-  --student-sidebar-muted: #5f6c86;
-  --student-sidebar-faint: #8793a8;
-  --student-sidebar-border: rgba(86, 112, 150, 0.14);
+  --student-sidebar-ink: #0F172A;
+  --student-sidebar-muted: #64748B;
+  --student-sidebar-faint: #94A3B8;
+  --student-sidebar-border: rgba(15, 23, 42, 0.10);
   --student-sidebar-hover: rgba(37, 99, 235, 0.08);
   --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.13), rgba(56, 189, 248, 0.12));
-  border-color: rgba(86, 112, 150, 0.14) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   background: rgba(255, 255, 255, 0.88) !important;
-  color: #26314c !important;
+  color: #0F172A !important;
   box-shadow: 0 22px 54px -42px rgba(37, 99, 235, 0.34) !important;
 }
 
 :root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong),
 :root[data-theme="light"] body.student-quiz-night-screen :where(.lms-sidebar-brand-name, .lms-sidebar-wordmark strong, .lms-sidebar-profile-name) {
-  color: #26314c !important;
-  -webkit-text-fill-color: #26314c !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
 }
 
 :root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link),
 :root[data-theme="light"] body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordmark span, .lms-sidebar-profile-role, .lms-sidebar-group-label, .lms-sidebar-nav-item) {
-  color: #5f6c86 !important;
-  -webkit-text-fill-color: #5f6c86 !important;
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
 }
 
 :root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model .lms-sidebar-link.nav-active-glow,
@@ -1212,8 +1216,8 @@ body,
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page .study-topbar-title h1,
 :root[data-theme="light"] .dashboard-page.study-hub-page :where(.study-hero-name, .study-hero-name > span, .study-hero-lead b, .study-section-head--quick strong),
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page :where(h1, h2, h3, strong, .text-ink-strong) {
-  color: #2f3b57 !important;
-  -webkit-text-fill-color: #2f3b57 !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
   text-shadow: none !important;
 }
 
@@ -1221,25 +1225,25 @@ body,
 :root[data-theme="light"] .dashboard-page.study-hub-page :where(.study-hero-lead, .study-metric > div > span, .study-metric > div > p, .study-heatmap__label),
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page .study-topbar-title span,
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page :where(p, small, span, .text-ink-soft, .text-ink-muted, .text-slate-400, .text-slate-500) {
-  color: #5f6c86 !important;
-  -webkit-text-fill-color: #5f6c86 !important;
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
 }
 
 :root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page .lms-quiz-mascot-strip h2 {
-  color: #2f3b57 !important;
-  -webkit-text-fill-color: #2f3b57 !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
 }
 
 :root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page .lms-quiz-mascot-strip p {
-  color: #5f6c86 !important;
-  -webkit-text-fill-color: #5f6c86 !important;
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page :where(.study-icon-button, .study-avatar:not(.study-avatar--profile)),
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page :where(.study-icon-button, .study-avatar:not(.study-avatar--profile)) {
-  border-color: rgba(86, 112, 150, 0.16) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   background: rgba(255, 255, 255, 0.9) !important;
-  color: #2f3b57 !important;
+  color: #0F172A !important;
   box-shadow: 0 16px 34px -26px rgba(37, 99, 235, 0.28) !important;
 }
 
@@ -1275,9 +1279,9 @@ body,
   .bg-surface-card,
   .bg-surface-card-elevated
 ) {
-  border-color: rgba(86, 112, 150, 0.15) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   background: rgba(255, 255, 255, 0.9) !important;
-  color: #2f3b57 !important;
+  color: #0F172A !important;
   box-shadow: 0 20px 48px -36px rgba(37, 99, 235, 0.28) !important;
 }
 
@@ -1295,45 +1299,45 @@ body,
   .lms-quiz-set-card,
   .lms-quiz-loading-shell
 ) {
-  border-color: rgba(86, 112, 150, 0.14) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   background:
     radial-gradient(circle at 96% 0%, rgba(56, 189, 248, 0.08), transparent 34%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(247, 250, 255, 0.86)) !important;
-  color: #2f3b57 !important;
+  color: #0F172A !important;
   box-shadow: 0 18px 42px -34px rgba(37, 99, 235, 0.2) !important;
 }
 
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page :where(.text-ink-muted, .text-ink-soft, p, small) {
-  color: #5f6c86 !important;
-  -webkit-text-fill-color: #5f6c86 !important;
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
 }
 
 :root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page .lms-quiz-mascot-strip h2 {
-  color: #2f3b57 !important;
-  -webkit-text-fill-color: #2f3b57 !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
 }
 
 :root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page .lms-quiz-mascot-strip p {
-  color: #5f6c86 !important;
-  -webkit-text-fill-color: #5f6c86 !important;
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card__head strong,
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row strong {
-  color: #2f3b57 !important;
-  -webkit-text-fill-color: #2f3b57 !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row small,
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row em {
-  color: #5f6c86 !important;
-  -webkit-text-fill-color: #5f6c86 !important;
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row {
-  border-color: rgba(86, 112, 150, 0.14) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   background: rgba(255, 255, 255, 0.66) !important;
-  color: #2f3b57 !important;
+  color: #0F172A !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card__head button,
@@ -1373,7 +1377,7 @@ body,
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-metric {
-  border-color: rgba(86, 112, 150, 0.15) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   background:
     radial-gradient(circle at 18% 20%, rgba(34, 197, 94, 0.12), transparent 45%),
     rgba(255, 255, 255, 0.88) !important;
@@ -1393,8 +1397,8 @@ body,
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-metric > div > strong {
-  color: #26314c !important;
-  -webkit-text-fill-color: #26314c !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-card,
@@ -1411,8 +1415,8 @@ body,
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-top strong,
 :root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-streak-top strong {
-  color: #26314c !important;
-  -webkit-text-fill-color: #26314c !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-days strong,
@@ -1484,19 +1488,19 @@ body,
 }
 
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-action-grid > .study-action-card strong {
-  color: #2f3b57 !important;
-  -webkit-text-fill-color: #2f3b57 !important;
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
 }
 
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page :where(input, textarea, select) {
-  border-color: rgba(86, 112, 150, 0.18) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
   background: rgba(251, 252, 255, 0.94) !important;
-  color: #2f3b57 !important;
+  color: #0F172A !important;
   box-shadow: none !important;
 }
 
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page :where(input::placeholder, textarea::placeholder) {
-  color: #8793a8 !important;
+  color: #94A3B8 !important;
 }
 
 :root[data-theme="light"] body.student-quiz-night-screen .student-quiz-night-page :where(
@@ -1512,7 +1516,7 @@ body,
 :root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page > .management-layout {
   background: transparent !important;
   background-color: transparent !important;
-  color: #2f3b57 !important;
+  color: #0F172A !important;
 }
 
 :root[data-theme="light"] body.student-quiz-night-screen .student-app-shell .student-quiz-night-page .lms-page-header-card::after {
@@ -1534,7 +1538,7 @@ body,
 :root[data-theme="light"] body.study-hub-screen .lms-mobile-bottom-nav__inner,
 :root[data-theme="light"] body.student-quiz-night-screen .lms-mobile-bottom-nav__inner {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 247, 252, 0.94)) !important;
-  color: #26314c !important;
+  color: #0F172A !important;
   box-shadow: 0 18px 36px -26px rgba(37, 99, 235, 0.24) !important;
 }
 
@@ -1567,7 +1571,7 @@ body,
 
 :root[data-theme="light"] .lms-sidebar--student-model {
   background: rgba(255, 255, 255, 0.96) !important;
-  border-color: rgba(86, 112, 150, 0.14) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   box-shadow:
     0 18px 44px -28px rgba(37, 99, 235, 0.24),
     0 0 0 1px rgba(255, 255, 255, 0.68) inset !important;
@@ -1575,12 +1579,12 @@ body,
 
 :root[data-theme="light"] .lms-mobile-bottom-nav__inner {
   background: linear-gradient(180deg, #fbfcff 0%, #f5f8fd 100%) !important;
-  color: #26314c !important;
+  color: #0F172A !important;
   box-shadow: 0 -10px 28px -22px rgba(37, 99, 235, 0.24) !important;
 }
 
 :root[data-theme="light"] .lms-mobile-top-nav {
-  border-color: rgba(86, 112, 150, 0.16) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(245, 248, 253, 0.58)),
     linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(56, 189, 248, 0.06)) !important;
@@ -1593,7 +1597,7 @@ body,
 
 :root[data-theme="light"] .lms-mobile-top-nav--plain::before,
 :root[data-theme="light"] .lms-mobile-top-nav__plain-close {
-  border-color: rgba(86, 112, 150, 0.16) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   background: rgba(255, 255, 255, 0.46) !important;
   box-shadow:
     0 14px 30px -22px rgba(37, 99, 235, 0.26),
@@ -1611,7 +1615,7 @@ body,
   .lms-topbar .lms-topbar-center > button
 ) {
   background: rgba(255, 255, 255, 0.94) !important;
-  border-color: rgba(86, 112, 150, 0.16) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   box-shadow: 0 8px 18px -16px rgba(37, 99, 235, 0.28) !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
@@ -1733,8 +1737,6 @@ body,
   background-color: transparent !important;
 }
 
-:root[data-theme] html[data-lms-runtime="native"][data-lms-form-factor="phone"]:has(body.study-hub-screen),
-:root[data-theme] html[data-lms-runtime="pwa"][data-lms-form-factor="phone"]:has(body.study-hub-screen),
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] body.study-hub-screen,
 html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen,
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] body.study-hub-screen :where(
@@ -1782,8 +1784,8 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 }
 
 /* Student route dashboard tone lock */
-:root[data-theme="light"] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)),
-:root[data-theme="light"] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) :where(
+:root[data-theme="light"] body.student-assessment-screen,
+:root[data-theme="light"] body.student-assessment-screen :where(
   #root,
   .app-shell,
   .portal-shell,
@@ -1798,8 +1800,8 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   color-scheme: light;
 }
 
-:root[data-theme="dark"] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)),
-:root[data-theme="dark"] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) :where(
+:root[data-theme="dark"] body.student-assessment-screen,
+:root[data-theme="dark"] body.student-assessment-screen :where(
   #root,
   .app-shell,
   .portal-shell,
@@ -1811,7 +1813,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   color-scheme: dark;
 }
 
-:root[data-theme] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) :where(
+:root[data-theme] body.student-assessment-screen :where(
   .main-content,
   .portal-content,
   .portal-content__frame,
@@ -1823,7 +1825,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   background-color: transparent !important;
 }
 
-:root[data-theme="light"] .student-app-shell:has(:is(.dashboard-page.study-hub-page, .lms-exam-page)),
 :root[data-theme="light"] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) {
   --student-route-dashboard-bg:
     radial-gradient(circle at 78% 4%, rgba(37, 99, 235, 0.12), transparent 30%),
@@ -1845,14 +1846,14 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --sa-surface-raised: rgba(255, 255, 255, 0.96);
   --sa-surface-rgb: 255, 255, 255;
   --sa-surface-2-rgb: 246, 249, 254;
-  --sa-ink: #2f3b57;
-  --sa-ink-deep: #26314c;
-  --sa-text-2: #5f6c86;
-  --sa-text-3: #8793a8;
-  --sa-border: rgba(86, 112, 150, 0.16);
-  --sa-border-soft: rgba(86, 112, 150, 0.11);
+  --sa-ink: #0F172A;
+  --sa-ink-deep: #0F172A;
+  --sa-text-2: #64748B;
+  --sa-text-3: #94A3B8;
+  --sa-border: rgba(15, 23, 42, 0.10);
+  --sa-border-soft: rgba(15, 23, 42, 0.08);
   --sa-border-strong: rgba(37, 99, 235, 0.2);
-  --sa-border-rgb: 86, 112, 150;
+  --sa-border-rgb: 15, 23, 42;
   --surface-0: var(--student-route-dashboard-bg);
   --surface-1: rgba(255, 255, 255, 0.9);
   --surface-2: rgba(246, 249, 254, 0.92);
@@ -1864,16 +1865,16 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --surface-glass: rgba(255, 255, 255, 0.82);
   --surface-glass-strong: rgba(255, 255, 255, 0.9);
   --surface-glass-subtle: rgba(255, 255, 255, 0.66);
-  --line-soft: rgba(86, 112, 150, 0.16);
-  --line-medium: rgba(86, 112, 150, 0.24);
+  --line-soft: rgba(15, 23, 42, 0.08);
+  --line-medium: rgba(15, 23, 42, 0.12);
   --line-strong: rgba(37, 99, 235, 0.24);
   --color-border-soft: var(--line-soft);
   --color-border-medium: var(--line-medium);
   --color-border-strong: var(--line-strong);
-  --ink-strong: #2f3b57;
-  --ink-medium: #34425d;
-  --ink-soft: #5f6c86;
-  --ink-muted: #8793a8;
+  --ink-strong: #0F172A;
+  --ink-medium: #475569;
+  --ink-soft: #64748B;
+  --ink-muted: #94A3B8;
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
   --color-primary-light: rgba(37, 99, 235, 0.11);
@@ -1897,7 +1898,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   color: var(--sa-ink) !important;
 }
 
-:root[data-theme="dark"] .student-app-shell:has(:is(.dashboard-page.study-hub-page, .lms-exam-page)),
 :root[data-theme="dark"] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) {
   --student-route-card-bg:
     radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.048), transparent 38%),
@@ -1912,10 +1912,10 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --sa-surface-raised: rgba(11, 18, 27, 0.98);
   --sa-surface-rgb: 10, 10, 15;
   --sa-surface-2-rgb: 14, 14, 20;
-  --sa-ink: #eef3f8;
+  --sa-ink: #F8FAFC;
   --sa-ink-deep: #f8fafc;
-  --sa-text-2: #a3afbd;
-  --sa-text-3: #8491a3;
+  --sa-text-2: #94A3B8;
+  --sa-text-3: #64748B;
   --sa-border: rgba(203, 213, 225, 0.13);
   --sa-border-soft: rgba(203, 213, 225, 0.09);
   --sa-border-strong: rgba(203, 213, 225, 0.2);
@@ -1937,10 +1937,10 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --color-border-soft: var(--line-soft);
   --color-border-medium: var(--line-medium);
   --color-border-strong: var(--line-strong);
-  --ink-strong: #eef3f8;
-  --ink-medium: #cbd6e3;
-  --ink-soft: #a3afbd;
-  --ink-muted: #8491a3;
+  --ink-strong: #F8FAFC;
+  --ink-medium: #CBD5E1;
+  --ink-soft: #94A3B8;
+  --ink-muted: #64748B;
   --color-primary: #60a5fa;
   --color-primary-hover: #93c5fd;
   --color-primary-light: rgba(96, 165, 250, 0.12);
@@ -1981,32 +1981,32 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --exam-stat-bg: rgba(246, 249, 254, 0.82) !important;
   --exam-stat-border: var(--line-soft) !important;
   --exam-nav-idle-bg: rgba(255, 255, 255, 0.82) !important;
-  --exam-nav-idle-border: rgba(86, 112, 150, 0.16) !important;
-  --exam-nav-idle-text: #5f6c86 !important;
+  --exam-nav-idle-border: rgba(15, 23, 42, 0.10) !important;
+  --exam-nav-idle-text: #64748B !important;
   --exam-jump-bg: rgba(255, 255, 255, 0.82) !important;
   --exam-jump-border: var(--line-soft) !important;
   --exam-jump-text: #2563eb !important;
   --exam-jump-disabled-bg: rgba(246, 249, 254, 0.72) !important;
-  --exam-jump-disabled-text: #8793a8 !important;
+  --exam-jump-disabled-text: #94A3B8 !important;
   --exam-chip-primary-bg: rgba(37, 99, 235, 0.1) !important;
   --exam-chip-text: #2563eb !important;
-  --exam-answer-border: rgba(86, 112, 150, 0.16) !important;
+  --exam-answer-border: rgba(15, 23, 42, 0.10) !important;
   --exam-answer-hover-border: rgba(37, 99, 235, 0.28) !important;
   --exam-answer-hover-shadow: 0 16px 34px -28px rgba(37, 99, 235, 0.28) !important;
   --exam-answer-selected-border: rgba(37, 99, 235, 0.42) !important;
   --exam-answer-selected-ring: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
-  --exam-answer-radio: rgba(86, 112, 150, 0.5) !important;
-  --exam-answer-text: #34425d !important;
+  --exam-answer-radio: rgba(15, 23, 42, 0.35) !important;
+  --exam-answer-text: #475569 !important;
   --exam-tf-bg: rgba(255, 255, 255, 0.82) !important;
-  --exam-tf-border: rgba(86, 112, 150, 0.16) !important;
-  --exam-tf-text: #34425d !important;
+  --exam-tf-border: rgba(15, 23, 42, 0.10) !important;
+  --exam-tf-text: #475569 !important;
   --exam-footer-btn-bg: rgba(255, 255, 255, 0.82) !important;
   --exam-footer-btn-border: var(--line-soft) !important;
-  --exam-footer-btn-text: #2f3b57 !important;
+  --exam-footer-btn-text: #0F172A !important;
   --exam-block-bg: rgba(255, 255, 255, 0.72) !important;
-  --exam-block-text: #5f6c86 !important;
-  --exam-block-line: rgba(86, 112, 150, 0.16) !important;
-  --exam-block-dot-border: rgba(86, 112, 150, 0.22) !important;
+  --exam-block-text: #64748B !important;
+  --exam-block-line: rgba(15, 23, 42, 0.10) !important;
+  --exam-block-dot-border: rgba(15, 23, 42, 0.14) !important;
   --exam-block-dot-fill: rgba(255, 255, 255, 0.78) !important;
 }
 
@@ -2089,9 +2089,9 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   .lms-exam-nav-bubble,
   .practice-review-header button
 ) {
-  border-color: rgba(86, 112, 150, 0.16) !important;
+  border-color: rgba(15, 23, 42, 0.10) !important;
   background-color: rgba(255, 255, 255, 0.82) !important;
-  color: #34425d !important;
+  color: #475569 !important;
 }
 
 :root[data-theme="dark"] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) :where(
@@ -2121,17 +2121,17 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   color: #93c5fd !important;
 }
 
-:root[data-theme="light"] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) .lms-sidebar--student-model {
-  --student-sidebar-ink: #26314c;
-  --student-sidebar-muted: #5f6c86;
-  --student-sidebar-faint: #8793a8;
-  --student-sidebar-border: rgba(86, 112, 150, 0.08);
+:root[data-theme="light"] body.student-assessment-screen .lms-sidebar--student-model {
+  --student-sidebar-ink: #0F172A;
+  --student-sidebar-muted: #64748B;
+  --student-sidebar-faint: #94A3B8;
+  --student-sidebar-border: rgba(15, 23, 42, 0.08);
   --student-sidebar-hover: rgba(37, 99, 235, 0.08);
   --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.13), rgba(56, 189, 248, 0.12));
-  border-color: rgba(86, 112, 150, 0.08) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 251, 255, 0.78)) !important;
-  color: #26314c !important;
+  color: #0F172A !important;
   box-shadow:
     18px 0 46px -42px rgba(37, 99, 235, 0.38),
     0 24px 54px -46px rgba(37, 99, 235, 0.34),
@@ -2139,22 +2139,22 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
     inset -1px 0 0 rgba(255, 255, 255, 0.36) !important;
 }
 
-:root[data-theme="dark"] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) .lms-sidebar--student-model {
-  --student-sidebar-ink: #eef3f8;
-  --student-sidebar-muted: #a3afbd;
-  --student-sidebar-faint: #8491a3;
+:root[data-theme="dark"] body.student-assessment-screen .lms-sidebar--student-model {
+  --student-sidebar-ink: #F8FAFC;
+  --student-sidebar-muted: #94A3B8;
+  --student-sidebar-faint: #64748B;
   --student-sidebar-border: rgba(203, 213, 225, 0.13);
   --student-sidebar-hover: rgba(203, 213, 225, 0.08);
   --student-sidebar-active: linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(56, 189, 248, 0.08));
 }
 
 @media (min-width: 901px) {
-  body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) .lms-sidebar--student-model:not(.is-overlay-nav) {
+  body.student-assessment-screen .lms-sidebar--student-model:not(.is-overlay-nav) {
     overflow: hidden !important;
     isolation: isolate;
   }
 
-  body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) .lms-sidebar--student-model:not(.is-overlay-nav) > :where(
+  body.student-assessment-screen .lms-sidebar--student-model:not(.is-overlay-nav) > :where(
     .lms-sidebar-brand,
     .lms-sidebar-nav,
     .lms-sidebar-student-footer
@@ -2163,7 +2163,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
     z-index: 1;
   }
 
-  body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) .lms-sidebar--student-model:not(.is-overlay-nav)::after {
+  body.student-assessment-screen .lms-sidebar--student-model:not(.is-overlay-nav)::after {
     content: "";
     position: absolute;
     inset-inline: -1px;
@@ -2174,7 +2174,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
     border-radius: 0 0 24px 0;
   }
 
-  :root[data-theme="light"] body:has(.student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)) .lms-sidebar--student-model:not(.is-overlay-nav)::after {
+  :root[data-theme="light"] body.student-assessment-screen .lms-sidebar--student-model:not(.is-overlay-nav)::after {
     background:
       radial-gradient(circle at 0% 100%, rgba(220, 230, 244, 0.62), transparent 58%),
       radial-gradient(circle at 100% 100%, rgba(220, 230, 244, 0.48), transparent 56%),
@@ -2196,12 +2196,12 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 }
 
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page {
-  --quiz-map-card-border: rgba(86, 112, 150, 0.14);
+  --quiz-map-card-border: rgba(15, 23, 42, 0.10);
   --quiz-map-card-bg: var(--lms-app-card-bg);
   --quiz-map-card-shadow: var(--lms-app-card-shadow);
-  --quiz-map-button-border: rgba(86, 112, 150, 0.16);
+  --quiz-map-button-border: rgba(15, 23, 42, 0.10);
   --quiz-map-button-bg: rgba(255, 255, 255, 0.74);
-  --quiz-map-button-text: #5f6c86;
+  --quiz-map-button-text: #64748B;
   --quiz-map-primary-border: rgba(37, 99, 235, 0.24);
   --quiz-map-primary-bg: rgba(37, 99, 235, 0.1);
   --quiz-map-primary-text: #2563eb;
@@ -2245,7 +2245,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   .lms-quiz-set-card,
   .lms-quiz-loading-shell
 ) {
-  color: #2f3b57 !important;
+  color: #0F172A !important;
 }
 
 .student-app-shell .student-quiz-map-page .student-lessons-course-grid {
@@ -2392,7 +2392,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 
 body.lms-profile-menu-open > .lms-profile-menu {
   animation: lmsProfileMenuSoftIn var(--lms-dropdown-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) both !important;
-  will-change: opacity, transform;
 }
 
 body.lms-profile-menu-open > .lms-profile-menu > * {
@@ -2449,7 +2448,7 @@ body.lms-profile-menu-open :where(.student-app-shell, .app-shell, .lms-topbar, .
 body.lms-profile-menu-open :where(.student-app-shell, .app-shell, .lms-topbar, .study-hub-topbar) :where(.lms-profile-menu) {
   position: absolute !important;
   z-index: 10068 !important;
-  border: 1px solid rgba(86, 112, 150, 0.16) !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 250, 255, 0.88)),
     linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(56, 189, 248, 0.1)) !important;
@@ -2475,15 +2474,15 @@ body.lms-profile-menu-open :where(.student-app-shell, .app-shell, .lms-topbar, .
   border-color: transparent !important;
 }
 
-/* Student night/assessment final lock: neutral dark stage with separated cards. */
-body:is(.student-quiz-night-screen, .student-assessment-screen) {
+/* Student night final lock: neutral dark stage with separated cards. */
+body.student-quiz-night-screen {
   --student-night-bg: var(--lms-login-dark-bg);
   background: var(--lms-login-dark-bg-solid) !important;
   background-image: var(--student-night-bg) !important;
   color-scheme: dark !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-shell {
+body.student-quiz-night-screen .student-app-shell {
   --app-bg: var(--student-night-bg);
   --page-background: var(--student-night-bg);
   --app-bg-solid: var(--lms-login-dark-bg-solid);
@@ -2506,14 +2505,14 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   --surface-glass-strong: rgba(10, 10, 15, 0.88);
   --surface-glass-subtle: rgba(31, 42, 56, 0.62);
 
-  --sa-ink: #eef3f8;
+  --sa-ink: #F8FAFC;
   --sa-ink-deep: #f8fafc;
-  --sa-text-2: #a3afbd;
-  --sa-text-3: #8491a3;
-  --ink-strong: #eef3f8;
-  --ink-medium: #cbd6e3;
-  --ink-soft: #a3afbd;
-  --ink-muted: #8491a3;
+  --sa-text-2: #94A3B8;
+  --sa-text-3: #64748B;
+  --ink-strong: #F8FAFC;
+  --ink-medium: #CBD5E1;
+  --ink-soft: #94A3B8;
+  --ink-muted: #64748B;
 
   --sa-border: rgba(203, 213, 225, 0.13);
   --sa-border-soft: rgba(203, 213, 225, 0.09);
@@ -2549,7 +2548,7 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   color: var(--ink-strong) !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) :where(
+body.student-quiz-night-screen :where(
   #root,
   .app-shell,
   .portal-shell,
@@ -2573,7 +2572,7 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(
   color: var(--ink-strong) !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-shell :where(
+body.student-quiz-night-screen .student-app-shell :where(
   .glass-card,
   .card-surface,
   .bg-surface-card,
@@ -2616,7 +2615,7 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   box-shadow: var(--lms-app-card-shadow) !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-shell :where(
+body.student-quiz-night-screen .student-app-shell :where(
   .lms-quiz-course-card,
   .lms-quiz-subject-card,
   .lms-quiz-topic-card,
@@ -2631,7 +2630,7 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
     0 26px 60px -38px rgba(2, 6, 12, 0.72) !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-shell :where(
+body.student-quiz-night-screen .student-app-shell :where(
   h1,
   h2,
   h3,
@@ -2643,7 +2642,7 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   -webkit-text-fill-color: var(--ink-strong) !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-shell :where(
+body.student-quiz-night-screen .student-app-shell :where(
   p,
   small,
   .text-ink-soft,
@@ -2657,7 +2656,7 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   -webkit-text-fill-color: var(--ink-soft) !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-shell :where(
+body.student-quiz-night-screen .student-app-shell :where(
   input,
   textarea,
   select,
@@ -2671,7 +2670,7 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) .student-app-she
   color: var(--ink-strong) !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) :where(
+body.student-quiz-night-screen :where(
   .lms-sidebar,
   .lms-sidebar--student-model,
   .lms-mobile-top-nav,
@@ -2683,53 +2682,14 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(
   box-shadow: var(--lms-global-card-shadow, var(--shadow-sm)) !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-sidebar-brand-name, .lms-sidebar-wordmark strong, .lms-sidebar-profile-name) {
+body.student-quiz-night-screen :where(.lms-sidebar-brand-name, .lms-sidebar-wordmark strong, .lms-sidebar-profile-name) {
   color: var(--ink-strong) !important;
   -webkit-text-fill-color: var(--ink-strong) !important;
 }
 
-body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-sidebar-brand-sub, .lms-sidebar-wordmark span, .lms-sidebar-profile-role, .lms-sidebar-group-label, .lms-sidebar-nav-item, .lms-sidebar-link) {
+body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordmark span, .lms-sidebar-profile-role, .lms-sidebar-group-label, .lms-sidebar-nav-item, .lms-sidebar-link) {
   color: var(--ink-soft) !important;
   -webkit-text-fill-color: var(--ink-soft) !important;
-}
-
-/* Global card lock: login card surface is the source of truth. */
-:root :where(
-  .glass-card,
-  .card-surface,
-  .bg-surface-card,
-  .bg-surface-card-elevated,
-  .surface-card,
-  .lms-app-card,
-  .lms-course-card,
-  .student-course-card,
-  .lms-quiz-card,
-  .lms-page-header-card,
-  .lms-hero-card,
-  .lms-form-card,
-  .lms-floating-panel,
-  .lms-alert,
-  .study-card,
-  .study-continue-card,
-  .study-action-card,
-  .study-error-card,
-  .study-loading-card,
-  .study-streak-card,
-  .study-readiness-card,
-  .study-plan-card,
-  .study-todo-card,
-  .study-mood-card,
-  .study-question-card,
-  .student-result-detail-hero,
-  .student-result-stat-card,
-  .student-result-insight-card,
-  .student-result-focus-card
-) {
-  border: 1px solid var(--lms-global-card-border, var(--lms-app-card-border)) !important;
-  border-radius: var(--lms-global-card-radius, var(--lms-app-card-radius, 22px)) !important;
-  background: var(--lms-global-card-bg, var(--lms-app-card-bg)) !important;
-  box-shadow: var(--lms-global-card-shadow, var(--lms-app-card-shadow)) !important;
-  color: var(--lms-app-card-title, var(--ink-strong)) !important;
 }
 
 :root .dashboard-page :where(
@@ -2915,14 +2875,12 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-side
   animation: lmsNoticeSlideIn 520ms cubic-bezier(0.32, 0.72, 0, 1) both;
   contain: layout paint style;
   transform: translate3d(0, 0, 0);
-  will-change: transform, opacity;
 }
 
 .lms-toast {
   animation: lmsNoticeSlideIn 520ms cubic-bezier(0.32, 0.72, 0, 1) both;
   contain: layout paint style;
   transform: translate3d(0, 0, 0);
-  will-change: transform, opacity;
 }
 
 .lms-feedback-notice {
@@ -3153,7 +3111,6 @@ body:is(.student-quiz-night-screen, .student-assessment-screen) :where(.lms-side
   .lms-toast {
     animation: none !important;
     transform: none !important;
-    will-change: auto !important;
   }
 }
 

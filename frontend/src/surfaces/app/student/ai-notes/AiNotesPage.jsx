@@ -1,11 +1,11 @@
 import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getAiNote, getLessonAiNote } from '../../../../shared/api/aiNotes.api.js';
+import { getAiNoteWithFallback, getLessonAiNoteWithFallback } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { recordStudyActivity } from '../../../../shared/api/dashboard.api.js';
 import { updateStudentLessonProgress } from '../../../../shared/api/courses.api.js';
-import { getVideoEmbed, getVideoThumbnail } from '../../../../shared/utils/videoEmbed.js';
+import { getVideoEmbed } from '../../../../shared/utils/videoEmbed.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
 import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
@@ -16,11 +16,6 @@ let drawingAudioContext = null;
 let lastDrawingSoundAt = 0;
 let activeDrawingSound = null;
 let spenLoopBuffers = null;
-const DRAWING_SOUND_MODES = [
-  { id:'spen', label:'S Pen' },
-  { id:'secret', label:'Secret Study' },
-];
-const DRAWING_SOUND_STORAGE_KEY = 'lms.aiNotes.drawingSoundMode';
 const SECRET_STUDY_EFFECTS = ['fart', 'dog', 'cat', 'boing', 'squeak'];
 const EMPTY_CANVAS_PAGES = [];
 const OFFLINE_NOTE_CACHE_PREFIX = 'lms.aiNotes.offline.note.';
@@ -607,16 +602,23 @@ function LockIcon({ size = 48 }) {
 function useDark() {
   const [d, setD] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
   useEffect(() => {
-    const ob = new MutationObserver(() => setD(document.documentElement.getAttribute('data-theme') === 'dark'));
+    const ob = new MutationObserver(() => {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark';
+      setD((current) => (current === next ? current : next));
+    });
     ob.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => ob.disconnect();
   }, []);
   return d;
 }
 
+function WebViewLayer({ enabled, children }) {
+  if (!enabled || typeof document === 'undefined') return children;
+  return createPortal(children, document.body);
+}
+
 const ICONS_LIB = ['☆','💡','📚','🌿','📅','🏷️','💬','✅','⚠️','❓','🔄','📌','🩺','💊','🧬','🔬'];
 const DECOS_LIB = ['✦','✧','♡','☁','〰','🌿','🍃','✿','✾','❋','◆','◇'];
-const STICKERS  = ['⭐','🔥','💡','🏆','✅','⚠️','❤️','👍','🧠','📚','📌','❗','❓','🚀','✏️','✨','⏰','🚩','🎯','💊','🧬','🔬','🩺','📊'];
 const DRAW_COLORS = ['#1f2937', '#2563eb', '#7c3aed', '#dc2626', '#047857', '#f59e0b'];
 const DRAW_WIDTHS = [3, 5, 8];
 const HIGHLIGHT_COLORS = ['#fde047', '#86efac', '#93c5fd', '#f0abfc'];
@@ -632,6 +634,14 @@ const STICKY_NOTE_COLORS = [
 ];
 const STICKY_NOTE_FONT = "'Bradley Hand','Segoe Print','Comic Sans MS','Chalkboard SE',cursive";
 const getStickyColor = (key) => STICKY_NOTE_COLORS.find(c => c.key === key) || STICKY_NOTE_COLORS[0];
+const TAG_STICKERS = [
+  { label:'Exam trap', color:'#ef4444' },
+  { label:'Must know', color:'#2563eb' },
+  { label:'Review', color:'#7c3aed' },
+  { label:'High yield', color:'#059669' },
+  { label:'Formula', color:'#d97706' },
+  { label:'Doubt', color:'#0891b2' },
+];
 
 function clampNumber(value, min, max) {
   const number = Number(value);
@@ -870,16 +880,6 @@ function EraserIcon({ size = 14 }) {
     </svg>
   );
 }
-function getMCQTag(note) {
-  const t = `${note?.title||''} ${note?.courseTitle||''} ${note?.topicName||''}`.toLowerCase();
-  if (/cardiac|heart|coronar|arrhythm|myocard/.test(t)) return { tag:'Cardiology',   c:'#9d174d', bg:'#fce7f3' };
-  if (/neuro|brain|stroke|parkinson|seizure/.test(t))    return { tag:'Neurology',    c:'#1e3a5f', bg:'#dbeafe' };
-  if (/pharmac|drug|medication|antibiotic/.test(t))       return { tag:'Pharmacology', c:'#4a1d96', bg:'#ede9fe' };
-  if (/pathol|cancer|tumour|neoplasm/.test(t))            return { tag:'Pathology',    c:'#7c2d12', bg:'#fff7ed' };
-  if (/anatom|muscle|nerve|ligament/.test(t))             return { tag:'Anatomy',      c:'#14532d', bg:'#dcfce7' };
-  return { tag:'Clinical Med.', c:'#334155', bg:'#f1f5f9' };
-}
-
 function studentCanvasPersonalStorageKey(noteId) {
   return noteId ? `lms.studentCanvas.personal.${noteId}` : '';
 }
@@ -956,6 +956,16 @@ function PenIcon({ size = 14 }) {
   );
 }
 
+function PenCloseIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M8.7 1.8l3.5 3.5-6.9 6.9-3.7.6.6-3.7 6.5-7.3z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+      <path d="M7.6 3.2l3.2 3.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+      <path d="M1.8 1.8l10.4 10.4M12.2 1.8L1.8 12.2" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 function UndoIcon({ size = 14 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -974,10 +984,21 @@ function TrashIcon({ size = 14 }) {
   );
 }
 
+function StickerIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M3.2 2.2h5.2l2.4 2.4v6.2a1 1 0 0 1-1 1H3.2a1 1 0 0 1-1-1V3.2a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+      <path d="M8.4 2.3v2.1a.7.7 0 0 0 .7.7h2.1" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+      <path d="M4.6 7.4h3.8M4.6 9.3h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 // ── Floating sticker ──────────────────────────────────────────────────────────
-function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
+function FloatingSticker({ s, editable, selected = false, autoFocus = false, onFocused, onSelect, onUpdate, onDelete, canvasRef }) {
   const dr = useRef(null), el = useRef(null);
   const taRef = useRef(null);
+  const lastTapRef = useRef({ t:0, x:0, y:0 });
   // Auto-grow the note to fit its text so typing feels like writing straight on
   // the sticky paper (no fixed "text box").
   useEffect(() => {
@@ -985,13 +1006,23 @@ function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
     const ta = taRef.current;
     if (ta) { ta.style.height = 'auto'; ta.style.height = `${ta.scrollHeight}px`; }
   }, [s.text, s.type, editable, s.w]);
+  useEffect(() => {
+    if (!autoFocus || s.type !== 'note' || !editable) return;
+    const timer = window.setTimeout(() => {
+      taRef.current?.focus();
+      onFocused?.();
+    }, 40);
+    return () => window.clearTimeout(timer);
+  }, [autoFocus, editable, onFocused, s.type]);
   function onPD(e) {
     if (!editable) return;
+    if (e.target?.closest?.('[data-sticker-delete]')) return;
     e.stopPropagation(); e.preventDefault();
+    onSelect?.(s.id);
     const r = canvasRef.current?.getBoundingClientRect(); if (!r) return;
-    const w = s.type === 'note' ? (s.w || 180) : 40;
-    const h = s.type === 'note' ? (s.h || 110) : 40;
-    dr.current = { sx:e.clientX, sy:e.clientY, ox:s.x, oy:s.y, x:s.x, y:s.y, w, h, r };
+    const w = s.type === 'note' ? (s.w || 180) : (s.type === 'tag' ? (s.w || 122) : 40);
+    const h = s.type === 'note' ? (s.h || 110) : (s.type === 'tag' ? 36 : 40);
+    dr.current = { sx:e.clientX, sy:e.clientY, ox:s.x, oy:s.y, x:s.x, y:s.y, w, h, r, moved:false };
     if (el.current) {
       el.current.style.cursor = 'grabbing';
       el.current.style.willChange = 'transform';
@@ -1002,9 +1033,31 @@ function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
     const d = dr.current; if (!d) return;
     d.x = Math.max(0, Math.min(d.r.width - d.w, d.ox + e.clientX - d.sx));
     d.y = Math.max(0, Math.min(d.r.height - d.h, d.oy + e.clientY - d.sy));
+    d.moved = d.moved || Math.hypot(d.x - d.ox, d.y - d.oy) > 4;
     if (el.current) {
-      el.current.style.transform = `translate3d(${d.x - d.ox}px, ${d.y - d.oy}px, 0) rotate(${s.r || 0}deg)`;
+      el.current.style.transform = `translate3d(${d.x - d.ox}px, ${d.y - d.oy}px, 0) rotate(${s.type === 'note' || s.type === 'tag' ? 0 : (s.r || 0)}deg)`;
     }
+  }
+  function focusNoteText() {
+    if (s.type !== 'note' || !editable) return;
+    window.setTimeout(() => {
+      taRef.current?.focus();
+      const length = taRef.current?.value?.length || 0;
+      taRef.current?.setSelectionRange?.(length, length);
+    }, 0);
+  }
+  function handleNoteTap(e) {
+    if (s.type !== 'note' || !editable) return;
+    const now = Date.now();
+    const previous = lastTapRef.current;
+    const dx = (Number(e?.clientX) || 0) - previous.x;
+    const dy = (Number(e?.clientY) || 0) - previous.y;
+    if (now - previous.t < 380 && Math.hypot(dx, dy) < 28) {
+      lastTapRef.current = { t:0, x:0, y:0 };
+      focusNoteText();
+      return;
+    }
+    lastTapRef.current = { t:now, x:Number(e?.clientX) || 0, y:Number(e?.clientY) || 0 };
   }
   function finishDrag(e) {
     const d = dr.current;
@@ -1012,61 +1065,103 @@ function FloatingSticker({ s, editable, onUpdate, onDelete, canvasRef }) {
     if (el.current) {
       el.current.style.cursor = editable ? 'grab' : 'default';
       el.current.style.willChange = '';
-      el.current.style.transform = `rotate(${s.r || 0}deg)`;
+      el.current.style.transform = `rotate(${s.type === 'note' || s.type === 'tag' ? 0 : (s.r || 0)}deg)`;
     }
     dr.current = null;
     try { e?.currentTarget?.releasePointerCapture?.(e.pointerId); } catch { /* pointer may already be released */ }
     if (Math.abs(d.x - d.ox) > 0.5 || Math.abs(d.y - d.oy) > 0.5) {
       onUpdate({ ...s, x:d.x, y:d.y });
+    } else if (s.type === 'note' && editable) {
+      handleNoteTap(e);
     }
   }
   return (
     <div ref={el} onPointerDown={onPD} onPointerMove={onPM} onPointerUp={finishDrag} onPointerCancel={finishDrag}
       className="group/fs absolute select-none leading-none"
-      style={{ left:s.x, top:s.y, cursor:editable?'grab':'default', zIndex:20, transform:`rotate(${s.r||0}deg)`, touchAction:editable?'none':'auto' }}>
+      style={{ left:s.x, top:s.y, cursor:editable?'grab':'default', zIndex:selected ? 46 : 45, transform:`rotate(${s.type === 'note' || s.type === 'tag' ? 0 : (s.r || 0)}deg)`, touchAction:editable?'none':'auto' }}>
       {s.type === 'note' ? (() => {
         const c = getStickyColor(s.color);
         const w = s.w || 194;
         return (
           <div
             className="lms-sticky-note relative overflow-hidden"
-            onClick={editable ? () => taRef.current?.focus() : undefined}
+            onClick={editable ? (event) => { event.stopPropagation(); onSelect?.(s.id); } : undefined}
+            onDoubleClick={editable ? (event) => { event.stopPropagation(); onSelect?.(s.id); focusNoteText(); } : undefined}
             style={{
               width: w, minHeight: 96,
-              background: `linear-gradient(155deg, ${c.bg} 0%, ${c.bg2} 100%)`,
+              background: c.bg,
               color: c.ink,
-              padding: '18px 15px 16px',
-              borderRadius: 2,
-              boxShadow: '0 14px 26px rgba(60,42,12,.20), 0 3px 8px rgba(60,42,12,.14), inset 0 1px 0 rgba(255,255,255,.42)',
+              padding: '14px 14px 13px',
+              border: `1px solid ${selected ? c.ink : c.edge}`,
+              borderRadius: 10,
+              boxShadow: selected ? `0 0 0 2px ${c.edge}` : '0 2px 8px rgba(15,23,42,.08)',
             }}
           >
-            {/* translucent tape across the top */}
-            <span aria-hidden="true" className="absolute left-1/2 top-[-10px]" style={{ width:62, height:20, background:c.tape, borderRadius:2, transform:'translateX(-50%) rotate(-2.5deg)', boxShadow:'0 1px 3px rgba(0,0,0,.10)', backdropFilter:'blur(1px)' }} />
-            {/* peeled / folded bottom-right corner */}
-            <span aria-hidden="true" className="absolute bottom-0 right-0" style={{ width:0, height:0, borderStyle:'solid', borderWidth:'0 0 22px 22px', borderColor:`transparent transparent ${c.edge} transparent` }} />
-            <span aria-hidden="true" className="absolute bottom-0 right-0" style={{ width:22, height:22, background:`linear-gradient(135deg, transparent 46%, rgba(0,0,0,.10) 54%)` }} />
+            <span aria-hidden="true" className="absolute inset-x-3 top-2" style={{ height:2, borderRadius:99, background:c.edge, opacity:.42 }} />
             {editable ? (
               <textarea ref={taRef}
                 className="block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none placeholder:opacity-45"
                 rows={1}
-                style={{ appearance:'none', WebkitAppearance:'none', background:'transparent', border:'none', boxShadow:'none', fontFamily: STICKY_NOTE_FONT, fontSize:18, fontWeight:700, lineHeight:1.36, color:c.ink, caretColor:c.ink, minHeight:54 }}
+                style={{ appearance:'none', WebkitAppearance:'none', background:'transparent', border:'none', boxShadow:'none', fontFamily: STICKY_NOTE_FONT, fontSize:17, fontWeight:700, lineHeight:1.36, color:c.ink, caretColor:c.ink, minHeight:54, marginTop:6 }}
                 value={s.text || ''}
-                onPointerDown={e => e.stopPropagation()}
+                onPointerDown={e => {
+                  onSelect?.(s.id);
+                  const pointerType = String(e.pointerType || '').toLowerCase();
+                  const textIsActive = typeof document !== 'undefined' && document.activeElement === taRef.current;
+                  if (pointerType === 'touch' && !textIsActive) {
+                    onPD(e);
+                    return;
+                  }
+                  e.stopPropagation();
+                }}
                 onChange={e => { e.currentTarget.style.height='auto'; e.currentTarget.style.height=`${e.currentTarget.scrollHeight}px`; onUpdate({ ...s, text:e.target.value }); }}
                 placeholder="Tap and type…"
                 aria-label="Personal sticky note text"
               />
             ) : (
-              <p className="m-0 whitespace-pre-wrap" style={{ fontFamily: STICKY_NOTE_FONT, fontSize:18, fontWeight:700, lineHeight:1.36, color:c.ink }}>{s.text}</p>
+              <p className="m-0 whitespace-pre-wrap" style={{ fontFamily: STICKY_NOTE_FONT, fontSize:17, fontWeight:700, lineHeight:1.36, color:c.ink, paddingTop:6 }}>{s.text}</p>
             )}
           </div>
         );
-      })() : (
+      })() : s.type === 'tag' ? (
+        <span
+          style={{
+            display:'inline-flex',
+            alignItems:'center',
+            minHeight:30,
+            padding:'0 10px',
+            borderRadius:999,
+            border:`1px solid ${selected ? s.color : `${s.color}55`}`,
+            background:`color-mix(in srgb, ${s.color || '#2563eb'} 14%, white)`,
+            color:s.color || '#2563eb',
+            boxShadow:selected ? `0 0 0 2px color-mix(in srgb, ${s.color || '#2563eb'} 24%, transparent)` : 'none',
+            fontSize:12,
+            fontWeight:900,
+            whiteSpace:'nowrap',
+          }}
+        >
+          {s.label || 'Tag'}
+        </span>
+      ) : (
         <span className="text-2xl">{s.emoji}</span>
       )}
-      {editable && <button className="absolute -right-2 -top-2 hidden size-4 items-center justify-center rounded-full bg-red-500 text-[11px] text-white group-hover/fs:flex"
+      {editable && <button
+        data-sticker-delete="true"
+        className={cx(
+          'absolute size-5 items-center justify-center border-0 bg-transparent p-0',
+          s.type === 'note' ? '-right-2 -top-2' : 'left-1/2 -top-4 -translate-x-1/2',
+          selected ? 'flex' : 'hidden group-hover/fs:flex'
+        )}
         type="button"
-        onClick={() => onDelete(s.id)}>✕</button>}
+        aria-label="Delete note item"
+        title="Delete"
+        style={{ touchAction:'manipulation' }}
+        onPointerDown={e => { e.stopPropagation(); e.preventDefault(); }}
+        onPointerUp={e => { e.stopPropagation(); e.preventDefault(); onDelete(s.id); }}
+        onClick={e => { e.stopPropagation(); e.preventDefault(); onDelete(s.id); }}
+      >
+        <span aria-hidden="true" className="flex size-1 items-center justify-center rounded-full bg-red-500 text-[4px] font-black leading-none text-white shadow-[0_1px_3px_rgba(15,23,42,.25)]">×</span>
+      </button>}
     </div>
   );
 }
@@ -1093,13 +1188,13 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   const strokesRef = useRef(strokes);
   const [eraserCursor, setEraserCursor] = useState(null);
 
-  function getHostLayoutSize() {
+  const getHostLayoutSize = useCallback(() => {
     const host = parentRef.current;
     if (!host) return null;
     const width = Math.max(1, Math.round(host.offsetWidth || host.clientWidth || host.scrollWidth || 1));
     const height = Math.max(1, Math.round(host.offsetHeight || host.clientHeight || host.scrollHeight || 1));
     return { width, height };
-  }
+  }, [parentRef]);
 
   const prepareCanvas = useCallback((canvas, width, height, dpr) => {
     if (!canvas) return null;
@@ -1136,19 +1231,15 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     const inkCtx = prepareCanvas(inkCanvas, width, height, dpr);
     const highlightCtx = prepareCanvas(highlightCanvas, width, height, dpr);
     if (!inkCtx || !highlightCtx) return;
-    const eraserStrokes = [];
     items.forEach((stroke) => {
       if (stroke?.tool === 'eraser') {
-        eraserStrokes.push(stroke);
+        drawEraserStroke(highlightCtx, stroke, width, height);
+        drawEraserStroke(inkCtx, stroke, width, height);
         return;
       }
       drawSmoothStroke(stroke?.tool === 'highlighter' ? highlightCtx : inkCtx, stroke, width, height);
     });
-    eraserStrokes.forEach((stroke) => {
-      drawEraserStroke(highlightCtx, stroke, width, height);
-      drawEraserStroke(inkCtx, stroke, width, height);
-    });
-  }, [parentRef, prepareCanvas, zoomScale]);
+  }, [getHostLayoutSize, parentRef, prepareCanvas, zoomScale]);
 
   function canvasMetrics() {
     return getHostLayoutSize();
@@ -1578,7 +1669,7 @@ function appendPointToCurrentStroke(event) {
           inset:0,
           zIndex:drawMode && editable ? 32 : 18,
           pointerEvents:drawMode && editable ? 'auto' : 'none',
-          touchAction:drawMode && editable ? 'none' : 'auto',
+          touchAction:drawMode && editable && !stylusOnly ? 'none' : 'auto',
           cursor:drawMode && editable ? 'crosshair' : 'default',
           WebkitTouchCallout:'none',
           WebkitUserSelect:'none',
@@ -1589,232 +1680,6 @@ function appendPointToCurrentStroke(event) {
   );
 });
 
-function FloatingWritingPalette({
-  isDark,
-  isEditing,
-  drawMode,
-  drawTool,
-  penColor,
-  penWidth,
-  soundMode,
-  strokeCount,
-  onActivate,
-  onToolChange,
-  onPenColorChange,
-  onPenWidthChange,
-  onSoundModeChange,
-  onUndoStroke,
-  onClearStrokes,
-}) {
-  const [open, setOpen] = useState(false);
-  const paletteRef = useRef(null);
-  const bd = isDark ? 'rgba(148,163,184,.24)' : 'rgba(148,163,184,.36)';
-  const panelBg = isDark ? 'rgba(15,23,42,.96)' : 'rgba(255,255,255,.97)';
-  const tx = isDark ? '#e2e8f0' : '#1e293b';
-  const muted = isDark ? 'rgba(203,213,225,.72)' : '#64748b';
-  const activeBg = isDark ? 'rgba(96,165,250,.2)' : '#eff6ff';
-  const selectedSoundMode = normalizeDrawingSoundMode(soundMode);
-  const tools = [
-    { id:'pen', label:'Pen', icon:<PenIcon /> },
-    { id:'highlighter', label:'Highlighter', icon:<HighlighterIcon /> },
-    { id:'eraser', label:'Eraser', icon:<EraserIcon /> },
-  ];
-  const colors = drawTool === 'highlighter' ? HIGHLIGHT_COLORS : DRAW_COLORS;
-  const handleMainClick = () => {
-    if (!drawMode) {
-      onActivate();
-      setOpen(false);
-      return;
-    }
-    onActivate();
-    setOpen(value => !value);
-  };
-
-  useEffect(() => {
-    if (!open || typeof document === 'undefined') return undefined;
-    const closeOnOutsideTouch = (event) => {
-      if (paletteRef.current?.contains(event.target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('pointerdown', closeOnOutsideTouch, true);
-    document.addEventListener('touchstart', closeOnOutsideTouch, true);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsideTouch, true);
-      document.removeEventListener('touchstart', closeOnOutsideTouch, true);
-    };
-  }, [open]);
-
-  return (
-    <div
-      ref={paletteRef}
-      className="lms-ai-note-write-palette"
-      style={{
-        position:'fixed',
-        right:'max(16px, var(--lms-safe-right, 0px))',
-        bottom:'calc(var(--lms-mobile-content-bottom, 68px) + 16px)',
-        zIndex:92,
-        display:'flex',
-        flexDirection:'column',
-        alignItems:'flex-end',
-        gap:10,
-        pointerEvents:'none',
-      }}
-    >
-      {open && (
-        <div
-          style={{
-            width:248,
-            border:`1px solid ${bd}`,
-            borderRadius:18,
-            background:panelBg,
-            color:tx,
-            boxShadow:isDark ? '0 22px 54px rgba(0,0,0,.42)' : '0 22px 54px rgba(15,23,42,.2)',
-            padding:12,
-            pointerEvents:'auto',
-            backdropFilter:'blur(18px)',
-          }}
-        >
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7, marginBottom:10 }}>
-            {tools.map((tool) => (
-              <button
-                key={tool.id}
-                type="button"
-                onClick={() => {
-                  onToolChange(tool.id);
-                  if (!drawMode) onActivate();
-                }}
-                aria-pressed={drawTool === tool.id}
-                className="inline-flex items-center justify-center"
-                title={tool.label}
-                style={{
-                  minHeight:42,
-                  border:`1px solid ${drawTool === tool.id ? (isDark ? 'rgba(96,165,250,.62)' : '#2563eb') : bd}`,
-                  borderRadius:12,
-                  background:drawTool === tool.id ? activeBg : 'transparent',
-                  color:drawTool === tool.id ? (isDark ? '#bfdbfe' : '#1d4ed8') : tx,
-                  cursor:'pointer',
-                }}
-              >
-                {tool.icon}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7, marginBottom:10 }}>
-            {DRAWING_SOUND_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => onSoundModeChange?.(mode.id)}
-                aria-pressed={selectedSoundMode === mode.id}
-                style={{
-                  minHeight:34,
-                  border:`1px solid ${selectedSoundMode === mode.id ? (isDark ? 'rgba(45,212,191,.52)' : '#0f766e') : bd}`,
-                  borderRadius:11,
-                  background:selectedSoundMode === mode.id ? (isDark ? 'rgba(45,212,191,.14)' : '#ecfdf5') : 'transparent',
-                  color:selectedSoundMode === mode.id ? (isDark ? '#99f6e4' : '#0f766e') : muted,
-                  cursor:'pointer',
-                  fontSize:11.5,
-                  fontWeight:900,
-                }}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
-
-          {drawTool !== 'eraser' && (
-            <div style={{ display:'flex', flexWrap:'wrap', gap:7, marginBottom:10 }}>
-              {colors.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => onPenColorChange(color)}
-                  aria-label={`Use ${color}`}
-                  aria-pressed={penColor === color}
-                  style={{
-                    width:30,
-                    height:30,
-                    borderRadius:10,
-                    border:penColor === color ? `3px solid ${isDark ? '#f8fafc' : '#111827'}` : `1px solid ${bd}`,
-                    background:color,
-                    cursor:'pointer',
-                    boxShadow:penColor === color ? '0 0 0 2px rgba(96,165,250,.36)' : 'none',
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7, marginBottom:10 }}>
-            {DRAW_WIDTHS.map((width) => (
-              <button
-                key={width}
-                type="button"
-                onClick={() => onPenWidthChange(width)}
-                aria-pressed={penWidth === width}
-                style={{
-                  minHeight:36,
-                  border:`1px solid ${penWidth === width ? (isDark ? 'rgba(167,139,250,.56)' : '#7c3aed') : bd}`,
-                  borderRadius:11,
-                  background:penWidth === width ? (isDark ? 'rgba(167,139,250,.14)' : '#f5f3ff') : 'transparent',
-                  cursor:'pointer',
-                }}
-              >
-                <span style={{ display:'block', height:drawTool === 'highlighter' ? Math.max(8, width * 1.7) : width, borderRadius:99, background:drawTool === 'eraser' ? muted : penColor, margin:'0 auto', width:'64%', opacity:drawTool === 'highlighter' ? .55 : 1 }} />
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
-            <button
-              type="button"
-              onClick={onUndoStroke}
-              disabled={!strokeCount}
-              className="inline-flex items-center justify-center gap-1.5"
-              style={{ minHeight:36, border:`1px solid ${bd}`, borderRadius:11, background:'transparent', color:muted, cursor:strokeCount?'pointer':'not-allowed', opacity:strokeCount?1:.45, fontSize:11, fontWeight:900 }}
-            >
-              <UndoIcon /> Undo
-            </button>
-            <button
-              type="button"
-              onClick={onClearStrokes}
-              disabled={!strokeCount}
-              className="inline-flex items-center justify-center gap-1.5"
-              style={{ minHeight:36, border:`1px solid ${strokeCount ? 'rgba(220,38,38,.34)' : bd}`, borderRadius:11, background:strokeCount ? (isDark?'rgba(220,38,38,.1)':'#fef2f2') : 'transparent', color:strokeCount ? (isDark?'#fca5a5':'#b91c1c') : muted, cursor:strokeCount?'pointer':'not-allowed', opacity:strokeCount?1:.45, fontSize:11, fontWeight:900 }}
-            >
-              <TrashIcon /> Clear
-            </button>
-          </div>
-        </div>
-      )}
-      <button
-        className="lms-ai-note-write-fab lms-smooth-action inline-flex items-center justify-center"
-        type="button"
-        onClick={handleMainClick}
-        aria-expanded={open}
-        aria-pressed={drawMode}
-        style={{
-          pointerEvents:'auto',
-          width:56,
-          height:56,
-          border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.62)' : '#2563eb') : bd}`,
-          borderRadius:999,
-          background:drawMode ? (isDark ? 'linear-gradient(180deg,rgba(96,165,250,.28),rgba(37,99,235,.18))' : '#eff6ff') : panelBg,
-          color:drawMode ? (isDark ? '#dbeafe' : '#1d4ed8') : tx,
-          boxShadow:isDark ? '0 4px 14px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.10)' : '0 3px 12px rgba(15,23,42,.10)',
-          cursor:'pointer',
-          opacity:isEditing || drawMode ? 1 : .96,
-          WebkitTapHighlightColor:'transparent',
-        }}
-        title="Pencil / S Pen tools"
-      >
-        {drawTool === 'eraser' ? <EraserIcon size={18} /> : drawTool === 'highlighter' ? <HighlighterIcon size={18} /> : <PenIcon size={18} />}
-      </button>
-    </div>
-  );
-}
-
 function SmoothCanvasMotion() {
   return (
     <style>{`
@@ -1822,13 +1687,28 @@ function SmoothCanvasMotion() {
         from { opacity: 0; transform: translate3d(-50%, 10px, 0) scale(.98); }
         to { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1); }
       }
-      /* The global "html, body { overflow-x: hidden }" rule forces overflow-y to
-         auto, which makes <body> a non-scrolling scroll container and breaks
-         position: sticky (the header would scroll away). overflow-x: clip keeps
-         overflow-y visible so the sticky header pins on screen. Scoped via :has. */
-      html:has(.lms-ai-note-page), body:has(.lms-ai-note-page) {
-        overflow-x: clip !important;
-        overflow-y: visible !important;
+      html[data-lms-runtime="native"] .lms-ai-note-page {
+        --lms-ai-note-native-topbar-height: calc(58px + env(safe-area-inset-top, 0px));
+        padding-top: var(--lms-ai-note-native-topbar-height);
+        overscroll-behavior: contain !important;
+      }
+      html[data-lms-runtime="native"] .lms-ai-note-topbar {
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        left: 0 !important;
+        z-index: 9997 !important;
+        transform: translate3d(0, 0, 0) !important;
+        overscroll-behavior: none !important;
+      }
+      html[data-lms-runtime="native"] .lms-ai-note-topbar-inner {
+        transform: none !important;
+        contain: paint;
+      }
+      @media (max-width: 760px) {
+        html[data-lms-runtime="native"] .lms-ai-note-page {
+          --lms-ai-note-native-topbar-height: calc(134px + env(safe-area-inset-top, 0px));
+        }
       }
       .lms-ai-canvas-shell {
         animation: none;
@@ -2040,22 +1920,6 @@ function SmoothCanvasMotion() {
   );
 }
 
-function StickerPicker({ onPick, onClose }) {
-  const r = useRef(null);
-  useEffect(() => {
-    const h = e => { if (r.current && !r.current.contains(e.target)) onClose(); };
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
-  }, [onClose]);
-  return (
-    <div ref={r} className="absolute bottom-full left-0 z-50 mb-2 grid grid-cols-6 gap-1 rounded-2xl border border-gray-200 bg-surface-card p-2.5 shadow-lg">
-      {STICKERS.map((s,i) => (
-        <button key={i} className="flex size-8 items-center justify-center rounded-lg border border-gray-100 text-base hover:border-violet-300 hover:bg-violet-50"
-          onClick={() => { onPick(s); onClose(); }}>{s}</button>
-      ))}
-    </div>
-  );
-}
-
 const VIDEO_RESUME_STORAGE_PREFIX = 'lms.lessonVideo.resume.';
 
 function videoResumeStorageKey(url) {
@@ -2191,326 +2055,191 @@ function WatchVideoModal({ open, url, captionUrl = '', onClose, isDark }) {
   );
 }
 
-function WatchVideoPanel({ videoUrl, onOpenVideo, isDark }) {
-  const bg = isDark ? '#12141f' : '#fbfcff';
-  const bd = isDark ? 'rgba(255,255,255,.09)' : '#e5e7eb';
-  const muted = isDark ? 'rgba(200,210,255,.58)' : '#64748b';
-  const thumb = getVideoThumbnail(videoUrl);
-  return (
-    <div style={{ background:bg, border:`1px solid ${bd}`, borderRadius:14, padding:10, marginBottom:12 }}>
-      <button className="group relative block aspect-video w-full overflow-hidden rounded-xl border text-left shadow-[0_16px_34px_rgba(15,23,42,.12)] transition-[box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(37,99,235,.18)] active:scale-[0.98]"
-        type="button"
-        onClick={onOpenVideo}
-        style={{ borderColor:bd, opacity:videoUrl ? 1 : 0.76, cursor:'pointer', background:isDark?'linear-gradient(135deg,rgba(37,99,235,.22),rgba(124,58,237,.18),rgba(15,23,42,.96))':'linear-gradient(135deg,#eff6ff,#f5f3ff,#ffffff)' }}
-      >
-        {thumb && <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition-transform duration-150 ease-[var(--ease-out)] group-hover:scale-[1.03]" loading="lazy" decoding="async" />}
-        <span className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(59,130,246,.15),transparent_36%),linear-gradient(180deg,rgba(2,6,23,.08),rgba(2,6,23,.66))]" />
-        <span className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white backdrop-blur">
-          Watch Video
-        </span>
-        <span className="absolute left-1/2 top-1/2 grid size-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/18 text-white shadow-[0_0_34px_rgba(59,130,246,.38)] backdrop-blur-md transition-transform duration-150 ease-[var(--ease-out)] group-hover:scale-105">
-          ▶
-        </span>
-        <span className="absolute inset-x-3 bottom-3">
-          <span className="block truncate text-[13px] font-black text-white">{videoUrl ? 'Protected lesson video' : 'No video added yet'}</span>
-          <span className="block text-[11px] font-semibold text-white/75">{videoUrl ? 'Click to play securely' : 'Instructor can add a protected video'}</span>
-        </span>
-      </button>
-      <p style={{ fontSize:11.5, lineHeight:1.45, color:muted, margin:'9px 3px 0' }}>
-        {videoUrl ? 'Video plays inside the LMS without exposing the source link.' : 'Ask your instructor to add the lesson video.'}
-      </p>
-    </div>
-  );
-}
-
-// ── Right panel ───────────────────────────────────────────────────────────────
-function RightPanel({
-  onStickerAdd,
-  onNoteAdd,
-  note,
-  isDark,
-  isEditing,
-  videoUrl,
-  onOpenVideo,
-  nativeWritingEnabled,
-  drawMode,
-  penColor,
-  penWidth,
-  strokeCount,
-  onToggleDraw,
-  onPenColorChange,
-  onPenWidthChange,
-  onUndoStroke,
-  onClearStrokes,
-}) {
-  const [stickerOpen, setStickerOpen] = useState(false);
-  const navigate = useNavigate();
-  const mcq = getMCQTag(note);
-  const bg  = isDark?'#12141f':'#fbfcff', bd=isDark?'rgba(255,255,255,.09)':'#e5e7eb';
-  const lbl = isDark?'rgba(200,210,255,.4)':'#9ca3af';
-  const C = ch => <div style={{ background:bg, border:`1px solid ${bd}`, borderRadius:16, padding:'13px 15px', marginBottom:12 }}>{ch}</div>;
-  const L = t => <div style={{ fontFamily:'var(--type-font-body)', fontSize:11, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:lbl, marginBottom:9 }}>{t}</div>;
-  const btnHov = (e,on) => {
-    e.currentTarget.style.borderColor = on?'#a78bfa':bd;
-    e.currentTarget.style.background  = on?(isDark?'rgba(167,139,250,.1)':'#f5f3ff'):(isDark?'rgba(255,255,255,.04)':'#f9fafb');
-  };
-  return (
-    <div style={{ position:'sticky', top:72 }}>
-      <WatchVideoPanel videoUrl={videoUrl} onOpenVideo={onOpenVideo} isDark={isDark} />
-      {C(<>
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-          <span style={{ fontSize:18 }}>🎯</span>
-          <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.1em', textTransform:'uppercase', color:isDark?'#a78bfa':'#6d28d9' }}>Practice MCQ</span>
-        </div>
-        <span style={{ background:isDark?`${mcq.bg}18`:mcq.bg, border:`1px solid ${mcq.c}40`, color:mcq.c, borderRadius:99, padding:'2px 9px', fontSize:11, fontWeight:700, display:'inline-block', marginBottom:10 }}>{mcq.tag}</span>
-        <p style={{ fontSize:11.5, lineHeight:1.55, color:isDark?'rgba(200,210,255,.65)':'#6b7280', marginBottom:12 }}>
-          Test knowledge on <strong style={{ color:isDark?'#a78bfa':'#5b21b6' }}>{note?.title||'this topic'}</strong>.
-        </p>
-        <button className="w-full" onClick={() => navigate('/quizzes')}
-          style={{ width:'100%', background:isDark?'rgba(167,139,250,.12)':'#f5f3ff', color:isDark?'#ddd6fe':'#6d28d9', borderRadius:11, padding:'8px 0', fontSize:11, fontWeight:800, border:`1px solid ${isDark?'rgba(167,139,250,.28)':'rgba(124,58,237,.24)'}`, cursor:'pointer' }}
-          onMouseEnter={e => { e.currentTarget.style.background = isDark?'rgba(167,139,250,.18)':'#ede9fe'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = isDark?'rgba(167,139,250,.12)':'#f5f3ff'; }}>
-          Start MCQ Session →
-        </button>
-      </>)}
-      {C(<>
-        {L('Icons')}
-        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
-          {ICONS_LIB.map((ic,i) => <button key={i} className="inline-flex items-center justify-center" onClick={() => onStickerAdd(ic)} title="Pin to lesson"
-            style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:9, border:`1px solid ${bd}`, background:isDark?'rgba(255,255,255,.04)':'#f9fafb', fontSize:14, cursor:'pointer' }}
-            onMouseEnter={e => btnHov(e,true)} onMouseLeave={e => btnHov(e,false)}>{ic}</button>)}
-        </div>
-        {L('Decorative Elements')}
-        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-          {DECOS_LIB.map((d,i) => <button key={i} className="inline-flex items-center justify-center" onClick={() => onStickerAdd(d)} title="Pin to lesson"
-            style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:9, border:`1px solid ${bd}`, background:isDark?'rgba(255,255,255,.04)':'#f9fafb', fontSize:14, cursor:'pointer' }}
-            onMouseEnter={e => btnHov(e,true)} onMouseLeave={e => btnHov(e,false)}>{d}</button>)}
-        </div>
-        <div style={{ position:'relative', marginTop:8 }}>
-          <button className="mb-2 w-full" onClick={onNoteAdd}
-            type="button"
-            style={{ width:'100%', border:`1px dashed ${bd}`, borderRadius:9, padding:'5px 0', fontSize:11, fontWeight:700, color:isDark?'#f59e0b':'#92400e', background:isDark?'rgba(245,158,11,.08)':'#fffbeb', cursor:'pointer' }}
-          >
-            📝 Add sticky note
-          </button>
-          <button className="w-full" onClick={() => setStickerOpen(v => !v)}
-            style={{ width:'100%', border:`1px dashed ${bd}`, borderRadius:9, padding:'5px 0', fontSize:11, fontWeight:600, color:lbl, background:'transparent', cursor:'pointer' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor='#a78bfa'; e.currentTarget.style.color='#7c3aed'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor=bd; e.currentTarget.style.color=lbl; }}>
-            ✨ More stickers…
-          </button>
-          {stickerOpen && <StickerPicker onPick={onStickerAdd} onClose={() => setStickerOpen(false)} />}
-        </div>
-      </>)}
-      {nativeWritingEnabled && C(<>
-        {L('Pencil / S Pen')}
-        <button
-          className="mb-3 inline-flex w-full items-center justify-center gap-2"
-          type="button"
-          onClick={onToggleDraw}
-          disabled={!isEditing}
-          aria-pressed={drawMode}
-          style={{
-            minHeight:42,
-            border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.45)' : '#2563eb') : bd}`,
-            borderRadius:12,
-            background:drawMode ? (isDark ? 'rgba(96,165,250,.16)' : '#eff6ff') : (isDark?'rgba(255,255,255,.04)':'#f9fafb'),
-            color:drawMode ? (isDark ? '#bfdbfe' : '#1d4ed8') : (isDark?'rgba(226,232,240,.86)':'#374151'),
-            cursor:isEditing ? 'pointer' : 'not-allowed',
-            opacity:isEditing ? 1 : 0.55,
-            fontSize:12,
-            fontWeight:900,
-          }}
-        >
-          <PenIcon />
-          {drawMode ? 'Pencil / S Pen On' : 'Use Pencil / S Pen'}
-        </button>
-        <div style={{ display:'grid', gap:10 }}>
-          <div>
-            <div style={{ fontFamily:'var(--type-font-body)', fontSize:11, fontWeight:800, color:lbl, marginBottom:6 }}>Pen color</div>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:7 }}>
-              {DRAW_COLORS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => onPenColorChange(color)}
-                  aria-label={`Use pen color ${color}`}
-                  aria-pressed={penColor === color}
-                  style={{
-                    width:30,
-                    height:30,
-                    borderRadius:9,
-                    border:penColor === color ? `3px solid ${isDark ? '#f8fafc' : '#111827'}` : `1px solid ${bd}`,
-                    background:color,
-                    cursor:'pointer',
-                    boxShadow:penColor === color ? '0 0 0 2px rgba(96,165,250,.35)' : 'none',
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontFamily:'var(--type-font-body)', fontSize:11, fontWeight:800, color:lbl, marginBottom:6 }}>Pen width</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
-              {DRAW_WIDTHS.map((width) => (
-                <button
-                  key={width}
-                  type="button"
-                  onClick={() => onPenWidthChange(width)}
-                  aria-pressed={penWidth === width}
-                  style={{
-                    minHeight:34,
-                    border:`1px solid ${penWidth === width ? (isDark ? 'rgba(167,139,250,.5)' : '#7c3aed') : bd}`,
-                    borderRadius:10,
-                    background:penWidth === width ? (isDark ? 'rgba(167,139,250,.14)' : '#f5f3ff') : 'transparent',
-                    cursor:'pointer',
-                  }}
-                >
-                  <span style={{ display:'block', height:width, borderRadius:99, background:penColor, margin:'0 auto', width:'68%' }} />
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
-            <button
-              type="button"
-              onClick={onUndoStroke}
-              disabled={!strokeCount}
-              className="inline-flex items-center justify-center gap-1.5"
-              style={{ minHeight:36, border:`1px solid ${bd}`, borderRadius:10, background:'transparent', color:isDark?'rgba(226,232,240,.82)':'#475569', cursor:strokeCount?'pointer':'not-allowed', opacity:strokeCount?1:.45, fontSize:11, fontWeight:800 }}
-            >
-              <UndoIcon /> Undo
-            </button>
-            <button
-              type="button"
-              onClick={onClearStrokes}
-              disabled={!strokeCount}
-              className="inline-flex items-center justify-center gap-1.5"
-              style={{ minHeight:36, border:`1px solid ${strokeCount ? 'rgba(220,38,38,.32)' : bd}`, borderRadius:10, background:strokeCount ? (isDark?'rgba(220,38,38,.09)':'#fef2f2') : 'transparent', color:strokeCount ? (isDark?'#fca5a5':'#b91c1c') : lbl, cursor:strokeCount?'pointer':'not-allowed', opacity:strokeCount?1:.45, fontSize:11, fontWeight:800 }}
-            >
-              <TrashIcon /> Clear
-            </button>
-          </div>
-        </div>
-      </>)}
-      <div style={{ borderRadius:16, border:isDark?'1px solid rgba(251,191,36,.2)':'1px solid #fde68a', background:isDark?'rgba(251,191,36,.05)':'#fffbeb', padding:'13px 15px' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5 }}>
-          <span>💡</span>
-          <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.12em', textTransform:'uppercase', color:isDark?'#fbbf24':'#92400e', fontFamily:'var(--type-font-body)' }}>Revision Tip</span>
-        </div>
-        <p style={{ fontSize:11.5, lineHeight:1.6, color:isDark?'#fde68a':'#78350f', margin:0 }}>
-          {nativeWritingEnabled
-            ? (isEditing
-              ? 'Personalize mode lets you move stickers, write sticky notes, and draw on the lesson with Apple Pencil or S Pen. The instructor lesson stays protected.'
-              : 'Use Personalize when you want to pin icons, add notes, or write on the lesson canvas with Apple Pencil or S Pen.')
-            : (isEditing
-              ? 'Personalize mode lets you move stickers and write your own sticky notes. The instructor lesson stays protected.'
-              : 'Use Personalize when you want to pin icons or add your own sticky notes.')}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-const MemoRightPanel = memo(RightPanel);
-
 // ── GoodNotes-style top tool toolbar (shown in Personalize mode) ──────────────
-// Horizontal, flat tool strip docked above the canvas. Pen / highlighter / colors
-// / width / undo / clear / writing-sound + emojis + sticky notes. The canvas
+// Horizontal, flat tool strip docked above the canvas. Pen / highlighter / eraser,
+// colors / width / undo / clear + stickers + sticky notes. The canvas
 // underneath keeps the exact reading-mode width — tools live on top, not beside.
 function CanvasTopToolbar({
   isDark, nativeWritingEnabled,
-  drawMode, drawTool, penColor, penWidth, soundMode, strokeCount,
-  onSelectTool, onStopDraw, onPenColorChange, onPenWidthChange, onSoundModeChange,
-  onUndoStroke, onClearStrokes, onStickerAdd, onNoteAdd,
+  drawMode, drawTool, penColor, penWidth, strokeCount,
+  onSelectTool, onPenColorChange, onPenWidthChange,
+  onUndoStroke, onClearStrokes, onStickerAdd, onNoteAdd, onTagAdd,
 }) {
   const [menu, setMenu] = useState(false);
-  const ref = useRef(null);
+  const [menuRect, setMenuRect] = useState(null);
+  const toolbarRef = useRef(null);
+  const menuRef = useRef(null);
+  const stickerButtonRef = useRef(null);
   useEffect(() => {
     if (!menu) return undefined;
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) setMenu(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
+    const h = e => {
+      if (menuRef.current?.contains(e.target)) return;
+      if (toolbarRef.current?.contains(e.target)) return;
+      setMenu(false);
+    };
+    document.addEventListener('pointerdown', h, true);
+    document.addEventListener('touchstart', h, true);
+    return () => {
+      document.removeEventListener('pointerdown', h, true);
+      document.removeEventListener('touchstart', h, true);
+    };
   }, [menu]);
+  const updateMenuRect = useCallback(() => {
+    if (!stickerButtonRef.current || typeof window === 'undefined') return;
+    const rect = stickerButtonRef.current.getBoundingClientRect();
+    const menuWidth = Math.min(292, Math.max(240, window.innerWidth - 24));
+    const menuHeight = Math.min(420, Math.max(260, window.innerHeight - 24));
+    const left = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
+    const belowTop = rect.bottom + 8;
+    const aboveTop = Math.max(12, rect.top - menuHeight - 8);
+    const top = belowTop + menuHeight > window.innerHeight - 12 ? aboveTop : belowTop;
+    setMenuRect({ top: Math.round(top), left: Math.round(left), width: Math.round(menuWidth), maxHeight: Math.round(menuHeight) });
+  }, []);
+  const toggleStickerMenu = useCallback(() => {
+    setMenu(value => {
+      const next = !value;
+      if (next) window.requestAnimationFrame(updateMenuRect);
+      return next;
+    });
+  }, [updateMenuRect]);
+  useEffect(() => {
+    if (!menu) return undefined;
+    updateMenuRect();
+    let frame = 0;
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updateMenuRect();
+      });
+    };
+    window.addEventListener('resize', scheduleUpdate, { passive: true });
+    window.addEventListener('scroll', scheduleUpdate, true);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', scheduleUpdate);
+      window.removeEventListener('scroll', scheduleUpdate, true);
+    };
+  }, [menu, updateMenuRect]);
 
   const bd = isDark ? 'rgba(255,255,255,.1)' : '#e8e3d8';
   const ink = isDark ? 'rgba(226,232,240,.9)' : '#3b465f';
   const muted = isDark ? 'rgba(200,210,255,.5)' : '#9ca3af';
   const colors = drawTool === 'highlighter' ? HIGHLIGHT_COLORS : DRAW_COLORS;
-  const seg = (active, danger) => ({
-    display:'inline-flex', alignItems:'center', gap:6, minHeight:34, padding:'0 11px',
-    borderRadius:9, fontSize:12, fontWeight:800, cursor:'pointer', whiteSpace:'nowrap',
+  const iconButton = (active, danger) => ({
+    width:22, height:22, minWidth:22, minHeight:22,
+    display:'inline-flex', alignItems:'center', justifyContent:'center', gap:0, padding:0,
+    borderRadius:7, fontSize:10, fontWeight:800, cursor:'pointer', whiteSpace:'nowrap',
     border:`1px solid ${active ? (isDark?'rgba(96,165,250,.5)':'#2563eb') : (danger ? (isDark?'rgba(220,38,38,.32)':'rgba(220,38,38,.3)') : bd)}`,
     background: active ? (isDark?'rgba(96,165,250,.16)':'#eff6ff') : 'transparent',
     color: active ? (isDark?'#bfdbfe':'#1d4ed8') : (danger ? (isDark?'#fca5a5':'#b91c1c') : ink),
   });
-  const cell = { width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:9, border:`1px solid ${bd}`, background:isDark?'rgba(255,255,255,.04)':'#f9fafb', fontSize:15, cursor:'pointer' };
-  const Divider = () => <span style={{ width:1, height:22, background:bd, flexShrink:0 }} />;
+  const seg = iconButton;
+  const cell = { width:24, height:24, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:7, border:`1px solid ${bd}`, background:isDark?'rgba(255,255,255,.04)':'#f9fafb', fontSize:13, cursor:'pointer' };
+  const Divider = () => <span style={{ width:1, height:14, background:bd, flexShrink:0 }} />;
 
   return (
-    <div ref={ref} className="lms-ai-note-tooltop" style={{
+    <div ref={toolbarRef} className="lms-ai-note-tooltop" style={{
       position:'relative', width:'fit-content', maxWidth:'100%',
-      display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'center', gap:7, padding:'6px 8px',
-      borderRadius:14, border:`1px solid ${bd}`, background:isDark?'rgba(18,20,31,.6)':'rgba(255,255,255,.7)',
+      display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'center', gap:4, padding:'3px 5px',
+      borderRadius:10, border:`1px solid ${bd}`, background:isDark?'rgba(18,20,31,.6)':'rgba(255,255,255,.7)',
     }}>
       {nativeWritingEnabled && (<>
-        <button type="button" style={seg(drawMode && drawTool === 'pen')} onClick={() => onSelectTool('pen')}><PenIcon /> Pen</button>
-        <button type="button" style={seg(drawMode && drawTool === 'highlighter')} onClick={() => onSelectTool('highlighter')}>
-          <span style={{ width:13, height:13, borderRadius:3, background:'#fde047', border:'1px solid rgba(0,0,0,.15)' }} /> Highlighter
+        <button type="button" aria-label="Pen" title="Pen" style={seg(drawMode && drawTool === 'pen')} onClick={() => onSelectTool('pen')}><PenIcon size={12} /></button>
+        <button type="button" aria-label="Highlighter" title="Highlighter" style={seg(drawMode && drawTool === 'highlighter')} onClick={() => onSelectTool('highlighter')}>
+          <HighlighterIcon size={12} />
         </button>
-        {drawMode && <button type="button" style={seg(false)} onClick={onStopDraw}>Stop</button>}
+        <button type="button" aria-label="Eraser" title="Eraser" style={seg(drawMode && drawTool === 'eraser')} onClick={() => onSelectTool('eraser')}>
+          <EraserIcon size={12} />
+        </button>
         <Divider />
-        <div style={{ display:'flex', gap:5 }}>
+        <div style={{ display:'flex', gap:3 }}>
           {colors.map(c => (
             <button key={c} type="button" onClick={() => onPenColorChange(c)} aria-label={`Pen color ${c}`} aria-pressed={penColor === c}
-              style={{ width:24, height:24, borderRadius:7, background:c, cursor:'pointer', border: penColor === c ? `2.5px solid ${isDark?'#f8fafc':'#111827'}` : `1px solid ${bd}` }} />
+              style={{ width:16, height:16, borderRadius:5, background:c, cursor:'pointer', border: penColor === c ? `2px solid ${isDark?'#f8fafc':'#111827'}` : `1px solid ${bd}` }} />
           ))}
         </div>
         <Divider />
-        <div style={{ display:'flex', gap:5 }}>
+        <div style={{ display:'flex', gap:3 }}>
           {DRAW_WIDTHS.map(w => (
             <button key={w} type="button" onClick={() => onPenWidthChange(w)} aria-label={`Pen width ${w}`} aria-pressed={penWidth === w}
-              style={{ width:30, height:30, borderRadius:8, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+              style={{ width:20, height:20, borderRadius:6, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
                 border:`1px solid ${penWidth === w ? (isDark?'rgba(167,139,250,.5)':'#7c3aed') : bd}`, background: penWidth === w ? (isDark?'rgba(167,139,250,.14)':'#f5f3ff') : 'transparent' }}>
               <span style={{ display:'block', width:'62%', height:w, borderRadius:99, background:penColor }} />
             </button>
           ))}
         </div>
         <Divider />
-        <button type="button" onClick={onUndoStroke} disabled={!strokeCount} style={{ ...seg(false), opacity:strokeCount?1:.4, cursor:strokeCount?'pointer':'not-allowed' }}><UndoIcon /> Undo</button>
-        <button type="button" onClick={onClearStrokes} disabled={!strokeCount} style={{ ...seg(false, !!strokeCount), opacity:strokeCount?1:.5, cursor:strokeCount?'pointer':'not-allowed' }}><TrashIcon /> Clear</button>
-        <button type="button" onClick={onSoundModeChange} title="Writing sound" style={seg(false)}>🔊 {DRAWING_SOUND_MODES.find(m => m.id === soundMode)?.label || 'Sound'}</button>
+        <button type="button" aria-label="Undo stroke" title="Undo" onClick={onUndoStroke} disabled={!strokeCount} style={{ ...seg(false), opacity:strokeCount?1:.4, cursor:strokeCount?'pointer':'not-allowed' }}><UndoIcon size={12} /></button>
+        <button type="button" aria-label="Clear writing" title="Clear writing" onClick={onClearStrokes} disabled={!strokeCount} style={{ ...seg(false, !!strokeCount), opacity:strokeCount?1:.5, cursor:strokeCount?'pointer':'not-allowed' }}><TrashIcon size={12} /></button>
         <Divider />
       </>)}
       <div style={{ position:'relative' }}>
-        <button type="button" style={seg(menu)} onClick={() => setMenu(v => !v)}>😊 Stickers</button>
-        {menu && (
-          <div style={{ position:'absolute', top:'calc(100% + 8px)', left:0, zIndex:80, width:272, padding:12, borderRadius:14, border:`1px solid ${bd}`, background:isDark?'#12141f':'#fff', boxShadow:'0 12px 30px rgba(15,23,42,.16)' }}>
+        <button ref={stickerButtonRef} type="button" aria-label="Stickers" title="Stickers" style={seg(menu)} onClick={toggleStickerMenu}><StickerIcon size={12} /></button>
+        {menu && menuRect && typeof document !== 'undefined' ? createPortal(
+          <div
+            ref={menuRef}
+            className="lms-ai-note-sticker-menu"
+            style={{
+              position:'fixed',
+              top:menuRect.top,
+              left:menuRect.left,
+              zIndex:10020,
+              width:menuRect.width,
+              maxHeight:menuRect.maxHeight,
+              overflowY:'auto',
+              WebkitOverflowScrolling:'touch',
+              padding:12,
+              borderRadius:14,
+              border:`1px solid ${bd}`,
+              background:isDark?'#12141f':'#fff',
+              boxShadow:'0 18px 42px rgba(15,23,42,.22)',
+            }}
+          >
             <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:muted, marginBottom:8 }}>Sticky notes</div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:9, marginBottom:13 }}>
               {STICKY_NOTE_COLORS.map(sc => (
                 <button key={sc.key} type="button" title={`Add ${sc.key} sticky note`} onClick={() => { onNoteAdd(sc.key); setMenu(false); }}
                   className="lms-smooth-action"
-                  style={{ position:'relative', width:40, height:40, borderRadius:3, cursor:'pointer', border:'1px solid rgba(0,0,0,.07)', padding:0,
-                    background:`linear-gradient(155deg, ${sc.bg} 0%, ${sc.bg2} 100%)`,
-                    boxShadow:'0 3px 8px rgba(60,42,12,.16), inset 0 1px 0 rgba(255,255,255,.5)' }}>
-                  <span aria-hidden="true" style={{ position:'absolute', left:'50%', top:-3, width:17, height:6, background:sc.tape, borderRadius:1, transform:'translateX(-50%) rotate(-6deg)' }} />
-                  <span aria-hidden="true" style={{ position:'absolute', bottom:0, right:0, width:0, height:0, borderStyle:'solid', borderWidth:'0 0 9px 9px', borderColor:`transparent transparent ${sc.edge} transparent` }} />
+                  style={{ position:'relative', width:36, height:36, borderRadius:9, cursor:'pointer', border:`1px solid ${sc.edge}`, padding:0,
+                    background:sc.bg, boxShadow:'0 1px 4px rgba(15,23,42,.08)' }}>
+                  <span aria-hidden="true" style={{ position:'absolute', left:8, right:8, top:8, height:2, borderRadius:99, background:sc.edge, opacity:.5 }} />
+                  <span aria-hidden="true" style={{ position:'absolute', left:8, right:11, top:15, height:2, borderRadius:99, background:sc.edge, opacity:.35 }} />
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:muted, marginBottom:7 }}>Tags</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+              {TAG_STICKERS.map(tag => (
+                <button key={tag.label} type="button" onClick={() => { onTagAdd(tag); setMenu(false); }} title={`Add ${tag.label} tag`}
+                  style={{
+                    minHeight:28,
+                    borderRadius:999,
+                    border:`1px solid ${tag.color}55`,
+                    background:`${tag.color}14`,
+                    color:tag.color,
+                    padding:'0 10px',
+                    cursor:'pointer',
+                    fontSize:11,
+                    fontWeight:900,
+                    whiteSpace:'nowrap',
+                  }}>
+                  {tag.label}
                 </button>
               ))}
             </div>
             <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:muted, marginBottom:7 }}>Emojis</div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
-              {ICONS_LIB.map((ic, i) => <button key={i} type="button" style={cell} onClick={() => onStickerAdd(ic)} title="Pin to lesson">{ic}</button>)}
+              {ICONS_LIB.map((ic, i) => <button key={i} type="button" style={cell} onClick={() => { onStickerAdd(ic); setMenu(false); }} title="Pin to lesson">{ic}</button>)}
             </div>
             <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase', color:muted, marginBottom:7 }}>Decorative</div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-              {DECOS_LIB.map((d, i) => <button key={i} type="button" style={cell} onClick={() => onStickerAdd(d)} title="Pin to lesson">{d}</button>)}
+              {DECOS_LIB.map((d, i) => <button key={i} type="button" style={cell} onClick={() => { onStickerAdd(d); setMenu(false); }} title="Pin to lesson">{d}</button>)}
             </div>
-          </div>
-        )}
+          </div>,
+          document.body
+        ) : null}
       </div>
-      <button type="button" style={seg(false)} onClick={onNoteAdd}>📝 Sticky note</button>
     </div>
   );
 }
@@ -2695,12 +2424,18 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
   const platform  = useMemo(() => detectPlatform(), []);
   const pageRef   = useRef(null);
   const canvasRef = useRef(null);
+  const requestedEngineKey = useMemo(() => {
+    const searchEngine = new URLSearchParams(location.search || '').get('engine');
+    return searchEngine || location.state?.engineKey || engineKey;
+  }, [engineKey, location.search, location.state]);
 
   const [note,      setNote]      = useState(null);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState('');
   const [localData, setLocalData] = useState(null);
   const [stickers,  setStickers]  = useState([]);
+  const [focusStickerId, setFocusStickerId] = useState('');
+  const [selectedStickerId, setSelectedStickerId] = useState('');
   const [strokes,   setStrokes]   = useState([]);
   const [toast,     setToast]     = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -2708,10 +2443,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
   const [drawTool,  setDrawTool]  = useState('pen');
   const [penColor,  setPenColor]  = useState(DRAW_COLORS[1]);
   const [penWidth,  setPenWidth]  = useState(DRAW_WIDTHS[1]);
-  const [soundMode, setSoundMode] = useState(() => {
-    if (typeof window === 'undefined') return 'spen';
-    return normalizeDrawingSoundMode(window.localStorage?.getItem(DRAWING_SOUND_STORAGE_KEY));
-  });
+  const soundMode = 'spen';
   const [videoUrl,  setVideoUrl]  = useState('');
   const [videoCaptionUrl, setVideoCaptionUrl] = useState('');
   const [videoOpen, setVideoOpen] = useState(false);
@@ -2744,26 +2476,23 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       }, clearAfter);
     }
   }, []);
-  const updateSoundMode = useCallback((mode) => {
-    const next = normalizeDrawingSoundMode(mode);
-    setSoundMode(next);
-    try {
-      window.localStorage?.setItem(DRAWING_SOUND_STORAGE_KEY, next);
-    } catch {
-      // Preference persistence is optional.
-    }
-  }, []);
   const toggleEditing = useCallback(() => {
     setIsEditing(v => {
       const next = !v;
-      if (!next) setDrawMode(false);
+      if (next) {
+        setDrawMode(nativeWritingEnabled);
+        if (nativeWritingEnabled) setDrawTool('pen');
+      } else {
+        setDrawMode(false);
+        setSelectedStickerId('');
+      }
       return next;
     });
-  }, []);
+  }, [nativeWritingEnabled]);
 
   useEffect(() => {
     let cancelled = false;
-    (lessonId ? getLessonAiNote(Number(lessonId),{engine:engineKey}) : getAiNote(Number(id),{engine:engineKey}))
+    (lessonId ? getLessonAiNoteWithFallback(Number(lessonId),{engine:requestedEngineKey}) : getAiNoteWithFallback(Number(id),{engine:requestedEngineKey}))
       .then(data => { if (!cancelled) {
         const baseData = normalizeNoteData(data.noteData);
         writeOfflineNoteCache(data, { id, lessonId });
@@ -2801,7 +2530,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [engineKey, id, lessonId, showPersonalSaveStatus]);
+  }, [id, lessonId, requestedEngineKey, showPersonalSaveStatus]);
 
   useEffect(() => {
     let frame = 0;
@@ -2964,11 +2693,28 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       return;
     }
     setStickers(ss => {
-      const next = [...ss, { id:`st${++sidRef.current}`, type:'emoji', emoji, x:40+Math.random()*160, y:40+Math.random()*80, r:Math.round(Math.random()*16-8) }];
+      const id = `st${++sidRef.current}`;
+      setSelectedStickerId(id);
+      const next = [...ss, { id, type:'emoji', emoji, x:40+Math.random()*160, y:40+Math.random()*80, r:Math.round(Math.random()*16-8) }];
       savePersonalItems({ stickers:next, strokes });
       return next;
     });
     notify(`${emoji} pinned`);
+  }, [isEditing, savePersonalItems, strokes]);
+  const addTagSticker = useCallback((tag) => {
+    if (!isEditing) {
+      notify('Click Personalize first');
+      return;
+    }
+    const item = tag && typeof tag === 'object' ? tag : TAG_STICKERS[0];
+    setStickers(ss => {
+      const id = `st${++sidRef.current}`;
+      setSelectedStickerId(id);
+      const next = [...ss, { id, type:'tag', label:item.label, color:item.color, x:52+Math.random()*140, y:52+Math.random()*90, r:0, w:128 }];
+      savePersonalItems({ stickers:next, strokes });
+      return next;
+    });
+    notify('Tag added');
   }, [isEditing, savePersonalItems, strokes]);
   const addStickyNote = useCallback((presetColor) => {
     if (!isEditing) {
@@ -2978,7 +2724,10 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     const preset = typeof presetColor === 'string' && STICKY_NOTE_COLORS.some(c => c.key === presetColor) ? presetColor : null;
     setStickers(ss => {
       const color = preset || STICKY_NOTE_COLORS[ss.filter(s => s.type === 'note').length % STICKY_NOTE_COLORS.length].key;
-      const next = [...ss, { id:`st${++sidRef.current}`, type:'note', text:'', color, x:54+Math.random()*130, y:70+Math.random()*90, r:Math.round(Math.random()*7-3.5), w:194, h:110 }];
+      const id = `st${++sidRef.current}`;
+      setFocusStickerId(id);
+      setSelectedStickerId(id);
+      const next = [...ss, { id, type:'note', text:'', color, x:54+Math.random()*130, y:70+Math.random()*90, r:0, w:194, h:110 }];
       savePersonalItems({ stickers:next, strokes });
       return next;
     });
@@ -2990,7 +2739,8 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     return next;
   }), [savePersonalItems, strokes]);
   const deleteSticker = useCallback(sid => {
-    if (typeof window !== 'undefined' && !window.confirm('Remove this personal note item?')) return;
+    setSelectedStickerId(current => current === sid ? '' : current);
+    setFocusStickerId(current => current === sid ? '' : current);
     setStickers(ss => {
       const next = ss.filter(s => s.id!==sid);
       savePersonalItems({ stickers:next, strokes });
@@ -3018,14 +2768,6 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     savePersonalItems({ stickers, strokes:[] });
     notify('Canvas writing cleared');
   }, [savePersonalItems, stickers, strokes.length]);
-  const toggleDrawMode = useCallback(() => {
-    if (!nativeWritingEnabled) return;
-    if (!isEditing) {
-      notify('Click Personalize first');
-      return;
-    }
-    setDrawMode(value => !value);
-  }, [isEditing, nativeWritingEnabled]);
   const openVideo = useCallback(() => {
     setVideoOpen(true);
   }, []);
@@ -3142,6 +2884,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     >
       <SmoothCanvasMotion />
       {/* Top bar */}
+      <WebViewLayer enabled={platform.isNative}>
       <div className="lms-ai-note-topbar" style={{ position:'sticky', top:0, zIndex:45, background:topBg, borderBottom:`1px solid ${topBd}`, WebkitBackdropFilter:'blur(8px)', backdropFilter:'blur(8px)' }}>
         <div className="lms-ai-note-topbar-inner" style={{ display:'flex', alignItems:'center', gap:14, maxWidth:1680, margin:'0 auto', padding:'calc(8px + env(safe-area-inset-top, 0px)) 20px 8px', minWidth:0 }}>
           {/* Left — back + title + breadcrumb */}
@@ -3187,6 +2930,8 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
             <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
               onClick={toggleEditing}
               disabled={isLocked}
+              aria-pressed={isEditing}
+              title={isEditing ? 'Close Personalize mode' : 'Personalize with pen'}
               style={{
                 display:'flex', alignItems:'center', gap:6, minHeight:38,
                 border:`1px solid ${isEditing ? (isDark ? 'rgba(167,139,250,.42)' : '#7c3aed') : btnBd}`,
@@ -3197,36 +2942,15 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
                 boxShadow:isEditing && isDark ? '0 10px 24px rgba(88,28,135,.18), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
               }}
             >
-              {isEditing ? 'Done' : 'Personalize'}
+              {isEditing ? <PenCloseIcon /> : <PenIcon />} {isEditing ? 'Done' : 'Personalize'}
             </button>
-            {nativeWritingEnabled && (
-              <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
-                onClick={() => {
-                  if (!isEditing) { setIsEditing(true); setDrawMode(true); return; }
-                  setDrawMode(value => !value);
-                }}
-                disabled={isLocked}
-                aria-pressed={drawMode}
-                style={{
-                  display:'flex', alignItems:'center', gap:6, minHeight:38,
-                  border:`1px solid ${drawMode ? (isDark ? 'rgba(96,165,250,.46)' : '#2563eb') : btnBd}`,
-                  background:drawMode ? (isDark ? 'rgba(96,165,250,.16)' : '#eff6ff') : btnBg,
-                  borderRadius:12, padding:'0 12px', fontSize:11, fontWeight:900,
-                  color:drawMode ? (isDark ? '#bfdbfe' : '#1d4ed8') : btnTx,
-                  cursor:'pointer', opacity:isLocked ? 0.4 : 1,
-                  boxShadow:drawMode && isDark ? '0 10px 24px rgba(37,99,235,.16), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
-                }}
-              >
-                <PenIcon /> {drawMode ? 'Stop Pen' : 'Pencil / S Pen'}
-              </button>
-            )}
           </div>
         </div>
         {/* Personalize tool toolbar lives inside the sticky header so it stays pinned
             on screen while scrolling/drawing. (The toolbar's own position:sticky is
             broken by the global overflow-x rule, so we pin the whole header instead.) */}
         {canEdit && (
-          <div className="lms-ai-note-tooltop-row" style={{ borderTop:`1px solid ${topBd}`, padding:'8px 14px', display:'flex', justifyContent:'center', background:isDark?'rgba(10,12,22,.35)':'rgba(250,250,247,.6)' }}>
+          <div className="lms-ai-note-tooltop-row" style={{ borderTop:`1px solid ${topBd}`, padding:'4px 7px', display:'flex', justifyContent:'center', background:isDark?'rgba(10,12,22,.35)':'rgba(250,250,247,.6)' }}>
             <CanvasTopToolbar
               isDark={isDark}
               nativeWritingEnabled={nativeWritingEnabled}
@@ -3234,7 +2958,6 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
               drawTool={drawTool}
               penColor={penColor}
               penWidth={penWidth}
-              soundMode={soundMode}
               strokeCount={strokes.length}
               onSelectTool={(tool) => {
                 setDrawMode(true);
@@ -3242,18 +2965,18 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
                 if (tool === 'highlighter' && !HIGHLIGHT_COLORS.includes(penColor)) setPenColor(HIGHLIGHT_COLORS[0]);
                 if (tool === 'pen' && HIGHLIGHT_COLORS.includes(penColor)) setPenColor(DRAW_COLORS[1]);
               }}
-              onStopDraw={() => setDrawMode(false)}
               onPenColorChange={setPenColor}
               onPenWidthChange={setPenWidth}
-              onSoundModeChange={() => updateSoundMode(soundMode === 'spen' ? 'secret' : 'spen')}
               onUndoStroke={undoStroke}
               onClearStrokes={clearStrokes}
               onStickerAdd={addSticker}
               onNoteAdd={addStickyNote}
+              onTagAdd={addTagSticker}
             />
           </div>
         )}
       </div>
+      </WebViewLayer>
 
       {!isLocked && pages.length > 0 && typeof document !== 'undefined' ? createPortal(
         <div className="lms-ai-note-reading-dock" style={progressPanelStyle}>
@@ -3267,7 +2990,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
                 role="progressbar"
                 style={progressTrackStyle}
               >
-                <span style={{ display:'block', width:`${readingProgress}%`, height:'100%', borderRadius:'inherit', background:'linear-gradient(90deg,#3b82f6,#6d35df)', transition:'width 120ms linear' }} />
+                <span style={{ display:'block', width:'100%', height:'100%', borderRadius:'inherit', background:'linear-gradient(90deg,#3b82f6,#6d35df)', transform:`scaleX(${readingProgress / 100})`, transformOrigin:'left center', transition:'transform 120ms linear' }} />
               </div>
             </div>
             <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center" type="button" onClick={markLessonComplete} disabled={completionBusy || lessonCompleted} style={markCompleteStyle}>
@@ -3287,7 +3010,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       <div className="lms-ai-canvas-shell lms-ai-canvas-shell--solo mx-auto grid !max-w-[1160px] !grid-cols-[minmax(0,1fr)] gap-0 px-6 py-5 max-[1180px]:px-4 max-[640px]:px-0 max-[520px]:px-0">
         <section className="lms-ai-note-main min-w-0">
           <NativeZoomViewport enabled={platform.isNative && !isLocked} storageKey={nativeZoomStorageKey} onZoomChange={handleNativeZoomChange}>
-          <div ref={canvasRef} style={{ position:'relative', minWidth:0, maxWidth:'100%' }}>
+          <div ref={canvasRef} onPointerDown={() => { if (canEdit) setSelectedStickerId(''); }} style={{ position:'relative', minWidth:0, maxWidth:'100%' }}>
             {nativeWritingEnabled && (
               <PersonalDrawingLayer
                 parentRef={canvasRef}
@@ -3303,7 +3026,20 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
                 onCommitStroke={commitStroke}
               />
             )}
-            {stickers.map(s => <FloatingSticker key={s.id} s={s} editable={canEdit} onUpdate={updateSticker} onDelete={deleteSticker} canvasRef={canvasRef}/>)}
+            {stickers.map(s => (
+              <FloatingSticker
+                key={s.id}
+                s={s}
+                editable={canEdit}
+                selected={selectedStickerId === s.id}
+                autoFocus={focusStickerId === s.id}
+                onFocused={() => setFocusStickerId('')}
+                onSelect={setSelectedStickerId}
+                onUpdate={updateSticker}
+                onDelete={deleteSticker}
+                canvasRef={canvasRef}
+              />
+            ))}
 
             {isLocked ? (
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, minHeight:400, borderRadius:20, border:`1.5px dashed ${topBd}`, background:isDark?'rgba(255,255,255,.02)':'#fbfcff', padding:48, textAlign:'center' }}>

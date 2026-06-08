@@ -24,7 +24,7 @@ const reportUi = {
   rowMain: 'min-w-0 [&_strong]:block [&_strong]:text-[13.5px] [&_strong]:font-bold [&_strong]:text-ink-strong [&_span]:block [&_span]:text-xs [&_span]:text-ink-soft',
   rowStat: 'shrink-0 text-right [&_strong]:block [&_strong]:text-[15px] [&_strong]:font-extrabold [&_strong]:text-ink-strong [&_span]:block [&_span]:text-[11px] [&_span]:text-ink-soft',
   progressTrack: 'mt-2 h-2 overflow-hidden rounded-full bg-surface-3',
-  progressFill: 'block h-full rounded-full bg-[var(--brand-gradient-primary)]',
+  progressFill: 'block h-full w-full origin-left rounded-full bg-[var(--brand-gradient-primary)]',
   heatmap: 'grid grid-cols-10 gap-1.5 max-[640px]:grid-cols-6',
   heatCell:
     'min-h-[56px] rounded-md border border-line-soft bg-surface-2 p-1.5 text-[11px] leading-tight text-ink-muted dark:border-white/10',
@@ -45,7 +45,7 @@ function ProgressBar({ value }) {
   const width = Math.max(3, Math.min(100, Number(value || 0)));
   return (
     <div className={reportUi.progressTrack} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={width}>
-      <span className={reportUi.progressFill} style={{ width: `${width}%` }} />
+      <span className={reportUi.progressFill} style={{ transform: `scaleX(${width / 100})` }} />
     </div>
   );
 }

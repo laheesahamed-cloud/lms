@@ -1,3 +1,60 @@
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] {
+  --lms-native-phone-safe-top: max(var(--lms-native-safe-top, env(safe-area-inset-top, 0px)), env(safe-area-inset-top, 0px));
+  --lms-native-phone-safe-right: max(var(--lms-native-safe-right, env(safe-area-inset-right, 0px)), env(safe-area-inset-right, 0px));
+  --lms-native-phone-safe-bottom: max(var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)), env(safe-area-inset-bottom, 0px));
+  --lms-native-phone-safe-left: max(var(--lms-native-safe-left, env(safe-area-inset-left, 0px)), env(safe-area-inset-left, 0px));
+  --lms-tabbar-safe-bottom: max(8px, var(--lms-native-phone-safe-bottom));
+  --bottom-nav-height: calc(var(--lms-tabbar-row-height, 64px) + var(--lms-tabbar-safe-bottom));
+  --lms-mobile-nav-height: var(--bottom-nav-height);
+  --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 12px);
+  --lms-native-topbar-height: calc(var(--lms-native-phone-safe-top) + 70px);
+  --lms-native-topbar-spacer-height: calc(70px + var(--lms-native-phone-safe-top) / 2);
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell :where(.lms-topbar, .study-hub-topbar) {
+  position: static !important;
+  top: auto !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-native-topbar-layer {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 10040;
+  box-sizing: border-box;
+  width: 100%;
+  padding:
+    var(--lms-native-phone-safe-top, env(safe-area-inset-top, 0px))
+    max(12px, var(--lms-native-phone-safe-right, env(safe-area-inset-right, 0px)))
+    8px
+    max(12px, var(--lms-native-phone-safe-left, env(safe-area-inset-left, 0px)));
+  background: var(--lms-native-chrome-bg, var(--app-bg, #dce6f4));
+  background-color: var(--lms-native-chrome-bg-solid, var(--app-bg-solid, #dce6f4));
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  contain: layout paint;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-native-topbar-layer .study-hub-topbar,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-native-topbar-layer .lms-topbar {
+  position: relative !important;
+  top: auto !important;
+  width: min(760px, 100%) !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-native-topbar-spacer {
+  display: block !important;
+  height: var(--lms-native-topbar-spacer-height, var(--lms-native-topbar-height, 82px)) !important;
+  min-height: var(--lms-native-topbar-spacer-height, var(--lms-native-topbar-height, 82px)) !important;
+  flex: 0 0 var(--lms-native-topbar-spacer-height, var(--lms-native-topbar-height, 82px)) !important;
+  pointer-events: none;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell :where(.study-hub-shell, .management-layout):has(> .lms-native-topbar-spacer) {
+  padding-top: 0 !important;
+}
+
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] :where(.lms-hero-card, .lms-page-header-card) {
   min-height: auto !important;
   border-radius: 17px !important;

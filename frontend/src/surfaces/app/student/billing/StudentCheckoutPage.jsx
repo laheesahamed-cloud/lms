@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { fetchMySubscription, initiatePayHereCheckout, readMySubscriptionCache, requestManualPayment } from '../../../../shared/api/subscriptions.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -181,31 +181,7 @@ export function StudentCheckoutPage() {
     setPaymentMode('manual');
   }, [manualInvoice?.invoiceId, pendingManualRequest]);
 
-  useEffect(() => {
-    if (!shouldCreateManualInvoice || loading || !plan || pendingProofUploaded || manualInvoice?.invoiceId || manualInvoiceLoading) return;
-    const autoCreatePlanKey = String(plan.id);
-    if (invoiceAutoCreatePlanRef.current === autoCreatePlanKey) return;
-    invoiceAutoCreatePlanRef.current = autoCreatePlanKey;
-    setPaymentMode('manual');
-    createManualInvoice().then((invoice) => {
-      if (!invoice?.invoiceId) {
-        invoiceAutoCreatePlanRef.current = '';
-      }
-    });
-  }, [loading, manualInvoice?.invoiceId, manualInvoiceLoading, pendingProofUploaded, plan, shouldCreateManualInvoice]);
-
-  function handleChange(event) {
-    const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
-  }
-
-  function goBackToPlans() {
-    navigate('/subscriptions', {
-      state: { fromCheckout: true },
-    });
-  }
-
-  async function createManualInvoice() {
+  const createManualInvoice = useCallback(async () => {
     if (!plan) return null;
     if (pendingManualRequest?.invoiceId) {
       const invoice = {
@@ -237,6 +213,30 @@ export function StudentCheckoutPage() {
     } finally {
       setManualInvoiceLoading(false);
     }
+  }, [accessScope, couponCode, courseIds, customSelectionNote, lessonIds, pendingManualRequest, plan]);
+
+  useEffect(() => {
+    if (!shouldCreateManualInvoice || loading || !plan || pendingProofUploaded || manualInvoice?.invoiceId || manualInvoiceLoading) return;
+    const autoCreatePlanKey = String(plan.id);
+    if (invoiceAutoCreatePlanRef.current === autoCreatePlanKey) return;
+    invoiceAutoCreatePlanRef.current = autoCreatePlanKey;
+    setPaymentMode('manual');
+    createManualInvoice().then((invoice) => {
+      if (!invoice?.invoiceId) {
+        invoiceAutoCreatePlanRef.current = '';
+      }
+    });
+  }, [createManualInvoice, loading, manualInvoice?.invoiceId, manualInvoiceLoading, pendingProofUploaded, plan, shouldCreateManualInvoice]);
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function goBackToPlans() {
+    navigate('/subscriptions', {
+      state: { fromCheckout: true },
+    });
   }
 
   async function handleSubmit(event) {

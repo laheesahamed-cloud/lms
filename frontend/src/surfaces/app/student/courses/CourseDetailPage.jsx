@@ -95,27 +95,6 @@ function noteMatchesCourse(note, course) {
   return !noteCourse || noteCourse === normalizeLookup(course?.courseTitle);
 }
 
-function findContinueLesson(subjects) {
-  const lessons = subjects.flatMap((subject) =>
-    subject.topics.flatMap((topic) =>
-      topic.lessons.map((lesson) => ({
-        lesson,
-        subjectId: subject.id,
-        topicId: topic.id,
-        subjectName: subject.subjectName,
-        topicName: topic.topicName,
-      }))
-    )
-  );
-
-  return (
-    lessons.find(({ lesson }) => !lesson.accessLocked && lesson.status === 'in_progress') ||
-    lessons.find(({ lesson }) => !lesson.accessLocked && lesson.status === 'not_started') ||
-    lessons[0] ||
-    null
-  );
-}
-
 function ProgressBar({
   value,
   label = 'Progress',
@@ -133,8 +112,8 @@ function ProgressBar({
       aria-valuenow={progress}
     >
       <span
-        className={cx('block h-full rounded-full', fillClassName)}
-        style={{ width: `${progress}%` }}
+        className={cx('block h-full w-full origin-left rounded-full', fillClassName)}
+        style={{ transform: `scaleX(${progress / 100})` }}
       />
     </div>
   );
@@ -751,7 +730,6 @@ export function CourseDetailPage({
   const [data, setData] = useState(() => initialData || readStudentCourseDetailCache(courseId) || null);
   const [loading, setLoading] = useState(() => !(initialData || readStudentCourseDetailCache(courseId)));
   const [error, setError] = useState('');
-  const [busyLessonId, setBusyLessonId] = useState(null);
 
   const handleBackToCourses = useCallback(() => {
     if (typeof onBack === 'function') {
@@ -934,7 +912,6 @@ export function CourseDetailPage({
   }, [applyLessonProgressUpdate]);
 
   async function handleOpenLesson(lesson) {
-    setBusyLessonId(lesson.id);
     setError('');
     try {
       if (lesson.accessLocked) {
@@ -982,8 +959,6 @@ export function CourseDetailPage({
       });
     } catch (openError) {
       setError(getErrorMessage(openError, 'Unable to open lesson'));
-    } finally {
-      setBusyLessonId(null);
     }
   }
 

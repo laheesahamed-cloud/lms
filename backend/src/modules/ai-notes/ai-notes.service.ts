@@ -458,7 +458,7 @@ export class AiNotesService {
     const hasNotesAccess = await this.plansService.hasFeatureAccess(student.id, 'notes_canvas_study_mode');
     const accessProfile = await this.getLessonAccessProfile(student.id);
     const [rows] = await this.db.execute<AiNoteRow[]>(`
-      SELECT n.id, n.title, n.note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
+      SELECT n.id, n.title, NULL AS note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
              COALESCE(n.course_id, l.course_id) AS effective_course_id,
              COALESCE(n.topic_id, l.topic_id) AS effective_topic_id,
              COALESCE(n.subtopic_id, l.subtopic_id) AS effective_subtopic_id,

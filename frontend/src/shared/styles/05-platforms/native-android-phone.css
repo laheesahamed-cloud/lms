@@ -1,0 +1,28 @@
+html[data-lms-runtime="native"][data-lms-os="android"][data-lms-form-factor="phone"] {
+  --lms-safe-top: max(var(--lms-native-safe-top, env(safe-area-inset-top, 0px)), env(safe-area-inset-top, 0px), var(--lms-android-statusbar-fallback, 24px)) !important;
+  --lms-safe-right: max(var(--lms-native-safe-right, env(safe-area-inset-right, 0px)), env(safe-area-inset-right, 0px)) !important;
+  --lms-safe-bottom: max(var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)), env(safe-area-inset-bottom, 0px), var(--lms-android-navigation-fallback, 16px)) !important;
+  --lms-safe-left: max(var(--lms-native-safe-left, env(safe-area-inset-left, 0px)), env(safe-area-inset-left, 0px)) !important;
+  --lms-android-safe-top-content: max(var(--lms-safe-top), 24px) !important;
+  --lms-android-safe-bottom-content: max(var(--lms-safe-bottom), 16px) !important;
+  --lms-tabbar-safe-bottom: max(var(--lms-android-safe-bottom-content), 16px) !important;
+  --bottom-nav-height: calc(var(--lms-tabbar-row-height, 64px) + var(--lms-tabbar-safe-bottom)) !important;
+  --lms-mobile-nav-height: var(--bottom-nav-height) !important;
+  --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 10px) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"][data-lms-form-factor="phone"] :where(.native-app-frame, .lms-app-scroll-root) {
+  scroll-padding-top: calc(var(--lms-native-topbar-height, var(--lms-android-safe-top-content)) + 8px) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
+  min-height: var(--bottom-nav-height, 80px) !important;
+  padding-left: max(0px, var(--lms-safe-left, env(safe-area-inset-left, 0px))) !important;
+  padding-right: max(0px, var(--lms-safe-right, env(safe-area-inset-right, 0px))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner {
+  height: var(--bottom-nav-height, 80px) !important;
+  min-height: var(--bottom-nav-height, 80px) !important;
+  padding-bottom: max(8px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+}
