@@ -59,6 +59,7 @@ const StudentNotificationsPage = lazyNamed(() => import('../surfaces/app/student
 const StudyPlannerPage = lazyNamed(() => import('../surfaces/app/student/planner/StudyPlannerPage.jsx'), 'StudyPlannerPage');
 const StudentFlashcardsPage = lazyNamed(() => import('../surfaces/app/student/flashcards/StudentFlashcardsPage.jsx'), 'StudentFlashcardsPage');
 const StudentNotesPage = lazyNamed(() => import('../surfaces/app/student/notes/StudentNotesPage.jsx'), 'StudentNotesPage');
+const StudentStudyPage = lazyNamed(() => import('../surfaces/app/student/study/StudentStudyPage.jsx'), 'StudentStudyPage');
 const AiNotesPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
 const AiNotesListPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesListPage.jsx'), 'AiNotesListPage');
 const AdminAiNotesListPage = lazyNamed(() => import('../surfaces/admin/pages/ai-notes/AdminAiNotesListPage.jsx'), 'AdminAiNotesListPage');
@@ -104,8 +105,10 @@ const roleRoutePreloaders = {
     ['/dashboard', StudentDashboardPage.preload],
     ['/courses', StudentCoursesPage.preload],
     ['/notifications', StudentNotificationsPage.preload],
+    ['/study', StudentStudyPage.preload],
     ['/planner', StudyPlannerPage.preload],
     ['/ai-notes', AiNotesListPage.preload],
+    ['/notes', StudentNotesPage.preload],
     ['/flashcards', StudentFlashcardsPage.preload],
     ['/quizzes', StudentQuizzesPage.preload],
     ['/exams', StudentQuizzesPage.preload],
@@ -151,17 +154,28 @@ function usePrefersReducedMotion() {
   return prefersReducedMotion;
 }
 
+// Latched after the app's very first route reveal. The first reveal coincides
+// with React's initial mount + first route commit; animating opacity on this
+// full-viewport wrapper forces WebKit to allocate and recomposite a full-screen
+// group buffer every frame while the main thread is already saturated, which is
+// the 2-3s startup FPS clamp seen on Safari (Blink absorbs it, so Chrome is
+// fine). The first paint sits behind the boot background, so skipping only that
+// first fade is imperceptible while removing the expensive op from startup.
+let hasRevealedOnce = false;
+
 const RouteReveal = memo(function RouteReveal({ children }) {
   const location = useLocation();
   const prefersReducedMotion = usePrefersReducedMotion();
+  const shouldAnimateReveal = !prefersReducedMotion && hasRevealedOnce;
   const routeRevealClassName = [
     'lms-route-reveal',
     'motion-smooth',
-    !prefersReducedMotion && 'animate-panelRouteFade',
+    shouldAnimateReveal && 'animate-panelRouteFade',
   ].filter(Boolean).join(' ');
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
+    hasRevealedOnce = true;
     let cancelled = false;
     const raf = window.requestAnimationFrame(() => {
       if (cancelled) return;
@@ -483,6 +497,10 @@ const studentPanelRoutes = [
   {
     path: 'notifications',
     element: withSuspense(<StudentNotificationsPage />),
+  },
+  {
+    path: 'study',
+    element: withSuspense(<StudentStudyPage />),
   },
   {
     path: 'planner',
@@ -861,6 +879,14 @@ const router = createBrowserRouter([
             element: (
               <ProtectedRoute>
                 {withSuspense(<StudentNotificationsPage />)}
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'study',
+            element: (
+              <ProtectedRoute role="student">
+                {withSuspense(<StudentStudyPage />)}
               </ProtectedRoute>
             ),
           },

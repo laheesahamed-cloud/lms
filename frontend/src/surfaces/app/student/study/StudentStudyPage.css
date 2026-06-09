@@ -1,0 +1,196 @@
+.student-study-page {
+  min-height: 100%;
+}
+
+.student-study-shell {
+  gap: 18px;
+}
+
+.student-study-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 84% 12%, color-mix(in srgb, var(--color-primary) 18%, transparent), transparent 34%),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-card) 94%, var(--color-primary) 6%), var(--surface-card));
+  padding: clamp(22px, 4vw, 34px);
+  box-shadow: var(--ds-card-shadow);
+}
+
+.student-study-hero__eyebrow {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-study-hero h1 {
+  max-width: 560px;
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: clamp(30px, 5.8vw, 48px);
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 0.98;
+}
+
+.student-study-hero p {
+  max-width: 520px;
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.student-study-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 14px;
+}
+
+.student-study-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  min-height: 118px;
+  border: 1px solid var(--line-soft);
+  border-radius: 20px;
+  background: var(--surface-card);
+  padding: 16px;
+  color: var(--ink-strong);
+  text-decoration: none;
+  box-shadow: var(--ds-card-shadow);
+  transition:
+    transform var(--lms-motion-duration-hover, 150ms) var(--lms-motion-ease-out, ease),
+    border-color var(--lms-motion-duration-hover, 150ms) var(--lms-motion-ease-out, ease),
+    background var(--lms-motion-duration-hover, 150ms) var(--lms-motion-ease-out, ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .student-study-card:hover {
+    border-color: color-mix(in srgb, var(--student-study-tone, var(--color-primary)) 32%, var(--line-soft));
+    background: color-mix(in srgb, var(--surface-card) 92%, var(--student-study-tone, var(--color-primary)) 8%);
+    transform: translateY(-2px);
+  }
+}
+
+.student-study-card:focus-visible {
+  border-color: color-mix(in srgb, var(--student-study-tone, var(--color-primary)) 32%, var(--line-soft));
+  background: color-mix(in srgb, var(--surface-card) 92%, var(--student-study-tone, var(--color-primary)) 8%);
+  outline: 2px solid color-mix(in srgb, var(--student-study-tone, var(--color-primary)) 34%, transparent);
+  outline-offset: 3px;
+}
+
+.student-study-card:active {
+  transform: scale(0.98);
+}
+
+.student-study-card__icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--student-study-tone, var(--color-primary)) 14%, transparent);
+  color: var(--student-study-tone, var(--color-primary));
+}
+
+.student-study-card__icon svg {
+  width: 25px;
+  height: 25px;
+}
+
+.student-study-card__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.student-study-card__copy span {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-study-card__copy strong {
+  color: var(--ink-strong);
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.student-study-card__copy small {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.student-study-card.is-notes {
+  --student-study-tone: #22c55e;
+}
+
+.student-study-card.is-ai-notes {
+  --student-study-tone: #8b5cf6;
+}
+
+.student-study-card.is-flashcards {
+  --student-study-tone: #f59e0b;
+}
+
+.student-study-card.is-planner {
+  --student-study-tone: #3b82f6;
+}
+
+@media (max-width: 760px) {
+  .student-study-shell {
+    gap: 12px;
+  }
+
+  .student-study-hero {
+    border-radius: 22px;
+    padding: 20px;
+  }
+
+  .student-study-hero h1 {
+    font-size: clamp(28px, 8.6vw, 36px);
+  }
+
+  .student-study-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .student-study-card {
+    min-height: 92px;
+    grid-template-columns: 48px minmax(0, 1fr);
+    border-radius: 20px;
+    padding: 13px;
+  }
+
+  .student-study-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-study-card {
+    transition: none;
+  }
+
+  .student-study-card:hover,
+  .student-study-card:focus-visible,
+  .student-study-card:active {
+    transform: none;
+  }
+}

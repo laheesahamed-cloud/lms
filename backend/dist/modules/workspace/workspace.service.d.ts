@@ -115,21 +115,6 @@ export declare class WorkspaceService {
             total: number;
         };
     }>;
-    listPlannerSuggestions(authorization?: string): Promise<{
-        key: string;
-        title: string;
-        description: string;
-        dueInDays: number;
-        priority: string;
-        task: {
-            title: string;
-            description: string;
-            dueDate: string;
-            category: string;
-            priority: string;
-            estimatedMinutes: number;
-        };
-    }[]>;
     createPlannerTask(authorization: string | undefined, input: any): Promise<{
         ok: boolean;
         id: number;
@@ -252,7 +237,6 @@ export declare class WorkspaceService {
     private plannerStatusForDueDate;
     private clampPlannerPercent;
     private todayDateKey;
-    private addDaysDateKey;
     private dateKey;
     private formatPlannerDateKey;
     private slugPlannerId;

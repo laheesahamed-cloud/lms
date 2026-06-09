@@ -292,7 +292,7 @@ body {
   --sa-page-width-mobile: min(390px, calc(100vw - 24px));
   --sa-page-width-compact: min(390px, calc(100vw - 18px));
   --sa-page-width-tablet: min(760px, calc(100vw - 32px));
-  --sa-page-width-desktop: min(1180px, calc(100% - 48px));
+  --sa-page-width-desktop: min(1180px, calc(100% - 56px));
   --sa-page-padding-top: var(--lms-mobile-page-top, max(var(--lms-live-gutter-y), var(--lms-safe-top)));
   --sa-page-padding-bottom: calc(var(--lms-mobile-content-bottom, 92px) + 10px + var(--lms-safe-bottom));
 }
@@ -303,10 +303,11 @@ body {
     --sa-page-padding-bottom: clamp(24px, 3vw, 40px);
   }
 
-  .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode):not(:has(:is(.lms-exam-page, .practice-review-page, .lms-review-page, .student-notes-page))) {
-    --sidebar-w: 212px;
+  /* Single layout source: every student page (outside focus modes) gets the
+     same sidebar gap + content width — no per-page width branching. */
+  .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode) {
     --sidebar-shell-gap: clamp(24px, 2.4vw, 36px);
-    --sa-page-width-desktop: min(1080px, calc(100% - 56px));
+    --sa-page-width-desktop: min(1180px, calc(100% - 56px));
   }
 
   .student-app-shell:not(.compact-focus-mode) .main-content {
@@ -322,7 +323,7 @@ body {
     contain: paint;
   }
 
-  .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode):not(:has(:is(.lms-exam-page, .practice-review-page, .lms-review-page, .student-notes-page))) .main-content {
+  .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode) .main-content {
     padding-right: clamp(18px, 2vw, 32px) !important;
   }
 
@@ -356,16 +357,6 @@ body {
 
   .student-app-shell .study-hub-topbar {
     margin-top: 0 !important;
-  }
-
-  .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode):not(:has(:is(.lms-exam-page, .practice-review-page, .lms-review-page, .student-notes-page))) :where(
-    .dashboard-page.study-hub-page > .study-hub-shell,
-    .student-route-page > .study-hub-shell,
-    .dashboard-page > .study-hub-shell,
-    .management-layout
-  ) {
-    width: min(1080px, 100%) !important;
-    max-width: min(1080px, 100%) !important;
   }
 }
 
@@ -2699,11 +2690,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     white-space: nowrap !important;
   }
 
-  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-question-utility-icon-only) {
-    width: 42px !important;
-    min-width: 42px !important;
-    padding-inline: 0 !important;
-  }
 }
 
 @media (max-width: 380px) {
@@ -3132,12 +3118,6 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     padding-top: 9px !important;
   }
 
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-question-utility-icon-only) {
-    width: 44px !important;
-    min-width: 44px !important;
-    padding-inline: 0 !important;
-  }
-
   body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) .lms-mobile-quiz-bar {
     display: none !important;
   }
@@ -3269,16 +3249,21 @@ html[data-lms-runtime="native"] .student-app-shell {
 }
 
 html[data-lms-runtime="native"] :where(html, body, #root) {
-  height: var(--lms-app-viewport-height, 100dvh) !important;
-  min-height: var(--lms-app-viewport-height, 100dvh) !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  height: var(--lms-app-viewport-height, 100lvh) !important;
+  min-height: var(--lms-app-viewport-height, 100lvh) !important;
   overflow-x: hidden !important;
   overflow-y: hidden !important;
 }
 
 html[data-lms-runtime="native"] :where(.lms-app-scroll-root, .native-app-frame) {
-  height: var(--lms-app-viewport-height, 100dvh) !important;
-  min-height: var(--lms-app-viewport-height, 100dvh) !important;
-  max-height: var(--lms-app-viewport-height, 100dvh) !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+  height: var(--lms-app-viewport-height, 100lvh) !important;
+  min-height: var(--lms-app-viewport-height, 100lvh) !important;
+  max-height: var(--lms-app-viewport-height, 100lvh) !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
   overscroll-behavior-y: contain !important;
@@ -3595,9 +3580,113 @@ body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-
   min-height: 44px !important;
 }
 
-body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-question-utility-icon-only {
-  width: auto !important;
-  min-width: 44px !important;
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-question-utility-row {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding-top: 10px !important;
+}
+
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-question-utility-row button {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 44px !important;
+  max-height: 48px !important;
+  padding-inline: 10px !important;
+  gap: 6px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+}
+
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-question-utility-row button svg {
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  min-height: 17px !important;
+}
+
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page .lms-question-utility-row button span {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-exam-question-nav, .lms-review-bubble-nav) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-exam-question-nav, .lms-review-bubble-nav) > button {
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+  flex: 0 0 42px !important;
+  border-radius: 13px !important;
+  border-width: 1px !important;
+  font-size: 14px !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+}
+
+body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-current {
+  border-color: color-mix(in srgb, var(--sa-primary, var(--color-primary)) 48%, transparent) !important;
+  background: color-mix(in srgb, var(--sa-primary, var(--color-primary)) 18%, var(--sa-surface, var(--surface-1))) !important;
+  color: var(--sa-primary, var(--color-primary)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sa-primary, var(--color-primary)) 18%, transparent) !important;
+}
+
+body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-idle {
+  border-color: var(--sa-border, var(--line-soft)) !important;
+  background: color-mix(in srgb, var(--sa-surface, var(--surface-1)) 88%, var(--sa-primary, var(--color-primary)) 5%) !important;
+  color: var(--sa-text-2, var(--ink-soft)) !important;
+}
+
+body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-answered {
+  border-color: color-mix(in srgb, var(--sa-ok, #059669) 34%, transparent) !important;
+  background: color-mix(in srgb, var(--sa-ok, #059669) 12%, var(--sa-surface, var(--surface-1))) !important;
+  color: var(--sa-ok, #059669) !important;
+}
+
+body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-review {
+  border-color: color-mix(in srgb, var(--sa-purple, #7c3aed) 32%, transparent) !important;
+  background: color-mix(in srgb, var(--sa-purple, #7c3aed) 11%, var(--sa-surface, var(--surface-1))) !important;
+  color: var(--sa-purple, #7c3aed) !important;
+}
+
+body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-flagged {
+  border-color: color-mix(in srgb, var(--sa-warn, #d97706) 30%, transparent) !important;
+  background: color-mix(in srgb, var(--sa-warn, #d97706) 9%, var(--sa-surface, var(--surface-1))) !important;
+  color: var(--sa-warn, #d97706) !important;
+}
+
+body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-nav-legend-dot.is-idle, .lms-review-bubble-legend i.is-idle) {
+  border-color: var(--sa-border, var(--line-soft)) !important;
+  background: var(--sa-text-3, var(--ink-soft)) !important;
+}
+
+@media (max-width: 380px) {
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-exam-question-nav, .lms-review-bubble-nav) > button {
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    flex-basis: 38px !important;
+    border-radius: 12px !important;
+    font-size: 13px !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3621,4 +3710,94 @@ body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-
     animation-duration: 0.01ms !important;
     transition: none !important;
   }
+}
+
+/* Native polish bridge.
+   Keep the existing xyndrome student visuals intact, while matching the
+   Swift app's font rhythm and short press feedback inside Capacitor. */
+html[data-lms-runtime="native"] .student-app-shell {
+  --type-font-display: "Plus Jakarta Sans", "SF Pro Rounded", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --type-font-body: "Plus Jakarta Sans", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --type-font-control: var(--type-font-body);
+  --type-size-2xs: 0.6875rem;
+  --type-size-xs: 0.75rem;
+  --type-size-sm: 0.8125rem;
+  --type-size-md: 0.875rem;
+  --type-size-base: 1rem;
+  --type-size-lg: 1.0625rem;
+  --type-size-xl: 1.125rem;
+  --type-size-2xl: 1.375rem;
+  --type-size-3xl: 1.75rem;
+  --type-size-4xl: 2.25rem;
+  --type-leading-tight: 1.08;
+  --type-leading-title: 1.16;
+  --type-leading-snug: 1.28;
+  --type-leading-normal: 1.45;
+  --type-leading-body: 1.56;
+  --type-weight-regular: 450;
+  --type-weight-medium: 600;
+  --type-weight-semibold: 700;
+  --type-weight-bold: 800;
+  --type-weight-black: 900;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(
+  h1,
+  h2,
+  h3,
+  h4,
+  .study-hero-name,
+  .study-topbar-title h1,
+  .lms-topbar h1,
+  .student-page-hero h1,
+  .lms-page-title,
+  .type-display,
+  .type-page-title,
+  .type-section-title,
+  .type-card-title
+) {
+  letter-spacing: 0 !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  .study-button,
+  .study-square-action,
+  .lms-mobile-bottom-nav__tab,
+  .lms-assessment-btn
+) {
+  transition-duration: var(--lms-motion-duration-hover) !important;
+  transition-timing-function: var(--lms-motion-ease-out) !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html[data-lms-runtime="native"] .student-app-shell :where(
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  .study-button,
+  .study-square-action,
+  .lms-mobile-bottom-nav__tab,
+  .lms-assessment-btn
+):active {
+  transform: scale(0.985);
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell :where(
+  .study-action-card,
+  .student-course-card,
+  .lms-quiz-card,
+  .lms-app-card,
+  .planner-panel
+) {
+  transition:
+    border-color var(--lms-motion-duration-card) var(--lms-motion-ease-out),
+    box-shadow var(--lms-motion-duration-card) var(--lms-motion-ease-out),
+    background-color var(--lms-motion-duration-card) var(--lms-motion-ease-out),
+    transform var(--lms-motion-duration-card) var(--lms-motion-ease-out);
 }

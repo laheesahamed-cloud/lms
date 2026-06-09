@@ -119,6 +119,9 @@ const reviewUi = {
   summaryTile:
     'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[11px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[20px] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[11px] max-[420px]:[&_strong]:text-[18px]',
   nav: 'lms-review-side-nav grid min-h-0 gap-2.5',
+  // Single merged overview card: summary stats + progress + question list in one card.
+  overviewCard: 'lms-review-side-nav lms-review-overview grid min-h-0 gap-4 rounded-[18px] border border-line-soft bg-surface-1 p-3.5 shadow-none',
+  overviewSection: 'grid min-h-0 gap-2.5 border-t border-line-soft pt-4',
   navHead: 'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft',
   navList: 'lms-review-nav-list grid min-h-0 gap-2 overflow-y-auto pr-1 max-[980px]:max-h-60',
   navItem:
@@ -709,6 +712,7 @@ export function ReviewWorkspace({
     <section className={shellClass}>
       {!focusQuestionOnly ? (
       <aside className={reviewUi.sidebar}>
+        <section className={reviewUi.overviewCard} aria-label="Review overview">
         {summary ? (
           <div className={reviewUi.summaryGrid}>
             <div className={reviewUi.summaryTile}>
@@ -729,7 +733,7 @@ export function ReviewWorkspace({
             </div>
           </div>
         ) : null}
-        <section className={cx(reviewUi.nav, 'lms-review-progress-card')} aria-label="Review progress">
+        <div className={cx(reviewUi.overviewSection, !summary && 'border-t-0 pt-0')} aria-label="Review progress">
           <div className={reviewUi.navHead}>
             <h3>Progress</h3>
             <span>{reviewProgressPercent}% viewed</span>
@@ -750,8 +754,8 @@ export function ReviewWorkspace({
           <p className="m-0 text-xs font-semibold leading-relaxed text-ink-soft">
             Question {activeIndex + 1} of {safeQuestions.length} / {activeQuestion.questionType === 'true_false' ? 'True / False' : 'SBA'}
           </p>
-        </section>
-        <div className={reviewUi.nav}>
+        </div>
+        <div className={reviewUi.overviewSection} aria-label="Question navigator">
           <div className={reviewUi.navHead}>
             <h3>Question List</h3>
             <span>{safeQuestions.length} total</span>
@@ -809,6 +813,7 @@ export function ReviewWorkspace({
             </div>
           )}
         </div>
+        </section>
       </aside>
       ) : null}
 

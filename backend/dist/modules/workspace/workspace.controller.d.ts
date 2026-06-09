@@ -57,8 +57,8 @@ export declare class WorkspaceController {
         description: string;
         dueDate: string;
         status: string;
-        category: "general" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-        priority: "low" | "medium" | "high";
+        category: "quiz" | "lesson" | "exam" | "review" | "flashcards" | "general";
+        priority: "high" | "low" | "medium";
         estimatedMinutes: number | null;
         createdAt: any;
         updatedAt: any;
@@ -100,21 +100,6 @@ export declare class WorkspaceController {
             total: number;
         };
     }>;
-    listPlannerSuggestions(authorization?: string): Promise<{
-        key: string;
-        title: string;
-        description: string;
-        dueInDays: number;
-        priority: string;
-        task: {
-            title: string;
-            description: string;
-            dueDate: string;
-            category: string;
-            priority: string;
-            estimatedMinutes: number;
-        };
-    }[]>;
     createPlannerTask(authorization: string | undefined, body: any): Promise<{
         ok: boolean;
         id: number;

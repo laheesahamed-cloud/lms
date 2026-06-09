@@ -33,7 +33,7 @@
   --sa-ink: #0F172A;
   --sa-ink-deep: #0F172A;
   --sa-text-2: #64748B;
-  --sa-text-3: #8d98ad;
+  --sa-text-3: #6b7689;
 }
 
 .dashboard-page,
@@ -74,6 +74,39 @@
   background: transparent;
   box-shadow: none;
   overflow: visible;
+}
+
+.study-hub-topbar--no-menu {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.study-hub-topbar--side-nav-toggle {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.study-hub-topbar .study-sidebar-toggle {
+  display: inline-grid !important;
+  place-items: center !important;
+}
+
+.mobile-top-nav-mode .study-hub-topbar .study-sidebar-toggle,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-topbar .study-sidebar-toggle {
+  display: none !important;
+}
+
+.mobile-top-nav-mode .study-hub-topbar--side-nav-toggle,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-topbar--side-nav-toggle {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@media (max-width: 900px) {
+  .study-hub-topbar .study-sidebar-toggle {
+    display: none !important;
+  }
+
+  .study-hub-topbar--side-nav-toggle {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
 }
 
 :root[data-theme="dark"] .study-hub-topbar {
@@ -122,7 +155,24 @@
   position: relative;
   z-index: 1;
   display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-self: end;
+  align-self: center;
   gap: 8px;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.study-topbar-actions > .lms-topbar-menu-wrap {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.study-topbar-actions :where(.study-icon-button, .study-avatar) {
+  flex: 0 0 auto;
 }
 
 .study-hub-topbar .lms-floating-panel,
@@ -171,10 +221,16 @@
     transform    var(--sa-dur) var(--sa-ease);
 }
 
-.study-icon-button:hover {
-  border-color: rgba(56, 189, 248, 0.3);
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
+@media (hover: hover) and (pointer: fine) {
+  .study-icon-button:hover {
+    border-color: rgba(56, 189, 248, 0.3);
+    background: var(--sa-primary-soft);
+    color: var(--sa-primary);
+  }
+}
+
+.study-icon-button:active {
+  transform: scale(0.95);
 }
 
 .study-icon-button:focus-visible {
@@ -228,9 +284,7 @@
 :root[data-theme="dark"] .study-action-card,
 :root[data-theme="dark"] .study-error-card {
   border-color: transparent;
-  background:
-    linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.98)),
-    var(--sa-surface);
+  background: var(--sa-surface);
   box-shadow:
     0 18px 42px -34px rgba(2, 6, 12, 0.62);
 }
@@ -259,7 +313,7 @@
   background:
     radial-gradient(circle at 84% 12%, rgba(108, 176, 255, 0.16), transparent 36%),
     radial-gradient(circle at 100% 92%, rgba(123, 143, 255, 0.14), transparent 50%),
-    linear-gradient(145deg, rgba(8, 8, 14, 0.99), rgba(4, 4, 9, 0.99));
+    linear-gradient(145deg, #181a22, #131520);
   box-shadow: none;
 }
 
@@ -628,8 +682,15 @@
   color: #ffffff;
   box-shadow: var(--study-primary-cta-shadow);
 }
-.study-button--primary:hover {
-  filter: saturate(1.06) brightness(1.04);
+@media (hover: hover) and (pointer: fine) {
+  .study-button--primary:hover {
+    filter: saturate(1.06) brightness(1.04);
+  }
+}
+
+.study-button:active,
+.study-square-action:active {
+  transform: scale(0.97);
 }
 
 :root[data-theme="dark"] .study-button--primary {
@@ -645,9 +706,11 @@
   color: var(--sa-purple);
 }
 
-.study-square-action:hover {
-  border-color: rgba(56, 189, 248, 0.42);
-  background: rgba(var(--sa-primary-rgb), 0.1);
+@media (hover: hover) and (pointer: fine) {
+  .study-square-action:hover {
+    border-color: rgba(56, 189, 248, 0.42);
+    background: rgba(var(--sa-primary-rgb), 0.1);
+  }
 }
 
 .study-square-action {
@@ -838,6 +901,35 @@
 .study-continue-card.is-offscreen .study-hero-mascot-random__spark,
 .study-continue-card.is-offscreen .study-dust-particle {
   animation-play-state: paused;
+  /* Release the promoted GPU layer while the loop is parked off-screen */
+  will-change: auto;
+}
+
+/* On native/PWA phones, kill the ambient infinite loops outright.
+   They are purely decorative and run the GPU + battery non-stop;
+   the static art still reads fine without the perpetual motion. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] :is(
+  .study-hero-mascot-random,
+  .study-hero-mascot-random img,
+  .study-hero-mascot-random::before,
+  .study-hero-mascot-random__spark,
+  .study-dust-particle,
+  .study-streak-icon,
+  .study-streak-icon::before,
+  .study-streak-icon::after,
+  .study-fire-outer,
+  .study-fire-inner,
+  .dashboard-page::before,
+  .dashboard-page::after,
+  .student-route-page::before,
+  .student-route-page::after
+) {
+  animation: none !important;
+  will-change: auto !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-dust-layer {
+  display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -935,7 +1027,7 @@
   gap: 12px;
   margin-top: 10px;
   /* Light mode — deep amber for legibility on orange wash */
-  color: rgba(115, 75, 30, 0.7);
+  color: rgba(92, 58, 20, 0.88);
   font-size: 11px;
   font-weight: 750;
 }
@@ -1075,7 +1167,7 @@
 
 .study-readiness-meta .study-eyebrow,
 .study-readiness-meta span {
-  color: rgba(255, 255, 255, 0.52);
+  color: rgba(255, 255, 255, 0.7);
   font: var(--type-label);
   letter-spacing: var(--type-tracking-label);
 }
@@ -1127,7 +1219,7 @@
   justify-content: space-between;
   gap: 12px;
   margin-top: 6px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.72);
   font-size: 11px;
   font-weight: 800;
 }
@@ -1182,6 +1274,7 @@
 }
 
 .study-plan-card__head button {
+  position: relative;
   min-height: 32px;
   padding: 0 11px;
   border: 1px solid rgba(var(--sa-primary-rgb), 0.18);
@@ -1191,6 +1284,13 @@
   font: inherit;
   font-size: 11px;
   font-weight: 900;
+}
+
+/* Extend the tap area to the 44pt HIG minimum without growing the pill */
+.study-plan-card__head button::after {
+  content: "";
+  position: absolute;
+  inset: -6px -4px;
 }
 
 .study-plan-list {
@@ -1367,7 +1467,7 @@
 
 .study-todo-action {
   display: inline-flex;
-  min-height: 36px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   border: 0;
@@ -1386,8 +1486,10 @@
     transform var(--sa-dur) var(--sa-ease);
 }
 
-.study-todo-action:hover {
-  background: rgba(var(--sa-primary-rgb), 0.14);
+@media (hover: hover) and (pointer: fine) {
+  .study-todo-action:hover {
+    background: rgba(var(--sa-primary-rgb), 0.14);
+  }
 }
 
 .study-todo-action:active {
@@ -2547,6 +2649,38 @@
   animation: study-blob-drift-b 26s cubic-bezier(0.45, 0.05, 0.55, 0.95) -10s infinite alternate;
 }
 
+/* Native/WebView: stop the infinite drift on these fixed, heavily-blurred
+   blobs. The continuous motion forces the compositor to re-rasterize a large
+   blur every frame — the main cause of dark-mode jank. The static blob stays. */
+html[data-lms-runtime="native"] :where(.dashboard-page, .student-route-page)::before,
+html[data-lms-runtime="native"] :where(.dashboard-page, .student-route-page)::after {
+  animation: none !important;
+}
+
+/* During a quiz/exam the screen stacks several backdrop-blur panels over these
+   blobs — the heaviest compositing combo in the app. The ambient glow is purely
+   decorative here, so remove the blobs entirely on the quiz-taking screen. */
+.lms-quiz-taking-page::before,
+.lms-quiz-taking-page::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Native: the quiz screen stacks 5+ backdrop-blur panels (header, progress,
+   question key, main card, footer). Each live backdrop-filter re-samples and
+   blurs the page behind it every frame. Drop them on native — the panels keep
+   their own background, so the look is preserved without the per-frame cost. */
+html[data-lms-runtime="native"] .lms-quiz-taking-page [class*="backdrop-blur"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* The exam header is the only panel translucent enough to need the blur for
+   legibility (surface-0 at ~72%). Make it fully opaque on native so removing
+   the backdrop-filter doesn't let scrolling content show through it. */
+html[data-lms-runtime="native"] .lms-quiz-taking-page .lms-exam-header {
+  background: var(--surface-0) !important;
+}
+
 /* Lift visible content above the blobs */
 .study-hub-shell {
   position: relative;
@@ -3025,6 +3159,21 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   padding: 0;
 }
 
+.study-hub-page .study-hub-topbar--side-nav-toggle {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.mobile-top-nav-mode .study-hub-page .study-hub-topbar--side-nav-toggle,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .study-hub-topbar--side-nav-toggle {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@media (max-width: 900px) {
+  .study-hub-page .study-hub-topbar--side-nav-toggle {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
 .study-hub-page .study-topbar-title h1 {
   color: var(--sa-ink);
   font-size: var(--type-size-xl);
@@ -3144,7 +3293,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   background:
     radial-gradient(circle at 86% 14%, rgba(108, 176, 255, 0.22), transparent 38%),
     radial-gradient(circle at 100% 90%, rgba(108, 176, 255, 0.14), transparent 46%),
-    linear-gradient(145deg, rgba(8, 8, 14, 0.99), rgba(4, 4, 9, 0.99));
+    linear-gradient(145deg, #181a22, #131520);
 }
 
 :root:not([data-theme="dark"]) .dashboard-page.study-hub-page .study-hero-name,
@@ -3957,7 +4106,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   }
 
   .study-hub-page .study-upcoming-type {
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 

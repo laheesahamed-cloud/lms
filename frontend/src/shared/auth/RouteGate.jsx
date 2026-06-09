@@ -1,9 +1,14 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../utils/routeForwarding.js';
 import { isStaffUser, userHasPermissions } from './roleAccess.js';
-import { SystemStatusOverlay } from '../ui/SystemStatusOverlay.jsx';
+
+const SystemStatusOverlay = lazy(() =>
+  import('../ui/SystemStatusOverlay.jsx').then((module) => ({
+    default: module.SystemStatusOverlay,
+  }))
+);
 
 function SessionExpiredLock({ lock }) {
   const location = useLocation();
@@ -26,7 +31,11 @@ function SessionExpiredLock({ lock }) {
     };
   }, [clearSessionExpiredLock, loginTarget, navigate]);
 
-  return <SystemStatusOverlay variant="session" zIndex={12000} />;
+  return (
+    <Suspense fallback={null}>
+      <SystemStatusOverlay variant="session" zIndex={12000} />
+    </Suspense>
+  );
 }
 
 function getSafeFromPath(location) {

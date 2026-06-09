@@ -238,6 +238,11 @@ const practiceQuizSideNavClass =
   'lms-review-side-nav grid min-h-0 gap-2.5 rounded-[18px] border border-line-soft bg-surface-1 p-3.5 shadow-none';
 const practiceQuizNavHeadClass =
   'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft';
+// Single merged overview card: summary stats + progress + question list in one card.
+const practiceQuizOverviewCardClass =
+  'lms-review-side-nav lms-practice-quiz-overview grid min-h-0 gap-4 rounded-[18px] border border-line-soft bg-surface-1 p-3.5 shadow-none';
+const practiceQuizOverviewSectionClass =
+  'grid min-h-0 gap-2.5 border-t border-line-soft pt-4';
 const practiceQuizBubbleNavClass =
   'lms-review-bubble-nav grid grid-cols-4 gap-2 min-[381px]:grid-cols-5 min-[701px]:grid-cols-6 min-[1024px]:grid-cols-8 min-[1200px]:grid-cols-5';
 const practiceQuizBubbleClass =
@@ -389,7 +394,7 @@ const examHeaderBrandClass = 'flex min-w-0 flex-1 items-center gap-3 max-[420px]
 const examHeaderLogoClass =
   'grid size-10 shrink-0 place-items-center text-[var(--xyndrome-logo-scope)]';
 const examHeaderTitleClass = 'block max-w-full truncate whitespace-nowrap text-[17px] font-extrabold leading-tight text-ink-strong max-[420px]:text-[15px]';
-const examHeaderSubtitleClass = 'mt-0 block max-w-[min(62vw,720px)] truncate whitespace-nowrap text-[6px] leading-[0.9] text-ink-soft max-[700px]:max-w-full max-[420px]:text-[6px]';
+const examHeaderSubtitleClass = 'mt-0 block max-w-[min(62vw,720px)] truncate whitespace-nowrap text-[11px] leading-tight text-ink-soft max-[700px]:max-w-full max-[420px]:text-[11px]';
 const examHeaderActionsClass = 'quiz-header-actions ml-auto flex min-w-0 shrink-0 flex-nowrap items-center justify-end gap-2 max-[420px]:gap-1.5';
 const examHeaderChipClass =
   'inline-flex min-h-10 items-center gap-2 rounded-[13px] border border-[var(--exam-header-chip-border)] bg-[var(--exam-header-chip-bg)] px-3 text-sm text-ink-medium shadow-[var(--exam-header-chip-shadow)]';
@@ -2115,74 +2120,76 @@ export function TakeQuizPage() {
 
           <section className={practiceQuizWorkspaceClass}>
             <aside className={practiceQuizSidebarClass}>
-              <div className={practiceQuizSummaryGridClass}>
-                <PracticeSummaryTile label="Total" value={totalQuestions} />
-                <PracticeSummaryTile label="Answered" value={answeredCount} />
-                <PracticeSummaryTile label="Current" value={currentIndex + 1} />
-                <PracticeSummaryTile label="Progress" value={`${progressPercent}%`} />
-              </div>
-
-              <section className={cx(practiceQuizSideNavClass, 'lms-practice-progress-card')} aria-label="Practice progress">
-                <div className={practiceQuizNavHeadClass}>
-                  <h3>Progress</h3>
-                  <span>{progressPercent}% complete</span>
-                </div>
-                <div
-                  className="h-2 overflow-hidden rounded-full bg-surface-3"
-                  role="progressbar"
-                  aria-label="Practice progress"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={progressPercent}
-                >
-                  <span
-                    className="block h-full w-full origin-left rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
-                    style={{ transform: `scaleX(${progressPercent / 100})` }}
-                  />
-                </div>
-                <p className="m-0 text-xs font-semibold leading-relaxed text-ink-soft">
-                  Question {currentIndex + 1} of {totalQuestions} / {questionTypeLabel}
-                </p>
-              </section>
-
-              <section className={cx(practiceQuizSideNavClass, 'lms-practice-question-key')} aria-label="Question navigator">
-                <div className={practiceQuizNavHeadClass}>
-                  <h3>Question List</h3>
-                  <span>{totalQuestions} total</span>
+              <section className={cx(practiceQuizOverviewCardClass, 'lms-practice-progress-card lms-practice-question-key')} aria-label="Practice overview">
+                <div className={practiceQuizSummaryGridClass}>
+                  <PracticeSummaryTile label="Total" value={totalQuestions} />
+                  <PracticeSummaryTile label="Answered" value={answeredCount} />
+                  <PracticeSummaryTile label="Current" value={currentIndex + 1} />
+                  <PracticeSummaryTile label="Progress" value={`${progressPercent}%`} />
                 </div>
 
-                <div className={practiceQuizBubbleNavClass}>
-                  {data.questions.map((question, index) => (
-                    <button
-                      className={getPracticeQuizBubbleClass({
-                        active: index === currentIndex,
-                        answered: isAnswered(question, answers[question.id]),
-                        flagged: flaggedQuestionIds.has(question.id),
-                        saved: bookmarkedQuestionIds.has(question.id),
-                      })}
-                      key={question.id}
-                      type="button"
-                      onClick={() => goTo(index)}
-                      title={`Question ${index + 1}`}
-                      aria-current={index === currentIndex ? 'step' : undefined}
-                      aria-label={getQuestionNavButtonLabel(index, {
-                        active: index === currentIndex,
-                        answered: isAnswered(question, answers[question.id]),
-                        flagged: flaggedQuestionIds.has(question.id),
-                        saved: bookmarkedQuestionIds.has(question.id),
-                      })}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
+                <div className={practiceQuizOverviewSectionClass} aria-label="Practice progress">
+                  <div className={practiceQuizNavHeadClass}>
+                    <h3>Progress</h3>
+                    <span>{progressPercent}% complete</span>
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-surface-3"
+                    role="progressbar"
+                    aria-label="Practice progress"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progressPercent}
+                  >
+                    <span
+                      className="block h-full w-full origin-left rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
+                      style={{ transform: `scaleX(${progressPercent / 100})` }}
+                    />
+                  </div>
+                  <p className="m-0 text-xs font-semibold leading-relaxed text-ink-soft">
+                    Question {currentIndex + 1} of {totalQuestions} / {questionTypeLabel}
+                  </p>
                 </div>
 
-                <div className={practiceQuizBubbleLegendClass}>
-                  <span><i className="border-brand-primary/30 bg-brand-primary/30" />Current</span>
-                  <span><i className="border-brand-success/30 bg-brand-success/30" />Answered</span>
-                  <span><i className="is-idle" />Not answered</span>
-                  <span><i className="border-[color-mix(in_srgb,#8b5cf6_30%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_30%,transparent)]" />Saved</span>
-                  <span><i className="border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_30%,transparent)]" />Flagged</span>
+                <div className={practiceQuizOverviewSectionClass} aria-label="Question navigator">
+                  <div className={practiceQuizNavHeadClass}>
+                    <h3>Question List</h3>
+                    <span>{totalQuestions} total</span>
+                  </div>
+
+                  <div className={practiceQuizBubbleNavClass}>
+                    {data.questions.map((question, index) => (
+                      <button
+                        className={getPracticeQuizBubbleClass({
+                          active: index === currentIndex,
+                          answered: isAnswered(question, answers[question.id]),
+                          flagged: flaggedQuestionIds.has(question.id),
+                          saved: bookmarkedQuestionIds.has(question.id),
+                        })}
+                        key={question.id}
+                        type="button"
+                        onClick={() => goTo(index)}
+                        title={`Question ${index + 1}`}
+                        aria-current={index === currentIndex ? 'step' : undefined}
+                        aria-label={getQuestionNavButtonLabel(index, {
+                          active: index === currentIndex,
+                          answered: isAnswered(question, answers[question.id]),
+                          flagged: flaggedQuestionIds.has(question.id),
+                          saved: bookmarkedQuestionIds.has(question.id),
+                        })}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className={practiceQuizBubbleLegendClass}>
+                    <span><i className="border-brand-primary/30 bg-brand-primary/30" />Current</span>
+                    <span><i className="border-brand-success/30 bg-brand-success/30" />Answered</span>
+                    <span><i className="is-idle" />Not answered</span>
+                    <span><i className="border-[color-mix(in_srgb,#8b5cf6_30%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_30%,transparent)]" />Saved</span>
+                    <span><i className="border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_30%,transparent)]" />Flagged</span>
+                  </div>
                 </div>
               </section>
             </aside>

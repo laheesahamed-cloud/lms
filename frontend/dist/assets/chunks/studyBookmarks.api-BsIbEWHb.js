@@ -1,0 +1,1 @@
+import{n as e}from"./cache-CY1uHMhT.js";import{n as t}from"./client-CQn9GR4P.js";var n=e({ttlMs:3e4,load:()=>t.get(`/student/bookmarks`).then(e=>e.data)}),r=()=>n.get(),i=()=>n.peek();function a(){n.clear()}async function o(e){let n=await t.post(`/student/bookmarks/toggle`,e);return a(),n.data}export{i as n,o as r,r as t};

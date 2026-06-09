@@ -1,6 +1,11 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SystemStatusOverlay } from '../shared/ui/SystemStatusOverlay.jsx';
+
+const SystemStatusOverlay = lazy(() =>
+  import('../shared/ui/SystemStatusOverlay.jsx').then((module) => ({
+    default: module.SystemStatusOverlay,
+  }))
+);
 
 export function AppRouteError() {
   const navigate = useNavigate();
@@ -15,5 +20,9 @@ export function AppRouteError() {
     };
   }, [navigate]);
 
-  return <SystemStatusOverlay variant="route" zIndex={12000} />;
+  return (
+    <Suspense fallback={null}>
+      <SystemStatusOverlay variant="route" zIndex={12000} />
+    </Suspense>
+  );
 }

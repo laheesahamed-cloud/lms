@@ -228,7 +228,7 @@ export declare class AuthController {
             };
         };
     }>;
-    me(authorization?: string): Promise<{
+    me(authorization?: string, cookie?: string): Promise<{
         ok: boolean;
         user: {
             id: number;

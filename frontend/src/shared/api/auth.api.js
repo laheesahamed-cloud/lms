@@ -2,6 +2,7 @@ import { apiClient } from './client.js';
 import { detectPlatform } from '../platform/detect.js';
 
 const NATIVE_AUTH_TIMEOUT_MS = 7000;
+const WEB_AUTH_TIMEOUT_MS = 8000;
 
 function nativeAuthHeaders() {
   return detectPlatform().isNative ? { 'X-LMS-Native': '1' } : undefined;
@@ -16,9 +17,9 @@ export async function login(payload) {
   const response = await apiClient.post('/auth/login', payload, {
     headers: nativeAuthHeaders(),
     params: nativeAuthParams(),
-    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : undefined,
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
     __skipApiBaseFallback: native,
-    __skipTimeoutRetry: native,
+    __skipTimeoutRetry: true,
   });
   return response.data;
 }
@@ -28,9 +29,9 @@ export async function register(payload) {
   const response = await apiClient.post('/auth/register', payload, {
     headers: nativeAuthHeaders(),
     params: nativeAuthParams(),
-    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : undefined,
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
     __skipApiBaseFallback: native,
-    __skipTimeoutRetry: native,
+    __skipTimeoutRetry: true,
   });
   return response.data;
 }
@@ -40,9 +41,9 @@ export async function loginWithGoogle(payload) {
   const response = await apiClient.post('/auth/google', payload, {
     headers: nativeAuthHeaders(),
     params: nativeAuthParams(),
-    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : undefined,
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
     __skipApiBaseFallback: native,
-    __skipTimeoutRetry: native,
+    __skipTimeoutRetry: true,
   });
   return response.data;
 }
@@ -55,9 +56,9 @@ export async function loginWithGoogleCode(payload) {
       'X-Requested-With': 'XmlHttpRequest',
     },
     params: nativeAuthParams(),
-    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : undefined,
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
     __skipApiBaseFallback: native,
-    __skipTimeoutRetry: native,
+    __skipTimeoutRetry: true,
   });
   return response.data;
 }
@@ -68,6 +69,7 @@ export async function fetchCurrentUser(options = {}) {
     __suppressServerStatus: Boolean(options.silent),
     __suppressUnauthorizedSessionNotice: Boolean(options.silent),
     __skipTimeoutRetry: Boolean(options.silent),
+    __skipApiBaseFallback: Boolean(options.silent),
     timeout: options.timeout ?? 5000,
   });
   return response.data;

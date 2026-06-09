@@ -14,7 +14,6 @@ import {
 } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
-import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 
 const COURSE_SUBJECT_PALETTES = [
@@ -93,30 +92,6 @@ function resolveLessonCanvas(notes, course, lessonContext) {
 function noteMatchesCourse(note, course) {
   const noteCourse = normalizeLookup(note?.courseTitle);
   return !noteCourse || noteCourse === normalizeLookup(course?.courseTitle);
-}
-
-function ProgressBar({
-  value,
-  label = 'Progress',
-  className = '',
-  fillClassName = 'bg-[var(--brand-gradient-primary)] dark:bg-[linear-gradient(90deg,#6d7cff,#22d3ee)] dark:shadow-none',
-}) {
-  const progress = clampPercent(value);
-  return (
-    <div
-      className={cx('h-1.5 overflow-hidden rounded-full bg-surface-3 dark:bg-white/[0.09]', className)}
-      role="progressbar"
-      aria-label={label}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={progress}
-    >
-      <span
-        className={cx('block h-full w-full origin-left rounded-full', fillClassName)}
-        style={{ transform: `scaleX(${progress / 100})` }}
-      />
-    </div>
-  );
 }
 
 function getLessonAccessMessage(lesson) {
@@ -332,38 +307,129 @@ function buildCourseAnalytics(course, subjects, resources, quizzes = [], results
   };
 }
 
-function CourseAnalyticsHero({ course, analytics, onBack, onOpenLesson }) {
-  const recommendation = analytics.recommendation;
+function describeStudyTime(lessonCount) {
+  const minutes = Math.max(0, Number(lessonCount || 0)) * 15;
+  if (!minutes) return null;
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return Number.isInteger(hours) ? `${hours} hr${hours === 1 ? '' : 's'}` : `${hours.toFixed(1)} hrs`;
+}
+
+// Plain-English, one-line read on where the learner stands — built only from real data.
+function buildCourseSummary(analytics) {
+  const { totalLessons, completedLessons, courseProgress } = analytics;
+  if (!totalLessons) return 'No lessons are published for this course yet.';
+
+  const remaining = Math.max(0, totalLessons - completedLessons);
+  if (remaining === 0) {
+    return `All ${totalLessons} lessons are complete — revisit anything you'd like to keep sharp.`;
+  }
+
+  const remainingTime = describeStudyTime(remaining);
+  const tail = remainingTime ? ` — about ${remainingTime} of study left` : '';
+
+  if (completedLessons === 0) {
+    return `A fresh start: ${totalLessons} lessons ahead${tail}.`;
+  }
+  return `You're ${courseProgress}% through — ${completedLessons} of ${totalLessons} lessons done, ${remaining} to go${tail}.`;
+}
+
+// Short, quiet second line that only appears when there is something worth flagging.
+function buildCourseFootnote(analytics) {
+  const notes = [];
+  if (analytics.activeLessons > 0) {
+    notes.push(`${formatCountLabel(analytics.activeLessons, 'lesson')} in progress`);
+  }
+  if (analytics.lockedLessons > 0) {
+    notes.push(`${analytics.lockedLessons} locked behind your plan`);
+  }
+  if (analytics.averageScore !== null) {
+    notes.push(`${analytics.averageScore}% average across ${formatCountLabel(analytics.courseResults.length, 'attempt')}`);
+  }
+  return notes.join('  ·  ');
+}
+
+function StatLine({ value, sub, label }) {
   return (
-    <section className="course-analytics-hero" aria-labelledby="course-analytics-title">
-      <div className="course-analytics-hero__copy">
-        <span className="course-map-eyebrow">Course analytics</span>
-        <h1 id="course-analytics-title">{course.courseTitle}</h1>
-        <p>
-          {formatCountLabel(analytics.completedLessons, 'lesson')} finished from {formatCountLabel(analytics.totalLessons, 'lesson')} · {analytics.estimatedTime}
-        </p>
-      </div>
-
-      <div className="course-analytics-score" aria-label={`${analytics.courseProgress} percent complete`}>
-        <strong>{analytics.courseProgress}%</strong>
-        <span>Complete</span>
-      </div>
-
-      <div className="course-analytics-hero__actions">
-        <button type="button" className={ui.secondaryAction} onClick={onBack}>
-          Back to Courses
-        </button>
-        {recommendation ? (
-          <button type="button" className={ui.primaryAction} onClick={() => onOpenLesson(recommendation.lesson)}>
-            {recommendation.label}
-          </button>
-        ) : null}
-      </div>
-    </section>
+    <div className="csum-stat">
+      <dt>{label}</dt>
+      <dd>
+        <span className="csum-stat-value">{value}</span>
+        {sub ? <span className="csum-stat-sub">{sub}</span> : null}
+      </dd>
+    </div>
   );
 }
 
-function BigProgressChart({ analytics }) {
+function CourseSummaryHead({ course, analytics, eyebrow, onBack, onOpenLesson }) {
+  const recommendation = analytics.recommendation;
+  const summary = buildCourseSummary(analytics);
+  const footnote = buildCourseFootnote(analytics);
+
+  return (
+    <header className="csum-head" aria-labelledby="csum-title">
+      <span className="csum-eyebrow">{eyebrow}</span>
+      <h1 id="csum-title" className="csum-title">{course.courseTitle}</h1>
+      <p className="csum-lede">{summary}</p>
+      {footnote ? <p className="csum-footnote">{footnote}</p> : null}
+
+      <div className="csum-progress" aria-label={`${analytics.courseProgress} percent complete`}>
+        <span
+          className="csum-progress-track"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={analytics.courseProgress}
+        >
+          <span className="csum-progress-fill" style={{ transform: `scaleX(${analytics.courseProgress / 100})` }} />
+        </span>
+        <span className="csum-progress-meta">
+          <b>{analytics.courseProgress}%</b> complete
+        </span>
+      </div>
+
+      {recommendation ? (
+        <p className="csum-next">
+          <span className="csum-next-label">Next up</span>
+          <span className="csum-next-title">{recommendation.lesson.lessonTitle}</span>
+          <span className="csum-next-reason">{recommendation.reason}</span>
+        </p>
+      ) : null}
+
+      <div className="csum-actions">
+        {recommendation ? (
+          <button type="button" className="csum-btn csum-btn--primary" onClick={() => onOpenLesson(recommendation.lesson)}>
+            {recommendation.label}
+          </button>
+        ) : null}
+        <button type="button" className="csum-btn csum-btn--ghost" onClick={onBack}>
+          Back to courses
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function CourseStatStrip({ analytics, subjectCount }) {
+  const remaining = Math.max(0, analytics.totalLessons - analytics.completedLessons);
+  const stats = [
+    { label: 'Lessons done', value: analytics.completedLessons, sub: `of ${analytics.totalLessons}` },
+    { label: 'In progress', value: analytics.activeLessons },
+    { label: 'Left to do', value: remaining },
+    { label: 'Locked', value: analytics.lockedLessons },
+    { label: 'Subjects', value: subjectCount },
+    { label: 'Study time', value: analytics.estimatedTime.replace('~', '') },
+  ];
+  return (
+    <dl className="csum-stats" aria-label="Course at a glance">
+      {stats.map((item) => (
+        <StatLine key={item.label} value={item.value} sub={item.sub} label={item.label} />
+      ))}
+    </dl>
+  );
+}
+
+function ProgressBreakdown({ analytics }) {
   const segments = [
     { key: 'finished', label: 'Finished', value: analytics.completedLessons, tone: 'done' },
     { key: 'active', label: 'In progress', value: analytics.activeLessons, tone: 'active' },
@@ -373,128 +439,70 @@ function BigProgressChart({ analytics }) {
   const total = Math.max(analytics.totalLessons, 1);
 
   return (
-    <section className="course-analytics-panel course-progress-panel" aria-labelledby="course-progress-chart-title">
-      <div className="course-analytics-panel__head">
-        <div>
-          <span className="course-map-eyebrow">Progress chart</span>
-          <h2 id="course-progress-chart-title">Finished vs Remaining</h2>
-        </div>
-        <span className="course-map-count">{analytics.completedLessons} / {analytics.totalLessons || 0} lessons</span>
+    <section className="csum-section" aria-labelledby="csum-breakdown-title">
+      <div className="csum-section-head">
+        <h2 id="csum-breakdown-title">Progress breakdown</h2>
       </div>
-
-      <div className="course-progress-chart" aria-label="Course lesson progress chart">
+      <div className="csum-bar" aria-hidden="true">
+        {segments.filter((segment) => segment.value > 0).map((segment) => (
+          <span key={segment.key} className={`is-${segment.tone}`} style={{ flexGrow: segment.value / total }} />
+        ))}
+      </div>
+      <ul className="csum-bar-legend">
         {segments.map((segment) => (
-          <span
-            key={segment.key}
-            className={`is-${segment.tone}`}
-            style={{ width: `${(segment.value / total) * 100}%` }}
-            title={`${segment.label}: ${segment.value}`}
-          />
+          <li key={segment.key}>
+            <i className={`is-${segment.tone}`} aria-hidden="true" />
+            <span>{segment.label}</span>
+            <b>{segment.value}</b>
+          </li>
         ))}
-      </div>
-
-      <div className="course-progress-legend">
-        {segments.map((segment) => (
-          <span key={segment.key}><i className={`is-${segment.tone}`} /> {segment.label} <b>{segment.value}</b></span>
-        ))}
-      </div>
+      </ul>
     </section>
   );
 }
 
-function RecommendationPanel({ analytics, onOpenLesson }) {
-  const recommendation = analytics.recommendation;
-  return (
-    <section className="course-analytics-panel course-recommendation-panel" aria-labelledby="course-recommendation-title">
-      <div>
-        <span className="course-map-eyebrow">Next move</span>
-        <h2 id="course-recommendation-title">{recommendation?.lesson?.lessonTitle || 'No lesson available'}</h2>
-        <p>{recommendation?.reason || 'This course does not have a visible next lesson yet.'}</p>
-      </div>
-      {recommendation ? (
-        <button type="button" className={ui.primaryAction} onClick={() => onOpenLesson(recommendation.lesson)}>
-          {recommendation.label}
-        </button>
-      ) : null}
-    </section>
-  );
-}
-
-function AccessDetailsPanel({ analytics }) {
-  const stats = [
-    { label: 'Unlocked', value: analytics.availableLessons },
-    { label: 'Locked', value: analytics.lockedLessons },
-    { label: 'Free', value: analytics.freeLessons },
-    { label: 'Verified files', value: `${analytics.verifiedResources}/${analytics.resourceCount}` },
-  ];
-  return (
-    <section className="course-analytics-panel course-access-details" aria-labelledby="course-access-title">
-      <div className="course-analytics-panel__head">
-        <div>
-          <span className="course-map-eyebrow">Access details</span>
-          <h2 id="course-access-title">{analytics.accessLabel}</h2>
-        </div>
-      </div>
-      <div className="course-access-grid">
-        {stats.map((item) => (
-          <div key={item.label}>
-            <strong>{item.value}</strong>
-            <span>{item.label}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function QBankPanel({ analytics }) {
+function PracticeSection({ analytics }) {
   const hasQBank = analytics.linkedQuizzes.length || analytics.courseResults.length;
-  const stats = [
-    { label: 'Linked sets', value: analytics.linkedQuizzes.length },
-    { label: 'Finished attempts', value: analytics.courseResults.length },
-    { label: 'Average', value: analytics.averageScore === null ? '--' : `${analytics.averageScore}%` },
-    { label: 'Best', value: analytics.bestScore === null ? '--' : `${analytics.bestScore}%` },
-  ];
   return (
-    <section className="course-analytics-panel course-qbank-panel" aria-labelledby="course-qbank-title">
-      <div className="course-analytics-panel__head">
-        <div>
-          <span className="course-map-eyebrow">QBank / Exams</span>
-          <h2 id="course-qbank-title">{hasQBank ? 'Practice Performance' : 'No QBank linked yet'}</h2>
-          <p>{hasQBank ? `Last attempt ${formatAttemptDate(analytics.lastAttempt?.submittedAt || analytics.lastAttempt?.createdAt)}` : 'No real quiz or exam data is linked to this course yet.'}</p>
-        </div>
+    <section className="csum-section" aria-labelledby="csum-practice-title">
+      <div className="csum-section-head">
+        <h2 id="csum-practice-title">Practice &amp; exams</h2>
+        {hasQBank ? (
+          <span className="csum-section-note">
+            Last attempt {formatAttemptDate(analytics.lastAttempt?.submittedAt || analytics.lastAttempt?.createdAt)}
+          </span>
+        ) : null}
       </div>
+
       {hasQBank ? (
         <>
-          <div className="course-qbank-grid">
-            {stats.map((item) => (
-              <div key={item.label}>
-                <strong>{item.value}</strong>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
+          <dl className="csum-stats csum-stats--inline">
+            <StatLine label="Attempts" value={analytics.courseResults.length} />
+            <StatLine label="Average" value={analytics.averageScore === null ? '—' : `${analytics.averageScore}%`} />
+            <StatLine label="Best" value={analytics.bestScore === null ? '—' : `${analytics.bestScore}%`} />
+            <StatLine label="Linked sets" value={analytics.linkedQuizzes.length} />
+          </dl>
           {analytics.weakExamAreas.length ? (
-            <div className="course-qbank-weak">
+            <ul className="csum-tags">
               {analytics.weakExamAreas.map((area) => (
-                <span key={area.label}>
-                  <strong>{area.average}%</strong>
+                <li key={area.label} className="csum-tag is-weak">
+                  <b>{area.average}%</b>
                   {area.label}
-                </span>
+                </li>
               ))}
-            </div>
+            </ul>
           ) : (
-            <div className="course-analytics-empty">No weak exam areas found from completed attempts yet.</div>
+            <p className="csum-quiet">No weak exam areas yet — keep practising to surface them here.</p>
           )}
         </>
       ) : (
-        <div className="course-analytics-empty">Complete or link a course quiz to show attempts, average score, best score, and weak exam areas here.</div>
+        <p className="csum-quiet">No quiz or exam data is linked to this course yet. Completed attempts will show your average, best score and weak areas here.</p>
       )}
     </section>
   );
 }
 
-function WeakStrongPanel({ analytics, onOpenLesson }) {
+function FocusTopics({ analytics, onOpenLesson }) {
   const rows = [
     ...analytics.currentTopics,
     ...analytics.weakTopics,
@@ -502,54 +510,47 @@ function WeakStrongPanel({ analytics, onOpenLesson }) {
   ].filter((topic, index, list) => list.findIndex((item) => item.id === topic.id) === index).slice(0, 8);
 
   return (
-    <section className="course-analytics-panel course-strength-panel" aria-labelledby="course-strength-title">
-      <div className="course-analytics-panel__head">
-        <div>
-          <span className="course-map-eyebrow">Weak vs strong</span>
-          <h2 id="course-strength-title">Where to Improve</h2>
-          <p>Based on real topic progress and lesson status.</p>
-        </div>
+    <section className="csum-section" aria-labelledby="csum-focus-title">
+      <div className="csum-section-head">
+        <h2 id="csum-focus-title">Where to focus</h2>
+        <span className="csum-section-note">{formatCountLabel(rows.length, 'topic')}</span>
       </div>
       {rows.length ? (
-        <div className="course-strength-list">
+        <ul className="csum-rows">
           {rows.map((topic) => (
-            <article className={`course-strength-row is-${topic.status.toLowerCase().replace(/\s+/g, '-')}`} key={topic.id}>
-              <div>
-                <span>{topic.subjectName}</span>
+            <li className={`csum-row is-${topic.status.toLowerCase().replace(/\s+/g, '-')}`} key={topic.id}>
+              <span className="csum-row-dot" aria-hidden="true" />
+              <span className="csum-row-copy">
                 <strong>{topic.topicName}</strong>
-                <small>{topic.completedLessons}/{topic.totalLessons} lessons</small>
-              </div>
-              <div>
-                <b>{topic.progress}%</b>
-                <em>{topic.status}</em>
-                <ProgressBar value={topic.progress} label={`${topic.topicName} progress`} />
-              </div>
+                <small>{topic.subjectName} · {topic.completedLessons}/{topic.totalLessons} lessons</small>
+              </span>
+              <span className="csum-row-meter">
+                <span className="csum-line"><span style={{ transform: `scaleX(${topic.progress / 100})` }} /></span>
+                <span className="csum-row-figure"><b>{topic.progress}%</b><em>{topic.status}</em></span>
+              </span>
               {topic.nextLesson ? (
-                <button type="button" onClick={() => onOpenLesson(topic.nextLesson)}>
+                <button type="button" className="csum-open" onClick={() => onOpenLesson(topic.nextLesson)}>
                   Open
                 </button>
               ) : null}
-            </article>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : (
-        <div className="course-analytics-empty">No topic progress is available yet.</div>
+        <p className="csum-quiet">No topic progress is available yet.</p>
       )}
     </section>
   );
 }
 
-function SubjectBreakdownPanel({ subjects, analytics, onOpenLesson }) {
+function SubjectList({ subjects, analytics, onOpenLesson }) {
   return (
-    <section className="course-analytics-panel course-subject-breakdown" aria-labelledby="course-subject-breakdown-title">
-      <div className="course-analytics-panel__head">
-        <div>
-          <span className="course-map-eyebrow">Subject breakdown</span>
-          <h2 id="course-subject-breakdown-title">Course Coverage</h2>
-        </div>
-        <span className="course-map-count">{formatCountLabel(subjects.length, 'subject')}</span>
+    <section className="csum-section" aria-labelledby="csum-subjects-title">
+      <div className="csum-section-head">
+        <h2 id="csum-subjects-title">Subjects</h2>
+        <span className="csum-section-note">{formatCountLabel(subjects.length, 'subject')}</span>
       </div>
-      <div className="course-subject-grid">
+      <ul className="csum-rows">
         {subjects.map((subject) => {
           const topics = analytics.topicAnalytics.filter((topic) => topic.subjectId === subject.id);
           const nextTopic = topics.find((topic) => topic.nextLesson && topic.status === 'Current') ||
@@ -558,22 +559,29 @@ function SubjectBreakdownPanel({ subjects, analytics, onOpenLesson }) {
           const progress = clampPercent(subject.progressPercent);
           const status = progress >= 80 ? 'Strong' : progress <= 35 ? 'Needs work' : 'Developing';
           return (
-            <article className="course-subject-card" key={subject.id} style={subjectAccentStyle(getBaseSubjectPalette(subject.subjectName))}>
-              <div>
-                <span>{status}</span>
-                <h3>{subject.subjectName}</h3>
-                <p>{formatCountLabel(subject.totalTopicsCount || subject.topics?.length || 0, 'topic')} · {subject.completedLessonsCount || 0}/{subject.totalLessonsCount || 0} lessons</p>
-              </div>
-              <ProgressBar value={progress} label={`${subject.subjectName} progress`} />
+            <li
+              className="csum-row csum-row--subject"
+              key={subject.id}
+              style={subjectAccentStyle(getBaseSubjectPalette(subject.subjectName))}
+            >
+              <span className="csum-row-marker" aria-hidden="true" />
+              <span className="csum-row-copy">
+                <strong>{subject.subjectName}</strong>
+                <small>{formatCountLabel(subject.totalTopicsCount || subject.topics?.length || 0, 'topic')} · {subject.completedLessonsCount || 0}/{subject.totalLessonsCount || 0} lessons</small>
+              </span>
+              <span className="csum-row-meter">
+                <span className="csum-line is-accent"><span style={{ transform: `scaleX(${progress / 100})` }} /></span>
+                <span className="csum-row-figure"><b>{progress}%</b><em>{status}</em></span>
+              </span>
               {nextTopic?.nextLesson ? (
-                <button type="button" onClick={() => onOpenLesson(nextTopic.nextLesson)}>
-                  Open next
+                <button type="button" className="csum-open" onClick={() => onOpenLesson(nextTopic.nextLesson)}>
+                  Open
                 </button>
               ) : null}
-            </article>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </section>
   );
 }
@@ -669,33 +677,30 @@ function getCourseResources(data) {
     .filter(Boolean);
 }
 
-function CourseResourcesPanel({ resources }) {
+function ResourceList({ resources }) {
   return (
-    <section className="course-map-resources" aria-labelledby="course-map-resources-heading">
-      <div className="course-map-resources__head">
-        <div>
-          <span className="course-map-eyebrow">Resources</span>
-          <h2 id="course-map-resources-heading">Course Downloads</h2>
-        </div>
-        <span className="course-map-count">{formatCountLabel(resources.length, 'file')}</span>
+    <section className="csum-section" aria-labelledby="csum-resources-title">
+      <div className="csum-section-head">
+        <h2 id="csum-resources-title">Downloads</h2>
+        <span className="csum-section-note">{formatCountLabel(resources.length, 'file')}</span>
       </div>
 
       {resources.length ? (
-        <ol className="course-map-resource-list" aria-label="Course downloads">
+        <ul className="csum-rows csum-rows--resources" aria-label="Course downloads">
           {resources.map((resource) => (
-            <li className="course-map-resource-row" key={resource.id}>
-              <span className="course-map-resource-type">{resource.type || 'file'}</span>
-              <span className="course-map-resource-copy">
+            <li className="csum-row csum-row--resource" key={resource.id}>
+              <span className="csum-row-type">{resource.type || 'file'}</span>
+              <span className="csum-row-copy">
                 <strong title={resource.name}>{resource.name}</strong>
-                <em>{resource.statusLabel}</em>
+                <small>{resource.statusLabel}</small>
               </span>
               {resource.disabled ? (
-                <span className="course-map-resource-state" aria-label={`${resource.name} is not available`}>
+                <span className="csum-row-state" aria-label={`${resource.name} is not available`}>
                   Unavailable
                 </span>
               ) : (
                 <a
-                  className="course-map-resource-action"
+                  className="csum-open"
                   href={resource.url}
                   target="_blank"
                   rel="noreferrer"
@@ -706,11 +711,9 @@ function CourseResourcesPanel({ resources }) {
               )}
             </li>
           ))}
-        </ol>
+        </ul>
       ) : (
-        <div className="course-map-resources__empty">
-          No course downloads are published for this course.
-        </div>
+        <p className="csum-quiet">No course downloads are published for this course.</p>
       )}
     </section>
   );
@@ -964,18 +967,15 @@ export function CourseDetailPage({
 
   if (loading) {
     return (
-      <main className="dashboard-page study-hub-page student-notes-page lms-course-detail-page lms-course-map-page">
+      <main className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
         <section className="study-hub-shell course-detail-shell">
-          <AppHeader title="Course" subtitle="Lesson Map" />
-          <section className="course-map-overview course-map-overview--loading" aria-label="Loading course lesson map">
-            <div className="course-map-skeleton course-map-skeleton--title" />
-            <div className="course-map-skeleton course-map-skeleton--line" />
-            <div className="course-map-skeleton course-map-skeleton--stats" />
-          </section>
-          <section className="course-map-shell course-map-shell--loading" aria-label="Loading lessons">
-            <div className="course-map-skeleton course-map-skeleton--heading" />
-            <div className="course-map-skeleton course-map-skeleton--rows" />
-          </section>
+          <AppHeader title="Course" subtitle="Summary" />
+          <div className="csum-loading" aria-label="Loading course summary">
+            <div className="csum-skeleton csum-skeleton--title" />
+            <div className="csum-skeleton csum-skeleton--line" />
+            <div className="csum-skeleton csum-skeleton--bar" />
+            <div className="csum-skeleton csum-skeleton--rows" />
+          </div>
         </section>
       </main>
     );
@@ -983,46 +983,48 @@ export function CourseDetailPage({
 
   if (!course) {
     return (
-      <main className="dashboard-page study-hub-page student-notes-page lms-course-detail-page lms-course-map-page">
+      <main className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
         <section className="study-hub-shell course-detail-shell">
-          <AppHeader title="Course" subtitle="Lesson Map" />
-          <div className="course-map-page-actions">
-            <button type="button" className={ui.secondaryAction} onClick={handleBackToCourses}>
-              Back to Courses
+          <AppHeader title="Course" subtitle="Summary" />
+          <div className="csum-actions">
+            <button type="button" className="csum-btn csum-btn--ghost" onClick={handleBackToCourses}>
+              Back to courses
             </button>
           </div>
-          <div className={ui.emptyBox}>Course details are unavailable.</div>
+          <p className="csum-quiet">Course details are unavailable.</p>
         </section>
       </main>
     );
   }
 
+  const eyebrow = subjects[0]?.subjectName
+    ? `${subjects[0].subjectName}${subjects.length > 1 ? ` +${subjects.length - 1} more` : ''}`
+    : 'Course summary';
+
   return (
-    <main className="dashboard-page study-hub-page student-notes-page lms-course-detail-page lms-course-map-page">
-      <section className="study-hub-shell course-detail-shell">
-        <AppHeader title={course.courseTitle} subtitle="Course analytics" />
+    <main className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
+      <section className="study-hub-shell course-detail-shell csum-shell">
+        <AppHeader title={course.courseTitle} subtitle="Summary" />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
-        <CourseAnalyticsHero
-          course={course}
-          analytics={courseAnalytics}
-          onBack={handleBackToCourses}
-          onOpenLesson={handleOpenLesson}
-        />
+        <div className="csum-card">
+          <CourseSummaryHead
+            course={course}
+            analytics={courseAnalytics}
+            eyebrow={eyebrow}
+            onBack={handleBackToCourses}
+            onOpenLesson={handleOpenLesson}
+          />
 
-        <BigProgressChart analytics={courseAnalytics} />
-
-        <div className="course-analytics-grid-main">
-          <RecommendationPanel analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
-          <AccessDetailsPanel analytics={courseAnalytics} />
+          <CourseStatStrip analytics={courseAnalytics} subjectCount={subjects.length} />
+          <ProgressBreakdown analytics={courseAnalytics} />
+          <PracticeSection analytics={courseAnalytics} />
+          <FocusTopics analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
+          <SubjectList subjects={subjects} analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
+          <ResourceList resources={courseResources} />
         </div>
-
-        <QBankPanel analytics={courseAnalytics} />
-        <WeakStrongPanel analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
-        <SubjectBreakdownPanel subjects={subjects} analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
-        <CourseResourcesPanel resources={courseResources} />
-	      </section>
-	    </main>
+      </section>
+    </main>
   );
 }

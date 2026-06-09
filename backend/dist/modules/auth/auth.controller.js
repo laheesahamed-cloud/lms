@@ -66,8 +66,8 @@ let AuthController = class AuthController {
         const { sessionToken: _sessionToken, ...safeResult } = result;
         return safeResult;
     }
-    me(authorization) {
-        return this.authService.me(authorization);
+    me(authorization, cookie) {
+        return this.authService.me(authorization || this.authorizationFromCookie(cookie));
     }
     async logout(authorization, cookie, request, response) {
         this.clearSessionCookie(response, request);
@@ -221,8 +221,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('me'),
     __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Headers)('cookie')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "me", null);
 __decorate([

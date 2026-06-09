@@ -12,6 +12,7 @@ class NativePushSender {
         this.getApnsRuntimeSettings = getApnsRuntimeSettings;
         this.getFcmRuntimeSettings = getFcmRuntimeSettings;
         this.fcmAccessToken = null;
+        this.apnsJwt = null;
     }
     async isConfigured() {
         return (await this.isApnsConfigured()) || this.isFcmConfigured();
@@ -272,22 +273,31 @@ class NativePushSender {
     }
     createApnsJwt(settings) {
         const now = Math.floor(Date.now() / 1000);
-        return this.signJwt({
+        const cacheKey = `${settings.teamId}:${settings.keyId}`;
+        if (this.apnsJwt && this.apnsJwt.key === cacheKey && this.apnsJwt.expiresAt > now) {
+            return this.apnsJwt.value;
+        }
+        const value = this.signJwt({
             alg: 'ES256',
             kid: settings.keyId,
         }, {
             iss: settings.teamId,
             iat: now,
-        }, this.getApnsPrivateKey(settings), 'SHA256');
+        }, this.getApnsPrivateKey(settings), 'SHA256', 'ieee-p1363');
+        this.apnsJwt = { key: cacheKey, value, expiresAt: now + 40 * 60 };
+        return value;
     }
-    signJwt(header, payload, privateKey, algorithm) {
+    signJwt(header, payload, privateKey, algorithm, dsaEncoding) {
         const encodedHeader = this.base64Url(JSON.stringify(header));
         const encodedPayload = this.base64Url(JSON.stringify(payload));
         const signingInput = `${encodedHeader}.${encodedPayload}`;
         const sign = (0, crypto_1.createSign)(algorithm);
         sign.update(signingInput);
         sign.end();
-        return `${signingInput}.${this.base64Url(sign.sign(privateKey))}`;
+        const signature = dsaEncoding
+            ? sign.sign({ key: privateKey, dsaEncoding })
+            : sign.sign(privateKey);
+        return `${signingInput}.${this.base64Url(signature)}`;
     }
     postJson(url, body, headers) {
         return new Promise((resolve) => {

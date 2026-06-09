@@ -28,6 +28,14 @@ export declare class PushNotificationsController {
         androidNativePushConfigured: boolean;
         nativePushUsers: number;
         nativePushTokens: number;
+        failedNativeTokens: number;
+        recentNativeErrors: {
+            platform: string;
+            enabled: boolean;
+            deliveryMode: string;
+            reason: string;
+            failedAt: any;
+        }[];
         defaultIcon: string;
         defaultBadge: string;
     }>;

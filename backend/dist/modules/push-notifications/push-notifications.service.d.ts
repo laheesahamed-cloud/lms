@@ -52,9 +52,18 @@ export declare class PushNotificationsService {
         androidNativePushConfigured: boolean;
         nativePushUsers: number;
         nativePushTokens: number;
+        failedNativeTokens: number;
+        recentNativeErrors: {
+            platform: string;
+            enabled: boolean;
+            deliveryMode: string;
+            reason: string;
+            failedAt: any;
+        }[];
         defaultIcon: string;
         defaultBadge: string;
     }>;
+    private summarizeNativePushError;
     subscribe(authorization: string | undefined, input: any, userAgent?: string): Promise<{
         ok: boolean;
         reason: string;

@@ -118,7 +118,7 @@
   --sa-page-width-mobile: min(390px, calc(100% - 24px));
   --sa-page-width-compact: min(100% - 16px, 390px);
   --sa-page-width-tablet: min(720px, calc(100% - 32px));
-  --sa-page-width-desktop: min(1200px, calc(100% - 48px));
+  --sa-page-width-desktop: min(1180px, calc(100% - 56px));
   --sa-page-padding-compact-top: calc(max(8px, env(safe-area-inset-top, 0px)) + 4px);
   --sa-page-padding-compact-bottom: calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 8px);
   --sa-page-padding: var(--sa-page-padding-top) 0 var(--sa-page-padding-bottom);
@@ -3341,21 +3341,33 @@ body.student-assessment-screen :where(
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) > .lms-review-main,
+  /* Exam page keeps the question card on top, sidebar at the bottom. */
   .student-app-shell .lms-exam-page .lms-exam-main-card {
     order: 1 !important;
   }
 
-  .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) > .lms-review-explanation-side {
-    order: 2 !important;
-  }
-
-  .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) > .lms-review-sidebar,
   .student-app-shell .lms-exam-page .lms-exam-sidebar {
     order: 3 !important;
     position: static !important;
     max-height: none !important;
     overflow: visible !important;
+  }
+
+  /* Practice quiz-taking AND post-exam review: stack the question card at the
+     very bottom, below the summary tiles, progress, and question list. */
+  .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) > .lms-review-explanation-side {
+    order: 1 !important;
+  }
+
+  .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) > .lms-review-sidebar {
+    order: 2 !important;
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .student-app-shell .lms-review-workspace:not(.lms-review-workspace--focus) > .lms-review-main {
+    order: 3 !important;
   }
 }
 

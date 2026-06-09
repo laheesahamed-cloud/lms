@@ -1,0 +1,1 @@
+import{d as e,i as t,p as n}from"./vendor-react-C2RJUlcn.js";import{t as r}from"./LaunchModePage-D6785rGt.js";var i=n();function a(){let{mode:n}=e();return n!==`maintenance`&&n!==`coming-soon`?(0,i.jsx)(t,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:n,preview:!0})}export{a as LaunchModePreviewPage};

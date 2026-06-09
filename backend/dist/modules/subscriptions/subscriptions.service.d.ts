@@ -164,6 +164,7 @@ export declare class SubscriptionsService {
         id: number;
         invoiceId: string;
     }>;
+    private parsePaymentProofDataUrl;
     private savePaymentProofFile;
     getPaymentProofFile(invoiceId: string): Promise<{
         buffer: Buffer<ArrayBuffer>;

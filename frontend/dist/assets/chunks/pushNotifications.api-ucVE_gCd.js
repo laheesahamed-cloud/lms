@@ -1,1 +1,0 @@
-import{n as e}from"./client-COHM5JMQ.js";var t=()=>e.get(`/admin/push/status`).then(e=>e.data),n=t=>e.post(`/push/native-token`,t).then(e=>e.data),r=t=>e.post(`/admin/push/send`,t).then(e=>e.data);export{n,r,t};

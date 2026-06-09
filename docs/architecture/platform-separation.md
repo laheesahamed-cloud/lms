@@ -142,7 +142,6 @@ Layout policy:
 CSS:
 
 - Platform-specific CSS lives in `styles/05-platforms/` and is loaded by `styles/index.css`.
-- `platform/styles.css` is a compatibility shim for older imports only.
 - PWA-only CSS uses `html[data-lms-runtime="pwa"]`.
 - Native-only CSS must use `html[data-lms-runtime="native"]` or a target key.
 

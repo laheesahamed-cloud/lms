@@ -1,0 +1,1 @@
+import{i as e}from"./LocalNotifications-4KlInWfD.js";export{e as installLocalNotificationHandlers};

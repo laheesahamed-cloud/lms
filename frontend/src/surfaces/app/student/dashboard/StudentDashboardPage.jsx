@@ -412,8 +412,8 @@ function DashboardHeroMascot({ mascot }) {
         height="512"
         draggable="false"
         decoding="async"
-        loading="eager"
-        fetchPriority="high"
+        loading="lazy"
+        fetchPriority="low"
         onError={handleImageError}
       />
     </span>
@@ -461,17 +461,23 @@ function StudyButton({ children, tone = 'primary', icon = null, onClick, ...butt
   );
 }
 
+function isNativePhoneRuntime() {
+  if (typeof document === 'undefined') return false;
+  const root = document.documentElement;
+  return root.dataset.lmsRuntime === 'native' && root.dataset.lmsFormFactor === 'phone';
+}
+
 function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0 }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-40px' });
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotion() || isNativePhoneRuntime();
 
   // Count up the leading number of `value` (handles numbers and strings like "78%").
   const match = String(value).match(/^(\d+(?:\.\d+)?)(.*)$/s);
   const target = match ? parseFloat(match[1]) : null;
   const suffix = match ? match[2] : '';
-  const counted = useCountUp(target ?? 0, { active: inView && target !== null, duration: 900 });
-  const display = target !== null ? `${counted}${suffix}` : value;
+  const counted = useCountUp(target ?? 0, { active: !reduce && inView && target !== null, duration: 900 });
+  const display = target !== null ? `${reduce ? target : counted}${suffix}` : value;
 
   const railPct = progress !== null ? clampPercent(progress) : 0;
 
@@ -480,8 +486,8 @@ function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0
       ref={ref}
       className={`study-metric study-metric--${tone}`}
       initial={reduce ? false : { opacity: 0, y: 14 }}
-      animate={inView ? { opacity: 1, y: 0 } : undefined}
-      transition={{ delay: index * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      animate={reduce || inView ? { opacity: 1, y: 0 } : undefined}
+      transition={{ delay: index * 0.045, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
     >
       <span className="study-metric__icon"><Icon name={icon} /></span>
       <div>
@@ -494,7 +500,7 @@ function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0
           <motion.span
             initial={reduce ? false : { scaleX: 0 }}
             animate={inView || reduce ? { scaleX: railPct / 100 } : undefined}
-            transition={reduce ? { duration: 0 } : { delay: 0.2 + index * 0.08, duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+            transition={reduce ? { duration: 0 } : { delay: 0.2 + index * 0.045, duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
             style={{ width: '100%', originX: 0 }}
           />
         </div>
@@ -542,7 +548,7 @@ function ScoreTrend({ attempts, average }) {
       <path d="M0 82H100" stroke="var(--sa-border)" strokeWidth="1" />
       <path d="M0 54H100" stroke="var(--sa-border)" strokeWidth="1" />
       <path d="M0 26H100" stroke="var(--sa-border)" strokeWidth="1" />
-      <polyline points={points} fill="none" stroke="#3d5afe" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <polyline points={points} fill="none" stroke="var(--sa-primary)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

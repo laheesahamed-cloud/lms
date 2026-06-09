@@ -85,8 +85,11 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@Headers('authorization') authorization?: string) {
-    return this.authService.me(authorization);
+  me(
+    @Headers('authorization') authorization?: string,
+    @Headers('cookie') cookie?: string
+  ) {
+    return this.authService.me(authorization || this.authorizationFromCookie(cookie));
   }
 
   @Post('logout')

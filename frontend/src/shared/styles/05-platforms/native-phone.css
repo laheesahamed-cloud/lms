@@ -8,7 +8,7 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] {
   --lms-mobile-nav-height: var(--bottom-nav-height);
   --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 12px);
   --lms-native-topbar-height: calc(var(--lms-native-phone-safe-top) + 70px);
-  --lms-native-topbar-spacer-height: calc(70px + var(--lms-native-phone-safe-top) / 2);
+  --lms-native-topbar-spacer-height: var(--lms-native-topbar-height);
 }
 
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell :where(.lms-topbar, .study-hub-topbar) {
@@ -49,6 +49,14 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-native-topbar
   min-height: var(--lms-native-topbar-spacer-height, var(--lms-native-topbar-height, 82px)) !important;
   flex: 0 0 var(--lms-native-topbar-spacer-height, var(--lms-native-topbar-height, 82px)) !important;
   pointer-events: none;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .dashboard-page :where(
+  .study-dust-layer,
+  .study-dust-particle,
+  .study-hero-mascot-random__spark
+) {
+  animation: none !important;
 }
 
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell :where(.study-hub-shell, .management-layout):has(> .lms-native-topbar-spacer) {

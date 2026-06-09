@@ -4,6 +4,7 @@ import { getErrorMessage } from '../../../../shared/api/client.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { AdminApnsSettingsPanel } from './AdminApnsSettingsPanel.jsx';
 import { AdminFcmSettingsPanel } from './AdminFcmSettingsPanel.jsx';
+import { AdminLocalNotificationTestPanel } from './AdminLocalNotificationTestPanel.jsx';
 
 const emptyPushForm = {
   title: 'xyndrome',
@@ -188,6 +189,17 @@ export function AdminNotificationSettingsPanel() {
           </button>
         </div>
       </form>
+
+      <section className="grid gap-4 rounded-lg border border-line-soft bg-surface-1 p-4">
+        <div>
+          <h3 className="m-0 text-base font-black text-ink-strong">Local notification test console</h3>
+          <p className="m-0 mt-1 text-[12.5px] leading-relaxed text-ink-soft">
+            Fire on-device (local) notifications to test delivery — immediate, scheduled, and the admin-authored
+            database → local path. No APNs/FCM setup required.
+          </p>
+        </div>
+        <AdminLocalNotificationTestPanel />
+      </section>
 
       <section className="grid gap-4 rounded-lg border border-line-soft bg-surface-1 p-4">
         <div>

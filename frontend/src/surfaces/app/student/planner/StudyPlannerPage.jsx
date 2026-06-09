@@ -1,26 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchStudentDashboard, readStudentDashboardCache } from '../../../../shared/api/dashboard.api.js';
 import {
   createPlannerTask,
   deletePlannerTask,
   fetchPlannerAgenda,
-  fetchPlannerSuggestions,
   fetchPlannerTasks,
   readPlannerAgendaCache,
   updatePlannerTask,
 } from '../../../../shared/api/workspace.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
+import { StudyReminderSettingsCard } from './StudyReminderSettingsCard.jsx';
 import './StudyPlannerPage.css';
 
 const FLASHCARD_REVIEW_STATS_KEY = 'lms.flashcards.reviewStats.v1';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const VIEW_OPTIONS = [
-  { key: 'agenda', label: 'By date' },
-  { key: 'week', label: 'Next 7 days' },
-  { key: 'course', label: 'By course' },
-  { key: 'completed', label: 'Done' },
+  { key: 'open', label: 'Open' },
+  { key: 'agenda', label: 'Agenda' },
+  { key: 'done', label: 'Done' },
 ];
 
 const STATUS_LABELS = {
@@ -137,12 +135,6 @@ function formatDue(value, status) {
   if (days === 1) return 'Tomorrow';
   if (days <= 7) return `In ${days} days`;
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(parseDate(value));
-}
-
-function formatDateLabel(value) {
-  const date = parseDate(value);
-  if (!date) return 'No due date';
-  return new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(date);
 }
 
 function formatMinutes(value) {
@@ -282,25 +274,6 @@ function mergeAgendaWithPlannerTasks(agenda, taskData, todayValue = todayIso()) 
     ...normalizedAgenda,
     items: [...normalizedAgenda.items, ...fallbackTaskItems],
   };
-}
-
-function normalizeSuggestions(data) {
-  if (!Array.isArray(data)) return [];
-  return data.map((item, index) => ({
-    key: item?.key || `suggestion-${index}`,
-    title: String(item?.title || '').trim(),
-    description: String(item?.description || '').trim(),
-    priority: normalizeTaskPriority(item?.priority),
-    dueInDays: Number.isFinite(Number(item?.dueInDays)) ? Number(item.dueInDays) : null,
-    task: {
-      title: String(item?.task?.title || item?.title || '').trim(),
-      description: String(item?.task?.description || item?.description || '').trim(),
-      dueDate: item?.task?.dueDate || todayIso(),
-      category: normalizeTaskCategory(item?.task?.category || 'review'),
-      priority: normalizeTaskPriority(item?.task?.priority || item?.priority),
-      estimatedMinutes: Number.isFinite(Number(item?.task?.estimatedMinutes)) ? Number(item.task.estimatedMinutes) : 30,
-    },
-  })).filter((item) => item.title);
 }
 
 function readFlashcardReviewStats() {
@@ -459,81 +432,52 @@ function agendaSections(items, today) {
   ].filter((section) => section.items.length);
 }
 
-function weekSections(items, today) {
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(parseDate(today));
-    date.setDate(date.getDate() + index);
-    const iso = todayIsoFromDate(date);
-    const dayItems = items.filter((item) => item.status !== 'completed' && item.dueAt === iso);
-    return {
-      key: iso,
-      title: index === 0 ? 'Today' : formatDateLabel(iso),
-      hint: dayItems.length ? `${dayItems.length} item${dayItems.length === 1 ? '' : 's'}` : 'No dated items',
-      items: dayItems,
-    };
-  });
-}
-
-function todayIsoFromDate(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function courseSections(items) {
-  const grouped = items.reduce((acc, item) => {
-    const key = item.course || 'No course';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
-  return Object.entries(grouped)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([title, sectionItems]) => ({
-      key: title,
-      title,
-      hint: `${sectionItems.length} planner item${sectionItems.length === 1 ? '' : 's'}`,
-      items: sectionItems,
-    }));
-}
-
-function completedSections(items) {
-  const completed = items.filter((item) => item.status === 'completed');
-  return completed.length ? [{ key: 'completed', title: 'Completed', hint: 'Finished study work', items: completed }] : [];
-}
-
-function buildPlannerInsights(items, today) {
-  const activeItems = items.filter((item) => item.status !== 'completed');
-  const dueWork = activeItems.filter((item) => ['overdue', 'due_today', 'in_progress'].includes(item.status));
-  const weekWork = activeItems.filter((item) => {
-    const days = daysFromToday(item.dueAt, today);
-    return days !== null && days >= 0 && days <= 7;
-  });
-  const estimatedToday = dueWork.reduce((sum, item) => sum + itemEstimatedMinutes(item), 0);
-  const estimatedWeek = weekWork.reduce((sum, item) => sum + itemEstimatedMinutes(item), 0);
-  const highPriority = activeItems.filter((item) => itemPriority(item) === 'high').length;
-  const nextDue = [...activeItems]
-    .filter((item) => item.dueAt)
-    .sort((left, right) => String(left.dueAt).localeCompare(String(right.dueAt)))[0];
-  const completed = items.filter((item) => item.status === 'completed').length;
-
-  return {
-    active: activeItems.length,
-    estimatedToday,
-    estimatedWeek,
-    highPriority,
-    nextDueLabel: nextDue ? `${nextDue.title} · ${formatDue(nextDue.dueAt, nextDue.status)}` : 'No dated work yet',
-    completionRate: items.length ? Math.round((completed / items.length) * 100) : 0,
-    locked: activeItems.filter((item) => item.locked).length,
-  };
-}
-
 function PlannerStatusChip({ status }) {
   return (
     <span className={`planner-status-chip is-${status || 'optional'}`}>
       {STATUS_LABELS[status] || 'Optional'}
     </span>
+  );
+}
+
+function PlannerSegmentedControl({ currentView, onChange }) {
+  return (
+    <div className="planner-native-segment" role="tablist" aria-label="Planner views">
+      {VIEW_OPTIONS.map((option) => (
+        <button
+          type="button"
+          role="tab"
+          aria-selected={currentView === option.key}
+          className={currentView === option.key ? 'is-active' : ''}
+          key={option.key}
+          onClick={() => onChange(option.key)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PlannerSummaryCard({ label, value, tone }) {
+  return (
+    <article className={`planner-native-stat is-${tone}`}>
+      <span className={`planner-stat-icon is-${tone}`} aria-hidden="true" />
+      <div>
+        <strong>{value}</strong>
+        <span>{label}</span>
+      </div>
+    </article>
+  );
+}
+
+function PlannerEmptyState({ icon = 'calendar-add', title, message }) {
+  return (
+    <div className="planner-native-empty">
+      <span className={`planner-empty-icon is-${icon}`} aria-hidden="true" />
+      <strong>{title}</strong>
+      <p>{message}</p>
+    </div>
   );
 }
 
@@ -619,7 +563,7 @@ function PlannerRow({ item, onAction, onTaskStatus, onTaskEdit, onTaskDelete, sa
   );
 }
 
-function PlannerSection({ section, onAction, onTaskStatus, onTaskEdit, onTaskDelete, saving, emptyText }) {
+function PlannerSection({ section, onAction, onTaskStatus, onTaskEdit, onTaskDelete, saving, emptyText, emptyState }) {
   return (
     <section className="planner-list-section" aria-labelledby={`planner-section-${section.key}`}>
       <div className="planner-section-heading">
@@ -640,7 +584,7 @@ function PlannerSection({ section, onAction, onTaskStatus, onTaskEdit, onTaskDel
             onTaskDelete={onTaskDelete}
             saving={saving}
           />
-        )) : (
+        )) : emptyState || (
           <div className="planner-empty-row">{emptyText || 'Nothing here yet.'}</div>
         )}
       </div>
@@ -650,11 +594,10 @@ function PlannerSection({ section, onAction, onTaskStatus, onTaskEdit, onTaskDel
 
 export function StudyPlannerPage() {
   const navigate = useNavigate();
+  const taskComposerRef = useRef(null);
   const [agenda, setAgenda] = useState(() => normalizeAgenda(readPlannerAgendaCache()));
-  const [dashboard, setDashboard] = useState(() => readStudentDashboardCache() || null);
   const [flashcardItem, setFlashcardItem] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
-  const [view, setView] = useState('agenda');
+  const [view, setView] = useState('open');
   const [courseFilter, setCourseFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -663,6 +606,7 @@ export function StudyPlannerPage() {
   const [saving, setSaving] = useState('');
   const [message, setMessage] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const [showTaskComposer, setShowTaskComposer] = useState(false);
   const [taskForm, setTaskForm] = useState(() => emptyTaskForm());
 
   async function loadPlanner() {
@@ -675,16 +619,9 @@ export function StudyPlannerPage() {
       ]);
       setAgenda(mergeAgendaWithPlannerTasks(agendaData, taskData));
       setLoading(false);
-      const [dashboardData, suggestionData] = await Promise.all([
-        fetchStudentDashboard().catch(() => null),
-        fetchPlannerSuggestions().catch(() => []),
-      ]);
-      setDashboard(dashboardData);
-      setSuggestions(normalizeSuggestions(suggestionData));
       setFlashcardItem(flashcardDueItem());
     } catch {
       setAgenda(normalizeAgenda(null));
-      setSuggestions([]);
       setMessage('Planner data could not be loaded right now.');
       setLoading(false);
     }
@@ -699,57 +636,36 @@ export function StudyPlannerPage() {
     const merged = flashcardItem ? [flashcardItem, ...agenda.items] : agenda.items;
     return [...merged].sort((left, right) => Number(right.priority || 0) - Number(left.priority || 0));
   }, [agenda.items, flashcardItem]);
-  const filteredItems = useMemo(
-    () => filterItems(allItems, { course: courseFilter, type: typeFilter, status: statusFilter, search: searchTerm }),
-    [allItems, courseFilter, searchTerm, statusFilter, typeFilter]
-  );
   const counts = useMemo(() => sectionCounts(allItems), [allItems]);
   const inProgressCount = counts.in_progress || 0;
   const dueTodayCount = (counts.due_today || 0) + inProgressCount;
   const overdueCount = counts.overdue || 0;
   const completedCount = counts.completed || 0;
-  const upcomingCount = (counts.upcoming || 0) + (counts.optional || 0) + (counts.locked || 0);
   const personalTasks = allItems.filter((item) => item.source === 'planner_task');
-  const plannerInsights = useMemo(() => buildPlannerInsights(allItems, today), [allItems, today]);
-  const startHere = useMemo(() => {
-    if (overdueCount > 0) {
-      return {
-        title: 'Clear overdue work first',
-        body: `${overdueCount} item${overdueCount === 1 ? '' : 's'} need attention before today gets heavier.`,
-        action: 'Overdue',
-      };
-    }
-    if (dueTodayCount > 0) {
-      return {
-        title: 'Start today\'s study work',
-        body: `${dueTodayCount} item${dueTodayCount === 1 ? ' is' : 's are'} ready for today. Open the first one and mark personal tasks done as you finish.`,
-        action: 'Today',
-      };
-    }
-    if (upcomingCount > 0) {
-      return {
-        title: 'Prepare the next task',
-        body: `${upcomingCount} upcoming item${upcomingCount === 1 ? '' : 's'} are waiting. Use Next 7 days to see what is closest.`,
-        action: 'Upcoming',
-      };
-    }
-    return {
-      title: 'Build your study plan',
-      body: 'Add a personal task or complete lessons and quizzes so xyndrome can build your study agenda.',
-      action: 'Plan',
-    };
-  }, [dueTodayCount, overdueCount, upcomingCount]);
-  const visibleSuggestions = useMemo(() => {
-    const existingTitles = new Set(personalTasks.map((item) => item.title.trim().toLowerCase()));
-    return suggestions.filter((item) => !existingTitles.has(item.task.title.trim().toLowerCase()));
-  }, [personalTasks, suggestions]);
+  const openPersonalTasks = personalTasks.filter((item) => item.status !== 'completed');
+  const completedPersonalTasks = personalTasks.filter((item) => item.status === 'completed');
+  const agendaItems = allItems.filter((item) => item.source !== 'planner_task');
+  const summaryCards = [
+    { key: 'open', label: 'Open', value: loading ? '...' : openPersonalTasks.length, tone: 'open' },
+    { key: 'due', label: 'Due Today', value: loading ? '...' : dueTodayCount, tone: 'due' },
+    { key: 'overdue', label: 'Overdue', value: loading ? '...' : overdueCount, tone: 'overdue' },
+    { key: 'done', label: 'Done', value: loading ? '...' : completedCount, tone: 'done' },
+  ];
 
   const sections = useMemo(() => {
-    if (view === 'week') return weekSections(filteredItems, today);
-    if (view === 'course') return courseSections(filteredItems);
-    if (view === 'completed') return completedSections(filteredItems);
-    return agendaSections(filteredItems, today);
-  }, [filteredItems, today, view]);
+    if (view === 'open') {
+      return [{ key: 'open', title: 'Open Tasks', hint: '', items: openPersonalTasks }];
+    }
+    if (view === 'done') {
+      return [{ key: 'done', title: 'Completed', hint: '', items: completedPersonalTasks }];
+    }
+    return agendaSections(filterItems(agendaItems, {
+      course: courseFilter,
+      type: typeFilter,
+      status: statusFilter,
+      search: searchTerm,
+    }), today);
+  }, [agendaItems, completedPersonalTasks, courseFilter, openPersonalTasks, searchTerm, statusFilter, today, typeFilter, view]);
 
   async function handleAction(item) {
     if (item.locked) return;
@@ -762,6 +678,13 @@ export function StudyPlannerPage() {
     } finally {
       setSaving('');
     }
+  }
+
+  function revealTaskComposer() {
+    setEditingTaskId(null);
+    setTaskForm(emptyTaskForm());
+    setShowTaskComposer(true);
+    setMessage('');
   }
 
   async function setPersonalTaskStatus(item, status) {
@@ -782,12 +705,14 @@ export function StudyPlannerPage() {
   function startEditTask(item) {
     setEditingTaskId(item.sourceId);
     setTaskForm(taskFormFromItem(item));
+    setShowTaskComposer(true);
     setMessage('Editing task details.');
   }
 
   function cancelEditTask() {
     setEditingTaskId(null);
     setTaskForm(emptyTaskForm());
+    setShowTaskComposer(false);
     setMessage('');
   }
 
@@ -805,22 +730,6 @@ export function StudyPlannerPage() {
       await loadPlanner();
     } catch {
       setMessage('Could not delete the task right now.');
-    } finally {
-      setSaving('');
-    }
-  }
-
-  async function addSuggestionTask(suggestion) {
-    const payload = suggestion.task || {};
-    if (!payload.title) return;
-    setSaving(`suggestion:${suggestion.key}`);
-    setMessage('');
-    try {
-      await createPlannerTask(payload);
-      setMessage('Suggested task added to your planner.');
-      await loadPlanner();
-    } catch {
-      setMessage('Could not add that suggestion right now.');
     } finally {
       setSaving('');
     }
@@ -844,6 +753,7 @@ export function StudyPlannerPage() {
         setMessage('Task added to your planner.');
       }
       setEditingTaskId(null);
+      setShowTaskComposer(false);
       setTaskForm(emptyTaskForm());
       await loadPlanner();
     } catch {
@@ -854,122 +764,83 @@ export function StudyPlannerPage() {
   }
 
   return (
-    <main className="dashboard-page study-hub-page study-planner-page">
+    <main className="dashboard-page study-hub-page study-planner-page planner-native-page">
       <div className="study-hub-shell study-planner-shell">
-        <AppHeader title="Planner" subtitle="Today's study plan" />
+        <AppHeader title="Planner" subtitle="Study schedule" />
 
-        <section className="planner-start-card" aria-label="Planner priority">
-          <div>
-            <span>{startHere.action}</span>
-            <h2>{loading ? 'Loading your study plan' : startHere.title}</h2>
-            <p>{loading ? 'Getting today\'s tasks, course work, and personal reminders.' : startHere.body}</p>
-          </div>
+        <section className="planner-native-topbar" aria-label="Planner controls">
           <button
             type="button"
-            className="planner-action"
-            onClick={() => {
-              setView(overdueCount > 0 || dueTodayCount > 0 ? 'agenda' : upcomingCount > 0 ? 'week' : 'agenda');
-              setStatusFilter(overdueCount > 0 ? 'overdue' : dueTodayCount > 0 ? 'due_today' : '');
-            }}
+            className="planner-native-round-button is-add"
+            aria-label="Add task"
+            onClick={revealTaskComposer}
           >
-            Show priority
+            <span className="planner-native-plus" aria-hidden="true" />
           </button>
         </section>
 
         <section className="planner-summary-strip" aria-label="Planner summary">
-          <article>
-            <span>Due today</span>
-            <strong>{loading ? '...' : dueTodayCount}</strong>
-          </article>
-          <article>
-            <span>Overdue</span>
-            <strong>{loading ? '...' : overdueCount}</strong>
-          </article>
-          <article>
-            <span>Doing now</span>
-            <strong>{loading ? '...' : inProgressCount}</strong>
-          </article>
-          <article>
-            <span>Next</span>
-            <strong>{loading ? '...' : upcomingCount}</strong>
-          </article>
-          <article>
-            <span>Today time</span>
-            <strong>{loading ? '...' : (formatMinutes(plannerInsights.estimatedToday) || '0')}</strong>
-          </article>
-          <article>
-            <span>Done</span>
-            <strong>{loading ? '...' : completedCount}</strong>
-          </article>
+          {summaryCards.map((card) => (
+            <PlannerSummaryCard key={card.key} label={card.label} value={card.value} tone={card.tone} />
+          ))}
         </section>
 
-        <div className="planner-control-bar">
-          <div className="planner-tabs" role="tablist" aria-label="Planner views">
-            {VIEW_OPTIONS.map((option) => (
+        <PlannerSegmentedControl currentView={view} onChange={setView} />
+
+        <StudyReminderSettingsCard />
+
+        {view === 'agenda' ? (
+          <section className="planner-agenda-tools" aria-label="Agenda filters">
+            <label className="planner-search">
+              <span>Search</span>
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Tasks, lessons, topics"
+              />
+            </label>
+            <label className="planner-course-filter">
+              <span>Course</span>
+              <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
+                <option value="">All courses</option>
+                {agenda.filters.courses.map((course) => (
+                  <option value={course} key={course}>{course}</option>
+                ))}
+              </select>
+            </label>
+            <label className="planner-course-filter">
+              <span>Type</span>
+              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                {TYPE_FILTER_OPTIONS.map((option) => (
+                  <option value={option.value} key={option.value || 'all-types'}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="planner-course-filter">
+              <span>Status</span>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                {STATUS_FILTER_OPTIONS.map((option) => (
+                  <option value={option.value} key={option.value || 'all-statuses'}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            {(courseFilter || typeFilter || statusFilter || searchTerm) ? (
               <button
                 type="button"
-                role="tab"
-                aria-selected={view === option.key}
-                className={view === option.key ? 'is-active' : ''}
-                key={option.key}
-                onClick={() => setView(option.key)}
+                className="planner-action is-secondary"
+                onClick={() => {
+                  setCourseFilter('');
+                  setTypeFilter('');
+                  setStatusFilter('');
+                  setSearchTerm('');
+                }}
               >
-                {option.label}
+                Clear
               </button>
-            ))}
-          </div>
-          <label className="planner-search">
-            <span>Search planner</span>
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search tasks, lessons, topics"
-            />
-          </label>
-        </div>
-
-        <div className="planner-filter-grid">
-          <label className="planner-course-filter">
-            <span>Course</span>
-            <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
-              <option value="">All courses</option>
-              {agenda.filters.courses.map((course) => (
-                <option value={course} key={course}>{course}</option>
-              ))}
-            </select>
-          </label>
-          <label className="planner-course-filter">
-            <span>Type</span>
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-              {TYPE_FILTER_OPTIONS.map((option) => (
-                <option value={option.value} key={option.value || 'all-types'}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="planner-course-filter">
-            <span>Status</span>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              {STATUS_FILTER_OPTIONS.map((option) => (
-                <option value={option.value} key={option.value || 'all-statuses'}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          {(courseFilter || typeFilter || statusFilter || searchTerm) ? (
-            <button
-              type="button"
-              className="planner-action is-secondary"
-              onClick={() => {
-                setCourseFilter('');
-                setTypeFilter('');
-                setStatusFilter('');
-                setSearchTerm('');
-              }}
-            >
-              Clear filters
-            </button>
-          ) : null}
-        </div>
+            ) : null}
+          </section>
+        ) : null}
 
         {message ? <p className="planner-message" role="status">{message}</p> : null}
 
@@ -998,104 +869,49 @@ export function StudyPlannerPage() {
                 onTaskEdit={startEditTask}
                 onTaskDelete={removePersonalTask}
                 saving={saving}
+                emptyState={
+                  section.key === 'open' ? (
+                    <PlannerEmptyState
+                      title="No open personal tasks"
+                      message="Add a study task when you want a reminder outside the generated agenda."
+                    />
+                  ) : section.key === 'done' ? (
+                    <PlannerEmptyState
+                      icon="check"
+                      title="No completed tasks yet"
+                      message="Finished personal tasks will collect here."
+                    />
+                  ) : null
+                }
               />
             )) : (
               <section className="planner-list-section">
-                <div className="planner-empty-row">
-                  No real planner items match this view yet.
-                </div>
+                <PlannerEmptyState
+                  icon="calendar"
+                  title="No agenda yet"
+                  message="Your generated study agenda appears after lessons, quizzes, or planner tasks create study signals."
+                />
               </section>
             )}
+
           </div>
+        </div>
 
-          <aside className="planner-side-column" aria-label="Planner details">
-            <section className="planner-side-panel">
-              <div className="planner-side-heading">
-                <h2>Today's focus</h2>
-                <span>{dashboard?.quizDayStreak ? `${dashboard.quizDayStreak} day streak` : 'Dashboard'}</span>
-              </div>
-              <div className="planner-focus-box">
-                <strong>{dashboard?.focusTopic || 'No focus topic yet'}</strong>
-                <p>{dashboard?.focusCourse || 'Complete lessons or quizzes to build planner signals.'}</p>
-              </div>
-              <div className="planner-goal-list">
-                {(dashboard?.dailyGoals || []).map((goal) => (
-                  <div className={goal.completed ? 'is-done' : ''} key={goal.key || goal.title}>
-                    <span>{goal.completed ? 'Done' : 'Open'}</span>
-                    <p>{goal.title}</p>
-                    <small>{goal.progressText}</small>
-                  </div>
-                ))}
-                {dashboard?.dailyGoals?.length ? null : (
-                  <div>
-                    <span>Open</span>
-                    <p>Start a quiz or lesson to generate daily goals.</p>
-                    <small>No dashboard goal yet</small>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section className="planner-side-panel">
-              <div className="planner-side-heading">
-                <h2>Study load</h2>
-                <span>{plannerInsights.completionRate}% done</span>
-              </div>
-              <div className="planner-insight-grid">
-                <div>
-                  <span>Today</span>
-                  <strong>{formatMinutes(plannerInsights.estimatedToday) || '0 min'}</strong>
-                </div>
-                <div>
-                  <span>This week</span>
-                  <strong>{formatMinutes(plannerInsights.estimatedWeek) || '0 min'}</strong>
-                </div>
-                <div>
-                  <span>High priority</span>
-                  <strong>{plannerInsights.highPriority}</strong>
-                </div>
-                <div>
-                  <span>Locked</span>
-                  <strong>{plannerInsights.locked}</strong>
-                </div>
-              </div>
-              <div className="planner-focus-box">
-                <strong>Next dated item</strong>
-                <p>{plannerInsights.nextDueLabel}</p>
-              </div>
-            </section>
-
-            <section className="planner-side-panel">
-              <div className="planner-side-heading">
-                <h2>Smart suggestions</h2>
-                <span>{visibleSuggestions.length} ready</span>
-              </div>
-              <div className="planner-suggestion-list">
-                {visibleSuggestions.length ? visibleSuggestions.map((suggestion) => (
-                  <div key={suggestion.key}>
-                    <span className={`planner-priority-pill is-${suggestion.priority}`}>{titleCase(suggestion.priority)}</span>
-                    <strong>{suggestion.title}</strong>
-                    <p>{suggestion.description}</p>
-                    <small>{suggestion.dueInDays === 0 ? 'Suggested for today' : suggestion.dueInDays ? `Suggested in ${suggestion.dueInDays} day${suggestion.dueInDays === 1 ? '' : 's'}` : 'Suggested task'}</small>
-                    <button
-                      type="button"
-                      className="planner-action is-secondary"
-                      onClick={() => addSuggestionTask(suggestion)}
-                      disabled={saving === `suggestion:${suggestion.key}`}
-                    >
-                      {saving === `suggestion:${suggestion.key}` ? 'Adding...' : 'Add'}
-                    </button>
-                  </div>
-                )) : (
-                  <div className="planner-empty-row">No new suggestions right now.</div>
-                )}
-              </div>
-            </section>
-
-            <section className="planner-side-panel">
-              <div className="planner-side-heading">
-                <h2>{editingTaskId ? 'Edit task' : 'Personal tasks'}</h2>
-                <span>{personalTasks.filter((item) => item.status !== 'completed').length} open</span>
+        {(showTaskComposer || editingTaskId) ? (
+          <div className="planner-task-modal-backdrop" role="presentation" onMouseDown={cancelEditTask}>
+            <section
+              className="planner-task-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="planner-task-modal-title"
+              ref={taskComposerRef}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="planner-side-heading planner-task-modal-heading">
+                <h2 id="planner-task-modal-title">{editingTaskId ? 'Edit task' : 'Personal tasks'}</h2>
+                <button type="button" className="planner-modal-close" onClick={cancelEditTask}>
+                  Close
+                </button>
               </div>
               <form className="planner-task-form" onSubmit={addPersonalTask}>
                 <label>
@@ -1165,16 +981,14 @@ export function StudyPlannerPage() {
                   <button type="submit" disabled={saving === 'task-form'}>
                     {saving === 'task-form' ? (editingTaskId ? 'Saving...' : 'Adding...') : editingTaskId ? 'Save changes' : 'Add task'}
                   </button>
-                  {editingTaskId ? (
-                    <button type="button" className="is-secondary" onClick={cancelEditTask}>
-                      Cancel
-                    </button>
-                  ) : null}
+                  <button type="button" className="is-secondary" onClick={cancelEditTask}>
+                    Cancel
+                  </button>
                 </div>
               </form>
             </section>
-          </aside>
-        </div>
+          </div>
+        ) : null}
       </div>
     </main>
   );

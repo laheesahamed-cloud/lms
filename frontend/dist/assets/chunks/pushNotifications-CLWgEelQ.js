@@ -1,0 +1,1 @@
+import{d as e,s as t}from"./config-BdbUrdUf.js";import"./pushNotifications.api-Dgn8xD1Z.js";var n=`/lms/sw.js`,r=`/lms/`;async function i(){if(!t(e())||typeof window>`u`||!(`serviceWorker`in navigator))return null;let i=n,a=r;return navigator.serviceWorker.register(i,{scope:a})}export{i as registerLmsServiceWorker};

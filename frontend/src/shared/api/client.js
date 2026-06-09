@@ -107,6 +107,22 @@ function normalizeApiPath(url) {
     .replace(/\/\d+(?=\/|$)/g, '/:id');
 }
 
+function redactSensitiveValue(value) {
+  const text = String(value || '');
+  if (!text) return text;
+
+  return text
+    .replace(
+      /([?&](?:access_?token|api_?key|authorization|code|password|refresh_?token|reset_?token|secret|session_?token|token)=)[^&#\s]+/gi,
+      '$1[redacted]'
+    )
+    .replace(/\b(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, '$1[redacted]')
+    .replace(
+      /\b(access_?token|api_?key|authorization|password|refresh_?token|reset_?token|secret|session_?token|token)\b\s*[:=]\s*['"]?[^'",\s&}]+/gi,
+      '$1=[redacted]'
+    );
+}
+
 function shouldClearServerStatusAfterSuccess(response) {
   const path = normalizeApiPath(response?.config?.url || '');
   return path !== '/health' && path !== '/health/client-performance';
@@ -216,7 +232,7 @@ function getNextApiFallbackUrl(currentBaseUrl, triedBaseUrls = []) {
 }
 
 function formatApiBaseUrlList() {
-  return API_BASE_URLS.join(', ');
+  return API_BASE_URLS.map((url) => redactSensitiveValue(url)).join(', ');
 }
 
 apiClient.interceptors.response.use(
@@ -316,9 +332,9 @@ apiClient.interceptors.response.use(
 
     const serverMessage = error?.response?.data?.message;
     const normalizedMessage = Array.isArray(serverMessage)
-      ? serverMessage.join(' ')
-      : String(serverMessage || '');
-    const requestUrl = String(error?.config?.url || '');
+      ? redactSensitiveValue(serverMessage.join(' '))
+      : redactSensitiveValue(serverMessage || '');
+    const requestUrl = redactSensitiveValue(error?.config?.url || '');
     const isAuthPageRequest =
       requestUrl.includes('/auth/login') ||
       requestUrl.includes('/auth/register') ||
@@ -343,22 +359,23 @@ apiClient.interceptors.response.use(
 export function getErrorMessage(error, fallback = 'Something went wrong') {
   const serverMessage = error?.response?.data?.message;
   const platform = detectPlatform();
+  const apiBaseUrl = redactSensitiveValue(API_BASE_URL);
   const nativeApiMessage = () => {
     if (platform.isIos) {
-      return `Cannot reach the LMS API at ${API_BASE_URL}. Check your internet connection, then reopen the app.`;
+      return `Cannot reach the LMS API at ${apiBaseUrl}. Check your internet connection, then reopen the app.`;
     }
     if (platform.isAndroid) {
-      return `Cannot reach the LMS API at ${API_BASE_URL}. On Android, use your computer or server LAN address for local testing, not localhost, then rebuild the app.`;
+      return `Cannot reach the LMS API at ${apiBaseUrl}. On Android, use your computer or server LAN address for local testing, not localhost, then rebuild the app.`;
     }
-    return `Cannot reach the LMS API at ${API_BASE_URL}. Check your internet connection, then reopen the app.`;
+    return `Cannot reach the LMS API at ${apiBaseUrl}. Check your internet connection, then reopen the app.`;
   };
 
   if (Array.isArray(serverMessage)) {
-    return serverMessage.join(', ');
+    return redactSensitiveValue(serverMessage.join(', '));
   }
 
   if (typeof serverMessage === 'string' && serverMessage.trim() !== '') {
-    return serverMessage;
+    return redactSensitiveValue(serverMessage);
   }
 
   if (error?.code === 'ECONNABORTED') {
@@ -366,7 +383,7 @@ export function getErrorMessage(error, fallback = 'Something went wrong') {
       return nativeApiMessage();
     }
 
-    return `The LMS API at ${API_BASE_URL} is taking too long to respond after automatic recovery.`;
+    return `The LMS API at ${apiBaseUrl} is taking too long to respond after automatic recovery.`;
   }
 
   if (error?.code === 'ERR_CANCELED' || error?.name === 'AbortError') {
@@ -386,5 +403,5 @@ export function getErrorMessage(error, fallback = 'Something went wrong') {
     return `Cannot reach the LMS API. Tried: ${formatApiBaseUrlList()}. Make sure the API server is running on port 3000.`;
   }
 
-  return error?.message || fallback;
+  return redactSensitiveValue(error?.message || fallback);
 }

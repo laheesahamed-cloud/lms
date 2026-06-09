@@ -17,7 +17,6 @@ const plannerAgendaCache = createTimedApiCache({
 
 export const fetchPlannerAgenda = () => plannerAgendaCache.get();
 export const readPlannerAgendaCache = () => plannerAgendaCache.peek();
-export const fetchPlannerSuggestions = () => apiClient.get('/student/planner/suggestions').then((r) => r.data);
 export const createPlannerTask = (payload) => apiClient.post('/student/planner', payload).then((r) => {
   plannerAgendaCache.clear();
   return r.data;

@@ -188,7 +188,6 @@ let SubscriptionsService = class SubscriptionsService {
         const plan = await this.plansService.findById(dto.planId);
         const scope = this.normalizeAccessScope(dto.accessScope, dto.courseIds, dto.lessonIds);
         const proofDataUrl = String(dto.proofDataUrl || '').trim();
-        const proofMimeType = String(dto.proofMimeType || '').trim().toLowerCase();
         const [existingRows] = await this.db.execute(`SELECT id, invoice_id, payment_proof_data_url
        FROM subscription_requests
        WHERE user_id = ? AND plan_id = ? AND status = 'pending'
@@ -199,6 +198,7 @@ let SubscriptionsService = class SubscriptionsService {
         if (existing?.payment_proof_data_url) {
             throw new common_1.BadRequestException('You already uploaded payment proof for this plan');
         }
+        const proofFile = proofDataUrl ? this.parsePaymentProofDataUrl(proofDataUrl) : null;
         const messageParts = [
             String(dto.message || '').trim(),
             dto.billingName ? `Billing name: ${String(dto.billingName).trim()}` : '',
@@ -265,16 +265,10 @@ let SubscriptionsService = class SubscriptionsService {
             ]);
         }
         if (proofDataUrl) {
-            if (!/^data:(image\/(png|jpe?g|webp)|application\/pdf);base64,/i.test(proofDataUrl)) {
-                throw new common_1.BadRequestException('Payment proof must be a PNG, JPG, WEBP, or PDF file');
-            }
-            if (proofDataUrl.length > 4_500_000) {
-                throw new common_1.BadRequestException('Payment proof is too large. Please upload a smaller screenshot or PDF');
-            }
-            const savedProof = await this.savePaymentProofFile(invoiceId, proofDataUrl);
+            const savedProof = await this.savePaymentProofFile(invoiceId, proofFile);
             await this.db.execute(`UPDATE subscription_requests
          SET payment_proof_name = ?, payment_proof_mime = ?, payment_proof_data_url = ?
-         WHERE id = ?`, [savedProof.fileName, savedProof.mimeType || proofMimeType || null, savedProof.publicPath, requestId]);
+         WHERE id = ?`, [savedProof.fileName, savedProof.mimeType, savedProof.publicPath, requestId]);
             await this.logAudit({
                 requestId,
                 userId: student.id,
@@ -342,7 +336,13 @@ let SubscriptionsService = class SubscriptionsService {
         });
         return { ok: true, id: requestId, invoiceId: request.invoiceId };
     }
-    async savePaymentProofFile(invoiceId, proofDataUrl) {
+    parsePaymentProofDataUrl(proofDataUrl) {
+        if (!/^data:(image\/(png|jpe?g|webp)|application\/pdf);base64,/i.test(proofDataUrl)) {
+            throw new common_1.BadRequestException('Payment proof must be a PNG, JPG, WEBP, or PDF file');
+        }
+        if (proofDataUrl.length > 4_500_000) {
+            throw new common_1.BadRequestException('Payment proof is too large. Please upload a smaller screenshot or PDF');
+        }
         const match = proofDataUrl.match(/^data:(image\/(png|jpe?g|webp)|application\/pdf);base64,(.+)$/i);
         if (!match) {
             throw new common_1.BadRequestException('Payment proof must be a PNG, JPG, WEBP, or PDF file');
@@ -362,13 +362,19 @@ let SubscriptionsService = class SubscriptionsService {
         if (!this.hasValidPaymentProofSignature(buffer, mimeType)) {
             throw new common_1.BadRequestException('Payment proof file contents do not match the selected file type');
         }
+        return { mimeType, extension, buffer };
+    }
+    async savePaymentProofFile(invoiceId, proofFile) {
+        if (!proofFile) {
+            throw new common_1.BadRequestException('Payment proof must be a PNG, JPG, WEBP, or PDF file');
+        }
         const uploadDir = (0, path_1.join)(process.cwd(), 'uploads', 'payment-proofs');
         await (0, promises_1.mkdir)(uploadDir, { recursive: true });
-        const fileName = `${invoiceId}.${extension}`;
-        await (0, promises_1.writeFile)((0, path_1.join)(uploadDir, fileName), buffer);
+        const fileName = `${invoiceId}.${proofFile.extension}`;
+        await (0, promises_1.writeFile)((0, path_1.join)(uploadDir, fileName), proofFile.buffer);
         return {
             fileName,
-            mimeType,
+            mimeType: proofFile.mimeType,
             publicPath: `/uploads/payment-proofs/${fileName}`,
         };
     }

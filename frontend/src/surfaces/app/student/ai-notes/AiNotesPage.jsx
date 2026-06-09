@@ -1186,6 +1186,8 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   const strokeSoundIdleTimerRef = useRef(0);
   const stylusTouchUntilRef = useRef(0);
   const strokesRef = useRef(strokes);
+  const inkBackRef = useRef(null);
+  const strokeJustCommittedRef = useRef(false);
   const [eraserCursor, setEraserCursor] = useState(null);
 
   const getHostLayoutSize = useCallback(() => {
@@ -1245,6 +1247,75 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     return getHostLayoutSize();
   }
 
+  function captureBackBuffer() {
+    const inkCanvas = canvasEl.current;
+    const hlCanvas = highlightCanvasEl.current;
+    if (!inkCanvas || !hlCanvas) { inkBackRef.current = null; return; }
+    let buf = inkBackRef.current;
+    if (!buf?.ink || buf.ink.width !== inkCanvas.width || buf.ink.height !== inkCanvas.height) {
+      const ink = document.createElement('canvas');
+      const hl = document.createElement('canvas');
+      ink.width = inkCanvas.width; ink.height = inkCanvas.height;
+      hl.width = hlCanvas.width;   hl.height = hlCanvas.height;
+      buf = { ink, hl };
+    }
+    const binkCtx = buf.ink.getContext('2d');
+    const bhlCtx  = buf.hl.getContext('2d');
+    if (!binkCtx || !bhlCtx) { inkBackRef.current = null; return; }
+    binkCtx.clearRect(0, 0, buf.ink.width, buf.ink.height);
+    binkCtx.drawImage(inkCanvas, 0, 0);
+    bhlCtx.clearRect(0, 0, buf.hl.width, buf.hl.height);
+    bhlCtx.drawImage(hlCanvas, 0, 0);
+    inkBackRef.current = buf;
+  }
+
+  function drawFastLiveStroke(stroke) {
+    if (!stroke || stroke.tool === 'eraser') return;
+    const inkCanvas = canvasEl.current;
+    const hlCanvas  = highlightCanvasEl.current;
+    const buf       = inkBackRef.current;
+    const host      = parentRef.current;
+    if (!inkCanvas || !hlCanvas || !host) { drawAll([...strokesRef.current, stroke]); return; }
+    if (!buf?.ink || buf.ink.width !== inkCanvas.width || buf.ink.height !== inkCanvas.height) {
+      drawAll([...strokesRef.current, stroke]);
+      return;
+    }
+    const size = getHostLayoutSize();
+    if (!size) return;
+    const { width, height } = size;
+    const baseDpr      = Math.max(1, window.devicePixelRatio || 1);
+    const scaleDpr     = Math.max(1, Number(zoomScale) || 1);
+    const maxDprByArea = Math.sqrt(48000000 / Math.max(1, width * height));
+    const maxDprBySide = Math.min(16384 / width, 16384 / height);
+    const dpr          = Math.max(1, Math.min(baseDpr * scaleDpr, 6, maxDprByArea, maxDprBySide));
+
+    const inkCtx = inkCanvas.getContext('2d');
+    const hlCtx  = hlCanvas.getContext('2d');
+    if (!inkCtx || !hlCtx) return;
+
+    // Restore committed strokes via GPU blit (O(1) regardless of stroke count)
+    inkCtx.setTransform(1, 0, 0, 1, 0, 0);
+    hlCtx.setTransform(1, 0, 0, 1, 0, 0);
+    inkCtx.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
+    hlCtx.clearRect(0, 0, hlCanvas.width, hlCanvas.height);
+    inkCtx.drawImage(buf.ink, 0, 0);
+    hlCtx.drawImage(buf.hl, 0, 0);
+
+    // Set DPR-scaled transform for stroke rendering
+    inkCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    inkCtx.imageSmoothingEnabled = true;
+    inkCtx.imageSmoothingQuality = 'high';
+    hlCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    hlCtx.imageSmoothingEnabled = true;
+    hlCtx.imageSmoothingQuality = 'high';
+
+    if (stroke.tool === 'highlighter') {
+      drawSmoothStroke(hlCtx, stroke, width, height);
+    } else {
+      drawSmoothStroke(inkCtx, stroke, width, height);
+    }
+  }
+
   function stableZoomScale() {
     return Math.max(1, Math.min(3, Number(zoomScale) || 1));
   }
@@ -1286,6 +1357,10 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
 
   useEffect(() => {
     strokesRef.current = strokes;
+    if (strokeJustCommittedRef.current) {
+      strokeJustCommittedRef.current = false;
+      return;
+    }
     drawAll(strokes);
   }, [drawAll, strokes]);
 
@@ -1518,6 +1593,7 @@ function appendPointToCurrentStroke(event) {
     const strokeWidth = isHighlighter
       ? pageStableWidth(Math.max(10, basePenWidth * 2.4), 4)
       : pageStableWidth(basePenWidth, 0.75);
+    captureBackBuffer();
     currentStrokeRef.current = {
       id: `stroke-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       color: penColor,
@@ -1528,7 +1604,6 @@ function appendPointToCurrentStroke(event) {
       smoothedSoundPoint: point,
       soundStarted: false,
     };
-    drawAll([...strokesRef.current, currentStrokeRef.current]);
   }
 
   function onPointerMove(event) {
@@ -1551,7 +1626,7 @@ function appendPointToCurrentStroke(event) {
       if (drawTool === 'eraser') updateEraserCursor(event);
       const stroke = currentStrokeRef.current;
       if (stroke?.tool !== 'eraser') {
-        drawAll([...strokesRef.current, stroke]);
+        drawFastLiveStroke(stroke);
       }
       appendedSegments.forEach(segment => {
         if (stroke?.tool === 'eraser') {
@@ -1599,6 +1674,7 @@ function appendPointToCurrentStroke(event) {
     stopDrawingStrokeSound();
     endStrokeScrollLock();
     stylusTouchUntilRef.current = 0;
+    inkBackRef.current = null;
     currentStrokeRef.current = null;
     try {
       if (event?.pointerId != null) event.currentTarget?.releasePointerCapture?.(event.pointerId);
@@ -1609,6 +1685,7 @@ function appendPointToCurrentStroke(event) {
     if (!stroke) return;
     const points = simplifyStrokePoints(stroke.points);
     if (points.length > 0) {
+      strokeJustCommittedRef.current = true;
       onCommitStroke({ ...stroke, points });
     }
   }
@@ -2283,7 +2360,10 @@ function NativeZoomViewport({ enabled, storageKey = '', onZoomChange, children }
       raf.current = 0;
       const { scale, tx, ty } = st.current;
       inner.style.transform = `translate3d(${tx}px,${ty}px,0) scale(${scale})`;
-      onZoomChange?.(scale);
+      // Only notify React (triggers re-render) when the pinch has ended — not during
+      // active gesture. This keeps the CSS transform at 60fps while React re-renders
+      // happen only once per pinch, eliminating the primary source of zoom lag.
+      if (!g.current) onZoomChange?.(scale);
       if (storageKey && typeof window !== 'undefined') {
         try {
           window.localStorage.setItem(storageKey, JSON.stringify({ scale, tx, ty, savedAt: Date.now() }));
@@ -2310,6 +2390,12 @@ function NativeZoomViewport({ enabled, storageKey = '', onZoomChange, children }
       let tx = g.current.ax - (g.current.ax - g.current.tx0) * k + (m.x - g.current.mx);
       let ty = g.current.ay - (g.current.ay - g.current.ty0) * k + (m.y - g.current.my);
       if (scale <= 1.001) { tx = 0; ty = 0; }
+      else {
+        // Clamp pan so zoomed content never scrolls off-screen
+        const r = host.getBoundingClientRect();
+        tx = Math.max(r.width  * (1 - scale), Math.min(0, tx));
+        ty = Math.max(r.height * (1 - scale), Math.min(0, ty));
+      }
       st.current = { scale, tx, ty };
       schedule();
     };
@@ -2317,8 +2403,10 @@ function NativeZoomViewport({ enabled, storageKey = '', onZoomChange, children }
       if (e.touches.length < 2) g.current = null;
       if (st.current.scale <= 1.02 && (st.current.tx || st.current.ty || st.current.scale !== 1)) {
         st.current = { scale: 1, tx: 0, ty: 0 };
-        schedule();
       }
+      // Always schedule after touch ends so the final state is applied and
+      // onZoomChange fires (g.current is null at this point).
+      schedule();
     };
     host.addEventListener('touchstart', onStart, { passive: false });
     host.addEventListener('touchmove', onMove, { passive: false });
@@ -2456,6 +2544,9 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
   const sidRef = useRef(0);
   const saveTimerRef = useRef(null);
   const personalStatusTimerRef = useRef(null);
+  const pendingStrokesRef = useRef(null);
+  const stickersRef = useRef(stickers);
+  stickersRef.current = stickers;
 
   const nativeWritingEnabled = true;
   const personalStorageId = note?.id || id || lessonId;
@@ -2751,10 +2842,18 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     if (!nativeWritingEnabled) return;
     setStrokes(current => {
       const next = [...current, stroke].slice(-250);
-      savePersonalItems({ stickers, strokes:next });
+      pendingStrokesRef.current = next;
       return next;
     });
-  }, [nativeWritingEnabled, savePersonalItems, stickers]);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      const next = pendingStrokesRef.current;
+      if (next === null) return;
+      pendingStrokesRef.current = null;
+      savePersonalItems({ stickers: stickersRef.current, strokes: next });
+    }, 800);
+  }, [nativeWritingEnabled, savePersonalItems]);
   const undoStroke = useCallback(() => {
     setStrokes(current => {
       const next = current.slice(0, -1);

@@ -54,11 +54,6 @@ export class WorkspaceController {
     return this.workspaceService.getPlannerAgenda(authorization);
   }
 
-  @Get('study-planner/suggestions')
-  listPlannerSuggestions(@Headers('authorization') authorization?: string) {
-    return this.workspaceService.listPlannerSuggestions(authorization);
-  }
-
   @Post('study-planner')
   createPlannerTask(@Headers('authorization') authorization: string | undefined, @Body() body: any) {
     return this.workspaceService.createPlannerTask(authorization, body);

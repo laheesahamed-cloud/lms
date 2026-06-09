@@ -21,6 +21,16 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
     private var lastNativeScribbleTextureAt: TimeInterval = 0
     private var lastPublishedSafeAreaInsets: UIEdgeInsets = .zero
     private var lastPublishedContentSizeCategory: UIContentSizeCategory?
+    private var keyboardProtectedContentOffset: CGPoint?
+    private var keyboardGuardActive = false
+    private var keyboardGuardOffsetObservation: NSKeyValueObservation?
+    private var isRestoringKeyboardGuardOffset = false
+    private var keyboardGuardRestoreWorkItems: [DispatchWorkItem] = []
+    private var keyboardGuardReleaseWorkItem: DispatchWorkItem?
+    private var savedKeyboardGuardScrollEnabled: Bool?
+    private var savedKeyboardGuardBounces: Bool?
+    private var savedKeyboardGuardAlwaysBounceVertical: Bool?
+    private var savedKeyboardGuardDismissMode: UIScrollView.KeyboardDismissMode?
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
         currentStatusBarStyle
@@ -31,7 +41,9 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         configuration.userContentController.add(self, name: "lmsScribbleAudio")
         configuration.userContentController.add(self, name: "lmsSecureContent")
         configuration.userContentController.add(self, name: "lmsChromeTheme")
+        configuration.userContentController.add(self, name: "lmsKeyboardGuard")
         configuration.userContentController.addUserScript(makeScribbleAudioUserScript())
+        configuration.userContentController.addUserScript(makeKeyboardGuardUserScript())
         let webView = super.webView(with: frame, configuration: configuration)
         configureWebViewForTouch(webView)
         return webView
@@ -48,6 +60,18 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
             self,
             selector: #selector(preferredContentSizeCategoryDidChange),
             name: UIContentSizeCategory.didChangeNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardFrameDidChange),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardFrameDidChange),
+            name: UIResponder.keyboardWillHideNotification,
             object: nil
         )
         DispatchQueue.main.async { [weak self] in
@@ -83,13 +107,14 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         let scrollView = webView.scrollView
         scrollView.isUserInteractionEnabled = true
         scrollView.backgroundColor = appBackground
-        scrollView.bounces = true
-        scrollView.alwaysBounceVertical = true
+        scrollView.isScrollEnabled = keyboardGuardActive ? false : true
+        scrollView.bounces = keyboardGuardActive ? false : true
+        scrollView.alwaysBounceVertical = keyboardGuardActive ? false : true
         scrollView.alwaysBounceHorizontal = false
         scrollView.decelerationRate = .fast
         scrollView.delaysContentTouches = false
         scrollView.canCancelContentTouches = false
-        scrollView.keyboardDismissMode = .interactive
+        scrollView.keyboardDismissMode = keyboardGuardActive ? .none : .interactive
         scrollView.isDirectionalLockEnabled = false
         scrollView.contentInsetAdjustmentBehavior = .never
         scrollView.scrollIndicatorInsets = .zero
@@ -100,6 +125,179 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
 
     @objc private func preferredContentSizeCategoryDidChange() {
         publishNativeViewportState(force: true)
+    }
+
+    @objc private func keyboardFrameDidChange(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let webView = self.bridge?.webView else { return }
+            let scrollView = webView.scrollView
+            let protectedOffset = self.keyboardProtectedContentOffset ?? scrollView.contentOffset
+            self.keyboardProtectedContentOffset = protectedOffset
+            UIView.performWithoutAnimation {
+                self.configureWebViewForTouch(webView)
+                scrollView.contentInset = .zero
+                scrollView.scrollIndicatorInsets = .zero
+                scrollView.layoutIfNeeded()
+            }
+            self.restoreWebViewScrollOffset(scrollView, protectedOffset)
+            if !self.keyboardGuardActive {
+                self.publishNativeViewportState(force: true)
+            }
+            if notification.name == UIResponder.keyboardWillHideNotification {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+                    self?.releaseKeyboardGuard()
+                }
+            }
+        }
+    }
+
+    private func restoreWebViewScrollOffset(_ scrollView: UIScrollView, _ offset: CGPoint) {
+        keyboardGuardRestoreWorkItems.forEach { $0.cancel() }
+        keyboardGuardRestoreWorkItems = []
+        UIView.performWithoutAnimation {
+            if self.keyboardGuardActive {
+                scrollView.isScrollEnabled = false
+                scrollView.bounces = false
+                scrollView.alwaysBounceVertical = false
+                scrollView.keyboardDismissMode = .none
+            }
+            scrollView.setContentOffset(offset, animated: false)
+            scrollView.layoutIfNeeded()
+        }
+        [0.01, 0.04, 0.08, 0.12, 0.20, 0.32, 0.48, 0.70].forEach { delay in
+            let workItem = DispatchWorkItem { [weak self, weak scrollView] in
+                guard let self, let scrollView else { return }
+                UIView.performWithoutAnimation {
+                    if self.keyboardGuardActive {
+                        scrollView.isScrollEnabled = false
+                        scrollView.bounces = false
+                        scrollView.alwaysBounceVertical = false
+                        scrollView.keyboardDismissMode = .none
+                    }
+                    scrollView.contentInset = .zero
+                    scrollView.scrollIndicatorInsets = .zero
+                    scrollView.setContentOffset(offset, animated: false)
+                    scrollView.layoutIfNeeded()
+                }
+            }
+            keyboardGuardRestoreWorkItems.append(workItem)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+        }
+    }
+
+    private func applyKeyboardGuard(active: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            active ? self?.enterKeyboardGuard() : self?.scheduleKeyboardGuardRelease()
+        }
+    }
+
+    private func enterKeyboardGuard() {
+        guard let webView = bridge?.webView else { return }
+        // Drop the keyboard's input accessory bar (the < > field-switch / Done
+        // toolbar). The QuickType/predictive bar is part of the keyboard and is
+        // unaffected; only the form-navigation accessory is removed.
+        webView.lmsRemoveInputAccessoryView()
+        keyboardGuardReleaseWorkItem?.cancel()
+        keyboardGuardReleaseWorkItem = nil
+
+        let scrollView = webView.scrollView
+        if !keyboardGuardActive {
+            keyboardGuardProtectedState(from: scrollView)
+        }
+
+        keyboardGuardActive = true
+        let protectedOffset = keyboardProtectedContentOffset ?? scrollView.contentOffset
+        keyboardProtectedContentOffset = protectedOffset
+
+        UIView.performWithoutAnimation {
+            scrollView.isScrollEnabled = false
+            scrollView.bounces = false
+            scrollView.alwaysBounceVertical = false
+            scrollView.keyboardDismissMode = .none
+            scrollView.contentInset = .zero
+            scrollView.scrollIndicatorInsets = .zero
+            scrollView.setContentOffset(protectedOffset, animated: false)
+            scrollView.layoutIfNeeded()
+        }
+
+        startKeyboardGuardOffsetObservation(on: scrollView)
+        restoreWebViewScrollOffset(scrollView, protectedOffset)
+    }
+
+    // Synchronously pin contentOffset. `isScrollEnabled = false` only blocks
+    // touch scrolling; WebKit still sets contentOffset programmatically to lift
+    // the focused field above the keyboard. Observing the property lets us
+    // revert it within the same runloop, before the change is ever painted —
+    // which the previous delayed DispatchQueue restoration could not do.
+    private func startKeyboardGuardOffsetObservation(on scrollView: UIScrollView) {
+        keyboardGuardOffsetObservation?.invalidate()
+        keyboardGuardOffsetObservation = scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scrollView, _ in
+            guard let self, self.keyboardGuardActive, !self.isRestoringKeyboardGuardOffset else { return }
+            let target = self.keyboardProtectedContentOffset ?? .zero
+            guard scrollView.contentOffset != target else { return }
+            self.isRestoringKeyboardGuardOffset = true
+            scrollView.setContentOffset(target, animated: false)
+            self.isRestoringKeyboardGuardOffset = false
+        }
+    }
+
+    private func keyboardGuardProtectedState(from scrollView: UIScrollView) {
+        savedKeyboardGuardScrollEnabled = scrollView.isScrollEnabled
+        savedKeyboardGuardBounces = scrollView.bounces
+        savedKeyboardGuardAlwaysBounceVertical = scrollView.alwaysBounceVertical
+        savedKeyboardGuardDismissMode = scrollView.keyboardDismissMode
+    }
+
+    private func scheduleKeyboardGuardRelease() {
+        keyboardGuardReleaseWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.releaseKeyboardGuard()
+        }
+        keyboardGuardReleaseWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55, execute: workItem)
+    }
+
+    private func releaseKeyboardGuard() {
+        keyboardGuardReleaseWorkItem?.cancel()
+        keyboardGuardReleaseWorkItem = nil
+        keyboardGuardRestoreWorkItems.forEach { $0.cancel() }
+        keyboardGuardRestoreWorkItems = []
+        keyboardGuardOffsetObservation?.invalidate()
+        keyboardGuardOffsetObservation = nil
+
+        guard let webView = bridge?.webView else {
+            clearKeyboardGuardState()
+            return
+        }
+
+        let scrollView = webView.scrollView
+        let protectedOffset = keyboardProtectedContentOffset ?? scrollView.contentOffset
+        keyboardGuardActive = false
+
+        UIView.performWithoutAnimation {
+            scrollView.contentInset = .zero
+            scrollView.scrollIndicatorInsets = .zero
+            scrollView.setContentOffset(protectedOffset, animated: false)
+            scrollView.isScrollEnabled = savedKeyboardGuardScrollEnabled ?? true
+            scrollView.bounces = savedKeyboardGuardBounces ?? true
+            scrollView.alwaysBounceVertical = savedKeyboardGuardAlwaysBounceVertical ?? true
+            scrollView.keyboardDismissMode = savedKeyboardGuardDismissMode ?? .interactive
+            scrollView.layoutIfNeeded()
+        }
+
+        clearKeyboardGuardState()
+    }
+
+    private func clearKeyboardGuardState() {
+        keyboardGuardActive = false
+        keyboardGuardOffsetObservation?.invalidate()
+        keyboardGuardOffsetObservation = nil
+        isRestoringKeyboardGuardOffset = false
+        keyboardProtectedContentOffset = nil
+        savedKeyboardGuardScrollEnabled = nil
+        savedKeyboardGuardBounces = nil
+        savedKeyboardGuardAlwaysBounceVertical = nil
+        savedKeyboardGuardDismissMode = nil
     }
 
     private func publishNativeViewportState(force: Bool = false) {
@@ -228,6 +426,11 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
             DispatchQueue.main.async { [weak self] in
                 self?.applyChromeTheme(body)
             }
+            return
+        }
+
+        if message.name == "lmsKeyboardGuard" {
+            applyKeyboardGuard(active: body["active"] as? Bool == true)
         }
     }
 
@@ -687,6 +890,71 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         return WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
     }
 
+    private func makeKeyboardGuardUserScript() -> WKUserScript {
+        let source = """
+        (() => {
+          if (window.__lmsKeyboardGuardInstalled) return;
+          window.__lmsKeyboardGuardInstalled = true;
+          let releaseTimer = 0;
+          const post = active => {
+            try {
+              window.webkit?.messageHandlers?.lmsKeyboardGuard?.postMessage({ active: !!active });
+            } catch (_) {}
+          };
+          const isEditable = target => {
+            if (!target?.closest) return false;
+            return !!target.closest('input, textarea, select, [contenteditable="true"]');
+          };
+
+          // Arming locks the WebView's own UIScrollView (native KVO guard) so the
+          // page does not jump. It does NOT touch inner DOM scroll containers —
+          // those stay free so the layout's keyboard-avoidance can keep the
+          // focused field, and the Sign in button, reachable above the keyboard.
+          let armFallbackTimer = 0;
+          let focused = false;
+          const arm = () => {
+            if (releaseTimer) { window.clearTimeout(releaseTimer); releaseTimer = 0; }
+            post(true);
+          };
+          const disarm = () => {
+            post(false);
+          };
+
+          // Pre-arm on first touch — BEFORE focus and before the keyboard rises.
+          // The native guard message is async, so arming on focusin alone lands
+          // too late for the very first field (keyboard animating up from zero):
+          // WebKit scrolls it into view before the native KVO offset lock starts.
+          // Touching the field gives the native side a head start.
+          const preArm = event => {
+            if (!isEditable(event.target)) return;
+            arm();
+            // If the tap never results in focus (e.g. readonly/disabled field),
+            // release so the page does not stay scroll-locked.
+            if (armFallbackTimer) window.clearTimeout(armFallbackTimer);
+            armFallbackTimer = window.setTimeout(() => {
+              if (!focused) disarm();
+            }, 700);
+          };
+          document.addEventListener('pointerdown', preArm, true);
+          document.addEventListener('touchstart', preArm, true);
+
+          document.addEventListener('focusin', event => {
+            if (!isEditable(event.target)) return;
+            focused = true;
+            if (armFallbackTimer) { window.clearTimeout(armFallbackTimer); armFallbackTimer = 0; }
+            arm();
+          }, true);
+          document.addEventListener('focusout', event => {
+            if (!isEditable(event.target)) return;
+            focused = false;
+            if (releaseTimer) window.clearTimeout(releaseTimer);
+            releaseTimer = window.setTimeout(disarm, 460);
+          }, true);
+        })();
+        """
+        return WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+    }
+
     private func appendUInt16(_ data: inout Data, _ value: UInt16) {
         var littleEndian = value.littleEndian
         withUnsafeBytes(of: &littleEndian) { data.append(contentsOf: $0) }
@@ -796,6 +1064,40 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
             try player.start(atTime: CHHapticTimeImmediate)
         } catch {
             AudioServicesPlaySystemSound(1519)
+        }
+    }
+}
+
+private extension WKWebView {
+    // Removes the input accessory bar shown above the keyboard for web inputs.
+    // WebKit hosts text input on an internal `WKContentView` whose
+    // `inputAccessoryView` getter we override (per-instance, via a runtime
+    // subclass) to return nil.
+    func lmsRemoveInputAccessoryView() {
+        guard let contentView = scrollView.subviews.first(where: {
+            String(describing: type(of: $0)).hasPrefix("WKContent")
+        }) else { return }
+
+        let subclassName = "WKContentView_LmsNoInputAccessory"
+        let targetClass: AnyClass
+
+        if let existing = NSClassFromString(subclassName) {
+            targetClass = existing
+        } else {
+            guard let baseClass = object_getClass(contentView),
+                  let allocated = objc_allocateClassPair(baseClass, subclassName, 0) else { return }
+            let block: @convention(block) (AnyObject) -> UIView? = { _ in nil }
+            let imp = imp_implementationWithBlock(block)
+            let selector = #selector(getter: UIResponder.inputAccessoryView)
+            let types = method_getTypeEncoding(class_getInstanceMethod(UIResponder.self, selector)!)
+            class_addMethod(allocated, selector, imp, types)
+            objc_registerClassPair(allocated)
+            targetClass = allocated
+        }
+
+        if object_getClass(contentView) != targetClass {
+            object_setClass(contentView, targetClass)
+            contentView.reloadInputViews()
         }
     }
 }

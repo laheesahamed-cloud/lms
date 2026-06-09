@@ -228,8 +228,8 @@
   --surface-2: #14141b;
   --surface-3: #1a1a22;
   --surface-4: #20202a;
-  --surface-card: rgba(10, 10, 15, 0.97);
-  --surface-card-elevated: rgba(15, 15, 20, 0.98);
+  --surface-card: #16181f;
+  --surface-card-elevated: #1c1f27;
   --surface-glass: rgba(10, 10, 15, 0.82);
   --surface-glass-strong: rgba(10, 10, 15, 0.94);
   --surface-glass-subtle: rgba(12, 12, 18, 0.70);
@@ -244,7 +244,7 @@
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
-  --ink-muted: #64748B;
+  --ink-muted: #6E7D94;
   --text-primary: var(--ink-strong);
   --text-secondary: var(--ink-medium);
   --text-muted: var(--ink-soft);
@@ -496,7 +496,9 @@
   .student-route-page
 )::after {
   opacity: 0.18 !important;
-  filter: blur(92px) saturate(0.55) !important;
+  /* Match light mode's 70px blur. 92px was ~1.7x the per-frame rasterization
+     cost of these fixed, animated blobs and made dark mode drop frames. */
+  filter: blur(70px) saturate(0.55) !important;
   mix-blend-mode: normal !important;
 }
 
@@ -597,17 +599,17 @@ body.student-quiz-night-screen .student-app-shell {
   --app-bg-solid: var(--lms-login-dark-bg-solid);
 
   --sa-bg: var(--quiz-night-bg);
-  --sa-surface: rgba(10, 10, 15, 0.97);
+  --sa-surface: #16181f;
   --sa-surface-2: rgba(12, 19, 29, 0.92);
   --sa-surface-raised: rgba(11, 18, 27, 0.98);
   --sa-surface-rgb: 10, 10, 15;
   --sa-surface-2-rgb: 14, 14, 20;
 
   --surface-0: #0a0a0f;
-  --surface-1: rgba(10, 10, 15, 0.97);
+  --surface-1: #16181f;
   --surface-2: rgba(12, 19, 29, 0.92);
   --surface-3: rgba(16, 25, 38, 0.92);
-  --surface-card: rgba(10, 10, 15, 0.97);
+  --surface-card: #16181f;
   --surface-card-elevated: rgba(11, 18, 27, 0.98);
   --btn-secondary-bg: rgba(31, 42, 56, 0.76);
 
@@ -618,7 +620,7 @@ body.student-quiz-night-screen .student-app-shell {
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
-  --ink-muted: #64748B;
+  --ink-muted: #6E7D94;
 
   --sa-border: rgba(203, 213, 225, 0.13);
   --sa-border-soft: rgba(203, 213, 225, 0.09);
@@ -636,12 +638,12 @@ body.student-quiz-night-screen .student-app-shell {
   --sa-shadow-card-hover: inset 0 1px 0 rgba(255, 255, 255, 0.058), 0 22px 50px -34px rgba(2, 6, 12, 0.72);
   --lms-app-card-bg:
     linear-gradient(145deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008) 38%, rgba(148, 163, 184, 0.014)),
-    linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.98) 56%, rgba(5, 5, 9, 0.99)),
-    rgba(10, 10, 15, 0.97);
+    linear-gradient(145deg, #16181f, #14161e 56%, #121319),
+    #16181f;
   --sa-card-bg: var(--lms-app-card-bg);
   --sa-card-bg-hover:
     linear-gradient(145deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.014) 42%, rgba(148, 163, 184, 0.022)),
-    linear-gradient(145deg, rgba(14, 14, 20, 0.97), rgba(7, 7, 11, 0.99));
+    linear-gradient(145deg, #1b1d26, #16181f);
   --sa-soft-tile-bg:
     linear-gradient(135deg, rgba(148, 163, 184, 0.055), rgba(96, 113, 135, 0.035)),
     rgba(8, 8, 13, 0.72);
@@ -1154,8 +1156,8 @@ body,
   --sa-text-3: #64748B;
   --ink-strong: #0F172A;
   --ink-medium: #475569;
-  --ink-soft: #64748B;
-  --ink-muted: #94A3B8;
+  --ink-soft: #54637A;
+  --ink-muted: #5F6E85;
   --sa-border: rgba(15, 23, 42, 0.10);
   --sa-border-soft: rgba(15, 23, 42, 0.08);
   --sa-border-strong: rgba(37, 99, 235, 0.2);
@@ -1873,8 +1875,8 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --color-border-strong: var(--line-strong);
   --ink-strong: #0F172A;
   --ink-medium: #475569;
-  --ink-soft: #64748B;
-  --ink-muted: #94A3B8;
+  --ink-soft: #54637A;
+  --ink-muted: #5F6E85;
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
   --color-primary-light: rgba(37, 99, 235, 0.11);
@@ -1901,13 +1903,13 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 :root[data-theme="dark"] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) {
   --student-route-card-bg:
     radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.048), transparent 38%),
-    linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.99));
+    linear-gradient(145deg, #16181f, #14161e);
   --student-route-card-bg-raised:
     radial-gradient(circle at 100% 0%, rgba(148, 163, 184, 0.06), transparent 36%),
-    linear-gradient(145deg, rgba(14, 14, 20, 0.97), rgba(8, 8, 13, 0.99));
+    linear-gradient(145deg, #1c1f27, #16181f);
   --student-route-card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 20px 46px -34px rgba(2, 6, 12, 0.66);
   --sa-bg: var(--app-bg);
-  --sa-surface: rgba(10, 10, 15, 0.97);
+  --sa-surface: #16181f;
   --sa-surface-2: rgba(12, 19, 29, 0.92);
   --sa-surface-raised: rgba(11, 18, 27, 0.98);
   --sa-surface-rgb: 10, 10, 15;
@@ -1921,11 +1923,11 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --sa-border-strong: rgba(203, 213, 225, 0.2);
   --sa-border-rgb: 203, 213, 225;
   --surface-0: var(--app-bg);
-  --surface-1: rgba(10, 10, 15, 0.97);
+  --surface-1: #16181f;
   --surface-2: rgba(12, 19, 29, 0.92);
   --surface-3: rgba(16, 25, 38, 0.92);
   --surface-4: rgba(24, 35, 50, 0.9);
-  --surface-card: rgba(10, 10, 15, 0.97);
+  --surface-card: #16181f;
   --surface-card-elevated: rgba(11, 18, 27, 0.98);
   --surface-elevated: var(--surface-card-elevated);
   --surface-glass: rgba(10, 10, 15, 0.74);
@@ -1940,7 +1942,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
-  --ink-muted: #64748B;
+  --ink-muted: #6E7D94;
   --color-primary: #60a5fa;
   --color-primary-hover: #93c5fd;
   --color-primary-light: rgba(96, 165, 250, 0.12);
@@ -2488,17 +2490,17 @@ body.student-quiz-night-screen .student-app-shell {
   --app-bg-solid: var(--lms-login-dark-bg-solid);
   --sa-bg: var(--student-night-bg);
 
-  --sa-surface: rgba(10, 10, 15, 0.97);
+  --sa-surface: #16181f;
   --sa-surface-2: rgba(12, 19, 29, 0.92);
   --sa-surface-raised: rgba(11, 18, 27, 0.98);
   --sa-surface-rgb: 10, 10, 15;
   --sa-surface-2-rgb: 14, 14, 20;
 
   --surface-0: #0a0a0f;
-  --surface-1: rgba(10, 10, 15, 0.97);
+  --surface-1: #16181f;
   --surface-2: rgba(12, 19, 29, 0.92);
   --surface-3: rgba(16, 25, 38, 0.92);
-  --surface-card: rgba(10, 10, 15, 0.97);
+  --surface-card: #16181f;
   --surface-card-elevated: rgba(11, 18, 27, 0.98);
   --surface-elevated: var(--surface-card-elevated);
   --surface-glass: rgba(10, 10, 15, 0.74);
@@ -2512,7 +2514,7 @@ body.student-quiz-night-screen .student-app-shell {
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
-  --ink-muted: #64748B;
+  --ink-muted: #6E7D94;
 
   --sa-border: rgba(203, 213, 225, 0.13);
   --sa-border-soft: rgba(203, 213, 225, 0.09);
@@ -2523,12 +2525,12 @@ body.student-quiz-night-screen .student-app-shell {
 
   --lms-app-card-bg:
     linear-gradient(145deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006) 42%, rgba(148, 163, 184, 0.014)),
-    linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.98) 56%, rgba(5, 5, 9, 0.99));
+    linear-gradient(145deg, #16181f, #14161e 56%, #121319);
   --lms-app-card-bg-raised:
     linear-gradient(145deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.01) 42%, rgba(148, 163, 184, 0.02)),
-    linear-gradient(145deg, rgba(14, 14, 20, 0.97), rgba(8, 8, 13, 0.99));
+    linear-gradient(145deg, #1c1f27, #16181f);
   --lms-app-list-card-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.014), rgba(10, 10, 15, 0.94) 52%, rgba(5, 5, 9, 0.99));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.014), #16181f 52%, #131419);
   --lms-app-card-border: var(--line-soft);
   --lms-app-card-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.045),

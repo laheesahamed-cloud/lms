@@ -293,86 +293,6 @@ let WorkspaceService = class WorkspaceService {
             summary: this.summarizePlannerAgenda(items),
         };
     }
-    async listPlannerSuggestions(authorization) {
-        const student = await this.authService.requireStudent(authorization);
-        const [[summary]] = await this.db.execute(`SELECT COUNT(*) attempts, AVG(percentage) avg_score
-       FROM quiz_attempts
-       WHERE user_id = ? AND status = 'submitted'`, [student.id]);
-        const [weakRows] = await this.db.execute(`SELECT c.course_title, t.topic_name, AVG(qa.percentage) AS average_percentage, COUNT(*) attempts
-       FROM quiz_attempts qa
-       INNER JOIN quizzes q ON q.id = qa.quiz_id
-       LEFT JOIN courses c ON c.id = q.course_id
-       LEFT JOIN topics t ON t.id = q.topic_id
-       WHERE qa.user_id = ? AND qa.status = 'submitted'
-       GROUP BY q.topic_id, c.course_title, t.topic_name
-       ORDER BY average_percentage ASC, attempts DESC
-       LIMIT 3`, [student.id]);
-        const [wrongRows] = await this.db.execute(`SELECT COUNT(DISTINCT sa.question_id) wrong_questions
-       FROM student_answers sa
-       INNER JOIN quiz_attempts qa ON qa.id = sa.attempt_id
-       INNER JOIN question_options qo ON qo.id = sa.option_id
-       INNER JOIN questions q ON q.id = sa.question_id
-       WHERE qa.user_id = ?
-         AND qa.status = 'submitted'
-         AND ((q.question_type = 'sba' AND sa.is_selected = 1 AND qo.is_correct = 0)
-           OR (q.question_type = 'true_false' AND sa.is_selected <> qo.is_correct))`, [student.id]);
-        const attempts = Number(summary?.attempts || 0);
-        const avgScore = Number(summary?.avg_score || 0);
-        const suggestions = weakRows.map((row, index) => ({
-            key: `weak-${index}-${String(row.topic_name || 'general')}`,
-            title: `Review ${String(row.topic_name || 'weak topic')}`,
-            description: `${String(row.course_title || 'Course')} average is ${Number(row.average_percentage || 0).toFixed(1)}%. Revisit notes, then do practice questions.`,
-            dueInDays: index + 1,
-            priority: index === 0 ? 'high' : 'medium',
-            task: {
-                title: `Review ${String(row.topic_name || 'weak topic')}`,
-                description: `${String(row.course_title || 'Course')} average is ${Number(row.average_percentage || 0).toFixed(1)}%. Revisit notes, then do practice questions.`,
-                dueDate: this.addDaysDateKey(index + 1),
-                category: 'review',
-                priority: index === 0 ? 'high' : 'medium',
-                estimatedMinutes: 30,
-            },
-        }));
-        if (Number(wrongRows[0]?.wrong_questions || 0) > 0) {
-            suggestions.push({
-                key: 'wrong-answer-loop',
-                title: 'Redo missed questions',
-                description: `${Number(wrongRows[0].wrong_questions || 0)} questions have recent wrong-answer signals. Review explanations before another full quiz.`,
-                dueInDays: 1,
-                priority: 'high',
-                task: {
-                    title: 'Redo missed questions',
-                    description: `${Number(wrongRows[0].wrong_questions || 0)} questions have recent wrong-answer signals. Review explanations before another full quiz.`,
-                    dueDate: this.addDaysDateKey(1),
-                    category: 'quiz',
-                    priority: 'high',
-                    estimatedMinutes: 35,
-                },
-            });
-        }
-        const catchUpTitle = attempts === 0 ? 'Set a baseline quiz' : avgScore < 55 ? 'Catch-up revision block' : 'Maintain study streak';
-        const catchUpDescription = attempts === 0
-            ? 'Take one short practice quiz so the planner can adapt to real performance.'
-            : avgScore < 55
-                ? 'Schedule a 30-minute review block before your next exam attempt.'
-                : 'Add one light recall task to keep momentum active.';
-        suggestions.push({
-            key: 'catch-up',
-            title: catchUpTitle,
-            description: catchUpDescription,
-            dueInDays: 0,
-            priority: avgScore < 55 ? 'high' : 'medium',
-            task: {
-                title: catchUpTitle,
-                description: catchUpDescription,
-                dueDate: this.todayDateKey(),
-                category: attempts === 0 ? 'quiz' : 'review',
-                priority: avgScore < 55 ? 'high' : 'medium',
-                estimatedMinutes: attempts === 0 ? 20 : 30,
-            },
-        });
-        return suggestions.slice(0, 5);
-    }
     async createPlannerTask(authorization, input) {
         const student = await this.authService.requireStudent(authorization);
         const title = this.requiredString(input?.title, 'Task title');
@@ -980,11 +900,6 @@ let WorkspaceService = class WorkspaceService {
     }
     todayDateKey() {
         return this.formatPlannerDateKey(new Date());
-    }
-    addDaysDateKey(days) {
-        const date = new Date();
-        date.setDate(date.getDate() + days);
-        return this.formatPlannerDateKey(date);
     }
     dateKey(value) {
         if (!value)

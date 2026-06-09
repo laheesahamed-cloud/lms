@@ -401,6 +401,8 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
   const profileButtonRef = useRef(null);
   const profileAvatarLayerRef = useRef(null);
   const profileMenuRef = useRef(null);
+  const headerRef = useRef(null);
+  const nativeHeaderSpacerRef = useRef(null);
   const profileCloseTimerRef = useRef(null);
   const profilePositionFrameRef = useRef(null);
   const profileMenuStyleRef = useRef(null);
@@ -711,6 +713,37 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
     };
   }, [profileVisible]);
 
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const root = document.documentElement;
+    const spacer = nativeHeaderSpacerRef.current;
+    if (!shouldPortalNativeStudentHeader) {
+      root.style.removeProperty('--lms-native-topbar-height');
+      spacer?.style.removeProperty('--lms-native-topbar-spacer-height');
+      return undefined;
+    }
+
+    let frameId = window.requestAnimationFrame(() => {
+      frameId = window.requestAnimationFrame(() => {
+        const layer = headerRef.current?.closest?.('.lms-native-topbar-layer');
+        const height = Math.ceil(layer?.getBoundingClientRect?.().height || 0);
+        if (!height) return;
+
+        root.style.setProperty('--lms-native-topbar-height', `${height}px`);
+        spacer?.style.setProperty('--lms-native-topbar-spacer-height', `${height}px`);
+      });
+    });
+
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId);
+      root.style.removeProperty('--lms-native-topbar-height');
+      spacer?.style.removeProperty('--lms-native-topbar-spacer-height');
+    };
+  }, [shouldPortalNativeStudentHeader]);
+
   const profileAvatarLayer = profileVisible ? (
     <button
       ref={profileAvatarLayerRef}
@@ -863,14 +896,21 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
 
     const studentHeader = (
       <header
+        ref={headerRef}
         className={cx(
           'study-hub-topbar',
+          'study-hub-topbar--side-nav-toggle',
           shouldPortalNativeStudentHeader && 'lms-native-portaled-topbar',
           profileVisible && 'is-profile-menu-open',
           className
         )}
       >
-        <button type="button" className="study-icon-button lms-topbar-menu-button" aria-label="Toggle navigation" onClick={toggleSidebar}>
+        <button
+          type="button"
+          className="study-icon-button lms-topbar-menu-button study-sidebar-toggle"
+          aria-label="Hide or show sidebar"
+          onClick={toggleSidebar}
+        >
           <NavToggleIcon />
         </button>
 
@@ -947,7 +987,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
             </div>,
             document.body
           )}
-          <div className="lms-native-topbar-spacer" aria-hidden="true" />
+          <div ref={nativeHeaderSpacerRef} className="lms-native-topbar-spacer" aria-hidden="true" />
           {mobileCopy}
         </>
       );

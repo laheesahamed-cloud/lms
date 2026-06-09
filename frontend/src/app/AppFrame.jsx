@@ -369,6 +369,8 @@ function syncNativeChromeSurface() {
 
 function getVisualViewportHeight() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return '100dvh';
+  if (PLATFORM.isNative) return '100lvh';
+
   const height =
     window.visualViewport?.height ||
     window.innerHeight ||
@@ -420,8 +422,8 @@ function syncAppScrollContract() {
     setStyleIfChanged(element, 'color', '');
   });
 
-  setStyleIfChanged(document.body, 'position', 'relative');
-  setStyleIfChanged(document.body, 'inset', 'auto');
+  setStyleIfChanged(document.body, 'position', 'fixed');
+  setStyleIfChanged(document.body, 'inset', '0px');
   setStyleIfChanged(document.body, 'paddingLeft', '0px');
   setStyleIfChanged(document.body, 'paddingRight', '0px');
 
@@ -434,10 +436,63 @@ function syncAppScrollContract() {
   }
 
   document.querySelectorAll('.lms-app-scroll-root').forEach((element) => {
+    setStyleIfChanged(element, 'position', 'fixed');
+    setStyleIfChanged(element, 'inset', '0px');
     setStyleIfChanged(element, 'width', '100vw');
+    setStyleIfChanged(element, 'height', 'var(--lms-app-viewport-height, 100lvh)');
     setStyleIfChanged(element, 'maxWidth', '100vw');
+    setStyleIfChanged(element, 'maxHeight', 'var(--lms-app-viewport-height, 100lvh)');
     setStyleIfChanged(element, 'marginLeft', '0px');
     setStyleIfChanged(element, 'marginRight', '0px');
+  });
+}
+
+function captureNativeScrollPositions(target) {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return [];
+
+  const elements = [
+    window,
+    document.documentElement,
+    document.body,
+    document.querySelector('.lms-app-scroll-root'),
+    document.querySelector('.native-app-frame'),
+  ];
+  let node = target instanceof Element ? target.parentElement : null;
+  while (node && node !== document.body) {
+    const style = window.getComputedStyle(node);
+    const canScrollY = /(auto|scroll|overlay)/.test(`${style.overflowY} ${style.overflow}`);
+    if (canScrollY && node.scrollHeight > node.clientHeight) {
+      elements.push(node);
+    }
+    node = node.parentElement;
+  }
+
+  return Array.from(new Set(elements.filter(Boolean))).map((element) => {
+    if (element === window) {
+      return {
+        element,
+        left: window.scrollX || 0,
+        top: window.scrollY || 0,
+      };
+    }
+
+    return {
+      element,
+      left: element.scrollLeft || 0,
+      top: element.scrollTop || 0,
+    };
+  });
+}
+
+function restoreNativeScrollPositions(positions) {
+  positions.forEach(({ element, left, top }) => {
+    if (element === window) {
+      window.scrollTo(left, top);
+      return;
+    }
+
+    if (element.scrollLeft !== left) element.scrollLeft = left;
+    if (element.scrollTop !== top) element.scrollTop = top;
   });
 }
 
@@ -450,6 +505,7 @@ export function AppFrame() {
   const availability = useAvailabilityStore((state) => state.availability);
   const secureContentActive = isSecureContentRoute(location);
   const isPublicWebsitePage = isPublicWebsiteRoute(location.pathname);
+  const shouldRunSemanticObserver = PLATFORM.isNative || !isPublicWebsitePage;
 
   useSecureContentMode(secureContentActive);
 
@@ -507,13 +563,19 @@ export function AppFrame() {
     document.dispatchEvent(new Event('lms:react-ready'));
   }, []);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
+    if (!shouldRunSemanticObserver) {
+      return undefined;
+    }
+
     if (typeof document === 'undefined' || typeof window === 'undefined') {
       return undefined;
     }
 
-    let annotationFrame = 0;
+    let annotationTimer = 0;
+    let lastAnnotationAt = 0;
     const pendingAnnotationRoots = new Set();
+    const annotationNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
     function addAnnotationRoot(node) {
       if (!(node instanceof Element)) return;
@@ -524,18 +586,28 @@ export function AppFrame() {
       }
     }
 
-    function scheduleAnnotation() {
-      if (annotationFrame) return;
-      annotationFrame = window.requestAnimationFrame(() => {
-        annotationFrame = 0;
-        const roots = Array.from(pendingAnnotationRoots);
-        pendingAnnotationRoots.clear();
-        roots.forEach((root) => {
-          if (root === document || root.isConnected) {
-            annotateComponentStateSemantics(root);
-          }
-        });
+    function runAnnotation() {
+      annotationTimer = 0;
+      lastAnnotationAt = annotationNow();
+      const roots = Array.from(pendingAnnotationRoots);
+      pendingAnnotationRoots.clear();
+      roots.forEach((root) => {
+        if (root === document || root.isConnected) {
+          annotateComponentStateSemantics(root);
+        }
       });
+    }
+
+    // Throttle the ARIA-semantics pass to at most ~once per 160ms. A burst of DOM
+    // mutations (renders, list updates, animation nodes) used to re-walk the tree
+    // every animation frame; coalescing it is invisible (annotations land within
+    // 160ms) but cuts the background CPU dramatically. An isolated change after idle
+    // still runs on the next tick (delay 0).
+    function scheduleAnnotation() {
+      if (annotationTimer) return;
+      const elapsed = annotationNow() - lastAnnotationAt;
+      const delay = elapsed >= 160 ? 0 : 160 - elapsed;
+      annotationTimer = window.setTimeout(runAnnotation, delay);
     }
 
     function handleKeyDown(event) {
@@ -581,7 +653,10 @@ export function AppFrame() {
     }
 
     addAnnotationRoot(document.body);
-    scheduleAnnotation();
+    // Defer first DOM walk to give Safari's initial paint/composite pass room to finish.
+    // lastAnnotationAt=0 would make scheduleAnnotation use delay=0 (performance.now()>>160),
+    // which coalesces with all other startup work in the 0–200ms window and causes the clamp.
+    annotationTimer = window.setTimeout(runAnnotation, 600);
     const observer = PLATFORM.isNative ? null : new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === 'childList') {
@@ -608,14 +683,14 @@ export function AppFrame() {
       observer?.disconnect();
       document.removeEventListener('keydown', handleKeyDown, true);
       document.removeEventListener('focusin', handleFocusIn, true);
-      if (annotationFrame) {
-        window.cancelAnimationFrame(annotationFrame);
+      if (annotationTimer) {
+        window.clearTimeout(annotationTimer);
       }
       pendingAnnotationRoots.clear();
     };
-  }, []);
+  }, [shouldRunSemanticObserver]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!PLATFORM.isNative || typeof document === 'undefined') {
       return undefined;
     }
@@ -642,7 +717,6 @@ export function AppFrame() {
       '.start-practice-button',
       '.lms-assessment-btn--primary',
       '.lms-mobile-quiz-primary',
-      '.lms-mobile-bottom-nav__tab',
       '.theme-toggle',
       '.quiz-submit-button',
       '.quiz-complete-button',
@@ -659,7 +733,7 @@ export function AppFrame() {
       if (/\b(delete|remove|discard|destructive|danger|reset|sign out|logout)\b/.test(label)) return 'warning';
       if (/\b(complete|completed|submit|submitted|finish|finished|save|saved|success)\b/.test(label)) return 'success';
       if (/\b(start|continue|next|previous|back|primary|cta)\b/.test(label)) return 'impact';
-      if (element.matches('[role="tab"], .lms-mobile-bottom-nav__tab, [aria-pressed]')) return 'selection';
+      if (element.matches('[role="tab"], [aria-pressed]')) return 'selection';
       if (element.matches('button[type="submit"], .button-primary, .primary-cta, .start-practice-button, .lms-assessment-btn--primary, .lms-mobile-quiz-primary')) return 'impact';
       return 'selection';
     }
@@ -677,6 +751,7 @@ export function AppFrame() {
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (target.closest('.lms-mobile-bottom-nav')) return;
 
       const interactiveElement = target.closest(hapticSelector);
       if (!interactiveElement) return;
@@ -853,6 +928,88 @@ export function AppFrame() {
       viewport?.removeEventListener('resize', syncAppScrollContract);
     };
   }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!PLATFORM.isNative || typeof document === 'undefined' || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    let freezeUntil = 0;
+    let frame = 0;
+    let timers = [];
+    let positions = [];
+
+    function setKeyboardLock(active) {
+      if (active) {
+        document.documentElement.dataset.lmsNativeKeyboardLock = 'true';
+        document.body?.classList.add('lms-native-keyboard-lock');
+        return;
+      }
+
+      delete document.documentElement.dataset.lmsNativeKeyboardLock;
+      document.body?.classList.remove('lms-native-keyboard-lock');
+    }
+
+    function cancelFreeze() {
+      freezeUntil = 0;
+      setKeyboardLock(false);
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+        frame = 0;
+      }
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers = [];
+      positions = [];
+    }
+
+    function restoreLoop() {
+      restoreNativeScrollPositions(positions);
+      if (Date.now() < freezeUntil) {
+        frame = window.requestAnimationFrame(restoreLoop);
+      } else {
+        frame = 0;
+      }
+    }
+
+    function startFreeze(target) {
+      positions = captureNativeScrollPositions(target);
+      if (!positions.length) return;
+      setKeyboardLock(true);
+      freezeUntil = Date.now() + 1100;
+      restoreNativeScrollPositions(positions);
+      if (!frame) frame = window.requestAnimationFrame(restoreLoop);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers = [60, 140, 260, 420, 650, 900, 1100].map((delay) => (
+        window.setTimeout(() => restoreNativeScrollPositions(positions), delay)
+      ));
+    }
+
+    function handleFocusIn(event) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      // The login page manages its own keyboard behavior (top-anchored layout +
+      // manual scroll). The global scroll-freeze would lock that scrolling, so
+      // skip it here and let LoginPage handle the keyboard.
+      if (target.closest('.lms-login-page')) return;
+      startFreeze(target);
+    }
+
+    function handleFocusOut() {
+      window.setTimeout(cancelFreeze, 120);
+    }
+
+    document.addEventListener('focusin', handleFocusIn, true);
+    document.addEventListener('focusout', handleFocusOut, true);
+    window.visualViewport?.addEventListener?.('resize', restoreLoop, { passive: true });
+
+    return () => {
+      cancelFreeze();
+      document.removeEventListener('focusin', handleFocusIn, true);
+      document.removeEventListener('focusout', handleFocusOut, true);
+      window.visualViewport?.removeEventListener?.('resize', restoreLoop);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!PLATFORM.isNative || typeof document === 'undefined' || typeof window === 'undefined') {

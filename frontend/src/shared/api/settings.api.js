@@ -1,6 +1,7 @@
 import { apiClient } from './client.js';
 
 const PUBLIC_SETTINGS_CACHE_TTL_MS = 15_000;
+const PUBLIC_SETTINGS_TIMEOUT_MS = 2000;
 const PUBLIC_AVAILABILITY_TIMEOUT_MS = 2500;
 let publicSettingsCache = null;
 let publicSettingsPromise = null;
@@ -61,7 +62,13 @@ export async function fetchPublicSettings({ force = false } = {}) {
   }
 
   publicSettingsPromise = apiClient
-    .get('/settings/public', { __suppressServerStatus: true, __skipNetworkActivity: true })
+    .get('/settings/public', {
+      __suppressServerStatus: true,
+      __skipNetworkActivity: true,
+      __skipTimeoutRetry: true,
+      __skipApiBaseFallback: true,
+      timeout: PUBLIC_SETTINGS_TIMEOUT_MS,
+    })
     .then((response) => {
       publicSettingsCache = {
         expiresAt: Date.now() + PUBLIC_SETTINGS_CACHE_TTL_MS,

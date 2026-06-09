@@ -1,6 +1,7 @@
 const SW_RELOAD_THROTTLE_KEY = 'lms_sw_reloaded_at';
 const SW_RELOAD_THROTTLE_MS = 10_000;
 let registrationListenerInstalled = false;
+let serviceWorkerRegistrationStarted = false;
 
 function isAuthRoute() {
   const path = window.location.pathname || '';
@@ -45,10 +46,18 @@ export function installPwaRegistration() {
 
   registrationListenerInstalled = true;
   window.addEventListener('load', () => {
-    import('./pushNotifications.js')
-      .then(({ registerLmsServiceWorker }) => registerLmsServiceWorker())
-      .then((registration) => registration?.update?.())
-      .catch(() => {});
+    const registerWhenSafe = () => {
+      if (serviceWorkerRegistrationStarted || isAuthRoute()) {
+        return;
+      }
+
+      serviceWorkerRegistrationStarted = true;
+      window.removeEventListener('lms:route-location-change', registerWhenSafe);
+      import('./pushNotifications.js')
+        .then(({ registerLmsServiceWorker }) => registerLmsServiceWorker())
+        .then((registration) => registration?.update?.())
+        .catch(() => {});
+    };
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (wasServiceWorkerReloadRecent()) return;
@@ -56,6 +65,13 @@ export function installPwaRegistration() {
       markServiceWorkerReload();
       window.location.reload();
     });
+
+    if (isAuthRoute()) {
+      window.addEventListener('lms:route-location-change', registerWhenSafe);
+      return;
+    }
+
+    registerWhenSafe();
   }, { once: true });
 }
 

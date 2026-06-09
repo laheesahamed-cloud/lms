@@ -43,6 +43,19 @@ if (initialPlatform.isNative) {
   import('./shared/platform/native/NotificationDelivery.js')
     .then((module) => module.installNativePushNotificationHandlers?.())
     .catch(() => {});
+
+  // Local (on-device) notifications: tap routing, DB-announcement bridge, study reminders.
+  import('./shared/platform/native/LocalNotifications.js')
+    .then((module) => module.installLocalNotificationHandlers?.())
+    .catch(() => {});
+
+  import('./shared/notifications/announcementLocalSync.js')
+    .then((module) => module.startAnnouncementLocalSync?.())
+    .catch(() => {});
+
+  import('./shared/notifications/studyReminders.js')
+    .then((module) => module.reconcileStudyReminders?.())
+    .catch(() => {});
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

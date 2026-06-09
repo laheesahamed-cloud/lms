@@ -582,11 +582,17 @@ export function AppSidebar({
 
 /* ── Mobile bottom navigation bar (students only, ≤900px) ──────── */
 const mobileNavItems = [
-  { to: '/courses',   label: 'Courses', icon: 'Courses'   },
-  { to: '/quizzes',   label: 'Q-Bank',  icon: 'Quizzes'   },
+  { to: '/courses',   label: 'Courses',   icon: 'Courses' },
+  { to: '/quizzes',   label: 'Q-Bank',    icon: 'Quizzes' },
   { to: '/dashboard', label: 'Study Hub', icon: 'Mission' },
-  { to: '/ai-notes',  label: 'Lessons', icon: 'AiNotes'   },
-  { to: '/results',   label: 'Results', icon: 'Results'   },
+  {
+    to: '/study',
+    label: 'Study',
+    icon: 'Notes',
+    matchPaths: ['/study', '/planner', '/flashcards', '/notes', '/bookmarks', '/ai-notes'],
+    preloadPaths: ['/study', '/planner', '/flashcards', '/notes', '/bookmarks', '/ai-notes'],
+  },
+  { to: '/results',   label: 'Results',   icon: 'Results' },
 ];
 
 const mobileNavPrimaryPaths = new Set(mobileNavItems.map((item) => item.to));
@@ -626,21 +632,30 @@ function filterLinksByAccess(items, user) {
 
 function prefixLinks(items, role) {
   return items.map((item) => {
+    const prefixPath = (path) => withRolePrefix(path, role);
+
     if (item.children) {
       return {
         ...item,
         children: item.children.map((child) => ({
           ...child,
-          to: withRolePrefix(child.to, role),
+          to: prefixPath(child.to),
         })),
       };
     }
 
     return {
       ...item,
-      to: withRolePrefix(item.to, role),
+      to: prefixPath(item.to),
+      matchPaths: item.matchPaths?.map(prefixPath),
+      preloadPaths: item.preloadPaths?.map(prefixPath),
     };
   });
+}
+
+function isNavItemActive(item, pathname) {
+  const paths = item.matchPaths?.length ? item.matchPaths : [item.to];
+  return paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
 export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose = () => {} }) {
@@ -855,9 +870,7 @@ export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {}
   const items = prefixLinks(mobileNavItems, user?.role);
 
   // Compute active tab index for the iOS 18 floating pill
-  const activeIndex = items.findIndex(
-    (item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/')
-  );
+  const activeIndex = items.findIndex((item) => isNavItemActive(item, location.pathname));
   const pillIndex = activeIndex < 0 ? 0 : activeIndex;
 
   const nav = (
@@ -873,13 +886,15 @@ export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {}
         <span className="lms-mobile-bottom-nav__pill" aria-hidden="true" />
         {items.map((item, idx) => {
           const IconComp = Icons[item.icon] || Icons.Mission;
+          const isItemActive = isNavItemActive(item, location.pathname);
+          const preloadPaths = item.preloadPaths?.length ? item.preloadPaths : [item.to];
           return (
             <NavLink
               key={item.to}
               to={item.to}
               end={isExactNavPath(item.to)}
-              onPointerDown={() => preloadRouteByPath(item.to, user?.role)}
-              onTouchStart={() => preloadRouteByPath(item.to, user?.role)}
+              onPointerDown={() => preloadPaths.forEach((path) => preloadRouteByPath(path, user?.role))}
+              onTouchStart={() => preloadPaths.forEach((path) => preloadRouteByPath(path, user?.role))}
               onClick={(e) => {
                 // Set slide direction before navigation so the keyframe picks it up
                 const dir = idx >= pillIndex ? '1' : '-1';
@@ -887,7 +902,8 @@ export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {}
                 onNavigate(e);
               }}
               aria-label={item.label}
-              className={({ isActive }) => cx('lms-mobile-bottom-nav__tab', isActive && 'is-active')}
+              aria-current={isItemActive ? 'page' : undefined}
+              className={({ isActive }) => cx('lms-mobile-bottom-nav__tab', (isActive || isItemActive) && 'is-active')}
             >
               {() => (
                 <>

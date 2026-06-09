@@ -34,6 +34,7 @@ export declare class NativePushSender {
     private readonly getApnsRuntimeSettings?;
     private readonly getFcmRuntimeSettings?;
     private fcmAccessToken;
+    private apnsJwt;
     constructor(configService: ConfigService, logger: Logger, getApnsRuntimeSettings?: (() => Promise<ApnsRuntimeSettings>) | undefined, getFcmRuntimeSettings?: (() => Promise<FcmRuntimeSettings>) | undefined);
     isConfigured(): Promise<boolean>;
     isConfiguredFor(platform: NativePlatform): Promise<boolean>;

@@ -8,6 +8,7 @@ import { resolvePublicAssetUrl } from '../utils/publicAssetUrl.js';
 const POPUP_DISMISS_PREFIX = 'lms_popup_alert_dismissed';
 const POPUP_CACHE_KEY = 'lms_popup_alert_public_cache';
 const POPUP_API_MANIFEST_URL = '/api/uploads/marketing-popups/popup-alert.json';
+const POPUP_MANIFEST_TIMEOUT_MS = 1200;
 const websiteProtectedPathPattern =
   /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 
@@ -111,6 +112,27 @@ function writeCachedPopupAlert(alert) {
   }
 }
 
+async function fetchJsonWithTimeout(url, timeoutMs) {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timerId = controller
+    ? window.setTimeout(() => controller.abort(), timeoutMs)
+    : 0;
+
+  try {
+    const response = await fetch(url, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      signal: controller?.signal,
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } finally {
+    if (timerId) {
+      window.clearTimeout(timerId);
+    }
+  }
+}
+
 export function MarketingPopupAlert({ suppressed = false }) {
   const location = useLocation();
   const closeButtonRef = useRef(null);
@@ -152,12 +174,8 @@ export function MarketingPopupAlert({ suppressed = false }) {
 
       try {
         for (const manifestUrl of manifestUrls) {
-          const response = await fetch(manifestUrl, {
-            cache: 'no-store',
-            headers: { Accept: 'application/json' },
-          });
-          if (!response.ok) continue;
-          const nextAlert = await response.json();
+          const nextAlert = await fetchJsonWithTimeout(manifestUrl, POPUP_MANIFEST_TIMEOUT_MS);
+          if (!nextAlert) continue;
           if (cancelled || !nextAlert || typeof nextAlert !== 'object') return;
           applyPopupAlert(nextAlert);
           return;
@@ -184,8 +202,11 @@ export function MarketingPopupAlert({ suppressed = false }) {
       }
     }
 
-    loadPopupAlertManifest();
-    loadPopupAlertSettings();
+    const startupDelay = isLoginPath(window.location.pathname || '') ? 300 : 0;
+    const startupTimer = window.setTimeout(() => {
+      loadPopupAlertManifest();
+      loadPopupAlertSettings();
+    }, startupDelay);
     const refreshPopupAlert = () => {
       loadPopupAlertManifest();
       loadPopupAlertSettings({ force: true });
@@ -193,6 +214,7 @@ export function MarketingPopupAlert({ suppressed = false }) {
     window.addEventListener?.('lms:popup-alert-refresh', refreshPopupAlert);
     return () => {
       cancelled = true;
+      window.clearTimeout(startupTimer);
       window.removeEventListener?.('lms:popup-alert-refresh', refreshPopupAlert);
     };
   }, []);

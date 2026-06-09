@@ -82,6 +82,7 @@ function syncNativePushAfterAuth() {
 }
 
 const bootstrapAuth = getBootstrapAuth();
+const PUBLIC_AUTH_HYDRATE_TIMEOUT_MS = 1500;
 
 export const useAuthStore = create((set, get) => ({
   user: bootstrapAuth.user,
@@ -110,7 +111,7 @@ export const useAuthStore = create((set, get) => ({
 
         const data = await fetchCurrentUser({
           silent: isPublicAuthRoute(),
-          timeout: isPublicAuthRoute() ? 2500 : 5000,
+          timeout: isPublicAuthRoute() ? PUBLIC_AUTH_HYDRATE_TIMEOUT_MS : 5000,
         });
         if (hydrateVersion !== authMutationVersion) {
           return;

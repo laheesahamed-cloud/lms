@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
+  content: [],
   darkMode: ['selector', ':root[data-theme="dark"]'],
   theme: {
     extend: {
@@ -91,16 +91,16 @@ export default {
       },
       keyframes: {
         routeFade: {
-          from: { opacity: '0.82', transform: 'translateY(8px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
+          from: { opacity: '0.82', transform: 'translate3d(0, 8px, 0)' },
+          to: { opacity: '1', transform: 'translate3d(0, 0, 0)' },
         },
         authRouteFade: {
-          from: { opacity: '0', transform: 'translateY(8px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
+          from: { opacity: '0', transform: 'translate3d(0, 8px, 0)' },
+          to: { opacity: '1', transform: 'translate3d(0, 0, 0)' },
         },
         panelRouteFade: {
-          from: { opacity: '0.84', transform: 'translateY(8px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
+          from: { opacity: '0.84', transform: 'translate3d(0, 8px, 0)' },
+          to: { opacity: '1', transform: 'translate3d(0, 0, 0)' },
         },
         fadePop: {
           from: { opacity: '0', transform: 'translateY(8px) scale(0.97)' },

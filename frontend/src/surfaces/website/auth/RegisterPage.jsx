@@ -24,12 +24,12 @@ const auth = {
   visualRowText: 'text-[11.5px] text-white/70',
   stepRow: 'relative z-[1] flex flex-wrap items-center gap-2',
   step: 'rounded-full border border-white/20 bg-white/15 px-3 py-1.5 text-[11.5px] font-semibold text-white/90',
-  card: 'flex flex-col gap-4.5 rounded-2xl border border-line-soft bg-surface-glass-strong p-8 shadow-2xl backdrop-blur-2xl max-[640px]:p-5',
+  card: 'flex flex-col gap-4.5 border-0 bg-transparent p-8 shadow-none backdrop-blur-0 max-[640px]:p-5',
+  // Match the login page's input "text holder" size: 48px tall, 20px line-height.
+  inputSize: '!h-12 !leading-5',
   switcher: 'grid grid-cols-2 gap-1 rounded-md border border-line-soft bg-surface-2 p-1',
   switchLink: 'flex items-center justify-center rounded-[11px] px-3.5 py-2.5 text-[13.5px] font-bold text-ink-soft no-underline transition hover:bg-surface-glass hover:text-ink-medium',
   switchActive: 'bg-surface-1 text-ink-strong shadow-sm',
-  formHeadTitle: 'm-0 mb-1 text-[22px] font-extrabold text-ink-strong',
-  formHeadText: 'm-0 text-[13.5px] text-ink-soft',
   linkRow: 'text-center text-[13px] text-ink-soft',
   inlineLink: 'font-bold text-brand-primary no-underline hover:underline',
 };
@@ -108,14 +108,16 @@ export function RegisterPage() {
         <RegisterVisual />
 
         <form className={auth.card} onSubmit={handleSubmit} aria-describedby={feedbackId}>
-          <div className={auth.switcher} aria-label="Authentication pages">
-            <NavLink to="/auth/login"    className={({ isActive }) => `${auth.switchLink} ${isActive ? auth.switchActive : ''}`}>Sign in</NavLink>
-            <NavLink to="/auth/register" className={({ isActive }) => `${auth.switchLink} ${isActive ? auth.switchActive : ''}`}>Create account</NavLink>
-          </div>
-
           <div>
-            <h2 className={auth.formHeadTitle}>Create profile</h2>
-            <p className={auth.formHeadText}>New student accounts open the real dashboard immediately with the default Free plan.</p>
+            <p style={{ margin: '0 0 9px', fontSize: 11, fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '.13em' }}>
+              Create account
+            </p>
+            <h2 style={{ margin: '0 0 8px', fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, lineHeight: 1.1, color: 'var(--ink-strong)' }}>
+              Create profile
+            </h2>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.62 }}>
+              New student accounts open the real dashboard immediately with the default Free plan.
+            </p>
           </div>
 
           {status.error ? (
@@ -131,11 +133,11 @@ export function RegisterPage() {
 
           <label className={ui.formLabel} htmlFor="register-full-name">
             Full name
-            <input id="register-full-name" className={ui.input} name="fullName" placeholder="Your full name" required autoComplete="name" aria-invalid={status.error ? 'true' : undefined} aria-describedby={feedbackId} />
+            <input id="register-full-name" className={`${ui.input} ${auth.inputSize}`} name="fullName" placeholder="Your full name" required autoComplete="name" aria-invalid={status.error ? 'true' : undefined} aria-describedby={feedbackId} />
           </label>
           <label className={ui.formLabel} htmlFor="register-email">
             Email address
-            <input id="register-email" className={ui.input} name="email" type="email" placeholder="you@example.com" required autoComplete="email" aria-invalid={status.error ? 'true' : undefined} aria-describedby={feedbackId} />
+            <input id="register-email" className={`${ui.input} ${auth.inputSize}`} name="email" type="email" placeholder="you@example.com" required autoComplete="email" aria-invalid={status.error ? 'true' : undefined} aria-describedby={feedbackId} />
           </label>
           <PasswordField
             label="Password"
@@ -144,6 +146,7 @@ export function RegisterPage() {
             minLength={10}
             required
             autoComplete="new-password"
+            inputClassName={auth.inputSize}
             ariaInvalid={status.error ? 'true' : undefined}
             ariaDescribedBy={feedbackId}
           />
@@ -154,6 +157,7 @@ export function RegisterPage() {
             minLength={10}
             required
             autoComplete="new-password"
+            inputClassName={auth.inputSize}
             ariaInvalid={status.error ? 'true' : undefined}
             ariaDescribedBy={feedbackId}
           />

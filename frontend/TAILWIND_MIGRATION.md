@@ -7,7 +7,6 @@ Use this file as guidance for future styling work. Historical completed checklis
 ## Current Structure
 
 - `src/styles/index.css` is the Tailwind/shared stylesheet entrypoint.
-- `src/styles/app.css` is a compatibility shim for older imports.
 - `src/styles/99-legacy/app.css` contains the legacy mixed stylesheet while rules are migrated into the numbered style layers.
 - `shared/theme.css` owns design tokens, brand tokens, dark mode variables, and accent theme variables.
 - `shared/foundation.css` owns document/root reset, root/body sizing, text selection, scrollbar pseudo-elements, browser view-transition hooks, and PWA display-mode hooks.

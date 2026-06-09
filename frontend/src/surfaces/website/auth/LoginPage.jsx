@@ -1,5 +1,6 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Keyboard } from '@capacitor/keyboard';
 import { getErrorMessage } from '../../../shared/api/client.js';
 import { fetchPublicSettings } from '../../../shared/api/settings.api.js';
 import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
@@ -51,6 +52,14 @@ const ANIM_CSS = `
     -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 72%);
     mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 72%);
     opacity: .65;
+  }
+  .lms-auth-form-panel {
+    border-left: 0 !important;
+  }
+  @media (min-width: 1024px) {
+    .lms-auth-form-panel {
+      border-left: 1px solid var(--lms-auth-panel-border, var(--line-soft)) !important;
+    }
   }
 
   .lms-brand-panel {
@@ -127,6 +136,10 @@ const ANIM_CSS = `
     72%  { opacity:.45; }
     100% { transform:translateX(130%) skewX(-18deg); opacity:0; }
   }
+  @keyframes lmsIosLoaderFade {
+    0% { opacity: .95; }
+    100% { opacity: .22; }
+  }
 
   .lms-stagger>*        { opacity:0; animation:lmsUp 400ms var(--ease-os) forwards; backface-visibility:hidden; -webkit-backface-visibility:hidden; transform-style:preserve-3d; }
   .lms-stagger>*:nth-child(1){ opacity:1; animation:none; transform:none }
@@ -145,6 +158,35 @@ const ANIM_CSS = `
   .lms-brand-stagger>*:nth-child(3){ animation-delay:160ms }
   .lms-brand-stagger>*:nth-child(4){ animation-delay:240ms }
   .lms-brand-stagger>*:nth-child(5){ animation-delay:320ms }
+
+  body.lms-login-intro-complete .lms-login-page :where(.lms-stagger > *, .lms-brand-stagger > *) {
+    animation: none !important;
+    animation-delay: 0ms !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  body.lms-login-intro-complete .lms-login-page :where(.lms-google-btn, .lms-google-btn::after) {
+    animation: none !important;
+    animation-delay: 0ms !important;
+  }
+  body.lms-login-intro-complete .lms-login-route-stable,
+  body.lms-login-intro-complete .lms-route-reveal:has(.lms-login-page) {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  body.lms-login-intro-complete .lms-login-page :where(
+    .lms-auth-form-panel,
+    .lms-login-topbar,
+    .lms-login-form-wrap,
+    .lms-form-card,
+    .lms-login-form
+  ) {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
 
   .lms-float       { animation:lmsFloat      6.5s ease-in-out infinite; }
   .lms-glow-pulse  { animation:lmsGlowPulse  4.5s ease-in-out infinite; }
@@ -192,6 +234,43 @@ const ANIM_CSS = `
     min-width: 0;
     align-items: center;
     justify-content: center;
+    gap: 8px;
+  }
+  .lms-ios-loader {
+    position: relative;
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+  }
+  .lms-ios-loader span {
+    position: absolute;
+    top: 1px;
+    left: 8px;
+    width: 2px;
+    height: 5px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: .22;
+    transform-origin: 1px 8px;
+    animation: lmsIosLoaderFade 1s linear infinite;
+  }
+  .lms-ios-loader span:nth-child(1) { transform: rotate(0deg); animation-delay: -916ms; }
+  .lms-ios-loader span:nth-child(2) { transform: rotate(30deg); animation-delay: -833ms; }
+  .lms-ios-loader span:nth-child(3) { transform: rotate(60deg); animation-delay: -750ms; }
+  .lms-ios-loader span:nth-child(4) { transform: rotate(90deg); animation-delay: -666ms; }
+  .lms-ios-loader span:nth-child(5) { transform: rotate(120deg); animation-delay: -583ms; }
+  .lms-ios-loader span:nth-child(6) { transform: rotate(150deg); animation-delay: -500ms; }
+  .lms-ios-loader span:nth-child(7) { transform: rotate(180deg); animation-delay: -416ms; }
+  .lms-ios-loader span:nth-child(8) { transform: rotate(210deg); animation-delay: -333ms; }
+  .lms-ios-loader span:nth-child(9) { transform: rotate(240deg); animation-delay: -250ms; }
+  .lms-ios-loader span:nth-child(10) { transform: rotate(270deg); animation-delay: -166ms; }
+  .lms-ios-loader span:nth-child(11) { transform: rotate(300deg); animation-delay: -83ms; }
+  .lms-ios-loader span:nth-child(12) { transform: rotate(330deg); animation-delay: 0ms; }
+  @supports (-webkit-touch-callout: none) {
+    .lms-ios-loader {
+      transform: translateZ(0);
+    }
   }
 
   .lms-google-btn {
@@ -251,8 +330,8 @@ const ANIM_CSS = `
     transform: translateY(0) scale(.985);
   }
   .lms-google-btn:focus-visible {
-    outline: 2px solid #2563eb;
-    outline-offset: 3px;
+    outline: 1px solid rgba(37,99,235,.42);
+    outline-offset: 2px;
   }
   .lms-google-mark {
     position: relative;
@@ -388,42 +467,53 @@ const ANIM_CSS = `
     color: #1e293b !important;
   }
   :root:not([data-theme='dark']) .lms-login-form input {
+    border-width: 1px !important;
     border-color: rgba(37,99,235,.12) !important;
     background:
       linear-gradient(180deg, #FBFCFF 0%, #F8FBFF 100%) !important;
     color: #0B1220 !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.92),
-      0 1px 0 rgba(15,23,42,.025) !important;
+    box-shadow: none !important;
   }
   :root:not([data-theme='dark']) .lms-login-form input::placeholder {
     color: #7C8BA1 !important;
     opacity: .78 !important;
   }
   :root[data-theme='dark'] .lms-login-form input {
+    border-width: 1px !important;
     border-color: rgba(203,213,225,.24) !important;
     background: rgba(8,13,24,.84) !important;
     color: #F4F8FF !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.045),
-      0 1px 0 rgba(0,0,0,.14) !important;
+    box-shadow: none !important;
   }
   :root[data-theme='dark'] .lms-login-form input::placeholder {
     color: #B5C1D1 !important;
     opacity: .82 !important;
   }
   .lms-login-form input:focus {
-    border-color: var(--line-strong) !important;
+    border-width: 1px !important;
+    border-color: rgba(37,99,235,.22) !important;
     outline: none !important;
+    box-shadow: none !important;
+  }
+  .lms-login-form input:focus-visible {
+    outline: 0 !important;
+    outline-offset: 0 !important;
+  }
+  :root[data-theme='dark'] .lms-login-form input:focus {
+    border-color: rgba(96,165,250,.24) !important;
+  }
+  :root[data-theme='dark'] .lms-login-form input:focus-visible {
+    outline: 0 !important;
   }
   .lms-login-password-toggle svg {
-    stroke-width: 1.65;
+    stroke-width: 1.25;
   }
   /* ── CTA button: vibrant blue gradient ── */
   .lms-login-cta {
     background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #3B82F6 100%) !important;
-    box-shadow: 0 4px 18px rgba(37,99,235,.45), 0 1px 0 rgba(255,255,255,.14) inset !important;
+    border: 0 !important;
     border-color: transparent !important;
+    box-shadow: 0 4px 18px rgba(37,99,235,.45) !important;
     color: #fff !important;
     font-weight: 800 !important;
     letter-spacing: .01em !important;
@@ -433,7 +523,7 @@ const ANIM_CSS = `
   }
   :root[data-theme='dark'] .lms-login-cta {
     background: linear-gradient(135deg, #2563EB 0%, #3B82F6 55%, #60A5FA 100%) !important;
-    box-shadow: 0 4px 22px rgba(59,130,246,.50), 0 1px 0 rgba(255,255,255,.10) inset !important;
+    box-shadow: 0 4px 22px rgba(59,130,246,.50) !important;
   }
   /* ── Form heading: stronger text contrast ── */
   :root:not([data-theme='dark']) .lms-login-form h2 { color: #0B1220 !important; }
@@ -462,7 +552,7 @@ const ANIM_CSS = `
       0 0 0 1px rgba(255,255,255,.72) inset;
   }
   :root:not([data-theme='dark']) .lms-google-btn:hover {
-    border-color: rgba(37,99,235,.28);
+    border-color: rgba(37,99,235,.22);
     background:
       linear-gradient(180deg, #FBFCFF, #F1F7FF);
   }
@@ -480,6 +570,91 @@ const ANIM_CSS = `
   :root[data-theme='dark'] .lms-form-card {
     border-color: rgba(203,213,225,.18) !important;
     background: rgba(8,12,21,.92) !important;
+  }
+  .lms-login-page .lms-form-card {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .lms-login-page .lms-login-form :is(#login-email, #login-password) {
+    box-sizing: border-box !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    font-family: var(--type-font-body, "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 20px !important;
+    letter-spacing: 0 !important;
+  }
+  .lms-login-page .lms-login-form :is(#login-email, #login-password)::placeholder {
+    font: inherit !important;
+    letter-spacing: 0 !important;
+  }
+  .lms-login-page .lms-login-form input:focus,
+  .lms-login-page .lms-login-form input:focus-visible {
+    border-width: 1px !important;
+    border-color: rgba(37,99,235,.12) !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+  :root[data-theme='dark'] .lms-login-page .lms-login-form input:focus,
+  :root[data-theme='dark'] .lms-login-page .lms-login-form input:focus-visible {
+    border-color: rgba(203,213,225,.24) !important;
+  }
+  html body .lms-login-page :is(#login-email, #login-password):focus-visible {
+    border-width: 1px !important;
+    border-color: rgba(37,99,235,.12) !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+  }
+  :root[data-theme='dark'] body .lms-login-page :is(#login-email, #login-password):focus-visible {
+    border-color: rgba(203,213,225,.24) !important;
+  }
+
+  html[data-lms-runtime="native"] .lms-login-page,
+  html[data-lms-runtime="native"] .lms-auth-form-panel {
+    background: var(--lms-auth-panel-bg, var(--lms-login-page-bg, var(--page-background))) !important;
+  }
+  html[data-lms-runtime="native"] .lms-login-page {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+    height: 100lvh !important;
+    min-height: 100lvh !important;
+    max-height: 100lvh !important;
+    overflow: hidden !important;
+  }
+  html[data-lms-runtime="native"] .lms-auth-form-panel {
+    min-height: 0 !important;
+  }
+  html[data-lms-runtime="native"] .lms-login-topbar {
+    padding:
+      calc(14px + max(var(--lms-native-safe-top, env(safe-area-inset-top, 0px)), env(safe-area-inset-top, 0px)))
+      max(24px, var(--lms-native-safe-right, env(safe-area-inset-right, 0px)))
+      16px
+      max(24px, var(--lms-native-safe-left, env(safe-area-inset-left, 0px))) !important;
+    background: var(--lms-auth-panel-bg, var(--lms-login-page-bg, var(--page-background))) !important;
+  }
+  html[data-lms-runtime="native"] .lms-login-form-wrap {
+    padding:
+      clamp(20px, 5vh, 56px)
+      max(24px, var(--lms-native-safe-right, env(safe-area-inset-right, 0px)))
+      calc(max(24px, calc(24px + var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)))) + var(--lms-keyboard-height, 0px))
+      max(24px, var(--lms-native-safe-left, env(safe-area-inset-left, 0px))) !important;
+    min-height: 0 !important;
+    /* Top-anchored (not vertically centered): the keyboard overlays statically
+       and never pushes the card. A generous top padding keeps the look balanced
+       and web-like while leaving the fields high and visible. */
+    align-items: flex-start !important;
+    /* Freely scrollable by hand. The keyboard never pushes content: it only
+       overlays, and the bottom padding above adds exactly enough scroll room
+       (= keyboard height) to reach anything behind it by manual scroll. */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   @keyframes lmsEcgDrawFull {
@@ -509,7 +684,9 @@ const ANIM_CSS = `
     .lms-meter-fill { animation:none!important; transform:scaleX(1)!important; }
     .lms-form-card  { animation:none!important; transform:none!important; }
     .lms-submit-btn::before { opacity:0!important; transform:none!important; transition:none!important; }
+    .lms-ios-loader span { animation:none!important; opacity:.8!important; }
   }
+
 `;
 
 const STATIC_GOOGLE_CLIENT_ID = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
@@ -892,6 +1069,8 @@ const LoginBrand = memo(function LoginBrand() {
 });
 
 const PLATFORM = detectPlatform();
+const LOGIN_INTRO_COMPLETE_DELAY_MS = 900;
+let loginIntroHasCompleted = false;
 
 function showNativeDocument() {
   if (typeof document === 'undefined') return;
@@ -954,6 +1133,73 @@ export function LoginPage() {
   const googleCodeClientRef = useRef(null);
   const fromParam = new URLSearchParams(location.search).get('from') || '';
   const requestedPath = getSafeForwardPath(fromParam);
+
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+
+    let timer = 0;
+    const body = document.body;
+    const routeReveal = document.querySelector('.lms-login-page')?.closest('.lms-route-reveal');
+    body.classList.add('lms-login-mounted');
+    routeReveal?.classList.add('lms-login-route-stable');
+
+    const completeIntro = () => {
+      loginIntroHasCompleted = true;
+      body.classList.add('lms-login-intro-complete');
+    };
+
+    const completeIntroOnFieldIntent = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.closest('.lms-login-page :is(input, textarea, select, [contenteditable="true"])')) return;
+      completeIntro();
+    };
+
+    if (loginIntroHasCompleted) {
+      completeIntro();
+    } else {
+      body.classList.remove('lms-login-intro-complete');
+      timer = window.setTimeout(completeIntro, LOGIN_INTRO_COMPLETE_DELAY_MS);
+    }
+
+    document.addEventListener('pointerdown', completeIntroOnFieldIntent, true);
+    document.addEventListener('focusin', completeIntroOnFieldIntent, true);
+
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener('pointerdown', completeIntroOnFieldIntent, true);
+      document.removeEventListener('focusin', completeIntroOnFieldIntent, true);
+      body.classList.remove('lms-login-mounted');
+      routeReveal?.classList.remove('lms-login-route-stable');
+    };
+  }, []);
+
+  // Native: the keyboard overlays the page (Capacitor Keyboard plugin,
+  // resize: none) so it never pushes the layout. The plugin reports the exact
+  // keyboard height; we publish it as --lms-keyboard-height, which the form wrap
+  // turns into scroll room of the same size — so anything hidden behind the
+  // keyboard is reachable by scrolling, with no automatic movement.
+  useEffect(() => {
+    if (!PLATFORM.isNative || typeof document === 'undefined') return undefined;
+
+    const root = document.documentElement;
+    const setKeyboardHeight = (px) => {
+      root.style.setProperty('--lms-keyboard-height', `${Math.max(0, Math.round(px))}px`);
+    };
+
+    const listeners = [];
+    Keyboard.addListener('keyboardWillShow', (info) => setKeyboardHeight(info?.keyboardHeight || 0))
+      .then((handle) => listeners.push(handle))
+      .catch(() => {});
+    Keyboard.addListener('keyboardWillHide', () => setKeyboardHeight(0))
+      .then((handle) => listeners.push(handle))
+      .catch(() => {});
+
+    return () => {
+      listeners.forEach((handle) => handle?.remove?.());
+      root.style.removeProperty('--lms-keyboard-height');
+    };
+  }, []);
 
   const completeSignIn = useCallback(async (data, startedAt) => {
     clearServerNotResponding();
@@ -1091,26 +1337,51 @@ export function LoginPage() {
   }, []);
 
   useEffect(() => {
+    if (!googleClientId) {
+      setGoogleSdk(null);
+      googleCodeClientRef.current = null;
+      return undefined;
+    }
+
     let cancelled = false;
-    loadGoogleIdentityScript()
-      .then((google) => {
-        if (!cancelled) {
-          setGoogleSdk(google);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setGoogleConfigStatus((current) => ({
-            ...current,
-            error: current.error || err.message || 'Google sign-in could not load',
-          }));
-        }
-      });
+    let idleId = 0;
+    let timerId = 0;
+
+    const startGoogleSdkLoad = () => {
+      loadGoogleIdentityScript()
+        .then((google) => {
+          if (!cancelled) {
+            setGoogleSdk(google);
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setGoogleConfigStatus((current) => ({
+              ...current,
+              error: current.error || err.message || 'Google sign-in could not load',
+            }));
+          }
+        });
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      idleId = window.requestIdleCallback(startGoogleSdkLoad, { timeout: 1500 });
+    } else if (typeof window !== 'undefined') {
+      timerId = window.setTimeout(startGoogleSdkLoad, 250);
+    } else {
+      startGoogleSdkLoad();
+    }
 
     return () => {
       cancelled = true;
+      if (idleId && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timerId) {
+        window.clearTimeout(timerId);
+      }
     };
-  }, []);
+  }, [googleClientId]);
 
   useEffect(() => {
     if (!googleClientId || !googleSdk?.accounts?.oauth2) {
@@ -1172,13 +1443,13 @@ export function LoginPage() {
         </div>
 
         {/* Centered form area */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px 24px', overflowY: 'visible' }}>
+        <div className="lms-login-form-wrap" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px 24px', overflowY: 'visible' }}>
           <div
             className="lms-form-card"
             style={{ width: '100%', maxWidth: 404, borderRadius: 22, border: '1px solid var(--line-soft)', padding: 'clamp(22px,3vw,32px)' }}
           >
           <form
-            style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 18 }}
+            style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 13 }}
             className="lms-stagger lms-login-form"
             onSubmit={handleSubmit}
             noValidate
@@ -1186,14 +1457,14 @@ export function LoginPage() {
           >
             {/* ── Heading ── */}
             <div>
-              <p style={{ margin: '0 0 9px', fontSize: 11, fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '.13em' }}>
+              <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '.13em' }}>
                 Secure sign in
               </p>
-              <h2 style={{ margin: '0 0 8px', fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, lineHeight: 1.1, color: 'var(--ink-strong)' }}>
+              <h2 style={{ margin: '0 0 5px', fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, lineHeight: 1.1, color: 'var(--ink-strong)' }}>
                 Welcome back
               </h2>
               <p className="lms-form-sub" style={{ margin: 0, fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.62 }}>
-                Enter your details to continue where you left off.
+                Enter your details to continue.
               </p>
             </div>
 
@@ -1229,11 +1500,11 @@ export function LoginPage() {
 
             {/* ── Password ── */}
             <div className="lms-field-wrap">
-              <div className="mb-1.5 flex items-center justify-between gap-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
                 <label className={cx(ui.formLabel, 'lms-field-label mb-0')} htmlFor="login-password">
                   Password
                 </label>
-                <NavLink to="/auth/forgot-password" className="text-[12.5px] font-bold text-brand-primary no-underline hover:underline">
+                <NavLink to="/auth/forgot-password" className="inline-flex items-center leading-none text-[12.5px] font-bold text-brand-primary no-underline hover:underline">
                   Forgot password?
                 </NavLink>
               </div>
@@ -1291,10 +1562,20 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={status.loading}
+              aria-busy={status.loading}
               className={cx(ui.primaryAction, 'lms-submit-btn lms-login-cta w-full rounded-[var(--radius-md)]')}
             >
               <span className="lms-login-button-label">
-                {status.loading ? 'Signing in...' : 'Sign in'}
+                {status.loading ? (
+                  <>
+                    <span className="lms-ios-loader" aria-hidden="true">
+                      {Array.from({ length: 12 }, (_, index) => (
+                        <span key={index} />
+                      ))}
+                    </span>
+                    <span>Signing in</span>
+                  </>
+                ) : 'Sign in'}
               </span>
             </button>
 

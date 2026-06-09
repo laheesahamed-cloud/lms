@@ -72,6 +72,11 @@ let PushNotificationsService = PushNotificationsService_1 = class PushNotificati
           SUM(CASE WHEN enabled = 1 THEN 1 ELSE 0 END) AS activeNativeTokens,
           COUNT(DISTINCT CASE WHEN enabled = 1 THEN user_id END) AS nativePushUsers
        FROM native_push_tokens`);
+        const [errorRows] = await this.db.execute(`SELECT platform, enabled, delivery_mode, last_error, failed_at, updated_at
+         FROM native_push_tokens
+        WHERE last_error IS NOT NULL AND last_error <> ''
+        ORDER BY (failed_at IS NULL), failed_at DESC, updated_at DESC
+        LIMIT 8`);
         const stats = rows[0] || {};
         const nativeStats = nativeRows[0] || {};
         return {
@@ -89,9 +94,31 @@ let PushNotificationsService = PushNotificationsService_1 = class PushNotificati
             androidNativePushConfigured: await this.nativePushSender.isConfiguredFor('android'),
             nativePushUsers: Number(nativeStats.nativePushUsers || 0),
             nativePushTokens: Number(nativeStats.activeNativeTokens || 0),
+            failedNativeTokens: errorRows.length,
+            recentNativeErrors: errorRows.map((row) => ({
+                platform: this.normalizeNativePlatform(row.platform),
+                enabled: Number(row.enabled) === 1,
+                deliveryMode: String(row.delivery_mode || ''),
+                reason: this.summarizeNativePushError(String(row.last_error || '')),
+                failedAt: row.failed_at || row.updated_at || null,
+            })),
             defaultIcon: '/lms/pwa-icon.svg',
             defaultBadge: '/lms/pwa-maskable.svg',
         };
+    }
+    summarizeNativePushError(raw) {
+        const value = String(raw || '').trim();
+        if (!value)
+            return '';
+        try {
+            const parsed = JSON.parse(value);
+            if (parsed && typeof parsed === 'object' && parsed.reason) {
+                return String(parsed.reason);
+            }
+        }
+        catch {
+        }
+        return value.length > 160 ? `${value.slice(0, 160)}…` : value;
     }
     async subscribe(authorization, input, userAgent) {
         await this.authService.requireAuthenticatedUser(authorization);

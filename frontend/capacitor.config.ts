@@ -2,6 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { CapacitorConfig } from '@capacitor/cli';
+import { KeyboardResize } from '@capacitor/keyboard';
 
 function readEnvValue(name: string) {
   const directValue = process.env[name];
@@ -35,7 +36,7 @@ const config: CapacitorConfig = {
   },
   ios: {
     contentInset: 'never',
-    backgroundColor: '#151c24',
+    backgroundColor: '#0b121b',
   },
   android: {
     backgroundColor: '#0b121b',
@@ -53,6 +54,12 @@ const config: CapacitorConfig = {
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
+    },
+    Keyboard: {
+      // Overlay the keyboard instead of resizing/pushing the WebView. The web
+      // layout adds its own scroll room (--lms-keyboard-height) so content
+      // behind the keyboard stays reachable by manual scroll.
+      resize: KeyboardResize.None,
     },
   },
 };

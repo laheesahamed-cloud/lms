@@ -44,9 +44,6 @@ let WorkspaceController = class WorkspaceController {
     getPlannerAgenda(authorization) {
         return this.workspaceService.getPlannerAgenda(authorization);
     }
-    listPlannerSuggestions(authorization) {
-        return this.workspaceService.listPlannerSuggestions(authorization);
-    }
     createPlannerTask(authorization, body) {
         return this.workspaceService.createPlannerTask(authorization, body);
     }
@@ -144,13 +141,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], WorkspaceController.prototype, "getPlannerAgenda", null);
-__decorate([
-    (0, common_1.Get)('study-planner/suggestions'),
-    __param(0, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], WorkspaceController.prototype, "listPlannerSuggestions", null);
 __decorate([
     (0, common_1.Post)('study-planner'),
     __param(0, (0, common_1.Headers)('authorization')),

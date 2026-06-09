@@ -1,10 +1,8 @@
 html[data-lms-runtime="native"] {
   --lms-app-card-radius: 18px;
   --lms-app-card-pad: clamp(15px, 3.2vw, 22px);
-  /* Micro-interaction easing (dropdowns, popovers, scale-in) — stays fast */
-  --lms-native-motion-enter: cubic-bezier(0.16, 1, 0.3, 1);
-  /* Full-page slide easing — iOS-style decelerate with slight spring character */
-  --lms-native-motion-route: cubic-bezier(0.22, 1, 0.36, 1);
+  --lms-native-motion-enter: var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+  --lms-native-motion-route: var(--lms-motion-ease-standard, cubic-bezier(0.23, 1, 0.32, 1));
   --lms-native-chrome-bg: var(--app-bg);
   --lms-native-chrome-bg-solid: var(--app-bg-solid, var(--surface-0, #0b121b));
   --lms-native-top-surface: var(--lms-native-chrome-bg, var(--app-bg));
@@ -17,6 +15,159 @@ html[data-lms-runtime="native"] body,
 html[data-lms-runtime="native"] #root {
   background: var(--sa-bg, var(--app-bg, #eff1fb)) !important;
   background-color: var(--app-bg-solid, #dce6f4) !important;
+}
+
+html[data-lms-runtime="native"],
+html[data-lms-runtime="native"] body,
+html[data-lms-runtime="native"] #root,
+html[data-lms-runtime="native"] .native-app-frame,
+html[data-lms-runtime="native"] .lms-app-scroll-root {
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+  height: 100lvh !important;
+  min-height: 100lvh !important;
+  max-height: 100lvh !important;
+}
+
+html[data-lms-runtime="native"] body {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+html[data-lms-runtime="native"] .native-app-frame,
+html[data-lms-runtime="native"] .lms-app-scroll-root {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+html[data-lms-runtime="native"][data-lms-native-keyboard-lock="true"],
+html[data-lms-runtime="native"][data-lms-native-keyboard-lock="true"] body,
+html[data-lms-runtime="native"][data-lms-native-keyboard-lock="true"] #root,
+html[data-lms-runtime="native"][data-lms-native-keyboard-lock="true"] .native-app-frame,
+html[data-lms-runtime="native"][data-lms-native-keyboard-lock="true"] .lms-app-scroll-root {
+  scroll-behavior: auto !important;
+}
+
+html[data-lms-runtime="native"][data-lms-native-keyboard-lock="true"] :where(
+  .native-app-frame,
+  .lms-app-scroll-root,
+  .lms-route-reveal,
+  .lms-login-route-stable,
+  .auth-route-scene,
+  .lms-login-page,
+  .lms-login-topbar,
+  .lms-login-form-wrap,
+  .lms-login-form,
+  .lms-form-card,
+  .app-shell,
+  .student-app-shell,
+  .main-content,
+  .page-content,
+  .lms-route-page,
+  .student-route-page,
+  .dashboard-page
+) {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+html[data-lms-runtime="native"] :where(
+  .lms-login-route-stable,
+  .lms-route-reveal:has(.lms-login-page),
+  .auth-route-scene.lms-login-page,
+  .lms-login-page,
+  .lms-auth-form-panel,
+  .lms-login-topbar,
+  .lms-login-form-wrap,
+  .lms-form-card,
+  .lms-login-form
+) {
+  animation: none !important;
+  animation-name: none !important;
+  transition: none !important;
+  transition-property: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+html[data-lms-runtime="native"] .lms-login-page :where(
+  .lms-stagger > *,
+  .lms-brand-stagger > *,
+  .lms-google-btn,
+  .lms-google-btn::after
+) {
+  animation: none !important;
+  animation-name: none !important;
+  animation-delay: 0ms !important;
+  transition: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+html[data-lms-runtime="native"] body.lms-login-intro-complete :where(
+  .lms-login-route-stable,
+  .lms-route-reveal:has(.lms-login-page)
+),
+html[data-lms-runtime="native"][data-lms-native-keyboard-lock="true"] :where(
+  .lms-login-route-stable,
+  .lms-route-reveal:has(.lms-login-page)
+) {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+html[data-lms-runtime="native"] body.lms-login-intro-complete .lms-login-page :where(
+  .lms-auth-form-panel,
+  .lms-login-topbar,
+  .lms-login-form-wrap,
+  .lms-form-card,
+  .lms-login-form,
+  .lms-stagger > *,
+  .lms-brand-stagger > *
+) {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+html[data-lms-runtime="native"][data-lms-native-keyboard-lock="true"] .lms-login-page :where(
+  .lms-stagger > *,
+  .lms-brand-stagger > *,
+  .lms-form-card,
+  .lms-login-form-wrap
+) {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+html[data-lms-runtime="native"] :where(
+  .min-h-dvh,
+  .auth-route-scene,
+  .lms-route-page,
+  .student-route-page,
+  .dashboard-page,
+  .app-shell,
+  .student-app-shell,
+  .main-content,
+  .page-content
+) {
+  min-height: 100vh !important;
+  min-height: var(--lms-app-viewport-height, 100lvh) !important;
 }
 
 html[data-lms-runtime="native"]:not([data-theme="dark"]) {
@@ -291,36 +442,36 @@ html[data-lms-runtime="native"] :where(.lms-hero-card, .lms-page-header-card, .l
 }
 
 @keyframes nativeFadePop {
-  from { opacity: 0; transform: translate3d(0, 7px, 0) scale(0.985); }
+  from { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.97); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
 @keyframes nativeScaleIn {
-  from { opacity: 0; transform: translate3d(0, 4px, 0) scale(0.985); }
+  from { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.95); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
 @keyframes nativeDropdownIn {
-  from { opacity: 0; transform: translate3d(0, -4px, 0) scale(0.985); }
+  from { opacity: 0; transform: translate3d(0, -4px, 0) scale(0.96); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
 @keyframes nativeOverlayIn {
-  from { opacity: 0.001; }
+  from { opacity: 0; }
   to { opacity: 1; }
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-routeFade,
 html[data-lms-runtime="native"][data-low-spec] .animate-routeFade,
 html[data-lms-runtime="native"] .animate-routeFade {
-  animation: nativeRouteFade var(--lms-route-enter-duration, 340ms) var(--lms-native-motion-route) both !important;
+  animation: nativeRouteFade var(--lms-route-enter-duration, var(--lms-motion-duration-page, 240ms)) var(--lms-native-motion-route) both !important;
   animation-name: nativeRouteFade !important;
-  animation-duration: var(--lms-route-enter-duration, 340ms) !important;
+  animation-duration: var(--lms-route-enter-duration, var(--lms-motion-duration-page, 240ms)) !important;
   animation-timing-function: var(--lms-native-motion-route) !important;
   animation-fill-mode: both !important;
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
-  transition-duration: 340ms !important;
+  transition-duration: var(--lms-route-enter-duration, var(--lms-motion-duration-page, 240ms)) !important;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
@@ -329,27 +480,27 @@ html[data-lms-runtime="native"][data-low-spec] .animate-panelRouteFade,
 html[data-lms-runtime="native"][data-low-spec] body.app-ready .lms-route-reveal.animate-panelRouteFade,
 html[data-lms-runtime="native"] .animate-panelRouteFade,
 html[data-lms-runtime="native"] body.app-ready .lms-route-reveal.animate-panelRouteFade {
-  animation: nativePanelRouteFade var(--lms-panel-route-duration, 300ms) var(--lms-native-motion-enter) both !important;
+  animation: nativePanelRouteFade var(--lms-panel-route-duration, var(--lms-motion-duration-page, 240ms)) var(--lms-native-motion-enter) both !important;
   animation-name: nativePanelRouteFade !important;
-  animation-duration: var(--lms-panel-route-duration, 300ms) !important;
+  animation-duration: var(--lms-panel-route-duration, var(--lms-motion-duration-page, 240ms)) !important;
   animation-timing-function: var(--lms-native-motion-enter) !important;
   animation-fill-mode: both !important;
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
-  transition-duration: 150ms !important;
+  transition-duration: var(--lms-panel-route-duration, var(--lms-motion-duration-page, 240ms)) !important;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-fadePop,
 html[data-lms-runtime="native"][data-low-spec] .animate-fadePop,
 html[data-lms-runtime="native"] .animate-fadePop {
-  animation: nativeFadePop 0.22s var(--lms-native-motion-enter) both !important;
+  animation: nativeFadePop var(--lms-modal-duration, 220ms) var(--lms-native-motion-enter) both !important;
   animation-name: nativeFadePop !important;
-  animation-duration: 0.22s !important;
+  animation-duration: var(--lms-modal-duration, 220ms) !important;
   animation-timing-function: var(--lms-native-motion-enter) !important;
   animation-fill-mode: both !important;
   animation-iteration-count: 1 !important;
   transition-property: opacity, transform !important;
-  transition-duration: 150ms !important;
+  transition-duration: var(--lms-motion-duration-hover, 150ms) !important;
 }
 
 html[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn,
@@ -391,6 +542,42 @@ html[data-lms-runtime="native"] .animate-overlayIn {
   transition-duration: 140ms !important;
 }
 
+html[data-lms-runtime="native"][data-visual-effects] .animate-cardFadeIn,
+html[data-lms-runtime="native"][data-low-spec] .animate-cardFadeIn,
+html[data-lms-runtime="native"] .animate-cardFadeIn {
+  animation: nativePanelRouteFade var(--lms-card-enter-duration, var(--lms-motion-duration-card, 220ms)) var(--lms-native-motion-enter) both !important;
+  animation-name: nativePanelRouteFade !important;
+  animation-duration: var(--lms-card-enter-duration, var(--lms-motion-duration-card, 220ms)) !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+  transition-property: opacity, transform !important;
+}
+
+html[data-lms-runtime="native"][data-visual-effects] .animate-toastSlideUp,
+html[data-lms-runtime="native"][data-low-spec] .animate-toastSlideUp,
+html[data-lms-runtime="native"] .animate-toastSlideUp {
+  animation: nativeFadePop var(--lms-motion-duration-dropdown, 180ms) var(--lms-native-motion-enter) both !important;
+  animation-name: nativeFadePop !important;
+  animation-duration: var(--lms-motion-duration-dropdown, 180ms) !important;
+  animation-timing-function: var(--lms-native-motion-enter) !important;
+  animation-fill-mode: both !important;
+  animation-iteration-count: 1 !important;
+  transition-property: opacity, transform !important;
+}
+
+html[data-lms-runtime="native"][data-visual-effects] .animate-shimmer,
+html[data-lms-runtime="native"][data-low-spec] .animate-shimmer,
+html[data-lms-runtime="native"] .animate-shimmer,
+html[data-lms-runtime="native"] .shimmer,
+html[data-lms-runtime="native"] .skeleton-pulse {
+  animation: lmsSkeletonFade 1.8s var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) infinite !important;
+  animation-name: lmsSkeletonFade !important;
+  animation-duration: 1.8s !important;
+  animation-timing-function: var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) !important;
+  animation-iteration-count: infinite !important;
+}
+
 html[data-lms-runtime="native"] .motion-smooth {
   transition-duration: var(--lms-motion-duration, 160ms) !important;
 }
@@ -400,6 +587,8 @@ html[data-lms-runtime="native"] :where(
   .animate-panelRouteFade,
   .animate-fadePop,
   .animate-scaleIn,
+  .animate-cardFadeIn,
+  .animate-toastSlideUp,
   .animate-dropdownIn,
   .animate-overlayIn
 ) {
@@ -412,26 +601,40 @@ html[data-lms-runtime="native"] :where(
   :root[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
   :root[data-lms-runtime="native"][data-visual-effects] .animate-fadePop,
   :root[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn,
+  :root[data-lms-runtime="native"][data-visual-effects] .animate-cardFadeIn,
+  :root[data-lms-runtime="native"][data-visual-effects] .animate-toastSlideUp,
   :root[data-lms-runtime="native"][data-visual-effects] .animate-dropdownIn,
   :root[data-lms-runtime="native"][data-visual-effects] .animate-overlayIn,
+  :root[data-lms-runtime="native"][data-visual-effects] .animate-shimmer,
   html[data-lms-runtime="native"][data-visual-effects] .animate-routeFade,
   html[data-lms-runtime="native"][data-visual-effects] .animate-panelRouteFade,
   html[data-lms-runtime="native"][data-visual-effects] .animate-fadePop,
   html[data-lms-runtime="native"][data-visual-effects] .animate-scaleIn,
+  html[data-lms-runtime="native"][data-visual-effects] .animate-cardFadeIn,
+  html[data-lms-runtime="native"][data-visual-effects] .animate-toastSlideUp,
   html[data-lms-runtime="native"][data-visual-effects] .animate-dropdownIn,
   html[data-lms-runtime="native"][data-visual-effects] .animate-overlayIn,
+  html[data-lms-runtime="native"][data-visual-effects] .animate-shimmer,
   html[data-lms-runtime="native"][data-low-spec] .animate-routeFade,
   html[data-lms-runtime="native"][data-low-spec] .animate-panelRouteFade,
   html[data-lms-runtime="native"][data-low-spec] .animate-fadePop,
   html[data-lms-runtime="native"][data-low-spec] .animate-scaleIn,
+  html[data-lms-runtime="native"][data-low-spec] .animate-cardFadeIn,
+  html[data-lms-runtime="native"][data-low-spec] .animate-toastSlideUp,
   html[data-lms-runtime="native"][data-low-spec] .animate-dropdownIn,
   html[data-lms-runtime="native"][data-low-spec] .animate-overlayIn,
+  html[data-lms-runtime="native"][data-low-spec] .animate-shimmer,
   html[data-lms-runtime="native"] .animate-routeFade,
   html[data-lms-runtime="native"] .animate-panelRouteFade,
   html[data-lms-runtime="native"] .animate-fadePop,
   html[data-lms-runtime="native"] .animate-scaleIn,
+  html[data-lms-runtime="native"] .animate-cardFadeIn,
+  html[data-lms-runtime="native"] .animate-toastSlideUp,
   html[data-lms-runtime="native"] .animate-dropdownIn,
-  html[data-lms-runtime="native"] .animate-overlayIn {
+  html[data-lms-runtime="native"] .animate-overlayIn,
+  html[data-lms-runtime="native"] .animate-shimmer,
+  html[data-lms-runtime="native"] .shimmer,
+  html[data-lms-runtime="native"] .skeleton-pulse {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;

@@ -2,18 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "frontend-dev",
+      "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--host", "127.0.0.1"],
-      "port": 5174,
-      "cwd": "frontend"
-    },
-    {
-      "name": "theme-preview",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8899"],
-      "port": 8899,
-      "cwd": "."
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "frontend",
+      "port": 5174
     }
   ]
 }
