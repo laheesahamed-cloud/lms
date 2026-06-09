@@ -96,6 +96,16 @@ export class PushNotificationsService {
           COUNT(DISTINCT CASE WHEN enabled = 1 THEN user_id END) AS nativePushUsers
        FROM native_push_tokens`
     );
+    // Surface the most recent delivery failures so admins can see why a push was
+    // rejected (e.g. BadDeviceToken = APNs sandbox/production mismatch) without
+    // querying the database directly.
+    const [errorRows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT platform, enabled, delivery_mode, last_error, failed_at, updated_at
+         FROM native_push_tokens
+        WHERE last_error IS NOT NULL AND last_error <> ''
+        ORDER BY (failed_at IS NULL), failed_at DESC, updated_at DESC
+        LIMIT 8`
+    );
     const stats = rows[0] || {};
     const nativeStats = nativeRows[0] || {};
     return {
@@ -113,9 +123,31 @@ export class PushNotificationsService {
       androidNativePushConfigured: await this.nativePushSender.isConfiguredFor('android'),
       nativePushUsers: Number(nativeStats.nativePushUsers || 0),
       nativePushTokens: Number(nativeStats.activeNativeTokens || 0),
+      failedNativeTokens: errorRows.length,
+      recentNativeErrors: errorRows.map((row) => ({
+        platform: this.normalizeNativePlatform(row.platform),
+        enabled: Number(row.enabled) === 1,
+        deliveryMode: String(row.delivery_mode || ''),
+        reason: this.summarizeNativePushError(String(row.last_error || '')),
+        failedAt: row.failed_at || row.updated_at || null,
+      })),
       defaultIcon: '/lms/pwa-icon.svg',
       defaultBadge: '/lms/pwa-maskable.svg',
     };
+  }
+
+  private summarizeNativePushError(raw: string): string {
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && parsed.reason) {
+        return String(parsed.reason);
+      }
+    } catch {
+      // Not JSON (e.g. a transport error string) — fall back to the raw text.
+    }
+    return value.length > 160 ? `${value.slice(0, 160)}…` : value;
   }
 
   async subscribe(authorization: string | undefined, input: any, userAgent?: string) {

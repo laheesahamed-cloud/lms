@@ -96,6 +96,30 @@ export function AdminNotificationSettingsPanel() {
         </div>
       ) : null}
 
+      {status?.recentNativeErrors?.length ? (
+        <div className="grid gap-2 rounded-lg border border-brand-warning/30 bg-[var(--color-warning-light)] p-4">
+          <strong className="text-sm font-black text-ink-strong">Recent delivery errors</strong>
+          <p className="m-0 text-[12.5px] leading-relaxed text-ink-soft">
+            The latest reasons a device push was rejected. Most common: <code>BadDeviceToken</code> = APNs
+            sandbox/production mismatch (debug builds need <strong>Use APNs sandbox</strong> ON);{' '}
+            <code>InvalidProviderToken</code> = wrong Key ID / Team ID, or the .p8 isn’t APNs-enabled.
+          </p>
+          <ul className="m-0 grid list-none gap-1.5 p-0">
+            {status.recentNativeErrors.map((item, index) => (
+              <li key={index} className="flex flex-wrap items-center gap-2 text-[12.5px]">
+                <span className="rounded bg-surface-card px-2 py-0.5 text-[11px] font-black uppercase text-ink-soft">
+                  {item.platform || 'native'}
+                </span>
+                <span className="font-mono font-bold text-brand-warning">{item.reason || 'Unknown error'}</span>
+                {item.failedAt ? (
+                  <span className="text-ink-muted">{new Date(item.failedAt).toLocaleString()}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <form className={ui.stackForm} onSubmit={handleSend}>
         <div className={ui.formGrid}>
           <label className={ui.formLabel}>
