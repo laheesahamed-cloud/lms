@@ -40,6 +40,10 @@ export type NativePushSendResult = {
 
 export class NativePushSender {
   private fcmAccessToken: { value: string; expiresAt: number } | null = null;
+  // APNs requires the same provider JWT to be reused (refresh between 20 and 60
+  // minutes); generating one per push triggers 429 TooManyProviderTokenUpdates
+  // when broadcasting to many devices. Cache it ~40 minutes.
+  private apnsJwt: { key: string; value: string; expiresAt: number } | null = null;
 
   constructor(
     private readonly configService: ConfigService,
@@ -337,7 +341,12 @@ export class NativePushSender {
 
   private createApnsJwt(settings: ApnsRuntimeSettings) {
     const now = Math.floor(Date.now() / 1000);
-    return this.signJwt(
+    const cacheKey = `${settings.teamId}:${settings.keyId}`;
+    if (this.apnsJwt && this.apnsJwt.key === cacheKey && this.apnsJwt.expiresAt > now) {
+      return this.apnsJwt.value;
+    }
+
+    const value = this.signJwt(
       {
         alg: 'ES256',
         kid: settings.keyId,
@@ -347,18 +356,35 @@ export class NativePushSender {
         iat: now,
       },
       this.getApnsPrivateKey(settings),
-      'SHA256'
+      'SHA256',
+      // APNs JWTs use ES256, whose signature must be JOSE/IEEE-P1363 (raw r‖s),
+      // not the DER encoding Node produces by default.
+      'ieee-p1363'
     );
+
+    // Refresh every ~40 minutes: longer than Apple's 20-minute minimum (avoids
+    // TooManyProviderTokenUpdates) and shorter than the 60-minute expiry.
+    this.apnsJwt = { key: cacheKey, value, expiresAt: now + 40 * 60 };
+    return value;
   }
 
-  private signJwt(header: Record<string, unknown>, payload: Record<string, unknown>, privateKey: string, algorithm: string) {
+  private signJwt(
+    header: Record<string, unknown>,
+    payload: Record<string, unknown>,
+    privateKey: string,
+    algorithm: string,
+    dsaEncoding?: 'der' | 'ieee-p1363'
+  ) {
     const encodedHeader = this.base64Url(JSON.stringify(header));
     const encodedPayload = this.base64Url(JSON.stringify(payload));
     const signingInput = `${encodedHeader}.${encodedPayload}`;
     const sign = createSign(algorithm);
     sign.update(signingInput);
     sign.end();
-    return `${signingInput}.${this.base64Url(sign.sign(privateKey))}`;
+    const signature = dsaEncoding
+      ? sign.sign({ key: privateKey, dsaEncoding })
+      : sign.sign(privateKey);
+    return `${signingInput}.${this.base64Url(signature)}`;
   }
 
   private postJson(url: string, body: string, headers: Record<string, string>): Promise<NativePushSendResult> {
