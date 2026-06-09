@@ -44,19 +44,21 @@ if (initialPlatform.isNative) {
     .then((module) => module.installNativePushNotificationHandlers?.())
     .catch(() => {});
 
-  // Local (on-device) notifications: tap routing, DB-announcement bridge, study reminders.
+  // Native-only: register the local-notification tap handler that deep-links into the SPA.
   import('./shared/platform/native/LocalNotifications.js')
     .then((module) => module.installLocalNotificationHandlers?.())
     .catch(() => {});
-
-  import('./shared/notifications/announcementLocalSync.js')
-    .then((module) => module.startAnnouncementLocalSync?.())
-    .catch(() => {});
-
-  import('./shared/notifications/studyReminders.js')
-    .then((module) => module.reconcileStudyReminders?.())
-    .catch(() => {});
 }
+
+// DB-announcement -> local notification bridge and study reminders run on web + native.
+// (The poller no-ops unless notification permission is granted, so it's safe everywhere.)
+import('./shared/notifications/announcementLocalSync.js')
+  .then((module) => module.startAnnouncementLocalSync?.())
+  .catch(() => {});
+
+import('./shared/notifications/studyReminders.js')
+  .then((module) => module.reconcileStudyReminders?.())
+  .catch(() => {});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <App />

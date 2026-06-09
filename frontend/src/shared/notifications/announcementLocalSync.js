@@ -87,12 +87,16 @@ export async function syncAnnouncementsToLocal({ silent = false } = {}) {
   }
 }
 
-/** Begin periodic syncing. Primes silently on first run so history isn't replayed. */
+/** Begin periodic syncing. Primes silently only on the very first run so a fresh
+ *  install doesn't replay the whole backlog, but every later launch will surface
+ *  announcements posted while the app was closed. */
 export function startAnnouncementLocalSync({ intervalMs = DEFAULT_INTERVAL_MS } = {}) {
   if (typeof window === 'undefined' || timer) return;
 
-  // Prime: record current ids without firing a burst of historical notifications.
-  syncAnnouncementsToLocal({ silent: true }).catch(() => {});
+  // Only prime on the first ever run (no high-water-mark stored yet). On subsequent
+  // launches we actively show anything unseen since last time.
+  const firstRun = readLastSeenId() === 0;
+  syncAnnouncementsToLocal({ silent: firstRun }).catch(() => {});
 
   timer = window.setInterval(() => {
     syncAnnouncementsToLocal().catch(() => {});
@@ -106,12 +110,4 @@ function handleVisibility() {
   if (document.visibilityState === 'visible') {
     syncAnnouncementsToLocal().catch(() => {});
   }
-}
-
-export function stopAnnouncementLocalSync() {
-  if (timer) {
-    window.clearInterval(timer);
-    timer = null;
-  }
-  document.removeEventListener('visibilitychange', handleVisibility);
 }
