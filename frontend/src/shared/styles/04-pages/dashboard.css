@@ -816,21 +816,15 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-topbar-
 @keyframes studyFireGlow {
   0%, 100% {
     transform: translateY(0) rotate(-0.4deg);
-    box-shadow:
-      0 12px 30px rgba(240, 138, 44, 0.28),
-      0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+    box-shadow: 0 12px 30px rgba(240, 138, 44, 0.28);
   }
   42% {
     transform: translateY(-1px) rotate(0.6deg);
-    box-shadow:
-      0 16px 36px rgba(240, 138, 44, 0.36),
-      0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+    box-shadow: 0 16px 36px rgba(240, 138, 44, 0.36);
   }
   68% {
     transform: translateY(0) rotate(-0.8deg);
-    box-shadow:
-      0 10px 26px rgba(230, 107, 31, 0.32),
-      0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+    box-shadow: 0 10px 26px rgba(230, 107, 31, 0.32);
   }
 }
 
@@ -2821,9 +2815,7 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .s
   border-radius: 14px;
   background: rgba(31, 42, 56, 0.76);
   color: var(--sa-ink);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.025) inset,
-    0 14px 30px -22px rgba(2, 6, 12, 0.62);
+  box-shadow: 0 14px 30px -22px rgba(2, 6, 12, 0.62);
 }
 
 .study-hub-page .study-avatar--profile {

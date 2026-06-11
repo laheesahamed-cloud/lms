@@ -1268,9 +1268,7 @@ body,
 :root[data-theme="light"] .student-app-shell .lms-profile-avatar {
   border-color: rgba(255, 255, 255, 0.92) !important;
   background: var(--surface-card, #fbfcff) !important;
-  box-shadow:
-    0 8px 18px -14px rgba(37, 99, 235, 0.38),
-    0 0 0 1px rgba(37, 99, 235, 0.12) !important;
+  box-shadow: 0 8px 18px -14px rgba(37, 99, 235, 0.42) !important;
   filter: none !important;
   -webkit-filter: none !important;
   -webkit-backdrop-filter: none !important;
