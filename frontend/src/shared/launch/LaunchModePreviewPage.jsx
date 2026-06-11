@@ -1,4 +1,5 @@
 import { Navigate, useParams } from 'react-router-dom';
+import '../../surfaces/app/student-surface.css';
 import { LaunchModePage } from './LaunchModePage.jsx';
 
 export function LaunchModePreviewPage() {

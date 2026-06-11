@@ -39,13 +39,12 @@
 @import "./03-components/empty-loading-error.css";
 @import "./03-components/study-mascot.css";
 
-@import "./04-pages/courses.css";
-@import "./04-pages/lessons.css";
-@import "./04-pages/results.css";
+/* courses.css, lessons.css and results.css moved to
+   surfaces/app/student-surface.css (student-only) */
 @import "./04-pages/profile.css";
 @import "./04-pages/auth.css";
 @import "./04-pages/landing.css";
-@import "./04-pages/landing-v2.css";
+/* landing-v2.css moved to the website LandingPage chunk */
 @import "./04-pages/admin.css";
 
 @import "./05-platforms/platform-runtime.css";
@@ -67,11 +66,11 @@
 @import "./06-utilities/performance.css";
 @import "./06-utilities/print.css";
 
-@import "./04-pages/student-app.css";
+/* student-app.css, dashboard.css and launch-responsive.css moved to
+   surfaces/app/student-surface.css (student-only; order preserved there).
+   theme.css stays global — admin and website depend on it. */
 @import "./02-layout/bottom-nav.css";
-@import "./04-pages/dashboard.css";
 @import "./01-base/theme.css";
-@import "./06-utilities/launch-responsive.css";
 
 @config "../../../tailwind.config.js";
 @source "../../**/*.{js,jsx,ts,tsx}";

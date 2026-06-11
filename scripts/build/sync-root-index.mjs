@@ -30,7 +30,7 @@ async function assertExists(filePath, label) {
 await assertExists(distIndex, 'Built frontend index');
 
 const html = await readFile(distIndex, 'utf8');
-const cssMatches = [...html.matchAll(/href="([^"]*\/assets\/app-[^"]+\.css)"/g)];
+const cssMatches = [...html.matchAll(/href="([^"]*\/assets\/(?:css\/)?[^"]+\.css)"/g)];
 const jsMatch = html.match(/src="([^"]*\/assets\/app-[^"]+\.js)"/);
 
 if (!jsMatch) {

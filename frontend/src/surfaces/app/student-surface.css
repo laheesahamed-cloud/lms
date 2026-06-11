@@ -1,0 +1,18 @@
+/* ============================================================
+   Student-surface stylesheet bundle.
+   These files previously lived in shared/styles/index.css and loaded
+   globally on every surface; they style only the student app, so they
+   now load with the student route chunks instead.
+
+   ORDER IS LOAD-BEARING — it mirrors the original index.css order
+   (courses < lessons < results < student-app < dashboard <
+   launch-responsive). theme.css stays global (admin and website
+   depend on it) and loads BEFORE this bundle.
+   ============================================================ */
+
+@import "../../shared/styles/04-pages/courses.css";
+@import "../../shared/styles/04-pages/lessons.css";
+@import "../../shared/styles/04-pages/results.css";
+@import "../../shared/styles/04-pages/student-app.css";
+@import "../../shared/styles/04-pages/dashboard.css";
+@import "../../shared/styles/06-utilities/launch-responsive.css";

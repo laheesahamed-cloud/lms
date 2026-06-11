@@ -76,6 +76,7 @@ const LaunchModePreviewPage = lazyNamed(() => import('../shared/launch/LaunchMod
 const AiQuizGeneratorPage = lazyNamed(() => import('../surfaces/website/ai/AiQuizGeneratorPage.jsx'), 'AiQuizGeneratorPage');
 const ProfilePage = lazyNamed(() => import('../shared/account/ProfilePage.jsx'), 'ProfilePage');
 const PanelLayout = lazyNamed(() => import('../shared/layout/PanelLayout.jsx'), 'PanelLayout');
+const StudentPanelLayout = lazyNamed(() => import('../shared/layout/StudentPanelLayout.jsx'), 'StudentPanelLayout');
 
 const commonRoutePreloaders = new Map([
   ['/profile', ProfilePage.preload],
@@ -667,7 +668,7 @@ const router = createBrowserRouter([
         path: 'app',
         element: withLayoutSuspense(
           <ProtectedRoute role="student" allowPending>
-            <PanelLayout />
+            <StudentPanelLayout />
           </ProtectedRoute>
         ),
         children: studentPanelRoutes,
@@ -675,7 +676,7 @@ const router = createBrowserRouter([
       {
         element: withLayoutSuspense(
           <ProtectedRoute allowPending>
-            <PanelLayout />
+            <StudentPanelLayout />
           </ProtectedRoute>
         ),
         children: [

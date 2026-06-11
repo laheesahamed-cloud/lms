@@ -8,6 +8,7 @@
  *   Final CTA (pastel mesh) → Footer (near-black).
  */
 import { useCallback, useEffect, useState } from 'react';
+import '../../../shared/styles/04-pages/landing-v2.css';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
 import { CinematicHero } from '../components/CinematicHero.jsx';

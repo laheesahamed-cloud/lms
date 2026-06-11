@@ -7,7 +7,7 @@ const isDesktopBuild = process.env.VITE_LMS_BUILD_TARGET === 'desktop';
 const shouldEmitSourceMaps = process.env.VITE_SOURCEMAP === 'true';
 const appEntryFileName = 'assets/app-[hash].js';
 const appChunkFileName = 'assets/chunks/[name]-[hash].js';
-const appCssFileName = 'assets/app-[hash].css';
+const appCssFileName = 'assets/css/[name]-[hash].css';
 
 export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '/lms/' : isCapacitorBuild ? '/' : isDesktopBuild ? './' : '/lms/frontend/dist/',
