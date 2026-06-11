@@ -32,6 +32,17 @@ html[data-motion-paused] body *::after {
   transition-duration: 1ms !important;
 }
 
+/* User-idle pause (M5): after ~12s without input the decorative loops stop
+   burning CPU/GPU; any interaction resumes them instantly. Transitions are
+   deliberately NOT touched so the resuming interaction never glitches.
+   Scoped to the app/admin/auth surfaces — the marketing website keeps its
+   own motion untouched. */
+html[data-idle-paused] :where(.student-app-shell, .admin-app-shell, .app-shell, .auth-route-scene) *,
+html[data-idle-paused] :where(.student-app-shell, .admin-app-shell, .app-shell, .auth-route-scene) *::before,
+html[data-idle-paused] :where(.student-app-shell, .admin-app-shell, .app-shell, .auth-route-scene) *::after {
+  animation-play-state: paused !important;
+}
+
 :root[data-low-spec] :where(.lms-screen-status, .lms-toast),
 :root[data-visual-effects='balanced'] :where(.lms-screen-status, .lms-toast) {
   animation-duration: 180ms !important;

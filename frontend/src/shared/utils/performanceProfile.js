@@ -118,6 +118,33 @@ export function installMotionResourceGuards() {
   window.addEventListener('focus', resumeMotion, { passive: true });
   syncMotionPauseState();
 
+  // User-idle pause (M5): decorative loops stop after IDLE_PAUSE_MS without
+  // input and resume on the next interaction. Only animation-play-state is
+  // affected (see performance.css) so the resuming interaction never glitches.
+  const IDLE_PAUSE_MS = 12000;
+  const IDLE_RESET_THROTTLE_MS = 1000;
+  let idleTimer = 0;
+  let lastIdleReset = 0;
+  const setIdlePaused = (paused) => {
+    document.documentElement.toggleAttribute('data-idle-paused', paused);
+  };
+  const scheduleIdlePause = () => {
+    window.clearTimeout(idleTimer);
+    idleTimer = window.setTimeout(() => setIdlePaused(true), IDLE_PAUSE_MS);
+  };
+  const onUserActivity = () => {
+    const now = Date.now();
+    if (now - lastIdleReset < IDLE_RESET_THROTTLE_MS) return;
+    lastIdleReset = now;
+    setIdlePaused(false);
+    scheduleIdlePause();
+  };
+  const IDLE_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'];
+  for (const evt of IDLE_EVENTS) {
+    window.addEventListener(evt, onUserActivity, { passive: true, capture: true });
+  }
+  scheduleIdlePause();
+
   motionResourceGuardCleanup = () => {
     document.removeEventListener('visibilitychange', syncMotionPauseState);
     document.removeEventListener('resume', resumeMotion);
@@ -125,7 +152,12 @@ export function installMotionResourceGuards() {
     window.removeEventListener('pagehide', pauseMotion);
     window.removeEventListener('pageshow', resumeMotion);
     window.removeEventListener('focus', resumeMotion);
+    for (const evt of IDLE_EVENTS) {
+      window.removeEventListener(evt, onUserActivity, { capture: true });
+    }
+    window.clearTimeout(idleTimer);
     document.documentElement.removeAttribute('data-motion-paused');
+    document.documentElement.removeAttribute('data-idle-paused');
     document.body?.classList.remove('lms-motion-paused');
     motionResourceGuardCleanup = null;
   };
