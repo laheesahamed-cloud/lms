@@ -41,8 +41,9 @@
    dasharray/dashoffset draw works for both the circle and the check. */
 .lms-success-burst__circle,
 .lms-success-burst__check {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
+  /* 1.02 overdraw hides the hairline seam where the normalized path closes */
+  stroke-dasharray: 1.02;
+  stroke-dashoffset: 1.02;
   animation: lmsBurstDraw 500ms ease-out both;
 }
 
