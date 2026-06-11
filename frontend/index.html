@@ -116,6 +116,28 @@
         }
         root.style.colorScheme = theme;
         root.style.backgroundColor = isNativeShell ? (theme === 'dark' ? '#02030a' : '#dce6f4') : '#05070d';
+        // App-shell prerender + API preload (M6/M7): only on signed-in app
+        // surfaces. The splash carries NO user data (the shell is cached and
+        // shared, see report sec 13.4); the preload merely warms the same
+        // /auth/me request the app fires first, with matching credentials.
+        var appPath = /^\/lms\/(?:app|admin|dashboard|login)(?:\/|$)/.test(window.location.pathname);
+        if (appPath) {
+          root.dataset.lmsBootSplash = 'on';
+        }
+        if (appPath && window.location.pathname !== '/lms/login') {
+          try {
+            var apiHost = window.location.hostname;
+            var apiBase = (apiHost === 'localhost' || apiHost === '127.0.0.1' || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(apiHost))
+              ? window.location.protocol + '//' + apiHost + ':3000/api'
+              : '/api';
+            var preload = document.createElement('link');
+            preload.rel = 'preload';
+            preload.as = 'fetch';
+            preload.href = apiBase + '/auth/me';
+            preload.crossOrigin = 'use-credentials';
+            document.head.appendChild(preload);
+          } catch (error) {}
+        }
       })();
     </script>
     <style>
@@ -137,10 +159,42 @@
       html[data-lms-runtime="native"][data-theme="dark"] #root {
         background: #02030a;
       }
+      /* Boot splash (M7): contentful first paint on app surfaces before any
+         JS/CSS arrives. Shown only when the boot script sets
+         data-lms-boot-splash; React's first render replaces #root content. */
+      #lms-boot-splash {
+        display: none;
+      }
+      html[data-lms-boot-splash="on"] body.app-booting #lms-boot-splash {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #f3f6fc;
+        color: #0f172a;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      html[data-lms-boot-splash="on"][data-theme="dark"] body.app-booting #lms-boot-splash {
+        background: #0a0a0f;
+        color: #eef3f8;
+      }
+      #lms-boot-splash strong {
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        animation: lmsBootSplashPulse 1.4s ease-in-out infinite;
+      }
+      @keyframes lmsBootSplashPulse {
+        0%, 100% { opacity: 0.55; }
+        50% { opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #lms-boot-splash strong { animation: none; }
+      }
     </style>
   </head>
   <body class="app-booting">
-    <div id="root"></div>
+    <div id="root"><div id="lms-boot-splash" aria-hidden="true"><strong>xyndrome</strong></div></div>
     <script type="module">
       import('/src/main.jsx');
     </script>

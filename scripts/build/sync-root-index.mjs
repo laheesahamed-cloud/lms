@@ -1,4 +1,5 @@
-import { copyFile, readFile, stat } from 'node:fs/promises';
+import { copyFile, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,19 +30,51 @@ async function assertExists(filePath, label) {
 
 await assertExists(distIndex, 'Built frontend index');
 
-const html = await readFile(distIndex, 'utf8');
-const cssMatches = [...html.matchAll(/href="([^"]*\/assets\/(?:css\/)?[^"]+\.css)"/g)];
+let html = await readFile(distIndex, 'utf8');
 const jsMatch = html.match(/src="([^"]*\/assets\/app-[^"]+\.js)"/);
 
 if (!jsMatch) {
   throw new Error('Built frontend index does not contain the expected versioned app JS asset.');
 }
-
-for (const cssMatch of cssMatches) {
-  await assertExists(path.join(repoRoot, cssMatch[1].replace(/^\/lms\//, '')), 'Built app CSS');
-}
 await assertExists(path.join(repoRoot, jsMatch[1].replace(/^\/lms\//, '')), 'Built app JS');
+
+// Link the main stylesheet from the HTML head (M6). The bundler injects CSS
+// from JS, which serializes the entire stylesheet download behind JS boot;
+// this link lets it download in parallel with the entry chunk.
+const cssDir = path.join(repoRoot, 'frontend', 'dist', 'assets', 'css');
+const mainCss = (await readdir(cssDir)).find((name) => name.startsWith('main-') && name.endsWith('.css'));
+if (!mainCss) {
+  throw new Error('Built CSS directory does not contain the main stylesheet.');
+}
+const mainCssHref = `/lms/frontend/dist/assets/css/${mainCss}`;
+if (!html.includes(mainCssHref)) {
+  html = html.replace(
+    '<link rel="stylesheet" href="https://fonts.googleapis.com',
+    `<link rel="stylesheet" href="${mainCssHref}" />\n    <link rel="stylesheet" href="https://fonts.googleapis.com`
+  );
+}
+if (!html.includes(mainCssHref)) {
+  throw new Error('Could not inject the main stylesheet link into index.html.');
+}
+await writeFile(distIndex, html);
 await copyFile(distIndex, rootIndex);
+
+// CSP hashes for every inline <script> and <style> (report sec 13.1): the
+// .htaccess placeholders are replaced with the actual sha256 values so the
+// document never needs 'unsafe-inline'.
+const hashOf = (text) => `'sha256-${createHash('sha256').update(text).digest('base64')}'`;
+const inlineScripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+const inlineStyles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
+const scriptHashes = inlineScripts.map(hashOf).join(' ') || "'none'";
+const styleHashes = inlineStyles.map(hashOf).join(' ') || "'none'";
+
+for (const htaccessPath of [path.join(repoRoot, 'frontend', 'dist', '.htaccess'), path.join(repoRoot, '.htaccess')]) {
+  let template = await readFile(path.join(publicDir, '.htaccess'), 'utf8');
+  template = template
+    .replace('__LMS_SCRIPT_HASHES__', scriptHashes)
+    .replace('__LMS_STYLE_HASHES__', styleHashes);
+  await writeFile(htaccessPath, template);
+}
 
 for (const [sourceName, targetName] of rootPublicFiles) {
   const sourcePath = path.join(publicDir, sourceName);
@@ -50,5 +83,5 @@ for (const [sourceName, targetName] of rootPublicFiles) {
   await copyFile(sourcePath, targetPath);
 }
 
-console.log(`Synced ${path.relative(repoRoot, rootIndex)} to ${path.relative(repoRoot, distIndex)}`);
+console.log(`Synced ${path.relative(repoRoot, rootIndex)} to ${path.relative(repoRoot, distIndex)} (main CSS linked, CSP hashes: ${inlineScripts.length} script / ${inlineStyles.length} style)`);
 console.log('Synced root service worker and manifest from frontend/public');
