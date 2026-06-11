@@ -35,6 +35,18 @@ function markServiceWorkerReload() {
   }
 }
 
+// The app entry executes AFTER the window load event (the module graph
+// finishes past it), so a bare load listener never fires and the service
+// worker was never registered. Run immediately when the document is already
+// loaded, otherwise wait for load.
+function runOnWindowLoad(callback) {
+  if (document.readyState === 'complete') {
+    callback();
+    return;
+  }
+  window.addEventListener('load', callback, { once: true });
+}
+
 export function installPwaRegistration() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return;
@@ -45,7 +57,7 @@ export function installPwaRegistration() {
   }
 
   registrationListenerInstalled = true;
-  window.addEventListener('load', () => {
+  runOnWindowLoad(() => {
     const registerWhenSafe = () => {
       if (serviceWorkerRegistrationStarted || isAuthRoute()) {
         return;
@@ -72,7 +84,7 @@ export function installPwaRegistration() {
     }
 
     registerWhenSafe();
-  }, { once: true });
+  });
 }
 
 export function uninstallPwaRegistration() {
@@ -80,7 +92,7 @@ export function uninstallPwaRegistration() {
     return;
   }
 
-  window.addEventListener('load', () => {
+  runOnWindowLoad(() => {
     navigator.serviceWorker.getRegistrations()
       .then((registrations) => Promise.all(
         registrations.map((registration) => registration.unregister())
