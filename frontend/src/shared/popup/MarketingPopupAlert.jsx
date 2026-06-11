@@ -9,6 +9,10 @@ const POPUP_DISMISS_PREFIX = 'lms_popup_alert_dismissed';
 const POPUP_CACHE_KEY = 'lms_popup_alert_public_cache';
 const POPUP_API_MANIFEST_URL = '/api/uploads/marketing-popups/popup-alert.json';
 const POPUP_MANIFEST_TIMEOUT_MS = 1200;
+// Card 6a: the popup manifest was re-fetched on every page load. A fresh
+// cached copy now skips the network for this long; the admin "refresh"
+// event still forces a live fetch.
+const POPUP_CACHE_TTL_MS = 10 * 60_000;
 const websiteProtectedPathPattern =
   /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 
@@ -89,11 +93,14 @@ function writeDismissed(key) {
   }
 }
 
-function readCachedPopupAlert() {
+function readCachedPopupAlertEntry() {
   if (typeof window === 'undefined') return null;
   try {
     const cached = JSON.parse(window.localStorage.getItem(POPUP_CACHE_KEY) || 'null');
-    return cached && typeof cached === 'object' ? cached : null;
+    if (!cached || typeof cached !== 'object') return null;
+    if (cached.alert && typeof cached.alert === 'object') return cached;
+    // legacy shape: the alert object was stored bare, without a timestamp
+    return { alert: cached, fetchedAt: 0 };
   } catch {
     return null;
   }
@@ -106,7 +113,7 @@ function writeCachedPopupAlert(alert) {
       window.localStorage.removeItem(POPUP_CACHE_KEY);
       return;
     }
-    window.localStorage.setItem(POPUP_CACHE_KEY, JSON.stringify(alert));
+    window.localStorage.setItem(POPUP_CACHE_KEY, JSON.stringify({ alert, fetchedAt: Date.now() }));
   } catch {
     // The live settings fetch remains the source of truth if local storage is unavailable.
   }
@@ -136,7 +143,8 @@ async function fetchJsonWithTimeout(url, timeoutMs) {
 export function MarketingPopupAlert({ suppressed = false }) {
   const location = useLocation();
   const closeButtonRef = useRef(null);
-  const initialAlert = useMemo(() => readCachedPopupAlert(), []);
+  const initialCacheEntry = useMemo(() => readCachedPopupAlertEntry(), []);
+  const initialAlert = initialCacheEntry?.alert || null;
   const [alert, setAlert] = useState(initialAlert);
   const [dismissedKey, setDismissedKey] = useState('');
   const [loaded, setLoaded] = useState(() => Boolean(initialAlert));
@@ -202,11 +210,16 @@ export function MarketingPopupAlert({ suppressed = false }) {
       }
     }
 
+    const cacheIsFresh = Boolean(
+      initialCacheEntry && Date.now() - Number(initialCacheEntry.fetchedAt || 0) < POPUP_CACHE_TTL_MS
+    );
     const startupDelay = isLoginPath(window.location.pathname || '') ? 300 : 0;
-    const startupTimer = window.setTimeout(() => {
-      loadPopupAlertManifest();
-      loadPopupAlertSettings();
-    }, startupDelay);
+    const startupTimer = cacheIsFresh
+      ? 0
+      : window.setTimeout(() => {
+          loadPopupAlertManifest();
+          loadPopupAlertSettings();
+        }, startupDelay);
     const refreshPopupAlert = () => {
       loadPopupAlertManifest();
       loadPopupAlertSettings({ force: true });

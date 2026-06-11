@@ -2,6 +2,7 @@ import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
+import { gzipSync } from 'zlib';
 const express = require('express') as any;
 const { json, urlencoded } = express;
 const path = require('path');
@@ -400,6 +401,47 @@ export async function configureApp(app: INestApplication) {
       contentSecurityPolicy
     );
     res.removeHeader('X-Powered-By');
+    next();
+  });
+
+  // Gzip JSON responses above 1 KB (Card 4a). Implemented with Node's zlib so
+  // no new dependency ships. BREACH hygiene (report §13.5): session tokens
+  // never appear in JSON bodies (they live in the httpOnly lms_session
+  // cookie) and attacker-controlled request input is not reflected alongside
+  // secrets in any compressed response.
+  const GZIP_MIN_BYTES = 1024;
+  app.use((req: any, res: any, next: any) => {
+    if (!/\bgzip\b/i.test(String(req.headers?.['accept-encoding'] || ''))) {
+      next();
+      return;
+    }
+
+    const originalJson = res.json.bind(res);
+    res.json = (body: any) => {
+      let payload = '';
+      try {
+        payload = JSON.stringify(body);
+      } catch {
+        return originalJson(body);
+      }
+
+      if (!payload || Buffer.byteLength(payload) <= GZIP_MIN_BYTES || res.headersSent) {
+        return originalJson(body);
+      }
+
+      const compressed = gzipSync(Buffer.from(payload), { level: 5 });
+      res.setHeader('Content-Encoding', 'gzip');
+      if (!res.getHeader('Content-Type')) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      }
+      res.setHeader('Content-Length', String(compressed.length));
+      const vary = String(res.getHeader('Vary') || '');
+      if (!/Accept-Encoding/i.test(vary)) {
+        res.setHeader('Vary', vary ? `${vary}, Accept-Encoding` : 'Accept-Encoding');
+      }
+      res.end(compressed);
+      return res;
+    };
     next();
   });
 
