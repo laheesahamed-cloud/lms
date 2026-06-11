@@ -3,116 +3,6 @@
    Medical study polish for the student course library and map.
    ============================================================ */
 
-.student-app-shell .student-courses-hero {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(230px, 340px);
-  gap: clamp(18px, 3vw, 30px);
-  overflow: hidden;
-  padding: clamp(20px, 3vw, 30px);
-}
-
-.student-app-shell .student-courses-hero::before {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(var(--sa-primary-rgb), 0.08) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(var(--sa-primary-rgb), 0.06) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(110deg, transparent 0%, #000 20%, #000 62%, transparent 100%);
-  opacity: 0.56;
-  content: "";
-}
-
-.student-app-shell .student-courses-hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-.student-app-shell .student-courses-hero::after {
-  display: none !important;
-}
-
-.student-app-shell .student-courses-hero__copy {
-  display: grid;
-  align-content: center;
-  gap: 18px;
-  min-width: 0;
-}
-
-.student-app-shell .student-courses-hero__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.student-app-shell .student-courses-hero__chips span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 5px 12px;
-  border: 1px solid rgba(37, 99, 235, 0.18);
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.09);
-  color: #2563eb;
-  font-size: 12px;
-  font-weight: 850;
-  white-space: nowrap;
-  -webkit-text-fill-color: currentColor;
-}
-
-:root[data-theme="dark"] .student-app-shell .student-courses-hero__chips span,
-.student-app-shell[data-theme="dark"] .student-courses-hero__chips span {
-  border-color: var(--accent-border);
-  background: var(--accent-surface);
-}
-
-.student-app-shell .student-courses-hero__visual {
-  display: grid;
-  align-content: center;
-  gap: 10px;
-  min-height: 210px;
-  padding: 16px;
-  border-left: 1px solid var(--sa-border);
-}
-
-.student-app-shell .student-courses-hero__visual .medical-course-art {
-  width: min(100%, 300px);
-  justify-self: end;
-}
-
-.student-app-shell .student-courses-hero__visual div {
-  justify-self: end;
-  text-align: right;
-}
-
-.student-app-shell .student-courses-hero__visual span,
-.student-app-shell .student-course-card__media-copy span {
-  display: block;
-  color: var(--sa-text-3);
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.student-app-shell .student-courses-hero__visual strong,
-.student-app-shell .student-course-card__media-copy strong {
-  display: block;
-  color: var(--sa-ink);
-  font-size: 15px;
-  font-weight: 900;
-  line-height: 1.15;
-}
-
-.student-app-shell .student-courses-hero__metrics {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
 .student-app-shell .student-course-card {
   --course-accent: var(--sa-primary);
   --course-accent-2: var(--sa-ok);
@@ -185,58 +75,6 @@
   }
 }
 
-.student-app-shell .student-course-card__media {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(120px, 42%);
-  align-items: center;
-  gap: 8px;
-  min-height: 118px;
-  padding: 16px 18px;
-  overflow: hidden;
-  background:
-    linear-gradient(135deg, rgba(var(--course-accent-rgb), 0.16), rgba(var(--course-accent-2-rgb), 0.1)),
-    var(--sa-surface-2);
-}
-
-.student-app-shell .student-course-card__media::after {
-  position: absolute;
-  inset: auto 0 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(var(--course-accent-rgb), 0.16), transparent);
-  content: "";
-}
-
-.student-app-shell .student-course-card__media-copy {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.student-app-shell .student-course-card__art {
-  position: relative;
-  z-index: 1;
-  width: 150px;
-  max-width: 100%;
-  justify-self: end;
-}
-
-.student-app-shell .student-course-card__art .medical-course-art__grid {
-  display: none;
-}
-
-.student-app-shell .student-course-card__art .medical-course-art__sheet-line {
-  opacity: 0.34;
-}
-
-.student-app-shell .student-course-card__body {
-  display: grid;
-  gap: 15px;
-  padding: 18px;
-}
-
 .student-app-shell .student-course-card__icon {
   display: inline-grid;
   width: 46px;
@@ -262,26 +100,6 @@
   background: linear-gradient(90deg, var(--course-accent), var(--course-accent-2));
 }
 
-.student-app-shell .student-course-card__cta {
-  border: 1px solid rgba(var(--course-accent-rgb), 0.18);
-  border-radius: 16px;
-  background: rgba(var(--course-accent-rgb), 0.1);
-  color: var(--course-accent);
-}
-
-.student-app-shell .student-course-card--simple .student-course-card__cta {
-  border-color: rgba(var(--sa-primary-rgb), 0.14);
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .student-app-shell .student-course-card:hover .student-course-card__cta {
-    border-color: rgba(var(--course-accent-rgb), 0.3);
-    background: rgba(var(--course-accent-rgb), 0.14);
-  }
-}
-
 @media (hover: none), (pointer: coarse) {
   .student-app-shell .student-course-card:hover,
   .student-app-shell .student-course-card--simple:hover {
@@ -292,51 +110,6 @@
 .student-app-shell .student-course-card .rounded-2xl.border {
   border-color: var(--sa-border);
   background: var(--sa-surface-2);
-}
-
-.student-app-shell .medical-course-art {
-  display: block;
-  color: var(--course-accent, var(--sa-primary));
-}
-
-.student-app-shell .medical-course-art__grid {
-  stroke: currentColor;
-  stroke-opacity: 0.22;
-  stroke-width: 1;
-}
-
-.student-app-shell .medical-course-art__sheet {
-  fill: var(--sa-surface);
-  stroke: currentColor;
-  stroke-opacity: 0.28;
-  stroke-width: 2;
-}
-
-.student-app-shell .medical-course-art__sheet-line,
-.student-app-shell .medical-course-art__pulse,
-.student-app-shell .medical-course-art__tube,
-.student-app-shell .medical-course-art__tube-line,
-.student-app-shell .medical-course-art__molecule path {
-  stroke: currentColor;
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.student-app-shell .medical-course-art__sheet-line {
-  stroke-width: 3;
-  opacity: 0.58;
-}
-
-.student-app-shell .medical-course-art__pulse {
-  color: var(--course-accent-2, var(--sa-ok));
-}
-
-.student-app-shell .medical-course-art__tube-end,
-.student-app-shell .medical-course-art__molecule circle {
-  fill: var(--sa-surface);
-  stroke: currentColor;
-  stroke-width: 3;
 }
 
 /* ============================================================
@@ -374,10 +147,11 @@
   display: grid;
   gap: clamp(22px, 3.2vw, 32px);
   padding: clamp(22px, 3.2vw, 40px);
-  background: var(--sa-card-bg);
-  border: 1px solid var(--sa-border);
+  /* Master card recipe — flat surface, see CARD_DARK_MODE_PLAN.md */
+  background: var(--surface-card);
+  border: 1px solid var(--line-soft);
   border-radius: var(--ds-card-radius);
-  box-shadow: var(--sa-shadow-card);
+  box-shadow: var(--ds-card-shadow);
 }
 
 /* ---- Header / summary ---- */
@@ -385,6 +159,39 @@
   display: grid;
   gap: 10px;
   min-width: 0;
+}
+
+.student-app-shell .csum-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: start;
+  min-height: 44px;
+  margin-left: -6px;
+  padding: 0 10px 0 4px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink-medium);
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: color 140ms ease, transform 140ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.student-app-shell .csum-back:active {
+  transform: scale(0.97);
+}
+
+.student-app-shell .csum-back:focus-visible {
+  outline: 2px solid var(--c-blue);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .student-app-shell .csum-back:hover {
+    color: var(--ink-strong);
+  }
 }
 
 .student-app-shell .csum-eyebrow {
@@ -749,9 +556,13 @@
 }
 
 .student-app-shell .csum-row.is-current .csum-row-dot { background: var(--c-blue); }
+
 .student-app-shell .csum-row.is-strong .csum-row-dot { background: var(--c-green); }
+
 .student-app-shell .csum-row.is-needs-work .csum-row-dot { background: var(--c-orange); }
+
 .student-app-shell .csum-row.is-locked .csum-row-dot { background: var(--c-gray); }
+
 .student-app-shell .csum-row.is-developing .csum-row-dot { background: var(--c-blue); opacity: 0.55; }
 
 .student-app-shell .csum-row-marker {
@@ -948,71 +759,7 @@
   .student-app-shell .csum-skeleton { animation: none; }
 }
 
-@media (max-width: 900px) {
-  .student-app-shell .student-courses-hero {
-    grid-template-columns: 1fr;
-  }
-
-  .student-app-shell .student-courses-hero__visual {
-    grid-template-columns: minmax(0, 1fr) minmax(140px, 220px);
-    align-items: center;
-    min-height: 0;
-    border-top: 1px solid var(--sa-border);
-    border-left: 0;
-    padding: 14px 0 0;
-  }
-
-  .student-app-shell .student-courses-hero__visual .medical-course-art {
-    order: 2;
-  }
-
-  .student-app-shell .student-courses-hero__visual div {
-    justify-self: start;
-    text-align: left;
-  }
-
-}
-
-@media (max-width: 720px) {
-  .student-app-shell .student-courses-hero__metrics {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 520px) {
-  .student-app-shell .student-courses-hero {
-    padding: 18px;
-  }
-
-  .student-app-shell .student-courses-hero__visual {
-    grid-template-columns: 1fr;
-    min-height: 0;
-  }
-
-  .student-app-shell .student-courses-hero__visual .medical-course-art {
-    display: none;
-  }
-
-  .student-app-shell .student-courses-hero__metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .student-app-shell .student-courses-hero__metrics .rounded-2xl {
-    min-height: 82px;
-    padding: 10px !important;
-    border-radius: 16px !important;
-  }
-
-  .student-app-shell .student-courses-hero__metrics strong {
-    font-size: 24px !important;
-  }
-
-  .student-app-shell .student-courses-hero__metrics span {
-    font-size: 11px !important;
-    line-height: 1.15;
-    white-space: normal;
-  }
 
   .student-app-shell .student-course-card {
     min-height: 0 !important;
@@ -1020,20 +767,5 @@
 
   .student-app-shell .student-course-card--simple {
     padding: 12px !important;
-  }
-
-  .student-app-shell .student-course-card__media {
-    grid-template-columns: 1fr;
-    min-height: 0;
-    padding: 15px;
-  }
-
-  .student-app-shell .student-course-card__art {
-    width: 132px;
-    justify-self: start;
-  }
-
-  .student-app-shell .student-course-card__body {
-    padding: 15px;
   }
 }

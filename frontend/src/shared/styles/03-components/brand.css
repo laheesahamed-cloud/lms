@@ -127,10 +127,6 @@ html[data-lms-runtime="native"]:not([data-theme="dark"]) .xyndrome-logo-mark.xyn
   opacity: 0;
 }
 
-.xyndrome-logo-scope {
-  color: var(--xyndrome-logo-scope, #08245f);
-}
-
 .launch-mode-page .xyndrome-logo-mark {
   --xyndrome-logo-filter: saturate(1.08) contrast(1.04);
   z-index: 0;

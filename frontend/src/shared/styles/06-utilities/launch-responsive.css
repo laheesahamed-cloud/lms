@@ -511,22 +511,6 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] bo
   padding-top: 0 !important;
 }
 
-html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3,
-html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 {
-  bottom: 0 !important;
-  min-height: var(--bottom-nav-height, 80px) !important;
-  padding: 0 !important;
-  background: var(--app-bg-solid, var(--surface-0, #0b121b)) !important;
-}
-
-html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 > .lms-mobile-bottom-nav__inner,
-html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--app3 > .lms-mobile-bottom-nav__inner {
-  height: var(--bottom-nav-height, 80px) !important;
-  min-height: var(--bottom-nav-height, 80px) !important;
-  padding-bottom: max(7px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
-  border-radius: 18px 18px 0 0 !important;
-}
-
 /* Quiz-taking pages: wider, centered, and padded without going full-bleed. */
 .student-app-shell.quiz-focus-mode .lms-exam-page,
 .student-app-shell.quiz-focus-mode .practice-review-page,
@@ -679,16 +663,6 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] .l
   background: var(--color-primary-light, color-mix(in srgb, var(--color-primary, #2563eb) 12%, var(--surface-card, var(--surface-1)))) !important;
   color: var(--color-primary, #2563eb) !important;
   box-shadow: none !important;
-}
-
-.student-app-shell .lms-assessment-btn--flagged {
-  border-color: color-mix(in srgb, var(--color-warning, #d97706) 34%, var(--line-soft, rgba(148, 163, 184, 0.18))) !important;
-  background: color-mix(in srgb, var(--color-warning, #d97706) 12%, var(--surface-card, var(--surface-1))) !important;
-  color: #b45309 !important;
-}
-
-:root[data-theme="dark"] .student-app-shell .lms-assessment-btn--flagged {
-  color: #fbbf24 !important;
 }
 
 .student-app-shell .lms-assessment-btn:hover:not(:disabled) {
@@ -1274,6 +1248,33 @@ body.lms-profile-menu-open > .lms-profile-avatar-floating.is-closing {
 
 body.lms-profile-menu-open :where(.lms-topbar.is-profile-menu-open, .study-hub-topbar.is-profile-menu-open) {
   z-index: 10060 !important;
+}
+
+/* Notification dropdown: same iOS-safe compositing path as the profile menu.
+   The fill-mode `both` animation + backface-visibility + contain + will-change
+   pin it to its own persistent GPU layer so it composites ABOVE the scrolling
+   glassmorphism content (which otherwise paints over a plain position:fixed). */
+body.lms-notification-menu-open > #lms-notification-menu {
+  position: fixed !important;
+  z-index: 10081 !important;
+  transform-origin: top right !important;
+  animation: lmsProfilePopoverIn var(--lms-popover-motion, 180ms var(--lms-motion-soft, cubic-bezier(0.22, 1, 0.36, 1))) both !important;
+  backface-visibility: hidden;
+  contain: layout paint;
+  will-change: opacity, transform;
+}
+
+@media (max-width: 520px) {
+  body.lms-notification-menu-open > #lms-notification-menu {
+    transform-origin: top center !important;
+  }
+}
+
+/* Floating bell clone sits just above its menu, mirroring the profile avatar. */
+body.lms-notification-menu-open > .lms-notification-bell-floating {
+  z-index: 10082 !important;
+  backface-visibility: hidden;
+  will-change: opacity, transform;
 }
 
 :root[data-visual-effects] body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile-menu),

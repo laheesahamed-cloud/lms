@@ -58,24 +58,6 @@
   --type-metric: var(--type-weight-bold) var(--type-size-3xl) / 1 var(--type-font-display);
 }
 
-.type-display { font: var(--type-display); letter-spacing: var(--type-tracking-normal); }
-.type-page-title { font: var(--type-page-title); letter-spacing: var(--type-tracking-normal); }
-.type-section-title { font: var(--type-section-title); letter-spacing: var(--type-tracking-normal); }
-.type-card-title { font: var(--type-card-title); letter-spacing: var(--type-tracking-normal); }
-.type-body { font: var(--type-body); letter-spacing: var(--type-tracking-normal); }
-.type-ui { font: var(--type-ui); letter-spacing: var(--type-tracking-normal); }
-.type-label {
-  font: var(--type-label);
-  letter-spacing: var(--type-tracking-label);
-  text-transform: uppercase;
-}
-.type-caption { font: var(--type-caption); letter-spacing: var(--type-tracking-normal); }
-.type-metric {
-  font: var(--type-metric);
-  letter-spacing: var(--type-tracking-normal);
-  font-variant-numeric: tabular-nums;
-}
-
 @media (min-width: 768px) {
   :root {
     --type-size-3xl: 1.9375rem; /* 31px */

@@ -74,10 +74,13 @@
   --sa-shadow-card-hover: 0 1px 0 rgba(15, 20, 48, 0.03), 0 18px 42px rgba(37, 99, 235, 0.1);
   --sa-shadow-cta:        0 10px 24px -8px rgba(37, 99, 235, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   --sa-shadow-warn:       0 6px 14px -4px rgba(240, 138, 44, 0.5);
-  --sa-card-bg:
-    linear-gradient(145deg, rgba(var(--sa-surface-rgb), 0.94), rgba(var(--sa-surface-2-rgb), 0.88));
-  --sa-card-bg-hover:
-    linear-gradient(145deg, rgba(var(--sa-surface-rgb), 0.98), rgba(var(--sa-surface-2-rgb), 0.92));
+  /* Flat master card surface for ALL student cards — see CARD_DARK_MODE_PLAN.md.
+     Redefining these here (student scope only) flattens every card that reads
+     them, without touching admin/auth which sit outside .student-app-shell. */
+  --sa-card-bg: var(--surface-card);
+  --sa-card-bg-hover: var(--surface-card);
+  --lms-global-card-bg: var(--surface-card);
+  --lms-app-card-bg: var(--surface-card);
   --sa-feature-card-bg:
     radial-gradient(circle at 86% 20%, rgba(var(--sa-primary-rgb), 0.16), transparent 34%),
     radial-gradient(circle at 96% 92%, rgba(var(--sa-purple-rgb), 0.1), transparent 42%),
@@ -577,10 +580,18 @@
   --student-sidebar-border: rgba(203, 213, 225, 0.13);
   --student-sidebar-hover: rgba(203, 213, 225, 0.08);
   --student-sidebar-active: linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(56, 189, 248, 0.08));
-  background: var(--lms-global-card-bg) !important;
-  border-color: var(--lms-global-card-border, rgba(203, 213, 225, 0.13)) !important;
+  /* Match the app's dark surface (page + cards = rgba(10,10,15,.97) ≈ #0a0a0f).
+     The sidebar is position:fixed OUTSIDE .student-app-shell, so var(--surface-card)
+     would resolve to the theme base (#16181f) instead of the student value — use the
+     explicit value so the rail stays consistent with the rest of dark mode. */
+  background: #0a0a0f !important;
+  border-color: var(--student-sidebar-border) !important;
   color: #F8FAFC !important;
   box-shadow: var(--lms-global-card-shadow, 0 24px 56px -42px rgba(2, 6, 12, 0.62)) !important;
+  /* Kill the light-mode frosted glass (rgba(255,255,255,.7)+blur) so it can
+     never leak through in a webview — dark sidebar is a solid surface. */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 :root[data-theme='dark'] .lms-sidebar--student-model .lms-sidebar-brand {
@@ -1187,10 +1198,13 @@
   --sa-bg:            var(--app-bg);
   --sa-bg-grad-1:     #0e0e16;
   --sa-bg-grad-2:     #0a0a0f;
-  --sa-surface:       rgba(10, 10, 15, 0.97);
+  /* Dark card surface — elevated above the page per HIG luminance elevation
+     (see dark-card-elevation memory). Ladder: page #0a0a0f < recessed #111117
+     < card #16181f < raised #1c1f27. Cards now read as panels, not holes. */
+  --sa-surface:       #16181f;
   --sa-surface-2:     #111117;
-  --sa-surface-raised: rgba(16, 16, 22, 0.98);
-  --sa-surface-rgb:   10, 10, 15;
+  --sa-surface-raised: #1c1f27;
+  --sa-surface-rgb:   22, 24, 31;
   --sa-surface-2-rgb: 14, 14, 20;
 
   --sa-ink:      #F8FAFC;
@@ -1233,24 +1247,19 @@
   --app-bg: var(--sa-bg);
   --page-background: var(--sa-bg);
 
-  --sa-shadow-card:       inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 16px 36px -26px rgba(2, 6, 12, 0.62);
-  --sa-shadow-card-hover: inset 0 1px 0 rgba(255, 255, 255, 0.058), 0 22px 50px -30px rgba(2, 6, 12, 0.7);
-  --sa-shadow-cta:        0 10px 24px -8px rgba(96, 165, 250, 0.5), inset 0 1px 0 rgba(255,255,255,.14);
+  /* Flat xyndrome cards (XYNDROME_DARK_PLAN.md Phase 1): no inset edges. */
+  --sa-shadow-card:       0 20px 46px -30px rgba(0, 0, 0, 0.66);
+  --sa-shadow-card-hover: 0 20px 46px -30px rgba(0, 0, 0, 0.66);
+  --sa-shadow-cta:        0 10px 24px -8px rgba(96, 165, 250, 0.5);
   --sa-shadow-warn:       0 6px 14px -4px rgba(245, 168, 78, 0.4);
-  --sa-card-bg:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.030), rgba(255, 255, 255, 0.010) 38%, rgba(200, 210, 230, 0.016)),
-    linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.98) 56%, rgba(5, 5, 9, 0.99));
-  --sa-card-bg-hover:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.044), rgba(255, 255, 255, 0.018) 42%, rgba(200, 210, 230, 0.024)),
-    linear-gradient(145deg, rgba(14, 14, 20, 0.97), rgba(10, 10, 15, 0.99));
-  --sa-feature-card-bg:
-    radial-gradient(circle at 86% 20%, rgba(108, 176, 255, 0.07), transparent 34%),
-    radial-gradient(circle at 96% 92%, rgba(123, 143, 255, 0.05), transparent 42%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.028), transparent 42%),
-    linear-gradient(145deg, rgba(10, 10, 15, 0.97), rgba(7, 7, 11, 0.99));
-  --sa-soft-tile-bg:
-    linear-gradient(135deg, rgba(108, 176, 255, 0.06), rgba(123, 143, 255, 0.04)),
-    rgba(14, 14, 20, 0.72);
+  /* Flat master card surface (student scope only) — see CARD_DARK_MODE_PLAN.md */
+  --sa-card-bg: var(--surface-card);
+  --sa-card-bg-hover: var(--surface-card);
+  --lms-global-card-bg: var(--surface-card);
+  --lms-app-card-bg: var(--surface-card);
+  /* Flat xyndrome surfaces: recessed tiles sit one step below cards. */
+  --sa-feature-card-bg: #111117;
+  --sa-soft-tile-bg: #111117;
 
   /* Global token rebind, dark variant */
   --surface-0: var(--sa-bg);
@@ -1330,9 +1339,11 @@
   font-size: var(--type-size-base);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-body);
-  --lms-route-enter-duration: 300ms;
-  --lms-panel-route-duration: 300ms;
-  --lms-card-enter-duration: 300ms;
+  /* Snappier native-feel timings: route/page transitions ~200ms (#3),
+     content reveal/stagger 150ms per item (#6, ~330ms total incl. stagger). */
+  --lms-route-enter-duration: 200ms;
+  --lms-panel-route-duration: 200ms;
+  --lms-card-enter-duration: 150ms;
 }
 
 /* Display font everywhere headings live */
@@ -1844,6 +1855,40 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
     0 24px 56px -24px rgba(2, 6, 12, 0.62) !important;
 }
 
+/* ── Header popover unification (2026-06-11) ──────────────────────────────────
+   Force the avatar menu onto the SAME plain surface + standard drop-in as the
+   notification panel and search modal: no blue/cyan gradient tint, no staggered
+   item cascade. `html` / `html:root[data-theme=dark]` prefixes raise specificity
+   above the competing gradient/animation rules in theme.css + this file (which
+   load later in the bundle), without touching the floating-avatar mechanics. */
+html body.lms-profile-menu-open > .lms-profile-menu,
+html:root[data-theme='dark'] body.lms-profile-menu-open > .lms-profile-menu {
+  background: var(--surface-card-elevated) !important;
+  border: 1px solid var(--line-soft) !important;
+  box-shadow: var(--ds-floating-shadow) !important;
+  /* Opacity-only fade — no translate, so the panel never "drops in from below". */
+  transform: none !important;
+  animation: overlayIn var(--lms-dropdown-duration, 0.18s) var(--ease-out) both !important;
+  /* The fixed position is JS-computed in useLayoutEffect; on the first open the
+     style state is null for one render so the panel briefly uses the base
+     `absolute top-[100%+8px]` (bottom of <body>), and motion-smooth's
+     transition-duration (property defaults to `all`) then slides it up into
+     place — the "coming from down on first click". Kill the panel transition so
+     the position snaps instantly; the opacity fade above is the only entrance. */
+  transition: none !important;
+}
+html body.lms-profile-menu-open > .lms-profile-menu > * {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+/* Same first-open position-snap fix for the notification panel (also portaled
+   to <body> and positioned in a useLayoutEffect). */
+html body.lms-notification-menu-open > .lms-floating-panel {
+  transition: none !important;
+}
+
 .lms-profile-avatar-floating {
   display: inline-grid;
   place-items: center;
@@ -1871,6 +1916,39 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   box-shadow: none !important;
 }
 
+/* Floating bell clone — same lift-out mechanism as the profile avatar so the
+   notification dropdown trigger sits on the top compositing layer. */
+.lms-notification-bell-floating {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f172a;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 16px 34px -18px rgba(14, 21, 56, 0.38);
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(0.98);
+  animation: lmsProfileAvatarFloatIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+:root[data-theme='dark'] .lms-notification-bell-floating {
+  border-color: rgba(203, 213, 225, 0.16);
+  background: rgba(8, 8, 13, 0.86);
+  color: #e2e8f0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 36px -18px rgba(2, 6, 12, 0.62);
+}
+
+/* Hide the in-header bell while its floating clone is shown. */
+.is-notification-bell-open {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 .lms-profile-avatar-floating.is-closing {
   animation: lmsProfileAvatarFloatOut 160ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
@@ -1883,17 +1961,6 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
     0 18px 36px -18px rgba(2, 6, 12, 0.62);
 }
 
-@keyframes lmsProfileMenuTopNavIn {
-  from {
-    opacity: 0;
-    transform: translate3d(0, -6px, 0) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
 @keyframes lmsProfileMenuContentIn {
   from {
     opacity: 0;
@@ -1902,17 +1969,6 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes lmsProfileMenuTopNavOut {
-  from {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translate3d(0, -4px, 0) scale(0.98);
   }
 }
 
@@ -2033,10 +2089,6 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 .student-app-shell :where(.glass-card, .card-surface, .lms-app-card):hover {
   border-color: rgba(var(--sa-primary-rgb), 0.22);
 }
-
-.lms-app-card--padded { padding: 24px; }
-.lms-app-card--soft   { background: var(--sa-soft-tile-bg); }
-.lms-app-card--xl     { border-radius: var(--sa-radius-xl); }
 
 /* Page hero */
 .student-app-shell :where(.lms-page-header-card, .student-page-hero) {
@@ -2185,17 +2237,6 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
   background: var(--sa-primary-soft);
 }
 
-.lms-app-btn--soft {
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
-}
-
-.lms-app-btn--icon {
-  width: 44px;
-  min-height: 44px;
-  padding: 0;
-}
-
 .lms-app-btn:active { transform: scale(0.97); }
 .lms-app-btn:focus-visible {
   outline: 2px solid var(--sa-primary);
@@ -2203,59 +2244,10 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 }
 
 /* App chip — for tags / quick filters / hero chips */
-.lms-app-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 4px 11px;
-  border-radius: 999px;
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-.lms-app-chip--purple { background: var(--sa-purple-soft); color: var(--sa-purple); }
-.lms-app-chip--warn   { background: var(--sa-warn-soft); color: var(--sa-warn-deep); }
-.lms-app-chip--ok     { background: var(--sa-ok-soft); color: var(--sa-ok-deep); }
-.lms-app-chip--ghost  { background: transparent; border: 1px solid var(--sa-border); color: var(--sa-text-2); }
 
 /* Section head — eyebrow + small */
-.lms-app-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 16px 4px 12px;
-}
-.lms-app-section-head .lms-app-eyebrow {
-  display: block;
-  color: var(--sa-text-3);
-  font: var(--type-label);
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-.lms-app-section-head small {
-  color: var(--sa-text-3);
-  font: var(--type-caption);
-}
 
 /* Soft icon badge — used in cards (e.g., quick actions) */
-.lms-app-soft-icon {
-  display: inline-grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  border-radius: 16px;
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
-}
-.lms-app-soft-icon--purple { background: var(--sa-purple-soft); color: var(--sa-purple); }
-.lms-app-soft-icon--warn   { background: var(--sa-warn-soft); color: var(--sa-warn); }
-.lms-app-soft-icon--ok     { background: var(--sa-ok-soft); color: var(--sa-ok); }
-.lms-app-soft-icon--danger { background: var(--sa-danger-soft); color: var(--sa-danger); }
-.lms-app-soft-icon--sm     { width: 36px; height: 36px; border-radius: 12px; }
 
 /* Subtle text helpers */
 .student-app-shell :where(.text-ink-soft, .text-ink-muted, .table-subtext) {
@@ -2343,26 +2335,19 @@ body.lms-profile-menu-open > .lms-profile-menu :where(strong, small, span) {
 
 .student-app-shell.student-app-shell .student-page-hero.lms-hero-card,
 .student-app-shell.student-app-shell .lms-page-header-card,
-.student-app-shell.student-app-shell .lms-course-detail-hero,
 .student-app-shell.student-app-shell .glass-card,
-.student-app-shell.student-app-shell .card-surface,
-.student-app-shell.student-app-shell .lms-app-card,
 .student-app-shell.student-app-shell .lms-course-card,
 .student-app-shell.student-app-shell .student-course-card,
 .student-app-shell.student-app-shell .lms-quiz-card,
 .student-app-shell.student-app-shell .lms-quiz-course-card,
-.student-app-shell.student-app-shell .lms-quiz-subject-card,
-.student-app-shell.student-app-shell .lms-quiz-topic-card,
 .student-app-shell.student-app-shell .lms-quiz-set-card,
-.student-app-shell.student-app-shell .student-lessons-search-card,
 .student-app-shell.student-app-shell .student-lessons-course-card,
 .student-app-shell.student-app-shell .student-lessons-detail-toolbar,
 .student-app-shell.student-app-shell .student-lessons-category__head,
 .student-app-shell.student-app-shell .student-lessons-lesson-list-shell,
 .student-app-shell.student-app-shell .student-lessons-lesson-row,
 .student-app-shell.student-app-shell .student-results-focus,
-.student-app-shell.student-app-shell .student-results-history,
-.student-app-shell.student-app-shell .planner-panel {
+.student-app-shell.student-app-shell .student-results-history {
   border-color: var(--sa-border) !important;
   background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
@@ -3080,28 +3065,28 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 
 .student-app-shell :where(
   .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page, .student-study-page)
 ) :where(.management-layout, .study-hub-shell) > :where(:not(style):not(script):not(.study-hub-topbar)):nth-child(2) {
   animation-delay: 45ms;
 }
 
 .student-app-shell :where(
   .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page, .student-study-page)
 ) :where(.management-layout, .study-hub-shell) > :where(:not(style):not(script):not(.study-hub-topbar)):nth-child(3) {
   animation-delay: 90ms;
 }
 
 .student-app-shell :where(
   .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page, .student-study-page)
 ) :where(.management-layout, .study-hub-shell) > :where(:not(style):not(script):not(.study-hub-topbar)):nth-child(4) {
   animation-delay: 135ms;
 }
 
 .student-app-shell :where(
   .student-route-page:not(.dashboard-page):not(.lms-quiz-taking-page):not(.lms-exam-page):not(.practice-review-page):not(.lms-review-page):not(.student-result-detail-page),
-  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page)
+  .dashboard-page.study-hub-page:is(.student-courses-page, .lms-course-detail-page, .student-quiz-map-page, .student-billing-page, .student-checkout-page, .student-bookmarks-page, .student-notifications-page, .student-flashcards-page, .student-notes-page, .student-results-page, .study-planner-page, .ai-notes-list-page, .student-study-page)
 ) :where(.management-layout, .study-hub-shell) > :where(:not(style):not(script):not(.study-hub-topbar)):nth-child(n+5) {
   animation-delay: 180ms;
 }

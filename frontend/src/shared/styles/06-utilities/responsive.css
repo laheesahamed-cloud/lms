@@ -209,28 +209,11 @@ html[data-lms-runtime='native'] {
   --brand-gradient-teal: var(--brand-gradient-primary) !important;
 }
 
-.student-course-card__cta,
 .student-quiz-map-page :where(.lms-quiz-course-card button, .lms-quiz-subject-card button, .lms-quiz-topic-card button, .lms-quiz-set-card button),
 .student-quiz-map-page :where(.lms-quiz-course-card > div:first-child > span, .lms-quiz-subject-card [aria-hidden='true']) {
   border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.22) !important;
 }
 
-.student-course-card__visual {
-  background:
-    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, var(--brand-primary-start) 0%, var(--color-primary) 54%, var(--brand-primary-end) 100%) !important;
-}
-
-.student-course-card__visual > .absolute:not(:first-child),
-.student-course-card__visual .pointer-events-none.absolute {
-  opacity: 0.16 !important;
-}
-
-.student-course-card__visual :where(svg, path, circle, rect, line, ellipse, polygon) {
-  vector-effect: non-scaling-stroke;
-}
-
-.student-course-card__body [style*='linear-gradient'],
 .student-quiz-map-page [style*='linear-gradient'] {
   background: var(--brand-gradient-primary) !important;
 }

@@ -1004,12 +1004,13 @@
 .student-app-shell .student-result-stat-card,
 .student-app-shell .student-result-insight-card,
 .student-app-shell .student-result-focus-card {
-  border: 1px solid var(--sa-border);
-  border-radius: var(--results-inner-radius);
-  background: var(--sa-surface);
+  /* Master card recipe — flat surface, 22px, see CARD_DARK_MODE_PLAN.md */
+  border: 1px solid var(--line-soft);
+  border-radius: var(--ds-card-radius);
+  background: var(--surface-card);
   padding: var(--results-card-pad);
   color: var(--sa-ink);
-  box-shadow: var(--sa-shadow-card);
+  box-shadow: var(--ds-card-shadow);
 }
 
 .student-app-shell .student-result-stat-card {
@@ -1289,28 +1290,10 @@
   box-shadow: inset 0 0 0 1px rgba(var(--sa-ok-rgb, 22, 169, 116), 0.14) !important;
 }
 
-.lms-exam-page .lms-exam-question-nav > .lms-exam-nav-bubble.is-idle,
-.lms-exam-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-idle,
-.practice-review-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-idle {
+.lms-exam-page .lms-exam-question-nav > .lms-exam-nav-bubble.is-idle {
   border-color: rgba(var(--sa-warn-rgb, 245, 158, 11), 0.46) !important;
   background: rgba(var(--sa-warn-rgb, 245, 158, 11), 0.16) !important;
   color: var(--sa-warn-deep, #92400e) !important;
-}
-
-.lms-exam-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-current,
-.practice-review-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-current {
-  border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.42) !important;
-  background: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.16) !important;
-  color: var(--sa-primary, var(--color-primary)) !important;
-  box-shadow: 0 0 0 3px rgba(var(--sa-primary-rgb, 37, 99, 235), 0.1) !important;
-}
-
-.lms-exam-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-answered,
-.practice-review-page .lms-review-bubble-nav > .lms-review-nav-bubble.is-answered {
-  border-color: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.48) !important;
-  background: rgba(var(--sa-ok-rgb, 22, 169, 116), 0.2) !important;
-  color: var(--sa-ok-deep, #047857) !important;
-  box-shadow: inset 0 0 0 1px rgba(var(--sa-ok-rgb, 22, 169, 116), 0.14) !important;
 }
 
 .lms-exam-page .lms-exam-question-nav > .lms-exam-nav-bubble.is-review {

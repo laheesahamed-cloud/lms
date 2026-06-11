@@ -68,18 +68,6 @@ html[data-lms-runtime="pwa"] .animate-overlayIn {
   animation-iteration-count: 1 !important;
 }
 
-html[data-lms-runtime="pwa"][data-visual-effects] .animate-progressShimmer,
-html[data-lms-runtime="pwa"][data-low-spec] .animate-progressShimmer,
-html[data-lms-runtime="pwa"] .animate-progressShimmer {
-  animation: progressShimmer 2.2s var(--ease-std, ease) infinite 0.6s !important;
-  animation-name: progressShimmer !important;
-  animation-duration: 2.2s !important;
-  animation-timing-function: var(--ease-std, ease) !important;
-  animation-fill-mode: none !important;
-  animation-delay: 0.6s !important;
-  animation-iteration-count: infinite !important;
-}
-
 html[data-lms-runtime="pwa"] .motion-smooth {
   transition-duration: var(--lms-motion-duration, 160ms);
 }
@@ -91,28 +79,24 @@ html[data-lms-runtime="pwa"] .motion-smooth {
   :root[data-lms-runtime="pwa"][data-visual-effects] .animate-scaleIn,
   :root[data-lms-runtime="pwa"][data-visual-effects] .animate-dropdownIn,
   :root[data-lms-runtime="pwa"][data-visual-effects] .animate-overlayIn,
-  :root[data-lms-runtime="pwa"][data-visual-effects] .animate-progressShimmer,
   html[data-lms-runtime="pwa"][data-visual-effects] .animate-routeFade,
   html[data-lms-runtime="pwa"][data-visual-effects] .animate-panelRouteFade,
   html[data-lms-runtime="pwa"][data-visual-effects] .animate-fadePop,
   html[data-lms-runtime="pwa"][data-visual-effects] .animate-scaleIn,
   html[data-lms-runtime="pwa"][data-visual-effects] .animate-dropdownIn,
   html[data-lms-runtime="pwa"][data-visual-effects] .animate-overlayIn,
-  html[data-lms-runtime="pwa"][data-visual-effects] .animate-progressShimmer,
   html[data-lms-runtime="pwa"][data-low-spec] .animate-routeFade,
   html[data-lms-runtime="pwa"][data-low-spec] .animate-panelRouteFade,
   html[data-lms-runtime="pwa"][data-low-spec] .animate-fadePop,
   html[data-lms-runtime="pwa"][data-low-spec] .animate-scaleIn,
   html[data-lms-runtime="pwa"][data-low-spec] .animate-dropdownIn,
   html[data-lms-runtime="pwa"][data-low-spec] .animate-overlayIn,
-  html[data-lms-runtime="pwa"][data-low-spec] .animate-progressShimmer,
   html[data-lms-runtime="pwa"] .animate-routeFade,
   html[data-lms-runtime="pwa"] .animate-panelRouteFade,
   html[data-lms-runtime="pwa"] .animate-fadePop,
   html[data-lms-runtime="pwa"] .animate-scaleIn,
   html[data-lms-runtime="pwa"] .animate-dropdownIn,
-  html[data-lms-runtime="pwa"] .animate-overlayIn,
-  html[data-lms-runtime="pwa"] .animate-progressShimmer {
+  html[data-lms-runtime="pwa"] .animate-overlayIn {
     animation: none !important;
   }
 

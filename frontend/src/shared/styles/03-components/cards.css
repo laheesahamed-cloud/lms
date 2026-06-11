@@ -26,7 +26,7 @@
   --lms-global-card-bg:
     linear-gradient(145deg, rgba(200,210,220,.075) 0%, rgba(180,195,210,.038) 50%, rgba(160,175,190,.016) 100%),
     rgba(28, 30, 38, 0.86);
-  --lms-global-card-border: rgba(180, 190, 205, 0.11);
+  --lms-global-card-border: transparent; /* dark cards: no stroke, rely on bg + shadow */
   --lms-global-card-shadow: var(--ds-card-shadow-raised);
   --lms-app-card-bg: var(--lms-global-card-bg);
   --lms-app-list-card-bg: var(--lms-global-card-bg);
@@ -83,7 +83,19 @@
     inset 0 1px 0 rgba(210, 220, 230, 0.09),
     0 22px 60px -36px rgba(0, 0, 0, 0.72),
     0 2px 28px -12px rgba(59, 90, 255, 0.042) !important;
-  border-top-color: rgba(200, 210, 225, 0.13) !important;
+  border-color: transparent !important;
+}
+
+/* Dark cards: drop the hairline stroke (keep bg + shadow for separation). */
+:root[data-theme='dark'] :where(
+  .study-metric,
+  .study-course-row,
+  .study-level-summary__stats,
+  .study-plan-card__body,
+  .student-study-card-stack,
+  .student-study-row
+) {
+  border-color: transparent !important;
 }
 
 :where(
@@ -205,9 +217,7 @@
 }
 
 :root:not([data-theme='dark']) .student-page-hero.lms-hero-card,
-:root:not([data-theme='dark']) .lms-course-detail-hero.lms-page-header-card,
-:root[data-theme='dark'] .student-page-hero.lms-hero-card,
-:root[data-theme='dark'] .lms-course-detail-hero.lms-page-header-card {
+:root[data-theme='dark'] .student-page-hero.lms-hero-card {
   border-color: var(--lms-app-card-border) !important;
   background: var(--lms-app-card-bg) !important;
   box-shadow: var(--lms-app-card-shadow) !important;

@@ -13,10 +13,6 @@
   min-width: 0;
 }
 
-.student-app-shell .student-lessons-search-card {
-  border-radius: 18px;
-}
-
 .student-app-shell .student-lessons-hub,
 .student-app-shell .student-lessons-detail {
   width: 100%;
@@ -807,9 +803,6 @@
 }
 
 @media (max-width: 640px) {
-  .student-app-shell .student-lessons-search-card {
-    border-radius: 16px;
-  }
 
   .student-app-shell .student-lessons-section-head {
     grid-template-columns: 1fr;
@@ -929,92 +922,67 @@
 /* ============================================================
    AI NOTE READER (focus mode — sidebar hidden)
    ============================================================ */
-.ai-note-page {
-  width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
-  color: var(--sa-ink);
-}
-
-.ai-note-page * { box-sizing: border-box; }
-
-.student-app-shell .ai-note-topbar {
-  position: sticky;
-  top: calc(10px + env(safe-area-inset-top, 0px));
-  z-index: 40;
-  border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-lg);
-  background: rgba(var(--sa-surface-rgb), 0.82);
-  color: var(--sa-ink);
-  box-shadow: var(--ds-card-shadow-hover);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-.student-app-shell .ai-note-topbar-inner {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-}
-
-.student-app-shell .ai-note-topbar-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.student-app-shell .ai-note-topbar-actions :where(button, a) {
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: 14px;
-  border: 1px solid var(--sa-border);
-  background: var(--sa-surface);
-  color: var(--sa-ink);
-  transition: background var(--sa-dur) var(--sa-ease), border-color var(--sa-dur) var(--sa-ease), color var(--sa-dur) var(--sa-ease), transform var(--sa-dur) var(--sa-ease);
-}
-
-.student-app-shell .ai-note-topbar-actions :where(button, a):hover {
-  border-color: rgba(var(--sa-primary-rgb), 0.28);
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
-}
-
-.student-app-shell .ai-note-topbar-actions :where(button, a):active {
-  transform: scale(0.96);
-}
-
-.student-app-shell .ai-note-main {
-  border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-xl);
-  background: var(--sa-surface);
-  color: var(--sa-ink);
-  padding: clamp(20px, 3vw, 36px);
-  box-shadow: var(--ds-card-shadow);
-}
-
-.student-app-shell .ai-note-right-panel {
-  border: 1px solid var(--sa-border);
-  border-radius: var(--sa-radius-lg);
-  background: var(--sa-surface);
-  box-shadow: var(--ds-card-shadow);
-}
-
-@media (max-width: 1024px) {
-  .student-app-shell .ai-note-main { padding: 18px; border-radius: var(--sa-radius-lg); }
-}
-
-@media (max-width: 640px) {
-  .student-app-shell .ai-note-topbar-inner { padding: 8px 10px; gap: 8px; }
-  .student-app-shell .ai-note-main { padding: 16px; }
-}
 
 /* ============================================================
    LMS DELIGHT (study mode reward sheet)
    ============================================================ */
-.student-app-shell .lms-student-delight {
-  border-radius: var(--sa-radius-xl);
-  background: var(--sa-surface);
-  border: 1px solid var(--sa-border);
-  box-shadow: var(--ds-card-shadow-hover);
+
+/* ============================================================
+   Lessons list redesign: each SUBJECT = one neutral card, lessons as
+   inset divider rows (replaces the timeline/tree + per-lesson boxes).
+   Subject identity stays via the colored title/icon, not a tinted card.
+   ============================================================ */
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category {
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  background: var(--surface-card) !important;
+  border: 1px solid var(--line-soft) !important;
+  border-radius: var(--ds-card-radius) !important;
+  box-shadow: var(--ds-card-shadow) !important;
+}
+
+/* drop all the timeline decorations (left connector, node dot, energy flow) */
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category::before,
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category::after,
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category__head::before,
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row::before,
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* subject header sits inside the card */
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category__head {
+  padding: 15px 18px !important;
+}
+
+/* divider between the header and the lessons (hidden while collapsed) */
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-list-shell {
+  border-top: 1px solid var(--line-soft) !important;
+}
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category.is-collapsed .student-lessons-lesson-list-shell {
+  border-top-color: transparent !important;
+}
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-list {
+  gap: 0 !important;
+  padding: 0 !important;
+}
+
+/* lessons = flat rows separated by dividers (no card-in-card boxes) */
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row {
+  border: 0 !important;
+  border-top: 1px solid var(--line-soft) !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 13px 18px !important;
+  background: transparent !important;
+}
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row:first-child {
+  border-top: 0 !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  .student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row:hover {
+    background: color-mix(in srgb, var(--surface-card) 90%, var(--sa-primary, #60a5fa) 10%) !important;
+  }
 }
