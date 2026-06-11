@@ -14,7 +14,7 @@
 :root {
   --type-font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --type-font-body: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --type-font-brand: "Bricolage Grotesque", var(--type-font-display);
+  --type-font-brand: var(--type-font-display); /* Bricolage dropped (M3, owner-approved) */
   --type-font-notebook: "Patrick Hand", var(--type-font-body);
   --type-font-control: var(--type-font-body);
   --type-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;

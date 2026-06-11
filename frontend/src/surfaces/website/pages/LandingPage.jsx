@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import '../../../shared/styles/04-pages/landing-v2.css';
+import { ensureLandingFonts } from '../landingFonts.js';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
 import { CinematicHero } from '../components/CinematicHero.jsx';
@@ -24,6 +25,9 @@ import { TestimonialsMarquee } from '../components/landing/TestimonialsMarquee.j
 import { FeatureComparison } from '../components/landing/FeatureComparison.jsx';
 import { FinalCTA } from '../components/landing/FinalCTA.jsx';
 import { SiteFooter } from '../components/landing/SiteFooter.jsx';
+
+// Landing typefaces start loading as soon as the landing chunk arrives.
+ensureLandingFonts();
 
 export function LandingPage() {
   const user = useAuthStore((s) => s.user);
