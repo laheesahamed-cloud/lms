@@ -32,8 +32,20 @@ export default defineConfig(({ command }) => ({
           return 'assets/[name][extname]';
         },
         manualChunks: (id) => {
-          if (id.includes('node_modules/react-dom/')) return 'vendor-react-dom';
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-router') || id.includes('node_modules/zustand/')) return 'vendor-react';
+          if (id.includes('node_modules')) {
+            // Heavy libraries stay isolated so only the routes that import them pay for them.
+            if (id.includes('html2canvas')) return 'html2canvas';
+            if (id.includes('gsap')) return 'gsap';
+            if (id.includes('framer-motion')) return 'motion';
+            if (id.includes('node_modules/react-dom/')) return 'vendor-react-dom';
+            return 'vendor';
+          }
+          // SuccessBurst imports framer-motion; keeping it out of app-shared stops
+          // the motion chunk from becoming a dependency of every route.
+          if (id.includes('/src/shared/ui/SuccessBurst')) return undefined;
+          // Group only the small always-loaded shared tail; layout/search/popup/
+          // launch/account/seo stay route-driven so routes don't pay for them eagerly.
+          if (/\/src\/shared\/(api|platform|utils|stores|pwa|routing|auth|security|hooks|brand|components|notifications|ui)\//.test(id)) return 'app-shared';
         },
       },
     },
