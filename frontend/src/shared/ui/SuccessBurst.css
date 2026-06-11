@@ -1,0 +1,69 @@
+/* SuccessBurst animations, formerly framer-motion (Card 2).
+   Same choreography: confetti pop 850ms @200ms; svg spring-in;
+   circle draw 500ms; check draw 400ms @350ms. */
+
+.lms-success-burst__confetti {
+  opacity: 0;
+  animation: lmsBurstConfetti 850ms ease-out 200ms both;
+}
+
+@keyframes lmsBurstConfetti {
+  0% {
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(calc(var(--burst-x) * 0.5), calc(var(--burst-y) * 0.5)) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--burst-x), var(--burst-y)) scale(0.4);
+    opacity: 0;
+  }
+}
+
+.lms-success-burst__svg {
+  animation: lmsBurstSvgIn 420ms cubic-bezier(0.34, 1.45, 0.64, 1) both;
+}
+
+@keyframes lmsBurstSvgIn {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* pathLength="1" on the SVG shapes normalizes the dash space so the same
+   dasharray/dashoffset draw works for both the circle and the check. */
+.lms-success-burst__circle,
+.lms-success-burst__check {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: lmsBurstDraw 500ms ease-out both;
+}
+
+.lms-success-burst__check {
+  animation-duration: 400ms;
+  animation-delay: 350ms;
+}
+
+@keyframes lmsBurstDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lms-success-burst__svg,
+  .lms-success-burst__circle,
+  .lms-success-burst__check {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: none;
+  }
+}

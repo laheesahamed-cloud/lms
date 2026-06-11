@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useCountUp } from '../../../../shared/hooks/useCountUp.js';
 import { fetchStudentDashboard, readStudentDashboardCache } from '../../../../shared/api/dashboard.api.js';
@@ -467,10 +466,42 @@ function isNativePhoneRuntime() {
   return root.dataset.lmsRuntime === 'native' && root.dataset.lmsFormFactor === 'phone';
 }
 
+// CSS replacements for the former framer-motion entrance (Card 2): the
+// in-view trigger and reduced-motion check are the only JS left; the
+// animation itself lives in dashboard.css (.study-metric--animate).
+function useInViewOnce(ref, rootMargin = '-40px') {
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (inView) return undefined;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setInView(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref, rootMargin, inView]);
+  return inView;
+}
+
+function prefersReducedMotionNow() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0 }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-40px' });
-  const reduce = useReducedMotion() || isNativePhoneRuntime();
+  const inView = useInViewOnce(ref, '-40px');
+  const reduce = prefersReducedMotionNow() || isNativePhoneRuntime();
 
   // Count up the leading number of `value` (handles numbers and strings like "78%").
   const match = String(value).match(/^(\d+(?:\.\d+)?)(.*)$/s);
@@ -481,13 +512,13 @@ function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0
 
   const railPct = progress !== null ? clampPercent(progress) : 0;
 
+  const animClass = reduce ? '' : ` study-metric--animate${inView ? ' is-inview' : ''}`;
+
   return (
-    <motion.article
+    <article
       ref={ref}
-      className={`study-metric study-metric--${tone}`}
-      initial={reduce ? false : { opacity: 0, y: 14 }}
-      animate={reduce || inView ? { opacity: 1, y: 0 } : undefined}
-      transition={{ delay: index * 0.045, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className={`study-metric study-metric--${tone}${animClass}`}
+      style={{ '--metric-index': index }}
     >
       <span className="study-metric__icon"><Icon name={icon} /></span>
       <div>
@@ -497,15 +528,13 @@ function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0
       </div>
       {progress !== null ? (
         <div className="study-mini-rail" aria-hidden="true">
-          <motion.span
-            initial={reduce ? false : { scaleX: 0 }}
-            animate={inView || reduce ? { scaleX: railPct / 100 } : undefined}
-            transition={reduce ? { duration: 0 } : { delay: 0.2 + index * 0.045, duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-            style={{ width: '100%', originX: 0 }}
+          <span
+            className="study-mini-rail__fill"
+            style={{ width: '100%', '--rail-scale': railPct / 100 }}
           />
         </div>
       ) : null}
-    </motion.article>
+    </article>
   );
 }
 
@@ -899,7 +928,9 @@ function ExamCountdownCard({ item, serverClock, onOpen }) {
             ? 'This exam is available, but Planner has no scheduled due date.'
             : 'Add an exam task in Planner to show a server-date countdown.'}
       </p>
-      <small className="study-server-clock">Server date {serverDateKey || 'unknown'} · {serverClock?.timeZone || 'server-local'}</small>
+      {import.meta.env.DEV ? (
+        <small className="study-server-clock">Server date {serverDateKey || 'unknown'} · {serverClock?.timeZone || 'server-local'}</small>
+      ) : null}
     </section>
   );
 }

@@ -2990,6 +2990,45 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .s
   background: linear-gradient(90deg, #22c55e, #a78bfa);
 }
 
+/* Metric-card entrance, formerly framer-motion (Card 2). Same timing:
+   fade+rise 500ms cubic-bezier(0.16,1,0.3,1) staggered 45ms per card;
+   rail fill 850ms delayed 200ms behind the card. */
+.study-metric--animate {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.study-metric--animate.is-inview {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--metric-index, 0) * 45ms);
+}
+
+.study-mini-rail .study-mini-rail__fill {
+  transform: scaleX(var(--rail-scale, 0));
+  transform-origin: left center;
+}
+
+.study-metric--animate:not(.is-inview) .study-mini-rail__fill {
+  transform: scaleX(0);
+}
+
+.study-metric--animate.is-inview .study-mini-rail__fill {
+  transition: transform 850ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(200ms + var(--metric-index, 0) * 45ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-metric--animate {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 .study-hub-page .study-streak-card {
   height: 184px;
   min-height: 170px;
