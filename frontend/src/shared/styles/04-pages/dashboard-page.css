@@ -2941,3 +2941,226 @@
     display: none;
   }
 }
+
+
+/* ── theme.css dashboard-only rules (Round-3 Task 24) ──
+   Moved from 01-base/theme.css; theme loads near-terminally, and these
+   rules matched ONLY this page in the live 14-route rule matrix. ── */
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-continue-card {
+  border-color: var(--line-soft) !important;
+  background: var(--surface-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-continue-card .study-eyebrow {
+  color: #2563eb !important;
+  -webkit-text-fill-color: #2563eb !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-square-action,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-mood-card,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-question-card {
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #0F172A !important;
+  box-shadow: 0 20px 48px -36px rgba(37, 99, 235, 0.28) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card {
+  background: var(--surface-card) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card__head strong,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row strong {
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row small,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row em {
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row {
+  border-color: rgba(15, 23, 42, 0.10) !important;
+  background: rgba(255, 255, 255, 0.66) !important;
+  color: #0F172A !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card__head button,
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row i {
+  border-color: rgba(37, 99, 235, 0.16) !important;
+  background: rgba(37, 99, 235, 0.09) !important;
+  color: #2563eb !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row__icon {
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #2563eb !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row:first-child .study-plan-row__icon {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #16a34a !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row:nth-child(2) .study-plan-row__icon {
+  background: rgba(124, 58, 237, 0.12) !important;
+  color: #7c3aed !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row:nth-child(3) .study-plan-row__icon {
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #2563eb !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-card,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-streak-card {
+  border-color: var(--line-soft) !important;
+  background: var(--surface-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-top strong,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-streak-top strong {
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-days strong,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-streak-days strong {
+  color: #b45309 !important;
+  -webkit-text-fill-color: #b45309 !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-heatmap,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-heatmap {
+  border-color: rgba(96, 165, 250, 0.1) !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-heatmap__dot,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-heatmap__dot {
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  background: rgba(241, 245, 249, 0.74) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-heatmap__cell.is-today .study-heatmap__dot,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-heatmap__cell.is-today .study-heatmap__dot {
+  border-color: rgba(180, 83, 9, 0.48) !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-heatmap__label,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-heatmap__label {
+  color: #7f8cac !important;
+  -webkit-text-fill-color: #7f8cac !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-heatmap__cell.is-today .study-heatmap__label,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-heatmap__cell.is-today .study-heatmap__label {
+  color: #b45309 !important;
+  -webkit-text-fill-color: #b45309 !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-footer,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-streak-footer {
+  color: #66738d !important;
+  -webkit-text-fill-color: #66738d !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-streak-footer b,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-streak-footer b {
+  color: #b45309 !important;
+  -webkit-text-fill-color: #b45309 !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-action-grid > .study-action-card,
+:root[data-theme="light"] .student-app-shell .dashboard-page.study-hub-page .study-action-grid > .study-action-card {
+  border-color: rgba(37, 99, 235, 0.14) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 16px 36px -30px rgba(37, 99, 235, 0.3) !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-action-grid > .study-action-card > span {
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #2563eb !important;
+  -webkit-text-fill-color: #2563eb !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-action-grid > .study-action-card strong {
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
+}
+
+:root .dashboard-page :where(
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card
+)::before,
+:root .dashboard-page :where(
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card
+)::after {
+  background: none !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+}
+
+:root .dashboard-page :where(
+  .study-hero-soft-shape,
+  .study-readiness-glow,
+  .study-mood-orbit
+) {
+  display: none !important;
+}
+
+:root .dashboard-page :where(
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card
+) :where(h1, h2, h3, h4, strong, em, .study-hero-name, .study-hero-name > span, .study-readiness-card__score strong) {
+  color: var(--lms-app-card-title, var(--ink-strong)) !important;
+  -webkit-text-fill-color: var(--lms-app-card-title, var(--ink-strong)) !important;
+}
+
+:root .dashboard-page .study-continue-card .study-hero-name > strong.study-hero-name-nowrap {
+  background: var(--study-primary-cta-bg, var(--brand-gradient-primary)) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+:root .dashboard-page :where(
+  .study-continue-card,
+  .study-action-card,
+  .study-streak-card,
+  .study-readiness-card,
+  .study-plan-card,
+  .study-todo-card,
+  .study-mood-card,
+  .study-question-card
+) :where(p, small, .study-eyebrow, .study-hero-lead, .study-readiness-meta span, .study-readiness-card__score span) {
+  color: var(--lms-app-card-muted, var(--ink-soft)) !important;
+  -webkit-text-fill-color: var(--lms-app-card-muted, var(--ink-soft)) !important;
+}
