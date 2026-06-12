@@ -39,13 +39,11 @@
 @import "./03-components/empty-loading-error.css";
 @import "./03-components/study-mascot.css";
 
-/* courses.css, lessons.css and results.css moved to
-   surfaces/app/student-surface.css (student-only) */
-@import "./04-pages/profile.css";
-@import "./04-pages/auth.css";
-@import "./04-pages/landing.css";
-/* landing-v2.css moved to the website LandingPage chunk */
-@import "./04-pages/admin.css";
+/* Page CSS lives with its surface (Round-1 Task 3 / Round-2 Task 16):
+   student page files load via surfaces/app/student-surface.css and the
+   per-route chunks; the landing stylesheet lives in surfaces/website.
+   The old empty 04-pages/{profile,auth,landing,admin}.css files were
+   deleted (Round-3 Task 30). */
 
 @import "./05-platforms/platform-runtime.css";
 @import "./05-platforms/web.css";
