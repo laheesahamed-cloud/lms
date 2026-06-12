@@ -1,7 +1,7 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
 const DEFAULT_ICON = '/lms/favicon-light-192.png';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'xyndrome-lms-shell-20260612-assets-v9';
+const CACHE_NAME = 'xyndrome-lms-shell-20260612-assets-v10';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',
@@ -80,23 +80,35 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    if (isProtectedPath(url.pathname)) {
-      event.respondWith(
-        fetch(request, { cache: 'no-store' })
-          .catch(() => offlineProtectedResponse())
-      );
-      return;
-    }
-
-    event.respondWith(
-      fetch(request, { cache: 'no-store' })
+    // Stale-while-revalidate shell (Round-2 Task 20, owner-approved
+    // trade-off: a deploy becomes visible on the SECOND navigation after
+    // it). The shell HTML is static and carries NO user data (report sec
+    // 13.4), so serving it from cache is safe for protected paths too —
+    // page data always comes from the live API. The background fetch
+    // refreshes the cached shell on every navigation; kill-switch =
+    // uninstallPwaRegistration() / VITE_ENABLE_PWA=false, as before.
+    event.respondWith((async () => {
+      const revalidate = fetch(request, { cache: 'no-store' })
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/lms/index.html', copy)).catch(() => {});
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/lms/index.html', copy)).catch(() => {});
+          }
           return response;
-        })
-        .catch(() => caches.match('/lms/index.html').then((cached) => cached || caches.match('/lms/frontend/dist/index.html')))
-    );
+        });
+      const cached = await caches.match('/lms/index.html');
+      if (cached) {
+        event.waitUntil(revalidate.catch(() => undefined));
+        return cached;
+      }
+      return revalidate.catch(async () => {
+        const fallback = await caches.match('/lms/frontend/dist/index.html');
+        if (fallback) return fallback;
+        return isProtectedPath(url.pathname)
+          ? offlineProtectedResponse()
+          : Response.error();
+      });
+    })());
     return;
   }
 
