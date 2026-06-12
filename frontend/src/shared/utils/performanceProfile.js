@@ -172,6 +172,21 @@ export function shouldPreloadRoutes() {
 export function getRoutePreloadLimit() {
   if (!shouldPreloadRoutes()) return 0;
   const root = typeof document !== 'undefined' ? document.documentElement : null;
+  // Round-3 Task 25: on the web, defer idle route-warming until the service
+  // worker controls the page. First-ever visits stop paying ~3 route graphs
+  // of cold bytes; on every controlled load (i.e. all repeat visits) the
+  // prefetch is served from the SW cache and costs nothing. Hover/pointer
+  // intent prefetching (AppSidebar) is unaffected. Native has no SW and
+  // loads from local files, so it keeps eager warming.
+  const runtime = root?.dataset.lmsRuntime;
+  if (
+    runtime !== 'native' &&
+    typeof navigator !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    !navigator.serviceWorker.controller
+  ) {
+    return 0;
+  }
   const isPhone = root?.dataset.lmsFormFactor === 'phone';
   if (isLowSpecDevice()) return isPhone ? 1 : 2;
   return isPhone ? 2 : 3;
