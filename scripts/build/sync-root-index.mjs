@@ -49,12 +49,28 @@ if (!mainCss) {
 const mainCssHref = `/lms/frontend/dist/assets/css/${mainCss}`;
 if (!html.includes(mainCssHref)) {
   html = html.replace(
-    '<link rel="stylesheet" href="https://fonts.googleapis.com',
-    `<link rel="stylesheet" href="${mainCssHref}" />\n    <link rel="stylesheet" href="https://fonts.googleapis.com`
+    '<link rel="manifest"',
+    `<link rel="stylesheet" href="${mainCssHref}" />\n    <link rel="manifest"`
   );
 }
 if (!html.includes(mainCssHref)) {
   throw new Error('Could not inject the main stylesheet link into index.html.');
+}
+
+// Preload the self-hosted latin PJS file (Round-2 Task 17) so the variable
+// font arrives in parallel with CSS/JS; font-display:optional then never
+// falls back. Font preloads require crossorigin even same-origin.
+const assetsDir = path.join(repoRoot, 'frontend', 'dist', 'assets');
+const latinFont = (await readdir(assetsDir)).find((name) => name.startsWith('pjs-') && name.includes('latin') && !name.includes('latin-ext') && name.endsWith('.woff2'));
+if (!latinFont) {
+  throw new Error('Built assets do not contain the self-hosted PJS latin woff2.');
+}
+const fontHref = `/lms/frontend/dist/assets/${latinFont}`;
+if (!html.includes(fontHref)) {
+  html = html.replace(
+    `<link rel="stylesheet" href="${mainCssHref}" />`,
+    `<link rel="preload" as="font" type="font/woff2" href="${fontHref}" crossorigin />\n    <link rel="stylesheet" href="${mainCssHref}" />`
+  );
 }
 await writeFile(distIndex, html);
 await copyFile(distIndex, rootIndex);

@@ -1,7 +1,7 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
 const DEFAULT_ICON = '/lms/favicon-light-192.png';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'xyndrome-lms-shell-20260612-assets-v8';
+const CACHE_NAME = 'xyndrome-lms-shell-20260612-assets-v9';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',
@@ -144,7 +144,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (!/\.(?:png|jpg|jpeg|webp|svg|ico)$/i.test(url.pathname)) {
+  if (!/\.(?:png|jpg|jpeg|webp|svg|ico|woff2?|ttf)$/i.test(url.pathname)) {
     return;
   }
 
