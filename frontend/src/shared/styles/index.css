@@ -51,15 +51,9 @@
 @import "./05-platforms/web.css";
 @import "./05-platforms/pwa.css";
 @import "./05-platforms/desktop.css";
-@import "./05-platforms/native.css";
-@import "./05-platforms/native-phone.css";
-@import "./05-platforms/native-tablet.css";
-@import "./05-platforms/native-ios.css";
-@import "./05-platforms/native-ios-phone.css";
-@import "./05-platforms/native-ios-tablet.css";
-@import "./05-platforms/native-android.css";
-@import "./05-platforms/native-android-phone.css";
-@import "./05-platforms/native-android-tablet.css";
+/* native-*.css moved to native-platforms.css (Round-2 Task 16): every rule
+   is scoped under html[data-lms-runtime="native"], which never matches on
+   web — main.jsx loads the bundle only inside the native shell. */
 
 @import "./06-utilities/responsive.css";
 @import "./06-utilities/safe-area.css";

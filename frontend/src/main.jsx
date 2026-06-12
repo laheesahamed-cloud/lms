@@ -40,6 +40,10 @@ if (shouldRegisterServiceWorker(initialPlatform)) {
 }
 
 if (initialPlatform.isNative) {
+  // Native-only stylesheet bundle (Round-2 Task 16): every rule is scoped to
+  // html[data-lms-runtime="native"], so the web build never ships it. Inside
+  // the Capacitor shell this resolves from local files immediately.
+  import('./shared/styles/native-platforms.css').catch(() => {});
   import('./shared/platform/native/NotificationDelivery.js')
     .then((module) => module.installNativePushNotificationHandlers?.())
     .catch(() => {});

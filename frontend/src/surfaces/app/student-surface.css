@@ -1,13 +1,18 @@
 /* ============================================================
-   Student-surface stylesheet bundle.
-   These files previously lived in shared/styles/index.css and loaded
-   globally on every surface; they style only the student app, so they
-   now load with the student route chunks instead.
+   Student-surface stylesheet bundle — SHELL ONLY (Round-2 Task 16).
+   Loads with the student layout chunk on every student route.
 
-   ORDER IS LOAD-BEARING — it mirrors the original index.css order
-   (courses < lessons < results < student-app < dashboard <
-   launch-responsive). theme.css stays global (admin and website
-   depend on it) and loads BEFORE this bundle.
+   courses/lessons/results stay HERE: the rule-level split attempt showed
+   their rules deliberately LOSE cascade ties to student-app/theme, so they
+   must load BEFORE the shell files (page-chunk position broke course-detail
+   and results — see Task 16 result note). dashboard.css and
+   launch-responsive.css below retain only their cross-page rules; the
+   dashboard-only and quiz-only extracts load with those page chunks
+   (dashboard-page.css, quiz-exam.css).
+
+   ORDER IS LOAD-BEARING: student-app < dashboard < launch-responsive,
+   as in the original index.css. theme.css stays global and loads
+   BEFORE this bundle; page chunks load AFTER it.
    ============================================================ */
 
 @import "../../shared/styles/04-pages/courses.css";

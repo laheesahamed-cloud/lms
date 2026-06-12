@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import '../../../../shared/styles/04-pages/dashboard-page.css';
 import { useNavigate } from 'react-router-dom';
 import { useCountUp } from '../../../../shared/hooks/useCountUp.js';
 import { fetchStudentDashboard, readStudentDashboardCache } from '../../../../shared/api/dashboard.api.js';

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import '../../../../shared/styles/04-pages/quiz-exam.css';
 import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   finishPracticeAttempt,

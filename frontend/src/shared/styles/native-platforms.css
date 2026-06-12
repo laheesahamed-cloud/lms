@@ -1,0 +1,19 @@
+/* ============================================================
+   Native-shell stylesheet bundle (Round-2 Task 16).
+   Previously global; every rule is scoped under
+   html[data-lms-runtime="native"] (or form-factor variants of it),
+   so web/PWA/desktop never match any of it. main.jsx dynamic-imports
+   this when the Capacitor shell is detected — assets are local on
+   device, so the extra fetch is effectively free.
+   Order preserved from the original index.css.
+   ============================================================ */
+
+@import "./05-platforms/native.css";
+@import "./05-platforms/native-phone.css";
+@import "./05-platforms/native-tablet.css";
+@import "./05-platforms/native-ios.css";
+@import "./05-platforms/native-ios-phone.css";
+@import "./05-platforms/native-ios-tablet.css";
+@import "./05-platforms/native-android.css";
+@import "./05-platforms/native-android-phone.css";
+@import "./05-platforms/native-android-tablet.css";
