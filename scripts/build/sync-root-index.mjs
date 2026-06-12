@@ -10,7 +10,6 @@ const rootIndex = path.join(repoRoot, 'index.html');
 const publicDir = path.join(repoRoot, 'frontend', 'public');
 const rootPublicFiles = [
   ['sw.js', 'sw.js'],
-  ['boot.js', 'boot.js'],
   ['manifest.webmanifest', 'manifest.webmanifest'],
   ['robots.txt', 'robots.txt'],
   ['sitemap.xml', 'sitemap.xml'],
