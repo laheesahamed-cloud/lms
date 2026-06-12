@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import './flashcards-anim.css';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getAiNoteWithFallback, listStudentAiNotesAcrossEngines } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -10,119 +11,6 @@ import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 /* ─────────────────────────────────────────
    STYLES
 ───────────────────────────────────────── */
-const ANIM_CSS = `
-.fc-deck-table {
-  border-spacing: 0;
-}
-.fc-deck-cell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 3rem;
-  align-items: center;
-  column-gap: 0.25rem;
-}
-.fc-deck-label {
-  --fc-depth: 0;
-  --fc-indent-step: clamp(8px, 1vw, 12px);
-  padding-left: calc(var(--fc-depth) * var(--fc-indent-step));
-}
-.fc-deck-status-slot {
-  min-width: 1.5rem;
-  justify-self: end;
-}
-.fc-deck-empty-mark {
-  white-space: nowrap;
-}
-.fc-deck-chevron {
-  transition: transform 150ms cubic-bezier(0.23,1,0.32,1), color 150ms ease;
-}
-.fc-deck-chevron[data-expanded="true"] {
-  transform: rotate(90deg);
-}
-@media (max-width: 640px) {
-  .fc-deck-row {
-    min-height: 44px;
-  }
-  .fc-deck-cell {
-    grid-template-columns: minmax(0, 1fr) 2.75rem;
-    column-gap: 0.125rem;
-  }
-  .fc-deck-label {
-    --fc-indent-step: 7px;
-  }
-}
-@media (max-width: 380px) {
-  .fc-deck-cell {
-    grid-template-columns: minmax(0, 1fr) 2.5rem;
-  }
-  .fc-deck-label {
-    --fc-indent-step: 5px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .fc-deck-chevron {
-    transition: none;
-  }
-}
-.fc-card-front-bg {
-  background-color: var(--surface-1);
-  background-image: radial-gradient(ellipse at 88% 12%, rgba(59,130,246,0.09), transparent 42%);
-}
-.fc-card-back-bg {
-  background-color: var(--surface-1);
-  background-image: radial-gradient(ellipse at 12% 12%, rgba(16,185,129,0.09), transparent 42%);
-}
-.fc-answer-block {
-  min-height: 0;
-  height: 100%;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
-  gap: 0.625rem;
-}
-.fc-answer-copy {
-  min-height: 0;
-  overflow: hidden;
-}
-.fc-answer-text {
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.fc-answer-gallery {
-  display: grid;
-  gap: 0.5rem;
-}
-.fc-answer-gallery img {
-  width: 100%;
-  border-radius: 0.5rem;
-}
-.fc-answer-gallery-1 img {
-  height: clamp(8.25rem, 24dvh, 13rem);
-}
-.fc-answer-gallery-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.fc-answer-gallery-2 img {
-  height: clamp(5.75rem, 17dvh, 8.5rem);
-}
-.fc-answer-gallery-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.fc-answer-gallery-3 img {
-  height: clamp(4.5rem, 14dvh, 7rem);
-}
-@media (max-width: 460px) {
-  .fc-answer-text {
-    -webkit-line-clamp: 4;
-  }
-  .fc-answer-gallery {
-    gap: 0.375rem;
-  }
-  .fc-answer-gallery-3 img {
-    height: clamp(3.75rem, 12dvh, 5.5rem);
-  }
-}
-`;
 
 /* ─────────────────────────────────────────
    CARD TYPE CONFIG
@@ -1499,8 +1387,7 @@ function PickPhase({
 
   return (
     <main className="dashboard-page study-hub-page student-flashcards-page min-h-dvh">
-      <style>{ANIM_CSS}</style>
-      <section className="study-hub-shell grid max-w-[1080px] gap-4">
+      <section className="study-hub-shell grid gap-4">
         <AppHeader title="Flashcards" subtitle="Spaced Review" />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
@@ -1715,7 +1602,6 @@ function SessionPhase({ quiz, cards, onDone, onBack }) {
 
   return (
     <main className="dashboard-page study-hub-page student-flashcards-page">
-      <style>{ANIM_CSS}</style>
       <section className="study-hub-shell">
 
         {/* Header */}
@@ -1915,7 +1801,6 @@ function ResultPhase({ quiz, result, onRetry, onRetryMissed, onBack }) {
 
   return (
     <main className="dashboard-page study-hub-page student-flashcards-page">
-      <style>{ANIM_CSS}</style>
       <section className="study-hub-shell">
         <div className="flex flex-col items-center px-5 py-12 text-center">
 

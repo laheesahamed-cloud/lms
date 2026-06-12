@@ -1,10 +1,11 @@
 const DEFAULT_NOTIFICATION_URL = '/lms/notifications';
 const DEFAULT_ICON = '/lms/favicon-light-192.png';
 const DEFAULT_BADGE = '/lms/pwa-maskable.svg';
-const CACHE_NAME = 'xyndrome-lms-shell-20260612-assets-v10';
+const CACHE_NAME = 'xyndrome-lms-shell-20260612-assets-v11';
 const APP_SHELL_URLS = [
   '/lms/',
   '/lms/index.html',
+  '/lms/boot.js',
   '/lms/manifest.webmanifest',
   '/lms/favicon-light-32.png',
   '/lms/favicon-light-180.png',
@@ -114,7 +115,8 @@ self.addEventListener('fetch', (event) => {
 
   const isServiceWorkerOrManifest =
     url.pathname.endsWith('.webmanifest') ||
-    url.pathname.endsWith('/sw.js');
+    url.pathname.endsWith('/sw.js') ||
+    url.pathname.endsWith('/boot.js');
 
   if (isServiceWorkerOrManifest) {
     event.respondWith(

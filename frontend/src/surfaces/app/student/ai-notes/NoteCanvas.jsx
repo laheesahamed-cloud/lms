@@ -1,23 +1,10 @@
 import { forwardRef, memo, useState, useRef, useEffect } from 'react';
+import './note-canvas.css';
 import { createPortal } from 'react-dom';
 import { useThemeStore } from '../../../../shared/stores/themeStore.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
 
-if (typeof document !== 'undefined' && !document.getElementById('canvas-study-styles')) {
-  const sty = document.createElement('style');
-  sty.id = 'canvas-study-styles';
-  sty.textContent = [
-    '@keyframes ncvLightboxBackdropIn{from{opacity:0}to{opacity:1}}',
-    '@keyframes ncvLightboxPanelIn{from{opacity:0;transform:translateY(12px) scale(0.985)}to{opacity:1;transform:translateY(0) scale(1)}}',
-    '.ncv-lightbox-backdrop{animation:ncvLightboxBackdropIn 0.18s cubic-bezier(0.22,1,0.36,1) both}',
-    '.ncv-lightbox-panel{animation:ncvLightboxPanelIn 0.22s cubic-bezier(0.22,1,0.36,1) both}',
-    '.focus-canvas .ncv-item{transition:opacity 160ms cubic-bezier(0.16,1,0.3,1),transform 160ms cubic-bezier(0.16,1,0.3,1),box-shadow 160ms cubic-bezier(0.16,1,0.3,1);opacity:0.3}',
-    '.focus-canvas .ncv-item:hover{opacity:1!important;transform:translateY(-3px) scale(1.014);z-index:12;position:relative}',
-    '@media (prefers-reduced-motion: reduce){.ncv-lightbox-backdrop,.ncv-lightbox-panel{animation:none!important}.focus-canvas .ncv-item{transition:none!important}}',
-  ].join('');
-  document.head.appendChild(sty);
-}
 
 function confirmCanvasRemoval(message) {
   return typeof window === 'undefined' || window.confirm(message);

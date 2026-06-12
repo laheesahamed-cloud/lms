@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import './ai-notes-inline.css';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getAiNoteWithFallback, getLessonAiNoteWithFallback } from '../../../../shared/api/aiNotes.api.js';
@@ -1758,243 +1759,8 @@ function appendPointToCurrentStroke(event) {
 });
 
 function SmoothCanvasMotion() {
-  return (
-    <style>{`
-      @keyframes lmsToastIn {
-        from { opacity: 0; transform: translate3d(-50%, 10px, 0) scale(.98); }
-        to { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1); }
-      }
-      html[data-lms-runtime="native"] .lms-ai-note-page {
-        --lms-ai-note-native-topbar-height: calc(58px + env(safe-area-inset-top, 0px));
-        padding-top: var(--lms-ai-note-native-topbar-height);
-        overscroll-behavior: contain !important;
-      }
-      html[data-lms-runtime="native"] .lms-ai-note-topbar {
-        position: fixed !important;
-        top: 0 !important;
-        right: 0 !important;
-        left: 0 !important;
-        z-index: 9997 !important;
-        transform: translate3d(0, 0, 0) !important;
-        overscroll-behavior: none !important;
-      }
-      html[data-lms-runtime="native"] .lms-ai-note-topbar-inner {
-        transform: none !important;
-        contain: paint;
-      }
-      @media (max-width: 760px) {
-        html[data-lms-runtime="native"] .lms-ai-note-page {
-          --lms-ai-note-native-topbar-height: calc(134px + env(safe-area-inset-top, 0px));
-        }
-      }
-      .lms-ai-canvas-shell {
-        animation: none;
-        transform: none;
-      }
-      .lms-ai-note-topbar-inner > * {
-        min-width: 0;
-      }
-      .lms-ai-note-back-slot {
-        justify-content: flex-start !important;
-      }
-      .lms-ai-note-back-button,
-      .lms-ai-note-action-button {
-        min-height: 38px;
-        white-space: nowrap;
-      }
-      .lms-ai-note-title-block {
-        min-width: 0;
-        overflow: hidden;
-      }
-      .lms-ai-note-topbar-actions {
-        min-width: 0;
-      }
-      .lms-ai-note-control-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-        flex-wrap: wrap;
-        margin-top: 8px;
-      }
-      .lms-ai-note-progress-inline {
-        display: grid;
-        gap: 5px;
-        width: 100%;
-        border: 1px solid var(--lms-ai-note-progress-border);
-        background: var(--lms-ai-note-progress-bg);
-        border-radius: 12px;
-        padding: 7px 9px;
-      }
-      .lms-ai-note-page {
-        padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
-      }
-      .lms-ai-note-reading-dock {
-        position: fixed;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        z-index: 9998;
-        padding: 10px 24px 0;
-        pointer-events: none;
-      }
-      .lms-ai-note-reading-dock__inner {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 10px;
-        max-width: 1680px;
-        margin: 0 auto;
-        border: 1px solid var(--lms-ai-note-progress-border);
-        border-radius: 18px 18px 0 0;
-        background: color-mix(in srgb, var(--lms-ai-note-progress-bg) 92%, transparent);
-        box-shadow: 0 -1px 12px rgba(15, 23, 42, 0.05);
-        padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-        pointer-events: auto;
-        -webkit-backdrop-filter: blur(18px) saturate(1.08);
-        backdrop-filter: blur(18px) saturate(1.08);
-      }
-      .lms-ai-note-progress-inline--floating {
-        min-height: 38px;
-        align-content: center;
-      }
-      .lms-ai-note-page :where(.ncv-enter, .ncv-entered) {
-        animation: none !important;
-        opacity: 1 !important;
-        transform: none !important;
-      }
-      .lms-ai-note-page :where(.lms-ai-canvas-editor, .lms-ai-canvas-surface, .ncv-item) {
-        perspective: none !important;
-        transform: none !important;
-        transform-style: flat !important;
-        filter: none !important;
-      }
-      .lms-ai-note-page :where(.lms-ai-canvas-surface, .ncv-item, .ncv-item > *) {
-        box-shadow: none !important;
-      }
-      .lms-ai-note-page :where(.ncv-item, .ncv-item > *) {
-        transition-property: background-color, border-color, color, opacity !important;
-      }
-      .lms-ai-note-page :where(.ncv-item:hover, .ncv-item:hover > *, .focus-canvas .ncv-item:hover) {
-        opacity: 1 !important;
-        transform: none !important;
-        box-shadow: none !important;
-      }
-      .lms-smooth-action {
-        transition: transform 180ms cubic-bezier(.16,1,.3,1), box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease, opacity 180ms ease;
-      }
-      .lms-smooth-action:hover:not(:disabled) {
-        transform: translate3d(0, -1px, 0);
-      }
-      .lms-toast {
-        animation: lmsToastIn 190ms cubic-bezier(.16,1,.3,1) both;
-      }
-      @media (max-width: 1180px) {
-        .lms-ai-note-topbar-inner {
-          grid-template-columns: auto minmax(0, 1fr) auto !important;
-          gap: 12px !important;
-        }
-        .lms-ai-canvas-shell {
-          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          align-items: start;
-        }
-        .lms-ai-note-main {
-          grid-column: 1 / -1;
-          order: 1;
-        }
-        .lms-ai-note-left-panel {
-          order: 2;
-        }
-        .lms-ai-note-right-panel {
-          order: 3;
-        }
-      }
-      @media (max-width: 760px) {
-        .lms-ai-note-topbar-inner {
-          grid-template-columns: minmax(0, 1fr) !important;
-          align-items: center !important;
-          gap: 10px !important;
-        }
-        .lms-ai-note-topbar-actions {
-          display: flex !important;
-          justify-content: stretch !important;
-          gap: 8px !important;
-        }
-        .lms-ai-note-control-row {
-          gap: 7px;
-        }
-        .lms-ai-note-control-row > button,
-        .lms-ai-note-control-row > .theme-toggle,
-        .lms-ai-note-action-button {
-          flex: 1 1 auto;
-        }
-        .lms-ai-note-page {
-          padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
-        }
-        .lms-ai-note-reading-dock {
-          bottom: 0;
-          padding: 8px 12px 0;
-        }
-        .lms-ai-note-reading-dock__inner {
-          grid-template-columns: minmax(0, 1fr) auto;
-          gap: 8px;
-          border-radius: 16px 16px 0 0;
-          padding: 9px 9px calc(9px + env(safe-area-inset-bottom, 0px));
-        }
-        .lms-ai-note-reading-dock .lms-ai-note-action-button {
-          width: auto;
-          min-width: 92px;
-        }
-        .lms-ai-note-progress-inline--floating {
-          min-width: 0;
-        }
-      }
-      @media (max-width: 360px) {
-        .lms-ai-note-reading-dock__inner {
-          grid-template-columns: minmax(0, 1fr) minmax(78px, auto);
-        }
-        .lms-ai-note-reading-dock .lms-ai-note-action-button {
-          min-width: 78px;
-          padding-inline: 9px !important;
-          font-size: 11px !important;
-        }
-        .lms-ai-canvas-shell {
-          grid-template-columns: 1fr !important;
-        }
-      }
-      @media (max-width: 760px) {
-        .lms-ai-canvas-shell {
-          grid-template-columns: 1fr !important;
-        }
-        .lms-ai-note-main,
-        .lms-ai-note-left-panel,
-        .lms-ai-note-right-panel {
-          grid-column: auto;
-        }
-      }
-      @media (max-width: 430px) {
-        .lms-ai-note-topbar-inner {
-          grid-template-columns: 1fr !important;
-          align-items: stretch !important;
-        }
-        .lms-ai-note-back-button {
-          justify-content: center !important;
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .lms-ai-canvas-shell,
-        .lms-toast {
-          animation: none;
-        }
-        .lms-smooth-action {
-          transition: none;
-        }
-        .lms-smooth-action:hover:not(:disabled) {
-          transform: none;
-        }
-      }
-    `}</style>
-  );
+  // Styles moved to ai-notes-inline.css (R3 Task 27); nothing to render.
+  return null;
 }
 
 const VIDEO_RESUME_STORAGE_PREFIX = 'lms.lessonVideo.resume.';
@@ -2050,12 +1816,6 @@ function WatchVideoModal({ open, url, captionUrl = '', onClose, isDark }) {
       aria-labelledby={titleId}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <style>{`
-        @keyframes lmsVideoDialogIn {
-          from { opacity: 0; transform: translateY(-34px) scale(0.97); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
       <div className="w-full max-w-4xl overflow-hidden rounded-2xl border shadow-2xl" style={{ background:panelBg, borderColor:line, animation:'lmsVideoDialogIn 220ms cubic-bezier(.16,1,.3,1) both' }}>
         <div className="flex items-center justify-between gap-3 border-b px-5 py-4" style={{ borderColor:line }}>
           <div>
@@ -3007,7 +2767,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
               <span className="lms-ai-note-status-pill" aria-live="polite" role="status"
                 style={{ fontSize:11, fontWeight:700, maxWidth:170, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
                   color:personalSaveStatus.startsWith('Save failed') ? (isDark ? '#fca5a5' : '#b91c1c') : (isDark ? 'rgba(200,210,255,.55)' : '#6b7280') }}>
-                {personalSaveStatus || 'Autosaved locally'}
+                {personalSaveStatus || 'Autosaved'}
               </span>
             ) : null}
             <ThemeToggle />

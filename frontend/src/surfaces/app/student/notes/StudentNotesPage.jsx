@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import './notes-reader.css';
 import { useSearchParams } from 'react-router-dom';
 import {
   createLessonAnnotation,
@@ -60,46 +61,6 @@ const annotationMarkToneClass = {
   note: 'shadow-[inset_0_-2px_0_rgba(99,102,241,0.16)]',
   highlight: 'shadow-[inset_0_-2px_0_rgba(234,179,8,0.16)]',
 };
-const NOTES_READER_CSS = `
-  .student-notes-page .notes-recall-mode p[data-note-block-index] {
-    cursor: pointer;
-    position: relative;
-    border-radius: 10px;
-    transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
-  }
-
-  .student-notes-page .notes-recall-mode p[data-note-block-index]:not(.is-revealed) {
-    color: transparent;
-    text-shadow: none;
-    background:
-      linear-gradient(90deg,
-        color-mix(in srgb, var(--brand-primary) 10%, transparent),
-        color-mix(in srgb, var(--color-warning) 12%, transparent));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warning) 22%, transparent);
-  }
-
-  .student-notes-page .notes-recall-mode p[data-note-block-index]:not(.is-revealed) * {
-    color: transparent !important;
-    text-shadow: none !important;
-  }
-
-  .student-notes-page .notes-recall-mode p[data-note-block-index]:not(.is-revealed)::after {
-    content: "Tap to reveal";
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--ink-muted);
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: 0;
-    text-transform: uppercase;
-  }
-
-  .student-notes-page .notes-recall-mode p[data-note-block-index].is-revealed {
-    background: transparent;
-  }
-`;
 
 function toPlainText(content) {
   return String(content || '')
@@ -669,7 +630,6 @@ export function StudentNotesPage() {
 
   return (
     <main className="dashboard-page study-hub-page student-notes-page">
-      <style>{NOTES_READER_CSS}</style>
       <section className="study-hub-shell">
         <AppHeader
           title="Notes"
