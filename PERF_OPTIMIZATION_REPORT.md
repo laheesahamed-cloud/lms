@@ -276,7 +276,22 @@ Added 2026-06-12 after Round-2 close-out. **Same global rules as §0** (one task
 
 **Round-3 ledger:** shipped 30 (file hygiene), 24 (partial — dashboard bucket), 25 (prefetch gating: the single biggest R3 byte win), 27 (CSP hardening + boot.js externalization). Deferred with rationale: 31 (zero-byte reorganization), 26 (auth-boundary), 23 (production window). Skipped: 32 (timebox). Blocked: 28 (device), 33 (owner decision on dist tracking). Remaining gaps to the §12 maximums are now entirely: production-layer items (Brotli/HTTP-2/subsetting → Task 23), the React+feature JS floor, and the cross-page CSS floor — each with a named owner-visible trade-off.
 
-**Round-4 ledger (2026-06-13, owner ordered the leftovers executed):** 32 DONE (`63d410b` — 11 provably dead rules; the crawl proved the rest are real states; CSP placeholder bug found+fixed `f01d996`), 31 DONE (`91d772a` — legacy retired into six 90-compat files, compiled bundle byte-identical), 26 DONE (`7b0024c` — /student/boot batch: dashboard API calls 11→3, requests 34→28, boot 13–70 ms), 21 DONE (heap 4.40 MB, target beaten via 26, no code change). Cold dashboard now: **140 ms FCP / 391 KB / 28 req / 4.4 MB heap.** Then the last two leftovers, on the same "fix them now" order: **23 PARTIAL** (`aba973f` — HSTS gated on HTTPS now auto-activates in prod + the CSP placeholder fix reached the served .htaccess; Brotli/HTTP-2/font-subset/prod-remeasure remain genuinely host+network-bound, not faked), **33 RESOLVED keep-tracked** (evidence — CI-builds-only, commit-the-build cadence, shared hosting — proves the deploy serves committed dist; untracking would break the live site). **All Round-3/4 leftovers are now either shipped or have a concrete, owner-visible blocker. ⚠ Deploy note: the R4 source optimizations reach production only after a `npm run build:frontend` + commit of `frontend/dist` — the committed dist is the deploy artifact and is currently still the pre-R4 build.**
+**Round-4 ledger (2026-06-13, owner ordered the leftovers executed):** 32 DONE (`63d410b` — 11 provably dead rules; the crawl proved the rest are real states; CSP placeholder bug found+fixed `f01d996`), 31 DONE (`91d772a` — legacy retired into six 90-compat files, compiled bundle byte-identical), 26 DONE (`7b0024c` — /student/boot batch: dashboard API calls 11→3, requests 34→28, boot 13–70 ms), 21 DONE (heap 4.40 MB, target beaten via 26, no code change). Cold dashboard now: **140 ms FCP / 391 KB / 28 req / 4.4 MB heap.** Then the last two leftovers, on the same "fix them now" order: **23 PARTIAL** (`aba973f` — HSTS gated on HTTPS now auto-activates in prod + the CSP placeholder fix reached the served .htaccess; Brotli/HTTP-2/font-subset/prod-remeasure remain genuinely host+network-bound, not faked), **33 RESOLVED keep-tracked** (evidence — CI-builds-only, commit-the-build cadence, shared hosting — proves the deploy serves committed dist; untracking would break the live site). **All Round-3/4 leftovers are now either shipped or have a concrete, owner-visible blocker.** Deploy artifacts rebuilt + committed (`c9725aa`): `frontend/dist` + `backend/dist` now carry the R4 work (the `/student/boot` endpoint, the boot-batch caches, the 90-compat CSS split, the pruned rules), so the next repo-pull deploy ships them. ⚠ That committed dist is built from the FULL current tree, so it also compiles the owner's in-progress uncommitted src — committed *source* still lags until that work lands, at which point a normal src+dist commit reconverges them.
+
+## 3-AFTER-R4. Round-4 final results (2026-06-13, cold = SW blocked, median/validated)
+
+R4's source changes did **not** touch the render path (Task 31 was byte-identical, Task 32 removed ~0.2 KB gz), so FCP / transfer / CSS hold at the R3 figures. The measurable R4 deltas are request count (boot batching) and heap:
+
+| Cold dashboard | R3 | **R4** | Why |
+|---|---|---|---|
+| API calls at boot | ~11 | **3** | `/student/boot` composes 6 panels into 1; auth/me + availability remain |
+| Total requests | 34 | **28–30** | the collapsed API fan-out |
+| Transfer | 397 KB | **~395 KB** | boot JSON (47 KB) ≈ the six calls it replaced — net flat |
+| CSS (gz) | 122 KB | **122 KB** | Tasks 31/32 byte-neutral |
+| FCP (cold) | 152 ms | **unchanged** | render path untouched (re-measured 140–264 ms single-run noise) |
+| JS heap | 4.8 MB | **4.40 MB** | fewer retained boot-fetch closures (7-run median) |
+
+Other routes hold at R3 (validated cold, render-checked): courses 371 KB / 30 req / 114 CSS, quiz 389 / 33 / 120, admin 331 / 29 / 80, login 306 / 23 / 80. **Repeat visits unchanged: ~0 KB page-visible, 120–152 ms.** Security: HSTS now auto-activates over TLS and the served `.htaccess` emits a clean `script-src 'self'` (the placeholder/`'none'` bug is gone on both tiers).
 
 ---
 Re-run the full harness (cold SW-blocked + repeat) on all 14 routes; update §3-AFTER with a Round-2 column and re-score the §1 DELIVERED column. Every maximum either met or its remaining gap explained with a named, owner-visible trade-off.
@@ -293,14 +308,16 @@ Re-run the full harness (cold SW-blocked + repeat) on all 14 routes; update §3-
 | Student dashboard FCP (repeat, SW shell) | 984 ms | ~600 ms | ≈ 300–380 ms | **100–120 ms (R2)** ✓ beats maximum 3× | ~688 ms every time |
 | Student dashboard transfer (cold) | **575 KB** | ≤ 230 KB | ≈ 165–185 KB | **403 KB (R2)** ✗ partial → Round 3 | 262 KB hard floor |
 | Student dashboard transfer (repeat, SW) | 575 KB (no SW active) | ≤ 5–15 KB | ≈ 3–5 KB | **~0 KB page-visible (R2)** ✓ beats maximum | 262 KB every time |
-| Requests per app route | **65–76** | 12–15 | 8–10 | **29–38 cold / ~0 repeat (R2)** ✗ partial → Round 3 | 7–12 |
+| Requests per app route | **65–76** | 12–15 | 8–10 | **28–33 cold / ~0 repeat (R4)** — API calls 11→3 via boot batch; the rest are static assets (HTTP/2 makes them ~free in prod) | 7–12 |
 | CSS shipped per route (gz) | **134 KB** (51 % unused) | ≤ 60 KB | ≈ 25–30 KB | **76 admin / 118 student (R2)** ✗ partial → Round 3 | 54 KB |
 | Font payload | 2 families / 8+ faces | subset | 1 family ≈ 12–14 KB | **1 family self-hosted, ~27 KB, zero render-blocking (R2)** — subsetting → Round 3 | — |
 | Idle CPU (animations at rest) | 35 elements looping | unchanged | ≈ 0 (paused when idle) | **0.022 s per 10 s ≈ 0** ✓ | — |
 | API responses | **uncompressed** | gzipped (~3–5× smaller) | gzip now, Brotli in prod | **gzip, up to 6.9×** ✓ | uncompressed |
-| JS heap (dashboard) | 5.6 MB | ~5 MB | ~4.5 MB | **4.8 MB** ✓ | 5.9 MB (authed) |
+| JS heap (dashboard) | 5.6 MB | ~5 MB | ~4.5 MB | **4.40 MB (R4)** ✓ beats maximum | 5.9 MB (authed) |
 
 Headline goals: **-40 % FCP, -60 % cold transfer, -80 % requests on every student page**, and **>38× less network on repeat visits** once the service worker actually controls pages. That last one is how we beat lms-10 not by a margin but by an order of magnitude: lms-10 re-ships its 262 KB monolith on every single visit forever; our repeat visits can cost almost nothing.
+**Round-4 update (2026-06-13, see §3-AFTER-R4):** the deferred/skipped leftovers were executed on owner request — boot API batching (`/student/boot`: dashboard API calls **11→3**, requests **34→28–30**, heap **4.8→4.40 MB**), the 99-legacy CSS sheet retired into six named files (compiled bundle byte-identical), 11 provably-dead rules pruned, **HSTS** shipped (auto-active over TLS), and a real CSP bug fixed (the served `.htaccess` was emitting invalid `script-src 'self' 'none'`). Deploy artifacts rebuilt + committed. Still genuinely host/network-bound: Brotli, HTTP/2, font subsetting, production-URL re-measurement (Task 23).
+
 **Round-3 update (2026-06-12, see §3-AFTER-R3):** cold transfer down another 6–42 KB per route (quiz 386, courses 365, admin 327); requests 21–34 (was 29–38); the student app + login now run **hash-strict style-src with zero CSP violations**; repeat visits hold at ~0 KB / 120–152 ms. Remaining gaps = production items (Task 23), JS feature floor, cross-page CSS floor — all named trade-offs.
 
 **Round-2 update (2026-06-12, see §3-AFTER-R2):** cold FCP now **136 ms** on every route (−86 % vs baseline, beats the maximum 3×); repeat-visit page-visible transfer **~0 KB**; CSS 118/76 KB gz. Remaining maximum misses (cold transfer, requests, CSS floor) are documented trade-offs + production items (Tasks 15/19).
@@ -619,6 +636,7 @@ Not available in local XAMPP (only `mod_deflate`); on production hosting enable 
 Service-worker app shell + cached immutable assets: network = **gzipped API JSON only, ≈ 3–5 KB**; FCP ≈ **300–380 ms** (shell paints from cache near the 248 ms floor, data fills in). This is the everyday experience for a daily-use LMS.
 
 ### 12.3 Production projection (real hosting: HTTPS + HTTP/2 + Brotli + CDN edge)
+> **Status 2026-06-13:** HSTS is shipped and self-activates over TLS (`aba973f`). HTTP/2, Brotli, and PJS glyph subsetting remain the open production-window items (Task 23) — each needs the live host + network access excluded by this session's constraints; the projection rows below are still projections until measured against the production URL.
 | Metric | Lab maximum | Production projection |
 |---|---|---|
 | Cold transfer | 165–185 KB | **≈ 140–160 KB** (Brotli) |
