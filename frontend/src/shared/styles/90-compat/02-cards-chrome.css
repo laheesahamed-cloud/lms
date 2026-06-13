@@ -1,0 +1,381 @@
+/* Card & chrome surfaces: glass-card family, topbar/sidebar tints,
+   gradients, alerts, nav glow, skeleton loaders, course cards, sidebar shell.
+   Split from 99-legacy/app.css (R3 Task 31) — the six 90-compat files
+   load in numeric order at the OLD legacy position (between 02-layout
+   and 03-components): same @layer utilities, same rule order, so every
+   cascade tie resolves exactly as before. Do not reorder. */
+
+@layer utilities {
+  /* ── Glass card — core card style ─────────────────────── */
+  .glass-card {
+    @apply rounded-2xl border;
+    background:   var(--surface-card);
+    border-color: var(--line-soft);
+    box-shadow:   var(--shadow-sm);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transition:   box-shadow 180ms var(--ease-out), border-color 180ms var(--ease-out),
+                  transform 160ms var(--ease-out);
+  }
+
+  :root:not([data-theme='dark']) .glass-card {
+    background: rgba(255, 255, 255, 0.975);
+    border-color: rgba(235, 240, 248, 0.98);
+    box-shadow: 0 1px 2px rgba(11, 18, 32, 0.025), 0 8px 22px rgba(11, 18, 32, 0.035);
+  }
+
+  :root:not([data-theme='dark']) .lms-course-card {
+    background: rgba(251, 252, 255, 0.985);
+    border-color: rgba(235, 240, 248, 0.96);
+    box-shadow: 0 1px 2px rgba(11, 18, 32, 0.025), 0 8px 20px rgba(37, 99, 235, 0.028);
+  }
+
+  :root:not([data-theme='dark']) .bg-surface-card,
+  :root:not([data-theme='dark']) .bg-surface-card-elevated {
+    background-color: var(--surface-card, #fbfcff);
+  }
+
+  :root:not([data-theme='dark']) .lms-topbar {
+    background: rgba(255, 255, 255, 0.985);
+    border-color: rgba(235, 240, 248, 0.98);
+  }
+
+  .lms-topbar,
+  .lms-topbar > * {
+    min-width: 0;
+  }
+
+  .lms-topbar button {
+    max-width: 100%;
+  }
+
+  @media (min-width: 901px) {
+    .lms-topbar {
+      top: var(--sidebar-float-gap, 16px) !important;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .lms-ai-note-topbar {
+      top: 0 !important;
+      padding-top: var(--lms-safe-top) !important;
+    }
+
+    .lms-ai-note-topbar-inner {
+      flex-wrap: wrap;
+      gap: 10px !important;
+      padding: 10px 12px !important;
+    }
+
+    .lms-ai-note-topbar-actions {
+      width: 100%;
+      min-width: 0;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .lms-ai-note-topbar-actions::-webkit-scrollbar {
+      display: none;
+    }
+
+    .lms-ai-note-topbar-actions button {
+      min-height: 38px;
+      white-space: nowrap;
+    }
+  }
+
+  :root:not([data-theme='dark']) .lms-sidebar {
+    box-shadow: 1px 0 0 rgba(235, 240, 248, 0.95), 8px 0 22px rgba(15, 23, 42, 0.025);
+  }
+
+  :root:not([data-theme='dark']) .lms-sidebar::before {
+    opacity: 0.35;
+    background:
+      radial-gradient(ellipse at 18% 4%, rgba(37, 99, 235, 0.045), transparent 42%),
+      linear-gradient(180deg, rgba(248, 250, 252, 0.74), transparent 46%);
+  }
+  :root[data-theme='dark'] .lms-sidebar {
+    background: rgba(16, 24, 34, 0.94);
+  }
+  :root[data-theme='dark'] .lms-sidebar::before {
+    opacity: 0.18;
+    background:
+      linear-gradient(180deg, rgba(23, 35, 48, 0.58), rgba(18, 28, 38, 0.2) 48%, transparent 100%);
+  }
+  :root[data-theme='dark'] .glass-card {
+    background:
+      linear-gradient(160deg, rgba(30, 41, 59, 0.22), rgba(18, 28, 38, 0.94) 58%, rgba(14, 22, 31, 0.96)),
+      var(--surface-card);
+    border-color: rgba(203, 213, 225, 0.13);
+    box-shadow:
+      0 1px 1px rgba(255, 255, 255, 0.035) inset,
+      0 12px 36px rgba(2, 6, 12, 0.34),
+      0 2px 8px rgba(2, 6, 12, 0.22);
+  }
+
+  /* Interactive card hover lift */
+  .card-interactive:hover {
+    transform:    translateY(-2px);
+    box-shadow:   var(--shadow-md);
+    border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.2);
+  }
+
+  :root[data-theme='dark'] .lms-course-detail-page .bg-surface-card,
+  :root[data-theme='dark'] .lms-ai-canvas-shell {
+    color-scheme: dark;
+  }
+
+  html[data-lms-runtime="pwa"] .lms-ai-canvas-shell,
+  html[data-lms-runtime="native"] .lms-ai-canvas-shell {
+    overscroll-behavior: contain !important;
+  }
+
+  html[data-lms-runtime="pwa"] .lms-ai-canvas-shell canvas[aria-label="Personal writing canvas"],
+  html[data-lms-runtime="native"] .lms-ai-canvas-shell canvas[aria-label="Personal writing canvas"] {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    touch-action: pan-y pinch-zoom !important;
+  }
+
+  :root[data-theme='dark'] .text-ink-strong {
+    color: rgba(248, 250, 252, 0.92);
+  }
+
+  :root[data-theme='dark'] .text-ink-soft {
+    color: rgba(203, 213, 225, 0.64);
+  }
+  :root[data-theme='dark'] .card-interactive:hover {
+    box-shadow:
+      0 18px 48px rgba(2, 6, 12, 0.4),
+      0 4px 14px rgba(97, 165, 246, 0.04);
+    border-color: rgba(203, 213, 225, 0.18);
+  }
+
+  /* ── Card variants ─────────────────────────────────────── */
+
+  /* Premium card — gradient top accent line */
+
+  /* Secondary blue accent card */
+
+  /* ── Gradient border utility ───────────────────────────── */
+
+  /* ── Text gradients ────────────────────────────────────── */
+  .gradient-text {
+    background: linear-gradient(135deg, #1D4ED8 0%, #4338CA 50%, #7C3AED 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  :root[data-theme='dark'] .gradient-text {
+    background: linear-gradient(135deg, #60A5FA 0%, #818CF8 50%, #A78BFA 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ── Primary button ────────────────────────────────────── */
+
+  /* ── Secondary button ──────────────────────────────────── */
+
+  :root[data-theme='dark'] .lms-floating-panel,
+  :root[data-theme='dark'] .lms-alert {
+    background:
+      linear-gradient(180deg, rgba(21, 32, 49, 0.98), rgba(8, 14, 24, 0.99)),
+      #0B111B;
+    border-color: rgba(191, 219, 254, 0.20);
+    color: var(--ink-medium);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 24px 64px rgba(2, 6, 12, 0.56),
+      0 8px 24px rgba(37, 99, 235, 0.08);
+  }
+
+  :root[data-theme='dark'] .lms-alert-error {
+    background:
+      linear-gradient(180deg, rgba(59, 22, 28, 0.98), rgba(24, 11, 17, 0.99)),
+      #190B11;
+    border-color: rgba(248, 113, 113, 0.36);
+    color: #FCA5A5;
+  }
+
+  :root[data-theme='dark'] .lms-alert-warning {
+    background:
+      linear-gradient(180deg, rgba(63, 44, 14, 0.98), rgba(25, 18, 9, 0.99)),
+      #1A1209;
+    border-color: rgba(251, 191, 36, 0.34);
+    color: #FCD34D;
+  }
+
+  :root[data-theme='dark'] .lms-alert-success {
+    background:
+      linear-gradient(180deg, rgba(15, 55, 45, 0.98), rgba(8, 24, 21, 0.99)),
+      #081815;
+    border-color: rgba(52, 211, 153, 0.34);
+    color: #86EFAC;
+  }
+
+  :root[data-theme='dark'] select.lms-native-field,
+  :root[data-theme='dark'] select.lms-native-field option,
+  :root[data-theme='dark'] select.lms-native-field optgroup {
+    background-color: #0B111B;
+    color: #DDE5F0;
+  }
+
+  :root[data-theme='dark'] select.lms-native-field option:checked {
+    background-color: #1D4ED8;
+    color: #FFFFFF;
+  }
+
+  :root[data-theme='dark'] .portal-shell::before {
+    content: none;
+  }
+
+  :root[data-theme='dark'] .portal-shell::after {
+    content: none;
+  }
+
+  /* ── Nav active glow (sidebar) ─────────────────────────── */
+  .nav-active-glow {
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--color-primary) 14%, white),
+        color-mix(in srgb, #0ea5e9 10%, white)
+      );
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.055);
+  }
+  :root[data-theme='dark'] .nav-active-glow {
+    background: linear-gradient(90deg,
+      rgba(59, 130, 246, 0.13),
+      rgba(124, 58, 237, 0.09)
+    );
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+                0 0 20px rgba(59, 130, 246, 0.09);
+  }
+
+  /* ── Progress placeholders ─────────────────────────────── */
+  /* ── Skeletons — gentle fade loop for loading states ────── */
+  .shimmer,
+  .skeleton-pulse {
+    background: color-mix(in srgb, var(--surface-2) 88%, var(--color-primary) 5%);
+    border-radius: var(--radius-sm);
+    animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  @keyframes lmsSkeletonFade {
+    0%   { opacity: 0.28; }
+    45%  { opacity: 1; }
+    55%  { opacity: 1; }
+    100% { opacity: 0.28; }
+  }
+
+  :root[data-theme='dark'] .shimmer,
+  :root[data-theme='dark'] .skeleton-pulse {
+    background: rgba(232, 234, 240, 0.08);
+  }
+
+  /* ── Metric card accent strips ─────────────────────────── */
+
+  /* ── Badge / status pill helpers ──────────────────────── */
+
+  /* ── Course subject colors ─────────────────────────────── */
+
+  /* ── Icon container — ensures icon never loses contrast ── */
+
+  /* ── Focus ring ────────────────────────────────────────── */
+
+  /* ── Smooth motion utility ─────────────────────────────── */
+  .motion-smooth {
+    backface-visibility: visible;
+    transform: none;
+  }
+
+  .portal-content__frame,
+  .lms-route-page {
+    min-width: 0;
+  }
+
+  .lms-sidebar {
+    contain: layout paint style;
+    position: fixed !important;
+    inset-block: 0 !important;
+    left: 0 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-y: hidden !important;
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+  }
+
+  @media (max-width: 900px) {
+    .app-drawer {
+      padding-top: calc(var(--safe-top) + 16px) !important;
+      padding-bottom: calc(var(--safe-bottom) + 16px) !important;
+    }
+
+    .lms-sidebar:not(.is-open) {
+      border-right-color: transparent !important;
+      box-shadow: none !important;
+      transform: translate3d(calc(-100% - 24px), 0, 0) !important;
+    }
+
+    .lms-sidebar.is-open {
+      border-right-color: var(--sidebar-border) !important;
+      box-shadow: var(--shadow-2xl) !important;
+      transform: translate3d(0, 0, 0) !important;
+    }
+  }
+
+  @supports (height: 100svh) {
+    .lms-sidebar {
+      height: 100svh !important;
+      max-height: 100svh !important;
+    }
+  }
+
+  .lms-sidebar nav {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .lms-sidebar a,
+  .lms-sidebar button,
+  .glass-card,
+  .lms-course-card {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .lms-course-card {
+    contain: layout paint;
+    content-visibility: auto;
+    contain-intrinsic-size: 370px;
+  }
+
+  .lms-course-card svg {
+    color: currentColor;
+  }
+
+  .lms-course-detail-page {
+    padding-block: clamp(10px, 1.6vw, 18px) clamp(12px, 2vw, 22px);
+  }
+
+  @media (max-width: 900px) {
+    .lms-course-detail-page {
+      padding-block: 10px 14px;
+    }
+  }
+
+  .student-course-card {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  @media (max-width: 640px) {
+    .student-course-card {
+      min-height: 0 !important;
+    }
+  }
+
+}

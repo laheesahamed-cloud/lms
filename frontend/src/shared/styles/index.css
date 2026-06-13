@@ -25,7 +25,17 @@
 @import "./02-layout/sidebar.css";
 @import "./02-layout/grids.css";
 
-@import "./99-legacy/app.css";
+/* 90-compat — the retired 99-legacy/app.css, split into named files
+   (R3 Task 31). ORDER IS LOAD-BEARING: they append to @layer utilities
+   in sequence at the old legacy position, so every cascade tie keeps
+   resolving exactly as before. Migrate rules out only with the census
+   + pixel gates. */
+@import "./90-compat/01-app-frame.css";
+@import "./90-compat/02-cards-chrome.css";
+@import "./90-compat/03-ui-refresh.css";
+@import "./90-compat/04-native-baseline.css";
+@import "./90-compat/05-shell-tables.css";
+@import "./90-compat/06-perf-profiles.css";
 
 @import "./03-components/buttons.css";
 @import "./03-components/brand.css";

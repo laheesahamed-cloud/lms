@@ -1,0 +1,236 @@
+/* App frame & boot baseline: app-booting splash gate, startup reveal,
+   root sizing vars, element touch/tap behaviors, page backgrounds.
+   Split from 99-legacy/app.css (R3 Task 31) — the six 90-compat files
+   load in numeric order at the OLD legacy position (between 02-layout
+   and 03-components): same @layer utilities, same rule order, so every
+   cascade tie resolves exactly as before. Do not reorder. */
+
+@layer utilities {
+  body.app-booting,
+  html:has(body.app-booting),
+  body.app-booting #root {
+    height: 100%;
+    min-height: 100dvh;
+    overflow: hidden !important;
+    background: #02040b !important;
+    background-color: #02040b !important;
+  }
+
+  body.app-booting #root {
+    pointer-events: none !important;
+  }
+
+  body.app-booting::after {
+    display: none !important;
+    content: none !important;
+    pointer-events: none;
+  }
+
+  body.app-booting .app-drawer,
+  body.app-booting .lms-sidebar,
+  body.app-booting .lms-mobile-bottom-nav {
+    z-index: 0 !important;
+    pointer-events: none !important;
+  }
+
+  @supports (height: 100svh) {
+    html:has(body.app-booting),
+    body.app-booting,
+    body.app-booting #root {
+      min-height: 100svh;
+    }
+  }
+
+  @supports (height: 100lvh) {
+    html:has(body.app-booting),
+    body.app-booting,
+    body.app-booting #root {
+      min-height: 100lvh;
+    }
+  }
+
+  @supports not (height: 100svh) {
+    html:has(body.app-booting),
+    body.app-booting,
+    body.app-booting #root {
+      min-height: 100dvh;
+    }
+  }
+
+  /* Startup reveal (#1 no-logo splash fade + #2 app-shell reveal):
+     the dark boot screen smoothly fades into the app shell once it's ready,
+     instead of an instant pop. One-shot at cold start (app-ready is set once);
+     route changes are unaffected. No logo. */
+  @keyframes lms-app-reveal {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  body.app-ready #root {
+    animation: lms-app-reveal 220ms var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.app-ready #root {
+      animation: none !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer,
+    .skeleton-pulse {
+      animation: none !important;
+      transform: none !important;
+    }
+  }
+
+  :root {
+    --safe-top: var(--lms-safe-top);
+    --safe-right: var(--lms-safe-right);
+    --safe-bottom: var(--lms-safe-bottom);
+    --safe-left: var(--lms-safe-left);
+    --app-bg: var(--page-background);
+    --app-light-bg: var(--page-background);
+    --app-dark-bg: #151c24;
+    --lms-tabbar-row-height: 64px;
+    --header-height: 64px;
+    --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-safe-bottom));
+    --lms-mobile-nav-height: var(--bottom-nav-height);
+    --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 12px);
+    --lms-min-touch-target: 44px;
+  }
+
+  :root[data-theme='dark'] {
+    --app-bg: var(--page-background);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #__next {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100%;
+    max-width: 100%;
+    background: var(--app-bg, #151c24);
+    background-color: var(--app-bg, #151c24);
+  }
+
+  .app,
+  .app-shell,
+  .page,
+  .page-wrapper,
+  .main-layout,
+  .landing-page,
+  .app-shell {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    background: var(--app-bg, #151c24);
+    background-color: var(--app-bg, #151c24);
+  }
+
+  .app-shell {
+    position: relative;
+  }
+
+  :where(a[href], button, [role="button"], input, select, textarea, summary) {
+    touch-action: manipulation;
+  }
+
+  :where(a[href], button, [role="button"], summary) {
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+  }
+
+  :where(button, a[href], [role="button"], input, select, textarea) {
+    min-width: 0;
+  }
+
+  :where(button, a[href], [role="button"]) {
+    overflow-wrap: anywhere;
+  }
+
+  :where(input, select, textarea) {
+    max-width: 100%;
+  }
+
+  .landing-page {
+    --app-bg: var(--app-dark-bg);
+  }
+
+  :root:has(.landing-page),
+  :root:has(.dark-page) {
+    --app-bg: var(--app-dark-bg);
+    background: var(--app-dark-bg);
+    background-color: var(--app-dark-bg);
+  }
+
+  body:has(.landing-page),
+  body:has(.dark-page) {
+    background: var(--app-dark-bg) !important;
+    background-color: var(--app-dark-bg) !important;
+  }
+
+  .app-shell main,
+  .app-shell .portal-content,
+  .app-shell .portal-content__frame,
+  .app-shell .lms-route-page {
+    background: var(--app-bg, #151c24);
+    background-color: var(--app-bg, #151c24);
+  }
+
+  .lms-mobile-bottom-nav a,
+  .lms-mobile-bottom-nav a:hover,
+  .lms-mobile-bottom-nav a:active,
+  .lms-mobile-bottom-nav a:focus {
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :root[data-theme='dark'] .app,
+  :root[data-theme='dark'] .app-shell,
+  :root[data-theme='dark'] .page,
+  :root[data-theme='dark'] .page-wrapper,
+  :root[data-theme='dark'] .main-layout,
+  :root[data-theme='dark'] .lms-route-page,
+  :root[data-theme='dark'] .main-content,
+  :root[data-theme='dark'] .page-content,
+  :root[data-theme='dark'] .app-content,
+  :root[data-theme='dark'] .portal-content {
+    background: var(--app-dark-bg);
+    background-color: var(--app-dark-bg);
+  }
+
+.app-drawer {
+  height: 100dvh;
+}
+
+  /* ── Page backgrounds ──────────────────────────────────── */
+  .dark-bg {
+    background: var(--page-background);
+  }
+  body.dark-bg::before,
+  body.dark-bg::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  /* ── Page transition ───────────────────────────────────── */
+
+  .lms-app-scroll-root :where(button, a[href], [role="button"]) {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  @media (pointer: coarse) {
+    .lms-app-scroll-root :where(button:not(:disabled), a[href], [role="button"]):active {
+      transform: translate3d(0, 0, 0) scale(0.985);
+    }
+  }
+
+}

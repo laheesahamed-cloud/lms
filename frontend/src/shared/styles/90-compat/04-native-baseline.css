@@ -1,0 +1,29 @@
+/* Native (Capacitor WebView) input/touch baseline: 46px targets,
+   16px form font to prevent iOS zoom.
+   Split from 99-legacy/app.css (R3 Task 31) — the six 90-compat files
+   load in numeric order at the OLD legacy position (between 02-layout
+   and 03-components): same @layer utilities, same rule order, so every
+   cascade tie resolves exactly as before. Do not reorder. */
+
+@layer utilities {
+  /* Native app baseline: Capacitor WebViews need their own density,
+     safe-area, input, and scroll constraints independent of browser CSS. */
+html[data-lms-runtime="native"] {
+  --lms-min-touch-target: 46px;
+  --control-h: max(44px, var(--control-h));
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+  html[data-lms-runtime="native"] :where(button, a[href], [role="button"]) {
+    min-height: var(--lms-min-touch-target);
+    touch-action: manipulation;
+  }
+
+  html[data-lms-runtime="native"] :where(input, select, textarea, .lms-native-field) {
+    min-height: var(--lms-min-touch-target);
+    max-width: 100%;
+    font-size: 16px !important;
+  }
+
+}

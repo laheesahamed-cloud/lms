@@ -1,0 +1,197 @@
+/* The "full UI refresh" pass: quieter, sharper shell/topbar overrides
+   incl. standalone-PWA and coarse-pointer tiers.
+   Split from 99-legacy/app.css (R3 Task 31) — the six 90-compat files
+   load in numeric order at the OLD legacy position (between 02-layout
+   and 03-components): same @layer utilities, same rule order, so every
+   cascade tie resolves exactly as before. Do not reorder. */
+
+@layer utilities {
+  /* ── Full UI refresh — quieter, sharper, easier to scan ── */
+  html,
+  body,
+  #root,
+  .lms-app-scroll-root,
+  .portal-shell,
+  .portal-content,
+  .portal-content__frame,
+  .lms-route-page {
+    background: var(--app-bg);
+    background-color: var(--app-bg);
+  }
+
+  .portal-content {
+    background: var(--app-bg);
+    background-color: var(--app-bg);
+  }
+
+  @media (display-mode: standalone), (display-mode: window-controls-overlay) {
+    html[data-lms-runtime="pwa"] .lms-topbar {
+      background: color-mix(in srgb, var(--topbar-bg) 94%, transparent);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    html[data-lms-runtime="pwa"] .lms-ai-canvas-editor,
+    html[data-lms-runtime="pwa"] .lms-ai-canvas-surface {
+      overscroll-behavior: contain !important;
+      -webkit-touch-callout: none;
+    }
+
+    html[data-lms-runtime="pwa"] .lms-ai-canvas-editor .ncv-item {
+      touch-action: manipulation !important;
+    }
+
+    html[data-lms-runtime="pwa"] .lms-ai-canvas-editor :where(input, textarea, select, [contenteditable="true"]),
+    html[data-lms-runtime="pwa"] .lms-ai-canvas-surface :where(input, textarea, select, [contenteditable="true"]),
+    html[data-lms-runtime="pwa"] .lms-ai-canvas-editor [data-lms-canvas-input="true"] {
+      -webkit-touch-callout: default !important;
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      touch-action: manipulation !important;
+      font-size: 16px !important;
+    }
+
+    html[data-lms-runtime="pwa"] .lms-ai-canvas-editor [data-lms-canvas-sticker="true"] {
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      touch-action: none !important;
+    }
+  }
+
+  @media (max-width: 520px) {
+    button,
+    a,
+    [role="button"] {
+      touch-action: manipulation;
+    }
+
+    input,
+    select,
+    textarea,
+    .lms-native-field {
+      font-size: 16px !important;
+    }
+
+    :where(button, a[href], [role="button"]) {
+      min-height: var(--lms-min-touch-target);
+    }
+
+    .lms-topbar {
+      border-radius: 16px;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.52) inset,
+        0 10px 24px rgba(15,23,42,0.07);
+    }
+  }
+
+  .lms-topbar {
+    top: max(4px, var(--lms-safe-top));
+    background: var(--topbar-bg);
+    border-color: rgba(var(--sa-border-rgb, 221, 228, 238), 0.86);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.55) inset,
+      0 12px 30px rgba(15,23,42,0.065);
+  }
+
+  :root[data-theme='dark'] .lms-topbar {
+    background:
+      linear-gradient(180deg, rgba(9,14,23,0.99), rgba(2,5,10,0.99)),
+      #02050A;
+    border-color: rgba(148,163,184,0.14);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.035) inset,
+      0 18px 48px rgba(0,0,0,0.54);
+  }
+
+  @media (max-width: 900px) {
+    .lms-topbar {
+      position: relative !important;
+      top: auto !important;
+      z-index: 1200;
+      margin-bottom: 18px !important;
+      margin-inline: max(0px, var(--lms-safe-left)) max(0px, var(--lms-safe-right));
+    }
+
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .lms-topbar {
+      position: relative !important;
+      top: auto !important;
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) auto !important;
+      min-height: 58px !important;
+      align-items: center !important;
+      gap: 8px !important;
+      border-radius: 16px !important;
+      padding: 10px !important;
+      margin-bottom: 18px !important;
+      margin-left: max(0px, var(--lms-safe-left)) !important;
+      margin-right: max(0px, var(--lms-safe-right)) !important;
+    }
+
+    .lms-topbar .lms-topbar-left {
+      display: flex !important;
+      flex: 1 1 auto !important;
+      min-width: 0 !important;
+    }
+
+    .lms-topbar .lms-topbar-center,
+    .lms-topbar .lms-topbar-center {
+      display: none !important;
+    }
+
+    .lms-topbar .lms-topbar-right {
+      min-width: 0 !important;
+      justify-content: end !important;
+    }
+
+    .lms-topbar .lms-topbar-actions {
+      grid-column: 1 / -1 !important;
+      display: flex !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      flex-wrap: wrap !important;
+      justify-content: stretch !important;
+      gap: 8px !important;
+      padding-top: 8px !important;
+      border-top: 1px solid var(--line-soft) !important;
+    }
+
+    .lms-topbar .lms-topbar-actions > * {
+      flex: 1 1 160px !important;
+      min-width: 0 !important;
+    }
+
+    .lms-topbar h1 {
+      max-width: 100% !important;
+      font-size: 15px !important;
+      line-height: 1.1 !important;
+    }
+
+    .lms-topbar p,
+    .lms-topbar .lms-profile-avatar + span {
+      display: none !important;
+    }
+
+    .lms-topbar button {
+      min-width: 34px !important;
+      min-height: 34px !important;
+    }
+
+    .lms-topbar .lms-topbar-actions button,
+    .lms-topbar .lms-topbar-actions a,
+    .lms-topbar .lms-topbar-actions [role="button"] {
+      width: 100% !important;
+      min-height: 42px !important;
+    }
+
+  }
+
+  @media (hover: hover) and (pointer: fine) and (min-width: 1181px) {
+    .lms-topbar {
+      margin-bottom: 12px !important;
+    }
+  }
+
+}

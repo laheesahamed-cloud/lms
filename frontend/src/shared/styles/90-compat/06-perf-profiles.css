@@ -1,0 +1,226 @@
+/* Performance profiles: data-low-spec and visual-effects=balanced
+   paint reductions, reduced-motion, native runtime simplifications.
+   Split from 99-legacy/app.css (R3 Task 31) — the six 90-compat files
+   load in numeric order at the OLD legacy position (between 02-layout
+   and 03-components): same @layer utilities, same rule order, so every
+   cascade tie resolves exactly as before. Do not reorder. */
+
+@layer utilities {
+  /* ── Low-spec device overrides ─────────────────────────── */
+  :root[data-low-spec] .glass-card,
+  :root[data-low-spec] [class*="backdrop-blur"],
+  :root[data-low-spec] [class*="blur-"],
+  :root[data-low-spec] [class*="drop-shadow"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+  }
+  :root[data-low-spec] .glass-card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+  }
+  :root[data-low-spec] .lms-sidebar,
+  :root[data-low-spec] .portal-content {
+    transition-property: transform, opacity !important;
+    transition-duration: 120ms !important;
+  }
+  :root[data-low-spec] .portal-shell {
+    background: var(--surface-0) !important;
+  }
+  :root[data-low-spec] .lms-course-card,
+  :root[data-low-spec] .glass-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  :root[data-low-spec] .portal-shell-ambient {
+    display: none !important;
+  }
+  :root[data-low-spec] .shimmer {
+    animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite !important;
+  }
+  :root[data-low-spec] [data-content-visibility='auto'] {
+    content-visibility: auto;
+    contain-intrinsic-size: 720px;
+  }
+
+  /* ── Chrome/Safari balanced paint profile ──────────────── */
+  :root[data-visual-effects='balanced'] {
+    scroll-behavior: smooth;
+  }
+
+  :root[data-visual-effects='balanced'] .portal-shell-ambient {
+    display: none !important;
+  }
+
+  :root[data-visual-effects='balanced'] .glass-card,
+  :root[data-visual-effects='balanced'] .lms-course-card,
+  :root[data-visual-effects='balanced'] .lms-floating-panel:not(.lms-profile-menu),
+  :root[data-visual-effects='balanced'] .lms-alert,
+  :root[data-visual-effects='balanced'] [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  :root[data-visual-effects='balanced'] [class*="blur-"],
+  :root[data-visual-effects='balanced'] [class*="drop-shadow"] {
+    filter: none !important;
+  }
+
+  :root[data-visual-effects='balanced'] .glass-card,
+  :root[data-visual-effects='balanced'] .lms-course-card {
+    box-shadow: 0 1px 2px rgba(11, 18, 32, 0.035), 0 8px 18px rgba(15, 23, 42, 0.045) !important;
+  }
+
+  :root[data-theme='dark'][data-visual-effects='balanced'] .glass-card,
+  :root[data-theme='dark'][data-visual-effects='balanced'] .lms-course-card {
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 10px 28px rgba(0, 0, 0, 0.36) !important;
+  }
+
+  :root[data-visual-effects='balanced'] .card-interactive:hover,
+  :root[data-visual-effects='balanced'] .lms-course-card:hover {
+    transform: translateY(-1px) !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-routeFade {
+    animation: routeFade var(--lms-route-enter-duration, 300ms) cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-panelRouteFade {
+    animation: panelRouteFade var(--lms-panel-route-duration, 300ms) cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-fadePop {
+    animation: fadePop 0.32s cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-scaleIn {
+    animation: scaleIn 0.22s cubic-bezier(0.23, 1, 0.32, 1) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-dropdownIn {
+    animation: dropdownIn 0.16s var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both !important;
+  }
+
+  :root[data-visual-effects='balanced']:not([data-lms-runtime='pwa']):not([data-lms-runtime='native']) .animate-overlayIn {
+    animation: overlayIn 0.16s var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both !important;
+  }
+
+  :root[data-visual-effects='balanced'] .shimmer {
+    animation: lmsSkeletonFade 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite !important;
+  }
+
+  :root[data-visual-effects='balanced'] .lms-topbar {
+    position: sticky;
+    transform: translateZ(0);
+    contain: layout style;
+  }
+
+  :root[data-visual-effects='balanced'] .portal-content__frame,
+  :root[data-visual-effects='balanced'] .lms-route-page {
+    contain: layout paint style;
+  }
+
+  :root[data-visual-effects='balanced'] .motion-smooth,
+  :root[data-visual-effects='balanced'] .card-interactive {
+    transition-duration: 150ms !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root[data-visual-effects='balanced'] :where(
+      .animate-routeFade,
+      .animate-panelRouteFade,
+      .animate-fadePop,
+      .animate-scaleIn,
+      .animate-dropdownIn,
+      .animate-overlayIn,
+      .animate-progressShimmer,
+      .shimmer,
+      .skeleton-pulse
+    ) {
+      animation: none !important;
+      transform: none !important;
+    }
+  }
+
+  /* ── Stagger cascades ──────────────────────────────────── */
+  /* Insight rows within a card: 25ms apart */
+
+  /* Reduced motion: strip all stagger delays */
+
+  html[data-lms-runtime="native"] #root,
+  html[data-lms-runtime="native"] .lms-app-scroll-root,
+  html[data-lms-runtime="native"] .app-shell,
+  html[data-lms-runtime="native"] .portal-content,
+  html[data-lms-runtime="native"] .portal-content__frame,
+  html[data-lms-runtime="native"] .lms-route-page,
+  html[data-lms-runtime="native"] .native-panel-layout {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  html[data-lms-runtime="native"] :where(a[href], button, [role="button"], .card-interactive, .lms-course-card, .lms-mobile-bottom-nav *) {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  html[data-lms-runtime="native"] :where(img, svg) {
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
+
+  html[data-lms-runtime="native"] :where(input, textarea, select, [contenteditable="true"]) {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+    font-size: 16px !important;
+    line-height: 1.35 !important;
+    touch-action: manipulation !important;
+    -webkit-text-size-adjust: 100%;
+    transform: translateZ(0);
+  }
+
+  html[data-lms-runtime="native"] :where(input, textarea)::placeholder {
+    font-size: 16px !important;
+  }
+
+  html[data-lms-runtime="native"] .portal-shell-ambient {
+    display: none !important;
+  }
+
+  html[data-lms-runtime="native"] .glass-card,
+  html[data-lms-runtime="native"] .lms-course-card,
+  html[data-lms-runtime="native"] .lms-floating-panel,
+  html[data-lms-runtime="native"] .lms-alert,
+  html[data-lms-runtime="native"] [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  html[data-lms-runtime="native"] [class*="blur-"],
+  html[data-lms-runtime="native"] [class*="drop-shadow"] {
+    filter: none !important;
+  }
+
+  html[data-lms-runtime="native"] .card-interactive:hover,
+  html[data-lms-runtime="native"] .lms-course-card:hover {
+    transform: none !important;
+  }
+
+  html[data-lms-runtime="native"] [style*="animation-delay"] {
+    animation-delay: 0ms !important;
+  }
+
+  html[data-lms-runtime="native"] .qtr-popup__scroller {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    padding-right: 0 !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  html[data-lms-runtime="native"] .qtr-popup__scroller::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+  }
+
+}
