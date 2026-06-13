@@ -37,6 +37,43 @@
 </IfModule>
 
 <IfModule mod_headers.c>
+  # App-HTML security headers (report sec 13.1-13.2 + Round-3 Task 27).
+  # Hashes are filled in by scripts/build/sync-root-index.mjs at build time —
+  # never hand-edit the sha256 values. script-src carries NO 'unsafe-inline'.
+  # TWO CSP tiers (R3 Task 27): the student app + login serve a STRICT
+  # style-src (hashes only — their inline <style> blocks moved to css
+  # files); the website keeps 'unsafe-inline' because framer-motion and
+  # the CinematicHero inject dynamic <style> elements, and admin keeps it
+  # for html2canvas exports.
+  # HSTS (R3 Task 23). Gated on env=HTTPS so it is emitted ONLY over TLS:
+  # on the localhost HTTP dev server the condition is false and the header
+  # never appears, so this is inert locally and self-activating in
+  # production. Conservative value — 1 year, no includeSubDomains/preload:
+  # once every xyndrome.lk subdomain is confirmed HTTPS-only, escalate to
+  # "max-age=63072000; includeSubDomains; preload" and submit to the
+  # preload list (preload is hard to reverse — do it deliberately).
+  Header always set Strict-Transport-Security "max-age=31536000" env=HTTPS
+  # Production notes:
+  #  - if Google Sign-In is enabled, add https://accounts.google.com to
+  #    script-src and frame-src
+  #  - for LAN device testing through Apache, add http://<lan-ip>:3000 to
+  #    connect-src (or temporarily relax it)
+  #  - Brotli: this host's Apache has mod_deflate (gzip, configured below)
+  #    but NOT mod_brotli; enabling Brotli on the production host needs an
+  #    <IfModule mod_brotli.c> BROTLI_COMPRESS block AND removing the
+  #    overlapping DEFLATE types (running both filters double-compresses) —
+  #    test on the host before shipping.
+  # THE_REQUEST survives mod_rewrite's internal redirect to dist/index.html
+  # (Request_URI/SetEnvIf do not — they re-evaluate against the rewritten
+  # path), so the tier is decided on the ORIGINAL navigation URL.
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'sha256-s/CnSihqIXcbpHEBeeYJkPudxGrZP7oRllZYyLfX6ac='; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' http://localhost:3000 http://127.0.0.1:3000; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'" "expr=%{THE_REQUEST} =~ m#\s/lms/(app|login)([/?\s])# && %{CONTENT_TYPE} =~ m#text/html#"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://api.dicebear.com; connect-src 'self' http://localhost:3000 http://127.0.0.1:3000; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'" "expr=!(%{THE_REQUEST} =~ m#\s/lms/(app|login)([/?\s])#) && %{CONTENT_TYPE} =~ m#text/html#"
+  <FilesMatch "^index\.html$">
+    Header set X-Content-Type-Options "nosniff"
+    Header set Referrer-Policy "no-referrer"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+    Header set X-Frame-Options "DENY"
+  </FilesMatch>
   <FilesMatch "\.(?:avif|webp|jpe?g|png|svg|ico|woff2?|ttf)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
@@ -46,7 +83,7 @@
   <FilesMatch "^index\.html$">
     Header set Cache-Control "no-store, max-age=0"
   </FilesMatch>
-  <FilesMatch "^(?:sw\.js|manifest\.webmanifest)$">
+  <FilesMatch "^(?:sw\.js|boot\.js|manifest\.webmanifest)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 </IfModule>
