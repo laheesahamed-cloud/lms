@@ -81,14 +81,18 @@ await copyFile(distIndex, rootIndex);
 const hashOf = (text) => `'sha256-${createHash('sha256').update(text).digest('base64')}'`;
 const inlineScripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
 const inlineStyles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
-const scriptHashes = inlineScripts.map(hashOf).join(' ') || "'none'";
-const styleHashes = inlineStyles.map(hashOf).join(' ') || "'none'";
+// When there is no inline content the placeholder must vanish entirely —
+// 'none' next to 'self' is invalid CSP and Chrome warns on every page.
+const scriptHashes = inlineScripts.map(hashOf).join(' ');
+const styleHashes = inlineStyles.map(hashOf).join(' ');
 
 for (const htaccessPath of [path.join(repoRoot, 'frontend', 'dist', '.htaccess'), path.join(repoRoot, '.htaccess')]) {
   let template = await readFile(path.join(publicDir, '.htaccess'), 'utf8');
   template = template
-    .replace('__LMS_SCRIPT_HASHES__', scriptHashes)
-    .replace('__LMS_STYLE_HASHES__', styleHashes);
+    .replaceAll('__LMS_SCRIPT_HASHES__', scriptHashes)
+    .replaceAll('__LMS_STYLE_HASHES__', styleHashes)
+    .replaceAll("'self' ;", "'self';")
+    .replaceAll("'self'  ", "'self' ");
   await writeFile(htaccessPath, template);
 }
 
