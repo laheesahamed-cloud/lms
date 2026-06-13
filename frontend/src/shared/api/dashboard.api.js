@@ -1,5 +1,6 @@
 import { apiClient } from './client.js';
 import { createTimedApiCache } from './cache.js';
+import { claimBootSlice } from './bootChannel.js';
 
 const adminDashboardCache = createTimedApiCache({
   ttlMs: 10000,
@@ -8,8 +9,12 @@ const adminDashboardCache = createTimedApiCache({
 
 const studentDashboardCache = createTimedApiCache({
   ttlMs: 15000,
-  load: () => apiClient.get('/student/dashboard').then((response) => response.data),
+  load: async () =>
+    (await claimBootSlice('dashboard')) ??
+    apiClient.get('/student/dashboard').then((response) => response.data),
 });
+
+export const seedStudentDashboard = (data) => studentDashboardCache.seed(data);
 
 export const fetchAdminDashboard = () => adminDashboardCache.get();
 

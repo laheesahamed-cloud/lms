@@ -5,6 +5,7 @@ import { detectPlatform } from '../shared/platform/detect.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useAvailabilityStore } from '../shared/stores/availabilityStore.js';
 import { isStaffUser } from '../shared/auth/roleAccess.js';
+import { ensureStudentBoot, resetStudentBoot } from '../shared/api/boot.api.js';
 import { isSecureContentRoute, useSecureContentMode } from '../shared/security/secureContentMode.js';
 import { applyCapacitorStatusBarTheme } from '../shared/utils/capacitorStatusBar.js';
 import { getFocusableElements } from '../shared/hooks/useFocusTrap.js';
@@ -883,6 +884,20 @@ export function AppFrame() {
   const activeAuthRouteSceneClass = isAuthRoute && authRouteSceneClass;
 
   const shouldRouteAsStaff = isStaffUser(user);
+
+  // Boot batching (R3 Task 26): one /student/boot request feeds the six
+  // read-only panels every student session loads. Fires once per signed-in
+  // student, only on app surfaces; admin and the public site are untouched.
+  useEffect(() => {
+    if (isHydrating) return;
+    if (!isAuthenticated) {
+      resetStudentBoot();
+      return;
+    }
+    if (user?.role !== 'student' || user?.status !== 'active') return;
+    if (!location.pathname.startsWith('/app')) return;
+    ensureStudentBoot(user?.id);
+  }, [isAuthenticated, isHydrating, location.pathname, user?.id, user?.role, user?.status]);
 
   useLayoutEffect(() => {
     if (isHydrating || !isAuthenticated || !user?.role) return;

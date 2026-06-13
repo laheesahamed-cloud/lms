@@ -1,10 +1,15 @@
 import { apiClient } from './client.js';
 import { createTimedApiCache } from './cache.js';
+import { claimBootSlice } from './bootChannel.js';
 
 const studyBookmarksCache = createTimedApiCache({
   ttlMs: 30000,
-  load: () => apiClient.get('/student/bookmarks').then((response) => response.data),
+  load: async () =>
+    (await claimBootSlice('bookmarks')) ??
+    apiClient.get('/student/bookmarks').then((response) => response.data),
 });
+
+export const seedStudyBookmarks = (data) => studyBookmarksCache.seed(data);
 
 export const fetchStudyBookmarks = () => studyBookmarksCache.get();
 

@@ -27,6 +27,7 @@ import { SetupModule } from './modules/setup/setup.module';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { PushNotificationsModule } from './modules/push-notifications/push-notifications.module';
 import { ContentGovernanceModule } from './modules/content-governance/content-governance.module';
+import { BootModule } from './modules/boot/boot.module';
 import databaseConfig from './config/database.config';
 import { DatabaseModule } from './database/database.module';
 
@@ -63,6 +64,7 @@ import { DatabaseModule } from './database/database.module';
     PushNotificationsModule,
     ContentGovernanceModule,
     WorkspaceModule,
+    BootModule,
   ],
   controllers: [HealthController],
 })

@@ -1,5 +1,6 @@
 import { apiClient } from './client.js';
 import { createTimedApiCache } from './cache.js';
+import { claimBootSlice } from './bootChannel.js';
 import { clearDashboardCache } from './dashboard.api.js';
 
 const STUDENT_QUIZZES_CACHE_MS = 30_000;
@@ -7,8 +8,12 @@ const STUDENT_RESULTS_CACHE_MS = 15_000;
 const studentQuizLoadRequests = new Map();
 const studentQuizzesCache = createTimedApiCache({
   ttlMs: STUDENT_QUIZZES_CACHE_MS,
-  load: () => apiClient.get('/student/quiz-attempts/quizzes').then((response) => response.data),
+  load: async () =>
+    (await claimBootSlice('quizzes')) ??
+    apiClient.get('/student/quiz-attempts/quizzes').then((response) => response.data),
 });
+
+export const seedStudentQuizzes = (data) => studentQuizzesCache.seed(data);
 const studentResultsCache = createTimedApiCache({
   ttlMs: STUDENT_RESULTS_CACHE_MS,
   load: () => apiClient.get('/student/quiz-attempts/results').then((response) => response.data),

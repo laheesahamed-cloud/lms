@@ -8,5 +8,6 @@ import { WorkspaceService } from './workspace.service';
   imports: [AuthModule, PushNotificationsModule],
   controllers: [WorkspaceController],
   providers: [WorkspaceService],
+  exports: [WorkspaceService],
 })
 export class WorkspaceModule {}

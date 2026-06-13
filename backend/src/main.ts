@@ -23,7 +23,7 @@ const AUDITABLE_PATH_PATTERNS = [
   /^\/api\/questions\/import/,
   /^\/api\/ai/,
   /^\/api\/admin(?:\/|$)/,
-  /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review)(?:\/|$)/,
+  /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review|boot)(?:\/|$)/,
 ];
 
 function extractCookieValue(cookieHeader: string | undefined, name: string) {
@@ -176,7 +176,7 @@ function isAuditablePath(path: string) {
 
 function isStudentContentPath(path: string) {
   return /^\/api\/(?:student\/)?(?:lessons\/student|ai-notes(?:\/student)?|quiz-attempts|quizzes\/\d+\/cards|courses\/student|dashboard\/student\/activity)(?:\/|$)/.test(path) ||
-    /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review|courses)(?:\/|$)/.test(path);
+    /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review|courses|boot)(?:\/|$)/.test(path);
 }
 
 function normalizeRateLimitPath(path: string) {
@@ -303,6 +303,7 @@ function rewriteApiBoundary(path: string, method: string) {
       if (rest[0] === 'activity') return '/api/dashboard/student/activity';
       return '/api/dashboard/student';
     }
+    if (resource === 'boot') return '/api/boot/student';
     if (resource === 'courses') {
       if (rest[0] === 'lessons' && rest[2] === 'progress') return `/api/courses/student/lessons/${rest[1]}/progress`;
       return `/api/courses/student${restPath}`;

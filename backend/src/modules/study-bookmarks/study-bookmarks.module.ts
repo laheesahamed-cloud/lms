@@ -7,5 +7,6 @@ import { StudyBookmarksService } from './study-bookmarks.service';
   imports: [AuthModule],
   controllers: [StudyBookmarksController],
   providers: [StudyBookmarksService],
+  exports: [StudyBookmarksService],
 })
 export class StudyBookmarksModule {}

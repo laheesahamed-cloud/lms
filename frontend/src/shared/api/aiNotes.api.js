@@ -1,5 +1,6 @@
 import { apiClient } from './client.js';
 import { createTimedApiCache } from './cache.js';
+import { claimBootSlice } from './bootChannel.js';
 
 function withEngine(config = {}, engine = 'gemini') {
   return {
@@ -79,8 +80,17 @@ export const adminDeleteLessonFlashcard = (noteId, cardId, options = {}) =>
 const studentAiNotesCache = createTimedApiCache({
   ttlMs: 30000,
   key: (options = {}) => options.engine || 'gemini',
-  load: (options = {}) => apiClient.get('/student/ai-notes', withEngine({}, options.engine)).then((r) => r.data),
+  load: async (options = {}) => {
+    // the /student/boot batch carries the default engine's list only
+    if ((options.engine || 'gemini') === 'gemini') {
+      const seeded = await claimBootSlice('aiNotes');
+      if (seeded !== undefined) return seeded;
+    }
+    return apiClient.get('/student/ai-notes', withEngine({}, options.engine)).then((r) => r.data);
+  },
 });
+
+export const seedStudentAiNotes = (data, engine = 'gemini') => studentAiNotesCache.seed(data, { engine });
 
 export const listAiNotes = (options = {}) => studentAiNotesCache.get(options);
 

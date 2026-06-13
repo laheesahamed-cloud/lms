@@ -9,5 +9,6 @@ import { AiNotesService } from './ai-notes.service';
   imports: [ConfigModule, DatabaseModule, PlansModule],
   controllers: [AiNotesController],
   providers: [AiNotesService],
+  exports: [AiNotesService],
 })
 export class AiNotesModule {}
