@@ -171,28 +171,6 @@
     background-color: var(--app-dark-bg) !important;
   }
 
-  :root:not([data-theme='dark']):has(.light-page) {
-    --app-bg: var(--app-light-bg);
-    background: var(--app-light-bg);
-    background-color: var(--app-light-bg);
-  }
-
-  :root[data-theme='dark']:has(.light-page) {
-    --app-bg: var(--app-dark-bg);
-    background: var(--app-dark-bg);
-    background-color: var(--app-dark-bg);
-  }
-
-  :root:not([data-theme='dark']) body:has(.light-page) {
-    background: var(--app-light-bg) !important;
-    background-color: var(--app-light-bg) !important;
-  }
-
-  :root[data-theme='dark'] body:has(.light-page) {
-    background: var(--app-dark-bg) !important;
-    background-color: var(--app-dark-bg) !important;
-  }
-
   .app-shell main,
   .app-shell .portal-content,
   .app-shell .portal-content__frame,

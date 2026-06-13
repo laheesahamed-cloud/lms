@@ -427,45 +427,9 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-dust-layer 
    SECTION HEAD
    ============================================================ */
 
-.study-section-head small {
-  color: var(--sa-text-3);
-  font-size: var(--type-size-xs);
-  font-weight: 800;
-}
-
 /* ============================================================
    QUICK ACTIONS GRID
    ============================================================ */
-
-/* Count badge — top-right */
-.study-action-card em {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  grid-column: auto;
-  grid-row: 1;
-  justify-self: end;
-  color: currentColor;
-  font-size: 0;
-  font-style: normal;
-  font-weight: 900;
-  line-height: 1;
-  z-index: 1;
-}
-
-.study-action-card em::after {
-  display: block;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: currentColor;
-  content: "";
-}
-
-.study-action-card:nth-child(2) em,
-.study-action-card:nth-child(3) em { color: currentColor; }
-
-/* Label */
 
 /* ============================================================
    CARD HEAD — used by DailyQuestionCard.
@@ -729,7 +693,6 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-dust-layer 
 
 @media (max-width: 360px) {
   .study-hub-shell { width: var(--sa-page-width-compact, min(100% - 18px, 390px)); }
-  .study-action-card em { font-size: var(--type-size-md); }
 }
 
 /* Tablet */
@@ -1163,10 +1126,6 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .s
 :root:not([data-theme="dark"]) .student-app-shell .dashboard-page.study-hub-page .study-heatmap__cell.is-active .study-heatmap__dot {
   background: linear-gradient(135deg, #f59e0b, #f97316);
   box-shadow: 0 10px 18px -12px rgba(217, 119, 6, 0.72);
-}
-
-.study-hub-page .study-action-card em {
-  display: none !important;
 }
 
 /* Bottom nav is unified globally (base bar) — no per-screen panel override.
