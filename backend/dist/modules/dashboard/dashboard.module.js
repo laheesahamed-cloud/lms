@@ -20,6 +20,7 @@ exports.DashboardModule = DashboardModule = __decorate([
         imports: [auth_module_1.AuthModule, courses_module_1.CoursesModule],
         controllers: [dashboard_controller_1.DashboardController],
         providers: [dashboard_service_1.DashboardService],
+        exports: [dashboard_service_1.DashboardService],
     })
 ], DashboardModule);
 //# sourceMappingURL=dashboard.module.js.map

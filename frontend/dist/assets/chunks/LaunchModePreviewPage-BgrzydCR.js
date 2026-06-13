@@ -1,0 +1,1 @@
+import{Bi as e,Ki as t,Mi as n}from"./app-shared-YPGV5PW0.js";import{t as r}from"./LaunchModePage-uwWRjPi4.js";/* empty css                        */var i=t();function a(){let{mode:t}=e();return t!==`maintenance`&&t!==`coming-soon`?(0,i.jsx)(n,{to:`/launch-preview/maintenance`,replace:!0}):(0,i.jsx)(r,{mode:t,preview:!0})}export{a as LaunchModePreviewPage};

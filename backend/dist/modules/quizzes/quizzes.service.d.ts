@@ -37,6 +37,7 @@ export declare class QuizzesService {
         adminName: string;
         studentTitle: string;
         displayTitleMode: string;
+        quizNumber: number | null;
         quizTitle: string;
         quizDescription: string;
         blueprint: {
@@ -142,6 +143,7 @@ export declare class QuizzesService {
         adminName: string;
         studentTitle: string;
         displayTitleMode: string;
+        quizNumber: number | null;
         quizTitle: string;
         quizDescription: string;
         blueprint: {
@@ -242,6 +244,7 @@ export declare class QuizzesService {
     private resolveAdminName;
     private resolveStudentTitle;
     private resolveDisplayTitleMode;
+    private resolveNextQuizNumber;
     private optionalPositiveId;
     private normalizeBlueprintPayload;
     private stringifyBlueprint;

@@ -1,1 +1,0 @@
-function e(e,t=`-`){let n=String(e||``).trim().toLowerCase();return n?n===`waived`||n===`free`||n===`free_plan`?`Free Plan`:n.replace(/[_-]+/g,` `).replace(/\b\w/g,e=>e.toUpperCase()):t}export{e as t};

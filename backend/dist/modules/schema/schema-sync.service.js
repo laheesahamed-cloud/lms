@@ -95,6 +95,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureColumn(connection, 'quizzes', 'admin_name', 'VARCHAR(255) NULL AFTER exam_mode_only');
             await this.ensureColumn(connection, 'quizzes', 'student_title', 'VARCHAR(255) NULL AFTER admin_name');
             await this.ensureColumn(connection, 'quizzes', 'display_title_mode', "VARCHAR(20) NOT NULL DEFAULT 'number' AFTER student_title");
+            await this.ensureColumn(connection, 'quizzes', 'quiz_number', 'INT NULL DEFAULT NULL AFTER display_title_mode');
             await this.ensureColumn(connection, 'quizzes', 'blueprint_json', 'LONGTEXT NULL AFTER quiz_description');
             await this.ensureColumn(connection, 'quizzes', 'randomization_mode', "VARCHAR(20) NOT NULL DEFAULT 'static' AFTER blueprint_json");
             await this.ensureColumn(connection, 'lessons', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER video_url');

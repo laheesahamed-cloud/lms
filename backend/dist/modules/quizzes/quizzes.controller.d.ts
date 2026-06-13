@@ -22,6 +22,7 @@ export declare class QuizzesController {
         adminName: string;
         studentTitle: string;
         displayTitleMode: string;
+        quizNumber: number | null;
         quizTitle: string;
         quizDescription: string;
         blueprint: {
@@ -142,6 +143,7 @@ export declare class QuizzesController {
         adminName: string;
         studentTitle: string;
         displayTitleMode: string;
+        quizNumber: number | null;
         quizTitle: string;
         quizDescription: string;
         blueprint: {

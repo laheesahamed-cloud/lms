@@ -1,1 +1,0 @@
-var e=new Set([`\\`,`/`,`<`,`>`,`:`,`"`,`|`,`?`,`*`]);function t(t){return Array.from(String(t||``)).some(t=>e.has(t)||t.charCodeAt(0)<=31)}export{t};

@@ -13,6 +13,7 @@ export declare class CreateQuizDto {
     adminName: string;
     studentTitle: string;
     displayTitleMode?: 'number' | 'title';
+    quizNumber?: number | null;
     quizTitle?: string;
     quizDescription?: string;
     blueprint?: Record<string, unknown> | null;

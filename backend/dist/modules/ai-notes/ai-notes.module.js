@@ -21,6 +21,7 @@ exports.AiNotesModule = AiNotesModule = __decorate([
         imports: [config_1.ConfigModule, database_module_1.DatabaseModule, plans_module_1.PlansModule],
         controllers: [ai_notes_controller_1.AiNotesController],
         providers: [ai_notes_service_1.AiNotesService],
+        exports: [ai_notes_service_1.AiNotesService],
     })
 ], AiNotesModule);
 //# sourceMappingURL=ai-notes.module.js.map

@@ -19,6 +19,7 @@ exports.StudyBookmarksModule = StudyBookmarksModule = __decorate([
         imports: [auth_module_1.AuthModule],
         controllers: [study_bookmarks_controller_1.StudyBookmarksController],
         providers: [study_bookmarks_service_1.StudyBookmarksService],
+        exports: [study_bookmarks_service_1.StudyBookmarksService],
     })
 ], StudyBookmarksModule);
 //# sourceMappingURL=study-bookmarks.module.js.map

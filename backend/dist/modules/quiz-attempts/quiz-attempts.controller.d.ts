@@ -18,6 +18,7 @@ export declare class QuizAttemptsController {
         quizTitle: string;
         studentTitle: string;
         displayTitleMode: string;
+        quizNumber: number | null;
         quizDescription: string;
         totalQuestions: number;
         totalMarks: number;

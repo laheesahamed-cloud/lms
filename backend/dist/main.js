@@ -6,6 +6,7 @@ const core_1 = require("@nestjs/core");
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const crypto_1 = require("crypto");
+const zlib_1 = require("zlib");
 const express = require('express');
 const { json, urlencoded } = express;
 const path = require('path');
@@ -25,7 +26,7 @@ const AUDITABLE_PATH_PATTERNS = [
     /^\/api\/questions\/import/,
     /^\/api\/ai/,
     /^\/api\/admin(?:\/|$)/,
-    /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review)(?:\/|$)/,
+    /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review|boot)(?:\/|$)/,
 ];
 function extractCookieValue(cookieHeader, name) {
     return String(cookieHeader || '')
@@ -153,7 +154,7 @@ function isAuditablePath(path) {
 }
 function isStudentContentPath(path) {
     return /^\/api\/(?:student\/)?(?:lessons\/student|ai-notes(?:\/student)?|quiz-attempts|quizzes\/\d+\/cards|courses\/student|dashboard\/student\/activity)(?:\/|$)/.test(path) ||
-        /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review|courses)(?:\/|$)/.test(path);
+        /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review|courses|boot)(?:\/|$)/.test(path);
 }
 function normalizeRateLimitPath(path) {
     return path
@@ -277,6 +278,8 @@ function rewriteApiBoundary(path, method) {
                 return '/api/dashboard/student/activity';
             return '/api/dashboard/student';
         }
+        if (resource === 'boot')
+            return '/api/boot/student';
         if (resource === 'courses') {
             if (rest[0] === 'lessons' && rest[2] === 'progress')
                 return `/api/courses/student/lessons/${rest[1]}/progress`;
@@ -379,6 +382,39 @@ async function configureApp(app) {
         res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
         res.setHeader('Content-Security-Policy', contentSecurityPolicy);
         res.removeHeader('X-Powered-By');
+        next();
+    });
+    const GZIP_MIN_BYTES = 1024;
+    app.use((req, res, next) => {
+        if (!/\bgzip\b/i.test(String(req.headers?.['accept-encoding'] || ''))) {
+            next();
+            return;
+        }
+        const originalJson = res.json.bind(res);
+        res.json = (body) => {
+            let payload = '';
+            try {
+                payload = JSON.stringify(body);
+            }
+            catch {
+                return originalJson(body);
+            }
+            if (!payload || Buffer.byteLength(payload) <= GZIP_MIN_BYTES || res.headersSent) {
+                return originalJson(body);
+            }
+            const compressed = (0, zlib_1.gzipSync)(Buffer.from(payload), { level: 5 });
+            res.setHeader('Content-Encoding', 'gzip');
+            if (!res.getHeader('Content-Type')) {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            }
+            res.setHeader('Content-Length', String(compressed.length));
+            const vary = String(res.getHeader('Vary') || '');
+            if (!/Accept-Encoding/i.test(vary)) {
+                res.setHeader('Vary', vary ? `${vary}, Accept-Encoding` : 'Accept-Encoding');
+            }
+            res.end(compressed);
+            return res;
+        };
         next();
     });
     app.use((req, res, next) => {

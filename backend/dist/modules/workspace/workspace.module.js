@@ -20,6 +20,7 @@ exports.WorkspaceModule = WorkspaceModule = __decorate([
         imports: [auth_module_1.AuthModule, push_notifications_module_1.PushNotificationsModule],
         controllers: [workspace_controller_1.WorkspaceController],
         providers: [workspace_service_1.WorkspaceService],
+        exports: [workspace_service_1.WorkspaceService],
     })
 ], WorkspaceModule);
 //# sourceMappingURL=workspace.module.js.map
