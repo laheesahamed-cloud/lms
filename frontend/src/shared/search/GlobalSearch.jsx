@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useDeferredValue, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { isStaffRole, isStaffUser } from '../auth/roleAccess.js';
@@ -8,9 +9,9 @@ import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../util
 
 const searchUi = {
   backdrop:
-    'fixed inset-0 z-[9000] flex items-start justify-center bg-black/45 px-4 pb-4 pt-[72px] backdrop-blur animate-overlayIn',
+    'lms-global-search-backdrop fixed inset-0 z-[10095] flex items-start justify-center bg-black/45 px-4 pb-4 pt-[72px] backdrop-blur animate-overlayIn',
   modal:
-    'w-full max-w-[560px] overflow-hidden rounded-xl border border-line-medium bg-surface-glass-strong shadow-[0_24px_64px_rgba(0,0,0,0.18)] backdrop-blur-[20px] animate-scaleInFast dark:border-white/10 dark:bg-[rgba(15,17,32,0.92)]',
+    'w-full max-w-[560px] overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-[var(--ds-floating-shadow)] animate-overlayIn',
   inputRow:
     'flex items-center gap-2.5 border-b border-line-soft px-4 py-3.5 text-ink-soft',
   input:
@@ -298,7 +299,7 @@ export function GlobalSearch({ onClose }) {
     onClose();
   }
 
-  return (
+  const overlay = (
     <div className={searchUi.backdrop} onClick={onClose}>
       <div
         ref={modalRef}
@@ -314,7 +315,7 @@ export function GlobalSearch({ onClose }) {
           <input className={searchUi.input}
             ref={inputRef}
             aria-label={isAdmin ? 'Search admin content, courses, quizzes, and students' : 'Search your courses, lessons, and quizzes'}
-            placeholder={isAdmin ? 'Search courses, lessons, quizzes, students...' : 'Search your courses, lessons, quizzes...'}
+            placeholder={isAdmin ? 'Search students, courses…' : 'Search courses, quizzes…'}
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -355,10 +356,14 @@ export function GlobalSearch({ onClose }) {
           )}
         </div>
 
-        <div className={searchUi.footer}>
+        <div className={`${searchUi.footer} lms-search-kbd-hints`}>
           <span>↑↓ navigate</span><span>↵ open</span><span>Esc close</span>
         </div>
       </div>
     </div>
   );
+
+  // Portal to <body> so the overlay escapes the app-shell stacking context and the
+  // native (Capacitor) topbar/bottom-nav chrome, matching the avatar/profile menu.
+  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 }

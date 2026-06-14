@@ -1,13 +1,12 @@
 /*
- * TextRevealManifesto — section 5. Ported from 21st.dev (dillionverma/text-reveal):
- * word-by-word opacity reveal driven by scroll progress. Off-white bg, DM Serif
- * Display, plus 3 pastel trust tags that fade in after the reveal.
+ * TextRevealManifesto — the "why we built it" beat. The line staggers in word
+ * by word once the section scrolls into view (no 235vh sticky scrub / pin — so
+ * it can't trap or clamp the page). Off-white bg, DM Serif Display, 3 trust tags.
  */
-import { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const MANIFESTO =
-  'xyndrome was built because Sri Lankan medical students deserved better than photocopied notes and outdated PDFs. We built the exam prep tool we wished existed.';
+  'xyndrome was built because Sri Lankan medical students deserved better than photocopied notes and scattered PDFs. So we built the all-in-one study tool we wished existed.';
 
 const TRUST_TAGS = [
   { label: 'Built in Sri Lanka', bg: '#d6f0ff' },
@@ -15,52 +14,49 @@ const TRUST_TAGS = [
   { label: 'Updated for current exams', bg: '#fff3d6' },
 ];
 
-function Word({ children, progress, range }) {
-  const opacity = useTransform(progress, range, [0, 1]);
-  return (
-    <span className="relative mx-1.5 inline-block lg:mx-2">
-      <span aria-hidden="true" className="pointer-events-none absolute inset-0 select-none opacity-[0.12]">{children}</span>
-      <motion.span style={{ opacity }}>{children}</motion.span>
-    </span>
-  );
-}
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04 } },
+};
+const word = {
+  hidden: { opacity: 0.12 },
+  show: { opacity: 1, transition: { duration: 0.35, ease: 'easeOut' } },
+};
 
 export function TextRevealManifesto() {
-  const targetRef = useRef(null);
-  const { scrollYProgress } = useScroll({ target: targetRef });
   const words = MANIFESTO.split(' ');
 
   return (
-    <section id="about" className="relative z-0 bg-[#faf9f6]">
-      <div ref={targetRef} className="relative h-[235vh]">
-        <div className="sticky top-0 mx-auto flex h-screen max-w-4xl flex-col items-center justify-center px-6">
-          <p className="font-display flex flex-wrap justify-center text-[clamp(28px,5vw,48px)] leading-[1.25] text-[#111118]">
-            {words.map((word, i) => {
-              const start = i / words.length;
-              const end = start + 1 / words.length;
-              return (
-                <Word key={`${word}-${i}`} progress={scrollYProgress} range={[start, end]}>
-                  {word}
-                </Word>
-              );
-            })}
-          </p>
+    <section id="about" className="lpv2-section bg-[#faf9f6]">
+      <div className="mx-auto flex max-w-4xl flex-col items-center px-6 text-center">
+        <motion.p
+          className="font-display flex flex-wrap justify-center text-[clamp(28px,5vw,48px)] leading-[1.25] text-[#111118]"
+          variants={container}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '-100px' }}
+        >
+          {words.map((w, i) => (
+            <motion.span key={`${w}-${i}`} className="mx-1.5 inline-block lg:mx-2" variants={word}>
+              {w}
+            </motion.span>
+          ))}
+        </motion.p>
 
-          <div className="mt-12 flex flex-wrap justify-center gap-3">
-            {TRUST_TAGS.map((t, i) => (
-              <motion.span
-                key={t.label}
-                className="rounded-full px-4 py-1.5 text-sm font-semibold text-[#111118] ring-1 ring-black/5"
-                style={{ background: t.bg }}
-                initial={{ opacity: 0, y: 14 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-80px' }}
-                transition={{ delay: 0.1 * i, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {t.label}
-              </motion.span>
-            ))}
-          </div>
+        <div className="mt-12 flex flex-wrap justify-center gap-3">
+          {TRUST_TAGS.map((t, i) => (
+            <motion.span
+              key={t.label}
+              className="rounded-full px-4 py-1.5 text-sm font-semibold text-[#111118] ring-1 ring-black/5"
+              style={{ background: t.bg }}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ delay: 0.1 * i, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {t.label}
+            </motion.span>
+          ))}
         </div>
       </div>
     </section>

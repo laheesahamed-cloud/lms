@@ -1,5 +1,5 @@
-import { Outlet } from 'react-router-dom';
 import { AppShell } from './AppShell.jsx';
+import { NativeRouteTransition } from '../routing/NativeRouteTransition.jsx';
 
 export function PanelLayout() {
   const desktopSidebarToggle = true;
@@ -11,7 +11,9 @@ export function PanelLayout() {
       desktopSidebarHiddenByDefault={desktopSidebarHiddenByDefault}
     >
       <div className="min-h-full">
-        <Outlet />
+        {/* Native runtime: iOS push/pop slide transitions. Off-native this is a
+            plain <Outlet/> (existing route fade is unchanged). */}
+        <NativeRouteTransition />
       </div>
     </AppShell>
   );

@@ -1,28 +1,29 @@
 /*
- * LandingPage (v2) — pastel editorial "minimal brand echo" rebuild.
- * Composes the new section components. Scoped under `.lpv2` so the design
- * tokens/fonts apply without leaking into the app. Mixed light/dark rhythm:
- *   BootLoader (dark) → Hero (dark cinematic) → Floating subjects (cream) →
- *   Scroll-morph (light, accent bleed) → Manifesto (off-white) → Gallery
- *   (light gray) → Stats (cream) → Testimonials (cream) → Comparison (gray) →
- *   Final CTA (pastel mesh) → Footer (near-black).
+ * LandingPage (v2) — pastel editorial landing, told as one story:
+ *   Hero (dark cinematic) → Problem "stop juggling 5 apps" (cream) → Feature
+ *   deep-dives (Canvas, MCQs, Flashcards, AI Notes, Mocks) → Manifesto (why) →
+ *   Subjects gallery → Stats → Testimonials → Comparison → FAQ → Final CTA →
+ *   Footer. Calm in-view reveals throughout (only the hero is scroll-pinned).
+ *   Scoped under `.lpv2` so tokens/fonts don't leak into the app.
  */
 import { useCallback, useEffect, useState } from 'react';
 import '../landing-v2.css';
 import { ensureLandingFonts } from '../landingFonts.js';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
+import { StructuredData } from '../../../shared/seo/StructuredData.jsx';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
 import { CinematicHero } from '../components/CinematicHero.jsx';
 import { BootLoader } from '../components/landing/BootLoader.jsx';
 import { LandingNav } from '../components/landing/LandingNav.jsx';
-import { FloatingMedicalIcons } from '../components/landing/FloatingMedicalIcons.jsx';
-import { ScrollMorphFeatures } from '../components/landing/ScrollMorphFeatures.jsx';
+import { ProblemSolutionSection } from '../components/landing/ProblemSolutionSection.jsx';
+import { FeatureDeepDives } from '../components/landing/FeatureDeepDives.jsx';
 import { TextRevealManifesto } from '../components/landing/TextRevealManifesto.jsx';
-import { MediaStrip } from '../components/landing/MediaStrip.jsx';
 import { SubjectGallery3D } from '../components/landing/SubjectGallery3D.jsx';
 import { StatsSection } from '../components/landing/StatsSection.jsx';
 import { TestimonialsMarquee } from '../components/landing/TestimonialsMarquee.jsx';
 import { FeatureComparison } from '../components/landing/FeatureComparison.jsx';
+import { FaqSection } from '../components/landing/FaqSection.jsx';
+import { FAQ_ITEMS } from '../components/landing/faqData.js';
 import { FinalCTA } from '../components/landing/FinalCTA.jsx';
 import { SiteFooter } from '../components/landing/SiteFooter.jsx';
 
@@ -114,23 +115,24 @@ export function LandingPage() {
   return (
     <main className={`lpv2 relative isolate overflow-x-clip ${subjectDarkModeActive ? 'lpv2--subject-dark' : ''}`}>
       <PageMeta
-        title="Medical Study Platform"
-        description="xyndrome is a medical LMS for Sri Lankan students with structured notes, exam-style MCQs, mock exams, explanations, and subject mastery tracking."
+        title="Medical Study Platform — Notes, MCQs, Flashcards & Mock Exams"
+        description="xyndrome puts your whole medical study workflow in one place: canvas notes, 10,000+ exam-style MCQs with doctor-written explanations, high-yield flashcards, AI notes, timed mock exams and subject mastery tracking — built for Sri Lankan medical students."
         path="/"
       />
+      <StructuredData id="landing" faqs={FAQ_ITEMS} />
 
       <BootLoader onFinished={handleBootFinished} />
       <LandingNav ctaTo="/register" signInTo="/login" />
 
       <CinematicHero animationReady={heroAnimationReady} secondaryCta={heroSecondaryCta} />
-      <FloatingMedicalIcons />
-      <ScrollMorphFeatures />
+      <ProblemSolutionSection />
+      <FeatureDeepDives />
       <TextRevealManifesto />
-      <MediaStrip />
       <SubjectGallery3D darkModeActive={subjectDarkModeActive} onDarkModeChange={handleSubjectDarkModeChange} />
       <StatsSection />
       <TestimonialsMarquee />
       <FeatureComparison />
+      <FaqSection />
       <FinalCTA primaryTo="/register" />
       <SiteFooter />
     </main>

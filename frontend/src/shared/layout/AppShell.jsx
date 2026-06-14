@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AppSidebar, MobileBottomNav, MobileTopNav } from './AppSidebar.jsx';
+import { AppHeader } from './AppHeader.jsx';
 import { GlobalSearch } from '../search/GlobalSearch.jsx';
 import { detectPlatform } from '../platform/detect.js';
 import { useAuthStore } from '../stores/authStore.js';
@@ -228,6 +229,11 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     const classStates = [
       ['student-assessment-screen', user?.role === 'student' && isAssessmentShellRoute],
       ['student-quiz-focus-screen', user?.role === 'student' && isQuizFocusMode],
+      // Immersive/reading routes get the compact header only (no large title).
+      // AppHeader reads this body class to switch into focus mode.
+      ['student-header-focus', PLATFORM.isNative && user?.role === 'student' && (isCompactFocusMode || isAiNoteReaderRoute)],
+      // Desktop sidebar is docked → the portaled header bar must start after it.
+      ['student-sidebar-docked', PLATFORM.isNative && user?.role === 'student' && !hideGlobalSidebar && !useMobileTopNav],
     ];
 
     classStates.forEach(([className, enabled]) => {
@@ -237,7 +243,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     return () => {
       classStates.forEach(([className]) => document.body.classList.remove(className));
     };
-  }, [isAssessmentShellRoute, isQuizFocusMode, user?.role]);
+  }, [isAssessmentShellRoute, isQuizFocusMode, user?.role, isCompactFocusMode, isAiNoteReaderRoute, hideGlobalSidebar, useMobileTopNav]);
 
   useEffect(() => {
     if (!user?.role || typeof window === 'undefined') {
@@ -336,6 +342,11 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
       />
 
       <MobileBottomNav isExamFocusMode={isFocusMode} onNavigate={() => setSidebarOpen(false)} />
+
+      {/* Persistent top header bar — like the bottom nav, this lives in the shell
+          (not per-page), so it's present instantly on refresh and never remounts
+          on navigation. It self-hides on routes that have no header descriptor. */}
+      {PLATFORM.isNative && user?.role === 'student' ? <AppHeader surface="shell" /> : null}
 
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
 

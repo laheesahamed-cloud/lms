@@ -12,8 +12,8 @@
      Dark mode: deep navy + soft white (low glare).
      ──────────────────────────────────────────────────────────── */
 
-  /* Background — soft pastel gradient (warm top → cool bottom) */
-  --sa-bg: linear-gradient(180deg, #f4f7fc 0%, #eaf1fb 45%, #e3ecf7 100%);
+  /* Background — flat single tone to match the admin shell (no gradient). */
+  --sa-bg: #dce6f4;
   --sa-bg-grad-1:      #dde8f7;
   --sa-bg-grad-2:      #e4eef8;
   --sa-surface:        #fbfcff;
@@ -2162,7 +2162,7 @@ html body.lms-notification-menu-open > .lms-floating-panel {
 }
 
 /* Course / quiz / set cards — single rule replacing the override soup */
-.student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card) {
+.student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-set-card) {
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-lg);
   background: var(--sa-card-bg);
@@ -2175,18 +2175,18 @@ html body.lms-notification-menu-open > .lms-floating-panel {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):hover {
+  .student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-set-card):hover {
     border-color: rgba(var(--sa-primary-rgb), 0.22);
     background: var(--sa-card-bg-hover);
     box-shadow: var(--ds-card-shadow-hover);
   }
 }
 
-.student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):active {
+.student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-set-card):active {
   transform: scale(0.98);
 }
 
-.student-app-shell :where(.lms-course-card button, .student-course-card button, .lms-quiz-card button, .lms-quiz-course-card button, .lms-quiz-subject-card button, .lms-quiz-topic-card button, .lms-quiz-set-card button, .student-course-card__cta) {
+.student-app-shell :where(.lms-course-card button, .student-course-card button, .lms-quiz-card button, .lms-quiz-course-card button, .lms-quiz-set-card button, .student-course-card__cta) {
   min-height: 44px;
   border-radius: var(--sa-radius-sm);
 }
@@ -2319,10 +2319,7 @@ html body.lms-notification-menu-open > .lms-floating-panel {
 .student-app-shell :where(
   .lms-page-header-card,
   .student-page-hero,
-  .lms-course-detail-hero,
-  .student-results-hero,
-  .planner-hero-card
-) {
+  .student-results-hero) {
   border-color: var(--sa-border) !important;
   border-radius: var(--sa-radius-xl) !important;
   background: var(--sa-feature-card-bg) !important;
@@ -2359,8 +2356,6 @@ html body.lms-notification-menu-open > .lms-floating-panel {
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .lms-review-main,
   .lms-review-sidebar > section,
@@ -2368,16 +2363,13 @@ html body.lms-notification-menu-open > .lms-floating-panel {
   .lms-exam-main-card,
   .lms-exam-sidebar > section,
   .lms-exam-explainer > section,
-  .student-lessons-search-card,
   .student-lessons-course-card,
   .student-lessons-detail-toolbar,
   .student-lessons-category__head,
   .student-lessons-lesson-list-shell,
   .student-lessons-lesson-row,
   .student-results-focus,
-  .student-results-history,
-  .planner-panel
-) {
+  .student-results-history) {
   border-color: var(--sa-border) !important;
   background: var(--sa-card-bg) !important;
   color: var(--sa-ink) !important;
@@ -2389,8 +2381,6 @@ html body.lms-notification-menu-open > .lms-floating-panel {
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .lms-review-main,
   .lms-review-sidebar > section,
@@ -2590,7 +2580,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
     font-size: 36px !important;
   }
 
-  .student-app-shell :where(.glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .lms-page-header-card, .student-page-hero, .lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card, .lms-table-shell, .lms-app-card) {
+  .student-app-shell :where(.glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .lms-page-header-card, .student-page-hero, .lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-set-card, .lms-table-shell, .lms-app-card) {
     border-radius: 20px;
   }
 }
@@ -2817,7 +2807,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 
 @media (prefers-reduced-motion: reduce) {
   .student-app-shell .lms-topbar :where(.lms-topbar-menu-button, .lms-topbar-right > button, .lms-topbar-right > div > button, .lms-topbar-utility > button, .lms-topbar-utility > div > button, .lms-topbar-center > button),
-  .student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card),
+  .student-app-shell :where(.lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-set-card),
   .lms-app-btn {
     transition: none;
   }
@@ -2909,9 +2899,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .lms-page-header-card,
   .lms-hero-card,
   .student-page-hero,
-  .student-results-hero,
-  .student-courses-hero,
-  .lms-course-detail-hero
+  .student-results-hero
 ) {
   position: relative;
   overflow: hidden;
@@ -2927,10 +2915,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .lms-page-header-card,
   .lms-hero-card,
   .student-page-hero,
-  .student-results-hero,
-  .student-courses-hero,
-  .lms-course-detail-hero
-) {
+  .student-results-hero) {
   border-color: rgba(var(--sa-border-rgb), 0.18) !important;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.025),
@@ -2943,10 +2928,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
     .lms-page-header-card,
     .lms-hero-card,
     .student-page-hero,
-    .student-results-hero,
-    .student-courses-hero,
-    .lms-course-detail-hero
-  ) {
+    .student-results-hero) {
     border-radius: var(--sa-radius-lg) !important;
   }
 }
@@ -2958,18 +2940,11 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .student-lessons-course-card,
   .student-lessons-lesson-row,
   .student-results-focus,
-  .student-results-history,
-  .planner-hero-card,
-  .planner-panel,
-  .results-performance-board,
-  .results-focus-board
-) {
+  .student-results-history) {
   transition:
     transform 160ms var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
     box-shadow 160ms var(--lms-motion-ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
@@ -2983,18 +2958,11 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .student-lessons-course-card,
   .student-lessons-lesson-row,
   .student-results-focus,
-  .student-results-history,
-  .planner-hero-card,
-  .planner-panel,
-  .results-performance-board,
-  .results-focus-board
-):hover {
+  .student-results-history):hover {
   transform: translateY(-2px);
   border-color: rgba(var(--sa-primary-rgb), 0.28) !important;
   background: var(--sa-card-bg-hover) !important;
@@ -3007,18 +2975,11 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .student-lessons-course-card,
   .student-lessons-lesson-row,
   .student-results-focus,
-  .student-results-history,
-  .planner-hero-card,
-  .planner-panel,
-  .results-performance-board,
-  .results-focus-board
-):hover {
+  .student-results-history):hover {
   border-color: rgba(var(--sa-border-rgb), 0.22) !important;
   box-shadow: var(--ds-card-shadow-hover) !important;
 }
@@ -3029,8 +2990,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card
 ):active {
   transform: scale(0.98);
@@ -3051,12 +3010,13 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
     .student-notes-page,
     .student-results-page,
     .study-planner-page,
-    .ai-notes-list-page
+    .ai-notes-list-page,
+    .student-study-page
   )
 ) :where(.management-layout, .study-hub-shell) > :where(
   :not(style):not(script):not(.study-hub-topbar)
 ) {
-  animation: study-fade-up var(--lms-card-enter-duration, 300ms) var(--lms-motion-ease-out, ease-out) both;
+  animation: study-fade-up var(--lms-page-enter-duration, 440ms) var(--lms-page-enter-ease, ease-out) both;
   backface-visibility: hidden;
 }
 
@@ -3088,15 +3048,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   animation-delay: 180ms;
 }
 
-/* ── Unified section heads — match dashboard's eyebrow + small */
-.student-app-shell .student-route-page:not(.dashboard-page) :where(.management-layout, .study-hub-shell) :where(.lms-app-section-head, .student-section-head) {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 24px 4px 12px;
-}
-
 /* ── Reduced motion: drop all new motion ─────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .student-app-shell :where(
@@ -3105,12 +3056,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
     .student-course-card,
     .lms-quiz-card,
     .lms-quiz-course-card,
-    .lms-quiz-subject-card,
-    .lms-quiz-topic-card,
-    .lms-quiz-set-card,
-    .results-performance-board,
-    .results-focus-board
-  ) {
+    .lms-quiz-set-card) {
     transition: none !important;
   }
 
@@ -3120,12 +3066,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
     .student-course-card,
     .lms-quiz-card,
     .lms-quiz-course-card,
-    .lms-quiz-subject-card,
-    .lms-quiz-topic-card,
-    .lms-quiz-set-card,
-    .results-performance-board,
-    .results-focus-board
-  ):hover {
+    .lms-quiz-set-card):hover {
     transform: none !important;
   }
 

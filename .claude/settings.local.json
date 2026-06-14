@@ -74,7 +74,8 @@
       "Bash(node -e \"console.log\\('frontend gsap:', require\\('./package.json'\\).dependencies.gsap\\)\")",
       "Bash(grep -rn \"@keyframes panelRouteFade\\\\|panelRouteFade$\\\\|keyframes panelRouteFade\" src)",
       "Bash(sed -n '2770,2840p' src/shared/styles/99-legacy/app.css)",
-      "Bash(node)"
+      "Bash(node)",
+      "Bash(awk '/@keyframes \\(panelRouteFade|routeFade\\)/{f=1} f{print} /^}/{if\\(f>1\\)f=0; if\\(f\\)f++}' src/shared/styles/06-utilities/performance.css)"
     ]
   }
 }

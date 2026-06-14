@@ -47,8 +47,13 @@ function isLocalOrigin(origin) {
 function isPrivateLanOrigin(origin) {
     return /^https?:\/\/(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/i.test(origin);
 }
+const CAPACITOR_NATIVE_ORIGINS = new Set([
+    'capacitor://localhost',
+    'ionic://localhost',
+    'https://localhost',
+]);
 function isCapacitorOrigin(origin) {
-    return /^(capacitor|ionic):\/\/localhost$/i.test(origin);
+    return CAPACITOR_NATIVE_ORIGINS.has(String(origin || '').toLowerCase());
 }
 function splitUrlList(value) {
     return String(value || '')
@@ -104,7 +109,7 @@ function shouldAllowLanOrigins(configService, nodeEnv, productionLikeRuntime) {
 }
 function buildContentSecurityPolicy(frontendOrigins, apiOrigin, allowLanOrigins) {
     const runtimeOrigins = Array.from(new Set([...frontendOrigins, apiOrigin].filter(Boolean)));
-    const nativeSources = ['capacitor://localhost', 'ionic://localhost'];
+    const nativeSources = Array.from(CAPACITOR_NATIVE_ORIGINS);
     const localDevSources = allowLanOrigins
         ? ['http:', 'http://localhost:*', 'http://127.0.0.1:*']
         : [];

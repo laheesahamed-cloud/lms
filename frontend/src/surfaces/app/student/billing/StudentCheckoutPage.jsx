@@ -312,8 +312,10 @@ export function StudentCheckoutPage() {
     <main className="dashboard-page study-hub-page student-checkout-page">
       <section className="study-hub-shell">
         <AppHeader
-          title="Subscriptions"
+          title="Checkout"
           subtitle="Plan Access"
+          back
+          backTo="/app/subscriptions"
         />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}

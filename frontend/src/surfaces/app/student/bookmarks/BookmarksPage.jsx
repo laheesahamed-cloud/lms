@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
+import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -72,6 +74,14 @@ function formatSavedDate(value) {
 
 export function BookmarksPage() {
   const navigate  = useNavigate();
+  // Native-only: edge-swipe from the left returns to the Study hub. Bookmarks is
+  // a tab page (not a chevron route), so the pop is an instant swap, no slide.
+  const pageRef = useRef(null);
+  const handleSwipeBack = useCallback(() => {
+    const studyPath = window.location.pathname.startsWith('/app') ? '/app/study' : '/study';
+    safeNavigateBack(navigate, { fallbackPath: studyPath });
+  }, [navigate]);
+  useEdgeSwipeBack({ containerRef: pageRef, onBack: handleSwipeBack });
   const [items,   setItems]   = useState(() => readStudyBookmarksCache() || []);
   const [loading, setLoading] = useState(() => readStudyBookmarksCache() === undefined);
   const [error,   setError]   = useState('');
@@ -177,7 +187,7 @@ export function BookmarksPage() {
   }
 
   return (
-    <main className="dashboard-page study-hub-page student-bookmarks-page">
+    <main ref={pageRef} className="dashboard-page study-hub-page student-bookmarks-page">
       <section className="study-hub-shell">
         <AppHeader title="Saved" subtitle="Bookmarks" />
 

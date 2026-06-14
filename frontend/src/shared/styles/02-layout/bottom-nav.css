@@ -66,16 +66,22 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--stude
   border: 0;
   border-bottom: 0;
   border-radius: 22px 22px 0 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.94) 100%);
-  -webkit-backdrop-filter: saturate(140%) blur(14px);
-  backdrop-filter: saturate(140%) blur(14px);
+  /* Light mode: a white glass bar stands out as a hard strip against the light
+     blue-grey page (--app-bg-solid: #dce6f4) — the seam is visible as scrolled
+     content passes behind it. Dark mode avoids this by matching the bar to the
+     dark page. Do the same in every light context (web, PWA, native): use the
+     page colour so the bar blends seamlessly; the tabs, pill, and labels still
+     give it structure. (Previously only native phone got this treatment.) */
+  background: var(--app-bg-solid, #dce6f4);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   color: #0F172A;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
   gap: 4px;
   padding: 8px 8px max(8px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
-  box-shadow: var(--ds-nav-shadow);
+  box-shadow: none;
   transform: none !important;
 }
 
@@ -95,6 +101,28 @@ html[data-lms-runtime="pwa"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--stude
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student > .lms-mobile-bottom-nav__inner {
   height: calc(var(--lms-tabbar-row-height, 64px) + var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
   padding-bottom: max(8px, var(--lms-tabbar-safe-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+/* NAT-003: a fixed backdrop-filter is expensive in WKWebView and makes the
+   page feel heavier while scrolling, so on native phone we drop the blur. But a
+   solid WHITE bar then stands out as a hard strip against the light blue-grey
+   page (--app-bg-solid: #dce6f4). To blend like dark mode does (where the bar
+   matches the dark page), the native light bar uses the page colour instead of
+   white — the tabs, active pill, and shadow still give it structure. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav__inner {
+  background: var(--app-bg-solid, #dce6f4);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* Re-assert the opaque dark surface for native dark mode: the light override
+   above is more specific than the shared [data-theme="dark"] __inner rule, so
+   dark mode needs its own native-scoped declaration to win. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-theme="dark"] .lms-mobile-bottom-nav__inner,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell[data-theme="dark"] .lms-mobile-bottom-nav__inner {
+  background: rgb(11, 18, 27);
+  box-shadow: var(--ds-nav-shadow);
 }
 
 html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student {
@@ -144,6 +172,11 @@ html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"]
   box-shadow: 0 4px 12px -6px rgba(37, 99, 235, 0.3);
   transform: translateX(calc(var(--pill-index, 0) * 100%));
   transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lms-mobile-bottom-nav__inner.has-no-active-tab .lms-mobile-bottom-nav__pill {
+  opacity: 0;
+  transform: translateX(calc(var(--pill-index, 0) * 100%)) scale(0.92);
 }
 
 :root[data-theme="dark"] .lms-mobile-bottom-nav__pill,

@@ -7,6 +7,7 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { formatPaymentStatus } from '../../../../shared/utils/paymentStatus.js';
+import { getPreferredScrollBehavior } from '../../../../shared/utils/scrollBehavior.js';
 
 function featureMessageForKey(featureKey) {
   if (featureKey === 'aiNotes' || featureKey === 'notesCanvasStudyMode') {
@@ -254,7 +255,7 @@ export function StudentBillingPage() {
     if (!shouldOpenCustomPlanner) return;
     setCustomModalOpen(true);
     window.setTimeout(() => {
-      document.getElementById('custom-plan-builder')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('custom-plan-builder')?.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: 'center' });
     }, 120);
   }, [shouldOpenCustomPlanner]);
 
@@ -483,7 +484,7 @@ export function StudentBillingPage() {
   }
 
   function scrollToComparison() {
-    document.getElementById('plan-comparison')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('plan-comparison')?.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: 'start' });
   }
 
   function optionCardClass(isSelected) {

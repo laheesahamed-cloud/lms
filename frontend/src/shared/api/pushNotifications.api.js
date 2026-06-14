@@ -3,9 +3,6 @@ import { apiClient } from './client.js';
 export const fetchPushVapidPublicKey = () =>
   apiClient.get('/push/vapid-public-key', { __skipNetworkActivity: true }).then((response) => response.data);
 
-export const fetchPushSettings = () =>
-  apiClient.get('/push/settings').then((response) => response.data);
-
 export const updatePushSettings = (payload) =>
   apiClient.put('/push/settings', payload).then((response) => response.data);
 

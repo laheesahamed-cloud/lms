@@ -1,20 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { fetchPracticeReview } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
-import { getQuizNumberLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
+import { getQuizDisplayLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 
 const reviewPageUi = {
   screen:
-    cx(ui.studentScreenShell, 'lms-quiz-taking-page dashboard-page study-hub-page lms-review-page practice-review-page'),
+    cx(ui.studentScreenShell, 'lms-quiz-taking-page lms-quiz-take dashboard-page study-hub-page lms-review-page practice-review-page'),
   layout:
     'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]',
   header:
-    'lms-exam-header practice-review-header flex items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 py-2.5 shadow-[var(--exam-card-shadow)] backdrop-blur-[14px] max-[700px]:flex-row max-[700px]:items-center max-[700px]:justify-between max-[700px]:gap-3 max-[700px]:px-3.5 max-[700px]:py-3',
+    'lms-exam-header practice-review-header max-[900px]:sticky max-[900px]:top-0 max-[900px]:z-[60] max-[900px]:rounded-t-none max-[900px]:bg-[var(--surface-0)] max-[900px]:backdrop-blur-none max-[900px]:[transform:translateZ(0)] flex items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 pb-2.5 pt-[calc(10px+var(--lms-safe-top,env(safe-area-inset-top,0px)))] shadow-[var(--exam-card-shadow)] backdrop-blur-[14px] max-[700px]:flex-row max-[700px]:items-center max-[700px]:justify-between max-[700px]:gap-3 max-[700px]:px-3.5 max-[700px]:pb-3 max-[700px]:pt-[calc(10px+var(--lms-safe-top,env(safe-area-inset-top,0px)))]',
   brand:
     'flex min-w-0 flex-1 items-center gap-3',
   mark:
@@ -40,49 +40,70 @@ const reviewPageUi = {
 };
 
 function ReviewHeader({ data, complete, onQuizzes, onHome }) {
-  const quizLabel = getQuizNumberLabel(data?.quiz);
+  const barRef = useRef(null);
+  const quizLabel = getQuizDisplayLabel(data?.quiz);
   const quizTitle = getQuizTitleText(data?.quiz, 'Practice review');
   const topicName = data?.quiz?.topicName || data?.quiz?.topicDisplay || 'Review workspace';
   const percentage = Number(data?.summary?.percentage ?? data?.summary?.score ?? 0);
   const hasScore = Number.isFinite(percentage) && data?.summary;
 
-  return (
-    <header className={reviewPageUi.header}>
-      <div className={reviewPageUi.brand}>
-        <span className={reviewPageUi.mark} aria-hidden="true">
-          <svg width="23" height="23" viewBox="0 0 23 23" fill="none">
-            <rect x="3" y="3" width="17" height="17" rx="5" fill="url(#practice-review-mark)" />
-            <path d="M7.2 12.2 10.2 15.1 16 8.3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <defs>
-              <linearGradient id="practice-review-mark" x1="3" y1="3" x2="20" y2="20" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#2563EB" />
-                <stop offset="1" stopColor="#0EA5E9" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </span>
-        <div className={reviewPageUi.titleWrap}>
-          <h1 className={reviewPageUi.title}>{complete ? `${quizLabel} complete` : `${quizLabel} review`}</h1>
-          <span className={reviewPageUi.subtitle}>{quizTitle} • {topicName}</span>
-        </div>
-      </div>
+  // Publish the live bar height (safe-area inset included) so the in-flow spacer
+  // reserves exactly the right room beneath the fixed, body-portaled bar.
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    const measure = () => {
+      const height = Math.ceil(barRef.current?.getBoundingClientRect?.().height || 0);
+      if (height) root.style.setProperty('--lms-quiz-bar-height', `${height}px`);
+    };
+    const frame = window.requestAnimationFrame(measure);
+    let observer = null;
+    if (barRef.current && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(measure);
+      observer.observe(barRef.current);
+    }
+    document.fonts?.ready?.then(measure).catch(() => {});
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+      root.style.removeProperty('--lms-quiz-bar-height');
+    };
+  }, []);
 
-      <div className={reviewPageUi.actions}>
-        <ThemeToggle />
-        {hasScore ? (
-          <div className={reviewPageUi.scoreChip} aria-label={`Score ${Math.round(percentage)} percent`}>
-            <span>Score</span>
-            <strong className={reviewPageUi.scoreValue}>{Math.round(percentage)}%</strong>
-          </div>
-        ) : null}
-        <button type="button" className={`${reviewPageUi.actionButton} ${reviewPageUi.actionSecondary}`} onClick={onHome}>
-          Home
-        </button>
-        <button className={`${reviewPageUi.actionButton} ${reviewPageUi.actionPrimary}`} type="button" onClick={onQuizzes}>
-          Quizzes
-        </button>
-      </div>
-    </header>
+  // Fixed full-width bar portaled to <body> (same pattern as the take-quiz bar)
+  // so its solid fill reaches up behind the status bar and covers the whole safe
+  // area, instead of sitting as an inset panel below the notch.
+  const bar = (
+    <div className="lms-quiz-bar-layer">
+      <header ref={barRef} className="lms-quiz-topbar">
+        <div className="lms-quiz-topbar__title">
+          <strong>{complete ? `${quizLabel} complete` : `${quizLabel} review`}</strong>
+          <small>{quizTitle} • {topicName}</small>
+        </div>
+
+        <div className={reviewPageUi.actions}>
+          {hasScore ? (
+            <div className={reviewPageUi.scoreChip} aria-label={`Score ${Math.round(percentage)} percent`}>
+              <span>Score</span>
+              <strong className={reviewPageUi.scoreValue}>{Math.round(percentage)}%</strong>
+            </div>
+          ) : null}
+          <button type="button" className={`${reviewPageUi.actionButton} ${reviewPageUi.actionSecondary}`} onClick={onHome}>
+            Home
+          </button>
+          <button className={`${reviewPageUi.actionButton} ${reviewPageUi.actionPrimary}`} type="button" onClick={onQuizzes}>
+            Quizzes
+          </button>
+        </div>
+      </header>
+    </div>
+  );
+
+  return (
+    <>
+      {typeof document !== 'undefined' ? createPortal(bar, document.body) : bar}
+      <div className="lms-quiz-topbar__spacer" aria-hidden="true" />
+    </>
   );
 }
 
@@ -124,12 +145,14 @@ export function PracticeReviewPage() {
   return (
       <main className={reviewPageUi.screen}>
         <section className={reviewPageUi.layout}>
-        <ReviewHeader
-          data={data}
-          complete={complete}
-          onQuizzes={() => navigate('/quizzes')}
-          onHome={() => navigate('/dashboard')}
-        />
+        {data ? (
+          <ReviewHeader
+            data={data}
+            complete={complete}
+            onQuizzes={() => navigate('/quizzes')}
+            onHome={() => navigate('/dashboard')}
+          />
+        ) : null}
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
         {data ? (
           <ReviewWorkspace

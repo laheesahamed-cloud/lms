@@ -396,23 +396,6 @@
   font-weight: 800;
 }
 
-.planner-priority-pill.is-high {
-  border-color: color-mix(in srgb, var(--sa-danger, #dc2626) 22%, transparent);
-  background: color-mix(in srgb, var(--sa-danger, #dc2626) 8%, transparent);
-  color: var(--sa-danger, #dc2626);
-}
-
-.planner-priority-pill.is-medium {
-  border-color: color-mix(in srgb, var(--sa-primary, #2563eb) 22%, transparent);
-  background: color-mix(in srgb, var(--sa-primary, #2563eb) 8%, transparent);
-  color: var(--sa-primary, #2563eb);
-}
-
-.planner-goal-list .is-done span {
-  background: color-mix(in srgb, var(--sa-ok, #059669) 10%, transparent);
-  color: var(--sa-ok, #059669);
-}
-
 .planner-task-form {
   display: grid;
   gap: 9px;
@@ -658,11 +641,19 @@
   padding: 16px;
 }
 
+.planner-native-stat > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
 .planner-native-stat strong {
   color: var(--sa-ink, #172033);
   font-size: clamp(24px, 3vw, 32px);
   font-weight: 900;
   line-height: 1;
+  display: block;
 }
 
 .planner-native-stat span:last-child {

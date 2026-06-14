@@ -130,45 +130,111 @@ function ScoreSparkline({ results }) {
     .slice()
     .reverse()
     .slice(-8)
-    .map((result) => Math.min(100, Math.max(0, Number(result.percentage || 0))));
+    .map((result) => Math.min(100, Math.max(0, Math.round(Number(result.percentage || 0)))));
   if (points.length < 2) {
     return (
-      <div className="result-chart-card" aria-label="Last attempts chart">
-        <span className={ui.eyebrow}>Last attempts</span>
-        <p>Newest performance shape, from left to right.</p>
+      <div className="result-chart-card" aria-label="Score trend chart">
+        <div className="result-chart-card__head">
+          <span className={ui.eyebrow}>Score trend</span>
+        </div>
+        <p>Your exam scores over time, oldest to newest.</p>
         <div className="result-spark-empty">
-          <span>Complete at least two exams to show a trend chart.</span>
+          <span>Complete at least two exams to chart your trend.</span>
         </div>
       </div>
     );
   }
+
+  // Geometry — leave headroom up top for the latest-value label.
   const width = 240;
-  const height = 78;
+  const height = 96;
+  const padY = 16;        // top padding for the value label
+  const baseline = 84;    // x-axis line
+  const span = baseline - padY;
   const step = width / Math.max(1, points.length - 1);
-  const d = points
-    .map((score, index) => {
-      const x = index * step;
-      const y = height - (score / 100) * (height - 10) - 5;
-      return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(' ');
-  const firstScore = points[0];
-  const latestScore = points[points.length - 1];
+  const xy = points.map((score, index) => ({
+    x: index * step,
+    y: baseline - (score / 100) * span,
+    score,
+  }));
+  const line = xy.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const area = `${line} L${width} ${baseline} L0 ${baseline} Z`;
+
+  const first = points[0];
+  const latest = points[points.length - 1];
+  const best = Math.max(...points);
+  const delta = latest - first;
+  const trendUp = delta >= 0;
+  const lastPt = xy[xy.length - 1];
+  // Keep the latest-value label inside the viewport at both ends.
+  const labelX = Math.min(Math.max(lastPt.x, 14), width - 14);
+
   return (
-    <div className="result-chart-card" aria-label={`Score trend from ${firstScore}% to ${latestScore}% across ${points.length} recent attempts`}>
-      <span className={ui.eyebrow}>Last attempts</span>
-      <p>Newest performance shape, from left to right.</p>
+    <div
+      className="result-chart-card"
+      aria-label={`Score trend across ${points.length} recent attempts: from ${first}% to ${latest}%, best ${best}%`}
+    >
+      <div className="result-chart-card__head">
+        <span className={ui.eyebrow}>Score trend</span>
+        <span className={`result-chart-trend ${trendUp ? 'is-up' : 'is-down'}`}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path
+              d={trendUp ? 'M3 8l3-3 3 3' : 'M3 4l3 3 3-3'}
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          {trendUp ? '+' : ''}{delta} pts
+        </span>
+      </div>
+      <p>Your last {points.length} exam scores, oldest to newest.</p>
+
       <div className="result-chart-card__plot">
-        <svg className="result-sparkline" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Line chart of recent exam percentages">
-          <path d="M0 73 H240" stroke="rgba(148,163,184,.22)" strokeWidth="2" />
-          <path d={d} fill="none" stroke="url(#resultSpark)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+        <svg className="result-sparkline" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Line chart of recent exam percentages">
+          {/* Reference gridlines at 100% / 50% / 0% */}
+          <line x1="0" y1={padY} x2={width} y2={padY} stroke="rgba(148,163,184,.16)" strokeWidth="1" strokeDasharray="3 4" />
+          <line x1="0" y1={baseline - span / 2} x2={width} y2={baseline - span / 2} stroke="rgba(148,163,184,.16)" strokeWidth="1" strokeDasharray="3 4" />
+          <line x1="0" y1={baseline} x2={width} y2={baseline} stroke="rgba(148,163,184,.28)" strokeWidth="1.5" />
+          <path d={area} fill="url(#resultSparkFill)" stroke="none" />
+          <path d={line} fill="none" stroke="url(#resultSpark)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          {xy.map((p, i) => (
+            <circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r={i === xy.length - 1 ? 4 : 2.5}
+              fill={i === xy.length - 1 ? '#2F73FF' : 'var(--sa-surface, #fff)'}
+              stroke="#2F73FF"
+              strokeWidth="1.6"
+            />
+          ))}
+          <text
+            x={labelX}
+            y={Math.max(lastPt.y - 8, 11)}
+            textAnchor={lastPt.x > width - 28 ? 'end' : 'middle'}
+            className="result-sparkline__label"
+          >
+            {latest}%
+          </text>
           <defs>
-            <linearGradient id="resultSpark" x1="0" y1="0" x2="240" y2="0">
+            <linearGradient id="resultSpark" x1="0" y1="0" x2={width} y2="0">
               <stop stopColor="#2563EB" />
               <stop offset="1" stopColor="#2F73FF" />
             </linearGradient>
+            <linearGradient id="resultSparkFill" x1="0" y1="0" x2="0" y2="1">
+              <stop stopColor="#2F73FF" stopOpacity="0.22" />
+              <stop offset="1" stopColor="#2F73FF" stopOpacity="0" />
+            </linearGradient>
           </defs>
         </svg>
+      </div>
+
+      <div className="result-chart-card__stats" aria-hidden="true">
+        <span className="result-chart-stat"><strong>{latest}%</strong><small>Latest</small></span>
+        <span className="result-chart-stat"><strong>{best}%</strong><small>Best</small></span>
+        <span className="result-chart-stat"><strong>{first}%</strong><small>First</small></span>
       </div>
     </div>
   );
@@ -199,8 +265,8 @@ export function ResultsListPage() {
   const totalAttempts = visibleResults.length;
   const passedAttempts = visibleResults.filter((result) => result.passStatus === 'pass').length;
   const averagePercentage = totalAttempts
-    ? (visibleResults.reduce((sum, result) => sum + Number(result.percentage || 0), 0) / totalAttempts).toFixed(1)
-    : '0.0';
+    ? Math.round(visibleResults.reduce((sum, result) => sum + Number(result.percentage || 0), 0) / totalAttempts)
+    : 0;
   const weakTopics = Array.isArray(dashboardInsights?.weakTopics) ? dashboardInsights.weakTopics.slice(0, 3) : [];
   const missedPatterns = Array.isArray(dashboardInsights?.missedPatterns) ? dashboardInsights.missedPatterns.slice(0, 3) : [];
 
@@ -298,7 +364,7 @@ export function ResultsListPage() {
                     <span className="student-results-focus__score">{Math.round(Number(topic.averagePercentage || 0))}%</span>
                     <span>
                       <strong>{topic.topicName}</strong>
-                      <small>{topic.courseTitle} • {topic.attemptsCount || 0} attempt{topic.attemptsCount === 1 ? '' : 's'}</small>
+                      <small>Avg score • {topic.courseTitle} • {topic.attemptsCount || 0} attempt{topic.attemptsCount === 1 ? '' : 's'}</small>
                     </span>
                   </button>
                 ))}
@@ -309,10 +375,10 @@ export function ResultsListPage() {
                   <div className={ui.emptyBox}>No repeated missed patterns yet.</div>
                 ) : missedPatterns.map((pattern) => (
                   <button type="button" className="student-results-focus__row" key={`${pattern.courseTitle}-${pattern.topicName}-${pattern.patternLabel}`} onClick={() => navigate('/quizzes')}>
-                    <span className="student-results-focus__miss">x{pattern.missCount || 0}</span>
+                    <span className="student-results-focus__miss">{pattern.missCount || 0}×</span>
                     <span>
                       <strong>{pattern.topicName}</strong>
-                      <small>{pattern.courseTitle}{pattern.patternLabel ? ` • ${pattern.patternLabel}` : ''}</small>
+                      <small>Missed {pattern.missCount || 0} time{(pattern.missCount || 0) === 1 ? '' : 's'} • {pattern.courseTitle}{pattern.patternLabel ? ` • ${pattern.patternLabel}` : ''}</small>
                     </span>
                   </button>
                 ))}

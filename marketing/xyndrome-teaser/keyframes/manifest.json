@@ -1,0 +1,23 @@
+{
+  "model": "nano_banana_pro",
+  "resolution": "2k (1536x2752)",
+  "aspect_ratio": "9:16",
+  "chain": "image-to-image, each frame references the previous",
+  "keyframes": {
+    "K0": "54f865cc-6e58-48e5-8f7b-52258ad88aa0",
+    "K1": "f627564f-e338-43b7-8229-8f742cb977a0",
+    "K2": "4238c6e2-5d78-4a3b-a559-3f3f15291f66",
+    "K3": "d182fedb-4354-4905-9df9-ae62d8cfbaae",
+    "K4": "eab05959-d2da-42e7-b300-819b97935c63",
+    "K5": "590e5b25-0dd4-41e2-80ab-4da6142185b2",
+    "K6": "34d527a8-b5d6-4d9f-94f1-47800f6b215b"
+  },
+  "clips_plan": [
+    {"clip": 1, "start": "K0", "end": "K1", "beat": "S1 The Pile -> lift"},
+    {"clip": 2, "start": "K1", "end": "K2", "beat": "S2 The Juggle"},
+    {"clip": 3, "start": "K2", "end": "K3", "beat": "S3 The Turn (ECG)"},
+    {"clip": 4, "start": "K3", "end": "K4", "beat": "S4 Convergence"},
+    {"clip": 5, "start": "K4", "end": "K5", "beat": "S5 The Mark (X light)"},
+    {"clip": 6, "start": "K5", "end": "K6", "beat": "S6 Lockup canvas"}
+  ]
+}

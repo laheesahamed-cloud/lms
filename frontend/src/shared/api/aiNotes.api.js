@@ -62,10 +62,6 @@ export const adminGetTopics = (courseId) =>
   apiClient.get(`/admin/ai-notes/hierarchy/topics${courseId ? `?courseId=${courseId}` : ''}`).then((r) => r.data);
 export const adminGetSubtopics = (topicId) =>
   apiClient.get(`/admin/ai-notes/hierarchy/subtopics${topicId ? `?topicId=${topicId}` : ''}`).then((r) => r.data);
-export const adminGetLessons = (subtopicId) =>
-  apiClient.get(`/admin/ai-notes/hierarchy/lessons${subtopicId ? `?subtopicId=${subtopicId}` : ''}`).then((r) => r.data);
-export const adminGetLessonCanvases = (options = {}) =>
-  apiClient.get('/admin/ai-notes/lesson-canvases', withEngine({}, options.engine)).then((r) => r.data);
 export const adminListLessonFlashcards = (noteId, options = {}) =>
   apiClient.get(`/admin/ai-notes/${noteId}/flashcards`, withEngine({}, options.engine)).then((r) => r.data);
 export const adminGenerateLessonFlashcards = (noteId, payload = {}, options = {}) =>
@@ -79,6 +75,7 @@ export const adminDeleteLessonFlashcard = (noteId, cardId, options = {}) =>
 
 const studentAiNotesCache = createTimedApiCache({
   ttlMs: 30000,
+  persistKey: 'student.aiNotes',
   key: (options = {}) => options.engine || 'gemini',
   load: async (options = {}) => {
     // the /student/boot batch carries the default engine's list only

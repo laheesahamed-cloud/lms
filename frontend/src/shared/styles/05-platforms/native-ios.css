@@ -1,0 +1,4 @@
+/* Cross-form-factor iOS rules (phone + tablet) live here. Currently none:
+   active iOS phone rules are in native-ios-phone.css. This intentional
+   placeholder documents the import slot in native-platforms.css and stops
+   PostCSS warning about an empty stylesheet (NAT-020). */

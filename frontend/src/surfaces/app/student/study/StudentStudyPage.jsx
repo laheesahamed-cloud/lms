@@ -5,20 +5,6 @@ import './StudentStudyPage.css';
 
 const studyItems = [
   {
-    to: '/app/notes',
-    preload: '/notes',
-    label: 'Notes',
-    eyebrow: 'Notebook',
-    description: 'Open AI notes and your study canvas.',
-    tone: 'notes',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M7 3.5H17C18.1 3.5 19 4.4 19 5.5V18.5C19 19.6 18.1 20.5 17 20.5H7C5.9 20.5 5 19.6 5 18.5V5.5C5 4.4 5.9 3.5 7 3.5Z" stroke="currentColor" strokeWidth="1.7" />
-        <path d="M8.5 9H15.5M8.5 12.5H15.5M8.5 16H12.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
     to: '/app/ai-notes',
     preload: '/ai-notes',
     label: 'AI Notes',
@@ -61,6 +47,19 @@ const studyItems = [
       </svg>
     ),
   },
+  {
+    to: '/app/bookmarks',
+    preload: '/bookmarks',
+    label: 'Saved',
+    eyebrow: 'Bookmarks',
+    description: 'Your saved notes, questions, quizzes and exams.',
+    tone: 'bookmarks',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6.5 4.5h11c.55 0 1 .45 1 1v14.2c0 .4-.45.64-.8.43L12 16.7l-5.7 3.43c-.35.21-.8-.03-.8-.43V5.5c0-.55.45-1 1-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
 ];
 
 export function StudentStudyPage() {
@@ -69,31 +68,28 @@ export function StudentStudyPage() {
       <div className="study-hub-shell student-study-shell">
         <AppHeader title="Study" subtitle="AI notes and study canvas" />
 
-        <section className="student-study-hero" aria-labelledby="student-study-title">
-          <span className="student-study-hero__eyebrow">Study tools</span>
-          <h1 id="student-study-title">Open your study canvas</h1>
-          <p>Jump straight into your AI notes and study canvas.</p>
-        </section>
-
-        <section className="student-study-grid" aria-label="Study shortcuts">
+        <nav className="student-study-card-stack" aria-label="Study shortcuts">
           {studyItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
-              className={`student-study-card is-${item.tone}`}
+              className={`student-study-row is-${item.tone}`}
               onPointerDown={() => preloadRouteByPath(item.preload, 'student')}
               onTouchStart={() => preloadRouteByPath(item.preload, 'student')}
               onFocus={() => preloadRouteByPath(item.preload, 'student')}
             >
-              <span className="student-study-card__icon">{item.icon}</span>
-              <span className="student-study-card__copy">
+              <span className="student-study-row__icon">{item.icon}</span>
+              <span className="student-study-row__copy">
                 <span>{item.eyebrow}</span>
                 <strong>{item.label}</strong>
                 <small>{item.description}</small>
               </span>
+              <svg className="student-study-row__chev" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </NavLink>
           ))}
-        </section>
+        </nav>
       </div>
     </main>
   );

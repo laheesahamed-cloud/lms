@@ -19,6 +19,7 @@
 <IfModule mod_mime.c>
   AddType application/javascript .js .mjs
   AddType text/css .css
+  AddType application/json .json
 </IfModule>
 
 <IfModule mod_expires.c>
@@ -84,6 +85,10 @@
     Header set Cache-Control "no-store, max-age=0"
   </FilesMatch>
   <FilesMatch "^(?:sw\.js|boot\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "^(?:apple-app-site-association|assetlinks\.json)$">
+    Header set Content-Type "application/json"
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 </IfModule>

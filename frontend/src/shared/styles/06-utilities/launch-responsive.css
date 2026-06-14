@@ -472,14 +472,46 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] {
   --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 8px);
 }
 
+/* Study-hub (dashboard) chrome background.
+   The bug: this used to force --app-bg — a triple-gradient (two radial + one
+   linear) — sized 100dvh with !important onto SEVEN stacked full-viewport
+   layers (#root, .lms-app-scroll-root, .native-app-frame, .app-shell,
+   .student-app-shell, .main-content, .page-content). iOS WKWebView abandons
+   compositing when asked to paint that many large gradient layers on the first
+   cold paint, so the dashboard came up pure black (DOM rendered, nothing
+   painted) until the app was force-reopened.
+
+   The fix keeps the gradient look but as ONE compositing layer instead of
+   seven: paint the gradient exactly once, on <body>, with the solid colour as a
+   fallback *underneath* it (so even if the gradient layer is dropped the screen
+   is never black), and make every inner container transparent so the gradient
+   shows through. Use background-image (not the `background` shorthand, which
+   would wipe the solid fallback) and drop background-size:100dvh +
+   background-attachment — both are iOS first-paint hazards on their own; the
+   gradient fills <body> at its default size with no help. */
 html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] body.study-hub-screen,
-html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] body.study-hub-screen,
+html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] body.study-hub-screen {
+  background-color: var(--lms-native-chrome-bg-solid, var(--app-bg-solid, var(--surface-0, #0b121b))) !important;
+  background-image: var(--lms-native-chrome-bg, var(--app-bg)) !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Seam fix: in dark mode the gradient's solid companion (--lms-login-dark-bg-
+   solid: #0a0a0f) is a lighter grey than the gradient's own deep base
+   (#070a14 → #06070f → #050608), so every area the opaque gradient doesn't
+   reach — the rubber-band overscroll and the safe-area strips — read as a
+   second, greyer colour next to the gradient. Match the solid to the gradient
+   base so the page is one seamless tone. (Light dashboard is a flat #dce6f4, so
+   it already matches itself and needs no override.) Scoped to study-hub only —
+   the global #0a0a0f page token (dark elevation ladder) is left untouched. */
+html[data-theme="dark"][data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] body.study-hub-screen,
+html[data-theme="dark"][data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] body.study-hub-screen {
+  background-color: #06070f !important;
+}
+
 html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] body.study-hub-screen :where(#root, .lms-app-scroll-root, .native-app-frame, .app-shell, .student-app-shell, .main-content, .page-content),
 html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] body.study-hub-screen :where(#root, .lms-app-scroll-root, .app-shell, .student-app-shell, .main-content, .page-content) {
-  background: var(--lms-native-chrome-bg, var(--app-bg)) !important;
-  background-color: var(--lms-native-chrome-bg-solid, var(--app-bg-solid, var(--surface-0, #0b121b))) !important;
-  background-attachment: scroll !important;
-  background-size: 100vw 100dvh !important;
+  background: transparent !important;
 }
 
 html[data-lms-runtime="native"][data-lms-os="ios"][data-lms-form-factor="phone"] body.study-hub-screen .native-app-frame::before {
@@ -1213,6 +1245,20 @@ html[data-lms-runtime="native"] :where(.lms-app-scroll-root, .native-app-frame) 
   -webkit-overflow-scrolling: touch !important;
 }
 
+html[data-lms-runtime="native"][data-lms-os="android"] :where(html, body, #root) {
+  height: auto !important;
+  min-height: var(--lms-app-viewport-height, 100lvh) !important;
+  overflow-y: auto !important;
+}
+
+html[data-lms-runtime="native"][data-lms-os="android"] :where(.lms-app-scroll-root, .native-app-frame) {
+  height: auto !important;
+  min-height: var(--lms-app-viewport-height, 100lvh) !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+  overscroll-behavior-y: auto !important;
+}
+
 html[data-lms-runtime="native"] :where(
   a[href],
   button,
@@ -1520,7 +1566,6 @@ html[data-lms-runtime="native"] .student-app-shell :where(
   .study-topbar-title h1,
   .lms-topbar h1,
   .student-page-hero h1,
-  .lms-page-title,
   .type-display,
   .type-page-title,
   .type-section-title,
@@ -1562,9 +1607,7 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell
   .study-action-card,
   .student-course-card,
   .lms-quiz-card,
-  .lms-app-card,
-  .planner-panel
-) {
+  .lms-app-card) {
   transition:
     border-color var(--lms-motion-duration-card) var(--lms-motion-ease-out),
     box-shadow var(--lms-motion-duration-card) var(--lms-motion-ease-out),

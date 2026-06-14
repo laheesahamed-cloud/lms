@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
+import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 import {
   fetchStudentCourseDetail,
   readStudentCourseDetailCache,
@@ -368,6 +370,10 @@ function CourseSummaryHead({ course, analytics, eyebrow, onBack, onOpenLesson })
 
   return (
     <header className="csum-head" aria-labelledby="csum-title">
+      <button type="button" className="csum-back" onClick={onBack} aria-label="Back to courses">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M9.5 3.5l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <span>Courses</span>
+      </button>
       <span className="csum-eyebrow">{eyebrow}</span>
       <h1 id="csum-title" className="csum-title">{course.courseTitle}</h1>
       <p className="csum-lede">{summary}</p>
@@ -730,7 +736,15 @@ export function CourseDetailPage({
   const params = useParams();
   const courseId = courseIdProp ?? params.courseId;
   const coursesPath = location.pathname.startsWith('/app') ? '/app/courses' : '/courses';
-  const [data, setData] = useState(() => initialData || readStudentCourseDetailCache(courseId) || null);
+  // Summary carried from the courses list on tap — lets the header + hero paint
+  // immediately while the full detail loads (no placeholder/skeleton flicker).
+  const seededCourse = location.state?.courseSummary || null;
+  const [data, setData] = useState(
+    () =>
+      initialData ||
+      readStudentCourseDetailCache(courseId) ||
+      (seededCourse ? { course: seededCourse, subjects: [], __seeded: true } : null),
+  );
   const [loading, setLoading] = useState(() => !(initialData || readStudentCourseDetailCache(courseId)));
   const [error, setError] = useState('');
 
@@ -742,6 +756,17 @@ export function CourseDetailPage({
 
     navigate(coursesPath);
   }, [coursesPath, navigate, onBack]);
+
+  // Native-only: drag from the left edge to slide the page off and go back.
+  // This must POP history (like the header back chevron, navigate(-1)) so the
+  // native route transition slides this page off to the right and eases the
+  // page beneath in from the left. Using handleBackToCourses here would push a
+  // new /courses entry, flying the list in from the wrong side (the "flash").
+  const handleSwipeBack = useCallback(() => {
+    safeNavigateBack(navigate, { fallbackPath: coursesPath });
+  }, [navigate, coursesPath]);
+  const pageRef = useRef(null);
+  useEdgeSwipeBack({ containerRef: pageRef, onBack: handleSwipeBack });
 
   useEffect(() => {
     let cancelled = false;
@@ -965,11 +990,20 @@ export function CourseDetailPage({
     }
   }
 
-  if (loading) {
+  // Only show the full skeleton when we have nothing to paint. If a course
+  // summary was seeded from the list tap, fall through to the real layout (the
+  // header + hero render from the summary while subjects/resources load in).
+  // Show the skeleton whenever full data isn't loaded yet — INCLUDING when we
+  // only have the partial seed carried from the list (__seeded). Rendering the
+  // seed's partial content and then swapping it for the full data caused the
+  // visible cold-open "morph" (COURSE SUMMARY → full breakdown). A skeleton that
+  // fills in place reads as loading, not as a layout change. The header still
+  // shows the seeded title, so it stays stable.
+  if (loading && (!course || data?.__seeded)) {
     return (
-      <main className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
+      <main ref={pageRef} className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
         <section className="study-hub-shell course-detail-shell">
-          <AppHeader title="Course" subtitle="Summary" />
+          <AppHeader title={course?.courseTitle || seededCourse?.courseTitle || 'Course'} subtitle="Summary" compact />
           <div className="csum-loading" aria-label="Loading course summary">
             <div className="csum-skeleton csum-skeleton--title" />
             <div className="csum-skeleton csum-skeleton--line" />
@@ -983,9 +1017,9 @@ export function CourseDetailPage({
 
   if (!course) {
     return (
-      <main className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
+      <main ref={pageRef} className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
         <section className="study-hub-shell course-detail-shell">
-          <AppHeader title="Course" subtitle="Summary" />
+          <AppHeader title="Course" subtitle="Summary" compact />
           <div className="csum-actions">
             <button type="button" className="csum-btn csum-btn--ghost" onClick={handleBackToCourses}>
               Back to courses
@@ -1002,27 +1036,28 @@ export function CourseDetailPage({
     : 'Course summary';
 
   return (
-    <main className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
+    <main ref={pageRef} className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
       <section className="study-hub-shell course-detail-shell csum-shell">
-        <AppHeader title={course.courseTitle} subtitle="Summary" />
+        <AppHeader title={course.courseTitle} subtitle="Summary" compact />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
-        <div className="csum-card">
-          <CourseSummaryHead
-            course={course}
-            analytics={courseAnalytics}
-            eyebrow={eyebrow}
-            onBack={handleBackToCourses}
-            onOpenLesson={handleOpenLesson}
-          />
-
-          <CourseStatStrip analytics={courseAnalytics} subjectCount={subjects.length} />
-          <ProgressBreakdown analytics={courseAnalytics} />
-          <PracticeSection analytics={courseAnalytics} />
-          <FocusTopics analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
-          <SubjectList subjects={subjects} analytics={courseAnalytics} onOpenLesson={handleOpenLesson} />
-          <ResourceList resources={courseResources} />
+        <div className="csum-stack">
+          <div className="csum-card">
+            <CourseSummaryHead
+              course={course}
+              analytics={courseAnalytics}
+              eyebrow={eyebrow}
+              onBack={handleBackToCourses}
+              onOpenLesson={handleOpenLesson}
+            />
+          </div>
+          <div className="csum-card"><CourseStatStrip analytics={courseAnalytics} subjectCount={subjects.length} /></div>
+          <div className="csum-card"><ProgressBreakdown analytics={courseAnalytics} /></div>
+          <div className="csum-card"><PracticeSection analytics={courseAnalytics} /></div>
+          <div className="csum-card"><FocusTopics analytics={courseAnalytics} onOpenLesson={handleOpenLesson} /></div>
+          <div className="csum-card"><SubjectList subjects={subjects} analytics={courseAnalytics} onOpenLesson={handleOpenLesson} /></div>
+          <div className="csum-card"><ResourceList resources={courseResources} /></div>
         </div>
       </section>
     </main>

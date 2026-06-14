@@ -30,7 +30,7 @@ export declare class SubscriptionsController {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -79,7 +79,7 @@ export declare class SubscriptionsController {
             featureKey: string;
             description: string;
             category: string;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             createdAt: string | null;
             updatedAt: string | null;
         }[];
@@ -250,7 +250,7 @@ export declare class SubscriptionsController {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -286,7 +286,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "rejected" | "pending" | "approved" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -406,7 +406,7 @@ export declare class SubscriptionsController {
         id: number;
         userId: number;
         planId: number;
-        status: "pending" | "cancelled" | "approved" | "rejected";
+        status: "rejected" | "pending" | "approved" | "cancelled";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -460,7 +460,7 @@ export declare class SubscriptionsController {
         discountType: "fixed" | "percent";
         discountValue: number;
         planIds: number[];
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         startsAt: string;
         expiresAt: string;
         maxRedemptions: number | null;
@@ -760,7 +760,7 @@ export declare class SubscriptionsController {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -796,7 +796,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "rejected" | "pending" | "approved" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;

@@ -672,7 +672,7 @@ export class AiNotesService {
   private async findApprovedFlashcardsForNote(noteId: number) {
     const [rows] = await this.db.execute<LessonFlashcardRow[]>(
       `
-        SELECT id, note_id, lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by, created_at, updated_at
+        SELECT id, note_id, lesson_id, question, answer, source_hint, NULL AS image_url, 'contain' AS image_fit, status, sort_order, generated_by, reviewed_by, created_at, updated_at
         FROM lesson_flashcards
         WHERE note_id = ? AND status = 'approved'
         ORDER BY sort_order ASC, id ASC

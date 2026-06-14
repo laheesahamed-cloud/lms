@@ -207,6 +207,9 @@ let AuthService = AuthService_1 = class AuthService {
         const resetUrl = `${smtpSettings.publicUrl.replace(/\/+$/, '')}${resetPath}`;
         const shouldSendEmail = smtpSettings.enabled && smtpSettings.configured;
         const canExposeLocalResetLink = this.canExposeDevResetToken(shouldSendEmail);
+        if (!shouldSendEmail) {
+            this.logger.warn(`Password reset email skipped for user ${user.id}: SMTP ${smtpSettings.enabled ? 'incomplete' : 'disabled'}`);
+        }
         const emailSent = shouldSendEmail
             ? await this.sendPasswordResetEmail({
                 to: user.email,

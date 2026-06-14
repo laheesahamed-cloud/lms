@@ -1,0 +1,3 @@
+/* iOS tablet-only rules live here. Currently none. Intentional placeholder so
+   the native-platforms.css import slot stays documented and PostCSS does not
+   warn about an empty stylesheet (NAT-020). */

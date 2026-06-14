@@ -1,0 +1,153 @@
+/* ============================================================
+   Native iOS push/pop CAROUSEL page transition (NativeRouteTransition.jsx).
+   Native runtime only — part of native-platforms.css, dynamic-imported only
+   inside the Capacitor shell, so web/PWA/desktop never load it. Selectors are
+   still scoped under html[data-lms-runtime="native"] for belt-and-braces.
+
+   Two layers slide as a unit; the portaled fixed header bar stays on top and
+   the pages slide beneath it. No swipe gesture, no header replica, no keep-alive.
+   ============================================================ */
+
+html[data-lms-runtime="native"] {
+  --lms-route-slide-duration: 500ms;
+  /* iOS UINavigationController push curve. */
+  --lms-route-slide-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --lms-route-parallax: 24%;
+}
+
+/* Idle: the stack/layers collapse out of layout so normal document flow +
+   scrolling behave exactly as before a transition. */
+html[data-lms-runtime="native"] .lms-route-stack,
+html[data-lms-runtime="native"] .lms-route-stack > .lms-route-layer,
+html[data-lms-runtime="native"] .lms-route-layer__frozen {
+  display: contents;
+}
+
+/* Animating: become a clipped, viewport-tall positioning context with two
+   absolutely-stacked layers. */
+html[data-lms-runtime="native"] .lms-route-stack.is-animating {
+  display: block;
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+html[data-lms-runtime="native"] .lms-route-stack.is-animating > .lms-route-layer {
+  display: block;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Page wrappers are transparent (background lives on the scroll root), so each
+     sliding panel needs its own opaque fill or they bleed through. */
+  background: var(--app-bg-solid, #0a0a0f);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+html[data-lms-runtime="native"] .lms-route-stack.is-animating .lms-route-layer__frozen {
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+
+/* The outgoing/parked layer is visible-but-inactive during the slide; make it
+   inert so it can't intercept touches mid-transition. */
+html[data-lms-runtime="native"] .lms-route-stack.is-animating > .is-previous {
+  pointer-events: none;
+}
+
+/* Dim scrim over whichever layer is the "underneath" one during the slide. */
+html[data-lms-runtime="native"] .lms-route-stack.is-animating > .lms-route-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Depth shadow on the leading edge of the top panel. */
+html[data-lms-runtime="native"] .lms-route-stack.is-animating > .lms-route-layer.is-current {
+  box-shadow: -18px 0 40px -12px rgba(0, 0, 0, 0.34);
+}
+
+/* ── PUSH: current slides in from the right, previous parallaxes left ── */
+html[data-lms-runtime="native"] .lms-route-stack[data-direction="push"].is-animating > .is-current {
+  z-index: 2;
+  animation: lmsRouteSlideIn var(--lms-route-slide-duration) var(--lms-route-slide-ease) both;
+}
+html[data-lms-runtime="native"] .lms-route-stack[data-direction="push"].is-animating > .is-previous {
+  z-index: 1;
+  animation: lmsRouteParallaxOut var(--lms-route-slide-duration) var(--lms-route-slide-ease) both;
+}
+html[data-lms-runtime="native"] .lms-route-stack[data-direction="push"].is-animating > .is-previous::after {
+  animation: lmsRouteScrimIn var(--lms-route-slide-duration) var(--lms-route-slide-ease) both;
+}
+
+/* ── POP: previous (the page we're leaving) slides out right, revealing current
+       (the page we're returning to) easing back from the left ── */
+html[data-lms-runtime="native"] .lms-route-stack[data-direction="pop"].is-animating > .is-previous {
+  z-index: 2;
+  box-shadow: -18px 0 40px -12px rgba(0, 0, 0, 0.34);
+  animation: lmsRouteSlideOut var(--lms-route-slide-duration) var(--lms-route-slide-ease) both;
+}
+html[data-lms-runtime="native"] .lms-route-stack[data-direction="pop"].is-animating > .is-current {
+  z-index: 1;
+  animation: lmsRouteParallaxIn var(--lms-route-slide-duration) var(--lms-route-slide-ease) both;
+}
+html[data-lms-runtime="native"] .lms-route-stack[data-direction="pop"].is-animating > .is-current::after {
+  animation: lmsRouteScrimOut var(--lms-route-slide-duration) var(--lms-route-slide-ease) both;
+}
+
+/* Freeze the scroller(s) while a slide is in flight so the page behind doesn't
+   scroll mid-slide (the active scroller varies by page type). Only applies while
+   body.lms-route-animating is set, so idle scrolling is untouched. */
+html[data-lms-runtime="native"] body.lms-route-animating {
+  overflow: hidden !important;
+}
+html[data-lms-runtime="native"] body.lms-route-animating .lms-app-scroll-root,
+html[data-lms-runtime="native"] body.lms-route-animating .portal-content,
+html[data-lms-runtime="native"] body.lms-route-animating .portal-content__frame {
+  overflow: hidden !important;
+  height: 100dvh !important;
+}
+
+@keyframes lmsRouteSlideIn {
+  from { transform: translate3d(100%, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+@keyframes lmsRouteSlideOut {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(100%, 0, 0); }
+}
+@keyframes lmsRouteParallaxOut {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(calc(-1 * var(--lms-route-parallax)), 0, 0); }
+}
+@keyframes lmsRouteParallaxIn {
+  from { transform: translate3d(calc(-1 * var(--lms-route-parallax)), 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+@keyframes lmsRouteScrimIn {
+  from { opacity: 0; }
+  to { opacity: 0.16; }
+}
+@keyframes lmsRouteScrimOut {
+  from { opacity: 0.16; }
+  to { opacity: 0; }
+}
+
+/* Lower-spec devices: a touch shorter + less parallax (cheaper composite). */
+html[data-lms-runtime="native"][data-low-spec] {
+  --lms-route-slide-duration: 400ms;
+  --lms-route-parallax: 16%;
+}
+
+/* Safety: if the OS asks for reduced motion, collapse the slide instantly. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-lms-runtime="native"] .lms-route-stack.is-animating > .lms-route-layer,
+  html[data-lms-runtime="native"] .lms-route-stack.is-animating > .lms-route-layer::after {
+    animation-duration: 1ms !important;
+  }
+}

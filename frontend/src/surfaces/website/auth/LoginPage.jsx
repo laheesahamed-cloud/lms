@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './login-anim.css';
+import './auth-native.css';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Keyboard } from '@capacitor/keyboard';
 import { getErrorMessage } from '../../../shared/api/client.js';
 import { fetchPublicSettings } from '../../../shared/api/settings.api.js';
 import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
@@ -15,6 +15,7 @@ import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../shared/utils/routeForwarding.js';
 import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
 import { preloadRouteByPath } from '../../../app/routePreloading.js';
+import { useNativeAuthKeyboardAnchor } from './useNativeAuthKeyboardAnchor.js';
 
 /* ── Animation keyframes ─────────────────────────────────────────────────────── */
 
@@ -503,32 +504,11 @@ export function LoginPage() {
     };
   }, []);
 
-  // Native: the keyboard overlays the page (Capacitor Keyboard plugin,
-  // resize: none) so it never pushes the layout. The plugin reports the exact
-  // keyboard height; we publish it as --lms-keyboard-height, which the form wrap
-  // turns into scroll room of the same size — so anything hidden behind the
-  // keyboard is reachable by scrolling, with no automatic movement.
-  useEffect(() => {
-    if (!PLATFORM.isNative || typeof document === 'undefined') return undefined;
-
-    const root = document.documentElement;
-    const setKeyboardHeight = (px) => {
-      root.style.setProperty('--lms-keyboard-height', `${Math.max(0, Math.round(px))}px`);
-    };
-
-    const listeners = [];
-    Keyboard.addListener('keyboardWillShow', (info) => setKeyboardHeight(info?.keyboardHeight || 0))
-      .then((handle) => listeners.push(handle))
-      .catch(() => {});
-    Keyboard.addListener('keyboardWillHide', () => setKeyboardHeight(0))
-      .then((handle) => listeners.push(handle))
-      .catch(() => {});
-
-    return () => {
-      listeners.forEach((handle) => handle?.remove?.());
-      root.style.removeProperty('--lms-keyboard-height');
-    };
-  }, []);
+  useNativeAuthKeyboardAnchor({
+    surface: 'login',
+    wrapSelector: '.lms-login-form-wrap',
+    cardSelector: '.lms-login-page .lms-form-card',
+  });
 
   const completeSignIn = useCallback(async (data, startedAt) => {
     clearServerNotResponding();
@@ -562,7 +542,13 @@ export function LoginPage() {
         showNativeDocument();
       }
 
-      const data = await signIn({ email: String(fd.get('email') || ''), password: String(fd.get('password') || '') });
+      // Email is normalized (trim + lowercase) so an iOS auto-capitalized or
+      // autofill-padded value still matches. Password is sent verbatim (it is
+      // case-sensitive and may contain intentional spaces).
+      const data = await signIn({
+        email: String(fd.get('email') || '').trim().toLowerCase(),
+        password: String(fd.get('password') || ''),
+      });
       await completeSignIn(data, startedAt);
     } catch (err) {
       if (PLATFORM.isNative && PLATFORM.isIos) {
@@ -761,13 +747,15 @@ export function LoginPage() {
       >
         {/* Top bar: mobile logo + theme toggle */}
         <div className="lms-login-topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 28px', flexShrink: 0 }}>
-          <XyndromeBrand
-            className="lms-login-mobile-brand lg:hidden"
-            markSize={36}
-            textClassName="!font-extrabold"
-          />
+          {!PLATFORM.isNative ? (
+            <XyndromeBrand
+              className="lms-login-mobile-brand lg:hidden"
+              markSize={36}
+              textClassName="!font-extrabold"
+            />
+          ) : null}
           <div className="hidden lg:block"/>
-          <ThemeToggle/>
+          {!PLATFORM.isNative ? <ThemeToggle/> : null}
         </div>
 
         {/* Centered form area */}
@@ -785,14 +773,18 @@ export function LoginPage() {
           >
             {/* ── Heading ── */}
             <div>
-              <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '.13em' }}>
-                Secure sign in
-              </p>
+              {PLATFORM.isNative ? (
+                <XyndromeBrand
+                  className="lms-login-inline-brand"
+                  markSize={42}
+                  textClassName="!font-extrabold"
+                />
+              ) : null}
               <h2 style={{ margin: '0 0 5px', fontSize: 'clamp(24px,3vw,32px)', fontWeight: 900, lineHeight: 1.1, color: 'var(--ink-strong)' }}>
-                Welcome back
+                Hey there 👋
               </h2>
               <p className="lms-form-sub" style={{ margin: 0, fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.62 }}>
-                Enter your details to continue.
+                The mitochondria is still the powerhouse of the cell — let&apos;s review. 🔬
               </p>
             </div>
 
@@ -817,9 +809,13 @@ export function LoginPage() {
                   className={ui.input}
                   name="email"
                   type="email"
+                  inputMode="email"
                   placeholder="you@example.com"
                   required
                   autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   aria-invalid={status.error ? 'true' : undefined}
                   aria-describedby={feedbackId}
                 />
@@ -846,6 +842,9 @@ export function LoginPage() {
                     placeholder="Enter your password"
                     required
                     autoComplete="current-password"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     aria-invalid={status.error ? 'true' : undefined}
                     aria-describedby={feedbackId}
                   />

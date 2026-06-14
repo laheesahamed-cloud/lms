@@ -100,6 +100,7 @@ export function SubjectGallery3D({ darkModeActive = false, onDarkModeChange }) {
 
   return (
     <motion.section
+      id="subjects"
       ref={sectionRef}
       className="lpv2-section lpv2-subject-gallery overflow-hidden"
       initial={false}

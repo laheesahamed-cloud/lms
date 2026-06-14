@@ -100,7 +100,9 @@ function getPreferredTheme() {
     return typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   }
 
-  return 'light';
+  // No saved/requested theme: honor the boot script's choice (data-theme),
+  // which defaults native to dark — avoids overriding back to light on first launch.
+  return typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
 function getPreferredAccentTheme() {

@@ -1,16 +1,20 @@
 import { memo, useState } from 'react';
+import './auth-native.css';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getErrorMessage } from '../../../shared/api/client.js';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
+import { XyndromeBrand } from '../../../shared/brand/XyndromeBrand.jsx';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
+import { detectPlatform } from '../../../shared/platform/detect.js';
 import { ui } from '../../../shared/styles/tailwindClasses.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../shared/utils/routeForwarding.js';
 import { PasswordField } from '../../../shared/ui/PasswordField.jsx';
 import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
+import { useNativeAuthKeyboardAnchor } from './useNativeAuthKeyboardAnchor.js';
 
 const auth = {
-  shell: 'grid min-h-dvh place-items-center bg-page px-6 py-6',
-  scene: 'mx-auto grid w-[min(1100px,100%)] items-center gap-12 lg:grid-cols-[minmax(0,1fr)_480px]',
+  shell: 'auth-route-scene lms-register-page grid min-h-dvh place-items-center bg-page px-6 py-6',
+  scene: 'lms-register-scene mx-auto grid w-[min(1100px,100%)] items-center gap-12 lg:grid-cols-[minmax(0,1fr)_480px]',
   visual:
     'relative flex min-h-[540px] flex-col justify-center gap-5 overflow-hidden rounded-2xl bg-[var(--brand-gradient-hero)] px-[clamp(24px,4vw,52px)] py-[clamp(32px,5vw,64px)] text-white shadow-xl before:absolute before:inset-0 before:pointer-events-none before:bg-[radial-gradient(ellipse_at_70%_20%,rgba(255,255,255,0.12),transparent_55%),radial-gradient(ellipse_at_20%_80%,rgba(14,165,233,0.18),transparent_50%)] max-lg:hidden',
   visualEyebrow: 'relative z-[1] inline-block text-[11px] font-extrabold uppercase tracking-[0.12em] text-white/70',
@@ -24,7 +28,7 @@ const auth = {
   visualRowText: 'text-[11.5px] text-white/70',
   stepRow: 'relative z-[1] flex flex-wrap items-center gap-2',
   step: 'rounded-full border border-white/20 bg-white/15 px-3 py-1.5 text-[11.5px] font-semibold text-white/90',
-  card: 'flex flex-col gap-4.5 border-0 bg-transparent p-8 shadow-none backdrop-blur-0 max-[640px]:p-5',
+  card: 'lms-register-form flex flex-col gap-4.5 border-0 bg-transparent p-8 shadow-none backdrop-blur-0 max-[640px]:p-5',
   // Match the login page's input "text holder" size: 48px tall, 20px line-height.
   inputSize: '!h-12 !leading-5',
   switcher: 'grid grid-cols-2 gap-1 rounded-md border border-line-soft bg-surface-2 p-1',
@@ -33,6 +37,8 @@ const auth = {
   linkRow: 'text-center text-[13px] text-ink-soft',
   inlineLink: 'font-bold text-brand-primary no-underline hover:underline',
 };
+
+const PLATFORM = detectPlatform();
 
 const RegisterVisual = memo(function RegisterVisual() {
   return (
@@ -71,6 +77,12 @@ export function RegisterPage() {
   const fromParam = new URLSearchParams(location.search).get('from') || '';
   const requestedPath = getSafeForwardPath(fromParam);
 
+  useNativeAuthKeyboardAnchor({
+    surface: 'register',
+    wrapSelector: '.lms-register-page',
+    cardSelector: '.lms-register-scene',
+  });
+
   async function handleSubmit(e) {
     e.preventDefault();
     const formElement = e.currentTarget;
@@ -86,8 +98,9 @@ export function RegisterPage() {
     setStatus({ loading: true, error: '', success: '' });
     try {
       const data = await signUp(registration);
-      setStatus({ loading: false, error: '', success: `Account created for ${data.user.fullName}` });
-      navigate(canonicalizeForwardPathForUser(requestedPath, data.user) || data.redirectPath);
+      const userName = data?.user?.fullName || registration.fullName || 'your account';
+      setStatus({ loading: false, error: '', success: `Account created for ${userName}` });
+      navigate(canonicalizeForwardPathForUser(requestedPath, data?.user) || data?.redirectPath || '/dashboard');
     } catch (error) {
       setStatus({ loading: false, error: getErrorMessage(error, 'Unable to create your account'), success: '' });
     }
@@ -109,6 +122,13 @@ export function RegisterPage() {
 
         <form className={auth.card} onSubmit={handleSubmit} aria-describedby={feedbackId}>
           <div>
+            {PLATFORM.isNative ? (
+              <XyndromeBrand
+                className="lms-auth-inline-brand"
+                markSize={42}
+                textClassName="!font-extrabold"
+              />
+            ) : null}
             <p style={{ margin: '0 0 9px', fontSize: 11, fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '.13em' }}>
               Create account
             </p>

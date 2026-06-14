@@ -1,0 +1,368 @@
+@font-face {
+  font-family: "Plus Jakarta Xyndrome";
+  font-style: normal;
+  font-weight: 700;
+  src: url("../public/PlusJakartaSans-Bold.ttf") format("truetype");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    "Plus Jakarta Xyndrome",
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.xy-video {
+  overflow: hidden;
+  background: #f7f9fc;
+  color: #0f172a;
+  font-family: "Plus Jakarta Xyndrome", Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+.xy-grain {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+}
+
+.xy-copy-shell {
+  position: absolute;
+  left: 90px;
+  right: 90px;
+  top: 172px;
+  min-height: 210px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.xy-beat-copy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  font-size: 58px;
+  line-height: 1.08;
+  text-wrap: balance;
+  text-shadow: 0 18px 42px rgba(82, 116, 243, 0.16);
+}
+
+.xy-object {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #0f172a;
+}
+
+.xy-book {
+  justify-content: flex-start;
+  padding-left: 76px;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.xy-book::after {
+  position: absolute;
+  right: 22px;
+  bottom: 17px;
+  left: 76px;
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(15, 23, 42, 0.12);
+  content: "";
+}
+
+.xy-book-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 48px;
+}
+
+.xy-note {
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
+  font-size: 25px;
+  text-align: center;
+}
+
+.xy-note div {
+  width: 72%;
+  height: 7px;
+  border-radius: 99px;
+  opacity: 0.7;
+}
+
+.xy-card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 22px;
+  font-size: 27px;
+}
+
+.xy-card-topline {
+  width: 64px;
+  height: 9px;
+  border-radius: 99px;
+}
+
+.xy-card-rows {
+  width: 88%;
+  height: 28px;
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(15, 23, 42, 0.12), transparent 72%),
+    linear-gradient(0deg, rgba(15, 23, 42, 0.07), rgba(15, 23, 42, 0.07));
+  background-size:
+    100% 7px,
+    100% 100%;
+  background-position:
+    0 0,
+    0 0;
+  background-repeat: no-repeat;
+}
+
+.xy-pill {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(82, 116, 243, 0.14);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 18px 40px rgba(37, 99, 235, 0.12);
+}
+
+.xy-pill div {
+  flex: 1;
+}
+
+.xy-scope,
+.xy-heart {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.xy-core {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  width: 372px;
+  height: 748px;
+  transform-origin: center;
+}
+
+.xy-phone {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid rgba(82, 116, 243, 0.18);
+  border-radius: 68px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 249, 252, 0.72)),
+    linear-gradient(135deg, rgba(214, 240, 255, 0.42), rgba(232, 214, 255, 0.38));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.98),
+    0 40px 95px rgba(37, 99, 235, 0.2);
+}
+
+.xy-phone-glass {
+  position: absolute;
+  inset: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 52px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.xy-phone-header {
+  position: absolute;
+  top: 62px;
+  right: 46px;
+  left: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #2563eb;
+  font-size: 28px;
+}
+
+.xy-phone-header div {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #4aa3f4, #6d35df);
+}
+
+.xy-progress-ring {
+  position: absolute;
+  top: 154px;
+  left: 74px;
+  display: grid;
+  width: 222px;
+  height: 222px;
+  place-items: center;
+  border: 18px solid rgba(82, 116, 243, 0.16);
+  border-top-color: #5274f3;
+  border-right-color: #6d35df;
+  border-radius: 50%;
+  color: #0f172a;
+  font-size: 54px;
+}
+
+.xy-plan-card {
+  position: absolute;
+  right: 44px;
+  bottom: 204px;
+  left: 44px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 13px;
+  padding: 26px 28px;
+  border: 1px solid rgba(82, 116, 243, 0.12);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #64748b;
+  font-size: 24px;
+}
+
+.xy-plan-card strong {
+  color: #0f172a;
+  font-size: 32px;
+}
+
+.xy-mini-grid {
+  position: absolute;
+  right: 44px;
+  bottom: 76px;
+  left: 44px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.xy-mini-grid span {
+  height: 76px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(214, 240, 255, 0.9), rgba(232, 214, 255, 0.82));
+}
+
+.xy-feature-stack {
+  position: absolute;
+  bottom: 238px;
+  left: 50%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  width: 640px;
+}
+
+.xy-feature-pill {
+  display: grid;
+  min-height: 74px;
+  place-items: center;
+  border: 1px solid rgba(82, 116, 243, 0.14);
+  border-radius: 28px;
+  color: #0f172a;
+  font-size: 26px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 18px 36px rgba(37, 99, 235, 0.12);
+}
+
+.xy-abstract-x {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 430px;
+  height: 430px;
+  transform-origin: center;
+  filter: drop-shadow(0 40px 80px rgba(82, 116, 243, 0.28));
+}
+
+.xy-x-bar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 108px;
+  height: 456px;
+  border-radius: 56px;
+  background: linear-gradient(180deg, #4aa3f4, #5274f3 44%, #6d35df);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.72),
+    0 0 52px rgba(109, 53, 223, 0.46);
+}
+
+.xy-x-a {
+  transform: translate(-50%, -50%) rotate(43deg);
+}
+
+.xy-x-b {
+  transform: translate(-50%, -50%) rotate(-43deg);
+}
+
+.xy-x-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 128px;
+  height: 128px;
+  border-radius: 46px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 0 68px rgba(255, 255, 255, 0.95);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.xy-x-ring {
+  position: absolute;
+  inset: -88px;
+  border: 2px solid rgba(82, 116, 243, 0.18);
+  border-radius: 50%;
+}
+
+.xy-lockup {
+  position: absolute;
+  top: 49%;
+  left: 50%;
+  display: flex;
+  width: 760px;
+  align-items: center;
+  flex-direction: column;
+  transform-origin: center;
+}
+
+.xy-logo {
+  width: 690px;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.xy-tagline {
+  margin-top: 10px;
+  color: #0f172a;
+  font-size: 48px;
+  line-height: 1.1;
+  text-align: center;
+}

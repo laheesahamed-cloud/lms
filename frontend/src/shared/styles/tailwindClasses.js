@@ -159,9 +159,9 @@ export const ui = {
 
   // ── Buttons ───────────────────────────────────────────────
   primaryAction:
-    `${actionButtonBase} border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] focus-visible:ring-brand-primary/30`,
+    `${actionButtonBase} border-transparent bg-[#2563eb] text-white hover:bg-[#1d4ed8] active:bg-[#1d4ed8] focus-visible:ring-[#2563eb]/40`,
   primaryButton:
-    `${actionButtonBase} border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary hover:border-brand-primary/45 hover:bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-1))] focus-visible:ring-brand-primary/30`,
+    `${actionButtonBase} border-transparent bg-[#2563eb] text-white hover:bg-[#1d4ed8] active:bg-[#1d4ed8] focus-visible:ring-[#2563eb]/40`,
   secondaryAction:
     secondaryButtonBase,
   secondaryButton:

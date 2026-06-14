@@ -1,0 +1,237 @@
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] :where(.lms-login-page, .lms-register-page) {
+  background: var(--lms-auth-panel-bg, var(--lms-login-page-bg, var(--page-background))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-page {
+  --color-primary: #8fa7d4;
+  --color-primary-hover: #aabce0;
+  --color-primary-light: rgba(143, 167, 212, 0.12);
+  --color-primary-glow: rgba(93, 119, 172, 0.14);
+  --lms-auth-panel-bg:
+    radial-gradient(circle at 8% 0%, rgba(74, 98, 154, 0.12), transparent 34%),
+    radial-gradient(circle at 100% 94%, rgba(54, 73, 119, 0.08), transparent 38%),
+    linear-gradient(180deg, #080b13 0%, #060810 54%, #050609 100%);
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-page::before {
+  filter: saturate(0.42);
+  opacity: 0.1;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-topbar {
+  display: none !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-mobile-brand {
+  min-width: 0;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] :where(.lms-auth-inline-brand, .lms-login-inline-brand) {
+  --xyndrome-brand-gap: 4px;
+  --xyndrome-brand-word-size: 22px;
+  --xyndrome-brand-text: var(--ink-strong);
+  --xyndrome-logo-filter: drop-shadow(0 5px 14px rgba(68, 91, 145, 0.1));
+  /* Block-level flex so the fit-content brand centres via auto margins.
+     (.xyndrome-brand is inline-flex by default, which ignores margin:auto.) */
+  display: flex !important;
+  inline-size: fit-content;
+  margin: 0 auto 22px;
+  align-items: center;
+  justify-content: center;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-theme="dark"] :where(.lms-auth-inline-brand, .lms-login-inline-brand) {
+  --xyndrome-brand-text: #f8fbff;
+  --xyndrome-logo-filter:
+    drop-shadow(0 0 0.7px rgba(219, 234, 254, 0.5))
+    drop-shadow(0 5px 14px rgba(68, 91, 145, 0.12));
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-form-wrap {
+  align-items: center !important;
+  justify-content: center !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none;
+  padding:
+    max(18px, var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)))
+    max(22px, var(--lms-native-safe-right, env(safe-area-inset-right, 0px)))
+    max(18px, var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)))
+    max(22px, var(--lms-native-safe-left, env(safe-area-inset-left, 0px))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-lms-login-keyboard="open"] .lms-login-form-wrap {
+  display: block !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding:
+    var(--lms-login-card-top, max(18px, var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px))))
+    max(22px, var(--lms-native-safe-right, env(safe-area-inset-right, 0px)))
+    calc(max(22px, calc(18px + var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)))) + var(--lms-keyboard-height, 0px))
+    max(22px, var(--lms-native-safe-left, env(safe-area-inset-left, 0px))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-page .lms-form-card {
+  max-width: 430px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  /* Sit a touch above dead-centre so the logo lands higher on screen. */
+  transform: translateY(-32px);
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-lms-login-keyboard="open"] .lms-login-page .lms-form-card {
+  transform: none;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-lms-login-keyboard="open"] .lms-login-page .lms-form-card {
+  margin: 0 auto;
+  padding: 0 !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-cta {
+  background: linear-gradient(135deg, #2f6eea 0%, #4b8ef0 100%) !important;
+  box-shadow: 0 9px 24px rgba(59, 130, 246, 0.24) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-theme="dark"] .lms-login-cta {
+  background: linear-gradient(135deg, #3474ea 0%, #5795ef 100%) !important;
+  box-shadow: 0 8px 22px rgba(59, 130, 246, 0.28) !important;
+}
+
+@media (max-height: 740px) {
+  html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-lms-login-keyboard="closed"] .lms-login-form-wrap {
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding:
+      calc(12px + max(var(--lms-native-safe-top, env(safe-area-inset-top, 0px)), env(safe-area-inset-top, 0px)))
+      max(22px, var(--lms-native-safe-right, env(safe-area-inset-right, 0px)))
+      max(18px, var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)))
+      max(22px, var(--lms-native-safe-left, env(safe-area-inset-left, 0px))) !important;
+  }
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-form {
+  gap: 12px !important;
+}
+
+/* Light theme: match the web login's light input (near-white fill, dark text)
+   so the field doesn't stay dark grey on the white page. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"]:not([data-theme="dark"]) .lms-login-page .lms-login-form :is(#login-email, #login-password) {
+  background: linear-gradient(180deg, #FBFCFF 0%, #F8FBFF 100%) !important;
+  border-color: rgba(37, 99, 235, 0.12) !important;
+  box-shadow: none !important;
+  color: #0B1220 !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"]:not([data-theme="dark"]) .lms-login-page .lms-login-form :is(#login-email, #login-password)::placeholder {
+  color: #7C8BA1 !important;
+  opacity: 0.78 !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"]:not([data-theme="dark"]) .lms-login-page .lms-login-form :is(#login-email, #login-password):focus,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"]:not([data-theme="dark"]) .lms-login-page .lms-login-form :is(#login-email, #login-password):focus-visible {
+  border-color: rgba(37, 99, 235, 0.22) !important;
+  box-shadow: none !important;
+}
+
+/* Dark theme: keep the deep navy field. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-theme="dark"] .lms-login-page .lms-login-form :is(#login-email, #login-password) {
+  background: rgba(7, 9, 16, 0.72) !important;
+  border-color: rgba(125, 145, 181, 0.2) !important;
+  box-shadow: none !important;
+  color: #eef3fb !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-theme="dark"] .lms-login-page .lms-login-form :is(#login-email, #login-password)::placeholder {
+  color: rgba(151, 164, 190, 0.68) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-theme="dark"] .lms-login-page .lms-login-form :is(#login-email, #login-password):focus,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-theme="dark"] .lms-login-page .lms-login-form :is(#login-email, #login-password):focus-visible {
+  border-color: rgba(143, 167, 212, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(93, 119, 172, 0.16) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-form h2 {
+  font-size: 28px !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-form .lms-form-sub {
+  max-width: 26rem;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-auth-divider {
+  margin-block: 0;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-register-page {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  min-height: var(--lms-app-viewport-height, 100lvh) !important;
+  height: var(--lms-app-viewport-height, 100lvh) !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none;
+  padding:
+    max(18px, var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)))
+    max(22px, var(--lms-native-safe-right, env(safe-area-inset-right, 0px)))
+    max(18px, var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)))
+    max(22px, var(--lms-native-safe-left, env(safe-area-inset-left, 0px))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-lms-register-keyboard="open"] .lms-register-page {
+  display: block !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding:
+    var(--lms-register-card-top, max(18px, var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px))))
+    max(22px, var(--lms-native-safe-right, env(safe-area-inset-right, 0px)))
+    calc(max(22px, calc(18px + var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)))) + var(--lms-keyboard-height, 0px))
+    max(22px, var(--lms-native-safe-left, env(safe-area-inset-left, 0px))) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-register-scene {
+  display: block !important;
+  width: 100% !important;
+  max-width: 430px !important;
+  margin: 0 auto !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-register-form {
+  gap: 13px !important;
+  padding: 0 !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-register-form h2 {
+  font-size: 28px !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-register-form button[type="submit"] {
+  background: linear-gradient(135deg, #2f6eea 0%, #4b8ef0 100%) !important;
+  box-shadow: 0 9px 24px rgba(59, 130, 246, 0.24) !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-theme="dark"] .lms-register-form button[type="submit"] {
+  background: linear-gradient(135deg, #3474ea 0%, #5795ef 100%) !important;
+  box-shadow: 0 8px 22px rgba(59, 130, 246, 0.28) !important;
+}
+
+@media (max-height: 820px) {
+  html[data-lms-runtime="native"][data-lms-form-factor="phone"][data-lms-register-keyboard="closed"] .lms-register-page {
+    display: block !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding:
+      calc(12px + max(var(--lms-native-safe-top, env(safe-area-inset-top, 0px)), env(safe-area-inset-top, 0px)))
+      max(22px, var(--lms-native-safe-right, env(safe-area-inset-right, 0px)))
+      max(18px, var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)))
+      max(22px, var(--lms-native-safe-left, env(safe-area-inset-left, 0px))) !important;
+  }
+}

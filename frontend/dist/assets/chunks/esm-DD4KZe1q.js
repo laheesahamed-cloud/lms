@@ -1,1 +1,0 @@
-import{d as e}from"./vendor-DTnBlfKp.js";export{e as LocalNotifications};

@@ -40,11 +40,6 @@ export function clearStudentCourseDetailCache(courseId) {
   studentCourseDetailCache.clear(String(courseId));
 }
 
-export async function fetchStudentCoursesUncached() {
-  const response = await apiClient.get('/student/courses');
-  return response.data;
-}
-
 export async function fetchStudentCourseDetail(courseId, { force = false } = {}) {
   if (force) studentCourseDetailCache.clear(String(courseId || ''));
   return studentCourseDetailCache.get(courseId);

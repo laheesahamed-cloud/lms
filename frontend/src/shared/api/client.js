@@ -261,8 +261,13 @@ apiClient.interceptors.response.use(
       requestConfig &&
       !requestConfig.__retriedWithLocalhost &&
       currentBaseUrl !== LOCAL_API_BASE_URL;
+    const canUseApiBaseFallback =
+      error?.code === 'ECONNABORTED' ||
+      error?.code === 'ERR_NETWORK' ||
+      error?.message === 'Network Error' ||
+      !error?.response;
     const nextApiFallbackUrl =
-      (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error' || !error?.response) &&
+      canUseApiBaseFallback &&
       requestConfig &&
       !requestConfig.__skipApiBaseFallback &&
       getNextApiFallbackUrl(currentBaseUrl, requestConfig.__triedApiBaseUrls);

@@ -8,6 +8,7 @@ const STUDENT_RESULTS_CACHE_MS = 15_000;
 const studentQuizLoadRequests = new Map();
 const studentQuizzesCache = createTimedApiCache({
   ttlMs: STUDENT_QUIZZES_CACHE_MS,
+  persistKey: 'student.quizzes',
   load: async () =>
     (await claimBootSlice('quizzes')) ??
     apiClient.get('/student/quiz-attempts/quizzes').then((response) => response.data),
@@ -16,6 +17,7 @@ const studentQuizzesCache = createTimedApiCache({
 export const seedStudentQuizzes = (data) => studentQuizzesCache.seed(data);
 const studentResultsCache = createTimedApiCache({
   ttlMs: STUDENT_RESULTS_CACHE_MS,
+  persistKey: 'student.results',
   load: () => apiClient.get('/student/quiz-attempts/results').then((response) => response.data),
 });
 

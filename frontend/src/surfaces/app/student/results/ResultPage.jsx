@@ -9,16 +9,22 @@ import { useCountUp } from '../../../../shared/hooks/useCountUp.js';
 
 // Score ring whose conic-gradient sweep + percentage count up together on mount.
 function ScoreRing({ percentage, isPassed, score, totalMarks }) {
-  const animated = useCountUp(percentage, { duration: 1100, decimals: 1 });
+  const animated = useCountUp(percentage, { duration: 1100, decimals: 0 });
   const deg = Math.max(0, Math.min(100, animated)) * 3.6;
+  const vivid = isPassed ? 'var(--sa-ok)' : 'var(--sa-warn)';
+  const soft = isPassed
+    ? 'color-mix(in srgb, var(--sa-ok) 52%, white)'
+    : 'color-mix(in srgb, var(--sa-warn) 52%, white)';
+  const track = 'color-mix(in srgb, var(--sa-surface-2) 86%, transparent)';
   const ringStyle = {
-    background: `conic-gradient(${isPassed ? 'var(--sa-ok)' : 'var(--sa-warn)'} ${deg}deg, color-mix(in srgb, var(--sa-surface-2) 86%, transparent) 0deg)`,
+    // Sweep starts at 12 o'clock and grades soft→vivid for a richer arc.
+    background: `conic-gradient(from -90deg, ${soft} 0deg, ${vivid} ${deg}deg, ${track} ${deg}deg)`,
   };
   return (
-    <div className="student-result-score-card" aria-label={`${percentage.toFixed(2)} percent score`}>
-      <div className="student-result-score-ring" style={ringStyle}>
+    <div className="student-result-score-card" aria-label={`${Math.round(percentage)} percent score`}>
+      <div className={`student-result-score-ring ${isPassed ? 'is-passed' : 'is-failed'}`} style={ringStyle}>
         <div>
-          <strong>{animated.toFixed(1)}%</strong>
+          <strong>{Math.round(animated)}%</strong>
           <span>{score.toFixed(2)} / {totalMarks}</span>
         </div>
       </div>

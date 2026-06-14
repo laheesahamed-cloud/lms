@@ -38,7 +38,8 @@ export function StudentNotificationsPage() {
     load().catch(() => {});
   }, []);
 
-  const visibleItems = useMemo(() => sortLatestNotifications(items), [items]);
+  // Only surface unread notifications — once marked read they drop out of the inbox.
+  const visibleItems = useMemo(() => sortLatestNotifications(items.filter((item) => !item.read)), [items]);
 
   return <main className="dashboard-page study-hub-page student-notifications-page"><section className="study-hub-shell">
     <AppHeader title="Notifications" subtitle="Message Inbox" />
@@ -62,6 +63,6 @@ export function StudentNotificationsPage() {
           </div>
         </article>
       );
-    }) : <div className={ui.emptyBox}>No notifications yet.</div>}</section>
+    }) : <div className={ui.emptyBox}>You&apos;re all caught up — no unread notifications.</div>}</section>
   </section></main>;
 }

@@ -51,8 +51,6 @@
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .lms-page-header-card,
   .lms-hero-card,
@@ -62,18 +60,12 @@
   .study-card,
   .study-continue-card,
   .study-streak-card,
-  .study-readiness-card,
-  .study-todo-card,
   .study-mood-card,
   .study-action-card,
   .study-plan-card,
   .study-analytics-card,
   .study-exam-countdown-card,
   .study-upcoming-card,
-  .planner-panel,
-  .planner-hero-card,
-  .results-performance-board,
-  .results-focus-board,
   .student-results-focus,
   .student-results-history
 ) {
@@ -108,10 +100,7 @@
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
-  .student-lessons-search-card,
   .student-lessons-course-card,
   .student-lessons-detail-toolbar,
   .student-lessons-category__head,
@@ -119,10 +108,6 @@
   .student-lessons-lesson-row,
   .student-results-focus,
   .student-results-history,
-  .planner-panel,
-  .planner-hero-card,
-  .results-performance-board,
-  .results-focus-board,
   .lms-map-hierarchy-guide
 ) {
   border-radius: var(--ds-card-radius) !important;
@@ -134,11 +119,11 @@
   box-shadow: var(--ds-card-shadow) !important;
 }
 
-:where(.lms-card-interactive, .lms-course-card, .student-course-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):where(:hover, :focus-visible) {
+:where(.lms-card-interactive, .lms-course-card, .student-course-card, .lms-quiz-course-card, .lms-quiz-set-card):where(:hover, :focus-visible) {
   box-shadow: var(--ds-card-shadow-hover) !important;
 }
 
-:where(.lms-card-interactive, .lms-course-card, .student-course-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card):active {
+:where(.lms-card-interactive, .lms-course-card, .student-course-card, .lms-quiz-course-card, .lms-quiz-set-card):active {
   box-shadow: var(--ds-card-shadow-pressed) !important;
 }
 
@@ -152,23 +137,16 @@
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .study-card,
   .study-continue-card,
   .study-action-card,
   .study-streak-card,
-  .study-readiness-card,
-  .study-todo-card,
   .study-plan-card,
   .study-mood-card,
   .study-analytics-card,
   .study-exam-countdown-card,
-  .study-upcoming-card,
-  .planner-panel,
-  .planner-hero-card
-):where(:hover, :focus-visible, :active) {
+  .study-upcoming-card):where(:hover, :focus-visible, :active) {
   transform: none !important;
 }
 
@@ -228,17 +206,17 @@
   opacity: 0.24 !important;
 }
 
-:where(.student-page-hero, .lms-course-detail-hero) {
+:where(.student-page-hero) {
   padding: var(--lms-app-card-pad) !important;
 }
 
-:where(.student-page-hero__title, .lms-course-detail-hero h1) {
+:where(.student-page-hero__title) {
   max-width: min(100%, 18ch);
   color: var(--lms-app-card-title);
   letter-spacing: 0;
 }
 
-:where(.student-page-hero__subtitle, .lms-course-detail-hero p) {
+:where(.student-page-hero__subtitle) {
   color: var(--lms-app-card-muted) !important;
 }
 

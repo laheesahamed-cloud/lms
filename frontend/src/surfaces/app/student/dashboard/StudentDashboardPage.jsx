@@ -539,12 +539,15 @@ function MetricCard({ label, value, hint, icon, tone, progress = null, index = 0
   );
 }
 
-function StreakHeatmap({ streak, goalsCompleted }) {
-  const activeDays = Math.min(7, Math.max(Number(streak || 0), Number(goalsCompleted || 0)));
+function StreakHeatmap({ streak }) {
+  // This card is the daily-streak visualisation: the lit dots must track the
+  // streak itself, not goal activity. Otherwise a 0-day streak ("Start your
+  // first streak today") could still show filled dots from completed goals.
+  const activeDays = Math.min(7, Math.max(Number(streak || 0), 0));
   const todayIndex = (new Date().getDay() + 6) % 7;
   const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   return (
-    <div className="study-heatmap" aria-label={`${activeDays} active study days this week`}>
+    <div className="study-heatmap" aria-label={`${activeDays}-day streak this week`}>
       {labels.map((label, index) => {
         const active = activeDays > 0 && index >= labels.length - activeDays;
         const className = [
@@ -563,23 +566,67 @@ function StreakHeatmap({ streak, goalsCompleted }) {
   );
 }
 
+// Catmull-Rom → cubic-bezier so the trend reads as a smooth curve, not a jagged
+// polyline. A single point degrades to a short flat segment so the line is visible.
+function buildSmoothPath(pts) {
+  if (pts.length === 1) {
+    const [x, y] = pts[0];
+    return `M${x - 6},${y} L${x + 6},${y}`;
+  }
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2[0]},${p2[1]}`;
+  }
+  return d;
+}
+
 function ScoreTrend({ attempts, average }) {
   const values = attempts.length
     ? attempts.slice(0, 7).reverse().map((attempt) => clampPercent(attempt.percentage))
     : [Math.max(18, clampPercent(average) - 16), clampPercent(average), Math.min(100, clampPercent(average) + 10)];
-  const points = values.map((value, index) => {
-    const x = values.length === 1 ? 50 : (index / (values.length - 1)) * 100;
-    const y = 92 - (value * 0.72);
-    return `${x},${y}`;
-  }).join(' ');
+
+  const n = values.length;
+  const coords = values.map((value, index) => {
+    // Inset the x-range so the endpoint dot is never clipped at the card edge.
+    const x = n === 1 ? 50 : 4 + (index / (n - 1)) * 92;
+    const y = 88 - (clampPercent(value) * 0.72); // maps 0–100% into the 16–88 band
+    return [x, y];
+  });
+
+  const linePath = buildSmoothPath(coords);
+  const last = coords[n - 1];
+  const first = coords[0];
+  const areaPath = `${linePath} L${last[0]},100 L${first[0]},100 Z`;
 
   return (
-    <svg className="study-score-chart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0 82H100" stroke="var(--sa-border)" strokeWidth="1" />
-      <path d="M0 54H100" stroke="var(--sa-border)" strokeWidth="1" />
-      <path d="M0 26H100" stroke="var(--sa-border)" strokeWidth="1" />
-      <polyline points={points} fill="none" stroke="var(--sa-primary)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-    </svg>
+    <div className="study-score-chart-wrap">
+      <svg className="study-score-chart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="scoreTrendLine" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="var(--sa-primary)" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="var(--sa-primary)" />
+          </linearGradient>
+          <linearGradient id="scoreTrendArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--sa-primary)" stopOpacity="0.26" />
+            <stop offset="100%" stopColor="var(--sa-primary)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M0 84H100" stroke="var(--sa-border)" strokeWidth="1" vectorEffect="non-scaling-stroke" opacity="0.6" />
+        <path d="M0 52H100" stroke="var(--sa-border)" strokeWidth="1" vectorEffect="non-scaling-stroke" opacity="0.6" />
+        <path d="M0 20H100" stroke="var(--sa-border)" strokeWidth="1" vectorEffect="non-scaling-stroke" opacity="0.6" />
+        <path className="study-score-chart__area" d={areaPath} fill="url(#scoreTrendArea)" />
+        <path className="study-score-chart__line" d={linePath} pathLength="1" fill="none" stroke="url(#scoreTrendLine)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <span className="study-score-chart__dot" style={{ left: `${last[0]}%`, top: `${last[1]}%` }} aria-hidden="true" />
+    </div>
   );
 }
 
@@ -862,7 +909,7 @@ function UpcomingTasksCard({ items, serverDateKey, onOpenItem, onOpenPlanner }) 
           <span className="study-eyebrow">Upcoming tasks</span>
           <strong>Sorted by urgency</strong>
         </div>
-        <button type="button" onPointerDown={() => preloadStudyRoute(appRoute('/planner'))} onTouchStart={() => preloadStudyRoute(appRoute('/planner'))} onFocus={() => preloadStudyRoute(appRoute('/planner'))} onClick={onOpenPlanner}>Planner</button>
+        <button type="button" onPointerDown={() => preloadStudyRoute(appRoute('/planner'))} onTouchStart={() => preloadStudyRoute(appRoute('/planner'))} onFocus={() => preloadStudyRoute(appRoute('/planner'))} onClick={onOpenPlanner}>View all</button>
       </div>
 
       <div className="study-upcoming-list">
@@ -1018,32 +1065,35 @@ export function StudentDashboardPage() {
     setError('');
 
     async function loadDashboard() {
+      // The three primary reads are independent, so fire them concurrently
+      // instead of waiting for the dashboard before starting quizzes/agenda.
+      const dashboardRequest = fetchStudentDashboard();
+      const quizzesRequest = fetchStudentQuizzes().catch(() => []);
+      const agendaRequest = fetchPlannerAgenda().catch(() => ({ items: [] }));
+
       try {
-        const data = await fetchStudentDashboard();
+        const data = await dashboardRequest;
         if (cancelled) return;
         setDashboard(normalizeDashboardState(data));
-        setLoading(false);
-        const [quizzes, agenda] = await Promise.all([
-          fetchStudentQuizzes().catch(() => []),
-          fetchPlannerAgenda().catch(() => ({ items: [] })),
-        ]);
-        if (cancelled) return;
-        setStudentQuizzes(Array.isArray(quizzes) ? quizzes : []);
-        setPlannerAgendaItems(Array.isArray(agenda?.items) ? agenda.items : Array.isArray(agenda) ? agenda : []);
-        cancelSecondary = runWhenIdle(async () => {
-          const [notes, savedItems] = await Promise.all([
-            listAiNotes().catch(() => []),
-            fetchStudyBookmarks().catch(() => []),
-          ]);
-          if (cancelled) return;
-          setAiNotes(Array.isArray(notes) ? notes : []);
-          setBookmarks(Array.isArray(savedItems) ? savedItems : []);
-        });
       } catch (loadError) {
         if (!cancelled) setError(getErrorMessage(loadError, 'Unable to load dashboard'));
       } finally {
         if (!cancelled) setLoading(false);
       }
+
+      const [quizzes, agenda] = await Promise.all([quizzesRequest, agendaRequest]);
+      if (cancelled) return;
+      setStudentQuizzes(Array.isArray(quizzes) ? quizzes : []);
+      setPlannerAgendaItems(Array.isArray(agenda?.items) ? agenda.items : Array.isArray(agenda) ? agenda : []);
+      cancelSecondary = runWhenIdle(async () => {
+        const [notes, savedItems] = await Promise.all([
+          listAiNotes().catch(() => []),
+          fetchStudyBookmarks().catch(() => []),
+        ]);
+        if (cancelled) return;
+        setAiNotes(Array.isArray(notes) ? notes : []);
+        setBookmarks(Array.isArray(savedItems) ? savedItems : []);
+      });
     }
 
     loadDashboard();
@@ -1391,7 +1441,7 @@ export function StudentDashboardPage() {
               <span>days</span>
             </div>
           </div>
-          <StreakHeatmap streak={dashboard.quizDayStreak} goalsCompleted={dashboard.dailyGoalsCompleted} />
+          <StreakHeatmap streak={dashboard.quizDayStreak} />
           <div className="study-streak-footer">
             <span>Past 4 weeks · <b>{Math.max(dashboard.quizDayStreak, dashboard.dailyGoalsCompleted)}</b> active days</span>
             <button type="button" className="study-streak-link" onPointerDown={() => preloadStudyRoute(appRoute('/results'))} onTouchStart={() => preloadStudyRoute(appRoute('/results'))} onFocus={() => preloadStudyRoute(appRoute('/results'))} onClick={() => onNavigate(appRoute('/results'))}>

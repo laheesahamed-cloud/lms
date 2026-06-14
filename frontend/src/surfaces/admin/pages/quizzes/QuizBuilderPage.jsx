@@ -27,6 +27,7 @@ const defaultForm = {
   adminName: '',
   studentTitle: '',
   displayTitleMode: 'number',
+  quizNumber: null,
   quizDescription: '',
   courseId: '',
   subjectId: '',
@@ -1222,6 +1223,7 @@ export function QuizBuilderPage() {
             adminName: quizPayload.adminName || quizPayload.quizTitle || '',
             studentTitle: quizPayload.studentTitle || quizPayload.quizTitle || '',
             displayTitleMode: quizPayload.displayTitleMode === 'title' ? 'title' : 'number',
+            quizNumber: quizPayload.quizNumber ?? null,
             quizDescription: quizPayload.quizDescription || '',
             courseId: String(quizPayload.courseId || ''),
             subjectId: quizPayload.topicId ? String(quizPayload.topicId) : '',
@@ -1724,6 +1726,11 @@ export function QuizBuilderPage() {
     }
     if (name === 'prioritizeQuizNumber') {
       next.displayTitleMode = checked ? 'number' : 'title';
+      if (!checked && form.quizNumber) {
+        next._quizNumberWarnOnUncheck = true;
+      } else {
+        next._quizNumberWarnOnUncheck = false;
+      }
     }
     if (name === 'isGeneral' && checked) {
       next.subjectId = '';
@@ -2742,10 +2749,21 @@ export function QuizBuilderPage() {
               <label className={qb.checkbox}>
                 <input className="shrink-0" type="checkbox" name="prioritizeQuizNumber" checked={form.displayTitleMode !== 'title'} onChange={handleFormChange} />
                 <span>
-                  Prioritize Quiz 01 in the student list
-                  <FieldNote>Checked: Quiz 01 is the main label and the assessment name sits below it. Unchecked: the assessment name becomes the main label.</FieldNote>
+                  Prioritize Quiz number in the student list
+                  <FieldNote>
+                    {form.displayTitleMode !== 'title'
+                      ? form.quizNumber
+                        ? `Students see Quiz ${String(form.quizNumber).padStart(2, '0')} in the list. Number is locked.`
+                        : 'A sequential number will be auto-assigned when saved.'
+                      : 'Students see the assessment title as the main label.'}
+                  </FieldNote>
                 </span>
               </label>
+              {form._quizNumberWarnOnUncheck ? (
+                <div className="rounded-xl border border-brand-warning/34 bg-[var(--color-warning-light,#fffbeb)] px-4 py-3 text-sm text-brand-warning" role="alert">
+                  This quiz was displayed as <strong>Quiz {String(form.quizNumber).padStart(2, '0')}</strong> to students. Update the <strong>Student Title</strong> above to describe the content before saving.
+                </div>
+              ) : null}
 
               <label className={ui.formLabel}>
                 Description
@@ -3618,7 +3636,13 @@ export function QuizBuilderPage() {
                 </div>
                 <div className={qb.checklistItem}>
                   <strong className="text-xs text-ink-strong">Student list priority</strong>
-                  <span className="break-words text-xs leading-normal text-ink-soft">{form.displayTitleMode === 'title' ? 'Quiz name first' : 'Quiz 01 first'}</span>
+                  <span className="break-words text-xs leading-normal text-ink-soft">
+                    {form.displayTitleMode === 'title'
+                      ? 'Assessment title'
+                      : form.quizNumber
+                        ? `Quiz ${String(form.quizNumber).padStart(2, '0')} (assigned)`
+                        : 'Quiz N (auto on save)'}
+                  </span>
                 </div>
                 <div className={qb.checklistItem}>
                   <strong className="text-xs text-ink-strong">Hierarchy</strong>

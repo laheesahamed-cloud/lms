@@ -1,9 +1,32 @@
 .student-study-page {
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
+  min-height: 100dvh;
 }
 
 .student-study-shell {
+  flex: 1 1 auto;
   gap: 18px;
+}
+
+/* Background model copied from the Q-Bank / assessment pages.
+   The student shell paints the page gradient (--sa-bg) onto EVERY nested
+   wrapper (main-content, portal frame, route-reveal). Those wrappers resolve
+   to different heights, so in light mode their stacked gradients meet at a hard
+   horizontal edge that scrolls with the content (invisible in dark mode where
+   the gradient is near-black). Q-Bank avoids this by keeping the inner wrappers
+   transparent and letting a single full-height element carry the background.
+   Do the same here: blank the inner wrappers whenever the Study page is mounted
+   so there is exactly one background layer and no seam. */
+.lms-app-scroll-root:has(.student-study-page) :where(
+  .main-content,
+  .portal-content,
+  .portal-content__frame,
+  .lms-route-reveal
+) {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 /* All study shortcuts live in ONE card; rows are separated by dividers. */
@@ -42,6 +65,10 @@
 
 .student-study-row.is-planner {
   --student-study-tone: #3b82f6;
+}
+
+.student-study-row.is-bookmarks {
+  --student-study-tone: #10b981;
 }
 
 @media (hover: hover) and (pointer: fine) {

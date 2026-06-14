@@ -41,7 +41,6 @@
     line-height: 1.65;
   }
 
-  html[data-lms-runtime="native"] body,
   html[data-lms-runtime="desktop"] body {
     overscroll-behavior: none;
   }

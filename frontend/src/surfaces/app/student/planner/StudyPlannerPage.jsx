@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
+import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 import {
   createPlannerTask,
   deletePlannerTask,
@@ -594,6 +596,14 @@ function PlannerSection({ section, onAction, onTaskStatus, onTaskEdit, onTaskDel
 
 export function StudyPlannerPage() {
   const navigate = useNavigate();
+  // Native-only: edge-swipe from the left returns to the Study hub (mirrors the
+  // back chevron — a history pop, smooth native slide on this chevron route).
+  const pageRef = useRef(null);
+  const handleSwipeBack = useCallback(() => {
+    const studyPath = window.location.pathname.startsWith('/app') ? '/app/study' : '/study';
+    safeNavigateBack(navigate, { fallbackPath: studyPath });
+  }, [navigate]);
+  useEdgeSwipeBack({ containerRef: pageRef, onBack: handleSwipeBack });
   const taskComposerRef = useRef(null);
   const [agenda, setAgenda] = useState(() => normalizeAgenda(readPlannerAgendaCache()));
   const [flashcardItem, setFlashcardItem] = useState(null);
@@ -764,9 +774,9 @@ export function StudyPlannerPage() {
   }
 
   return (
-    <main className="dashboard-page study-hub-page study-planner-page planner-native-page">
+    <main ref={pageRef} className="dashboard-page study-hub-page study-planner-page planner-native-page">
       <div className="study-hub-shell study-planner-shell">
-        <AppHeader title="Planner" subtitle="Study schedule" />
+        <AppHeader title="Planner" subtitle="Study schedule" compact />
 
         <section className="planner-native-topbar" aria-label="Planner controls">
           <button

@@ -167,6 +167,25 @@ function scheduleScrollToTop() {
   return scheduleScrollPosition({ top: 0, left: 0 }, 'auto');
 }
 
+// ── Shared scroll helpers, so NativeRouteTransition reads/writes the SAME
+// scroller this component does. The active scroller differs by page type (the
+// document/window for tab pages; `.lms-app-scroll-root` for focus/detail pages),
+// and getPrimaryScrollTarget picks whichever actually overflows — using it on
+// both sides keeps capture/restore consistent (no jump-to-top on return).
+export function readActiveScrollTop() {
+  if (typeof document === 'undefined') return 0;
+  return Math.max(0, Math.round(getScrollPosition().top || 0));
+}
+export function applyActiveScrollTop(top) {
+  if (typeof document === 'undefined') return;
+  scrollDocumentToPosition({ top: Math.max(0, Math.round(top || 0)), left: 0 }, 'auto');
+}
+export function getSavedScrollTop(routeKey) {
+  if (routeKey == null) return null;
+  const p = scrollPositions.get(routeKey);
+  return p ? p.top : null;
+}
+
 function pruneScrollPositions() {
   while (scrollPositions.size > MAX_SAVED_SCROLL_POSITIONS) {
     const oldestKey = scrollPositions.keys().next().value;
@@ -186,9 +205,17 @@ export function RouteScrollRestoration({
     const routeKey = key || `${pathname}${search}`;
     const savedPosition = scrollPositions.get(routeKey);
     const excludedRoute = isExcludedRoute(pathname, excludedRouteSet);
+    // On the NATIVE runtime there is no keep-alive (the simple carousel re-renders
+    // the destination fresh on back). Restoring the saved scroll happens AFTER
+    // paint (delayed rAF/timeout to fight WKWebView), so it flashes the old
+    // position then snaps — a visible jump. So on native we DON'T restore on a
+    // pop: the page lands cleanly at its top (native state), no jump. (Web/PWA
+    // keep normal restore.)
+    const isNativeRuntime =
+      typeof document !== 'undefined' && document.documentElement?.dataset?.lmsRuntime === 'native';
     let cancelScheduledScroll = () => {};
 
-    if (navigationType === 'POP' && savedPosition) {
+    if (navigationType === 'POP' && savedPosition && !isNativeRuntime) {
       cancelScheduledScroll = scheduleScrollPosition(savedPosition, 'auto');
     } else if (!excludedRoute && navigationType !== 'POP') {
       // Run before paint and again after route content mounts. WKWebView can apply

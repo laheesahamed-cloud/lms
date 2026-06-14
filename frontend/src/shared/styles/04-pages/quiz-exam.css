@@ -1991,9 +1991,9 @@ body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-revie
   }
 
 body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-idle {
-    border-color: #b45309 !important;
-    background: #ffedd5 !important;
-    color: #7c2d12 !important;
+    border-color: rgba(148, 163, 184, 0.30) !important;
+    background: rgba(148, 163, 184, 0.08) !important;
+    color: #64748b !important;
     box-shadow: none !important;
   }
 
@@ -2005,14 +2005,14 @@ body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-revie
   }
 
 body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-nav-legend-dot.is-idle, .lms-review-bubble-legend i.is-idle) {
-    border-color: #b45309 !important;
-    background: #f59e0b !important;
+    border-color: var(--line-soft) !important;
+    background: var(--ink-soft, #94a3b8) !important;
   }
 
 :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-idle {
-    border-color: #fcd34d !important;
-    background: rgba(252, 211, 77, 0.18) !important;
-    color: #fef9c3 !important;
+    border-color: rgba(148, 163, 184, 0.30) !important;
+    background: rgba(148, 163, 184, 0.08) !important;
+    color: rgba(148, 163, 184, 0.75) !important;
   }
 
 :root[data-theme="dark"] body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :is(.lms-exam-question-nav, .lms-review-bubble-nav) > button.is-current {
@@ -2028,7 +2028,7 @@ body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-revie
     width: 100% !important;
   }
 
-body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-quiz-action-start, .lms-quiz-action-review, .lms-quiz-action-primary, .lms-exam-main-footer .lms-exam-main-footer-left, .lms-exam-main-footer .lms-exam-main-footer-right) {
+body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-quiz-action-start, .lms-quiz-action-review, .lms-quiz-action-primary) {
     min-width: 0 !important;
   }
 
@@ -2340,4 +2340,87 @@ body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-
     border-radius: 12px !important;
     font-size: 13px !important;
   }
+}
+
+/* ============================================================
+   Quiz / exam taking top bar — portaled to <body>
+   ------------------------------------------------------------
+   A fixed, full-width bar whose solid fill reaches up behind the
+   status bar so it covers the ENTIRE safe area, exactly like the
+   Study Hub shell bar. It must live outside the route wrapper
+   (whose residual transform breaks position:fixed for in-page
+   descendants), so the React component portals it to <body>. An
+   in-flow `.lms-quiz-topbar__spacer` reserves its height so the
+   page content starts cleanly below it.
+   ============================================================ */
+.lms-quiz-bar-layer {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 1100;
+  pointer-events: none;
+}
+.lms-quiz-bar-layer > .lms-quiz-topbar {
+  pointer-events: auto;
+}
+.lms-quiz-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  /* Height = safe-area inset + a real 54px content row (border-box), so the
+     inset never eats into the row on notch / Dynamic-Island devices. */
+  min-height: calc(max(0px, env(safe-area-inset-top, 0px)) + 54px);
+  padding:
+    calc(max(0px, env(safe-area-inset-top, 0px)) + 8px)
+    max(16px, env(safe-area-inset-right, 0px))
+    10px
+    max(16px, env(safe-area-inset-left, 0px));
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--line-soft);
+  /* Promote to its own GPU layer so the compositor never re-rasterises the bar
+     mid-scroll (the WKWebView sticky-flicker fix). */
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+.lms-quiz-topbar__title {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.lms-quiz-topbar__title strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink-strong);
+}
+.lms-quiz-topbar__title small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+.lms-quiz-topbar__spacer {
+  height: var(--lms-quiz-bar-height, calc(max(0px, env(safe-area-inset-top, 0px)) + 64px));
+  flex: 0 0 auto;
+}
+
+/* The spacer (which already includes the safe-area inset via the measured bar
+   height) is the sole top offset — drop the page + shell top padding so the two
+   don't stack into a dead gap. Scoped to `.lms-quiz-take` so the review pages,
+   which share `.lms-quiz-taking-page`, are untouched. */
+.student-app-shell .lms-quiz-take {
+  padding-top: 0 !important;
+}
+.student-app-shell .lms-quiz-take > .practice-review-shell,
+.student-app-shell .lms-quiz-take > .lms-exam-layout {
+  padding-top: 0 !important;
 }

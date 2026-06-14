@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { existsSync } from 'node:fs';
 
 const isCapacitorBuild = Boolean(process.env.CAPACITOR_BUILD || process.env.VITE_LMS_BUILD_TARGET === 'native');
 const isDesktopBuild = process.env.VITE_LMS_BUILD_TARGET === 'desktop';
 const shouldEmitSourceMaps = process.env.VITE_SOURCEMAP === 'true';
+const hasAndroidFcmConfig = existsSync(new URL('./android/app/google-services.json', import.meta.url));
 const appEntryFileName = 'assets/app-[hash].js';
 const appChunkFileName = 'assets/chunks/[name]-[hash].js';
 const appCssFileName = 'assets/css/[name]-[hash].css';
@@ -12,6 +14,9 @@ const appCssFileName = 'assets/css/[name]-[hash].css';
 export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '/lms/' : isCapacitorBuild ? '/' : isDesktopBuild ? './' : '/lms/frontend/dist/',
   plugins: [react(), tailwindcss()],
+  define: {
+    'import.meta.env.VITE_ANDROID_FCM_CONFIGURED': JSON.stringify(hasAndroidFcmConfig ? 'true' : 'false'),
+  },
   build: {
     outDir: isCapacitorBuild ? 'dist-capacitor' : 'dist',
     minify: 'oxc',

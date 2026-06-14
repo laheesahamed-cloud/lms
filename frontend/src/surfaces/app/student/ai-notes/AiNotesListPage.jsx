@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
+import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { listStudentAiNotesAcrossEngines, readAiNotesCache } from '../../../../shared/api/aiNotes.api.js';
 import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -115,7 +117,13 @@ function CheckIcon() {
   return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.25 8.2l3.05 3.05 6.45-6.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 function SaveIcon() {
-  return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.6C4.5 2.85 5.1 2.25 5.85 2.25h4.3c.75 0 1.35.6 1.35 1.35v10.15L8 11.65l-3.5 2.1V3.6Z" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  return <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.6C4.5 2.85 5.1 2.25 5.85 2.25h4.3c.75 0 1.35.6 1.35 1.35v10.15L8 11.65l-3.5 2.1V3.6Z" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+}
+function SaveFilledIcon() {
+  return <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.5 3.6C4.5 2.85 5.1 2.25 5.85 2.25h4.3c.75 0 1.35.6 1.35 1.35v10.15L8 11.65l-3.5 2.1V3.6Z"/></svg>;
+}
+function RowChevronIcon() {
+  return <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 // ── Course card (hub view) ────────────────────────────────────────────────────
 function CourseCard({ course, onClick }) {
@@ -143,7 +151,7 @@ function CourseCard({ course, onClick }) {
         </div>
         <div className="student-lessons-course-card__count text-right shrink-0">
           <div className="text-[30px] font-extrabold leading-none text-ink-strong">{count}</div>
-          <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">lessons</div>
+          <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{count === 1 ? 'lesson' : 'lessons'}</div>
         </div>
       </div>
     </button>
@@ -156,14 +164,24 @@ function LessonTextRow({ note, index, isSaved, onStart, onSave, style }) {
   const statusLabel = note.accessLocked ? 'Locked' : note.isFree ? 'Free lesson' : '';
   const isCompleted = note.lessonCompleted || note.lessonProgressStatus === 'completed' || Number(note.lessonProgressPercent || 0) >= 100;
 
+  function handleKeyDown(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onStart();
+    }
+  }
+
   return (
-    <div className={cx('student-lessons-lesson-row', isCompleted && 'is-completed')} style={style}>
-      <strong>{String(index + 1).padStart(2, '0')}.</strong>
-      <button
-        type="button"
-        className="student-lessons-lesson-row__title"
-        onClick={onStart}
-      >
+    <div
+      className={cx('student-lessons-lesson-row', isCompleted && 'is-completed')}
+      style={style}
+      role="button"
+      tabIndex={0}
+      onClick={onStart}
+      onKeyDown={handleKeyDown}
+    >
+      <strong>{String(index + 1).padStart(2, '0')}</strong>
+      <span className="student-lessons-lesson-row__title">
         <span className="student-lessons-lesson-row__title-line">
           <span className="student-lessons-lesson-row__title-text">{title}</span>
           {isCompleted ? (
@@ -172,26 +190,22 @@ function LessonTextRow({ note, index, isSaved, onStart, onSave, style }) {
             </i>
           ) : null}
         </span>
-        {statusLabel ? <small>{statusLabel}</small> : null}
-      </button>
-      <div className="student-lessons-lesson-row__actions">
-        <button
-          type="button"
-          className="student-lessons-lesson-row__start"
-          onClick={onStart}
-        >
-          Start
-        </button>
+        {statusLabel ? <small data-status={note.accessLocked ? 'locked' : 'free'}>{statusLabel}</small> : null}
+      </span>
+      <span className="student-lessons-lesson-row__actions">
         <button
           type="button"
           className={cx('student-lessons-lesson-row__save', isSaved && 'is-saved')}
-          onClick={() => onSave(note.id)}
+          onClick={(event) => { event.stopPropagation(); onSave(note.id); }}
           aria-label={isSaved ? `Saved ${title}` : `Save ${title}`}
+          aria-pressed={isSaved}
         >
-          {isSaved ? <CheckIcon /> : <SaveIcon />}
-          <span>{isSaved ? 'Saved' : 'Save'}</span>
+          {isSaved ? <SaveFilledIcon /> : <SaveIcon />}
         </button>
-      </div>
+        <span className="student-lessons-lesson-row__chevron" aria-hidden="true">
+          <RowChevronIcon />
+        </span>
+      </span>
     </div>
   );
 }
@@ -330,6 +344,15 @@ export function AiNotesListPage({
   defaultSubtitle: _defaultSubtitle = 'Illustrated clinical lessons for focused revision.',
 }) {
   const isDark = useDark();
+  const navigate = useNavigate();
+  // Native-only: edge-swipe from the left returns to the Study hub (mirrors the
+  // back chevron — a history pop, smooth native slide on this chevron route).
+  const pageRef = useRef(null);
+  const handleSwipeBack = useCallback(() => {
+    const studyPath = window.location.pathname.startsWith('/app') ? '/app/study' : '/study';
+    safeNavigateBack(navigate, { fallbackPath: studyPath });
+  }, [navigate]);
+  useEdgeSwipeBack({ containerRef: pageRef, onBack: handleSwipeBack });
   const [searchParams, setSearchParams] = useSearchParams();
   const [notes, setNotes] = useState(() => readAiNotesCache({ engine: engineKey }) || []);
   const [bookmarkedIds, setBookmarkedIds] = useState(() => new Set(
@@ -413,11 +436,12 @@ export function AiNotesListPage({
   }
 
   return (
-    <main className="dashboard-page study-hub-page student-lessons-page ai-notes-list-page">
+    <main ref={pageRef} className="dashboard-page study-hub-page student-lessons-page ai-notes-list-page">
       <section className="study-hub-shell">
         <AppHeader
-          title={headerTitle}
+          title={activeCourse?.label || selectedCourse || headerTitle}
           subtitle="Lesson Notes"
+          compact
         />
 
         {error ? (

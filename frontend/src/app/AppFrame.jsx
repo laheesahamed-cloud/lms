@@ -36,7 +36,7 @@ const nativeChromeSourceSelector = [
 ].join(',');
 
 const studentStudyHubPathPattern =
-  /^\/(?:app\/)?(?:dashboard|courses|notifications|planner|ai-notes|flashcards|quizzes|exams|results|bookmarks|subscriptions|billing|profile)(?:\/|$)/;
+  /^\/(?:app\/)?(?:dashboard|courses|notifications|planner|ai-notes|flashcards|quizzes|exams|results|bookmarks|subscriptions|billing|profile|study)(?:\/|$)/;
 const legacyProtectedPathPattern =
   /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 const adminRoutePattern = /^\/admin(?:\/|$)/;
@@ -423,8 +423,10 @@ function syncAppScrollContract() {
     setStyleIfChanged(element, 'color', '');
   });
 
-  setStyleIfChanged(document.body, 'position', 'fixed');
-  setStyleIfChanged(document.body, 'inset', '0px');
+  // Document-scroll model: the WebView scrolls the document itself (native
+  // rubber-band bounce). Keep the body in normal flow — do NOT pin it fixed.
+  setStyleIfChanged(document.body, 'position', 'static');
+  setStyleIfChanged(document.body, 'inset', '');
   setStyleIfChanged(document.body, 'paddingLeft', '0px');
   setStyleIfChanged(document.body, 'paddingRight', '0px');
 
@@ -437,12 +439,13 @@ function syncAppScrollContract() {
   }
 
   document.querySelectorAll('.lms-app-scroll-root').forEach((element) => {
-    setStyleIfChanged(element, 'position', 'fixed');
-    setStyleIfChanged(element, 'inset', '0px');
-    setStyleIfChanged(element, 'width', '100vw');
-    setStyleIfChanged(element, 'height', 'var(--lms-app-viewport-height, 100lvh)');
-    setStyleIfChanged(element, 'maxWidth', '100vw');
-    setStyleIfChanged(element, 'maxHeight', 'var(--lms-app-viewport-height, 100lvh)');
+    setStyleIfChanged(element, 'position', 'static');
+    setStyleIfChanged(element, 'inset', '');
+    setStyleIfChanged(element, 'width', '100%');
+    setStyleIfChanged(element, 'height', 'auto');
+    setStyleIfChanged(element, 'minHeight', 'var(--lms-app-viewport-height, 100lvh)');
+    setStyleIfChanged(element, 'maxWidth', '100%');
+    setStyleIfChanged(element, 'maxHeight', 'none');
     setStyleIfChanged(element, 'marginLeft', '0px');
     setStyleIfChanged(element, 'marginRight', '0px');
   });
@@ -858,6 +861,8 @@ export function AppFrame() {
 
         const result = await requestNativePushPermission();
         if (cancelled) return;
+
+        if (result?.permission === 'unsupported') return;
 
         const permission = result?.permission === 'granted' ? 'granted' : 'denied';
         window.localStorage.setItem(NATIVE_PUSH_PROMPT_KEY, permission);

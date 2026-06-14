@@ -6,33 +6,14 @@
 
 /* The global mobile-safety rule `html, body { overflow-x: hidden }`
    (06-utilities/launch-responsive.css) forces the browser to compute
-   overflow-y to `auto`, which turns <body> into a non-scrolling scroll
-   container and breaks every `position: sticky` pin on the landing page
-   (e.g. ScrollMorphFeatures' 4-scene crossfade scrolled past without
-   stopping). `overflow-x: clip` clips horizontal overflow exactly the same
-   but keeps overflow-y `visible`, so sticky pins work. Scoped via :has() so
-   it only applies while the landing page (.lpv2) is mounted. */
+   overflow-y to `auto`, turning <body> into a nested scroll container.
+   `overflow-x: clip` clips horizontal overflow exactly the same but keeps
+   overflow-y `visible`, so the page scrolls normally (and the cinematic hero's
+   pin behaves). Scoped via :has() so it only applies while .lpv2 is mounted. */
 html:has(main.lpv2),
 body:has(main.lpv2) {
   overflow-x: clip !important;
   overflow-y: visible !important;
-}
-
-/* One-card-per-scroll snapping for the feature showcase (ScrollMorphFeatures).
-   Toggled on <html> by JS only while that pinned section fully covers the
-   viewport, so a momentum fling settles on the next card instead of skipping
-   two. `proximity` (not mandatory) keeps it gentle — it never traps the user. */
-html.lpv2-snap-active {
-  scroll-snap-type: y proximity;
-}
-.lpv2 .lpv2-snap-point {
-  position: absolute;
-  left: 0;
-  width: 1px;
-  height: 1px;
-  pointer-events: none;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
 }
 
 .lpv2 {

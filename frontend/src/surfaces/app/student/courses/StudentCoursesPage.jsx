@@ -207,15 +207,18 @@ export function StudentCoursesPage() {
     setSelectedCourseId(location.state?.selectedCourseId || null);
   }, [location.state?.selectedCourseId]);
 
-  const handleSelectCourse = useCallback((courseId) => {
-    setSelectedCourseId(courseId);
-    navigate('.', {
-      state: {
-        ...(location.state || {}),
-        selectedCourseId: courseId,
-      },
-    });
-  }, [location.state, navigate]);
+  const handleSelectCourse = useCallback((course) => {
+    // Push to the real /courses/:courseId route (not an in-page state swap) so
+    // the native push/pop slide + edge-swipe-back engage, the header shows the
+    // course name, and the courses list is parked underneath for the gesture.
+    // Carry the list's course summary in nav state so the detail header + hero
+    // render instantly (no "Course" placeholder / skeleton flicker) while the
+    // full detail loads.
+    const courseId = typeof course === 'object' && course ? course.id ?? course.courseId : course;
+    const courseSummary = typeof course === 'object' ? course : null;
+    const base = location.pathname.startsWith('/app') ? '/app/courses' : '/courses';
+    navigate(`${base}/${courseId}`, { state: { courseSummary } });
+  }, [location.pathname, navigate]);
 
   const handleBackToAllCourses = useCallback(() => {
     setSelectedCourseId(null);
@@ -279,7 +282,7 @@ export function StudentCoursesPage() {
                   <CourseCard
                     key={course.id}
                     course={course}
-                    onOpen={() => handleSelectCourse(course.id)}
+                    onOpen={() => handleSelectCourse(course)}
                   />
                 ))
               : null}

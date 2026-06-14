@@ -11,6 +11,7 @@ export const deleteAnnouncement = (id) => apiClient.delete(`/admin/announcements
 // boot (previously two identical requests); mutations clear it.
 const notificationsCache = createTimedApiCache({
   ttlMs: 15000,
+  persistKey: 'student.notifications',
   load: async () =>
     (await claimBootSlice('notifications')) ??
     apiClient.get('/student/notifications').then((r) => r.data),
@@ -26,6 +27,7 @@ export const markNotificationRead = (id) => apiClient.post(`/student/notificatio
 export const fetchPlannerTasks = () => apiClient.get('/student/planner').then((r) => r.data);
 const plannerAgendaCache = createTimedApiCache({
   ttlMs: 15000,
+  persistKey: 'student.agenda',
   load: async () =>
     (await claimBootSlice('agenda')) ??
     apiClient.get('/student/planner/agenda').then((r) => r.data),

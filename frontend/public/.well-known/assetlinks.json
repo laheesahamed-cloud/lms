@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.erpm.medical.lms",
+      "sha256_cert_fingerprints": [
+        "AB:CB:B5:3E:09:E3:54:9B:9D:04:7B:0D:7D:DA:C3:F6:F3:CF:7C:D8:F0:CB:B3:17:37:47:CD:C0:4A:FD:70:2F"
+      ]
+    }
+  }
+]

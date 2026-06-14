@@ -9,6 +9,7 @@ const adminDashboardCache = createTimedApiCache({
 
 const studentDashboardCache = createTimedApiCache({
   ttlMs: 15000,
+  persistKey: 'student.dashboard',
   load: async () =>
     (await claimBootSlice('dashboard')) ??
     apiClient.get('/student/dashboard').then((response) => response.data),

@@ -11,44 +11,45 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] {
   --lms-native-topbar-spacer-height: var(--lms-native-topbar-height);
 }
 
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell :where(.lms-topbar, .study-hub-topbar) {
-  position: static !important;
-  top: auto !important;
-}
-
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-native-topbar-layer {
-  position: fixed;
-  inset: 0 0 auto;
-  z-index: 10040;
-  box-sizing: border-box;
-  width: 100%;
-  padding:
-    var(--lms-native-phone-safe-top, env(safe-area-inset-top, 0px))
-    max(12px, var(--lms-native-phone-safe-right, env(safe-area-inset-right, 0px)))
-    8px
-    max(12px, var(--lms-native-phone-safe-left, env(safe-area-inset-left, 0px)));
-  background: var(--lms-native-chrome-bg, var(--app-bg, #dce6f4));
-  background-color: var(--lms-native-chrome-bg-solid, var(--app-bg-solid, #dce6f4));
+/* The iOS large-title header bar is portaled to <body> as .lms-header-bar-layer
+   (see dashboard.css). On native phone it must own its own GPU layer so the
+   pinned bar composites above the glassmorphism cards that scroll under it. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-header-bar-layer {
+  z-index: 1100;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
-  contain: layout paint;
 }
 
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-native-topbar-layer .study-hub-topbar,
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-native-topbar-layer .lms-topbar {
-  position: relative !important;
-  top: auto !important;
-  width: min(760px, 100%) !important;
-  max-width: 100% !important;
-  margin: 0 auto !important;
+/* The notification/profile dropdowns are portaled to <body> as siblings of the
+   fixed header bar. Two things are needed on iOS WKWebView:
+
+   1. z-index floor above the bar (10040) and content.
+   2. A *persistent* GPU compositing layer. Without it, iOS can paint a
+      position:fixed element BELOW scrolling content that has its own GPU layer
+      (the glassmorphism cards use backdrop-filter), regardless of z-index —
+      the dropdown then looks like it sits "under" the page. translateZ(0) +
+      isolation pins the dropdown to its own layer on top of the scroller. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > #lms-notification-menu,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-profile-menu {
+  z-index: 10090 !important;
+  isolation: isolate;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
 }
 
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-native-topbar-spacer {
-  display: block !important;
-  height: var(--lms-native-topbar-spacer-height, var(--lms-native-topbar-height, 82px)) !important;
-  min-height: var(--lms-native-topbar-spacer-height, var(--lms-native-topbar-height, 82px)) !important;
-  flex: 0 0 var(--lms-native-topbar-spacer-height, var(--lms-native-topbar-height, 82px)) !important;
-  pointer-events: none;
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-notification-bell-floating,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-profile-avatar-floating {
+  z-index: 10092 !important;
+}
+
+/* Global search overlay is portaled to <body>; keep it above the native chrome
+   and on its own GPU layer for the same iOS compositing reasons as above. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] body > .lms-global-search-backdrop {
+  z-index: 10095 !important;
+  isolation: isolate;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .dashboard-page :where(
@@ -57,10 +58,6 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .dashboard-page :w
   .study-hero-mascot-random__spark
 ) {
   animation: none !important;
-}
-
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell :where(.study-hub-shell, .management-layout):has(> .lms-native-topbar-spacer) {
-  padding-top: 0 !important;
 }
 
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] :where(.lms-hero-card, .lms-page-header-card) {
@@ -92,4 +89,37 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .s
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-page .study-chip-row span:nth-child(2) {
   flex: 1 1 auto;
   max-width: none;
+}
+
+/* NAT-007: the AI-notes tools panel is intentionally dense (22px icon buttons).
+   Full 44px targets would overflow the phone width, so on native phone we grow
+   the primary tool buttons to a more thumb-friendly minimum and add
+   touch-action:manipulation to kill the 300ms double-tap-zoom delay. The small
+   colour swatches / width chips (nested in their own rows) are left as-is. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-tooltop button {
+  touch-action: manipulation;
+}
+
+/* NAT-007: native header actions (bell / search / profile) are 40px on web.
+   Bump to the 44px iOS minimum on native phone — these are standalone controls
+   with room to grow, unlike the dense notes toolbar above. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] :where(.study-icon-button, .study-avatar) {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-tooltop > button,
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-ai-note-tooltop > div > button[aria-label="Stickers"] {
+  min-width: 32px !important;
+  min-height: 32px !important;
+}
+
+/* NAT-001: the quiz-review question nav list caps itself to max-h-60 with its
+   own scroll below 980px. On native phone that is a trapped scroll zone inside
+   the page — let it flow with the single app scroll root instead. */
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-review-nav-list {
+  max-height: none !important;
+  overflow-y: visible !important;
 }

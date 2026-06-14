@@ -1,4 +1,4 @@
-import { copyFile, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +18,10 @@ const rootPublicFiles = [
   ['favicon-light-180.png', 'favicon-light-180.png'],
   ['favicon-light-192.png', 'favicon-light-192.png'],
   ['favicon-light-512.png', 'favicon-light-512.png'],
+];
+const wellKnownPublicFiles = [
+  ['.well-known/apple-app-site-association', '.well-known/apple-app-site-association'],
+  ['.well-known/assetlinks.json', '.well-known/assetlinks.json'],
 ];
 
 async function assertExists(filePath, label) {
@@ -103,5 +107,13 @@ for (const [sourceName, targetName] of rootPublicFiles) {
   await copyFile(sourcePath, targetPath);
 }
 
+for (const [sourceName, targetName] of wellKnownPublicFiles) {
+  const sourcePath = path.join(publicDir, sourceName);
+  const targetPath = path.join(repoRoot, targetName);
+  await assertExists(sourcePath, sourceName);
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  await copyFile(sourcePath, targetPath);
+}
+
 console.log(`Synced ${path.relative(repoRoot, rootIndex)} to ${path.relative(repoRoot, distIndex)} (main CSS linked, CSP hashes: ${inlineScripts.length} script / ${inlineStyles.length} style)`);
-console.log('Synced root service worker and manifest from frontend/public');
+console.log('Synced root service worker, manifest, and app association files from frontend/public');

@@ -9,15 +9,18 @@ function readEnvValue(name: string) {
   if (directValue) return directValue;
 
   const envFiles = ['.env.capacitor.local', '.env.capacitor'];
+  const envDirs = Array.from(new Set([process.cwd(), resolve(process.cwd(), 'frontend')]));
 
-  for (const file of envFiles) {
-    const filePath = resolve(process.cwd(), file);
-    if (!existsSync(filePath)) continue;
+  for (const dir of envDirs) {
+    for (const file of envFiles) {
+      const filePath = resolve(dir, file);
+      if (!existsSync(filePath)) continue;
 
-    const line = readFileSync(filePath, 'utf8')
-      .split(/\r?\n/)
-      .find((line) => line.trim().startsWith(`${name}=`));
-    if (line) return line.slice(line.indexOf('=') + 1).trim().replace(/^['"]|['"]$/g, '');
+      const line = readFileSync(filePath, 'utf8')
+        .split(/\r?\n/)
+        .find((line) => line.trim().startsWith(`${name}=`));
+      if (line) return line.slice(line.indexOf('=') + 1).trim().replace(/^['"]|['"]$/g, '');
+    }
   }
 
   return '';
@@ -25,6 +28,9 @@ function readEnvValue(name: string) {
 
 const nativeApiBaseUrl = readEnvValue('VITE_API_BASE_URL');
 const androidScheme = nativeApiBaseUrl.startsWith('http://') ? 'http' : 'https';
+const capacitorPlatform = process.env.LMS_CAPACITOR_PLATFORM || '';
+const configuredAndroidHostname = readEnvValue('VITE_CAPACITOR_ANDROID_HOSTNAME');
+const androidHostname = capacitorPlatform === 'android' ? configuredAndroidHostname || '' : '';
 
 const config: CapacitorConfig = {
   appId: 'com.erpm.medical.lms',
@@ -33,6 +39,7 @@ const config: CapacitorConfig = {
   bundledWebRuntime: false,
   server: {
     androidScheme,
+    ...(androidHostname ? { hostname: androidHostname } : {}),
   },
   ios: {
     contentInset: 'never',

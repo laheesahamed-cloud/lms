@@ -91,22 +91,3 @@ export function getVideoEmbed(url, options = {}) {
   if (safeExternalUrl && /\.(mp4|webm|ogg|mov)(?:[?#].*)?$/i.test(safeExternalUrl)) return { type:'video', src:safeExternalUrl };
   return { type:'blocked', externalUrl:safeExternalUrl };
 }
-
-export function getVideoThumbnail(url) {
-  const raw = normalizeVideoUrl(url);
-  if (!raw) return '';
-  try {
-    const u = new URL(raw);
-    const host = u.hostname.replace(/^www\./, '');
-    let id = '';
-    if (host === 'youtu.be') {
-      id = u.pathname.split('/').filter(Boolean)[0] || '';
-    } else if (host.includes('youtube.com')) {
-      const path = u.pathname.split('/').filter(Boolean);
-      id = u.searchParams.get('v') || (['embed', 'shorts', 'live'].includes(path[0]) ? path[1] : '') || '';
-    }
-    return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '';
-  } catch {
-    return '';
-  }
-}

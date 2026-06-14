@@ -9,6 +9,7 @@
    ============================================================ */
 
 @import "./05-platforms/native.css";
+@import "./05-platforms/native-transitions.css";
 @import "./05-platforms/native-phone.css";
 @import "./05-platforms/native-tablet.css";
 @import "./05-platforms/native-ios.css";

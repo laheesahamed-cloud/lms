@@ -1732,7 +1732,7 @@ function SectionInlineImage({ image, editable, onChange, onAddRequest, onOpenIma
 
 function MasonryItem({ children, span = 'half', columns = 2, editable = false, dragEnabled = editable, index, draggingIndex, onDragStart, onDragOver, onDrop, onDragEnd }) {
   const ref = useRef(null);
-  const [rowSpan, setRowSpan] = useState(1);
+  const [rowSpan, setRowSpan] = useState(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -1745,6 +1745,9 @@ function MasonryItem({ children, span = 'half', columns = 2, editable = false, d
       const rowHeight = 8;
       setRowSpan(Math.max(1, Math.ceil((height + rowGap) / (rowHeight + rowGap))));
     };
+
+    // First paint: measure immediately so items are invisible for at most one frame.
+    update();
 
     update();
     const observer = new ResizeObserver(update);
@@ -1771,11 +1774,12 @@ function MasonryItem({ children, span = 'half', columns = 2, editable = false, d
       title={dragEnabled ? 'Drag card to move it' : undefined}
       style={{
         gridColumn: colSpan,
-        gridRowEnd: `span ${rowSpan}`,
+        gridRowEnd: `span ${rowSpan ?? 1}`,
         alignSelf: 'start',
         minWidth: 0,
         cursor: dragEnabled ? 'grab' : undefined,
-        opacity: draggingIndex === index ? 0.45 : undefined,
+        opacity: rowSpan === null ? 0 : draggingIndex === index ? 0.45 : 1,
+        transition: rowSpan === null ? 'none' : 'opacity 160ms ease',
         touchAction: editable && !dragEnabled ? 'manipulation' : undefined,
       }}
     >

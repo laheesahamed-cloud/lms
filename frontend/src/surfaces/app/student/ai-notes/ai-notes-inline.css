@@ -33,9 +33,6 @@
       .lms-ai-note-topbar-inner > * {
         min-width: 0;
       }
-      .lms-ai-note-back-slot {
-        justify-content: flex-start !important;
-      }
       .lms-ai-note-back-button,
       .lms-ai-note-action-button {
         min-height: 38px;
@@ -47,14 +44,6 @@
       }
       .lms-ai-note-topbar-actions {
         min-width: 0;
-      }
-      .lms-ai-note-control-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-        flex-wrap: wrap;
-        margin-top: 8px;
       }
       .lms-ai-note-progress-inline {
         display: grid;
@@ -141,12 +130,6 @@
           grid-column: 1 / -1;
           order: 1;
         }
-        .lms-ai-note-left-panel {
-          order: 2;
-        }
-        .lms-ai-note-right-panel {
-          order: 3;
-        }
       }
       @media (max-width: 760px) {
         .lms-ai-note-topbar-inner {
@@ -158,9 +141,6 @@
           display: flex !important;
           justify-content: stretch !important;
           gap: 8px !important;
-        }
-        .lms-ai-note-control-row {
-          gap: 7px;
         }
         .lms-ai-note-control-row > button,
         .lms-ai-note-control-row > .theme-toggle,

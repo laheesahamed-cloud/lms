@@ -98,7 +98,12 @@
   // shared, see report sec 13.4); the preload merely warms the same
   // /auth/me request the app fires first, with matching credentials.
   var appPath = /^\/lms\/(?:app|admin|dashboard|login)(?:\/|$)/.test(window.location.pathname);
-  if (appPath) {
+  // The native shell boots from the scheme root ("/"), so the /lms/ web-path
+  // test never matches there. Without the splash gate the cold first launch
+  // (slow WKWebView JS compile, nothing cached) shows a bare dark screen until
+  // React mounts — the "blank screen on first open" bug. Always gate it on
+  // native so the branded splash covers that gap on every route.
+  if (appPath || isNativeShell) {
     root.dataset.lmsBootSplash = 'on';
   }
   if (appPath && window.location.pathname !== '/lms/login') {

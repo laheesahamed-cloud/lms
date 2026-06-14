@@ -186,26 +186,26 @@ export declare class QuizzesController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "in_review" | "published" | "archived";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "in_review" | "published" | "archived";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "in_review" | "published" | "archived";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published";
+        workflowState: "published" | "draft";
     }>;
     create(authorization: string | undefined, createQuizDto: CreateQuizDto): Promise<{
         ok: boolean;

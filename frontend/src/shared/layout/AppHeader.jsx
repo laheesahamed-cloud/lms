@@ -10,10 +10,15 @@ import { getStaffRoleLabel, isStaffUser, roleRouteMode, userHasPermission } from
 import { cx } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
 import { preloadRouteByPath } from '../../app/routePreloading.js';
+import { headerRouteIsFocus } from '../routing/isChevronRoute.js';
+import { useHeaderStore } from '../stores/headerStore.js';
+import { resolveStudentHeader } from './studentHeaderConfig.js';
+import { detectPlatform } from '../platform/detect.js';
 
 const PROFILE_MENU_EXIT_MS = 180;
 const PROFILE_MENU_ID = 'lms-profile-menu';
 const NOTIFICATION_MENU_ID = 'lms-notification-menu';
+const PLATFORM = detectPlatform();
 
 function areStyleObjectsEqual(current, next) {
   if (current === next) return true;
@@ -70,6 +75,14 @@ function CloseIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BackChevronIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -165,6 +178,10 @@ function sortLatestNotifications(items) {
   return [...items].sort((a, b) => getNotificationTimestamp(b) - getNotificationTimestamp(a));
 }
 
+// Immersive/reading student routes that use the compact header only (no large
+// title) come from the shared chevron-route helper, so the header and the
+// native route transition share one source of truth.
+
 const topbarUi = {
   header:
     'lms-topbar glass-card sticky top-3 z-50 mb-3 flex min-h-[66px] min-w-0 flex-wrap items-center justify-between gap-3 overflow-visible rounded-xl px-4 py-2.5 max-[900px]:top-2 max-[900px]:min-h-[58px] max-[900px]:rounded-[16px] max-[900px]:p-2.5 max-[760px]:grid max-[760px]:grid-cols-[minmax(0,1fr)_auto] max-[760px]:items-center max-[760px]:gap-x-2 max-[760px]:gap-y-2 max-[520px]:min-h-[54px] max-[520px]:rounded-[14px] max-[520px]:px-2.5 max-[520px]:py-2',
@@ -191,11 +208,11 @@ const topbarUi = {
     'inline-flex size-9 min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border border-line-soft bg-[var(--btn-secondary-bg)] p-1 text-left shadow-none transition-[background,border-color,color] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/24 hover:bg-brand-primary/10 max-[520px]:size-11 max-[520px]:min-h-11 max-[520px]:min-w-11',
   menuWrap: 'lms-topbar-menu-wrap',
   dropdown:
-    'lms-floating-panel motion-smooth absolute right-0 top-[calc(100%+8px)] z-[1200] w-[min(360px,calc(100vw_-_24px))] origin-top-right overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-[var(--ds-floating-shadow)] animate-dropdownIn',
+    'lms-floating-panel motion-smooth absolute right-0 top-[calc(100%+8px)] z-[1200] w-[min(360px,calc(100vw_-_24px))] origin-top-right overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-surface-card-elevated shadow-[var(--ds-floating-shadow)] animate-overlayIn',
   profileDropdown:
     'lms-profile-menu w-[min(320px,calc(100vw_-_24px))]',
   notificationDropdown:
-    'w-[min(330px,calc(100vw_-_24px))] rounded-[var(--radius-sm)] bg-surface-card shadow-none max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-76px)] max-[520px]:rounded-[var(--radius-sm)]',
+    'w-[min(330px,calc(100vw_-_24px))] max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-76px)]',
   dropdownHead:
     'flex min-w-0 items-center justify-between gap-3 border-b border-line-soft px-4 py-3.5 max-[520px]:px-3.5 max-[520px]:py-3 [&_div]:min-w-0 [&_small]:mt-1 [&_small]:block [&_small]:truncate [&_small]:text-xs [&_small]:font-medium [&_small]:text-ink-soft [&_strong]:block [&_strong]:truncate [&_strong]:text-sm [&_strong]:font-extrabold [&_strong]:text-ink-strong',
   dropdownClose:
@@ -385,10 +402,16 @@ function rolePath(path, role) {
   return `${roleRouteMode(role) === 'admin' ? '/admin' : '/app'}${path}`;
 }
 
-export function AppHeader({ title, subtitle, actions = null, className = '', breadcrumbPlacement = 'above', breadcrumbInteractive = true, breadcrumbUppercaseCurrent = false }) {
+export function AppHeader({ title, subtitle, actions = null, className = '', breadcrumbPlacement = 'above', breadcrumbInteractive = true, breadcrumbUppercaseCurrent = false, back = false, backTo = null, compact = false, surface = 'page' }) {
   const navigate = useNavigate();
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
+  // surface === 'shell' is the single persistent bar rendered once by AppShell
+  // (like MobileBottomNav); surface === 'page' is what each page renders — it now
+  // only publishes its descriptor + renders the in-flow large title/spacer.
+  const isShellSurface = surface === 'shell';
+  const headerOverride = useHeaderStore((state) => state.override);
+  const setHeaderOverride = useHeaderStore((state) => state.setOverride);
   const signOut = useAuthStore((state) => state.signOut);
   const isSigningOut = useAuthStore((state) => state.isSigningOut);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -397,12 +420,18 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileClosing, setProfileClosing] = useState(false);
   const notificationRef = useRef(null);
+  const notificationButtonRef = useRef(null);
+  const notificationButtonLayerRef = useRef(null);
+  const notificationMenuRef = useRef(null);
+  const notificationPositionFrameRef = useRef(null);
+  const notificationMenuStyleRef = useRef(null);
+  const notificationButtonStyleRef = useRef(null);
   const profileRef = useRef(null);
   const profileButtonRef = useRef(null);
   const profileAvatarLayerRef = useRef(null);
   const profileMenuRef = useRef(null);
-  const headerRef = useRef(null);
-  const nativeHeaderSpacerRef = useRef(null);
+  const barRef = useRef(null);
+  const largeTitleRef = useRef(null);
   const profileCloseTimerRef = useRef(null);
   const profilePositionFrameRef = useRef(null);
   const profileMenuStyleRef = useRef(null);
@@ -410,20 +439,78 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
   const previousPathRef = useRef(location.pathname);
   const [profileMenuStyle, setProfileMenuStyle] = useState(null);
   const [profileAvatarStyle, setProfileAvatarStyle] = useState(null);
+  const [notificationMenuStyle, setNotificationMenuStyle] = useState(null);
+  const [notificationButtonStyle, setNotificationButtonStyle] = useState(null);
   const profileVisible = profileOpen || profileClosing;
-  const shouldPortalNativeStudentHeader =
-    user?.role === 'student' &&
-    typeof document !== 'undefined' &&
-    document.documentElement.dataset.lmsRuntime === 'native' &&
-    document.documentElement.dataset.lmsFormFactor === 'phone';
+  // iOS large-title header (student): a compact bar is portaled to <body> on
+  // ALL platforms (the route wrapper keeps a residual transform that would
+  // break position:sticky/fixed for in-page descendants), while the large
+  // title sits in the normal scroll flow and collapses on scroll.
+  const isStudent = user?.role === 'student';
+  // The persistent shell bar is data-driven: it reads the active page's published
+  // descriptor (or the per-route default on first paint / hard refresh), so it
+  // never depends on a page actually being mounted. A page surface uses its own
+  // props. Everything below derives from these "effective" values.
+  // The per-route default decides WHETHER a bar shows on this route; a published
+  // override (tagged with its own path) only refines the CONTENT, and only when
+  // it belongs to the current route — so a stale override from the previous page
+  // can never leak a bar onto an immersive/no-bar route.
+  const isNativeRuntime = PLATFORM.isNative;
+  const shellRouteDefault = isNativeRuntime && isStudent && isShellSurface ? resolveStudentHeader(location.pathname) : null;
+  const shellDescriptor = shellRouteDefault
+    ? (headerOverride && headerOverride.path === location.pathname ? headerOverride : shellRouteDefault)
+    : null;
+  const effectiveTitle = isShellSurface ? (shellDescriptor?.title ?? title) : title;
+  const effectiveSubtitle = isShellSurface ? (shellDescriptor?.subtitle ?? subtitle) : subtitle;
+  const effectiveCompact = isShellSurface ? Boolean(shellDescriptor?.compact) : compact;
+  const effectiveBack = isShellSurface ? Boolean(shellDescriptor?.back) : back;
+  const effectiveBackTo = isShellSurface ? (shellDescriptor?.backTo ?? null) : backTo;
+  const effectiveBreadcrumbPlacement = isShellSurface ? (shellDescriptor?.breadcrumbPlacement ?? 'above') : breadcrumbPlacement;
+  const effectiveBreadcrumbInteractive = isShellSurface ? (shellDescriptor?.breadcrumbInteractive ?? true) : breadcrumbInteractive;
+  const effectiveBreadcrumbUppercaseCurrent = isShellSurface ? Boolean(shellDescriptor?.breadcrumbUppercaseCurrent) : breadcrumbUppercaseCurrent;
+  // Immersive/reading routes show the compact bar only (no large title). Detect
+  // from the pathname so there is no first-paint flicker (AppShell's body-class
+  // effect runs after this component mounts). Mirrors AppShell's focus flags.
+  const isFocusHeaderRoute = isStudent && headerRouteIsFocus(location.pathname);
+  // "Compact" pages keep a permanently-pinned bar with a back chevron and NO
+  // large title (no scroll fade) — used by immersive/reading routes and by
+  // pages that opt in via the `compact` prop (AI notes, planner, flashcards).
+  const compactBar = isFocusHeaderRoute || (isStudent && effectiveCompact);
+  const headerMode = compactBar ? 'compact' : effectiveBack ? 'detail' : 'tab';
+  const showLargeTitle = isStudent && !compactBar;
+  const showBackButton = isStudent && (compactBar || effectiveBack);
+  // On a student page surface this is the single side-effect: publish the page's
+  // descriptor so the persistent shell bar shows the right title/mode, then
+  // clear it on unmount so the next route falls back to its per-route default.
+  const pageDescriptorKey = isNativeRuntime && isStudent && !isShellSurface
+    ? JSON.stringify({
+      path: location.pathname,
+      title: title ?? null,
+      subtitle: subtitle ?? null,
+      compact: Boolean(compact),
+      back: Boolean(back),
+      backTo: backTo ?? null,
+      breadcrumbPlacement,
+      breadcrumbInteractive: breadcrumbInteractive !== false,
+      breadcrumbUppercaseCurrent: Boolean(breadcrumbUppercaseCurrent),
+    })
+    : null;
+  // Publish on mount/update. We do NOT clear on unmount: during a native route
+  // transition the incoming page mounts before the outgoing one unmounts, so a
+  // clear would wipe the new descriptor. Staleness is handled by the path tag.
+  useLayoutEffect(() => {
+    if (pageDescriptorKey == null) return;
+    setHeaderOverride(JSON.parse(pageDescriptorKey));
+  }, [pageDescriptorKey, setHeaderOverride]);
 
   const unreadNotifications = useMemo(() => sortLatestNotifications(notifications.filter((item) => !item.read)), [notifications]);
   const recentNotifications = useMemo(() => sortLatestNotifications(notifications), [notifications]);
-  const visibleRecentNotifications = useMemo(() => recentNotifications.slice(0, 3), [recentNotifications]);
+  // Dropdown surfaces unread only — once an item is marked read it drops off here.
+  const visibleRecentNotifications = useMemo(() => unreadNotifications.slice(0, 3), [unreadNotifications]);
   const isStaff = isStaffUser(user);
   const breadcrumbs = useMemo(
-    () => buildBreadcrumbItems(location.pathname, user, title),
-    [location.pathname, title, user]
+    () => buildBreadcrumbItems(location.pathname, user, effectiveTitle),
+    [location.pathname, effectiveTitle, user]
   );
 
   const settingsPath = isStaff && userHasPermission(user, 'settings.manage') ? rolePath('/settings', user?.role) : '';
@@ -475,7 +562,11 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
     closeProfileMenu();
   }, [closeProfileMenu]);
 
-  useOutsideDismiss(notificationRef, closeNotificationsMenu, notificationsOpen);
+  const notificationDismissRefs = useMemo(
+    () => [notificationRef, notificationMenuRef, notificationButtonLayerRef],
+    []
+  );
+  useOutsideDismiss(notificationDismissRefs, closeNotificationsMenu, notificationsOpen);
   useOutsideDismiss(profileDismissRefs, dismissProfileMenu, profileVisible);
 
   const toggleProfileMenu = useCallback(() => {
@@ -580,8 +671,11 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
   }, [location.pathname]);
 
   useEffect(() => {
+    // Only the persistent shell bar owns the bell — don't double-fetch from each
+    // page surface that mounts/unmounts during navigation.
+    if (isNativeRuntime && isStudent && !isShellSurface) return;
     loadNotifications();
-  }, [loadNotifications]);
+  }, [loadNotifications, isNativeRuntime, isStudent, isShellSurface]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -603,7 +697,11 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
     return () => window.removeEventListener('lms:android-back', handleAndroidBack);
   }, [closeNotificationsMenu, closeProfileMenu, notificationsOpen, profileVisible]);
 
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so the body class lands BEFORE the first
+  // paint of the menu — otherwise the first open paints a frame without the
+  // class and the old staggered/popover animation flashes once before the
+  // unified drop-in takes over (regression: "from-down on first click only").
+  useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
     document.body.classList.toggle('lms-profile-menu-open', profileVisible);
     document.body.classList.toggle('lms-profile-menu-closing', profileClosing);
@@ -612,6 +710,16 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
       document.body.classList.remove('lms-profile-menu-closing');
     };
   }, [profileClosing, profileVisible]);
+
+  // Mirror the profile-menu body class for the notification dropdown so it gets
+  // the same iOS-safe compositing treatment (see launch-responsive.css).
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    document.body.classList.toggle('lms-notification-menu-open', notificationsOpen);
+    return () => {
+      document.body.classList.remove('lms-notification-menu-open');
+    };
+  }, [notificationsOpen]);
 
   useEffect(() => {
     if (!profileOpen || typeof window === 'undefined' || typeof document === 'undefined') {
@@ -713,36 +821,149 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
     };
   }, [profileVisible]);
 
+  // Notification dropdown is portaled to <body> and positioned with fixed
+  // coords (same pattern as the profile menu) so it isn't clipped/mispositioned
+  // inside the portaled native (Capacitor) topbar layer.
   useLayoutEffect(() => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
+    if (!notificationsOpen || typeof window === 'undefined') {
       return undefined;
     }
 
-    const root = document.documentElement;
-    const spacer = nativeHeaderSpacerRef.current;
-    if (!shouldPortalNativeStudentHeader) {
-      root.style.removeProperty('--lms-native-topbar-height');
-      spacer?.style.removeProperty('--lms-native-topbar-spacer-height');
-      return undefined;
-    }
+    function updateNotificationMenuPosition() {
+      const trigger = notificationButtonRef.current;
+      if (!trigger) return;
 
-    let frameId = window.requestAnimationFrame(() => {
-      frameId = window.requestAnimationFrame(() => {
-        const layer = headerRef.current?.closest?.('.lms-native-topbar-layer');
-        const height = Math.ceil(layer?.getBoundingClientRect?.().height || 0);
-        if (!height) return;
+      const rect = trigger.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const gap = 8;
+      const edge = 12;
+      const width = Math.min(330, Math.max(260, viewportWidth - edge * 2));
+      const compact = viewportWidth <= 520;
+      const top = Math.min(rect.bottom + gap, viewportHeight - edge);
+      const triggerSize = Math.round(Math.max(rect.width, rect.height));
+      const triggerRadius = parseFloat(window.getComputedStyle(trigger).borderTopLeftRadius) || 12;
 
-        root.style.setProperty('--lms-native-topbar-height', `${height}px`);
-        spacer?.style.setProperty('--lms-native-topbar-spacer-height', `${height}px`);
+      // Floating clone of the bell — mirrors the profile avatar mechanism so the
+      // trigger lifts onto the same top compositing layer as the menu.
+      updateStyleIfChanged(notificationButtonStyleRef, setNotificationButtonStyle, {
+        position: 'fixed',
+        top: `${Math.round(rect.top)}px`,
+        left: `${Math.round(rect.left)}px`,
+        width: `${triggerSize}px`,
+        height: `${triggerSize}px`,
+        borderRadius: `${Math.round(triggerRadius)}px`,
+        zIndex: 10082,
       });
-    });
+      updateStyleIfChanged(notificationMenuStyleRef, setNotificationMenuStyle, {
+        position: 'fixed',
+        top: `${Math.max(edge, top)}px`,
+        left: compact ? `${edge}px` : 'auto',
+        right: compact ? `${edge}px` : `${Math.max(edge, viewportWidth - rect.right)}px`,
+        width: compact ? 'auto' : `${width}px`,
+        zIndex: 10080,
+      });
+    }
+
+    function scheduleNotificationMenuPositionUpdate() {
+      if (notificationPositionFrameRef.current) {
+        return;
+      }
+
+      notificationPositionFrameRef.current = window.requestAnimationFrame(() => {
+        notificationPositionFrameRef.current = null;
+        updateNotificationMenuPosition();
+      });
+    }
+
+    updateNotificationMenuPosition();
+    window.addEventListener('resize', scheduleNotificationMenuPositionUpdate, { passive: true });
+    window.addEventListener('scroll', scheduleNotificationMenuPositionUpdate, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener('resize', scheduleNotificationMenuPositionUpdate);
+      window.removeEventListener('scroll', scheduleNotificationMenuPositionUpdate, true);
+      if (notificationPositionFrameRef.current) {
+        window.cancelAnimationFrame(notificationPositionFrameRef.current);
+        notificationPositionFrameRef.current = null;
+      }
+    };
+  }, [notificationsOpen]);
+
+  // Publish the fixed compact-bar height so page content (and the in-flow large
+  // title) can clear it. Measured live (safe-area insets included) and kept in
+  // sync via ResizeObserver. Cross-platform — the bar is portaled to <body> for
+  // every student page.
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    // The bar only lives on the shell surface now — that instance measures it.
+    if (!isNativeRuntime || !isStudent || !isShellSurface) return undefined;
+    const root = document.documentElement;
+
+    const measure = () => {
+      const height = Math.ceil(barRef.current?.getBoundingClientRect?.().height || 0);
+      if (height) root.style.setProperty('--lms-header-bar-height', `${height}px`);
+    };
+
+    // Measure on the next frame (one rAF, not two) so --lms-header-bar-height is
+    // written a frame earlier — the spacer no longer sizes off the stale fallback
+    // after a transition settles. The ResizeObserver below still catches later
+    // resizes (orientation, font load).
+    let frameId = window.requestAnimationFrame(measure);
+
+    let observer = null;
+    if (barRef.current && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(measure);
+      observer.observe(barRef.current);
+    }
+    document.fonts?.ready?.then(measure).catch(() => {});
 
     return () => {
       if (frameId) window.cancelAnimationFrame(frameId);
-      root.style.removeProperty('--lms-native-topbar-height');
-      spacer?.style.removeProperty('--lms-native-topbar-spacer-height');
+      observer?.disconnect();
     };
-  }, [shouldPortalNativeStudentHeader]);
+  }, [isNativeRuntime, isStudent, isShellSurface, headerMode]);
+
+  // Scroll-driven collapse: write --lms-header-collapse (0->1) on the document
+  // root so BOTH the portaled bar and the in-flow large title (separate DOM
+  // subtrees) can read it. rAF-throttled, imperative (no React re-render per
+  // scroll frame). Disabled in focus mode (bar is permanently compact).
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    // The large title lives on the page surface — that instance drives collapse.
+    if (isShellSurface || !isNativeRuntime) {
+      root.style.removeProperty('--lms-header-collapse');
+      return undefined;
+    }
+    if (!isStudent || headerMode === 'compact') {
+      root.style.removeProperty('--lms-header-collapse');
+      return undefined;
+    }
+
+    let frame = null;
+    const apply = () => {
+      frame = null;
+      const range = Math.max(36, Math.round(largeTitleRef.current?.getBoundingClientRect?.().height || 52));
+      const p = Math.min(1, Math.max(0, window.scrollY / range));
+      root.style.setProperty('--lms-header-collapse', p.toFixed(3));
+    };
+
+    const onScroll = () => {
+      if (frame == null) frame = window.requestAnimationFrame(apply);
+    };
+
+    // Reset to expanded on each new route, then sync to the (reset) scroll pos.
+    root.style.setProperty('--lms-header-collapse', '0');
+    apply();
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      if (frame != null) window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [isNativeRuntime, isStudent, isShellSurface, headerMode, location.pathname]);
 
   const profileAvatarLayer = profileVisible ? (
     <button
@@ -814,10 +1035,32 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
     profileMenu && typeof document !== 'undefined'
       ? createPortal(profileMenu, document.body)
       : profileMenu;
+  const notificationButtonLayer = notificationsOpen ? (
+    <button
+      ref={notificationButtonLayerRef}
+      type="button"
+      className="lms-notification-bell-floating"
+      style={notificationButtonStyle || undefined}
+      aria-label="Close notifications"
+      aria-controls={NOTIFICATION_MENU_ID}
+      aria-expanded="true"
+      aria-haspopup="dialog"
+      onClick={() => setNotificationsOpen(false)}
+    >
+      <BellIcon />
+      {unreadNotifications.length ? <span className={topbarUi.countBadge}>{unreadNotifications.length}</span> : null}
+    </button>
+  ) : null;
+  const notificationButtonPortal =
+    notificationButtonLayer && typeof document !== 'undefined'
+      ? createPortal(notificationButtonLayer, document.body)
+      : notificationButtonLayer;
   const notificationMenu = notificationsOpen ? (
     <div
       id={NOTIFICATION_MENU_ID}
+      ref={notificationMenuRef}
       className={cx(topbarUi.dropdown, topbarUi.notificationDropdown)}
+      style={notificationMenuStyle || undefined}
       role="region"
       aria-label="Recent notifications"
     >
@@ -878,34 +1121,40 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
           className={topbarUi.notificationPageLink}
           onClick={() => handleNavigate(rolePath('/notifications', user?.role))}
         >
-          Show notification
+          View all notifications
         </button>
       </div>
     </div>
   ) : null;
+  const notificationMenuLayer =
+    notificationMenu && typeof document !== 'undefined'
+      ? createPortal(notificationMenu, document.body)
+      : notificationMenu;
 
   if (user?.role === 'student') {
-    const breadcrumbNode = breadcrumbs.length ? (
-      <RouteBreadcrumbs
-        items={breadcrumbs}
-        onNavigate={navigate}
-        interactive={breadcrumbInteractive}
-        uppercaseCurrent={breadcrumbUppercaseCurrent}
-      />
-    ) : null;
+    // ── Persistent shell bar ──────────────────────────────────────────────
+    // Rendered ONCE by AppShell (like MobileBottomNav). It never unmounts on
+    // navigation and is present on a hard refresh before any page chunk loads,
+    // so the top bar behaves like native app chrome. Data comes from the active
+    // page's published descriptor, falling back to the per-route default.
+    if (isShellSurface) {
+      // Routes with no descriptor (immersive/reader/quiz/review/result-detail/
+      // profile) show no shell bar — they keep their own chrome, as before.
+      if (!shellDescriptor) return null;
 
-    const studentHeader = (
-      <header
-        ref={headerRef}
-        className={cx(
-          'study-hub-topbar',
-          'study-hub-topbar--side-nav-toggle',
-          shouldPortalNativeStudentHeader && 'lms-native-portaled-topbar',
-          profileVisible && 'is-profile-menu-open',
-          className
-        )}
-      >
+      const leadingControl = showBackButton ? (
         <button
+          key="back"
+          type="button"
+          className="study-icon-button study-topbar__back"
+          aria-label="Go back"
+          onClick={() => navigate(effectiveBackTo ?? -1)}
+        >
+          <BackChevronIcon />
+        </button>
+      ) : (
+        <button
+          key="menu"
           type="button"
           className="study-icon-button lms-topbar-menu-button study-sidebar-toggle"
           aria-label="Hide or show sidebar"
@@ -913,92 +1162,203 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
         >
           <NavToggleIcon />
         </button>
+      );
 
-        <div className="study-topbar-title">
-          {breadcrumbPlacement !== 'below' && breadcrumbNode ? breadcrumbNode : subtitle ? (
-            <span>{subtitle}</span>
-          ) : null}
-          <h1>{title}</h1>
-          {breadcrumbPlacement === 'below' ? breadcrumbNode : null}
-        </div>
+      // Pinned compact bar — portaled to <body> so the route wrapper's residual
+      // transform can't break its fixed positioning. The compact title fades in
+      // as the large title collapses (driven by --lms-header-collapse).
+      const compactBar = (
+        <header
+          ref={barRef}
+          data-mode={headerMode}
+          className={cx(
+            'study-hub-topbar',
+            'study-topbar__bar',
+            profileVisible && 'is-profile-menu-open',
+            className
+          )}
+        >
+          <span className="study-topbar__hairline" aria-hidden="true" />
+          {leadingControl}
+          <h2 key={effectiveTitle} className="study-topbar__compact-title" aria-hidden={showLargeTitle ? 'true' : undefined}>{effectiveTitle}</h2>
 
-        <div className="study-topbar-actions">
-          <div className={topbarUi.menuWrap} ref={notificationRef}>
-            <button
-              type="button"
-              className="study-icon-button relative"
-              aria-label={unreadNotifications.length ? `${unreadNotifications.length} unread notifications` : 'Notifications'}
-              aria-controls={NOTIFICATION_MENU_ID}
-              aria-expanded={notificationsOpen ? 'true' : 'false'}
-              aria-haspopup="dialog"
-              onClick={() => {
-                setNotificationsOpen((current) => {
-                  if (!current) loadNotifications();
-                  return !current;
-                });
-                closeProfileMenu();
-              }}
-            >
-              <BellIcon />
-              {unreadNotifications.length ? <span className={topbarUi.countBadge}>{unreadNotifications.length}</span> : null}
-            </button>
-            {notificationMenu}
-          </div>
+          <div className="study-topbar-actions study-topbar__actions">
+            <div className={cx(topbarUi.menuWrap, notificationsOpen && 'is-notification-menu-open')} ref={notificationRef}>
+              <button
+                ref={notificationButtonRef}
+                type="button"
+                className={cx('study-icon-button relative', notificationsOpen && 'is-notification-bell-open')}
+                aria-label={unreadNotifications.length ? `${unreadNotifications.length} unread notifications` : 'Notifications'}
+                aria-controls={NOTIFICATION_MENU_ID}
+                aria-expanded={notificationsOpen ? 'true' : 'false'}
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setNotificationsOpen((current) => {
+                    if (!current) loadNotifications();
+                    return !current;
+                  });
+                  closeProfileMenu();
+                }}
+              >
+                <BellIcon />
+                {unreadNotifications.length ? <span className={topbarUi.countBadge}>{unreadNotifications.length}</span> : null}
+              </button>
+            </div>
 
-          <button type="button" className="study-icon-button" aria-label="Search lessons and exams" onClick={openSearch}>
-            <SearchIcon />
-          </button>
-
-          <div className={cx(topbarUi.menuWrap, profileVisible && 'is-profile-menu-open')} ref={profileRef}>
-            <button
-              ref={profileButtonRef}
-              type="button"
-              className={cx('study-avatar study-avatar--profile', profileVisible && 'is-profile-avatar-open')}
-              aria-label="Open profile menu"
-              aria-controls={PROFILE_MENU_ID}
-              aria-expanded={profileOpen ? 'true' : 'false'}
-              aria-haspopup="menu"
-              onClick={toggleProfileMenu}
-            >
-              <ProfileAvatar user={user} />
+            <button type="button" className="study-icon-button" aria-label="Search lessons and exams" onClick={openSearch}>
+              <SearchIcon />
             </button>
 
+            <div className={cx(topbarUi.menuWrap, profileVisible && 'is-profile-menu-open')} ref={profileRef}>
+              <button
+                ref={profileButtonRef}
+                type="button"
+                className={cx('study-avatar study-avatar--profile', profileVisible && 'is-profile-avatar-open')}
+                aria-label="Open profile menu"
+                aria-controls={PROFILE_MENU_ID}
+                aria-expanded={profileOpen ? 'true' : 'false'}
+                aria-haspopup="menu"
+                onClick={toggleProfileMenu}
+              >
+                <ProfileAvatar user={user} />
+              </button>
+            </div>
           </div>
-        </div>
+        </header>
+      );
 
-        {actions ? <div className={cx('lms-topbar-actions', topbarUi.actionsSlot)}>{actions}</div> : null}
-      </header>
-    );
-
-    const mobileCopy = (
-      <div className={topbarUi.mobileCopy}>
-        <div>{title}</div>
-      </div>
-    );
-
-    if (shouldPortalNativeStudentHeader) {
       return (
         <>
           {profileAvatarPortal}
           {profileMenuLayer}
-          {createPortal(
-            <div className="lms-native-topbar-layer" data-lms-native-topbar-layer="student">
-              {studentHeader}
-            </div>,
-            document.body
-          )}
-          <div ref={nativeHeaderSpacerRef} className="lms-native-topbar-spacer" aria-hidden="true" />
-          {mobileCopy}
+          {notificationButtonPortal}
+          {notificationMenuLayer}
+          {typeof document !== 'undefined'
+            ? createPortal(
+                <div className="lms-header-bar-layer" data-lms-header-bar-layer="student">
+                  {compactBar}
+                </div>,
+                document.body
+              )
+            : compactBar}
         </>
       );
     }
 
+    const breadcrumbNode = breadcrumbs.length ? (
+      <RouteBreadcrumbs
+        items={breadcrumbs}
+        onNavigate={navigate}
+        interactive={effectiveBreadcrumbInteractive}
+        uppercaseCurrent={effectiveBreadcrumbUppercaseCurrent}
+      />
+    ) : null;
+
+    if (!isNativeRuntime) {
+      const studentHeader = (
+        <header
+          ref={barRef}
+          className={cx(
+            'study-hub-topbar',
+            'study-hub-topbar--side-nav-toggle',
+            profileVisible && 'is-profile-menu-open',
+            className
+          )}
+        >
+          <button
+            type="button"
+            className="study-icon-button lms-topbar-menu-button study-sidebar-toggle"
+            aria-label="Hide or show sidebar"
+            onClick={toggleSidebar}
+          >
+            <NavToggleIcon />
+          </button>
+
+          <div className="study-topbar-title">
+            {effectiveBreadcrumbPlacement !== 'below' && breadcrumbNode ? breadcrumbNode : effectiveSubtitle ? (
+              <span>{effectiveSubtitle}</span>
+            ) : null}
+            <h1>{effectiveTitle}</h1>
+            {effectiveBreadcrumbPlacement === 'below' ? breadcrumbNode : null}
+          </div>
+
+          <div className="study-topbar-actions">
+            <div className={cx(topbarUi.menuWrap, notificationsOpen && 'is-notification-menu-open')} ref={notificationRef}>
+              <button
+                ref={notificationButtonRef}
+                type="button"
+                className={cx('study-icon-button relative', notificationsOpen && 'is-notification-bell-open')}
+                aria-label={unreadNotifications.length ? `${unreadNotifications.length} unread notifications` : 'Notifications'}
+                aria-controls={NOTIFICATION_MENU_ID}
+                aria-expanded={notificationsOpen ? 'true' : 'false'}
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setNotificationsOpen((current) => {
+                    if (!current) loadNotifications();
+                    return !current;
+                  });
+                  closeProfileMenu();
+                }}
+              >
+                <BellIcon />
+                {unreadNotifications.length ? <span className={topbarUi.countBadge}>{unreadNotifications.length}</span> : null}
+              </button>
+            </div>
+
+            <button type="button" className="study-icon-button" aria-label="Search lessons and exams" onClick={openSearch}>
+              <SearchIcon />
+            </button>
+
+            <div className={cx(topbarUi.menuWrap, profileVisible && 'is-profile-menu-open')} ref={profileRef}>
+              <button
+                ref={profileButtonRef}
+                type="button"
+                className={cx('study-avatar study-avatar--profile', profileVisible && 'is-profile-avatar-open')}
+                aria-label="Open profile menu"
+                aria-controls={PROFILE_MENU_ID}
+                aria-expanded={profileOpen ? 'true' : 'false'}
+                aria-haspopup="menu"
+                onClick={toggleProfileMenu}
+              >
+                <ProfileAvatar user={user} />
+              </button>
+            </div>
+          </div>
+
+          {actions ? <div className={cx('lms-topbar-actions', topbarUi.actionsSlot)}>{actions}</div> : null}
+        </header>
+      );
+
+      return (
+        <>
+          {profileAvatarPortal}
+          {profileMenuLayer}
+          {notificationButtonPortal}
+          {notificationMenuLayer}
+          {studentHeader}
+          <div className={topbarUi.mobileCopy}>
+            <div>{effectiveTitle}</div>
+          </div>
+        </>
+      );
+    }
+
+    // ── Native page surface ───────────────────────────────────────────────
+    // Capacitor keeps the shell-owned compact bar; page headers only publish
+    // descriptors and render the in-flow large title/spacer.
     return (
       <>
-        {profileAvatarPortal}
-        {profileMenuLayer}
-        {studentHeader}
-        {mobileCopy}
+        {/* In-flow spacer clears the fixed bar; the large title scrolls away. */}
+        <div className="study-topbar__spacer" aria-hidden="true" />
+        {showLargeTitle ? (
+          <div key={effectiveTitle} ref={largeTitleRef} className="study-topbar__large" data-mode={headerMode}>
+            {effectiveBreadcrumbPlacement !== 'below' && breadcrumbNode ? breadcrumbNode : effectiveSubtitle ? (
+              <span className="study-topbar__eyebrow">{effectiveSubtitle}</span>
+            ) : null}
+            <h1 className="study-topbar__large-title">{effectiveTitle}</h1>
+            {effectiveBreadcrumbPlacement === 'below' ? breadcrumbNode : null}
+          </div>
+        ) : null}
       </>
     );
   }
@@ -1007,6 +1367,8 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
     <>
       {profileAvatarPortal}
       {profileMenuLayer}
+      {notificationButtonPortal}
+          {notificationMenuLayer}
 
       <header className={cx(topbarUi.header, profileVisible && 'is-profile-menu-open', className)}>
         <div className={cx('lms-topbar-left', topbarUi.left)}>
@@ -1043,10 +1405,11 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
             <ThemeToggle />
 
             {user?.role === 'student' ? (
-            <div className={topbarUi.menuWrap} ref={notificationRef}>
-              <button className={topbarUi.iconButton}
+            <div className={cx(topbarUi.menuWrap, notificationsOpen && 'is-notification-menu-open')} ref={notificationRef}>
+              <button className={cx(topbarUi.iconButton, notificationsOpen && 'is-notification-bell-open')}
+                ref={notificationButtonRef}
                 type="button"
-               
+
                 aria-label="Notifications"
                 aria-controls={NOTIFICATION_MENU_ID}
                 aria-expanded={notificationsOpen ? 'true' : 'false'}
@@ -1064,8 +1427,6 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
                 <BellIcon />
                 {unreadNotifications.length ? <span className={topbarUi.countBadge}>{unreadNotifications.length}</span> : null}
               </button>
-
-              {notificationMenu}
             </div>
             ) : null}
 

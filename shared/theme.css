@@ -20,9 +20,12 @@
   --brand-emerald: #059669;
   --brand-amber:   #D97706;
   --brand-rose:    #E11D48;
-  --brand-success: #2E7D32;
-  --brand-warning: #A16207;
-  --brand-error:   #B3261E;
+  /* Status TEXT tokens use Apple's accessible (high-contrast) system color
+     variants so text-brand-* labels clear WCAG AA on light surfaces; the
+     vivid system colors live on --color-* for fills/borders/marks. */
+  --brand-success: #248A3D; /* Apple systemGreen — accessible (light) */
+  --brand-warning: #C93400; /* Apple systemOrange — accessible (light) */
+  --brand-error:   #D70015; /* Apple systemRed — accessible (light) */
 
   /* Gradients */
   --brand-gradient-primary: linear-gradient(135deg, #0EA5E9 0%, #2563EB 48%, #7C3AED 100%);
@@ -146,15 +149,15 @@
   --color-pink:       #DB2777;
   --color-pink-light: rgba(219, 39, 119, 0.09);
 
-  --color-success:       #2E7D32;
-  --color-success-light: rgba(46, 125, 50, 0.11);
-  --color-success-bg:    #E7F4EA;
-  --color-warning:       #A16207;
-  --color-warning-light: rgba(161, 98, 7, 0.11);
-  --color-warning-bg:    #FFF4D8;
-  --color-error:         #B3261E;
-  --color-error-light:   rgba(179, 38, 30, 0.10);
-  --color-error-bg:      #FCE8E6;
+  --color-success:       #34C759; /* Apple systemGreen (light) */
+  --color-success-light: rgba(52, 199, 89, 0.11);
+  --color-success-bg:    #E7F7EC;
+  --color-warning:       #FF9500; /* Apple systemOrange (light) */
+  --color-warning-light: rgba(255, 149, 0, 0.11);
+  --color-warning-bg:    #FFF1E0;
+  --color-error:         #FF3B30; /* Apple systemRed (light) */
+  --color-error-light:   rgba(255, 59, 48, 0.10);
+  --color-error-bg:      #FFEBE9;
 
   /* ── Shadows — light mode: clean, layered ─────────────────── */
   --shadow-xs: 0 1px 2px rgba(11, 18, 32, 0.025);
@@ -311,15 +314,15 @@
   --color-cyan-light: rgba(108, 176, 255, 0.11);
 
   /* ── Semantic states ─────────────────────────────────────── */
-  --success:         #6ee7b7;
-  --success-surface: rgba(110, 231, 183, 0.10);
-  --success-border:  rgba(110, 231, 183, 0.26);
-  --warning:         #fcd34d;
-  --warning-surface: rgba(252, 211, 77, 0.10);
-  --warning-border:  rgba(252, 211, 77, 0.28);
-  --danger:          #fca5a5;
-  --danger-surface:  rgba(252, 165, 165, 0.10);
-  --danger-border:   rgba(252, 165, 165, 0.28);
+  --success:         #30D158; /* Apple systemGreen (dark) */
+  --success-surface: rgba(48, 209, 88, 0.10);
+  --success-border:  rgba(48, 209, 88, 0.26);
+  --warning:         #FF9F0A; /* Apple systemOrange (dark) */
+  --warning-surface: rgba(255, 159, 10, 0.10);
+  --warning-border:  rgba(255, 159, 10, 0.28);
+  --danger:          #FF453A; /* Apple systemRed (dark) */
+  --danger-surface:  rgba(255, 69, 58, 0.10);
+  --danger-border:   rgba(255, 69, 58, 0.28);
   --info:            var(--accent-blue);
   --info-surface:    rgba(108, 176, 255, 0.10);
   --info-border:     rgba(108, 176, 255, 0.26);
@@ -333,6 +336,12 @@
   --color-error:         var(--danger);
   --color-error-light:   var(--danger-surface);
   --color-error-bg:      var(--danger-surface);
+
+  /* Status text tokens track Apple system colors (dark variants) so
+     text-brand-* labels stay legible on the dark surface ladder. */
+  --brand-success: var(--success);
+  --brand-warning: var(--warning);
+  --brand-error:   var(--danger);
 
   /* ── CTA gradient — pops on void black ──────────────────── */
   --cta-gradient:       linear-gradient(135deg, #6cb0ff 0%, #7b8fff 48%, #8b5cf6 100%);

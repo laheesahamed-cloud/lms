@@ -59,6 +59,7 @@ type QuizRow = RowDataPacket & {
   admin_name: string | null;
   student_title: string | null;
   display_title_mode: 'number' | 'title' | null;
+  quiz_number: number | null;
   quiz_title: string;
   quiz_description: string | null;
   blueprint_json: string | null;
@@ -122,6 +123,7 @@ export class QuizzesService {
         quizzes.admin_name,
         quizzes.student_title,
         quizzes.display_title_mode,
+        quizzes.quiz_number,
         quizzes.quiz_title,
         quizzes.quiz_description,
         NULL AS blueprint_json,
@@ -368,6 +370,7 @@ export class QuizzesService {
           quizzes.admin_name,
           quizzes.student_title,
           quizzes.display_title_mode,
+          quizzes.quiz_number,
           quizzes.quiz_title,
           quizzes.quiz_description,
           quizzes.blueprint_json,
@@ -430,12 +433,17 @@ export class QuizzesService {
       const totalQuestions = this.resolveQuizQuestionCount(createQuizDto, questionIds);
       const totalMarks = totalQuestions;
 
+      const resolvedMode = this.resolveDisplayTitleMode(createQuizDto.displayTitleMode);
+      const newQuizNumber = resolvedMode === 'number'
+        ? await this.resolveNextQuizNumber(connection, createQuizDto)
+        : null;
+
       const [result] = await connection.execute<ResultSetHeader>(
         `
           INSERT INTO quizzes (
-            course_id, topic_id, subtopic_id, lesson_id, paper_id, category, collection_tags, is_free, subtopic, is_general, exam_mode_only, admin_name, student_title, display_title_mode, quiz_title,
+            course_id, topic_id, subtopic_id, lesson_id, paper_id, category, collection_tags, is_free, subtopic, is_general, exam_mode_only, admin_name, student_title, display_title_mode, quiz_number, quiz_title,
             quiz_description, blueprint_json, randomization_mode, total_questions, total_marks, time_limit, hide_time_limit, passing_marks, hide_passing_marks, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           createQuizDto.courseId,
@@ -451,7 +459,8 @@ export class QuizzesService {
           createQuizDto.examModeOnly,
           this.resolveAdminName(createQuizDto),
           this.resolveStudentTitle(createQuizDto),
-          this.resolveDisplayTitleMode(createQuizDto.displayTitleMode),
+          resolvedMode,
+          newQuizNumber,
           this.resolveStudentTitle(createQuizDto),
           (createQuizDto.quizDescription || '').trim(),
           this.stringifyBlueprint(createQuizDto.blueprint),
@@ -529,6 +538,14 @@ export class QuizzesService {
       const linkedQuestionIds = this.resolveRandomizationMode(merged.randomizationMode) === 'dynamic' ? [] : questionIds;
       const totalQuestions = this.resolveQuizQuestionCount(merged, questionIds);
       const totalMarks = totalQuestions;
+      const resolvedMode = this.resolveDisplayTitleMode(merged.displayTitleMode);
+
+      let updatedQuizNumber: number | null;
+      if (resolvedMode === 'number') {
+        updatedQuizNumber = existing.quizNumber ?? await this.resolveNextQuizNumber(connection, merged, id);
+      } else {
+        updatedQuizNumber = null;
+      }
 
       await connection.execute(
         `
@@ -547,6 +564,7 @@ export class QuizzesService {
             admin_name = ?,
             student_title = ?,
             display_title_mode = ?,
+            quiz_number = ?,
             quiz_title = ?,
             quiz_description = ?,
             blueprint_json = ?,
@@ -574,7 +592,8 @@ export class QuizzesService {
           merged.examModeOnly,
           this.resolveAdminName(merged),
           this.resolveStudentTitle(merged),
-          this.resolveDisplayTitleMode(merged.displayTitleMode),
+          resolvedMode,
+          updatedQuizNumber,
           this.resolveStudentTitle(merged),
           (merged.quizDescription || '').trim(),
           this.stringifyBlueprint(merged.blueprint),
@@ -820,6 +839,7 @@ export class QuizzesService {
       adminName: this.resolveAdminName(quiz),
       studentTitle: this.resolveStudentTitle(quiz),
       displayTitleMode: this.resolveDisplayTitleMode(quiz.displayTitleMode),
+      quizNumber: quiz.quizNumber ?? null,
       quizTitle: this.resolveStudentTitle(quiz),
       quizDescription: quiz.quizDescription || '',
       blueprint: this.normalizeBlueprintPayload(quiz.blueprint),
@@ -849,6 +869,7 @@ export class QuizzesService {
       adminName: quiz.adminName,
       studentTitle: quiz.studentTitle,
       displayTitleMode: this.resolveDisplayTitleMode(quiz.displayTitleMode),
+      quizNumber: quiz.quizNumber ?? null,
       quizTitle: quiz.quizTitle,
       quizDescription: quiz.quizDescription || '',
       blueprint: quiz.blueprint || null,
@@ -929,6 +950,7 @@ export class QuizzesService {
           admin_name = ?,
           student_title = ?,
           display_title_mode = ?,
+          quiz_number = ?,
           quiz_title = ?,
           quiz_description = ?,
           blueprint_json = ?,
@@ -957,6 +979,7 @@ export class QuizzesService {
         this.resolveAdminName(quiz),
         this.resolveStudentTitle(quiz),
         this.resolveDisplayTitleMode(quiz.displayTitleMode),
+        quiz.quizNumber ?? null,
         this.resolveStudentTitle(quiz),
         (quiz.quizDescription || '').trim(),
         this.stringifyBlueprint(quiz.blueprint),
@@ -1012,6 +1035,7 @@ export class QuizzesService {
       adminName: String(snapshot.adminName || snapshot.quizTitle || ''),
       studentTitle: String(snapshot.studentTitle || snapshot.quizTitle || ''),
       displayTitleMode: snapshot.displayTitleMode === 'title' ? 'title' : 'number',
+      quizNumber: snapshot.quizNumber ? Number(snapshot.quizNumber) : null,
       quizTitle: String(snapshot.quizTitle || snapshot.studentTitle || ''),
       quizDescription: String(snapshot.quizDescription || ''),
       blueprint: this.normalizeBlueprintPayload(snapshot.blueprint),
@@ -1199,6 +1223,42 @@ export class QuizzesService {
     return value === 'title' ? 'title' : 'number';
   }
 
+  private async resolveNextQuizNumber(
+    connection: Pool | PoolConnection,
+    dto: { courseId: number; topicId?: number | null; subtopicId?: number | null; lessonId?: number | null; isGeneral?: number },
+    excludeId?: number,
+  ): Promise<number> {
+    const isGeneral = dto.isGeneral === 1;
+    const courseId = dto.courseId;
+    const topicId = isGeneral ? null : (dto.topicId ?? null);
+    const subtopicId = isGeneral ? null : (dto.subtopicId ?? null);
+    const lessonId = isGeneral ? null : (dto.lessonId ?? null);
+
+    let sql = `SELECT COALESCE(MAX(quiz_number), 0) + 1 AS next_number FROM quizzes WHERE display_title_mode = 'number' AND quiz_number IS NOT NULL AND course_id = ?`;
+    const params: (number | null)[] = [courseId];
+
+    if (lessonId) {
+      sql += ' AND lesson_id = ?';
+      params.push(lessonId);
+    } else if (subtopicId) {
+      sql += ' AND subtopic_id = ? AND (lesson_id IS NULL OR lesson_id = 0)';
+      params.push(subtopicId);
+    } else if (topicId) {
+      sql += ' AND topic_id = ? AND (subtopic_id IS NULL OR subtopic_id = 0) AND (lesson_id IS NULL OR lesson_id = 0)';
+      params.push(topicId);
+    } else {
+      sql += ' AND (topic_id IS NULL OR topic_id = 0)';
+    }
+
+    if (excludeId) {
+      sql += ' AND id != ?';
+      params.push(excludeId);
+    }
+
+    const [rows] = await (connection as Pool).execute<RowDataPacket[]>(sql, params);
+    return Number(rows[0]?.next_number || 1);
+  }
+
   private optionalPositiveId(value: unknown) {
     const numeric = Number(value);
     return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
@@ -1290,6 +1350,7 @@ export class QuizzesService {
       adminName: String(row.admin_name || row.quiz_title || ''),
       studentTitle: String(row.student_title || row.quiz_title || ''),
       displayTitleMode: this.resolveDisplayTitleMode(row.display_title_mode),
+      quizNumber: row.quiz_number ? Number(row.quiz_number) : null,
       quizTitle: String(row.student_title || row.quiz_title || ''),
       quizDescription: row.quiz_description || '',
       blueprint: this.parseBlueprint(row.blueprint_json),

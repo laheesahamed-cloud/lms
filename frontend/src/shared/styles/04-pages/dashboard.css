@@ -59,6 +59,51 @@
 /* ============================================================
    TOP BAR
    ============================================================ */
+/* ============================================================
+   iOS large-title header (student). One rule for every page:
+   - .lms-header-bar-layer: portaled to <body>, fixed at the top
+     (lives outside the route wrapper whose residual transform
+     would otherwise break fixed positioning).
+   - .study-topbar__bar: the compact nav row (leading control,
+     centered compact title that fades in, trailing actions, blur
+     hairline that fades in).
+   - .study-topbar__large: the big page title, in normal scroll
+     flow, fading/sliding away as you scroll.
+   Driven by --lms-header-collapse (0 expanded -> 1 collapsed),
+   set on :root by AppHeader's scroll hook.
+   ============================================================ */
+.lms-header-bar-layer {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 1100;
+  pointer-events: none;
+  /* The bar is portaled to <body>, outside .student-app-shell where the
+     --sa-* tokens are scoped. Bridge them to the global :root tokens (which
+     are already theme-scoped, so light/dark resolve automatically). */
+  --sa-ink: var(--ink-strong);
+  --sa-ink-deep: var(--ink-strong);
+  --sa-text-2: var(--ink-soft);
+  --sa-text-3: var(--ink-muted);
+  --sa-primary: var(--color-primary);
+  --sa-primary-deep: var(--color-primary-hover, var(--color-primary));
+  --sa-primary-soft: var(--color-primary-light);
+  --sa-border: var(--line-soft);
+  --sa-surface: var(--surface-card);
+  --sa-surface-2: var(--surface-2);
+  --sa-surface-raised: var(--surface-card-elevated, var(--surface-card));
+  --sa-grad: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover, var(--color-primary)));
+  --sa-font-display: var(--font-display, var(--font-sans, inherit));
+  --sa-dur: 150ms;
+  --sa-ease: var(--ease-out, ease);
+}
+.lms-header-bar-layer > .study-topbar__bar {
+  pointer-events: auto;
+}
+/* Desktop: start the bar after the docked sidebar so it doesn't overlap it. */
+body.student-sidebar-docked .lms-header-bar-layer {
+  left: calc(var(--sidebar-w, 0px) + var(--sidebar-shell-gap, 0px));
+}
+
 .study-hub-topbar {
   position: relative;
   z-index: 1200;
@@ -76,6 +121,173 @@
   overflow: visible;
 }
 
+/* The pinned compact bar (overrides the legacy inline-row sizing above). */
+.study-hub-topbar.study-topbar__bar {
+  z-index: 1;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  /* Height = safe-area inset + a real 64px content row. min-height is border-box,
+     so it MUST add the inset on top of the content height — otherwise on
+     notch/Dynamic-Island devices the inset eats the whole bar and the icons get
+     squashed against the bottom edge. A small bottom padding keeps the centered
+     icon row off the bottom edge even if content grows. */
+  min-height: calc(max(0px, env(safe-area-inset-top, 0px)) + 64px);
+  margin: 0;
+  padding: max(0px, env(safe-area-inset-top, 0px)) clamp(14px, 5vw, 26px) 8px;
+  border-radius: 0;
+}
+
+.study-topbar__bar > .study-sidebar-toggle,
+.study-topbar__bar > .study-topbar__back {
+  grid-column: 1;
+}
+.study-topbar__bar > .study-topbar__compact-title {
+  grid-column: 2;
+}
+.study-topbar__bar > .study-topbar-actions {
+  grid-column: 3;
+}
+.study-topbar__bar > :not(.study-topbar__hairline) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Blur + hairline background, fades in as the title collapses. */
+.study-topbar__hairline {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: color-mix(in srgb, var(--surface-card, #fff) 80%, transparent);
+  -webkit-backdrop-filter: saturate(150%) blur(14px);
+  backdrop-filter: saturate(150%) blur(14px);
+  border-bottom: 1px solid var(--line-soft, rgba(148, 163, 184, 0.18));
+  opacity: var(--lms-header-collapse, 0);
+  transition: opacity 180ms var(--lms-motion-ease-out, ease);
+  pointer-events: none;
+}
+
+/* Compact centered title — hidden at rest, fades in on collapse. */
+.study-topbar__compact-title {
+  justify-self: center;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  color: var(--sa-ink, var(--ink-strong));
+  font: var(--type-section-title);
+  font-family: var(--sa-font-display);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: var(--lms-header-collapse, 0);
+  transform: translateY(calc((1 - var(--lms-header-collapse, 0)) * 3px));
+  pointer-events: none;
+}
+
+/* In-flow spacer clears the fixed bar so page content starts below it. */
+.study-topbar__spacer {
+  height: var(--lms-header-bar-height, 72px);
+  flex: 0 0 auto;
+}
+/* On native the bar includes the safe-area inset, so the FALLBACK (used before
+   the live measure lands) must account for it — otherwise the spacer briefly
+   under-reserves height and content jumps when the real height is written. */
+html[data-lms-runtime="native"] .study-topbar__spacer {
+  height: var(--lms-header-bar-height, calc(max(0px, env(safe-area-inset-top, 0px)) + 72px));
+}
+
+/* The spacer owns the top offset now — drop the shell's own top padding so the
+   two don't stack (the bar height already includes the safe-area inset). */
+.student-app-shell :where(.study-hub-shell, .management-layout):has(> .study-topbar__spacer) {
+  padding-top: 0 !important;
+}
+
+/* Header morph — a soft de-blur + fade + gentle lift used when the persistent
+   bar's title / leading icon changes on navigation, so it morphs between pages
+   instead of hard-cutting (which read as a flash). NO scale — scale popping is
+   what read as a "bounce". Smooth decel easing, no expo snap. Timed to match the
+   page-content entrance so the title and content come in as one motion. */
+@keyframes lmsHeaderTitleMorph {
+  from { opacity: 0; transform: translateY(6px); filter: blur(8px); }
+  to   { opacity: 1; transform: translateY(0); filter: none; }
+}
+@keyframes lmsHeaderLeadMorph {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Large page title — collapses up + fades as you scroll. Its entrance morph is
+   the shared `study-fade-up` page-content animation (see student-app.css), so it
+   moves together with the rest of the page rather than on its own timeline. */
+.study-topbar__large {
+  margin: 4px 0 16px;
+  opacity: clamp(0, calc(1 - var(--lms-header-collapse, 0)), 1);
+  transform: translateY(calc(var(--lms-header-collapse, 0) * -6px));
+  transition: opacity 120ms var(--lms-motion-ease-out, ease);
+}
+.study-topbar__eyebrow {
+  display: block;
+  margin: 0 0 4px;
+  color: var(--sa-text-3, var(--ink-muted));
+  font: var(--type-label);
+  letter-spacing: var(--type-tracking-label, 0.08em);
+  text-transform: uppercase;
+}
+.study-topbar__large-title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--sa-ink, var(--ink-strong));
+  font: var(--type-page-title);
+  font-family: var(--sa-font-display);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  text-wrap: balance;
+}
+
+/* Compact mode (immersive routes + opted-in pages): permanently pinned bar
+   with a centered title + hairline, no large title, no scroll fade. */
+.study-topbar__bar[data-mode="compact"] .study-topbar__compact-title {
+  opacity: 1;
+  transform: none;
+  /* Compact pages show this title permanently, so morph it on title change
+     (keyed in JSX). Shares the page-entrance timing/easing so the title morphs
+     in together with the page content. `both` is safe here — the static state
+     matches the end frame, so holding it doesn't disturb anything. */
+  animation: lmsHeaderTitleMorph var(--lms-page-enter-duration, 440ms) var(--lms-page-enter-ease, ease-out) both;
+}
+
+/* Leading control (back chevron / sidebar toggle) crossfades when it swaps.
+   No fill-mode so the back button's :active press transform still applies once
+   the entrance morph finishes. */
+.study-topbar__bar > .study-sidebar-toggle,
+.study-topbar__bar > .study-topbar__back {
+  animation: lmsHeaderLeadMorph 320ms var(--lms-page-enter-ease, ease);
+}
+.study-topbar__bar[data-mode="compact"] .study-topbar__hairline {
+  opacity: 1;
+}
+
+.study-topbar__back {
+  -webkit-tap-highlight-color: transparent;
+}
+.study-topbar__back:active {
+  transform: scale(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-topbar__compact-title,
+  .study-topbar__large {
+    transform: none !important;
+    transition: opacity 120ms linear;
+  }
+  .study-topbar__bar[data-mode="compact"] .study-topbar__compact-title,
+  .study-topbar__large,
+  .study-topbar__bar > .study-sidebar-toggle,
+  .study-topbar__bar > .study-topbar__back {
+    animation: none !important;
+  }
+}
+
 .study-hub-topbar--side-nav-toggle {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
@@ -86,12 +298,14 @@
 }
 
 .mobile-top-nav-mode .study-hub-topbar .study-sidebar-toggle,
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-topbar .study-sidebar-toggle {
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-topbar .study-sidebar-toggle,
+.sidebar-hidden .study-hub-topbar .study-sidebar-toggle {
   display: none !important;
 }
 
 .mobile-top-nav-mode .study-hub-topbar--side-nav-toggle,
-html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-topbar--side-nav-toggle {
+html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-hub-topbar--side-nav-toggle,
+.sidebar-hidden .study-hub-topbar--side-nav-toggle {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 

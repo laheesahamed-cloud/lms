@@ -16,6 +16,7 @@ import { DeleteActionIcon, EditActionIcon } from '../../../../shared/ui/ActionIc
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { getVideoEmbed } from '../../../../shared/utils/videoEmbed.js';
+import { getPreferredScrollBehavior } from '../../../../shared/utils/scrollBehavior.js';
 
 const notesLayoutClass = 'grid grid-cols-[minmax(260px,320px)_minmax(0,1fr)_minmax(280px,360px)] items-start gap-5 max-[900px]:grid-cols-1';
 const notesStudyLayoutClass = 'grid-cols-[minmax(0,1fr)]';
@@ -504,7 +505,7 @@ export function StudentNotesPage() {
     if (!block) {
       return;
     }
-    block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    block.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: 'start' });
     if (recallMode) {
       block.classList.add('is-revealed');
     }

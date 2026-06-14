@@ -27,16 +27,3 @@ export function endNetworkActivity() {
   activeRequestCount = Math.max(0, activeRequestCount - 1);
   emitIfBusyStateChanged();
 }
-
-export function subscribeToNetworkActivity(listener) {
-  listeners.add(listener);
-  listener(activeRequestCount);
-
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export function getNetworkActivityCount() {
-  return activeRequestCount;
-}

@@ -1,17 +1,7 @@
 import { apiClient } from './client.js';
 
-export async function fetchActivePlans() {
-  const response = await apiClient.get('/plans');
-  return response.data;
-}
-
 export async function fetchAdminPlans() {
   const response = await apiClient.get('/admin/plans');
-  return response.data;
-}
-
-export async function fetchPlanFeatures() {
-  const response = await apiClient.get('/admin/plans/features');
   return response.data;
 }
 

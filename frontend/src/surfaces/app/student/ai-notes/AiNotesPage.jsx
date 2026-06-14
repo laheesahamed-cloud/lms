@@ -9,6 +9,7 @@ import { updateStudentLessonProgress } from '../../../../shared/api/courses.api.
 import { getVideoEmbed } from '../../../../shared/utils/videoEmbed.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
 import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
+import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { cx } from '../../../../shared/styles/tailwindClasses.js';
 import { NoteCanvas } from './NoteCanvas.jsx';
@@ -2511,6 +2512,15 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     safeNavigateBack(navigate, { fallbackPath: '/ai-notes', currentPath: location.pathname });
   }
 
+  // Native-only edge-swipe-back, reusing the page root + the back button's own
+  // handler. Disabled while drawing / editing / zoomed in so left-edge pen
+  // strokes and pan gestures aren't hijacked.
+  useEdgeSwipeBack({
+    containerRef: pageRef,
+    onBack: handleBack,
+    enabled: !drawMode && !isEditing && nativeZoomScale <= 1,
+  });
+
   useEffect(() => {
     if (!platform.isNative || !platform.isAndroid || typeof window === 'undefined') {
       return undefined;
@@ -2663,7 +2673,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     }
   }, [id, lessonId, location.state?.lessonId, note?.id, note?.lessonId]);
 
-  const pageBg = 'var(--sa-bg, #eff1fb)';
+  const pageBg = 'var(--sa-bg, var(--surface-0, #0a0a0f))';
   const topBg  = isDark?'rgba(5,7,13,.86)':'rgba(255,255,255,.96)';
   const topBd  = isDark?'rgba(145,170,255,.16)':'#e5e7eb';
   const btnBg  = isDark?'linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.045))':'#f9fafb';
@@ -2747,8 +2757,8 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       <div className="lms-ai-note-topbar" style={{ position:'sticky', top:0, zIndex:45, background:topBg, borderBottom:`1px solid ${topBd}`, WebkitBackdropFilter:'blur(8px)', backdropFilter:'blur(8px)' }}>
         <div className="lms-ai-note-topbar-inner" style={{ display:'flex', alignItems:'center', gap:14, maxWidth:1680, margin:'0 auto', padding:'calc(8px + env(safe-area-inset-top, 0px)) 20px 8px', minWidth:0 }}>
           {/* Left — back + title + breadcrumb */}
-          <button className="lms-ai-note-back-button lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', minHeight:38, fontSize:12, fontWeight:700, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
-            <BackIcon/> Lessons
+          <button className="lms-ai-note-back-button lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} aria-label="Back" title="Back" style={{ display:'flex', alignItems:'center', justifyContent:'center', border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:0, width:38, height:38, minHeight:38, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
+            <BackIcon/>
           </button>
           <div className="lms-ai-note-title-block" style={{ minWidth:0, flex:1, overflow:'hidden' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>

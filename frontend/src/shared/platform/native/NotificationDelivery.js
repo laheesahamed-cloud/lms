@@ -54,6 +54,12 @@ function isNativePushRuntime() {
   return Capacitor.isNativePlatform() && isNativePushEnabled();
 }
 
+function hasNativePushRegistrationConfig() {
+  if (!isNativePushRuntime()) return false;
+  if (Capacitor.getPlatform() !== 'android') return true;
+  return import.meta.env.VITE_ANDROID_FCM_CONFIGURED === 'true';
+}
+
 function rememberNativePushToken(token) {
   const cleanToken = String(token || '').trim();
   if (!cleanToken || typeof window === 'undefined') return '';
@@ -91,7 +97,7 @@ async function ensureAndroidNotificationChannels(PushNotifications) {
 }
 
 export function isPushNotificationSupported() {
-  return isNativePushRuntime();
+  return hasNativePushRegistrationConfig();
 }
 
 export function isIosDevice() {
@@ -107,7 +113,7 @@ export function isIosSafariPwaCapable() {
 }
 
 export function getNotificationPermission() {
-  return isNativePushRuntime() ? 'native' : 'unsupported';
+  return hasNativePushRegistrationConfig() ? 'native' : 'unsupported';
 }
 
 export async function enablePhonePushNotifications() {
@@ -116,6 +122,9 @@ export async function enablePhonePushNotifications() {
   }
   if (!isNativePushEnabled()) {
     throw new Error('Native push notifications are not configured for this app build.');
+  }
+  if (!hasNativePushRegistrationConfig()) {
+    throw new Error('Android push notifications need google-services.json before they can be enabled.');
   }
 
   await installNativePushNotificationHandlers();
@@ -176,6 +185,9 @@ export async function requestNativePushPermission() {
   if (!isNativePushEnabled()) {
     return { ok: false, permission: 'unsupported' };
   }
+  if (!hasNativePushRegistrationConfig()) {
+    return { ok: false, permission: 'unsupported', reason: 'missing-android-fcm-config' };
+  }
 
   await installNativePushNotificationHandlers();
 
@@ -186,17 +198,21 @@ export async function requestNativePushPermission() {
     return { ok: false, permission: 'denied' };
   }
 
-  await PushNotifications.register();
+  try {
+    await PushNotifications.register();
+  } catch {
+    return { ok: false, permission: 'granted', reason: 'registration-failed' };
+  }
   return { ok: true, permission: 'granted' };
 }
 
 export async function syncNativePushToken() {
-  if (!isNativePushRuntime()) return { ok: false, token: '' };
+  if (!hasNativePushRegistrationConfig()) return { ok: false, token: '' };
   return saveRememberedNativePushToken();
 }
 
 export async function installNativePushNotificationHandlers() {
-  if (!isNativePushRuntime() || nativeHandlersInstalled) return;
+  if (!hasNativePushRegistrationConfig() || nativeHandlersInstalled) return;
   nativeHandlersInstalled = true;
 
   const { PushNotifications } = await import('@capacitor/push-notifications');

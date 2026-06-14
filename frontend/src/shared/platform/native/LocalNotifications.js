@@ -35,11 +35,6 @@ function webNotificationsAvailable() {
   return typeof window !== 'undefined' && 'Notification' in window;
 }
 
-/** True when we can show a local notification through either native or web. */
-export function isLocalNotificationsSupported() {
-  return isNative() || webNotificationsAvailable();
-}
-
 /** Coarse capability descriptor for UI/status panels. */
 export function getLocalNotificationSupport() {
   if (isNative()) {

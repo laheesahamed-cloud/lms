@@ -8,11 +8,15 @@
    RESULTS OVERVIEW
    ============================================================ */
 .student-app-shell .student-results-layout {
-  --results-section-gap: clamp(16px, 2.4vw, 22px);
+  --results-section-gap: 28px;
   --results-card-gap: clamp(12px, 2vw, 16px);
-  --results-card-pad: clamp(16px, 2.4vw, 22px);
+  --results-card-pad: clamp(18px, 3vw, 26px);
   --results-card-radius: var(--sa-radius-lg, 22px);
   --results-inner-radius: var(--sa-radius-md, 18px);
+  /* Must be an explicit grid for `gap` to apply — `.study-hub-shell` is a
+     plain block on mobile, so without this the card gap was inert. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--results-section-gap);
 }
 
@@ -271,16 +275,98 @@
   line-height: 1.35;
 }
 
+/* ---- Score-trend chart details ---- */
+.student-app-shell .result-chart-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.student-app-shell .result-chart-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.student-app-shell .result-chart-trend.is-up {
+  background: rgba(16, 185, 129, 0.13);
+  color: #34d399;
+}
+
+.student-app-shell .result-chart-trend.is-down {
+  background: rgba(239, 68, 68, 0.13);
+  color: #f87171;
+}
+
+.student-app-shell .result-sparkline__label {
+  fill: #eef4ff;
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.student-app-shell .result-chart-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.student-app-shell .result-chart-stat {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+}
+
+.student-app-shell .result-chart-stat strong {
+  color: #f8fbff;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.student-app-shell .result-chart-stat small {
+  color: rgba(148, 163, 184, 0.86);
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+:root[data-theme="light"] .student-app-shell .result-sparkline__label,
+.student-app-shell[data-theme="light"] .result-sparkline__label,
+:root[data-theme="light"] .student-app-shell .result-chart-stat strong,
+.student-app-shell[data-theme="light"] .result-chart-stat strong {
+  fill: #0f172a;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .student-app-shell .result-chart-stat small,
+.student-app-shell[data-theme="light"] .result-chart-stat small {
+  color: #66758f;
+}
+
 .student-app-shell .student-results-focus,
 .student-app-shell .student-results-history {
   display: grid;
   gap: var(--results-card-gap);
-  border: 1px solid rgba(148, 163, 184, 0.14) !important;
-  border-radius: var(--results-card-radius);
+  /* Master card recipe — flat surface, see CARD_DARK_MODE_PLAN.md */
+  border: 1px solid var(--line-soft) !important;
+  border-radius: var(--ds-card-radius);
   background: var(--surface-card) !important;
   padding: var(--results-card-pad);
   color: var(--sa-ink);
-  box-shadow: var(--shadow-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
 }
 
 .student-app-shell .student-results-focus__grid {
@@ -289,33 +375,30 @@
   gap: var(--results-card-gap);
 }
 
+/* Flat column — no nested card; the two columns are split by a divider only. */
 .student-app-shell .student-results-focus__column {
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 6px;
   min-width: 0;
-  border: 1px solid rgba(148, 163, 184, 0.11);
-  border-radius: var(--results-inner-radius);
-  background: rgba(15, 23, 42, 0.18);
-  padding: 12px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.022);
 }
 
 .student-app-shell .student-results-focus__column + .student-results-focus__column {
-  border-left: 1px solid rgba(148, 163, 184, 0.11);
-  padding-left: 12px;
+  border-left: 1px solid var(--line-soft);
+  padding-left: clamp(14px, 2vw, 20px);
 }
 
+/* Flat list row — separated by a divider, highlighted only on hover. */
 .student-app-shell .student-results-focus__row {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-height: 58px;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: var(--sa-radius-sm, 14px);
-  background: rgba(255, 255, 255, 0.018);
-  padding: 10px 8px;
+  background: transparent;
+  padding: 11px 6px;
   color: var(--sa-ink);
   text-align: left;
   cursor: pointer;
@@ -324,10 +407,13 @@
     transform var(--sa-dur) var(--sa-ease);
 }
 
+.student-app-shell .student-results-focus__row + .student-results-focus__row {
+  border-top: 1px solid var(--line-soft);
+}
+
 .student-app-shell .student-results-focus__row:hover {
   background:
     linear-gradient(rgba(var(--sa-primary-rgb), 0.055), rgba(var(--sa-primary-rgb), 0.055));
-  border-color: rgba(var(--sa-primary-rgb), 0.16);
 }
 
 .student-app-shell .student-results-focus__row:active {
@@ -509,41 +595,28 @@
 :root[data-theme="light"] .student-app-shell .student-results-history,
 .student-app-shell[data-theme="light"] .student-results-focus,
 .student-app-shell[data-theme="light"] .student-results-history {
-  border-color: rgba(37, 99, 235, 0.1) !important;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(96, 165, 250, 0.12), transparent 38%),
-    radial-gradient(circle at 2% 100%, rgba(20, 184, 166, 0.07), transparent 34%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(243, 248, 255, 0.76)) !important;
-  box-shadow: 0 20px 48px -36px rgba(37, 99, 235, 0.28) !important;
+  /* Flat canonical surface — match AI Notes / Course Detail cards */
+  border-color: var(--line-soft) !important;
+  background: var(--surface-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
 }
 
 :root[data-theme="light"] .student-app-shell .student-results-focus__column + .student-results-focus__column,
 .student-app-shell[data-theme="light"] .student-results-focus__column + .student-results-focus__column {
-  border-left-color: rgba(80, 116, 166, 0.14);
-}
-
-:root[data-theme="light"] .student-app-shell .student-results-focus__column,
-.student-app-shell[data-theme="light"] .student-results-focus__column {
-  border-color: rgba(80, 116, 166, 0.12);
-  background: rgba(255, 255, 255, 0.58);
-}
-
-:root[data-theme="light"] .student-app-shell .student-results-focus__row,
-.student-app-shell[data-theme="light"] .student-results-focus__row {
-  background: rgba(255, 255, 255, 0.42);
+  border-left-color: var(--line-soft);
 }
 
 :root[data-theme="light"] .student-app-shell .student-results-focus__row:hover,
 .student-app-shell[data-theme="light"] .student-results-focus__row:hover {
   background: rgba(37, 99, 235, 0.052);
-  border-color: rgba(37, 99, 235, 0.16);
 }
 
+/* No nested card — the table sits directly in the History card, rows split by dividers. */
 .student-app-shell .student-results-history .lms-table-shell {
-  border: 1px solid rgba(148, 163, 184, 0.11) !important;
-  border-radius: var(--results-inner-radius) !important;
-  background: rgba(15, 23, 42, 0.18) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.022) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .student-app-shell .student-results-history table {
@@ -625,9 +698,9 @@
 }
 
 .student-app-shell .student-results-attempt-status--reviewed {
-  border-color: rgba(16, 185, 129, 0.22);
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.10);
+  color: var(--ink-soft, #94a3b8);
 }
 
 .student-app-shell .student-results-attempt-status--failed {
@@ -669,9 +742,9 @@
 
 :root[data-theme="light"] .student-app-shell .student-results-history .lms-table-shell,
 .student-app-shell[data-theme="light"] .student-results-history .lms-table-shell {
-  border-color: rgba(80, 116, 166, 0.12) !important;
-  background: rgba(255, 255, 255, 0.58) !important;
-  box-shadow: 0 14px 30px -28px rgba(37, 99, 235, 0.28) !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 :root[data-theme="light"] .student-app-shell .student-results-history thead th,
@@ -692,12 +765,12 @@
   background: rgba(37, 99, 235, 0.045) !important;
 }
 
+/* No nested card — attempt rows sit directly in the History card, split by dividers. */
 .student-app-shell .student-results-mobile-history__shell {
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.11);
-  border-radius: var(--results-inner-radius);
-  background: rgba(15, 23, 42, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.022);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .student-app-shell .student-results-mobile-history__head,
@@ -709,9 +782,9 @@
 }
 
 .student-app-shell .student-results-mobile-history__head {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(255, 255, 255, 0.018);
-  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  padding: 6px 0 10px;
   color: var(--sa-text-3);
   font-size: 11px;
   font-weight: 900;
@@ -726,7 +799,7 @@
 
 .student-app-shell .student-results-attempt-card {
   border-radius: 0;
-  padding: 13px 12px;
+  padding: 13px 0;
   cursor: pointer;
   outline: none;
   transition:
@@ -753,15 +826,15 @@
 
 :root[data-theme="light"] .student-app-shell .student-results-mobile-history__head,
 .student-app-shell[data-theme="light"] .student-results-mobile-history__head {
-  border-bottom-color: rgba(80, 116, 166, 0.13);
-  background: rgba(255, 255, 255, 0.38);
+  border-bottom-color: var(--line-soft);
+  background: transparent;
 }
 
 :root[data-theme="light"] .student-app-shell .student-results-mobile-history__shell,
 .student-app-shell[data-theme="light"] .student-results-mobile-history__shell {
-  border-color: rgba(80, 116, 166, 0.12);
-  background: rgba(255, 255, 255, 0.58);
-  box-shadow: 0 14px 30px -28px rgba(37, 99, 235, 0.28);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 :root[data-theme="light"] .student-app-shell .student-results-attempt-card + .student-results-attempt-card,
@@ -870,9 +943,9 @@
    SINGLE RESULT DETAIL
    ============================================================ */
 .student-app-shell .student-result-detail-layout {
-  --results-section-gap: clamp(16px, 2.4vw, 22px);
+  --results-section-gap: 28px;
   --results-card-gap: clamp(12px, 2vw, 16px);
-  --results-card-pad: clamp(16px, 2.4vw, 22px);
+  --results-card-pad: clamp(18px, 3vw, 26px);
   --results-card-radius: var(--sa-radius-lg, 22px);
   --results-inner-radius: var(--sa-radius-md, 18px);
   display: grid;
@@ -906,9 +979,10 @@
   margin: 0;
   color: var(--sa-ink);
   font-family: var(--sa-font-display);
-  font-size: 34px;
+  /* On the type scale (T16): page-title size, matching every other page hero. */
+  font-size: var(--type-size-3xl);
   font-weight: 900;
-  line-height: 1.05;
+  line-height: 1.08;
   letter-spacing: 0;
 }
 
@@ -948,7 +1022,16 @@
   place-items: center;
   border-radius: 999px;
   padding: 10px;
-  box-shadow: 0 18px 44px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 18px 44px var(--result-ring-glow, rgba(37, 99, 235, 0.12));
+  animation: resultRingIn 460ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.student-app-shell .student-result-score-ring.is-passed {
+  --result-ring-glow: color-mix(in srgb, var(--sa-ok) 24%, transparent);
+}
+
+.student-app-shell .student-result-score-ring.is-failed {
+  --result-ring-glow: color-mix(in srgb, var(--sa-warn) 24%, transparent);
 }
 
 .student-app-shell .student-result-score-ring > div {
@@ -958,7 +1041,11 @@
   place-items: center;
   align-content: center;
   border-radius: 999px;
-  background: var(--sa-surface);
+  background:
+    radial-gradient(120% 120% at 50% 0%,
+      color-mix(in srgb, var(--sa-surface) 100%, transparent) 56%,
+      color-mix(in srgb, var(--sa-surface-2) 72%, transparent) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   text-align: center;
 }
 
@@ -967,6 +1054,18 @@
   font-size: 30px;
   font-weight: 950;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes resultRingIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-app-shell .student-result-score-ring {
+    animation: none;
+  }
 }
 
 .student-app-shell .student-result-score-ring span {
@@ -986,11 +1085,12 @@
 
 .student-app-shell .student-result-stat-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--sa-border);
-  border-radius: var(--results-card-radius);
-  background: var(--sa-surface);
+  /* Master card recipe — flat surface, see CARD_DARK_MODE_PLAN.md */
+  border: 1px solid var(--line-soft);
+  border-radius: var(--ds-card-radius);
+  background: var(--surface-card);
   padding: var(--results-card-pad);
-  box-shadow: var(--sa-shadow-card);
+  box-shadow: var(--ds-card-shadow);
 }
 
 .student-app-shell .student-result-insight-grid {
@@ -1072,25 +1172,31 @@
 
 .student-app-shell .student-result-insight-card,
 .student-app-shell .student-result-focus-card {
-  border-radius: var(--results-card-radius);
-  background:
-    radial-gradient(circle at 96% 0%, rgba(var(--sa-primary-rgb), 0.055), transparent 32%),
-    var(--sa-surface);
+  /* Flat canonical surface — the master recipe above already sets this;
+     no radial-gradient accent, matching AI Notes / Course Detail. */
+  border-radius: var(--ds-card-radius);
 }
 
+/* Hero keeps its subtle accent identity (score banner). */
 :root[data-theme="light"] .student-app-shell .student-result-detail-hero,
-.student-app-shell[data-theme="light"] .student-result-detail-hero,
+.student-app-shell[data-theme="light"] .student-result-detail-hero {
+  border-color: rgba(37, 99, 235, 0.14) !important;
+  background:
+    radial-gradient(circle at 94% 0%, rgba(37, 99, 235, 0.1), transparent 32%),
+    rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 16px 36px -30px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Stat / insight / focus cards → flat canonical surface (match AI Notes / Course Detail). */
 :root[data-theme="light"] .student-app-shell .student-result-stat-grid,
 .student-app-shell[data-theme="light"] .student-result-stat-grid,
 :root[data-theme="light"] .student-app-shell .student-result-insight-card,
 .student-app-shell[data-theme="light"] .student-result-insight-card,
 :root[data-theme="light"] .student-app-shell .student-result-focus-card,
 .student-app-shell[data-theme="light"] .student-result-focus-card {
-  border-color: rgba(37, 99, 235, 0.14) !important;
-  background:
-    radial-gradient(circle at 94% 0%, rgba(37, 99, 235, 0.1), transparent 32%),
-    rgba(255, 255, 255, 0.88) !important;
-  box-shadow: 0 16px 36px -30px rgba(37, 99, 235, 0.3) !important;
+  border-color: var(--line-soft) !important;
+  background: var(--surface-card) !important;
+  box-shadow: var(--ds-card-shadow) !important;
 }
 
 :root[data-theme="light"] .student-app-shell .student-result-score-card,
@@ -1118,9 +1224,6 @@
     padding: 20px !important;
   }
 
-  .student-app-shell .student-result-detail-hero h1 {
-    font-size: 30px;
-  }
 
   .student-app-shell .student-result-score-card {
     justify-items: center;
@@ -1255,8 +1358,9 @@
   color: var(--exam-answer-text, var(--sa-ink, var(--ink-strong)));
   overflow-wrap: anywhere;
   word-break: normal;
-  hyphens: auto;
-  -webkit-hyphens: auto;
+  text-align: left;
+  hyphens: none;
+  -webkit-hyphens: none;
 }
 
 .lms-exam-page .lms-exam-nav-legend {

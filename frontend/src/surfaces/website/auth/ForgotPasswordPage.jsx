@@ -4,6 +4,7 @@ import { getErrorMessage } from '../../../shared/api/client.js';
 import { requestPasswordReset } from '../../../shared/api/auth.api.js';
 import { XyndromeBrand } from '../../../shared/brand/XyndromeBrand.jsx';
 import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
+import { withRouterBasename } from '../../../shared/platform/config.js';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { cx, ui } from '../../../shared/styles/tailwindClasses.js';
 import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
@@ -40,7 +41,7 @@ export function ForgotPasswordPage() {
     }
   }
 
-  const resetHref = status.resetPath ? `/lms${status.resetPath}` : '';
+  const resetHref = status.resetPath ? withRouterBasename(status.resetPath) : '';
   const feedbackId = status.error ? 'forgot-password-error' : status.success ? 'forgot-password-success' : undefined;
   const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));
 

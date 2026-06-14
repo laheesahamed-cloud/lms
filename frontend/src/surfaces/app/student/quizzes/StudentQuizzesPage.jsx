@@ -11,6 +11,13 @@ import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { getQuizTitleText } from './quizLabels.js';
 
+function getQuizRowLabel(quiz, index) {
+  if (quiz.displayTitleMode === 'number' && quiz.quizNumber) {
+    return `Quiz ${String(quiz.quizNumber).padStart(2, '0')}`;
+  }
+  return getQuizTitleText(quiz) || quiz.quizTitle || `Practice set ${index + 1}`;
+}
+
 function runWhenIdle(task) {
   if (typeof window === 'undefined') { task(); return () => {}; }
   if (typeof window.requestIdleCallback === 'function') {
@@ -24,8 +31,10 @@ function runWhenIdle(task) {
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 function IcoBook()        { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 2h4a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-4V2z" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M7.5 3h4v9h-4" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M7.5 7h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>; }
-function IcoBookmark()    { return <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2.5 1.5h8a.5.5 0 0 1 .5.5v9l-4.5-2.5L2 11V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none"/></svg>; }
+function IcoBookmark()    { return <svg width="14" height="14" viewBox="0 0 13 13" fill="none"><path d="M2.5 1.5h8a.5.5 0 0 1 .5.5v9l-4.5-2.5L2 11V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none"/></svg>; }
+function IcoBookmarkFilled() { return <svg width="14" height="14" viewBox="0 0 13 13" fill="currentColor"><path d="M2.5 1.5h8a.5.5 0 0 1 .5.5v9l-4.5-2.5L2 11V2a.5.5 0 0 1 .5-.5z"/></svg>; }
 function IcoChevron()     { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 4l4 3-4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
+function IcoChevronLeft() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 4l-4 3 4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function IcoLock()        { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2.5" y="6" width="9" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4.5 6V4.5A2.5 2.5 0 0 1 7 2A2.5 2.5 0 0 1 9.5 4.5V6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>; }
 function IcoCheck()       { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5L5.5 10.5L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
@@ -87,7 +96,7 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
                 </div>
                 <div className="student-lessons-course-card__count text-right shrink-0">
                   <div className="text-[30px] font-extrabold leading-none text-ink-strong">{course.quizzes.length}</div>
-                  <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{isExamPage ? 'exams' : 'sets'}</div>
+                  <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{(isExamPage ? 'exam' : 'set') + (course.quizzes.length === 1 ? '' : 's')}</div>
                 </div>
               </div>
             </button>
@@ -139,7 +148,7 @@ function QuizScopePicker({ courseName, quizzes, onBack, onSelect, pageMode = 'pr
     <section className="student-lessons-detail space-y-4">
       <div className="student-lessons-detail-toolbar">
         <button type="button" className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
-          <IcoChevron />
+          <IcoChevronLeft />
           <span>Back</span>
         </button>
         <div className="student-lessons-detail-course-name">
@@ -198,7 +207,7 @@ function SubjectPoolPicker({ courseName, quizzes, onBack, onSelect, pageMode = '
     <section className="student-lessons-detail space-y-4">
       <div className="student-lessons-detail-toolbar">
         <button type="button" className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
-          <IcoChevron />
+          <IcoChevronLeft />
           <span>Back</span>
         </button>
         <div className="student-lessons-detail-course-name">
@@ -236,20 +245,37 @@ function SubjectPoolPicker({ courseName, quizzes, onBack, onSelect, pageMode = '
 
 function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode = 'practice' }) {
   const isExamPage = pageMode === 'exam';
-  const title = getQuizTitleText(quiz) || quiz.quizTitle || `Untitled ${isExamPage ? 'exam' : 'practice set'}`;
+  const title = getQuizRowLabel(quiz, index) || `Untitled ${isExamPage ? 'exam' : 'practice set'}`;
   const statusLabel = quiz.accessLocked ? 'Locked' : quiz.isFree ? (isExamPage ? 'Free exam' : 'Free practice') : quiz.isFree === false ? 'Premium' : '';
   const completed = isQuizDone(quiz);
-  const startLabel = isExamPage ? 'Start exam' : 'Start practice';
   const actionPath = `/quizzes/${quiz.id}?mode=${isExamPage ? 'exam' : 'practice'}`;
 
   function preloadQuizRoute() {
     if (!quiz.accessLocked) preloadRouteByPath(actionPath);
   }
 
+  function handleKeyDown(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onStart();
+    }
+  }
+
   return (
-    <div className={cx('student-lessons-lesson-row', completed && 'is-completed')} style={{ '--lesson-row-delay': `${Math.min(index, 8) * 18}ms` }}>
-      <strong>{String(index + 1).padStart(2, '0')}.</strong>
-      <button type="button" className="student-lessons-lesson-row__title" onClick={onStart} onPointerDown={preloadQuizRoute} onTouchStart={preloadQuizRoute} onPointerEnter={preloadQuizRoute} onFocus={preloadQuizRoute}>
+    <div
+      className={cx('student-lessons-lesson-row', completed && 'is-completed')}
+      style={{ '--lesson-row-delay': `${Math.min(index, 8) * 18}ms` }}
+      role="button"
+      tabIndex={0}
+      onClick={onStart}
+      onKeyDown={handleKeyDown}
+      onPointerDown={preloadQuizRoute}
+      onTouchStart={preloadQuizRoute}
+      onPointerEnter={preloadQuizRoute}
+      onFocus={preloadQuizRoute}
+    >
+      <strong>{String(index + 1).padStart(2, '0')}</strong>
+      <span className="student-lessons-lesson-row__title">
         <span className="student-lessons-lesson-row__title-line">
           <span className="student-lessons-lesson-row__title-text">{title}</span>
           {completed ? (
@@ -258,22 +284,22 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
             </i>
           ) : null}
         </span>
-        {statusLabel ? <small>{statusLabel}</small> : null}
-      </button>
-      <div className="student-lessons-lesson-row__actions">
-        <button type="button" className="student-lessons-lesson-row__start" onClick={onStart} onPointerDown={preloadQuizRoute} onTouchStart={preloadQuizRoute} onPointerEnter={preloadQuizRoute} onFocus={preloadQuizRoute}>
-          {startLabel}
-        </button>
+        {statusLabel ? <small data-status={quiz.accessLocked ? 'locked' : 'free'}>{statusLabel}</small> : null}
+      </span>
+      <span className="student-lessons-lesson-row__actions">
         <button
           type="button"
           className={cx('student-lessons-lesson-row__save', bookmarked && 'is-saved')}
           onClick={(event) => onBookmark(event, quiz.id)}
           aria-label={bookmarked ? `Saved ${title}` : `Save ${title}`}
+          aria-pressed={bookmarked}
         >
-          {bookmarked ? <IcoCheck /> : <IcoBookmark />}
-          <span>{bookmarked ? 'Saved' : 'Save'}</span>
+          {bookmarked ? <IcoBookmarkFilled /> : <IcoBookmark />}
         </button>
-      </div>
+        <span className="student-lessons-lesson-row__chevron" aria-hidden="true">
+          <IcoChevron />
+        </span>
+      </span>
     </div>
   );
 }
@@ -327,7 +353,7 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
     <div className="student-lessons-detail space-y-4">
       <div className="student-lessons-detail-toolbar">
         <button type="button" className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
-          <IcoChevron />
+          <IcoChevronLeft />
           <span>Back</span>
         </button>
         <div className="student-lessons-detail-course-name">
@@ -559,6 +585,37 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             : 'Practice question sets'
           }
         />
+
+        {/* Q-Bank ⇄ Exams switch. On mobile/native the bottom tab bar has no
+            Exams entry (it's grouped under Q-Bank), so this segmented control is
+            how students reach exams. Shown only ≤900px — desktop hides it
+            because the sidebar already lists Q-Bank and Exams separately. */}
+        <div className="mb-4 min-[901px]:hidden">
+          <div className="grid w-full max-w-[420px] grid-cols-2 gap-1 rounded-full border border-line-soft bg-surface-card p-1">
+            <button
+              type="button"
+              aria-pressed={!isExamPage}
+              onClick={() => { if (isExamPage) navigate('/quizzes'); }}
+              className={cx(
+                'min-h-10 rounded-full px-4 text-[13px] font-extrabold transition-colors',
+                isExamPage ? 'text-ink-soft' : 'bg-brand-primary text-white',
+              )}
+            >
+              Q-Bank
+            </button>
+            <button
+              type="button"
+              aria-pressed={isExamPage}
+              onClick={() => { if (!isExamPage) navigate('/exams'); }}
+              className={cx(
+                'min-h-10 rounded-full px-4 text-[13px] font-extrabold transition-colors',
+                isExamPage ? 'bg-brand-primary text-white' : 'text-ink-soft',
+              )}
+            >
+              Exams
+            </button>
+          </div>
+        </div>
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 

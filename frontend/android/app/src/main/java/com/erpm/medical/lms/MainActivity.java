@@ -24,7 +24,13 @@ public class MainActivity extends BridgeActivity {
         if (webView != null) {
             webView.setFitsSystemWindows(false);
             webView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
-            webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            webView.setBackgroundColor(Color.rgb(6, 13, 34));
+            webView.setOverScrollMode(View.OVER_SCROLL_ALWAYS);
+            webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
+            webView.setScrollbarFadingEnabled(true);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                webView.setNestedScrollingEnabled(true);
+            }
             webView.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
             webView.getSettings().setDomStorageEnabled(true);
             webView.getSettings().setDatabaseEnabled(true);

@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "PH6FJC2AHR.com.erpm.medical.lms",
+        "paths": [
+          "/auth/reset-password*",
+          "/lms/auth/reset-password*"
+        ]
+      }
+    ]
+  }
+}

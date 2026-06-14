@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { applyPlatformAttributes, detectPlatform, installPlatformAttributeSync } from './detect.js';
 import { getPlatformConfig } from './config.js';
-import { PlatformContext, usePlatformComponent } from './PlatformContext.js';
+import { PlatformContext } from './PlatformContext.js';
 
 export function PlatformProvider({ children }) {
   const [platform, setPlatform] = useState(() => applyPlatformAttributes(detectPlatform()));
@@ -15,9 +15,4 @@ export function PlatformProvider({ children }) {
       {children}
     </PlatformContext.Provider>
   );
-}
-
-export function PlatformSlot({ components, fallback: FallbackComponent, componentProps = {} }) {
-  const Component = usePlatformComponent(components, FallbackComponent);
-  return Component ? <Component {...componentProps} /> : null;
 }

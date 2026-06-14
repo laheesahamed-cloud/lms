@@ -3,6 +3,7 @@ import { detectPlatform } from '../platform/detect.js';
 
 const NATIVE_AUTH_TIMEOUT_MS = 7000;
 const WEB_AUTH_TIMEOUT_MS = 8000;
+const PASSWORD_RESET_TIMEOUT_MS = 20000;
 
 function nativeAuthHeaders() {
   return detectPlatform().isNative ? { 'X-LMS-Native': '1' } : undefined;
@@ -18,7 +19,6 @@ export async function login(payload) {
     headers: nativeAuthHeaders(),
     params: nativeAuthParams(),
     timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
-    __skipApiBaseFallback: native,
     __skipTimeoutRetry: true,
   });
   return response.data;
@@ -30,7 +30,6 @@ export async function register(payload) {
     headers: nativeAuthHeaders(),
     params: nativeAuthParams(),
     timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
-    __skipApiBaseFallback: native,
     __skipTimeoutRetry: true,
   });
   return response.data;
@@ -42,7 +41,6 @@ export async function loginWithGoogle(payload) {
     headers: nativeAuthHeaders(),
     params: nativeAuthParams(),
     timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
-    __skipApiBaseFallback: native,
     __skipTimeoutRetry: true,
   });
   return response.data;
@@ -57,7 +55,6 @@ export async function loginWithGoogleCode(payload) {
     },
     params: nativeAuthParams(),
     timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
-    __skipApiBaseFallback: native,
     __skipTimeoutRetry: true,
   });
   return response.data;
@@ -81,12 +78,20 @@ export async function logout() {
 }
 
 export async function requestPasswordReset(payload) {
-  const response = await apiClient.post('/auth/forgot-password', payload);
+  const native = detectPlatform().isNative;
+  const response = await apiClient.post('/auth/forgot-password', payload, {
+    timeout: native ? PASSWORD_RESET_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
+    __skipTimeoutRetry: true,
+  });
   return response.data;
 }
 
 export async function resetPassword(payload) {
-  const response = await apiClient.post('/auth/reset-password', payload);
+  const native = detectPlatform().isNative;
+  const response = await apiClient.post('/auth/reset-password', payload, {
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
+    __skipTimeoutRetry: true,
+  });
   return response.data;
 }
 

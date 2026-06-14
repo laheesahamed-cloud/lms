@@ -40,7 +40,6 @@ html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where
   .lms-mobile-bottom-nav__tab,
   .lms-assessment-btn,
   .lms-question-choice,
-  .course-map-lesson-action,
   .student-course-card__cta
 ) {
   min-height: var(--lms-android-touch-target) !important;
@@ -91,9 +90,7 @@ html[data-lms-runtime="native"][data-lms-os="android"] .student-app-shell :where
   [role="button"],
   [role="tab"],
   [role="menuitem"],
-  .lms-assessment-btn,
-  .course-map-lesson-action
-) {
+  .lms-assessment-btn) {
   white-space: normal;
 }
 

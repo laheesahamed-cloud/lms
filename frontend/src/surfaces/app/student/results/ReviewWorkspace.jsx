@@ -7,6 +7,7 @@ import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
 import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/quickTheoryRecapUtils.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
+import { getPreferredScrollBehavior } from '../../../../shared/utils/scrollBehavior.js';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
@@ -287,11 +288,6 @@ function IcoReport() {
       />
     </svg>
   );
-}
-
-function getPreferredScrollBehavior() {
-  if (typeof window === 'undefined') return 'auto';
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
 }
 
 function getScrollableReviewRoot() {

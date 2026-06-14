@@ -20,13 +20,6 @@ export async function generateAiQuiz(payload, options = {}) {
   return response.data;
 }
 
-export async function beautifyLessonNotes(payload) {
-  const response = await apiClient.post('/admin/ai/beautify-lesson', payload, {
-    timeout: AI_REQUEST_TIMEOUT_MS,
-  });
-  return response.data;
-}
-
 export async function generateWhyIncorrectExplanations(payload) {
   const {
     questionType,

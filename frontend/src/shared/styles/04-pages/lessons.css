@@ -241,7 +241,8 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--sa-border);
-  border-radius: 12px;
+  /* Full-pill filter chip, matching the flashcards filter pills (T17). */
+  border-radius: 999px;
   background: var(--sa-surface-2);
   padding: 0 13px;
   color: var(--sa-text-2);
@@ -292,91 +293,32 @@
     visibility 0s linear 0s;
 }
 
+/* Plain container — each subject below is now its own standalone card */
 .student-app-shell .student-lessons-category-list {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
-  border: 1px solid var(--sa-border);
-  border-radius: 18px;
-  background: rgba(var(--sa-surface-rgb), 0.74);
-  padding: 16px;
-  box-shadow: var(--ds-card-shadow);
 }
 
-:root[data-theme="light"] .student-app-shell .student-lessons-category-list,
-.student-app-shell[data-theme="light"] .student-lessons-category-list {
-  border-color: rgba(86, 112, 150, 0.18);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 251, 255, 0.9)),
-    radial-gradient(circle at 92% 0%, rgba(37, 99, 235, 0.07), transparent 34%),
-    radial-gradient(circle at 8% 100%, rgba(20, 184, 166, 0.06), transparent 36%);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 20px 46px -34px rgba(37, 99, 235, 0.36);
-}
-
+/* Each subject is its own standalone card */
 .student-app-shell .student-lessons-category {
   position: relative;
   display: grid;
-  gap: 10px;
+  gap: 6px;
   min-width: 0;
   overflow: hidden;
-  padding-left: 18px;
+  background: var(--surface-card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--ds-card-radius);
+  box-shadow: var(--ds-card-shadow);
+  padding: 6px clamp(14px, 3vw, 18px) clamp(8px, 2vw, 12px);
   transition: gap 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.student-app-shell .student-lessons-category::before {
-  position: absolute;
-  top: 26px;
-  left: -1px;
-  width: 24px;
-  height: 42px;
-  border-bottom: 2px solid rgba(var(--sa-primary-rgb), 0.3);
-  border-left: 2px solid rgba(var(--sa-primary-rgb), 0.3);
-  border-bottom-left-radius: 26px;
-  background: transparent;
-  content: "";
-  opacity: 1;
-  transition: opacity 220ms ease;
-}
-
-:root[data-theme="light"] .student-app-shell .student-lessons-category::before,
-.student-app-shell[data-theme="light"] .student-lessons-category::before {
-  border-bottom-color: rgba(37, 99, 235, 0.38);
-  border-left-color: rgba(37, 99, 235, 0.38);
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.84));
-}
-
+/* Timeline-tree decorations removed — subjects are separate cards now */
+.student-app-shell .student-lessons-category::before,
 .student-app-shell .student-lessons-category::after {
-  position: absolute;
-  top: 42px;
-  left: 12px;
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(var(--sa-primary-rgb), 0.86);
-  box-shadow: 0 0 8px rgba(var(--sa-primary-rgb), 0.28);
-  content: "";
-  opacity: 0;
-  animation: studentLessonEnergyFlow 2.7s linear infinite;
-  transition: opacity 220ms ease;
-}
-
-:root[data-theme="light"] .student-app-shell .student-lessons-category::after,
-.student-app-shell[data-theme="light"] .student-lessons-category::after {
-  background: rgba(37, 99, 235, 0.9);
-  box-shadow:
-    0 0 8px rgba(37, 99, 235, 0.26),
-    0 0 14px rgba(20, 184, 166, 0.14);
-}
-
-.student-app-shell .student-lessons-category.is-collapsed::before,
-.student-app-shell .student-lessons-category.is-collapsed::after {
-  opacity: 0;
-}
-
-.student-app-shell .student-lessons-category.is-collapsed .student-lessons-category__head::before {
-  opacity: 0;
+  display: none;
 }
 
 .student-app-shell .student-lessons-category__head {
@@ -387,9 +329,10 @@
   gap: 12px;
   width: 100%;
   min-width: 0;
+  min-height: 52px;
   border: 0;
   background: transparent;
-  padding: 2px 0 8px;
+  padding: 8px 0;
   color: inherit;
   cursor: pointer;
   text-align: left;
@@ -397,27 +340,7 @@
 }
 
 .student-app-shell .student-lessons-category__head::before {
-  position: absolute;
-  top: 50%;
-  left: -10px;
-  width: 9px;
-  height: 9px;
-  border: 2px solid var(--sa-surface);
-  border-radius: 999px;
-  background: var(--sa-primary);
-  box-shadow: 0 0 0 4px rgba(var(--sa-primary-rgb), 0.12);
-  content: "";
-  transform: translate(-50%, -50%);
-  transition: opacity 220ms ease;
-}
-
-:root[data-theme="light"] .student-app-shell .student-lessons-category__head::before,
-.student-app-shell[data-theme="light"] .student-lessons-category__head::before {
-  border-color: rgba(255, 255, 255, 0.96);
-  background: #2563eb;
-  box-shadow:
-    0 0 0 4px rgba(37, 99, 235, 0.12),
-    0 2px 8px rgba(37, 99, 235, 0.2);
+  display: none;
 }
 
 .student-app-shell .student-lessons-category__head div {
@@ -435,17 +358,13 @@
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  color: var(--lesson-topic-text, var(--sa-primary));
+  color: var(--sa-ink, var(--ink-strong));
   font-size: 16px;
-  font-weight: 950;
+  font-weight: 800;
   line-height: 1.15;
+  letter-spacing: -0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-:root[data-theme="light"] .student-app-shell .student-lessons-category__head h2,
-.student-app-shell[data-theme="light"] .student-lessons-category__head h2 {
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.64);
 }
 
 .student-app-shell .student-lessons-category__head small {
@@ -523,59 +442,14 @@
   transition-delay: 0ms;
 }
 
-.student-app-shell .student-lessons-lesson-row::before {
-  position: absolute;
-  top: 50%;
-  left: -18px;
-  width: 24px;
-  height: 18px;
-  border-bottom: 2px solid rgba(var(--sa-primary-rgb), 0.34);
-  border-left: 2px solid rgba(var(--sa-primary-rgb), 0.34);
-  border-bottom-left-radius: 18px;
-  content: "";
-  transform: translateY(-50%);
-}
-
-:root[data-theme="light"] .student-app-shell .student-lessons-lesson-row::before,
-.student-app-shell[data-theme="light"] .student-lessons-lesson-row::before {
-  border-bottom-color: rgba(37, 99, 235, 0.42);
-  border-left-color: rgba(37, 99, 235, 0.42);
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.8));
-}
-
+/* Timeline branch connectors removed — clean rows inside each subject card */
+.student-app-shell .student-lessons-lesson-row::before,
 .student-app-shell .student-lessons-lesson-row::after {
-  position: absolute;
-  top: 50%;
-  left: -17px;
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(var(--sa-primary-rgb), 0.86);
-  box-shadow: 0 0 7px rgba(var(--sa-primary-rgb), 0.32);
-  content: "";
-  opacity: 0;
-  transform: translate(-1px, -8px);
-  animation: studentLessonBranchFlow 2.7s linear infinite;
+  display: none;
 }
 
-:root[data-theme="light"] .student-app-shell .student-lessons-lesson-row::after,
-.student-app-shell[data-theme="light"] .student-lessons-lesson-row::after {
-  background: rgba(37, 99, 235, 0.9);
-  box-shadow:
-    0 0 7px rgba(37, 99, 235, 0.26),
-    0 0 12px rgba(20, 184, 166, 0.16);
-}
-
-.student-app-shell .student-lessons-lesson-row:nth-child(2n)::after {
-  animation-delay: 0.28s;
-}
-
-.student-app-shell .student-lessons-lesson-row:nth-child(3n)::after {
-  animation-delay: 0.52s;
-}
-
-.student-app-shell .student-lessons-lesson-row:nth-child(4n)::after {
-  animation-delay: 0.76s;
+.student-app-shell .student-lessons-lesson-list .student-lessons-lesson-row:last-child {
+  border-bottom: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -693,55 +567,64 @@
 .student-app-shell .student-lessons-lesson-row__actions {
   display: inline-flex;
   align-self: center;
+  align-items: center;
   justify-content: flex-end;
-  gap: 5px;
+  gap: 4px;
   min-width: max-content;
   padding-top: 0;
 }
 
-.student-app-shell .student-lessons-lesson-row__start,
+/* old labelled Start button — removed from markup, hidden as a safety net */
+.student-app-shell .student-lessons-lesson-row__start {
+  display: none;
+}
+
+/* Save = icon-only round button (no label) */
 .student-app-shell .student-lessons-lesson-row__save {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-height: 30px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
   border-radius: 999px;
-  border: 1px solid var(--sa-border-soft);
-  background: var(--sa-card);
-  padding: 0 10px;
-  color: var(--sa-text-2);
-  font-size: 11px;
-  font-weight: 900;
-  line-height: 1;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--sa-text-3);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition:
-    border-color var(--sa-dur) var(--sa-ease),
     background var(--sa-dur) var(--sa-ease),
-    color var(--sa-dur) var(--sa-ease);
+    color var(--sa-dur) var(--sa-ease),
+    transform 120ms var(--sa-ease);
 }
 
-.student-app-shell .student-lessons-lesson-row__start {
-  border-color: rgba(var(--sa-primary-rgb), 0.18);
-  background: var(--sa-primary-soft);
-  color: var(--sa-primary);
+.student-app-shell .student-lessons-lesson-row__save:active {
+  transform: scale(0.88);
 }
 
 .student-app-shell .student-lessons-lesson-row__save.is-saved {
-  border-color: rgba(var(--sa-ok-rgb), 0.28);
-  background: var(--sa-ok-soft);
-  color: var(--sa-ok-deep);
-}
-
-.student-app-shell .student-lessons-lesson-row__start:hover,
-.student-app-shell .student-lessons-lesson-row__save:hover {
-  border-color: rgba(var(--sa-primary-rgb), 0.32);
   color: var(--sa-primary);
 }
 
-.student-app-shell .student-lessons-lesson-row__save.is-saved:hover {
-  border-color: rgba(var(--sa-ok-rgb), 0.36);
-  color: var(--sa-ok-deep);
+@media (hover: hover) and (pointer: fine) {
+  .student-app-shell .student-lessons-lesson-row__save:hover {
+    background: rgba(var(--sa-primary-rgb), 0.1);
+    color: var(--sa-primary);
+  }
+}
+
+/* trailing drill-in chevron */
+.student-app-shell .student-lessons-lesson-row__chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 34px;
+  color: var(--sa-text-3);
+  opacity: 0.55;
 }
 
 @keyframes studentLessonEnergyFlow {
@@ -932,7 +815,7 @@
    inset divider rows (replaces the timeline/tree + per-lesson boxes).
    Subject identity stays via the colored title/icon, not a tinted card.
    ============================================================ */
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category {
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-category {
   padding: 0 !important;
   gap: 0 !important;
   overflow: hidden !important;
@@ -943,34 +826,34 @@
 }
 
 /* drop all the timeline decorations (left connector, node dot, energy flow) */
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category::before,
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category::after,
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category__head::before,
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row::before,
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row::after {
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-category::before,
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-category::after,
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-category__head::before,
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row::before,
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row::after {
   display: none !important;
   content: none !important;
 }
 
 /* subject header sits inside the card */
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category__head {
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-category__head {
   padding: 15px 18px !important;
 }
 
 /* divider between the header and the lessons (hidden while collapsed) */
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-list-shell {
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-list-shell {
   border-top: 1px solid var(--line-soft) !important;
 }
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category.is-collapsed .student-lessons-lesson-list-shell {
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-category.is-collapsed .student-lessons-lesson-list-shell {
   border-top-color: transparent !important;
 }
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-list {
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-list {
   gap: 0 !important;
   padding: 0 !important;
 }
 
 /* lessons = flat rows separated by dividers (no card-in-card boxes) */
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row {
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row {
   border: 0 !important;
   border-top: 1px solid var(--line-soft) !important;
   border-radius: 0 !important;
@@ -978,11 +861,146 @@
   padding: 13px 18px !important;
   background: transparent !important;
 }
-.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row:first-child {
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row:first-child {
   border-top: 0 !important;
 }
 @media (hover: hover) and (pointer: fine) {
-  .student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row:hover {
+  .student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row:hover {
     background: color-mix(in srgb, var(--surface-card) 90%, var(--sa-primary, #60a5fa) 10%) !important;
   }
+}
+
+/* ============================================================
+   Native list rows — centered, title stacked, iOS press
+   ============================================================ */
+
+/* Row: vertically centered so number + save button align to mid-point of title block */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row {
+  grid-template-columns: 28px minmax(0, 1fr) max-content !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 58px !important;
+  padding: 12px 12px 12px 16px !important;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* title: stacked grid — title line on top, badge below */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__title {
+  display: grid !important;
+  gap: 4px !important;
+  align-items: start !important;
+  cursor: pointer;
+}
+
+/* title line: text + done tick side by side */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__title-line {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+
+/* title text: let it wrap naturally */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__title-text {
+  display: inline !important;
+  overflow: visible !important;
+  -webkit-line-clamp: unset !important;
+  font-size: 13.5px !important;
+  font-weight: 650 !important;
+  line-height: 1.4 !important;
+  color: var(--sa-ink, var(--ink-strong)) !important;
+}
+
+/* done tick — larger, clearer green circle */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__done {
+  width: 20px !important;
+  height: 20px !important;
+  background: rgba(52, 199, 89, 0.15) !important;
+  border: 1.5px solid rgba(52, 199, 89, 0.45) !important;
+  color: #34c759 !important;
+  flex-shrink: 0 !important;
+}
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__done svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* status badge — clearer size */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__title small {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  padding: 3px 9px !important;
+  width: fit-content !important;
+}
+
+/* free badge: vivid green */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__title small[data-status="free"] {
+  background: rgba(52, 199, 89, 0.13) !important;
+  border-color: rgba(52, 199, 89, 0.35) !important;
+  color: #25a244 !important;
+}
+:root[data-theme="dark"] .student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__title small[data-status="free"],
+.student-app-shell[data-theme="dark"] .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row__title small[data-status="free"] {
+  color: #4ade80 !important;
+  background: rgba(74, 222, 128, 0.12) !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+}
+
+/* locked badge: muted grey */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__title small[data-status="locked"] {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: rgba(148, 163, 184, 0.1) !important;
+  color: var(--sa-text-3, #94a3b8) !important;
+}
+
+/* save + chevron: centered with the row */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__actions {
+  align-self: center !important;
+  gap: 2px !important;
+}
+
+/* grey flash on press */
+.student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row:active {
+  background: color-mix(in srgb, var(--surface-card) 82%, var(--sa-primary, #60a5fa) 18%) !important;
+}
+
+/* Undo the narrow-phone 2-col collapse so rows stay 3-column on all widths */
+@media (max-width: 390px) {
+  .student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row {
+    grid-template-columns: 28px minmax(0, 1fr) max-content !important;
+    align-items: center !important;
+  }
+  .student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row__actions {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    width: auto !important;
+    align-self: center !important;
+    justify-content: flex-end !important;
+  }
+}
+
+/* ============================================================
+   Filter chips — iOS pill row: momentum scroll, no scrollbar, snap
+   ============================================================ */
+.student-app-shell .student-lessons-filter-bar {
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+}
+.student-app-shell .student-lessons-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+.student-app-shell .student-lessons-filter-chip {
+  scroll-snap-align: start;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--sa-dur) var(--sa-ease),
+    border-color var(--sa-dur) var(--sa-ease),
+    color var(--sa-dur) var(--sa-ease),
+    transform 120ms var(--sa-ease);
+}
+.student-app-shell .student-lessons-filter-chip:active {
+  transform: scale(0.96);
 }

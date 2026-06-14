@@ -151,8 +151,6 @@
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .lms-map-hierarchy-guide,
   .lms-exam-header,
@@ -180,8 +178,6 @@
   .student-course-card,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .lms-map-hierarchy-guide,
   .lms-review-question-card,
@@ -194,8 +190,6 @@
 
 .student-quiz-map-page :where(
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .lms-map-hierarchy-guide,
   .lms-page-header-card
@@ -209,8 +203,8 @@ html[data-lms-runtime='native'] {
   --brand-gradient-teal: var(--brand-gradient-primary) !important;
 }
 
-.student-quiz-map-page :where(.lms-quiz-course-card button, .lms-quiz-subject-card button, .lms-quiz-topic-card button, .lms-quiz-set-card button),
-.student-quiz-map-page :where(.lms-quiz-course-card > div:first-child > span, .lms-quiz-subject-card [aria-hidden='true']) {
+.student-quiz-map-page :where(.lms-quiz-course-card button, .lms-quiz-set-card button),
+.student-quiz-map-page :where(.lms-quiz-course-card > div:first-child > span) {
   border-color: rgba(var(--sa-primary-rgb, 37, 99, 235), 0.22) !important;
 }
 
@@ -218,7 +212,7 @@ html[data-lms-runtime='native'] {
   background: var(--brand-gradient-primary) !important;
 }
 
-.student-quiz-map-page :where(.lms-quiz-course-card > div:first-child > span, .lms-quiz-subject-card span.grid, .lms-quiz-topic-card span.grid) {
+.student-quiz-map-page :where(.lms-quiz-course-card > div:first-child > span) {
   background:
     linear-gradient(rgba(var(--sa-primary-rgb, 37, 99, 235), 0.1), rgba(var(--sa-primary-rgb, 37, 99, 235), 0.1)),
     var(--surface-card) !important;
@@ -255,8 +249,9 @@ html[data-lms-runtime='native'] {
   max-width: 100% !important;
   overflow-wrap: anywhere !important;
   word-break: normal !important;
-  hyphens: auto !important;
-  -webkit-hyphens: auto !important;
+  text-align: left !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
 }
 
 :where(.lms-exam-page, .practice-review-page) :where(.lms-reading-explanation:not([aria-label="Answer key"]), .lms-review-question-card .lms-reading-explanation) {
@@ -291,8 +286,6 @@ html[data-lms-runtime='native'] {
     .student-course-card,
     .lms-quiz-card,
     .lms-quiz-course-card,
-    .lms-quiz-subject-card,
-    .lms-quiz-topic-card,
     .lms-quiz-set-card,
     .lms-map-hierarchy-guide,
     .lms-exam-header,

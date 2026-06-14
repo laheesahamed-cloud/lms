@@ -13,40 +13,50 @@ html[data-lms-runtime="native"] {
 html[data-lms-runtime="native"],
 html[data-lms-runtime="native"] body,
 html[data-lms-runtime="native"] #root {
-  background: var(--sa-bg, var(--app-bg, #eff1fb)) !important;
-  background-color: var(--app-bg-solid, #dce6f4) !important;
+  background: var(--sa-bg, var(--app-bg, #0a0a0f)) !important;
+  background-color: var(--app-bg-solid, #0a0a0f) !important;
 }
 
-html[data-lms-runtime="native"],
-html[data-lms-runtime="native"] body,
-html[data-lms-runtime="native"] #root,
-html[data-lms-runtime="native"] .native-app-frame,
-html[data-lms-runtime="native"] .lms-app-scroll-root {
-  height: 100vh !important;
-  min-height: 100vh !important;
-  max-height: 100vh !important;
-  height: 100lvh !important;
-  min-height: 100lvh !important;
-  max-height: 100lvh !important;
+/* ============================================================
+   NAT-001 — Native scrolling contract (DOCUMENT SCROLL)
+
+   The native app lets the WKWebView scroll the DOCUMENT itself, so we get the
+   real iOS rubber-band bounce for free — identical to the web. html/body grow
+   with content; the WebView's own scrollView does the scrolling and bouncing.
+   The top/bottom nav bars are portaled to <body> with position:fixed and stay
+   pinned to the viewport. Do NOT reintroduce a fixed-height inner scroll
+   container (position:fixed + overflow:auto) — that traps scrolling inside an
+   element and disables the native bounce.
+   ============================================================ */
+html[data-lms-runtime="native"] {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
 }
 
 html[data-lms-runtime="native"] body {
-  position: fixed !important;
-  inset: 0 !important;
+  position: static !important;
+  inset: auto !important;
   width: 100% !important;
-  overflow: hidden !important;
+  height: auto !important;
+  min-height: 100lvh !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  overscroll-behavior-y: auto !important;
 }
 
+html[data-lms-runtime="native"] #root,
 html[data-lms-runtime="native"] .native-app-frame,
 html[data-lms-runtime="native"] .lms-app-scroll-root {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  max-width: 100vw !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  overscroll-behavior-y: contain !important;
-  -webkit-overflow-scrolling: touch !important;
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 100lvh !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 html[data-lms-runtime="native"][data-lms-native-keyboard-lock="true"],
@@ -252,11 +262,6 @@ html[data-lms-runtime="native"] .student-app-shell :where(
   .card-surface,
   .lms-app-card,
   .lms-table-shell,
-  .planner-panel,
-  .course-map-shell,
-  .course-map-unit,
-  .course-map-topic,
-  .course-map-lesson-row,
   .student-lessons-category,
   .student-lessons-lesson-row
 ) {
@@ -494,23 +499,22 @@ html[data-lms-runtime="native"] :where(
   .lms-mobile-bottom-nav__inner,
   .glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .surface-card,
   .lms-card, .lms-global-card, .lms-app-card, .lms-course-card, .student-course-card,
-  .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-subject-card, .lms-quiz-topic-card, .lms-quiz-set-card,
+  .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-set-card,
   .lms-page-header-card, .lms-hero-card, .lms-form-card, .lms-floating-panel, .lms-alert,
-  .study-card, .study-continue-card, .study-streak-card, .study-readiness-card, .study-todo-card,
+  .study-card, .study-continue-card, .study-streak-card,
   .study-mood-card, .study-action-card, .study-plan-card, .study-analytics-card,
-  .study-exam-countdown-card, .study-upcoming-card,
-  .planner-panel, .planner-hero-card,
-  .results-performance-board, .results-focus-board
-) {
+  .study-exam-countdown-card, .study-upcoming-card) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
 
-/* Stop the rubber-band / over-scroll-past-the-end on the native scroll root. */
+/* Document-scroll model: allow the WebView's native rubber-band bounce.
+   (Inner scroll zones — modals, tables, the notes canvas — set their own
+   overscroll-behavior: contain locally to avoid scroll chaining.) */
 html[data-lms-runtime="native"],
 html[data-lms-runtime="native"] body,
 html[data-lms-runtime="native"] .lms-app-scroll-root {
-  overscroll-behavior: none !important;
+  overscroll-behavior: auto !important;
 }
 
 /* Native: keep the page entrance fade (same as web, all pages) but stop the
@@ -521,4 +525,33 @@ html[data-lms-runtime="native"] .lms-app-scroll-root {
 html[data-lms-runtime="native"] :where(.dashboard-page, .student-route-page)::before,
 html[data-lms-runtime="native"] :where(.dashboard-page, .student-route-page)::after {
   animation: none !important;
+}
+
+/* Hide desktop keyboard hints in search — irrelevant on touch. */
+html[data-lms-runtime="native"] .lms-search-kbd-hints {
+  display: none !important;
+}
+@media (pointer: coarse) {
+  .lms-search-kbd-hints {
+    display: none !important;
+  }
+}
+
+/* Hide scrollbar tracks — web artifact, wrong on iOS. The document scrolls on
+   the root (<html>), so the descendant selector alone misses the main side
+   scrollbar — target the root + body element scrollbars explicitly too. */
+html[data-lms-runtime="native"]::-webkit-scrollbar,
+html[data-lms-runtime="native"] body::-webkit-scrollbar,
+html[data-lms-runtime="native"] ::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  -webkit-appearance: none !important;
+  background: transparent !important;
+}
+html[data-lms-runtime="native"],
+html[data-lms-runtime="native"] body,
+html[data-lms-runtime="native"] * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }

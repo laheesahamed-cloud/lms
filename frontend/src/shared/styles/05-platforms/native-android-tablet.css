@@ -8,7 +8,6 @@ html[data-lms-runtime="native"][data-lms-os="android"][data-lms-form-factor="tab
 
 html[data-lms-runtime="native"][data-lms-os="android"][data-lms-form-factor="tablet"] .student-app-shell :where(
   .lms-table-shell,
-  .course-map-shell,
   .lms-review-workspace,
   .lms-exam-grid
 ) {

@@ -15,6 +15,12 @@
   } catch (error) {}
   var root = document.documentElement;
   var isNativeShell = window.location.protocol === 'capacitor:' || window.location.protocol === 'ionic:' || window.Capacitor?.isNativePlatform?.() === true;
+  // Dark-first native app: on first launch (nothing saved) default to dark
+  // so the boot screen isn't the light #dce6f4 (the "white screen on first
+  // open" bug). The user can still explicitly choose light.
+  if (isNativeShell && theme === 'light' && savedTheme !== 'light' && requestedTheme !== 'light') {
+    theme = 'dark';
+  }
   var isStandalonePwa = false;
   try {
     isStandalonePwa = window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true;
@@ -86,12 +92,18 @@
   }
   root.style.colorScheme = theme;
   root.style.backgroundColor = isNativeShell ? (theme === 'dark' ? '#02030a' : '#dce6f4') : '#05070d';
+
   // App-shell prerender + API preload (M6/M7): only on signed-in app
   // surfaces. The splash carries NO user data (the shell is cached and
   // shared, see report sec 13.4); the preload merely warms the same
   // /auth/me request the app fires first, with matching credentials.
   var appPath = /^\/lms\/(?:app|admin|dashboard|login)(?:\/|$)/.test(window.location.pathname);
-  if (appPath) {
+  // The native shell boots from the scheme root ("/"), so the /lms/ web-path
+  // test never matches there. Without the splash gate the cold first launch
+  // (slow WKWebView JS compile, nothing cached) shows a bare dark screen until
+  // React mounts — the "blank screen on first open" bug. Always gate it on
+  // native so the branded splash covers that gap on every route.
+  if (appPath || isNativeShell) {
     root.dataset.lmsBootSplash = 'on';
   }
   if (appPath && window.location.pathname !== '/lms/login') {

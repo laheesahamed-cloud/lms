@@ -1569,7 +1569,7 @@
 }
 
 .study-hub-shell--ready > :where(:not(.study-hub-topbar)) {
-  animation: study-fade-up var(--lms-card-enter-duration, 300ms) var(--lms-motion-ease-out, ease-out) both;
+  animation: study-fade-up var(--lms-page-enter-duration, 440ms) var(--lms-page-enter-ease, ease-out) both;
 }
 
 .study-action-card {
@@ -2033,7 +2033,7 @@
 
 .study-hub-page .study-streak-footer {
   margin-top: 10px;
-  color: #f59e0b;
+  color: var(--sa-text-2, #94a3b8);
   font-size: var(--type-size-xs);
 }
 
@@ -2268,7 +2268,7 @@
   height: 64px;
   place-items: center;
   border-radius: 999px;
-  background: conic-gradient(#22c55e var(--course-progress), rgba(148, 163, 184, 0.22) 0);
+  background: conic-gradient(var(--sa-primary, #2563eb) var(--course-progress), rgba(148, 163, 184, 0.22) 0);
 }
 
 .study-hub-page .study-course-ring::after {
@@ -2364,7 +2364,7 @@
 }
 
 .study-hub-page .study-course-row em {
-  color: #86efac;
+  color: var(--sa-primary-soft, #93c5fd);
   font-size: var(--type-size-xs);
   font-style: normal;
   font-weight: 900;
@@ -2383,7 +2383,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #22c55e, #38bdf8);
+  background: var(--sa-primary, #2563eb);
 }
 
 .study-hub-page .study-upcoming-row {
@@ -2490,9 +2490,64 @@
   line-height: 1;
 }
 
-.study-hub-page .study-analytics-card .study-score-chart {
+.study-hub-page .study-analytics-card .study-score-chart-wrap {
+  position: relative;
   width: 100%;
-  height: 52px;
+  height: 56px;
+  margin-top: 2px;
+}
+
+.study-hub-page .study-analytics-card .study-score-chart {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.study-hub-page .study-score-chart__line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: scoreTrendDraw 1000ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+.study-hub-page .study-score-chart__area {
+  opacity: 0;
+  animation: scoreTrendArea 700ms ease-out 280ms forwards;
+}
+
+.study-hub-page .study-score-chart__dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--sa-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sa-primary) 22%, transparent);
+  transform: translate(-50%, -50%) scale(0.4);
+  opacity: 0;
+  animation: scoreTrendDot 380ms cubic-bezier(0.23, 1, 0.32, 1) 900ms forwards;
+}
+
+@keyframes scoreTrendDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes scoreTrendArea {
+  to { opacity: 1; }
+}
+
+@keyframes scoreTrendDot {
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-hub-page .study-score-chart__line,
+  .study-hub-page .study-score-chart__area,
+  .study-hub-page .study-score-chart__dot {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .study-hub-page .study-course-row:focus-visible,
@@ -3100,9 +3155,7 @@
   .study-continue-card,
   .study-action-card,
   .study-streak-card,
-  .study-readiness-card,
   .study-plan-card,
-  .study-todo-card,
   .study-mood-card,
   .study-question-card
 )::before,
@@ -3110,9 +3163,7 @@
   .study-continue-card,
   .study-action-card,
   .study-streak-card,
-  .study-readiness-card,
   .study-plan-card,
-  .study-todo-card,
   .study-mood-card,
   .study-question-card
 )::after {
@@ -3123,7 +3174,6 @@
 
 :root .dashboard-page :where(
   .study-hero-soft-shape,
-  .study-readiness-glow,
   .study-mood-orbit
 ) {
   display: none !important;
@@ -3133,12 +3183,10 @@
   .study-continue-card,
   .study-action-card,
   .study-streak-card,
-  .study-readiness-card,
   .study-plan-card,
-  .study-todo-card,
   .study-mood-card,
   .study-question-card
-) :where(h1, h2, h3, h4, strong, em, .study-hero-name, .study-hero-name > span, .study-readiness-card__score strong) {
+) :where(h1, h2, h3, h4, strong, em, .study-hero-name, .study-hero-name > span) {
   color: var(--lms-app-card-title, var(--ink-strong)) !important;
   -webkit-text-fill-color: var(--lms-app-card-title, var(--ink-strong)) !important;
 }
@@ -3155,12 +3203,10 @@
   .study-continue-card,
   .study-action-card,
   .study-streak-card,
-  .study-readiness-card,
   .study-plan-card,
-  .study-todo-card,
   .study-mood-card,
   .study-question-card
-) :where(p, small, .study-eyebrow, .study-hero-lead, .study-readiness-meta span, .study-readiness-card__score span) {
+) :where(p, small, .study-eyebrow, .study-hero-lead) {
   color: var(--lms-app-card-muted, var(--ink-soft)) !important;
   -webkit-text-fill-color: var(--lms-app-card-muted, var(--ink-soft)) !important;
 }

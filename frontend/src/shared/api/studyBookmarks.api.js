@@ -4,6 +4,7 @@ import { claimBootSlice } from './bootChannel.js';
 
 const studyBookmarksCache = createTimedApiCache({
   ttlMs: 30000,
+  persistKey: 'student.bookmarks',
   load: async () =>
     (await claimBootSlice('bookmarks')) ??
     apiClient.get('/student/bookmarks').then((response) => response.data),

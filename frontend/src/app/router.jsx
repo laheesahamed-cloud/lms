@@ -9,6 +9,7 @@ import { isStaffUser, userHasPermissions } from '../shared/auth/roleAccess.js';
 import { detectPlatform } from '../shared/platform/detect.js';
 import { getRouterBasename, normalizeLegacyBuildPath } from '../shared/platform/config.js';
 import { configureRoutePreloaders } from './routePreloading.js';
+import { peekGestureCommitPop, clearGestureCommitPop } from '../shared/routing/routeTransitionContext.js';
 import { LoginPage } from '../surfaces/website/auth/LoginPage.jsx';
 
 const PLATFORM = detectPlatform();
@@ -167,7 +168,12 @@ let hasRevealedOnce = false;
 const RouteReveal = memo(function RouteReveal({ children }) {
   const location = useLocation();
   const prefersReducedMotion = usePrefersReducedMotion();
-  const shouldAnimateReveal = !prefersReducedMotion && hasRevealedOnce;
+  // A native swipe-back commit already animated the transition imperatively;
+  // skip the panel fade for that one destination render so it doesn't flash in
+  // over the tearing-down drag layers (peek now, clear in the effect below).
+  const suppressForGesturePop = peekGestureCommitPop();
+  const shouldAnimateReveal =
+    !prefersReducedMotion && hasRevealedOnce && !suppressForGesturePop;
   const routeRevealClassName = [
     'lms-route-reveal',
     'motion-smooth',
@@ -177,6 +183,7 @@ const RouteReveal = memo(function RouteReveal({ children }) {
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
     hasRevealedOnce = true;
+    clearGestureCommitPop();
     let cancelled = false;
     const raf = window.requestAnimationFrame(() => {
       if (cancelled) return;
@@ -203,10 +210,74 @@ const RouteReveal = memo(function RouteReveal({ children }) {
   );
 });
 
+// Route fallback loader (#4): student app only, shown only if the next page
+// chunk isn't ready within ~200ms (so fast/cached routes never flash it).
+// Spinner + destination page name, derived from the (already-committed) route.
+const STUDENT_ROUTE_NAMES = {
+  '/app/dashboard': 'Study Hub',
+  '/app/courses': 'Courses',
+  '/app/quizzes': 'Q-Bank',
+  '/app/exams': 'Exams',
+  '/app/results': 'Results',
+  '/app/ai-notes': 'Lessons',
+  '/app/notes': 'Notes',
+  '/app/flashcards': 'Flashcards',
+  '/app/planner': 'Planner',
+  '/app/study': 'Study',
+  '/app/bookmarks': 'Saved',
+  '/app/notifications': 'Notifications',
+  '/app/subscriptions': 'Subscriptions',
+  '/app/profile': 'Profile',
+};
+
+function routeFallbackName(pathname) {
+  if (STUDENT_ROUTE_NAMES[pathname]) return STUDENT_ROUTE_NAMES[pathname];
+  // dynamic detail routes
+  if (/^\/app\/courses\/\d+/.test(pathname)) return 'Course';
+  if (/^\/app\/ai-notes\/\d+/.test(pathname) || /^\/app\/study\/lesson\/\d+/.test(pathname)) return 'Lesson';
+  if (/^\/app\/quizzes\/\d+/.test(pathname) || /^\/app\/exams\/\d+/.test(pathname)) return 'Quiz';
+  if (/^\/app\/results\/\d+/.test(pathname)) return 'Result';
+  // nearest known section
+  const match = Object.keys(STUDENT_ROUTE_NAMES).find((p) => pathname.startsWith(p));
+  return match ? STUDENT_ROUTE_NAMES[match] : '';
+}
+
+function RouteFallback() {
+  const location = useLocation();
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShow(true), 200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  // Student app only — admin/website keep the blank fallback.
+  if (!location.pathname.startsWith('/app/') || !show) {
+    return null;
+  }
+
+  const name = routeFallbackName(location.pathname);
+  return (
+    <div
+      className="lms-route-fallback grid min-h-[55dvh] place-items-center gap-3 px-6 text-center"
+      role="status"
+      aria-live="polite"
+    >
+      <span
+        className="size-6 animate-spin rounded-full border-2 border-line-soft border-t-brand-primary motion-reduce:animate-none"
+        aria-hidden="true"
+      />
+      <span className="text-[13px] font-semibold text-ink-soft">
+        {name ? `Loading ${name}…` : 'Loading…'}
+      </span>
+    </div>
+  );
+}
+
 function withSuspense(element) {
   return (
     <AppErrorBoundary>
-      <Suspense fallback={null}>
+      <Suspense fallback={<RouteFallback />}>
         <RouteReveal>{element}</RouteReveal>
       </Suspense>
     </AppErrorBoundary>

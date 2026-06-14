@@ -244,7 +244,7 @@
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
-  --ink-muted: #6E7D94;
+  --ink-muted: #8294AE;
   --text-primary: var(--ink-strong);
   --text-secondary: var(--ink-medium);
   --text-muted: var(--ink-soft);
@@ -366,8 +366,6 @@
   .study-card,
   .study-continue-card,
   .study-streak-card,
-  .study-readiness-card,
-  .study-todo-card,
   .study-mood-card
 ) {
   border-color: var(--lms-global-card-border, var(--lms-app-card-border)) !important;
@@ -505,10 +503,7 @@
 :root[data-theme="dark"] :where(
   .lms-page-header-card,
   .student-page-hero,
-  .student-results-hero,
-  .student-courses-hero,
-  .lms-course-detail-hero
-)::after {
+  .student-results-hero)::after {
   background:
     radial-gradient(circle at center, rgba(56, 189, 248, 0.045) 0%, rgba(37, 99, 235, 0.025) 48%, transparent 74%) !important;
   opacity: 0.42 !important;
@@ -614,7 +609,7 @@ body.student-quiz-night-screen .student-app-shell {
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
-  --ink-muted: #6E7D94;
+  --ink-muted: #8294AE;
 
   --sa-border: rgba(203, 213, 225, 0.13);
   --sa-border-soft: rgba(203, 213, 225, 0.09);
@@ -650,9 +645,7 @@ body.student-quiz-night-screen :where(
   .portal-content__frame,
   .lms-app-scroll-root,
   .lms-route-reveal,
-  .student-app-shell,
-  .student-quiz-night-page
-) {
+  .student-app-shell) {
   background: transparent !important;
   background-color: transparent !important;
   color: var(--sa-ink) !important;
@@ -1003,11 +996,7 @@ body,
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page :where(
   .lms-page-header-card,
   .lms-map-hierarchy-guide,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
-  .lms-quiz-set-card,
-  .lms-quiz-loading-shell
-) {
+  .lms-quiz-set-card) {
   border-color: rgba(15, 23, 42, 0.10) !important;
   background:
     radial-gradient(circle at 96% 0%, rgba(56, 189, 248, 0.08), transparent 34%),
@@ -1061,9 +1050,13 @@ body,
 }
 
 :root[data-theme="light"] .lms-mobile-bottom-nav__inner {
-  background: linear-gradient(180deg, #fbfcff 0%, #f5f8fd 100%) !important;
+  /* Match the bar to the light blue-grey page (--app-bg-solid: #dce6f4) so it
+     blends seamlessly the way dark mode does, instead of standing out as a
+     white strip with a blue-tinted upward shadow. The tabs, active pill, and
+     labels still give the bar structure. */
+  background: var(--app-bg-solid, #dce6f4) !important;
   color: #0F172A !important;
-  box-shadow: 0 -10px 28px -22px rgba(37, 99, 235, 0.24) !important;
+  box-shadow: none !important;
 }
 
 :root[data-theme="light"] .lms-mobile-top-nav {
@@ -1307,16 +1300,12 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 }
 
 :root[data-theme="light"] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) {
-  --student-route-dashboard-bg:
-    radial-gradient(circle at 78% 4%, rgba(37, 99, 235, 0.12), transparent 30%),
-    radial-gradient(circle at 10% 0%, rgba(20, 184, 166, 0.09), transparent 32%),
-    linear-gradient(180deg, #eef4fc 0%, #e4ecf7 46%, #dce6f4 100%);
-  --student-route-card-bg:
-    radial-gradient(circle at 100% 0%, rgba(37, 99, 235, 0.08), transparent 36%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(246, 249, 254, 0.9));
-  --student-route-card-bg-raised:
-    radial-gradient(circle at 100% 0%, rgba(37, 99, 235, 0.1), transparent 34%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 254, 0.94));
+  /* Flat single-layer backgrounds — match the admin shell (one flat page tone +
+     flat floating cards, no radial-glow / gradient stacking). Brand, fonts,
+     radii and shadows are untouched and stay defined elsewhere. */
+  --student-route-dashboard-bg: #dce6f4;
+  --student-route-card-bg: #ffffff;
+  --student-route-card-bg-raised: #ffffff;
   --student-route-card-shadow: 0 20px 48px -36px rgba(37, 99, 235, 0.28);
   --app-bg: var(--student-route-dashboard-bg);
   --page-background: var(--student-route-dashboard-bg);
@@ -1418,7 +1407,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
-  --ink-muted: #6E7D94;
+  --ink-muted: #8294AE;
   --color-primary: #60a5fa;
   --color-primary-hover: #93c5fd;
   --color-primary-light: rgba(96, 165, 250, 0.12);
@@ -1698,7 +1687,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 }
 
 .student-app-shell .student-quiz-map-page :where(
-  .student-lessons-search-card,
   .student-lessons-course-card,
   .student-lessons-detail-toolbar,
   .student-lessons-filter-bar,
@@ -1708,11 +1696,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   .lms-page-header-card,
   .lms-map-hierarchy-guide,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
-  .lms-quiz-set-card,
-  .lms-quiz-loading-shell
-) {
+  .lms-quiz-set-card) {
   border-color: var(--quiz-map-card-border) !important;
   background: var(--quiz-map-card-bg) !important;
   box-shadow: var(--quiz-map-card-shadow) !important;
@@ -1720,7 +1704,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 }
 
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page :where(
-  .student-lessons-search-card,
   .student-lessons-course-card,
   .student-lessons-detail-toolbar,
   .student-lessons-filter-bar,
@@ -1730,11 +1713,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   .lms-page-header-card,
   .lms-map-hierarchy-guide,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
-  .lms-quiz-set-card,
-  .lms-quiz-loading-shell
-) {
+  .lms-quiz-set-card) {
   color: #0F172A !important;
 }
 
@@ -2002,7 +1981,7 @@ body.student-quiz-night-screen .student-app-shell {
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
-  --ink-muted: #6E7D94;
+  --ink-muted: #8294AE;
 
   --sa-border: rgba(203, 213, 225, 0.13);
   --sa-border-soft: rgba(203, 213, 225, 0.09);
@@ -2042,7 +2021,6 @@ body.student-quiz-night-screen :where(
   .lms-route-page,
   .dashboard-page,
   .student-route-page,
-  .student-quiz-night-page,
   .lms-exam-page,
   .practice-review-page,
   .lms-review-page,
@@ -2062,7 +2040,6 @@ body.student-quiz-night-screen .student-app-shell :where(
   .lms-app-card,
   .lms-course-card,
   .student-course-card,
-  .student-lessons-search-card,
   .student-lessons-course-card,
   .student-lessons-detail-toolbar,
   .student-lessons-filter-bar,
@@ -2074,10 +2051,7 @@ body.student-quiz-night-screen .student-app-shell :where(
   .lms-map-hierarchy-guide,
   .lms-quiz-card,
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
-  .lms-quiz-loading-shell,
   .quick-theory-recap,
   .lms-review-question-card,
   .lms-exam-header,
@@ -2098,8 +2072,6 @@ body.student-quiz-night-screen .student-app-shell :where(
 
 body.student-quiz-night-screen .student-app-shell :where(
   .lms-quiz-course-card,
-  .lms-quiz-subject-card,
-  .lms-quiz-topic-card,
   .lms-quiz-set-card,
   .student-lessons-course-card,
   .student-lessons-lesson-row

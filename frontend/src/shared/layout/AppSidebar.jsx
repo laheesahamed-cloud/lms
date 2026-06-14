@@ -6,6 +6,7 @@ import { preloadRouteByPath } from '../../app/routePreloading.js';
 import { isStaffUser, roleRouteMode, userHasPermissions } from '../auth/roleAccess.js';
 import { XyndromeLogoMark } from '../brand/XyndromeBrand.jsx';
 import { cx } from '../styles/tailwindClasses.js';
+import { nativeSelection } from '../utils/nativeHaptics.js';
 
 /* ── Icon Set (16×16) — standard stroke-based icons ──────────── */
 const Icons = {
@@ -219,6 +220,25 @@ const END_EXACT = new Set([
 function isExactNavPath(path) {
   const cleanPath = path.replace(/^\/(?:admin|app|student)(?=\/|$)/, '') || '/dashboard';
   return END_EXACT.has(cleanPath);
+}
+
+function normalizeNavPath(path) {
+  const rawPath = String(path || '').split(/[?#]/)[0].trim();
+  const withSlash = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  const withoutTrailingSlash = withSlash.replace(/\/+$/, '');
+  return withoutTrailingSlash || '/';
+}
+
+function getRouteComparablePath(path) {
+  const normalizedPath = normalizeNavPath(path);
+  return normalizedPath.replace(/^\/(?:admin|app|student)(?=\/|$)/, '') || '/dashboard';
+}
+
+function pathMatchesNavPath(pathname, navPath) {
+  const currentPath = getRouteComparablePath(pathname);
+  const targetPath = getRouteComparablePath(navPath);
+
+  return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
 }
 
 function getInitials(user) {
@@ -583,7 +603,15 @@ export function AppSidebar({
 /* ── Mobile bottom navigation bar (students only, ≤900px) ──────── */
 const mobileNavItems = [
   { to: '/courses',   label: 'Courses',   icon: 'Courses' },
-  { to: '/quizzes',   label: 'Q-Bank',    icon: 'Quizzes' },
+  {
+    to: '/quizzes',
+    label: 'Q-Bank',
+    icon: 'Quizzes',
+    // Exams have no bottom tab of their own — they're reached from the Q-Bank
+    // tab via the in-page Q-Bank ⇄ Exams switch, so keep this tab active on both.
+    matchPaths: ['/quizzes', '/exams'],
+    preloadPaths: ['/quizzes', '/exams'],
+  },
   { to: '/dashboard', label: 'Study Hub', icon: 'Mission' },
   {
     to: '/study',
@@ -655,7 +683,7 @@ function prefixLinks(items, role) {
 
 function isNavItemActive(item, pathname) {
   const paths = item.matchPaths?.length ? item.matchPaths : [item.to];
-  return paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  return paths.some((path) => pathMatchesNavPath(pathname, path));
 }
 
 export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose = () => {} }) {
@@ -871,7 +899,8 @@ export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {}
 
   // Compute active tab index for the iOS 18 floating pill
   const activeIndex = items.findIndex((item) => isNavItemActive(item, location.pathname));
-  const pillIndex = activeIndex < 0 ? 0 : activeIndex;
+  const hasActiveTab = activeIndex >= 0;
+  const pillIndex = hasActiveTab ? activeIndex : 0;
 
   const nav = (
     <nav
@@ -879,7 +908,7 @@ export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {}
       aria-label="Mobile navigation"
     >
       <div
-        className="lms-mobile-bottom-nav__inner pointer-events-auto"
+        className={cx('lms-mobile-bottom-nav__inner pointer-events-auto', !hasActiveTab && 'has-no-active-tab')}
         style={{ '--pill-index': pillIndex }}
       >
         {/* iOS 18-style floating pill — slides behind the active tab */}
@@ -899,6 +928,9 @@ export function MobileBottomNav({ isExamFocusMode = false, onNavigate = () => {}
                 // Set slide direction before navigation so the keyframe picks it up
                 const dir = idx >= pillIndex ? '1' : '-1';
                 document.documentElement.style.setProperty('--lms-slide-dir', dir);
+                // NAT-017: subtle selection tick on tab change, matching iOS tab bars.
+                // Only fire when moving to a different tab so re-tapping is silent.
+                if (!isItemActive) nativeSelection();
                 onNavigate(e);
               }}
               aria-label={item.label}

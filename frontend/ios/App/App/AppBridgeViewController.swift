@@ -102,6 +102,14 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         webView.isUserInteractionEnabled = true
         webView.isOpaque = false
         webView.backgroundColor = appBackground
+        // The over-scroll / rubber-band region is painted with
+        // underPageBackgroundColor (iOS 15+). Left unset, WebKit auto-infers it
+        // from page content and — with our gradient page background, notably on
+        // iOS 26 — infers WHITE, producing a white strip when the user pulls
+        // past the end. Pin it to the page colour so the bounce blends in.
+        if #available(iOS 15.0, *) {
+            webView.underPageBackgroundColor = appBackground
+        }
         webView.allowsBackForwardNavigationGestures = false
 
         let scrollView = webView.scrollView
@@ -111,7 +119,9 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         scrollView.bounces = keyboardGuardActive ? false : true
         scrollView.alwaysBounceVertical = keyboardGuardActive ? false : true
         scrollView.alwaysBounceHorizontal = false
-        scrollView.decelerationRate = .fast
+        // NAT-002: .normal matches native iOS list/scroll physics; .fast stops
+        // too abruptly for a long-content reading app (dashboard, lessons, notes).
+        scrollView.decelerationRate = .normal
         scrollView.delaysContentTouches = false
         scrollView.canCancelContentTouches = false
         scrollView.keyboardDismissMode = keyboardGuardActive ? .none : .interactive
@@ -449,6 +459,9 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         view.window?.backgroundColor = color
         bridge?.webView?.backgroundColor = color
         bridge?.webView?.scrollView.backgroundColor = color
+        if #available(iOS 15.0, *) {
+            bridge?.webView?.underPageBackgroundColor = color
+        }
     }
 
     private func setSecureContentProtection(active: Bool) {

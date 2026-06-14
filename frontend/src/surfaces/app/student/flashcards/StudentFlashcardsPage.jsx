@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './flashcards-anim.css';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
+import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { getAiNoteWithFallback, listStudentAiNotesAcrossEngines } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudentLessons } from '../../../../shared/api/lessons.api.js';
@@ -614,10 +616,6 @@ function buildReviewedFlashcards(note, hierarchy) {
     .map((row, index) => {
       const question = cleanStudyText(row.question);
       const answer = cleanStudyText(row.answer);
-      const imageUrls = (Array.isArray(row.imageUrls) ? row.imageUrls : [row.imageUrl])
-        .map((item) => String(item || '').trim())
-        .filter(Boolean)
-        .slice(0, 3);
       if (!question || !answer) return null;
       return {
         id: `${note.id ?? 'note'}-qna-${row.id || index}`,
@@ -625,9 +623,6 @@ function buildReviewedFlashcards(note, hierarchy) {
         questionText: question,
         answerBullets: [],
         answerText: answer,
-        imageUrl: imageUrls[0] || '',
-        imageUrls,
-        imageFit: row.imageFit === 'cover' ? 'cover' : 'contain',
         callout: cleanStudyText(row.sourceHint),
         mnemonic: '',
         difficulty: cardDifficulty('explain', [], answer),
@@ -772,12 +767,7 @@ function ReviewStatusBadge({ card }) {
    ANSWER BLOCK (back face)
 ───────────────────────────────────────── */
 function AnswerBlock({ card }) {
-  const { answerBullets, answerText, imageUrl, imageUrls, imageFit, mnemonic, questionType } = card;
-  const galleryImages = (Array.isArray(imageUrls) ? imageUrls : [imageUrl])
-    .map((item) => String(item || '').trim())
-    .filter(Boolean)
-    .slice(0, 3);
-
+  const { answerBullets, answerText, mnemonic, questionType } = card;
   const mnemonicNode = mnemonic && (
     <div className="grid gap-2 rounded-xl border p-4"
       style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.20)' }}>
@@ -810,26 +800,6 @@ function AnswerBlock({ card }) {
           {answerText}
         </p>
       )}
-      {galleryImages.length ? (
-        <figure
-          className={cx(
-            'fc-answer-gallery m-0 overflow-hidden rounded-xl border border-line-soft bg-surface-2 p-2',
-            galleryImages.length === 1 && 'fc-answer-gallery-1',
-            galleryImages.length === 2 && 'fc-answer-gallery-2',
-            galleryImages.length >= 3 && 'fc-answer-gallery-3'
-          )}
-        >
-          {galleryImages.map((src, index) => (
-            <img
-              key={`${src.slice(0, 30)}-${index}`}
-              className={cx(imageFit === 'cover' ? 'object-cover' : 'object-contain')}
-              src={src}
-              alt=""
-              loading="lazy"
-            />
-          ))}
-        </figure>
-      ) : null}
       {mnemonic && mnemonicNode}
     </div>
   );
@@ -1155,7 +1125,7 @@ function FlashcardDeckRow({ node, expanded, starting, onToggle, onStartScope, on
   const statusMark = !hasStudyNotes && node.lockedCount ? (
     <FlashcardLockMark />
   ) : !hasStudyNotes && isLesson ? (
-    <span className="fc-deck-empty-mark shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[11px] font-black leading-none text-ink-muted max-[520px]:px-1 max-[520px]:text-[11px]">
+    <span className="fc-deck-empty-mark shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[11px] font-black leading-none text-ink-soft max-[520px]:px-1 max-[520px]:text-[11px]">
       No cards
     </span>
   ) : null;
@@ -1197,14 +1167,19 @@ function FlashcardDeckRow({ node, expanded, starting, onToggle, onStartScope, on
               {node.label}
             </span>
           </div>
-          <span className="fc-deck-status-slot inline-flex shrink-0 items-center justify-center">
+          <span className="fc-deck-status-slot inline-flex shrink-0 items-center justify-end gap-1">
             {statusMark}
+            <span className="fc-deck-mobile-counts hidden max-[640px]:inline-flex items-center gap-1" aria-hidden="true">
+              <CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} />
+              <CountCell tone="learn" value={node.learnCount} />
+              <CountCell tone="due" value={node.dueCount} />
+            </span>
           </span>
         </div>
       </th>
-      <td className={cx('px-1 text-center align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
-      <td className={cx('px-1 text-center align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
-      <td className={cx('px-1 pr-1.5 text-center align-middle max-[640px]:px-0.5', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
+      <td className={cx('px-1 text-center align-middle max-[640px]:hidden', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
+      <td className={cx('px-1 text-center align-middle max-[640px]:hidden', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
+      <td className={cx('px-1 pr-1.5 text-center align-middle max-[640px]:hidden', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
     </tr>
   );
 }
@@ -1263,7 +1238,7 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
       return next;
     });
   };
-  const headerClass = 'px-2 py-1.5 text-[11px] font-black uppercase tracking-normal text-ink-muted max-[640px]:px-0.5 max-[640px]:py-1.5 max-[640px]:text-[11px]';
+  const headerClass = 'whitespace-nowrap px-2 py-1.5 text-[11px] font-black uppercase tracking-normal text-ink-muted max-[640px]:px-0.5 max-[640px]:py-1.5 max-[640px]:text-[11px]';
 
   return (
     <section className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-none dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
@@ -1291,11 +1266,11 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
           </caption>
           <colgroup>
             <col />
-            <col className="w-[52px] max-[640px]:w-[44px] max-[380px]:w-[38px]" />
-            <col className="w-[56px] max-[640px]:w-[48px] max-[380px]:w-[42px]" />
-            <col className="w-[52px] max-[640px]:w-[44px] max-[380px]:w-[38px]" />
+            <col className="w-[52px] max-[640px]:w-0" />
+            <col className="w-[56px] max-[640px]:w-0" />
+            <col className="w-[52px] max-[640px]:w-0" />
           </colgroup>
-          <thead className="border-b border-line-soft bg-surface-1/70 dark:border-white/[0.07] dark:bg-white/[0.025]">
+          <thead className="border-b border-line-soft bg-surface-1/70 dark:border-white/[0.07] dark:bg-white/[0.025] max-[640px]:hidden">
             <tr>
               <th scope="col" className={cx(headerClass, 'text-left')}>Deck</th>
               <th scope="col" className={cx(headerClass, 'text-center text-sky-700 dark:text-sky-300')}>New</th>
@@ -1322,18 +1297,6 @@ function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, revi
   );
 }
 
-function matchesDeckFilter(note, filter) {
-  if (!filter) return true;
-  const q = filter.toLowerCase();
-  return (
-    (note.lessonTitle || note.title || '').toLowerCase().includes(q) ||
-    (note.courseTitle  || '').toLowerCase().includes(q) ||
-    (note.subjectTitle || '').toLowerCase().includes(q) ||
-    (note.topicName    || '').toLowerCase().includes(q) ||
-    (note.subtopicName || '').toLowerCase().includes(q)
-  );
-}
-
 function matchesStatusFilter(note, statusFilter, deckStats, reviewStats) {
   if (statusFilter === 'all') return true;
   const metrics = getDeckMetrics(note, deckStats, reviewStats);
@@ -1353,12 +1316,7 @@ function FilterChip({ active, children, onClick }) {
   return (
     <button
       type="button"
-      className={cx(
-        'inline-flex min-h-8 shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-lg border px-2.5 text-[11.5px] font-extrabold transition-[background,border-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/18',
-        active
-          ? 'border-brand-primary/28 bg-brand-primary/10 text-brand-primary'
-          : 'border-line-soft bg-surface-1 text-ink-muted hover:border-brand-primary/18 hover:text-ink-strong'
-      )}
+      className={cx('student-lessons-filter-chip', active && 'is-active')}
       onClick={onClick}
     >
       {children}
@@ -1375,50 +1333,32 @@ function PickPhase({
   deckStats,
 }) {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState('');
+  // Native-only: edge-swipe from the left returns to the Study hub (mirrors the
+  // back chevron). Only on the deck picker — the active review (SessionPhase)
+  // owns left/right card swipes, so it deliberately gets no edge-back.
+  const pageRef = useRef(null);
+  const handleSwipeBack = useCallback(() => {
+    const studyPath = window.location.pathname.startsWith('/app') ? '/app/study' : '/study';
+    safeNavigateBack(navigate, { fallbackPath: studyPath });
+  }, [navigate]);
+  useEdgeSwipeBack({ containerRef: pageRef, onBack: handleSwipeBack });
   const [statusFilter, setStatusFilter] = useState('all');
   const reviewStats = readReviewStats();
   const visibleNotes = useMemo(() => {
     const filtered = (notes || [])
-      .filter((note) => matchesDeckFilter(note, filter))
       .filter((note) => matchesStatusFilter(note, statusFilter, deckStats, reviewStats));
     return sortDeckNotes(filtered);
-  }, [deckStats, filter, notes, reviewStats, statusFilter]);
+  }, [deckStats, notes, reviewStats, statusFilter]);
 
   return (
-    <main className="dashboard-page study-hub-page student-flashcards-page min-h-dvh">
+    <main ref={pageRef} className="dashboard-page study-hub-page student-flashcards-page min-h-dvh">
       <section className="study-hub-shell grid gap-4">
-        <AppHeader title="Flashcards" subtitle="Spaced Review" />
+        <AppHeader title="Flashcards" subtitle="Spaced Review" compact />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
         <section className="grid gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex min-h-10 min-w-[min(100%,320px)] flex-1 items-center gap-2 rounded-lg border border-line-soft bg-surface-1 px-3 transition-[border-color,box-shadow] duration-150 focus-within:border-brand-primary/35 focus-within:ring-4 focus-within:ring-brand-primary/10">
-              <svg width="16" height="16" viewBox="0 0 14 14" fill="none" className="shrink-0 text-ink-muted" aria-hidden="true">
-                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
-                <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-              </svg>
-              <input
-                className="min-w-0 flex-1 border-0 bg-transparent text-[15px] font-semibold text-ink-strong outline-none placeholder:text-ink-muted"
-                placeholder="Search lessons"
-                value={filter}
-                onChange={e => setFilter(e.target.value)}
-                aria-label="Search flashcard lessons"
-              />
-              {filter && (
-                <button type="button"
-                  className="grid size-7 shrink-0 place-items-center rounded-md bg-surface-3 text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"
-                  onClick={() => setFilter('')} aria-label="Clear search">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                    <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Filter flashcards by status">
+          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Filter flashcards by status">
             {[
               ['all', 'All'],
               ['due', 'Due'],
@@ -1992,9 +1932,12 @@ export function StudentFlashcardsPage() {
       .filter((note) => !isLessonPlaceholder(note));
     if (!unlockedNotes.length) return [];
     const sampleNotes = unlockedNotes.slice(0, maxNotes);
-    const fullNotes = await Promise.all(
+    const noteResults = await Promise.allSettled(
       sampleNotes.map((note) => note.noteData ? Promise.resolve(note) : getAiNoteWithFallback(note.id, { engine: note.engine }))
     );
+    const fullNotes = noteResults
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value);
     return uniqueCards(fullNotes.flatMap((note) => buildLessonCards(note)));
   }
 
@@ -2007,7 +1950,7 @@ export function StudentFlashcardsPage() {
     });
     setActiveCards(cards);
     setPhase('session');
-    navigate(`/flashcards?mode=${mode}`, { replace: true });
+    navigate({ search: `?mode=${mode}` }, { replace: true });
     return true;
   }
 
@@ -2020,7 +1963,7 @@ export function StudentFlashcardsPage() {
     setError('');
     if (options.syncUrl !== false && autoNoteId !== noteId) {
       autoLoadedNoteIdRef.current = noteId;
-      navigate(`/flashcards?noteId=${noteId}`, { replace: true });
+      navigate({ search: `?noteId=${noteId}` }, { replace: true });
     }
 
     try {
@@ -2038,7 +1981,7 @@ export function StudentFlashcardsPage() {
       });
       setActiveCards(cards);
       setPhase('session');
-      navigate(`/flashcards?noteId=${fullNote.id}`, { replace: true });
+      navigate({ search: `?noteId=${fullNote.id}` }, { replace: true });
     } catch (e) {
       setError(getErrorMessage(e, 'Unable to load flashcards'));
       setPhase('pick');
@@ -2100,7 +2043,7 @@ export function StudentFlashcardsPage() {
   function handleBackToPick() {
     setPhase('pick');
     setResult(null);
-    navigate('/flashcards', { replace: true });
+    navigate({ search: '' }, { replace: true });
   }
 
   if (phase === 'session') {

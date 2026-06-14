@@ -17,7 +17,3 @@ export function selectPlatformValue(overrides, fallback, platform = detectPlatfo
   const key = candidates.find((candidate) => Object.prototype.hasOwnProperty.call(overrides, candidate));
   return key ? overrides[key] : fallback;
 }
-
-export function selectPlatformComponent(overrides, fallback, platform = detectPlatform()) {
-  return selectPlatformValue(overrides, fallback, platform);
-}

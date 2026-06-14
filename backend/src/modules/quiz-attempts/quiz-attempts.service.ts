@@ -32,6 +32,7 @@ type QuizRow = RowDataPacket & {
   exam_mode_only: number;
   student_title?: string | null;
   display_title_mode?: string | null;
+  quiz_number?: number | null;
   quiz_title: string;
   quiz_description: string | null;
   blueprint_json?: string | null;
@@ -210,6 +211,7 @@ export class QuizAttemptsService {
           q.exam_mode_only,
           q.student_title,
           q.display_title_mode,
+          q.quiz_number,
           q.randomization_mode,
           q.quiz_title,
           q.quiz_description,
@@ -289,6 +291,7 @@ export class QuizAttemptsService {
         quizTitle: row.quiz_title,
         studentTitle: row.student_title || row.quiz_title,
         displayTitleMode: row.display_title_mode === 'title' ? 'title' : 'number',
+        quizNumber: row.quiz_number ? Number(row.quiz_number) : null,
         quizDescription: row.quiz_description || '',
         totalQuestions: Number(row.total_questions || 0),
         totalMarks: Number(row.total_marks || 0),

@@ -59,6 +59,11 @@ export class CreateQuizDto {
   displayTitleMode?: 'number' | 'title';
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  quizNumber?: number | null;
+
+  @IsOptional()
   @IsString()
   quizTitle?: string;
 

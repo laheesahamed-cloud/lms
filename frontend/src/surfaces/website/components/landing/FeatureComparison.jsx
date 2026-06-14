@@ -33,7 +33,7 @@ function Cross() {
 
 export function FeatureComparison() {
   return (
-    <section id="features" className="lpv2-section bg-[#f5f4f0]">
+    <section id="compare" className="lpv2-section bg-[#f5f4f0]">
       <div className="lpv2-shell">
         <motion.h2
           className="font-display mb-10 text-center text-[clamp(32px,5vw,52px)] leading-tight text-[#111118]"

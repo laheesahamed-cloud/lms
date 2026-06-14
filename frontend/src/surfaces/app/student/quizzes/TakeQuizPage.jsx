@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import '../../../../shared/styles/04-pages/quiz-exam.css';
 import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -14,16 +15,16 @@ import {
 import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { XyndromeLogoMark } from '../../../../shared/brand/XyndromeBrand.jsx';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { TheoryRecapPopupTrigger } from '../components/QuickTheoryRecap.jsx';
 import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../components/quickTheoryRecapUtils.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
-import { getQuizNumberLabel } from './quizLabels.js';
+import { getQuizNumberLabel, getQuizDisplayLabel } from './quizLabels.js';
 import { reviewPrimaryButtonClass, reviewSecondaryButtonClass } from '../results/ReviewWorkspace.jsx';
 import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
+import { getPreferredScrollBehavior } from '../../../../shared/utils/scrollBehavior.js';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
@@ -220,10 +221,9 @@ function hasQuestionAnswerKey(question) {
   return getAnswerKeyItems(question).length > 0;
 }
 
-const examCardKickerClass = 'text-[11px] font-extrabold uppercase tracking-[0.08em] text-brand-primary';
-const examScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page lms-exam-page px-[clamp(16px,3vw,42px)] pb-[clamp(22px,3vw,36px)] pt-[clamp(12px,1.7vw,22px)] max-[700px]:pb-44 max-[600px]:px-3.5 max-[600px]:pb-44 max-[600px]:pt-3.5`;
+const examScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page lms-quiz-take lms-exam-page px-[clamp(16px,3vw,42px)] pb-[clamp(22px,3vw,36px)] pt-[clamp(12px,1.7vw,22px)] max-[700px]:pb-44 max-[600px]:px-3.5 max-[600px]:pb-44 max-[600px]:pt-3.5`;
 const examLayoutClass = 'lms-exam-layout mx-auto grid w-full max-w-[1560px] gap-[clamp(16px,2vw,24px)] bg-[var(--exam-shell-bg)] pb-2.5';
-const practiceQuizScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page dashboard-page study-hub-page lms-review-page practice-review-page`;
+const practiceQuizScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page lms-quiz-take dashboard-page study-hub-page lms-review-page practice-review-page`;
 const practiceQuizLayoutClass = 'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]';
 const practiceQuizWorkspaceClass =
   'lms-review-workspace lms-practice-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1199px]:grid-cols-1';
@@ -235,23 +235,21 @@ const practiceQuizAsideClass =
 const practiceQuizSummaryGridClass = 'lms-review-summary-grid lms-practice-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5';
 const practiceQuizSummaryTileClass =
   'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[11px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[20px] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[11px] max-[420px]:[&_strong]:text-[18px]';
-const practiceQuizSideNavClass =
-  'lms-review-side-nav grid min-h-0 gap-2.5 rounded-[18px] border border-line-soft bg-surface-1 p-3.5 shadow-none';
 const practiceQuizNavHeadClass =
   'flex items-baseline justify-between gap-2.5 [&_h3]:m-0 [&_h3]:text-[13px] [&_h3]:font-extrabold [&_h3]:text-ink-strong [&_span]:text-xs [&_span]:font-bold [&_span]:text-ink-soft';
 // Single merged overview card: summary stats + progress + question list in one card.
 const practiceQuizOverviewCardClass =
-  'lms-review-side-nav lms-practice-quiz-overview grid min-h-0 gap-4 rounded-[18px] border border-line-soft bg-surface-1 p-3.5 shadow-none';
+  'lms-review-side-nav lms-practice-quiz-overview grid min-h-0 gap-3 rounded-[18px] border border-line-soft bg-surface-1 p-3.5 shadow-none';
 const practiceQuizOverviewSectionClass =
-  'grid min-h-0 gap-2.5 border-t border-line-soft pt-4';
+  'grid min-h-0 gap-2.5 border-t border-line-soft pt-3';
 const practiceQuizBubbleNavClass =
   'lms-review-bubble-nav grid grid-cols-4 gap-2 min-[381px]:grid-cols-5 min-[701px]:grid-cols-6 min-[1024px]:grid-cols-8 min-[1200px]:grid-cols-5';
 const practiceQuizBubbleClass =
   'flex aspect-square w-full min-w-0 items-center justify-center whitespace-nowrap rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-[clamp(16px,4vw,20px)] font-bold leading-none text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-80';
 const practiceQuizBubbleActiveClass = 'border-brand-primary/38 bg-brand-primary/12 text-brand-primary shadow-none';
 const practiceQuizBubbleAnsweredClass = 'border-brand-success/30 bg-brand-success/12 text-brand-success';
-const practiceQuizBubbleSavedClass = 'border-[color-mix(in_srgb,#8b5cf6_30%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_12%,var(--surface-2))] text-brand-violet';
-const practiceQuizBubbleFlaggedClass = 'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_12%,var(--surface-2))] text-[#92400e] dark:text-[#fbbf24]';
+const practiceQuizBubbleSavedClass = 'border-[color-mix(in_srgb,var(--color-primary)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-2))] text-brand-primary';
+const practiceQuizBubbleFlaggedClass = 'border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_12%,var(--surface-2))] text-[var(--color-warning)]';
 const practiceQuizBubbleLegendClass =
   'lms-review-bubble-legend mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] font-bold leading-tight text-ink-soft [&_i]:inline-block [&_i]:size-2.5 [&_i]:shrink-0 [&_i]:rounded-full [&_i]:border [&_span]:inline-flex [&_span]:min-h-5 [&_span]:min-w-max [&_span]:items-center [&_span]:gap-1.5 [&_span]:whitespace-nowrap';
 const practiceQuizQuestionCardClass = 'lms-review-question-card grid gap-[clamp(16px,2vw,22px)] p-[clamp(24px,3vw,40px)] max-[640px]:gap-3.5 max-[640px]:p-4';
@@ -284,7 +282,7 @@ const practiceQuizOptionCorrectClass =
 const practiceQuizOptionWrongClass =
   'border-[color-mix(in_srgb,var(--color-error)_40%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-error)_10%,var(--surface-1)),color-mix(in_srgb,var(--color-error)_4%,var(--surface-1)))] shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-error)_8%,transparent)]';
 const practiceQuizOptionUnansweredClass =
-  'border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_6%,var(--surface-1))] shadow-[0_0_0_1px_color-mix(in_srgb,#d97706_12%,transparent)]';
+  'border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_6%,var(--surface-1))] shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-warning)_12%,transparent)]';
 const practiceQuizTfActionsClass = 'flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start';
 const practiceQuizTfToggleClass =
   'min-h-10 touch-manipulation rounded-xl border border-[var(--exam-footer-btn-border,var(--sa-border))] bg-[var(--exam-footer-btn-bg,var(--sa-surface))] px-4 text-[13px] font-bold text-[var(--exam-footer-btn-text,var(--sa-ink))] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85 max-[600px]:min-h-11 max-[600px]:flex-1';
@@ -388,14 +386,7 @@ const examThemeDarkVars = {
   '--exam-block-dot-border': 'rgba(93,118,159,0.95)',
   '--exam-block-dot-fill': '#081426',
 };
-const examHeaderClass =
-  'lms-exam-header flex min-h-[calc(60px+env(safe-area-inset-top,0px))] items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 pb-2.5 pt-[calc(10px+env(safe-area-inset-top,0px))] shadow-[var(--exam-card-shadow)] backdrop-blur-[14px]';
 const practiceHeaderClass = 'practice-review-header max-[700px]:gap-2.5 max-[700px]:px-3 max-[700px]:pb-2.5 [&_.quiz-header-actions]:shrink-0';
-const examHeaderBrandClass = 'flex min-w-0 flex-1 items-center gap-3 max-[420px]:gap-2';
-const examHeaderLogoClass =
-  'grid size-10 shrink-0 place-items-center text-[var(--xyndrome-logo-scope)]';
-const examHeaderTitleClass = 'block max-w-full truncate whitespace-nowrap text-[17px] font-extrabold leading-tight text-ink-strong max-[420px]:text-[15px]';
-const examHeaderSubtitleClass = 'mt-0 block max-w-[min(62vw,720px)] truncate whitespace-nowrap text-[11px] leading-tight text-ink-soft max-[700px]:max-w-full max-[420px]:text-[11px]';
 const examHeaderActionsClass = 'quiz-header-actions ml-auto flex min-w-0 shrink-0 flex-nowrap items-center justify-end gap-2 max-[420px]:gap-1.5';
 const examHeaderChipClass =
   'inline-flex min-h-10 items-center gap-2 rounded-[13px] border border-[var(--exam-header-chip-border)] bg-[var(--exam-header-chip-bg)] px-3 text-sm text-ink-medium shadow-[var(--exam-header-chip-shadow)]';
@@ -404,20 +395,26 @@ const examHeaderIconClass = 'inline-grid place-items-center text-ink-soft';
 const examHeaderEndClass =
   'min-h-11 shrink-0 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold leading-none text-[var(--exam-end-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60 max-[420px]:px-3';
 const practiceHeaderEndClass = 'border-brand-primary/22 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200';
+// Native-style quiz/exam taking header — a compact bar (back chevron · title ·
+// actions) that matches the rest of the native app instead of the old logo bar.
+// Sticky with safe-area top inset and a blur hairline; self-contained so it does
+// not depend on the portaled shell-bar layer.
+// NOTE: solid (opaque) background — NOT backdrop-blur. A blurred sticky header
+// repaints every scroll frame in iOS WKWebView and flickers; a solid fill is
+// stable. The top padding carries the safe-area inset so the fill extends up
+// behind the status bar / notch and the title never sits under it.
+const nativeQuizHeaderClass =
+  'lms-quiz-native-header sticky top-0 z-[60] flex min-h-[calc(54px+var(--lms-safe-top,env(safe-area-inset-top,0px)))] items-center gap-2 border-b border-line-soft bg-surface-card pl-3 pr-1.5 pb-2.5 pt-[calc(8px+var(--lms-safe-top,env(safe-area-inset-top,0px)))]';
+const nativeQuizTitleWrapClass = 'grid min-w-0 flex-1 gap-0.5';
+const nativeQuizTitleClass = 'block min-w-0 truncate text-[16px] font-extrabold leading-tight text-ink-strong max-[420px]:text-[15px]';
+const nativeQuizSubtitleClass = 'block min-w-0 truncate text-[11px] leading-tight text-ink-soft';
 const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(220px,280px)_minmax(0,1120px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-1';
 const examSidebarClass = 'lms-exam-sidebar grid gap-[18px]';
 const examPanelClass =
   'border border-[var(--exam-card-border)] bg-[var(--exam-card-bg)] p-[18px] shadow-[var(--exam-card-shadow)]';
-const examProgressPanelClass =
-  'relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] before:content-[""]';
 const examMainCardClass =
   'lms-exam-main-card grid min-h-[540px] grid-rows-[auto_auto_auto] border border-[var(--exam-card-border)] bg-[var(--exam-main-bg)] p-[clamp(24px,3.2vw,44px)] shadow-[var(--exam-card-shadow)] max-[600px]:min-h-[auto] max-[600px]:p-4';
 const examCardHeadClass = 'mb-4 flex items-start justify-between gap-3 text-ink-strong [&_strong]:block [&_strong]:text-[15px] [&_strong]:font-extrabold';
-const examQuestionTypeRowClass = 'mb-2 flex items-center justify-between gap-2';
-const examChipMiniClass =
-  'inline-flex min-h-7 items-center rounded-full border border-[var(--exam-header-chip-border)] bg-[var(--exam-chip-primary-bg)] px-2.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-[var(--exam-chip-text)]';
-const examProgressToplineClass = 'mb-3 mt-3.5 flex items-center justify-between gap-2';
-const examProgressCurrentClass = 'text-base font-bold text-ink-strong';
 const examProgressPercentClass = 'text-[13px] text-ink-soft';
 const examProgressBarClass = 'h-[7px] overflow-hidden rounded-full border border-[var(--exam-card-border)] bg-[var(--exam-progress-track)]';
 const examProgressFillClass = 'block h-full w-full origin-left rounded-[inherit] bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))] shadow-none';
@@ -430,7 +427,7 @@ const examNavBubbleBaseClass =
   'lms-exam-nav-bubble flex aspect-square w-full min-w-0 items-center justify-center whitespace-nowrap rounded-xl border border-[var(--exam-nav-idle-border)] bg-[var(--exam-nav-idle-bg)] text-[clamp(16px,4vw,20px)] font-bold leading-none text-[var(--exam-nav-idle-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85';
 const examNavLegendClass = 'lms-exam-nav-legend mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-bold leading-tight text-ink-soft';
 const examNavLegendItemClass = 'inline-flex min-w-0 items-center gap-1 whitespace-nowrap';
-const examNavLegendDotClass = 'lms-exam-nav-legend-dot inline-block size-2.5 shrink-0 rounded border border-transparent';
+const examNavLegendDotClass = 'lms-exam-nav-legend-dot inline-block size-3 shrink-0 rounded border border-transparent';
 const practiceLearningSupportClass = 'mt-0 grid gap-3 pt-0';
 const quizReviewExplanationClass =
   'lms-learning-reveal-card mt-0 grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-[color-mix(in_srgb,var(--color-primary)_18%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_5%,var(--surface-2))_0%,var(--surface-2)_58%,color-mix(in_srgb,var(--color-primary)_3%,var(--surface-1))_100%)] p-4 shadow-[var(--ds-card-shadow)] max-[640px]:rounded-[var(--ds-card-radius-inner)] max-[640px]:p-3.5';
@@ -446,13 +443,13 @@ const quizReviewIncorrectListClass =
 const quizReviewIncorrectItemClass =
   'grid grid-cols-[24px_minmax(0,1fr)] items-start gap-2 border-t border-[color-mix(in_srgb,var(--color-warning)_14%,var(--line-soft))] px-2.5 py-2 first:border-t-0 max-[640px]:grid-cols-[22px_minmax(0,1fr)] max-[640px]:gap-1.5 max-[640px]:px-2 max-[640px]:py-1.5';
 const quizReviewIncorrectBadgeClass =
-  'inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[#92400e] max-[640px]:size-[22px] max-[640px]:text-[11px]';
+  'inline-flex size-6 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_13%,var(--surface-2))] text-[11px] font-black text-[var(--color-warning)] max-[640px]:size-[22px] max-[640px]:text-[11px]';
 const quizReviewIncorrectCopyClass =
   'lms-reading-incorrect min-w-0 text-left [&_strong]:mb-1 [&_strong]:block [&_strong]:text-[14px] [&_strong]:font-extrabold [&_strong]:leading-snug [&_strong]:text-ink-strong [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.6] [&_p]:text-ink-medium max-[640px]:[&_strong]:text-[14px] max-[640px]:[&_p]:text-[14.5px] max-[640px]:[&_p]:leading-[1.58]';
 const quizReviewRecapActionClass = 'lms-study-recap-action flex justify-start';
 const quizReviewStudyListClass = 'm-0 grid list-none gap-2 p-0';
 const quizReviewStudyCardClass =
-  'lms-key-points-card relative grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-[color-mix(in_srgb,#8b5cf6_20%,var(--line-soft))] bg-[linear-gradient(135deg,color-mix(in_srgb,#8b5cf6_7%,var(--surface-1))_0%,var(--surface-1)_72%)] px-4 py-3.5 shadow-[var(--ds-card-shadow)] transition-[background,border-color] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,#8b5cf6_28%,var(--line-soft))] [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[var(--ds-card-radius-inner)] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]';
+  'lms-key-points-card relative grid gap-3 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-card px-4 py-3.5 shadow-[var(--ds-card-shadow)] transition-[background,border-color] duration-150 ease-[var(--ease-out)] hover:border-[color-mix(in_srgb,var(--color-primary)_24%,var(--line-soft))] [&_h4]:m-0 [&_h4]:text-[11px] [&_h4]:font-extrabold [&_h4]:uppercase [&_h4]:tracking-[0.08em] [&_h4]:text-ink-soft [&_p]:m-0 [&_p]:whitespace-pre-line [&_p]:text-left [&_p]:text-[14.5px] [&_p]:font-normal [&_p]:leading-[1.66] [&_p]:text-ink-strong max-[640px]:rounded-[var(--ds-card-radius-inner)] max-[640px]:px-3.5 max-[640px]:[&_p]:text-[14.5px]';
 const examAnswerListClass = 'lms-review-options-grid grid gap-2.5';
 const examTfActionsClass = 'flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start';
 const examTfToggleClass =
@@ -500,14 +497,14 @@ const quizReviewOptionTextClass = 'lms-reading-answer m-0 min-w-0 flex-auto whit
 const quizReviewChipToneClass = {
   correct: 'border-[color-mix(in_srgb,var(--color-success)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-success)_12%,var(--surface-2))] text-brand-success',
   wrong: 'border-[color-mix(in_srgb,var(--color-error)_28%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-error)_11%,var(--surface-2))] text-brand-error',
-  unanswered: 'border-[color-mix(in_srgb,#d97706_24%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_9%,var(--surface-2))] text-[#92400e] dark:text-[#fbbf24]',
+  unanswered: 'border-[color-mix(in_srgb,var(--color-warning)_24%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_9%,var(--surface-2))] text-[var(--color-warning)]',
   neutral: 'border-line-soft bg-surface-2 text-ink-soft',
 };
 const quizReviewOptionIconToneClass = {
   selected: 'border-[color-mix(in_srgb,var(--color-primary)_42%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_10%,var(--surface-1))] text-brand-primary shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_8%,transparent)]',
   correct: 'border-[color-mix(in_srgb,var(--color-success)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-success)_18%,transparent)] text-brand-success shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-success)_12%,transparent)]',
   wrong: 'border-[color-mix(in_srgb,var(--color-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-error)_18%,transparent)] text-brand-error shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-error)_12%,transparent)]',
-  unanswered: 'border-[color-mix(in_srgb,#d97706_30%,transparent)] bg-[color-mix(in_srgb,#d97706_14%,transparent)] text-[#92400e] dark:text-[#fbbf24]',
+  unanswered: 'border-[color-mix(in_srgb,var(--color-warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[var(--color-warning)]',
   neutral: 'border-line-soft bg-surface-2 text-ink-soft',
 };
 
@@ -676,7 +673,7 @@ function QuestionUtilityActions({
   return (
     <div className={questionUtilityRowClass} aria-label="Question utilities">
       <button
-        className={cx(questionUtilityButtonClass, flagged && 'border-orange-500/30 bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200')}
+        className={cx(questionUtilityButtonClass, questionUtilityIconOnlyClass, flagged && 'border-orange-500/30 bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200')}
         type="button"
         onClick={onFlag}
         disabled={busy}
@@ -684,10 +681,9 @@ function QuestionUtilityActions({
         aria-label={flagged ? 'Remove flag' : 'Flag question'}
       >
         <IcoFlag filled={flagged} />
-        <span>{flagged ? 'Flagged' : 'Flag'}</span>
       </button>
       <button
-        className={cx(questionUtilityButtonClass, questionUtilityIconOnlyClass, bookmarked && 'border-brand-violet/25 bg-purple-100 text-brand-violet dark:bg-purple-500/15 dark:text-purple-200')}
+        className={cx(questionUtilityButtonClass, questionUtilityIconOnlyClass, bookmarked && 'border-brand-primary/25 bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--surface-2))] text-brand-primary')}
         type="button"
         onClick={onBookmark}
         disabled={busy}
@@ -697,7 +693,7 @@ function QuestionUtilityActions({
         <IcoBookmark filled={bookmarked} />
       </button>
       <button
-        className={questionUtilityButtonClass}
+        className={cx(questionUtilityButtonClass, questionUtilityIconOnlyClass)}
         type="button"
         onClick={onReport}
         disabled={busy}
@@ -705,7 +701,6 @@ function QuestionUtilityActions({
         aria-label="Report question"
       >
         <IcoReport />
-        <span>Report</span>
       </button>
     </div>
   );
@@ -938,11 +933,6 @@ function clearPracticeDraft(quizId) {
   }
 }
 
-function getPreferredScrollBehavior() {
-  if (typeof window === 'undefined') return 'auto';
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
-}
-
 function scrollQuestionContentIntoView(target, behavior = getPreferredScrollBehavior()) {
   if (!target || typeof window === 'undefined') return;
 
@@ -991,11 +981,13 @@ function ExamModeHeader({
   theme: _theme,
   workspaceLabel = 'Exam workspace',
   endLabel = 'End session',
-  className = '',
   showThemeToggle = true,
   showSecondary = true,
   endButtonClass = '',
+  progressValue = '',
+  progressLabel = 'Progress',
 }) {
+  const barRef = useRef(null);
   const resolvedSecondaryValue = secondaryValue ?? formatDuration(0);
   const resolvedTitle = quizLabel || getQuizNumberLabel({ quizTitle: title });
   const subtitle = title && title !== resolvedTitle ? title : workspaceLabel;
@@ -1003,51 +995,84 @@ function ExamModeHeader({
     ? `${secondaryLabel}: ${resolvedSecondaryValue}`
     : `Time remaining: ${resolvedSecondaryValue}. Approved time accommodations are included when assigned to your account.`;
 
-  return (
-    <header className={cx(examHeaderClass, quizFlashPanelClass, className)}>
-      <div className={examHeaderBrandClass}>
-        <span className={examHeaderLogoClass} aria-hidden="true">
-          <XyndromeLogoMark size={38} logoVariant="light" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <strong className={examHeaderTitleClass}>{resolvedTitle}</strong>
-          </div>
-          {subtitle ? <small className={examHeaderSubtitleClass}>{subtitle}</small> : null}
+  // Publish the live bar height (safe-area inset included) so the in-flow spacer
+  // reserves exactly the right room beneath the fixed, body-portaled bar.
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    const measure = () => {
+      const height = Math.ceil(barRef.current?.getBoundingClientRect?.().height || 0);
+      if (height) root.style.setProperty('--lms-quiz-bar-height', `${height}px`);
+    };
+    const frame = window.requestAnimationFrame(measure);
+    let observer = null;
+    if (barRef.current && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(measure);
+      observer.observe(barRef.current);
+    }
+    document.fonts?.ready?.then(measure).catch(() => {});
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+      root.style.removeProperty('--lms-quiz-bar-height');
+    };
+  }, []);
+
+  // Fixed full-width bar. The route wrapper keeps a residual transform that would
+  // break position:fixed for in-page descendants, so the bar is portaled to
+  // <body> (same pattern as the Study Hub shell bar) — that lets its solid fill
+  // reach up behind the status bar and cover the whole safe area.
+  const bar = (
+    <div className="lms-quiz-bar-layer">
+      <header ref={barRef} className="lms-quiz-topbar">
+        <div className="lms-quiz-topbar__title">
+          <strong>{resolvedTitle}</strong>
+          {subtitle ? <small>{subtitle}</small> : null}
         </div>
-      </div>
 
-      <div className={examHeaderActionsClass}>
-        {showThemeToggle ? <ThemeToggle /> : null}
+        <div className={examHeaderActionsClass}>
+          {showThemeToggle ? <ThemeToggle /> : null}
 
-        {showSecondary ? (
-          <div
-            className={examHeaderChipClass}
-            role="timer"
-            aria-label={secondaryAccessibleLabel}
-            aria-atomic="true"
+          {showSecondary ? (
+            <div
+              className={examHeaderChipClass}
+              role="timer"
+              aria-label={secondaryAccessibleLabel}
+              aria-atomic="true"
+            >
+              <span className={examHeaderIconClass} aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="5.8" stroke="currentColor" strokeWidth="1.4" />
+                  <path d="M8 4.6v3.8l2.3 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              {secondaryLabel ? <span>{secondaryLabel}</span> : null}
+              <strong className={examHeaderChipValueClass}>{resolvedSecondaryValue}</strong>
+            </div>
+          ) : progressValue ? (
+            <div className={examHeaderChipClass} aria-label={`${progressLabel}: ${progressValue}`}>
+              <strong className={examHeaderChipValueClass}>{progressValue}</strong>
+            </div>
+          ) : null}
+
+          <button
+            className={cx(examHeaderEndClass, endButtonClass)}
+            type="button"
+            onClick={onEndSession}
+            disabled={saving}
           >
-            <span className={examHeaderIconClass} aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="5.8" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M8 4.6v3.8l2.3 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            {secondaryLabel ? <span>{secondaryLabel}</span> : null}
-            <strong className={examHeaderChipValueClass}>{resolvedSecondaryValue}</strong>
-          </div>
-        ) : null}
+            {endLabel}
+          </button>
+        </div>
+      </header>
+    </div>
+  );
 
-        <button className={cx(examHeaderEndClass, endButtonClass)}
-          type="button"
-         
-          onClick={onEndSession}
-          disabled={saving}
-        >
-          {endLabel}
-        </button>
-      </div>
-    </header>
+  return (
+    <>
+      {typeof document !== 'undefined' ? createPortal(bar, document.body) : bar}
+      <div className="lms-quiz-topbar__spacer" aria-hidden="true" />
+    </>
   );
 }
 
@@ -1109,7 +1134,7 @@ function PracticeStudySupport({ currentQuestion, revealed = true, className = ''
             <ul className={quizReviewStudyListClass}>
               {recap.keyPoints.slice(0, 4).map((point, index) => (
                 <li
-                  className="relative rounded-[12px] border border-[color-mix(in_srgb,#8b5cf6_12%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_4%,var(--surface-2))] py-2 pl-8 pr-3 text-[14.5px] leading-[1.6] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-[14.5px]"
+                  className="relative rounded-[12px] border border-line-soft bg-surface-2 py-2 pl-8 pr-3 text-[14.5px] leading-[1.6] text-ink-strong before:absolute before:left-3 before:top-2 before:font-extrabold before:leading-[1.35] before:text-brand-primary before:content-['›'] max-[640px]:text-[14.5px]"
                   key={`${index}-${point.slice(0, 16)}`}
                 >
                   <MedicalText text={point} />
@@ -1390,7 +1415,14 @@ export function TakeQuizPage() {
     )
   );
   const shouldBlockQuizExit = Boolean(data && !loading && !isSingleQuestionPractice && !hasAutoSubmitted);
-  const quizExitBlocker = useBlocker(shouldBlockQuizExit);
+  // Set synchronously right before an INTENTIONAL submit/finish navigation so the
+  // exit guard doesn't fire its own window.confirm on top of the submit modal
+  // (the duplicate "Leave this exam?" popup). State-derived flags update async,
+  // so a ref read at navigation time is what keeps the two from racing.
+  const exitBlockSuppressedRef = useRef(false);
+  const quizExitBlocker = useBlocker(
+    useCallback(() => !exitBlockSuppressedRef.current && shouldBlockQuizExit, [shouldBlockQuizExit])
+  );
 
   useEffect(() => {
     const platform = detectPlatform();
@@ -1743,10 +1775,12 @@ export function TakeQuizPage() {
     }
     if (isSingleQuestionPractice) {
       setPracticeCompleting(false);
+      exitBlockSuppressedRef.current = true;
       navigate('/bookmarks');
       return;
     }
     setPracticeCompleting(false);
+    exitBlockSuppressedRef.current = true;
     handlePracticeReviewOpen();
   }
 
@@ -1768,6 +1802,7 @@ export function TakeQuizPage() {
       clearExamAutosaveRetry();
       clearExamDraft(quizId);
       setHasAutoSubmitted(true);
+      exitBlockSuppressedRef.current = true;
       navigate(`/results/${submittedAttemptId}`);
     } catch (e) {
       setError(getErrorMessage(e, 'Unable to submit exam'));
@@ -1784,7 +1819,7 @@ export function TakeQuizPage() {
   handleSubmitRef.current = handleSubmit;
 
   function requestExamSubmit() {
-    if (saving) return;
+    if (saving || confirmExamSubmitOpen) return;
     setConfirmExamSubmitOpen(true);
   }
 
@@ -2068,11 +2103,9 @@ export function TakeQuizPage() {
   }, [isSingleQuestionPractice, navigate, quizId, singleQuestionId]);
 
   if (loading) return (
-    <main className={ui.studentScreenShell}>
-      <div className={ui.quizLoadingState}>
-        <div className={ui.quizLoadingSpinner} />
-        <p>Preparing your quiz…</p>
-      </div>
+    <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: 'var(--surface-0, #0a0a0f)' }}>
+      <div className={ui.quizLoadingSpinner} />
+      <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>Preparing your quiz…</p>
     </main>
   );
 
@@ -2103,7 +2136,7 @@ export function TakeQuizPage() {
         <section className={practiceQuizLayoutClass}>
           <ExamModeHeader
             title={data.quiz.quizTitle}
-            quizLabel={getQuizNumberLabel(data.quiz)}
+            quizLabel={getQuizDisplayLabel(data.quiz)}
             isFree={data.quiz.isFree}
             secondaryLabel="Mode"
             secondaryValue="Practice"
@@ -2111,9 +2144,9 @@ export function TakeQuizPage() {
             saving={saving || practiceCompleting || questionActionBusy}
             workspaceLabel=""
             endLabel={practiceCompleting ? practiceEndBusyLabel : practiceEndLabel}
-            className={practiceHeaderClass}
-            showThemeToggle
+            showThemeToggle={false}
             showSecondary={false}
+            progressValue={totalQuestions ? `${currentIndex + 1}/${totalQuestions}` : ''}
             endButtonClass={practiceHeaderEndClass}
           />
 
@@ -2126,16 +2159,15 @@ export function TakeQuizPage() {
                   <PracticeSummaryTile label="Total" value={totalQuestions} />
                   <PracticeSummaryTile label="Answered" value={answeredCount} />
                   <PracticeSummaryTile label="Current" value={currentIndex + 1} />
-                  <PracticeSummaryTile label="Progress" value={`${progressPercent}%`} />
                 </div>
 
-                <div className={practiceQuizOverviewSectionClass} aria-label="Practice progress">
+                <div className={practiceQuizOverviewSectionClass} aria-label="Question navigator">
                   <div className={practiceQuizNavHeadClass}>
-                    <h3>Progress</h3>
-                    <span>{progressPercent}% complete</span>
+                    <h3>Question {currentIndex + 1} of {totalQuestions}{questionTypeLabel ? ` · ${questionTypeLabel}` : ''}</h3>
+                    <span>{progressPercent}%</span>
                   </div>
                   <div
-                    className="h-2 overflow-hidden rounded-full bg-surface-3"
+                    className="h-1.5 overflow-hidden rounded-full bg-surface-3"
                     role="progressbar"
                     aria-label="Practice progress"
                     aria-valuemin={0}
@@ -2146,16 +2178,6 @@ export function TakeQuizPage() {
                       className="block h-full w-full origin-left rounded-full bg-[linear-gradient(90deg,var(--brand-primary-start),var(--brand-primary-end))]"
                       style={{ transform: `scaleX(${progressPercent / 100})` }}
                     />
-                  </div>
-                  <p className="m-0 text-xs font-semibold leading-relaxed text-ink-soft">
-                    Question {currentIndex + 1} of {totalQuestions} / {questionTypeLabel}
-                  </p>
-                </div>
-
-                <div className={practiceQuizOverviewSectionClass} aria-label="Question navigator">
-                  <div className={practiceQuizNavHeadClass}>
-                    <h3>Question List</h3>
-                    <span>{totalQuestions} total</span>
                   </div>
 
                   <div className={practiceQuizBubbleNavClass}>
@@ -2188,8 +2210,8 @@ export function TakeQuizPage() {
                     <span><i className="border-brand-primary/30 bg-brand-primary/30" />Current</span>
                     <span><i className="border-brand-success/30 bg-brand-success/30" />Answered</span>
                     <span><i className="is-idle" />Not answered</span>
-                    <span><i className="border-[color-mix(in_srgb,#8b5cf6_30%,var(--line-soft))] bg-[color-mix(in_srgb,#8b5cf6_30%,transparent)]" />Saved</span>
-                    <span><i className="border-[color-mix(in_srgb,#d97706_30%,var(--line-soft))] bg-[color-mix(in_srgb,#d97706_30%,transparent)]" />Flagged</span>
+                    <span><i className="border-[color-mix(in_srgb,var(--color-primary)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-primary)_30%,transparent)]" />Saved</span>
+                    <span><i className="border-[color-mix(in_srgb,var(--color-warning)_30%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_30%,transparent)]" />Flagged</span>
                   </div>
                 </div>
               </section>
@@ -2453,12 +2475,13 @@ export function TakeQuizPage() {
       <section ref={examSectionRef} className={examLayoutClass}>
         <ExamModeHeader
           title={data.quiz.quizTitle}
-          quizLabel={getQuizNumberLabel(data.quiz)}
+          quizLabel={getQuizDisplayLabel(data.quiz)}
           isFree={data.quiz.isFree}
           secondaryLabel=""
           secondaryValue={formatDuration(secondsRemaining)}
           onEndSession={requestExamSubmit}
           saving={saving || questionActionBusy}
+          showThemeToggle={false}
         />
 
         {error ? <div className={ui.feedbackError} role="alert" aria-live="assertive">{error}</div> : null}
@@ -2469,35 +2492,25 @@ export function TakeQuizPage() {
               <PracticeSummaryTile label="Total" value={totalQuestions} />
               <PracticeSummaryTile label="Answered" value={answeredCount} />
               <PracticeSummaryTile label="Current" value={currentIndex + 1} />
-              <PracticeSummaryTile label="Progress" value={`${progressPercent}%`} />
             </div>
-
-            <section className={cx(examPanelClass, examProgressPanelClass, quizFlashPanelClass, 'lms-practice-progress-card')}>
-              <div className={examQuestionTypeRowClass}>
-                <div className={examCardKickerClass}>Progress</div>
-                <span className={examChipMiniClass}>{isSbaQuestion(currentQuestion) ? 'SBA' : 'T/F'}</span>
-              </div>
-              <div className={examProgressToplineClass}>
-                <strong className={examProgressCurrentClass}>Question {currentIndex + 1} of {totalQuestions}</strong>
-                <span className={examProgressPercentClass}>{progressPercent}% complete</span>
-              </div>
-              <div
-                className={examProgressBarClass}
-                role="progressbar"
-                aria-label="Exam progress"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={progressPercent}
-              >
-                <span className={examProgressFillClass} style={{ transform: `scaleX(${progressPercent / 100})` }} />
-              </div>
-            </section>
 
             <section className={cx(examPanelClass, quizFlashPanelClass, 'lms-practice-question-key')}>
               <div className={examCardHeadClass}>
-                <div>
-                  <div className={examCardKickerClass}>Question navigator</div>
-                  <strong>Move through the paper</strong>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <strong>Question {currentIndex + 1} of {totalQuestions}{isSbaQuestion(currentQuestion) ? ' · SBA' : ' · T/F'}</strong>
+                    <span className={examProgressPercentClass}>{progressPercent}%</span>
+                  </div>
+                  <div
+                    className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3"
+                    role="progressbar"
+                    aria-label="Exam progress"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progressPercent}
+                  >
+                    <span className={examProgressFillClass} style={{ transform: `scaleX(${progressPercent / 100})` }} />
+                  </div>
                 </div>
               </div>
 

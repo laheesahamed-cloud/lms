@@ -81,13 +81,74 @@ function syncNativePushAfterAuth() {
     .catch(() => {});
 }
 
+function normalizeAuthUser(user) {
+  if (!user || typeof user !== 'object') return null;
+
+  return {
+    ...user,
+    fullName: user.fullName || user.full_name || user.name || '',
+    avatarKey: user.avatarKey || user.avatar_key || '',
+  };
+}
+
+function getAuthPayloadUser(data) {
+  return normalizeAuthUser(data?.user || data?.account || data?.student || data?.profile);
+}
+
+async function resolveAuthPayload(data, label) {
+  const directUser = getAuthPayloadUser(data);
+  if (directUser?.role) {
+    return {
+      ...data,
+      user: directUser,
+    };
+  }
+
+  const previousToken = getAuthToken();
+  const responseToken = String(data?.sessionToken || '').trim();
+  const temporarilyStoredToken = Boolean(responseToken && responseToken !== previousToken);
+
+  try {
+    if (temporarilyStoredToken) {
+      setAuthToken(responseToken);
+    }
+    const current = await fetchCurrentUser({ silent: true, timeout: 5000 });
+    const currentUser = normalizeAuthUser(current?.user);
+    if (!currentUser?.role) {
+      throw new Error('Current user response did not include account details.');
+    }
+
+    return {
+      ...data,
+      redirectPath: data?.redirectPath || current?.redirectPath,
+      user: currentUser,
+      sessionToken: responseToken || previousToken || '',
+    };
+  } catch (error) {
+    if (temporarilyStoredToken) {
+      setAuthToken(previousToken);
+    }
+    if (detectPlatform().isNative) {
+      throw new Error(`Native ${label} could not load account details. Please try again.`);
+    }
+    throw error;
+  }
+}
+
 const bootstrapAuth = getBootstrapAuth();
 const PUBLIC_AUTH_HYDRATE_TIMEOUT_MS = 1500;
 
 export const useAuthStore = create((set, get) => ({
   user: bootstrapAuth.user,
   token: bootstrapAuth.token,
-  isHydrating: Boolean(bootstrapAuth.token && !bootstrapAuth.user),
+  // On web the session token lives only in memory, so a refresh starts with no
+  // token — but an httpOnly `lms_session` cookie may still authenticate us via
+  // /auth/me. Start in the hydrating state (so route guards WAIT instead of
+  // bouncing to /login) whenever we still need to probe for a session: no cached
+  // user, and either a token is present or we're on a protected route.
+  isHydrating:
+    !bootstrapAuth.user &&
+    (Boolean(bootstrapAuth.token) || !isPublicAuthRoute()),
   isAuthenticated: Boolean(bootstrapAuth.token && bootstrapAuth.user),
   isSigningOut: false,
   authNotice: null,
@@ -142,10 +203,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   signIn: async (payload) => {
-    const data = await login(payload);
-    if (detectPlatform().isNative && !data.sessionToken) {
-      throw new Error('Native sign-in did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
-    }
+    const data = await resolveAuthPayload(await login(payload), 'sign-in');
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');
@@ -164,10 +222,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   signUp: async (payload) => {
-    const data = await register(payload);
-    if (detectPlatform().isNative && !data.sessionToken) {
-      throw new Error('Native registration did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
-    }
+    const data = await resolveAuthPayload(await register(payload), 'registration');
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');
@@ -186,10 +241,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   signInWithGoogle: async (credential) => {
-    const data = await loginWithGoogle({ credential });
-    if (detectPlatform().isNative && !data.sessionToken) {
-      throw new Error('Native Google sign-in did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
-    }
+    const data = await resolveAuthPayload(await loginWithGoogle({ credential }), 'Google sign-in');
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');
@@ -208,10 +260,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   signInWithGoogleCode: async (payload) => {
-    const data = await loginWithGoogleCode(payload);
-    if (detectPlatform().isNative && !data.sessionToken) {
-      throw new Error('Native Google sign-in did not receive a session token. Restart the LMS API so it uses the latest auth build, then try again.');
-    }
+    const data = await resolveAuthPayload(await loginWithGoogleCode(payload), 'Google sign-in');
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');

@@ -97,7 +97,7 @@
 }
 
 .student-app-shell .student-course-card__progress-fill {
-  background: linear-gradient(90deg, var(--course-accent), var(--course-accent-2));
+  background: var(--sa-primary, var(--color-primary, #2563eb));
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -142,16 +142,33 @@
   gap: clamp(16px, 2vw, 22px);
 }
 
-/* Single card wrapping the whole summary */
+/* Summary is a stack of standalone cards — one per section */
+.student-app-shell .lms-course-summary-page .csum-stack {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* Each section is its own card */
 .student-app-shell .lms-course-summary-page .csum-card {
   display: grid;
-  gap: clamp(22px, 3.2vw, 32px);
-  padding: clamp(22px, 3.2vw, 40px);
+  gap: clamp(16px, 2.4vw, 22px);
+  padding: clamp(18px, 3vw, 26px);
   /* Master card recipe — flat surface, see CARD_DARK_MODE_PLAN.md */
   background: var(--surface-card);
   border: 1px solid var(--line-soft);
   border-radius: var(--ds-card-radius);
   box-shadow: var(--ds-card-shadow);
+}
+
+/* Sections no longer need internal separators — the card edges do that now */
+.student-app-shell .lms-course-summary-page .csum-card > .csum-section {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.student-app-shell .lms-course-summary-page .csum-card > .csum-stats {
+  border-top: 0;
 }
 
 /* ---- Header / summary ---- */
@@ -337,7 +354,7 @@
 }
 
 .student-app-shell .csum-btn--primary {
-  background: var(--c-blue);
+  background: #2563eb;
   color: #ffffff;
 }
 
@@ -349,7 +366,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .student-app-shell .csum-btn--primary:hover {
-    background: color-mix(in srgb, var(--c-blue) 88%, #000000);
+    background: #1d4ed8;
   }
   .student-app-shell .csum-btn--ghost:hover {
     border-color: var(--ink-soft);
@@ -646,7 +663,7 @@
 
 .student-app-shell .csum-open {
   display: inline-flex;
-  min-height: 36px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   border-radius: 10px;

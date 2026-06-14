@@ -19,6 +19,12 @@
   --lms-dropdown-duration: var(--lms-motion-duration-dropdown);
   --lms-modal-duration: var(--lms-motion-duration-modal);
 
+  /* Page + header entrance — a slower, clearly-felt morph with a SMOOTH decel
+     (no expo "snap" / bounce). Title and content share this so they come in as
+     one coordinated motion. */
+  --lms-page-enter-duration: 440ms;
+  --lms-page-enter-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
   --lms-motion-soft: var(--lms-motion-ease-out);
   --lms-motion-soft-exit: var(--lms-motion-ease-in);
   --lms-ease-soft: var(--lms-motion-ease-out);
@@ -35,5 +41,6 @@
     --lms-card-enter-duration: 1ms;
     --lms-dropdown-duration: 1ms;
     --lms-modal-duration: 1ms;
+    --lms-page-enter-duration: 1ms;
   }
 }
