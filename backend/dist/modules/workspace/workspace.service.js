@@ -93,9 +93,13 @@ let WorkspaceService = class WorkspaceService {
         WHERE a.status = 'published'
           AND (a.publish_at IS NULL OR a.publish_at <= NOW())
           AND (a.target_role = 'all' OR a.target_role = ?)
+          AND COALESCE(a.publish_at, a.created_at) >= COALESCE(
+            (SELECT u.created_at FROM users u WHERE u.id = ?),
+            '1970-01-01 00:00:00'
+          )
         ORDER BY a.created_at DESC
         LIMIT 80
-      `, [user.id, user.role]);
+      `, [user.id, user.role, user.id]);
         const announcements = rows.map((row) => ({
             ...this.mapAnnouncement(row),
             kind: 'announcement',
