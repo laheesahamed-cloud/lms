@@ -854,12 +854,15 @@ let SettingsService = SettingsService_1 = class SettingsService {
             '"': '&quot;',
             "'": '&#39;',
         }[char] || char));
+        const logoUrl = `${String(settings.publicUrl || '').replace(/\/+$/, '')}/landing/logo.png`;
         return `
       <div style="margin:0;padding:28px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
         <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:16px;overflow:hidden;">
-          <div style="padding:22px 24px;background:#2563eb;color:#ffffff;">
-            <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">xyndrome</div>
-            <h1 style="margin:8px 0 0;font-size:24px;line-height:1.2;">SMTP test email</h1>
+          <div style="padding:22px 24px 16px;background:#ffffff;text-align:center;">
+            <img src="${safe(logoUrl)}" alt="${safe(settings.fromName)}" width="150" style="display:inline-block;max-width:150px;height:auto;border:0;outline:none;text-decoration:none;" />
+          </div>
+          <div style="padding:20px 24px;background:#2563eb;color:#ffffff;">
+            <h1 style="margin:0;font-size:24px;line-height:1.2;">SMTP test email</h1>
           </div>
           <div style="padding:24px;font-size:14px;line-height:1.7;color:#334155;">
             <p style="margin:0 0 14px;">Your xyndrome SMTP settings can send email successfully.</p>
