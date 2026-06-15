@@ -1,6 +1,5 @@
 import { BadGatewayException, BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Pool, RowDataPacket } from 'mysql2/promise';
 import * as nodemailer from 'nodemailer';
 import { randomUUID } from 'crypto';
