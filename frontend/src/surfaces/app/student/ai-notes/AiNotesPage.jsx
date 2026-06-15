@@ -2264,6 +2264,70 @@ function getVideoCaptionUrl(note) {
   return String(candidates.find((value) => String(value || '').trim()) || '').trim();
 }
 function BackIcon()     { return <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M9.5 3.5l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
+
+// ── Lesson loading state ────────────────────────────────────────────────────────
+// Rotating funny, loading-themed medical one-liners while the lesson fetches.
+// Each word does a brightness-pulse + bob wave (staggered left-to-right).
+const LESSON_LOADING_QUOTES = [
+  "Buffering at the speed of a sloth's heartbeat, roughly 6 beats per minute.",
+  "Please hold. Your neurons are still busy myelinating.",
+  "Loading slower than a Monday morning IV drip.",
+  "Taking your lesson's vitals. Pulse is strong, just give it a sec.",
+  "Suturing the last few bytes together. Almost ready.",
+  "Patience: the only medicine with zero side effects.",
+  "Diagnosing your content. Results pending, prognosis excellent.",
+  "Still in the waiting room. The doctor will load you now.",
+  "Warming up the contrast dye so your notes show up clearly.",
+  "Good lessons, like good recoveries, take a little rest first.",
+];
+
+function LessonLoadingState({ isDark, pageBg }) {
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx(i => (i + 1) % LESSON_LOADING_QUOTES.length);
+        setVisible(true);
+      }, 500);
+    }, 6000);
+    return () => clearInterval(id);
+  }, []);
+
+  const words   = LESSON_LOADING_QUOTES[idx].split(' ');
+  const textCol = isDark ? '#f1f5f9' : '#1f2937';
+  const dotCol  = isDark ? 'rgba(226,232,240,.62)' : '#64748b';
+  const badgeBg = isDark ? 'rgba(120,150,255,.14)' : '#eef2ff';
+  const badgeTx = isDark ? '#c7d2fe' : '#4f46e5';
+
+  return (
+    <main style={{ minHeight:'100dvh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
+      <style>{`
+        @keyframes lmsLessonWordWave { 0%,60%,100%{opacity:.35;transform:translateY(0)} 30%{opacity:1;transform:translateY(-4px)} }
+        @keyframes lmsLessonDot { 0%,80%,100%{opacity:.25} 40%{opacity:1} }
+        .lms-ll-word { display:inline-block; margin-right:.28em; animation:lmsLessonWordWave 2.2s ease-in-out infinite; }
+        .lms-ll-dot { width:6px; height:6px; border-radius:50%; animation:lmsLessonDot 1.4s ease-in-out infinite; }
+      `}</style>
+      <div style={{ maxWidth:440, width:'100%', textAlign:'center' }}>
+        <div style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:10, fontWeight:700, letterSpacing:.4, color:badgeTx, background:badgeBg, padding:'3px 10px', borderRadius:999, marginBottom:14 }}>
+          LOADING LESSONS
+        </div>
+        <p style={{ fontSize:13, lineHeight:1.6, fontWeight:600, color:textCol, margin:'0 0 16px', minHeight:60, opacity:visible?1:0, transition:'opacity .5s ease' }}>
+          {words.map((w, k) => (
+            <span key={`${idx}-${k}`} className="lms-ll-word" style={{ animationDelay:`${(k*0.12).toFixed(2)}s` }}>{w}</span>
+          ))}
+        </p>
+        <div style={{ display:'flex', gap:4, justifyContent:'center' }}>
+          <span className="lms-ll-dot" style={{ background:dotCol }} />
+          <span className="lms-ll-dot" style={{ background:dotCol, animationDelay:'.2s' }} />
+          <span className="lms-ll-dot" style={{ background:dotCol, animationDelay:'.4s' }} />
+        </div>
+      </div>
+    </main>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Lesson', backLabel: _backLabel='Lessons' }) {
   const { id, lessonId } = useParams();
@@ -2712,16 +2776,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     [pages, note]
   );
 
-  if (loading) return (
-    <main style={{ minHeight:'100dvh', background:pageBg }}>
-      <div className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_280px] gap-5 px-6 py-5 max-[1180px]:grid-cols-1 max-[1180px]:px-4 max-[520px]:px-3">
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, alignItems:'start' }}>
-          {[1,2,3,4,5,6].map((i,j) => <div key={i} style={{ height:[220,160,200,180,240,140][j], borderRadius:16, background:isDark?'#1a1d2e':'#e5e7eb', gridColumn:j===0?'1/-1':'span 1' }}/>)}
-        </div>
-        <div style={{ height:320, borderRadius:16, background:isDark?'#1a1d2e':'#e5e7eb' }}/>
-      </div>
-    </main>
-  );
+  if (loading) return <LessonLoadingState isDark={isDark} pageBg={pageBg} />;
 
   if (error) return (
     <main style={{ minHeight:'100dvh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
