@@ -319,6 +319,7 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
                         state: {
                           engineKey: note.engine || null,
                           lessonId: note.lessonId || null,
+                          lessonTitle: note.title || note.lessonTitle || null,
                           returnToPath: `${routeBase}${course.label ? `?course=${encodeURIComponent(course.label)}` : ''}`,
                           returnTo: 'list',
                           sourceCourse: course.label || null,

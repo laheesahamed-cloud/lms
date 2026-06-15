@@ -2281,14 +2281,18 @@ const LESSON_LOADING_QUOTES = [
   "Good lessons, like good recoveries, take a little rest first.",
 ];
 
-function LessonLoadingState({ isDark, pageBg }) {
-  const [idx, setIdx] = useState(0);
+function LessonLoadingState({ isDark, pageBg, overlay = false, hiding = false }) {
+  const [idx, setIdx] = useState(() => Math.floor(Math.random() * LESSON_LOADING_QUOTES.length));
   const [visible, setVisible] = useState(true);
   useEffect(() => {
     const id = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setIdx(i => (i + 1) % LESSON_LOADING_QUOTES.length);
+        setIdx(i => {
+          if (LESSON_LOADING_QUOTES.length < 2) return i;
+          let n; do { n = Math.floor(Math.random() * LESSON_LOADING_QUOTES.length); } while (n === i);
+          return n;
+        });
         setVisible(true);
       }, 500);
     }, 6000);
@@ -2301,13 +2305,21 @@ function LessonLoadingState({ isDark, pageBg }) {
   const badgeBg = isDark ? 'rgba(120,150,255,.14)' : '#eef2ff';
   const badgeTx = isDark ? '#c7d2fe' : '#4f46e5';
 
+  const overlayStyle = overlay
+    ? { position:'fixed', inset:0, zIndex:44, opacity:hiding?0:1, pointerEvents:hiding?'none':'auto', transition:'opacity .4s ease' }
+    : {};
+
   return (
-    <main style={{ minHeight:'100dvh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
+    <main style={{ minHeight:'100dvh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center', padding:24, ...overlayStyle }}>
       <style>{`
         @keyframes lmsLessonWordWave { 0%,60%,100%{opacity:.35;transform:translateY(0)} 30%{opacity:1;transform:translateY(-4px)} }
         @keyframes lmsLessonDot { 0%,80%,100%{opacity:.25} 40%{opacity:1} }
-        .lms-ll-word { display:inline-block; margin-right:.28em; animation:lmsLessonWordWave 2.2s ease-in-out infinite; }
-        .lms-ll-dot { width:6px; height:6px; border-radius:50%; animation:lmsLessonDot 1.4s ease-in-out infinite; }
+        .lms-ll-word { display:inline-block; margin-right:.28em; animation:lmsLessonWordWave 2.2s ease-in-out infinite; animation-delay:var(--ll-d,0s); }
+        .lms-ll-dot { width:6px; height:6px; border-radius:50%; animation:lmsLessonDot 1.4s ease-in-out infinite; animation-delay:var(--ll-d,0s); }
+        @media (prefers-reduced-motion: reduce) {
+          .lms-ll-word { animation-duration:2.2s!important; animation-iteration-count:infinite!important; animation-delay:var(--ll-d,0s)!important; }
+          .lms-ll-dot { animation-duration:1.4s!important; animation-iteration-count:infinite!important; animation-delay:var(--ll-d,0s)!important; }
+        }
       `}</style>
       <div style={{ maxWidth:440, width:'100%', textAlign:'center' }}>
         <div style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:10, fontWeight:700, letterSpacing:.4, color:badgeTx, background:badgeBg, padding:'3px 10px', borderRadius:999, marginBottom:14 }}>
@@ -2315,13 +2327,13 @@ function LessonLoadingState({ isDark, pageBg }) {
         </div>
         <p style={{ fontSize:13, lineHeight:1.6, fontWeight:600, color:textCol, margin:'0 0 16px', minHeight:60, opacity:visible?1:0, transition:'opacity .5s ease' }}>
           {words.map((w, k) => (
-            <span key={`${idx}-${k}`} className="lms-ll-word" style={{ animationDelay:`${(k*0.12).toFixed(2)}s` }}>{w}</span>
+            <span key={`${idx}-${k}`} className="lms-ll-word" style={{ '--ll-d':`${(k*0.12).toFixed(2)}s` }}>{w}</span>
           ))}
         </p>
         <div style={{ display:'flex', gap:4, justifyContent:'center' }}>
           <span className="lms-ll-dot" style={{ background:dotCol }} />
-          <span className="lms-ll-dot" style={{ background:dotCol, animationDelay:'.2s' }} />
-          <span className="lms-ll-dot" style={{ background:dotCol, animationDelay:'.4s' }} />
+          <span className="lms-ll-dot" style={{ background:dotCol, '--ll-d':'.2s' }} />
+          <span className="lms-ll-dot" style={{ background:dotCol, '--ll-d':'.4s' }} />
         </div>
       </div>
     </main>
@@ -2776,7 +2788,44 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     [pages, note]
   );
 
-  if (loading) return <LessonLoadingState isDark={isDark} pageBg={pageBg} />;
+  // Keep the loading screen on top until the lesson content has actually
+  // painted & settled, so the canvas doesn't appear to assemble/overlay in.
+  const [contentReady, setContentReady] = useState(false);
+  const [overlayGone, setOverlayGone] = useState(false);
+  useEffect(() => {
+    if (loading || !note) { setContentReady(false); setOverlayGone(false); return; }
+    let r1, r2, t;
+    r1 = requestAnimationFrame(() => {
+      r2 = requestAnimationFrame(() => { t = setTimeout(() => setContentReady(true), 160); });
+    });
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); clearTimeout(t); };
+  }, [loading, note]);
+  useEffect(() => {
+    if (!contentReady) return;
+    const t = setTimeout(() => setOverlayGone(true), 420);
+    return () => clearTimeout(t);
+  }, [contentReady]);
+
+  // App-shell loading: header is present from the first frame so the loader
+  // sits below it (never pushed down later). Same header + same overlay-positioned
+  // loader as the loaded state, so the hand-off has no jump/flash.
+  if (loading) return (
+    <main style={{ minHeight:'100dvh', background:pageBg }}>
+      <WebViewLayer enabled={platform.isNative}>
+        <div className="lms-ai-note-topbar" style={{ position:'sticky', top:0, zIndex:45, background:topBg, borderBottom:`1px solid ${topBd}`, WebkitBackdropFilter:'blur(8px)', backdropFilter:'blur(8px)' }}>
+          <div className="lms-ai-note-topbar-inner" style={{ display:'flex', alignItems:'center', gap:14, maxWidth:1680, margin:'0 auto', padding:'calc(8px + env(safe-area-inset-top, 0px)) 20px 8px', minWidth:0 }}>
+            <button className="lms-ai-note-back-button lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} aria-label="Back" title="Back" style={{ display:'flex', alignItems:'center', justifyContent:'center', border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:0, width:38, height:38, minHeight:38, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
+              <BackIcon/>
+            </button>
+            <div className="lms-ai-note-title-block" style={{ minWidth:0, flex:1, overflow:'hidden' }}>
+              <div style={{ minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{location.state?.lessonTitle || _headerTitle}</div>
+            </div>
+          </div>
+        </div>
+      </WebViewLayer>
+      <LessonLoadingState isDark={isDark} pageBg={pageBg} overlay />
+    </main>
+  );
 
   if (error) return (
     <main style={{ minHeight:'100dvh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -2806,6 +2855,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       className={cx('lms-ai-note-page select-text [-webkit-user-select:text]', drawMode && canDraw && 'is-writing-mode')}
       style={{ minHeight:'100dvh', background:pageBg }}
     >
+      {!overlayGone && <LessonLoadingState isDark={isDark} pageBg={pageBg} overlay hiding={contentReady} />}
       <SmoothCanvasMotion />
       {/* Top bar */}
       <WebViewLayer enabled={platform.isNative}>
