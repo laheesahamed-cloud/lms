@@ -5,7 +5,6 @@ html[data-lms-runtime="native"] {
   --lms-native-motion-route: var(--lms-motion-ease-standard, cubic-bezier(0.23, 1, 0.32, 1));
   --lms-native-chrome-bg: var(--app-bg);
   --lms-native-chrome-bg-solid: var(--app-bg-solid, var(--surface-0, #0b121b));
-  --lms-native-top-surface: var(--lms-native-chrome-bg, var(--app-bg));
   /* Slide direction: 1 = forward (left), -1 = back (right). Set by bottom nav onClick. */
   --lms-slide-dir: 1;
 }
@@ -188,7 +187,6 @@ html[data-lms-runtime="native"]:not([data-theme="dark"]) {
 }
 
 html[data-lms-runtime="native"][data-theme="dark"] {
-  --lms-native-top-surface: var(--app-bg);
   color-scheme: dark;
 }
 
@@ -239,9 +237,7 @@ html[data-lms-runtime="native"] .student-app-shell :where(
   .text-ink-soft,
   .text-ink-muted,
   .student-page-hero__subtitle,
-  .student-page-hero__metric-label,
-  .lms-app-card-muted
-) {
+  .student-page-hero__metric-label) {
   color: var(--ink-soft) !important;
 }
 
@@ -259,8 +255,6 @@ html[data-lms-runtime="native"] .student-app-shell :where(
   .study-continue-card,
   .study-action-card,
   .glass-card,
-  .card-surface,
-  .lms-app-card,
   .lms-table-shell,
   .student-lessons-category,
   .student-lessons-lesson-row
@@ -494,11 +488,10 @@ html[data-lms-runtime="native"] :where(
 html[data-lms-runtime="native"] :where(
   .lms-topbar,
   .study-hub-topbar,
-  .lms-native-topbar-layer,
   .lms-sidebar,
   .lms-mobile-bottom-nav__inner,
-  .glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .surface-card,
-  .lms-card, .lms-global-card, .lms-app-card, .lms-course-card, .student-course-card,
+  .glass-card, .bg-surface-card, .bg-surface-card-elevated, .surface-card,
+  .lms-card, .lms-global-card, .lms-course-card, .student-course-card,
   .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-set-card,
   .lms-page-header-card, .lms-hero-card, .lms-form-card, .lms-floating-panel, .lms-alert,
   .study-card, .study-continue-card, .study-streak-card,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
 import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { listStudentAiNotesAcrossEngines, readAiNotesCache } from '../../../../shared/api/aiNotes.api.js';
@@ -419,6 +419,20 @@ export function AiNotesListPage({
     [hierarchy, selectedCourse]
   );
 
+  // During the transition to a lesson, React Router swaps the URL to the lesson
+  // route (dropping ?course=…) before this list page unmounts. For that one frame
+  // `selectedCourse` reads empty, which would flash the course grid back in. Detect
+  // that the live path is already a lesson and hold the last open course instead,
+  // so the course detail stays put until the lesson route takes over.
+  const location = useLocation();
+  const navigatingToLesson =
+    /\/(?:ai-notes\/\d+|study\/lesson\/\d+)(?:$|[/?#])/.test(location.pathname);
+  const lastCourseRef = useRef(null);
+  if (selectedCourse && activeCourse) lastCourseRef.current = { selectedCourse, activeCourse };
+  const heldCourse = navigatingToLesson ? lastCourseRef.current : null;
+  const viewSelectedCourse = selectedCourse || heldCourse?.selectedCourse || null;
+  const viewActiveCourse = activeCourse || heldCourse?.activeCourse || null;
+
   function selectCourse(label) {
     const next = new URLSearchParams(searchParams);
     label ? next.set('course', label) : next.delete('course');
@@ -440,7 +454,7 @@ export function AiNotesListPage({
     <main ref={pageRef} className="dashboard-page study-hub-page student-lessons-page ai-notes-list-page">
       <section className="study-hub-shell">
         <AppHeader
-          title={activeCourse?.label || selectedCourse || headerTitle}
+          title={viewActiveCourse?.label || viewSelectedCourse || headerTitle}
           subtitle="Lesson Notes"
           compact
         />
@@ -457,7 +471,7 @@ export function AiNotesListPage({
               <div key={i} className={cx(ui.skeletonCard, 'h-[160px] max-[520px]:h-[132px]')} />
             ))}
           </div>
-        ) : !selectedCourse || !activeCourse ? (
+        ) : !viewSelectedCourse || !viewActiveCourse ? (
           hierarchy.length === 0 ? (
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
               <span className="grid size-12 place-items-center rounded-xl border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary">
@@ -494,7 +508,7 @@ export function AiNotesListPage({
         ) : (
           <section>
             <CourseDetail
-              course={activeCourse}
+              course={viewActiveCourse}
               onBack={() => selectCourse(null)}
               bookmarkedIds={bookmarkedIds}
               onToggleBookmark={handleToggleBookmark}

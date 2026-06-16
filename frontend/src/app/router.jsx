@@ -59,7 +59,6 @@ const BookmarksPage = lazyNamed(() => import('../surfaces/app/student/bookmarks/
 const StudentNotificationsPage = lazyNamed(() => import('../surfaces/app/student/notifications/StudentNotificationsPage.jsx'), 'StudentNotificationsPage');
 const StudyPlannerPage = lazyNamed(() => import('../surfaces/app/student/planner/StudyPlannerPage.jsx'), 'StudyPlannerPage');
 const StudentFlashcardsPage = lazyNamed(() => import('../surfaces/app/student/flashcards/StudentFlashcardsPage.jsx'), 'StudentFlashcardsPage');
-const StudentNotesPage = lazyNamed(() => import('../surfaces/app/student/notes/StudentNotesPage.jsx'), 'StudentNotesPage');
 const StudentStudyPage = lazyNamed(() => import('../surfaces/app/student/study/StudentStudyPage.jsx'), 'StudentStudyPage');
 const AiNotesPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
 const AiNotesListPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesListPage.jsx'), 'AiNotesListPage');
@@ -110,7 +109,6 @@ const roleRoutePreloaders = {
     ['/study', StudentStudyPage.preload],
     ['/planner', StudyPlannerPage.preload],
     ['/ai-notes', AiNotesListPage.preload],
-    ['/notes', StudentNotesPage.preload],
     ['/flashcards', StudentFlashcardsPage.preload],
     ['/quizzes', StudentQuizzesPage.preload],
     ['/exams', StudentQuizzesPage.preload],
@@ -220,7 +218,6 @@ const STUDENT_ROUTE_NAMES = {
   '/app/exams': 'Exams',
   '/app/results': 'Results',
   '/app/ai-notes': 'Lessons',
-  '/app/notes': 'Notes',
   '/app/flashcards': 'Flashcards',
   '/app/planner': 'Planner',
   '/app/study': 'Study',
@@ -274,10 +271,10 @@ function RouteFallback() {
   );
 }
 
-function withSuspense(element) {
+function withSuspense(element, fallback = <RouteFallback />) {
   return (
     <AppErrorBoundary>
-      <Suspense fallback={<RouteFallback />}>
+      <Suspense fallback={fallback}>
         <RouteReveal>{element}</RouteReveal>
       </Suspense>
     </AppErrorBoundary>
@@ -532,7 +529,7 @@ const studentPanelRoutes = [
   },
   {
     path: 'courses/:courseId',
-    element: withSuspense(<CourseDetailPage />),
+    element: withSuspense(<CourseDetailPage />, null),
   },
   {
     path: 'quizzes',
@@ -583,12 +580,8 @@ const studentPanelRoutes = [
     element: withSuspense(<StudentFlashcardsPage />),
   },
   {
-    path: 'notes',
-    element: withSuspense(<StudentNotesPage />),
-  },
-  {
     path: 'study/lesson/:lessonId',
-    element: withSuspense(<AiNotesPage />),
+    element: withSuspense(<AiNotesPage />, null),
   },
   {
     path: 'ai-notes',
@@ -596,7 +589,7 @@ const studentPanelRoutes = [
   },
   {
     path: 'ai-notes/:id',
-    element: withSuspense(<AiNotesPage />),
+    element: withSuspense(<AiNotesPage />, null),
   },
   {
     path: 'results',
@@ -802,7 +795,7 @@ const router = createBrowserRouter([
             path: 'courses/:courseId',
             element: (
               <ProtectedRoute role="student">
-                {withSuspense(<CourseDetailPage />)}
+                {withSuspense(<CourseDetailPage />, null)}
               </ProtectedRoute>
             ),
           },
@@ -979,18 +972,10 @@ const router = createBrowserRouter([
             ),
           },
           {
-            path: 'notes',
-            element: (
-              <ProtectedRoute role="student">
-                {withSuspense(<StudentNotesPage />)}
-              </ProtectedRoute>
-            ),
-          },
-          {
             path: 'study/lesson/:lessonId',
             element: (
               <ProtectedRoute role="student">
-                {withSuspense(<AiNotesPage />)}
+                {withSuspense(<AiNotesPage />, null)}
               </ProtectedRoute>
             ),
           },
@@ -1012,7 +997,7 @@ const router = createBrowserRouter([
               <ProtectedRoute>
                 <RoleSwitch
                   admin={withSuspense(<AdminAiNotesEditorPage />)}
-                  student={withSuspense(<AiNotesPage />)}
+                  student={withSuspense(<AiNotesPage />, null)}
                   adminPermissions={['content.manage']}
                 />
               </ProtectedRoute>

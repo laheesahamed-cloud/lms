@@ -5,10 +5,7 @@
 
 .student-app-shell .student-course-card {
   --course-accent: var(--sa-primary);
-  --course-accent-2: var(--sa-ok);
   --course-accent-rgb: 37, 99, 235;
-  --course-accent-2-rgb: 52, 211, 153;
-  --course-soft: rgba(var(--course-accent-rgb), 0.12);
   grid-template-rows: auto 1fr;
   gap: 0;
   min-height: clamp(330px, 34vw, 390px);
@@ -36,37 +33,27 @@
 
 .student-app-shell .student-course-card--cardio {
   --course-accent: #e11d48;
-  --course-accent-2: #0891b2;
   --course-accent-rgb: 225, 29, 72;
-  --course-accent-2-rgb: 8, 145, 178;
 }
 
 .student-app-shell .student-course-card--pharma {
   --course-accent: #0f766e;
-  --course-accent-2: #7c3aed;
   --course-accent-rgb: 15, 118, 110;
-  --course-accent-2-rgb: 124, 58, 237;
 }
 
 .student-app-shell .student-course-card--micro {
   --course-accent: #7c2d12;
-  --course-accent-2: #16a34a;
   --course-accent-rgb: 124, 45, 18;
-  --course-accent-2-rgb: 22, 163, 74;
 }
 
 .student-app-shell .student-course-card--anatomy {
   --course-accent: #2563eb;
-  --course-accent-2: #db2777;
   --course-accent-rgb: 37, 99, 235;
-  --course-accent-2-rgb: 219, 39, 119;
 }
 
 .student-app-shell .student-course-card--default {
   --course-accent: #2563eb;
-  --course-accent-2: #f59e0b;
   --course-accent-rgb: 37, 99, 235;
-  --course-accent-2-rgb: 245, 158, 11;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -122,7 +109,6 @@
   --c-blue:   #007AFF;
   --c-green:  #34C759;
   --c-orange: #FF9500;
-  --c-red:    #FF3B30;
   --c-gray:   #8E8E93;
   --csum-rule: var(--line-soft);
   background: var(--surface-0);
@@ -134,7 +120,6 @@
   --c-blue:   #0A84FF;
   --c-green:  #30D158;
   --c-orange: #FF9F0A;
-  --c-red:    #FF453B;
   --c-gray:   #98989D;
 }
 
@@ -176,6 +161,14 @@
   display: grid;
   gap: 10px;
   min-width: 0;
+}
+
+/* Zone divider — splits [eyebrow/title/lede/progress] from [next up/continue]. */
+.student-app-shell .csum-divider {
+  height: 0;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
 }
 
 .student-app-shell .csum-back {

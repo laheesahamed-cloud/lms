@@ -5,10 +5,12 @@ const STUDENT_COURSES_CACHE_MS = 60_000;
 const STUDENT_COURSE_DETAIL_CACHE_MS = 60_000;
 const studentCoursesCache = createTimedApiCache({
   ttlMs: STUDENT_COURSES_CACHE_MS,
+  persistKey: 'student.courses',
   load: () => apiClient.get('/student/courses').then((response) => response.data),
 });
 const studentCourseDetailCache = createTimedApiCache({
   ttlMs: STUDENT_COURSE_DETAIL_CACHE_MS,
+  persistKey: 'student.course-detail',
   key: (courseId) => String(courseId || ''),
   load: (courseId) => apiClient.get(`/student/courses/${courseId}`).then((response) => response.data),
 });

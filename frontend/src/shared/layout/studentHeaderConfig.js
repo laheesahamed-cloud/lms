@@ -17,7 +17,7 @@ const STUDENT_HEADER_ROUTES = [
   { re: /^\/(?:app\/)?flashcards\/?$/, title: 'Flashcards', subtitle: 'Spaced Review', compact: true },
   { re: /^\/(?:app\/)?planner\/?$/, title: 'Planner', subtitle: 'Study schedule', compact: true },
   { re: /^\/(?:app\/)?notes\/?$/, title: 'Notes', subtitle: 'Study Notebook' },
-  { re: /^\/(?:app\/)?bookmarks\/?$/, title: 'Saved', subtitle: 'Bookmarks' },
+  { re: /^\/(?:app\/)?bookmarks\/?$/, title: 'Saved', subtitle: 'Bookmarks', compact: true },
   { re: /^\/(?:app\/)?subscriptions\/checkout\/[^/]+\/?$/, title: 'Checkout', subtitle: 'Plan Access', back: true, backTo: '/app/subscriptions' },
   { re: /^\/(?:app\/)?subscriptions\/?$/, title: 'Subscriptions' },
   { re: /^\/(?:app\/)?notifications\/?$/, title: 'Notifications', subtitle: 'Message Inbox' },

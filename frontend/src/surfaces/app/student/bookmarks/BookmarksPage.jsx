@@ -8,6 +8,9 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { StudentPageHero } from '../components/StudentPageHero.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
+import { detectPlatform } from '../../../../shared/platform/detect.js';
+
+const PLATFORM = detectPlatform();
 
 function TrashIcon() { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3h8M4.5 1.75h3M4 3v6.25m4-6.25v6.25M3 3l.4 6.2A1 1 0 0 0 4.4 10h3.2a1 1 0 0 0 1-.8L9 3" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
@@ -74,8 +77,8 @@ function formatSavedDate(value) {
 
 export function BookmarksPage() {
   const navigate  = useNavigate();
-  // Native-only: edge-swipe from the left returns to the Study hub. Bookmarks is
-  // a tab page (not a chevron route), so the pop is an instant swap, no slide.
+  // Native-only: edge-swipe from the left returns to the Study hub (mirrors the
+  // back chevron — a history pop, smooth native slide on this chevron route).
   const pageRef = useRef(null);
   const handleSwipeBack = useCallback(() => {
     const studyPath = window.location.pathname.startsWith('/app') ? '/app/study' : '/study';
@@ -145,7 +148,12 @@ export function BookmarksPage() {
     return (
       <article
         key={`${item.itemType}-${item.itemId}`}
-        className="grid min-h-[86px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line-soft bg-surface-1 px-4 py-3 shadow-xs transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:border-line-medium hover:bg-surface-2/60 hover:shadow-sm max-[640px]:grid-cols-1 max-[640px]:items-start max-[640px]:gap-2.5"
+        role="button"
+        tabIndex={0}
+        onClick={() => openItem(item)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openItem(item); } }}
+        aria-label={`${meta.action} saved ${meta.label.toLowerCase()}`}
+        className="grid min-h-[86px] cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-transparent dark:border-line-soft bg-surface-1 px-4 py-3 shadow-xs transition-[background,border-color,box-shadow,transform] duration-150 ease-[var(--ease-out)] hover:border-line-medium hover:bg-surface-2/60 hover:shadow-sm active:scale-[0.99]"
       >
         <div className="min-w-0">
           <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-2">
@@ -164,15 +172,7 @@ export function BookmarksPage() {
             <p className="m-0 mt-1 truncate text-[12px] font-medium text-ink-muted">{contextLine}</p>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2 max-[640px]:w-full max-[640px]:justify-between">
-          <button
-            className="inline-flex min-h-9 items-center justify-center rounded-lg border border-brand-primary/22 bg-[var(--color-primary-light)] px-3 text-[12.5px] font-extrabold text-brand-primary shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] hover:border-brand-primary/35 hover:bg-brand-primary/12 active:scale-[0.98]"
-            type="button"
-            onClick={() => openItem(item)}
-            aria-label={`${meta.action} saved ${meta.label.toLowerCase()}`}
-          >
-            {meta.action}
-          </button>
+        <div className="flex shrink-0 items-center gap-2">
           <button className={ui.dangerIconButton}
             type="button"
             onClick={e => handleRemove(e, item)}
@@ -189,16 +189,18 @@ export function BookmarksPage() {
   return (
     <main ref={pageRef} className="dashboard-page study-hub-page student-bookmarks-page">
       <section className="study-hub-shell">
-        <AppHeader title="Saved" subtitle="Bookmarks" />
+        <AppHeader title="Saved" subtitle="Bookmarks" compact />
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
-        <StudentPageHero
-          title="Saved items"
-          subtitle="Your bookmarked notes, questions, quizzes, and exams in one clean place."
-        />
+        {!PLATFORM.isNative ? (
+          <StudentPageHero
+            title="Saved items"
+            subtitle="Your bookmarked notes, questions, quizzes, and exams in one clean place."
+          />
+        ) : null}
 
-        {!loading && items.length ? (
+        {!PLATFORM.isNative && !loading && items.length ? (
           <div className="grid grid-cols-2 gap-2.5 min-[520px]:grid-cols-3 min-[860px]:grid-cols-6">
             {overviewStats.map((stat) => (
               <div
@@ -212,7 +214,7 @@ export function BookmarksPage() {
           </div>
         ) : null}
 
-        <div className="flex flex-wrap gap-2 rounded-lg border border-line-soft bg-surface-glass-strong p-2 shadow-xs">
+        <div className="mb-4 flex flex-wrap gap-2 rounded-lg border border-line-soft bg-surface-glass-strong p-2 shadow-xs">
           {TYPE_FILTERS.map(f => (
             <button className={cx(
                 'min-h-10 rounded-md border px-3 text-sm font-bold shadow-none transition',

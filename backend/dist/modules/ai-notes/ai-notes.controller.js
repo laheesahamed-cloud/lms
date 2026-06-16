@@ -16,6 +16,7 @@ exports.AiNotesController = void 0;
 const common_1 = require("@nestjs/common");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
+const crypto_1 = require("crypto");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
 const ai_notes_service_1 = require("./ai-notes.service");
 class GenerateDto {
@@ -263,9 +264,6 @@ let AiNotesController = class AiNotesController {
     adminCreate(dto, engineKey, auth) {
         return this.svc.adminCreate(dto.title, dto.rawText, dto.courseId, dto.topicId, dto.subtopicId, dto.lessonId, dto.isFree, dto.videoUrl, token(auth), engine(engineKey, this.svc));
     }
-    getLessonCanvases(engineKey, auth) {
-        return this.svc.getLessonCanvases(token(auth), engine(engineKey, this.svc));
-    }
     adminListFlashcards(id, engineKey, auth) {
         return this.svc.adminListFlashcards(id, token(auth), engine(engineKey, this.svc));
     }
@@ -290,9 +288,6 @@ let AiNotesController = class AiNotesController {
     getSubtopics(topicId, auth) {
         return this.svc.getSubtopics(topicId ? Number(topicId) : undefined, token(auth));
     }
-    getLessons(subtopicId, auth) {
-        return this.svc.getLessons(subtopicId ? Number(subtopicId) : undefined, token(auth));
-    }
     adminFindOne(id, engineKey, auth) {
         return this.svc.adminFindOne(id, token(auth), engine(engineKey, this.svc));
     }
@@ -305,11 +300,30 @@ let AiNotesController = class AiNotesController {
     studentList(engineKey, auth) {
         return this.svc.studentList(token(auth), engine(engineKey, this.svc));
     }
-    studentFindByLesson(lessonId, engineKey, auth) {
-        return this.svc.studentFindByLesson(lessonId, token(auth), engine(engineKey, this.svc));
+    async studentFindByLesson(lessonId, engineKey, auth, ifNoneMatch, res) {
+        const eng = engine(engineKey, this.svc);
+        const result = await this.svc.studentFindByLesson(lessonId, token(auth), eng);
+        this.sendNote(res, ifNoneMatch, `lesson:${lessonId}:${eng}`, result);
     }
-    studentFindOne(id, engineKey, auth) {
-        return this.svc.studentFindOne(id, token(auth), engine(engineKey, this.svc));
+    studentFlashcards(id, engineKey, auth) {
+        return this.svc.studentFlashcards(id, token(auth), engine(engineKey, this.svc));
+    }
+    async studentFindOne(id, engineKey, auth, ifNoneMatch, res) {
+        const eng = engine(engineKey, this.svc);
+        const result = await this.svc.studentFindOne(id, token(auth), eng);
+        this.sendNote(res, ifNoneMatch, `note:${id}:${eng}`, result);
+    }
+    sendNote(res, ifNoneMatch, seed, result) {
+        const etag = 'W/"' + (0, crypto_1.createHash)('sha1')
+            .update(`${seed}:${result?.updatedAt ?? ''}:${result?.approvedFlashcardCount ?? ''}:${result?.lessonProgressPercent ?? ''}:${result?.lessonProgressStatus ?? ''}`)
+            .digest('base64url') + '"';
+        if (ifNoneMatch === etag) {
+            res.status(304).end();
+            return;
+        }
+        res.setHeader('ETag', etag);
+        res.setHeader('Cache-Control', 'private, no-cache');
+        res.json(result);
     }
 };
 exports.AiNotesController = AiNotesController;
@@ -343,15 +357,6 @@ __decorate([
     __metadata("design:paramtypes", [CreateNoteDto, String, String]),
     __metadata("design:returntype", void 0)
 ], AiNotesController.prototype, "adminCreate", null);
-__decorate([
-    (0, common_1.Get)('admin/lesson-canvases'),
-    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
-    __param(0, (0, common_1.Query)('engine')),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
-    __metadata("design:returntype", void 0)
-], AiNotesController.prototype, "getLessonCanvases", null);
 __decorate([
     (0, common_1.Get)('admin/:id/flashcards'),
     (0, permissions_decorator_1.RequirePermissions)('content.manage'),
@@ -435,15 +440,6 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AiNotesController.prototype, "getSubtopics", null);
 __decorate([
-    (0, common_1.Get)('admin/hierarchy/lessons'),
-    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
-    __param(0, (0, common_1.Query)('subtopicId')),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
-    __metadata("design:returntype", void 0)
-], AiNotesController.prototype, "getLessons", null);
-__decorate([
     (0, common_1.Get)('admin/:id'),
     (0, permissions_decorator_1.RequirePermissions)('content.manage'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
@@ -487,18 +483,31 @@ __decorate([
     __param(0, (0, common_1.Param)('lessonId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Query)('engine')),
     __param(2, (0, common_1.Headers)('authorization')),
+    __param(3, (0, common_1.Headers)('if-none-match')),
+    __param(4, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String, String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Number, String, String, String, Object]),
+    __metadata("design:returntype", Promise)
 ], AiNotesController.prototype, "studentFindByLesson", null);
 __decorate([
-    (0, common_1.Get)(':id'),
+    (0, common_1.Get)(':id/flashcards'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Query)('engine')),
     __param(2, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, String, String]),
     __metadata("design:returntype", void 0)
+], AiNotesController.prototype, "studentFlashcards", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Query)('engine')),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __param(3, (0, common_1.Headers)('if-none-match')),
+    __param(4, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, String, String, String, Object]),
+    __metadata("design:returntype", Promise)
 ], AiNotesController.prototype, "studentFindOne", null);
 exports.AiNotesController = AiNotesController = __decorate([
     (0, common_1.Controller)('ai-notes'),

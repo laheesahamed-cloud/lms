@@ -13,6 +13,7 @@ function isNoAutoRefreshRoute() {
   const routeText = `${window.location.pathname || ''}${window.location.hash || ''}`;
   return isPublicWebsiteRoute(window.location.pathname || '/') ||
     /\/ai-notes(?:\/|$)/.test(routeText) ||
+    /\/flashcards(?:\/|$)/.test(routeText) ||
     /\/(?:auth\/)?(?:login|register)(?:\/|$)/.test(routeText) ||
     /\/auth\/(?:forgot-password|reset-password)(?:\/|$)/.test(routeText);
 }

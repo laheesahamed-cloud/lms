@@ -1,1 +1,0 @@
-import{m as e}from"./vendor-Hdb_YPqw.js";export{e as AppWeb};

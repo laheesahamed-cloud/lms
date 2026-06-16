@@ -1,4 +1,4 @@
-/* Extracted from AiNotesPage inline <style> blocks (R3 Task 27). Order preserved. */
+/* Extracted from AiNotesPage inline \3c style> blocks (R3 Task 27). Order preserved. */
 @keyframes lmsToastIn {
         from { opacity: 0; transform: translate3d(-50%, 10px, 0) scale(.98); }
         to { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1); }
@@ -86,11 +86,6 @@
         min-height: 38px;
         align-content: center;
       }
-      .lms-ai-note-page :where(.ncv-enter, .ncv-entered) {
-        animation: none !important;
-        opacity: 1 !important;
-        transform: none !important;
-      }
       .lms-ai-note-page :where(.lms-ai-canvas-editor, .lms-ai-canvas-surface, .ncv-item) {
         perspective: none !important;
         transform: none !important;
@@ -142,8 +137,7 @@
           justify-content: stretch !important;
           gap: 8px !important;
         }
-        .lms-ai-note-control-row > button,
-        .lms-ai-note-control-row > .theme-toggle,
+        
         .lms-ai-note-action-button {
           flex: 1 1 auto;
         }
@@ -185,9 +179,7 @@
         .lms-ai-canvas-shell {
           grid-template-columns: 1fr !important;
         }
-        .lms-ai-note-main,
-        .lms-ai-note-left-panel,
-        .lms-ai-note-right-panel {
+        .lms-ai-note-main {
           grid-column: auto;
         }
       }

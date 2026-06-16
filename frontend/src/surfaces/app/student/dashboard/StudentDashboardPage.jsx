@@ -3,6 +3,7 @@ import '../../../../shared/styles/04-pages/dashboard-page.css';
 import { useNavigate } from 'react-router-dom';
 import { useCountUp } from '../../../../shared/hooks/useCountUp.js';
 import { fetchStudentDashboard, readStudentDashboardCache } from '../../../../shared/api/dashboard.api.js';
+import { fetchStudentCourses } from '../../../../shared/api/courses.api.js';
 import { listAiNotes, readAiNotesCache } from '../../../../shared/api/aiNotes.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudentQuizzes, readStudentQuizzesCache } from '../../../../shared/api/quizAttempts.api.js';
@@ -1086,6 +1087,9 @@ export function StudentDashboardPage() {
       setStudentQuizzes(Array.isArray(quizzes) ? quizzes : []);
       setPlannerAgendaItems(Array.isArray(agenda?.items) ? agenda.items : Array.isArray(agenda) ? agenda : []);
       cancelSecondary = runWhenIdle(async () => {
+        // Warm the courses-list cache at launch so opening Courses is instant —
+        // parity with the lesson list, which already arrives in the boot batch.
+        fetchStudentCourses().catch(() => {});
         const [notes, savedItems] = await Promise.all([
           listAiNotes().catch(() => []),
           fetchStudyBookmarks().catch(() => []),

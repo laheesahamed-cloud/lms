@@ -152,11 +152,9 @@
   .lms-quiz-card,
   .lms-quiz-course-card,
   .lms-quiz-set-card,
-  .lms-map-hierarchy-guide,
   .lms-exam-header,
   .lms-exam-main-card,
   .lms-exam-sidebar > section,
-  .lms-exam-explainer > section,
   .lms-review-question-card,
   .lms-review-sidebar
 ) {
@@ -179,7 +177,6 @@
   .lms-quiz-card,
   .lms-quiz-course-card,
   .lms-quiz-set-card,
-  .lms-map-hierarchy-guide,
   .lms-review-question-card,
   .lms-review-sidebar
 ) {
@@ -191,16 +188,9 @@
 .student-quiz-map-page :where(
   .lms-quiz-course-card,
   .lms-quiz-set-card,
-  .lms-map-hierarchy-guide,
   .lms-page-header-card
 ) {
   background-image: none !important;
-}
-
-html[data-lms-runtime='native'] {
-  --brand-teal: var(--color-primary) !important;
-  --brand-teal-vivid: var(--brand-primary-start) !important;
-  --brand-gradient-teal: var(--brand-gradient-primary) !important;
 }
 
 .student-quiz-map-page :where(.lms-quiz-course-card button, .lms-quiz-set-card button),
@@ -287,11 +277,9 @@ html[data-lms-runtime='native'] {
     .lms-quiz-card,
     .lms-quiz-course-card,
     .lms-quiz-set-card,
-    .lms-map-hierarchy-guide,
     .lms-exam-header,
     .lms-exam-main-card,
     .lms-exam-sidebar > section,
-    .lms-exam-explainer > section,
     .lms-review-question-card,
     .lms-review-sidebar
   ) {

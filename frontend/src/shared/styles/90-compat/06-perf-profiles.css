@@ -151,8 +151,7 @@
   html[data-lms-runtime="native"] .app-shell,
   html[data-lms-runtime="native"] .portal-content,
   html[data-lms-runtime="native"] .portal-content__frame,
-  html[data-lms-runtime="native"] .lms-route-page,
-  html[data-lms-runtime="native"] .native-panel-layout {
+  html[data-lms-runtime="native"] .lms-route-page {
     visibility: visible !important;
     opacity: 1 !important;
   }

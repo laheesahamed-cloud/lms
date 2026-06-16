@@ -19,7 +19,6 @@
   --lms-app-list-card-shadow: var(--lms-global-card-shadow);
   --lms-app-card-title: var(--ink-strong);
   --lms-app-card-muted: var(--ink-soft);
-  --lms-app-card-accent: var(--color-primary);
 }
 
 :root[data-theme='dark'] {
@@ -40,13 +39,11 @@
 /* ── iOS-native frosted glass — dark mode only ──────────────────────────── */
 :root[data-theme='dark'] :where(
   .glass-card,
-  .card-surface,
   .bg-surface-card,
   .bg-surface-card-elevated,
   .surface-card,
   .lms-card,
   .lms-global-card,
-  .lms-app-card,
   .lms-course-card,
   .student-course-card,
   .lms-quiz-card,
@@ -83,7 +80,6 @@
   .study-metric,
   .study-course-row,
   .study-level-summary__stats,
-  .study-plan-card__body,
   .student-study-card-stack,
   .student-study-row
 ) {
@@ -94,8 +90,6 @@
   .lms-card,
   .lms-global-card,
   .glass-card,
-  .card-surface,
-  .lms-app-card,
   .lms-course-card,
   .student-course-card,
   .lms-quiz-card,
@@ -107,14 +101,12 @@
   .student-lessons-lesson-list-shell,
   .student-lessons-lesson-row,
   .student-results-focus,
-  .student-results-history,
-  .lms-map-hierarchy-guide
-) {
+  .student-results-history) {
   border-radius: var(--ds-card-radius) !important;
   box-shadow: var(--ds-card-shadow) !important;
 }
 
-:where(.lms-card-compact, .lms-card-skeleton, .lms-card-meta-surface) {
+:where(.lms-card-compact, .lms-card-skeleton) {
   border-radius: var(--ds-card-radius-compact) !important;
   box-shadow: var(--ds-card-shadow) !important;
 }
@@ -131,7 +123,6 @@
 :root[data-theme="dark"] :where(
   .lms-card,
   .lms-global-card,
-  .lms-app-card,
   .lms-card-interactive,
   .lms-course-card,
   .student-course-card,
@@ -162,16 +153,6 @@
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: 0;
-}
-
-:where(.lms-card-body, .lms-card-meta) {
-  color: var(--lms-app-card-muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-:where(.lms-card-actions, .lms-card-progress) {
-  min-width: 0;
 }
 
 :where(.lms-card-clickable) :where(a, button, input, select, textarea, [role="button"]) {
@@ -351,9 +332,7 @@
   .student-course-card,
   .lms-exam-header,
   .lms-exam-main-card,
-  .lms-exam-sidebar > section,
-  .lms-exam-explainer > section
-) {
+  .lms-exam-sidebar > section) {
   box-sizing: border-box !important;
   min-width: 0 !important;
   max-width: 100% !important;
@@ -369,9 +348,7 @@
     .student-course-card,
     .lms-exam-header,
     .lms-exam-main-card,
-    .lms-exam-sidebar > section,
-    .lms-exam-explainer > section
-  ) {
+    .lms-exam-sidebar > section) {
     border-radius: var(--ds-card-radius-compact) !important;
     border-width: 1px !important;
   }

@@ -1,4 +1,11 @@
 import { AiNotesService } from './ai-notes.service';
+type CacheableResponse = {
+    status(code: number): {
+        end(): void;
+    };
+    setHeader(name: string, value: string): void;
+    json(body: unknown): void;
+};
 declare class GenerateDto {
     text: string;
 }
@@ -78,7 +85,6 @@ export declare class AiNotesController {
         id: number;
         title: string;
     }>;
-    getLessonCanvases(engineKey: string, auth: string): Promise<import("mysql2").RowDataPacket[]>;
     adminListFlashcards(id: number, engineKey: string, auth: string): Promise<{
         id: number;
         noteId: number;
@@ -172,10 +178,6 @@ export declare class AiNotesController {
         id: number;
         name: string;
     })[]>;
-    getLessons(subtopicId: string, auth: string): Promise<(import("mysql2").RowDataPacket & {
-        id: number;
-        name: string;
-    })[]>;
     adminFindOne(id: number, engineKey: string, auth: string): Promise<{
         id: number;
         title: string;
@@ -236,7 +238,8 @@ export declare class AiNotesController {
         createdAt: string;
         updatedAt: string;
     }[]>;
-    studentFindByLesson(lessonId: number, engineKey: string, auth: string): Promise<{
+    studentFindByLesson(lessonId: number, engineKey: string, auth: string, ifNoneMatch: string, res: CacheableResponse): Promise<void>;
+    studentFlashcards(id: number, engineKey: string, auth: string): Promise<{
         flashcards: {
             id: number;
             noteId: number;
@@ -254,81 +257,8 @@ export declare class AiNotesController {
             createdAt: string;
             updatedAt: string;
         }[];
-        approvedFlashcardCount: number;
-        cardCount: number;
-        canAccess: boolean;
-        accessLocked: boolean;
-        upgradeLabel: string;
-        lockReason: string;
-        noteData: unknown;
-        id: number;
-        title: string;
-        rawText: string | null;
-        engineKey: "gemini" | "openai";
-        courseId: number | null;
-        topicId: number | null;
-        subtopicId: number | null;
-        lessonId: number | null;
-        videoUrl: string;
-        isFree: boolean;
-        status: "active" | "inactive";
-        courseTitle: string | null;
-        topicName: string | null;
-        subtopicName: string | null;
-        lessonTitle: string | null;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
-        lessonProgressPercent: number;
-        lessonCompletedAt: string | null;
-        lessonCompleted: boolean;
-        createdAt: string;
-        updatedAt: string;
     }>;
-    studentFindOne(id: number, engineKey: string, auth: string): Promise<{
-        flashcards: {
-            id: number;
-            noteId: number;
-            lessonId: number | null;
-            question: string;
-            answer: string;
-            sourceHint: string;
-            imageUrl: string;
-            imageUrls: string[];
-            imageFit: "contain" | "cover";
-            status: "draft" | "approved" | "rejected";
-            sortOrder: number;
-            generatedBy: "ai" | "manual";
-            reviewedBy: number | null;
-            createdAt: string;
-            updatedAt: string;
-        }[];
-        approvedFlashcardCount: number;
-        cardCount: number;
-        canAccess: boolean;
-        accessLocked: boolean;
-        upgradeLabel: string;
-        lockReason: string;
-        noteData: unknown;
-        id: number;
-        title: string;
-        rawText: string | null;
-        engineKey: "gemini" | "openai";
-        courseId: number | null;
-        topicId: number | null;
-        subtopicId: number | null;
-        lessonId: number | null;
-        videoUrl: string;
-        isFree: boolean;
-        status: "active" | "inactive";
-        courseTitle: string | null;
-        topicName: string | null;
-        subtopicName: string | null;
-        lessonTitle: string | null;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
-        lessonProgressPercent: number;
-        lessonCompletedAt: string | null;
-        lessonCompleted: boolean;
-        createdAt: string;
-        updatedAt: string;
-    }>;
+    studentFindOne(id: number, engineKey: string, auth: string, ifNoneMatch: string, res: CacheableResponse): Promise<void>;
+    private sendNote;
 }
 export {};

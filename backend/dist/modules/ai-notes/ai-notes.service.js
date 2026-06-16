@@ -19,16 +19,14 @@ const database_tokens_1 = require("../../database/database.tokens");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
 const fetch_with_retry_1 = require("../../common/utils/fetch-with-retry");
 const auth_token_util_1 = require("../auth/auth-token.util");
-const plans_service_1 = require("../plans/plans.service");
 const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
 const FLASHCARD_IMAGE_LIMIT = 3;
 const FALLBACK_COLORS = ['#A7D8FF', '#FFE680', '#FFB3B3', '#C7F0BD', '#CE93D8', '#80DEEA', '#F48FB1', '#FFCC80'];
 const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview'];
 let AiNotesService = class AiNotesService {
-    constructor(db, config, plansService) {
+    constructor(db, config) {
         this.db = db;
         this.config = config;
-        this.plansService = plansService;
     }
     normalizeEngineKey(value) {
         return value === 'openai' ? 'openai' : 'gemini';
@@ -56,28 +54,6 @@ let AiNotesService = class AiNotesService {
         if (u.role !== 'student' || u.status !== 'active')
             throw new common_1.ForbiddenException('Active student account required');
         return u;
-    }
-    async requireStudentAiNotesAccess(token) {
-        const student = await this.requireStudent(token);
-        const [rows] = await this.db.execute(`SELECT sf.feature_key
-       FROM user_subscriptions us
-       INNER JOIN subscription_plan_features spf
-         ON spf.plan_id = us.plan_id
-        AND spf.is_enabled = 1
-       INNER JOIN subscription_features sf
-         ON sf.id = spf.feature_id
-        AND sf.status = 'active'
-       WHERE us.user_id = ?
-         AND us.status = 'active'
-         AND us.start_date <= CURDATE()
-         AND us.end_date >= CURDATE()
-      `, [student.id]);
-        const featureKeys = new Set(rows.map((row) => String(row.feature_key || '').trim()).filter(Boolean));
-        const hasAccess = featureKeys.has('notes_canvas_study_mode');
-        if (!hasAccess) {
-            throw new common_1.ForbiddenException('Your current subscription does not include Lessons access');
-        }
-        return student;
     }
     async adminList(token, engineKey = 'gemini') {
         await this.requireAdmin(token);
@@ -330,7 +306,6 @@ let AiNotesService = class AiNotesService {
     }
     async studentList(token, engineKey = 'gemini') {
         const student = await this.requireStudent(token);
-        const hasNotesAccess = await this.plansService.hasFeatureAccess(student.id, 'notes_canvas_study_mode');
         const accessProfile = await this.getLessonAccessProfile(student.id);
         const [rows] = await this.db.execute(`
       SELECT n.id, n.title, NULL AS note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
@@ -352,14 +327,13 @@ let AiNotesService = class AiNotesService {
       WHERE n.is_public = 1 AND n.note_data IS NOT NULL AND n.status = 'active'
         AND n.engine_key = ?
       ORDER BY c.course_title ASC, t.topic_name ASC, n.updated_at DESC`, [student.id, engineKey]);
-        return rows.map((row) => this.mapStudentNote(row, hasNotesAccess, accessProfile, { includeNoteData: false }));
+        return rows.map((row) => this.mapStudentNote(row, accessProfile.hasNotesCanvas, accessProfile, { includeNoteData: false }));
     }
     async studentFindOne(id, token, engineKey = 'gemini') {
         const student = await this.requireStudent(token);
-        const hasNotesAccess = await this.plansService.hasFeatureAccess(student.id, 'notes_canvas_study_mode');
         const accessProfile = await this.getLessonAccessProfile(student.id);
         const [rows] = await this.db.execute(`
-      SELECT n.*,
+      SELECT n.id, n.title, n.note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
              COALESCE(n.course_id, l.course_id) AS effective_course_id,
              COALESCE(n.topic_id, l.topic_id) AS effective_topic_id,
              COALESCE(n.subtopic_id, l.subtopic_id) AS effective_subtopic_id,
@@ -378,18 +352,13 @@ let AiNotesService = class AiNotesService {
       WHERE n.id = ? AND n.is_public = 1 AND n.status = 'active' AND n.engine_key = ?`, [student.id, id, engineKey]);
         if (!rows.length)
             throw new common_1.NotFoundException('Lesson not found');
-        const mapped = this.mapStudentNote(rows[0], hasNotesAccess, accessProfile, { includeNoteData: true });
-        return {
-            ...mapped,
-            flashcards: mapped.canAccess ? await this.findApprovedFlashcardsForNote(rows[0].id) : [],
-        };
+        return this.mapStudentNote(rows[0], accessProfile.hasNotesCanvas, accessProfile, { includeNoteData: true });
     }
     async studentFindByLesson(lessonId, token, engineKey = 'gemini') {
         const student = await this.requireStudent(token);
-        const hasNotesAccess = await this.plansService.hasFeatureAccess(student.id, 'notes_canvas_study_mode');
         const accessProfile = await this.getLessonAccessProfile(student.id);
         const [rows] = await this.db.execute(`
-      SELECT n.*,
+      SELECT n.id, n.title, n.note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
              l.course_id AS effective_course_id,
              l.topic_id AS effective_topic_id,
              l.subtopic_id AS effective_subtopic_id,
@@ -414,11 +383,25 @@ let AiNotesService = class AiNotesService {
       LIMIT 1`, [student.id, lessonId, engineKey]);
         if (!rows.length)
             throw new common_1.NotFoundException('Lesson not found');
-        const mapped = this.mapStudentNote(rows[0], hasNotesAccess, accessProfile, { includeNoteData: true });
-        return {
-            ...mapped,
-            flashcards: mapped.canAccess ? await this.findApprovedFlashcardsForNote(rows[0].id) : [],
-        };
+        return this.mapStudentNote(rows[0], accessProfile.hasNotesCanvas, accessProfile, { includeNoteData: true });
+    }
+    async studentFlashcards(id, token, engineKey = 'gemini') {
+        const student = await this.requireStudent(token);
+        const accessProfile = await this.getLessonAccessProfile(student.id);
+        const [rows] = await this.db.execute(`
+      SELECT n.id, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.is_free, n.engine_key, n.status,
+             COALESCE(n.course_id, l.course_id) AS effective_course_id,
+             COALESCE(n.topic_id, l.topic_id) AS effective_topic_id,
+             COALESCE(n.subtopic_id, l.subtopic_id) AS effective_subtopic_id,
+             COALESCE(l.is_free, n.is_free) AS effective_is_free
+      FROM ai_illustrated_notes n
+      LEFT JOIN lessons l ON l.id = n.lesson_id
+      WHERE n.id = ? AND n.is_public = 1 AND n.status = 'active' AND n.engine_key = ?`, [id, engineKey]);
+        if (!rows.length)
+            throw new common_1.NotFoundException('Lesson not found');
+        const note = this.deserialize(rows[0]);
+        const canAccess = this.canAccessStudentNote(note, accessProfile.hasNotesCanvas, accessProfile);
+        return { flashcards: canAccess ? await this.findApprovedFlashcardsForNote(id) : [] };
     }
     async getCourses(token) {
         await this.requireAdmin(token);
@@ -437,19 +420,6 @@ let AiNotesService = class AiNotesService {
         const [rows] = await this.db.execute(topicId
             ? "SELECT id, subtopic_name AS name FROM subtopics WHERE topic_id = ? AND status = 'active' ORDER BY subtopic_name ASC"
             : "SELECT id, subtopic_name AS name FROM subtopics WHERE status = 'active' ORDER BY subtopic_name ASC", topicId ? [topicId] : []);
-        return rows;
-    }
-    async getLessonCanvases(token, engineKey = 'gemini') {
-        await this.requireAdmin(token);
-        const [rows] = await this.db.execute(`SELECT lesson_id AS lessonId, id AS canvasId, title FROM ai_illustrated_notes
-       WHERE lesson_id IS NOT NULL AND is_public = 1 AND engine_key = ? ORDER BY updated_at DESC`, [engineKey]);
-        return rows;
-    }
-    async getLessons(subtopicId, token) {
-        await this.requireAdmin(token);
-        const [rows] = await this.db.execute(subtopicId
-            ? "SELECT id, lesson_title AS name FROM lessons WHERE subtopic_id = ? AND status = 'active' ORDER BY lesson_title ASC"
-            : "SELECT id, lesson_title AS name FROM lessons WHERE status = 'active' ORDER BY lesson_title ASC", subtopicId ? [subtopicId] : []);
         return rows;
     }
     async ensureDefaultLessonHierarchy(courseId) {
@@ -679,6 +649,7 @@ let AiNotesService = class AiNotesService {
             noteData = row.note_data ? JSON.parse(row.note_data) : null;
         }
         catch {
+            console.warn(`[AiNotes] corrupt note_data for note id ${row.id}`);
             noteData = null;
         }
         const parts = [];
@@ -841,64 +812,6 @@ ${input.sourceText}`;
         }
         return this.generateWithChatProvider(prompt, provider);
     }
-    async generateWithGemini(prompt) {
-        const apiKey = await this.resolveGeminiKey();
-        if (!apiKey)
-            throw new common_1.ServiceUnavailableException('No Gemini API key found for Lessons. Your Gemini provider exists but has no saved key, or GEMINI_API_KEY is missing in backend/.env. Go to Admin → Settings → AI, edit Gemini, paste the API key, and save.');
-        const errors = [];
-        let canvas = null;
-        for (const model of GEMINI_MODELS) {
-            const ctrl = new AbortController();
-            const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
-            try {
-                const res = await (0, fetch_with_retry_1.fetchWithRetry)(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    signal: ctrl.signal,
-                    body: JSON.stringify({
-                        generationConfig: { responseMimeType: 'application/json' },
-                        contents: [{ parts: [{ text: prompt }] }],
-                    }),
-                });
-                if (!res.ok) {
-                    let detail = '';
-                    try {
-                        const body = await res.json();
-                        detail = body?.error?.message || '';
-                    }
-                    catch { }
-                    const errStr = `${model}: HTTP ${res.status}${detail ? ` — ${detail}` : ''}`;
-                    errors.push(errStr);
-                    console.warn(`[AiNotes] ${errStr}`);
-                    continue;
-                }
-                const json = await res.json();
-                const raw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
-                if (!raw) {
-                    errors.push(`${model}: empty response`);
-                    continue;
-                }
-                const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-                const parsed = JSON.parse(jsonStr);
-                canvas = this.splitIntoPages(this.validate(parsed));
-                break;
-            }
-            catch (err) {
-                if (err instanceof common_1.BadRequestException || err instanceof common_1.ServiceUnavailableException)
-                    throw err;
-                const msg = err instanceof Error ? err.message : String(err);
-                const isTimeout = msg.includes('abort') || msg.includes('timeout');
-                errors.push(`${model}: ${isTimeout ? `timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)` : msg}`);
-                console.warn(`[AiNotes] ${model} failed:`, msg);
-            }
-            finally {
-                clearTimeout(t);
-            }
-        }
-        if (!canvas)
-            throw new common_1.ServiceUnavailableException(`All models failed: ${errors.join(' | ')}`);
-        return canvas;
-    }
     async generateWithGeminiProvider(prompt, provider) {
         const modelName = String(provider.model || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim();
         const modelCandidates = Array.from(new Set([modelName, ...GEMINI_MODELS].filter(Boolean)));
@@ -947,86 +860,6 @@ ${input.sourceText}`;
             }
         }
         throw new common_1.ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
-    }
-    async generateWithOpenAi(prompt) {
-        const provider = await this.resolveOpenAiConfig();
-        if (!provider.apiKey) {
-            throw new common_1.ServiceUnavailableException('No OpenAI API key found. Go to Admin → Settings → AI Providers and add your OpenAI key.');
-        }
-        const ctrl = new AbortController();
-        const timeout = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
-        try {
-            let text = '';
-            try {
-                text = await this.sendOpenAiCanvasPrompt(provider, prompt, ctrl.signal, true);
-            }
-            catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                if (!this.isUnsupportedOpenAiJsonModeError(message)) {
-                    throw error;
-                }
-                text = await this.sendOpenAiCanvasPrompt(provider, prompt, ctrl.signal, false);
-            }
-            if (!text) {
-                throw new common_1.ServiceUnavailableException('OpenAI returned an empty completion');
-            }
-            const jsonStr = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-            const parsed = JSON.parse(jsonStr);
-            return this.splitIntoPages(this.validate(parsed));
-        }
-        catch (error) {
-            if (error instanceof common_1.BadRequestException || error instanceof common_1.ServiceUnavailableException)
-                throw error;
-            const message = error instanceof Error ? error.message : String(error);
-            const normalized = message.toLowerCase();
-            const isTimeout = normalized.includes('abort') || normalized.includes('timeout');
-            const isSocket = normalized.includes('socket connection was closed') ||
-                normalized.includes('connectionclosed') ||
-                normalized.includes('fetch failed') ||
-                normalized.includes('econnreset');
-            throw new common_1.ServiceUnavailableException(isTimeout
-                ? `OpenAI generation timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)`
-                : isSocket
-                    ? 'OpenAI could not be reached. Check internet, VPN/proxy/firewall, DNS, or custom base URL.'
-                    : `OpenAI generation failed: ${message}`);
-        }
-        finally {
-            clearTimeout(timeout);
-        }
-    }
-    async sendOpenAiCanvasPrompt(provider, prompt, signal, useJsonMode) {
-        const response = await (0, fetch_with_retry_1.fetchWithRetry)((0, ai_provider_utils_1.normalizeAiProviderBaseUrl)('openai', provider.baseUrl), {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${provider.apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            signal,
-            body: JSON.stringify({
-                model: provider.model,
-                temperature: 0.7,
-                top_p: 0.9,
-                ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}),
-                messages: [
-                    {
-                        role: 'system',
-                        content: useJsonMode
-                            ? 'Return valid JSON only. Do not use markdown fences. Do not add commentary before or after the JSON.'
-                            : 'Return ONLY raw valid JSON. No markdown fences. No prose. No commentary. Start with { and end with }.',
-                    },
-                    {
-                        role: 'user',
-                        content: prompt,
-                    },
-                ],
-            }),
-        });
-        const rawPayload = await response.json().catch(() => null);
-        if (!response.ok) {
-            const message = this.extractGenericApiError(rawPayload);
-            throw new common_1.ServiceUnavailableException(`OpenAI generation failed: ${message}`);
-        }
-        return this.extractChatCompletionText(rawPayload);
     }
     async generateWithChatProvider(prompt, provider) {
         const ctrl = new AbortController();
@@ -1136,60 +969,6 @@ ${input.sourceText}`;
         return normalized.includes('response_format')
             && (normalized.includes('not supported') || normalized.includes('invalid parameter'));
     }
-    async resolveGeminiKey() {
-        try {
-            const [rows] = await this.db.execute(`SELECT api_key_encrypted
-         FROM ai_provider_configs
-         WHERE status = 'active'
-           AND provider_key = 'gemini'
-           AND api_key_encrypted IS NOT NULL
-           AND api_key_encrypted <> ''
-         ORDER BY is_active DESC, updated_at DESC, id DESC
-         LIMIT 1`);
-            if (rows[0]?.api_key_encrypted) {
-                const d = (0, ai_provider_utils_1.decryptSecret)(rows[0].api_key_encrypted, this.getEncryptionSecret());
-                if (d)
-                    return d;
-            }
-        }
-        catch (error) {
-            if (error instanceof common_1.BadRequestException)
-                throw error;
-        }
-        return String(this.config.get('GEMINI_API_KEY') || this.config.get('SMART_NOTES_IMAGE_API_KEY') || '').trim();
-    }
-    async resolveOpenAiConfig() {
-        try {
-            const [rows] = await this.db.execute(`SELECT api_key_encrypted, model, base_url
-         FROM ai_provider_configs
-         WHERE status = 'active' AND provider_key = 'openai'
-         ORDER BY is_active DESC, updated_at DESC
-         LIMIT 1`);
-            if (rows[0]?.api_key_encrypted) {
-                const apiKey = (0, ai_provider_utils_1.decryptSecret)(rows[0].api_key_encrypted, this.getEncryptionSecret());
-                if (apiKey) {
-                    return {
-                        providerKey: 'openai',
-                        providerLabel: ai_provider_utils_1.AI_PROVIDER_LABELS.openai,
-                        apiKey,
-                        model: String(rows[0].model || (0, ai_provider_utils_1.getDefaultModelForProvider)('openai')).trim(),
-                        baseUrl: (0, ai_provider_utils_1.normalizeAiProviderBaseUrl)('openai', rows[0].base_url),
-                    };
-                }
-            }
-        }
-        catch (error) {
-            if (error instanceof common_1.BadRequestException)
-                throw error;
-        }
-        return {
-            providerKey: 'openai',
-            providerLabel: ai_provider_utils_1.AI_PROVIDER_LABELS.openai,
-            apiKey: String(this.config.get('OPENAI_API_KEY') || '').trim(),
-            model: (0, ai_provider_utils_1.getDefaultModelForProvider)('openai'),
-            baseUrl: (0, ai_provider_utils_1.getDefaultBaseUrlForProvider)('openai'),
-        };
-    }
     async resolveActiveCanvasProvider() {
         const [rows] = await this.db.execute(`
         SELECT provider_key, provider_label, api_key_encrypted, base_url, model
@@ -1274,6 +1053,7 @@ ${input.sourceText}`;
             noteData = row.note_data ? JSON.parse(row.note_data) : null;
         }
         catch {
+            console.warn(`[AiNotes] corrupt note_data for note id ${row.id}`);
             noteData = null;
         }
         return {
@@ -1316,15 +1096,17 @@ ${input.sourceText}`;
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
-          AND sf.feature_key IN ('lessons_access_full', 'lessons_access_limited')
+          AND sf.feature_key IN ('lessons_access_full', 'lessons_access_limited', 'notes_canvas_study_mode')
       `, [userId]);
+        const lessonRows = rows.filter((row) => String(row.feature_key || '').trim() !== 'notes_canvas_study_mode');
         const profile = {
-            hasAnyPaidLessonAccess: rows.length > 0,
+            hasAnyPaidLessonAccess: lessonRows.length > 0,
+            hasNotesCanvas: rows.some((row) => String(row.feature_key || '').trim() === 'notes_canvas_study_mode'),
             hasFullAccess: false,
             courseIds: new Set(),
             lessonIds: new Set(),
         };
-        for (const row of rows) {
+        for (const row of lessonRows) {
             const courseIds = this.parseIdList(row.course_ids_json);
             const lessonIds = this.parseIdList(row.lesson_ids_json);
             const scope = this.resolveEffectiveAccessScope(row, courseIds, lessonIds);
@@ -1443,7 +1225,6 @@ Use → pattern for ALL classifications: types, grades, stages, classes, subtype
 - callout: [EXAM TRAP] or rare-but-tested pearl — max 12 words, fragment
 - sticky_note: key mechanism/criterion/rule — max 10 words, fragment only
 - mnemonic: any memorable acronym or hook — "" if nothing fits
-- diagram_prompt: precise structure/pathway/flowchart to draw
 
 ━━━ SUMMARY BOX ━━━
 NOT a paragraph. ONE of these formats (max 25 words):
@@ -1470,8 +1251,7 @@ Return ONLY this JSON (no markdown, no code fences, no explanation):
       "bullets": ["==Term==: fragment", "→ ==Subtype==: detail [EXAM TRAP]"],
       "callout": "[EXAM TRAP] short fragment max 12 words",
       "sticky_note": "Key fact fragment max 10 words",
-      "mnemonic": "ACRONYM: A-B-C-D (or empty string)",
-      "diagram_prompt": "Precise anatomy/pathway/flowchart to illustrate"
+      "mnemonic": "ACRONYM: A-B-C-D (or empty string)"
     }
   ],
   "summary_box": "fragment · fragment · fragment (max 25 words, no paragraph)",
@@ -1502,7 +1282,7 @@ ${text.slice(0, 12000)}`;
                 sections: group,
                 summary_box: isLast ? result.summary_box : '',
                 key_points: kp.slice(kpStart, kpEnd),
-                visual_style: result.visual_style,
+                ...(i === 0 ? { visual_style: result.visual_style } : {}),
             };
         });
         return { pages };
@@ -1532,7 +1312,6 @@ ${text.slice(0, 12000)}`;
                     callout: String(sec?.callout || '').trim().slice(0, 300),
                     sticky_note: String(sec?.sticky_note || '').trim().slice(0, 200),
                     mnemonic: String(sec?.mnemonic || '').trim().slice(0, 300),
-                    diagram_prompt: String(sec?.diagram_prompt || '').trim().slice(0, 200),
                 };
             }).filter(s => s.heading || s.bullets.length > 0),
             summary_box: String(data?.summary_box || '').trim().slice(0, 600),
@@ -1558,7 +1337,6 @@ exports.AiNotesService = AiNotesService;
 exports.AiNotesService = AiNotesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
-    __metadata("design:paramtypes", [Object, config_1.ConfigService,
-        plans_service_1.PlansService])
+    __metadata("design:paramtypes", [Object, config_1.ConfigService])
 ], AiNotesService);
 //# sourceMappingURL=ai-notes.service.js.map

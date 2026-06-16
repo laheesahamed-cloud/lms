@@ -28,6 +28,7 @@ const ai_module_1 = require("./modules/ai/ai.module");
 const settings_module_1 = require("./modules/settings/settings.module");
 const smart_notes_module_1 = require("./modules/smart-notes/smart-notes.module");
 const ai_notes_module_1 = require("./modules/ai-notes/ai-notes.module");
+const flashcards_module_1 = require("./modules/flashcards/flashcards.module");
 const plans_module_1 = require("./modules/plans/plans.module");
 const subscriptions_module_1 = require("./modules/subscriptions/subscriptions.module");
 const study_bookmarks_module_1 = require("./modules/study-bookmarks/study-bookmarks.module");
@@ -68,6 +69,7 @@ exports.AppModule = AppModule = __decorate([
             papers_module_1.PapersModule,
             smart_notes_module_1.SmartNotesModule,
             ai_notes_module_1.AiNotesModule,
+            flashcards_module_1.FlashcardsModule,
             plans_module_1.PlansModule,
             subscriptions_module_1.SubscriptionsModule,
             study_bookmarks_module_1.StudyBookmarksModule,

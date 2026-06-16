@@ -10,7 +10,6 @@ exports.AiNotesModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const database_module_1 = require("../../database/database.module");
-const plans_module_1 = require("../plans/plans.module");
 const ai_notes_controller_1 = require("./ai-notes.controller");
 const ai_notes_service_1 = require("./ai-notes.service");
 let AiNotesModule = class AiNotesModule {
@@ -18,7 +17,7 @@ let AiNotesModule = class AiNotesModule {
 exports.AiNotesModule = AiNotesModule;
 exports.AiNotesModule = AiNotesModule = __decorate([
     (0, common_1.Module)({
-        imports: [config_1.ConfigModule, database_module_1.DatabaseModule, plans_module_1.PlansModule],
+        imports: [config_1.ConfigModule, database_module_1.DatabaseModule],
         controllers: [ai_notes_controller_1.AiNotesController],
         providers: [ai_notes_service_1.AiNotesService],
         exports: [ai_notes_service_1.AiNotesService],

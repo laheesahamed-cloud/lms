@@ -87,17 +87,51 @@ const studentAiNotesCache = createTimedApiCache({
   },
 });
 
+// Direct DB fetch — only this lesson's approved flashcards (~5KB), never the
+// note canvas. No cache, no full-note fallback.
+export const getStudentLessonFlashcards = (noteId, options = {}) =>
+  apiClient.get(`/student/ai-notes/${noteId}/flashcards`, withEngine({}, options.engine))
+    .then((r) => (Array.isArray(r.data?.flashcards) ? r.data.flashcards : []));
+
 export const seedStudentAiNotes = (data, engine = 'gemini') => studentAiNotesCache.seed(data, { engine });
 
 export const listAiNotes = (options = {}) => studentAiNotesCache.get(options);
 
 export const readAiNotesCache = (options = {}) => studentAiNotesCache.peek(options);
 
+function isRateLimited(error) {
+  return Number(error?.response?.status) === 429;
+}
+
+async function listAiNotesForEngineWithRetry(options, engine, attempts = 2) {
+  let lastError = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await listAiNotes({ ...options, engine });
+    } catch (error) {
+      lastError = error;
+      // Only retry true network/timeout failures (no HTTP response). If the
+      // server responded — especially a 429 rate-limit — retrying just adds
+      // more load and makes the rate-limiting worse.
+      if (error?.response || attempt >= attempts - 1) break;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+  }
+  throw lastError;
+}
+
 export async function listStudentAiNotesAcrossEngines(options = {}) {
+  const { fresh, ...rest } = options;
+  // `fresh` bypasses the (native-persistent, stale-while-revalidate) cache and
+  // reads straight from the DB. Flashcards/notes screens use this so the app
+  // never shows last-session's stale list while the web shows current data.
+  if (fresh) studentAiNotesCache.clear();
   const rowsById = new Map();
   const results = await Promise.allSettled(
-    orderedStudentEngines(options.engine).map(async (engine) => {
-      const data = await listAiNotes({ ...options, engine });
+    orderedStudentEngines(rest.engine).map(async (engine) => {
+      // Retry per engine: on native a transient timeout for one engine would
+      // otherwise silently drop every course that only exists in that engine.
+      const data = await listAiNotesForEngineWithRetry(rest, engine);
       return { engine, rows: normalizeStudentNoteRows(data) };
     })
   );
@@ -134,6 +168,9 @@ export async function getAiNoteWithFallback(id, options = {}) {
       return tagStudentNoteEngine(data, engine);
     } catch (error) {
       lastError = error;
+      // A 429 is not engine-specific — trying the next engine only fires more
+      // rate-limited requests. Stop immediately.
+      if (isRateLimited(error)) break;
     }
   }
   throw lastError;
@@ -147,6 +184,7 @@ export async function getLessonAiNoteWithFallback(lessonId, options = {}) {
       return tagStudentNoteEngine(data, engine);
     } catch (error) {
       lastError = error;
+      if (isRateLimited(error)) break;
     }
   }
   throw lastError;

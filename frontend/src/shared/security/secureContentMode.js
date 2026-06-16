@@ -67,7 +67,6 @@ export function isSecureContentRoute(location) {
   const isExamTaking = new RegExp(`^/exams/${quizIdSegment}/?$`).test(pathname);
   const isPracticeReview = new RegExp(`^/quizzes/${quizIdSegment}/practice-review/?$`).test(pathname);
   const isAttemptReview = /^\/review\/[^/]+\/?$/.test(pathname);
-  const isStudentNotes = /^\/notes\/?$/.test(pathname);
   const isAiNotesList = /^\/ai-notes\/?$/.test(pathname);
   const isLessonNote = /^\/study\/lesson\/[^/]+\/?$/.test(pathname);
   const isAiNote = /^\/ai-notes\/[^/]+\/?$/.test(pathname);
@@ -85,7 +84,6 @@ export function isSecureContentRoute(location) {
     isExamTaking ||
     isPracticeReview ||
     isAttemptReview ||
-    isStudentNotes ||
     isAiNotesList ||
     isLessonNote ||
     isAiNote ||

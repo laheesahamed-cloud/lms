@@ -8,7 +8,7 @@ import { recordStudyActivity } from '../../../../shared/api/dashboard.api.js';
 import { updateStudentLessonProgress } from '../../../../shared/api/courses.api.js';
 import { getVideoEmbed } from '../../../../shared/utils/videoEmbed.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
-import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
+import { safeNavigateBack, canNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { cx } from '../../../../shared/styles/tailwindClasses.js';
@@ -2231,16 +2231,6 @@ function mergeStudentCanvasPages(pages, note) {
     ...(mergedKeywords.length ? { keywords: mergedKeywords } : {}),
   };
 }
-function cleanCanvasLabel(value, fallback = '') {
-  const text = String(value || '').trim();
-  if (!text) return fallback;
-  const parts = text
-    .split('/')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .filter((part) => !/^(lms|study|lesson|lessons|ai-notes|canvas|canvases|\d+)$/i.test(part));
-  return parts.length ? parts[parts.length - 1] : text;
-}
 function getVideoCaptionUrl(note) {
   const noteData = note?.noteData && typeof note.noteData === 'object' ? note.noteData : {};
   const video = noteData.video && typeof noteData.video === 'object' ? noteData.video : {};
@@ -2306,7 +2296,7 @@ function LessonLoadingState({ isDark, pageBg, overlay = false, hiding = false })
   const badgeTx = isDark ? '#c7d2fe' : '#4f46e5';
 
   const overlayStyle = overlay
-    ? { position:'fixed', inset:0, zIndex:44, opacity:hiding?0:1, pointerEvents:hiding?'none':'auto', transition:'opacity .4s ease' }
+    ? { position:'fixed', top:0, left:0, right:0, height:'100dvh', zIndex:44, opacity:hiding?0:1, pointerEvents:hiding?'none':'auto', transition:'opacity .4s ease' }
     : {};
 
   return (
@@ -2581,11 +2571,16 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
   }, [isOffline, personalLayerStorageKey, showPersonalSaveStatus]);
 
   function handleBack() {
-    if (location.state?.returnToPath) {
-      navigate(location.state.returnToPath, { state: location.state.returnState || undefined });
+    // Always pop the history stack when possible — using navigate(path) would push
+    // a new entry, leaving the lesson in the back stack so an iOS swipe-back from
+    // the list would return to the lesson instead of the page before it.
+    // returnToPath is only a fallback for direct-link arrivals (no back stack).
+    if (canNavigateBack()) {
+      navigate(-1);
       return;
     }
-    safeNavigateBack(navigate, { fallbackPath: '/ai-notes', currentPath: location.pathname });
+    const fallback = location.state?.returnToPath || '/ai-notes';
+    navigate(fallback, { replace: true, state: location.state?.returnState || undefined });
   }
 
   // Native-only edge-swipe-back, reusing the page root + the back button's own
@@ -2806,77 +2801,31 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
     return () => clearTimeout(t);
   }, [contentReady]);
 
-  // App-shell loading: header is present from the first frame so the loader
-  // sits below it (never pushed down later). Same header + same overlay-positioned
-  // loader as the loaded state, so the hand-off has no jump/flash.
-  if (loading) return (
-    <main style={{ minHeight:'100dvh', background:pageBg }}>
-      <WebViewLayer enabled={platform.isNative}>
-        <div className="lms-ai-note-topbar" style={{ position:'sticky', top:0, zIndex:45, background:topBg, borderBottom:`1px solid ${topBd}`, WebkitBackdropFilter:'blur(8px)', backdropFilter:'blur(8px)' }}>
-          <div className="lms-ai-note-topbar-inner" style={{ display:'flex', alignItems:'center', gap:14, maxWidth:1680, margin:'0 auto', padding:'calc(8px + env(safe-area-inset-top, 0px)) 20px 8px', minWidth:0 }}>
-            <button className="lms-ai-note-back-button lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} aria-label="Back" title="Back" style={{ display:'flex', alignItems:'center', justifyContent:'center', border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:0, width:38, height:38, minHeight:38, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
-              <BackIcon/>
-            </button>
-            <div className="lms-ai-note-title-block" style={{ minWidth:0, flex:1, overflow:'hidden' }}>
-              <div style={{ minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{location.state?.lessonTitle || _headerTitle}</div>
-            </div>
-          </div>
-        </div>
-      </WebViewLayer>
-      <LessonLoadingState isDark={isDark} pageBg={pageBg} overlay />
-    </main>
-  );
+  // ONE persistent loader instance, shared across the loading and loaded
+  // branches via a stable key so React never remounts it — the quote rotation
+  // runs continuously and just cross-dissolves out when the content is ready.
+  const lessonLoader = overlayGone
+    ? null
+    : <LessonLoadingState key="lesson-loader" isDark={isDark} pageBg={pageBg} overlay hiding={contentReady} />;
 
-  if (error) return (
-    <main style={{ minHeight:'100dvh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:48, marginBottom:16 }}>⚠️</div>
-        <p style={{ fontSize:14, color:isDark?'#94a3b8':'#6b7280', marginBottom:16 }}>{error}</p>
-        <button className="inline-flex items-center justify-center" onClick={handleBack} style={{ border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'8px 18px', fontSize:12, fontWeight:600, color:btnTx, cursor:'pointer' }}>Go back</button>
-      </div>
-    </main>
-  );
-
-  if (!note) return null;
-
-  const isLocked = Boolean(note.accessLocked);
-  const canEdit  = isEditing && !isLocked;
-  const canDraw  = nativeWritingEnabled && canEdit;
-  const canvasTitle = cleanCanvasLabel(note.lessonTitle || note.title, 'Lesson');
-  const canvasContext = [
-    cleanCanvasLabel(note.courseTitle),
-    cleanCanvasLabel(note.topicName),
-    cleanCanvasLabel(note.subtopicName),
-  ].filter(Boolean).join(' / ');
-
-  return (
-    <main
-      ref={pageRef}
-      className={cx('lms-ai-note-page select-text [-webkit-user-select:text]', drawMode && canDraw && 'is-writing-mode')}
-      style={{ minHeight:'100dvh', background:pageBg }}
-    >
-      {!overlayGone && <LessonLoadingState isDark={isDark} pageBg={pageBg} overlay hiding={contentReady} />}
-      <SmoothCanvasMotion />
-      {/* Top bar */}
-      <WebViewLayer enabled={platform.isNative}>
+  // Hard-coded, static lesson header — built ONCE and rendered identically in
+  // the loading and loaded branches, so it never re-renders or shifts when the
+  // note data arrives. Title comes from the navigation state (falls back to the
+  // "Lesson" placeholder); the breadcrumb and "Free" badge are intentionally
+  // dropped because they aren't known at the first frame. Note-derived values
+  // use optional chaining so the action buttons are safe before the note loads.
+  const headerLocked = Boolean(note?.accessLocked);
+  const headerCanEdit = isEditing && !headerLocked;
+  const lessonHeaderBar = (
+    <WebViewLayer enabled={platform.isNative}>
       <div className="lms-ai-note-topbar" style={{ position:'sticky', top:0, zIndex:45, background:topBg, borderBottom:`1px solid ${topBd}`, WebkitBackdropFilter:'blur(8px)', backdropFilter:'blur(8px)' }}>
         <div className="lms-ai-note-topbar-inner" style={{ display:'flex', alignItems:'center', gap:14, maxWidth:1680, margin:'0 auto', padding:'calc(8px + env(safe-area-inset-top, 0px)) 20px 8px', minWidth:0 }}>
-          {/* Left — back + title + breadcrumb */}
           <button className="lms-ai-note-back-button lms-smooth-action inline-flex items-center justify-center" onClick={handleBack} aria-label="Back" title="Back" style={{ display:'flex', alignItems:'center', justifyContent:'center', border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:0, width:38, height:38, minHeight:38, color:btnTx, cursor:'pointer', flexShrink:0, boxShadow:lessonButtonShadow }}>
             <BackIcon/>
           </button>
           <div className="lms-ai-note-title-block" style={{ minWidth:0, flex:1, overflow:'hidden' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
-              <div style={{ minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasTitle}</div>
-              {note.isFree ? (
-                <span style={{ flexShrink:0, border:'1px solid rgba(16,185,129,.25)', background:'rgba(16,185,129,.12)', color:isDark?'#86efac':'#047857', borderRadius:999, padding:'2px 8px', fontSize:11, fontWeight:900, textTransform:'uppercase' }}>
-                  Free
-                </span>
-              ) : null}
-            </div>
-            {canvasContext && <div style={{ fontSize:11, color:isDark?'rgba(200,210,255,.45)':'#9ca3af', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{canvasContext}</div>}
+            <div style={{ minWidth:0, fontSize:16, fontWeight:700, color:isDark?'#f0f4ff':'#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{location.state?.lessonTitle || note?.lessonTitle || note?.title || _headerTitle}</div>
           </div>
-          {/* Right — status + theme + actions */}
           <div className="lms-ai-note-topbar-actions" style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0, minWidth:0 }}>
             {(isEditing || personalSaveStatus || isOffline) ? (
               <span className="lms-ai-note-status-pill" aria-live="polite" role="status"
@@ -2888,22 +2837,22 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
             <ThemeToggle />
             <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
               onClick={openVideo}
-              disabled={isLocked}
+              disabled={headerLocked}
               title={videoUrl ? 'Watch the lesson video' : 'No video added yet'}
-              style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', minHeight:38, fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : (videoUrl ? 1 : 0.62), boxShadow:lessonButtonShadow }}>
+              style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', minHeight:38, fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:headerLocked ? 0.4 : (videoUrl ? 1 : 0.62), boxShadow:lessonButtonShadow }}>
               <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M3 2.2v7.6a.5.5 0 0 0 .77.42l6-3.8a.5.5 0 0 0 0-.84l-6-3.8A.5.5 0 0 0 3 2.2Z"/></svg>
               Video
             </button>
             <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
               onClick={() => navigate('/quizzes')}
-              disabled={isLocked}
+              disabled={headerLocked}
               title="Practice MCQs on this topic"
-              style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', minHeight:38, fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:isLocked ? 0.4 : 1, boxShadow:lessonButtonShadow }}>
+              style={{ display:'flex', alignItems:'center', gap:6, border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'0 12px', minHeight:38, fontSize:11, fontWeight:800, color:btnTx, cursor:'pointer', opacity:headerLocked ? 0.4 : 1, boxShadow:lessonButtonShadow }}>
               MCQ
             </button>
             <button className="lms-ai-note-action-button lms-smooth-action inline-flex items-center justify-center"
               onClick={toggleEditing}
-              disabled={isLocked}
+              disabled={headerLocked}
               aria-pressed={isEditing}
               title={isEditing ? 'Close Personalize mode' : 'Personalize with pen'}
               style={{
@@ -2912,7 +2861,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
                 background:isEditing ? (isDark ? 'linear-gradient(180deg,rgba(167,139,250,.22),rgba(96,165,250,.10))' : '#f5f3ff') : btnBg,
                 borderRadius:12, padding:'0 13px', fontSize:11, fontWeight:800,
                 color:isEditing ? (isDark ? '#ddd6fe' : '#6d28d9') : btnTx,
-                cursor:'pointer', opacity:isLocked ? 0.4 : 1,
+                cursor:'pointer', opacity:headerLocked ? 0.4 : 1,
                 boxShadow:isEditing && isDark ? '0 10px 24px rgba(88,28,135,.18), inset 0 1px 0 rgba(255,255,255,.12)' : lessonButtonShadow,
               }}
             >
@@ -2920,10 +2869,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
             </button>
           </div>
         </div>
-        {/* Personalize tool toolbar lives inside the sticky header so it stays pinned
-            on screen while scrolling/drawing. (The toolbar's own position:sticky is
-            broken by the global overflow-x rule, so we pin the whole header instead.) */}
-        {canEdit && (
+        {headerCanEdit && (
           <div className="lms-ai-note-tooltop-row" style={{ borderTop:`1px solid ${topBd}`, padding:'4px 7px', display:'flex', justifyContent:'center', background:isDark?'rgba(10,12,22,.35)':'rgba(250,250,247,.6)' }}>
             <CanvasTopToolbar
               isDark={isDark}
@@ -2950,7 +2896,45 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
           </div>
         )}
       </div>
-      </WebViewLayer>
+    </WebViewLayer>
+  );
+
+  // App-shell loading: header is present from the first frame so the loader
+  // sits below it (never pushed down later). Same header + same overlay-positioned
+  // loader as the loaded state, so the hand-off has no jump/flash.
+  if (loading) return (
+    <main style={{ minHeight:'100dvh', background:pageBg }}>
+      {lessonLoader}
+      {lessonHeaderBar}
+    </main>
+  );
+
+  if (error) return (
+    <main style={{ minHeight:'100dvh', background:pageBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{ fontSize:48, marginBottom:16 }}>⚠️</div>
+        <p style={{ fontSize:14, color:isDark?'#94a3b8':'#6b7280', marginBottom:16 }}>{error}</p>
+        <button className="inline-flex items-center justify-center" onClick={handleBack} style={{ border:`1px solid ${btnBd}`, background:btnBg, borderRadius:12, padding:'8px 18px', fontSize:12, fontWeight:600, color:btnTx, cursor:'pointer' }}>Go back</button>
+      </div>
+    </main>
+  );
+
+  if (!note) return null;
+
+  const isLocked = Boolean(note.accessLocked);
+  const canEdit  = isEditing && !isLocked;
+  const canDraw  = nativeWritingEnabled && canEdit;
+
+  return (
+    <main
+      ref={pageRef}
+      className={cx('lms-ai-note-page select-text [-webkit-user-select:text]', drawMode && canDraw && 'is-writing-mode')}
+      style={{ minHeight:'100dvh', background:pageBg }}
+    >
+      {lessonLoader}
+      <SmoothCanvasMotion />
+      {/* Top bar — single hard-coded static header (defined once as lessonHeaderBar) */}
+      {lessonHeaderBar}
 
       {!isLocked && pages.length > 0 && typeof document !== 'undefined' ? createPortal(
         <div className="lms-ai-note-reading-dock" style={progressPanelStyle}>

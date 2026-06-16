@@ -1,1 +1,0 @@
-import{Pn as e,ea as t}from"./app-shared-Bm4kfQj-.js";var n=t();function r({id:t,tone:r=`error`,children:i,onDismiss:a}){return(0,n.jsx)(e,{id:t,tone:r,className:`max-[420px]:top-[calc(env(safe-area-inset-top,0px)+12px)]`,onDismiss:a,children:i})}export{r as t};

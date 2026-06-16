@@ -386,7 +386,6 @@ const examThemeDarkVars = {
   '--exam-block-dot-border': 'rgba(93,118,159,0.95)',
   '--exam-block-dot-fill': '#081426',
 };
-const practiceHeaderClass = 'practice-review-header max-[700px]:gap-2.5 max-[700px]:px-3 max-[700px]:pb-2.5 [&_.quiz-header-actions]:shrink-0';
 const examHeaderActionsClass = 'quiz-header-actions ml-auto flex min-w-0 shrink-0 flex-nowrap items-center justify-end gap-2 max-[420px]:gap-1.5';
 const examHeaderChipClass =
   'inline-flex min-h-10 items-center gap-2 rounded-[13px] border border-[var(--exam-header-chip-border)] bg-[var(--exam-header-chip-bg)] px-3 text-sm text-ink-medium shadow-[var(--exam-header-chip-shadow)]';
@@ -395,19 +394,6 @@ const examHeaderIconClass = 'inline-grid place-items-center text-ink-soft';
 const examHeaderEndClass =
   'min-h-11 shrink-0 rounded-full border border-[var(--exam-end-border)] bg-[var(--exam-end-bg)] px-3.5 text-[12.5px] font-bold leading-none text-[var(--exam-end-text)] shadow-none transition-[background,border-color,color,opacity,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98] active:opacity-85 disabled:cursor-not-allowed disabled:opacity-60 max-[420px]:px-3';
 const practiceHeaderEndClass = 'border-brand-primary/22 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/14 dark:border-sky-300/22 dark:bg-sky-400/12 dark:text-sky-200';
-// Native-style quiz/exam taking header — a compact bar (back chevron · title ·
-// actions) that matches the rest of the native app instead of the old logo bar.
-// Sticky with safe-area top inset and a blur hairline; self-contained so it does
-// not depend on the portaled shell-bar layer.
-// NOTE: solid (opaque) background — NOT backdrop-blur. A blurred sticky header
-// repaints every scroll frame in iOS WKWebView and flickers; a solid fill is
-// stable. The top padding carries the safe-area inset so the fill extends up
-// behind the status bar / notch and the title never sits under it.
-const nativeQuizHeaderClass =
-  'lms-quiz-native-header sticky top-0 z-[60] flex min-h-[calc(54px+var(--lms-safe-top,env(safe-area-inset-top,0px)))] items-center gap-2 border-b border-line-soft bg-surface-card pl-3 pr-1.5 pb-2.5 pt-[calc(8px+var(--lms-safe-top,env(safe-area-inset-top,0px)))]';
-const nativeQuizTitleWrapClass = 'grid min-w-0 flex-1 gap-0.5';
-const nativeQuizTitleClass = 'block min-w-0 truncate text-[16px] font-extrabold leading-tight text-ink-strong max-[420px]:text-[15px]';
-const nativeQuizSubtitleClass = 'block min-w-0 truncate text-[11px] leading-tight text-ink-soft';
 const examGridClass = 'lms-exam-grid grid w-full max-w-none grid-cols-[minmax(220px,280px)_minmax(0,1120px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1180px]:grid-cols-1';
 const examSidebarClass = 'lms-exam-sidebar grid gap-[18px]';
 const examPanelClass =

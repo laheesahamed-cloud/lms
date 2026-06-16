@@ -4,12 +4,8 @@
   min-height: var(--ds-control-height);
 }
 
-:where(label, .lms-form-field, .form-field) {
+:where(label) {
   gap: var(--ds-space-2);
-}
-
-:where(.lms-form-grid, .form-grid) {
-  gap: var(--ds-form-gap);
 }
 
 @media (pointer: coarse) {
@@ -17,7 +13,7 @@
     touch-action: manipulation;
   }
 
-  :where(button, a, [role="button"], summary):not(.lms-chip-remove):not([aria-hidden="true"]) {
+  :where(button, a, [role="button"], summary):not([aria-hidden="true"]) {
     min-height: var(--ds-touch-target-min);
   }
 }

@@ -237,22 +237,15 @@
   --line-soft: rgba(203, 213, 225, 0.13);
   --line-medium: rgba(203, 213, 225, 0.2);
   --line-strong: rgba(203, 213, 225, 0.28);
-  --color-border-soft: var(--line-soft);
-  --color-border-medium: var(--line-medium);
-  --color-border-strong: var(--line-strong);
 
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
   --ink-muted: #8294AE;
-  --text-primary: var(--ink-strong);
-  --text-secondary: var(--ink-medium);
-  --text-muted: var(--ink-soft);
 
   --color-primary: #60a5fa;
   --color-primary-hover: #93c5fd;
   --color-primary-light: rgba(96, 165, 250, 0.12);
-  --color-primary-glow: rgba(96, 165, 250, 0.18);
 
   --topbar-bg: rgba(10, 10, 15, 0.90);
   --sidebar-bg: rgba(10, 10, 15, 0.96);
@@ -286,7 +279,6 @@
   --sa-surface-rgb: 10, 10, 15;
   --sa-surface-2-rgb: 14, 14, 20;
   --sa-ink: var(--ink-strong);
-  --sa-ink-deep: #f8fafc;
   --sa-text-2: var(--ink-soft);
   --sa-text-3: var(--ink-muted);
   --sa-border: var(--line-soft);
@@ -350,11 +342,9 @@
 
 :root[data-theme="dark"] :where(
   .glass-card,
-  .card-surface,
   .bg-surface-card,
   .bg-surface-card-elevated,
   .surface-card,
-  .lms-app-card,
   .lms-course-card,
   .student-course-card,
   .lms-quiz-card,
@@ -378,11 +368,7 @@
   input,
   textarea,
   select,
-  .lms-native-field,
-  .form-input,
-  .form-select,
-  .form-textarea
-) {
+  .lms-native-field) {
   border-color: rgba(110, 150, 255, 0.14) !important;
   background: rgba(8, 10, 20, 0.72) !important;
   color: var(--ink-strong) !important;
@@ -409,10 +395,7 @@
 }
 
 :root[data-theme="dark"] :where(
-  th,
-  .table-head,
-  .admin-table__head
-) {
+  th) {
   background: rgba(15, 27, 46, 0.82) !important;
   color: var(--ink-medium) !important;
 }
@@ -471,9 +454,7 @@
 
 :root[data-theme="dark"] :where(
   .bg-surface-2,
-  .bg-surface-3,
-  .bg-surface-4
-) {
+  .bg-surface-3) {
   background-color: var(--surface-2) !important;
 }
 
@@ -603,7 +584,6 @@ body.student-quiz-night-screen .student-app-shell {
   --btn-secondary-bg: rgba(31, 42, 56, 0.76);
 
   --sa-ink: #F8FAFC;
-  --sa-ink-deep: #f8fafc;
   --sa-text-2: #94A3B8;
   --sa-text-3: #64748B;
   --ink-strong: #F8FAFC;
@@ -682,11 +662,7 @@ body.student-quiz-night-screen .student-app-shell :is(
   .lms-sidebar,
   .lms-sidebar--student-model
 ) :is(
-  .lms-sidebar-brand-name,
-  .lms-sidebar-nav-item,
-  .lms-sidebar-nav-item span,
-  .lms-sidebar-profile-name
-) {
+  .lms-sidebar-brand-name) {
   color: var(--sa-ink) !important;
 }
 
@@ -694,10 +670,7 @@ body.student-quiz-night-screen .student-app-shell :is(
   .lms-sidebar,
   .lms-sidebar--student-model
 ) :is(
-  .lms-sidebar-brand-sub,
-  .lms-sidebar-profile-role,
-  .lms-sidebar-group-label
-) {
+  .lms-sidebar-brand-sub) {
   color: var(--sa-text-2) !important;
 }
 
@@ -762,8 +735,6 @@ body,
   header,
   footer,
   .glass-card,
-  .card-surface,
-  .lms-app-card,
   .lms-table-shell,
   .lms-page-header-card,
   .student-page-hero,
@@ -794,7 +765,7 @@ body,
 }
 
 @media (max-width: 900px) {
-  :where(.lms-table-shell, .table-responsive, .overflow-x-auto) {
+  :where(.lms-table-shell, .overflow-x-auto) {
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -846,9 +817,6 @@ body,
 }
 
 @media (max-width: 430px) {
-  :where(.lms-route-page, .student-route-page, .dashboard-page) {
-    --page-x: max(12px, env(safe-area-inset-left, 0px));
-  }
 
   :where(.lms-route-page, .student-route-page, .dashboard-page) :where(.grid, .flex) {
     min-width: 0;
@@ -910,7 +878,6 @@ body,
   --sa-surface-rgb: 255, 255, 255;
   --sa-surface-2-rgb: 246, 249, 254;
   --sa-ink: #0F172A;
-  --sa-ink-deep: #0F172A;
   --sa-text-2: #475569;
   --sa-text-3: #64748B;
   --ink-strong: #0F172A;
@@ -943,7 +910,6 @@ body,
 :root[data-theme="light"] body.student-quiz-night-screen :where(.lms-sidebar, .lms-sidebar--student-model, .lms-mobile-top-nav) {
   --student-sidebar-ink: #0F172A;
   --student-sidebar-muted: #64748B;
-  --student-sidebar-faint: #94A3B8;
   --student-sidebar-border: rgba(15, 23, 42, 0.10);
   --student-sidebar-hover: rgba(37, 99, 235, 0.08);
   --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.13), rgba(56, 189, 248, 0.12));
@@ -954,13 +920,13 @@ body,
 }
 
 :root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-name, .lms-sidebar-student-copy strong),
-:root[data-theme="light"] body.student-quiz-night-screen :where(.lms-sidebar-brand-name, .lms-sidebar-wordmark strong, .lms-sidebar-profile-name) {
+:root[data-theme="light"] body.student-quiz-night-screen :where(.lms-sidebar-brand-name, .lms-sidebar-wordmark strong) {
   color: #0F172A !important;
   -webkit-text-fill-color: #0F172A !important;
 }
 
 :root[data-theme="light"] body.study-hub-screen .lms-sidebar--student-model :where(.lms-sidebar-brand-sub, .lms-sidebar-student-copy span, .lms-sidebar-link),
-:root[data-theme="light"] body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordmark span, .lms-sidebar-profile-role, .lms-sidebar-group-label, .lms-sidebar-nav-item) {
+:root[data-theme="light"] body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordmark span) {
   color: #64748B !important;
   -webkit-text-fill-color: #64748B !important;
 }
@@ -995,7 +961,6 @@ body,
 
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page :where(
   .lms-page-header-card,
-  .lms-map-hierarchy-guide,
   .lms-quiz-set-card) {
   border-color: rgba(15, 23, 42, 0.10) !important;
   background:
@@ -1317,7 +1282,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --sa-surface-rgb: 255, 255, 255;
   --sa-surface-2-rgb: 246, 249, 254;
   --sa-ink: #0F172A;
-  --sa-ink-deep: #0F172A;
   --sa-text-2: #64748B;
   --sa-text-3: #94A3B8;
   --sa-border: rgba(15, 23, 42, 0.10);
@@ -1338,9 +1302,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --line-soft: rgba(15, 23, 42, 0.08);
   --line-medium: rgba(15, 23, 42, 0.12);
   --line-strong: rgba(37, 99, 235, 0.24);
-  --color-border-soft: var(--line-soft);
-  --color-border-medium: var(--line-medium);
-  --color-border-strong: var(--line-strong);
   --ink-strong: #0F172A;
   --ink-medium: #475569;
   --ink-soft: #54637A;
@@ -1348,22 +1309,17 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
   --color-primary-light: rgba(37, 99, 235, 0.11);
-  --color-primary-glow: rgba(37, 99, 235, 0.2);
   --color-secondary: #0ea5e9;
   --color-secondary-light: rgba(14, 165, 233, 0.1);
   --color-accent: #0ea5e9;
   --color-accent-light: rgba(14, 165, 233, 0.1);
   --brand-primary-start: #2563eb;
-  --brand-primary-mid: #38bdf8;
   --brand-primary-end: #6366f1;
-  --brand-primary-solid: #2563eb;
-  --brand-primary-soft: rgba(37, 99, 235, 0.11);
   --brand-gradient-primary: linear-gradient(135deg, #2563eb 0%, #38bdf8 60%, #6366f1 100%);
   --btn-secondary-bg: rgba(255, 255, 255, 0.82);
   --lms-app-card-bg: var(--student-route-card-bg);
   --lms-app-card-bg-raised: var(--student-route-card-bg-raised);
   --lms-app-card-shadow: var(--student-route-card-shadow);
-  --lms-app-card-shadow-hover: 0 24px 56px -38px rgba(37, 99, 235, 0.34);
   background: var(--sa-bg) !important;
   color: var(--sa-ink) !important;
 }
@@ -1380,7 +1336,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --sa-surface-rgb: 10, 10, 15;
   --sa-surface-2-rgb: 14, 14, 20;
   --sa-ink: #F8FAFC;
-  --sa-ink-deep: #f8fafc;
   --sa-text-2: #94A3B8;
   --sa-text-3: #64748B;
   --sa-border: rgba(203, 213, 225, 0.13);
@@ -1401,9 +1356,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --line-soft: rgba(203, 213, 225, 0.13);
   --line-medium: rgba(203, 213, 225, 0.2);
   --line-strong: rgba(203, 213, 225, 0.28);
-  --color-border-soft: var(--line-soft);
-  --color-border-medium: var(--line-medium);
-  --color-border-strong: var(--line-strong);
   --ink-strong: #F8FAFC;
   --ink-medium: #CBD5E1;
   --ink-soft: #94A3B8;
@@ -1411,23 +1363,18 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --color-primary: #60a5fa;
   --color-primary-hover: #93c5fd;
   --color-primary-light: rgba(96, 165, 250, 0.12);
-  --color-primary-glow: rgba(96, 165, 250, 0.18);
   --color-secondary: #38bdf8;
   --color-secondary-light: rgba(56, 189, 248, 0.08);
   --color-accent: #a78bfa;
   --color-accent-light: rgba(167, 139, 250, 0.08);
   --brand-primary-start: #60a5fa;
-  --brand-primary-mid: #38bdf8;
   --brand-primary-end: #a78bfa;
-  --brand-primary-solid: #60a5fa;
-  --brand-primary-soft: rgba(96, 165, 250, 0.16);
   --brand-gradient-primary: linear-gradient(135deg, #60a5fa 0%, #38bdf8 58%, #a78bfa 100%);
   --btn-secondary-bg: rgba(31, 42, 56, 0.76);
   --lms-app-card-bg: var(--student-route-card-bg);
   --lms-app-card-bg-raised: var(--student-route-card-bg-raised);
   --lms-app-card-shadow: var(--student-route-card-shadow);
   /* Flat xyndrome cards: hover does not lift (no inset edge). */
-  --lms-app-card-shadow-hover: var(--student-route-card-shadow);
   background: var(--sa-bg) !important;
   color: var(--sa-ink) !important;
 }
@@ -1526,8 +1473,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 
 :root[data-theme] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page) :where(
   .lms-page-header-card,
-  .lms-map-hierarchy-guide,
-  .lms-app-card,
   .lms-form-card,
   .quick-theory-recap,
   .lms-review-question-card,
@@ -1535,7 +1480,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   .lms-exam-main-card,
   .lms-exam-main-footer,
   .lms-exam-sidebar > section,
-  .lms-exam-explainer > section,
   .bg-surface-card,
   .bg-surface-card-elevated
 ) {
@@ -1550,8 +1494,8 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
    as part of the parent card, not a second floating card. Must out-specify the
    "unify surfaces" rule above (same 0,5,0 specificity, declared later wins). */
 :root[data-theme] .student-app-shell :is(.dashboard-page.study-hub-page, .lms-exam-page)
-  :where(.lms-card, .lms-global-card, .glass-card, .lms-app-card)
-  :where(.bg-surface-card, .bg-surface-card-elevated, .card-surface, .lms-app-card) {
+  :where(.lms-card, .lms-global-card, .glass-card)
+  :where(.bg-surface-card, .bg-surface-card-elevated) {
   background: var(--surface-2) !important;
   box-shadow: none !important;
 }
@@ -1603,7 +1547,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 :root[data-theme="light"] body.student-assessment-screen .lms-sidebar--student-model {
   --student-sidebar-ink: #0F172A;
   --student-sidebar-muted: #64748B;
-  --student-sidebar-faint: #94A3B8;
   --student-sidebar-border: rgba(15, 23, 42, 0.08);
   --student-sidebar-hover: rgba(37, 99, 235, 0.08);
   --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.13), rgba(56, 189, 248, 0.12));
@@ -1621,7 +1564,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 :root[data-theme="dark"] body.student-assessment-screen .lms-sidebar--student-model {
   --student-sidebar-ink: #F8FAFC;
   --student-sidebar-muted: #94A3B8;
-  --student-sidebar-faint: #64748B;
   --student-sidebar-border: rgba(203, 213, 225, 0.13);
   --student-sidebar-hover: rgba(203, 213, 225, 0.08);
   --student-sidebar-active: linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(56, 189, 248, 0.08));
@@ -1694,7 +1636,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   .student-lessons-lesson-list-shell,
   .student-lessons-lesson-row,
   .lms-page-header-card,
-  .lms-map-hierarchy-guide,
   .lms-quiz-course-card,
   .lms-quiz-set-card) {
   border-color: var(--quiz-map-card-border) !important;
@@ -1711,7 +1652,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   .student-lessons-lesson-list-shell,
   .student-lessons-lesson-row,
   .lms-page-header-card,
-  .lms-map-hierarchy-guide,
   .lms-quiz-course-card,
   .lms-quiz-set-card) {
   color: #0F172A !important;
@@ -1975,7 +1915,6 @@ body.student-quiz-night-screen .student-app-shell {
   --surface-glass-subtle: rgba(31, 42, 56, 0.62);
 
   --sa-ink: #F8FAFC;
-  --sa-ink-deep: #f8fafc;
   --sa-text-2: #94A3B8;
   --sa-text-3: #64748B;
   --ink-strong: #F8FAFC;
@@ -2033,11 +1972,9 @@ body.student-quiz-night-screen :where(
 
 body.student-quiz-night-screen .student-app-shell :where(
   .glass-card,
-  .card-surface,
   .bg-surface-card,
   .bg-surface-card-elevated,
   .surface-card,
-  .lms-app-card,
   .lms-course-card,
   .student-course-card,
   .student-lessons-course-card,
@@ -2048,7 +1985,6 @@ body.student-quiz-night-screen .student-app-shell :where(
   .student-lessons-lesson-row,
   .lms-page-header-card,
   .lms-hero-card,
-  .lms-map-hierarchy-guide,
   .lms-quiz-card,
   .lms-quiz-course-card,
   .lms-quiz-set-card,
@@ -2058,7 +1994,6 @@ body.student-quiz-night-screen .student-app-shell :where(
   .lms-exam-main-card,
   .lms-exam-main-footer,
   .lms-exam-sidebar > section,
-  .lms-exam-explainer > section,
   .student-result-detail-hero,
   .student-result-stat-card,
   .student-result-insight-card,
@@ -2112,11 +2047,7 @@ body.student-quiz-night-screen .student-app-shell :where(
   input,
   textarea,
   select,
-  .lms-native-field,
-  .form-input,
-  .form-select,
-  .form-textarea
-) {
+  .lms-native-field) {
   border-color: var(--line-medium) !important;
   background: rgba(8, 8, 13, 0.88) !important;
   color: var(--ink-strong) !important;
@@ -2134,12 +2065,12 @@ body.student-quiz-night-screen :where(
   box-shadow: var(--lms-global-card-shadow, var(--shadow-sm)) !important;
 }
 
-body.student-quiz-night-screen :where(.lms-sidebar-brand-name, .lms-sidebar-wordmark strong, .lms-sidebar-profile-name) {
+body.student-quiz-night-screen :where(.lms-sidebar-brand-name, .lms-sidebar-wordmark strong) {
   color: var(--ink-strong) !important;
   -webkit-text-fill-color: var(--ink-strong) !important;
 }
 
-body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordmark span, .lms-sidebar-profile-role, .lms-sidebar-group-label, .lms-sidebar-nav-item, .lms-sidebar-link) {
+body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordmark span, .lms-sidebar-link) {
   color: var(--ink-soft) !important;
   -webkit-text-fill-color: var(--ink-soft) !important;
 }

@@ -20,7 +20,7 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
         status: "active" | "inactive";
         createdAt: string | null;
     }[]>;
@@ -36,7 +36,7 @@ export declare class UsersService {
             id: number;
             fullName: string;
             email: string;
-            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
             status: "active" | "inactive";
             createdAt: string | null;
         };
@@ -74,19 +74,19 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
         status: string;
     }>;
     update(actor: UserManagementActor, id: number, updateUserDto: UpdateUserDto): Promise<{
         id: number;
         fullName: string;
         email: string;
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
         status: "active" | "inactive";
         createdAt: string | null;
     } | {
         status: "active" | "inactive";
-        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "student";
+        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
         email: string;
         fullName: string;
         ok: boolean;

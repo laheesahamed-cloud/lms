@@ -363,17 +363,13 @@ function StatLine({ value, sub, label }) {
   );
 }
 
-function CourseSummaryHead({ course, analytics, eyebrow, onBack, onOpenLesson }) {
+function CourseSummaryHead({ course, analytics, eyebrow, onOpenLesson }) {
   const recommendation = analytics.recommendation;
   const summary = buildCourseSummary(analytics);
   const footnote = buildCourseFootnote(analytics);
 
   return (
     <header className="csum-head" aria-labelledby="csum-title">
-      <button type="button" className="csum-back" onClick={onBack} aria-label="Back to courses">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M9.5 3.5l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        <span>Courses</span>
-      </button>
       <span className="csum-eyebrow">{eyebrow}</span>
       <h1 id="csum-title" className="csum-title">{course.courseTitle}</h1>
       <p className="csum-lede">{summary}</p>
@@ -394,6 +390,8 @@ function CourseSummaryHead({ course, analytics, eyebrow, onBack, onOpenLesson })
         </span>
       </div>
 
+      {recommendation ? <div className="csum-divider" aria-hidden="true" /> : null}
+
       {recommendation ? (
         <p className="csum-next">
           <span className="csum-next-label">Next up</span>
@@ -408,9 +406,6 @@ function CourseSummaryHead({ course, analytics, eyebrow, onBack, onOpenLesson })
             {recommendation.label}
           </button>
         ) : null}
-        <button type="button" className="csum-btn csum-btn--ghost" onClick={onBack}>
-          Back to courses
-        </button>
       </div>
     </header>
   );
@@ -956,15 +951,19 @@ export function CourseDetailPage({
         return;
       }
 
-      let matchingNote = null;
-      try {
-        matchingNote = await getLessonAiNote(lesson.id);
-        if (!noteMatchesCourse(matchingNote, course)) {
-          matchingNote = null;
+      // Resolve the lesson's canvas id WITHOUT downloading the ~900KB canvas:
+      // the slim list carries id + courseTitle, which is all we need to route.
+      // Only fall back to the live per-lesson read if the list hasn't caught up
+      // (e.g. a just-published lesson not yet in the cached list).
+      let matchingNote = resolveLessonCanvas(await listAiNotes().catch(() => []), course, lesson);
+      if (matchingNote && !noteMatchesCourse(matchingNote, course)) {
+        matchingNote = null;
+      }
+      if (!matchingNote) {
+        const liveNote = await getLessonAiNote(lesson.id).catch(() => null);
+        if (liveNote && noteMatchesCourse(liveNote, course)) {
+          matchingNote = liveNote;
         }
-      } catch {
-        const noteRows = await listAiNotes().catch(() => []);
-        matchingNote = resolveLessonCanvas(noteRows, course, lesson);
       }
       if (!matchingNote) throw new Error('This lesson is being prepared.');
 
@@ -1048,7 +1047,6 @@ export function CourseDetailPage({
               course={course}
               analytics={courseAnalytics}
               eyebrow={eyebrow}
-              onBack={handleBackToCourses}
               onOpenLesson={handleOpenLesson}
             />
           </div>

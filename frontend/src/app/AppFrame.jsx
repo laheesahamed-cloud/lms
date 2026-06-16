@@ -919,7 +919,14 @@ export function AppFrame() {
 
     const cleanPath = location.pathname === '/billing' ? '/subscriptions' : location.pathname;
     const prefix = shouldRouteAsStaff ? '/admin' : '';
-    navigate(`${prefix}${cleanPath}${location.search}${location.hash}`, { replace: true });
+    const canonicalPath = `${prefix}${cleanPath}`;
+    // If the path is already canonical (e.g. a student on /ai-notes/:id), DON'T
+    // re-navigate — a same-path replace silently drops the navigation state (the
+    // lesson title passed from the list), which makes the header flash
+    // "Lesson" → real title. Only rewrite when the path truly changes, and carry
+    // the existing state across so it's never lost.
+    if (canonicalPath === location.pathname) return;
+    navigate(`${canonicalPath}${location.search}${location.hash}`, { replace: true, state: location.state });
   }, [isAuthenticated, isHydrating, location.hash, location.pathname, location.search, navigate, shouldRouteAsStaff, user?.role, user?.status]);
 
   useLayoutEffect(() => {

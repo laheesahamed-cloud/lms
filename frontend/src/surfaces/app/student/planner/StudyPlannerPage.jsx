@@ -612,6 +612,7 @@ export function StudyPlannerPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(() => readPlannerAgendaCache() === undefined);
   const [saving, setSaving] = useState('');
   const [message, setMessage] = useState('');
@@ -642,6 +643,7 @@ export function StudyPlannerPage() {
   }, []);
 
   const today = todayIso();
+  const activeFilterCount = [courseFilter, typeFilter, statusFilter, searchTerm].filter(Boolean).length;
   const allItems = useMemo(() => {
     const merged = flashcardItem ? [flashcardItem, ...agenda.items] : agenda.items;
     return [...merged].sort((left, right) => Number(right.priority || 0) - Number(left.priority || 0));
@@ -799,63 +801,79 @@ export function StudyPlannerPage() {
 
         <StudyReminderSettingsCard />
 
-        {view === 'agenda' ? (
-          <section className="planner-agenda-tools" aria-label="Agenda filters">
-            <label className="planner-search">
-              <span>Search</span>
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Tasks, lessons, topics"
-              />
-            </label>
-            <label className="planner-course-filter">
-              <span>Course</span>
-              <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
-                <option value="">All courses</option>
-                {agenda.filters.courses.map((course) => (
-                  <option value={course} key={course}>{course}</option>
-                ))}
-              </select>
-            </label>
-            <label className="planner-course-filter">
-              <span>Type</span>
-              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                {TYPE_FILTER_OPTIONS.map((option) => (
-                  <option value={option.value} key={option.value || 'all-types'}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="planner-course-filter">
-              <span>Status</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                {STATUS_FILTER_OPTIONS.map((option) => (
-                  <option value={option.value} key={option.value || 'all-statuses'}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-            {(courseFilter || typeFilter || statusFilter || searchTerm) ? (
-              <button
-                type="button"
-                className="planner-action is-secondary"
-                onClick={() => {
-                  setCourseFilter('');
-                  setTypeFilter('');
-                  setStatusFilter('');
-                  setSearchTerm('');
-                }}
-              >
-                Clear
-              </button>
-            ) : null}
-          </section>
-        ) : null}
-
         {message ? <p className="planner-message" role="status">{message}</p> : null}
 
         <div className="planner-layout-grid">
           <div className="planner-agenda-column">
+            {view === 'agenda' ? (
+              <section className="planner-filter-card" aria-label="Agenda filters">
+                <div className="planner-filter-bar">
+                  <button
+                    type="button"
+                    className={`planner-filter-toggle${filtersOpen ? ' is-open' : ''}`}
+                    aria-expanded={filtersOpen}
+                    onClick={() => setFiltersOpen((open) => !open)}
+                  >
+                    <span className="planner-filter-toggle__icon" aria-hidden="true" />
+                    <span>Filter</span>
+                    {activeFilterCount ? <span className="planner-filter-count">{activeFilterCount}</span> : null}
+                  </button>
+                  {activeFilterCount ? (
+                    <button
+                      type="button"
+                      className="planner-filter-clear"
+                      onClick={() => {
+                        setCourseFilter('');
+                        setTypeFilter('');
+                        setStatusFilter('');
+                        setSearchTerm('');
+                      }}
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+                {filtersOpen ? (
+                  <div className="planner-filter-panel">
+                    <label className="planner-search">
+                      <span>Search</span>
+                      <input
+                        type="search"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        placeholder="Tasks, lessons, topics"
+                      />
+                    </label>
+                    <label className="planner-course-filter">
+                      <span>Course</span>
+                      <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
+                        <option value="">All courses</option>
+                        {agenda.filters.courses.map((course) => (
+                          <option value={course} key={course}>{course}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="planner-course-filter">
+                      <span>Type</span>
+                      <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                        {TYPE_FILTER_OPTIONS.map((option) => (
+                          <option value={option.value} key={option.value || 'all-types'}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="planner-course-filter">
+                      <span>Status</span>
+                      <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                        {STATUS_FILTER_OPTIONS.map((option) => (
+                          <option value={option.value} key={option.value || 'all-statuses'}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
             {loading ? (
               <section className="planner-list-section">
                 <div className="planner-section-heading">

@@ -6,7 +6,6 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .lms-login-page {
   --color-primary: #8fa7d4;
   --color-primary-hover: #aabce0;
   --color-primary-light: rgba(143, 167, 212, 0.12);
-  --color-primary-glow: rgba(93, 119, 172, 0.14);
   --lms-auth-panel-bg:
     radial-gradient(circle at 8% 0%, rgba(74, 98, 154, 0.12), transparent 34%),
     radial-gradient(circle at 100% 94%, rgba(54, 73, 119, 0.08), transparent 38%),

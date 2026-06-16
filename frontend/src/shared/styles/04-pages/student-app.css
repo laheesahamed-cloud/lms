@@ -14,8 +14,6 @@
 
   /* Background — flat single tone to match the admin shell (no gradient). */
   --sa-bg: #dce6f4;
-  --sa-bg-grad-1:      #dde8f7;
-  --sa-bg-grad-2:      #e4eef8;
   --sa-surface:        #fbfcff;
   --sa-surface-2:      #f3f6fc;
   --sa-surface-raised: #fdfeff;
@@ -24,7 +22,6 @@
 
   /* Ink — deep navy text on pastel */
   --sa-ink:      #0F172A;
-  --sa-ink-deep: #050b1a;
   --sa-text-2:   #4d5b78;
   --sa-text-3:   #8a96b5;
 
@@ -50,7 +47,6 @@
   --sa-warn-soft: #fff4d8;
   --sa-warn-deep: #7c4a03;
   --sa-warn-rgb:  161, 98, 7;
-  --sa-warn-deep-rgb: 124, 74, 3;
 
   /* Semantic */
   --sa-danger:      #b3261e;
@@ -65,7 +61,6 @@
   /* Gradients — blue → cyan with subtle indigo trailing */
   --sa-grad:      linear-gradient(135deg, #2563eb 0%, #38bdf8 60%, #6366f1 100%);
   --sa-grad-soft: linear-gradient(135deg, #e0ecff 0%, #dff3ff 100%);
-  --sa-grad-warm: linear-gradient(135deg, #fff6e9 0%, #ffe4c2 100%);
 
   --app-bg: var(--sa-bg);
   --page-background: var(--sa-bg);
@@ -73,7 +68,6 @@
   /* Flat shadows (M4, owner-approved 2026-06-11): one layer per element. */
   --sa-shadow-card:       0 4px 16px rgba(37, 99, 235, 0.05);
   --sa-shadow-card-hover: 0 18px 42px rgba(37, 99, 235, 0.1);
-  --sa-shadow-cta:        0 10px 24px -8px rgba(37, 99, 235, 0.45);
   --sa-shadow-warn:       0 6px 14px -4px rgba(240, 138, 44, 0.5);
   /* Flat master card surface for ALL student cards — see CARD_DARK_MODE_PLAN.md.
      Redefining these here (student scope only) flattens every card that reads
@@ -89,8 +83,6 @@
   --sa-soft-tile-bg:
     linear-gradient(135deg, rgba(var(--sa-primary-rgb), 0.07), rgba(var(--sa-purple-rgb), 0.04)),
     rgba(var(--sa-surface-rgb), 0.7);
-
-  --sa-radius-xs: 10px;
   --sa-radius-sm: 14px;
   --sa-radius-md: 18px;
   --sa-radius-lg: 22px;
@@ -154,9 +146,6 @@
   --line-soft: var(--sa-border);
   --line-medium: var(--sa-border-strong);
   --line-strong: #b9c0d5;
-  --color-border-soft: var(--sa-border);
-  --color-border-medium: var(--sa-border-strong);
-  --color-border-strong: #b9c0d5;
 
   /* Ink (text) */
   --ink-strong: var(--sa-ink);
@@ -168,23 +157,16 @@
   --color-primary: var(--sa-primary);
   --color-primary-hover: var(--sa-primary-deep);
   --color-primary-light: var(--sa-primary-soft);
-  --color-primary-glow: rgba(37, 99, 235, 0.22);
   --color-secondary: var(--sa-purple);
   --color-secondary-light: var(--sa-purple-soft);
   --color-accent: var(--sa-purple);
   --color-accent-light: var(--sa-purple-soft);
 
   --brand-primary-start: #2563eb;
-  --brand-primary-mid:   #38bdf8;
   --brand-primary-end:   #6366f1;
-  --brand-primary-solid: #2563eb;
-  --brand-primary-soft:  #e0ecff;
   --brand-gradient-primary: var(--sa-grad);
-  --brand-gradient-vivid:   var(--sa-grad);
   --brand-gradient-hero:    linear-gradient(135deg, #0F172A 0%, #2563eb 55%, #38bdf8 100%);
   --brand-shadow-soft: 0 6px 20px rgba(37, 99, 235, 0.14);
-  --brand-shadow-md:   0 10px 28px rgba(37, 99, 235, 0.18);
-  --brand-shadow-lg:   0 18px 44px rgba(37, 99, 235, 0.2);
   --brand-glow:        0 0 20px rgba(37, 99, 235, 0.22), 0 0 44px rgba(56, 189, 248, 0.14);
 
   /* Semantic */
@@ -230,7 +212,6 @@
   --sidebar-w-collapsed: 68px;
   --student-sidebar-ink:    #0F172A;
   --student-sidebar-muted:  #4d5b78;
-  --student-sidebar-faint:  #8a96b5;
   --student-sidebar-border: rgba(12, 24, 48, 0.06);
   --student-sidebar-hover:  rgba(37, 99, 235, 0.06);
   --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(56, 189, 248, 0.1));
@@ -462,9 +443,6 @@
       opacity 260ms var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)) !important;
   }
 
-  .sidebar-motion-active .lms-sidebar--student-model:not(.is-overlay-nav) {
-  }
-
   .lms-sidebar--student-model:not(.is-overlay-nav).is-collapsed {
     width: var(--sidebar-w-collapsed, 68px) !important;
     padding: 16px 8px !important;
@@ -577,7 +555,6 @@
 :root[data-theme='dark'] .lms-sidebar--student-model {
   --student-sidebar-ink: #F8FAFC;
   --student-sidebar-muted: #94A3B8;
-  --student-sidebar-faint: #64748B;
   --student-sidebar-border: rgba(203, 213, 225, 0.13);
   --student-sidebar-hover: rgba(203, 213, 225, 0.08);
   --student-sidebar-active: linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(56, 189, 248, 0.08));
@@ -1197,8 +1174,6 @@
    ============================================================ */
 :root[data-theme="dark"] .student-app-shell {
   --sa-bg:            var(--app-bg);
-  --sa-bg-grad-1:     #0e0e16;
-  --sa-bg-grad-2:     #0a0a0f;
   /* Dark card surface — elevated above the page per HIG luminance elevation
      (see dark-card-elevation memory). Ladder: page #0a0a0f < recessed #111117
      < card #16181f < raised #1c1f27. Cards now read as panels, not holes. */
@@ -1209,7 +1184,6 @@
   --sa-surface-2-rgb: 14, 14, 20;
 
   --sa-ink:      #F8FAFC;
-  --sa-ink-deep: #f8fafc;
   --sa-text-2:   #94A3B8;
   --sa-text-3:   #64748B;
 
@@ -1231,7 +1205,6 @@
   --sa-warn-soft: rgba(252, 211, 77, 0.14);
   --sa-warn-deep: #fef08a;
   --sa-warn-rgb:  252, 211, 77;
-  --sa-warn-deep-rgb: 254, 240, 138;
   --sa-danger:      #fca5a5;
   --sa-danger-soft: rgba(252, 165, 165, 0.12);
   --sa-danger-deep: #fecaca;
@@ -1243,7 +1216,6 @@
 
   --sa-grad:      linear-gradient(135deg, #3b82f6 0%, #38bdf8 60%, #818cf8 100%);
   --sa-grad-soft: linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(56, 189, 248, 0.09) 100%);
-  --sa-grad-warm: linear-gradient(135deg, rgba(252, 211, 77, 0.14) 0%, rgba(252, 211, 77, 0.22) 100%);
 
   --app-bg: var(--sa-bg);
   --page-background: var(--sa-bg);
@@ -1251,7 +1223,6 @@
   /* Flat xyndrome cards (XYNDROME_DARK_PLAN.md Phase 1): no inset edges. */
   --sa-shadow-card:       0 20px 46px -30px rgba(0, 0, 0, 0.66);
   --sa-shadow-card-hover: 0 20px 46px -30px rgba(0, 0, 0, 0.66);
-  --sa-shadow-cta:        0 10px 24px -8px rgba(96, 165, 250, 0.5);
   --sa-shadow-warn:       0 6px 14px -4px rgba(245, 168, 78, 0.4);
   /* Flat master card surface (student scope only) — see CARD_DARK_MODE_PLAN.md */
   --sa-card-bg: var(--surface-card);
@@ -1277,9 +1248,6 @@
   --line-soft: var(--sa-border);
   --line-medium: var(--sa-border-strong);
   --line-strong: rgba(203, 213, 225, 0.28);
-  --color-border-soft: var(--sa-border);
-  --color-border-medium: var(--sa-border-strong);
-  --color-border-strong: rgba(203, 213, 225, 0.28);
 
   --ink-strong: var(--sa-ink);
   --ink-medium: #CBD5E1;
@@ -1289,23 +1257,16 @@
   --color-primary: var(--sa-primary);
   --color-primary-hover: var(--sa-primary-deep);
   --color-primary-light: var(--sa-primary-soft);
-  --color-primary-glow: rgba(96,165,250,.18);
   --color-secondary: var(--sa-purple);
   --color-secondary-light: var(--sa-purple-soft);
   --color-accent: var(--sa-purple);
   --color-accent-light: var(--sa-purple-soft);
 
   --brand-primary-start: #3b82f6;
-  --brand-primary-mid:   #60a5fa;
   --brand-primary-end:   #38bdf8;
-  --brand-primary-solid: #60a5fa;
-  --brand-primary-soft:  rgba(96,165,250,.12);
   --brand-gradient-primary: var(--sa-grad);
-  --brand-gradient-vivid:   var(--sa-grad);
   --brand-gradient-hero:    linear-gradient(135deg, #080c14 0%, #2563eb 62%, #38bdf8 100%);
   --brand-shadow-soft: 0 6px 20px rgba(96,165,250,.14);
-  --brand-shadow-md:   0 10px 28px rgba(96,165,250,.16);
-  --brand-shadow-lg:   0 18px 44px rgba(96,165,250,.18);
   --brand-glow:        0 0 20px rgba(96,165,250,.18), 0 0 44px rgba(56,189,248,.1);
 
   --color-success: var(--sa-ok);
@@ -1587,7 +1548,6 @@
   --profile-menu-ink: #0F172A;
   --profile-menu-muted: #4d5b78;
   --profile-menu-border: rgba(12, 24, 48, 0.08);
-  --profile-menu-hover: rgba(37, 99, 235, 0.07);
   --profile-menu-grad: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(56, 189, 248, 0.1));
   border-color: var(--profile-menu-border) !important;
   background:
@@ -1697,7 +1657,6 @@
   --profile-menu-ink: #F8FAFC;
   --profile-menu-muted: #94A3B8;
   --profile-menu-border: rgba(203, 213, 225, 0.13);
-  --profile-menu-hover: rgba(203, 213, 225, 0.08);
   --profile-menu-grad: linear-gradient(135deg, rgba(148, 163, 184, 0.08), rgba(96, 113, 135, 0.05));
   background:
     linear-gradient(180deg, rgba(8, 8, 13, 0.88), rgba(10, 10, 15, 0.82)),
@@ -1761,8 +1720,6 @@
   --profile-menu-ink: #f8fbff;
   --profile-menu-muted: #d8e2f7;
   --profile-menu-border: transparent;
-  --profile-menu-bg: transparent;
-  --profile-menu-shadow: none;
   background: transparent !important;
   box-shadow: none !important;
 }
@@ -2050,7 +2007,7 @@ html body.lms-notification-menu-open > .lms-floating-panel {
    ============================================================ */
 
 /* App-card (replaces the loud glass-card/card-surface jumble) */
-.student-app-shell :where(.glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .lms-app-card) {
+.student-app-shell :where(.glass-card, .bg-surface-card, .bg-surface-card-elevated) {
   border: 1px solid var(--sa-border);
   border-radius: var(--sa-radius-lg);
   background: var(--sa-card-bg);
@@ -2083,7 +2040,7 @@ html body.lms-notification-menu-open > .lms-floating-panel {
   background: var(--sa-card-bg-hover);
 }
 
-.student-app-shell :where(.glass-card, .card-surface, .lms-app-card):hover {
+.student-app-shell :where(.glass-card):hover {
   border-color: rgba(var(--sa-primary-rgb), 0.22);
 }
 
@@ -2247,7 +2204,7 @@ html body.lms-notification-menu-open > .lms-floating-panel {
 /* Soft icon badge — used in cards (e.g., quick actions) */
 
 /* Subtle text helpers */
-.student-app-shell :where(.text-ink-soft, .text-ink-muted, .table-subtext) {
+.student-app-shell :where(.text-ink-soft, .text-ink-muted) {
   color: var(--sa-text-2);
 }
 
@@ -2350,8 +2307,6 @@ html body.lms-notification-menu-open > .lms-floating-panel {
 
 .student-app-shell :where(
   .glass-card,
-  .card-surface,
-  .lms-app-card,
   .lms-course-card,
   .student-course-card,
   .lms-quiz-card,
@@ -2362,7 +2317,6 @@ html body.lms-notification-menu-open > .lms-floating-panel {
   .lms-exam-header,
   .lms-exam-main-card,
   .lms-exam-sidebar > section,
-  .lms-exam-explainer > section,
   .student-lessons-course-card,
   .student-lessons-detail-toolbar,
   .student-lessons-category__head,
@@ -2386,9 +2340,7 @@ html body.lms-notification-menu-open > .lms-floating-panel {
   .lms-review-sidebar > section,
   .lms-exam-header,
   .lms-exam-main-card,
-  .lms-exam-sidebar > section,
-  .lms-exam-explainer > section
-) {
+  .lms-exam-sidebar > section) {
   border-radius: var(--sa-radius-lg) !important;
 }
 
@@ -2580,7 +2532,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
     font-size: 36px !important;
   }
 
-  .student-app-shell :where(.glass-card, .card-surface, .bg-surface-card, .bg-surface-card-elevated, .lms-page-header-card, .student-page-hero, .lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-set-card, .lms-table-shell, .lms-app-card) {
+  .student-app-shell :where(.glass-card, .bg-surface-card, .bg-surface-card-elevated, .lms-page-header-card, .student-page-hero, .lms-course-card, .student-course-card, .lms-quiz-card, .lms-quiz-course-card, .lms-quiz-set-card, .lms-table-shell) {
     border-radius: 20px;
   }
 }
@@ -2721,7 +2673,7 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   letter-spacing: 0 !important;
 }
 
-.student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card, .card-surface, .lms-app-card, .lms-table-shell) {
+.student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card, .lms-table-shell) {
   border: 1px solid var(--sa-border) !important;
   border-radius: var(--sa-radius-lg) !important;
   background: var(--sa-card-bg) !important;
@@ -2729,14 +2681,14 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   box-shadow: var(--ds-card-shadow) !important;
 }
 
-.student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card, .card-surface, .lms-app-card) {
+.student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card) {
   transition:
     border-color var(--sa-dur) var(--sa-ease),
     box-shadow var(--sa-dur) var(--sa-ease),
     transform var(--sa-dur) var(--sa-ease);
 }
 
-.student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card, .card-surface, .lms-app-card):hover {
+.student-app-shell .lms-route-page:not(.dashboard-page) :where(.glass-card):hover {
   border-color: rgba(56, 189, 248, 0.24) !important;
   box-shadow: var(--ds-card-shadow-hover) !important;
 }
@@ -2935,7 +2887,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 
 /* ── Unified card hover lift ─────────────────────────────────── */
 .student-app-shell :where(
-  .lms-app-card,
   .lms-course-card,
   .student-course-card,
   .lms-quiz-card,
@@ -2953,7 +2904,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 }
 
 .student-app-shell :where(
-  .lms-app-card,
   .lms-course-card,
   .student-course-card,
   .lms-quiz-card,
@@ -2970,7 +2920,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 }
 
 :root[data-theme="dark"] .student-app-shell :where(
-  .lms-app-card,
   .lms-course-card,
   .student-course-card,
   .lms-quiz-card,
@@ -2985,7 +2934,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 }
 
 .student-app-shell :where(
-  .lms-app-card,
   .lms-course-card,
   .student-course-card,
   .lms-quiz-card,
@@ -3051,7 +2999,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
 /* ── Reduced motion: drop all new motion ─────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .student-app-shell :where(
-    .lms-app-card,
     .lms-course-card,
     .student-course-card,
     .lms-quiz-card,
@@ -3061,7 +3008,6 @@ body.student-quiz-focus-screen .lms-app-scroll-root {
   }
 
   .student-app-shell :where(
-    .lms-app-card,
     .lms-course-card,
     .student-course-card,
     .lms-quiz-card,
@@ -3142,7 +3088,6 @@ body.student-assessment-screen :where(
 :root[data-theme="light"] body.student-assessment-screen .lms-sidebar--student-model {
   --student-sidebar-ink: #0F172A;
   --student-sidebar-muted: #64748B;
-  --student-sidebar-faint: #94A3B8;
   --student-sidebar-border: rgba(15, 23, 42, 0.10);
   --student-sidebar-hover: rgba(37, 99, 235, 0.08);
   --student-sidebar-active: linear-gradient(135deg, rgba(37, 99, 235, 0.13), rgba(56, 189, 248, 0.12));

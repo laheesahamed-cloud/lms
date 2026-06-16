@@ -17,7 +17,6 @@
   --lms-popover-exit-motion: var(--lms-popover-exit-duration) var(--lms-motion-soft-exit);
   --lms-live-gutter-x: clamp(12px, 2.2vw, 28px);
   --lms-live-gutter-y: clamp(12px, 1.8vw, 24px);
-  --lms-live-mobile-gutter-x: max(12px, var(--lms-safe-left), var(--lms-safe-right));
   --lms-live-card-radius: clamp(16px, 3vw, 22px);
   --lms-header-lift: 8px;
   --lms-assessment-sticky-top: clamp(32px, 3.8vw, 56px);
@@ -468,7 +467,6 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] {
 html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] {
   --lms-tabbar-row-height: 62px;
   --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-tabbar-safe-bottom));
-  --lms-mobile-nav-height: var(--bottom-nav-height);
   --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 8px);
 }
 
@@ -615,9 +613,7 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] bo
 
   .student-app-shell :where(
     .lms-learning-reveal-card,
-    .lms-key-points-card,
-    .lms-quiz-key-points-card
-  ) {
+    .lms-key-points-card) {
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
@@ -657,9 +653,9 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] bo
 /* Mobile Q-Bank/review pass: keep one primary surface and let it use the phone width. */
 @media (max-width: 700px) {
 
-  .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
-  .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
-  .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
+  .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
   .student-app-shell .lms-exam-page .lms-exam-main-footer {
     border: 0 !important;
     border-radius: 0 !important;
@@ -667,9 +663,9 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] bo
     box-shadow: none !important;
   }
 
-  .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
-  .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
-  .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card) {
+  .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card) {
     padding: 0 !important;
   }
 
@@ -856,7 +852,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 
   .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page)
     :where(.lms-exam-main-card, .lms-review-question-card)
-    :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card, .lms-reading-explanation, .lms-reading-incorrect) {
+    :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-reading-explanation, .lms-reading-incorrect) {
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
@@ -889,7 +885,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 
   .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page)
     :where(.lms-exam-main-card, .lms-review-question-card)
-    > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
+    > :where(.lms-learning-reveal-card, .lms-key-points-card),
   .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page)
     :where(.lms-reading-explanation, .lms-reading-incorrect) {
     border: 0 !important;
@@ -999,9 +995,9 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 /* Higher-specificity guard for the assessment phone layout after legacy rules. */
 @media (max-width: 700px) {
 
-  .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
-  .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
-  .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card),
+  .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
   .student-app-shell .lms-exam-page .lms-exam-main-card :where(.lms-reading-explanation, .lms-reading-incorrect),
   .student-app-shell .practice-review-page .lms-review-question-card :where(.lms-reading-explanation, .lms-reading-incorrect),
   .student-app-shell .lms-review-page .lms-review-question-card :where(.lms-reading-explanation, .lms-reading-incorrect) {
@@ -1073,7 +1069,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 /* Restore quiz context panels on mobile: progress, navigator, recap, and explanation. */
 @media (max-width: 700px) {
 
-  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card) {
+  body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-learning-reveal-card, .lms-key-points-card) {
     border: 1px solid var(--sa-border, var(--line-soft)) !important;
     border-radius: 13px !important;
     background: var(--surface-card, var(--surface-1)) !important;
@@ -1128,7 +1124,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 /* Mobile assessment final pass: full-width, single-surface quiz/review layout for PWA and native apps. */
 @media (max-width: 700px) {
 
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-quiz-key-points-card, .lms-exam-main-footer) {
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-exam-main-footer) {
     border: 0 !important;
     border-top: 1px solid var(--line-soft, rgba(148, 163, 184, 0.2)) !important;
     border-radius: 0 !important;
@@ -1297,6 +1293,14 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-layout, .pra
   min-width: 0 !important;
 }
 
+/* Tighten the gap between the (fixed) quiz top bar and the first card on the
+   native practice page. The spacer reserves the bar height; this row-gap is the
+   only space below it before the workspace. `.lms-quiz-take` keeps it scoped to
+   the taking page; `.practice-review-shell` keeps exam untouched. */
+html[data-lms-runtime="native"] .student-app-shell .lms-quiz-take > .practice-review-shell {
+  row-gap: 8px !important;
+}
+
 html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-header, .practice-review-header) {
   border-color: color-mix(in srgb, var(--sa-border, var(--line-soft)) 82%, transparent) !important;
   background: color-mix(in srgb, var(--surface-card, var(--sa-surface)) 78%, transparent) !important;
@@ -1317,7 +1321,7 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-review-summary-gr
   box-shadow: none !important;
 }
 
-html[data-lms-runtime="native"] .student-app-shell :where(.lms-learning-reveal-card, .lms-reading-explanation, .lms-reading-incorrect, .lms-key-points-card, .lms-quiz-key-points-card) {
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-learning-reveal-card, .lms-reading-explanation, .lms-reading-incorrect, .lms-key-points-card) {
   background: color-mix(in srgb, var(--surface-2, var(--sa-surface-2)) 92%, transparent) !important;
   color: var(--sa-ink, var(--ink-strong)) !important;
   box-shadow: none !important;
@@ -1415,9 +1419,7 @@ html[data-lms-runtime="native"][data-lms-os="ios"] .student-app-shell :where(
   select,
   textarea,
   .lms-mobile-bottom-nav__tab,
-  .lms-assessment-btn,
-  .lms-question-choice
-) {
+  .lms-assessment-btn) {
   min-height: var(--lms-ios-touch-target) !important;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1432,8 +1434,6 @@ html[data-lms-runtime="native"][data-lms-os="ios"] .student-app-shell :where(
   select,
   textarea,
   button,
-  .body-text,
-  .content-text,
   .description,
   .subtitle
 ) {
@@ -1534,7 +1534,6 @@ body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-revie
 html[data-lms-runtime="native"] .student-app-shell {
   --type-font-display: "Plus Jakarta Sans", "SF Pro Rounded", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --type-font-body: "Plus Jakarta Sans", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --type-font-control: var(--type-font-body);
   --type-size-2xs: 0.6875rem;
   --type-size-xs: 0.75rem;
   --type-size-sm: 0.8125rem;
@@ -1554,7 +1553,6 @@ html[data-lms-runtime="native"] .student-app-shell {
   --type-weight-medium: 600;
   --type-weight-semibold: 700;
   --type-weight-bold: 800;
-  --type-weight-black: 900;
 }
 
 html[data-lms-runtime="native"] .student-app-shell :where(
@@ -1565,12 +1563,7 @@ html[data-lms-runtime="native"] .student-app-shell :where(
   .study-hero-name,
   .study-topbar-title h1,
   .lms-topbar h1,
-  .student-page-hero h1,
-  .type-display,
-  .type-page-title,
-  .type-section-title,
-  .type-card-title
-) {
+  .student-page-hero h1) {
   letter-spacing: 0 !important;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -1606,8 +1599,7 @@ html[data-lms-runtime="native"] .student-app-shell :where(
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] .student-app-shell :where(
   .study-action-card,
   .student-course-card,
-  .lms-quiz-card,
-  .lms-app-card) {
+  .lms-quiz-card) {
   transition:
     border-color var(--lms-motion-duration-card) var(--lms-motion-ease-out),
     box-shadow var(--lms-motion-duration-card) var(--lms-motion-ease-out),

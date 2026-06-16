@@ -48,6 +48,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureSmartNotesTable(connection);
             await this.ensureAiIllustratedNotesTable(connection);
             await this.ensureLessonFlashcardsTable(connection);
+            await this.ensureLessonFlashcardReviewsTable(connection);
             await this.ensureQuestionKeywordsTables(connection);
             await this.ensureSubscriptionFeaturesTables(connection);
             await this.ensureSubscriptionRequestTables(connection);
@@ -191,6 +192,8 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureIndex(connection, 'study_activity_events', 'idx_study_activity_user_type_created', 'user_id, activity_type, created_at');
             await this.ensureIndex(connection, 'smart_notes', 'idx_smart_notes_user_updated', 'user_id, updated_at');
             await this.ensureIndex(connection, 'ai_illustrated_notes', 'idx_ai_notes_public_status_course', 'is_public, status, course_id, topic_id');
+            await this.ensureIndex(connection, 'ai_illustrated_notes', 'idx_ai_notes_lesson_pub_status', 'lesson_id, is_public, status, engine_key');
+            await this.ensureIndex(connection, 'ai_illustrated_notes', 'idx_ai_notes_engine_pub_status', 'engine_key, is_public, status, updated_at');
             await this.ensureIndex(connection, 'question_review_items', 'idx_question_review_items_status', 'status');
             await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_note_status', 'note_id, status');
             await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_lesson_status', 'lesson_id, status');
@@ -710,6 +713,34 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_lesson_flashcards_note_status (note_id, status),
         INDEX idx_lesson_flashcards_lesson_status (lesson_id, status)
+      )
+    `);
+    }
+    async ensureLessonFlashcardReviewsTable(connection) {
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS lesson_flashcard_reviews (
+        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        card_id INT NOT NULL,
+        state TINYINT NOT NULL DEFAULT 0,
+        due DATETIME NOT NULL,
+        stability DOUBLE NOT NULL DEFAULT 0,
+        difficulty DOUBLE NOT NULL DEFAULT 0,
+        elapsed_days INT NOT NULL DEFAULT 0,
+        scheduled_days INT NOT NULL DEFAULT 0,
+        reps INT NOT NULL DEFAULT 0,
+        lapses INT NOT NULL DEFAULT 0,
+        learning_steps INT NOT NULL DEFAULT 0,
+        last_review DATETIME NULL,
+        suspended TINYINT(1) NOT NULL DEFAULT 0,
+        buried TINYINT(1) NOT NULL DEFAULT 0,
+        log_json LONGTEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_flashcard_review_user_card (user_id, card_id),
+        INDEX idx_flashcard_review_user_due (user_id, due),
+        INDEX idx_flashcard_review_user_state (user_id, state),
+        INDEX idx_flashcard_review_card (card_id)
       )
     `);
     }

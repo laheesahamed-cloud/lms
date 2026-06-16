@@ -25,7 +25,7 @@ export declare class AiController {
             lesson: string;
             category: "ai" | "past_paper" | "mock";
             questionType: "sba" | "true_false";
-            difficulty: "medium" | "easy" | "hard";
+            difficulty: "easy" | "medium" | "hard";
             numberOfQuestions: number;
             instruction: string;
         };
@@ -38,7 +38,7 @@ export declare class AiController {
             topic: string;
             lesson: string;
             category: "ai" | "past_paper" | "mock";
-            difficulty: "medium" | "easy" | "hard";
+            difficulty: "easy" | "medium" | "hard";
             explanation: string;
             question_text: string;
         } | {
@@ -52,7 +52,7 @@ export declare class AiController {
             topic: string;
             lesson: string;
             category: "ai" | "past_paper" | "mock";
-            difficulty: "medium" | "easy" | "hard";
+            difficulty: "easy" | "medium" | "hard";
             explanation: string;
             question_text: string;
         })[];

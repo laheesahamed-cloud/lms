@@ -223,7 +223,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "landing" | "login" | "app";
+        placement: "all" | "login" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -453,7 +453,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "landing" | "login" | "app";
+        placement: "all" | "login" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;

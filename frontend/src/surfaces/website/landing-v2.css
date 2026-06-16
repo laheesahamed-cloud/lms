@@ -19,25 +19,12 @@ body:has(main.lpv2) {
 .lpv2 {
   /* Base canvas */
   --lpv2-cream: #fafaf7;
-  --lpv2-offwhite: #faf9f6;
-  --lpv2-graylight: #f5f4f0;
   --lpv2-ink: #111118;
-  --lpv2-ink-soft: #6b7280;
 
-  /* Pastel accent system (all must appear across the page) */
-  --pastel-rose: #ffd6d6;       /* Cardiology */
-  --pastel-sky: #d6f0ff;        /* Pharmacology */
-  --pastel-lavender: #e8d6ff;   /* Neurology */
-  --pastel-mint: #d6ffe8;       /* Pathology */
-  --pastel-peach: #fff3d6;      /* Biochemistry */
-  --pastel-pink: #ffd6f0;       /* Microbiology */
-  --pastel-sage: #e8f5e9;       /* Surgery */
-  --pastel-coral: #ffe8d6;      /* Anatomy */
+  /* Pastel accent system (all must appear across the page) */       /* Cardiology */        /* Pharmacology */   /* Neurology */       /* Pathology */      /* Biochemistry */       /* Microbiology */       /* Surgery */      /* Anatomy */
 
   /* Brand echo — REAL dashboard indigo (used sparingly) */
   --brand-indigo: #2563eb;
-  --brand-violet: #7c3aed;
-  --brand-dark: #111118;
   --brand-grad: linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%);
 
   /* Typography */

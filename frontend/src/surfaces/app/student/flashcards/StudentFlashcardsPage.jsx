@@ -1,2082 +1,488 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import './flashcards-anim.css';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
 import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
-import { getAiNoteWithFallback, listStudentAiNotesAcrossEngines } from '../../../../shared/api/aiNotes.api.js';
-import { getErrorMessage } from '../../../../shared/api/client.js';
-import { fetchStudentLessons } from '../../../../shared/api/lessons.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
-import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
+import { getErrorMessage } from '../../../../shared/api/client.js';
+import { getFlashcardDecks } from '../../../../shared/api/flashcards.api.js';
+import { nativeSelection, nativeSuccess, nativeImpact, ImpactStyle } from '../../../../shared/utils/nativeHaptics.js';
+import { startOfflineSync, pendingReviewCount, flushReviews } from '../../../../shared/flashcards/offlineQueue.js';
+import { renderClozeFront, renderClozeBack, hasCloze } from './cloze.js';
+import { serverDriver, localDriver } from './drivers.js';
+import { AddCardModal, CardBrowserModal, loadLocalDeckTree, createDeck, deleteDeck } from './management.jsx';
+import { StatsModal } from './StatsModal.jsx';
+import './flashcards.css';
 
-/* ─────────────────────────────────────────
-   STYLES
-───────────────────────────────────────── */
+/* ───────────────────────── helpers ───────────────────────── */
 
-/* ─────────────────────────────────────────
-   CARD TYPE CONFIG
-───────────────────────────────────────── */
-const CARD_TYPE = {
-  qna:            { label: 'Q&A',               color: '#2563EB', bg: 'rgba(37,99,235,0.10)'  },
-  definition:     { label: 'Definition',        color: '#3B82F6', bg: 'rgba(59,130,246,0.10)'  },
-  mechanism:      { label: 'Mechanism',          color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)'  },
-  features:       { label: 'Clinical Features',  color: '#10B981', bg: 'rgba(16,185,129,0.10)'  },
-  management:     { label: 'Management',         color: '#0EA5E9', bg: 'rgba(14,165,233,0.10)'  },
-  classification: { label: 'Classification',     color: '#F97316', bg: 'rgba(249,115,22,0.10)'  },
-  causes:         { label: 'Causes / Etiology',  color: '#F43F5E', bg: 'rgba(244,63,94,0.10)'   },
-  diagnosis:      { label: 'Investigations',     color: '#EAB308', bg: 'rgba(234,179,8,0.10)'   },
-  complications:  { label: 'Complications',      color: '#EF4444', bg: 'rgba(239,68,68,0.10)'   },
-  mnemonic:       { label: 'Mnemonic',           color: '#6366F1', bg: 'rgba(99,102,241,0.10)'  },
-  keypoints:      { label: 'Key Points',         color: '#0EA5E9', bg: 'rgba(14,165,233,0.10)'  },
-  summary:        { label: 'Summary',            color: '#64748B', bg: 'rgba(100,116,139,0.10)' },
-  explain:        { label: 'Concept',            color: '#6366F1', bg: 'rgba(99,102,241,0.10)'  },
-};
+const GRADES = [
+  { rating: 1, label: 'Again', cls: 'again' },
+  { rating: 2, label: 'Hard', cls: 'hard' },
+  { rating: 3, label: 'Good', cls: 'good' },
+  { rating: 4, label: 'Easy', cls: 'easy' },
+];
 
-/* ─────────────────────────────────────────
-   UTILITIES
-───────────────────────────────────────── */
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function plainText(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
-
-const FLASHCARD_SESSION_PREFIX = 'lms.flashcards.session.';
-const FLASHCARD_REVIEW_STATS_KEY = 'lms.flashcards.reviewStats.v1';
-const FLASHCARD_BAD_IDS_KEY = 'lms.flashcards.badIds.v1';
-const FLASHCARD_DECK_STATS_KEY = 'lms.flashcards.deckStats.v2';
-const DAY_MS = 24 * 60 * 60 * 1000;
-const LEARNING_STEP_MS = 10 * 60 * 1000;
-const HARD_STEP_MS = 30 * 60 * 1000;
-const DAILY_NEW_CARD_LIMIT = 20;
-
-function cleanStudyText(value) {
-  return plainText(value)
+function cleanText(value) {
+  return String(value || '')
     .replace(/={2,}/g, '')
     .replace(/\*\*/g, '')
-    .replace(/\[EXAM TRAP\]/gi, 'Exam trap:')
-    .replace(/\[HIGH YIELD\]/gi, '')
-    .replace(/\[KEY POINT\]/gi, '')
-    .replace(/^\(?\d+[).:-]?\s*/, '')
-    .replace(/^[-•]\s*/, '')
-    .replace(/^→\s*/, '')
-    .replace(/\s*:\s*/g, ': ')
-    .replace(/\s*;\s*/g, '; ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
-function isInteractiveElement(target) {
-  return Boolean(target?.closest?.('button, a, input, textarea, select, [role="button"], [contenteditable="true"]'));
+function previewLabel(previews, rating) {
+  const hit = (previews || []).find((p) => p.rating === rating);
+  return hit ? hit.label : '';
 }
 
-function isNestedControl(target) {
-  return Boolean(target?.closest?.('button, a, input, textarea, select, [contenteditable="true"]'));
+function questionNode(card) {
+  if (card.clozeText != null) return renderClozeFront(card.clozeText, card.clozeIndex);
+  if (hasCloze(card.question)) return renderClozeFront(card.question);
+  return cleanText(card.question);
 }
 
-function cardStorageId(card) {
-  return String(card?.id || card?.questionText || '');
+function answerNode(card) {
+  if (card.clozeText != null) return renderClozeBack(card.clozeText, card.answer, card.clozeIndex);
+  if (hasCloze(card.question)) return renderClozeBack(card.question, card.answer);
+  return cleanText(card.answer);
 }
 
-function cardSignature(cards) {
-  return (cards || []).map(cardStorageId).join('|');
-}
-
-function flashcardSessionKey(quiz) {
-  return `${FLASHCARD_SESSION_PREFIX}${quiz?.id || 'deck'}`;
-}
-
-function readFlashcardSession(quiz, cards) {
-  if (typeof window === 'undefined') return null;
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(flashcardSessionKey(quiz)) || 'null');
-    if (!parsed || parsed.signature !== cardSignature(cards)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function writeFlashcardSession(quiz, cards, data) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(flashcardSessionKey(quiz), JSON.stringify({
-      signature: cardSignature(cards),
-      ...data,
-      updatedAt: new Date().toISOString(),
-    }));
-  } catch {
-    // Local progress is helpful, not required.
-  }
-}
-
-function clearFlashcardSession(quiz) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.removeItem(flashcardSessionKey(quiz));
-  } catch {
-    // Ignore storage failures.
-  }
-}
-
-function readReviewStats() {
-  if (typeof window === 'undefined') return {};
-  try {
-    return JSON.parse(window.localStorage.getItem(FLASHCARD_REVIEW_STATS_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function readBadCardIds() {
-  if (typeof window === 'undefined') return new Set();
-  try {
-    const ids = JSON.parse(window.localStorage.getItem(FLASHCARD_BAD_IDS_KEY) || '[]');
-    return new Set(Array.isArray(ids) ? ids : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function readDeckStatsCache() {
-  if (typeof window === 'undefined') return {};
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(FLASHCARD_DECK_STATS_KEY) || '{}');
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function deckStatsCacheKey(note) {
-  return `${note?.engine || 'gemini'}:${note?.id || 'deck'}:${note?.updatedAt || ''}`;
-}
-
-function getCachedDeckStats(note, cache = readDeckStatsCache()) {
-  const row = cache[deckStatsCacheKey(note)];
-  const cardCount = Number(row?.cardCount);
-  if (!Number.isFinite(cardCount)) return null;
-  return {
-    cardCount,
-    loading: false,
-    unavailable: false,
-    countedAt: row?.countedAt || '',
-  };
-}
-
-function writeDeckStatsCacheEntry(note, cardCount) {
-  if (typeof window === 'undefined') return;
-  try {
-    const cache = readDeckStatsCache();
-    cache[deckStatsCacheKey(note)] = {
-      cardCount,
-      countedAt: new Date().toISOString(),
-    };
-    window.localStorage.setItem(FLASHCARD_DECK_STATS_KEY, JSON.stringify(cache));
-  } catch {
-    // Deck counts are only a convenience for the browser list.
-  }
-}
-
-function getApprovedCardCount(note) {
-  const approvedCount = Number(note?.approvedFlashcardCount);
-  return Number.isFinite(approvedCount) ? approvedCount : null;
-}
-
-function reportBadCard(card) {
-  if (typeof window === 'undefined') return false;
-  const id = cardStorageId(card);
-  if (!id) return false;
-
-  try {
-    const ids = readBadCardIds();
-    ids.add(id);
-    window.localStorage.setItem(FLASHCARD_BAD_IDS_KEY, JSON.stringify([...ids]));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function startOfToday(time = Date.now()) {
-  const date = new Date(time);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
-}
-
-function parseDueTime(row) {
-  const dueAt = row?.dueAt ? Date.parse(row.dueAt) : 0;
-  return Number.isFinite(dueAt) ? dueAt : 0;
-}
-
-function getCardReviewRow(card, stats = readReviewStats()) {
-  return stats[cardStorageId(card)] || null;
-}
-
-function isLearningRow(row) {
-  if (!row) return false;
-  if (row.state === 'learning' || row.state === 'relearning') return true;
-  const attempts = Number(row.attempts) || 0;
-  const repetitions = Number(row.repetitions) || 0;
-  return attempts > 0 && repetitions < 2 && (Number(row.learning) || 0) > 0;
-}
-
-function isWeakReviewRow(row) {
-  if (!row) return false;
-  const attempts = Number(row.attempts) || 0;
-  const correct = Number(row.correct) || 0;
-  const learning = Number(row.learning) || 0;
-  const successRate = attempts ? correct / attempts : 1;
-  return row.lastRating === 'again' ||
-    row.lastRating === 'hard' ||
-    (Number(row.lapses) || 0) > 0 ||
-    learning > correct ||
-    (attempts > 1 && successRate < 0.6);
-}
-
-function getCardSchedule(card, stats = readReviewStats(), now = Date.now()) {
-  const row = getCardReviewRow(card, stats);
-  if (!row) {
-    return {
-      state: 'new',
-      label: 'New',
-      score: 3,
-      dueAt: 0,
-      isNew: true,
-      isDue: false,
-      isOverdue: false,
-      isLearning: false,
-      isWeak: false,
-      isNotDue: false,
-    };
-  }
-
-  const dueAt = parseDueTime(row);
-  const today = startOfToday(now);
-  const isLearning = isLearningRow(row);
-  const isWeak = isWeakReviewRow(row);
-  const isDue = Boolean(dueAt && dueAt <= now);
-  const isOverdue = Boolean(dueAt && dueAt < today);
-
-  if (isOverdue) {
-    return { state: 'overdue', label: 'Overdue', score: 8, dueAt, isNew: false, isDue: true, isOverdue: true, isLearning, isWeak, isNotDue: false };
-  }
-  if (isDue && isLearning) {
-    return { state: 'learning-due', label: 'Learning', score: 6, dueAt, isNew: false, isDue: true, isOverdue: false, isLearning: true, isWeak, isNotDue: false };
-  }
-  if (isDue) {
-    return { state: isWeak ? 'weak-due' : 'due', label: isWeak ? 'Needs practice' : 'Due', score: isWeak ? 7 : 5, dueAt, isNew: false, isDue: true, isOverdue: false, isLearning: false, isWeak, isNotDue: false };
-  }
-  if (isLearning) {
-    return { state: 'learning', label: 'Learning', score: 4, dueAt, isNew: false, isDue: false, isOverdue: false, isLearning: true, isWeak, isNotDue: true };
-  }
-  if (isWeak) {
-    return { state: 'weak', label: 'Needs practice', score: 4, dueAt, isNew: false, isDue: false, isOverdue: false, isLearning: false, isWeak: true, isNotDue: true };
-  }
-  return { state: 'not-due', label: 'Coming later', score: 0, dueAt, isNew: false, isDue: false, isOverdue: false, isLearning: false, isWeak: false, isNotDue: true };
-}
-
-function uniqueCards(cards) {
-  const seen = new Set();
-  return (cards || []).filter((card) => {
-    const id = cardStorageId(card);
-    if (!id || seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-}
-
-function scheduleFromRating(previous, rating, now = Date.now()) {
-  const oldEase = Number(previous?.ease) || 2.5;
-  const oldInterval = Number(previous?.intervalDays) || 0;
-  const oldRepetitions = Number(previous?.repetitions) || 0;
-  const easeDelta = {
-    again: -0.2,
-    hard: -0.15,
-    good: 0,
-    easy: 0.15,
-  }[rating] ?? 0;
-  const ease = Math.max(1.3, Math.min(3.2, oldEase + easeDelta));
-
-  if (rating === 'again') {
-    return {
-      state: 'relearning',
-      intervalDays: 0,
-      dueAt: new Date(now + LEARNING_STEP_MS).toISOString(),
-      ease,
-      repetitions: 0,
-      remembered: false,
-    };
-  }
-
-  if (rating === 'hard') {
-    const isEarlyLearning = !previous || isLearningRow(previous) || oldRepetitions < 2;
-    return {
-      state: isEarlyLearning ? 'learning' : 'review',
-      intervalDays: isEarlyLearning ? 0 : Math.max(1, Math.round(Math.max(oldInterval, 1) * 1.2)),
-      dueAt: new Date(now + (isEarlyLearning ? HARD_STEP_MS : Math.max(1, Math.round(Math.max(oldInterval, 1) * 1.2)) * DAY_MS)).toISOString(),
-      ease,
-      repetitions: Math.max(oldRepetitions, 1),
-      remembered: false,
-    };
-  }
-
-  if (rating === 'easy') {
-    const intervalDays = Math.max(4, Math.round(Math.max(oldInterval || 2, 2) * ease * 1.35));
-    return {
-      state: 'review',
-      intervalDays,
-      dueAt: new Date(now + intervalDays * DAY_MS).toISOString(),
-      ease,
-      repetitions: oldRepetitions + 1,
-      remembered: true,
-    };
-  }
-
-  const graduated = previous && !isLearningRow(previous) && oldRepetitions >= 1;
-  const intervalDays = graduated ? Math.max(2, Math.round(Math.max(oldInterval, 1) * ease)) : 1;
-  return {
-    state: graduated ? 'review' : 'learning',
-    intervalDays,
-    dueAt: new Date(now + intervalDays * DAY_MS).toISOString(),
-    ease,
-    repetitions: oldRepetitions + 1,
-    remembered: true,
-  };
-}
-
-function recordFlashcardReview(card, ratingOrKnown) {
-  if (typeof window === 'undefined') return;
-  const id = cardStorageId(card);
-  if (!id) return;
-
-  try {
-    const rating = typeof ratingOrKnown === 'boolean'
-      ? (ratingOrKnown ? 'good' : 'again')
-      : (ratingOrKnown || 'good');
-    const stats = readReviewStats();
-    const previous = stats[id] || {};
-    const now = Date.now();
-    const next = scheduleFromRating(previous, rating, now);
-    const remembered = Boolean(next.remembered);
-
-    stats[id] = {
-      id,
-      questionText: card.questionText,
-      context: card.context,
-      questionType: card.questionType,
-      attempts: (Number(previous.attempts) || 0) + 1,
-      correct: (Number(previous.correct) || 0) + (remembered ? 1 : 0),
-      learning: (Number(previous.learning) || 0) + (remembered ? 0 : 1),
-      lapses: (Number(previous.lapses) || 0) + (rating === 'again' ? 1 : 0),
-      intervalDays: next.intervalDays,
-      ease: next.ease,
-      repetitions: next.repetitions,
-      state: next.state,
-      lastRating: rating,
-      lastReviewedAt: new Date(now).toISOString(),
-      dueAt: next.dueAt,
-    };
-
-    window.localStorage.setItem(FLASHCARD_REVIEW_STATS_KEY, JSON.stringify(stats));
-  } catch {
-    // Review scheduling should never block the study flow.
-  }
-}
-
-function reviewStatus(card, stats = readReviewStats()) {
-  return getCardSchedule(card, stats);
-}
-
-function isLowSignalLine(line) {
-  const text = cleanStudyText(line);
-  const normalized = text.toLowerCase();
-  if (text.length < 5) return true;
-  if (/^(note|important|remember|summary|overview|introduction|definition|key point|high yield)[:.]?$/i.test(text)) return true;
-  if (/^(read|see|refer to|discuss|learn|understand)\b/i.test(text)) return true;
-  if (/^(page|slide|chapter|lesson)\s+\d+/i.test(text)) return true;
-  return normalized.split(/\s+/).length <= 2 && /^(types?|causes?|features?|symptoms?|management|treatment|diagnosis|summary|overview)$/.test(normalized);
-}
-
-function cardDifficulty(type, answerBullets, answerText = '') {
-  const wordCount = plainText(answerText || answerBullets?.join(' ')).split(/\s+/).filter(Boolean).length;
-  if (type === 'mnemonic' || type === 'definition') return 'Easy';
-  if (type === 'mechanism' || type === 'diagnosis' || type === 'management' || wordCount > 70) return 'Hard';
-  return 'Medium';
-}
-
-function cardQualityScore(card) {
-  const question = cleanStudyText(card?.questionText);
-  const answer = cleanStudyText(card?.answerText || card?.answerBullets?.join(' '));
-  let score = 100;
-
-  if (question.length < 18) score -= 35;
-  if (answer.length < 18) score -= 45;
-  if (answer.length > 900) score -= 15;
-  if (/^(what is|explain|summarize) this lesson\??$/i.test(question)) score -= 50;
-  if (question.toLowerCase() === answer.toLowerCase()) score -= 60;
-  if ((card.answerBullets || []).length > 8) score -= 10;
-  if (isLowSignalLine(answer)) score -= 40;
-
-  return Math.max(0, score);
-}
-
-function finalizeDeck(cards) {
-  const badIds = readBadCardIds();
-  const seen = new Set();
-
-  return cards
-    .map((card) => ({ ...card, qualityScore: cardQualityScore(card) }))
-    .filter((card) => !badIds.has(cardStorageId(card)))
-    .filter((card) => card.qualityScore >= 55)
-    .filter((card) => {
-      const key = cleanStudyText(`${card.questionText} ${card.answerText}`).toLowerCase();
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-
-function dueQueueRank(status) {
-  if (status.isOverdue) return 0;
-  if (status.isDue && !status.isLearning) return 1;
-  if (status.isDue && status.isLearning) return 2;
-  if (status.isWeak) return 3;
-  return 9;
-}
-
-function selectQueueCards(cards, queueType, limit = 60) {
-  const stats = readReviewStats();
-  const entries = uniqueCards(cards).map((card, index) => ({
-    card,
-    index,
-    status: getCardSchedule(card, stats),
-    row: getCardReviewRow(card, stats),
-  }));
-
-  const filtered = entries.filter(({ status }) => {
-    if (queueType === 'due') return status.isDue || (status.isWeak && !status.isNew);
-    if (queueType === 'new') return status.isNew;
-    if (queueType === 'weak') return status.isWeak && !status.isNew;
-    if (queueType === 'quick') return status.isDue || status.isWeak || status.isNew;
-    return true;
-  });
-
-  const sorter = (a, b) => {
-    if (queueType === 'due') {
-      return (dueQueueRank(a.status) - dueQueueRank(b.status)) ||
-        ((a.status.dueAt || Number.MAX_SAFE_INTEGER) - (b.status.dueAt || Number.MAX_SAFE_INTEGER)) ||
-        (a.index - b.index);
-    }
-    if (queueType === 'new') return a.index - b.index;
-    if (queueType === 'weak') {
-      const aMisses = Number(a.row?.learning || 0) + Number(a.row?.lapses || 0);
-      const bMisses = Number(b.row?.learning || 0) + Number(b.row?.lapses || 0);
-      return (bMisses - aMisses) || (a.index - b.index);
-    }
-    if (queueType === 'quick') {
-      return (dueQueueRank(a.status) - dueQueueRank(b.status)) ||
-        (b.status.score - a.status.score) ||
-        (a.index - b.index);
-    }
-    return (b.status.score - a.status.score) || (a.index - b.index);
-  };
-
-  return filtered.sort(sorter).slice(0, limit).map((entry) => entry.card);
-}
-
-function noteIdFromStoredCardId(id) {
-  const first = String(id || '').split('-')[0];
-  const parsed = Number(first);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function buildInitialDeckStats(notes) {
-  const cache = readDeckStatsCache();
-  return (notes || []).reduce((acc, note) => {
-    if (isLessonPlaceholder(note)) return acc;
-    const serverCardCount = getApprovedCardCount(note);
-    if (serverCardCount !== null) {
-      acc[note.id] = {
-        cardCount: serverCardCount,
-        loading: false,
-        unavailable: false,
-        countedAt: note.updatedAt || new Date().toISOString(),
-      };
-      return acc;
-    }
-    const cached = getCachedDeckStats(note, cache);
-    if (cached) acc[note.id] = cached;
-    return acc;
-  }, {});
-}
-
-function getNoteReviewCounts(note, reviewStats = readReviewStats()) {
-  const noteId = Number(note?.id);
-  const rows = Object.entries(reviewStats || {})
-    .filter(([cardId]) => noteIdFromStoredCardId(cardId) === noteId)
-    .map(([, row]) => row || {});
-
-  const now = Date.now();
-  const today = startOfToday(now);
-  const counts = rows.reduce((acc, row) => {
-    const dueAt = parseDueTime(row);
-    const learning = isLearningRow(row);
-    const weak = isWeakReviewRow(row);
-    const lastReviewedAt = row?.lastReviewedAt ? Date.parse(row.lastReviewedAt) : 0;
-
-    if (learning) {
-      acc.learning += 1;
-      if (dueAt && dueAt <= now) acc.learningDue += 1;
-    } else if (dueAt && dueAt < today) {
-      acc.overdue += 1;
-    } else if (dueAt && dueAt <= now) {
-      acc.due += 1;
-    } else if (dueAt > now) {
-      acc.notDue += 1;
-    }
-
-    if (weak) acc.weak += 1;
-    acc.attempts += Number(row.attempts) || 0;
-    acc.correct += Number(row.correct) || 0;
-    if (lastReviewedAt && (!acc.lastReviewedAt || lastReviewedAt > acc.lastReviewedAt)) acc.lastReviewedAt = lastReviewedAt;
-    if (dueAt > now && (!acc.nextDueAt || dueAt < acc.nextDueAt)) acc.nextDueAt = dueAt;
-    return acc;
-  }, {
-    due: 0,
-    overdue: 0,
-    learning: 0,
-    learningDue: 0,
-    weak: 0,
-    notDue: 0,
-    attempts: 0,
-    correct: 0,
-    lastReviewedAt: 0,
-    nextDueAt: 0,
-  });
-
-  return {
-    reviewedCount: rows.length,
-    dueCount: counts.due,
-    overdueCount: counts.overdue,
-    learningCount: counts.learning,
-    learningDueCount: counts.learningDue,
-    weakCount: counts.weak,
-    notDueCount: counts.notDue,
-    lastReviewedAt: counts.lastReviewedAt ? new Date(counts.lastReviewedAt).toISOString() : '',
-    accuracy: counts.attempts ? (counts.correct / counts.attempts) * 100 : null,
-    nextDueAt: counts.nextDueAt,
-    reviewCount: counts.overdue + counts.due + counts.learningDue,
-  };
-}
-
-function hasDeckCardCount(stat) {
-  return Number.isFinite(Number(stat?.cardCount));
-}
-
-function getDeckMetrics(note, deckStats = {}, reviewStats = readReviewStats()) {
-  const stat = deckStats[note?.id] || {};
-  const serverCardCount = getApprovedCardCount(note);
-  const cardCount = hasDeckCardCount(stat)
-    ? Number(stat.cardCount)
-    : serverCardCount !== null
-      ? serverCardCount
-      : null;
-  const review = getNoteReviewCounts(note, reviewStats);
-  const newCount = cardCount === null ? null : Math.max(cardCount - review.reviewedCount, 0);
-
-  return {
-    cardCount,
-    cardCountPending: Boolean(stat.loading) || (!hasDeckCardCount(stat) && serverCardCount === null && !stat.unavailable),
-    newCount,
-    dueCount: review.dueCount,
-    overdueCount: review.overdueCount,
-    learningCount: review.learningCount,
-    learningDueCount: review.learningDueCount,
-    weakCount: review.weakCount,
-    notDueCount: review.notDueCount,
-    reviewCount: review.reviewCount,
-    reviewedCount: review.reviewedCount,
-    lastReviewedAt: review.lastReviewedAt,
-    accuracy: review.accuracy,
-    availableToday: review.reviewCount + Math.min(newCount || 0, DAILY_NEW_CARD_LIMIT),
-    nextDueAt: review.nextDueAt,
-  };
-}
-
-function buildReviewedFlashcards(note, hierarchy) {
-  const rows = Array.isArray(note?.flashcards) ? note.flashcards : [];
-  return rows
-    .filter((row) => row?.status === 'approved')
-    .map((row, index) => {
-      const question = cleanStudyText(row.question);
-      const answer = cleanStudyText(row.answer);
-      if (!question || !answer) return null;
-      return {
-        id: `${note.id ?? 'note'}-qna-${row.id || index}`,
-        questionType: 'qna',
-        questionText: question,
-        answerBullets: [],
-        answerText: answer,
-        callout: cleanStudyText(row.sourceHint),
-        mnemonic: '',
-        difficulty: cardDifficulty('explain', [], answer),
-        context: cleanStudyText(row.sourceHint) || hierarchy.lesson,
-        hierarchy,
-      };
-    })
-    .filter(Boolean);
-}
-
-function buildLessonCards(note) {
-  const hierarchy = {
-    course:  note.courseTitle  || '',
-    subject: note.topicName    || '',
-    topic:   note.subtopicName || '',
-    lesson:  note.lessonTitle  || note.title || '',
-  };
-  return finalizeDeck(buildReviewedFlashcards(note, hierarchy));
-}
-
-/* ─────────────────────────────────────────
-   ICONS
-───────────────────────────────────────── */
-function IcFlip() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path d="M1.5 7a5.5 5.5 0 0 1 9.4-3.9M12.5 7a5.5 5.5 0 0 1-9.4 3.9"
-        stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-      <path d="M10.5 3l.5 1.6-1.6.4M3.5 11l-.5-1.6 1.6-.4"
-        stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-function IcKnow() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-      <path d="M2.5 7.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-function IcReview() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-      <path d="M7.5 4v3.5l2.5 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.4" fill="none"/>
-    </svg>
-  );
-}
-
-function IcTrophy() {
-  return (
-    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8 21h8m-4-4v4"/>
-      <path d="M5 3H3a2 2 0 0 0-2 2v1c0 3.31 2.69 6 6 6M19 3h2a2 2 0 0 1 2 2v1c0 3.31-2.69 6-6 6"/>
-      <path d="M7 3h10a2 2 0 0 1 2 2v5a7 7 0 0 1-14 0V5a2 2 0 0 1 2-2z"/>
-    </svg>
-  );
-}
-
-function IcStudy() {
-  return (
-    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-    </svg>
-  );
-}
+/* ───────────────────────── icons ─────────────────────────── */
 
 function IcBack() {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 12 6 8l4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+function IcUndo() {
+  return <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8a5 5 0 1 1 1.5 3.5M3 5v3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+function IcChevron({ open }) {
+  return <svg className="xfc-chevron" data-open={open ? 'true' : 'false'} width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M4.5 2.75 7.75 6 4.5 9.25" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+function IcLock() {
+  return <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="2.8" y="6" width="8.4" height="5.5" rx="1.45" stroke="currentColor" strokeWidth="1.45" /><path d="M4.8 6V4.65A2.2 2.2 0 0 1 7 2.45a2.2 2.2 0 0 1 2.2 2.2V6" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" /></svg>;
+}
+function IcTrash() {
+  return <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1M5 4.5l.5 8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1l.5-8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
+/* ─────────────────────── grade buttons ───────────────────── */
+
+function GradeButtons({ previews, onGrade, disabled }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-/* ─────────────────────────────────────────
-   CARD TYPE BADGE
-───────────────────────────────────────── */
-function CardTypeBadge({ type }) {
-  const cfg = CARD_TYPE[type] || CARD_TYPE.explain;
-  return (
-    <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold tracking-wide uppercase"
-      style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}28` }}
-    >
-      {cfg.label}
-    </span>
-  );
-}
-
-function DifficultyBadge({ level }) {
-  const styles = {
-    Easy:   { color: '#059669', bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.22)' },
-    Medium: { color: '#D97706', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.22)' },
-    Hard:   { color: '#DC2626', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.22)' },
-  }[level] || { color: '#64748B', bg: 'rgba(100,116,139,0.10)', border: 'rgba(100,116,139,0.22)' };
-
-  return (
-    <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold"
-      style={{ background: styles.bg, color: styles.color, border: `1px solid ${styles.border}` }}
-    >
-      {level || 'Medium'}
-    </span>
-  );
-}
-
-function ReviewStatusBadge({ card }) {
-  const status = reviewStatus(card);
-  const styles = {
-    new: ['New', '#2563EB', 'rgba(37,99,235,0.10)', 'rgba(37,99,235,0.22)'],
-    overdue: ['Overdue', '#E11D48', 'rgba(244,63,94,0.10)', 'rgba(244,63,94,0.22)'],
-    'learning-due': ['Learning', '#D97706', 'rgba(245,158,11,0.10)', 'rgba(245,158,11,0.22)'],
-    learning: ['Learning', '#D97706', 'rgba(245,158,11,0.10)', 'rgba(245,158,11,0.22)'],
-    'weak-due': ['Needs practice', '#E11D48', 'rgba(244,63,94,0.10)', 'rgba(244,63,94,0.22)'],
-    weak: ['Needs practice', '#E11D48', 'rgba(244,63,94,0.10)', 'rgba(244,63,94,0.22)'],
-    due: ['Due now', '#2563EB', 'rgba(37,99,235,0.10)', 'rgba(37,99,235,0.22)'],
-    'not-due': ['Coming later', '#059669', 'rgba(16,185,129,0.10)', 'rgba(16,185,129,0.22)'],
-  };
-  const [label, color, bg, border] = styles[status.state] || styles['not-due'];
-
-  return (
-    <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold"
-      style={{
-        background: bg,
-        color,
-        border: `1px solid ${border}`,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-/* ─────────────────────────────────────────
-   ANSWER BLOCK (back face)
-───────────────────────────────────────── */
-function AnswerBlock({ card }) {
-  const { answerBullets, answerText, mnemonic, questionType } = card;
-  const mnemonicNode = mnemonic && (
-    <div className="grid gap-2 rounded-xl border p-4"
-      style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.20)' }}>
-      <span className="block text-[11px] font-extrabold uppercase tracking-widest"
-        style={{ color: '#6366F1' }}>Mnemonic</span>
-      {card.context ? <span className="text-[12px] font-bold text-ink-soft">{card.context}</span> : null}
-      <p className="m-0 text-[14px] font-bold leading-relaxed text-ink-strong whitespace-pre-line">{mnemonic}</p>
-    </div>
-  );
-
-  if (questionType === 'mnemonic') {
-    return <div className="grid gap-3">{mnemonicNode}</div>;
-  }
-
-  return (
-    <div className="fc-answer-block">
-      {answerBullets && answerBullets.length > 0 ? (
-        <ul className="fc-answer-copy m-0 grid list-none gap-2 p-0">
-          {answerBullets.map((bullet, i) => (
-            <li key={`${i}-${bullet.slice(0, 12)}`}
-              className="flex gap-2.5 rounded-lg border border-line-soft bg-surface-2 px-3 py-2 text-[13px] font-semibold leading-snug text-ink-strong">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full"
-                style={{ background: '#3B82F6' }} aria-hidden="true" />
-              {bullet}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="fc-answer-copy fc-answer-text m-0 text-[14px] font-semibold leading-relaxed text-ink-strong whitespace-pre-line">
-          {answerText}
-        </p>
-      )}
-      {mnemonic && mnemonicNode}
-    </div>
-  );
-}
-
-function deckTitle(note) {
-  return note.lessonTitle || note.title || 'Untitled lesson';
-}
-
-function isLessonPlaceholder(note) {
-  return note?.kind === 'lesson-placeholder';
-}
-
-function hierarchyLabel(value, fallback) {
-  return plainText(value) || fallback;
-}
-
-function firstFiniteNumber(...values) {
-  for (const value of values) {
-    const number = Number(value);
-    if (Number.isFinite(number)) return number;
-  }
-  return null;
-}
-
-function hierarchyOrder(note, level) {
-  const fields = {
-    course: [
-      note.courseSortOrder, note.courseOrder, note.course_sort_order, note.course_order,
-    ],
-    subject: [
-      note.subjectSortOrder, note.topicSortOrder, note.subjectOrder, note.topicOrder,
-      note.topic_sort_order, note.topic_order,
-    ],
-    topic: [
-      note.subtopicSortOrder, note.subtopicOrder, note.subtopic_sort_order, note.subtopic_order,
-    ],
-    lesson: [
-      note.lessonSortOrder, note.lessonOrder, note.lesson_sort_order, note.lesson_order,
-    ],
-  }[level] || [];
-
-  return firstFiniteNumber(...fields);
-}
-
-function hierarchyCompare(a, b, level, aLabel, bLabel, { compareLabels = true } = {}) {
-  const aOrder = hierarchyOrder(a, level);
-  const bOrder = hierarchyOrder(b, level);
-  if (aOrder !== null && bOrder !== null && aOrder !== bOrder) return aOrder - bOrder;
-  if (aOrder !== null && bOrder === null) return -1;
-  if (aOrder === null && bOrder !== null) return 1;
-  if (!compareLabels) return 0;
-  return aLabel.localeCompare(bLabel, undefined, { numeric: true, sensitivity: 'base' });
-}
-
-function noteHierarchy(note) {
-  return {
-    course: hierarchyLabel(note.courseTitle, 'General'),
-    subject: hierarchyLabel(note.subjectTitle || note.topicName, 'General subject'),
-    topic: hierarchyLabel(note.subtopicName, 'General topic'),
-    lesson: hierarchyLabel(deckTitle(note), 'Untitled lesson'),
-  };
-}
-
-function lessonToFlashcardPlaceholder(lesson) {
-  return {
-    kind: 'lesson-placeholder',
-    id: `lesson-${lesson.id}`,
-    lessonId: lesson.id,
-    courseId: lesson.courseId,
-    topicId: lesson.topicId,
-    subtopicId: lesson.subtopicId,
-    lessonTitle: lesson.lessonTitle,
-    title: lesson.lessonTitle,
-    courseTitle: lesson.courseTitle,
-    topicName: lesson.topicName,
-    subtopicName: lesson.subtopicName,
-    isFree: Number(lesson.isFree) === 1,
-    canAccess: lesson.canAccess,
-    accessLocked: lesson.accessLocked,
-    lockReason: lesson.lockReason,
-    createdAt: lesson.createdAt,
-    updatedAt: lesson.updatedAt,
-    noteData: null,
-  };
-}
-
-function mergeNotesWithLessons(notes, lessons) {
-  const noteByLessonId = new Map(
-    (notes || [])
-      .filter((note) => note.lessonId)
-      .map((note) => [String(note.lessonId), note])
-  );
-  const merged = [...(notes || [])];
-
-  (lessons || []).forEach((lesson) => {
-    if (!noteByLessonId.has(String(lesson.id))) {
-      merged.push(lessonToFlashcardPlaceholder(lesson));
-    }
-  });
-
-  return merged;
-}
-
-function compareHierarchyNotes(a, b) {
-  const ah = noteHierarchy(a);
-  const bh = noteHierarchy(b);
-  const aCreated = Date.parse(a.createdAt || a.updatedAt || 0) || 0;
-  const bCreated = Date.parse(b.createdAt || b.updatedAt || 0) || 0;
-  const aLessonId = Number(a.lessonId || 0);
-  const bLessonId = Number(b.lessonId || 0);
-
-  return hierarchyCompare(a, b, 'course', ah.course, bh.course) ||
-    hierarchyCompare(a, b, 'subject', ah.subject, bh.subject) ||
-    hierarchyCompare(a, b, 'topic', ah.topic, bh.topic) ||
-    hierarchyCompare(a, b, 'lesson', ah.lesson, bh.lesson, { compareLabels: false }) ||
-    (aLessonId && bLessonId && aLessonId !== bLessonId ? aLessonId - bLessonId : 0) ||
-    (aCreated - bCreated) ||
-    ah.lesson.localeCompare(bh.lesson, undefined, { numeric: true, sensitivity: 'base' }) ||
-    ((Number(a.id) || 0) - (Number(b.id) || 0));
-}
-
-function hierarchyKey(value, fallback) {
-  return hierarchyLabel(value, fallback).toLowerCase().replace(/[^a-z0-9]+/g, '-');
-}
-
-function createDeckNode(type, label, depth, key) {
-  return {
-    type,
-    label,
-    depth,
-    key,
-    children: [],
-    childMap: new Map(),
-    notes: [],
-    newCount: 0,
-    learnCount: 0,
-    dueCount: 0,
-    totalCount: 0,
-    unknownCards: 0,
-    lockedCount: 0,
-  };
-}
-
-function addDeckCounts(node, note, metrics) {
-  node.notes.push(note);
-  if (isLessonPlaceholder(note)) {
-    node.lockedCount += note.accessLocked ? 1 : 0;
-    return;
-  }
-  node.newCount += Number(metrics.newCount) || 0;
-  node.learnCount += Number(metrics.learningCount) || 0;
-  node.dueCount += (Number(metrics.dueCount) || 0) + (Number(metrics.overdueCount) || 0);
-  node.lockedCount += note.accessLocked ? 1 : 0;
-  if (metrics.cardCount === null) {
-    node.unknownCards += 1;
-  } else {
-    node.totalCount += Number(metrics.cardCount) || 0;
-  }
-}
-
-function getDeckChild(parent, key, label, type, depth) {
-  if (!parent.childMap.has(key)) {
-    const child = createDeckNode(type, label, depth, key);
-    parent.childMap.set(key, child);
-    parent.children.push(child);
-  }
-  return parent.childMap.get(key);
-}
-
-function buildDeckTree(notes, deckStats, reviewStats) {
-  const root = createDeckNode('root', 'Flashcards', -1, 'root');
-  sortDeckNotes(notes).forEach((note) => {
-    const labels = noteHierarchy(note);
-    const metrics = getDeckMetrics(note, deckStats, reviewStats);
-    const courseKey = `course:${note.courseId || note.course_id || hierarchyKey(labels.course, 'general')}`;
-    const subjectKey = `${courseKey}/subject:${note.subjectId || note.subject_id || note.topicId || note.topic_id || hierarchyKey(labels.subject, 'general-subject')}`;
-    const topicKey = `${subjectKey}/topic:${note.subtopicId || note.subtopic_id || hierarchyKey(labels.topic, 'general-topic')}`;
-    const lessonKey = `${topicKey}/lesson:${note.lessonId || note.lesson_id || note.id || hierarchyKey(labels.lesson, 'untitled-lesson')}`;
-    const course = getDeckChild(root, courseKey, labels.course, 'course', 0);
-    const subject = getDeckChild(course, subjectKey, labels.subject, 'subject', 1);
-    const topic = getDeckChild(subject, topicKey, labels.topic, 'topic', 2);
-    const lesson = getDeckChild(topic, lessonKey, labels.lesson, 'lesson', 3);
-
-    [root, course, subject, topic, lesson].forEach((node) => addDeckCounts(node, note, metrics));
-  });
-  return root.children;
-}
-
-function hasDeckContent(node) {
-  return (
-    node.totalCount > 0 ||
-    node.unknownCards > 0 ||
-    node.lockedCount > 0 ||
-    node.notes.some(isLessonPlaceholder) ||
-    node.children.some(hasDeckContent)
-  );
-}
-
-function flattenDeckTree(nodes, expandedKeys = new Set()) {
-  return nodes.flatMap((node) => {
-    if (!hasDeckContent(node)) return [];
-    if (!node.children.length || !expandedKeys.has(node.key)) return [node];
-    return [node, ...flattenDeckTree(node.children, expandedKeys)];
-  });
-}
-
-function collectDeckBranchKeys(node) {
-  if (!node?.children?.length) return [];
-  return node.children
-    .filter(hasDeckContent)
-    .flatMap((child) => [child.key, ...collectDeckBranchKeys(child)]);
-}
-
-function formatDeckMetric(value, unknown = false) {
-  if (unknown && value > 0) return `${value}+`;
-  if (unknown && value === 0) return '...';
-  return String(value || 0);
-}
-
-function CountCell({ value, unknown = false, tone }) {
-  const active = value > 0 || (unknown && value === 0);
-  const activeTones = {
-    new: 'bg-sky-500/12 text-sky-700 ring-1 ring-inset ring-sky-500/22 dark:bg-sky-400/14 dark:text-sky-300 dark:ring-sky-400/24',
-    learn: 'bg-amber-500/14 text-amber-700 ring-1 ring-inset ring-amber-500/24 dark:bg-amber-400/14 dark:text-amber-300 dark:ring-amber-400/26',
-    due: 'bg-brand-primary/12 text-brand-primary ring-1 ring-inset ring-brand-primary/22',
-    total: 'bg-surface-2 text-ink-muted ring-1 ring-inset ring-line-soft',
-  };
-  return (
-    <span
-      className={cx(
-        'inline-flex min-w-[1.5rem] items-center justify-center rounded-full px-1.5 py-0.5 text-center text-[11.5px] font-black leading-none tabular-nums max-[640px]:min-w-[1.35rem] max-[640px]:px-1 max-[640px]:text-[11px] max-[380px]:px-0.5',
-        active ? activeTones[tone] : 'text-ink-soft/55 dark:text-white/25'
-      )}
-    >
-      {formatDeckMetric(value, unknown)}
-    </span>
-  );
-}
-
-function FlashcardLockMark() {
-  return (
-    <span
-      className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-amber-400/32 bg-amber-400/14 text-amber-700 shadow-[0_5px_12px_rgba(245,158,11,0.12)] dark:border-amber-300/28 dark:bg-amber-300/14 dark:text-amber-300"
-      title="Locked"
-      aria-hidden="true"
-    >
-      <svg width="11" height="11" viewBox="0 0 14 14" fill="none" focusable="false">
-        <rect x="2.8" y="6" width="8.4" height="5.5" rx="1.45" stroke="currentColor" strokeWidth="1.45" />
-        <path d="M4.8 6V4.65A2.2 2.2 0 0 1 7 2.45a2.2 2.2 0 0 1 2.2 2.2V6" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" />
-        <path d="M7 8.15v1.25" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" />
-      </svg>
-    </span>
-  );
-}
-
-function DeckChevron({ expanded }) {
-  return (
-    <span
-      className="fc-deck-chevron grid size-5 shrink-0 place-items-center rounded-md text-ink-muted group-hover:text-brand-primary max-[520px]:size-4"
-      data-expanded={expanded ? 'true' : 'false'}
-      aria-hidden="true"
-    >
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" focusable="false">
-        <path d="M4.5 2.75 7.75 6 4.5 9.25" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
-  );
-}
-
-function FlashcardDeckRow({ node, expanded, starting, onToggle, onStartScope, onUnlock }) {
-  const unlockedNotes = node.notes.filter((note) => !note.accessLocked);
-  const hasStudyNotes = unlockedNotes.some((note) => !isLessonPlaceholder(note));
-  const isExpandable = node.type !== 'lesson' && node.children.some(hasDeckContent);
-  const disabled = !isExpandable && (starting || (!hasStudyNotes && !node.lockedCount));
-  const isLesson = node.type === 'lesson';
-  const labelPrefix = {
-    course: 'Course',
-    subject: 'Subject',
-    topic: 'Topic',
-    lesson: 'Lesson',
-  }[node.type] || 'Deck';
-  const rowPadding = {
-    course: 'py-2.5 max-[640px]:py-2.5',
-    subject: 'py-2 max-[640px]:py-2',
-    topic: 'py-1.5 max-[640px]:py-1.5',
-    lesson: 'py-1.5 max-[640px]:py-1.5',
-  }[node.type] || 'py-1.5';
-  const rowTone = {
-    course: 'border-line-medium/80 bg-surface-1/60 dark:bg-white/[0.03]',
-    subject: 'bg-surface-card',
-    topic: 'bg-surface-card/70',
-    lesson: 'bg-transparent',
-  }[node.type] || '';
-  const labelTone = {
-    course: 'text-[13px] font-black text-ink-strong max-[520px]:text-[12.5px]',
-    subject: 'text-[12.5px] font-extrabold text-ink-strong max-[520px]:text-[12px]',
-    topic: 'text-[12.5px] font-bold text-ink-medium max-[520px]:text-[12px]',
-    lesson: 'text-[12.25px] font-semibold text-ink-medium max-[520px]:text-[11.75px]',
-  }[node.type] || 'text-[12.5px] font-bold text-ink-medium';
-  const connectorTone = {
-    subject: 'bg-line-medium/75',
-    topic: 'bg-line-soft',
-    lesson: 'bg-line-soft/70',
-  }[node.type] || 'bg-line-soft';
-  const handleActivate = () => {
-    if (isExpandable) {
-      onToggle(node.key);
-      return;
-    }
-    if (disabled) return;
-    if (!hasStudyNotes && node.lockedCount) {
-      onUnlock();
-      return;
-    }
-    onStartScope(unlockedNotes.filter((note) => !isLessonPlaceholder(note)), node.label);
-  };
-  const handleKeyDown = (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    event.preventDefault();
-    handleActivate();
-  };
-  const statusMark = !hasStudyNotes && node.lockedCount ? (
-    <FlashcardLockMark />
-  ) : !hasStudyNotes && isLesson ? (
-    <span className="fc-deck-empty-mark shrink-0 rounded-md border border-line-soft bg-surface-1 px-1.5 py-0.5 text-[11px] font-black leading-none text-ink-soft max-[520px]:px-1 max-[520px]:text-[11px]">
-      No cards
-    </span>
-  ) : null;
-
-  return (
-    <tr
-      tabIndex={disabled ? -1 : 0}
-      role="button"
-      aria-disabled={disabled}
-      aria-label={`${labelPrefix} ${node.label}. New ${node.newCount}, Learn ${node.learnCount}, Due ${node.dueCount}.${isExpandable ? expanded ? ' Expanded. Collapse group.' : ' Collapsed. Expand group.' : hasStudyNotes ? ' Start studying.' : node.lockedCount ? ' Locked.' : ' No flashcards yet.'}`}
-      {...(isExpandable ? { 'aria-expanded': expanded ? 'true' : 'false' } : {})}
-      onClick={handleActivate}
-      onKeyDown={handleKeyDown}
-      className={cx(
-        'fc-deck-row group border-t border-line-soft text-[12px] outline-none transition-[background,border-color] duration-150 dark:border-white/[0.07]',
-        rowTone,
-        !disabled && 'cursor-pointer hover:bg-surface-2/55 focus-visible:bg-surface-2/70 focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-brand-primary/12 dark:hover:bg-white/[0.045]',
-        disabled && 'cursor-not-allowed opacity-55'
-      )}
-    >
-      <th scope="row" className={cx('min-w-0 px-2 text-left align-middle max-[640px]:px-1.5 sm:px-2.5', rowPadding)}>
-        <div className="fc-deck-cell">
-          <div
-            className="fc-deck-label flex min-w-0 items-center gap-1"
-            style={{ '--fc-depth': Math.max(node.depth, 0) }}
-          >
-            {isExpandable ? (
-              <DeckChevron expanded={expanded} />
-            ) : (
-              <span className="size-4 shrink-0 max-[520px]:size-3" aria-hidden="true" />
-            )}
-            {node.depth > 0 ? (
-              <span className={cx('h-px w-2 shrink-0 rounded-full max-[520px]:w-1.5', connectorTone)} aria-hidden="true" />
-            ) : null}
-            <span className={cx(
-              'min-w-0 truncate leading-snug max-[640px]:whitespace-normal max-[640px]:break-words max-[640px]:overflow-visible max-[640px]:[overflow-wrap:anywhere]',
-              labelTone
-            )}>
-              {node.label}
-            </span>
-          </div>
-          <span className="fc-deck-status-slot inline-flex shrink-0 items-center justify-end gap-1">
-            {statusMark}
-            <span className="fc-deck-mobile-counts hidden max-[640px]:inline-flex items-center gap-1" aria-hidden="true">
-              <CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} />
-              <CountCell tone="learn" value={node.learnCount} />
-              <CountCell tone="due" value={node.dueCount} />
-            </span>
-          </span>
-        </div>
-      </th>
-      <td className={cx('px-1 text-center align-middle max-[640px]:hidden', rowPadding)}><CountCell tone="new" value={node.newCount} unknown={node.unknownCards > 0} /></td>
-      <td className={cx('px-1 text-center align-middle max-[640px]:hidden', rowPadding)}><CountCell tone="learn" value={node.learnCount} /></td>
-      <td className={cx('px-1 pr-1.5 text-center align-middle max-[640px]:hidden', rowPadding)}><CountCell tone="due" value={node.dueCount} /></td>
-    </tr>
-  );
-}
-
-function FlashcardDeckLoading() {
-  return (
-    <div role="status" aria-label="Loading flashcard deck hierarchy">
-      {[1, 2, 3, 4, 5].map(i => (
-        <div
-          key={i}
-          className="grid min-h-[40px] grid-cols-[minmax(0,1fr)_52px_56px_52px] items-center gap-1.5 border-t border-line-soft px-2.5 py-2 dark:border-white/[0.07] max-[640px]:grid-cols-[minmax(0,1fr)_44px_48px_44px] max-[640px]:px-1.5 max-[380px]:grid-cols-[minmax(0,1fr)_38px_42px_38px]"
-        >
-          <div className={ui.shimmer} style={{ height: 13, width: `${70 - i * 7}%`, marginLeft: i > 1 ? 16 : 0, borderRadius: 999 }} />
-          <div className={ui.shimmer} style={{ height: 16, borderRadius: 8 }} />
-          <div className={ui.shimmer} style={{ height: 16, borderRadius: 8 }} />
-          <div className={ui.shimmer} style={{ height: 16, borderRadius: 8 }} />
-        </div>
+    <div className="xfc-grades" role="group" aria-label="Grade this card">
+      {GRADES.map((g) => (
+        <button key={g.cls} type="button" className={`xfc-grade xfc-grade--${g.cls}`} disabled={disabled} onClick={() => onGrade(g.rating)}>
+          <span className="xfc-grade-interval">{previewLabel(previews, g.rating)}</span>
+          <span className="xfc-grade-label">{g.label}</span>
+          <span className="xfc-grade-key" aria-hidden="true">{g.rating}</span>
+        </button>
       ))}
     </div>
   );
 }
 
-function FlashcardDeckList({ notes, loading, allCount, starting, deckStats, reviewStats, onStartScope, onUnlock }) {
-  const [expandedKeys, setExpandedKeys] = useState(() => new Set());
-  const deckTree = useMemo(
-    () => buildDeckTree(notes, deckStats, reviewStats),
-    [deckStats, notes, reviewStats]
-  );
-  const rows = useMemo(
-    () => flattenDeckTree(deckTree, expandedKeys),
-    [deckTree, expandedKeys]
-  );
-  const nodeLookup = useMemo(() => {
-    const map = new Map();
-    const visit = (nodes) => {
-      nodes.forEach((node) => {
-        map.set(node.key, node);
-        if (node.children.length) visit(node.children);
+/* ─────────────────────── review session ──────────────────── */
+
+function ReviewSessionView({ scope, driver, onExit }) {
+  const pageRef = useRef(null);
+  const [queue, setQueue] = useState([]);
+  const [index, setIndex] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [stats, setStats] = useState({ reviewed: 0, again: 0 });
+
+  const current = queue[index] || null;
+  const finished = !loading && !error && index >= queue.length;
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError('');
+    Promise.resolve(driver.loadQueue())
+      .then((cards) => {
+        if (!alive) return;
+        setQueue(Array.isArray(cards) ? cards : []);
+        setIndex(0);
+        setRevealed(false);
+      })
+      .catch((err) => { if (alive) setError(getErrorMessage(err)); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [driver]);
+
+  const reveal = useCallback(() => {
+    if (!current || revealed) return;
+    setRevealed(true);
+    nativeSelection();
+  }, [current, revealed]);
+
+  const grade = useCallback((rating) => {
+    if (!current || !revealed || busy) return;
+    setBusy(true);
+    const item = current;
+    if (rating === 1) nativeImpact(ImpactStyle.Medium); else nativeSuccess();
+    Promise.resolve(driver.grade(item.card, rating))
+      .catch(() => {})
+      .finally(() => {
+        setHistory((h) => [...h, item]);
+        setStats((s) => ({ reviewed: s.reviewed + 1, again: s.again + (rating === 1 ? 1 : 0) }));
+        setIndex((i) => i + 1);
+        setRevealed(false);
+        setBusy(false);
       });
+  }, [current, revealed, busy, driver]);
+
+  const undo = useCallback(() => {
+    if (!history.length || busy) return;
+    setBusy(true);
+    const last = history[history.length - 1];
+    Promise.resolve(driver.undo(last.card))
+      .catch(() => {})
+      .finally(() => {
+        setQueue((q) => {
+          const next = [...q];
+          next.splice(Math.max(0, index - 1), 0, last);
+          return next;
+        });
+        setHistory((h) => h.slice(0, -1));
+        setStats((s) => ({ reviewed: Math.max(0, s.reviewed - 1), again: s.again }));
+        setIndex((i) => Math.max(0, i - 1));
+        setRevealed(true);
+        setBusy(false);
+      });
+  }, [history, busy, index, driver]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!revealed) reveal(); return; }
+      if (e.key.toLowerCase() === 'u') { e.preventDefault(); undo(); return; }
+      if (revealed && ['1', '2', '3', '4'].includes(e.key)) { e.preventDefault(); grade(Number(e.key)); }
     };
-    visit(deckTree);
-    return map;
-  }, [deckTree]);
-  const toggleDeckNode = (key) => {
-    setExpandedKeys((current) => {
-      const node = nodeLookup.get(key);
-      const next = new Set(current);
-      const branchKeys = node ? collectDeckBranchKeys(node) : [];
-      if (next.has(key)) {
-        next.delete(key);
-        branchKeys.forEach((branchKey) => next.delete(branchKey));
-      } else {
-        next.add(key);
-        branchKeys.forEach((branchKey) => next.add(branchKey));
-      }
-      return next;
-    });
-  };
-  const headerClass = 'whitespace-nowrap px-2 py-1.5 text-[11px] font-black uppercase tracking-normal text-ink-muted max-[640px]:px-0.5 max-[640px]:py-1.5 max-[640px]:text-[11px]';
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [revealed, reveal, grade, undo]);
+
+  const remaining = Math.max(0, queue.length - index);
+  const progress = queue.length ? Math.round((index / queue.length) * 100) : 0;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-none dark:border-white/[0.08] dark:bg-white/[0.035]" aria-labelledby="flashcard-list-title">
-      <h2 id="flashcard-list-title" className="sr-only">Flashcard decks</h2>
+    <main ref={pageRef} className="dashboard-page study-hub-page student-flashcards-page">
+      <div className="study-hub-shell">
+       <div className="xfc-body">
+        <header className="xfc-session-bar">
+          <button type="button" className="xfc-iconbtn" onClick={onExit} aria-label="Back to decks"><IcBack /></button>
+          <div className="xfc-session-title">
+            <span className="xfc-session-name">{scope.label}</span>
+            <span className="xfc-session-count">{finished ? 'Done' : `${remaining} left`}</span>
+          </div>
+          <button type="button" className="xfc-iconbtn" onClick={undo} disabled={!history.length || busy} aria-label="Undo last review"><IcUndo /></button>
+        </header>
 
-      {loading ? (
-        <FlashcardDeckLoading />
-      ) : rows.length === 0 ? (
-        <div className="grid min-h-[220px] place-items-center px-6 py-10 text-center">
-          <div className="max-w-[420px]">
-            <h3 className="m-0 text-[20px] font-black text-ink-strong">
-              {allCount === 0 ? 'No flashcard decks available yet.' : 'No decks match those filters.'}
-            </h3>
-            <p className="m-0 mt-2 text-[14px] font-semibold leading-relaxed text-ink-muted">
-              {allCount === 0
-                ? 'Flashcards will appear here when lessons publish practice cards.'
-                : 'Try All, Due, or clear the search to return to your full study set.'}
+        <div className="xfc-progress" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
+
+        {loading ? (
+          <div className="xfc-loading"><div className="xfc-spinner" /><p>Building your review queue…</p></div>
+        ) : error ? (
+          <div className="xfc-empty">
+            <FeedbackNotice tone="error">{error}</FeedbackNotice>
+            <button type="button" className="xfc-primary" onClick={onExit}>Back to decks</button>
+          </div>
+        ) : finished || !current ? (
+          <DoneForToday stats={stats} onExit={onExit} />
+        ) : (
+          <div className="xfc-stage">
+            <div
+              className={`xfc-card ${revealed ? 'is-flipped' : ''}`}
+              onClick={revealed ? undefined : reveal}
+              role="button"
+              tabIndex={0}
+              aria-label={revealed ? 'Card answer' : 'Show answer'}
+              onKeyDown={(e) => { if ((e.key === ' ' || e.key === 'Enter') && !revealed) { e.preventDefault(); reveal(); } }}
+            >
+              <div className="xfc-card-inner">
+                <div className="xfc-face xfc-face--front" aria-hidden={revealed}>
+                  <CardImage card={current.card} />
+                  <div className="xfc-q">{questionNode(current.card)}</div>
+                  <div className="xfc-hint">Tap or press Space to flip</div>
+                </div>
+                <div className="xfc-face xfc-face--back" aria-hidden={!revealed}>
+                  <div className="xfc-a-label">Answer</div>
+                  <div className="xfc-a">{answerNode(current.card)}</div>
+                  {current.card.sourceHint ? <div className="xfc-source">{cleanText(current.card.sourceHint)}</div> : null}
+                </div>
+              </div>
+            </div>
+
+            {revealed ? (
+              <GradeButtons previews={current.previews} onGrade={grade} disabled={busy} />
+            ) : (
+              <button type="button" className="xfc-reveal" onClick={reveal}>Show answer</button>
+            )}
+
+            <p className="xfc-shortcuts">
+              {revealed
+                ? <><kbd>1</kbd> Again · <kbd>2</kbd> Hard · <kbd>3</kbd> Good · <kbd>4</kbd> Easy · <kbd>U</kbd> Undo</>
+                : <><kbd>Space</kbd> to flip</>}
             </p>
           </div>
-        </div>
-      ) : (
-        <table className="fc-deck-table w-full table-fixed border-collapse text-left">
-          <caption className="sr-only">
-            Anki-style flashcard deck hierarchy ordered by LMS course, subject, topic, and lesson.
-          </caption>
-          <colgroup>
-            <col />
-            <col className="w-[52px] max-[640px]:w-0" />
-            <col className="w-[56px] max-[640px]:w-0" />
-            <col className="w-[52px] max-[640px]:w-0" />
-          </colgroup>
-          <thead className="border-b border-line-soft bg-surface-1/70 dark:border-white/[0.07] dark:bg-white/[0.025] max-[640px]:hidden">
-            <tr>
-              <th scope="col" className={cx(headerClass, 'text-left')}>Deck</th>
-              <th scope="col" className={cx(headerClass, 'text-center text-sky-700 dark:text-sky-300')}>New</th>
-              <th scope="col" className={cx(headerClass, 'text-center text-amber-700 dark:text-amber-300')}>Learn</th>
-              <th scope="col" className={cx(headerClass, 'text-center text-brand-primary')}>Due</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((node) => (
-              <FlashcardDeckRow
-                key={node.key}
-                node={node}
-                expanded={expandedKeys.has(node.key)}
-                starting={starting}
-                onToggle={toggleDeckNode}
-                onStartScope={onStartScope}
-                onUnlock={onUnlock}
-              />
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
+        )}
+       </div>
+      </div>
+    </main>
   );
 }
 
-function matchesStatusFilter(note, statusFilter, deckStats, reviewStats) {
-  if (statusFilter === 'all') return true;
-  const metrics = getDeckMetrics(note, deckStats, reviewStats);
-  if (statusFilter === 'due') return metrics.reviewCount > 0 || metrics.overdueCount > 0;
-  if (statusFilter === 'new') return Number(metrics.newCount) > 0;
-  if (statusFilter === 'learning') return metrics.learningCount > 0;
-  if (statusFilter === 'weak') return metrics.weakCount > 0;
-  if (statusFilter === 'mastered') return metrics.notDueCount > 0 && metrics.reviewCount === 0 && metrics.learningCount === 0;
-  return true;
-}
-
-function sortDeckNotes(notes) {
-  return [...(notes || [])].sort(compareHierarchyNotes);
-}
-
-function FilterChip({ active, children, onClick }) {
+function CardImage({ card }) {
+  const url = card?.imageUrls?.[0] || card?.imageUrl;
+  if (!url) return null;
   return (
-    <button
-      type="button"
-      className={cx('student-lessons-filter-chip', active && 'is-active')}
-      onClick={onClick}
-    >
-      {children}
-    </button>
+    <div className={`xfc-img xfc-img--${card.imageFit === 'cover' ? 'cover' : 'contain'}`}>
+      <img src={url} alt="" loading="lazy" />
+    </div>
   );
 }
 
-function PickPhase({
-  notes,
-  loading,
-  error,
-  onStartScope,
-  starting,
-  deckStats,
-}) {
+function DoneForToday({ stats, onExit }) {
+  return (
+    <div className="xfc-empty xfc-done">
+      <div className="xfc-done-mark" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+      </div>
+      <h2>Done for today</h2>
+      <p>{stats.reviewed > 0 ? `You reviewed ${stats.reviewed} card${stats.reviewed === 1 ? '' : 's'}.` : 'No cards are due in this deck right now.'}</p>
+      <button type="button" className="xfc-primary" onClick={onExit}>Back to decks</button>
+    </div>
+  );
+}
+
+/* ───────────────────────── deck list ─────────────────────── */
+
+function Count({ value, tone }) {
+  const active = Number(value) > 0;
+  return <span className={`xfc-count xfc-count--${tone} ${active ? 'is-active' : ''}`}>{Number(value) || 0}</span>;
+}
+
+function DeckRow({ node, depth, expanded, onToggle, onStart, onDelete }) {
+  const hasChildren = node.children && node.children.length > 0;
+  const open = expanded.has(node.key);
+  const canStudy = (node.newCount + node.learningCount + node.dueCount) > 0 && !node.locked;
+
+  return (
+    <>
+      <div className={`xfc-deck-row xfc-deck-row--${node.type}`} style={{ '--xfc-depth': depth }}>
+        <button type="button" className="xfc-deck-main" onClick={() => (hasChildren ? onToggle(node.key) : onStart(node))}>
+          {hasChildren ? <IcChevron open={open} /> : <span className="xfc-chevron-spacer" aria-hidden="true" />}
+          <span className="xfc-deck-label">{node.label}</span>
+          {node.locked ? <span className="xfc-lock" title="Locked"><IcLock /></span> : null}
+        </button>
+        <div className="xfc-deck-counts">
+          <Count value={node.newCount} tone="new" />
+          <Count value={node.learningCount} tone="learn" />
+          <Count value={node.dueCount} tone="due" />
+        </div>
+        {onDelete && depth === 0 ? (
+          <button type="button" className="xfc-deck-play xfc-deck-del" onClick={() => onDelete(node)} aria-label={`Delete ${node.label}`}><IcTrash /></button>
+        ) : (
+          <button type="button" className="xfc-deck-play" disabled={!canStudy} onClick={() => onStart(node)} aria-label={`Study ${node.label}`}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.5 3.2 12.5 8l-8 4.8z" /></svg>
+          </button>
+        )}
+      </div>
+      {hasChildren && open
+        ? node.children.map((child) => (
+            <DeckRow key={child.key} node={child} depth={depth + 1} expanded={expanded} onToggle={onToggle} onStart={onStart} onDelete={onDelete} />
+          ))
+        : null}
+    </>
+  );
+}
+
+function SummaryStat({ label, value, tone }) {
+  return (
+    <div className={`xfc-sumstat xfc-sumstat--${tone}`}>
+      <span className="xfc-sumstat-value">{Number(value) || 0}</span>
+      <span className="xfc-sumstat-label">{label}</span>
+    </div>
+  );
+}
+
+function DeckListView({ onStart }) {
   const navigate = useNavigate();
-  // Native-only: edge-swipe from the left returns to the Study hub (mirrors the
-  // back chevron). Only on the deck picker — the active review (SessionPhase)
-  // owns left/right card swipes, so it deliberately gets no edge-back.
   const pageRef = useRef(null);
+  const [tab, setTab] = useState('lesson');
+  const [data, setData] = useState({ decks: [], totals: {} });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [expanded, setExpanded] = useState(() => new Set());
+  const [localTree, setLocalTree] = useState([]);
+  const [modal, setModal] = useState(null); // 'add' | 'browse' | 'stats'
+  const [pending, setPending] = useState(0);
+
   const handleSwipeBack = useCallback(() => {
     const studyPath = window.location.pathname.startsWith('/app') ? '/app/study' : '/study';
     safeNavigateBack(navigate, { fallbackPath: studyPath });
   }, [navigate]);
   useEdgeSwipeBack({ containerRef: pageRef, onBack: handleSwipeBack });
-  const [statusFilter, setStatusFilter] = useState('all');
-  const reviewStats = readReviewStats();
-  const visibleNotes = useMemo(() => {
-    const filtered = (notes || [])
-      .filter((note) => matchesStatusFilter(note, statusFilter, deckStats, reviewStats));
-    return sortDeckNotes(filtered);
-  }, [deckStats, notes, reviewStats, statusFilter]);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
+    getFlashcardDecks()
+      .then((res) => setData(res || { decks: [], totals: {} }))
+      .catch((err) => setError(getErrorMessage(err)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const refreshLocal = useCallback(() => setLocalTree(loadLocalDeckTree()), []);
+
+  useEffect(() => { load(); refreshLocal(); setPending(pendingReviewCount()); }, [load, refreshLocal]);
+
+  const syncNow = useCallback(() => {
+    flushReviews().then((res) => { setPending(res.pending); load(); });
+  }, [load]);
+
+  const toggle = useCallback((key) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const onCreateDeck = () => {
+    const name = window.prompt('New deck name');
+    if (name && name.trim()) { createDeck(name.trim()); refreshLocal(); }
+  };
+  const onDeleteLocalDeck = (node) => {
+    if (window.confirm(`Delete deck “${node.label}” and all its cards?`)) { deleteDeck(node.deckId); refreshLocal(); }
+  };
+
+  const totals = data.totals || {};
+  const hasDue = (totals.learningCount || 0) + (totals.dueCount || 0) + (totals.newCount || 0) > 0;
 
   return (
-    <main ref={pageRef} className="dashboard-page study-hub-page student-flashcards-page min-h-dvh">
-      <section className="study-hub-shell grid gap-4">
+    <main ref={pageRef} className="dashboard-page study-hub-page student-flashcards-page">
+      <div className="study-hub-shell">
+       <div className="xfc-body">
         <AppHeader title="Flashcards" subtitle="Spaced Review" compact />
 
-        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
-
-        <section className="grid gap-3">
-          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Filter flashcards by status">
-            {[
-              ['all', 'All'],
-              ['due', 'Due'],
-              ['new', 'New'],
-              ['learning', 'Learning'],
-              ['weak', 'Flagged'],
-              ['mastered', 'Mastered'],
-            ].map(([value, label]) => (
-              <FilterChip key={value} active={statusFilter === value} onClick={() => setStatusFilter(value)}>
-                {label}
-              </FilterChip>
-            ))}
+        <div className="xfc-tabrow">
+          <div className="xfc-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={tab === 'lesson'} className={`xfc-tab ${tab === 'lesson' ? 'is-active' : ''}`} onClick={() => setTab('lesson')}>Lesson decks</button>
+            <button type="button" role="tab" aria-selected={tab === 'mine'} className={`xfc-tab ${tab === 'mine' ? 'is-active' : ''}`} onClick={() => setTab('mine')}>My decks</button>
           </div>
-        </section>
-
-        <FlashcardDeckList
-          notes={visibleNotes}
-          loading={loading}
-          allCount={notes.length}
-          starting={starting}
-          deckStats={deckStats}
-          reviewStats={reviewStats}
-          onStartScope={onStartScope}
-          onUnlock={() => navigate('/billing')}
-        />
-      </section>
-    </main>
-  );
-}
-
-/* ─────────────────────────────────────────
-   SESSION PHASE
-───────────────────────────────────────── */
-function SessionPhase({ quiz, cards, onDone, onBack }) {
-  const savedSession = readFlashcardSession(quiz, cards);
-  const initialIndex = Math.min(Math.max(Number(savedSession?.idx) || 0, 0), Math.max(cards.length - 1, 0));
-  const [idx,      setIdx]      = useState(initialIndex);
-  const [flipped,  setFlipped]  = useState(false);
-  const [known,    setKnown]    = useState(() => new Set((savedSession?.known || []).filter((i) => Number.isInteger(i) && i < cards.length)));
-  const [learning, setLearning] = useState(() => new Set((savedSession?.learning || []).filter((i) => Number.isInteger(i) && i < cards.length)));
-  const [advancing, setAdvancing] = useState(false);
-  const [reportedIds, setReportedIds] = useState(() => readBadCardIds());
-
-  const flippedRef = useRef(false);
-  const advancingRef = useRef(false);
-  const advanceRef = useRef(null);
-  const advanceTimerRef = useRef(null);
-  const pointerRef = useRef({ x: 0, y: 0, moved: false, dx: 0, swiping: false, canSwipe: false });
-  const cardWrapRef = useRef(null);
-
-  useEffect(() => { flippedRef.current = flipped; }, [flipped]);
-  useEffect(() => { advancingRef.current = advancing; }, [advancing]);
-  useEffect(() => (
-    () => window.clearTimeout(advanceTimerRef.current)
-  ), []);
-
-  useEffect(() => {
-    writeFlashcardSession(quiz, cards, {
-      idx,
-      known: [...known],
-      learning: [...learning],
-    });
-  }, [cards, idx, known, learning, quiz]);
-
-  const card     = cards[idx];
-  const progress = ((idx + 1) / cards.length) * 100;
-
-  // Reset any leftover swipe transform when a new card appears.
-  useEffect(() => {
-    const el = cardWrapRef.current;
-    if (el) { el.style.transition = 'none'; el.style.transform = ''; el.style.opacity = ''; }
-  }, [idx]);
-
-  function flip() {
-    if (advancingRef.current) return;
-    setFlipped(f => !f);
-  }
-
-  function advance(rating) {
-    if (!flippedRef.current || advancingRef.current) return;
-    advancingRef.current = true;
-    setAdvancing(true);
-    const remembered = rating === 'good' || rating === 'easy';
-    const newKnown    = remembered ? new Set([...known, idx]) : known;
-    const newLearning = !remembered ? new Set([...learning, idx]) : learning;
-    recordFlashcardReview(card, rating);
-    setKnown(newKnown);
-    setLearning(newLearning);
-    setFlipped(false);
-    advanceTimerRef.current = window.setTimeout(() => {
-      if (idx + 1 >= cards.length) {
-        clearFlashcardSession(quiz);
-        onDone({ cards, knownIds: newKnown, learningIds: newLearning });
-      } else {
-        setIdx(i => i + 1);
-        advancingRef.current = false;
-        setAdvancing(false);
-      }
-      advanceTimerRef.current = null;
-    }, 160);
-  }
-  advanceRef.current = advance;
-
-  useEffect(() => {
-    function onKey(e) {
-      if (e.defaultPrevented || isInteractiveElement(e.target)) return;
-      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
-      if (flippedRef.current && e.key === 'ArrowRight') advanceRef.current('good');
-      if (flippedRef.current && e.key === 'ArrowLeft')  advanceRef.current('again');
-      if (flippedRef.current && e.key === '1') advanceRef.current('again');
-      if (flippedRef.current && e.key === '2') advanceRef.current('hard');
-      if (flippedRef.current && e.key === '3') advanceRef.current('good');
-      if (flippedRef.current && e.key === '4') advanceRef.current('easy');
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
-  const SWIPE_THRESHOLD = 90;
-
-  function handleCardPointerDown(event) {
-    pointerRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-      moved: false,
-      dx: 0,
-      swiping: false,
-      canSwipe: event.pointerType === 'touch',
-    };
-  }
-
-  function handleCardPointerMove(event) {
-    const dx = event.clientX - pointerRef.current.x;
-    const dy = event.clientY - pointerRef.current.y;
-    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) pointerRef.current.moved = true;
-    // Live drag-to-swipe only once the answer is shown and the motion is horizontal.
-    if (pointerRef.current.canSwipe && flippedRef.current && !advancingRef.current && Math.abs(dx) > Math.abs(dy)) {
-      pointerRef.current.dx = dx;
-      pointerRef.current.swiping = true;
-      const el = cardWrapRef.current;
-      if (el) {
-        el.style.transition = 'none';
-        el.style.transform = `translateX(${dx}px) rotate(${dx * 0.03}deg)`;
-        el.style.opacity = String(Math.max(0.45, 1 - Math.abs(dx) / 600));
-      }
-    }
-  }
-
-  function handleCardPointerEnd() {
-    const el = cardWrapRef.current;
-    const dx = pointerRef.current.dx || 0;
-    if (pointerRef.current.swiping && flippedRef.current && !advancingRef.current && Math.abs(dx) > SWIPE_THRESHOLD) {
-      if (el) {
-        el.style.transition = 'transform 0.25s ease-in, opacity 0.25s ease-in';
-        el.style.transform = `translateX(${dx > 0 ? 620 : -620}px) rotate(${dx > 0 ? 14 : -14}deg)`;
-        el.style.opacity = '0';
-      }
-      advanceRef.current(dx > 0 ? 'good' : 'again'); // swipe right = recalled, left = review
-    } else if (el && pointerRef.current.swiping) {
-      el.style.transition = 'transform 0.3s cubic-bezier(0.34,1.45,0.5,1), opacity 0.3s ease';
-      el.style.transform = '';
-      el.style.opacity = '';
-    }
-    pointerRef.current.swiping = false;
-    pointerRef.current.dx = 0;
-  }
-
-  function handleCardClick(event) {
-    if (pointerRef.current.moved || isNestedControl(event.target)) return;
-    flip();
-  }
-
-  function handleReportCard(event) {
-    event.stopPropagation();
-    if (reportBadCard(card)) {
-      setReportedIds(readBadCardIds());
-    }
-  }
-
-  const isReported = reportedIds.has(cardStorageId(card));
-
-  return (
-    <main className="dashboard-page study-hub-page student-flashcards-page">
-      <section className="study-hub-shell">
-
-        {/* Header */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-surface-1 px-5 py-3.5 shadow-xs">
-          <div className="flex items-center gap-3 min-w-0">
-            <button type="button"
-              className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-2 text-ink-muted
-                transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-3 hover:text-ink-strong active:scale-[0.98]
-                focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"
-              onClick={onBack} aria-label="Back to lesson picker">
-              <IcBack/>
-            </button>
-            <div className="min-w-0">
-              <div className="truncate text-[14px] font-extrabold text-ink-strong">{quiz.quizTitle}</div>
-              <div className="text-[11px] font-semibold text-ink-muted">Card {idx + 1} of {cards.length}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-extrabold"
-              style={{ background: 'rgba(16,185,129,0.10)', color: '#10B981' }}>
-              <IcKnow/>{known.size} Know
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-extrabold"
-              style={{ background: 'rgba(245,158,11,0.10)', color: '#D97706' }}>
-              <IcReview/>{learning.size} Review
-            </span>
-          </div>
+          <button type="button" className="xfc-action" onClick={() => setModal('stats')}>Stats</button>
         </div>
 
-        {/* Progress */}
-        <div className="mb-5 h-2 overflow-hidden rounded-full bg-surface-3">
-          <div className="h-full w-full origin-left rounded-full transition-transform duration-500"
-            style={{ transform: `scaleX(${progress / 100})`, background: 'linear-gradient(90deg,#3B82F6,#8B5CF6)' }}/>
-        </div>
-
-        {/* Card */}
-        <div
-          ref={cardWrapRef}
-          className="mx-auto mb-5 min-h-[420px] w-full max-w-[800px] cursor-pointer touch-pan-y [perspective:1400px] max-[600px]:min-h-[360px]"
-          onPointerDown={handleCardPointerDown}
-          onPointerMove={handleCardPointerMove}
-          onPointerUp={handleCardPointerEnd}
-          onPointerCancel={handleCardPointerEnd}
-          onPointerLeave={handleCardPointerEnd}
-          onClick={handleCardClick}
-          role="button"
-          tabIndex={0}
-          aria-label={flipped ? 'Card showing answer. Press Space to return to the question.' : 'Card showing question. Press Space to reveal answer.'}
-          onKeyDown={e => {
-            if (e.key === ' ' || e.key === 'Enter') {
-              e.preventDefault();
-              e.stopPropagation();
-              flip();
-            }
-          }}
-        >
-          <div className="relative min-h-[420px] w-full transition-transform duration-[600ms] ease-[cubic-bezier(0.34,1.4,0.5,1)] will-change-transform [transform-style:preserve-3d] max-[600px]:min-h-[360px]"
-            style={{ transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
-
-            {/* FRONT */}
-            <div
-              className="fc-card-front-bg absolute inset-0 flex flex-col gap-4 overflow-y-auto rounded-2xl border border-line-soft p-8 shadow-lg [backface-visibility:hidden] max-[600px]:p-5"
-              aria-hidden={flipped}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <CardTypeBadge type={card.questionType}/>
-                  <DifficultyBadge level={card.difficulty}/>
-                  <ReviewStatusBadge card={card}/>
-                </div>
-                <span className="text-[11px] font-bold text-ink-muted opacity-60">{idx + 1} / {cards.length}</span>
-              </div>
-
-              <div className="flex flex-1 flex-col items-center justify-center gap-4 py-4 text-center">
-                <p className="m-0 max-w-[560px] text-[1.1rem] font-extrabold leading-relaxed text-ink-strong max-[600px]:text-[1rem]">
-                  {card.questionText}
-                </p>
-              </div>
-
-              <div className="flex flex-col items-center gap-2">
-                {(card.hierarchy?.subject || card.hierarchy?.topic) && (
-                  <div className="flex items-center gap-1 text-[11px] font-semibold text-ink-muted opacity-55">
-                    {card.hierarchy.subject && <span>{card.hierarchy.subject}</span>}
-                    {card.hierarchy.topic && <><span>›</span><span>{card.hierarchy.topic}</span></>}
-                  </div>
-                )}
-                <span className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-bold text-ink-muted">
-                  <IcFlip/> Tap or Space to reveal answer
-                </span>
-              </div>
-            </div>
-
-            {/* BACK */}
-            <div
-              className="fc-card-back-bg absolute inset-0 flex flex-col gap-3 overflow-hidden rounded-2xl border border-line-soft p-8 shadow-lg [backface-visibility:hidden] [transform:rotateY(180deg)] max-[600px]:p-5"
-              aria-hidden={!flipped}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-extrabold tracking-wide uppercase"
-                  style={{ background: 'rgba(16,185,129,0.10)', color: '#10B981', border: '1px solid rgba(16,185,129,0.22)' }}>
-                  Answer
-                </span>
-                {card.context && (
-                  <span className="max-w-[200px] truncate text-[11px] font-semibold text-ink-muted opacity-60">
-                    {card.context}
-                  </span>
-                )}
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <AnswerBlock card={card}/>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <button
-                  type="button"
-                  className="inline-flex min-h-6 items-center rounded-full border border-line-soft bg-surface-2 px-2 text-[10px] font-bold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
-                  onClick={handleReportCard}
-                  disabled={isReported}
-                >
-                  {isReported ? 'Reported' : 'Report bad card'}
-                </button>
-                <p className="m-0 text-[11px] font-semibold text-ink-muted">
-                  How well did you recall this?
-                </p>
-              </div>
-            </div>
+        {pending > 0 ? (
+          <div className="xfc-syncbar">
+            <span>{pending} review{pending === 1 ? '' : 's'} waiting to sync.</span>
+            <button type="button" className="xfc-mini" onClick={syncNow}>Sync now</button>
           </div>
-        </div>
+        ) : null}
 
-        {/* Actions */}
-        <div
-          className="mb-3 grid grid-cols-4 justify-center gap-2 transition-[opacity,transform] duration-200 max-[520px]:gap-1.5 max-[380px]:gap-1"
-          style={{ opacity: flipped ? 1 : 0, pointerEvents: flipped ? 'auto' : 'none', transform: flipped ? 'translateY(0)' : 'translateY(4px)' }}
-          aria-hidden={!flipped}
-        >
-          <button
-            type="button"
-            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
-              transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
-              disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px]"
-            style={{ background: 'rgba(244,63,94,0.09)', borderColor: 'rgba(244,63,94,0.22)', color: '#E11D48' }}
-            onClick={() => advance('again')} disabled={!flipped || advancing}>
-            Again
-          </button>
-          <button
-            type="button"
-            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
-              transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
-              disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px] [&_svg]:shrink-0 max-[380px]:[&_svg]:size-3.5"
-            style={{ background: 'rgba(245,158,11,0.09)', borderColor: 'rgba(245,158,11,0.22)', color: '#D97706' }}
-            onClick={() => advance('hard')} disabled={!flipped || advancing}>
-            <IcReview/> Hard
-          </button>
-          <button
-            type="button"
-            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
-              transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
-              disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px] [&_svg]:shrink-0 max-[380px]:[&_svg]:size-3.5"
-            style={{ background: 'rgba(16,185,129,0.09)', borderColor: 'rgba(16,185,129,0.22)', color: '#059669' }}
-            onClick={() => advance('good')} disabled={!flipped || advancing}>
-            <IcKnow/> Good
-          </button>
-          <button
-            type="button"
-            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-extrabold
-              transition-[transform,box-shadow] duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]
-              disabled:cursor-not-allowed disabled:opacity-40 max-[520px]:gap-1 max-[520px]:px-1.5 max-[520px]:text-[12px] max-[380px]:text-[11px]"
-            style={{ background: 'rgba(37,99,235,0.09)', borderColor: 'rgba(37,99,235,0.22)', color: '#2563EB' }}
-            onClick={() => advance('easy')} disabled={!flipped || advancing}>
-            Easy
-          </button>
-        </div>
-
-        <p className="text-center text-xs font-semibold text-ink-muted">
-          {flipped ? (
-            <><kbd className="rounded bg-surface-2 px-1.5 py-0.5">1</kbd> Again &nbsp;·&nbsp; <kbd className="rounded bg-surface-2 px-1.5 py-0.5">2</kbd> Hard &nbsp;·&nbsp; <kbd className="rounded bg-surface-2 px-1.5 py-0.5">3</kbd> Good &nbsp;·&nbsp; <kbd className="rounded bg-surface-2 px-1.5 py-0.5">4</kbd> Easy</>
-          ) : (
-            <><kbd className="rounded bg-surface-2 px-1.5 py-0.5">Space</kbd> or <kbd className="rounded bg-surface-2 px-1.5 py-0.5">Enter</kbd> to flip</>
-          )}
-        </p>
-      </section>
-    </main>
-  );
-}
-
-/* ─────────────────────────────────────────
-   RESULT PHASE
-───────────────────────────────────────── */
-function ResultPhase({ quiz, result, onRetry, onRetryMissed, onBack }) {
-  const { cards, knownIds, learningIds } = result;
-  const pct          = Math.round((knownIds.size / cards.length) * 100);
-  const isExcellent  = pct >= 80;
-  const isGood       = pct >= 50;
-  const accentColor  = isExcellent ? '#10B981' : isGood ? '#F59E0B' : '#6366F1';
-  const circumference = 2 * Math.PI * 34;
-
-  return (
-    <main className="dashboard-page study-hub-page student-flashcards-page">
-      <section className="study-hub-shell">
-        <div className="flex flex-col items-center px-5 py-12 text-center">
-
-          <div className="mb-5 grid size-20 place-items-center rounded-2xl"
-            style={{ background: `${accentColor}12`, color: accentColor }}>
-            {isExcellent ? <IcTrophy/> : <IcStudy/>}
-          </div>
-
-          <h2 className="m-0 mb-1.5 text-[26px] font-black text-ink-strong">
-            {isExcellent ? 'Excellent work!' : isGood ? 'Good progress!' : 'Keep practicing!'}
-          </h2>
-          <p className="m-0 mb-10 text-sm font-semibold text-ink-muted">{quiz.quizTitle}</p>
-
-          <div className="mb-10 flex flex-wrap items-center justify-center gap-8 max-[600px]:gap-5">
-            <div className="flex min-w-20 flex-col items-center gap-1">
-              <strong className="text-[36px] font-black" style={{ color: '#10B981' }}>{knownIds.size}</strong>
-              <span className="text-xs font-semibold text-ink-muted">Know It</span>
+        {tab === 'lesson' ? (
+          <>
+            <div className="xfc-summary">
+              <SummaryStat label="New" value={totals.newCount} tone="new" />
+              <SummaryStat label="Learning" value={totals.learningCount} tone="learn" />
+              <SummaryStat label="Due" value={totals.dueCount} tone="due" />
             </div>
-
-            <div className="flex flex-col items-center gap-2 rounded-2xl border border-line-soft bg-surface-1 px-6 py-5 shadow-xs">
-              <svg viewBox="0 0 80 80" className="size-[96px]" aria-label={`Score: ${pct}%`}>
-                <circle cx="40" cy="40" r="34" stroke="var(--surface-3)" strokeWidth="7" fill="none"/>
-                <circle cx="40" cy="40" r="34"
-                  stroke={accentColor} strokeWidth="7" fill="none"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference * (1 - pct / 100)}
-                  strokeLinecap="round" transform="rotate(-90 40 40)"
-                  style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.23,1,0.32,1)' }}
-                />
-                <text x="40" y="37" textAnchor="middle" fill="var(--ink-strong,#111)" fontSize="15" fontWeight="800">{pct}%</text>
-                <text x="40" y="51" textAnchor="middle" fill="var(--ink-muted,#888)" fontSize="9" fontWeight="600">score</text>
-              </svg>
+            <div className="xfc-deck-head" aria-hidden="true">
+              <span>Deck</span>
+              <span className="xfc-deck-head-counts"><span>New</span><span>Learn</span><span>Due</span></span>
+              <span className="xfc-deck-head-play" />
             </div>
-
-            <div className="flex min-w-20 flex-col items-center gap-1">
-              <strong className="text-[36px] font-black" style={{ color: '#D97706' }}>{learningIds.size}</strong>
-              <span className="text-xs font-semibold text-ink-muted">Still Learning</span>
-            </div>
-          </div>
-
-          <div className="grid w-full max-w-72 gap-2.5">
-            {learningIds.size > 0 && (
-              <button type="button" className={ui.primaryAction} onClick={onRetryMissed}>
-                Retry Missed Cards ({learningIds.size})
-              </button>
+            {loading ? (
+              <div className="xfc-deck-skeleton">{[1, 2, 3, 4, 5].map((i) => <div key={i} className="xfc-skel-row" />)}</div>
+            ) : error ? (
+              <div className="xfc-empty">
+                <FeedbackNotice tone="error">{error}</FeedbackNotice>
+                <button type="button" className="xfc-primary" onClick={load}>Try again</button>
+              </div>
+            ) : !data.decks.length ? (
+              <div className="xfc-empty"><h2>No flashcards yet</h2><p>Flashcards appear here once your lessons have approved cards.</p></div>
+            ) : (
+              <div className="xfc-deck-list">
+                {data.decks.map((node) => (
+                  <DeckRow key={node.key} node={node} depth={0} expanded={expanded} onToggle={toggle} onStart={onStart} />
+                ))}
+              </div>
             )}
-            <button type="button" className={ui.secondaryAction} onClick={onRetry}>
-              Restart Deck
-            </button>
-            <button
-              type="button"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-transparent px-4
-                text-sm font-bold text-ink-muted transition-[background,color,transform] duration-150 ease-[var(--ease-out)] hover:text-ink-strong active:scale-[0.98]
-                focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/15"
-              onClick={onBack}
-            >
-              Pick Another Lesson
-            </button>
-          </div>
-        </div>
-      </section>
+            {!loading && !error && data.decks.length > 0 && !hasDue ? (
+              <p className="xfc-allclear">🎉 You’re all caught up — nothing due right now.</p>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <div className="xfc-mine-actions">
+              <button type="button" className="xfc-action" onClick={() => setModal('add')}>＋ Add card</button>
+              <button type="button" className="xfc-action" onClick={onCreateDeck}>New deck</button>
+              <button type="button" className="xfc-action" onClick={() => setModal('browse')}>Browse cards</button>
+            </div>
+            {!localTree.length ? (
+              <div className="xfc-empty">
+                <h2>Your own decks</h2>
+                <p>Create personal flashcards — Basic, reversed, or cloze. They’re saved on this device and scheduled with the same FSRS engine.</p>
+                <button type="button" className="xfc-primary" onClick={() => setModal('add')}>Add your first card</button>
+              </div>
+            ) : (
+              <>
+                <div className="xfc-deck-head" aria-hidden="true">
+                  <span>Deck</span>
+                  <span className="xfc-deck-head-counts"><span>New</span><span>Learn</span><span>Due</span></span>
+                  <span className="xfc-deck-head-play" />
+                </div>
+                <div className="xfc-deck-list">
+                  {localTree.map((node) => (
+                    <DeckRow key={node.key} node={node} depth={0} expanded={expanded} onToggle={toggle} onStart={onStart} onDelete={onDeleteLocalDeck} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+       </div>
+      </div>
+
+      {modal === 'add' ? <AddCardModal onClose={() => setModal(null)} onSaved={() => { setModal(null); refreshLocal(); }} /> : null}
+      {modal === 'browse' ? <CardBrowserModal onClose={() => setModal(null)} onChanged={refreshLocal} /> : null}
+      {modal === 'stats' ? <StatsModal onClose={() => setModal(null)} /> : null}
     </main>
   );
 }
 
-/* ─────────────────────────────────────────
-   ROOT
-───────────────────────────────────────── */
+/* ───────────────────────── page shell ────────────────────── */
+
+function SessionGate({ scope, onExit }) {
+  // Memoize per scope so ReviewSessionView's load effect runs once per session.
+  const driver = useMemo(() => (scope._local ? localDriver(scope) : serverDriver(scope)), [scope]);
+  return <ReviewSessionView scope={scope} driver={driver} onExit={onExit} />;
+}
+
 export function StudentFlashcardsPage() {
-  const navigate       = useNavigate();
-  const [searchParams] = useSearchParams();
-  const autoNoteId     = searchParams.get('noteId') ? Number(searchParams.get('noteId')) : null;
-  const deckCountLoadingRef = useRef(new Set());
-  const loadingLessonIdRef = useRef(null);
-  const autoLoadedNoteIdRef = useRef(null);
+  const [scope, setScope] = useState(null);
 
-  const [phase,    setPhase]    = useState('pick');
-  const [notes,    setNotes]    = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState('');
-  const [starting, setStarting] = useState(false);
-  const [deckStats, setDeckStats] = useState({});
-  const deckStatsRef = useRef({});
+  useEffect(() => { startOfflineSync(); }, []);
 
-  const [activeQuiz,  setActiveQuiz]  = useState(null);
-  const [activeCards, setActiveCards] = useState([]);
-  const [result,      setResult]      = useState(null);
-
-  useEffect(() => {
-    Promise.all([
-      listStudentAiNotesAcrossEngines(),
-      fetchStudentLessons().catch(() => []),
-    ])
-      .then(([noteRows, lessonRows]) => {
-        const mergedRows = mergeNotesWithLessons(noteRows, lessonRows);
-        setDeckStats(buildInitialDeckStats(mergedRows));
-        setNotes(mergedRows);
-      })
-      .catch(e => setError(getErrorMessage(e, 'Unable to load flashcard decks')))
-      .finally(() => setLoading(false));
-   
+  const handleStart = useCallback((node) => {
+    if (node?._local) {
+      setScope({ deckId: node.deckId, label: node.label, key: node.key, _local: true });
+      return;
+    }
+    if (!node?.noteIds?.length) return;
+    setScope({ noteIds: node.noteIds, label: node.label, key: node.key });
   }, []);
 
-  useEffect(() => {
-    if (!autoNoteId || !notes.length || autoLoadedNoteIdRef.current === autoNoteId) return;
-    const match = notes.find(n => Number(n.id) === autoNoteId);
-    if (!match || isLessonPlaceholder(match)) return;
-    autoLoadedNoteIdRef.current = autoNoteId;
-    loadLessonCards(match, { syncUrl: false });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoNoteId, notes]);
+  const handleExit = useCallback(() => setScope(null), []);
 
-  useEffect(() => {
-    deckStatsRef.current = deckStats;
-  }, [deckStats]);
-
-  useEffect(() => {
-    if (!notes.length) return undefined;
-    let cancelled = false;
-    const pending = notes
-      .filter((note) => !note.accessLocked)
-      .filter((note) => !isLessonPlaceholder(note))
-      .filter((note) => !hasDeckCardCount(deckStatsRef.current[note.id]))
-      .filter((note) => !deckStatsRef.current[note.id]?.unavailable)
-      .filter((note) => !deckCountLoadingRef.current.has(note.id));
-
-    if (!pending.length) return undefined;
-
-    async function loadDeckCounts() {
-      const queue = [...pending];
-      const workerCount = Math.min(3, queue.length);
-
-      await Promise.all(Array.from({ length: workerCount }, async () => {
-        while (queue.length && !cancelled) {
-          const note = queue.shift();
-          if (!note) return;
-
-          deckCountLoadingRef.current.add(note.id);
-          setDeckStats((current) => ({
-            ...current,
-            [note.id]: {
-              ...(current[note.id] || {}),
-              loading: true,
-              unavailable: false,
-            },
-          }));
-
-          try {
-            const fullNote = note.noteData ? note : await getAiNoteWithFallback(note.id, { engine: note.engine });
-            const cardCount = buildLessonCards(fullNote).length;
-            writeDeckStatsCacheEntry(note, cardCount);
-            if (cancelled) return;
-            setDeckStats((current) => ({
-              ...current,
-              [note.id]: {
-                cardCount,
-                loading: false,
-                unavailable: false,
-                countedAt: new Date().toISOString(),
-              },
-            }));
-          } catch {
-            if (!cancelled) {
-              setDeckStats((current) => ({
-                ...current,
-                [note.id]: {
-                  ...(current[note.id] || {}),
-                  loading: false,
-                  unavailable: true,
-                },
-              }));
-            }
-          } finally {
-            deckCountLoadingRef.current.delete(note.id);
-          }
-        }
-      }));
-    }
-
-    loadDeckCounts();
-    return () => {
-      cancelled = true;
-    };
-  }, [notes]);
-
-  async function buildCardsFromNotes(selectedNotes, maxNotes = 18) {
-    const unlockedNotes = (Array.isArray(selectedNotes) ? selectedNotes : [])
-      .filter((note) => !note.accessLocked)
-      .filter((note) => !isLessonPlaceholder(note));
-    if (!unlockedNotes.length) return [];
-    const sampleNotes = unlockedNotes.slice(0, maxNotes);
-    const noteResults = await Promise.allSettled(
-      sampleNotes.map((note) => note.noteData ? Promise.resolve(note) : getAiNoteWithFallback(note.id, { engine: note.engine }))
-    );
-    const fullNotes = noteResults
-      .filter((result) => result.status === 'fulfilled')
-      .map((result) => result.value);
-    return uniqueCards(fullNotes.flatMap((note) => buildLessonCards(note)));
-  }
-
-  function openFlashcardSession(cards, title, mode = 'mixed') {
-    if (!cards.length) return false;
-    setActiveQuiz({
-      id: `${mode}-${Date.now()}`,
-      quizTitle: title,
-      sourceNoteId: null,
-    });
-    setActiveCards(cards);
-    setPhase('session');
-    navigate({ search: `?mode=${mode}` }, { replace: true });
-    return true;
-  }
-
-  async function loadLessonCards(note, options = {}) {
-    const noteId = Number(note?.id || 0);
-    if (!noteId || loadingLessonIdRef.current === noteId) return;
-
-    loadingLessonIdRef.current = noteId;
-    setStarting(true);
-    setError('');
-    if (options.syncUrl !== false && autoNoteId !== noteId) {
-      autoLoadedNoteIdRef.current = noteId;
-      navigate({ search: `?noteId=${noteId}` }, { replace: true });
-    }
-
-    try {
-      const fullNote = note.noteData ? note : await getAiNoteWithFallback(note.id, { engine: note.engine });
-      const cards = selectQueueCards(buildLessonCards(fullNote), 'all', 80);
-      if (cards.length === 0) {
-        setError('This lesson does not have approved flashcards yet.');
-        setPhase('pick');
-        return;
-      }
-      setActiveQuiz({
-        id:          `note-${fullNote.id}`,
-        quizTitle:   fullNote.lessonTitle || fullNote.title || 'Lesson Flashcards',
-        sourceNoteId: fullNote.id,
-      });
-      setActiveCards(cards);
-      setPhase('session');
-      navigate({ search: `?noteId=${fullNote.id}` }, { replace: true });
-    } catch (e) {
-      setError(getErrorMessage(e, 'Unable to load flashcards'));
-      setPhase('pick');
-    } finally {
-      loadingLessonIdRef.current = null;
-      setStarting(false);
-    }
-  }
-
-  async function loadHierarchyScopeCards(selectedNotes, title = 'Flashcards') {
-    const unlockedNotes = (Array.isArray(selectedNotes) ? selectedNotes : [])
-      .filter((note) => !note.accessLocked)
-      .filter((note) => !isLessonPlaceholder(note));
-    if (!unlockedNotes.length) {
-      setError('No available lessons have approved flashcards yet.');
-      return;
-    }
-    if (unlockedNotes.length === 1) {
-      loadLessonCards(unlockedNotes[0]);
-      return;
-    }
-
-    setStarting(true);
-    setError('');
-    try {
-      const cards = await buildCardsFromNotes(unlockedNotes, unlockedNotes.length);
-      const queue = selectQueueCards(cards, 'quick', 80);
-      const studyCards = queue.length ? queue : selectQueueCards(cards, 'all', 80);
-      if (!studyCards.length) {
-        setError('This deck does not have approved flashcards yet.');
-        setPhase('pick');
-        return;
-      }
-      openFlashcardSession(studyCards, `${title} Flashcards`, 'deck');
-    } catch (e) {
-      setError(getErrorMessage(e, 'Unable to load this flashcard deck'));
-      setPhase('pick');
-    } finally {
-      setStarting(false);
-    }
-  }
-
-  function handleDone(res) {
-    setResult(res);
-    setPhase('result');
-  }
-
-  function handleRetry() {
-    setActiveCards(selectQueueCards([...activeCards], 'all', activeCards.length));
-    setPhase('session');
-  }
-
-  function handleRetryMissed() {
-    const { cards, learningIds } = result;
-    setActiveCards(shuffle([...learningIds].map(i => cards[i])));
-    setPhase('session');
-  }
-
-  function handleBackToPick() {
-    setPhase('pick');
-    setResult(null);
-    navigate({ search: '' }, { replace: true });
-  }
-
-  if (phase === 'session') {
-    return (
-      <SessionPhase
-        quiz={activeQuiz}
-        cards={activeCards}
-        onDone={handleDone}
-        onBack={handleBackToPick}
-      />
-    );
-  }
-
-  if (phase === 'result') {
-    return (
-      <ResultPhase
-        quiz={activeQuiz}
-        result={result}
-        onRetry={handleRetry}
-        onRetryMissed={handleRetryMissed}
-        onBack={handleBackToPick}
-      />
-    );
-  }
-
-  return (
-    <PickPhase
-      notes={notes}
-      loading={loading}
-      error={error}
-      onStartScope={loadHierarchyScopeCards}
-      starting={starting}
-      deckStats={deckStats}
-    />
-  );
+  if (!scope) return <DeckListView onStart={handleStart} />;
+  return <SessionGate scope={scope} onExit={handleExit} />;
 }
+
+export default StudentFlashcardsPage;

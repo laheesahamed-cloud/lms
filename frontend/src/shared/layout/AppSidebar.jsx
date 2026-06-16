@@ -617,8 +617,8 @@ const mobileNavItems = [
     to: '/study',
     label: 'Study',
     icon: 'Notes',
-    matchPaths: ['/study', '/planner', '/flashcards', '/notes', '/bookmarks', '/ai-notes'],
-    preloadPaths: ['/study', '/planner', '/flashcards', '/notes', '/bookmarks', '/ai-notes'],
+    matchPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/ai-notes'],
+    preloadPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/ai-notes'],
   },
   { to: '/results',   label: 'Results',   icon: 'Results' },
 ];

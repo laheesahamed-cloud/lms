@@ -13,7 +13,7 @@ export declare class ContentGovernanceService {
         evidence: {
             entityType: string;
             entityId: number;
-            workflowState: "draft" | "in_review" | "published" | "archived";
+            workflowState: "draft" | "published" | "in_review" | "archived";
             author: {
                 id: number;
                 name: string;

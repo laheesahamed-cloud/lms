@@ -38,7 +38,7 @@ export declare class HealthController {
             quizAttempts: number;
         };
         performance: {
-            targets: Record<"authentication" | "dashboard" | "questionFetch" | "answerSave" | "reviewData" | "staticAsset" | "other", number>;
+            targets: Record<"dashboard" | "authentication" | "questionFetch" | "answerSave" | "reviewData" | "staticAsset" | "other", number>;
             api: Record<string, unknown>;
             client: {
                 sampleCount: number;

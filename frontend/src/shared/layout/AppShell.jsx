@@ -256,8 +256,9 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
     }
 
     const routeMode = roleRouteMode(user.role);
+    const currentWarmPath = location.pathname.replace(/^\/(?:admin|app|student)(?=\/|$)/, '') || '/dashboard';
     const targets = (routeMode === 'admin' ? adminWarmRoutes : studentWarmRoutes)
-      .filter((path) => path !== location.pathname)
+      .filter((path) => path !== currentWarmPath)
       .filter((path) => !warmedRouteKeysRef.current.has(`${user.role}:${path}`))
       .slice(0, preloadLimit);
 
@@ -276,13 +277,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
 
     let cleanup = () => {};
 
-    if (PLATFORM.isNative && window.__lmsBootComplete !== true) {
-      const afterBoot = () => {
-        timers.push(window.setTimeout(warm, PLATFORM.isPhone ? 320 : 100));
-      };
-      document.addEventListener('lms:boot-complete', afterBoot, { once: true });
-      cleanup = () => document.removeEventListener('lms:boot-complete', afterBoot);
-    } else if ('requestIdleCallback' in window) {
+    if ('requestIdleCallback' in window) {
       const idleId = window.requestIdleCallback(warm, { timeout: PLATFORM.isNative ? (PLATFORM.isPhone ? 650 : 260) : 900 });
       cleanup = () => window.cancelIdleCallback(idleId);
     } else {

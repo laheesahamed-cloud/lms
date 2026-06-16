@@ -1,6 +1,6 @@
 /* Empty, error, and loading surfaces use the same spacing rhythm as cards. */
 
-:where(.lms-empty-state, .empty-state, .error-state, .loading-state, .lms-loading-state) {
+:where(.lms-empty-state, .empty-state, .loading-state, .lms-loading-state) {
   box-sizing: border-box;
   gap: var(--ds-card-content-gap);
   padding: var(--ds-card-pad);
@@ -23,18 +23,18 @@
   display: block;
 }
 
-:where(figure, .medical-figure, .medical-image-card) {
+:where(figure) {
   display: grid;
   gap: var(--ds-medical-media-gap);
 }
 
-:where(figure > figcaption, .medical-caption, .image-caption) {
+:where(figure > figcaption) {
   margin: 0;
   padding-block-start: var(--ds-space-1);
 }
 
 @media (max-width: 600px) {
-  :where(.lms-empty-state, .empty-state, .error-state, .loading-state, .lms-loading-state) {
+  :where(.lms-empty-state, .empty-state, .loading-state, .lms-loading-state) {
     padding: var(--ds-space-4);
   }
 }

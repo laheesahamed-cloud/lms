@@ -3,6 +3,7 @@ import { useLocation, useNavigationType, useOutlet } from 'react-router-dom';
 import { detectPlatform } from '../platform/detect.js';
 import { getHistoryIndex } from './safeBack.js';
 import { isChevronRoute } from './isChevronRoute.js';
+import { markGestureCommitPop } from './routeTransitionContext.js';
 import { cx } from '../styles/tailwindClasses.js';
 
 // Simple iOS-style carousel page transition, NATIVE runtime only.
@@ -54,12 +55,22 @@ function NativeStack({ outlet }) {
     const toPath = location.pathname;
     const idx = getHistoryIndex();
     const direction = navType === 'POP' || idx < stack.lastIdx ? 'pop' : 'push';
+    // Same-path navigations (e.g. the ?course= filter on the AI-notes list, which
+    // calls setSearchParams without leaving /ai-notes) are NOT page changes, so
+    // they must not slide — otherwise the list "opens" a second time with a right-
+    // to-left slide before the real lesson navigation slides in (double transition).
+    const samePath = fromPath === toPath;
     // Slide when pushing INTO a chevron page or popping OUT of one; plain
-    // tab-taps don't slide.
+    // tab-taps and same-path filter changes don't slide.
     const slide =
       !prefersReducedMotion() &&
+      !samePath &&
       ((direction === 'push' && isChevronRoute(toPath)) ||
         (direction === 'pop' && isChevronRoute(fromPath)));
+    // The native carousel slide IS this navigation's transition — tell RouteReveal
+    // to skip its panel fade for the destination render, otherwise the page also
+    // fades/pops in on top of the slide and the whole thing reads as opening twice.
+    if (slide) markGestureCommitPop();
     setStack({
       curKey: location.key,
       curPath: toPath,

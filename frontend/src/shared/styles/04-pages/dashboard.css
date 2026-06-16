@@ -31,7 +31,6 @@
 :root:not([data-theme="dark"]) .student-app-shell .student-route-page {
   --sa-bg: linear-gradient(180deg, #eef4fc 0%, #e4ecf7 45%, #dce6f4 100%);
   --sa-ink: #0F172A;
-  --sa-ink-deep: #0F172A;
   --sa-text-2: #64748B;
   --sa-text-3: #6b7689;
 }
@@ -81,7 +80,6 @@
      --sa-* tokens are scoped. Bridge them to the global :root tokens (which
      are already theme-scoped, so light/dark resolve automatically). */
   --sa-ink: var(--ink-strong);
-  --sa-ink-deep: var(--ink-strong);
   --sa-text-2: var(--ink-soft);
   --sa-text-3: var(--ink-muted);
   --sa-primary: var(--color-primary);
@@ -1245,7 +1243,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --sa-surface-rgb: 12, 18, 28;
   --sa-surface-2-rgb: 17, 28, 44;
   --sa-ink: #F8FAFC;
-  --sa-ink-deep: #f8fafc;
   --sa-text-2: #94A3B8;
   --sa-text-3: #64748B;
   --sa-border: rgba(203, 213, 225, 0.13);

@@ -689,32 +689,42 @@
 
 .study-plan-card__head button {
   position: relative;
-  /* Reset the native control so iOS/WKWebView doesn't render its default
-     grey pill with corner-anchored text. */
+  /* iOS-style "See all" text link — no pill, no fill, just accent text + a
+     chevron. Reset the native control so iOS/WKWebView doesn't paint its
+     default grey pill with corner-anchored text. */
   appearance: none;
   -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 2px;
   min-height: 32px;
-  padding: 0 13px;
-  border: 1px solid rgba(var(--sa-primary-rgb), 0.18);
-  border-radius: 999px;
-  background: rgba(var(--sa-primary-rgb), 0.08);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
   color: var(--sa-primary);
   cursor: pointer;
   font: inherit;
   font-size: var(--type-size-2xs);
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
   white-space: nowrap;
-  text-align: center;
 }
 
+/* Trailing chevron — the iOS "›" affordance. Static (no motion). */
 .study-plan-card__head button::after {
+  content: "\203A";
+  font-size: 1.15em;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+/* Invisible hit-area expander keeps the small text link comfortably tappable. */
+.study-plan-card__head button::before {
   content: "";
   position: absolute;
-  inset: -6px -4px;
+  inset: -8px -6px;
 }
 
 .study-plan-list {
@@ -3045,10 +3055,16 @@
   color: #0F172A !important;
 }
 
-:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card__head button,
 :root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-row i {
   border-color: rgba(37, 99, 235, 0.16) !important;
   background: rgba(37, 99, 235, 0.09) !important;
+  color: #2563eb !important;
+}
+
+:root[data-theme="light"] .dashboard-page.study-hub-page .study-plan-card__head button {
+  /* Text link in light mode too — no pill fill/border, just accent color. */
+  border: 0 !important;
+  background: none !important;
   color: #2563eb !important;
 }
 

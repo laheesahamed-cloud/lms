@@ -1,14 +1,10 @@
 html[data-lms-runtime="native"][data-lms-form-factor="phone"] {
   --lms-native-phone-safe-top: max(var(--lms-native-safe-top, env(safe-area-inset-top, 0px)), env(safe-area-inset-top, 0px));
-  --lms-native-phone-safe-right: max(var(--lms-native-safe-right, env(safe-area-inset-right, 0px)), env(safe-area-inset-right, 0px));
   --lms-native-phone-safe-bottom: max(var(--lms-native-safe-bottom, env(safe-area-inset-bottom, 0px)), env(safe-area-inset-bottom, 0px));
-  --lms-native-phone-safe-left: max(var(--lms-native-safe-left, env(safe-area-inset-left, 0px)), env(safe-area-inset-left, 0px));
   --lms-tabbar-safe-bottom: max(8px, var(--lms-native-phone-safe-bottom));
   --bottom-nav-height: calc(var(--lms-tabbar-row-height, 64px) + var(--lms-tabbar-safe-bottom));
-  --lms-mobile-nav-height: var(--bottom-nav-height);
   --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 12px);
   --lms-native-topbar-height: calc(var(--lms-native-phone-safe-top) + 70px);
-  --lms-native-topbar-spacer-height: var(--lms-native-topbar-height);
 }
 
 /* The iOS large-title header bar is portaled to <body> as .lms-header-bar-layer

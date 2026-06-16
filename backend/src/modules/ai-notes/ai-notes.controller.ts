@@ -1,8 +1,17 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, ParseIntPipe, Patch, Post, Query, Res } from '@nestjs/common';
 import { Allow, ArrayMaxSize, IsArray, IsIn, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
+import { createHash } from 'crypto';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { AiNotesService } from './ai-notes.service';
+
+// Minimal structural type so we can drive conditional-request headers without
+// pulling in @types/express (not installed). Nest injects the real express res.
+type CacheableResponse = {
+  status(code: number): { end(): void };
+  setHeader(name: string, value: string): void;
+  json(body: unknown): void;
+};
 
 class GenerateDto {
   @IsString() @MinLength(10) @MaxLength(12000)
@@ -159,12 +168,6 @@ export class AiNotesController {
     return this.svc.adminCreate(dto.title, dto.rawText, dto.courseId, dto.topicId, dto.subtopicId, dto.lessonId, dto.isFree, dto.videoUrl, token(auth), engine(engineKey, this.svc));
   }
 
-  @Get('admin/lesson-canvases')
-  @RequirePermissions('content.manage')
-  getLessonCanvases(@Query('engine') engineKey: string, @Headers('authorization') auth: string) {
-    return this.svc.getLessonCanvases(token(auth), engine(engineKey, this.svc));
-  }
-
   @Get('admin/:id/flashcards')
   @RequirePermissions('content.manage')
   adminListFlashcards(@Param('id', ParseIntPipe) id: number, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
@@ -235,12 +238,6 @@ export class AiNotesController {
     return this.svc.getSubtopics(topicId ? Number(topicId) : undefined, token(auth));
   }
 
-  @Get('admin/hierarchy/lessons')
-  @RequirePermissions('content.manage')
-  getLessons(@Query('subtopicId') subtopicId: string, @Headers('authorization') auth: string) {
-    return this.svc.getLessons(subtopicId ? Number(subtopicId) : undefined, token(auth));
-  }
-
   @Get('admin/:id')
   @RequirePermissions('content.manage')
   adminFindOne(@Param('id', ParseIntPipe) id: number, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
@@ -266,12 +263,55 @@ export class AiNotesController {
   }
 
   @Get('student/lesson/:lessonId')
-  studentFindByLesson(@Param('lessonId', ParseIntPipe) lessonId: number, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
-    return this.svc.studentFindByLesson(lessonId, token(auth), engine(engineKey, this.svc));
+  async studentFindByLesson(
+    @Param('lessonId', ParseIntPipe) lessonId: number,
+    @Query('engine') engineKey: string,
+    @Headers('authorization') auth: string,
+    @Headers('if-none-match') ifNoneMatch: string,
+    @Res() res: CacheableResponse,
+  ) {
+    const eng = engine(engineKey, this.svc);
+    const result = await this.svc.studentFindByLesson(lessonId, token(auth), eng);
+    this.sendNote(res, ifNoneMatch, `lesson:${lessonId}:${eng}`, result);
+  }
+
+  @Get(':id/flashcards')
+  studentFlashcards(@Param('id', ParseIntPipe) id: number, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
+    return this.svc.studentFlashcards(id, token(auth), engine(engineKey, this.svc));
   }
 
   @Get(':id')
-  studentFindOne(@Param('id', ParseIntPipe) id: number, @Query('engine') engineKey: string, @Headers('authorization') auth: string) {
-    return this.svc.studentFindOne(id, token(auth), engine(engineKey, this.svc));
+  async studentFindOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('engine') engineKey: string,
+    @Headers('authorization') auth: string,
+    @Headers('if-none-match') ifNoneMatch: string,
+    @Res() res: CacheableResponse,
+  ) {
+    const eng = engine(engineKey, this.svc);
+    const result = await this.svc.studentFindOne(id, token(auth), eng);
+    this.sendNote(res, ifNoneMatch, `note:${id}:${eng}`, result);
+  }
+
+  // Conditional-request support for the two heavy ~900KB lesson reads. A weak
+  // ETag derived from the note's updatedAt + flashcard count + the viewer's
+  // progress lets an unchanged lesson return a tiny 304 instead of the full
+  // canvas. Cache-Control: private keeps it out of shared proxies/CDNs.
+  private sendNote(
+    res: CacheableResponse,
+    ifNoneMatch: string | undefined,
+    seed: string,
+    result: { updatedAt?: unknown; approvedFlashcardCount?: unknown; lessonProgressPercent?: unknown; lessonProgressStatus?: unknown },
+  ) {
+    const etag = 'W/"' + createHash('sha1')
+      .update(`${seed}:${result?.updatedAt ?? ''}:${result?.approvedFlashcardCount ?? ''}:${result?.lessonProgressPercent ?? ''}:${result?.lessonProgressStatus ?? ''}`)
+      .digest('base64url') + '"';
+    if (ifNoneMatch === etag) {
+      res.status(304).end();
+      return;
+    }
+    res.setHeader('ETag', etag);
+    res.setHeader('Cache-Control', 'private, no-cache');
+    res.json(result);
   }
 }

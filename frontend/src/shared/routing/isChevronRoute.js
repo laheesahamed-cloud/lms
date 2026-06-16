@@ -27,6 +27,7 @@ const CHEVRON_PATTERNS = [
   /^\/(?:app\/)?ai-notes\/?$/, // AI notes list (compact)
   /^\/(?:app\/)?planner\/?$/, // planner (compact)
   /^\/(?:app\/)?flashcards\/?$/, // flashcards (compact)
+  /^\/(?:app\/)?bookmarks\/?$/, // saved (compact)
 ];
 
 export function headerRouteIsFocus(pathname) {

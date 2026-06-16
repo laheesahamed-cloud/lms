@@ -95,26 +95,26 @@ export declare class QuestionsController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "published" | "in_review" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "published" | "in_review" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "published" | "in_review" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
     findOne(id: number): Promise<{
         options: {

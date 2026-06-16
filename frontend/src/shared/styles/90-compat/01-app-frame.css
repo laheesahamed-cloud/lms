@@ -84,16 +84,11 @@
 
   :root {
     --safe-top: var(--lms-safe-top);
-    --safe-right: var(--lms-safe-right);
     --safe-bottom: var(--lms-safe-bottom);
-    --safe-left: var(--lms-safe-left);
     --app-bg: var(--page-background);
-    --app-light-bg: var(--page-background);
     --app-dark-bg: #151c24;
     --lms-tabbar-row-height: 64px;
-    --header-height: 64px;
     --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-safe-bottom));
-    --lms-mobile-nav-height: var(--bottom-nav-height);
     --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 12px);
     --lms-min-touch-target: 44px;
   }
@@ -107,8 +102,7 @@
   }
 
   html,
-  body,
-  #__next {
+  body {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -161,15 +155,13 @@
     --app-bg: var(--app-dark-bg);
   }
 
-  :root:has(.landing-page),
-  :root:has(.dark-page) {
+  :root:has(.landing-page) {
     --app-bg: var(--app-dark-bg);
     background: var(--app-dark-bg);
     background-color: var(--app-dark-bg);
   }
 
-  body:has(.landing-page),
-  body:has(.dark-page) {
+  body:has(.landing-page) {
     background: var(--app-dark-bg) !important;
     background-color: var(--app-dark-bg) !important;
   }

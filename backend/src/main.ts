@@ -335,6 +335,7 @@ function rewriteApiBoundary(path: string, method: string) {
       if (rest[0] === 'manual-payment' && rest[1] === 'request') return '/api/subscriptions/manual-payment/request';
       return `/api/subscriptions${restPath}`;
     }
+    if (resource === 'flashcards') return `/api/flashcards${restPath}`;
     if (resource === 'bookmarks') return `/api/study-bookmarks${restPath}`;
     if (resource === 'notifications') return `/api/notifications${restPath}`;
     if (resource === 'planner') return `/api/study-planner${restPath}`;

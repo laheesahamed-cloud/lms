@@ -55,7 +55,6 @@
     --lms-brand-border: rgba(255,255,255,.10);
     --lms-brand-grid: rgba(255,255,255,.022);
     --lms-brand-monitor-grid: rgba(34,211,238,.11);
-    --lms-brand-monitor-line: rgba(34,211,238,.18);
     --lms-brand-ecg-stroke: #22D3EE;
     --lms-brand-ecg-base: rgba(34,211,238,.18);
     --lms-brand-ecg-dot: rgba(34,211,238,.22);
@@ -64,7 +63,6 @@
     --lms-brand-violet-glow: rgba(99,102,241,.08);
     --lms-brand-monitor-bg: rgba(5,12,36,.80);
     --lms-brand-monitor-label: rgba(148,163,184,.72);
-    --lms-brand-logo-shadow: 0 4px 22px rgba(37,99,235,.50);
     --lms-brand-lower-art-color: #60A5FA;
     --lms-brand-lower-art-opacity: .06;
   }
@@ -79,7 +77,6 @@
     --lms-brand-border: rgba(37,99,235,.13);
     --lms-brand-grid: rgba(37,99,235,.045);
     --lms-brand-monitor-grid: rgba(37,99,235,.10);
-    --lms-brand-monitor-line: rgba(2,132,199,.32);
     --lms-brand-ecg-stroke: #0284C7;
     --lms-brand-ecg-base: rgba(2,132,199,.28);
     --lms-brand-ecg-dot: rgba(2,132,199,.24);
@@ -88,7 +85,6 @@
     --lms-brand-violet-glow: rgba(124,58,237,.07);
     --lms-brand-monitor-bg: rgba(255,255,255,.86);
     --lms-brand-monitor-label: #64748B;
-    --lms-brand-logo-shadow: none;
     --lms-brand-lower-art-color: #2563EB;
     --lms-brand-lower-art-opacity: .13;
   }
@@ -390,7 +386,6 @@
     }
   }
 
-  .lms-tab-link    { transition:background 150ms var(--ease-os), color 150ms ease; }
   :root:not([data-theme='dark']) .lms-auth-form-panel {
     background:
       linear-gradient(180deg, rgba(255,255,255,.96), rgba(245,249,255,.98)) !important;

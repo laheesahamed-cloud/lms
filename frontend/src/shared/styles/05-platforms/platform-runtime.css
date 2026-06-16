@@ -48,7 +48,6 @@
   html[data-lms-runtime="pwa"] {
     --lms-tabbar-row-height: 68px;
     --bottom-nav-height: calc(var(--lms-tabbar-row-height) + var(--lms-safe-bottom));
-    --lms-mobile-nav-height: var(--bottom-nav-height);
     --lms-mobile-content-bottom: calc(var(--bottom-nav-height) + 10px);
     -webkit-text-size-adjust: 100%;
   }

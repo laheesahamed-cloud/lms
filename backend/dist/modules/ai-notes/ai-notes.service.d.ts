@@ -1,13 +1,11 @@
 import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket } from 'mysql2/promise';
-import { PlansService } from '../plans/plans.service';
 export interface NoteSection {
     heading: string;
     bullets: string[];
     callout: string;
     sticky_note: string;
     mnemonic: string;
-    diagram_prompt: string;
 }
 export interface NoteResult {
     title: string;
@@ -15,7 +13,7 @@ export interface NoteResult {
     sections: NoteSection[];
     summary_box: string;
     key_points: string[];
-    visual_style: {
+    visual_style?: {
         theme: string;
         look: string;
         colors: string[];
@@ -34,13 +32,11 @@ type LessonFlashcardGeneratedBy = 'ai' | 'manual';
 export declare class AiNotesService {
     private readonly db;
     private readonly config;
-    private readonly plansService;
-    constructor(db: Pool, config: ConfigService, plansService: PlansService);
+    constructor(db: Pool, config: ConfigService);
     normalizeEngineKey(value: string | undefined): CanvasEngineKey;
     private resolveToken;
     private requireAdmin;
     private requireStudent;
-    private requireStudentAiNotesAccess;
     adminList(token: string, engineKey?: CanvasEngineKey): Promise<{
         id: number;
         title: string;
@@ -241,23 +237,6 @@ export declare class AiNotesService {
         updatedAt: string;
     }[]>;
     studentFindOne(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
-        flashcards: {
-            id: number;
-            noteId: number;
-            lessonId: number | null;
-            question: string;
-            answer: string;
-            sourceHint: string;
-            imageUrl: string;
-            imageUrls: string[];
-            imageFit: "contain" | "cover";
-            status: LessonFlashcardStatus;
-            sortOrder: number;
-            generatedBy: LessonFlashcardGeneratedBy;
-            reviewedBy: number | null;
-            createdAt: string;
-            updatedAt: string;
-        }[];
         approvedFlashcardCount: number;
         cardCount: number;
         canAccess: boolean;
@@ -288,23 +267,6 @@ export declare class AiNotesService {
         updatedAt: string;
     }>;
     studentFindByLesson(lessonId: number, token: string, engineKey?: CanvasEngineKey): Promise<{
-        flashcards: {
-            id: number;
-            noteId: number;
-            lessonId: number | null;
-            question: string;
-            answer: string;
-            sourceHint: string;
-            imageUrl: string;
-            imageUrls: string[];
-            imageFit: "contain" | "cover";
-            status: LessonFlashcardStatus;
-            sortOrder: number;
-            generatedBy: LessonFlashcardGeneratedBy;
-            reviewedBy: number | null;
-            createdAt: string;
-            updatedAt: string;
-        }[];
         approvedFlashcardCount: number;
         cardCount: number;
         canAccess: boolean;
@@ -334,11 +296,28 @@ export declare class AiNotesService {
         createdAt: string;
         updatedAt: string;
     }>;
+    studentFlashcards(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
+        flashcards: {
+            id: number;
+            noteId: number;
+            lessonId: number | null;
+            question: string;
+            answer: string;
+            sourceHint: string;
+            imageUrl: string;
+            imageUrls: string[];
+            imageFit: "contain" | "cover";
+            status: LessonFlashcardStatus;
+            sortOrder: number;
+            generatedBy: LessonFlashcardGeneratedBy;
+            reviewedBy: number | null;
+            createdAt: string;
+            updatedAt: string;
+        }[];
+    }>;
     getCourses(token: string): Promise<HierarchyRow[]>;
     getTopics(courseId: number | undefined, token: string): Promise<HierarchyRow[]>;
     getSubtopics(topicId: number | undefined, token: string): Promise<HierarchyRow[]>;
-    getLessonCanvases(token: string, engineKey?: CanvasEngineKey): Promise<RowDataPacket[]>;
-    getLessons(subtopicId: number | undefined, token: string): Promise<HierarchyRow[]>;
     private ensureDefaultLessonHierarchy;
     private findAdminNoteRow;
     private findFlashcardRowsForNote;
@@ -365,16 +344,11 @@ export declare class AiNotesService {
     private parseJsonResponse;
     generate(text: string, token: string, _engineKey?: CanvasEngineKey): Promise<NoteCanvas>;
     private generateWithProvider;
-    private generateWithGemini;
     private generateWithGeminiProvider;
-    private generateWithOpenAi;
-    private sendOpenAiCanvasPrompt;
     private generateWithChatProvider;
     private sendChatCanvasPrompt;
     private sendClaudeCanvasPrompt;
     private isUnsupportedOpenAiJsonModeError;
-    private resolveGeminiKey;
-    private resolveOpenAiConfig;
     private resolveActiveCanvasProvider;
     private getEncryptionSecret;
     private safeDecryptSecret;

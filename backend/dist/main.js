@@ -320,6 +320,8 @@ function rewriteApiBoundary(path, method) {
                 return '/api/subscriptions/manual-payment/request';
             return `/api/subscriptions${restPath}`;
         }
+        if (resource === 'flashcards')
+            return `/api/flashcards${restPath}`;
         if (resource === 'bookmarks')
             return `/api/study-bookmarks${restPath}`;
         if (resource === 'notifications')

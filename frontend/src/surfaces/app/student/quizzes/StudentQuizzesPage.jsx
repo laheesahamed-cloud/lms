@@ -10,6 +10,9 @@ import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
 import { getQuizTitleText } from './quizLabels.js';
+import { detectPlatform } from '../../../../shared/platform/detect.js';
+
+const PLATFORM = detectPlatform();
 
 function getQuizRowLabel(quiz, index) {
   if (quiz.displayTitleMode === 'number' && quiz.quizNumber) {
@@ -113,10 +116,6 @@ function getQuizScopeKey(quiz) {
   return 'subject';
 }
 
-function getSubjectPoolLabel(quiz) {
-  return quiz.subjectName || quiz.topicName || 'Subject revision';
-}
-
 const QUIZ_SCOPE_OPTIONS = [
   {
     key: 'lesson',
@@ -183,61 +182,6 @@ function QuizScopePicker({ courseName, quizzes, onBack, onSelect, pageMode = 'pr
             </button>
           );
         })}
-      </div>
-    </section>
-  );
-}
-
-function SubjectPoolPicker({ courseName, quizzes, onBack, onSelect, pageMode = 'practice' }) {
-  const isExamPage = pageMode === 'exam';
-  const setLabel = isExamPage ? 'exam set' : 'practice set';
-  const subjectPools = useMemo(() => {
-    const map = new Map();
-    quizzes.forEach((quiz) => {
-      const label = getSubjectPoolLabel(quiz);
-      if (!map.has(label)) map.set(label, []);
-      map.get(label).push(quiz);
-    });
-    return [...map.entries()]
-      .map(([label, items]) => ({ label, quizzes: items }))
-      .sort((left, right) => left.label.localeCompare(right.label));
-  }, [quizzes]);
-
-  return (
-    <section className="student-lessons-detail space-y-4">
-      <div className="student-lessons-detail-toolbar">
-        <button type="button" className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
-          <IcoChevronLeft />
-          <span>Back</span>
-        </button>
-        <div className="student-lessons-detail-course-name">
-          {courseName || 'General'}
-        </div>
-        <div className="student-lessons-detail-title">
-          <strong>Choose subject</strong>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
-        {subjectPools.map((subject) => (
-          <button
-            type="button"
-            key={subject.label}
-            className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/22"
-            onClick={() => onSelect(subject.label)}
-          >
-            <div className="student-lessons-course-card__top flex items-start justify-between gap-4 px-5 py-5">
-              <div className="min-w-0">
-                <h2 className="m-0 text-[16px] font-black leading-tight text-ink-strong">{subject.label}</h2>
-                <p className="m-0 mt-1 text-[12.5px] font-semibold leading-relaxed text-ink-soft">Questions mixed from all lessons under this subject.</p>
-              </div>
-              <div className="student-lessons-course-card__count shrink-0 text-right">
-                <div className="text-[30px] font-extrabold leading-none text-ink-strong">{subject.quizzes.length}</div>
-                <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{setLabel}{subject.quizzes.length === 1 ? '' : 's'}</div>
-              </div>
-            </div>
-          </button>
-        ))}
       </div>
     </section>
   );
@@ -435,7 +379,6 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   ));
   const [courseFilter,  setCourseFilter]  = useState('all');
   const [scopeFilter, setScopeFilter] = useState('');
-  const [subjectPoolFilter, setSubjectPoolFilter] = useState('');
   const [accessPromptQuiz, setAccessPromptQuiz] = useState(null);
 
   useEffect(() => {
@@ -521,27 +464,19 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   function handleSelectCourse(courseName) {
     setCourseFilter(courseName);
     setScopeFilter('');
-    setSubjectPoolFilter('');
   }
 
   function handleBackToCourses() {
     setCourseFilter('all');
     setScopeFilter('');
-    setSubjectPoolFilter('');
   }
 
   function handleBackToScopes() {
     setScopeFilter('');
-    setSubjectPoolFilter('');
   }
 
   function handleSelectScope(scope) {
     setScopeFilter(scope);
-    setSubjectPoolFilter('');
-  }
-
-  function handleBackToSubjectPools() {
-    setSubjectPoolFilter('');
   }
 
   const modeQuizzes = useMemo(
@@ -564,15 +499,8 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     [modeQuizzes, courseFilter],
   );
   const scopedVisible = useMemo(
-    () => visible.filter((quiz) => (
-      (!scopeFilter || getQuizScopeKey(quiz) === scopeFilter)
-      && (!subjectPoolFilter || getSubjectPoolLabel(quiz) === subjectPoolFilter)
-    )),
-    [scopeFilter, subjectPoolFilter, visible],
-  );
-  const subjectScopeQuizzes = useMemo(
-    () => visible.filter((quiz) => getQuizScopeKey(quiz) === 'subject'),
-    [visible],
+    () => visible.filter((quiz) => !scopeFilter || getQuizScopeKey(quiz) === scopeFilter),
+    [scopeFilter, visible],
   );
 
   return (
@@ -591,30 +519,65 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             how students reach exams. Shown only ≤900px — desktop hides it
             because the sidebar already lists Q-Bank and Exams separately. */}
         <div className="mb-4 min-[901px]:hidden">
-          <div className="grid w-full max-w-[420px] grid-cols-2 gap-1 rounded-full border border-line-soft bg-surface-card p-1">
-            <button
-              type="button"
-              aria-pressed={!isExamPage}
-              onClick={() => { if (isExamPage) navigate('/quizzes'); }}
-              className={cx(
-                'min-h-10 rounded-full px-4 text-[13px] font-extrabold transition-colors',
-                isExamPage ? 'text-ink-soft' : 'bg-brand-primary text-white',
-              )}
-            >
-              Q-Bank
-            </button>
-            <button
-              type="button"
-              aria-pressed={isExamPage}
-              onClick={() => { if (!isExamPage) navigate('/exams'); }}
-              className={cx(
-                'min-h-10 rounded-full px-4 text-[13px] font-extrabold transition-colors',
-                isExamPage ? 'bg-brand-primary text-white' : 'text-ink-soft',
-              )}
-            >
-              Exams
-            </button>
-          </div>
+          {PLATFORM.isNative ? (
+            <div className="relative flex w-full max-w-[420px] rounded-full border border-line-soft bg-surface-card p-1">
+              {/* Sliding thumb glides between the two segments — native polish. */}
+              <span
+                aria-hidden="true"
+                className={cx(
+                  'pointer-events-none absolute inset-y-1 left-1 w-[calc(50%_-_4px)] rounded-full bg-brand-primary transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none',
+                  isExamPage ? 'translate-x-full' : 'translate-x-0',
+                )}
+              />
+              <button
+                type="button"
+                aria-pressed={!isExamPage}
+                onClick={() => { if (isExamPage) navigate('/quizzes'); }}
+                className={cx(
+                  'relative z-[1] min-h-10 flex-1 appearance-none rounded-full border-0 bg-transparent text-[13px] font-extrabold transition-colors',
+                  isExamPage ? 'text-ink-soft' : 'text-white',
+                )}
+              >
+                Q-Bank
+              </button>
+              <button
+                type="button"
+                aria-pressed={isExamPage}
+                onClick={() => { if (!isExamPage) navigate('/exams'); }}
+                className={cx(
+                  'relative z-[1] min-h-10 flex-1 appearance-none rounded-full border-0 bg-transparent text-[13px] font-extrabold transition-colors',
+                  isExamPage ? 'text-white' : 'text-ink-soft',
+                )}
+              >
+                Exams
+              </button>
+            </div>
+          ) : (
+            <div className="grid w-full max-w-[420px] grid-cols-2 gap-1 rounded-full border border-line-soft bg-surface-card p-1">
+              <button
+                type="button"
+                aria-pressed={!isExamPage}
+                onClick={() => { if (isExamPage) navigate('/quizzes'); }}
+                className={cx(
+                  'min-h-10 appearance-none rounded-full border-0 px-4 text-[13px] font-extrabold transition-colors',
+                  isExamPage ? 'text-ink-soft' : 'bg-brand-primary text-white',
+                )}
+              >
+                Q-Bank
+              </button>
+              <button
+                type="button"
+                aria-pressed={isExamPage}
+                onClick={() => { if (!isExamPage) navigate('/exams'); }}
+                className={cx(
+                  'min-h-10 appearance-none rounded-full border-0 px-4 text-[13px] font-extrabold transition-colors',
+                  isExamPage ? 'bg-brand-primary text-white' : 'text-ink-soft',
+                )}
+              >
+                Exams
+              </button>
+            </div>
+          )}
         </div>
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
@@ -644,20 +607,12 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             onSelect={handleSelectScope}
             pageMode={pageMode}
           />
-        ) : scopeFilter === 'subject' && !subjectPoolFilter ? (
-          <SubjectPoolPicker
-            courseName={courseFilter}
-            quizzes={subjectScopeQuizzes}
-            onBack={handleBackToScopes}
-            onSelect={setSubjectPoolFilter}
-            pageMode={pageMode}
-          />
         ) : scopedVisible.length === 0 ? (
           <section>
             <QuizLessonDetail
               courseName={courseFilter}
               quizzes={scopedVisible}
-              onBack={scopeFilter === 'subject' ? handleBackToSubjectPools : handleBackToScopes}
+              onBack={handleBackToScopes}
               bookmarkedIds={bookmarkedIds}
               onBookmark={handleBookmark}
               onAccessNeeded={setAccessPromptQuiz}
@@ -675,7 +630,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             <QuizLessonDetail
               courseName={courseFilter}
               quizzes={scopedVisible}
-              onBack={scopeFilter === 'subject' ? handleBackToSubjectPools : handleBackToScopes}
+              onBack={handleBackToScopes}
               bookmarkedIds={bookmarkedIds}
               onBookmark={handleBookmark}
               onAccessNeeded={setAccessPromptQuiz}

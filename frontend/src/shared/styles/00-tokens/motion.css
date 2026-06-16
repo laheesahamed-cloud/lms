@@ -2,8 +2,6 @@
   --lms-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --lms-motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --lms-motion-ease-standard: cubic-bezier(0.23, 1, 0.32, 1);
-
-  --lms-motion-duration-micro: 140ms;
   --lms-motion-duration-hover: 150ms;
   --lms-motion-duration-dropdown: 180ms;
   --lms-motion-duration-modal: 220ms;

@@ -188,6 +188,10 @@ export function getRoutePreloadLimit() {
     return 0;
   }
   const isPhone = root?.dataset.lmsFormFactor === 'phone';
+  // Native loads page chunks from local files (no network bytes), so warm the
+  // full set of main tabs instead of just 1-2. This removes the per-tab
+  // "Loading…" chunk flash on the first navigation after a cold launch.
+  if (runtime === 'native') return isPhone ? 8 : 11;
   if (isLowSpecDevice()) return isPhone ? 1 : 2;
   return isPhone ? 2 : 3;
 }

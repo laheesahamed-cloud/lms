@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import {
   getStudyReminderPrefs,
@@ -10,6 +11,7 @@ import {
   getLocalNotificationPermission,
   requestLocalNotificationPermission,
 } from '../../../../shared/platform/native/LocalNotifications.js';
+import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 
 /**
  * Student-facing controls for on-device study reminders:
@@ -31,27 +33,32 @@ function Toggle({ checked, onChange, id }) {
         flexShrink: 0,
         display: 'inline-flex',
         alignItems: 'center',
-        width: '51px',
-        height: '31px',
+        width: '40px',
+        height: '14px',
         borderRadius: '999px',
         padding: '2px',
-        background: checked ? 'var(--color-primary, #2563eb)' : 'var(--surface-3, rgba(120,120,128,0.32))',
+        background: checked
+          ? 'color-mix(in srgb, var(--color-primary, #2563eb) 50%, transparent)'
+          : 'rgba(120, 120, 128, 0.32)',
         border: 'none',
         cursor: 'pointer',
-        transition: 'background 220ms ease',
-        boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.1)',
+        transition: 'background 250ms cubic-bezier(0.32, 0.72, 0, 1)',
+        boxShadow: 'none',
+        touchAction: 'manipulation',
+        WebkitTapHighlightColor: 'transparent',
+        userSelect: 'none',
       }}
     >
       <span
         style={{
           display: 'block',
-          width: '27px',
-          height: '27px',
+          width: '20px',
+          height: '20px',
           borderRadius: '50%',
-          background: '#fff',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
-          transform: checked ? 'translateX(20px)' : 'translateX(0)',
-          transition: 'transform 220ms cubic-bezier(0.34,1.56,0.64,1)',
+          background: checked ? 'var(--color-primary, #2563eb)' : '#fff',
+          boxShadow: '0 2px 1px -1px rgba(0,0,0,0.2), 0 1px 1px 0 rgba(0,0,0,0.14), 0 1px 3px 0 rgba(0,0,0,0.12)',
+          transform: checked ? 'translateX(16px)' : 'translateX(0)',
+          transition: 'transform 250ms cubic-bezier(0.32, 0.72, 0, 1), background 250ms ease',
         }}
       />
     </button>
@@ -138,22 +145,31 @@ export function StudyReminderSettingsCard() {
   const [permission, setPermission] = useState('default');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [modal, setModal] = useState(null); // null | 'planner' | 'daily'
 
   useEffect(() => {
     getLocalNotificationPermission().then(setPermission).catch(() => {});
   }, []);
+
+  // Auto-dismiss the saved/feedback message a few seconds after it appears.
+  useEffect(() => {
+    if (!message) return undefined;
+    const timer = window.setTimeout(() => setMessage(''), 3500);
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   function update(patch) {
     setPrefs((current) => ({ ...current, ...patch }));
     setMessage('');
   }
 
-  async function handleSave() {
+  // Persist + (re)schedule immediately, using `next` so we never read stale state.
+  async function persist(next) {
     setBusy(true);
     setMessage('');
     try {
-      saveStudyReminderPrefs(prefs);
-      const wantsReminders = prefs.plannerEnabled || prefs.customEnabled;
+      saveStudyReminderPrefs(next);
+      const wantsReminders = next.plannerEnabled || next.customEnabled;
       if (wantsReminders) {
         const perm = await requestLocalNotificationPermission();
         setPermission(perm);
@@ -173,6 +189,31 @@ export function StudyReminderSettingsCard() {
     }
   }
 
+  // Turning a reminder ON opens its settings popup; OFF persists immediately
+  // (there is no separate Save button anymore).
+  function toggleReminder(key, on) {
+    void nativeImpact(ImpactStyle.Light);
+    const next = { ...prefs, [key]: on };
+    setPrefs(next);
+    setMessage('');
+    if (on) setModal(key === 'plannerEnabled' ? 'planner' : 'daily');
+    else persist(next);
+  }
+
+  // "Done" — keep the toggle on and save with the current value.
+  function confirmModal() {
+    setModal(null);
+    persist(prefs);
+  }
+
+  // Tapping outside cancels setup: flip the just-enabled toggle back off,
+  // silently (no haptic) and without saving — it was never persisted on.
+  function dismissModal() {
+    const key = modal === 'planner' ? 'plannerEnabled' : 'customEnabled';
+    setModal(null);
+    setPrefs((current) => ({ ...current, [key]: false }));
+  }
+
   if (!support.supported) return null;
 
   return (
@@ -184,56 +225,82 @@ export function StudyReminderSettingsCard() {
         </p>
       </div>
 
-      <label className="flex items-center justify-between gap-3 text-[13px] font-semibold text-ink-medium" htmlFor="planner-toggle">
-        <span>Remind me before planner tasks are due</span>
+      <label className="flex min-h-11 cursor-pointer select-none items-center justify-between gap-3 text-[13px] font-semibold text-ink-medium" htmlFor="planner-toggle">
+        <span className="min-w-0 flex-1">Remind me before planner tasks are due</span>
         <Toggle
           id="planner-toggle"
           checked={Boolean(prefs.plannerEnabled)}
-          onChange={(val) => update({ plannerEnabled: val })}
+          onChange={(val) => toggleReminder('plannerEnabled', val)}
         />
       </label>
 
-      {prefs.plannerEnabled ? (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[13px] font-semibold text-ink-medium">Lead time (hours before due)</span>
-          <HourStepper
-            value={prefs.plannerLeadHours}
-            onChange={(val) => update({ plannerLeadHours: val })}
-          />
-        </div>
-      ) : null}
-
-      <label className="flex items-center justify-between gap-3 text-[13px] font-semibold text-ink-medium" htmlFor="daily-toggle">
-        <span>Daily study reminder</span>
+      <label className="flex min-h-11 cursor-pointer select-none items-center justify-between gap-3 text-[13px] font-semibold text-ink-medium" htmlFor="daily-toggle">
+        <span className="min-w-0 flex-1">Daily study reminder</span>
         <Toggle
           id="daily-toggle"
           checked={Boolean(prefs.customEnabled)}
-          onChange={(val) => update({ customEnabled: val })}
+          onChange={(val) => toggleReminder('customEnabled', val)}
         />
       </label>
-
-      {prefs.customEnabled ? (
-        <label className={ui.formLabel}>
-          Reminder time
-          <input
-            className={ui.input}
-            type="time"
-            value={prefs.customTime}
-            onChange={(event) => update({ customTime: event.target.value })}
-          />
-        </label>
-      ) : null}
 
       {permission === 'denied' ? (
         <div className={ui.warningFeedback}>Notification permission is blocked. Allow notifications to receive reminders.</div>
       ) : null}
       {message ? <div className={ui.feedbackSuccess}>{message}</div> : null}
 
-      <div className={ui.buttonRow}>
-        <button type="button" className={cx(ui.primaryAction)} onClick={handleSave} disabled={busy}>
-          {busy ? 'Saving...' : 'Save reminders'}
-        </button>
-      </div>
+      {modal ? createPortal(
+        <div
+          className="fixed inset-0 z-[1200] flex items-center justify-center bg-[rgba(15,23,42,0.30)] p-4 backdrop-blur-md animate-overlayIn dark:bg-[rgba(2,6,23,0.66)]"
+          onClick={dismissModal}
+          role="presentation"
+        >
+          <div
+            className="w-[min(380px,90vw)] rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-card-elevated p-5 shadow-[var(--ds-floating-shadow)] animate-fadePop dark:border-white/[0.09]"
+            role="dialog"
+            aria-modal="true"
+            aria-label={modal === 'planner' ? 'Planner reminder settings' : 'Daily reminder settings'}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="m-0 text-base font-black text-ink-strong">
+              {modal === 'planner' ? 'Remind me before tasks' : 'Daily study reminder'}
+            </h3>
+            <p className="m-0 mt-1 text-[12.5px] leading-relaxed text-ink-soft">
+              {modal === 'planner'
+                ? 'How long before a task is due should we remind you?'
+                : 'What time should we remind you each day?'}
+            </p>
+
+            <div className="mt-4">
+              {modal === 'planner' ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[13px] font-semibold text-ink-medium">Lead time (hours before due)</span>
+                  <HourStepper
+                    value={prefs.plannerLeadHours}
+                    onChange={(val) => update({ plannerLeadHours: val })}
+                  />
+                </div>
+              ) : (
+                <label className={ui.formLabel}>
+                  Reminder time
+                  <input
+                    className={ui.input}
+                    type="time"
+                    value={prefs.customTime}
+                    onChange={(event) => update({ customTime: event.target.value })}
+                  />
+                </label>
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button type="button" className={cx(ui.primaryAction)} onClick={confirmModal} disabled={busy}>
+                {busy ? 'Saving...' : 'Done'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      ) : null}
     </section>
   );
 }

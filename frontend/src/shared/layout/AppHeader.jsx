@@ -285,7 +285,6 @@ const breadcrumbRouteLabels = {
     '/notifications': 'Notifications',
     '/planner': 'Planner',
     '/flashcards': 'Flashcards',
-    '/notes': 'Notes',
     '/study': 'Lessons',
     '/ai-notes': 'Lessons',
     '/results': 'Results',
@@ -977,7 +976,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
       aria-haspopup="menu"
       onClick={toggleProfileMenu}
     >
-      <ProfileAvatar user={user} />
+      <ProfileAvatar user={user} className="!border-0 !ring-0" />
     </button>
   ) : null;
   const profileAvatarPortal =
@@ -1220,7 +1219,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
                 aria-haspopup="menu"
                 onClick={toggleProfileMenu}
               >
-                <ProfileAvatar user={user} />
+                <ProfileAvatar user={user} className="!border-0 !ring-0" />
               </button>
             </div>
           </div>
@@ -1320,7 +1319,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
                 aria-haspopup="menu"
                 onClick={toggleProfileMenu}
               >
-                <ProfileAvatar user={user} />
+                <ProfileAvatar user={user} className="!border-0 !ring-0" />
               </button>
             </div>
           </div>
@@ -1450,7 +1449,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
                 aria-haspopup="menu"
                 onClick={toggleProfileMenu}
               >
-                <ProfileAvatar user={user} />
+                <ProfileAvatar user={user} className="!border-0 !ring-0" />
               </button>
 
             </div>

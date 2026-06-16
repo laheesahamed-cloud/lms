@@ -118,7 +118,7 @@
     background-attachment: local, local, scroll;
   }
 
-  .portal-content :where(.glass-card, .card-surface, .lms-course-card, .bg-surface-card, .bg-surface-card-elevated) {
+  .portal-content :where(.glass-card, .lms-course-card, .bg-surface-card, .bg-surface-card-elevated) {
     min-width: 0;
   }
 
