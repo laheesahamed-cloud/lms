@@ -15,7 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuizzesService = void 0;
 const common_1 = require("@nestjs/common");
 const pagination_1 = require("../../common/utils/pagination");
-const sql_safety_1 = require("../../database/sql-safety");
 const auth_service_1 = require("../auth/auth.service");
 const database_tokens_1 = require("../../database/database.tokens");
 const DEFAULT_PASSING_MARKS = 45;
@@ -29,17 +28,6 @@ let QuizzesService = class QuizzesService {
         if (!Number.isFinite(numeric) || numeric <= 0)
             return DEFAULT_PASSING_MARKS;
         return numeric;
-    }
-    parseJsonArray(value) {
-        if (!value)
-            return [];
-        try {
-            const parsed = JSON.parse(value);
-            return Array.isArray(parsed) ? parsed.map((item) => String(item)).filter(Boolean) : [];
-        }
-        catch {
-            return [];
-        }
     }
     async findAll(filters) {
         const { limit, offset } = (0, pagination_1.normalizePagination)(filters, { defaultLimit: 50, maxLimit: 100 });
@@ -1107,70 +1095,6 @@ let QuizzesService = class QuizzesService {
             lessonTitle: row.lesson_title || '',
             paperTitle: row.paper_title || '',
         };
-    }
-    async getCards(authorization, quizId) {
-        const student = await this.authService.requireStudent(authorization);
-        const [quizRows] = await this.db.execute("SELECT id, course_id, is_free, COALESCE(NULLIF(student_title, ''), quiz_title) AS quiz_title FROM quizzes WHERE id = ? AND status = 'active' LIMIT 1", [quizId]);
-        if (!quizRows[0])
-            throw new common_1.NotFoundException('Quiz not found');
-        await this.ensureStudentCanAccessQuiz(student.id, {
-            id: Number(quizRows[0].id),
-            course_id: Number(quizRows[0].course_id),
-            is_free: Number(quizRows[0].is_free),
-        });
-        const [questionRows] = await this.db.execute(`SELECT q.id, q.question_text, q.explanation, q.question_type
-       FROM questions q
-       INNER JOIN question_quizzes qq ON qq.question_id = q.id
-       WHERE qq.quiz_id = ? AND q.status = 'active'
-       ORDER BY qq.sort_order ASC, q.id ASC`, [quizId]);
-        if (questionRows.length === 0) {
-            return { quizTitle: String(quizRows[0].quiz_title), cards: [] };
-        }
-        const ids = questionRows.map((r) => r.id);
-        const placeholders = (0, sql_safety_1.sqlPlaceholders)(ids);
-        const [optionRows] = await this.db.execute(`SELECT id, question_id, option_label, option_text, is_correct, why_incorrect
-       FROM question_options WHERE question_id IN (${placeholders})
-       ORDER BY question_id, option_label ASC`, ids);
-        const [recapRows] = await this.db.execute(`SELECT question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic, hierarchy_lesson,
-              etiology, pathophysiology, clinical_features, investigations, treatment, key_points, mnemonic
-       FROM question_theory_recaps
-       WHERE question_id IN (${placeholders})`, ids);
-        const recapMap = new Map();
-        for (const recap of recapRows) {
-            recapMap.set(recap.question_id, {
-                conceptName: recap.concept_name || '',
-                hierarchy: {
-                    course: recap.hierarchy_course || '',
-                    subject: recap.hierarchy_subject || '',
-                    topic: recap.hierarchy_topic || '',
-                    lesson: recap.hierarchy_lesson || '',
-                },
-                etiology: this.parseJsonArray(recap.etiology),
-                pathophysiology: this.parseJsonArray(recap.pathophysiology),
-                clinicalFeatures: this.parseJsonArray(recap.clinical_features),
-                investigations: this.parseJsonArray(recap.investigations),
-                treatment: this.parseJsonArray(recap.treatment),
-                keyPoints: this.parseJsonArray(recap.key_points),
-                mnemonic: recap.mnemonic || '',
-            });
-        }
-        const cards = questionRows.map((q) => ({
-            id: q.id,
-            questionText: q.question_text,
-            explanation: q.explanation || '',
-            questionType: q.question_type,
-            theoryRecap: recapMap.get(q.id) || null,
-            options: optionRows
-                .filter((o) => o.question_id === q.id)
-                .map((o) => ({
-                id: o.id,
-                optionLabel: o.option_label,
-                optionText: o.option_text,
-                isCorrect: Number(o.is_correct) === 1,
-                whyIncorrect: o.why_incorrect || '',
-            })),
-        }));
-        return { quizTitle: String(quizRows[0].quiz_title), cards };
     }
     async ensureStudentCanAccessQuiz(userId, quiz) {
         if (Number(quiz.is_free) === 1) {

@@ -136,7 +136,7 @@ export function BookmarksPage() {
   });
 
   function openItem(item) {
-    if (item.itemType === 'quiz') navigate(`/quizzes/${item.itemId}?mode=${isExamBookmark(item) ? 'exam' : 'practice'}`);
+    if (item.itemType === 'quiz') navigate(isExamBookmark(item) ? '/exams' : `/quizzes/${item.itemId}?mode=practice`);
     else if (item.itemType === 'question') navigate(item.quizId ? `/quizzes/${item.quizId}?mode=practice&questionId=${item.itemId}` : '/quizzes');
     else navigate(`/ai-notes/${item.itemId}`);
   }

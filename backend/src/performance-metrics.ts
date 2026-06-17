@@ -62,7 +62,7 @@ export function classifyApiPerformanceRoute(path: string, method: string): ApiMe
   if (/^\/api\/(?:student\/)?dashboard/.test(normalizedPath)) return 'dashboard';
   if (normalizedMethod === 'GET' && /^\/api\/(?:student\/)?quiz-attempts\/quiz\/:id$/.test(normalizedPath)) return 'questionFetch';
   if (/^\/api\/(?:student\/)?quiz-attempts\/(?:practice|exam)\/:id\/(?:save|submit)$/.test(normalizedPath)) return 'answerSave';
-  if (normalizedMethod === 'GET' && /^\/api\/(?:student\/)?quiz-attempts\/(?:result|review|practice-review)\/:id/.test(normalizedPath)) return 'reviewData';
+  if (normalizedMethod === 'GET' && /^\/api\/(?:student\/)?quiz-attempts\/(?:result|review)\/:id/.test(normalizedPath)) return 'reviewData';
   if (/\.(?:js|css|png|jpe?g|webp|svg|ico|woff2?)$/i.test(normalizedPath)) return 'staticAsset';
   return 'other';
 }

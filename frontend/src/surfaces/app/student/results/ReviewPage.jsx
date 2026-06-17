@@ -11,9 +11,9 @@ import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 
 const reviewPageUi = {
   screen:
-    cx(ui.studentScreenShell, 'lms-quiz-take dashboard-page study-hub-page lms-review-page practice-review-page'),
+    cx(ui.studentScreenShell, 'lms-quiz-take lms-review-page practice-review-page'),
   layout:
-    'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]',
+    'practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]',
   header:
     'lms-exam-header practice-review-header max-[900px]:sticky max-[900px]:top-0 max-[900px]:z-[60] max-[900px]:rounded-t-none max-[900px]:bg-[var(--surface-0)] max-[900px]:backdrop-blur-none max-[900px]:[transform:translateZ(0)] flex items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 pb-2.5 pt-[calc(10px+var(--lms-safe-top,env(safe-area-inset-top,0px)))] shadow-[var(--exam-card-shadow)] backdrop-blur-[14px] max-[700px]:flex-row max-[700px]:items-center max-[700px]:justify-between max-[700px]:gap-3 max-[700px]:px-3.5 max-[700px]:pb-3 max-[700px]:pt-[calc(10px+var(--lms-safe-top,env(safe-area-inset-top,0px)))]',
   brand:

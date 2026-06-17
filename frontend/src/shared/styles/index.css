@@ -12,14 +12,11 @@
 @import "./00-tokens/spacing.css";
 @import "./00-tokens/typography.css";
 @import "./00-tokens/radius-shadow.css";
-@import "./00-tokens/z-index.css";
 @import "./00-tokens/motion.css";
 
-@import "./01-base/reset.css";
 @import "./01-base/document.css";
 @import "./01-base/accessibility.css";
 
-@import "./02-layout/app-shell.css";
 @import "./02-layout/page-shell.css";
 @import "./02-layout/topbar.css";
 @import "./02-layout/sidebar.css";
@@ -43,9 +40,6 @@
 @import "./03-components/cards.css";
 @import "./03-components/forms.css";
 @import "./03-components/tables.css";
-@import "./03-components/modals.css";
-@import "./03-components/tabs.css";
-@import "./03-components/badges.css";
 @import "./03-components/empty-loading-error.css";
 @import "./03-components/study-mascot.css";
 
@@ -56,9 +50,7 @@
    deleted (Round-3 Task 30). */
 
 @import "./05-platforms/platform-runtime.css";
-@import "./05-platforms/web.css";
 @import "./05-platforms/pwa.css";
-@import "./05-platforms/desktop.css";
 /* native-*.css moved to native-platforms.css (Round-2 Task 16): every rule
    is scoped under html[data-lms-runtime="native"], which never matches on
    web — main.jsx loads the bundle only inside the native shell. */
@@ -66,7 +58,6 @@
 @import "./06-utilities/responsive.css";
 @import "./06-utilities/safe-area.css";
 @import "./06-utilities/performance.css";
-@import "./06-utilities/print.css";
 
 /* student-app.css, dashboard.css and launch-responsive.css moved to
    surfaces/app/student-surface.css (student-only; order preserved there).

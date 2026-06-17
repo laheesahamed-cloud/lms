@@ -47,6 +47,26 @@ function isLocalWebLocation(location = getLocation()) {
   return hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateLanHost(hostname);
 }
 
+function isLoopbackHost(hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+}
+
+function alignLocalApiBaseUrlWithPageHost(value, location = getLocation()) {
+  const normalized = normalizeApiBaseUrl(value);
+  const pageHostname = location?.hostname || '';
+  if (!normalized || !pageHostname || !isLocalWebLocation(location)) return normalized;
+
+  try {
+    const url = new URL(normalized);
+    if (!isLoopbackHost(url.hostname)) return normalized;
+
+    url.hostname = pageHostname;
+    return normalizeApiBaseUrl(url.toString());
+  } catch {
+    return normalized;
+  }
+}
+
 function getLocation() {
   return typeof window !== 'undefined' ? window.location : null;
 }
@@ -140,7 +160,9 @@ export function resolveApiBaseUrl() {
       return LOCAL_API_BASE_URL;
     }
 
-    return configuredApiBaseUrl;
+    return platform.isNative
+      ? configuredApiBaseUrl
+      : alignLocalApiBaseUrlWithPageHost(configuredApiBaseUrl, location);
   }
 
   if (platform.isNative) {
@@ -164,11 +186,12 @@ export function resolveApiBaseUrl() {
 }
 
 export function resolveApiBaseUrls() {
+  const platform = detectPlatform();
   const configuredUrls = splitUrlList(import.meta.env.VITE_API_BASE_URLS)
     .map(normalizeApiBaseUrl)
+    .map((url) => platform.isNative ? url : alignLocalApiBaseUrlWithPageHost(url))
     .filter((url) => !isPlaceholderApiBaseUrl(url));
   const primaryUrl = normalizeApiBaseUrl(resolveApiBaseUrl());
-  const platform = detectPlatform();
   const fallbackUrls = [];
 
   if (platform.isNative && configuredUrls.length) {

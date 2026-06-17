@@ -140,8 +140,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureColumn(connection, 'subscription_coupons', 'coupon_mode', "ENUM('discount','package') NOT NULL DEFAULT 'discount' AFTER label");
             await this.ensureColumn(connection, 'subscription_coupons', 'plan_ids_json', 'TEXT NULL AFTER discount_value');
             await this.ensureColumn(connection, 'question_quizzes', 'sort_order', 'INT NOT NULL DEFAULT 0');
-            await this.ensureColumn(connection, 'practice_sessions', 'revealed_question_ids_json', 'TEXT NULL AFTER last_question_index');
-            await this.ensureColumn(connection, 'practice_sessions', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
             await this.ensureColumn(connection, 'exam_sessions', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
             await this.ensureColumn(connection, 'quiz_attempts', 'question_ids_json', 'LONGTEXT NULL AFTER quiz_id');
             await this.ensureColumn(connection, 'quiz_attempts', 'reviewed_at', 'DATETIME NULL AFTER submitted_at');
@@ -162,11 +160,13 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureIndex(connection, 'question_quizzes', 'idx_question_quizzes_question_quiz', 'question_id, quiz_id');
             await this.ensureIndex(connection, 'question_options', 'idx_question_options_question_label', 'question_id, option_label');
             await this.ensureIndex(connection, 'questions', 'idx_questions_status_type_id', 'status, question_type, id');
+            await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_course_scope', 'status, course_id, topic_id, subtopic_id, lesson_id, question_type, id');
+            await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_paper_scope', 'status, paper_id, question_type, id');
+            await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_question_category', 'status, question_category, question_type, id');
+            await this.ensureIndex(connection, 'questions', 'idx_questions_dynamic_legacy_category', 'status, category, question_type, id');
             await this.ensureIndex(connection, 'quizzes', 'idx_quizzes_status_course_id', 'status, course_id, id');
             await this.ensureIndex(connection, 'quiz_attempts', 'idx_quiz_attempts_user_status_dates', 'user_id, status, submitted_at, created_at');
             await this.ensureIndex(connection, 'quiz_attempts', 'idx_quiz_attempts_quiz_user_dates', 'quiz_id, user_id, submitted_at, created_at');
-            await this.ensureIndex(connection, 'practice_sessions', 'idx_practice_sessions_quiz_user_status', 'quiz_id, user_id, status');
-            await this.ensureIndex(connection, 'practice_answers', 'idx_practice_answers_session_question', 'practice_session_id, question_id');
             await this.ensureIndex(connection, 'student_answers', 'idx_student_answers_attempt_question', 'attempt_id, question_id');
             await this.ensureIndex(connection, 'student_answers', 'idx_student_answers_question_option', 'question_id, option_id');
             await this.ensureIndex(connection, 'question_keyword_map', 'idx_question_keyword_map_keyword_id', 'keyword_id');

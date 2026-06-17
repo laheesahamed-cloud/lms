@@ -44,13 +44,19 @@ export function getTimedApiCacheEpoch() {
   return timedApiCacheEpoch;
 }
 
-export function createTimedApiCache({ ttlMs = 15000, key = () => 'default', load, persistKey = null }) {
+export function createTimedApiCache({ ttlMs = 15000, key = () => 'default', load, persistKey = null, shouldStore = null }) {
   const entries = new Map();
   // Stale-while-revalidate only kicks in for persisted (opt-in) caches on
   // native; everywhere else behavior is unchanged (blocking refetch when stale).
   const effectiveTtl = persistKey && IS_NATIVE ? Math.max(ttlMs, NATIVE_MIN_TTL_MS) : ttlMs;
   const swrMs = persistKey && IS_NATIVE ? NATIVE_SWR_MS : 0;
   const storageName = persistKey ? `${STORAGE_PREFIX}${persistKey}` : null;
+
+  function canStore(data, args = []) {
+    return data !== undefined && (
+      typeof shouldStore !== 'function' || shouldStore(data, ...args) !== false
+    );
+  }
 
   function persist() {
     if (!storageName) return;
@@ -66,16 +72,20 @@ export function createTimedApiCache({ ttlMs = 15000, key = () => 'default', load
     if (!storageName) return;
     const raw = readStorage(storageName);
     if (!raw) return;
+    let changed = false;
     try {
       const snapshot = JSON.parse(raw);
       Object.entries(snapshot || {}).forEach(([cacheKey, value]) => {
-        if (value?.data !== undefined) {
+        if (value?.data !== undefined && canStore(value.data)) {
           // `hydrated` makes the first read of a restored value serve instantly
           // (stale-while-revalidate) regardless of how old it is, so a cold app
           // launch paints last session's data, then refreshes in the background.
           entries.set(cacheKey, { data: value.data, timestamp: value.timestamp || 0, promise: null, hydrated: true });
+        } else {
+          changed = true;
         }
       });
+      if (changed) persist();
     } catch {
       writeStorage(storageName, null);
     }
@@ -95,7 +105,13 @@ export function createTimedApiCache({ ttlMs = 15000, key = () => 'default', load
     const promise = Promise.resolve(load(...args))
       .then((data) => {
         if (requestEpoch === timedApiCacheEpoch) {
-          entries.set(cacheKey, { data, timestamp: Date.now(), promise: null });
+          if (canStore(data, args)) {
+            entries.set(cacheKey, { data, timestamp: Date.now(), promise: null });
+          } else if (current?.data !== undefined) {
+            entries.set(cacheKey, { data: current.data, timestamp: current.timestamp || 0, promise: null });
+          } else {
+            entries.delete(cacheKey);
+          }
           persist();
         }
         return data;
@@ -126,10 +142,14 @@ export function createTimedApiCache({ ttlMs = 15000, key = () => 'default', load
 
     // Stale-while-revalidate: serve the last value instantly and refresh in the
     // background. Covers in-session staleness (within the SWR window) and the
-    // first read of a value restored from storage on cold start.
-    if (current?.data !== undefined && !current.promise && (current.hydrated || age < effectiveTtl + swrMs)) {
+    // first read of a value restored from storage on cold start. If a refresh is
+    // already running, never make the screen wait behind it when stale data can
+    // paint immediately.
+    if (current?.data !== undefined && (current.hydrated || age < effectiveTtl + swrMs)) {
       current.hydrated = false;
-      revalidate(cacheKey, current, args).catch(() => {});
+      if (!current.promise) {
+        revalidate(cacheKey, current, args).catch(() => {});
+      }
       return current.data;
     }
 
@@ -151,7 +171,7 @@ export function createTimedApiCache({ ttlMs = 15000, key = () => 'default', load
   // clobbers a fresher direct fetch. Persisted so the batch's slices survive a
   // cold app launch.
   function seed(data, ...args) {
-    if (data === undefined || data === null) return;
+    if (data === undefined || data === null || !canStore(data, args)) return;
     const cacheKey = String(key(...args));
     const current = entries.get(cacheKey);
     if (current?.data !== undefined && !current.hydrated && Date.now() - current.timestamp < effectiveTtl) return;

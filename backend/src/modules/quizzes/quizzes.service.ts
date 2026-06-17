@@ -4,23 +4,6 @@ import { normalizePagination, PaginationInput } from '../../common/utils/paginat
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { AuthService } from '../auth/auth.service';
 
-type CardQuestionRow = RowDataPacket & { id: number; question_text: string; explanation: string | null; question_type: string };
-type CardOptionRow  = RowDataPacket & { id: number; question_id: number; option_label: string; option_text: string; is_correct: number; why_incorrect: string | null };
-type CardTheoryRecapRow = RowDataPacket & {
-  question_id: number;
-  concept_name: string | null;
-  hierarchy_course: string | null;
-  hierarchy_subject: string | null;
-  hierarchy_topic: string | null;
-  hierarchy_lesson: string | null;
-  etiology: string | null;
-  pathophysiology: string | null;
-  clinical_features: string | null;
-  investigations: string | null;
-  treatment: string | null;
-  key_points: string | null;
-  mnemonic: string | null;
-};
 type QuizAccessScopeRow = RowDataPacket & {
   feature_key: string | null;
   plan_slug: string | null;
@@ -92,16 +75,6 @@ export class QuizzesService {
     const numeric = Number(value || 0);
     if (!Number.isFinite(numeric) || numeric <= 0) return DEFAULT_PASSING_MARKS;
     return numeric;
-  }
-
-  private parseJsonArray(value: string | null | undefined): string[] {
-    if (!value) return [];
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed.map((item) => String(item)).filter(Boolean) : [];
-    } catch {
-      return [];
-    }
   }
 
   async findAll(filters: { search?: string; courseId?: number; topicId?: string; status?: string } & PaginationInput) {
@@ -1369,88 +1342,6 @@ export class QuizzesService {
       lessonTitle: row.lesson_title || '',
       paperTitle: row.paper_title || '',
     };
-  }
-
-  async getCards(authorization: string | undefined, quizId: number) {
-    const student = await this.authService.requireStudent(authorization);
-    const [quizRows] = await this.db.execute<RowDataPacket[]>(
-      "SELECT id, course_id, is_free, COALESCE(NULLIF(student_title, ''), quiz_title) AS quiz_title FROM quizzes WHERE id = ? AND status = 'active' LIMIT 1",
-      [quizId],
-    );
-    if (!quizRows[0]) throw new NotFoundException('Quiz not found');
-    await this.ensureStudentCanAccessQuiz(student.id, {
-      id: Number(quizRows[0].id),
-      course_id: Number(quizRows[0].course_id),
-      is_free: Number(quizRows[0].is_free),
-    });
-
-    const [questionRows] = await this.db.execute<CardQuestionRow[]>(
-      `SELECT q.id, q.question_text, q.explanation, q.question_type
-       FROM questions q
-       INNER JOIN question_quizzes qq ON qq.question_id = q.id
-       WHERE qq.quiz_id = ? AND q.status = 'active'
-       ORDER BY qq.sort_order ASC, q.id ASC`,
-      [quizId],
-    );
-    if (questionRows.length === 0) {
-      return { quizTitle: String(quizRows[0].quiz_title), cards: [] };
-    }
-
-    const ids = questionRows.map((r) => r.id);
-    const placeholders = sqlPlaceholders(ids);
-    const [optionRows] = await this.db.execute<CardOptionRow[]>(
-      `SELECT id, question_id, option_label, option_text, is_correct, why_incorrect
-       FROM question_options WHERE question_id IN (${placeholders})
-       ORDER BY question_id, option_label ASC`,
-      ids,
-    );
-
-    const [recapRows] = await this.db.execute<CardTheoryRecapRow[]>(
-      `SELECT question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic, hierarchy_lesson,
-              etiology, pathophysiology, clinical_features, investigations, treatment, key_points, mnemonic
-       FROM question_theory_recaps
-       WHERE question_id IN (${placeholders})`,
-      ids,
-    );
-
-    const recapMap = new Map<number, unknown>();
-    for (const recap of recapRows) {
-      recapMap.set(recap.question_id, {
-        conceptName: recap.concept_name || '',
-        hierarchy: {
-          course: recap.hierarchy_course || '',
-          subject: recap.hierarchy_subject || '',
-          topic: recap.hierarchy_topic || '',
-          lesson: recap.hierarchy_lesson || '',
-        },
-        etiology: this.parseJsonArray(recap.etiology),
-        pathophysiology: this.parseJsonArray(recap.pathophysiology),
-        clinicalFeatures: this.parseJsonArray(recap.clinical_features),
-        investigations: this.parseJsonArray(recap.investigations),
-        treatment: this.parseJsonArray(recap.treatment),
-        keyPoints: this.parseJsonArray(recap.key_points),
-        mnemonic: recap.mnemonic || '',
-      });
-    }
-
-    const cards = questionRows.map((q) => ({
-      id: q.id,
-      questionText: q.question_text,
-      explanation: q.explanation || '',
-      questionType: q.question_type,
-      theoryRecap: recapMap.get(q.id) || null,
-      options: optionRows
-        .filter((o) => o.question_id === q.id)
-        .map((o) => ({
-          id: o.id,
-          optionLabel: o.option_label,
-          optionText: o.option_text,
-          isCorrect: Number(o.is_correct) === 1,
-          whyIncorrect: o.why_incorrect || '',
-        })),
-    }));
-
-    return { quizTitle: String(quizRows[0].quiz_title), cards };
   }
 
   private async ensureStudentCanAccessQuiz(userId: number, quiz: { id: number; course_id: number; is_free: number }) {

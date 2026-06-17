@@ -9,8 +9,6 @@ import { AppRouter } from './router.jsx';
 import { isPublicWebsiteRoute } from '../shared/routing/publicRoutes.js';
 
 const OfflineExperience = lazy(() => import('../shared/pwa/OfflineExperience.jsx').then((module) => ({ default: module.OfflineExperience })));
-const RecoveryRefreshController = lazy(() => import('../shared/pwa/RecoveryRefreshController.jsx').then((module) => ({ default: module.RecoveryRefreshController })));
-const ServerNotRespondingExperience = lazy(() => import('../shared/pwa/ServerNotRespondingExperience.jsx').then((module) => ({ default: module.ServerNotRespondingExperience })));
 
 function isCurrentPublicWebsiteRoute() {
   if (typeof window === 'undefined') return false;
@@ -60,12 +58,6 @@ export function AppRuntime() {
               <AppRouter />
             </Suspense>
           </AppErrorBoundary>
-          {shouldMountPwaRouteEffects ? (
-            <Suspense fallback={null}>
-              <RecoveryRefreshController />
-              <ServerNotRespondingExperience />
-            </Suspense>
-          ) : null}
           <PwaRuntimeEffects enabled={shouldMountPwaRouteEffects} />
         </AppProviders>
       </PlatformProvider>

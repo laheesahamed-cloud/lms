@@ -5,6 +5,8 @@ import { clearDashboardCache } from './dashboard.api.js';
 
 const STUDENT_QUIZZES_CACHE_MS = 30_000;
 const STUDENT_RESULTS_CACHE_MS = 15_000;
+const STUDENT_PRACTICE_QUIZ_PAYLOAD_CACHE_MS = 60_000;
+const STUDENT_QUIZ_PAYLOAD_TIMEOUT_MS = 12_000;
 const studentQuizLoadRequests = new Map();
 const studentQuizzesCache = createTimedApiCache({
   ttlMs: STUDENT_QUIZZES_CACHE_MS,
@@ -29,6 +31,102 @@ function serializeParams(params = {}) {
     .join('|');
 }
 
+async function fetchStudentQuizPayload(quizId, params) {
+  const response = await apiClient.get(`/student/quiz-attempts/quiz/${quizId}`, {
+    params,
+    timeout: STUDENT_QUIZ_PAYLOAD_TIMEOUT_MS,
+    __skipTimeoutRetry: true,
+  });
+  return response.data;
+}
+
+function hasUsefulValue(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (typeof value === 'number' || typeof value === 'boolean') return true;
+  if (Array.isArray(value)) return value.some(hasUsefulValue);
+  if (typeof value === 'object') return Object.values(value).some(hasUsefulValue);
+  return false;
+}
+
+function hasQuestionLearningPayload(question) {
+  if (!question || typeof question !== 'object') return false;
+  const answerKey = question.answerKey || question.answer_key || {};
+  const hasAnswerPayload = hasUsefulValue(
+    answerKey.correctOptions ||
+    answerKey.correct_options ||
+    answerKey.correctOptionIds ||
+    answerKey.correct_option_ids ||
+    answerKey.correctAnswer ||
+    answerKey.correct_answer ||
+    answerKey.answers ||
+    answerKey.answer ||
+    answerKey.statements ||
+    question.correctOptions ||
+    question.correct_options ||
+    question.correctAnswer ||
+    question.correct_answer
+  ) ||
+    (Array.isArray(question.options) ? question.options : []).some((option) => {
+      if (!option || typeof option !== 'object') return false;
+      return hasUsefulValue(
+        option.isCorrect ??
+        option.is_correct ??
+        option.correct ??
+        option.isCorrectAnswer ??
+        option.is_correct_answer ??
+        option.isAnswer ??
+        option.is_answer ??
+        option.correctAnswer ??
+        option.correct_answer
+      );
+    });
+  const hasLearningDetail = hasUsefulValue(question.explanation || question.explanationHtml || question.explanation_html || question.answerExplanation || question.answer_explanation) ||
+    hasUsefulValue(question.answerRationale || question.answer_rationale || question.reviewExplanation || question.review_explanation || question.rationale) ||
+    hasUsefulValue(question.solution || question.solutionText || question.solution_text || question.correctExplanation || question.correct_explanation) ||
+    hasUsefulValue(question.theoryRecap || question.theory_recap || question.quickTheoryRecap || question.quick_theory_recap || question.recap || question.recapCard || question.recap_card) ||
+    hasUsefulValue(question.keyPoints || question.key_points) ||
+    (Array.isArray(question.options) ? question.options : []).some((option) => {
+      if (!option || typeof option !== 'object') return false;
+      return hasUsefulValue(
+        option.whyIncorrect ||
+        option.why_incorrect ||
+        option.incorrectExplanation ||
+        option.incorrect_explanation ||
+        option.distractorExplanation ||
+        option.distractor_explanation ||
+        option.explanation ||
+        option.rationale ||
+        option.whyNot ||
+        option.why_not ||
+        option.reason
+      );
+    });
+  return hasAnswerPayload && hasLearningDetail;
+}
+
+function isStrippedPracticeQuizPayload(payload) {
+  const questions = Array.isArray(payload?.questions) ? payload.questions : [];
+  if (!questions.length) return false;
+  return questions.some((question) => !hasQuestionLearningPayload(question));
+}
+
+function isPracticeQuizParams(params = {}) {
+  return String(params?.mode || 'practice').toLowerCase() === 'practice';
+}
+
+function normalizePracticeQuizParams(params = {}) {
+  return { ...params, mode: 'practice' };
+}
+
+const studentPracticeQuizPayloadCache = createTimedApiCache({
+  ttlMs: STUDENT_PRACTICE_QUIZ_PAYLOAD_CACHE_MS,
+  persistKey: 'student.practiceQuizPayloads.v7',
+  key: (quizId, params) => `${quizId}:${serializeParams(params)}`,
+  load: fetchStudentQuizPayload,
+  shouldStore: (payload) => !isStrippedPracticeQuizPayload(payload),
+});
+
 export function clearStudentQuizzesCache() {
   studentQuizzesCache.clear();
 }
@@ -52,13 +150,20 @@ export function readStudentQuizzesCache() {
 }
 
 export async function loadStudentQuiz(quizId, params) {
+  if (isPracticeQuizParams(params)) {
+    const normalizedParams = normalizePracticeQuizParams(params);
+    if (normalizedParams.refresh) {
+      return fetchStudentQuizPayload(quizId, normalizedParams);
+    }
+    return studentPracticeQuizPayloadCache.get(quizId, normalizedParams);
+  }
+
   const key = `${quizId}:${serializeParams(params)}`;
   if (studentQuizLoadRequests.has(key)) {
     return studentQuizLoadRequests.get(key);
   }
 
-  const request = apiClient.get(`/student/quiz-attempts/quiz/${quizId}`, { params })
-    .then((response) => response.data)
+  const request = fetchStudentQuizPayload(quizId, params)
     .finally(() => {
       studentQuizLoadRequests.delete(key);
     });
@@ -66,32 +171,8 @@ export async function loadStudentQuiz(quizId, params) {
   return request;
 }
 
-export async function savePracticeAnswer(quizId, payload) {
-  const response = await apiClient.post(`/student/quiz-attempts/practice/${quizId}/save`, payload);
-  clearStudentQuizzesCache();
-  return response.data;
-}
-
-export async function savePracticeDraft(quizId, payload) {
-  const response = await apiClient.post(`/student/quiz-attempts/practice/${quizId}/draft`, payload);
-  clearStudentQuizzesCache();
-  return response.data;
-}
-
-export async function finishPracticeAttempt(quizId, payload) {
-  const response = await apiClient.post(`/student/quiz-attempts/practice/${quizId}/finish`, payload);
-  clearStudentQuizOutcomeCaches();
-  return response.data;
-}
-
-export async function prewarmPracticeAnswer(quizId, questionId) {
-  const response = await apiClient.post(`/student/quiz-attempts/practice/${quizId}/answer/${questionId}/prewarm`);
-  return response.data;
-}
-
-export async function revealPracticeAnswer(quizId, questionId) {
-  const response = await apiClient.get(`/student/quiz-attempts/practice/${quizId}/answer/${questionId}/reveal`);
-  return response.data;
+export function prefetchStudentQuiz(quizId, params) {
+  return loadStudentQuiz(quizId, params).catch(() => null);
 }
 
 export async function submitExam(quizId, payload) {
@@ -101,7 +182,10 @@ export async function submitExam(quizId, payload) {
 }
 
 export async function saveExamProgress(quizId, payload) {
-  const response = await apiClient.post(`/student/quiz-attempts/exam/${quizId}/save`, payload);
+  const response = await apiClient.post(`/student/quiz-attempts/exam/${quizId}/save`, payload, {
+    __skipNetworkActivity: true,
+    __suppressServerStatus: true,
+  });
   return response.data;
 }
 
@@ -118,11 +202,6 @@ export async function fetchAttemptReview(attemptId) {
 export async function completeAttemptReview(attemptId) {
   const response = await apiClient.post(`/student/quiz-attempts/review/${attemptId}/complete`);
   clearStudentResultsCache();
-  return response.data;
-}
-
-export async function fetchPracticeReview(quizId, params) {
-  const response = await apiClient.get(`/student/quiz-attempts/practice-review/${quizId}`, { params });
   return response.data;
 }
 

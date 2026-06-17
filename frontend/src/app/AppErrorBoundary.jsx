@@ -1,12 +1,6 @@
-import { Component, Suspense, lazy } from 'react';
+import { Component } from 'react';
 import { detectPlatform } from '../shared/platform/detect.js';
 import { requestSpaNavigation } from '../shared/routing/spaNavigation.js';
-
-const SystemStatusOverlay = lazy(() =>
-  import('../shared/ui/SystemStatusOverlay.jsx').then((module) => ({
-    default: module.SystemStatusOverlay,
-  }))
-);
 
 const PLATFORM = detectPlatform();
 const BUILD_ASSET_RECOVERY_RELOAD_KEY = 'lms_build_asset_recovery_reload_at';
@@ -69,10 +63,6 @@ export class AppErrorBoundary extends Component {
       return this.props.children;
     }
 
-    return (
-      <Suspense fallback={null}>
-        <SystemStatusOverlay variant="render" zIndex={12000} />
-      </Suspense>
-    );
+    return null;
   }
 }

@@ -522,7 +522,6 @@ html body .student-app-shell.quiz-focus-mode .portal-content__frame > .min-h-ful
 html body .student-app-shell.quiz-focus-mode .lms-route-reveal,
 html body .student-app-shell.quiz-focus-mode .lms-exam-page {
   height: auto !important;
-  min-height: 100dvh !important;
   max-height: none !important;
   overflow: visible !important;
   overflow-x: visible !important;

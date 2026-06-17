@@ -14,26 +14,12 @@ const medicineQuotes = [
 ];
 
 const statusCopy = {
-  server: {
-    accent: '#1f9d76',
-    icon: 'stethoscope',
-    label: 'Server check',
-    title: 'Server not responding.',
-    message: 'Trying to reconnect.',
-  },
   offline: {
     accent: '#2563eb',
     icon: 'wifi',
     label: 'Offline mode',
     title: 'Connection needed.',
     message: 'Check internet connection.',
-  },
-  auth: {
-    accent: '#7c3aed',
-    icon: 'shield',
-    label: 'Account check',
-    title: 'Account check.',
-    message: 'Please wait.',
   },
   session: {
     accent: '#d97706',
@@ -42,32 +28,7 @@ const statusCopy = {
     title: 'Session expired.',
     message: 'Sign in again to continue.',
   },
-  route: {
-    accent: '#e11d48',
-    icon: 'file',
-    label: 'Page pause',
-    title: 'Page needs a moment.',
-    message: 'Please wait.',
-  },
-  render: {
-    accent: '#e11d48',
-    icon: 'screen',
-    label: 'Screen pause',
-    title: 'Screen needs a moment.',
-    message: 'Please wait.',
-  },
 };
-
-function StethoscopeIcon() {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <path d="M18 12v12a12 12 0 0 0 24 0V12" strokeWidth="4" strokeLinecap="round" />
-      <path d="M18 12h-4M42 12h4" strokeWidth="4" strokeLinecap="round" />
-      <path d="M30 36v7a10 10 0 0 0 20 0v-5" strokeWidth="4" strokeLinecap="round" />
-      <circle cx="50" cy="34" r="5" strokeWidth="4" />
-    </svg>
-  );
-}
 
 function WifiIcon() {
   return (
@@ -76,15 +37,6 @@ function WifiIcon() {
       <path d="M22 34a16 16 0 0 1 20 0" strokeWidth="4" strokeLinecap="round" />
       <path d="M29 43a5 5 0 0 1 6 0" strokeWidth="4" strokeLinecap="round" />
       <path d="M16 50 50 16" strokeWidth="4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ShieldIcon() {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <path d="M32 8 50 16v13c0 12-7.2 21.6-18 27-10.8-5.4-18-15-18-27V16l18-8Z" strokeWidth="4" strokeLinejoin="round" />
-      <path d="m23 32 6 6 13-14" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -99,44 +51,20 @@ function LockIcon() {
   );
 }
 
-function FileIcon() {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <path d="M18 8h21l11 11v37H18V8Z" strokeWidth="4" strokeLinejoin="round" />
-      <path d="M38 8v13h12" strokeWidth="4" strokeLinejoin="round" />
-      <path d="M25 33h18M25 43h13" strokeWidth="4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ScreenIcon() {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <rect x="10" y="13" width="44" height="31" rx="6" strokeWidth="4" />
-      <path d="M26 53h12M32 44v9" strokeWidth="4" strokeLinecap="round" />
-      <path d="m24 29 5 5 11-12" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 const icons = {
-  file: FileIcon,
   lock: LockIcon,
-  screen: ScreenIcon,
-  shield: ShieldIcon,
-  stethoscope: StethoscopeIcon,
   wifi: WifiIcon,
 };
 
 export function SystemStatusOverlay({
-  variant = 'server',
+  variant = 'offline',
   quoteRotationMs = QUOTE_ROTATE_MS,
   showQuote = true,
   zIndex = 12000,
 }) {
-  const config = statusCopy[variant] || statusCopy.server;
+  const config = statusCopy[variant] || statusCopy.offline;
   const [quoteIndex, setQuoteIndex] = useState(0);
-  const ActiveIcon = icons[config.icon] || StethoscopeIcon;
+  const ActiveIcon = icons[config.icon] || WifiIcon;
 
   useEffect(() => {
     if (!showQuote || medicineQuotes.length < 2) {

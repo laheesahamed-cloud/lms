@@ -76,6 +76,17 @@ export async function requestSubscription(payload) {
   return response.data;
 }
 
+export async function previewSubscriptionCoupon(payload) {
+  const response = await apiClient.post('/subscriptions/checkout/coupon-preview', payload);
+  return response.data;
+}
+
+export async function requestCouponApproval(payload) {
+  const response = await apiClient.post('/subscriptions/coupon-approval/request', payload);
+  clearMySubscriptionCache();
+  return response.data;
+}
+
 export async function initiatePayHereCheckout(payload) {
   const response = await apiClient.post('/subscriptions/payhere/initiate', payload);
   clearMySubscriptionCache();

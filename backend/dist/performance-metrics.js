@@ -45,7 +45,7 @@ function classifyApiPerformanceRoute(path, method) {
         return 'questionFetch';
     if (/^\/api\/(?:student\/)?quiz-attempts\/(?:practice|exam)\/:id\/(?:save|submit)$/.test(normalizedPath))
         return 'answerSave';
-    if (normalizedMethod === 'GET' && /^\/api\/(?:student\/)?quiz-attempts\/(?:result|review|practice-review)\/:id/.test(normalizedPath))
+    if (normalizedMethod === 'GET' && /^\/api\/(?:student\/)?quiz-attempts\/(?:result|review)\/:id/.test(normalizedPath))
         return 'reviewData';
     if (/\.(?:js|css|png|jpe?g|webp|svg|ico|woff2?)$/i.test(normalizedPath))
         return 'staticAsset';

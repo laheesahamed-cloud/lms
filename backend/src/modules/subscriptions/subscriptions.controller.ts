@@ -152,6 +152,18 @@ export class SubscriptionsController {
     return this.subscriptionsService.requestUpgrade(student.id, dto);
   }
 
+  @Post('checkout/coupon-preview')
+  async previewCheckoutCoupon(@Headers('authorization') authorization: string | undefined, @Body() dto: RequestSubscriptionDto) {
+    const student = await this.authService.requireStudent(authorization);
+    return this.subscriptionsService.previewCheckoutCoupon(student.id, dto);
+  }
+
+  @Post('coupon-approval/request')
+  async requestCouponApproval(@Headers('authorization') authorization: string | undefined, @Body() dto: RequestSubscriptionDto) {
+    const student = await this.authService.requireStudent(authorization);
+    return this.subscriptionsService.requestCouponApproval(student.id, dto);
+  }
+
   @Post('payhere/initiate')
   async initiatePayHereCheckout(@Headers('authorization') authorization: string | undefined, @Body() dto: RequestSubscriptionDto) {
     const student = await this.authService.requireStudent(authorization);

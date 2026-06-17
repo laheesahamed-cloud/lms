@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { fetchMySubscription, initiatePayHereCheckout, readMySubscriptionCache, requestManualPayment } from '../../../../shared/api/subscriptions.api.js';
+import {
+  fetchMySubscription,
+  initiatePayHereCheckout,
+  previewSubscriptionCoupon,
+  readMySubscriptionCache,
+  requestCouponApproval,
+  requestManualPayment,
+} from '../../../../shared/api/subscriptions.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { useAuthStore } from '../../../../shared/stores/authStore.js';
@@ -88,6 +95,10 @@ function readProofFile(file) {
   });
 }
 
+function formatCheckoutAmount(currency, amount) {
+  return `${currency || 'LKR'} ${Number(amount || 0).toFixed(2)}`;
+}
+
 export function StudentCheckoutPage() {
   const { planId } = useParams();
   const location = useLocation();
@@ -115,6 +126,10 @@ export function StudentCheckoutPage() {
   const [manualInvoice, setManualInvoice] = useState(null);
   const [manualInvoiceLoading, setManualInvoiceLoading] = useState(false);
   const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponApplying, setCouponApplying] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [approvalSubmitting, setApprovalSubmitting] = useState(false);
   const [paymentReference, setPaymentReference] = useState('');
   const [proofFile, setProofFile] = useState(null);
   const invoiceAutoCreatePlanRef = useRef('');
@@ -161,6 +176,7 @@ export function StudentCheckoutPage() {
     return (Array.isArray(billing.requests) ? billing.requests : []).find((request) => (
       request?.status === 'pending'
       && Number(request?.planId) === Number(planId)
+      && (request?.paymentMethod === 'bank_transfer' || !request?.paymentMethod)
       && (request?.invoiceId || request?.paymentMethod === 'bank_transfer')
     )) || null;
   }, [billing.requests, planId]);
@@ -168,6 +184,27 @@ export function StudentCheckoutPage() {
   const pendingCartMessage = pendingManualRequest?.invoiceId && !pendingProofUploaded
     ? `This package is already in your payment cart. Invoice #${pendingManualRequest.invoiceId} is ready. Upload your bank slip to continue.`
     : '';
+  const checkoutCurrency = appliedCoupon?.currency || plan?.currency || 'LKR';
+  const originalAmount = Number(appliedCoupon?.originalAmount ?? plan?.effectivePrice ?? 0);
+  const discountAmount = Number(appliedCoupon?.discountAmount || 0);
+  const payableAmount = Number(appliedCoupon?.amount ?? plan?.effectivePrice ?? 0);
+  const hasAppliedCoupon = Boolean(appliedCoupon?.couponCode);
+  const couponRequiresApproval = Boolean(appliedCoupon?.requiresApproval);
+  const couponChangedAfterApply = hasAppliedCoupon && couponCode.trim().toUpperCase() !== String(appliedCoupon.couponCode || '').toUpperCase();
+  const appliedCouponCode = hasAppliedCoupon && !couponChangedAfterApply ? appliedCoupon.couponCode : '';
+  const manualInvoiceAmount = appliedCouponCode ? payableAmount : Number(manualInvoice?.amount ?? payableAmount);
+
+  const buildCheckoutPayload = useCallback((extra = {}) => {
+    return {
+      planId: plan.id,
+      couponCode: appliedCouponCode || undefined,
+      message: customSelectionNote || undefined,
+      accessScope,
+      courseIds: accessScope === 'courses' ? courseIds : [],
+      lessonIds: accessScope === 'lessons' ? lessonIds : [],
+      ...extra,
+    };
+  }, [accessScope, appliedCouponCode, courseIds, customSelectionNote, lessonIds, plan]);
 
   useEffect(() => {
     if (!pendingManualRequest?.invoiceId || manualInvoice?.invoiceId) return;
@@ -178,8 +215,31 @@ export function StudentCheckoutPage() {
       currency: pendingManualRequest.paymentCurrency || pendingManualRequest.planCurrency,
       proofUploaded: Boolean(pendingManualRequest.paymentProofDataUrl),
     });
+    if (pendingManualRequest.couponCode) {
+      const amount = Number(pendingManualRequest.paymentAmount || 0);
+      const discountAmount = Number(pendingManualRequest.discountAmount || 0);
+      const currency = pendingManualRequest.paymentCurrency || pendingManualRequest.planCurrency;
+      setCouponCode(pendingManualRequest.couponCode);
+      setAppliedCoupon({
+        couponCode: pendingManualRequest.couponCode,
+        couponMode: '',
+        originalAmount: Number(amount + discountAmount).toFixed(2),
+        discountAmount: discountAmount.toFixed(2),
+        amount: amount.toFixed(2),
+        currency,
+        requiresApproval: amount <= 0,
+      });
+    }
     setPaymentMode('manual');
   }, [manualInvoice?.invoiceId, pendingManualRequest]);
+
+  const ensureCouponReady = useCallback(() => {
+    if (couponCode.trim() && !appliedCouponCode) {
+      setCouponError('Apply the coupon code before continuing.');
+      return false;
+    }
+    return true;
+  }, [appliedCouponCode, couponCode]);
 
   const createManualInvoice = useCallback(async () => {
     if (!plan) return null;
@@ -197,14 +257,12 @@ export function StudentCheckoutPage() {
     setManualInvoiceLoading(true);
     setError('');
     try {
-      const invoice = await requestManualPayment({
-        planId: plan.id,
-        couponCode: couponCode.trim() || undefined,
-        message: customSelectionNote || undefined,
-        accessScope,
-        courseIds: accessScope === 'courses' ? courseIds : [],
-        lessonIds: accessScope === 'lessons' ? lessonIds : [],
-      });
+      if (!ensureCouponReady()) return null;
+      if (couponRequiresApproval) {
+        setError('This coupon covers the full amount. Request admin approval instead of creating a bank transfer invoice.');
+        return null;
+      }
+      const invoice = await requestManualPayment(buildCheckoutPayload());
       setManualInvoice(invoice);
       return invoice;
     } catch (invoiceError) {
@@ -213,7 +271,7 @@ export function StudentCheckoutPage() {
     } finally {
       setManualInvoiceLoading(false);
     }
-  }, [accessScope, couponCode, courseIds, customSelectionNote, lessonIds, pendingManualRequest, plan]);
+  }, [buildCheckoutPayload, couponRequiresApproval, ensureCouponReady, pendingManualRequest, plan]);
 
   useEffect(() => {
     if (!shouldCreateManualInvoice || loading || !plan || pendingProofUploaded || manualInvoice?.invoiceId || manualInvoiceLoading) return;
@@ -233,6 +291,64 @@ export function StudentCheckoutPage() {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
+  function handleCouponChange(event) {
+    const nextValue = event.target.value;
+    setCouponCode(nextValue);
+    setCouponError('');
+    if (appliedCoupon && nextValue.trim().toUpperCase() !== String(appliedCoupon.couponCode || '').toUpperCase()) {
+      setAppliedCoupon(null);
+    }
+  }
+
+  async function handleApplyCoupon(event) {
+    event.preventDefault();
+    if (!plan) return;
+    const nextCode = couponCode.trim();
+    if (!nextCode) {
+      setCouponError('Enter a coupon code before applying it.');
+      return;
+    }
+
+    setCouponApplying(true);
+    setCouponError('');
+    setError('');
+    try {
+      const quote = await previewSubscriptionCoupon(buildCheckoutPayload({ couponCode: nextCode }));
+      setAppliedCoupon(quote);
+      setCouponCode(quote.couponCode || nextCode.toUpperCase());
+    } catch (applyError) {
+      setAppliedCoupon(null);
+      setCouponError(getErrorMessage(applyError, 'Unable to apply coupon code'));
+    } finally {
+      setCouponApplying(false);
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setCouponCode('');
+    setAppliedCoupon(null);
+    setCouponError('');
+  }
+
+  async function handleCouponApprovalRequest() {
+    if (!plan || !appliedCouponCode) return;
+    setApprovalSubmitting(true);
+    setError('');
+    setSuccess('');
+    setCouponError('');
+    try {
+      const result = await requestCouponApproval(buildCheckoutPayload());
+      const successMessage = `Coupon ${result.couponCode || appliedCouponCode} covers the full amount. Your access request is waiting for admin approval.`;
+      setSuccess(successMessage);
+      await load();
+      navigate('/subscriptions', { state: { paymentNotice: successMessage } });
+    } catch (approvalError) {
+      setError(getErrorMessage(approvalError, 'Unable to request coupon approval'));
+    } finally {
+      setApprovalSubmitting(false);
+    }
+  }
+
   function goBackToPlans() {
     navigate('/subscriptions', {
       state: { fromCheckout: true },
@@ -242,16 +358,17 @@ export function StudentCheckoutPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     if (!plan) return;
+    if (!ensureCouponReady()) return;
+    if (couponRequiresApproval) {
+      setError('This coupon covers the full amount. Request admin approval instead of starting Card / PayHere checkout.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     setSuccess('');
     try {
       const checkout = await initiatePayHereCheckout({
-        planId: plan.id,
-        message: customSelectionNote || undefined,
-        accessScope,
-        courseIds: accessScope === 'courses' ? courseIds : [],
-        lessonIds: accessScope === 'lessons' ? lessonIds : [],
+        ...buildCheckoutPayload(),
         ...form,
       });
       submitHostedCheckout(checkout);
@@ -264,6 +381,11 @@ export function StudentCheckoutPage() {
   async function handleManualSubmit(event) {
     event.preventDefault();
     if (!plan) return;
+    if (!ensureCouponReady()) return;
+    if (couponRequiresApproval) {
+      await handleCouponApprovalRequest();
+      return;
+    }
     const proofError = validatePaymentProofFile(proofFile);
     if (proofError) {
       setError(proofError);
@@ -280,16 +402,11 @@ export function StudentCheckoutPage() {
       }
       const proofDataUrl = await readProofFile(proofFile);
       const result = await requestManualPayment({
-        planId: plan.id,
-        couponCode: couponCode.trim() || undefined,
+        ...buildCheckoutPayload(),
         paymentReference: paymentReference.trim() || undefined,
         proofFileName: proofFile.name,
         proofMimeType: proofFile.type,
         proofDataUrl,
-        message: customSelectionNote || undefined,
-        accessScope,
-        courseIds: accessScope === 'courses' ? courseIds : [],
-        lessonIds: accessScope === 'lessons' ? lessonIds : [],
       });
       setManualInvoice(result);
       const successMessage = result?.couponCode
@@ -344,11 +461,62 @@ export function StudentCheckoutPage() {
                 <h2 className="m-0 mt-2 text-2xl font-extrabold text-ink-strong">{plan.name}</h2>
                 <p className="m-0 mt-2 text-[13px] leading-relaxed text-ink-soft">{plan.description}</p>
               </div>
-              <div>
-                <strong className="text-3xl font-black text-brand-primary">{plan.currency} {Number(plan.effectivePrice).toFixed(2)}</strong>
-                {plan.offerEnabled && Number(plan.regularPrice || 0) > Number(plan.effectivePrice || 0) ? (
-                  <span className="ml-2 text-sm font-semibold text-ink-muted line-through">{plan.currency} {Number(plan.regularPrice).toFixed(2)}</span>
-                ) : null}
+              <div className="grid gap-3">
+                <div>
+                  <strong className="text-3xl font-black text-brand-primary">{formatCheckoutAmount(checkoutCurrency, payableAmount)}</strong>
+                  {discountAmount > 0 ? (
+                    <span className="ml-2 text-sm font-semibold text-ink-muted line-through">{formatCheckoutAmount(checkoutCurrency, originalAmount)}</span>
+                  ) : plan.offerEnabled && Number(plan.regularPrice || 0) > Number(plan.effectivePrice || 0) ? (
+                    <span className="ml-2 text-sm font-semibold text-ink-muted line-through">{formatCheckoutAmount(plan.currency, plan.regularPrice)}</span>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-2 rounded-xl border border-line-soft bg-surface-2 p-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className={ui.eyebrow}>Coupon</span>
+                    {hasAppliedCoupon ? (
+                      <span className="rounded-full bg-brand-primary/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand-primary">
+                        {appliedCoupon.couponCode} applied
+                      </span>
+                    ) : null}
+                  </div>
+                  <form className="grid gap-2" onSubmit={handleApplyCoupon}>
+                    <div className={ui.formLabel}>
+                      <span>Coupon code</span>
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 max-[520px]:grid-cols-1">
+                        <input
+                          className={ui.input}
+                          value={couponCode}
+                          onChange={handleCouponChange}
+                          placeholder="Enter coupon code"
+                          autoComplete="off"
+                          disabled={couponApplying || submitting || manualSubmitting || approvalSubmitting}
+                        />
+                        <button
+                          className={ui.secondaryAction}
+                          type="submit"
+                          disabled={couponApplying || !couponCode.trim() || submitting || manualSubmitting || approvalSubmitting}
+                        >
+                          {couponApplying ? 'Applying...' : 'Apply'}
+                        </button>
+                      </div>
+                    </div>
+                    {couponError ? <FeedbackNotice tone="error">{couponError}</FeedbackNotice> : null}
+                  </form>
+                  {hasAppliedCoupon ? (
+                    <div className="grid gap-1 text-[12.5px] font-semibold text-ink-soft">
+                      <span>Original: {formatCheckoutAmount(checkoutCurrency, originalAmount)}</span>
+                      <span>Discount: -{formatCheckoutAmount(checkoutCurrency, discountAmount)}</span>
+                      <strong className="text-ink-strong">Amount due: {formatCheckoutAmount(checkoutCurrency, payableAmount)}</strong>
+                      {couponRequiresApproval ? (
+                        <span className="text-amber-700">This coupon covers the full amount. Admin approval is needed before access activates.</span>
+                      ) : null}
+                      <button className="justify-self-start text-[12px] font-extrabold text-brand-primary underline-offset-4 hover:underline" type="button" onClick={handleRemoveCoupon} disabled={submitting || manualSubmitting || approvalSubmitting}>
+                        Remove coupon
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <div className="grid gap-3 border-t border-line-soft pt-4">
                 <div>
@@ -404,6 +572,7 @@ export function StudentCheckoutPage() {
                   <button
                     type="button"
                     className={paymentMode === 'card' ? ui.primaryAction : ui.secondaryAction}
+                    disabled={couponRequiresApproval}
                     onClick={() => setPaymentMode('card')}
                   >
                     Card / PayHere
@@ -411,7 +580,7 @@ export function StudentCheckoutPage() {
                   <button
                     type="button"
                     className={paymentMode === 'manual' ? ui.primaryAction : ui.secondaryAction}
-                    disabled={pendingProofUploaded}
+                    disabled={pendingProofUploaded || couponRequiresApproval}
                     onClick={() => {
                       setPaymentMode('manual');
                       if (!manualInvoice && !manualInvoiceLoading) {
@@ -422,14 +591,38 @@ export function StudentCheckoutPage() {
                     {pendingProofUploaded ? 'Waiting for approval' : pendingManualRequest?.invoiceId ? 'View invoice' : 'Bank transfer'}
                   </button>
                 </div>
+                {couponRequiresApproval ? (
+                  <FeedbackNotice tone="warning">
+                    This coupon brings the amount due to {formatCheckoutAmount(checkoutCurrency, payableAmount)}. Request admin approval instead of choosing a payment method.
+                  </FeedbackNotice>
+                ) : null}
               </section>
 
-              {paymentMode === 'card' ? (
+              {couponRequiresApproval ? (
+                <section className={ui.panelCard}>
+                  <div className={ui.panelTop}>
+                    <div>
+                      <h2>Coupon approval</h2>
+                      <p>No payment is needed for this coupon. An admin will review and activate access.</p>
+                    </div>
+                  </div>
+                  <div className={ui.buttonRow}>
+                    <button className={ui.primaryAction} type="button" onClick={handleCouponApprovalRequest} disabled={approvalSubmitting}>
+                      {approvalSubmitting ? 'Sending request...' : 'Request admin approval'}
+                    </button>
+                    <button className={ui.secondaryAction} type="button" onClick={goBackToPlans} disabled={approvalSubmitting}>
+                      Change plan
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
+              {paymentMode === 'card' && !couponRequiresApproval ? (
                 <section className={ui.panelCard}>
                   <div className={ui.panelTop}>
                     <div>
                       <h2>Billing information</h2>
-                      <p>These details are sent with your PayHere order. Coupon codes are available for bank transfers only.</p>
+                      <p>These details are sent with your PayHere order.</p>
                     </div>
                   </div>
                   <form className={ui.stackForm} onSubmit={handleSubmit}>
@@ -460,7 +653,7 @@ export function StudentCheckoutPage() {
                       <input className={ui.input} name="country" value={form.country} onChange={handleChange} autoComplete="country-name" />
                     </label>
                     <div className={ui.buttonRow}>
-                      <button className={ui.primaryAction} type="submit" disabled={submitting || !billing.payment?.enabled || !billing.payment?.configured}>
+                      <button className={ui.primaryAction} type="submit" disabled={submitting || couponRequiresApproval || !billing.payment?.enabled || !billing.payment?.configured}>
                         {submitting ? 'Creating order...' : 'Continue to PayHere'}
                       </button>
                       <button className={ui.secondaryAction} type="button" onClick={goBackToPlans} disabled={submitting}>
@@ -471,7 +664,7 @@ export function StudentCheckoutPage() {
                 </section>
               ) : null}
 
-              {paymentMode === 'manual' ? (
+              {paymentMode === 'manual' && !couponRequiresApproval ? (
                 <section className={ui.panelCard}>
                   <div className={ui.panelTop}>
                     <div>
@@ -487,17 +680,18 @@ export function StudentCheckoutPage() {
                         <span className={ui.eyebrow}>Invoice</span>
                         <strong className="text-lg text-ink-strong">#{manualInvoice.invoiceId}</strong>
                         <p className="m-0 text-[12.5px] leading-relaxed text-ink-soft">
-                          Use this invoice number when uploading your bank slip.
+                          Transfer {formatCheckoutAmount(manualInvoice.currency || checkoutCurrency, manualInvoiceAmount)} and use this invoice number when uploading your bank slip.
                         </p>
+                        {appliedCouponCode ? (
+                          <p className="m-0 text-[12.5px] font-bold text-brand-primary">
+                            Coupon {appliedCouponCode} applied. Discount: {formatCheckoutAmount(checkoutCurrency, discountAmount)}.
+                          </p>
+                        ) : null}
                       </div>
                     ) : null}
                     <FeedbackNotice tone="warning">
                       Your package will activate only after the admin verifies this payment proof.
                     </FeedbackNotice>
-                    <label className={ui.formLabel}>
-                      Coupon code
-                      <input className={ui.input} value={couponCode} onChange={(event) => setCouponCode(event.target.value)} placeholder="Optional bank transfer coupon" autoComplete="off" />
-                    </label>
                     <label className={ui.formLabel}>
                       Reference or transaction ID
                       <input className={ui.input} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Optional bank reference" autoComplete="off" />

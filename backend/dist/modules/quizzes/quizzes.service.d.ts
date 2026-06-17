@@ -15,7 +15,6 @@ export declare class QuizzesService {
     private readonly authService;
     constructor(db: Pool, authService: AuthService);
     private resolvePassingMarks;
-    private parseJsonArray;
     findAll(filters: {
         search?: string;
         courseId?: number;
@@ -251,23 +250,6 @@ export declare class QuizzesService {
     private parseBlueprint;
     private getKeywordSuggestions;
     private mapQuiz;
-    getCards(authorization: string | undefined, quizId: number): Promise<{
-        quizTitle: string;
-        cards: {
-            id: number;
-            questionText: string;
-            explanation: string;
-            questionType: string;
-            theoryRecap: {} | null;
-            options: {
-                id: number;
-                optionLabel: string;
-                optionText: string;
-                isCorrect: boolean;
-                whyIncorrect: string;
-            }[];
-        }[];
-    }>;
     private ensureStudentCanAccessQuiz;
     private getQuizAccessProfile;
     private parseIdList;

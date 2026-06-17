@@ -109,23 +109,6 @@ export declare class QuizzesController {
             paperTitle: string;
         }[];
     }>;
-    getCards(id: number, authorization?: string): Promise<{
-        quizTitle: string;
-        cards: {
-            id: number;
-            questionText: string;
-            explanation: string;
-            questionType: string;
-            theoryRecap: {} | null;
-            options: {
-                id: number;
-                optionLabel: string;
-                optionText: string;
-                isCorrect: boolean;
-                whyIncorrect: string;
-            }[];
-        }[];
-    }>;
     findOne(id: number): Promise<{
         questionIds: number[];
         id: number;
@@ -186,19 +169,19 @@ export declare class QuizzesController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;

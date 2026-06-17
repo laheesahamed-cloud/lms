@@ -223,10 +223,6 @@ export declare class BootController {
             lessonTitle: string;
             examAttemptCount: number;
             latestAttemptId: number | null;
-            practiceCompletedCount: number;
-            practiceSessionId: number | null;
-            lastQuestionIndex: number;
-            practiceAnsweredCount: number;
             isCompleted: boolean;
             isFree: boolean;
             randomizationMode: "static" | "dynamic";
@@ -270,7 +266,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "not_started" | "in_progress" | "completed";
+            lessonProgressStatus: "in_progress" | "not_started" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -497,10 +493,6 @@ export declare class BootController {
             lessonTitle: string;
             examAttemptCount: number;
             latestAttemptId: number | null;
-            practiceCompletedCount: number;
-            practiceSessionId: number | null;
-            lastQuestionIndex: number;
-            practiceAnsweredCount: number;
             isCompleted: boolean;
             isFree: boolean;
             randomizationMode: "static" | "dynamic";
@@ -544,7 +536,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "not_started" | "in_progress" | "completed";
+            lessonProgressStatus: "in_progress" | "not_started" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -771,10 +763,6 @@ export declare class BootController {
             lessonTitle: string;
             examAttemptCount: number;
             latestAttemptId: number | null;
-            practiceCompletedCount: number;
-            practiceSessionId: number | null;
-            lastQuestionIndex: number;
-            practiceAnsweredCount: number;
             isCompleted: boolean;
             isFree: boolean;
             randomizationMode: "static" | "dynamic";
@@ -818,7 +806,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "not_started" | "in_progress" | "completed";
+            lessonProgressStatus: "in_progress" | "not_started" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -1045,10 +1033,6 @@ export declare class BootController {
             lessonTitle: string;
             examAttemptCount: number;
             latestAttemptId: number | null;
-            practiceCompletedCount: number;
-            practiceSessionId: number | null;
-            lastQuestionIndex: number;
-            practiceAnsweredCount: number;
             isCompleted: boolean;
             isFree: boolean;
             randomizationMode: "static" | "dynamic";
@@ -1092,7 +1076,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "not_started" | "in_progress" | "completed";
+            lessonProgressStatus: "in_progress" | "not_started" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -1319,10 +1303,6 @@ export declare class BootController {
             lessonTitle: string;
             examAttemptCount: number;
             latestAttemptId: number | null;
-            practiceCompletedCount: number;
-            practiceSessionId: number | null;
-            lastQuestionIndex: number;
-            practiceAnsweredCount: number;
             isCompleted: boolean;
             isFree: boolean;
             randomizationMode: "static" | "dynamic";
@@ -1366,7 +1346,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "not_started" | "in_progress" | "completed";
+            lessonProgressStatus: "in_progress" | "not_started" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -1593,10 +1573,6 @@ export declare class BootController {
             lessonTitle: string;
             examAttemptCount: number;
             latestAttemptId: number | null;
-            practiceCompletedCount: number;
-            practiceSessionId: number | null;
-            lastQuestionIndex: number;
-            practiceAnsweredCount: number;
             isCompleted: boolean;
             isFree: boolean;
             randomizationMode: "static" | "dynamic";
@@ -1640,7 +1616,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "not_started" | "in_progress" | "completed";
+            lessonProgressStatus: "in_progress" | "not_started" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;

@@ -1,6 +1,5 @@
 import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
-import { StudentGuard } from '../auth/student.guard';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
 import { QuizzesService } from './quizzes.service';
@@ -44,12 +43,6 @@ export class QuizzesController {
     return this.quizzesService.meta({
       includeQuestions: includeQuestions === '1' || includeQuestions === 'true',
     });
-  }
-
-  @Get(':id/cards')
-  @UseGuards(StudentGuard)
-  getCards(@Param('id', ParseIntPipe) id: number, @Headers('authorization') authorization?: string) {
-    return this.quizzesService.getCards(authorization, id);
   }
 
   @Get(':id')

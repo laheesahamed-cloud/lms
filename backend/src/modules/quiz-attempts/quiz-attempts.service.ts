@@ -5,8 +5,6 @@ import { sqlPlaceholders } from '../../database/sql-safety';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
 import { PlansService } from '../plans/plans.service';
 import { SaveExamProgressDto } from './dto/save-exam-progress.dto';
-import { SavePracticeDto } from './dto/save-practice.dto';
-import { SavePracticeProgressDto } from './dto/save-practice-progress.dto';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 
 type AuthUser = RowDataPacket & {
@@ -52,10 +50,6 @@ type QuizRow = RowDataPacket & {
   lesson_title?: string | null;
   exam_attempt_count?: number;
   latest_attempt_id?: number | null;
-  practice_completed_count?: number;
-  practice_session_id?: number | null;
-  last_question_index?: number | null;
-  practice_answered_count?: number | null;
 };
 
 type QuestionRow = RowDataPacket & {
@@ -136,6 +130,8 @@ type LoadedQuestion = QuestionRow & {
   contentSourceLabel: string;
 };
 
+type AnswerInsertRow = [number, number, number, number];
+
 type BlueprintSection = {
   id: string;
   title: string;
@@ -147,14 +143,6 @@ type BlueprintSection = {
   paperId: number | null;
   category: string;
   questionType: 'sba' | 'true_false' | '';
-};
-
-type PracticeSessionRecord = {
-  id: number;
-  status: string;
-  last_question_index: number;
-  question_ids_json?: string | null;
-  revealed_question_ids_json?: string | null;
 };
 
 type ExamSessionRecord = RowDataPacket & {
@@ -175,14 +163,26 @@ const QUIZ_TOTAL_MARKS = 100;
 const QUIZ_PASS_MARK = 45;
 const TRUE_FALSE_STATEMENTS_PER_QUESTION = 5;
 const QUIZ_CONTENT_CACHE_MS = 30000;
-const PRACTICE_REVEAL_CACHE_MS = 120000;
+const DYNAMIC_QUESTION_POOL_CACHE_MS = 60000;
+const DYNAMIC_QUESTION_POOL_CACHE_MAX = 300;
 const DYNAMIC_RANDOMIZATION_FEATURE = 'dynamic_quiz_randomization';
+
+type DynamicQuestionPoolFilters = {
+  courseId: number | null;
+  subjectId: number | null;
+  topicId: number | null;
+  lessonId: number | null;
+  paperId: number | null;
+  questionCategory: string;
+  legacyCategory: string;
+  questionType: 'sba' | 'true_false' | '';
+};
 
 @Injectable()
 export class QuizAttemptsService {
   private readonly activeQuizCache = new Map<number, { expiresAt: number; value: QuizRow }>();
   private readonly quizQuestionCache = new Map<string, { expiresAt: number; value: LoadedQuestion[] }>();
-  private readonly practiceRevealCache = new Map<string, { expiresAt: number; value: Record<string, unknown> }>();
+  private readonly dynamicQuestionPoolCache = new Map<string, { expiresAt: number; lastUsedAt: number; ids: number[] }>();
 
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
@@ -239,34 +239,16 @@ export class QuizAttemptsService {
             WHERE qa.quiz_id = q.id AND qa.user_id = ?
             ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC, qa.id DESC
             LIMIT 1
-          ) AS latest_attempt_id,
-          (
-            SELECT COUNT(*)
-            FROM practice_sessions cps
-            WHERE cps.quiz_id = q.id
-              AND cps.user_id = ?
-              AND cps.status = 'completed'
-          ) AS practice_completed_count,
-          ps.id AS practice_session_id,
-          ps.last_question_index,
-          (
-            SELECT COUNT(DISTINCT pa.question_id)
-            FROM practice_answers pa
-            WHERE pa.practice_session_id = ps.id
-          ) AS practice_answered_count
+          ) AS latest_attempt_id
         FROM quizzes q
         INNER JOIN courses c ON q.course_id = c.id
         LEFT JOIN topics t ON q.topic_id = t.id
         LEFT JOIN subtopics st ON q.subtopic_id = st.id
         LEFT JOIN lessons l ON q.lesson_id = l.id
-        LEFT JOIN practice_sessions ps
-          ON ps.quiz_id = q.id
-         AND ps.user_id = ?
-         AND ps.status = 'in_progress'
         WHERE q.status = 'active'
         ORDER BY q.id DESC
       `,
-      [user.id, user.id, user.id, user.id]
+      [user.id, user.id]
     );
 
     return rows.map((row) => {
@@ -307,11 +289,7 @@ export class QuizAttemptsService {
         lessonTitle: row.lesson_title || '',
         examAttemptCount: Number(row.exam_attempt_count || 0),
         latestAttemptId: row.latest_attempt_id ? Number(row.latest_attempt_id) : null,
-        practiceCompletedCount: Number(row.practice_completed_count || 0),
-        practiceSessionId: row.practice_session_id ? Number(row.practice_session_id) : null,
-        lastQuestionIndex: Number(row.last_question_index || 0),
-        practiceAnsweredCount: Number(row.practice_answered_count || 0),
-        isCompleted: Number(row.exam_attempt_count || 0) > 0 || Number(row.practice_completed_count || 0) > 0,
+        isCompleted: Number(row.exam_attempt_count || 0) > 0,
         isFree,
         randomizationMode: this.resolveRandomizationMode(row.randomization_mode),
         canAccess: canAccessQuiz && canUseDynamic,
@@ -376,8 +354,6 @@ export class QuizAttemptsService {
     authorization: string | undefined,
     quizId: number,
     mode: string,
-    continuePractice: boolean,
-    resetPractice: boolean,
     questionId?: number | null
   ) {
     if (mode !== 'practice' && mode !== 'exam') {
@@ -409,167 +385,16 @@ export class QuizAttemptsService {
         mode: 'exam',
         quiz: this.mapQuizForStudent(quiz),
         examSession: examState.session,
-        questions: examState.questions.map((question) => ({
-          ...this.mapQuestionForActiveAttempt(question),
-          savedAnswer: null,
-        })),
+        questions: examState.questions.map((question) => this.mapQuestionForActiveAttempt(question)),
       };
     }
 
-    const practiceState = await this.ensurePracticeSession(user.id, quiz, continuePractice, resetPractice, scopedQuestionId);
-    const questionsWithAnswers = practiceState.questions.map((question) => ({
-      ...this.mapQuestionForPracticeAttempt(question),
-      savedAnswer: practiceState.answerMap[question.id] || null,
-    }));
-
+    const practiceQuestions = await this.loadQuestionsForLocalPractice(quiz, scopedQuestionId);
     return {
       mode: 'practice',
       quiz: this.mapQuizForStudent(quiz),
-      practiceSession: {
-        id: practiceState.sessionId,
-        lastQuestionIndex: practiceState.lastQuestionIndex,
-        showContinuePopup: practiceState.showContinuePopup,
-        revealedQuestionIds: practiceState.revealedQuestionIds,
-      },
-      questions: questionsWithAnswers,
+      questions: practiceQuestions.map((question) => this.mapQuestionForPracticeAttempt(question)),
     };
-  }
-
-  async savePractice(authorization: string | undefined, quizId: number, dto: SavePracticeDto) {
-    const user = await this.requireStudent(authorization);
-    const quiz = await this.loadActiveQuiz(quizId);
-    await this.ensureStudentCanAccessQuiz(user.id, quiz);
-    await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
-    if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'practice_mode'))) {
-      throw new BadRequestException('Practice mode is included with selected plans');
-    }
-    if (Number(quiz.exam_mode_only) === 1) {
-      throw new BadRequestException('This quiz is exam mode only');
-    }
-
-    const session = await this.getLatestPracticeSession(user.id, quizId);
-    if (!session) {
-      throw new NotFoundException('Practice session not found');
-    }
-    const question = await this.loadQuestionForPracticeSave(quiz, session, dto.questionId);
-    if (!question) {
-      throw new NotFoundException('Question not found in this quiz');
-    }
-
-    const connection = await this.db.getConnection();
-    try {
-      await connection.beginTransaction();
-      await connection.execute(
-        'DELETE FROM practice_answers WHERE practice_session_id = ? AND question_id = ?',
-        [session.id, dto.questionId]
-      );
-
-      if (dto.questionType === 'sba') {
-        const selected = Array.isArray(dto.selected) ? dto.selected.map((id) => Number(id)).filter((id) => id > 0) : [];
-        for (const optionId of selected) {
-          await connection.execute(
-            'INSERT INTO practice_answers (practice_session_id, question_id, option_id, is_selected) VALUES (?, ?, ?, 1)',
-            [session.id, dto.questionId, optionId]
-          );
-        }
-      } else {
-        const tfAnswers = dto.tfAnswers || {};
-        for (const option of question.options) {
-          const raw = (tfAnswers as Record<string, unknown>)[String(option.id)];
-          if (raw !== 0 && raw !== 1 && raw !== '0' && raw !== '1') {
-            continue;
-          }
-          await connection.execute(
-            'INSERT INTO practice_answers (practice_session_id, question_id, option_id, is_selected) VALUES (?, ?, ?, ?)',
-            [session.id, dto.questionId, option.id, Number(raw) === 1 ? 1 : 0]
-          );
-        }
-      }
-
-      await connection.execute(
-        'UPDATE practice_sessions SET last_question_index = ?, updated_at = NOW() WHERE id = ?',
-        [dto.questionIndex, session.id]
-      );
-
-      await connection.commit();
-      return { success: true };
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-  }
-
-  async savePracticeDraft(authorization: string | undefined, quizId: number, dto: SavePracticeProgressDto) {
-    return this.savePracticeProgress(authorization, quizId, dto, 'in_progress');
-  }
-
-  async finishPractice(authorization: string | undefined, quizId: number, dto: SavePracticeProgressDto) {
-    return this.savePracticeProgress(authorization, quizId, dto, 'completed');
-  }
-
-  async prewarmPracticeAnswer(authorization: string | undefined, quizId: number, questionId: number) {
-    const user = await this.requireStudent(authorization);
-    await this.loadPracticeRevealPayload(user.id, quizId, questionId);
-    return { success: true };
-  }
-
-  async revealPracticeAnswer(authorization: string | undefined, quizId: number, questionId: number) {
-    const user = await this.requireStudent(authorization);
-    const question = await this.loadPracticeRevealPayload(user.id, quizId, questionId);
-    return { question };
-  }
-
-  private async savePracticeProgress(
-    authorization: string | undefined,
-    quizId: number,
-    dto: SavePracticeProgressDto,
-    status: 'in_progress' | 'completed'
-  ) {
-    const user = await this.requireStudent(authorization);
-    const quiz = await this.loadActiveQuiz(quizId);
-    await this.ensureStudentCanAccessQuiz(user.id, quiz);
-    await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
-    if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'practice_mode'))) {
-      throw new BadRequestException('Practice mode is included with selected plans');
-    }
-    if (Number(quiz.exam_mode_only) === 1) {
-      throw new BadRequestException('This quiz is exam mode only');
-    }
-
-    const practiceState = await this.ensurePracticeSession(user.id, quiz, true, false);
-    const questions = practiceState.questions;
-    const normalizedAnswers = this.normalizeSubmittedAnswers(dto.answers || {}, questions);
-    const revealedQuestionIds = this.normalizeQuestionIdList(dto.revealedQuestionIds || [], questions);
-    const questionIndex = this.normalizeQuestionIndex(dto.currentQuestionIndex, questions.length);
-
-    const connection = await this.db.getConnection();
-    try {
-      await connection.beginTransaction();
-      await this.replacePracticeAnswers(connection, Number(practiceState.sessionId), questions, normalizedAnswers);
-      await connection.execute(
-        `
-          UPDATE practice_sessions
-          SET status = ?, last_question_index = ?, revealed_question_ids_json = ?, updated_at = NOW()
-          WHERE id = ? AND user_id = ? AND quiz_id = ?
-        `,
-        [status, questionIndex, JSON.stringify(revealedQuestionIds), practiceState.sessionId, user.id, quizId]
-      );
-      await connection.commit();
-      return {
-        success: true,
-        sessionId: Number(practiceState.sessionId),
-        status,
-        lastQuestionIndex: questionIndex,
-        revealedQuestionIds,
-      };
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
   }
 
   async saveExamProgress(authorization: string | undefined, quizId: number, dto: SaveExamProgressDto) {
@@ -840,65 +665,6 @@ export class QuizAttemptsService {
     return { attemptId, reviewed: true };
   }
 
-  async practiceReview(authorization: string | undefined, quizId: number, complete: boolean, questionId?: number | null) {
-    const user = await this.requireStudent(authorization);
-    const quiz = await this.loadActiveQuiz(quizId);
-    await this.ensureStudentCanAccessQuiz(user.id, quiz);
-    await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
-    const session = await this.getLatestPracticeSession(user.id, quizId);
-    if (!session) {
-      throw new NotFoundException('No practice session found');
-    }
-
-    if (complete && session.status !== 'completed') {
-      await this.db.execute(
-        'UPDATE practice_sessions SET status = ?, updated_at = NOW() WHERE id = ?',
-        ['completed', session.id]
-      );
-    }
-
-    const scopedQuestionId = Number.isFinite(Number(questionId)) && Number(questionId) > 0
-      ? Number(questionId)
-      : null;
-    const questions = await this.loadQuestionsForPracticeSession(quiz, session, scopedQuestionId);
-    const [answerRows] = await this.db.execute<RowDataPacket[]>(
-      'SELECT question_id, option_id, is_selected FROM practice_answers WHERE practice_session_id = ?',
-      [session.id]
-    );
-    const answerMap = this.groupAnswerRows(answerRows);
-
-    const reviewed = questions.map((question) => this.mapReviewQuestion(question, answerMap[question.id] || []));
-    const summary = reviewed.reduce(
-      (acc, question) => {
-        if (question.answerStatus === 'correct') acc.correct++;
-        else if (question.answerStatus === 'wrong') acc.wrong++;
-        else acc.unanswered++;
-        acc.rawScore += Number(question.questionScore || 0);
-        return acc;
-      },
-      { correct: 0, wrong: 0, unanswered: 0, rawScore: 0 }
-    );
-    const score = this.scaleScoreToHundred(summary.rawScore, reviewed.length);
-
-    return {
-      quiz: this.mapQuizForStudent(quiz),
-      session: {
-        id: session.id,
-        status: session.status,
-      },
-      summary: {
-        total: reviewed.length,
-        correct: summary.correct,
-        wrong: summary.wrong,
-        unanswered: summary.unanswered,
-        score,
-        percentage: score,
-        passingMarks: this.resolvePassingMarks(Number(quiz.passing_marks || 0)),
-      },
-      questions: reviewed,
-    };
-  }
-
   private async requireStudent(authorization?: string) {
     const token = this.extractToken(authorization);
     const [rows] = await this.db.execute<AuthUser[]>(
@@ -1162,25 +928,28 @@ export class QuizAttemptsService {
 
     const ids = questionRows.map((row) => row.id);
     const placeholders = sqlPlaceholders(ids);
-    const versionByQuestionId = await this.loadQuestionContentVersions(ids);
-    const [optionRows] = await this.db.execute<OptionRow[]>(
-      `
-        SELECT id, question_id, option_label, option_text, is_correct, why_incorrect
-        FROM question_options
-        WHERE question_id IN (${placeholders})
-        ORDER BY question_id, option_label ASC
-      `,
-      ids
-    );
-
-    const [recapRows] = await this.db.execute<TheoryRecapRow[]>(
-      `SELECT question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic,
-              hierarchy_lesson, etiology, pathophysiology, clinical_features, investigations,
-              treatment, key_points, mnemonic
-       FROM question_theory_recaps
-       WHERE question_id IN (${placeholders})`,
-      ids
-    );
+    const [versionByQuestionId, optionResult, recapResult] = await Promise.all([
+      this.loadQuestionContentVersions(ids),
+      this.db.execute<OptionRow[]>(
+        `
+          SELECT id, question_id, option_label, option_text, is_correct, why_incorrect
+          FROM question_options
+          WHERE question_id IN (${placeholders})
+          ORDER BY question_id, option_label ASC
+        `,
+        ids
+      ),
+      this.db.execute<TheoryRecapRow[]>(
+        `SELECT question_id, concept_name, hierarchy_course, hierarchy_subject, hierarchy_topic,
+                hierarchy_lesson, etiology, pathophysiology, clinical_features, investigations,
+                treatment, key_points, mnemonic
+         FROM question_theory_recaps
+         WHERE question_id IN (${placeholders})`,
+        ids
+      ),
+    ]);
+    const [optionRows] = optionResult;
+    const [recapRows] = recapResult;
     const recapMap = new Map<number, TheoryRecapData>();
     for (const recap of recapRows) {
       recapMap.set(recap.question_id, {
@@ -1219,49 +988,14 @@ export class QuizAttemptsService {
     return loadedQuestions;
   }
 
-  private async loadQuestionForPracticeSave(
-    quiz: QuizRow,
-    session: PracticeSessionRecord,
-    questionId: number
-  ): Promise<LoadedQuestion> {
-    const [question] = await this.loadQuestionsForPracticeSession(quiz, session, questionId);
-    if (!question) {
-      throw new NotFoundException('Question not found in this quiz');
-    }
-    return question;
-  }
-
-  private async loadQuestionsForPracticeSession(
-    quiz: QuizRow,
-    session: PracticeSessionRecord,
-    questionId?: number | null
-  ) {
-    const questionIds = await this.resolvePracticeSessionQuestionIds(quiz, session);
+  private async loadQuestionsForLocalPractice(quiz: QuizRow, questionId?: number | null) {
+    const questionIds = this.isDynamicQuiz(quiz) ? await this.generateDynamicQuestionIds(quiz) : undefined;
     return this.loadQuestionsForQuiz(quiz.id, questionId, questionIds);
   }
 
   private async loadQuestionsForExamSession(quiz: QuizRow, session: ExamSessionRecord) {
     const questionIds = await this.resolveExamSessionQuestionIds(quiz, session);
     return this.loadQuestionsForQuiz(quiz.id, null, questionIds);
-  }
-
-  private async resolvePracticeSessionQuestionIds(quiz: QuizRow, session: PracticeSessionRecord) {
-    const savedIds = this.parseNumberJsonArray(session.question_ids_json || null);
-    if (!this.isDynamicQuiz(quiz)) {
-      return savedIds.length ? savedIds : undefined;
-    }
-    if (savedIds.length) {
-      return savedIds;
-    }
-
-    const questionIds = await this.generateDynamicQuestionIds(quiz);
-    await this.db.execute(
-      "UPDATE practice_sessions SET question_ids_json = ?, revealed_question_ids_json = '[]', updated_at = NOW() WHERE id = ?",
-      [JSON.stringify(questionIds), session.id]
-    );
-    session.question_ids_json = JSON.stringify(questionIds);
-    session.revealed_question_ids_json = '[]';
-    return questionIds;
   }
 
   private async resolveExamSessionQuestionIds(quiz: QuizRow, session: ExamSessionRecord) {
@@ -1296,64 +1030,14 @@ export class QuizAttemptsService {
       const targetCount = Math.min(Math.max(Math.trunc(Number(section.targetCount) || 0), 0), 500);
       if (targetCount <= 0) continue;
 
-      const params: Array<string | number> = [];
-      let sql = `
-        SELECT q.id
-        FROM questions q
-        WHERE q.status = 'active'
-      `;
-
-      const courseId = section.courseId || Number(quiz.course_id || 0) || null;
-      const subjectId = section.subjectId || (Number(quiz.is_general) === 1 ? null : Number(quiz.topic_id || 0) || null);
-      const topicId = section.topicId || (Number(quiz.is_general) === 1 ? null : Number(quiz.subtopic_id || 0) || null);
-      const lessonId = section.lessonId || (Number(quiz.is_general) === 1 ? null : Number(quiz.lesson_id || 0) || null);
-      const paperId = section.paperId || Number(quiz.paper_id || 0) || null;
-      const category = section.category || String(quiz.category || '').trim();
-
-      if (courseId) {
-        sql += ' AND q.course_id = ?';
-        params.push(courseId);
-      }
-      if (subjectId) {
-        sql += ' AND q.topic_id = ?';
-        params.push(subjectId);
-      }
-      if (topicId) {
-        sql += ' AND q.subtopic_id = ?';
-        params.push(topicId);
-      }
-      if (lessonId) {
-        sql += ' AND q.lesson_id = ?';
-        params.push(lessonId);
-      }
-      if (paperId) {
-        sql += ' AND q.paper_id = ?';
-        params.push(paperId);
-      }
-      if (category) {
-        sql += " AND (q.question_category = ? OR (q.question_category IS NULL AND q.category = ?))";
-        params.push(this.normalizeQuestionCategory(category), this.normalizeLegacyQuestionCategory(category));
-      }
-      if (section.questionType) {
-        sql += ' AND q.question_type = ?';
-        params.push(section.questionType);
-      }
-      if (selectedIds.length) {
-        sql += ` AND q.id NOT IN (${sqlPlaceholders(selectedIds)})`;
-        params.push(...selectedIds);
-      }
-
-      sql += ' ORDER BY RAND() LIMIT ?';
-      params.push(targetCount);
-
-      const [rows] = await this.db.execute<RowDataPacket[]>(sql, params);
-      const drawnIds = rows
-        .map((row) => Number(row.id))
-        .filter((id) => Number.isInteger(id) && id > 0 && !selectedSet.has(id));
+      const filters = this.resolveDynamicQuestionPoolFilters(quiz, section);
+      const poolIds = await this.loadDynamicQuestionPool(filters);
+      const availableIds = poolIds.filter((id) => !selectedSet.has(id));
+      const drawnIds = this.sampleQuestionIds(availableIds, targetCount);
 
       if (drawnIds.length < targetCount) {
         throw new BadRequestException(
-          `Not enough active questions for ${section.title || 'a blueprint section'}. Requested ${targetCount}, found ${drawnIds.length}.`
+          `Not enough active questions for ${section.title || 'a blueprint section'}. Requested ${targetCount}, found ${availableIds.length}.`
         );
       }
 
@@ -1368,6 +1052,112 @@ export class QuizAttemptsService {
     }
 
     return selectedIds;
+  }
+
+  private resolveDynamicQuestionPoolFilters(quiz: QuizRow, section: BlueprintSection): DynamicQuestionPoolFilters {
+    const category = section.category || String(quiz.category || '').trim();
+    return {
+      courseId: section.courseId || Number(quiz.course_id || 0) || null,
+      subjectId: section.subjectId || (Number(quiz.is_general) === 1 ? null : Number(quiz.topic_id || 0) || null),
+      topicId: section.topicId || (Number(quiz.is_general) === 1 ? null : Number(quiz.subtopic_id || 0) || null),
+      lessonId: section.lessonId || (Number(quiz.is_general) === 1 ? null : Number(quiz.lesson_id || 0) || null),
+      paperId: section.paperId || Number(quiz.paper_id || 0) || null,
+      questionCategory: category ? this.normalizeQuestionCategory(category) : '',
+      legacyCategory: category ? this.normalizeLegacyQuestionCategory(category) : '',
+      questionType: section.questionType,
+    };
+  }
+
+  private getDynamicQuestionPoolCacheKey(filters: DynamicQuestionPoolFilters) {
+    return JSON.stringify(filters);
+  }
+
+  private async loadDynamicQuestionPool(filters: DynamicQuestionPoolFilters) {
+    const now = Date.now();
+    const cacheKey = this.getDynamicQuestionPoolCacheKey(filters);
+    const cached = this.dynamicQuestionPoolCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      cached.lastUsedAt = now;
+      return cached.ids;
+    }
+    if (cached) {
+      this.dynamicQuestionPoolCache.delete(cacheKey);
+    }
+
+    const params: Array<string | number> = [];
+    let sql = `
+      SELECT q.id
+      FROM questions q
+      WHERE q.status = 'active'
+    `;
+
+    if (filters.courseId) {
+      sql += ' AND q.course_id = ?';
+      params.push(filters.courseId);
+    }
+    if (filters.subjectId) {
+      sql += ' AND q.topic_id = ?';
+      params.push(filters.subjectId);
+    }
+    if (filters.topicId) {
+      sql += ' AND q.subtopic_id = ?';
+      params.push(filters.topicId);
+    }
+    if (filters.lessonId) {
+      sql += ' AND q.lesson_id = ?';
+      params.push(filters.lessonId);
+    }
+    if (filters.paperId) {
+      sql += ' AND q.paper_id = ?';
+      params.push(filters.paperId);
+    }
+    if (filters.questionCategory) {
+      sql += ' AND (q.question_category = ? OR (q.question_category IS NULL AND q.category = ?))';
+      params.push(filters.questionCategory, filters.legacyCategory);
+    }
+    if (filters.questionType) {
+      sql += ' AND q.question_type = ?';
+      params.push(filters.questionType);
+    }
+
+    sql += ' ORDER BY q.id ASC';
+
+    const [rows] = await this.db.execute<RowDataPacket[]>(sql, params);
+    const ids = rows
+      .map((row) => Number(row.id))
+      .filter((id) => Number.isInteger(id) && id > 0);
+
+    this.dynamicQuestionPoolCache.set(cacheKey, {
+      ids,
+      expiresAt: now + DYNAMIC_QUESTION_POOL_CACHE_MS,
+      lastUsedAt: now,
+    });
+    this.pruneDynamicQuestionPoolCache(now);
+    return ids;
+  }
+
+  private pruneDynamicQuestionPoolCache(now = Date.now()) {
+    for (const [key, entry] of this.dynamicQuestionPoolCache) {
+      if (entry.expiresAt <= now) {
+        this.dynamicQuestionPoolCache.delete(key);
+      }
+    }
+    if (this.dynamicQuestionPoolCache.size <= DYNAMIC_QUESTION_POOL_CACHE_MAX) return;
+    const staleEntries = Array.from(this.dynamicQuestionPoolCache.entries())
+      .sort((left, right) => left[1].lastUsedAt - right[1].lastUsedAt);
+    for (const [key] of staleEntries.slice(0, this.dynamicQuestionPoolCache.size - DYNAMIC_QUESTION_POOL_CACHE_MAX)) {
+      this.dynamicQuestionPoolCache.delete(key);
+    }
+  }
+
+  private sampleQuestionIds(ids: number[], targetCount: number) {
+    if (ids.length <= targetCount) return ids.slice();
+    const shuffled = ids.slice();
+    for (let index = 0; index < targetCount; index++) {
+      const swapIndex = index + Math.floor(Math.random() * (shuffled.length - index));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    return shuffled.slice(0, targetCount);
   }
 
   private optionalPositiveId(value: unknown) {
@@ -1429,35 +1219,6 @@ export class QuizAttemptsService {
   private normalizeLegacyQuestionCategory(category: string) {
     const value = String(category || '').trim();
     if (value === 'past_paper') return 'past';
-    return value;
-  }
-
-  private async loadPracticeRevealPayload(userId: number, quizId: number, questionId: number) {
-    const cacheKey = `${userId}:${quizId}:${questionId}`;
-    const now = Date.now();
-    const cached = this.practiceRevealCache.get(cacheKey);
-    if (cached && cached.expiresAt > now) {
-      return cached.value;
-    }
-
-    const quiz = await this.loadActiveQuiz(quizId);
-    await this.ensureStudentCanAccessQuiz(userId, quiz);
-    await this.ensureStudentCanUseDynamicQuiz(userId, quiz);
-    if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(userId, 'practice_mode'))) {
-      throw new BadRequestException('Practice mode is included with selected plans');
-    }
-    if (Number(quiz.exam_mode_only) === 1) {
-      throw new BadRequestException('This quiz is exam mode only');
-    }
-
-    const practiceState = await this.ensurePracticeSession(userId, quiz, true, false, questionId);
-    const question = practiceState.questions.find((item) => item.id === questionId);
-    if (!question) {
-      throw new NotFoundException('Question not found in this quiz');
-    }
-
-    const value = this.mapPracticeRevealQuestion(question);
-    this.practiceRevealCache.set(cacheKey, { value, expiresAt: now + PRACTICE_REVEAL_CACHE_MS });
     return value;
   }
 
@@ -1602,116 +1363,6 @@ export class QuizAttemptsService {
       }
     }
     return normalized;
-  }
-
-  private async replacePracticeAnswers(
-    connection: PoolConnection,
-    sessionId: number,
-    questions: LoadedQuestion[],
-    normalizedAnswers: Record<string, unknown>
-  ) {
-    await connection.execute('DELETE FROM practice_answers WHERE practice_session_id = ?', [sessionId]);
-
-    for (const question of questions) {
-      const rawAnswer = normalizedAnswers[String(question.id)];
-      if (question.question_type === 'sba') {
-        const selectedId = rawAnswer === null || rawAnswer === undefined || rawAnswer === '' ? null : Number(rawAnswer);
-        if (!selectedId || !question.options.some((option) => option.id === selectedId)) continue;
-        await connection.execute(
-          'INSERT INTO practice_answers (practice_session_id, question_id, option_id, is_selected) VALUES (?, ?, ?, 1)',
-          [sessionId, question.id, selectedId]
-        );
-        continue;
-      }
-
-      const tfSubmitted = typeof rawAnswer === 'object' && rawAnswer !== null ? rawAnswer as Record<string, unknown> : {};
-      for (const option of question.options) {
-        const value = tfSubmitted[String(option.id)];
-        if (value !== 0 && value !== 1 && value !== '0' && value !== '1') continue;
-        await connection.execute(
-          'INSERT INTO practice_answers (practice_session_id, question_id, option_id, is_selected) VALUES (?, ?, ?, ?)',
-          [sessionId, question.id, option.id, Number(value) === 1 ? 1 : 0]
-        );
-      }
-    }
-  }
-
-  private async ensurePracticeSession(
-    userId: number,
-    quiz: QuizRow,
-    continuePractice: boolean,
-    resetPractice: boolean,
-    questionId?: number | null
-  ) {
-    const quizId = Number(quiz.id);
-    let session: PracticeSessionRecord | null = await this.getLatestPracticeSession(userId, quizId);
-
-    if (!session) {
-      const questionIds = this.isDynamicQuiz(quiz) ? await this.generateDynamicQuestionIds(quiz) : [];
-      const questionIdsJson = questionIds.length ? JSON.stringify(questionIds) : null;
-      const [result] = await this.db.execute<ResultSetHeader>(
-        `
-          INSERT INTO practice_sessions (
-            user_id, quiz_id, status, last_question_index,
-            question_ids_json, revealed_question_ids_json
-          ) VALUES (?, ?, 'in_progress', 0, ${questionIdsJson ? '?' : 'NULL'}, '[]')
-        `,
-        questionIdsJson ? [userId, quizId, questionIdsJson] : [userId, quizId]
-      );
-      session = {
-        id: result.insertId,
-        status: 'in_progress',
-        last_question_index: 0,
-        question_ids_json: questionIdsJson,
-        revealed_question_ids_json: '[]',
-      };
-    } else if (resetPractice || session.status === 'completed') {
-      const questionIds = this.isDynamicQuiz(quiz) ? await this.generateDynamicQuestionIds(quiz) : [];
-      await this.db.execute('DELETE FROM practice_answers WHERE practice_session_id = ?', [session.id]);
-      await this.db.execute(
-        `
-          UPDATE practice_sessions
-          SET status = 'in_progress',
-              last_question_index = 0,
-              question_ids_json = ?,
-              revealed_question_ids_json = '[]',
-              updated_at = NOW()
-          WHERE id = ?
-        `,
-        [questionIds.length ? JSON.stringify(questionIds) : null, session.id]
-      );
-      session = {
-        ...session,
-        status: 'in_progress',
-        last_question_index: 0,
-        question_ids_json: questionIds.length ? JSON.stringify(questionIds) : null,
-        revealed_question_ids_json: '[]',
-      };
-    }
-
-    const questions = await this.loadQuestionsForPracticeSession(quiz, session, questionId);
-
-    const [answerRows] = await this.db.execute<RowDataPacket[]>(
-      'SELECT question_id, option_id, is_selected FROM practice_answers WHERE practice_session_id = ?',
-      [session.id]
-    );
-    const answerMap = this.groupAnswerRows(answerRows);
-
-    const answeredCount = questions.reduce((count, question) => {
-      const state = this.getAnswerState(question, answerMap[question.id] || []);
-      return count + (this.evaluateAnswer(question, state) !== 'unanswered' ? 1 : 0);
-    }, 0);
-
-    return {
-      sessionId: Number(session.id),
-      lastQuestionIndex: Number(session.last_question_index || 0),
-      showContinuePopup: session.status === 'in_progress' && answeredCount > 0 && !continuePractice,
-      revealedQuestionIds: this.parseNumberJsonArray(session.revealed_question_ids_json || null),
-      questions,
-      answerMap: Object.fromEntries(
-        questions.map((question) => [question.id, this.getAnswerState(question, answerMap[question.id] || [])])
-      ),
-    };
   }
 
   private async ensureExamSession(userId: number, quizId: number, quiz: QuizRow) {
@@ -1878,29 +1529,6 @@ export class QuizAttemptsService {
     }
   }
 
-  private async getLatestPracticeSession(userId: number, quizId: number): Promise<PracticeSessionRecord | null> {
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `
-        SELECT id, status, last_question_index, question_ids_json, revealed_question_ids_json
-        FROM practice_sessions
-        WHERE user_id = ? AND quiz_id = ?
-        ORDER BY id DESC
-        LIMIT 1
-      `,
-      [userId, quizId]
-    );
-    const row = rows[0];
-    return row
-      ? {
-          id: Number(row.id),
-          status: String(row.status),
-          last_question_index: Number(row.last_question_index || 0),
-          question_ids_json: row.question_ids_json ? String(row.question_ids_json) : null,
-          revealed_question_ids_json: row.revealed_question_ids_json ? String(row.revealed_question_ids_json) : null,
-        }
-      : null;
-  }
-
   private groupAnswerRows(rows: RowDataPacket[]) {
     const grouped: Record<number, Array<{ optionId: number; isSelected: number }>> = {};
     for (const row of rows) {
@@ -2014,6 +1642,13 @@ export class QuizAttemptsService {
     return Number(((rawScore / maxRawScore) * QUIZ_TOTAL_MARKS).toFixed(2));
   }
 
+  private buildAnswerBulkInsert(rows: AnswerInsertRow[]) {
+    return {
+      placeholders: rows.map((row) => `(${sqlPlaceholders(row)})`).join(', '),
+      values: rows.flatMap((row) => row),
+    };
+  }
+
   private async createExamAttempt(
     connection: PoolConnection,
     userId: number,
@@ -2037,24 +1672,32 @@ export class QuizAttemptsService {
     let correctAnswers = 0;
     let wrongAnswers = 0;
     let unansweredQuestions = 0;
+    let rawScore = 0;
+    const answerRows: AnswerInsertRow[] = [];
 
     for (const question of questions) {
       const rawAnswer = submittedAnswers[String(question.id)];
-      const status = await this.saveExamQuestionAnswers(connection, attemptId, question, rawAnswer);
+      const answerResult = this.buildExamQuestionAnswerRows(attemptId, question, rawAnswer);
+      answerRows.push(...answerResult.rows);
+      rawScore += answerResult.rawScore;
 
-      if (status === 'correct') {
+      if (answerResult.status === 'correct') {
         correctAnswers++;
-      } else if (status === 'wrong') {
+      } else if (answerResult.status === 'wrong') {
         wrongAnswers++;
       } else {
         unansweredQuestions++;
       }
     }
 
-    const rawScore = questions.reduce((sum, question) => {
-      const rawAnswer = submittedAnswers[String(question.id)];
-      return sum + this.calculateSubmissionQuestionScore(question, rawAnswer);
-    }, 0);
+    if (answerRows.length) {
+      const { placeholders, values } = this.buildAnswerBulkInsert(answerRows);
+      await connection.execute(
+        `INSERT INTO student_answers (attempt_id, question_id, option_id, is_selected) VALUES ${placeholders}`,
+        values
+      );
+    }
+
     const score = this.scaleScoreToHundred(rawScore, questions.length);
     const percentage = score;
     const effectivePassingMarks = this.resolvePassingMarks(Number(quiz.passing_marks || 0));
@@ -2073,8 +1716,7 @@ export class QuizAttemptsService {
     return attemptId;
   }
 
-  private async saveExamQuestionAnswers(
-    connection: PoolConnection,
+  private buildExamQuestionAnswerRows(
     attemptId: number,
     question: LoadedQuestion,
     rawAnswer: unknown
@@ -2082,19 +1724,20 @@ export class QuizAttemptsService {
     if (question.question_type === 'sba') {
       const selectedId = rawAnswer === null || rawAnswer === undefined || rawAnswer === '' ? null : Number(rawAnswer);
       const correctIds = question.options.filter((opt) => opt.isCorrect === 1).map((opt) => opt.id);
-      if (!selectedId) return 'unanswered';
+      const rawScore = this.calculateSubmissionQuestionScore(question, rawAnswer);
+      if (!selectedId) return { status: 'unanswered' as const, rawScore, rows: [] };
 
-      await connection.execute(
-        'INSERT INTO student_answers (attempt_id, question_id, option_id, is_selected) VALUES (?, ?, ?, 1)',
-        [attemptId, question.id, selectedId]
-      );
-
-      return correctIds.length === 1 && correctIds[0] === selectedId ? 'correct' : 'wrong';
+      return {
+        status: correctIds.length === 1 && correctIds[0] === selectedId ? 'correct' as const : 'wrong' as const,
+        rawScore,
+        rows: [[attemptId, question.id, selectedId, 1] as AnswerInsertRow],
+      };
     }
 
     const tfSubmitted = typeof rawAnswer === 'object' && rawAnswer !== null ? (rawAnswer as Record<string, unknown>) : {};
     let answeredStatements = 0;
     let allCorrect = true;
+    const rows: AnswerInsertRow[] = [];
 
     for (const option of question.options) {
       const value = tfSubmitted[String(option.id)];
@@ -2104,17 +1747,19 @@ export class QuizAttemptsService {
       }
       const numeric = Number(value) === 1 ? 1 : 0;
       answeredStatements++;
-      await connection.execute(
-        'INSERT INTO student_answers (attempt_id, question_id, option_id, is_selected) VALUES (?, ?, ?, ?)',
-        [attemptId, question.id, option.id, numeric]
-      );
+      rows.push([attemptId, question.id, option.id, numeric]);
       if (numeric !== option.isCorrect) {
         allCorrect = false;
       }
     }
 
-    if (answeredStatements === 0) return 'unanswered';
-    return answeredStatements === question.options.length && allCorrect ? 'correct' : 'wrong';
+    const rawScore = this.calculateSubmissionQuestionScore(question, rawAnswer);
+    if (answeredStatements === 0) return { status: 'unanswered' as const, rawScore, rows };
+    return {
+      status: answeredStatements === question.options.length && allCorrect ? 'correct' as const : 'wrong' as const,
+      rawScore,
+      rows,
+    };
   }
 
   private mapQuizForStudent(quiz: QuizRow) {
@@ -2165,31 +1810,6 @@ export class QuizAttemptsService {
   }
 
   private mapQuestionForPracticeAttempt(question: LoadedQuestion) {
-    return {
-      id: question.id,
-      questionType: question.question_type,
-      questionText: question.question_text,
-      contentTrace: {
-        source: question.contentSourceLabel,
-        sourceId: question.id,
-        version: question.contentVersion,
-        versionLabel: `v${question.contentVersion}`,
-        versionedAt: question.contentVersionedAt,
-      },
-      options: question.options.map((option) => ({
-        id: option.id,
-        optionLabel: option.optionLabel,
-        optionText: option.optionText,
-      })),
-      canRevealAnswer: Boolean(
-        question.options.length ||
-        String(question.explanation || '').trim() ||
-        question.theoryRecap
-      ),
-    };
-  }
-
-  private mapPracticeRevealQuestion(question: LoadedQuestion) {
     return {
       ...this.mapQuestion(question),
       canRevealAnswer: true,

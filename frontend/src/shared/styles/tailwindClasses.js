@@ -45,7 +45,7 @@ export const ui = {
   screenShell:
     'lms-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 px-page-x pb-page-y pt-page-y text-ink-strong max-[520px]:px-4 max-[520px]:pb-[var(--lms-mobile-content-bottom)] max-[520px]:pt-4',
   studentScreenShell:
-    'lms-route-page student-route-page page page-wrapper page-content app-content min-h-dvh w-full max-w-full min-w-0 text-ink-strong',
+    'lms-route-page student-route-page page page-wrapper page-content app-content w-full max-w-full min-w-0 text-ink-strong',
   managementLayout:
     'management-layout mx-auto grid w-full max-w-page min-w-0 gap-section max-[520px]:gap-4',
   studentManagementLayout:

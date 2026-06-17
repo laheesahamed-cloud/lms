@@ -1137,16 +1137,11 @@ export function StudentDashboardPage() {
   }, [loading]);
 
   const firstName = getFirstName(user);
-  const inProgressQuiz = useMemo(
-    () => studentQuizzes.find((quiz) => quiz.practiceSessionId),
-    [studentQuizzes]
-  );
   const latestAttempt = dashboard.recentAttempts[0] || null;
   const latestAttemptId = getAttemptId(latestAttempt);
   const weakTopic = dashboard.weakTopics[0] || null;
   const recommendedQuiz = useMemo(() => {
     if (!studentQuizzes.length) return null;
-    if (inProgressQuiz) return inProgressQuiz;
     if (weakTopic) {
       const match = studentQuizzes.find((quiz) =>
         String(quiz.courseTitle || '') === String(weakTopic.courseTitle || '') &&
@@ -1155,7 +1150,7 @@ export function StudentDashboardPage() {
       if (match) return match;
     }
     return studentQuizzes.find((quiz) => !quiz.isCompleted && !quiz.completed) || studentQuizzes[0];
-  }, [inProgressQuiz, studentQuizzes, weakTopic]);
+  }, [studentQuizzes, weakTopic]);
   const recommendedNote = useMemo(() => {
     if (!aiNotes.length) return null;
     if (!weakTopic) return aiNotes[0];
@@ -1174,14 +1169,12 @@ export function StudentDashboardPage() {
     streak: dashboard.quizDayStreak,
   });
   const nextQuizId = getQuizId(recommendedQuiz);
-  const continueTarget = inProgressQuiz && getQuizId(inProgressQuiz)
-    ? appRoute(`/quizzes/${getQuizId(inProgressQuiz)}?mode=practice`)
-    : nextQuizId
-      ? appRoute(`/quizzes/${nextQuizId}`)
-      : recommendedNote?.id
-        ? appRoute(`/ai-notes/${recommendedNote.id}`)
-        : appRoute('/quizzes');
-  const continueLabel = inProgressQuiz ? 'Resume practice' : nextQuizId ? 'Start practice' : recommendedNote?.id ? 'Review lesson' : 'Open quizzes';
+  const continueTarget = nextQuizId
+    ? appRoute(`/quizzes/${nextQuizId}`)
+    : recommendedNote?.id
+      ? appRoute(`/ai-notes/${recommendedNote.id}`)
+      : appRoute('/quizzes');
+  const continueLabel = nextQuizId ? 'Start practice' : recommendedNote?.id ? 'Review lesson' : 'Open quizzes';
 
   const courseProgress = dashboard.courseProgress;
   const courseProgressSummary = dashboard.courseProgressSummary;
@@ -1387,7 +1380,7 @@ export function StudentDashboardPage() {
                 <span className="study-hero-greeting">Welcome back,</span>
                 <strong className="study-hero-name-nowrap">{firstName}</strong>
               </div>
-              <p className="study-hero-lead">Next study move - <b>{inProgressQuiz ? 'PRACTICE' : recommendedNote ? 'LESSON' : 'PRACTICE'}</b></p>
+              <p className="study-hero-lead">Next study move - <b>{nextQuizId ? 'PRACTICE' : recommendedNote ? 'LESSON' : 'PRACTICE'}</b></p>
               <div className="study-chip-row">
                 <span><Icon name="stetho" /> {recommendedQuiz?.courseTitle || weakTopic?.courseTitle || 'Surgery'}</span>
                 <span>{recommendedQuiz?.topicName || weakTopic?.topicName || recommendedNote?.topicName || 'Hernia'} · {readinessScore}% ready</span>

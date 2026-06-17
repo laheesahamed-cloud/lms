@@ -332,6 +332,71 @@ export class SubscriptionsService {
     return { ok: true, id: result.insertId };
   }
 
+  async previewCheckoutCoupon(userId: number, dto: RequestSubscriptionDto) {
+    await this.getStudentOrThrow(userId);
+    const plan = await this.plansService.findById(dto.planId);
+    this.normalizeAccessScope(dto.accessScope, dto.courseIds, dto.lessonIds);
+    return this.buildCheckoutCouponQuote(plan, dto.couponCode, true);
+  }
+
+  async requestCouponApproval(userId: number, dto: RequestSubscriptionDto) {
+    const student = await this.getStudentOrThrow(userId);
+    const plan = await this.plansService.findById(dto.planId);
+    const scope = this.normalizeAccessScope(dto.accessScope, dto.courseIds, dto.lessonIds);
+    const quote = await this.buildCheckoutCouponQuote(plan, dto.couponCode, true);
+
+    if (!quote.requiresApproval) {
+      throw new BadRequestException('This coupon still requires payment. Choose bank transfer or Card / PayHere to continue.');
+    }
+
+    const [existingRows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT id FROM subscription_requests WHERE user_id = ? AND plan_id = ? AND status = 'pending' LIMIT 1`,
+      [student.id, plan.id]
+    );
+    if (existingRows[0]) {
+      throw new BadRequestException('You already have a pending request for this plan');
+    }
+
+    const messageParts = [
+      String(dto.message || '').trim(),
+      `Coupon approval requested: ${quote.couponCode}`,
+    ].filter(Boolean);
+
+    const [result] = await this.db.execute<ResultSetHeader>(
+      `INSERT INTO subscription_requests (
+         user_id, plan_id, message, payment_method, payment_reference, payment_amount, payment_currency,
+         coupon_code, discount_amount, access_scope, course_ids_json, lesson_ids_json, status
+       ) VALUES (?, ?, ?, 'coupon', ?, 0.00, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [
+        student.id,
+        plan.id,
+        messageParts.join('\n'),
+        quote.couponCode,
+        quote.currency,
+        quote.couponCode,
+        Number(quote.discountAmount),
+        scope.accessScope,
+        JSON.stringify(scope.courseIds),
+        JSON.stringify(scope.lessonIds),
+      ]
+    );
+
+    await this.logAudit({
+      requestId: result.insertId,
+      userId: student.id,
+      actorId: student.id,
+      eventType: 'coupon_approval_requested',
+      summary: `${student.email} requested coupon approval for ${plan.name}`,
+      details: { planId: plan.id, originalAmount: quote.originalAmount, discountAmount: quote.discountAmount, couponCode: quote.couponCode, currency: quote.currency, ...scope },
+    });
+
+    return {
+      ok: true,
+      id: result.insertId,
+      ...quote,
+    };
+  }
+
   async requestManualPayment(userId: number, dto: ManualPaymentRequestDto) {
     const student = await this.getStudentOrThrow(userId);
     const plan = await this.plansService.findById(dto.planId);
@@ -366,7 +431,7 @@ export class SubscriptionsService {
     const discountAmount = coupon ? coupon.discountAmount : 0;
     const payableAmount = Number(this.formatAmount(Math.max(0, amount - discountAmount)));
     if (coupon && payableAmount <= 0) {
-      throw new BadRequestException('Coupon cannot reduce a bank transfer payment to zero. Please contact admin for manual access.');
+      throw new BadRequestException('This coupon covers the full amount. Request admin approval instead of uploading a bank transfer proof.');
     }
     const currency = String(plan.currency || 'LKR').toUpperCase();
     const invoiceId = String(existing?.invoice_id || '') || await this.generateInvoiceId();
@@ -1095,10 +1160,6 @@ export class SubscriptionsService {
     courseIds?: number[];
     lessonIds?: number[];
   } = {}) {
-    if (this.normalizeCouponCode(checkoutInput.couponCode)) {
-      throw new BadRequestException('Coupon codes are available for bank transfers only.');
-    }
-
     const student = await this.getStudentOrThrow(userId);
     const plan = await this.plansService.findById(planId);
     const settings = await this.settingsService.getPayHereCheckoutSettings();
@@ -1116,8 +1177,12 @@ export class SubscriptionsService {
     }
     const scope = this.normalizeAccessScope(checkoutInput.accessScope, checkoutInput.courseIds, checkoutInput.lessonIds);
 
-    const discountAmount = 0;
-    const payableAmount = amount;
+    const coupon = await this.resolveCouponForCheckout(checkoutInput.couponCode, amount, plan.id);
+    const discountAmount = coupon ? coupon.discountAmount : 0;
+    const payableAmount = Number(this.formatAmount(Math.max(0, amount - discountAmount)));
+    if (coupon && payableAmount <= 0) {
+      throw new BadRequestException('This coupon covers the full amount. Request admin approval instead of starting Card / PayHere checkout.');
+    }
 
     const currency = settings.currency || String(plan.currency || 'LKR').toUpperCase();
     const invoiceId = await this.generateInvoiceId();
@@ -1143,6 +1208,7 @@ export class SubscriptionsService {
       message: checkoutInput.message,
       amount: payableAmount,
       currency,
+      couponCode: coupon?.code || null,
       discountAmount,
       accessScope: scope.accessScope,
       courseIds: scope.courseIds,
@@ -1163,7 +1229,7 @@ export class SubscriptionsService {
         plan.id,
         payableAmount,
         currency,
-        null,
+        coupon?.code || null,
         discountAmount,
         String(checkoutInput.message || '').trim() || null,
         scope.accessScope,
@@ -1178,7 +1244,7 @@ export class SubscriptionsService {
       actorId: student.id,
       eventType: 'payhere_checkout_initiated',
       summary: `Started PayHere checkout for ${plan.name}`,
-      details: { planId: plan.id, invoiceId, orderId, amount: amountFormatted, originalAmount: this.formatAmount(amount), discountAmount, couponCode: '', currency, sandboxMode: settings.sandboxMode, billingName, billingEmail, orderNote: checkoutInput.message || '', ...scope },
+      details: { planId: plan.id, invoiceId, orderId, amount: amountFormatted, originalAmount: this.formatAmount(amount), discountAmount, couponCode: coupon?.code || '', currency, sandboxMode: settings.sandboxMode, billingName, billingEmail, orderNote: checkoutInput.message || '', ...scope },
     });
 
     return {
@@ -1192,7 +1258,8 @@ export class SubscriptionsService {
       amount: amountFormatted,
       originalAmount: this.formatAmount(amount),
       discountAmount: this.formatAmount(discountAmount),
-      couponCode: '',
+      couponCode: coupon?.code || '',
+      couponMode: coupon?.couponMode || '',
       currency,
       fields: {
         merchant_id: settings.merchantId,
@@ -1644,6 +1711,7 @@ export class SubscriptionsService {
     message?: string;
     amount: number;
     currency: string;
+    couponCode?: string | null;
     discountAmount: number;
     accessScope: 'all' | 'courses' | 'lessons';
     courseIds: number[];
@@ -1653,7 +1721,7 @@ export class SubscriptionsService {
       `INSERT INTO subscription_requests (
          user_id, plan_id, invoice_id, message, payment_method, payment_reference, payment_amount, payment_currency,
          coupon_code, discount_amount, access_scope, course_ids_json, lesson_ids_json, status
-       ) VALUES (?, ?, ?, ?, 'payhere', ?, ?, ?, NULL, ?, ?, ?, ?, 'pending')`,
+       ) VALUES (?, ?, ?, ?, 'payhere', ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
         input.userId,
         input.planId,
@@ -1662,6 +1730,7 @@ export class SubscriptionsService {
         input.orderId,
         input.amount,
         this.normalizePaymentCurrency(input.currency),
+        input.couponCode || null,
         input.discountAmount,
         input.accessScope,
         JSON.stringify(input.courseIds),
@@ -2125,7 +2194,7 @@ export class SubscriptionsService {
     paymentProofDataUrl?: string;
   }) {
     const paymentMethod = String(request.paymentMethod || '').trim().toLowerCase();
-    return Boolean(request.paymentProofDataUrl) || paymentMethod === 'payhere';
+    return Boolean(request.paymentProofDataUrl) || paymentMethod === 'payhere' || paymentMethod === 'coupon';
   }
 
   private generateCheckoutHash(merchantId: string, orderId: string, amount: string, currency: string, merchantSecret: string) {
@@ -2195,6 +2264,34 @@ export class SubscriptionsService {
       .trim()
       .toUpperCase()
       .replace(/[^A-Z0-9_-]/g, '');
+  }
+
+  private async buildCheckoutCouponQuote(
+    plan: { id: number; effectivePrice?: number; currency?: string },
+    couponCode: string | undefined,
+    requireCoupon: boolean
+  ) {
+    const amount = Number(plan.effectivePrice || 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('This plan does not have a payable amount.');
+    }
+
+    if (requireCoupon && !this.normalizeCouponCode(couponCode)) {
+      throw new BadRequestException('Enter a coupon code');
+    }
+
+    const coupon = await this.resolveCouponForCheckout(couponCode, amount, plan.id);
+    const discountAmount = coupon ? coupon.discountAmount : 0;
+    const payableAmount = Number(this.formatAmount(Math.max(0, amount - discountAmount)));
+    return {
+      couponCode: coupon?.code || '',
+      couponMode: coupon?.couponMode || '',
+      originalAmount: this.formatAmount(amount),
+      discountAmount: this.formatAmount(discountAmount),
+      amount: this.formatAmount(payableAmount),
+      currency: String(plan.currency || 'LKR').toUpperCase(),
+      requiresApproval: Boolean(coupon && payableAmount <= 0),
+    };
   }
 
   private async resolveCouponForCheckout(code: string | undefined, amount: number, planId: number) {

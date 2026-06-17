@@ -221,21 +221,6 @@ let WorkspaceService = class WorkspaceService {
            subj.topic_name AS subject_name,
            sub.subtopic_name AS topic_name,
            l.lesson_title,
-           ps.id AS practice_session_id,
-           ps.last_question_index,
-           ps.updated_at AS practice_updated_at,
-           (
-             SELECT COUNT(DISTINCT pa.question_id)
-             FROM practice_answers pa
-             WHERE pa.practice_session_id = ps.id
-           ) AS practice_answered_count,
-           (
-             SELECT COUNT(*)
-             FROM practice_sessions cps
-             WHERE cps.quiz_id = q.id
-               AND cps.user_id = ?
-               AND cps.status = 'completed'
-           ) AS practice_completed_count,
            (
              SELECT COUNT(*)
              FROM quiz_attempts qa
@@ -248,13 +233,9 @@ let WorkspaceService = class WorkspaceService {
          LEFT JOIN topics subj ON subj.id = q.topic_id
          LEFT JOIN subtopics sub ON sub.id = q.subtopic_id
          LEFT JOIN lessons l ON l.id = q.lesson_id
-         LEFT JOIN practice_sessions ps
-           ON ps.quiz_id = q.id
-          AND ps.user_id = ?
-          AND ps.status = 'in_progress'
          WHERE q.status = 'active'
-         ORDER BY ps.updated_at IS NULL ASC, ps.updated_at DESC, q.created_at DESC, q.id DESC
-         LIMIT 60`, [student.id, student.id, student.id]),
+         ORDER BY q.created_at DESC, q.id DESC
+         LIMIT 60`, [student.id]),
             this.db.execute(`SELECT
            c.course_title,
            subj.topic_name AS subject_name,
@@ -735,13 +716,11 @@ let WorkspaceService = class WorkspaceService {
         const quizId = Number(row.id);
         const isExam = Number(row.exam_mode_only) === 1;
         const canAccess = this.canAccessPlannerQuiz(row, accessProfile);
-        const inProgress = Boolean(row.practice_session_id);
-        const completed = Number(row.exam_attempt_count || 0) > 0 || Number(row.practice_completed_count || 0) > 0;
+        const completed = Number(row.exam_attempt_count || 0) > 0;
         const totalQuestions = Number(row.total_questions || 0);
-        const answered = Number(row.practice_answered_count || 0);
-        const progress = completed ? 100 : inProgress && totalQuestions > 0 ? this.clampPlannerPercent((answered / totalQuestions) * 100) : 0;
+        const progress = completed ? 100 : 0;
         const mode = isExam ? 'exam' : 'practice';
-        const status = !canAccess ? 'locked' : completed ? 'completed' : inProgress ? 'in_progress' : 'optional';
+        const status = !canAccess ? 'locked' : completed ? 'completed' : 'optional';
         return {
             id: `${isExam ? 'exam' : 'quiz'}-${quizId}`,
             source: 'quiz',
@@ -754,16 +733,15 @@ let WorkspaceService = class WorkspaceService {
             lesson: String(row.lesson_title || ''),
             status,
             dueAt: null,
-            completedAt: completed ? row.practice_updated_at || row.quiz_created_at || null : null,
+            completedAt: completed ? row.quiz_created_at || null : null,
             progress,
             actionUrl: `/quizzes/${quizId}?mode=${mode}`,
-            actionLabel: !canAccess ? 'Locked' : completed ? 'Review' : inProgress ? 'Resume practice' : isExam ? 'Start exam' : 'Start quiz',
+            actionLabel: !canAccess ? 'Locked' : completed ? 'Review' : isExam ? 'Start exam' : 'Start quiz',
             locked: !canAccess,
             accessMessage: canAccess ? '' : 'Your subscription does not include this course question bank.',
-            priority: !canAccess ? 18 : inProgress ? 78 : completed ? 5 : isExam ? 38 : 34,
+            priority: !canAccess ? 18 : completed ? 5 : isExam ? 38 : 34,
             meta: {
                 totalQuestions,
-                answeredQuestions: answered,
                 timeLimit: Number(row.time_limit || 0),
             },
         };

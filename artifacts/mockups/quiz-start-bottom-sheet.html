@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiz Start Confirmation Bottom Sheet Mockup</title>
+  <style>
+    :root {
+      --page: #07111f;
+      --surface: #0d1726;
+      --surface-strong: #121f31;
+      --surface-soft: #17263a;
+      --line: rgba(178, 197, 226, 0.16);
+      --line-strong: rgba(178, 197, 226, 0.26);
+      --text: #edf4ff;
+      --muted: #9fb1c8;
+      --soft: #74869f;
+      --blue: #4d76c7;
+      --cyan: #73c9c2;
+      --amber: #f2b84b;
+      --danger: #ff6b6b;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(135deg, rgba(79, 140, 255, 0.08), transparent 32%),
+        linear-gradient(225deg, rgba(66, 211, 200, 0.08), transparent 34%),
+        #030811;
+      color: var(--text);
+    }
+
+    .stage {
+      width: min(100%, 980px);
+      display: grid;
+      gap: 24px;
+      padding: 28px;
+    }
+
+    .stage-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .stage-title {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 36px);
+      line-height: 1.04;
+      letter-spacing: 0;
+    }
+
+    .stage-note {
+      margin: 8px 0 0;
+      max-width: 620px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .stage-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--cyan);
+      background: rgba(66, 211, 200, 0.08);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .phone-wrap {
+      display: grid;
+      place-items: center;
+    }
+
+    .phone {
+      position: relative;
+      width: min(390px, calc(100vw - 32px));
+      min-height: 844px;
+      overflow: hidden;
+      border: 1px solid rgba(195, 211, 236, 0.22);
+      border-radius: 36px;
+      background: var(--page);
+      box-shadow: 0 34px 90px rgba(0, 0, 0, 0.48);
+    }
+
+    .app {
+      min-height: 844px;
+      padding: 18px 16px 102px;
+      background:
+        linear-gradient(180deg, rgba(19, 35, 56, 0.98), rgba(7, 17, 31, 1) 38%),
+        var(--page);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 2px 20px;
+    }
+
+    .icon-btn,
+    .avatar {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .avatar {
+      color: white;
+      background: linear-gradient(135deg, var(--blue), #6e79ff);
+      border: 0;
+      font-size: 13px;
+    }
+
+    .top-title {
+      flex: 1;
+    }
+
+    .top-title span {
+      display: block;
+      color: var(--soft);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .top-title strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 20px;
+      line-height: 1.1;
+      color: var(--text);
+    }
+
+    .search {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      color: var(--soft);
+      background: rgba(255, 255, 255, 0.035);
+      font-size: 14px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+      margin: 14px 0 16px;
+      overflow: hidden;
+    }
+
+    .filter {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 13px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.035);
+      font-size: 13px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .filter.active {
+      color: #06111f;
+      border-color: transparent;
+      background: var(--cyan);
+    }
+
+    .quiz-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .quiz-card {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: linear-gradient(145deg, rgba(18, 31, 49, 0.96), rgba(10, 21, 35, 0.96));
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.22);
+    }
+
+    .quiz-card.featured {
+      border-color: rgba(66, 211, 200, 0.34);
+    }
+
+    .quiz-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .quiz-title {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .quiz-subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .mode {
+      align-self: flex-start;
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      padding: 0 10px;
+      border-radius: 999px;
+      color: var(--amber);
+      background: rgba(242, 184, 75, 0.1);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .meta span {
+      min-height: 50px;
+      display: grid;
+      align-content: center;
+      gap: 2px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.045);
+      color: var(--soft);
+      font-size: 11px;
+    }
+
+    .meta b {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .start-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 2px;
+    }
+
+    .progress {
+      color: var(--soft);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .start-button {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 15px;
+      color: #06111f;
+      background: var(--cyan);
+      font-size: 14px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .bottom-nav {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 14px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(11, 21, 36, 0.9);
+      backdrop-filter: blur(18px);
+    }
+
+    .nav-item {
+      display: grid;
+      gap: 4px;
+      place-items: center;
+      min-height: 50px;
+      color: var(--soft);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .nav-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--line-strong);
+    }
+
+    .nav-item.active {
+      color: var(--cyan);
+    }
+
+    .nav-item.active .nav-dot {
+      border-color: transparent;
+      background: var(--cyan);
+    }
+
+    .scrim {
+      position: absolute;
+      inset: 0 0 92px 0;
+      background: rgba(2, 7, 15, 0.64);
+      backdrop-filter: blur(5px);
+      animation: scrimIn 180ms ease-out both;
+    }
+
+    .sheet {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 92px;
+      display: flex;
+      min-height: 246px;
+      flex-direction: column;
+      padding: 10px 18px 18px;
+      border: 1px solid rgba(211, 224, 244, 0.18);
+      border-bottom: 0;
+      border-radius: 30px 30px 0 0;
+      background: rgba(11, 21, 36, 0.9);
+      box-shadow: none;
+      animation: sheetIn 220ms ease-out both;
+    }
+
+    .handle {
+      width: 46px;
+      height: 5px;
+      margin: 0 auto 18px;
+      border-radius: 999px;
+      background: rgba(210, 224, 244, 0.3);
+    }
+
+    .sheet-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .sheet-title {
+      margin: 0;
+      color: white;
+      font-size: 22px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .sheet-copy {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .plain-details {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .plain-details strong {
+      color: var(--text);
+      font-weight: 800;
+    }
+
+    .sheet-actions {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 10px;
+      margin-top: auto;
+      padding-bottom: max(4px, env(safe-area-inset-bottom));
+    }
+
+    .secondary,
+    .primary {
+      min-height: 50px;
+      border-radius: 17px;
+      border: 1px solid var(--line);
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .secondary {
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .primary {
+      border-color: transparent;
+      color: #06111f;
+      background: var(--cyan);
+      box-shadow: 0 16px 34px rgba(66, 211, 200, 0.2);
+    }
+
+    .phone.sheet-closing .scrim {
+      pointer-events: none;
+      animation: scrimOut 260ms ease-out both;
+    }
+
+    .phone.sheet-closing .sheet {
+      pointer-events: none;
+      animation: sheetOut 260ms ease-out both;
+    }
+
+    .phone.sheet-closed .scrim,
+    .phone.sheet-closed .sheet {
+      display: none;
+    }
+
+    @keyframes scrimIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes scrimOut {
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0;
+      }
+    }
+
+    @keyframes sheetIn {
+      from {
+        opacity: 0.92;
+        transform: translate3d(0, 360px, 0);
+      }
+
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+    }
+
+    @keyframes sheetOut {
+      from {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+
+      to {
+        opacity: 0.92;
+        transform: translate3d(0, 360px, 0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scrim,
+      .sheet,
+      .phone.sheet-closing .scrim,
+      .phone.sheet-closing .sheet {
+        animation-duration: 1ms;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .stage {
+        padding: 0;
+      }
+
+      .stage-header {
+        display: none;
+      }
+
+      .phone {
+        border-radius: 0;
+        width: 100vw;
+        min-height: 100dvh;
+        border: 0;
+      }
+
+      .app {
+        min-height: 100dvh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <header class="stage-header">
+      <div>
+        <h1 class="stage-title">Quiz start confirmation</h1>
+        <p class="stage-note">Bottom sheet mockup for Q-Bank and Exam starts. The app stays visible behind the confirmation so the student understands exactly which quiz they tapped.</p>
+      </div>
+      <span class="stage-pill">Mockup preview</span>
+    </header>
+
+    <section class="phone-wrap" aria-label="Mobile mockup">
+      <div class="phone" id="mockupPhone">
+        <div class="app">
+          <header class="topbar">
+            <button class="icon-btn" aria-label="Open menu">=</button>
+            <div class="top-title">
+              <span>Student app</span>
+              <strong>Q-Bank</strong>
+            </div>
+            <div class="avatar">MS</div>
+          </header>
+
+          <div class="search">Search by topic, tag, or lecturer</div>
+
+          <div class="filters" aria-label="Filters">
+            <span class="filter active">All</span>
+            <span class="filter">SBA</span>
+            <span class="filter">True / False</span>
+            <span class="filter">Saved</span>
+          </div>
+
+          <div class="quiz-list">
+            <article class="quiz-card featured">
+              <div class="quiz-head">
+                <div>
+                  <h2 class="quiz-title">Cardiology SBA Set 01</h2>
+                  <p class="quiz-subtitle">High-yield questions from ischemic heart disease, ECG basics, and murmurs.</p>
+                </div>
+                <span class="mode">Practice</span>
+              </div>
+              <div class="meta">
+                <span><b>25</b> Questions</span>
+                <span><b>18 min</b> Average</span>
+                <span><b>72%</b> Best</span>
+              </div>
+              <div class="start-row">
+                <div class="progress">Last attempt saved<br>2 days ago</div>
+                <button class="start-button">Start</button>
+              </div>
+            </article>
+
+            <article class="quiz-card">
+              <div class="quiz-head">
+                <div>
+                  <h2 class="quiz-title">Respiratory Review</h2>
+                  <p class="quiz-subtitle">Asthma, COPD, pneumonia, and respiratory failure basics.</p>
+                </div>
+                <span class="mode">Exam</span>
+              </div>
+              <div class="meta">
+                <span><b>40</b> Questions</span>
+                <span><b>45 min</b> Timer</span>
+                <span><b>New</b> Status</span>
+              </div>
+            </article>
+          </div>
+
+          <nav class="bottom-nav" aria-label="Student navigation">
+            <span class="nav-item"><span class="nav-dot"></span>Home</span>
+            <span class="nav-item active"><span class="nav-dot"></span>Q-Bank</span>
+            <span class="nav-item"><span class="nav-dot"></span>Exams</span>
+            <span class="nav-item"><span class="nav-dot"></span>Profile</span>
+          </nav>
+        </div>
+
+        <div class="scrim" id="dismissScrim" aria-hidden="true"></div>
+
+        <aside class="sheet" aria-label="Start quiz confirmation">
+          <div class="handle" aria-hidden="true"></div>
+          <div class="sheet-head">
+            <div>
+              <h2 class="sheet-title">Start quiz?</h2>
+              <p class="sheet-copy">Cardiology SBA Set 01</p>
+            </div>
+          </div>
+
+          <p class="plain-details">25 questions. Progress saves automatically.</p>
+
+          <div class="sheet-actions">
+            <button class="secondary" id="cancelStart">Not now</button>
+            <button class="primary">Start questions</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <script>
+    const mockupPhone = document.getElementById('mockupPhone');
+    const dismissScrim = document.getElementById('dismissScrim');
+    const cancelStart = document.getElementById('cancelStart');
+    const closeSheet = () => {
+      if (mockupPhone.classList.contains('sheet-closing')) return;
+      mockupPhone.classList.add('sheet-closing');
+      window.setTimeout(() => {
+        mockupPhone.classList.add('sheet-closed');
+        mockupPhone.classList.remove('sheet-closing');
+      }, 270);
+    };
+    dismissScrim.addEventListener('click', closeSheet);
+    cancelStart.addEventListener('click', closeSheet);
+  </script>
+</body>
+</html>

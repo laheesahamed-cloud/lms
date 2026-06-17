@@ -26,7 +26,7 @@ const AUDITABLE_PATH_PATTERNS = [
     /^\/api\/questions\/import/,
     /^\/api\/ai/,
     /^\/api\/admin(?:\/|$)/,
-    /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review|boot)(?:\/|$)/,
+    /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|boot)(?:\/|$)/,
 ];
 function extractCookieValue(cookieHeader, name) {
     return String(cookieHeader || '')
@@ -158,8 +158,8 @@ function isAuditablePath(path) {
     return AUDITABLE_PATH_PATTERNS.some((pattern) => pattern.test(path));
 }
 function isStudentContentPath(path) {
-    return /^\/api\/(?:student\/)?(?:lessons\/student|ai-notes(?:\/student)?|quiz-attempts|quizzes\/\d+\/cards|courses\/student|dashboard\/student\/activity)(?:\/|$)/.test(path) ||
-        /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|practice-review|courses|boot)(?:\/|$)/.test(path);
+    return /^\/api\/(?:student\/)?(?:lessons\/student|ai-notes(?:\/student)?|quiz-attempts|courses\/student|dashboard\/student\/activity)(?:\/|$)/.test(path) ||
+        /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|courses|boot)(?:\/|$)/.test(path);
 }
 function normalizeRateLimitPath(path) {
     return path
@@ -298,8 +298,6 @@ function rewriteApiBoundary(path, method) {
             return `/api/ai-notes${restPath}`;
         }
         if (resource === 'quizzes') {
-            if (rest[0] && rest[1] === 'cards')
-                return `/api/quizzes/${rest[0]}/cards`;
             return rest.length ? `/api/quiz-attempts/quiz/${rest[0]}` : '/api/quiz-attempts/quizzes';
         }
         if (resource === 'quiz-attempts')
@@ -307,8 +305,6 @@ function rewriteApiBoundary(path, method) {
         if (resource === 'results') {
             return `/api/results${restPath}`;
         }
-        if (resource === 'practice-review' && rest[0])
-            return `/api/quiz-attempts/practice-review/${rest[0]}`;
         if (resource === 'subscriptions') {
             if (!rest.length)
                 return '/api/subscriptions/me';

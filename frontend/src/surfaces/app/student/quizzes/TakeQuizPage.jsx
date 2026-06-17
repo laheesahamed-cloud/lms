@@ -3,16 +3,11 @@ import { createPortal } from 'react-dom';
 import '../../../../shared/styles/04-pages/quiz-exam.css';
 import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  finishPracticeAttempt,
   loadStudentQuiz,
-  prewarmPracticeAnswer,
-  revealPracticeAnswer,
   saveExamProgress,
-  savePracticeAnswer,
-  savePracticeDraft,
   submitExam,
 } from '../../../../shared/api/quizAttempts.api.js';
-import { fetchStudyBookmarks, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
+import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { createQuestionReport } from '../../../../shared/api/workspace.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { MedicalText } from '../../../../shared/components/MedicalText.jsx';
@@ -22,14 +17,13 @@ import { hasQuickTheoryRecapContent, normalizeQuickTheoryRecap } from '../compon
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { getQuizNumberLabel, getQuizDisplayLabel } from './quizLabels.js';
 import { reviewPrimaryButtonClass, reviewSecondaryButtonClass } from '../results/ReviewWorkspace.jsx';
-import { ImpactStyle, nativeImpact } from '../../../../shared/utils/nativeHaptics.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
 import { getPreferredScrollBehavior } from '../../../../shared/utils/scrollBehavior.js';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
 function normalizeCorrectValue(option) {
-  const raw = option?.isCorrect ?? option?.is_correct ?? option?.correct;
+  const raw = option?.isCorrect ?? option?.is_correct ?? option?.correct ?? option?.isCorrectAnswer ?? option?.is_correct_answer ?? option?.isAnswer ?? option?.is_answer ?? option?.correctAnswer ?? option?.correct_answer;
   return normalizeTrueFalseValue(raw);
 }
 
@@ -49,6 +43,146 @@ function getQuestionType(question) {
 
 function isSbaQuestion(question) {
   return getQuestionType(question) === 'sba';
+}
+
+function normalizeComparableAnswerKeyValue(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function answerKeyIdsMatch(left, right) {
+  if (left === undefined || left === null || right === undefined || right === null) return false;
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
+  if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) return leftNumber === rightNumber;
+  return String(left) === String(right);
+}
+
+function answerKeyOptionMatches(option, keyedOption) {
+  if (!option || !keyedOption) return false;
+  if (typeof keyedOption !== 'object') {
+    const keyedValue = normalizeComparableAnswerKeyValue(keyedOption);
+    const optionId = normalizeComparableAnswerKeyValue(option.id ?? option.optionId ?? option.option_id);
+    const optionLabel = normalizeComparableAnswerKeyValue(option.optionLabel ?? option.option_label ?? option.label);
+    const optionText = normalizeComparableAnswerKeyValue(option.optionText ?? option.option_text ?? option.text);
+    return Boolean(keyedValue && (keyedValue === optionId || keyedValue === optionLabel || keyedValue === optionText));
+  }
+  const optionId = option.id ?? option.optionId ?? option.option_id;
+  const keyedId = keyedOption.optionId ?? keyedOption.option_id ?? keyedOption.id;
+  if (answerKeyIdsMatch(optionId, keyedId)) return true;
+
+  const optionLabel = normalizeComparableAnswerKeyValue(option.optionLabel ?? option.option_label ?? option.label);
+  const keyedLabel = normalizeComparableAnswerKeyValue(keyedOption.label ?? keyedOption.optionLabel ?? keyedOption.option_label);
+  if (optionLabel && keyedLabel && optionLabel === keyedLabel) return true;
+
+  const optionText = normalizeComparableAnswerKeyValue(option.optionText ?? option.option_text ?? option.text);
+  const keyedText = normalizeComparableAnswerKeyValue(keyedOption.text ?? keyedOption.optionText ?? keyedOption.option_text);
+  return Boolean(optionText && keyedText && optionText === keyedText);
+}
+
+function getAnswerKeyCorrectValue(question, option) {
+  const answerKey = question?.answerKey || question?.answer_key || {};
+  if (!option) return null;
+
+  if (getQuestionType(question) === 'true_false' || answerKey.type === 'true_false') {
+    const statements = Array.isArray(answerKey.statements) ? answerKey.statements : [];
+    const statement = statements.find((item) => answerKeyOptionMatches(option, item));
+    return statement ? normalizeTrueFalseValue(statement.answer) : null;
+  }
+
+  const correctOptions = [
+    answerKey.correctOptions,
+    answerKey.correct_options,
+    answerKey.correctOptionIds,
+    answerKey.correct_option_ids,
+    answerKey.correctOptionLabels,
+    answerKey.correct_option_labels,
+    answerKey.correctAnswers,
+    answerKey.correct_answers,
+    answerKey.correctAnswer,
+    answerKey.correct_answer,
+    answerKey.answers,
+    answerKey.answer,
+    question?.correctOptions,
+    question?.correct_options,
+    question?.correctOptionIds,
+    question?.correct_option_ids,
+    question?.correctAnswer,
+    question?.correct_answer,
+  ].flatMap((value) => (Array.isArray(value) ? value : value !== undefined && value !== null && value !== '' ? [value] : []));
+  if (!correctOptions.length) return null;
+  return correctOptions.some((item) => answerKeyOptionMatches(option, item)) ? 1 : 0;
+}
+
+function getQuestionOptionCorrectValue(question, option) {
+  const directValue = normalizeCorrectValue(option);
+  return directValue !== null ? directValue : getAnswerKeyCorrectValue(question, option);
+}
+
+function isCorrectQuestionOption(question, option) {
+  return getQuestionOptionCorrectValue(question, option) === 1;
+}
+
+function buildPracticeAnswerKey(question, options) {
+  const existing = question?.answerKey || question?.answer_key || null;
+  const isTrueFalse = getQuestionType(question) === 'true_false' || existing?.type === 'true_false';
+
+  if (isTrueFalse) {
+    const statements = (options || [])
+      .map((option, index) => {
+        const correctValue = normalizeCorrectValue(option);
+        if (correctValue === null) return null;
+        return {
+          optionId: option.id ?? option.optionId ?? option.option_id,
+          label: option.optionLabel || option.option_label || getOptionDisplayLabel(option, index),
+          text: option.optionText || option.option_text || option.text || '',
+          answer: correctValue === 1 ? 'True' : 'False',
+        };
+      })
+      .filter(Boolean);
+    return statements.length ? { ...(existing || {}), type: 'true_false', statements } : existing;
+  }
+
+  const correctOptions = (options || [])
+    .filter((option) => normalizeCorrectValue(option) === 1)
+    .map((option, index) => ({
+      optionId: option.id ?? option.optionId ?? option.option_id,
+      label: option.optionLabel || option.option_label || getOptionDisplayLabel(option, index),
+      text: option.optionText || option.option_text || option.text || '',
+    }));
+  return correctOptions.length ? { ...(existing || {}), type: 'sba', correctOptions } : existing;
+}
+
+function normalizeQuestionForPracticeReveal(question) {
+  if (!question) return question;
+  const options = (Array.isArray(question.options) ? question.options : []).map((option, index) => {
+    const optionLabel = option.optionLabel || option.option_label || option.label || getOptionDisplayLabel(option, index);
+    const optionText = option.optionText || option.option_text || option.text || '';
+    const correctValue = normalizeCorrectValue(option);
+    const answerKeyValue = correctValue !== null
+      ? correctValue
+      : getAnswerKeyCorrectValue(question, { ...option, optionLabel, optionText });
+    const whyIncorrect = getOptionIncorrectReason(option);
+    const normalized = {
+      ...option,
+      optionLabel,
+      optionText,
+    };
+    if (answerKeyValue !== null) normalized.isCorrect = answerKeyValue;
+    if (whyIncorrect) normalized.whyIncorrect = whyIncorrect;
+    return normalized;
+  });
+  const answerKey = buildPracticeAnswerKey(question, options);
+  const theoryRecap = getQuestionRecapPayload(question);
+  return {
+    ...question,
+    questionType: getQuestionType(question),
+    questionText: question.questionText || question.question_text || question.text || '',
+    explanation: getQuestionExplanationText(question),
+    options,
+    answerKey,
+    theoryRecap,
+    keyPoints: question.keyPoints || question.key_points || theoryRecap?.keyPoints || theoryRecap?.key_points,
+  };
 }
 
 function normalizeTfAnswerMap(raw) {
@@ -104,13 +238,22 @@ function getSubmittedAttemptId(result) {
 function getQuestionExplanationText(question) {
   return String(firstNonEmptyValue([
     question?.explanation,
+    question?.explanationHtml,
+    question?.explanation_html,
     question?.answerExplanation,
     question?.answer_explanation,
+    question?.answerRationale,
+    question?.answer_rationale,
     question?.reviewExplanation,
     question?.review_explanation,
     question?.rationale,
     question?.explanationText,
     question?.explanation_text,
+    question?.solution,
+    question?.solutionText,
+    question?.solution_text,
+    question?.correctExplanation,
+    question?.correct_explanation,
   ]) || '');
 }
 
@@ -120,6 +263,9 @@ function getQuestionRecapPayload(question) {
     question?.theory_recap,
     question?.quickTheoryRecap,
     question?.quick_theory_recap,
+    question?.recap,
+    question?.recapCard,
+    question?.recap_card,
   ]);
   if (direct) return direct;
   if (!question) return null;
@@ -137,17 +283,6 @@ function getQuestionRecapPayload(question) {
   return hasQuickTheoryRecapContent(flatRecap) ? flatRecap : null;
 }
 
-function hasQuestionRecapPayload(question) {
-  if (!question) return false;
-  return Boolean(
-    Object.prototype.hasOwnProperty.call(question, 'theoryRecap') ||
-    Object.prototype.hasOwnProperty.call(question, 'theory_recap') ||
-    Object.prototype.hasOwnProperty.call(question, 'quickTheoryRecap') ||
-    Object.prototype.hasOwnProperty.call(question, 'quick_theory_recap') ||
-    getQuestionRecapPayload(question)
-  );
-}
-
 function getOptionIncorrectReason(option) {
   return String(firstNonEmptyValue([
     option?.whyIncorrect,
@@ -156,82 +291,84 @@ function getOptionIncorrectReason(option) {
     option?.incorrect_explanation,
     option?.distractorExplanation,
     option?.distractor_explanation,
+    option?.explanation,
+    option?.rationale,
+    option?.whyNot,
+    option?.why_not,
     option?.reason,
   ]) || '').trim();
 }
 
-function hasOptionAnswerKey(option) {
-  return normalizeCorrectValue(option) !== null;
-}
-
-function isCorrectOption(option) {
-  return normalizeCorrectValue(option) === 1;
-}
-
 function getOptionDisplayLabel(option, index) {
-  return DISPLAY_OPTION_LABELS[index] || option?.optionLabel || String(index + 1);
+  return DISPLAY_OPTION_LABELS[index] || option?.optionLabel || option?.option_label || String(index + 1);
 }
 
 function getAnswerKeyItems(question) {
   if (!question) return [];
+  const answerKey = question.answerKey || question.answer_key || {};
 
   if (question.questionType === 'true_false' || question.question_type === 'true_false') {
-    const keyedStatements = Array.isArray(question.answerKey?.statements) ? question.answerKey.statements : [];
+    const keyedStatements = Array.isArray(answerKey.statements) ? answerKey.statements : [];
     if (keyedStatements.length) {
       return keyedStatements.map((statement, index) => {
-        const optionIndex = (question.options || []).findIndex((option) => option.id === statement.optionId);
+        const optionIndex = (question.options || []).findIndex((option) => answerKeyOptionMatches(option, statement));
         const option = question.options?.[optionIndex >= 0 ? optionIndex : index];
+        const answerValue = normalizeTrueFalseValue(statement.answer);
         return {
-        label: getOptionDisplayLabel(option, optionIndex >= 0 ? optionIndex : index),
-        text: statement.text || option?.optionText || '',
-        answer: statement.answer || '',
+          label: getOptionDisplayLabel(option, optionIndex >= 0 ? optionIndex : index),
+          text: statement.text || statement.optionText || statement.option_text || option?.optionText || option?.option_text || '',
+          answer: answerValue === null ? '' : answerValue === 1 ? 'True' : 'False',
         };
       });
     }
-    return (question.options || []).map((option, index) => ({
-      label: getOptionDisplayLabel(option, index),
-      text: option.optionText || '',
-      answer: isCorrectOption(option) ? 'True' : 'False',
-    }));
+    return (question.options || [])
+      .map((option, index) => {
+        const correctValue = getQuestionOptionCorrectValue(question, option);
+        if (correctValue === null) return null;
+        return {
+          label: getOptionDisplayLabel(option, index),
+          text: option.optionText || option.option_text || '',
+          answer: correctValue === 1 ? 'True' : 'False',
+        };
+      })
+      .filter(Boolean);
   }
 
-  const keyedOptions = Array.isArray(question.answerKey?.correctOptions) ? question.answerKey.correctOptions : [];
+  const keyedOptions = Array.isArray(answerKey.correctOptions)
+    ? answerKey.correctOptions
+    : Array.isArray(answerKey.correct_options)
+      ? answerKey.correct_options
+      : [];
   if (keyedOptions.length) {
     return keyedOptions.map((answerOption, index) => {
-      const optionIndex = (question.options || []).findIndex((option) => option.id === answerOption.optionId);
+      const optionIndex = (question.options || []).findIndex((option) => answerKeyOptionMatches(option, answerOption));
       const option = question.options?.[optionIndex >= 0 ? optionIndex : index];
       return {
         label: getOptionDisplayLabel(option, optionIndex >= 0 ? optionIndex : index),
-        text: answerOption.text || option?.optionText || '',
+        text: answerOption.text || answerOption.optionText || answerOption.option_text || option?.optionText || option?.option_text || '',
         answer: '',
       };
     });
   }
   return (question.options || [])
     .map((option, index) => ({ option, index }))
-    .filter(({ option }) => isCorrectOption(option))
+    .filter(({ option }) => isCorrectQuestionOption(question, option))
     .map(({ option, index }) => ({
       label: getOptionDisplayLabel(option, index),
-      text: option.optionText || '',
+      text: option.optionText || option.option_text || '',
       answer: '',
     }));
 }
 
-function hasQuestionAnswerKey(question) {
-  return getAnswerKeyItems(question).length > 0;
-}
-
-const examScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page lms-quiz-take lms-exam-page px-[clamp(16px,3vw,42px)] pb-[clamp(22px,3vw,36px)] pt-[clamp(12px,1.7vw,22px)] max-[700px]:pb-44 max-[600px]:px-3.5 max-[600px]:pb-44 max-[600px]:pt-3.5`;
-const examLayoutClass = 'lms-exam-layout mx-auto grid w-full max-w-[1560px] gap-[clamp(16px,2vw,24px)] bg-[var(--exam-shell-bg)] pb-2.5';
-const practiceQuizScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page lms-quiz-take dashboard-page study-hub-page lms-review-page practice-review-page`;
-const practiceQuizLayoutClass = 'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]';
+const examScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page lms-quiz-take lms-exam-page px-[clamp(16px,3vw,42px)] pt-[clamp(12px,1.7vw,22px)] max-[600px]:px-3.5 max-[600px]:pt-3.5`;
+const examLayoutClass = 'lms-exam-layout mx-auto grid w-full max-w-[1560px] gap-[clamp(16px,2vw,24px)] bg-[var(--exam-shell-bg)]';
+const practiceQuizScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page lms-quiz-take lms-review-page practice-review-page`;
+const practiceQuizLayoutClass = 'practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]';
 const practiceQuizWorkspaceClass =
-  'lms-review-workspace lms-practice-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)_minmax(220px,280px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1199px]:grid-cols-1';
+  'lms-review-workspace lms-practice-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1199px]:grid-cols-1';
 const practiceQuizSidebarClass =
   'lms-review-sidebar lms-practice-quiz-sidebar sticky top-6 grid max-h-[calc(100dvh-48px)] gap-3.5 overflow-hidden max-[900px]:static max-[900px]:max-h-none max-[900px]:overflow-visible';
 const practiceQuizMainClass = 'lms-review-main lms-practice-question-main min-w-0';
-const practiceQuizAsideClass =
-  'lms-review-explanation-side sticky top-6 grid max-h-[calc(100dvh-48px)] min-w-0 gap-3.5 overflow-auto overscroll-contain max-[1180px]:hidden';
 const practiceQuizSummaryGridClass = 'lms-review-summary-grid lms-practice-summary-grid grid grid-cols-4 gap-2 max-[420px]:gap-1.5';
 const practiceQuizSummaryTileClass =
   'lms-review-summary-tile grid min-h-[64px] place-items-center gap-1 rounded-[14px] border border-line-soft bg-surface-1 px-2 py-2 text-center shadow-none [&_span]:whitespace-nowrap [&_span]:text-[11px] [&_span]:font-bold [&_span]:uppercase [&_span]:leading-tight [&_span]:tracking-[0.06em] [&_span]:text-ink-soft [&_strong]:text-[20px] [&_strong]:font-bold [&_strong]:leading-none [&_strong]:tracking-normal [&_strong]:text-ink-strong max-[420px]:min-h-[58px] max-[420px]:rounded-xl max-[420px]:px-1.5 max-[420px]:[&_span]:text-[11px] max-[420px]:[&_strong]:text-[18px]';
@@ -570,7 +707,6 @@ function MobileQuizActionBar({
   saving,
   currentQuestionFlagged,
   currentQuestionRevealed,
-  canRevealAnswers,
   onPrevious,
   onReveal,
   onFlag,
@@ -605,15 +741,15 @@ function MobileQuizActionBar({
           type="button"
           className={cx(mobileQuizIconButtonClass, isExam && currentQuestionFlagged && examFooterFlagActiveClass)}
           onClick={isExam ? onFlag : onReveal}
-          disabled={isExam ? saving : currentQuestionRevealed || !canRevealAnswers}
-          aria-label={isExam ? (currentQuestionFlagged ? 'Remove flag from current question' : 'Flag current question') : (currentQuestionRevealed ? 'Answer explanation shown' : canRevealAnswers ? 'Show answer explanation' : 'Review unavailable')}
+          disabled={isExam ? saving : currentQuestionRevealed}
+          aria-label={isExam ? (currentQuestionFlagged ? 'Remove flag from current question' : 'Flag current question') : (currentQuestionRevealed ? 'Answer explanation shown' : 'Show answer explanation')}
         >
           {isExam ? (
             <>
               <IcoFlag filled={currentQuestionFlagged} />
               {currentQuestionFlagged ? 'Flagged' : 'Flag'}
             </>
-          ) : currentQuestionRevealed ? 'Shown' : canRevealAnswers ? 'Show' : 'Review'}
+          ) : currentQuestionRevealed ? 'Shown' : 'Show'}
         </button>
       </div>
     </nav>
@@ -715,6 +851,122 @@ function isAnswered(question, value) {
   return Object.keys(normalizeTfAnswerMap(value)).length > 0;
 }
 
+const SBA_QUESTION_MARKS = 2;
+const TRUE_FALSE_STATEMENT_MARKS = 0.4;
+const TRUE_FALSE_STATEMENTS_PER_QUESTION = 5;
+const QUIZ_TOTAL_MARKS = 100;
+
+function getLocalAnswerState(question, answerMap = {}) {
+  const rawAnswer = answerMap?.[question.id] ?? answerMap?.[String(question.id)];
+  if (isSbaQuestion(question)) {
+    const selectedId = rawAnswer === undefined || rawAnswer === null || rawAnswer === '' ? null : Number(rawAnswer);
+    return {
+      selectedIds: selectedId ? [selectedId] : [],
+      tfMap: {},
+    };
+  }
+
+  return {
+    selectedIds: [],
+    tfMap: normalizeTfAnswerMap(rawAnswer),
+  };
+}
+
+function evaluateLocalAnswer(question, state) {
+  if (isSbaQuestion(question)) {
+    const correctIds = (question.options || [])
+      .filter((option) => isCorrectQuestionOption(question, option))
+      .map((option) => Number(option.id))
+      .sort((left, right) => left - right);
+    const selected = [...(state.selectedIds || [])].map(Number).sort((left, right) => left - right);
+    if (!selected.length) return 'unanswered';
+    return JSON.stringify(selected) === JSON.stringify(correctIds) ? 'correct' : 'wrong';
+  }
+
+  const tfMap = state.tfMap || {};
+  const answeredCount = Object.keys(tfMap).length;
+  if (!answeredCount) return 'unanswered';
+  if (answeredCount < (question.options || []).length) return 'wrong';
+  return (question.options || []).every((option) => {
+    const correctValue = getQuestionOptionCorrectValue(question, option);
+    return correctValue !== null && tfMap[String(option.id)] === correctValue;
+  }) ? 'correct' : 'wrong';
+}
+
+function calculateTrueFalseScore(correctStatements, wrongStatements) {
+  const boundedCorrect = Math.max(0, Math.min(TRUE_FALSE_STATEMENTS_PER_QUESTION, Number(correctStatements) || 0));
+  const boundedWrong = Math.max(
+    0,
+    Math.min(TRUE_FALSE_STATEMENTS_PER_QUESTION - boundedCorrect, Number(wrongStatements) || 0)
+  );
+  const rawScore = TRUE_FALSE_STATEMENT_MARKS * (boundedCorrect - boundedWrong);
+  return Math.max(0, Math.min(SBA_QUESTION_MARKS, Number(rawScore.toFixed(2))));
+}
+
+function calculateLocalQuestionScore(question, state) {
+  if (isSbaQuestion(question)) {
+    return evaluateLocalAnswer(question, state) === 'correct' ? SBA_QUESTION_MARKS : 0;
+  }
+
+  let correctStatements = 0;
+  let wrongStatements = 0;
+  for (const option of question.options || []) {
+    const value = state.tfMap?.[String(option.id)];
+    if (value === undefined) continue;
+    const correctValue = getQuestionOptionCorrectValue(question, option);
+    if (correctValue === null) continue;
+    if (value === correctValue) correctStatements++;
+    else wrongStatements++;
+  }
+  return calculateTrueFalseScore(correctStatements, wrongStatements);
+}
+
+function scaleScoreToHundred(rawScore, questionCount) {
+  if (!questionCount) return 0;
+  return Number(((rawScore / (questionCount * SBA_QUESTION_MARKS)) * QUIZ_TOTAL_MARKS).toFixed(2));
+}
+
+function buildLocalPracticeReviewData(quizData, answerMap = {}) {
+  const questions = (quizData?.questions || []).map((question) => {
+    const answerState = getLocalAnswerState(question, answerMap);
+    const answerStatus = evaluateLocalAnswer(question, answerState);
+    const questionScore = calculateLocalQuestionScore(question, answerState);
+    return {
+      ...question,
+      answerState,
+      answerStatus,
+      questionScore,
+      maxQuestionScore: SBA_QUESTION_MARKS,
+    };
+  });
+
+  const summary = questions.reduce(
+    (acc, question) => {
+      if (question.answerStatus === 'correct') acc.correct += 1;
+      else if (question.answerStatus === 'wrong') acc.wrong += 1;
+      else acc.unanswered += 1;
+      acc.rawScore += Number(question.questionScore || 0);
+      return acc;
+    },
+    { correct: 0, wrong: 0, unanswered: 0, rawScore: 0 }
+  );
+  const score = scaleScoreToHundred(summary.rawScore, questions.length);
+
+  return {
+    quiz: quizData?.quiz || null,
+    summary: {
+      total: questions.length,
+      answered: Math.max(questions.length - summary.unanswered, 0),
+      correct: summary.correct,
+      wrong: summary.wrong,
+      unanswered: summary.unanswered,
+      score,
+      percentage: score,
+    },
+    questions,
+  };
+}
+
 function shuffleArray(items = []) {
   const next = [...items];
   for (let index = next.length - 1; index > 0; index -= 1) {
@@ -794,6 +1046,7 @@ function clearExamDraft(quizId) {
 }
 
 const PRACTICE_DRAFT_TTL_MS = 72 * 60 * 60 * 1000;
+const PRACTICE_DRAFT_READ_TIMEOUT_MS = 250;
 
 function getPracticeDraftStorageKey(quizId) {
   return `lms.practiceDraft.${quizId}`;
@@ -875,11 +1128,11 @@ async function writePracticeDraft(quizId, draft) {
       expiresAt: payload.expiresAt,
     }));
   } catch {
-    // Practice recovery is best-effort; DB draft save remains authoritative on exit.
+    // Practice recovery is best-effort local state.
   }
 }
 
-async function readPracticeDraft(quizId, sessionId) {
+async function readPracticeDraft(quizId) {
   if (typeof window === 'undefined') return null;
   try {
     const envelope = JSON.parse(window.localStorage.getItem(getPracticeDraftStorageKey(quizId)) || 'null');
@@ -903,9 +1156,24 @@ async function readPracticeDraft(quizId, sessionId) {
     }
 
     const draft = JSON.parse(serialized);
-    return draft && Number(draft.sessionId) === Number(sessionId) ? draft : null;
+    return draft || null;
   } catch {
     return null;
+  }
+}
+
+async function readPracticeDraftForInitialPaint(quizId) {
+  if (typeof window === 'undefined') return null;
+  let timeoutId = null;
+  try {
+    return await Promise.race([
+      readPracticeDraft(quizId),
+      new Promise((resolve) => {
+        timeoutId = window.setTimeout(() => resolve(null), PRACTICE_DRAFT_READ_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== null) window.clearTimeout(timeoutId);
   }
 }
 
@@ -1084,25 +1352,37 @@ function getIncorrectOptionReasons(question) {
       ...option,
       displayLabel: DISPLAY_OPTION_LABELS[index] || option.optionLabel || String(index + 1),
     }))
-    .filter((option) => (isTrueFalse || !isCorrectOption(option)) && getOptionIncorrectReason(option))
+    .filter((option) => (isTrueFalse || !isCorrectQuestionOption(question, option)) && getOptionIncorrectReason(option))
     .map((option) => ({
       label: option.displayLabel,
-      text: option.optionText,
+      text: option.optionText || option.option_text,
       reason: getOptionIncorrectReason(option),
     }));
+}
+
+function hasQuestionAnswerPayload(question) {
+  return getAnswerKeyItems(question).length > 0 ||
+    (question?.options || []).some((option) => getQuestionOptionCorrectValue(question, option) !== null);
+}
+
+function hasQuestionLearningDetailPayload(question) {
+  return Boolean(
+    getQuestionExplanationText(question).trim() ||
+    getIncorrectOptionReasons(question).length ||
+    hasQuickTheoryRecapContent(normalizeQuickTheoryRecap(getQuestionRecapPayload(question)))
+  );
 }
 
 function PracticeStudySupport({ currentQuestion, revealed = true, className = '' }) {
   const recapPayload = getQuestionRecapPayload(currentQuestion);
   const recap = normalizeQuickTheoryRecap(recapPayload);
-  const hasRecap = hasQuestionRecapPayload(currentQuestion);
   const hasStudyCard = revealed && hasQuickTheoryRecapContent(recap);
 
-  if (!hasRecap && !hasStudyCard) return null;
+  if (!hasStudyCard) return null;
 
   return (
     <div className={cx('lms-study-support-stack grid gap-3', className)}>
-      {hasRecap ? (
+      {hasStudyCard ? (
         <div className={quizReviewRecapActionClass}>
           <TheoryRecapPopupTrigger
             recap={recap}
@@ -1135,8 +1415,10 @@ function PracticeStudySupport({ currentQuestion, revealed = true, className = ''
 }
 
 function PracticeInlineLearningSupport({ currentQuestion, currentQuestionRevealed, className = '', showStudySupport = false }) {
+  const answerKeyItems = getAnswerKeyItems(currentQuestion);
   const incorrectReasons = getIncorrectOptionReasons(currentQuestion);
   const explanationBlocks = formatPrimaryExplanationBlocks(getQuestionExplanationText(currentQuestion), incorrectReasons.length > 0);
+  const hasStudySupport = showStudySupport && hasQuickTheoryRecapContent(normalizeQuickTheoryRecap(getQuestionRecapPayload(currentQuestion)));
   const explanationTitle = explanationBlocks.length
     ? 'Explanation'
     : incorrectReasons.length
@@ -1144,10 +1426,31 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
       : 'Explanation';
 
   if (!currentQuestionRevealed) return null;
-  if (!explanationBlocks.length && !incorrectReasons.length) return null;
+  if (!answerKeyItems.length && !explanationBlocks.length && !incorrectReasons.length && !hasStudySupport) return null;
 
   return (
     <div className={cx(practiceLearningSupportClass, className)}>
+      {answerKeyItems.length ? (
+        <section className={quizReviewExplanationClass} aria-label="Answer key">
+          <div className={quizReviewExplanationHeaderClass}>
+            <h3>Answer Key</h3>
+          </div>
+          <div className={quizReviewExplanationGridClass}>
+            <div className={quizReviewIncorrectListClass}>
+              {answerKeyItems.map((item, index) => (
+                <div className={quizReviewIncorrectItemClass} key={`${item.label}-${index}`}>
+                  <span className={quizReviewIncorrectBadgeClass}>{item.label}</span>
+                  <div className={quizReviewIncorrectCopyClass}>
+                    {item.text ? <MedicalText as="strong" text={item.text} /> : null}
+                    {item.answer ? <MedicalText as="p" text={item.answer} /> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {explanationBlocks.length ? (
         <section className={quizReviewExplanationClass} aria-label="Answer explanation">
           <div className={quizReviewExplanationHeaderClass}>
@@ -1212,8 +1515,6 @@ export function TakeQuizPage() {
   }, []);
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode') || 'practice';
-  const continuePractice = searchParams.get('continue') === '1';
-  const resetPractice = searchParams.get('resetPractice') === '1';
   const questionIdParam = searchParams.get('questionId') || '';
   const singleQuestionId = Number(questionIdParam);
   const isSingleQuestionPractice = mode === 'practice' && Number.isFinite(singleQuestionId) && singleQuestionId > 0;
@@ -1243,43 +1544,47 @@ export function TakeQuizPage() {
   const examAutosaveQueuedRef = useRef(false);
   const didHydrateExamStateRef = useRef(false);
   const practiceDraftWriteTimerRef = useRef(null);
-  const practiceDraftSaveInFlightRef = useRef(false);
-  const practiceDraftSaveQueuedRef = useRef(false);
   const persistExamProgressRef = useRef(null);
-  const persistPracticeDraftToDatabaseRef = useRef(null);
   const writeCurrentExamRecoveryDraftRef = useRef(null);
   const writePracticeRecoveryDraftRef = useRef(null);
   const handleSubmitRef = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const toQuestionBookmarkSet = (items) => new Set(
+      (Array.isArray(items) ? items : [])
+        .filter((item) => item.itemType === 'question')
+        .map((item) => Number(item.itemId))
+        .filter(Boolean)
+    );
     async function load() {
       try {
         didHydrateExamStateRef.current = false;
-        const [payload, savedItems] = await Promise.all([
-          loadStudentQuiz(quizId, {
-            mode,
-            continue: continuePractice ? '1' : '0',
-            resetPractice: resetPractice ? '1' : '0',
-            questionId: isSingleQuestionPractice ? String(singleQuestionId) : undefined,
-          }),
-          fetchStudyBookmarks().catch(() => []),
-        ]);
-        const localPracticeDraft = payload.mode === 'practice'
-          ? await readPracticeDraft(quizId, payload.practiceSession?.id)
-          : null;
-        const shuffledQuestions = payload.questions.map((question) => ({
-          ...question,
-          options: shuffleArray(question.options),
-        }));
-        const cachedPracticeQuestions = payload.mode === 'practice' &&
-          Array.isArray(localPracticeDraft?.questions) &&
-          localPracticeDraft.questions.length === payload.questions.length &&
-          localPracticeDraft.questions.every((question) => payload.questions.some((item) => Number(item.id) === Number(question.id)))
-          ? localPracticeDraft.questions
-          : null;
+        const cachedBookmarks = readStudyBookmarksCache();
+        if (Array.isArray(cachedBookmarks)) {
+          setBookmarkedQuestionIds(toQuestionBookmarkSet(cachedBookmarks));
+        }
+        const bookmarksPromise = fetchStudyBookmarks().catch(() => null);
+        const payload = await loadStudentQuiz(quizId, {
+          mode,
+          questionId: isSingleQuestionPractice ? String(singleQuestionId) : undefined,
+        });
+        if (cancelled) return;
+        const practiceDraftPromise = payload.mode === 'practice'
+          ? readPracticeDraftForInitialPaint(quizId)
+          : Promise.resolve(null);
+        const shuffledQuestions = payload.questions.map((question) => {
+          const shuffledQuestion = {
+            ...question,
+            options: shuffleArray(question.options),
+          };
+          return payload.mode === 'practice'
+            ? normalizeQuestionForPracticeReveal(shuffledQuestion)
+            : shuffledQuestion;
+        });
         const shuffledPayload = {
           ...payload,
-          questions: cachedPracticeQuestions || shuffledQuestions,
+          questions: shuffledQuestions,
         };
 
         if (payload.mode === 'exam' && payload.examSession?.submittedAttemptId) {
@@ -1296,10 +1601,7 @@ export function TakeQuizPage() {
                 Number(localExamDraft?.currentQuestionIndex ?? payload.examSession?.lastQuestionIndex ?? 0),
                 Math.max(shuffledPayload.questions.length - 1, 0)
               ))
-            : Math.max(0, Math.min(
-                Number(localPracticeDraft?.currentQuestionIndex ?? payload.practiceSession?.lastQuestionIndex ?? 0),
-                Math.max(shuffledPayload.questions.length - 1, 0)
-              ))
+            : 0
         );
         setFlaggedQuestionIds(new Set(
           payload.mode === 'exam' && Array.isArray(payload.examSession?.flaggedQuestionIds)
@@ -1307,19 +1609,9 @@ export function TakeQuizPage() {
             : []
         ));
         setBookmarkedQuestionIds(new Set(
-          (Array.isArray(savedItems) ? savedItems : [])
-            .filter((item) => item.itemType === 'question')
-            .map((item) => Number(item.itemId))
-            .filter(Boolean)
+          Array.isArray(cachedBookmarks) ? Array.from(toQuestionBookmarkSet(cachedBookmarks)) : []
         ));
-        setRevealedAnswerIds(new Set(
-          payload.mode === 'practice'
-            ? [
-                ...(Array.isArray(payload.practiceSession?.revealedQuestionIds) ? payload.practiceSession.revealedQuestionIds : []),
-                ...(Array.isArray(localPracticeDraft?.revealedQuestionIds) ? localPracticeDraft.revealedQuestionIds : []),
-              ].map(Number).filter(Boolean)
-            : []
-        ));
+        setRevealedAnswerIds(new Set());
         setHasAutoSubmitted(false);
 
         const initial = {};
@@ -1330,12 +1622,6 @@ export function TakeQuizPage() {
           ? localExamDraft.answers
           : serverExamAnswers;
         shuffledPayload.questions.forEach((q) => {
-          if (q.savedAnswer) {
-            initial[q.id] = isSbaQuestion(q)
-              ? q.savedAnswer.selectedIds?.[0] ?? ''
-              : normalizeTfAnswerMap(q.savedAnswer.tfMap);
-            return;
-          }
           const savedExamAnswer = examAnswers[String(q.id)] ?? examAnswers[q.id];
           if (savedExamAnswer !== undefined && savedExamAnswer !== null && savedExamAnswer !== '') {
             initial[q.id] = isSbaQuestion(q)
@@ -1343,11 +1629,28 @@ export function TakeQuizPage() {
               : normalizeTfAnswerMap(savedExamAnswer);
           }
         });
-        if (payload.mode === 'practice' && localPracticeDraft?.answers && typeof localPracticeDraft.answers === 'object') {
-          Object.assign(initial, localPracticeDraft.answers);
-        }
         setAnswers(initial);
         answersRef.current = initial;
+        if (payload.mode === 'practice') {
+          practiceDraftPromise.then((draft) => {
+            if (cancelled || !draft) return;
+            const restoredAnswers = draft.answers && typeof draft.answers === 'object' ? draft.answers : null;
+            const canRestoreDraft = Object.keys(answersRef.current || {}).length === 0;
+            if (restoredAnswers && canRestoreDraft) {
+              answersRef.current = restoredAnswers;
+              setAnswers(restoredAnswers);
+            }
+            if (Array.isArray(draft.revealedQuestionIds) && canRestoreDraft) {
+              setRevealedAnswerIds(new Set(draft.revealedQuestionIds.map(Number).filter(Boolean)));
+            }
+            if (draft.currentQuestionIndex !== undefined && canRestoreDraft) {
+              setCurrentIndex(Math.max(0, Math.min(
+                Number(draft.currentQuestionIndex || 0),
+                Math.max(shuffledPayload.questions.length - 1, 0)
+              )));
+            }
+          }).catch(() => null);
+        }
         if (payload.mode === 'exam' && Array.isArray(localExamDraft?.flaggedQuestionIds)) {
           setFlaggedQuestionIds(new Set(localExamDraft.flaggedQuestionIds.map(Number).filter(Boolean)));
         }
@@ -1360,14 +1663,18 @@ export function TakeQuizPage() {
         } else {
           setSecondsRemaining(null);
         }
+        bookmarksPromise.then((savedItems) => {
+          if (!cancelled && Array.isArray(savedItems)) setBookmarkedQuestionIds(toQuestionBookmarkSet(savedItems));
+        });
       } catch (e) {
-        setError(getErrorMessage(e, 'Unable to load quiz'));
+        if (!cancelled) setError(getErrorMessage(e, 'Unable to load quiz'));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
-  }, [quizId, mode, continuePractice, resetPractice, isSingleQuestionPractice, singleQuestionId, navigate]);
+    return () => { cancelled = true; };
+  }, [quizId, mode, isSingleQuestionPractice, singleQuestionId, navigate]);
 
   const isExam = data?.mode === 'exam';
   const totalQuestions = data?.questions?.length || 0;
@@ -1381,25 +1688,7 @@ export function TakeQuizPage() {
   const currentQuestionFlagged = currentQuestion ? flaggedQuestionIds.has(currentQuestion.id) : false;
   const currentQuestionBookmarked = currentQuestion ? bookmarkedQuestionIds.has(currentQuestion.id) : false;
   const currentQuestionRevealed = currentQuestion ? revealedAnswerIds.has(currentQuestion.id) : false;
-  const currentQuestionCanReveal = Boolean(
-    currentQuestion && !isExam && (currentQuestion.canRevealAnswer || (
-      hasQuestionAnswerKey(currentQuestion) ||
-      currentQuestion.options?.some(hasOptionAnswerKey) ||
-      currentQuestion.options?.length ||
-      getQuestionExplanationText(currentQuestion).trim() ||
-      getIncorrectOptionReasons(currentQuestion).length ||
-      hasQuestionRecapPayload(currentQuestion)
-    ))
-  );
-  const currentQuestionRevealReady = Boolean(
-    currentQuestionRevealed && currentQuestion && (
-      hasQuestionAnswerKey(currentQuestion) ||
-      currentQuestion.options?.some(hasOptionAnswerKey) ||
-      getQuestionExplanationText(currentQuestion).trim() ||
-      getIncorrectOptionReasons(currentQuestion).length ||
-      getQuestionRecapPayload(currentQuestion)
-    )
-  );
+
   const shouldBlockQuizExit = Boolean(data && !loading && !isSingleQuestionPractice && !hasAutoSubmitted);
   // Set synchronously right before an INTENTIONAL submit/finish navigation so the
   // exit guard doesn't fire its own window.confirm on top of the submit modal
@@ -1460,13 +1749,8 @@ export function TakeQuizPage() {
 
     if (shouldLeave) {
       if (!isExam && data?.mode === 'practice' && !isSingleQuestionPractice) {
-        void Promise.resolve(persistPracticeDraftToDatabaseRef.current?.({
-          nextIndex: currentIndex,
-          silent: true,
-          clearLocalOnSuccess: true,
-        })).finally(() => {
-          quizExitBlocker.proceed();
-        });
+        writePracticeRecoveryDraftRef.current?.(currentIndex);
+        quizExitBlocker.proceed();
         return;
       }
       quizExitBlocker.proceed();
@@ -1543,84 +1827,8 @@ export function TakeQuizPage() {
   function writePracticeRecoveryDraft(nextIndex = currentIndex) {
     if (isExam || !data?.questions?.length || hasAutoSubmitted) return;
     void writePracticeDraft(quizId, {
-      sessionId: data.practiceSession?.id,
-      questions: data.questions,
       ...getPracticeProgressPayload(nextIndex),
     });
-  }
-
-  async function persistPracticeDraftToDatabase({ nextIndex = currentIndex, silent = false, clearLocalOnSuccess = false } = {}) {
-    if (isExam || !data?.questions?.length || isSingleQuestionPractice) return true;
-    if (practiceDraftSaveInFlightRef.current) {
-      practiceDraftSaveQueuedRef.current = true;
-      return true;
-    }
-
-    practiceDraftSaveInFlightRef.current = true;
-    if (!silent) setSaving(true);
-    writePracticeRecoveryDraft(nextIndex);
-    try {
-      const result = await savePracticeDraft(quizId, getPracticeProgressPayload(nextIndex));
-      if (result?.success && clearLocalOnSuccess) {
-        clearPracticeDraft(quizId);
-      }
-      return Boolean(result?.success);
-    } catch (draftError) {
-      if (!silent) {
-        setError(getErrorMessage(draftError, 'Unable to save practice progress'));
-      }
-      return false;
-    } finally {
-      practiceDraftSaveInFlightRef.current = false;
-      if (!silent) setSaving(false);
-      if (practiceDraftSaveQueuedRef.current) {
-        practiceDraftSaveQueuedRef.current = false;
-        void persistPracticeDraftToDatabase({ nextIndex: currentIndex, silent: true, clearLocalOnSuccess });
-      }
-    }
-  }
-
-  function mergePracticeRevealQuestion(current, revealed) {
-    if (!revealed) return current;
-    const revealedOptions = new Map((revealed.options || []).map((option) => [Number(option.id), option]));
-    const mergedOptions = (current.options || []).map((option) => ({
-      ...option,
-      ...(revealedOptions.get(Number(option.id)) || {}),
-    }));
-    return {
-      ...current,
-      ...revealed,
-      options: mergedOptions.length ? mergedOptions : (revealed.options || current.options || []),
-      savedAnswer: current.savedAnswer ?? revealed.savedAnswer ?? null,
-    };
-  }
-
-  async function practiceSave(nextIdx = currentIndex) {
-    if (!currentQuestion || data?.mode !== 'practice') return true;
-    const latestAnswers = answersRef.current || {};
-    setSaving(true);
-    try {
-      const payload = isSbaQuestion(currentQuestion)
-        ? {
-            questionId: currentQuestion.id,
-            questionIndex: nextIdx,
-            questionType: 'sba',
-            selected: latestAnswers[currentQuestion.id] ? [Number(latestAnswers[currentQuestion.id])] : [],
-          }
-        : {
-            questionId: currentQuestion.id,
-            questionIndex: nextIdx,
-            questionType: 'true_false',
-            tfAnswers: normalizeTfAnswerMap(latestAnswers[currentQuestion.id]),
-      };
-      await savePracticeAnswer(quizId, payload);
-      return true;
-    } catch (e) {
-      setError(getErrorMessage(e, 'Unable to save progress'));
-      return false;
-    } finally {
-      setSaving(false);
-    }
   }
 
   function syncExamSessionFromSave(result) {
@@ -1727,7 +1935,6 @@ export function TakeQuizPage() {
   async function goTo(idx) {
     const bounded = Math.max(0, Math.min(idx, (data?.questions?.length || 1) - 1));
     setError('');
-    if (data?.mode === 'practice' && isSingleQuestionPractice && !(await practiceSave(bounded))) return;
     setCurrentIndex(bounded);
     if (data?.mode === 'exam') {
       void persistExamProgress({ nextIndex: bounded, silent: true });
@@ -1740,34 +1947,17 @@ export function TakeQuizPage() {
     if (practiceCompleting) return;
     setError('');
     setPracticeCompleting(true);
-    if (data?.mode === 'practice') {
-      if (isSingleQuestionPractice) {
-        const saved = await practiceSave(currentIndex);
-        if (!saved) {
-          setPracticeCompleting(false);
-          return;
-        }
-      } else {
-        writePracticeRecoveryDraft(currentIndex);
-        try {
-          await finishPracticeAttempt(quizId, getPracticeProgressPayload(currentIndex));
-          clearPracticeDraft(quizId);
-        } catch (finishError) {
-          setError(getErrorMessage(finishError, 'Unable to finish practice'));
-          setPracticeCompleting(false);
-          return;
-        }
-      }
-    }
     if (isSingleQuestionPractice) {
       setPracticeCompleting(false);
       exitBlockSuppressedRef.current = true;
       navigate('/bookmarks');
       return;
     }
+    const reviewData = buildLocalPracticeReviewData(data, answersRef.current || answers);
+    clearPracticeDraft(quizId);
     setPracticeCompleting(false);
     exitBlockSuppressedRef.current = true;
-    handlePracticeReviewOpen();
+    handlePracticeReviewOpen(reviewData);
   }
 
   async function handleSubmit() {
@@ -1775,9 +1965,6 @@ export function TakeQuizPage() {
     setError('');
     setSaving(true);
     try {
-      if (isExam) {
-        await persistExamProgress({ nextIndex: currentIndex, silent: true });
-      }
       const result = await submitExam(quizId, {
         answers: normalizeAnswersForBackend(answersRef.current || answers, data?.questions || []),
       });
@@ -1799,7 +1986,6 @@ export function TakeQuizPage() {
   }
 
   persistExamProgressRef.current = persistExamProgress;
-  persistPracticeDraftToDatabaseRef.current = persistPracticeDraftToDatabase;
   writeCurrentExamRecoveryDraftRef.current = writeCurrentExamRecoveryDraft;
   writePracticeRecoveryDraftRef.current = writePracticeRecoveryDraft;
   handleSubmitRef.current = handleSubmit;
@@ -1808,6 +1994,16 @@ export function TakeQuizPage() {
     if (saving || confirmExamSubmitOpen) return;
     setConfirmExamSubmitOpen(true);
   }
+
+  useEffect(() => {
+    if (!confirmExamSubmitOpen || typeof document === 'undefined') return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [confirmExamSubmitOpen]);
 
   useEffect(() => {
     if (!isExam || secondsRemaining !== 0 || saving || hasAutoSubmitted) return;
@@ -1864,93 +2060,72 @@ export function TakeQuizPage() {
     }
   }
 
+  function mergePracticeRevealQuestion(current, revealed) {
+    if (!revealed) return current;
+    const revealedOptions = new Map((revealed.options || []).map((option) => [Number(option.id), option]));
+    const mergedOptions = (current.options || []).map((option) => ({
+      ...option,
+      ...(revealedOptions.get(Number(option.id)) || {}),
+    }));
+    return {
+      ...current,
+      ...revealed,
+      options: mergedOptions.length ? mergedOptions : (revealed.options || current.options || []),
+    };
+  }
+
   async function revealCurrentAnswer() {
-    if (!currentQuestion || !currentQuestionCanReveal) return;
+    if (!currentQuestion) return;
     const questionId = currentQuestion.id;
     setError('');
     setQuestionActionBusy(true);
     try {
-      const result = await revealPracticeAnswer(quizId, questionId);
-      setData((current) => {
-        if (!current?.questions?.length) return current;
-        return {
-          ...current,
-          questions: current.questions.map((question) => (
-            Number(question.id) === Number(questionId)
-              ? mergePracticeRevealQuestion(question, result?.question)
-              : question
-          )),
-        };
-      });
+      let revealQuestion = currentQuestion;
+      if (!hasQuestionAnswerPayload(revealQuestion) || !hasQuestionLearningDetailPayload(revealQuestion)) {
+        const result = await loadStudentQuiz(quizId, {
+          mode: 'practice',
+          questionId: String(questionId),
+          refresh: Date.now(),
+        });
+        const loadedQuestion = (result?.questions || []).find((question) => Number(question.id) === Number(questionId)) ||
+          result?.questions?.[0];
+        if (loadedQuestion) {
+          revealQuestion = mergePracticeRevealQuestion(
+            currentQuestion,
+            normalizeQuestionForPracticeReveal(loadedQuestion)
+          );
+          setData((current) => {
+            if (!current?.questions?.length) return current;
+            return {
+              ...current,
+              questions: current.questions.map((question) => (
+                Number(question.id) === Number(questionId) ? revealQuestion : question
+              )),
+            };
+          });
+        }
+      }
+
       setRevealedAnswerIds((current) => {
         if (current.has(questionId)) return current;
         const next = new Set(current);
         next.add(questionId);
         return next;
       });
-      void nativeImpact(ImpactStyle.Light);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          const revealTarget = questionContentRef.current?.querySelector(
+            '.lms-learning-reveal-card, .qtr-popup-trigger, .lms-key-points-card'
+          );
+          scrollQuestionContentIntoView(revealTarget || questionContentRef.current);
+        });
+      });
     } catch (revealError) {
       setError(getErrorMessage(revealError, 'Unable to show this answer'));
     } finally {
       setQuestionActionBusy(false);
     }
   }
-
-  useEffect(() => {
-    if (isExam || !data?.questions?.length || !currentQuestion?.id) return undefined;
-    const ids = [
-      currentQuestion.id,
-      data.questions[currentIndex + 1]?.id,
-      data.questions[currentIndex - 1]?.id,
-    ].map(Number).filter(Boolean);
-
-    let cancelled = false;
-    ids.forEach((questionId) => {
-      prewarmPracticeAnswer(quizId, questionId).catch(() => {
-        if (!cancelled) {
-          // Reveal remains available through the click path if prewarm misses.
-        }
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentIndex, currentQuestion?.id, data?.questions, isExam, quizId]);
-
-  useEffect(() => {
-    if (
-      isExam ||
-      !currentQuestion?.id ||
-      !currentQuestionRevealed ||
-      hasQuestionAnswerKey(currentQuestion) ||
-      currentQuestion.options?.some(hasOptionAnswerKey)
-    ) {
-      return undefined;
-    }
-
-    let cancelled = false;
-    revealPracticeAnswer(quizId, currentQuestion.id)
-      .then((result) => {
-        if (cancelled) return;
-        setData((current) => {
-          if (!current?.questions?.length) return current;
-          return {
-            ...current,
-            questions: current.questions.map((question) => (
-              Number(question.id) === Number(currentQuestion.id)
-                ? mergePracticeRevealQuestion(question, result?.question)
-                : question
-            )),
-          };
-        });
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentQuestion, currentQuestionRevealed, isExam, quizId]);
 
   useEffect(() => {
     if (isExam || !data?.questions?.length || loading || isSingleQuestionPractice) {
@@ -1980,11 +2155,6 @@ export function TakeQuizPage() {
 
     const saveForPauseOrExit = () => {
       writePracticeRecoveryDraftRef.current?.(currentIndex);
-      void persistPracticeDraftToDatabaseRef.current?.({
-        nextIndex: currentIndex,
-        silent: true,
-        clearLocalOnSuccess: true,
-      });
     };
     const saveLocalOnly = () => {
       writePracticeRecoveryDraftRef.current?.(currentIndex);
@@ -2083,9 +2253,19 @@ export function TakeQuizPage() {
     });
   }, [answers, currentIndex, data, totalQuestions]);
 
-  const handlePracticeReviewOpen = useCallback(() => {
+  const handlePracticeReviewOpen = useCallback((reviewData = null) => {
     const questionParam = isSingleQuestionPractice ? `&questionId=${singleQuestionId}` : '';
-    navigate(`/quizzes/${quizId}/practice-review?complete=1${questionParam}`);
+    if (reviewData && typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.setItem(`lms.practiceReview.${quizId}`, JSON.stringify(reviewData));
+      } catch {
+        // Route state remains the normal handoff when session storage is unavailable.
+      }
+    }
+    navigate(
+      `/quizzes/${quizId}/practice-review?complete=1${questionParam}`,
+      reviewData ? { state: { practiceReviewData: reviewData } } : undefined
+    );
   }, [isSingleQuestionPractice, navigate, quizId, singleQuestionId]);
 
   if (loading) return (
@@ -2114,8 +2294,7 @@ export function TakeQuizPage() {
     const questionTypeLabel = isSbaQuestion(currentQuestion) ? 'SBA' : 'True / False';
     const practiceEndLabel = isSingleQuestionPractice ? 'Done' : 'Finish';
     const practiceEndBusyLabel = isSingleQuestionPractice ? 'Saving...' : 'Submitting...';
-    const practiceAnswerVisible = currentQuestionRevealReady;
-    const practiceRevealLoading = currentQuestionRevealed && !currentQuestionRevealReady;
+    const practiceAnswerVisible = currentQuestionRevealed;
 
     return (
       <main className={practiceQuizScreenShellClass}>
@@ -2220,7 +2399,6 @@ export function TakeQuizPage() {
                     <span className={practiceQuizQuestionNumberClass}>Question {currentIndex + 1} of {totalQuestions}</span>
                     <span className={quizReviewChipClass('neutral')}>{questionTypeLabel}</span>
 	                    {practiceAnswerVisible ? <span className={quizReviewChipClass('correct')}>Explanation shown</span> : null}
-	                    {practiceRevealLoading ? <span className={quizReviewChipClass('neutral')}>Loading answer</span> : null}
                   </div>
                   <span className={quizReviewChipClass(currentQuestionAnswered ? 'neutral' : 'unanswered')}>
                     {currentQuestionAnswered ? 'Answered' : 'Unanswered'}
@@ -2234,9 +2412,11 @@ export function TakeQuizPage() {
                   {isSbaQuestion(currentQuestion) ? (
                     currentQuestion.options.map((option, optionIndex) => {
                       const isSelected = Number(answers[currentQuestion.id]) === option.id;
-                      const isCorrect = isCorrectOption(option);
-	                      const isWrong = practiceAnswerVisible && isSelected && !isCorrect;
-	                      const optionTone = practiceAnswerVisible && isCorrect
+                      const correctValue = getQuestionOptionCorrectValue(currentQuestion, option);
+                      const hasCorrectValue = correctValue !== null;
+                      const isCorrect = correctValue === 1;
+	                      const isWrong = practiceAnswerVisible && hasCorrectValue && isSelected && !isCorrect;
+	                      const optionTone = practiceAnswerVisible && hasCorrectValue && isCorrect
                         ? 'correct'
                         : isWrong
                           ? 'wrong'
@@ -2274,11 +2454,11 @@ export function TakeQuizPage() {
 	                            {practiceAnswerVisible ? (
                               <span className={practiceQuizOptionLabelsClass}>
                                 {isSelected ? (
-                                  <span className={quizReviewChipClass(isCorrect ? 'correct' : 'wrong')}>
+                                  <span className={quizReviewChipClass(hasCorrectValue ? (isCorrect ? 'correct' : 'wrong') : 'neutral')}>
                                     Your Answer
                                   </span>
                                 ) : null}
-                                {isCorrect ? (
+                                {hasCorrectValue && isCorrect ? (
                                   <span className={quizReviewChipClass('correct')}>
                                     Correct
                                   </span>
@@ -2291,15 +2471,20 @@ export function TakeQuizPage() {
                     })
                   ) : (
                     currentQuestion.options.map((option, optionIndex) => {
-                      const correctValue = isCorrectOption(option) ? 1 : 0;
+                      const correctValue = getQuestionOptionCorrectValue(currentQuestion, option);
+                      const hasCorrectValue = correctValue !== null;
                       const selectedValue = getTfSelectedValue(answers[currentQuestion.id], option.id);
                       const hasSelectedValue = selectedValue !== null;
-                      const selectedCorrect = hasSelectedValue && Number(selectedValue) === correctValue;
+                      const selectedCorrect = hasSelectedValue && hasCorrectValue && Number(selectedValue) === correctValue;
                       const selectedLabel = hasSelectedValue ? (selectedValue === 1 ? 'True' : 'False') : 'Not answered';
                       const correctLabel = correctValue === 1 ? 'True' : 'False';
                       const letterLabel = getOptionDisplayLabel(option, optionIndex);
 	                      const answerTone = practiceAnswerVisible
-                        ? !hasSelectedValue
+                        ? !hasCorrectValue
+                          ? hasSelectedValue
+                            ? 'selected'
+                            : 'neutral'
+                          : !hasSelectedValue
                           ? 'unanswered'
                           : selectedCorrect
                             ? 'correct'
@@ -2328,12 +2513,14 @@ export function TakeQuizPage() {
                             </div>
 	                            {practiceAnswerVisible ? (
                               <span className={practiceQuizOptionLabelsClass}>
-                                <span className={quizReviewChipClass(selectedCorrect ? 'correct' : hasSelectedValue ? 'wrong' : 'unanswered')}>
+                                <span className={quizReviewChipClass(hasCorrectValue && selectedCorrect ? 'correct' : hasCorrectValue && hasSelectedValue ? 'wrong' : hasSelectedValue ? 'neutral' : 'unanswered')}>
                                   Your Answer: {selectedLabel}
                                 </span>
-                                <span className={quizReviewChipClass('correct')}>
-                                  Correct: {correctLabel}
-                                </span>
+                                {hasCorrectValue ? (
+                                  <span className={quizReviewChipClass('correct')}>
+                                    Correct: {correctLabel}
+                                  </span>
+                                ) : null}
                               </span>
                             ) : null}
                           </div>
@@ -2343,7 +2530,7 @@ export function TakeQuizPage() {
                                 practiceQuizTfToggleClass,
 	                                !practiceAnswerVisible && selectedValue === 1 && practiceQuizTfTrueActiveClass,
 	                                practiceAnswerVisible && correctValue === 1 && practiceQuizTfChoiceCorrectClass,
-	                                practiceAnswerVisible && selectedValue === 1 && correctValue !== 1 && practiceQuizTfChoiceWrongClass
+	                                practiceAnswerVisible && hasCorrectValue && selectedValue === 1 && correctValue !== 1 && practiceQuizTfChoiceWrongClass
                               )}
                               type="button"
                               aria-pressed={selectedValue === 1}
@@ -2357,7 +2544,7 @@ export function TakeQuizPage() {
                                 practiceQuizTfToggleClass,
 	                                !practiceAnswerVisible && selectedValue === 0 && practiceQuizTfFalseActiveClass,
 	                                practiceAnswerVisible && correctValue === 0 && practiceQuizTfChoiceCorrectClass,
-	                                practiceAnswerVisible && selectedValue === 0 && correctValue !== 0 && practiceQuizTfChoiceWrongClass
+	                                practiceAnswerVisible && hasCorrectValue && selectedValue === 0 && correctValue !== 0 && practiceQuizTfChoiceWrongClass
                               )}
                               type="button"
                               aria-pressed={selectedValue === 0}
@@ -2375,16 +2562,9 @@ export function TakeQuizPage() {
 
                 <PracticeInlineLearningSupport
                   currentQuestion={currentQuestion}
-	                  currentQuestionRevealed={practiceAnswerVisible}
-                  showStudySupport={false}
+                  currentQuestionRevealed={practiceAnswerVisible}
+                  showStudySupport
                 />
-
-                <PracticeStudySupport
-                  currentQuestion={currentQuestion}
-	                  revealed={practiceAnswerVisible}
-                  className="max-[1180px]:grid min-[1181px]:hidden"
-                />
-
 
                 <nav className={practiceQuizQuestionNavClass} aria-label="Practice question actions">
                   <div className={practiceQuizQuestionNavActionsClass}>
@@ -2401,12 +2581,12 @@ export function TakeQuizPage() {
 
                     <div className={quizActionReviewGroupClass}>
                       <button
-                        className={reviewSecondaryButtonClass}
+	                        className={reviewSecondaryButtonClass}
 	                        type="button"
 	                        onClick={revealCurrentAnswer}
-	                        disabled={questionActionBusy || practiceRevealLoading || currentQuestionRevealed || !currentQuestionCanReveal}
+	                        disabled={questionActionBusy || currentQuestionRevealed}
 	                      >
-	                        {questionActionBusy || practiceRevealLoading ? 'Loading...' : currentQuestionRevealed ? 'Shown' : currentQuestionCanReveal ? 'Show answer' : 'Review'}
+	                        {questionActionBusy ? 'Loading...' : currentQuestionRevealed ? 'Shown' : 'Show answer'}
 	                      </button>
                     </div>
 
@@ -2444,12 +2624,6 @@ export function TakeQuizPage() {
               </article>
             </section>
 
-            <aside className={practiceQuizAsideClass}>
-              <PracticeStudySupport
-                currentQuestion={currentQuestion}
-	                revealed={practiceAnswerVisible}
-              />
-            </aside>
           </section>
         </section>
       </main>
@@ -2698,9 +2872,9 @@ export function TakeQuizPage() {
 
         </section>
 
-        {confirmExamSubmitOpen ? (
+        {confirmExamSubmitOpen && typeof document !== 'undefined' ? createPortal((
           <div
-            className="fixed inset-0 z-[130] grid place-items-center bg-[rgba(15,23,42,0.34)] p-4 backdrop-blur-md dark:bg-[rgba(2,6,23,0.72)]"
+            className="fixed inset-0 z-[11000] grid place-items-center bg-[rgba(15,23,42,0.24)] p-4 backdrop-blur-[10px] dark:bg-[rgba(2,6,23,0.42)]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="exam-submit-confirm-title"
@@ -2739,7 +2913,7 @@ export function TakeQuizPage() {
               </div>
             </div>
           </div>
-        ) : null}
+        ), document.body) : null}
       </section>
     </main>
   );

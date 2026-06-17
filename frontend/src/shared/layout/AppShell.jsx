@@ -22,17 +22,17 @@ function shouldUseMobileNavigation(platform = detectPlatform()) {
 
 const shellUi = {
   shell:
-    'app app-shell main-layout portal-shell relative isolate block min-h-[100dvh] bg-[#dce6f4] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[var(--app-bg-solid)]',
+    'app app-shell main-layout portal-shell relative isolate block bg-[#dce6f4] [.theme-transition_&]:!transition-none [.theme-soft-transition_&]:!transition-[background-color,color,border-color] [.theme-soft-transition_&]:!duration-[160ms] [.theme-soft-transition_&]:!ease-[var(--ease-out)] dark:bg-[var(--app-bg-solid)]',
   shellMobile: '',
   shellQuizFocus: '',
   content:
-    'main-content app-content page-content portal-content relative z-[1] min-h-[100dvh] min-w-0 overflow-y-visible pb-[var(--lms-mobile-content-bottom)] [-webkit-overflow-scrolling:touch] min-[901px]:ml-[calc(var(--sidebar-w)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w)_-_var(--sidebar-shell-gap))] min-[901px]:pb-6 max-[900px]:ml-0 max-[900px]:w-full max-[900px]:pt-0',
+    'main-content app-content page-content portal-content relative z-[1] min-w-0 overflow-y-visible [-webkit-overflow-scrolling:touch] min-[901px]:ml-[calc(var(--sidebar-w)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w)_-_var(--sidebar-shell-gap))] max-[900px]:ml-0 max-[900px]:w-full max-[900px]:pt-0',
   contentAiFocus: '',
   contentCompactFocus:
     'min-[901px]:!ml-0 min-[901px]:!w-full',
   contentQuizFocus: '',
   contentSigningOut: 'animate-signoutSoftExit',
-  frame: 'portal-content__frame min-h-full',
+  frame: 'portal-content__frame',
   frameQuizFocus: '',
   ambient: 'portal-shell-ambient pointer-events-none hidden',
   ambientGlow: 'portal-shell-ambient__glow absolute rounded-full blur-[90px]',

@@ -818,7 +818,6 @@ let QuestionsService = class QuestionsService {
             await connection.execute(`DELETE FROM question_keyword_map WHERE question_id IN (${placeholders})`, questionIds);
             await connection.execute(`DELETE FROM question_options WHERE question_id IN (${placeholders})`, questionIds);
             await connection.execute(`DELETE FROM question_reports WHERE question_id IN (${placeholders})`, questionIds);
-            await connection.execute(`DELETE FROM practice_answers WHERE question_id IN (${placeholders})`, questionIds);
             await connection.execute(`DELETE FROM student_answers WHERE question_id IN (${placeholders})`, questionIds);
             const [result] = await connection.execute(`DELETE FROM questions WHERE id IN (${placeholders})`, questionIds);
             await this.recordContentAudit(connection, {

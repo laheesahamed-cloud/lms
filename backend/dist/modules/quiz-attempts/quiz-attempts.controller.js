@@ -15,8 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuizAttemptsController = void 0;
 const common_1 = require("@nestjs/common");
 const quiz_attempts_service_1 = require("./quiz-attempts.service");
-const save_practice_dto_1 = require("./dto/save-practice.dto");
-const save_practice_progress_dto_1 = require("./dto/save-practice-progress.dto");
 const save_exam_progress_dto_1 = require("./dto/save-exam-progress.dto");
 const submit_exam_dto_1 = require("./dto/submit-exam.dto");
 let QuizAttemptsController = class QuizAttemptsController {
@@ -29,23 +27,8 @@ let QuizAttemptsController = class QuizAttemptsController {
     listResults(authorization) {
         return this.quizAttemptsService.listResults(authorization);
     }
-    loadQuiz(quizId, mode, continuePractice, resetPractice, questionId, authorization) {
-        return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, continuePractice === '1', resetPractice === '1', questionId ? Number(questionId) : null);
-    }
-    savePractice(quizId, authorization, savePracticeDto) {
-        return this.quizAttemptsService.savePractice(authorization, quizId, savePracticeDto);
-    }
-    savePracticeDraft(quizId, authorization, savePracticeProgressDto) {
-        return this.quizAttemptsService.savePracticeDraft(authorization, quizId, savePracticeProgressDto);
-    }
-    finishPractice(quizId, authorization, savePracticeProgressDto) {
-        return this.quizAttemptsService.finishPractice(authorization, quizId, savePracticeProgressDto);
-    }
-    prewarmPracticeAnswer(quizId, questionId, authorization) {
-        return this.quizAttemptsService.prewarmPracticeAnswer(authorization, quizId, questionId);
-    }
-    revealPracticeAnswer(quizId, questionId, authorization) {
-        return this.quizAttemptsService.revealPracticeAnswer(authorization, quizId, questionId);
+    loadQuiz(quizId, mode, questionId, authorization) {
+        return this.quizAttemptsService.loadQuiz(authorization, quizId, mode, questionId ? Number(questionId) : null);
     }
     submitExam(quizId, authorization, submitExamDto) {
         return this.quizAttemptsService.submitExam(authorization, quizId, submitExamDto);
@@ -61,9 +44,6 @@ let QuizAttemptsController = class QuizAttemptsController {
     }
     completeReview(attemptId, authorization) {
         return this.quizAttemptsService.completeReview(authorization, attemptId);
-    }
-    practiceReview(quizId, complete, questionId, authorization) {
-        return this.quizAttemptsService.practiceReview(authorization, quizId, complete === '1', questionId ? Number(questionId) : null);
     }
 };
 exports.QuizAttemptsController = QuizAttemptsController;
@@ -85,59 +65,12 @@ __decorate([
     (0, common_1.Get)('quiz/:quizId'),
     __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Query)('mode')),
-    __param(2, (0, common_1.Query)('continue')),
-    __param(3, (0, common_1.Query)('resetPractice')),
-    __param(4, (0, common_1.Query)('questionId')),
-    __param(5, (0, common_1.Headers)('authorization')),
+    __param(2, (0, common_1.Query)('questionId')),
+    __param(3, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Number, String, String, String]),
     __metadata("design:returntype", void 0)
 ], QuizAttemptsController.prototype, "loadQuiz", null);
-__decorate([
-    (0, common_1.Post)('practice/:quizId/save'),
-    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, save_practice_dto_1.SavePracticeDto]),
-    __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "savePractice", null);
-__decorate([
-    (0, common_1.Post)('practice/:quizId/draft'),
-    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, save_practice_progress_dto_1.SavePracticeProgressDto]),
-    __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "savePracticeDraft", null);
-__decorate([
-    (0, common_1.Post)('practice/:quizId/finish'),
-    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, save_practice_progress_dto_1.SavePracticeProgressDto]),
-    __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "finishPractice", null);
-__decorate([
-    (0, common_1.Post)('practice/:quizId/answer/:questionId/prewarm'),
-    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Param)('questionId', common_1.ParseIntPipe)),
-    __param(2, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number, Object]),
-    __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "prewarmPracticeAnswer", null);
-__decorate([
-    (0, common_1.Get)('practice/:quizId/answer/:questionId/reveal'),
-    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Param)('questionId', common_1.ParseIntPipe)),
-    __param(2, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number, Object]),
-    __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "revealPracticeAnswer", null);
 __decorate([
     (0, common_1.Post)('exam/:quizId/submit'),
     __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
@@ -180,16 +113,6 @@ __decorate([
     __metadata("design:paramtypes", [Number, String]),
     __metadata("design:returntype", void 0)
 ], QuizAttemptsController.prototype, "completeReview", null);
-__decorate([
-    (0, common_1.Get)('practice-review/:quizId'),
-    __param(0, (0, common_1.Param)('quizId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Query)('complete')),
-    __param(2, (0, common_1.Query)('questionId')),
-    __param(3, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String, String, String]),
-    __metadata("design:returntype", void 0)
-], QuizAttemptsController.prototype, "practiceReview", null);
 exports.QuizAttemptsController = QuizAttemptsController = __decorate([
     (0, common_1.Controller)('quiz-attempts'),
     __metadata("design:paramtypes", [quiz_attempts_service_1.QuizAttemptsService])

@@ -103,6 +103,14 @@ let SubscriptionsController = class SubscriptionsController {
         const student = await this.authService.requireStudent(authorization);
         return this.subscriptionsService.requestUpgrade(student.id, dto);
     }
+    async previewCheckoutCoupon(authorization, dto) {
+        const student = await this.authService.requireStudent(authorization);
+        return this.subscriptionsService.previewCheckoutCoupon(student.id, dto);
+    }
+    async requestCouponApproval(authorization, dto) {
+        const student = await this.authService.requireStudent(authorization);
+        return this.subscriptionsService.requestCouponApproval(student.id, dto);
+    }
     async initiatePayHereCheckout(authorization, dto) {
         const student = await this.authService.requireStudent(authorization);
         return this.subscriptionsService.initiatePayHereCheckout(student.id, dto.planId, dto);
@@ -275,6 +283,22 @@ __decorate([
     __metadata("design:paramtypes", [Object, request_subscription_dto_1.RequestSubscriptionDto]),
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "requestUpgrade", null);
+__decorate([
+    (0, common_1.Post)('checkout/coupon-preview'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, request_subscription_dto_1.RequestSubscriptionDto]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "previewCheckoutCoupon", null);
+__decorate([
+    (0, common_1.Post)('coupon-approval/request'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, request_subscription_dto_1.RequestSubscriptionDto]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "requestCouponApproval", null);
 __decorate([
     (0, common_1.Post)('payhere/initiate'),
     __param(0, (0, common_1.Headers)('authorization')),

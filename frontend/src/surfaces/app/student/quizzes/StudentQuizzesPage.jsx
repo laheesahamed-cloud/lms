@@ -1,7 +1,7 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { fetchStudentQuizzes, readStudentQuizzesCache } from '../../../../shared/api/quizAttempts.api.js';
+import { fetchStudentQuizzes, prefetchStudentQuiz, readStudentQuizzesCache } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -42,7 +42,7 @@ function IcoLock()        { return <svg width="14" height="14" viewBox="0 0 14 1
 function IcoCheck()       { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5L5.5 10.5L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
 function isQuizDone(quiz) {
-  return quiz.isCompleted || quiz.completed || quiz.practiceStatus === 'completed' || Number(quiz.examAttemptCount || 0) > 0 || Number(quiz.practiceCompletedCount || 0) > 0;
+  return quiz.isCompleted || quiz.completed || Number(quiz.examAttemptCount || 0) > 0;
 }
 
 function sortQuizzesByHierarchy(items) {
@@ -51,6 +51,116 @@ function sortQuizzesByHierarchy(items) {
     const bKey = [b.topicName, b.subtopicName, b.lessonTitle, b.quizTitle].filter(Boolean).join('\u0001');
     return aKey.localeCompare(bKey, undefined, { numeric: true, sensitivity: 'base' });
   });
+}
+
+function formatStartSheetMinutes(value) {
+  const minutes = Math.round(Number(value || 0));
+  if (!Number.isFinite(minutes) || minutes <= 0) return '';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const hourText = `${hours} hr${hours === 1 ? '' : 's'}`;
+  return rest ? `${hourText} ${rest} min` : hourText;
+}
+
+function getQuestionSummary(quiz) {
+  const total = Number(quiz?.totalQuestions || quiz?.questionCount || 0);
+  return total > 0 ? `${total} question${total === 1 ? '' : 's'}` : 'Questions';
+}
+
+function getStartSheetDetail(quiz, mode) {
+  const questionSummary = getQuestionSummary(quiz);
+  if (mode === 'exam') {
+    const timeText = quiz?.hideTimeLimit ? '' : formatStartSheetMinutes(quiz?.timeLimit);
+    return timeText ? `${questionSummary}. ${timeText} timer.` : `${questionSummary}. Timer starts after you begin.`;
+  }
+  return `${questionSummary}. Progress saves automatically.`;
+}
+
+function QuizStartConfirmationSheet({ prompt, onCancel, onConfirm }) {
+  const quiz = prompt?.quiz;
+  const mode = prompt?.mode || 'practice';
+  const isExamPrompt = mode === 'exam';
+  const title = prompt?.title || getQuizTitleText(quiz) || quiz?.quizTitle || (isExamPrompt ? 'Exam' : 'Quiz');
+  const detail = getStartSheetDetail(quiz, mode);
+  const [closing, setClosing] = useState(false);
+
+  const requestCancel = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    window.setTimeout(onCancel, 270);
+  }, [closing, onCancel]);
+
+  useEffect(() => {
+    if (!prompt || typeof document === 'undefined') return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') requestCancel();
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [prompt, requestCancel]);
+
+  useEffect(() => {
+    setClosing(false);
+  }, [prompt]);
+
+  if (!prompt || typeof document === 'undefined') return null;
+
+  return createPortal((
+    <>
+      <button
+        type="button"
+        className="lms-quiz-start-backdrop"
+        data-closing={closing ? 'true' : undefined}
+        aria-label={`Cancel starting ${isExamPrompt ? 'exam' : 'quiz'}`}
+        onClick={requestCancel}
+      />
+      <aside
+        className="lms-quiz-start-sheet"
+        data-closing={closing ? 'true' : undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quiz-start-confirm-title"
+      >
+        <div className="lms-quiz-start-sheet__handle" aria-hidden="true" />
+        <div className="min-w-0">
+          <h2 id="quiz-start-confirm-title" className="m-0 text-[22px] font-black leading-tight text-ink-strong max-[420px]:text-[20px]">
+            Start {isExamPrompt ? 'exam' : 'quiz'}?
+          </h2>
+          <p className="m-0 mt-2 text-[14px] font-semibold leading-relaxed text-ink-soft">
+            {title}
+          </p>
+          <p className="m-0 mt-5 text-[14px] font-semibold leading-relaxed text-ink-soft">
+            {detail}
+          </p>
+        </div>
+
+        <div className="mt-auto grid grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] gap-2 pt-5">
+          <button
+            type="button"
+            className={cx(ui.secondaryButton, 'min-h-12 px-4 text-[13px]')}
+            onClick={requestCancel}
+          >
+            Not now
+          </button>
+          <button
+            type="button"
+            className={cx(ui.primaryAction, 'min-h-12 px-4 text-[13px]')}
+            onClick={onConfirm}
+          >
+            Start {isExamPrompt ? 'exam' : 'questions'}
+          </button>
+        </div>
+      </aside>
+    </>
+  ), document.body);
 }
 
 function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
@@ -195,7 +305,11 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
   const actionPath = `/quizzes/${quiz.id}?mode=${isExamPage ? 'exam' : 'practice'}`;
 
   function preloadQuizRoute() {
-    if (!quiz.accessLocked) preloadRouteByPath(actionPath);
+    if (quiz.accessLocked) return;
+    preloadRouteByPath(actionPath);
+    if (!isExamPage) {
+      prefetchStudentQuiz(quiz.id, { mode: 'practice' });
+    }
   }
 
   function handleKeyDown(event) {
@@ -248,7 +362,7 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
   );
 }
 
-function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, navigate, pageMode, scope }) {
+function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, onStartReady, pageMode, scope }) {
   const isExamPage = pageMode === 'exam';
   const setLabel = isExamPage ? 'Exam Set' : 'Practice Set';
   const setLabelLower = setLabel.toLowerCase();
@@ -280,10 +394,10 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
     });
   }
 
-  function startQuiz(quiz) {
+  function startQuiz(quiz, title) {
     const canOpenMode = isExamPage ? quiz.canExamMode !== false : quiz.canPracticeMode !== false;
     if (canOpenMode) {
-      navigate(`/quizzes/${quiz.id}?mode=${isExamPage ? 'exam' : 'practice'}`);
+      onStartReady(quiz, title);
       return;
     }
     onAccessNeeded({
@@ -351,7 +465,7 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
                       index={index}
                       bookmarked={bookmarkedIds.has(quiz.id)}
                       onBookmark={onBookmark}
-                      onStart={() => startQuiz(quiz)}
+                      onStart={() => startQuiz(quiz, getQuizRowLabel(quiz, index))}
                       pageMode={pageMode}
                     />
                   ))}
@@ -380,6 +494,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   const [courseFilter,  setCourseFilter]  = useState('all');
   const [scopeFilter, setScopeFilter] = useState('');
   const [accessPromptQuiz, setAccessPromptQuiz] = useState(null);
+  const [startPrompt, setStartPrompt] = useState(null);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -421,7 +536,11 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
         );
         if (firstOpenQuiz) {
           cancelPreload = runWhenIdle(() => {
-            preloadRouteByPath(`/quizzes/${firstOpenQuiz.id}?mode=${isExamPage ? 'exam' : 'practice'}`);
+            const mode = isExamPage ? 'exam' : 'practice';
+            preloadRouteByPath(`/quizzes/${firstOpenQuiz.id}?mode=${mode}`);
+            if (!isExamPage) {
+              prefetchStudentQuiz(firstOpenQuiz.id, { mode });
+            }
           });
         }
         cancelBookmarks = runWhenIdle(async () => {
@@ -477,6 +596,25 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
 
   function handleSelectScope(scope) {
     setScopeFilter(scope);
+  }
+
+  function handleRequestStart(quiz, title) {
+    if (!quiz.accessLocked && !isExamPage) {
+      prefetchStudentQuiz(quiz.id, { mode: 'practice' });
+    }
+    setStartPrompt({
+      quiz,
+      title,
+      mode: isExamPage ? 'exam' : 'practice',
+    });
+  }
+
+  function handleConfirmStart() {
+    if (!startPrompt?.quiz?.id) return;
+    const { quiz, mode } = startPrompt;
+    setStartPrompt(null);
+    prefetchStudentQuiz(quiz.id, { mode });
+    navigate(`/quizzes/${quiz.id}?mode=${mode}`);
   }
 
   const modeQuizzes = useMemo(
@@ -616,7 +754,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
               bookmarkedIds={bookmarkedIds}
               onBookmark={handleBookmark}
               onAccessNeeded={setAccessPromptQuiz}
-              navigate={navigate}
+              onStartReady={handleRequestStart}
               pageMode={pageMode}
               scope={scopeFilter}
             />
@@ -634,13 +772,19 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
               bookmarkedIds={bookmarkedIds}
               onBookmark={handleBookmark}
               onAccessNeeded={setAccessPromptQuiz}
-              navigate={navigate}
+              onStartReady={handleRequestStart}
               pageMode={pageMode}
               scope={scopeFilter}
             />
           </section>
         )}
       </section>
+
+      <QuizStartConfirmationSheet
+        prompt={startPrompt}
+        onCancel={() => setStartPrompt(null)}
+        onConfirm={handleConfirmStart}
+      />
 
       {accessPromptQuiz ? createPortal((
         <div

@@ -1,18 +1,15 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { fetchPracticeReview } from '../../../../shared/api/quizAttempts.api.js';
-import { getErrorMessage } from '../../../../shared/api/client.js';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ReviewWorkspace } from './ReviewWorkspace.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
-import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { getQuizDisplayLabel, getQuizTitleText } from '../quizzes/quizLabels.js';
 
 const reviewPageUi = {
   screen:
-    cx(ui.studentScreenShell, 'lms-quiz-taking-page lms-quiz-take dashboard-page study-hub-page lms-review-page practice-review-page'),
+    cx(ui.studentScreenShell, 'lms-quiz-taking-page lms-quiz-take lms-review-page practice-review-page'),
   layout:
-    'study-hub-shell practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]',
+    'practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]',
   header:
     'lms-exam-header practice-review-header max-[900px]:sticky max-[900px]:top-0 max-[900px]:z-[60] max-[900px]:rounded-t-none max-[900px]:bg-[var(--surface-0)] max-[900px]:backdrop-blur-none max-[900px]:[transform:translateZ(0)] flex items-center justify-between gap-3 rounded-[18px] border border-[var(--exam-card-border)] bg-[color-mix(in_srgb,var(--surface-0)_72%,transparent)] px-3 pb-2.5 pt-[calc(10px+var(--lms-safe-top,env(safe-area-inset-top,0px)))] shadow-[var(--exam-card-shadow)] backdrop-blur-[14px] max-[700px]:flex-row max-[700px]:items-center max-[700px]:justify-between max-[700px]:gap-3 max-[700px]:px-3.5 max-[700px]:pb-3 max-[700px]:pt-[calc(10px+var(--lms-safe-top,env(safe-area-inset-top,0px)))]',
   brand:
@@ -108,35 +105,33 @@ function ReviewHeader({ data, complete, onQuizzes, onHome }) {
 }
 
 export function PracticeReviewPage() {
-  const { quizId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { quizId } = useParams();
   const [searchParams] = useSearchParams();
   const complete = searchParams.get('complete') === '1';
-  const questionIdParam = searchParams.get('questionId') || '';
-  const questionId = Number(questionIdParam);
-  const isSingleQuestionReview = Number.isFinite(questionId) && questionId > 0;
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    async function load() {
-      try {
-        setData(await fetchPracticeReview(quizId, {
-          ...(complete ? { complete: '1' } : {}),
-          ...(isSingleQuestionReview ? { questionId: String(questionId) } : {}),
-        }));
-      } catch (loadError) {
-        setError(getErrorMessage(loadError, 'Unable to load practice review'));
-      }
+  let data = location.state?.practiceReviewData || null;
+  if (!data && typeof window !== 'undefined' && quizId) {
+    try {
+      data = JSON.parse(window.sessionStorage.getItem(`lms.practiceReview.${quizId}`) || 'null');
+    } catch {
+      data = null;
     }
-    load();
-  }, [quizId, complete, isSingleQuestionReview, questionId]);
+  }
+  const clearPracticeReviewData = () => {
+    if (typeof window === 'undefined' || !quizId) return;
+    try {
+      window.sessionStorage.removeItem(`lms.practiceReview.${quizId}`);
+    } catch {
+      // Review handoff is temporary best-effort state.
+    }
+  };
 
-  if (!data && !error) {
+  if (!data) {
     return (
       <main className={reviewPageUi.screen}>
         <section className={reviewPageUi.layout}>
-          <div className={ui.emptyBox}>Loading practice review...</div>
+          <div className={ui.emptyBox}>Practice review is available after finishing a practice quiz.</div>
         </section>
       </main>
     );
@@ -149,18 +144,26 @@ export function PracticeReviewPage() {
           <ReviewHeader
             data={data}
             complete={complete}
-            onQuizzes={() => navigate('/quizzes')}
-            onHome={() => navigate('/dashboard')}
+            onQuizzes={() => {
+              clearPracticeReviewData();
+              navigate('/quizzes');
+            }}
+            onHome={() => {
+              clearPracticeReviewData();
+              navigate('/dashboard');
+            }}
           />
         ) : null}
-        {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
         {data ? (
           <ReviewWorkspace
             questions={data.questions}
             summary={data.summary}
             navigatorVariant="bubbles"
             exitLabel="Finish"
-            onExit={() => navigate('/quizzes')}
+            onExit={() => {
+              clearPracticeReviewData();
+              navigate('/quizzes');
+            }}
           />
         ) : null}
         </section>

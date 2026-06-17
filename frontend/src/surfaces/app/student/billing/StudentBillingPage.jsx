@@ -110,6 +110,18 @@ function formatPlanPrice(plan) {
   return `${plan.currency} ${Number(plan.effectivePrice || 0).toFixed(2)}`;
 }
 
+function formatBillingAmount(currency, amount) {
+  return `${currency || 'LKR'} ${Number(amount || 0).toFixed(2)}`;
+}
+
+function paymentMethodLabel(method) {
+  const normalized = String(method || '').trim().toLowerCase();
+  if (normalized === 'payhere') return 'Card / PayHere';
+  if (normalized === 'bank_transfer') return 'Bank transfer';
+  if (normalized === 'coupon') return 'Coupon approval';
+  return method || '';
+}
+
 function getPlanSummary(plan) {
   if (String(plan?.slug || '').toLowerCase() === 'free' || Number(plan?.effectivePrice || 0) <= 0) {
     return 'Unlimited access';
@@ -446,7 +458,7 @@ export function StudentBillingPage() {
       state: {
         ...purchaseCheckoutState,
         ...extraState,
-        createManualInvoice: !pendingInvoice?.invoiceId,
+        createManualInvoice: false,
         paymentCartNotice: pendingInvoice?.invoiceId
           ? `This package is already in your payment cart. Invoice #${pendingInvoice.invoiceId} is ready. Upload your bank slip to continue.`
           : '',
@@ -620,8 +632,14 @@ export function StudentBillingPage() {
                     <div className="min-w-0">
                       <strong className="block text-sm text-ink-strong">{request.planName}</strong>
                       <span className="mt-1 block text-[12px] font-semibold text-ink-soft">
-                        Invoice #{request.invoiceId} • {request.paymentCurrency || request.planCurrency} {Number(request.paymentAmount || request.planEffectivePrice || 0).toFixed(2)}
+                        Invoice #{request.invoiceId} • {formatBillingAmount(request.paymentCurrency || request.planCurrency, request.paymentAmount || request.planEffectivePrice || 0)}
                       </span>
+                      {request.couponCode ? (
+                        <span className="mt-1 block text-[12px] font-semibold text-brand-primary">
+                          Coupon {request.couponCode} applied
+                          {Number(request.discountAmount || 0) > 0 ? ` • Saved ${formatBillingAmount(request.paymentCurrency || request.planCurrency, request.discountAmount)}` : ''}
+                        </span>
+                      ) : null}
                       <span className="mt-1 block text-[12px] font-semibold text-ink-soft">
                         {proofUploaded ? 'Payment proof uploaded. Waiting for admin approval.' : 'Upload your bank slip to complete this payment.'}
                       </span>
@@ -1046,11 +1064,17 @@ export function StudentBillingPage() {
                         <span>Requested: {formatRequestDateTime(request.requestedAt)}</span>
                         {request.invoiceId ? <span>Invoice: #{request.invoiceId}</span> : null}
                         {request.paymentMethod ? (
-                          <span>{request.paymentMethod === 'payhere' ? 'Card / PayHere' : 'Bank transfer'}</span>
+                          <span>{paymentMethodLabel(request.paymentMethod)}</span>
                         ) : null}
                         {request.paymentAmount !== null && request.paymentAmount !== undefined ? (
                           <span>
-                            Amount: {request.paymentCurrency || request.planCurrency} {Number(request.paymentAmount).toFixed(2)}
+                            Amount: {formatBillingAmount(request.paymentCurrency || request.planCurrency, request.paymentAmount)}
+                          </span>
+                        ) : null}
+                        {request.couponCode ? (
+                          <span>
+                            Coupon: {request.couponCode}
+                            {Number(request.discountAmount || 0) > 0 ? ` (${formatBillingAmount(request.paymentCurrency || request.planCurrency, request.discountAmount)} off)` : ''}
                           </span>
                         ) : null}
                       </div>

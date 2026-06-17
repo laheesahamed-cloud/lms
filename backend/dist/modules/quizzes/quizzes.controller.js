@@ -15,7 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuizzesController = void 0;
 const common_1 = require("@nestjs/common");
 const admin_guard_1 = require("../auth/admin.guard");
-const student_guard_1 = require("../auth/student.guard");
 const auth_service_1 = require("../auth/auth.service");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
 const quizzes_service_1 = require("./quizzes.service");
@@ -41,9 +40,6 @@ let QuizzesController = class QuizzesController {
         return this.quizzesService.meta({
             includeQuestions: includeQuestions === '1' || includeQuestions === 'true',
         });
-    }
-    getCards(id, authorization) {
-        return this.quizzesService.getCards(authorization, id);
     }
     findOne(id) {
         return this.quizzesService.findOne(id);
@@ -119,15 +115,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], QuizzesController.prototype, "meta", null);
-__decorate([
-    (0, common_1.Get)(':id/cards'),
-    (0, common_1.UseGuards)(student_guard_1.StudentGuard),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Headers)('authorization')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
-    __metadata("design:returntype", void 0)
-], QuizzesController.prototype, "getCards", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),

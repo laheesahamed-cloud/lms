@@ -8,9 +8,6 @@ import { requestSpaNavigation } from '../routing/spaNavigation.js';
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
-// Native (Capacitor) talks to a remote cross-origin API just like the web, so
-// it uses the same request timeout. A shorter native timeout caused remote DB
-// calls to false-trip "server not responding" → RecoveryRefreshController reload loop.
 const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 const API_RECOVERY_STORAGE_KEY = 'lms_api_recovery_settings';
 let unauthorizedHandler = null;

@@ -612,8 +612,10 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] bo
 @media (max-width: 700px) {
 
   .student-app-shell :where(
-    .lms-learning-reveal-card,
-    .lms-key-points-card) {
+    .lms-exam-page:not(.lms-quiz-take),
+    .practice-review-page:not(.lms-quiz-take),
+    .lms-review-page:not(.lms-quiz-take)
+  ) :where(.lms-learning-reveal-card, .lms-key-points-card) {
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
@@ -622,6 +624,10 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] bo
   }
 
   .student-app-shell :where(
+    .lms-exam-page:not(.lms-quiz-take),
+    .practice-review-page:not(.lms-quiz-take),
+    .lms-review-page:not(.lms-quiz-take)
+  ) :where(
     .lms-review-question-card .lms-reading-explanation,
     .lms-review-explanation-side .lms-reading-explanation,
     .lms-review-question-card .lms-reading-incorrect,
@@ -653,9 +659,6 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] bo
 /* Mobile Q-Bank/review pass: keep one primary surface and let it use the phone width. */
 @media (max-width: 700px) {
 
-  .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
-  .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
-  .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
   .student-app-shell .lms-exam-page .lms-exam-main-footer {
     border: 0 !important;
     border-radius: 0 !important;
@@ -663,9 +666,13 @@ html[data-lms-runtime="pwa"][data-lms-os="ios"][data-lms-form-factor="phone"] bo
     box-shadow: none !important;
   }
 
-  .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
-  .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
-  .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card) {
+  .student-app-shell .lms-exam-page:not(.lms-quiz-take) .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .practice-review-page:not(.lms-quiz-take) .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .lms-review-page:not(.lms-quiz-take) .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card) {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
     padding: 0 !important;
   }
 
@@ -850,7 +857,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 /* Final mobile assessment layout: one full-width surface with organized actions. */
 @media (max-width: 700px) {
 
-  .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page)
+  .student-app-shell :where(.lms-exam-page:not(.lms-quiz-take), .practice-review-page:not(.lms-quiz-take), .lms-review-page:not(.lms-quiz-take))
     :where(.lms-exam-main-card, .lms-review-question-card)
     :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-reading-explanation, .lms-reading-incorrect) {
     border: 0 !important;
@@ -883,10 +890,10 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 /* Assessment phone surface: QBank, exam, and review share one near-edge canvas. */
 @media (max-width: 700px) {
 
-  .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page)
+  .student-app-shell :where(.lms-exam-page:not(.lms-quiz-take), .practice-review-page:not(.lms-quiz-take), .lms-review-page:not(.lms-quiz-take))
     :where(.lms-exam-main-card, .lms-review-question-card)
     > :where(.lms-learning-reveal-card, .lms-key-points-card),
-  .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page)
+  .student-app-shell :where(.lms-exam-page:not(.lms-quiz-take), .practice-review-page:not(.lms-quiz-take), .lms-review-page:not(.lms-quiz-take))
     :where(.lms-reading-explanation, .lms-reading-incorrect) {
     border: 0 !important;
     padding: 0 !important;
@@ -995,12 +1002,12 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 /* Higher-specificity guard for the assessment phone layout after legacy rules. */
 @media (max-width: 700px) {
 
-  .student-app-shell .lms-exam-page .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
-  .student-app-shell .practice-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
-  .student-app-shell .lms-review-page .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
-  .student-app-shell .lms-exam-page .lms-exam-main-card :where(.lms-reading-explanation, .lms-reading-incorrect),
-  .student-app-shell .practice-review-page .lms-review-question-card :where(.lms-reading-explanation, .lms-reading-incorrect),
-  .student-app-shell .lms-review-page .lms-review-question-card :where(.lms-reading-explanation, .lms-reading-incorrect) {
+  .student-app-shell .lms-exam-page:not(.lms-quiz-take) .lms-exam-main-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .practice-review-page:not(.lms-quiz-take) .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .lms-review-page:not(.lms-quiz-take) .lms-review-question-card > :where(.lms-learning-reveal-card, .lms-key-points-card),
+  .student-app-shell .lms-exam-page:not(.lms-quiz-take) .lms-exam-main-card :where(.lms-reading-explanation, .lms-reading-incorrect),
+  .student-app-shell .practice-review-page:not(.lms-quiz-take) .lms-review-question-card :where(.lms-reading-explanation, .lms-reading-incorrect),
+  .student-app-shell .lms-review-page:not(.lms-quiz-take) .lms-review-question-card :where(.lms-reading-explanation, .lms-reading-incorrect) {
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
@@ -1113,7 +1120,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 /* Review results pages: restore progress, explanation, and recap panels in native/mobile. */
 @media (max-width: 700px) {
 
-  body .student-app-shell.student-app-shell :where(.practice-review-page, .lms-review-page) :where(.lms-reading-explanation, .lms-reading-incorrect) {
+  body .student-app-shell.student-app-shell :where(.practice-review-page:not(.lms-quiz-take), .lms-review-page:not(.lms-quiz-take)) :where(.lms-reading-explanation, .lms-reading-incorrect) {
     border: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -1124,7 +1131,8 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
 /* Mobile assessment final pass: full-width, single-surface quiz/review layout for PWA and native apps. */
 @media (max-width: 700px) {
 
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-learning-reveal-card, .lms-key-points-card, .lms-exam-main-footer) {
+  body .student-app-shell.student-app-shell :where(.lms-exam-page:not(.lms-quiz-take), .practice-review-page:not(.lms-quiz-take), .lms-review-page:not(.lms-quiz-take)) :where(.lms-learning-reveal-card, .lms-key-points-card),
+  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-exam-main-footer) {
     border: 0 !important;
     border-top: 1px solid var(--line-soft, rgba(148, 163, 184, 0.2)) !important;
     border-radius: 0 !important;
@@ -1133,7 +1141,7 @@ body :where(.lms-topbar, .study-hub-topbar) .lms-floating-panel:not(.lms-profile
     padding: 11px 0 0 !important;
   }
 
-  body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-reading-explanation, .lms-reading-incorrect) {
+  body .student-app-shell.student-app-shell :where(.lms-exam-page:not(.lms-quiz-take), .practice-review-page:not(.lms-quiz-take), .lms-review-page:not(.lms-quiz-take)) :where(.lms-reading-explanation, .lms-reading-incorrect) {
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
@@ -1283,22 +1291,11 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-quiz-taking-page,
 }
 
 html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) {
-  min-height: 100dvh !important;
-  padding-top: max(10px, var(--lms-safe-top, env(safe-area-inset-top, 0px))) !important;
-  padding-bottom: max(18px, var(--lms-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
   overflow-x: clip !important;
 }
 
 html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-layout, .practice-review-shell, .lms-review-workspace, .lms-exam-grid) {
   min-width: 0 !important;
-}
-
-/* Tighten the gap between the (fixed) quiz top bar and the first card on the
-   native practice page. The spacer reserves the bar height; this row-gap is the
-   only space below it before the workspace. `.lms-quiz-take` keeps it scoped to
-   the taking page; `.practice-review-shell` keeps exam untouched. */
-html[data-lms-runtime="native"] .student-app-shell .lms-quiz-take > .practice-review-shell {
-  row-gap: 8px !important;
 }
 
 html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-header, .practice-review-header) {
@@ -1321,7 +1318,7 @@ html[data-lms-runtime="native"] .student-app-shell :where(.lms-review-summary-gr
   box-shadow: none !important;
 }
 
-html[data-lms-runtime="native"] .student-app-shell :where(.lms-learning-reveal-card, .lms-reading-explanation, .lms-reading-incorrect, .lms-key-points-card) {
+html[data-lms-runtime="native"] .student-app-shell :where(.lms-exam-page:not(.lms-quiz-take), .practice-review-page:not(.lms-quiz-take), .lms-review-page:not(.lms-quiz-take)) :where(.lms-learning-reveal-card, .lms-reading-explanation, .lms-reading-incorrect, .lms-key-points-card) {
   background: color-mix(in srgb, var(--surface-2, var(--sa-surface-2)) 92%, transparent) !important;
   color: var(--sa-ink, var(--ink-strong)) !important;
   box-shadow: none !important;
