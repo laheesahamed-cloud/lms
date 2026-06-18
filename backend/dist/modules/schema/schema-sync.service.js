@@ -24,8 +24,20 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         this.db = db;
         this.logger = new common_1.Logger(SchemaSyncService_1.name);
     }
+    shouldRunSchemaSync() {
+        const flag = String(process.env.SCHEMA_SYNC ?? '').trim().toLowerCase();
+        if (flag === '1' || flag === 'true' || flag === 'yes')
+            return true;
+        if (flag === '0' || flag === 'false' || flag === 'no')
+            return false;
+        return process.env.NODE_ENV !== 'production';
+    }
     async onModuleInit() {
         let connection = null;
+        if (!this.shouldRunSchemaSync()) {
+            this.logger.log('Schema sync skipped for fast boot (set SCHEMA_SYNC=1 to run it).');
+            return;
+        }
         try {
             connection = await this.db.getConnection();
             await this.ensurePlansTable(connection);

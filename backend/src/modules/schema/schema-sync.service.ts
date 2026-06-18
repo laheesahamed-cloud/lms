@@ -11,8 +11,25 @@ export class SchemaSyncService implements OnModuleInit {
 
   constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
 
+  // Whether to run the 200+ table/column/index setup checks on boot. These only
+  // matter right after a schema change, but they run sequentially and add many
+  // seconds to every cold start on shared hosting. Skip them unless explicitly
+  // enabled (SCHEMA_SYNC=1) — run `npm run migrate`, or set SCHEMA_SYNC=1 for one
+  // boot, after changing the schema. Defaults to running only outside production.
+  private shouldRunSchemaSync(): boolean {
+    const flag = String(process.env.SCHEMA_SYNC ?? '').trim().toLowerCase();
+    if (flag === '1' || flag === 'true' || flag === 'yes') return true;
+    if (flag === '0' || flag === 'false' || flag === 'no') return false;
+    return process.env.NODE_ENV !== 'production';
+  }
+
   async onModuleInit() {
     let connection: PoolConnection | null = null;
+
+    if (!this.shouldRunSchemaSync()) {
+      this.logger.log('Schema sync skipped for fast boot (set SCHEMA_SYNC=1 to run it).');
+      return;
+    }
 
     try {
       connection = await this.db.getConnection();
