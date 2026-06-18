@@ -407,14 +407,30 @@ export class QuizAttemptsService {
     };
   }
 
+  // Resolve the student + quiz and run all access/entitlement checks concurrently.
+  // requireStudent and loadActiveQuiz are independent; the three checks each depend
+  // only on (user, quiz) and not on each other — so two parallel waves replace the
+  // ~5 serial round-trips that otherwise dominate exam submit/save on shared hosting.
+  private async authorizeQuizForExam(authorization: string | undefined, quizId: number) {
+    const [user, quiz] = await Promise.all([
+      this.requireStudent(authorization),
+      this.loadActiveQuiz(quizId),
+    ]);
+    const isFreeQuiz = Number(quiz.is_free) === 1;
+    await Promise.all([
+      this.ensureStudentCanAccessQuiz(user.id, quiz),
+      this.ensureStudentCanUseDynamicQuiz(user.id, quiz),
+      isFreeQuiz
+        ? Promise.resolve()
+        : this.plansService.hasFeatureAccess(user.id, 'exam_mode').then((hasAccess) => {
+            if (!hasAccess) throw new BadRequestException('Exam mode is included with selected plans');
+          }),
+    ]);
+    return { user, quiz };
+  }
+
   async saveExamProgress(authorization: string | undefined, quizId: number, dto: SaveExamProgressDto) {
-    const user = await this.requireStudent(authorization);
-    const quiz = await this.loadActiveQuiz(quizId);
-    await this.ensureStudentCanAccessQuiz(user.id, quiz);
-    await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
-    if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
-      throw new BadRequestException('Exam mode is included with selected plans');
-    }
+    const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId);
 
     const latestSession = await this.getLatestExamSession(user.id, quizId);
     if (latestSession && latestSession.status !== 'in_progress') {
@@ -478,13 +494,7 @@ export class QuizAttemptsService {
   }
 
   async submitExam(authorization: string | undefined, quizId: number, dto: SubmitExamDto) {
-    const user = await this.requireStudent(authorization);
-    const quiz = await this.loadActiveQuiz(quizId);
-    await this.ensureStudentCanAccessQuiz(user.id, quiz);
-    await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
-    if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
-      throw new BadRequestException('Exam mode is included with selected plans');
-    }
+    const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId);
     const examState = await this.ensureExamSession(user.id, quizId, quiz);
 
     const connection = await this.db.getConnection();

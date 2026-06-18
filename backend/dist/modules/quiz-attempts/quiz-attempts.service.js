@@ -229,14 +229,26 @@ let QuizAttemptsService = class QuizAttemptsService {
             questions: practiceQuestions.map((question) => this.mapQuestionForPracticeAttempt(question)),
         };
     }
+    async authorizeQuizForExam(authorization, quizId) {
+        const [user, quiz] = await Promise.all([
+            this.requireStudent(authorization),
+            this.loadActiveQuiz(quizId),
+        ]);
+        const isFreeQuiz = Number(quiz.is_free) === 1;
+        await Promise.all([
+            this.ensureStudentCanAccessQuiz(user.id, quiz),
+            this.ensureStudentCanUseDynamicQuiz(user.id, quiz),
+            isFreeQuiz
+                ? Promise.resolve()
+                : this.plansService.hasFeatureAccess(user.id, 'exam_mode').then((hasAccess) => {
+                    if (!hasAccess)
+                        throw new common_1.BadRequestException('Exam mode is included with selected plans');
+                }),
+        ]);
+        return { user, quiz };
+    }
     async saveExamProgress(authorization, quizId, dto) {
-        const user = await this.requireStudent(authorization);
-        const quiz = await this.loadActiveQuiz(quizId);
-        await this.ensureStudentCanAccessQuiz(user.id, quiz);
-        await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
-        if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
-            throw new common_1.BadRequestException('Exam mode is included with selected plans');
-        }
+        const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId);
         const latestSession = await this.getLatestExamSession(user.id, quizId);
         if (latestSession && latestSession.status !== 'in_progress') {
             return {
@@ -291,13 +303,7 @@ let QuizAttemptsService = class QuizAttemptsService {
         };
     }
     async submitExam(authorization, quizId, dto) {
-        const user = await this.requireStudent(authorization);
-        const quiz = await this.loadActiveQuiz(quizId);
-        await this.ensureStudentCanAccessQuiz(user.id, quiz);
-        await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
-        if (Number(quiz.is_free) !== 1 && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
-            throw new common_1.BadRequestException('Exam mode is included with selected plans');
-        }
+        const { user, quiz } = await this.authorizeQuizForExam(authorization, quizId);
         const examState = await this.ensureExamSession(user.id, quizId, quiz);
         const connection = await this.db.getConnection();
         try {
