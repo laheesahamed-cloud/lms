@@ -1,1 +1,0 @@
-import{y as e}from"./vendor-DT73uwqV.js";export{e as App};

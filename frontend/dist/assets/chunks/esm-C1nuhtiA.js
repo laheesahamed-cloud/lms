@@ -1,0 +1,1 @@
+import{y as e}from"./vendor-cFfepDc8.js";export{e as App};

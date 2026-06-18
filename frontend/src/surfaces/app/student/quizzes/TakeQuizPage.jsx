@@ -19,8 +19,21 @@ import { getQuizNumberLabel, getQuizDisplayLabel } from './quizLabels.js';
 import { reviewPrimaryButtonClass, reviewSecondaryButtonClass } from '../results/ReviewWorkspace.jsx';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
 import { getPreferredScrollBehavior } from '../../../../shared/utils/scrollBehavior.js';
+import SubmitTransitionOverlay from './SubmitTransitionOverlay.jsx';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+
+/* Submit transition timing. Even when the results/review page is ready instantly,
+   we hold each screen for these minimums so the animation reads as intentional. */
+const SUBMIT_MIN_MS = 1100;
+const SUBMIT_COMPLETE_HOLD_MS = 1100;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function holdAtLeast(startedAt, minMs) {
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < minMs) await sleep(minMs - elapsed);
+}
 
 function normalizeCorrectValue(option) {
   const raw = option?.isCorrect ?? option?.is_correct ?? option?.correct ?? option?.isCorrectAnswer ?? option?.is_correct_answer ?? option?.isAnswer ?? option?.is_answer ?? option?.correctAnswer ?? option?.correct_answer;
@@ -150,6 +163,17 @@ function buildPracticeAnswerKey(question, options) {
       text: option.optionText || option.option_text || option.text || '',
     }));
   return correctOptions.length ? { ...(existing || {}), type: 'sba', correctOptions } : existing;
+}
+
+// A quiz can fail to load for two very different reasons: the student genuinely
+// lacks access (entitlement) or the request never completed (timeout / cold
+// boot / offline). Only the former should route to the subscription plans.
+function isQuizAccessError(error) {
+  const status = error?.response?.status;
+  if (status === 401 || status === 402 || status === 403) return true;
+  if (status === undefined || status >= 500) return false; // network / timeout / server crash
+  const message = String(error?.response?.data?.message || error?.message || '').toLowerCase();
+  return /\bplan\b|included with|premium|subscription|upgrade/.test(message);
 }
 
 function normalizeQuestionForPracticeReveal(question) {
@@ -1523,6 +1547,10 @@ export function TakeQuizPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Only access/entitlement failures should send the student to plans; a
+  // timeout or unreachable API must offer a retry instead.
+  const [errorIsAccess, setErrorIsAccess] = useState(false);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [flaggedQuestionIds, setFlaggedQuestionIds] = useState(() => new Set());
@@ -1533,6 +1561,7 @@ export function TakeQuizPage() {
   const [confirmExamSubmitOpen, setConfirmExamSubmitOpen] = useState(false);
   const [practiceCompleting, setPracticeCompleting] = useState(false);
   const [questionActionBusy, setQuestionActionBusy] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState('idle');
   const questionContentRef = useRef(null);
   const hasSkippedInitialPracticeScrollRef = useRef(false);
   const answersRef = useRef({});
@@ -1559,6 +1588,8 @@ export function TakeQuizPage() {
     );
     async function load() {
       try {
+        setError('');
+        setErrorIsAccess(false);
         didHydrateExamStateRef.current = false;
         const cachedBookmarks = readStudyBookmarksCache();
         if (Array.isArray(cachedBookmarks)) {
@@ -1667,14 +1698,24 @@ export function TakeQuizPage() {
           if (!cancelled && Array.isArray(savedItems)) setBookmarkedQuestionIds(toQuestionBookmarkSet(savedItems));
         });
       } catch (e) {
-        if (!cancelled) setError(getErrorMessage(e, 'Unable to load quiz'));
+        if (!cancelled) {
+          setError(getErrorMessage(e, 'Unable to load quiz'));
+          setErrorIsAccess(isQuizAccessError(e));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
-  }, [quizId, mode, isSingleQuestionPractice, singleQuestionId, navigate]);
+  }, [quizId, mode, isSingleQuestionPractice, singleQuestionId, navigate, reloadNonce]);
+
+  const retryQuizLoad = useCallback(() => {
+    setError('');
+    setErrorIsAccess(false);
+    setLoading(true);
+    setReloadNonce((nonce) => nonce + 1);
+  }, []);
 
   const isExam = data?.mode === 'exam';
   const totalQuestions = data?.questions?.length || 0;
@@ -1953,10 +1994,17 @@ export function TakeQuizPage() {
       navigate('/bookmarks');
       return;
     }
+    setSubmitPhase('submitting');
+    const startedAt = Date.now();
+    // Review data is built locally, so it is ready almost instantly — the holds
+    // below keep the two-screen transition visible regardless.
     const reviewData = buildLocalPracticeReviewData(data, answersRef.current || answers);
     clearPracticeDraft(quizId);
-    setPracticeCompleting(false);
     exitBlockSuppressedRef.current = true;
+    await holdAtLeast(startedAt, SUBMIT_MIN_MS);
+    setSubmitPhase('complete');
+    await sleep(SUBMIT_COMPLETE_HOLD_MS);
+    setPracticeCompleting(false);
     handlePracticeReviewOpen(reviewData);
   }
 
@@ -1964,6 +2012,8 @@ export function TakeQuizPage() {
     setConfirmExamSubmitOpen(false);
     setError('');
     setSaving(true);
+    setSubmitPhase('submitting');
+    const startedAt = Date.now();
     try {
       const result = await submitExam(quizId, {
         answers: normalizeAnswersForBackend(answersRef.current || answers, data?.questions || []),
@@ -1976,8 +2026,14 @@ export function TakeQuizPage() {
       clearExamDraft(quizId);
       setHasAutoSubmitted(true);
       exitBlockSuppressedRef.current = true;
+      // Keep the "submitting" screen up for a satisfying minimum, then show the
+      // success badge before handing off to the results page.
+      await holdAtLeast(startedAt, SUBMIT_MIN_MS);
+      setSubmitPhase('complete');
+      await sleep(SUBMIT_COMPLETE_HOLD_MS);
       navigate(`/results/${submittedAttemptId}`);
     } catch (e) {
+      setSubmitPhase('idle');
       setError(getErrorMessage(e, 'Unable to submit exam'));
       setHasAutoSubmitted(false);
     } finally {
@@ -2280,10 +2336,16 @@ export function TakeQuizPage() {
       <div className={ui.emptyBox}>
         {error || 'Quiz unavailable.'}
         {error ? (
-          <div className="mt-4">
-            <button className={ui.primaryAction} type="button" onClick={() => navigate('/subscriptions')}>
-              View plans
-            </button>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            {errorIsAccess ? (
+              <button className={ui.primaryAction} type="button" onClick={() => navigate('/subscriptions')}>
+                View plans
+              </button>
+            ) : (
+              <button className={ui.primaryAction} type="button" onClick={retryQuizLoad}>
+                Try again
+              </button>
+            )}
           </div>
         ) : null}
       </div>
@@ -2626,6 +2688,11 @@ export function TakeQuizPage() {
 
           </section>
         </section>
+        <SubmitTransitionOverlay
+          phase={submitPhase}
+          submittingLabel="Your practice is submitting…"
+          completeLabel="All done — great work!"
+        />
       </main>
     );
   }
@@ -2871,6 +2938,12 @@ export function TakeQuizPage() {
           </div>
 
         </section>
+
+        <SubmitTransitionOverlay
+          phase={submitPhase}
+          submittingLabel={isExam ? 'Your quiz is submitting…' : 'Your practice is submitting…'}
+          completeLabel={isExam ? 'Submission complete!' : 'All done — great work!'}
+        />
 
         {confirmExamSubmitOpen && typeof document !== 'undefined' ? createPortal((
           <div

@@ -6,7 +6,10 @@ import { clearDashboardCache } from './dashboard.api.js';
 const STUDENT_QUIZZES_CACHE_MS = 30_000;
 const STUDENT_RESULTS_CACHE_MS = 15_000;
 const STUDENT_PRACTICE_QUIZ_PAYLOAD_CACHE_MS = 60_000;
-const STUDENT_QUIZ_PAYLOAD_TIMEOUT_MS = 12_000;
+// Shared hosting can cold-boot the Node app on the first request after idle,
+// which routinely takes longer than 12s. Allow more headroom (and let the
+// client retry) so a cold start doesn't surface as "cannot reach API".
+const STUDENT_QUIZ_PAYLOAD_TIMEOUT_MS = 25_000;
 const studentQuizLoadRequests = new Map();
 const studentQuizzesCache = createTimedApiCache({
   ttlMs: STUDENT_QUIZZES_CACHE_MS,
@@ -32,10 +35,11 @@ function serializeParams(params = {}) {
 }
 
 async function fetchStudentQuizPayload(quizId, params) {
+  // Loading a quiz is an idempotent GET, so allow the client's automatic retry
+  // to ride out a cold-boot timeout instead of failing the whole open.
   const response = await apiClient.get(`/student/quiz-attempts/quiz/${quizId}`, {
     params,
     timeout: STUDENT_QUIZ_PAYLOAD_TIMEOUT_MS,
-    __skipTimeoutRetry: true,
   });
   return response.data;
 }
