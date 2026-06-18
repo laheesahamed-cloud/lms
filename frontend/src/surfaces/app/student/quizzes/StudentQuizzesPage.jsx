@@ -14,6 +14,10 @@ import { detectPlatform } from '../../../../shared/platform/detect.js';
 
 const PLATFORM = detectPlatform();
 
+// How many of the top practice quizzes to warm during idle so a tap opens from
+// cache. Bounded to stay gentle on shared hosting; payloads are deduped/cached.
+const PRACTICE_PREFETCH_COUNT = 4;
+
 function getQuizRowLabel(quiz, index) {
   if (quiz.displayTitleMode === 'number' && quiz.quizNumber) {
     return `Quiz ${String(quiz.quizNumber).padStart(2, '0')}`;
@@ -531,15 +535,21 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
       .then(rows => {
         if (cancelled) return;
         setQuizzes(rows);
-        const firstOpenQuiz = (Array.isArray(rows) ? rows : []).find((quiz) =>
+        const openQuizzes = (Array.isArray(rows) ? rows : []).filter((quiz) =>
           isExamPage ? quiz.canExamMode !== false : quiz.canPracticeMode !== false
         );
+        const firstOpenQuiz = openQuizzes[0];
         if (firstOpenQuiz) {
           cancelPreload = runWhenIdle(() => {
             const mode = isExamPage ? 'exam' : 'practice';
             preloadRouteByPath(`/quizzes/${firstOpenQuiz.id}?mode=${mode}`);
+            // Warm the first few practice payloads during idle so a tap opens
+            // straight from cache instead of waiting on the network. Exam is
+            // excluded on purpose — loading an exam starts a timed session.
             if (!isExamPage) {
-              prefetchStudentQuiz(firstOpenQuiz.id, { mode });
+              openQuizzes
+                .slice(0, PRACTICE_PREFETCH_COUNT)
+                .forEach((quiz) => prefetchStudentQuiz(quiz.id, { mode: 'practice' }));
             }
           });
         }
