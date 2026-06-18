@@ -190,21 +190,29 @@ let QuizAttemptsService = class QuizAttemptsService {
         if (mode !== 'practice' && mode !== 'exam') {
             throw new common_1.BadRequestException('Invalid quiz mode');
         }
-        const user = await this.requireStudent(authorization);
-        const quiz = await this.loadActiveQuiz(quizId);
+        const [user, quiz] = await Promise.all([
+            this.requireStudent(authorization),
+            this.loadActiveQuiz(quizId),
+        ]);
         const forcedMode = Number(quiz.exam_mode_only) === 1 ? 'exam' : mode;
         const scopedQuestionId = forcedMode === 'practice' && Number.isFinite(Number(questionId)) && Number(questionId) > 0
             ? Number(questionId)
             : null;
         const isFreeQuiz = Number(quiz.is_free) === 1;
-        await this.ensureStudentCanAccessQuiz(user.id, quiz);
-        await this.ensureStudentCanUseDynamicQuiz(user.id, quiz);
-        if (forcedMode === 'practice' && !isFreeQuiz && !(await this.plansService.hasFeatureAccess(user.id, 'practice_mode'))) {
-            throw new common_1.BadRequestException('Practice mode is included with selected plans');
-        }
-        if (forcedMode === 'exam' && !isFreeQuiz && !(await this.plansService.hasFeatureAccess(user.id, 'exam_mode'))) {
-            throw new common_1.BadRequestException('Exam mode is included with selected plans');
-        }
+        const featureKey = forcedMode === 'exam' ? 'exam_mode' : 'practice_mode';
+        const featureMessage = forcedMode === 'exam'
+            ? 'Exam mode is included with selected plans'
+            : 'Practice mode is included with selected plans';
+        await Promise.all([
+            this.ensureStudentCanAccessQuiz(user.id, quiz),
+            this.ensureStudentCanUseDynamicQuiz(user.id, quiz),
+            isFreeQuiz
+                ? Promise.resolve()
+                : this.plansService.hasFeatureAccess(user.id, featureKey).then((hasAccess) => {
+                    if (!hasAccess)
+                        throw new common_1.BadRequestException(featureMessage);
+                }),
+        ]);
         if (forcedMode === 'exam') {
             const examState = await this.ensureExamSession(user.id, quizId, quiz);
             return {
@@ -752,12 +760,12 @@ let QuizAttemptsService = class QuizAttemptsService {
         }
         const selectedIds = [];
         const selectedSet = new Set();
-        for (const section of sections) {
+        const sectionPools = await Promise.all(sections.map((section) => this.loadDynamicQuestionPool(this.resolveDynamicQuestionPoolFilters(quiz, section))));
+        sections.forEach((section, index) => {
             const targetCount = Math.min(Math.max(Math.trunc(Number(section.targetCount) || 0), 0), 500);
             if (targetCount <= 0)
-                continue;
-            const filters = this.resolveDynamicQuestionPoolFilters(quiz, section);
-            const poolIds = await this.loadDynamicQuestionPool(filters);
+                return;
+            const poolIds = sectionPools[index];
             const availableIds = poolIds.filter((id) => !selectedSet.has(id));
             const drawnIds = this.sampleQuestionIds(availableIds, targetCount);
             if (drawnIds.length < targetCount) {
@@ -767,7 +775,7 @@ let QuizAttemptsService = class QuizAttemptsService {
                 selectedSet.add(id);
                 selectedIds.push(id);
             }
-        }
+        });
         if (!selectedIds.length) {
             throw new common_1.BadRequestException('Dynamic randomized quizzes need at least one matching active question');
         }
