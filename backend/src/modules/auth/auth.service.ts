@@ -103,7 +103,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const email = loginDto.email.trim().toLowerCase();
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1',
+      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [email]
     );
 
@@ -207,7 +207,7 @@ export class AuthService {
     const fullName = this.getGoogleDisplayName(profile);
 
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1',
+      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [email]
     );
 
@@ -268,6 +268,40 @@ export class AuthService {
 
     return {
       ok: true,
+    };
+  }
+
+  async deleteAccount(authorization?: string) {
+    const user = await this.findUserByToken(this.extractToken(authorization));
+
+    if (isStaffRole(user.role)) {
+      throw new BadRequestException('Staff accounts cannot be self-deleted here');
+    }
+
+    // Soft delete: keep the row (and its history) but anonymize personal data and
+    // lock the login. deleted_at marks it as deleted — kept separate from `status`,
+    // which is the approval (active/inactive) state.
+    const scrambledEmail = `deleted+${user.id}-${randomBytes(6).toString('hex')}@deleted.invalid`;
+    const lockedPassword = await bcrypt.hash(`deleted:${randomBytes(16).toString('hex')}`, 10);
+
+    await this.db.execute(
+      `UPDATE users
+       SET full_name = 'Deleted user',
+           email = ?,
+           password = ?,
+           avatar_key = NULL,
+           session_token = NULL,
+           session_expires_at = NULL,
+           password_reset_token = NULL,
+           password_reset_expires_at = NULL,
+           deleted_at = NOW()
+       WHERE id = ?`,
+      [scrambledEmail, lockedPassword, user.id]
+    );
+
+    return {
+      ok: true,
+      message: 'Your account has been deleted.',
     };
   }
 

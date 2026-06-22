@@ -73,6 +73,11 @@ let AuthController = class AuthController {
         this.clearSessionCookie(response, request);
         return this.authService.logout(authorization || this.authorizationFromCookie(cookie));
     }
+    async deleteAccount(authorization, cookie, request, response) {
+        const result = await this.authService.deleteAccount(authorization || this.authorizationFromCookie(cookie));
+        this.clearSessionCookie(response, request);
+        return result;
+    }
     requestPasswordReset(forgotPasswordDto) {
         return this.authService.requestPasswordReset(forgotPasswordDto);
     }
@@ -236,6 +241,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
+__decorate([
+    (0, common_1.Delete)('account'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Headers)('cookie')),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "deleteAccount", null);
 __decorate([
     (0, common_1.Post)('forgot-password'),
     __param(0, (0, common_1.Body)()),

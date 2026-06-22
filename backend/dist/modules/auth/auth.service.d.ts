@@ -293,6 +293,10 @@ export declare class AuthService {
     logout(authorization?: string): Promise<{
         ok: boolean;
     }>;
+    deleteAccount(authorization?: string): Promise<{
+        ok: boolean;
+        message: string;
+    }>;
     private canExposeDevResetToken;
     requestPasswordReset(forgotPasswordDto: ForgotPasswordDto): Promise<{
         ok: boolean;

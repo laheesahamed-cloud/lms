@@ -54,7 +54,7 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async login(loginDto) {
         const email = loginDto.email.trim().toLowerCase();
-        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1', [email]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
         const user = rows[0];
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid email or password');
@@ -129,7 +129,7 @@ let AuthService = AuthService_1 = class AuthService {
     async loginWithGoogleProfile(profile) {
         const email = String(profile.email || '').trim().toLowerCase();
         const fullName = this.getGoogleDisplayName(profile);
-        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? LIMIT 1', [email]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
         let user = rows[0];
         if (!user) {
             const randomPassword = await bcrypt.hash(`google:${profile.sub}:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
@@ -177,6 +177,29 @@ let AuthService = AuthService_1 = class AuthService {
         }
         return {
             ok: true,
+        };
+    }
+    async deleteAccount(authorization) {
+        const user = await this.findUserByToken(this.extractToken(authorization));
+        if ((0, role_permissions_1.isStaffRole)(user.role)) {
+            throw new common_1.BadRequestException('Staff accounts cannot be self-deleted here');
+        }
+        const scrambledEmail = `deleted+${user.id}-${(0, crypto_1.randomBytes)(6).toString('hex')}@deleted.invalid`;
+        const lockedPassword = await bcrypt.hash(`deleted:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
+        await this.db.execute(`UPDATE users
+       SET full_name = 'Deleted user',
+           email = ?,
+           password = ?,
+           avatar_key = NULL,
+           session_token = NULL,
+           session_expires_at = NULL,
+           password_reset_token = NULL,
+           password_reset_expires_at = NULL,
+           deleted_at = NOW()
+       WHERE id = ?`, [scrambledEmail, lockedPassword, user.id]);
+        return {
+            ok: true,
+            message: 'Your account has been deleted.',
         };
     }
     canExposeDevResetToken(shouldSendEmail) {

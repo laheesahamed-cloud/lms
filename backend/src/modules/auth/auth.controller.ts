@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Patch, Post, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { SESSION_TTL_DAYS } from './auth-token.util';
@@ -101,6 +101,18 @@ export class AuthController {
   ) {
     this.clearSessionCookie(response, request);
     return this.authService.logout(authorization || this.authorizationFromCookie(cookie));
+  }
+
+  @Delete('account')
+  async deleteAccount(
+    @Headers('authorization') authorization: string | undefined,
+    @Headers('cookie') cookie: string | undefined,
+    @Req() request: any,
+    @Res({ passthrough: true }) response: any
+  ) {
+    const result = await this.authService.deleteAccount(authorization || this.authorizationFromCookie(cookie));
+    this.clearSessionCookie(response, request);
+    return result;
   }
 
   @Post('forgot-password')

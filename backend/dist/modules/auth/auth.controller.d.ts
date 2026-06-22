@@ -284,6 +284,10 @@ export declare class AuthController {
     logout(authorization: string | undefined, cookie: string | undefined, request: any, response: any): Promise<{
         ok: boolean;
     }>;
+    deleteAccount(authorization: string | undefined, cookie: string | undefined, request: any, response: any): Promise<{
+        ok: boolean;
+        message: string;
+    }>;
     requestPasswordReset(forgotPasswordDto: ForgotPasswordDto): Promise<{
         ok: boolean;
         message: string;
