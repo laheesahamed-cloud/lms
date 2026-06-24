@@ -572,8 +572,9 @@ export function LoginPage() {
     }
   }
 
-  // GIS redirect flow: Google sends the browser back to `${origin}/auth/login`
-  // with ?code=&state= (or ?error=). Finish the sign-in here on mount, once.
+  // GIS redirect flow: Google sends the browser back to this same login page
+  // (googleRedirectUri, e.g. https://host/lms/login) with ?code=&state= (or
+  // ?error=). Finish the sign-in here on mount, once.
   const googleReturnHandledRef = useRef(false);
   useEffect(() => {
     if (PLATFORM.isNative) return;
