@@ -679,6 +679,12 @@ ${settings.footer}`;
     getPrimaryGoogleClientId() {
         return this.getGoogleClientIds()[0] || '';
     }
+    getWebGoogleClientId() {
+        const explicit = String(this.configService.get('GOOGLE_WEB_CLIENT_ID') ||
+            this.configService.get('GOOGLE_CLIENT_ID') ||
+            '').trim();
+        return explicit || this.getPrimaryGoogleClientId();
+    }
     getGoogleClientSecret() {
         return String(this.configService.get('GOOGLE_CLIENT_SECRET') || '').trim();
     }
@@ -696,7 +702,7 @@ ${settings.footer}`;
         }
     }
     async exchangeGoogleAuthorizationCode(code, redirectUri) {
-        const clientId = this.getPrimaryGoogleClientId();
+        const clientId = this.getWebGoogleClientId();
         const clientSecret = this.getGoogleClientSecret();
         if (!clientId) {
             throw new common_1.BadRequestException('Google sign-in is not configured yet');

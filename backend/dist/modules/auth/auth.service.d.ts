@@ -575,6 +575,7 @@ export declare class AuthService {
     private decryptSettingsSecret;
     private getGoogleClientIds;
     private getPrimaryGoogleClientId;
+    private getWebGoogleClientId;
     private getGoogleClientSecret;
     private resolveGoogleCodeRedirectUri;
     private exchangeGoogleAuthorizationCode;

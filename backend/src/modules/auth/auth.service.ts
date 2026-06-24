@@ -938,6 +938,23 @@ ${settings.footer}`;
     return this.getGoogleClientIds()[0] || '';
   }
 
+  /**
+   * The WEB OAuth client id — the only client with a secret, used for the web
+   * authorization-code exchange. Prefer an explicit GOOGLE_WEB_CLIENT_ID so it
+   * never depends on the ORDER of GOOGLE_CLIENT_IDS (the iOS/Android ids in that
+   * list have no secret; using one of them for the exchange yields
+   * `invalid_client`). Falls back to GOOGLE_CLIENT_ID, then the first id in the
+   * list, for backward compatibility.
+   */
+  private getWebGoogleClientId() {
+    const explicit = String(
+      this.configService.get<string>('GOOGLE_WEB_CLIENT_ID') ||
+      this.configService.get<string>('GOOGLE_CLIENT_ID') ||
+      ''
+    ).trim();
+    return explicit || this.getPrimaryGoogleClientId();
+  }
+
   private getGoogleClientSecret() {
     return String(this.configService.get<string>('GOOGLE_CLIENT_SECRET') || '').trim();
   }
@@ -962,7 +979,7 @@ ${settings.footer}`;
   }
 
   private async exchangeGoogleAuthorizationCode(code: string, redirectUri: string) {
-    const clientId = this.getPrimaryGoogleClientId();
+    const clientId = this.getWebGoogleClientId();
     const clientSecret = this.getGoogleClientSecret();
 
     if (!clientId) {

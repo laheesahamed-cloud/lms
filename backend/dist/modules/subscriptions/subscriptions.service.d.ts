@@ -94,8 +94,8 @@ export declare class SubscriptionsService {
         planId: number;
         assignedBy: number | null;
         notes: string;
-        status: "expired" | "active" | "pending" | "cancelled";
-        computedStatus: "expired" | "active" | "pending" | "cancelled";
+        status: "active" | "pending" | "expired" | "cancelled";
+        computedStatus: "active" | "pending" | "expired" | "cancelled";
         paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
         isFreePlan: boolean;
         isUnlimitedAccess: boolean;
@@ -200,7 +200,7 @@ export declare class SubscriptionsService {
         id: number;
         userId: number;
         planId: number;
-        status: "rejected" | "pending" | "cancelled" | "approved";
+        status: "rejected" | "pending" | "approved" | "cancelled";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -243,8 +243,8 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "expired" | "active" | "pending" | "cancelled";
-            computedStatus: "expired" | "active" | "pending" | "cancelled";
+            status: "active" | "pending" | "expired" | "cancelled";
+            computedStatus: "active" | "pending" | "expired" | "cancelled";
             paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
@@ -294,8 +294,8 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "expired" | "active" | "pending" | "cancelled";
-            computedStatus: "expired" | "active" | "pending" | "cancelled";
+            status: "active" | "pending" | "expired" | "cancelled";
+            computedStatus: "active" | "pending" | "expired" | "cancelled";
             paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
@@ -388,7 +388,7 @@ export declare class SubscriptionsService {
             id: number;
             userId: number;
             planId: number;
-            status: "rejected" | "pending" | "cancelled" | "approved";
+            status: "rejected" | "pending" | "approved" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;

@@ -236,9 +236,11 @@ let SettingsService = SettingsService_1 = class SettingsService {
         };
     }
     getPublicGoogleClientId() {
-        const primaryClientId = String(this.configService.get('GOOGLE_CLIENT_ID') || '').trim();
-        if (primaryClientId)
-            return primaryClientId;
+        const explicit = String(this.configService.get('GOOGLE_WEB_CLIENT_ID') ||
+            this.configService.get('GOOGLE_CLIENT_ID') ||
+            '').trim();
+        if (explicit)
+            return explicit;
         return String(this.configService.get('GOOGLE_CLIENT_IDS') || '')
             .split(',')
             .map((clientId) => clientId.trim())

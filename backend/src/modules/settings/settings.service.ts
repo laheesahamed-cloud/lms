@@ -377,8 +377,16 @@ export class SettingsService {
   }
 
   private getPublicGoogleClientId() {
-    const primaryClientId = String(this.configService.get<string>('GOOGLE_CLIENT_ID') || '').trim();
-    if (primaryClientId) return primaryClientId;
+    // Prefer the explicit WEB client id so the browser/app GIS client uses the
+    // SAME client the backend exchanges with (otherwise the code is issued for
+    // one client and redeemed with another -> invalid_client). Then
+    // GOOGLE_CLIENT_ID, then the first entry of GOOGLE_CLIENT_IDS.
+    const explicit = String(
+      this.configService.get<string>('GOOGLE_WEB_CLIENT_ID') ||
+      this.configService.get<string>('GOOGLE_CLIENT_ID') ||
+      ''
+    ).trim();
+    if (explicit) return explicit;
 
     return String(this.configService.get<string>('GOOGLE_CLIENT_IDS') || '')
       .split(',')

@@ -330,7 +330,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "starttls" | "ssl";
+        security: "ssl" | "starttls";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -485,7 +485,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "starttls" | "ssl";
+        security: "ssl" | "starttls";
         username: string;
         fromName: string;
         fromEmail: string;
