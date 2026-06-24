@@ -2753,7 +2753,7 @@ export function QuizBuilderPage() {
                   <FieldNote>
                     {form.displayTitleMode !== 'title'
                       ? form.quizNumber
-                        ? `Students see Quiz ${String(form.quizNumber).padStart(2, '0')} in the list. Number is locked.`
+                        ? `Students see Quiz ${Number(form.quizNumber)} in the list. Number is locked.`
                         : 'A sequential number will be auto-assigned when saved.'
                       : 'Students see the assessment title as the main label.'}
                   </FieldNote>
@@ -2761,7 +2761,7 @@ export function QuizBuilderPage() {
               </label>
               {form._quizNumberWarnOnUncheck ? (
                 <div className="rounded-xl border border-brand-warning/34 bg-[var(--color-warning-light,#fffbeb)] px-4 py-3 text-sm text-brand-warning" role="alert">
-                  This quiz was displayed as <strong>Quiz {String(form.quizNumber).padStart(2, '0')}</strong> to students. Update the <strong>Student Title</strong> above to describe the content before saving.
+                  This quiz was displayed as <strong>Quiz {Number(form.quizNumber)}</strong> to students. Update the <strong>Student Title</strong> above to describe the content before saving.
                 </div>
               ) : null}
 
@@ -3640,7 +3640,7 @@ export function QuizBuilderPage() {
                     {form.displayTitleMode === 'title'
                       ? 'Assessment title'
                       : form.quizNumber
-                        ? `Quiz ${String(form.quizNumber).padStart(2, '0')} (assigned)`
+                        ? `Quiz ${Number(form.quizNumber)} (assigned)`
                         : 'Quiz N (auto on save)'}
                   </span>
                 </div>

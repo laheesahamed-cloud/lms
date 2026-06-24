@@ -29,7 +29,7 @@ export function getQuizTitleText(quiz, fallback = '') {
 
 export function getQuizDisplayLabel(quiz) {
   if (quiz?.displayTitleMode === 'number' && quiz?.quizNumber) {
-    const n = String(quiz.quizNumber).padStart(2, '0');
+    const n = Number(quiz.quizNumber);
     const parent = quiz.lessonTitle || quiz.topicName || quiz.subjectName || quiz.courseTitle || '';
     return parent ? `${parent} • Quiz ${n}` : `Quiz ${n}`;
   }

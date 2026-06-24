@@ -116,11 +116,19 @@ const structureUi = {
   cardActions:
     'flex shrink-0 items-center justify-end gap-2',
   folderToolbar:
-    'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-line-soft bg-surface-card p-3 shadow-[var(--card-shadow)] max-[700px]:grid-cols-1',
+    'grid gap-3 rounded-xl border border-line-soft bg-surface-card p-3 shadow-[var(--card-shadow)]',
+  folderToolbarMain:
+    'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 max-[700px]:grid-cols-1',
   folderToolbarTitle:
-    'min-w-0 text-center text-[18px] font-extrabold text-brand-primary max-[700px]:text-left',
+    'min-w-0 text-[18px] font-extrabold text-brand-primary',
+  folderToolbarContext:
+    'mt-1 truncate text-[12px] font-semibold text-ink-soft',
+  pathBar:
+    'flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-line-soft/80 bg-surface-2/70 px-3 py-2',
+  pathLabel:
+    'text-[11px] font-extrabold uppercase text-ink-muted',
   breadcrumb:
-    'flex min-w-0 flex-wrap items-center justify-center gap-1.5 text-[12px] font-extrabold text-ink-muted max-[700px]:justify-start',
+    'flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] font-extrabold text-ink-muted',
   breadcrumbItem:
     'inline-flex min-h-7 max-w-[210px] items-center truncate rounded-full border border-line-soft bg-surface-2 px-3 text-ink-soft',
   breadcrumbCurrent:
@@ -250,24 +258,30 @@ function StructureBreadcrumb({ items }) {
   );
 }
 
-function FolderToolbar({ title, onBack, countLabel, actionLabel, onAction, breadcrumbItems }) {
+function FolderToolbar({ title, contextLabel, onBack, countLabel, actionLabel, onAction, breadcrumbItems }) {
   return (
     <div className={structureUi.folderToolbar}>
-      <button type="button" className={cx(ui.secondaryButton, 'min-h-11 px-4 max-[640px]:w-fit')} onClick={onBack}>
-        <BackIcon />
-        <span>Back</span>
-      </button>
-      <div className="grid min-w-0 gap-2">
-        <div className={structureUi.folderToolbarTitle}>{title || 'Structure'}</div>
-        <StructureBreadcrumb items={breadcrumbItems || [title || 'Structure']} />
+      <div className={structureUi.folderToolbarMain}>
+        <button type="button" className={cx(ui.secondaryButton, 'min-h-11 px-4 max-[640px]:w-fit')} onClick={onBack}>
+          <BackIcon />
+          <span>Back</span>
+        </button>
+        <div className="min-w-0">
+          <div className={structureUi.folderToolbarTitle}>{title || 'Structure'}</div>
+          {contextLabel ? <div className={structureUi.folderToolbarContext}>{contextLabel}</div> : null}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start">
+          <span className={structureUi.countPill}>{countLabel}</span>
+          {actionLabel ? (
+            <button type="button" className={cx(ui.panelAddButton, 'min-h-9')} onClick={onAction}>
+              {actionLabel}
+            </button>
+          ) : null}
+        </div>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start">
-        <span className={structureUi.countPill}>{countLabel}</span>
-        {actionLabel ? (
-          <button type="button" className={cx(ui.panelAddButton, 'min-h-9')} onClick={onAction}>
-            {actionLabel}
-          </button>
-        ) : null}
+      <div className={structureUi.pathBar}>
+        <span className={structureUi.pathLabel}>Path</span>
+        <StructureBreadcrumb items={breadcrumbItems || [title || 'Structure']} />
       </div>
     </div>
   );
@@ -928,12 +942,13 @@ export function StructurePage() {
           {activeLevel === 'subjects' ? (
             <>
               <FolderToolbar
-                title={selectedCourse?.courseTitle || 'Subjects'}
+                title="Subjects"
+                contextLabel={selectedCourse?.courseTitle ? `Inside ${selectedCourse.courseTitle}` : 'Inside selected course'}
                 onBack={goBackFolder}
                 countLabel={loading.subjects ? 'Loading...' : `${subjects.length} subjects`}
                 actionLabel="+ Add Subject"
                 onAction={openSubjectCreate}
-                breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Course', 'Subjects']}
+                breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Selected course']}
               />
               {loading.subjects ? <LoadingGrid /> : null}
               {!loading.subjects && subjects.length === 0 ? <EmptyFolder>No subjects in this course.</EmptyFolder> : null}
@@ -964,12 +979,13 @@ export function StructurePage() {
           {activeLevel === 'topics' ? (
             <>
               <FolderToolbar
-                title={selectedSubject?.topicName || 'Topics'}
+                title="Topics"
+                contextLabel={selectedSubject?.topicName ? `Inside ${selectedSubject.topicName}` : 'Inside selected subject'}
                 onBack={goBackFolder}
                 countLabel={loading.topics ? 'Loading...' : `${topics.length} topics`}
                 actionLabel="+ Add Topic"
                 onAction={openTopicCreate}
-                breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Course', selectedSubject?.topicName || 'Subject', 'Topics']}
+                breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Selected course', selectedSubject?.topicName || 'Selected subject']}
               />
               {loading.topics ? <LoadingGrid /> : null}
               {!loading.topics && topics.length === 0 ? <EmptyFolder>No topics in this subject.</EmptyFolder> : null}
@@ -1004,12 +1020,13 @@ export function StructurePage() {
           {activeLevel === 'lessons' ? (
             <>
               <FolderToolbar
-                title={selectedTopic?.subtopicName || 'Lessons'}
+                title="Lessons"
+                contextLabel={selectedTopic?.subtopicName ? `Inside ${selectedTopic.subtopicName}` : 'Inside selected topic'}
                 onBack={goBackFolder}
                 countLabel={loading.lessons ? 'Loading...' : `${lessons.length} lessons`}
                 actionLabel="+ Lesson"
                 onAction={() => navigate('/ai-notes')}
-                breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Course', selectedSubject?.topicName || 'Subject', selectedTopic?.subtopicName || 'Topic', 'Lessons']}
+                breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Selected course', selectedSubject?.topicName || 'Selected subject', selectedTopic?.subtopicName || 'Selected topic']}
               />
               {loading.lessons ? <LoadingGrid /> : null}
               {!loading.lessons && lessons.length === 0 ? <EmptyFolder>No lessons in this topic.</EmptyFolder> : null}

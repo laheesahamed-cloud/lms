@@ -20,7 +20,7 @@ const PRACTICE_PREFETCH_COUNT = 4;
 
 function getQuizRowLabel(quiz, index) {
   if (quiz.displayTitleMode === 'number' && quiz.quizNumber) {
-    return `Quiz ${String(quiz.quizNumber).padStart(2, '0')}`;
+    return `Quiz ${Number(quiz.quizNumber)}`;
   }
   return getQuizTitleText(quiz) || quiz.quizTitle || `Practice set ${index + 1}`;
 }
@@ -51,8 +51,8 @@ function isQuizDone(quiz) {
 
 function sortQuizzesByHierarchy(items) {
   return [...items].sort((a, b) => {
-    const aKey = [a.topicName, a.subtopicName, a.lessonTitle, a.quizTitle].filter(Boolean).join('\u0001');
-    const bKey = [b.topicName, b.subtopicName, b.lessonTitle, b.quizTitle].filter(Boolean).join('\u0001');
+    const aKey = [a.topicName, a.subtopicName, a.lessonTitle, a.quizNumber, a.quizTitle].filter(Boolean).join('\u0001');
+    const bKey = [b.topicName, b.subtopicName, b.lessonTitle, b.quizNumber, b.quizTitle].filter(Boolean).join('\u0001');
     return aKey.localeCompare(bKey, undefined, { numeric: true, sensitivity: 'base' });
   });
 }
@@ -284,7 +284,7 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
       onPointerEnter={preloadQuizRoute}
       onFocus={preloadQuizRoute}
     >
-      <strong>{String(index + 1).padStart(2, '0')}</strong>
+      <strong>{index + 1}</strong>
       <span className="student-lessons-lesson-row__title">
         <span className="student-lessons-lesson-row__title-line">
           <span className="student-lessons-lesson-row__title-text">{title}</span>
