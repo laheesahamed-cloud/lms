@@ -467,7 +467,10 @@ export function LoginPage() {
   // GIS redirect flow returns the browser here with ?code=...; this exact URL
   // must be registered in the OAuth client's "Authorized redirect URIs" and is
   // sent to the backend so its token exchange uses the identical redirect_uri.
-  const googleRedirectUri = typeof window !== 'undefined' ? `${window.location.origin}/auth/login` : '';
+  // Derive it from the CURRENT login page URL (origin + path) so it works under
+  // any base path (this app is served under /lms/, e.g. https://host/lms/login)
+  // and matches on the return trip, which lands back on this same page.
+  const googleRedirectUri = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '';
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
