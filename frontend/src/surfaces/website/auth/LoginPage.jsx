@@ -456,6 +456,15 @@ export function LoginPage() {
   const consumeAuthNotice = useAuthStore((s) => s.consumeAuthNotice);
 
   const [status,       setStatus]       = useState({ loading: false, error: '', success: '' });
+  // True while finishing a Google redirect sign-in (Google sent us back with
+  // ?code= in the URL). We show a full-screen "Signing you in" state instead of
+  // flashing the login form, then navigate to the dashboard. Reset to false only
+  // if the sign-in fails, so the form (with the error) becomes visible again.
+  const [googleReturnPending, setGoogleReturnPending] = useState(() => {
+    if (typeof window === 'undefined' || PLATFORM.isNative) return false;
+    const p = new URLSearchParams(window.location.search);
+    return Boolean(p.get('code')) && !p.get('error');
+  });
   const [googleSdk, setGoogleSdk] = useState(null);
   const [googleClientId, setGoogleClientId] = useState(STATIC_GOOGLE_CLIENT_ID);
   const [googleConfigStatus, setGoogleConfigStatus] = useState({
@@ -602,10 +611,12 @@ export function LoginPage() {
     try { window.history.replaceState({}, '', window.location.pathname); } catch { /* ignore */ }
 
     if (errParam) {
+      setGoogleReturnPending(false);
       setStatus({ loading: false, error: 'Google sign-in was cancelled. Please try again.', success: '' });
       return;
     }
     if (!expectedState || stateParam !== expectedState) {
+      setGoogleReturnPending(false);
       setStatus({ loading: false, error: 'Google sign-in could not be verified. Please try again.', success: '' });
       return;
     }
@@ -616,7 +627,10 @@ export function LoginPage() {
       try {
         const data = await signInWithGoogleCode({ code, redirectUri: googleRedirectUri });
         await completeSignIn(data, startedAt, forwardPath || undefined);
+        // success: completeSignIn navigates to the dashboard, so we keep the
+        // "Signing you in" screen up until the route changes (no reset here).
       } catch (err) {
+        setGoogleReturnPending(false);
         setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in with Google'), success: '' });
       }
     })();
@@ -779,6 +793,27 @@ export function LoginPage() {
 
   const feedbackId = status.error ? 'login-error' : status.success ? 'login-success' : undefined;
   const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));
+
+  // Finishing a Google redirect sign-in: show a calm "Signing you in" screen
+  // (not the login form) until we land on the dashboard.
+  if (googleReturnPending) {
+    return (
+      <main
+        className={cx(ui.authRouteScene, 'lms-login-page')}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', background: 'var(--lms-login-page-bg, var(--page-background))' }}
+        aria-busy="true"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', color: 'var(--brand-primary, #2563eb)' }}>
+          <span className="lms-ios-loader" aria-hidden="true">
+            {Array.from({ length: 12 }, (_, index) => (
+              <span key={index} />
+            ))}
+          </span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary, #1c1c1e)' }}>Signing you in…</span>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={cx(ui.authRouteScene, 'lms-login-page')} style={{ display: 'flex', minHeight: '100dvh', overflowX: 'hidden', overflowY: 'auto', background: 'var(--lms-login-page-bg, var(--page-background))' }}>
