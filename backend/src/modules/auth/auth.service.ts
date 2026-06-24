@@ -690,10 +690,8 @@ If you did not try to sign in, you can safely ignore this email.`;
 <body style="margin:0;padding:0;background:#f4f7fb;">
   <div style="margin:0;padding:32px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:18px;overflow:hidden;box-shadow:0 18px 46px rgba(15,23,42,.10);">
-      <div style="padding:26px 28px 22px;background:#ffffff;text-align:center;">
-        <span style="display:inline-block;background:#ffffff;border:1px solid #e8eef6;border-radius:16px;padding:14px 22px;box-shadow:0 4px 14px rgba(15,23,42,.06);">
-          <img src="${safe(logoUrl)}" alt="${safe(settings.fromName)}" width="150" style="display:block;max-width:150px;height:auto;border:0;outline:none;text-decoration:none;" />
-        </span>
+      <div style="padding:28px 28px 22px;background:#ffffff;text-align:center;">
+        <img src="${safe(logoUrl)}" alt="${safe(settings.fromName)}" width="160" style="display:inline-block;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;" />
       </div>
       <div style="padding:22px 28px;background:linear-gradient(135deg,#2563EB,#14B8A6);color:#ffffff;">
         <h1 style="margin:0;font-size:26px;line-height:1.15;color:#ffffff;">${safe(heading)}</h1>
