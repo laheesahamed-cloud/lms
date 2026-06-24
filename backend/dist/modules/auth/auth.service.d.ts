@@ -359,6 +359,8 @@ export declare class AuthService {
     private sendEmailVerificationOtp;
     private renderEmailOtpText;
     private renderEmailOtpHtml;
+    private escapeHtml;
+    private renderBrandEmailDocument;
     updateProfile(authorization: string | undefined, updateProfileDto: UpdateProfileDto): Promise<{
         ok: boolean;
         user: {

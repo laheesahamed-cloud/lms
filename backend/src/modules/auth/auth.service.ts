@@ -207,7 +207,7 @@ export class AuthService {
       throw new BadRequestException('Google sign-in request is invalid');
     }
 
-    const redirectUri = this.resolveGoogleCodeRedirectUri(context.origin || googleCodeLoginDto.redirectUri);
+    const redirectUri = this.resolveGoogleCodeRedirectUri(googleCodeLoginDto.redirectUri || context.origin);
     const idToken = await this.exchangeGoogleAuthorizationCode(googleCodeLoginDto.code, redirectUri);
     const profile = await this.verifyGoogleCredential(idToken);
     return this.loginWithGoogleProfile(profile);
@@ -639,37 +639,73 @@ If you did not try to sign in, you can safely ignore this email.`;
   }
 
   private renderEmailOtpHtml(settings: Awaited<ReturnType<AuthService['getPasswordResetSmtpSettings']>>, code: string) {
-    const safe = (value: string) => String(value || '').replace(/[&<>"']/g, (char) => ({
+    const body = `
+            <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#334155;">Enter this 6-digit code to finish signing in:</p>
+            <div style="text-align:center;margin:8px 0 22px;">
+              <span style="display:inline-block;font-size:32px;font-weight:900;letter-spacing:.2em;white-space:nowrap;color:#0f172a;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px 14px 24px;">${this.escapeHtml(code)}</span>
+            </div>
+            <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">This code expires in ${EMAIL_OTP_TTL_MINUTES} minutes.</p>`;
+
+    return this.renderBrandEmailDocument({
+      settings,
+      heading: 'Verify your email',
+      bodyHtml: body,
+      footerHtml: 'If you did not try to sign in, you can safely ignore this email.',
+    });
+  }
+
+  private escapeHtml(value: string) {
+    return String(value || '').replace(/[&<>"']/g, (char) => ({
       '&': '&amp;',
       '<': '&lt;',
       '>': '&gt;',
       '"': '&quot;',
       "'": '&#39;',
     }[char] || char));
+  }
 
+  // Shared email shell. Pins the message to a LIGHT theme (color-scheme meta +
+  // explicit solid backgrounds) so dark-mode clients (Gmail, iOS Mail) can't
+  // darken the white card, and seats the light logo on its own white rounded
+  // backdrop so it always reads on any background.
+  private renderBrandEmailDocument(input: {
+    settings: Awaited<ReturnType<AuthService['getPasswordResetSmtpSettings']>>;
+    heading: string;
+    bodyHtml: string;
+    footerHtml: string;
+  }) {
+    const { settings, heading, bodyHtml, footerHtml } = input;
+    const safe = (value: string) => this.escapeHtml(value);
     const logoUrl = `${String(settings.publicUrl || '').replace(/\/+$/, '')}/landing/logo.png`;
-    const spacedCode = safe(code).split('').join('&#8201;');
 
-    return `
-      <div style="margin:0;padding:32px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
-        <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:18px;overflow:hidden;box-shadow:0 18px 46px rgba(15,23,42,.10);">
-          <div style="padding:24px 28px 18px;background:#ffffff;text-align:center;">
-            <img src="${safe(logoUrl)}" alt="${safe(settings.fromName)}" width="160" style="display:inline-block;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;" />
-          </div>
-          <div style="padding:22px 28px;background:linear-gradient(135deg,#2563EB,#14B8A6);color:#ffffff;">
-            <h1 style="margin:0;font-size:26px;line-height:1.15;">Verify your email</h1>
-          </div>
-          <div style="padding:28px;">
-            <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#334155;">Enter this 6-digit code to finish signing in:</p>
-            <div style="text-align:center;margin:8px 0 22px;">
-              <span style="display:inline-block;font-size:34px;font-weight:900;letter-spacing:.32em;color:#0f172a;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:14px 22px;">${spacedCode}</span>
-            </div>
-            <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">This code expires in ${EMAIL_OTP_TTL_MINUTES} minutes.</p>
-          </div>
-          <div style="border-top:1px solid #e2e8f0;padding:18px 28px;font-size:12px;line-height:1.6;color:#64748b;background:#f8fafc;">If you did not try to sign in, you can safely ignore this email.</div>
-        </div>
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<style>:root{color-scheme:light only;supported-color-schemes:light only;}</style>
+</head>
+<body style="margin:0;padding:0;background:#f4f7fb;">
+  <div style="margin:0;padding:32px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:18px;overflow:hidden;box-shadow:0 18px 46px rgba(15,23,42,.10);">
+      <div style="padding:26px 28px 22px;background:#ffffff;text-align:center;">
+        <span style="display:inline-block;background:#ffffff;border:1px solid #e8eef6;border-radius:16px;padding:14px 22px;box-shadow:0 4px 14px rgba(15,23,42,.06);">
+          <img src="${safe(logoUrl)}" alt="${safe(settings.fromName)}" width="150" style="display:block;max-width:150px;height:auto;border:0;outline:none;text-decoration:none;" />
+        </span>
       </div>
-    `;
+      <div style="padding:22px 28px;background:linear-gradient(135deg,#2563EB,#14B8A6);color:#ffffff;">
+        <h1 style="margin:0;font-size:26px;line-height:1.15;color:#ffffff;">${safe(heading)}</h1>
+      </div>
+      <div style="padding:28px;background:#ffffff;color:#0f172a;">
+        ${bodyHtml}
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding:18px 28px;font-size:12px;line-height:1.6;color:#64748b;background:#f8fafc;">${footerHtml}</div>
+    </div>
+  </div>
+</body>
+</html>`;
   }
 
   async updateProfile(authorization: string | undefined, updateProfileDto: UpdateProfileDto) {
@@ -862,35 +898,19 @@ ${settings.footer}`;
   }
 
   private renderPasswordResetHtml(settings: Awaited<ReturnType<AuthService['getPasswordResetSmtpSettings']>>, resetUrl: string) {
-    const safe = (value: string) => String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }[char] || char));
-
-    const logoUrl = `${String(settings.publicUrl || '').replace(/\/+$/, '')}/landing/logo.png`;
-
-    return `
-      <div style="margin:0;padding:32px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
-        <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:18px;overflow:hidden;box-shadow:0 18px 46px rgba(15,23,42,.10);">
-          <div style="padding:24px 28px 18px;background:#ffffff;text-align:center;">
-            <img src="${safe(logoUrl)}" alt="${safe(settings.fromName)}" width="160" style="display:inline-block;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;" />
-          </div>
-          <div style="padding:22px 28px;background:linear-gradient(135deg,#2563EB,#14B8A6);color:#ffffff;">
-            <h1 style="margin:0;font-size:26px;line-height:1.15;">${safe(settings.heading)}</h1>
-          </div>
-          <div style="padding:28px;">
+    const safe = (value: string) => this.escapeHtml(value);
+    const body = `
             <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#334155;">${safe(settings.intro)}</p>
             <a href="${safe(resetUrl)}" style="display:inline-block;border-radius:10px;background:#2563EB;color:#ffffff;text-decoration:none;font-weight:800;padding:13px 18px;">${safe(settings.buttonLabel)}</a>
             <p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:#64748b;">This link expires in ${PASSWORD_RESET_TTL_MINUTES} minutes.</p>
-            <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#64748b;word-break:break-all;">${safe(resetUrl)}</p>
-          </div>
-          <div style="border-top:1px solid #e2e8f0;padding:18px 28px;font-size:12px;line-height:1.6;color:#64748b;background:#f8fafc;">${safe(settings.footer)}</div>
-        </div>
-      </div>
-    `;
+            <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#64748b;word-break:break-all;">${safe(resetUrl)}</p>`;
+
+    return this.renderBrandEmailDocument({
+      settings,
+      heading: settings.heading,
+      bodyHtml: body,
+      footerHtml: safe(settings.footer),
+    });
   }
 
   private parseBoolean(value: string | undefined, fallback: boolean) {
@@ -924,16 +944,22 @@ ${settings.footer}`;
     return String(this.configService.get<string>('GOOGLE_CLIENT_SECRET') || '').trim();
   }
 
-  private resolveGoogleCodeRedirectUri(rawOrigin?: string) {
-    const raw = String(rawOrigin || '').trim();
+  private resolveGoogleCodeRedirectUri(rawRedirectUri?: string) {
+    const raw = String(rawRedirectUri || '').trim();
     if (!raw) {
-      throw new BadRequestException('Google sign-in origin is missing');
+      throw new BadRequestException('Google sign-in redirect URI is missing');
     }
 
     try {
-      return new URL(raw).origin;
+      // The web LoginPage uses the GIS redirect flow (ux_mode:'redirect') with
+      // redirect_uri = `${origin}/auth/login`. Google binds the auth code to
+      // that exact URI and requires the same value here, so we keep origin +
+      // path (dropping any query/hash). Google also enforces it against the
+      // client's registered "Authorized redirect URIs", so a forged value fails.
+      const url = new URL(raw);
+      return `${url.origin}${url.pathname}`;
     } catch {
-      throw new BadRequestException('Google sign-in origin is invalid');
+      throw new BadRequestException('Google sign-in redirect URI is invalid');
     }
   }
 
@@ -956,14 +982,10 @@ ${settings.footer}`;
         code,
         client_id: clientId,
         client_secret: clientSecret,
-        // The web LoginPage uses the GIS popup auth-code flow (ux_mode:'popup'),
-        // which binds the code to the special 'postmessage' redirect URI — NOT
-        // the page origin. Google's token endpoint requires the redirect_uri
-        // here to exactly match the one the code was issued with, so sending the
-        // origin (`redirectUri`) makes Google reject it with invalid_grant
-        // ("authorization code is invalid"). Always redeem popup codes with
-        // 'postmessage'.
-        redirect_uri: 'postmessage',
+        // Must exactly match the redirect_uri the GIS redirect-flow code client
+        // used (`${origin}/auth/login`); Google rejects a mismatch with
+        // invalid_grant ("authorization code is invalid").
+        redirect_uri: redirectUri,
         grant_type: 'authorization_code',
       }),
     });

@@ -462,9 +462,12 @@ export function LoginPage() {
     error: '',
   });
   const [showPassword, setShowPassword] = useState(false);
-  const googleCodeClientRef = useRef(null);
   const fromParam = new URLSearchParams(location.search).get('from') || '';
   const requestedPath = getSafeForwardPath(fromParam);
+  // GIS redirect flow returns the browser here with ?code=...; this exact URL
+  // must be registered in the OAuth client's "Authorized redirect URIs" and is
+  // sent to the backend so its token exchange uses the identical redirect_uri.
+  const googleRedirectUri = typeof window !== 'undefined' ? `${window.location.origin}/auth/login` : '';
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -512,7 +515,7 @@ export function LoginPage() {
     cardSelector: '.lms-login-page .lms-form-card',
   });
 
-  const completeSignIn = useCallback(async (data, startedAt) => {
+  const completeSignIn = useCallback(async (data, startedAt, forwardPathOverride) => {
     clearServerNotResponding();
     try {
       window.sessionStorage.setItem('lms_recent_auth_success', String(Date.now()));
@@ -520,7 +523,7 @@ export function LoginPage() {
       // Recent-login reload protection is helpful, but storage can be unavailable.
     }
     const defaultHome = data.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard';
-    const nextPath = canonicalizeForwardPathForUser(requestedPath, data.user) || data.redirectPath || defaultHome;
+    const nextPath = canonicalizeForwardPathForUser(forwardPathOverride || requestedPath, data.user) || data.redirectPath || defaultHome;
     preloadRouteByPath(nextPath, data.user?.role);
 
     const remaining = Math.max(0, 360 - (performance.now() - startedAt));
@@ -566,30 +569,53 @@ export function LoginPage() {
     }
   }
 
-  const handleGoogleCode = useCallback(async (response) => {
-    const error = String(response?.error || '').trim();
-    const code = String(response?.code || '').trim();
-    if (error || !code) {
-      setStatus({
-        loading: false,
-        error: error || 'Google did not return a sign-in code. Please try again.',
-        success: '',
-      });
+  // GIS redirect flow: Google sends the browser back to `${origin}/auth/login`
+  // with ?code=&state= (or ?error=). Finish the sign-in here on mount, once.
+  const googleReturnHandledRef = useRef(false);
+  useEffect(() => {
+    if (PLATFORM.isNative) return;
+    if (googleReturnHandledRef.current) return;
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const stateParam = params.get('state');
+    const errParam = params.get('error');
+    if (!code && !errParam) return;
+    googleReturnHandledRef.current = true;
+
+    let expectedState = '';
+    let forwardPath = '';
+    try {
+      expectedState = window.sessionStorage.getItem('xy_google_state') || '';
+      forwardPath = window.sessionStorage.getItem('xy_google_from') || '';
+      window.sessionStorage.removeItem('xy_google_state');
+      window.sessionStorage.removeItem('xy_google_from');
+    } catch { /* sessionStorage may be unavailable */ }
+
+    // Strip the OAuth params so a refresh can't replay them.
+    try { window.history.replaceState({}, '', window.location.pathname); } catch { /* ignore */ }
+
+    if (errParam) {
+      setStatus({ loading: false, error: 'Google sign-in was cancelled. Please try again.', success: '' });
+      return;
+    }
+    if (!expectedState || stateParam !== expectedState) {
+      setStatus({ loading: false, error: 'Google sign-in could not be verified. Please try again.', success: '' });
       return;
     }
 
-    const startedAt = performance.now();
-    setStatus({ loading: true, error: '', success: '' });
-    try {
-      const data = await signInWithGoogleCode({
-        code,
-        redirectUri: typeof window !== 'undefined' ? window.location.origin : '',
-      });
-      await completeSignIn(data, startedAt);
-    } catch (err) {
-      setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in with Google'), success: '' });
-    }
-  }, [completeSignIn, signInWithGoogleCode]);
+    (async () => {
+      const startedAt = performance.now();
+      setStatus({ loading: true, error: '', success: '' });
+      try {
+        const data = await signInWithGoogleCode({ code, redirectUri: googleRedirectUri });
+        await completeSignIn(data, startedAt, forwardPath || undefined);
+      } catch (err) {
+        setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in with Google'), success: '' });
+      }
+    })();
+  }, [completeSignIn, signInWithGoogleCode, googleRedirectUri]);
 
   const handleNativeGoogle = useCallback(async () => {
     const startedAt = performance.now();
@@ -623,8 +649,7 @@ export function LoginPage() {
       return;
     }
 
-    const client = googleCodeClientRef.current;
-    if (!client) {
+    if (!googleSdk?.accounts?.oauth2 || !googleClientId) {
       setStatus({
         loading: false,
         error: 'Google sign-in is still preparing. Please try again in a moment.',
@@ -633,8 +658,24 @@ export function LoginPage() {
       return;
     }
 
+    // Fresh per-attempt nonce (CSRF) + remember where to land after sign-in,
+    // since the full-page redirect to Google and back drops React state.
+    const nonce = (window.crypto?.randomUUID?.() || `${Date.now()}.${Math.random().toString(36).slice(2)}`);
+    try {
+      window.sessionStorage.setItem('xy_google_state', nonce);
+      if (requestedPath) window.sessionStorage.setItem('xy_google_from', requestedPath);
+      else window.sessionStorage.removeItem('xy_google_from');
+    } catch { /* sessionStorage may be unavailable */ }
+
     setStatus({ loading: false, error: '', success: '' });
     try {
+      const client = googleSdk.accounts.oauth2.initCodeClient({
+        client_id: googleClientId,
+        scope: 'openid email profile',
+        ux_mode: 'redirect',
+        redirect_uri: googleRedirectUri,
+        state: nonce,
+      });
       client.requestCode();
     } catch (err) {
       setStatus({ loading: false, error: getErrorMessage(err, 'Google sign-in could not open'), success: '' });
@@ -688,7 +729,6 @@ export function LoginPage() {
     if (PLATFORM.isNative) return undefined;
     if (!googleClientId) {
       setGoogleSdk(null);
-      googleCodeClientRef.current = null;
       return undefined;
     }
 
@@ -731,32 +771,6 @@ export function LoginPage() {
       }
     };
   }, [googleClientId]);
-
-  useEffect(() => {
-    if (PLATFORM.isNative) return undefined;
-    if (!googleClientId || !googleSdk?.accounts?.oauth2) {
-      googleCodeClientRef.current = null;
-      return undefined;
-    }
-
-    googleCodeClientRef.current = googleSdk.accounts.oauth2.initCodeClient({
-      client_id: googleClientId,
-      scope: 'openid email profile',
-      ux_mode: 'popup',
-      callback: handleGoogleCode,
-      error_callback: (err) => {
-        setStatus({
-          loading: false,
-          error: err?.message || err?.type || 'Google sign-in popup could not open',
-          success: '',
-        });
-      },
-    });
-
-    return () => {
-      googleCodeClientRef.current = null;
-    };
-  }, [googleClientId, googleSdk, handleGoogleCode]);
 
   const feedbackId = status.error ? 'login-error' : status.success ? 'login-success' : undefined;
   const clearFeedback = () => setStatus((current) => ({ ...current, error: '', success: '' }));
