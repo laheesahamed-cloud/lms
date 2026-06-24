@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpException, InternalServerErrorException, Patch, Post, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { SESSION_TTL_DAYS } from './auth-token.util';
@@ -104,7 +104,16 @@ export class AuthController {
     @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
-    const result = await this.authService.loginWithGoogleCode(googleCodeLoginDto, { origin, requestedWith });
+    let result: any;
+    try {
+      result = await this.authService.loginWithGoogleCode(googleCodeLoginDto, { origin, requestedWith });
+    } catch (err) {
+      // Clean, intended errors (400/401 etc.) pass through unchanged.
+      if (err instanceof HttpException) throw err;
+      // Otherwise surface the real server-side reason instead of an opaque 500
+      // so Google sign-in setup issues are diagnosable. (No secrets in message.)
+      throw new InternalServerErrorException(`Google sign-in error: ${(err as any)?.message || err}`);
+    }
     this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;

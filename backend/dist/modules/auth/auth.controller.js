@@ -76,7 +76,15 @@ let AuthController = class AuthController {
         return safeResult;
     }
     async googleCodeLogin(googleCodeLoginDto, nativeHeader, requestedWith, origin, request, response) {
-        const result = await this.authService.loginWithGoogleCode(googleCodeLoginDto, { origin, requestedWith });
+        let result;
+        try {
+            result = await this.authService.loginWithGoogleCode(googleCodeLoginDto, { origin, requestedWith });
+        }
+        catch (err) {
+            if (err instanceof common_1.HttpException)
+                throw err;
+            throw new common_1.InternalServerErrorException(`Google sign-in error: ${err?.message || err}`);
+        }
         this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
             return result;
