@@ -718,8 +718,8 @@ ${settings.footer}`;
         const tokenPayload = await response.json().catch(() => ({}));
         if (!response.ok || tokenPayload.error) {
             const errorMessage = tokenPayload.error_description || tokenPayload.error || 'Google sign-in authorization code is invalid';
-            this.logger.warn(`Google code exchange failed: ${errorMessage}`);
-            throw new common_1.UnauthorizedException('Google sign-in authorization code is invalid');
+            this.logger.warn(`Google code exchange failed (redirect_uri=${redirectUri}): ${errorMessage}`);
+            throw new common_1.UnauthorizedException(`Google sign-in failed: ${tokenPayload.error || 'invalid_code'}`);
         }
         if (!tokenPayload.id_token) {
             throw new common_1.UnauthorizedException('Google sign-in did not return an identity token');

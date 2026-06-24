@@ -991,8 +991,11 @@ ${settings.footer}`;
 
     if (!response.ok || tokenPayload.error) {
       const errorMessage = tokenPayload.error_description || tokenPayload.error || 'Google sign-in authorization code is invalid';
-      this.logger.warn(`Google code exchange failed: ${errorMessage}`);
-      throw new UnauthorizedException('Google sign-in authorization code is invalid');
+      this.logger.warn(`Google code exchange failed (redirect_uri=${redirectUri}): ${errorMessage}`);
+      // Surface Google's short error code (e.g. invalid_grant /
+      // redirect_uri_mismatch / invalid_client) so the cause is visible to the
+      // client during sign-in troubleshooting; it contains no secrets.
+      throw new UnauthorizedException(`Google sign-in failed: ${tokenPayload.error || 'invalid_code'}`);
     }
 
     if (!tokenPayload.id_token) {
