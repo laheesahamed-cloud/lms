@@ -198,14 +198,13 @@ const adminLinks = [
 const studentLinks = [
   { to: '/dashboard',     label: 'Study Hub',     icon: 'Mission'    },
   { to: '/courses',       label: 'Courses',       icon: 'Courses'    },
-  { to: '/planner',       label: 'Planner',       icon: 'Results'    },
-  { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes'    },
-  { to: '/flashcards',    label: 'Flashcards',    icon: 'Flashcards' },
   { to: '/quizzes',       label: 'Q-Bank',        icon: 'Quizzes'    },
-  { to: '/exams',         label: 'Exams',         icon: 'Exams'      },
   { to: '/results',       label: 'Results',       icon: 'Results'    },
+  { section: 'Study' },
+  { to: '/lessons',       label: 'Lessons',       icon: 'AiNotes'    },
+  { to: '/flashcards',    label: 'Flashcards',    icon: 'Flashcards' },
+  { to: '/planner',       label: 'Planner',       icon: 'Results'    },
   { to: '/bookmarks',     label: 'Saved',         icon: 'Bookmarks'  },
-  { to: '/subscriptions', label: 'Subscriptions', icon: 'Billing'    },
 ];
 
 const END_EXACT = new Set([
@@ -253,7 +252,7 @@ function getInitials(user) {
 
 const sidebarUi = {
   shell:
-    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[width,transform,opacity] duration-[var(--lms-sidebar-duration,220ms)] ease-[var(--lms-ease-soft,cubic-bezier(0.22,1,0.36,1))] [contain:layout_paint] [height:100dvh] [min-height:100dvh] shadow-[var(--ds-nav-shadow)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""] max-[900px]:w-[min(var(--sidebar-w),88%)] max-[900px]:rounded-r-[var(--ds-card-radius)]',
+    'app-drawer fixed inset-y-0 left-0 z-[820] flex w-[var(--sidebar-w)] flex-col overflow-hidden rounded-none border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] transition-[width,transform,opacity] duration-[var(--lms-sidebar-duration,220ms)] ease-[var(--lms-ease-soft,cubic-bezier(0.22,1,0.36,1))] [contain:layout_paint] [height:100dvh] [min-height:100dvh] shadow-[var(--ds-nav-shadow)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(37,99,235,0.035),transparent_36%)] before:content-[""]',
   shellLight:
     '',
   open: 'max-[900px]:translate-x-0',
@@ -497,13 +496,13 @@ export function AppSidebar({
         <XyndromeLogoMark
           className={cx('lms-sidebar-brand-mark', sidebarUi.brandIcon, isCollapsed && sidebarUi.brandIconCollapsed)}
           size={isCollapsed ? 40 : 44}
-          logoVariant="light"
+          logoVariant="auto"
         />
 
         <div className={cx('lms-sidebar-wordmark', sidebarUi.wordmark)}>
           <span className={cx('lms-sidebar-brand-name', sidebarUi.wordmarkName)}>
             <span className="sr-only">xyndrome</span>
-            <span aria-hidden="true">yndrome</span>
+            <span aria-hidden="true">xyndrome</span>
           </span>
           <span className={cx('lms-sidebar-brand-sub', sidebarUi.wordmarkRole)}>
             {isAdminConsole ? 'Admin Console' : 'Student Portal'}
@@ -523,9 +522,9 @@ export function AppSidebar({
       </div>
 
       {/* ── Section label ─────────────────────────────────────────── */}
-      <p className={cx('lms-sidebar-section-label', sidebarUi.navLabel)}>
-        {isAdminConsole ? 'Navigation' : 'Study'}
-      </p>
+      {isAdminConsole ? (
+        <p className={cx('lms-sidebar-section-label', sidebarUi.navLabel)}>Navigation</p>
+      ) : null}
 
       {/* ── Nav ───────────────────────────────────────────────────── */}
       <nav
@@ -533,6 +532,17 @@ export function AppSidebar({
         aria-label={isAdminConsole ? 'Admin navigation' : 'Student navigation'}
       >
         {links.map((item, i) => {
+          if (item.section) {
+            return (
+              <p
+                key={item.section}
+                className={cx('lms-sidebar-section-label', sidebarUi.navLabel, 'mt-4', isCollapsed && 'min-[901px]:hidden')}
+              >
+                {item.section}
+              </p>
+            );
+          }
+
           if (item.group) {
             return (
               <GroupNavItem
@@ -617,8 +627,8 @@ const mobileNavItems = [
     to: '/study',
     label: 'Study',
     icon: 'Notes',
-    matchPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/ai-notes'],
-    preloadPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/ai-notes'],
+    matchPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/lessons', '/ai-notes'],
+    preloadPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/lessons'],
   },
   { to: '/results',   label: 'Results',   icon: 'Results' },
 ];
@@ -796,12 +806,12 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
       >
         {!isStudentMenu && (
           <header className="lms-mobile-top-nav__head">
-            <XyndromeLogoMark className="lms-mobile-top-nav__mark" size={38} logoVariant="light" />
+            <XyndromeLogoMark className="lms-mobile-top-nav__mark" size={38} logoVariant="auto" />
 
             <div className="lms-mobile-top-nav__brand">
               <strong>
                 <span className="sr-only">xyndrome</span>
-                <span aria-hidden="true">yndrome</span>
+                <span aria-hidden="true">xyndrome</span>
               </strong>
               <span>{title}</span>
             </div>

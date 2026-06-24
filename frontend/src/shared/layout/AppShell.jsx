@@ -16,6 +16,7 @@ const SIDEBAR_MOTION_SETTLE_MS = 260;
 
 function shouldUseMobileNavigation(platform = detectPlatform()) {
   if (typeof window === 'undefined') return false;
+  if (platform.isDesktopApp) return false;
   const widthIsMobile = window.matchMedia?.(SIDEBAR_MOBILE_QUERY)?.matches || window.innerWidth <= 900;
   return widthIsMobile || ((platform.isPwa || platform.isNative) && platform.isPhone);
 }
@@ -26,7 +27,7 @@ const shellUi = {
   shellMobile: '',
   shellQuizFocus: '',
   content:
-    'main-content app-content page-content portal-content relative z-[1] min-w-0 overflow-y-visible [-webkit-overflow-scrolling:touch] min-[901px]:ml-[calc(var(--sidebar-w)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w)_-_var(--sidebar-shell-gap))] max-[900px]:ml-0 max-[900px]:w-full max-[900px]:pt-0',
+    'main-content app-content page-content portal-content relative min-w-0 overflow-y-visible [-webkit-overflow-scrolling:touch] min-[901px]:ml-[calc(var(--sidebar-w)_+_var(--sidebar-shell-gap))] min-[901px]:w-[calc(100%_-_var(--sidebar-w)_-_var(--sidebar-shell-gap))] max-[900px]:ml-0 max-[900px]:w-full max-[900px]:pt-0',
   contentAiFocus: '',
   contentCompactFocus:
     'min-[901px]:!ml-0 min-[901px]:!w-full',
@@ -47,7 +48,7 @@ const shellUi = {
   signoutCard:
     'grid min-w-[240px] justify-items-center gap-3 rounded-[var(--ds-card-radius-compact)] border border-line-soft bg-surface-glass-strong px-8 py-7 text-center shadow-[var(--ds-card-shadow-raised)]',
   signoutSpinner:
-    'size-10 rounded-full border-[3px] border-line-soft border-r-[var(--brand-primary-end)] border-t-brand-primary animate-signoutSpin',
+    'size-10 rounded-full border-[3px] border-[color-mix(in_srgb,var(--ink-strong)_18%,transparent)] border-r-[var(--brand-primary-end)] border-t-[var(--brand-primary-start)] animate-signoutSpin',
   signoutTitle: 'text-base text-ink-strong',
   signoutText: 'text-[0.85rem] text-ink-soft',
 };
@@ -67,6 +68,7 @@ const studentWarmRoutes = [
   '/results',
   '/profile',
   '/subscriptions',
+  '/lessons',
   '/ai-notes',
   '/planner',
   '/flashcards',
@@ -96,6 +98,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const isQuizFocusMode = isQuizRoute && (quizMode === 'exam' || quizMode === 'practice');
   const isAiNoteReaderRoute =
     /^\/(?:app\/|admin\/)?ai-notes\/[^/]+$/.test(location.pathname) ||
+    /^\/(?:app\/)?lessons\/[^/]+$/.test(location.pathname) ||
     /^\/(?:app\/)?study\/lesson\/[^/]+$/.test(location.pathname);
   const isReviewFocusRoute = /^\/(?:app\/)?review\/[^/]+$/.test(location.pathname);
   const isPracticeReviewFocusRoute = /^\/(?:app\/)?quizzes\/[^/]+\/practice-review$/.test(location.pathname);
@@ -105,7 +108,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
   const isFocusMode = isCompactFocusMode || isAiNoteReaderRoute;
   const isCollapsedDesktop = desktopSidebarToggle && sidebarCollapsed;
   const effectiveSidebarCollapsed = isCollapsedDesktop;
-  const hideGlobalSidebar = isFocusMode;
+  const hideGlobalSidebar = isFocusMode && !PLATFORM.isDesktopApp;
   const useMobileTopNav = isMobileNav && !hideGlobalSidebar;
   const openSearch = useCallback(() => setSearchOpen(true), []);
 
@@ -233,7 +236,7 @@ export function AppShell({ children, desktopSidebarToggle = false, desktopSideba
       // AppHeader reads this body class to switch into focus mode.
       ['student-header-focus', PLATFORM.isNative && user?.role === 'student' && (isCompactFocusMode || isAiNoteReaderRoute)],
       // Desktop sidebar is docked → the portaled header bar must start after it.
-      ['student-sidebar-docked', PLATFORM.isNative && user?.role === 'student' && !hideGlobalSidebar && !useMobileTopNav],
+      ['student-sidebar-docked', (PLATFORM.isNative || PLATFORM.isDesktopApp) && user?.role === 'student' && !hideGlobalSidebar && !useMobileTopNav],
     ];
 
     classStates.forEach(([className, enabled]) => {

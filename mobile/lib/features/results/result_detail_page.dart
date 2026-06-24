@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
@@ -6,57 +7,72 @@ import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/score_ring.dart';
+import '../quizzes/quizzes_repository.dart';
 
-/// Result detail for a single quiz attempt — score ring, per-topic breakdown,
-/// and review/retry actions. Self-contained demo data, no network.
-class ResultDetailPage extends StatelessWidget {
+/// Result detail for a single attempt — real, server-graded score
+/// (`GET /quiz-attempts/result/:attemptId`).
+class ResultDetailPage extends ConsumerWidget {
   final String attemptId;
   const ResultDetailPage({super.key, required this.attemptId});
 
-  static const List<_TopicScore> _topics = [
-    _TopicScore('Glomerular filtration', 0.84),
-    _TopicScore('Acid–base balance', 0.78),
-    _TopicScore('Nephron transport', 0.70),
-    _TopicScore('Renal pharmacology', 0.62),
-    _TopicScore('Fluid & electrolytes', 0.56),
-  ];
+  static const _green = Color(0xFF16A34A);
+  static const _red = Color(0xFFDC2626);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.c;
+    final resultAsync = ref.watch(attemptResultProvider(attemptId));
+    return SafeArea(
+      child: resultAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Could not load this result.\n$e',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: c.inkSoft)),
+                const SizedBox(height: 16),
+                TextButton(
+                    onPressed: () => context.pop(), child: const Text('Back')),
+              ],
+            ),
+          ),
+        ),
+        data: (r) => _content(context, c, r),
+      ),
+    );
+  }
 
+  Widget _content(BuildContext context, AppColors c, AttemptResult r) {
     final reduced = MediaQuery.of(context).disableAnimations;
     final kids = <Widget>[
-              _BackRow(onBack: () => context.pop()),
-              const SizedBox(height: AppSpace.x4),
-              const _ScoreCard(),
-              const SizedBox(height: AppSpace.sectionGap),
-              const _BreakdownCard(topics: _topics),
-              const SizedBox(height: AppSpace.sectionGap),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      'Review answers',
-                      kind: AppButtonKind.ghost,
-                      expand: true,
-                      leading: Icon(Icons.fact_check_outlined,
-                          size: 18, color: c.inkStrong),
-                      onPressed: () => context.push('/app/review/$attemptId'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpace.x3),
-                  Expanded(
-                    child: AppButton(
-                      'Retry',
-                      expand: true,
-                      leading: const Icon(Icons.refresh_rounded,
-                          size: 18, color: Color(0xFF04121F)),
-                      onPressed: () => context.push('/app/quizzes/$attemptId'),
-                    ),
-                  ),
-                ],
-              ),
+      _BackRow(onBack: () => context.pop()),
+      const SizedBox(height: AppSpace.x4),
+      _ScoreCard(result: r),
+      const SizedBox(height: AppSpace.sectionGap),
+      _BreakdownCard(result: r),
+      const SizedBox(height: AppSpace.sectionGap),
+      AppButton('Review answers',
+          kind: AppButtonKind.ghost,
+          expand: true,
+          leading:
+              Icon(Icons.fact_check_outlined, size: 18, color: c.inkStrong),
+          onPressed: () => context.push('/app/review/$attemptId')),
+      const SizedBox(height: AppSpace.x3),
+      AppButton('Retake exam',
+          kind: AppButtonKind.ghost,
+          expand: true,
+          leading: Icon(Icons.refresh_rounded, size: 18, color: c.inkStrong),
+          onPressed: () =>
+              context.pushReplacement('/app/quizzes/${r.quizId}?exam=1')),
+      const SizedBox(height: AppSpace.x3),
+      AppButton('Done',
+          kind: AppButtonKind.primary,
+          expand: true,
+          onPressed: () => context.pop()),
     ];
     final list = ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
@@ -71,7 +87,7 @@ class ResultDetailPage extends StatelessWidget {
               children: kids,
             ),
     );
-    return SafeArea(child: reduced ? list : AnimationLimiter(child: list));
+    return reduced ? list : AnimationLimiter(child: list);
   }
 }
 
@@ -94,52 +110,60 @@ class _BackRow extends StatelessWidget {
                 size: 19, color: c.inkMedium),
           ),
         ),
-        Text(
-          'Result',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: c.inkMedium,
-            letterSpacing: -0.2,
-          ),
-        ),
+        Text('Result',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: c.inkMedium,
+                letterSpacing: -0.2)),
       ],
     );
   }
 }
 
 class _ScoreCard extends StatelessWidget {
-  const _ScoreCard();
+  final AttemptResult result;
+  const _ScoreCard({required this.result});
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final passed = result.passed;
+    final tint = passed ? ResultDetailPage._green : ResultDetailPage._red;
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 26),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const ScoreRing(percent: 72, size: 132, label: 'Score'),
+          ScoreRing(
+              percent: result.percentage.toDouble(), size: 132, label: 'Score'),
           const SizedBox(height: AppSpace.x5),
-          Text(
-            '36 / 50 correct',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-              color: c.inkStrong,
-              letterSpacing: -0.4,
-            ),
-          ),
+          Text('${result.correctAnswers} / ${result.totalQuestions} correct',
+              style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: c.inkStrong,
+                  letterSpacing: -0.4)),
           const SizedBox(height: AppSpace.x1),
-          Text(
-            'Renal mock exam · Practice',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w500,
-              color: c.inkSoft,
-              letterSpacing: 0.1,
+          Text(result.quizTitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: c.inkSoft)),
+          const SizedBox(height: AppSpace.x3),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
+            child: Text(passed ? 'PASSED' : 'NOT PASSED',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: tint)),
           ),
         ],
       ),
@@ -148,8 +172,8 @@ class _ScoreCard extends StatelessWidget {
 }
 
 class _BreakdownCard extends StatelessWidget {
-  final List<_TopicScore> topics;
-  const _BreakdownCard({required this.topics});
+  final AttemptResult result;
+  const _BreakdownCard({required this.result});
 
   @override
   Widget build(BuildContext context) {
@@ -159,86 +183,44 @@ class _BreakdownCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'BREAKDOWN BY TOPIC',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.4,
-              color: c.accent,
-            ),
-          ),
+          Text('BREAKDOWN',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                  color: c.accent)),
           const SizedBox(height: AppSpace.x4),
-          for (int i = 0; i < topics.length; i++) ...[
-            _TopicRow(topic: topics[i]),
-            if (i != topics.length - 1) const SizedBox(height: AppSpace.x4),
-          ],
+          _row(c, 'Correct', '${result.correctAnswers}',
+              ResultDetailPage._green),
+          const SizedBox(height: AppSpace.x3),
+          _row(c, 'Wrong', '${result.wrongAnswers}', ResultDetailPage._red),
+          const SizedBox(height: AppSpace.x3),
+          _row(c, 'Skipped', '${result.unansweredQuestions}', c.inkSoft),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpace.x3),
+            child: Divider(height: 1, color: c.line),
+          ),
+          _row(c, 'Pass mark', '${_n(result.passingMarks)}%', c.inkMedium),
         ],
       ),
     );
   }
-}
 
-class _TopicRow extends StatelessWidget {
-  final _TopicScore topic;
-  const _TopicRow({required this.topic});
+  String _n(num v) => v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixed(1);
 
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    final pct = (topic.value * 100).round();
-    final Color barColor = topic.value >= 0.75
-        ? c.success
-        : topic.value >= 0.6
-            ? c.primary
-            : c.warning;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                topic.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w600,
-                  color: c.inkStrong,
-                  letterSpacing: -0.1,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpace.x3),
-            Text(
-              '$pct%',
+  Widget _row(AppColors c, String label, String value, Color valueColor) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
               style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
-                color: c.inkMedium,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpace.x2),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          child: LinearProgressIndicator(
-            value: topic.value,
-            minHeight: 6,
-            backgroundColor: c.surface2,
-            valueColor: AlwaysStoppedAnimation<Color>(barColor),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TopicScore {
-  final String name;
-  final double value; // 0..1
-  const _TopicScore(this.name, this.value);
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w600,
+                  color: c.inkStrong)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: valueColor)),
+        ],
+      );
 }

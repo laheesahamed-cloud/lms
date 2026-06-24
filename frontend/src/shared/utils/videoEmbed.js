@@ -1,6 +1,6 @@
 import { getSafeExternalUrl } from './linkSafety.js';
 
-export function normalizeVideoUrl(url) {
+function normalizeVideoUrl(url) {
   const raw = String(url || '').trim();
   if (!raw) return '';
   if (/^[A-Za-z0-9_-]{11}$/.test(raw)) return `https://youtu.be/${raw}`;

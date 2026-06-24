@@ -16,7 +16,7 @@ export const fetchStudyBookmarks = () => studyBookmarksCache.get();
 
 export const readStudyBookmarksCache = () => studyBookmarksCache.peek();
 
-export function clearStudyBookmarksCache() {
+function clearStudyBookmarksCache() {
   studyBookmarksCache.clear();
 }
 

@@ -1,0 +1,1 @@
+import{c as e}from"./vendor-DeMWpId1.js";export{e as SocialLoginWeb};

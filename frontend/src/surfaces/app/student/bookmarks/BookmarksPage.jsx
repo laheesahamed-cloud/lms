@@ -5,12 +5,8 @@ import { safeNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { fetchStudyBookmarks, readStudyBookmarksCache, toggleStudyBookmark } from '../../../../shared/api/studyBookmarks.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
-import { StudentPageHero } from '../components/StudentPageHero.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
-import { detectPlatform } from '../../../../shared/platform/detect.js';
-
-const PLATFORM = detectPlatform();
 
 function TrashIcon() { return <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3h8M4.5 1.75h3M4 3v6.25m4-6.25v6.25M3 3l.4 6.2A1 1 0 0 0 4.4 10h3.2a1 1 0 0 0 1-.8L9 3" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 
@@ -36,12 +32,6 @@ const TYPE_GROUPS = [
   { key: 'question', label: 'Questions', match: (item) => item.itemType === 'question' },
   { key: 'note', label: 'Notes', match: isNoteBookmark },
 ];
-
-function isSavedThisWeek(value) {
-  if (!value) return false;
-  const time = new Date(value).getTime();
-  return Number.isFinite(time) && Date.now() - time <= 7 * 24 * 60 * 60 * 1000;
-}
 
 function getItemMeta(item) {
   const isExam = isExamBookmark(item);
@@ -116,16 +106,6 @@ export function BookmarksPage() {
   const examCount = items.filter(isExamBookmark).length;
   const questionCount = items.filter(i => i.itemType === 'question').length;
   const noteCount = items.filter(isNoteBookmark).length;
-  const thisWeekCount = items.filter(i => isSavedThisWeek(i.createdAt)).length;
-
-  const overviewStats = [
-    { label: 'Saved', value: items.length },
-    { label: 'Quizzes', value: quizCount },
-    { label: 'Exams', value: examCount },
-    { label: 'Questions', value: questionCount },
-    { label: 'Notes', value: noteCount },
-    { label: 'This week', value: thisWeekCount },
-  ];
 
   const visible = items.filter(item => {
     if (filter === 'quiz') return item.itemType === 'quiz' && !isExamBookmark(item);
@@ -138,7 +118,7 @@ export function BookmarksPage() {
   function openItem(item) {
     if (item.itemType === 'quiz') navigate(isExamBookmark(item) ? '/exams' : `/quizzes/${item.itemId}?mode=practice`);
     else if (item.itemType === 'question') navigate(item.quizId ? `/quizzes/${item.quizId}?mode=practice&questionId=${item.itemId}` : '/quizzes');
-    else navigate(`/ai-notes/${item.itemId}`);
+    else navigate(`/lessons/${item.itemId}`);
   }
 
   function renderItem(item) {
@@ -193,31 +173,10 @@ export function BookmarksPage() {
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
-        {!PLATFORM.isNative ? (
-          <StudentPageHero
-            title="Saved items"
-            subtitle="Your bookmarked notes, questions, quizzes, and exams in one clean place."
-          />
-        ) : null}
-
-        {!PLATFORM.isNative && !loading && items.length ? (
-          <div className="grid grid-cols-2 gap-2.5 min-[520px]:grid-cols-3 min-[860px]:grid-cols-6">
-            {overviewStats.map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-xl border border-line-soft bg-surface-card px-3.5 py-3 shadow-xs dark:border-white/[0.07] dark:bg-white/[0.035]"
-              >
-                <strong className="block text-[22px] font-black leading-none text-ink-strong dark:text-white">{stat.value}</strong>
-                <span className="mt-1.5 block truncate text-[11px] font-bold uppercase tracking-[0.07em] text-ink-soft dark:text-white/58">{stat.label}</span>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="mb-4 flex flex-wrap gap-2 rounded-lg border border-line-soft bg-surface-glass-strong p-2 shadow-xs">
+        <div className="mb-4 flex flex-wrap gap-2">
           {TYPE_FILTERS.map(f => (
             <button className={cx(
-                'min-h-10 rounded-md border px-3 text-sm font-bold shadow-none transition',
+                'min-h-9 rounded-md border px-3 text-sm font-bold shadow-none transition',
                 filter === f.key
                   ? 'border-brand-primary/35 bg-[var(--color-primary-light)] text-brand-primary'
                   : 'border-line-soft bg-surface-1 text-ink-medium hover:bg-surface-2'
@@ -262,7 +221,7 @@ export function BookmarksPage() {
               const groupItems = visible.filter(group.match);
               if (!groupItems.length) return null;
               return (
-                <div key={group.key} className="grid gap-2.5">
+                <div key={group.key} className="grid gap-3">
                   <div className="flex items-center gap-2.5 px-0.5">
                     <h2 className="m-0 text-[13px] font-black uppercase tracking-[0.07em] text-ink-medium dark:text-white/70">{group.label}</h2>
                     <span className="rounded-full bg-brand-primary-light px-2 py-0.5 text-[11px] font-extrabold text-brand-primary">{groupItems.length}</span>

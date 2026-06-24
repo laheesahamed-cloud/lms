@@ -103,5 +103,3 @@ export function BootLoader({ onFinished }) {
     </AnimatePresence>
   );
 }
-
-export default BootLoader;

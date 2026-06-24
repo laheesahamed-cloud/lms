@@ -11,6 +11,10 @@
 
 Welcome to your Remotion project!
 
+## Creative Script
+
+The timed voiceover, storyboard, audio cues, and edit notes are in [SCRIPT.md](SCRIPT.md).
+
 ## Commands
 
 **Install Dependencies**

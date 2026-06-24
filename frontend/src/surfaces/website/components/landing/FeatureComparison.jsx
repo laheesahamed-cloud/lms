@@ -73,5 +73,3 @@ export function FeatureComparison() {
     </section>
   );
 }
-
-export default FeatureComparison;

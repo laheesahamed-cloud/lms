@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { clearAllTimedApiCaches } from '../api/cache.js';
 import { setUnauthorizedHandler } from '../api/client.js';
-import { fetchCurrentUser, login, loginWithGoogle, loginWithGoogleCode, logout, register } from '../api/auth.api.js';
+import { fetchCurrentUser, login, loginWithGoogle, loginWithGoogleCode, logout, register, verifyEmailOtp } from '../api/auth.api.js';
 import { detectPlatform } from '../platform/detect.js';
 import { clearStoredAuth, getAuthToken, getBootstrapAuth, setAuthToken, setStoredAuthUser } from './authToken.js';
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
@@ -129,7 +129,7 @@ async function resolveAuthPayload(data, label) {
       setAuthToken(previousToken);
     }
     if (detectPlatform().isNative) {
-      throw new Error(`Native ${label} could not load account details. Please try again.`);
+      throw new Error(`Native ${label} could not load account details. Please try again.`, { cause: error });
     }
     throw error;
   }
@@ -203,7 +203,13 @@ export const useAuthStore = create((set, get) => ({
   },
 
   signIn: async (payload) => {
-    const data = await resolveAuthPayload(await login(payload), 'sign-in');
+    const raw = await login(payload);
+    // Unverified students receive no session — the caller routes them to the
+    // email OTP screen instead of completing sign-in.
+    if (raw?.emailVerificationRequired) {
+      return { emailVerificationRequired: true, email: raw.email || payload.email, devCode: raw.devCode };
+    }
+    const data = await resolveAuthPayload(raw, 'sign-in');
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');
@@ -222,7 +228,30 @@ export const useAuthStore = create((set, get) => ({
   },
 
   signUp: async (payload) => {
-    const data = await resolveAuthPayload(await register(payload), 'registration');
+    const raw = await register(payload);
+    if (raw?.emailVerificationRequired) {
+      return { emailVerificationRequired: true, email: raw.email || payload.email, devCode: raw.devCode };
+    }
+    const data = await resolveAuthPayload(raw, 'registration');
+    authMutationVersion += 1;
+    clearAllTimedApiCaches();
+    setAuthToken(data.sessionToken || '');
+    setStoredAuthUser(data.user);
+    set({
+      token: data.sessionToken || '',
+      user: data.user,
+      isAuthenticated: true,
+      isHydrating: false,
+      isSigningOut: false,
+      authNotice: null,
+      sessionExpiredLock: null,
+    });
+    syncNativePushAfterAuth();
+    return data;
+  },
+
+  verifyEmail: async ({ email, code }) => {
+    const data = await resolveAuthPayload(await verifyEmailOtp({ email, code }), 'email verification');
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');

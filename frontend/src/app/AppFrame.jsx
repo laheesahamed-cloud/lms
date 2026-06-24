@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { Suspense, lazy, useEffect, useLayoutEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { RouteScrollRestoration } from '../shared/routing/RouteScrollRestoration.jsx';
 import { detectPlatform } from '../shared/platform/detect.js';
@@ -15,7 +15,12 @@ import { hasRecentLaunchAdminUnlock } from '../shared/launch/launchUnlock.js';
 import { canNavigateBack, safeNavigateBack } from '../shared/routing/safeBack.js';
 import { installSpaNavigationHandler } from '../shared/routing/spaNavigation.js';
 import { isPublicWebsiteRoute } from '../shared/routing/publicRoutes.js';
-import { MarketingPopupAlert } from '../shared/popup/MarketingPopupAlert.jsx';
+
+const MarketingPopupAlert = lazy(() =>
+  import('../shared/popup/MarketingPopupAlert.jsx').then((module) => ({
+    default: module.MarketingPopupAlert,
+  }))
+);
 
 const PLATFORM = detectPlatform();
 const NATIVE_PUSH_PROMPT_KEY = 'lms_native_push_permission_prompted';
@@ -36,9 +41,9 @@ const nativeChromeSourceSelector = [
 ].join(',');
 
 const studentStudyHubPathPattern =
-  /^\/(?:app\/)?(?:dashboard|courses|notifications|planner|ai-notes|flashcards|quizzes|exams|results|bookmarks|subscriptions|billing|profile|study)(?:\/|$)/;
+  /^\/(?:app\/)?(?:dashboard|courses|notifications|planner|lessons|ai-notes|flashcards|quizzes|exams|results|bookmarks|subscriptions|billing|profile|study)(?:\/|$)/;
 const legacyProtectedPathPattern =
-  /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
+  /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|lessons|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 const adminRoutePattern = /^\/admin(?:\/|$)/;
 const authRoutePattern = /^\/(?:auth\/login|login)(?:\/|$)/;
 const authRecoveryRoutePattern = /^\/auth\/(?:forgot-password|reset-password)(?:\/|$)/;
@@ -510,6 +515,7 @@ export function AppFrame() {
   const secureContentActive = isSecureContentRoute(location);
   const isPublicWebsitePage = isPublicWebsiteRoute(location.pathname);
   const shouldRunSemanticObserver = PLATFORM.isNative || !isPublicWebsitePage;
+  const [marketingPopupReady, setMarketingPopupReady] = useState(false);
 
   useSecureContentMode(secureContentActive);
 
@@ -920,14 +926,14 @@ export function AppFrame() {
     const cleanPath = location.pathname === '/billing' ? '/subscriptions' : location.pathname;
     const prefix = shouldRouteAsStaff ? '/admin' : '';
     const canonicalPath = `${prefix}${cleanPath}`;
-    // If the path is already canonical (e.g. a student on /ai-notes/:id), DON'T
+    // If the path is already canonical (e.g. a student on /lessons/:id), DON'T
     // re-navigate — a same-path replace silently drops the navigation state (the
     // lesson title passed from the list), which makes the header flash
     // "Lesson" → real title. Only rewrite when the path truly changes, and carry
     // the existing state across so it's never lost.
     if (canonicalPath === location.pathname) return;
     navigate(`${canonicalPath}${location.search}${location.hash}`, { replace: true, state: location.state });
-  }, [isAuthenticated, isHydrating, location.hash, location.pathname, location.search, navigate, shouldRouteAsStaff, user?.role, user?.status]);
+  }, [isAuthenticated, isHydrating, location.hash, location.pathname, location.search, location.state, navigate, shouldRouteAsStaff, user?.role, user?.status]);
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return;
@@ -1112,6 +1118,30 @@ export function AppFrame() {
     isAuthRecoveryRoute;
 
   useEffect(() => {
+    if (shouldSuppressMarketingPopup) {
+      setMarketingPopupReady(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const markReady = () => {
+      if (!cancelled) setMarketingPopupReady(true);
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(markReady, { timeout: 1600 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback?.(idleId);
+      };
+    }
+    const timerId = window.setTimeout(markReady, 600);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [shouldSuppressMarketingPopup]);
+
+  useEffect(() => {
     if (!shouldShowLaunchMode || isLaunchPreviewRoute || location.pathname === '/') return;
     navigate('/', { replace: true });
   }, [isLaunchPreviewRoute, location.pathname, navigate, shouldShowLaunchMode]);
@@ -1123,6 +1153,11 @@ export function AppFrame() {
   ) : (
     <Outlet />
   );
+  const marketingPopup = marketingPopupReady ? (
+    <Suspense fallback={null}>
+      <MarketingPopupAlert suppressed={shouldSuppressMarketingPopup} />
+    </Suspense>
+  ) : null;
 
   if (PLATFORM.isNative) {
     return (
@@ -1135,7 +1170,7 @@ export function AppFrame() {
             {routeContent}
           </div>
         </div>
-        <MarketingPopupAlert suppressed={shouldSuppressMarketingPopup} />
+        {marketingPopup}
       </>
     );
   }
@@ -1149,7 +1184,7 @@ export function AppFrame() {
           {routeContent}
         </div>
       </div>
-      <MarketingPopupAlert suppressed={shouldSuppressMarketingPopup} />
+      {marketingPopup}
     </>
   );
 }

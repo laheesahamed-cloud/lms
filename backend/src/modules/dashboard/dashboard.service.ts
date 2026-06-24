@@ -645,11 +645,20 @@ export class DashboardService {
         [student.id]
       ),
       this.db.execute<AttemptDayRow[]>(
-        `SELECT DISTINCT DATE(COALESCE(submitted_at, created_at)) AS attempt_day
-         FROM quiz_attempts
-         WHERE user_id = ? AND status = 'submitted'
+        // Streak counts both submitted exam attempts and completed practice
+        // sessions. Practice days come from study_activity_events so they only
+        // affect the streak — never avg score, results, or weak topics.
+        `SELECT attempt_day FROM (
+           SELECT DISTINCT DATE(COALESCE(submitted_at, created_at)) AS attempt_day
+           FROM quiz_attempts
+           WHERE user_id = ? AND status = 'submitted'
+           UNION
+           SELECT DISTINCT DATE(created_at) AS attempt_day
+           FROM study_activity_events
+           WHERE user_id = ? AND activity_type = 'practice_completed'
+         ) AS days
          ORDER BY attempt_day DESC`,
-        [student.id]
+        [student.id, student.id]
       ),
       this.db.execute<PerformanceWindowRow[]>(
         `SELECT
@@ -704,8 +713,17 @@ export class DashboardService {
          WHERE qa.user_id = ?
            AND qa.status = 'submitted'
            AND DATE(COALESCE(qa.submitted_at, qa.created_at)) = CURDATE()
-         ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC`,
-        [student.id]
+         UNION
+         SELECT q.id, c.course_title, t.topic_name
+         FROM study_activity_events e
+         INNER JOIN quizzes q ON q.id = e.item_id
+         LEFT JOIN courses c ON c.id = q.course_id
+         LEFT JOIN topics t ON t.id = q.topic_id
+         WHERE e.user_id = ?
+           AND e.activity_type = 'practice_completed'
+           AND DATE(e.created_at) = CURDATE()
+         ORDER BY id DESC`,
+        [student.id, student.id]
       ),
       this.db.execute<NoteReviewRow[]>(
         `SELECT DISTINCT

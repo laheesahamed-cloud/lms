@@ -25,6 +25,8 @@ const update_profile_dto_1 = require("./dto/update-profile.dto");
 const change_password_dto_1 = require("./dto/change-password.dto");
 const forgot_password_dto_1 = require("./dto/forgot-password.dto");
 const reset_password_dto_1 = require("./dto/reset-password.dto");
+const verify_email_otp_dto_1 = require("./dto/verify-email-otp.dto");
+const resend_email_otp_dto_1 = require("./dto/resend-email-otp.dto");
 let AuthController = class AuthController {
     constructor(authService, configService) {
         this.authService = authService;
@@ -32,7 +34,9 @@ let AuthController = class AuthController {
     }
     async login(loginDto, nativeHeader, request, response) {
         const result = await this.authService.login(loginDto);
-        this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+        if (result.sessionToken) {
+            this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+        }
         if (this.shouldExposeSessionToken(nativeHeader)) {
             return result;
         }
@@ -41,12 +45,26 @@ let AuthController = class AuthController {
     }
     async register(registerDto, nativeHeader, request, response) {
         const result = await this.authService.register(registerDto);
+        if (result.sessionToken) {
+            this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+        }
+        if (this.shouldExposeSessionToken(nativeHeader)) {
+            return result;
+        }
+        const { sessionToken: _sessionToken, ...safeResult } = result;
+        return safeResult;
+    }
+    async verifyEmailOtp(verifyEmailOtpDto, nativeHeader, request, response) {
+        const result = await this.authService.verifyEmailOtp(verifyEmailOtpDto);
         this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
             return result;
         }
         const { sessionToken: _sessionToken, ...safeResult } = result;
         return safeResult;
+    }
+    resendEmailOtp(resendEmailOtpDto) {
+        return this.authService.resendEmailOtp(resendEmailOtpDto);
     }
     async googleLogin(googleLoginDto, nativeHeader, request, response) {
         const result = await this.authService.loginWithGoogle(googleLoginDto);
@@ -201,6 +219,23 @@ __decorate([
     __metadata("design:paramtypes", [register_dto_1.RegisterDto, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "register", null);
+__decorate([
+    (0, common_1.Post)('verify-email-otp'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('x-lms-native')),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [verify_email_otp_dto_1.VerifyEmailOtpDto, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifyEmailOtp", null);
+__decorate([
+    (0, common_1.Post)('resend-email-otp'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [resend_email_otp_dto_1.ResendEmailOtpDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "resendEmailOtp", null);
 __decorate([
     (0, common_1.Post)('google'),
     __param(0, (0, common_1.Body)()),

@@ -10,15 +10,6 @@ import { fsrs, generatorParameters, createEmptyCard, Rating } from 'ts-fsrs';
 const DEFAULTS = { request_retention: 0.9, maximum_interval: 36500, enable_fuzz: true };
 let engine = fsrs(generatorParameters(DEFAULTS));
 
-export function configureFsrs(settings = {}) {
-  engine = fsrs(generatorParameters({
-    request_retention: settings.requestRetention ?? DEFAULTS.request_retention,
-    maximum_interval: settings.maximumInterval ?? DEFAULTS.maximum_interval,
-    enable_fuzz: settings.enableFuzz ?? DEFAULTS.enable_fuzz,
-    ...(Array.isArray(settings.weights) && settings.weights.length ? { w: settings.weights } : {}),
-  }));
-}
-
 const GRADES = [Rating.Again, Rating.Hard, Rating.Good, Rating.Easy];
 
 function toFsrs(state) {

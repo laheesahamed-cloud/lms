@@ -35,7 +35,7 @@ body {
 
 body {
   margin: 0;
-  touch-action: pan-y;
+  touch-action: auto;
 }
 
 .lms-app-scroll-root,
@@ -77,11 +77,7 @@ body {
 @media (min-width: 901px) {
   .app-shell > .main-content {
     transition:
-      transform var(--lms-sidebar-motion),
       background-color 140ms ease-out !important;
-    transform: translate3d(0, 0, 0);
-    backface-visibility: hidden;
-    contain: paint;
   }
 
   .lms-sidebar:not(.is-overlay-nav) {
@@ -314,12 +310,9 @@ body {
     margin-left: 0 !important;
     padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w, 224px) + var(--sidebar-shell-gap, 16px)) !important;
     padding-right: var(--lms-live-gutter-x) !important;
-    transform: translate3d(0, 0, 0) !important;
     transition:
       padding-left var(--lms-sidebar-motion),
       background-color 160ms ease-out !important;
-    backface-visibility: hidden;
-    contain: paint;
   }
 
   .student-app-shell:not(.compact-focus-mode):not(.quiz-focus-mode) .main-content {
@@ -328,7 +321,6 @@ body {
 
   .app-shell.student-app-shell.sidebar-collapsed:not(.mobile-top-nav-mode):not(.compact-focus-mode):not(.sidebar-hidden) > .main-content {
     padding-left: calc(var(--sidebar-float-gap, 16px) + var(--sidebar-w-collapsed, 68px) + var(--sidebar-shell-gap, 16px)) !important;
-    transform: translate3d(0, 0, 0) !important;
   }
 
   .student-app-shell .dashboard-page.study-hub-page > .study-hub-shell,
@@ -1500,6 +1492,10 @@ body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-revie
   border-color: color-mix(in srgb, var(--sa-warn, #d97706) 30%, transparent) !important;
   background: color-mix(in srgb, var(--sa-warn, #d97706) 9%, var(--sa-surface, var(--surface-1))) !important;
   color: var(--sa-warn, #d97706) !important;
+}
+
+html body .lms-route-reveal.animate-panelRouteFade {
+  transform: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

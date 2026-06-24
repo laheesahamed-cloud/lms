@@ -95,10 +95,67 @@ const structureUi = {
   tableStatusDot: 'size-2 rounded-full bg-slate-400/70',
   tableStatusDotActive: 'bg-brand-primary shadow-[0_0_0_3px_rgba(37,99,235,0.12)]',
   tableActions: 'flex min-w-[84px] justify-end gap-2',
+  folderHead:
+    'flex min-w-0 flex-wrap items-end justify-between gap-3',
+  folderHeadCopy:
+    'min-w-0 [&_h2]:m-0 [&_h2]:text-[19px] [&_h2]:font-black [&_h2]:uppercase [&_h2]:leading-tight [&_p]:m-0 [&_p]:mt-1 [&_p]:text-[13px] [&_p]:leading-relaxed [&_p]:text-ink-soft',
+  folderGrid:
+    'grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3',
+  folderCard:
+    'glass-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center rounded-xl border border-line-soft bg-surface-card text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/22 hover:border-brand-primary/24 hover:shadow-md',
+  folderCardTop:
+    'flex items-start justify-between gap-4 px-5 py-5',
+  folderIcon:
+    'grid size-11 shrink-0 place-items-center rounded-xl border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary',
+  folderTitle:
+    'line-clamp-2 text-[15px] font-extrabold leading-snug text-ink-strong',
+  folderMeta:
+    'mt-1 text-[11px] font-semibold text-ink-muted',
+  folderCount:
+    'shrink-0 text-right [&_strong]:block [&_strong]:text-[30px] [&_strong]:font-extrabold [&_strong]:leading-none [&_strong]:text-ink-strong [&_span]:mt-0.5 [&_span]:block [&_span]:text-[11px] [&_span]:font-extrabold [&_span]:uppercase [&_span]:tracking-[0.12em] [&_span]:text-ink-muted',
+  cardActions:
+    'flex shrink-0 items-center justify-end gap-2',
+  folderToolbar:
+    'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-line-soft bg-surface-card p-3 shadow-[var(--card-shadow)] max-[700px]:grid-cols-1',
+  folderToolbarTitle:
+    'min-w-0 text-center text-[18px] font-extrabold text-brand-primary max-[700px]:text-left',
+  breadcrumb:
+    'flex min-w-0 flex-wrap items-center justify-center gap-1.5 text-[12px] font-extrabold text-ink-muted max-[700px]:justify-start',
+  breadcrumbItem:
+    'inline-flex min-h-7 max-w-[210px] items-center truncate rounded-full border border-line-soft bg-surface-2 px-3 text-ink-soft',
+  breadcrumbCurrent:
+    'border-brand-primary/22 bg-[var(--color-primary-light)] text-brand-primary',
+  breadcrumbSeparator:
+    'text-ink-muted',
+  countPill:
+    'inline-flex min-h-9 items-center justify-center rounded-full border border-line-soft bg-surface-2 px-3 text-[12px] font-extrabold text-ink-soft',
+  rowList:
+    'grid gap-3',
+  rowShell:
+    'glass-card grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 overflow-hidden rounded-xl border border-line-soft bg-surface-card pr-3 max-[700px]:grid-cols-1 max-[700px]:pr-0',
+  folderRow:
+    'grid min-h-[76px] w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-0 bg-transparent px-4 py-3 text-left transition-[background] duration-150 ease-[var(--ease-out)] hover:bg-surface-2/70 active:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/22 max-[640px]:grid-cols-[auto_minmax(0,1fr)]',
+  rowIndex:
+    'grid size-9 place-items-center rounded-full border border-line-soft bg-surface-2 text-[12px] font-extrabold text-ink-muted',
+  rowBody:
+    'grid min-w-0 gap-1 [&_strong]:truncate [&_strong]:text-[15px] [&_strong]:font-extrabold [&_strong]:text-ink-strong [&_span]:truncate [&_span]:text-[12px] [&_span]:font-semibold [&_span]:text-ink-muted',
+  rowActions:
+    'flex flex-wrap items-center justify-end gap-2 max-[640px]:col-span-2 max-[640px]:justify-start max-[640px]:pl-[52px]',
+  inlineActions:
+    'px-3 py-3 max-[700px]:justify-start max-[700px]:border-t max-[700px]:border-line-soft/70 max-[700px]:px-4',
 };
 
 function countActive(items) {
   return items.filter((item) => item.status === 'active').length;
+}
+
+function buildCourseSubjectCounts(subjectItems) {
+  return subjectItems.reduce((counts, subject) => {
+    const key = String(subject.courseId || '');
+    if (!key) return counts;
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
 }
 
 function EntityModal({ open, title, subtitle, children, onClose }) {
@@ -144,120 +201,184 @@ function DeleteIcon() {
   );
 }
 
-function HierarchyTable({
-  eyebrow,
-  title,
-  description,
-  countLabel,
-  actionLabel,
-  onAction,
-  loading,
-  emptyLabel,
-  items,
-  selectedId,
-  onSelect,
-  onEdit,
-  onDelete,
-  getTitle,
-  getMeta,
-  getInfo,
-  getExtraAction,
-}) {
+function FolderIcon() {
   return (
-    <section className={cx(ui.panelCard, structureUi.tablePanel)}>
-      <div className={structureUi.tableHeader}>
-        <div className={structureUi.tableHeaderCopy}>
-          <span className={ui.eyebrow}>{eyebrow}</span>
-          <h2>{title}</h2>
-          <p>{description}</p>
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M2.5 6.5A2.5 2.5 0 0 1 5 4h3.1l1.6 1.7H15A2.5 2.5 0 0 1 17.5 8v5.5A2.5 2.5 0 0 1 15 16H5a2.5 2.5 0 0 1-2.5-2.5v-7Z" stroke="currentColor" strokeWidth="1.45" strokeLinejoin="round" />
+      <path d="M2.8 8h14.4" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M5 3.5 8.5 7 5 10.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function BackIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M8.5 3 4.5 7l4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StatusPill({ status = 'active' }) {
+  return (
+    <span className={structureUi.tableStatus}>
+      <span className={cx(structureUi.tableStatusDot, status === 'active' && structureUi.tableStatusDotActive)} aria-hidden="true" />
+      {status}
+    </span>
+  );
+}
+
+function StructureBreadcrumb({ items }) {
+  return (
+    <nav className={structureUi.breadcrumb} aria-label="Structure hierarchy">
+      {items.map((item, index) => (
+        <span className="contents" key={`${item}-${index}`}>
+          {index > 0 ? <span className={structureUi.breadcrumbSeparator} aria-hidden="true">&gt;</span> : null}
+          <span className={cx(structureUi.breadcrumbItem, index === items.length - 1 && structureUi.breadcrumbCurrent)}>
+            {item}
+          </span>
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+function FolderToolbar({ title, onBack, countLabel, actionLabel, onAction, breadcrumbItems }) {
+  return (
+    <div className={structureUi.folderToolbar}>
+      <button type="button" className={cx(ui.secondaryButton, 'min-h-11 px-4 max-[640px]:w-fit')} onClick={onBack}>
+        <BackIcon />
+        <span>Back</span>
+      </button>
+      <div className="grid min-w-0 gap-2">
+        <div className={structureUi.folderToolbarTitle}>{title || 'Structure'}</div>
+        <StructureBreadcrumb items={breadcrumbItems || [title || 'Structure']} />
+      </div>
+      <div className="flex items-center justify-end gap-2 max-[640px]:justify-start">
+        <span className={structureUi.countPill}>{countLabel}</span>
+        {actionLabel ? (
+          <button type="button" className={cx(ui.panelAddButton, 'min-h-9')} onClick={onAction}>
+            {actionLabel}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function FolderActions({ label, onEdit, onDelete, extraAction, className }) {
+  return (
+    <div className={cx(structureUi.cardActions, className)}>
+      {extraAction || null}
+      <button type="button" className={ui.squareIconButton} onClick={onEdit} aria-label={`Edit ${label}`}>
+        <EditIcon />
+      </button>
+      <button type="button" className={ui.squareDangerIconButton} onClick={onDelete} aria-label={`Delete ${label}`}>
+        <DeleteIcon />
+      </button>
+    </div>
+  );
+}
+
+function FolderCard({ title, meta, count, countLabel, status, onOpen, onEdit, onDelete }) {
+  return (
+    <article className={cx(structureUi.folderCard, 'grid grid-cols-[minmax(0,1fr)_auto] items-center max-[700px]:grid-cols-1')}>
+      <button type="button" className="grid min-w-0 border-0 bg-transparent p-0 text-left" onClick={onOpen}>
+        <div className={structureUi.folderCardTop}>
+            <div className="flex min-w-0 items-start gap-3">
+              <span className={structureUi.folderIcon}>
+                <FolderIcon />
+              </span>
+              <div className="min-w-0">
+                <div className={structureUi.folderTitle}>{title}</div>
+                <div className={structureUi.folderMeta}>{meta}</div>
+                <div className="mt-2">
+                  <StatusPill status={status} />
+                </div>
+              </div>
+            </div>
+            <div className={structureUi.folderCount}>
+              <strong>{count}</strong>
+              <span>{countLabel}</span>
+            </div>
         </div>
-        <button type="button" className={cx(ui.panelAddButton, structureUi.columnAddButton)} onClick={onAction}>
+      </button>
+      <FolderActions label={title} onEdit={onEdit} onDelete={onDelete} className={structureUi.inlineActions} />
+    </article>
+  );
+}
+
+function FolderHeader({ eyebrow, title, description, countLabel, actionLabel, onAction, breadcrumbItems }) {
+  return (
+    <div className={structureUi.folderHead}>
+      <div className={structureUi.folderHeadCopy}>
+        <span className={ui.eyebrow}>{eyebrow}</span>
+        <h2>{title}</h2>
+        <p>{description}</p>
+        <div className="mt-3">
+          <StructureBreadcrumb items={breadcrumbItems || [title]} />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={structureUi.countPill}>{countLabel}</span>
+        <button type="button" className={cx(ui.panelAddButton, 'min-h-9')} onClick={onAction}>
           {actionLabel}
         </button>
       </div>
-
-      <div className={structureUi.tableMeta}>{countLabel}</div>
-
-      <div className={ui.tableShell}>
-        <table className={structureUi.table}>
-          <thead>
-            <tr>
-              <th className={ui.tableHeadCell}>Status</th>
-              <th className={ui.tableHeadCell}>{title.slice(0, -1) || title}</th>
-              <th className={ui.tableHeadCell}>Info</th>
-              <th className={cx(ui.tableHeadCell, 'text-right')}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td className={ui.tableCell} colSpan={4}>
-                  <div className={ui.tableEmpty}>Loading {title.toLowerCase()}...</div>
-                </td>
-              </tr>
-            ) : null}
-            {!loading && items.length === 0 ? (
-              <tr>
-                <td className={ui.tableCell} colSpan={4}>
-                  <div className={ui.tableEmpty}>{emptyLabel}</div>
-                </td>
-              </tr>
-            ) : null}
-            {!loading && items.map((item) => {
-              const isSelected = selectedId === item.id;
-              const rowLabel = getTitle(item);
-              return (
-                <tr
-                  key={item.id}
-                  className={cx(
-                    structureUi.tableRow,
-                    onSelect && structureUi.tableRowSelectable,
-                    isSelected && structureUi.tableRowSelected
-                  )}
-                  onClick={onSelect ? () => onSelect(item.id) : undefined}
-                  aria-selected={isSelected ? 'true' : undefined}
-                >
-                  <td className={ui.tableCell}>
-                    <span className={structureUi.tableStatus}>
-                      <span className={cx(structureUi.tableStatusDot, item.status === 'active' && structureUi.tableStatusDotActive)} aria-hidden="true" />
-                      {item.status || 'active'}
-                    </span>
-                  </td>
-                  <td className={ui.tableCell}>
-                    <button
-                      type="button"
-                      className={cx(structureUi.tableCellName, 'w-full border-0 bg-transparent p-0 text-left text-ink-strong')}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (onSelect) onSelect(item.id);
-                      }}
-                    >
-                      <strong>{rowLabel}</strong>
-                      <span>{getMeta(item)}</span>
-                    </button>
-                  </td>
-                  <td className={ui.tableCell}>
-                    <span className={ui.tableSubtext}>{getInfo ? getInfo(item) : getMeta(item)}</span>
-                  </td>
-                  <td className={cx(ui.tableCell, 'text-right')}>
-                    <div className={structureUi.tableActions}>
-                      {getExtraAction ? getExtraAction(item) : null}
-                      <button type="button" className={ui.squareIconButton} onClick={(event) => onEdit(item, event)} aria-label={`Edit ${rowLabel}`}>
-                        <EditIcon />
-                      </button>
-                      <button type="button" className={ui.squareDangerIconButton} onClick={(event) => onDelete(item, event)} aria-label={`Delete ${rowLabel}`}>
-                        <DeleteIcon />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </div>
   );
+}
+
+function EmptyFolder({ children }) {
+  return (
+    <div className={cx(ui.emptyBox, 'rounded-xl py-10 text-center')}>
+      {children}
+    </div>
+  );
+}
+
+function LoadingGrid() {
+  return (
+    <div className={structureUi.folderGrid}>
+      {[1, 2, 3, 4, 5, 6].map((item) => (
+        <div key={item} className={cx(ui.skeletonCard, 'h-[132px]')} />
+      ))}
+    </div>
+  );
+}
+
+function StructureRow({ index, title, meta, countLabel, status, onOpen, onEdit, onDelete, extraAction }) {
+  return (
+    <article className={structureUi.rowShell}>
+      <button type="button" className={structureUi.folderRow} onClick={onOpen}>
+        <strong className={structureUi.rowIndex}>{String(index + 1).padStart(2, '0')}</strong>
+        <span className={structureUi.rowBody}>
+          <strong>{title}</strong>
+          <span>{meta}</span>
+        </span>
+        <span className={structureUi.rowActions}>
+          {countLabel ? <span className={structureUi.countPill}>{countLabel}</span> : null}
+          <StatusPill status={status} />
+          <span className="grid size-9 place-items-center text-ink-muted" aria-hidden="true">
+            <ChevronIcon />
+          </span>
+        </span>
+      </button>
+      <FolderActions label={title} onEdit={onEdit} onDelete={onDelete} extraAction={extraAction} className={structureUi.inlineActions} />
+    </article>
+  );
+}
+
+function stopAndRun(event, action) {
+  event.stopPropagation();
+  action(event);
 }
 
 export function StructurePage() {
@@ -267,10 +388,12 @@ export function StructurePage() {
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
   const [aiLessons, setAiLessons] = useState([]);
+  const [courseSubjectCounts, setCourseSubjectCounts] = useState({});
 
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
   const [selectedTopicId, setSelectedTopicId] = useState(null);
+  const [activeLevel, setActiveLevel] = useState('courses');
 
   const [courseForm, setCourseForm] = useState(courseDefaults);
   const [subjectForm, setSubjectForm] = useState(subjectDefaults);
@@ -350,16 +473,61 @@ export function StructurePage() {
     [topics, selectedTopicId]
   );
 
+  function openCourseFolder(course) {
+    setSelectedCourseId(course.id);
+    setSelectedSubjectId(null);
+    setSelectedTopicId(null);
+    setActiveLevel('subjects');
+  }
+
+  function openSubjectFolder(subject) {
+    setSelectedSubjectId(subject.id);
+    setSelectedTopicId(null);
+    setActiveLevel('topics');
+  }
+
+  function openTopicFolder(topic) {
+    setSelectedTopicId(topic.id);
+    setActiveLevel('lessons');
+  }
+
+  function goBackFolder() {
+    if (activeLevel === 'lessons') {
+      setActiveLevel('topics');
+      return;
+    }
+
+    if (activeLevel === 'topics') {
+      setActiveLevel('subjects');
+      return;
+    }
+
+    setActiveLevel('courses');
+  }
+
   async function loadCourses() {
     setLoading((current) => ({ ...current, courses: true }));
     try {
-      const data = await fetchCourses();
+      const [data, allSubjects] = await Promise.all([
+        fetchCourses(),
+        fetchTopics().catch(() => []),
+      ]);
       setCourses(data);
-      setSelectedCourseId((current) => (current && data.some((course) => course.id === current) ? current : data[0]?.id ?? null));
+      setCourseSubjectCounts(buildCourseSubjectCounts(allSubjects));
+      setSelectedCourseId((current) => (current && data.some((course) => course.id === current) ? current : null));
     } catch (error) {
       setFeedback({ error: getErrorMessage(error, 'Unable to load courses'), success: '' });
     } finally {
       setLoading((current) => ({ ...current, courses: false }));
+    }
+  }
+
+  async function loadCourseSubjectCounts() {
+    try {
+      const allSubjects = await fetchTopics();
+      setCourseSubjectCounts(buildCourseSubjectCounts(allSubjects));
+    } catch {
+      setCourseSubjectCounts({});
     }
   }
 
@@ -368,7 +536,7 @@ export function StructurePage() {
     try {
       const data = await fetchTopics(courseId);
       setSubjects(data);
-      setSelectedSubjectId((current) => (current && data.some((subject) => subject.id === current) ? current : data[0]?.id ?? null));
+      setSelectedSubjectId((current) => (current && data.some((subject) => subject.id === current) ? current : null));
     } catch (error) {
       setFeedback({ error: getErrorMessage(error, 'Unable to load subjects'), success: '' });
     } finally {
@@ -381,7 +549,7 @@ export function StructurePage() {
     try {
       const data = await fetchSubtopics(subjectId);
       setTopics(data);
-      setSelectedTopicId((current) => (current && data.some((topic) => topic.id === current) ? current : data[0]?.id ?? null));
+      setSelectedTopicId((current) => (current && data.some((topic) => topic.id === current) ? current : null));
     } catch (error) {
       setFeedback({ error: getErrorMessage(error, 'Unable to load topics'), success: '' });
     } finally {
@@ -545,7 +713,10 @@ export function StructurePage() {
       }
 
       closeModal();
-      await loadSubjects(selectedCourseId);
+      await Promise.all([
+        loadSubjects(selectedCourseId),
+        loadCourseSubjectCounts(),
+      ]);
     } catch (error) {
       flashMessage({ error: getErrorMessage(error, 'Unable to save subject'), success: '' });
     } finally {
@@ -588,6 +759,9 @@ export function StructurePage() {
       await deleteCourse(course.id);
       if (selectedCourseId === course.id) {
         setSelectedCourseId(null);
+        setSelectedSubjectId(null);
+        setSelectedTopicId(null);
+        setActiveLevel('courses');
       }
       await loadCourses();
       flashMessage({ error: '', success: 'Course deleted' });
@@ -604,7 +778,15 @@ export function StructurePage() {
 
     try {
       await deleteTopic(subject.id);
-      await loadSubjects(selectedCourseId);
+      if (selectedSubjectId === subject.id) {
+        setSelectedSubjectId(null);
+        setSelectedTopicId(null);
+        setActiveLevel('subjects');
+      }
+      await Promise.all([
+        loadSubjects(selectedCourseId),
+        loadCourseSubjectCounts(),
+      ]);
       flashMessage({ error: '', success: 'Subject deleted' });
     } catch (error) {
       flashMessage({ error: getErrorMessage(error, 'Unable to delete subject'), success: '' });
@@ -619,6 +801,10 @@ export function StructurePage() {
 
     try {
       await deleteSubtopic(topic.id);
+      if (selectedTopicId === topic.id) {
+        setSelectedTopicId(null);
+        setActiveLevel('topics');
+      }
       await loadTopics(selectedSubjectId);
       await loadSubjects(selectedCourseId);
       flashMessage({ error: '', success: 'Topic deleted' });
@@ -695,99 +881,174 @@ export function StructurePage() {
           </div>
         </section>
 
-        <div className={structureUi.tableStack}>
-          <HierarchyTable
-            eyebrow="Level 1"
-            title="Courses"
-            description="Top-level medical programs and exam pathways."
-            countLabel={loading.courses ? 'Loading...' : `${courses.length} total courses`}
-            actionLabel="+ Add"
-            onAction={openCourseCreate}
-            loading={loading.courses}
-            emptyLabel="No courses yet."
-            items={courses}
-            selectedId={selectedCourseId}
-            onSelect={setSelectedCourseId}
-            onEdit={openCourseEdit}
-            onDelete={handleCourseDelete}
-            getTitle={(course) => course.courseTitle}
-            getMeta={(course) => `${course.examType} • ${course.courseCode}`}
-            getInfo={(course) => course.description || `${course.status === 'active' ? 'Available' : 'Hidden'} course`}
-          />
+        <section className={cx(ui.panelCard, 'grid gap-4')}>
+          {activeLevel === 'courses' ? (
+            <>
+              <FolderHeader
+                eyebrow="Level 1"
+                title="Choose a Course"
+                description="Open a course folder to manage its subjects, topics, and lessons."
+                countLabel={loading.courses ? 'Loading...' : `${courses.length} courses`}
+                actionLabel="+ Add Course"
+                onAction={openCourseCreate}
+                breadcrumbItems={['Courses']}
+              />
 
-          <HierarchyTable
-            eyebrow="Level 2"
-            title="Subjects"
-            description={selectedCourse ? `Linked to ${selectedCourse.courseTitle}` : 'Choose a course first to manage subjects.'}
-            countLabel={selectedCourse ? `${subjects.length} subjects in selected course` : 'No course selected'}
-            actionLabel="+ Add"
-            onAction={openSubjectCreate}
-            loading={loading.subjects}
-            emptyLabel="No subjects yet."
-            items={subjects}
-            selectedId={selectedSubjectId}
-            onSelect={setSelectedSubjectId}
-            onEdit={openSubjectEdit}
-            onDelete={handleSubjectDelete}
-            getTitle={(subject) => subject.topicName}
-            getMeta={() => selectedCourse ? selectedCourse.courseTitle : 'No course selected'}
-            getInfo={(subject) => `${subject.subtopicCount || 0} topic${Number(subject.subtopicCount || 0) === 1 ? '' : 's'}`}
-          />
+              {loading.courses ? <LoadingGrid /> : null}
+              {!loading.courses && courses.length === 0 ? <EmptyFolder>No courses yet.</EmptyFolder> : null}
+              {!loading.courses && courses.length > 0 ? (
+                <div className={structureUi.folderGrid}>
+                  {courses.map((course) => {
+                    const rawSubjectCount = course.subjectCount
+                      ?? course.totalSubjectsCount
+                      ?? courseSubjectCounts[String(course.id)]
+                      ?? course.topics?.length
+                      ?? course.subjects?.length;
+                    const subjectCount = rawSubjectCount == null ? 0 : Number(rawSubjectCount);
+                    const title = course.courseTitle || 'Untitled course';
+                    return (
+                      <FolderCard
+                        key={course.id}
+                        title={title}
+                        meta={course.description || `${course.examType} • ${course.courseCode}`}
+                        count={subjectCount}
+                        countLabel={subjectCount === 1 ? 'subject' : 'subjects'}
+                        status={course.status || 'active'}
+                        onOpen={() => openCourseFolder(course)}
+                        onEdit={(event) => openCourseEdit(course, event)}
+                        onDelete={(event) => handleCourseDelete(course, event)}
+                      />
+                    );
+                  })}
+                </div>
+              ) : null}
+            </>
+          ) : null}
 
-          <HierarchyTable
-            eyebrow="Level 3"
-            title="Topics"
-            description={selectedSubject ? `Linked to ${selectedSubject.topicName}` : 'Choose a subject first to manage topics.'}
-            countLabel={selectedSubject ? `${topics.length} topics in selected subject` : 'No subject selected'}
-            actionLabel="+ Add"
-            onAction={openTopicCreate}
-            loading={loading.topics}
-            emptyLabel="No topics yet."
-            items={topics}
-            selectedId={selectedTopicId}
-            onSelect={setSelectedTopicId}
-            onEdit={openTopicEdit}
-            onDelete={handleTopicDelete}
-            getTitle={(topic) => topic.subtopicName}
-            getMeta={() => selectedSubject ? selectedSubject.topicName : 'No subject selected'}
-            getInfo={() => selectedCourse ? selectedCourse.courseTitle : 'Select a course'}
-          />
+          {activeLevel === 'subjects' ? (
+            <>
+              <FolderToolbar
+                title={selectedCourse?.courseTitle || 'Subjects'}
+                onBack={goBackFolder}
+                countLabel={loading.subjects ? 'Loading...' : `${subjects.length} subjects`}
+                actionLabel="+ Add Subject"
+                onAction={openSubjectCreate}
+                breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Course', 'Subjects']}
+              />
+              {loading.subjects ? <LoadingGrid /> : null}
+              {!loading.subjects && subjects.length === 0 ? <EmptyFolder>No subjects in this course.</EmptyFolder> : null}
+              {!loading.subjects && subjects.length > 0 ? (
+                <div className={structureUi.rowList}>
+                  {subjects.map((subject, index) => {
+                    const topicCount = Number(subject.subtopicCount || 0);
+                    const title = subject.topicName || 'Untitled subject';
+                    return (
+                      <StructureRow
+                        key={subject.id}
+                        index={index}
+                        title={title}
+                        meta={`In ${selectedCourse?.courseTitle || 'course'}`}
+                        countLabel={`${topicCount} topic${topicCount === 1 ? '' : 's'}`}
+                        status={subject.status || 'active'}
+                        onOpen={() => openSubjectFolder(subject)}
+                        onEdit={(event) => stopAndRun(event, () => openSubjectEdit(subject, event))}
+                        onDelete={(event) => stopAndRun(event, () => handleSubjectDelete(subject, event))}
+                      />
+                    );
+                  })}
+                </div>
+              ) : null}
+            </>
+          ) : null}
 
-          <HierarchyTable
-            eyebrow="Level 4"
-            title="Lessons"
-            description={selectedTopic ? `Lessons inside ${selectedTopic.subtopicName}` : 'Choose a topic first to manage lessons.'}
-            countLabel={selectedTopic ? `${lessons.length} lesson${lessons.length === 1 ? '' : 's'} in selected topic` : 'No topic selected'}
-            actionLabel="+ Lesson"
-            onAction={() => navigate('/ai-notes')}
-            loading={loading.lessons}
-            emptyLabel="No lessons yet."
-            items={lessons}
-            selectedId={null}
-            onSelect={null}
-            onEdit={(lesson, event) => {
-              event.stopPropagation();
-              navigate(`/ai-notes/${lesson.id}`);
-            }}
-            onDelete={handleLessonDelete}
-            getTitle={(lesson) => lesson.title}
-            getMeta={(lesson) => lesson.status === 'active' ? 'Published' : 'Inactive'}
-            getInfo={() => selectedTopic ? selectedTopic.subtopicName : 'No topic selected'}
-            getExtraAction={(lesson) => (
-              <button className={cx(ui.squareIconButton, 'text-brand-primary border-brand-primary')}
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  navigate(`/ai-notes/${lesson.id}`);
-                }}
-                aria-label={`Open ${lesson.title}`}
-                title="Open lesson"
-              >
-                <SparkleIcon/>
-              </button>
-            )}
-          />
-        </div>
+          {activeLevel === 'topics' ? (
+            <>
+              <FolderToolbar
+                title={selectedSubject?.topicName || 'Topics'}
+                onBack={goBackFolder}
+                countLabel={loading.topics ? 'Loading...' : `${topics.length} topics`}
+                actionLabel="+ Add Topic"
+                onAction={openTopicCreate}
+                breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Course', selectedSubject?.topicName || 'Subject', 'Topics']}
+              />
+              {loading.topics ? <LoadingGrid /> : null}
+              {!loading.topics && topics.length === 0 ? <EmptyFolder>No topics in this subject.</EmptyFolder> : null}
+              {!loading.topics && topics.length > 0 ? (
+                <div className={structureUi.rowList}>
+                  {topics.map((topic, index) => {
+                    const topicLessons = aiLessons.filter((note) =>
+                      String(note.courseId || '') === String(selectedCourseId || '')
+                      && String(note.topicId || '') === String(selectedSubjectId || '')
+                      && String(note.subtopicId || '') === String(topic.id || '')
+                    );
+                    const title = topic.subtopicName || 'Untitled topic';
+                    return (
+                      <StructureRow
+                        key={topic.id}
+                        index={index}
+                        title={title}
+                        meta={`In ${selectedSubject?.topicName || 'subject'}`}
+                        countLabel={`${topicLessons.length} lesson${topicLessons.length === 1 ? '' : 's'}`}
+                        status={topic.status || 'active'}
+                        onOpen={() => openTopicFolder(topic)}
+                        onEdit={(event) => stopAndRun(event, () => openTopicEdit(topic, event))}
+                        onDelete={(event) => stopAndRun(event, () => handleTopicDelete(topic, event))}
+                      />
+                    );
+                  })}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+
+          {activeLevel === 'lessons' ? (
+            <>
+              <FolderToolbar
+                title={selectedTopic?.subtopicName || 'Lessons'}
+                onBack={goBackFolder}
+                countLabel={loading.lessons ? 'Loading...' : `${lessons.length} lessons`}
+                actionLabel="+ Lesson"
+                onAction={() => navigate('/ai-notes')}
+                breadcrumbItems={['Courses', selectedCourse?.courseTitle || 'Course', selectedSubject?.topicName || 'Subject', selectedTopic?.subtopicName || 'Topic', 'Lessons']}
+              />
+              {loading.lessons ? <LoadingGrid /> : null}
+              {!loading.lessons && lessons.length === 0 ? <EmptyFolder>No lessons in this topic.</EmptyFolder> : null}
+              {!loading.lessons && lessons.length > 0 ? (
+                <div className={structureUi.rowList}>
+                  {lessons.map((lesson, index) => {
+                    const title = lesson.title || 'Untitled lesson';
+                    return (
+                      <StructureRow
+                        key={lesson.id}
+                        index={index}
+                        title={title}
+                        meta={`${lesson.status === 'active' ? 'Published' : 'Inactive'} • ${selectedTopic?.subtopicName || 'Topic'}`}
+                        status={lesson.status || 'active'}
+                        onOpen={() => navigate(`/ai-notes/${lesson.id}`)}
+                        onEdit={(event) => stopAndRun(event, () => navigate(`/ai-notes/${lesson.id}`))}
+                        onDelete={(event) => stopAndRun(event, () => handleLessonDelete(lesson, event))}
+                        extraAction={(
+                          <button
+                            className={cx(ui.squareIconButton, 'border-brand-primary text-brand-primary')}
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigate(`/ai-notes/${lesson.id}`);
+                            }}
+                            aria-label={`Open ${title}`}
+                            title="Open lesson"
+                          >
+                            <SparkleIcon />
+                          </button>
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </section>
 
         <EntityModal
           open={modal === 'course'}

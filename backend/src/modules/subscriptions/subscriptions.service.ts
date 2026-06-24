@@ -919,6 +919,7 @@ export class SubscriptionsService {
 
     const availablePlans = await this.plansService.findActive();
     const planMap = await this.loadSubscriptionPlanMap([...currentRows, ...historyRows]);
+    const paymentSettings = await this.settingsService.getPayHereCheckoutSettings();
 
     return {
       currentSubscription: currentRows[0] ? await this.mapSubscription(currentRows[0], planMap.get(Number(currentRows[0].plan_id))) : null,
@@ -927,6 +928,9 @@ export class SubscriptionsService {
       availablePlans,
       requests: await this.findStudentRequests(userId),
       payment: await this.settingsService.getStudentPaymentSettings(),
+      // Tells the mobile app which checkout to use: native PayHere SDK or web
+      // fallback (web admin → PayHere → App SDK). Flippable without an app update.
+      appCheckoutMode: paymentSettings.appCheckoutMode,
     };
   }
 
@@ -1251,6 +1255,9 @@ export class SubscriptionsService {
       ok: true,
       provider: 'payhere',
       sandboxMode: settings.sandboxMode,
+      // Per-app secret for the native mobile SDK (web admin → PayHere → App SDK).
+      // Empty string when not configured — the app then can't run native checkout.
+      appMerchantSecret: settings.appMerchantSecret || '',
       actionUrl: settings.sandboxMode ? 'https://sandbox.payhere.lk/pay/checkout' : 'https://www.payhere.lk/pay/checkout',
       invoiceId,
       orderId,

@@ -75,7 +75,10 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-white/[0.08]">
-        <div className="mx-auto flex w-[min(1180px,calc(100%-40px))] flex-col items-center justify-between gap-2 py-5 text-center text-[12px] text-white/40 sm:flex-row sm:text-left">
+        {/* pb adds the bottom safe-area inset so the dark footer fills the iPhone
+            home-indicator strip (instead of an empty mismatched gap) while the
+            text still clears it. */}
+        <div className="mx-auto flex w-[min(1180px,calc(100%-40px))] flex-col items-center justify-between gap-2 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] text-center text-[12px] text-white/40 sm:flex-row sm:text-left">
           <span>© 2026 xyndrome · Built for Sri Lankan medical students</span>
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1" aria-label="Policies">
             {POLICY_NAV.map((link) => (
@@ -89,5 +92,3 @@ export function SiteFooter() {
     </footer>
   );
 }
-
-export default SiteFooter;

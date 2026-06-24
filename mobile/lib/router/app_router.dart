@@ -19,18 +19,22 @@ import '../features/dashboard/dashboard_page.dart';
 import '../features/courses/courses_page.dart';
 import '../features/courses/course_detail_page.dart';
 import '../features/quizzes/quizzes_page.dart';
+import '../features/quizzes/quiz_course_page.dart';
 import '../features/quizzes/take_quiz_page.dart';
+import '../features/quizzes/exam_complete_page.dart';
 import '../features/results/results_page.dart';
 import '../features/results/result_detail_page.dart';
 import '../features/flashcards/flashcards_page.dart';
+import '../features/flashcards/review_session_page.dart';
 import '../features/study/study_hub_page.dart';
 import '../features/ai_notes/ai_notes_list_page.dart';
 import '../features/ai_notes/ai_note_reader_page.dart';
 import '../features/profile/profile_page.dart';
+import '../features/profile/edit_profile_page.dart';
+import '../features/profile/change_password_page.dart';
 import '../features/notifications/notifications_page.dart';
 import '../features/bookmarks/bookmarks_page.dart';
 import '../features/planner/planner_page.dart';
-import '../features/notes/notes_page.dart';
 import '../features/subscriptions/subscriptions_page.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -100,8 +104,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/app/canvas',
-        pageBuilder: (c, s) =>
-            slidePage(key: s.pageKey, child: const NoteCanvasPage()),
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: NoteCanvasPage(lessonId: s.uri.queryParameters['lessonId'] ?? '1'),
+        ),
+      ),
+      // study -> lesson -> full native AI notes
+      GoRoute(
+        path: '/app/study/lesson/:lessonId',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: NoteCanvasPage(lessonId: s.pathParameters['lessonId']!),
+        ),
       ),
 
       // Focus-mode (full-screen) routes — no app nav.
@@ -114,6 +128,28 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/app/flashcards/review',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: ReviewSessionPage(
+            noteIdsCsv: s.uri.queryParameters['notes'] ?? '',
+            title: s.uri.queryParameters['title'] ?? 'Review',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/app/qbank/course/:courseId',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: Scaffold(
+            body: QuizCoursePage(
+              courseId: s.pathParameters['courseId']!,
+              examMode: s.uri.queryParameters['exam'] == '1',
+            ),
+          ),
+        ),
+      ),
+      GoRoute(
         path: '/app/quizzes/:quizId',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
@@ -121,6 +157,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             quizId: s.pathParameters['quizId']!,
             examMode: s.uri.queryParameters['exam'] == '1',
           ),
+        ),
+      ),
+      GoRoute(
+        path: '/app/exam-complete/:attemptId',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: ExamCompletePage(attemptId: s.pathParameters['attemptId']!),
         ),
       ),
       GoRoute(
@@ -200,11 +243,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 fadePage(key: s.pageKey, child: const PlannerPage()),
           ),
           GoRoute(
-            path: '/app/notes',
-            pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const NotesPage()),
-          ),
-          GoRoute(
             path: '/app/bookmarks',
             pageBuilder: (c, s) =>
                 fadePage(key: s.pageKey, child: const BookmarksPage()),
@@ -223,6 +261,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/app/profile',
             pageBuilder: (c, s) =>
                 fadePage(key: s.pageKey, child: const ProfilePage()),
+          ),
+          GoRoute(
+            path: '/app/profile/edit',
+            pageBuilder: (c, s) =>
+                fadePage(key: s.pageKey, child: const EditProfilePage()),
+          ),
+          GoRoute(
+            path: '/app/profile/password',
+            pageBuilder: (c, s) =>
+                fadePage(key: s.pageKey, child: const ChangePasswordPage()),
           ),
         ],
       ),

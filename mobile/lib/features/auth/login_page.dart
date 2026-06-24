@@ -6,6 +6,8 @@ import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/brand_logo.dart';
 import '../../state/auth_controller.dart';
+import '../../data/google_auth.dart';
+import '../../data/public_settings.dart';
 import 'auth_background.dart';
 import 'auth_widgets.dart';
 
@@ -21,6 +23,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   bool _obscure = true;
   bool _loading = false;
+  bool _googleLoading = false;
 
   @override
   void dispose() {
@@ -41,10 +44,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (ok && mounted) context.go('/app/dashboard');
   }
 
+  Future<void> _google() async {
+    setState(() => _googleLoading = true);
+    final ok =
+        await ref.read(authControllerProvider.notifier).loginWithGoogle();
+    if (mounted) setState(() => _googleLoading = false);
+    if (ok && mounted) context.go('/app/dashboard');
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.c;
     final error = ref.watch(authControllerProvider).error;
+    final googleOk = ref.watch(publicAuthSettingsProvider).maybeWhen(
+        data: (s) => googleButtonVisible(s.googleConfigured),
+        orElse: () => false);
     return Scaffold(
       body: AuthBackground(
         child: SafeArea(
@@ -69,12 +83,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       const SizedBox(height: 4),
                       Text('Log in to continue studying.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: c.inkSoft)),
+                          style: TextStyle(fontSize: 14, color: c.inkSoft)),
                       const SizedBox(height: 22),
                       AuthField(
                         label: 'Email',
                         controller: _email,
                         keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [
+                          AutofillHints.username,
+                          AutofillHints.email
+                        ],
                         validator: (v) => (v == null || !v.contains('@'))
                             ? 'Enter a valid email'
                             : null,
@@ -83,6 +101,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         label: 'Password',
                         controller: _password,
                         obscure: _obscure,
+                        autofillHints: const [AutofillHints.password],
                         onToggleObscure: () =>
                             setState(() => _obscure = !_obscure),
                         validator: (v) => (v == null || v.isEmpty)
@@ -96,7 +115,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               context.push('/auth/forgot-password'),
                           child: Text('Forgot password?',
                               style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 13,
                                   color: c.primary,
                                   fontWeight: FontWeight.w700)),
                         ),
@@ -104,7 +123,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       if (error != null) ...[
                         const SizedBox(height: 4),
                         Text(error,
-                            style: TextStyle(color: c.error, fontSize: 12.5)),
+                            style: TextStyle(color: c.error, fontSize: 13)),
                         const SizedBox(height: 8),
                       ],
                       const SizedBox(height: 6),
@@ -112,23 +131,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           expand: true,
                           loading: _loading,
                           onPressed: _submit),
-                      const SizedBox(height: 14),
-                      const OrDivider(),
-                      const SizedBox(height: 14),
-                      AppButton(
-                        'Continue with Google',
-                        kind: AppButtonKind.ghost,
-                        expand: true,
-                        leading: const Text('G',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 15,
-                                color: Color(0xFF4285F4))),
-                        onPressed: () => ScaffoldMessenger.of(context)
-                            .showSnackBar(const SnackBar(
-                                content: Text(
-                                    'Google sign-in needs OAuth client IDs (see plan §18).'))),
-                      ),
+                      if (googleOk) ...[
+                        const SizedBox(height: 14),
+                        const OrDivider(),
+                        const SizedBox(height: 14),
+                        AppButton(
+                          'Continue with Google',
+                          kind: AppButtonKind.ghost,
+                          expand: true,
+                          loading: _googleLoading,
+                          leading: const Text('G',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 16,
+                                  color: Color(0xFF4285F4))),
+                          onPressed: _google,
+                        ),
+                      ],
                       const SizedBox(height: 18),
                       Center(
                         child: GestureDetector(
@@ -136,7 +155,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           child: RichText(
                             text: TextSpan(
                               style:
-                                  TextStyle(fontSize: 12.5, color: c.inkSoft),
+                                  TextStyle(fontSize: 13, color: c.inkSoft),
                               children: [
                                 const TextSpan(text: 'New here? '),
                                 TextSpan(
@@ -159,7 +178,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           },
                           child: Text('Explore the demo (no account)',
                               style: TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: c.inkSoft)),
                         ),

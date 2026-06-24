@@ -8,6 +8,7 @@ class AuthField extends StatelessWidget {
   final VoidCallback? onToggleObscure;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+  final Iterable<String>? autofillHints; // OS password/email suggestions
 
   const AuthField({
     super.key,
@@ -17,6 +18,7 @@ class AuthField extends StatelessWidget {
     this.onToggleObscure,
     this.keyboardType,
     this.validator,
+    this.autofillHints,
   });
 
   @override
@@ -29,14 +31,15 @@ class AuthField extends StatelessWidget {
         children: [
           Text(label,
               style: TextStyle(
-                  fontSize: 11.5, fontWeight: FontWeight.w700, color: c.inkSoft)),
+                  fontSize: 12, fontWeight: FontWeight.w700, color: c.inkSoft)),
           const SizedBox(height: 6),
           TextFormField(
             controller: controller,
             obscureText: obscure,
             keyboardType: keyboardType,
             validator: validator,
-            style: TextStyle(fontSize: 14, color: c.inkStrong),
+            autofillHints: autofillHints,
+            style: TextStyle(fontSize: 15.5, color: c.inkStrong),
             decoration: InputDecoration(
               suffixIcon: onToggleObscure != null
                   ? IconButton(
@@ -69,7 +72,7 @@ class OrDivider extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Text('or',
               style: TextStyle(
-                  color: c.inkMuted, fontSize: 11, fontWeight: FontWeight.w700)),
+                  color: c.inkMuted, fontSize: 12, fontWeight: FontWeight.w700)),
         ),
         Expanded(child: Divider(color: c.line)),
       ],

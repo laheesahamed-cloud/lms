@@ -1,0 +1,157 @@
+/* Quiz loading screen — "question-suction" loader.
+   The card deck appears first, then question marks stream in from the top and
+   get sucked into the deck. Pure CSS animations; particles seeded in JS.
+   Used by QuizLoadingOverlay.jsx (student TakeQuizPage loading state). */
+
+.ql-screen {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  display: block;
+  background: var(--surface-0, #0a0a0f);
+}
+
+.ql-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* Soft suction aura behind the deck — fades in after the deck, then breathes. */
+.ql-aura {
+  grid-area: 1 / 1;
+  align-self: center;
+  justify-self: center;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(120, 160, 255, 0.18), rgba(120, 160, 255, 0.05) 45%, transparent 70%);
+  filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  animation: ql-auraIn 0.6s ease 0.75s forwards, ql-auraBreathe 1.6s ease-in-out 0.95s infinite;
+}
+
+@keyframes ql-auraIn { to { opacity: 0.85; } }
+@keyframes ql-auraBreathe {
+  0%, 100% { transform: scale(0.9); opacity: 0.65; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+.ql-spark {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;
+  pointer-events: none;
+  animation: ql-twinkle 2.2s ease-in-out infinite;
+}
+@keyframes ql-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 0.9; transform: scale(1); }
+}
+
+/* Question marks — start above the deck, accelerate in, collapse to ~nothing
+   right at the card (the "suck"). Per-particle --x/--y/--r set inline. */
+.ql-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-weight: 800;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  line-height: 1;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+@keyframes ql-flyPull {
+  0% { transform: translate(-50%, -50%) translate(var(--x), var(--y)) scale(1) rotate(var(--r)); opacity: 0; }
+  22% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(0, 0) scale(0.06) rotate(0); opacity: 0; }
+}
+
+/* Deck of cards (folder). Front card appears first via ql-deckIn, then throbs. */
+.ql-stack {
+  grid-area: 1 / 1;
+  align-self: center;
+  justify-self: center;
+  position: relative;
+  z-index: 3;
+  width: 84px;
+  animation: ql-deckIn 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both, ql-deckThrob 1.6s ease-in-out 0.95s infinite;
+}
+@keyframes ql-deckIn {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes ql-deckThrob {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+.ql-card {
+  border-radius: 10px;
+  background: #16181d;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.55);
+}
+.ql-card--back { position: absolute; inset: 0; z-index: 1; }
+.ql-card--b2 { transform: translate(-7px, -10px) rotate(-6deg) scale(0.9); background: #101115; opacity: 0.7; }
+.ql-card--b1 { transform: translate(7px, -10px) rotate(6deg) scale(0.9); background: #131418; opacity: 0.8; z-index: 1; }
+.ql-card--front { position: relative; z-index: 3; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+
+.ql-head { display: flex; align-items: center; gap: 5px; }
+.ql-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.5); flex: none; }
+.ql-line { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.26); }
+.ql-head .ql-line { flex: 1; }
+.ql-line--s { width: 55%; background: rgba(255, 255, 255, 0.14); }
+
+.ql-opts { display: flex; flex-direction: column; gap: 5px; margin-top: 1px; }
+.ql-opt {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 5px; border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.ql-opt--sel { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.45); }
+.ql-sq { flex: none; width: 9px; height: 9px; border-radius: 3px; background: rgba(255, 255, 255, 0.28); }
+.ql-opt--sel .ql-sq { background: rgba(255, 255, 255, 0.8); }
+.ql-bar { flex: 1; height: 5px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); }
+.ql-opt--sel .ql-bar { background: rgba(255, 255, 255, 0.45); }
+
+/* Caption — fades up, then types in with a blinking caret. */
+.ql-cap {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  margin-top: 86px;
+  z-index: 6;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft, rgba(255, 255, 255, 0.6));
+  opacity: 0;
+  animation: ql-capFade 0.7s ease 0.85s both;
+}
+@keyframes ql-capFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.ql-typed {
+  display: inline-block;
+  white-space: pre;
+  border-right: 2px solid rgba(255, 255, 255, 0.6);
+  padding-right: 2px;
+  animation: ql-caret 1s step-end infinite;
+}
+@keyframes ql-caret {
+  0%, 100% { border-color: rgba(255, 255, 255, 0.6); }
+  50% { border-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ql-mark, .ql-stack, .ql-aura, .ql-spark { animation-duration: 6s !important; }
+}

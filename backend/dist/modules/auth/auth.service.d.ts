@@ -8,12 +8,22 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto';
+import { ResendEmailOtpDto } from './dto/resend-email-otp.dto';
 export declare class AuthService {
     private readonly db;
     private readonly configService;
     private readonly logger;
     constructor(db: Pool, configService: ConfigService);
     login(loginDto: LoginDto): Promise<{
+        devCode?: string | undefined;
+        ok: boolean;
+        emailVerificationRequired: boolean;
+        email: string;
+        emailSent: boolean;
+        expiresInMinutes: number;
+        message: string;
+    } | {
         ok: boolean;
         sessionToken: string;
         sessionTtlDays: number;
@@ -69,59 +79,13 @@ export declare class AuthService {
         };
     }>;
     register(registerDto: RegisterDto): Promise<{
+        devCode?: string | undefined;
         ok: boolean;
-        sessionToken: string;
-        sessionTtlDays: number;
-        redirectPath: string;
-        user: {
-            id: number;
-            fullName: string;
-            email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
-            permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
-            status: "active" | "inactive";
-            avatarKey: string;
-            hasActiveSubscription: boolean;
-            subscriptionStatus: string;
-            currentPlanName: string;
-            featureAccess: {
-                aiNotes: boolean;
-                advancedInsights: boolean;
-                notesAccess: boolean;
-                aiTools: boolean;
-                analytics: boolean;
-                lessonsAccess: boolean;
-                practiceMode: boolean;
-                examMode: boolean;
-                aiQuizGenerator: boolean;
-                resultsTracking: boolean;
-                notesCanvasStudyMode: boolean;
-                performanceAnalytics: boolean;
-                weakAreaAnalysis: boolean;
-                progressTrackingBasic: boolean;
-                progressTrackingAdvanced: boolean;
-                reportQuestion: boolean;
-                pastPaperAccess: boolean;
-                mockPaperAccess: boolean;
-                featureKeys: string[];
-            } | {
-                aiNotes: boolean;
-                advancedInsights: boolean;
-                practiceMode: boolean;
-                examMode: boolean;
-                aiQuizGenerator: boolean;
-                resultsTracking: boolean;
-                notesCanvasStudyMode: boolean;
-                performanceAnalytics: boolean;
-                weakAreaAnalysis: boolean;
-                progressTrackingBasic: boolean;
-                progressTrackingAdvanced: boolean;
-                reportQuestion: boolean;
-                pastPaperAccess: boolean;
-                mockPaperAccess: boolean;
-                featureKeys: never[];
-            };
-        };
+        emailVerificationRequired: boolean;
+        email: string;
+        emailSent: boolean;
+        expiresInMinutes: number;
+        message: string;
     }>;
     loginWithGoogle(googleLoginDto: GoogleLoginDto): Promise<{
         ok: boolean;
@@ -317,6 +281,84 @@ export declare class AuthService {
         ok: boolean;
         message: string;
     }>;
+    private isEmailVerified;
+    private beginEmailVerification;
+    private issueEmailOtp;
+    verifyEmailOtp(verifyEmailOtpDto: VerifyEmailOtpDto): Promise<{
+        ok: boolean;
+        sessionToken: string;
+        sessionTtlDays: number;
+        redirectPath: string;
+        user: {
+            id: number;
+            fullName: string;
+            email: string;
+            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
+            permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
+            status: "active" | "inactive";
+            avatarKey: string;
+            hasActiveSubscription: boolean;
+            subscriptionStatus: string;
+            currentPlanName: string;
+            featureAccess: {
+                aiNotes: boolean;
+                advancedInsights: boolean;
+                notesAccess: boolean;
+                aiTools: boolean;
+                analytics: boolean;
+                lessonsAccess: boolean;
+                practiceMode: boolean;
+                examMode: boolean;
+                aiQuizGenerator: boolean;
+                resultsTracking: boolean;
+                notesCanvasStudyMode: boolean;
+                performanceAnalytics: boolean;
+                weakAreaAnalysis: boolean;
+                progressTrackingBasic: boolean;
+                progressTrackingAdvanced: boolean;
+                reportQuestion: boolean;
+                pastPaperAccess: boolean;
+                mockPaperAccess: boolean;
+                featureKeys: string[];
+            } | {
+                aiNotes: boolean;
+                advancedInsights: boolean;
+                practiceMode: boolean;
+                examMode: boolean;
+                aiQuizGenerator: boolean;
+                resultsTracking: boolean;
+                notesCanvasStudyMode: boolean;
+                performanceAnalytics: boolean;
+                weakAreaAnalysis: boolean;
+                progressTrackingBasic: boolean;
+                progressTrackingAdvanced: boolean;
+                reportQuestion: boolean;
+                pastPaperAccess: boolean;
+                mockPaperAccess: boolean;
+                featureKeys: never[];
+            };
+        };
+    }>;
+    resendEmailOtp(resendEmailOtpDto: ResendEmailOtpDto): Promise<{
+        ok: boolean;
+        expiresInMinutes: number;
+        message: string;
+    } | {
+        retryAfterSeconds: number;
+        ok: boolean;
+        expiresInMinutes: number;
+        message: string;
+    } | {
+        devCode?: string | undefined;
+        emailSent: boolean;
+        ok: boolean;
+        expiresInMinutes: number;
+        message: string;
+    }>;
+    private issueSessionForUser;
+    private sendEmailVerificationOtp;
+    private renderEmailOtpText;
+    private renderEmailOtpHtml;
     updateProfile(authorization: string | undefined, updateProfileDto: UpdateProfileDto): Promise<{
         ok: boolean;
         user: {

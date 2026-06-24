@@ -8,6 +8,7 @@ import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 import { StudyMascot } from '../../../../shared/ui/StudyMascot.jsx';
+import { isNativeLessonNoteAvailable, openNativeLessonNote } from '../../../../shared/native/nativeLessonNote.js';
 
 function runWhenIdle(task) {
   if (typeof window === 'undefined') {
@@ -122,6 +123,9 @@ function SaveIcon() {
 function SaveFilledIcon() {
   return <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.5 3.6C4.5 2.85 5.1 2.25 5.85 2.25h4.3c.75 0 1.35.6 1.35 1.35v10.15L8 11.65l-3.5 2.1V3.6Z"/></svg>;
 }
+function LockIcon() {
+  return <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3.25" y="7" width="9.5" height="6.25" rx="1.6" stroke="currentColor" strokeWidth="1.45"/><path d="M5.25 7V5.35A2.75 2.75 0 0 1 8 2.6a2.75 2.75 0 0 1 2.75 2.75V7" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round"/></svg>;
+}
 function RowChevronIcon() {
   return <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
@@ -161,7 +165,7 @@ function CourseCard({ course, onClick }) {
 // ── Lesson text row ───────────────────────────────────────────────────────────
 function LessonTextRow({ note, index, isSaved, onStart, onSave, style }) {
   const title = note.title || note.lessonTitle || 'Untitled lesson';
-  const statusLabel = note.accessLocked ? 'Locked' : note.isFree ? 'Free lesson' : '';
+  const locked = Boolean(note.accessLocked);
   const isCompleted = note.lessonCompleted || note.lessonProgressStatus === 'completed' || Number(note.lessonProgressPercent || 0) >= 100;
 
   function handleKeyDown(event) {
@@ -190,18 +194,23 @@ function LessonTextRow({ note, index, isSaved, onStart, onSave, style }) {
             </i>
           ) : null}
         </span>
-        {statusLabel ? <small data-status={note.accessLocked ? 'locked' : 'free'}>{statusLabel}</small> : null}
       </span>
       <span className="student-lessons-lesson-row__actions">
-        <button
-          type="button"
-          className={cx('student-lessons-lesson-row__save', isSaved && 'is-saved')}
-          onClick={(event) => { event.stopPropagation(); onSave(note.id); }}
-          aria-label={isSaved ? `Saved ${title}` : `Save ${title}`}
-          aria-pressed={isSaved}
-        >
-          {isSaved ? <SaveFilledIcon /> : <SaveIcon />}
-        </button>
+        {locked ? (
+          <span className="student-lessons-lesson-row__save is-locked" aria-label={`Locked ${title}`} role="img">
+            <LockIcon />
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={cx('student-lessons-lesson-row__save', isSaved && 'is-saved')}
+            onClick={(event) => { event.stopPropagation(); onSave(note.id); }}
+            aria-label={isSaved ? `Saved ${title}` : `Save ${title}`}
+            aria-pressed={isSaved}
+          >
+            {isSaved ? <SaveFilledIcon /> : <SaveIcon />}
+          </button>
+        )}
         <span className="student-lessons-lesson-row__chevron" aria-hidden="true">
           <RowChevronIcon />
         </span>
@@ -219,7 +228,7 @@ function LessonHeaderTitle({ label }) {
 }
 
 // ── Course detail (flat lesson cards) ────────────────────────────────────────
-function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBase, isDark }) {
+function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBase, isDark, disableOpen }) {
   const navigate = useNavigate();
   const subjects = [...course.subjects.values()];
   const [activeSubj, setActiveSubj] = useState(null);
@@ -315,7 +324,9 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
                       isSaved={bookmarkedIds.has(note.id)}
                       onSave={onToggleBookmark}
                       style={{ '--lesson-row-delay': `${Math.min(index, 8) * 18}ms` }}
-                      onStart={() => navigate(`${routeBase}/${note.id}${note.engine ? `?engine=${encodeURIComponent(note.engine)}` : ''}`, {
+                      onStart={disableOpen
+                        ? () => { if (isNativeLessonNoteAvailable()) openNativeLessonNote(note); }
+                        : () => navigate(`${routeBase}/${note.id}${note.engine ? `?engine=${encodeURIComponent(note.engine)}` : ''}`, {
                         state: {
                           engineKey: note.engine || null,
                           lessonId: note.lessonId || null,
@@ -340,9 +351,12 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
 // ── Main export ───────────────────────────────────────────────────────────────
 export function AiNotesListPage({
   engineKey = 'gemini',
-  routeBase = '/ai-notes',
+  routeBase = '/lessons',
   headerTitle = 'Lessons',
   defaultSubtitle: _defaultSubtitle = 'Illustrated clinical lessons for focused revision.',
+  // When true, the course → subject → lesson-list flow is identical, but tapping
+  // a lesson row does nothing (no navigation). Used by the Study "Lessons" tile.
+  disableOpen = false,
 }) {
   const isDark = useDark();
   const navigate = useNavigate();
@@ -426,7 +440,7 @@ export function AiNotesListPage({
   // so the course detail stays put until the lesson route takes over.
   const location = useLocation();
   const navigatingToLesson =
-    /\/(?:ai-notes\/\d+|study\/lesson\/\d+)(?:$|[/?#])/.test(location.pathname);
+    /\/(?:lessons\/\d+|ai-notes\/\d+|study\/lesson\/\d+)(?:$|[/?#])/.test(location.pathname);
   const lastCourseRef = useRef(null);
   if (selectedCourse && activeCourse) lastCourseRef.current = { selectedCourse, activeCourse };
   const heldCourse = navigatingToLesson ? lastCourseRef.current : null;
@@ -514,6 +528,7 @@ export function AiNotesListPage({
               onToggleBookmark={handleToggleBookmark}
               routeBase={routeBase}
               isDark={isDark}
+              disableOpen={disableOpen}
             />
           </section>
         )}

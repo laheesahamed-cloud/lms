@@ -315,7 +315,7 @@
       padding-bottom: calc(var(--safe-bottom) + 16px) !important;
     }
 
-    .lms-sidebar:not(.is-open) {
+    html:not([data-lms-runtime="desktop"]) .lms-sidebar:not(.is-open) {
       border-right-color: transparent !important;
       box-shadow: none !important;
       transform: translate3d(calc(-100% - 24px), 0, 0) !important;
@@ -358,7 +358,7 @@
   }
 
   .lms-course-detail-page {
-    padding-block: clamp(10px, 1.6vw, 18px) clamp(12px, 2vw, 22px);
+    padding-block: 0 clamp(12px, 2vw, 22px);
   }
 
   @media (max-width: 900px) {

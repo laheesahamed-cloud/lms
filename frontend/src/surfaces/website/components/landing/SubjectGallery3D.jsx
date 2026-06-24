@@ -125,5 +125,3 @@ export function SubjectGallery3D({ darkModeActive = false, onDarkModeChange }) {
     </motion.section>
   );
 }
-
-export default SubjectGallery3D;

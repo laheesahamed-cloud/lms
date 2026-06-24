@@ -423,10 +423,16 @@ let DashboardService = class DashboardService {
         WHERE user_id = ?
         ORDER BY updated_at DESC, id DESC
         LIMIT 3`, [student.id]),
-            this.db.execute(`SELECT DISTINCT DATE(COALESCE(submitted_at, created_at)) AS attempt_day
-         FROM quiz_attempts
-         WHERE user_id = ? AND status = 'submitted'
-         ORDER BY attempt_day DESC`, [student.id]),
+            this.db.execute(`SELECT attempt_day FROM (
+           SELECT DISTINCT DATE(COALESCE(submitted_at, created_at)) AS attempt_day
+           FROM quiz_attempts
+           WHERE user_id = ? AND status = 'submitted'
+           UNION
+           SELECT DISTINCT DATE(created_at) AS attempt_day
+           FROM study_activity_events
+           WHERE user_id = ? AND activity_type = 'practice_completed'
+         ) AS days
+         ORDER BY attempt_day DESC`, [student.id, student.id]),
             this.db.execute(`SELECT
            CASE
              WHEN DATE(COALESCE(submitted_at, created_at)) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 'last_7'
@@ -473,7 +479,16 @@ let DashboardService = class DashboardService {
          WHERE qa.user_id = ?
            AND qa.status = 'submitted'
            AND DATE(COALESCE(qa.submitted_at, qa.created_at)) = CURDATE()
-         ORDER BY COALESCE(qa.submitted_at, qa.created_at) DESC`, [student.id]),
+         UNION
+         SELECT q.id, c.course_title, t.topic_name
+         FROM study_activity_events e
+         INNER JOIN quizzes q ON q.id = e.item_id
+         LEFT JOIN courses c ON c.id = q.course_id
+         LEFT JOIN topics t ON t.id = q.topic_id
+         WHERE e.user_id = ?
+           AND e.activity_type = 'practice_completed'
+           AND DATE(e.created_at) = CURDATE()
+         ORDER BY id DESC`, [student.id, student.id]),
             this.db.execute(`SELECT DISTINCT
            n.id,
            c.course_title,

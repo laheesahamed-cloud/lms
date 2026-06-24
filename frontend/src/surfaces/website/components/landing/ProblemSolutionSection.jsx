@@ -13,6 +13,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { ScrollRevealText } from './ScrollRevealText.jsx';
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
@@ -147,22 +148,12 @@ export function ProblemSolutionSection() {
           </div>
         </motion.div>
 
-        <motion.p
+        <ScrollRevealText
+          text="So we built one place for all of it."
+          highlight="one place for all of it."
           className="font-display mt-12 max-w-2xl text-[clamp(22px,3.4vw,34px)] leading-[1.2] text-[#111118]"
-          initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        >
-          So we built{' '}
-          <span className="relative whitespace-nowrap">
-            one place for all of it.
-            <motion.span
-              className="absolute -bottom-1 left-0 h-[2px] w-full origin-left bg-[#2563eb]"
-              initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ delay: 0.4, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            />
-          </span>
-        </motion.p>
+        />
       </div>
     </section>
   );
 }
-
-export default ProblemSolutionSection;

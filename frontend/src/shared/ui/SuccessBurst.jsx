@@ -44,5 +44,3 @@ export function SuccessBurst({ size = 76, className = '' }) {
     </div>
   );
 }
-
-export default SuccessBurst;

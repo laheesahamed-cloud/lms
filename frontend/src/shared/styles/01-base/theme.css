@@ -901,7 +901,7 @@ body,
   --sa-warn-soft: rgba(245, 158, 11, 0.13);
   --sa-shadow-card: 0 20px 48px -34px rgba(37, 99, 235, 0.28);
   --sa-shadow-card-hover: 0 24px 56px -36px rgba(37, 99, 235, 0.34);
-  background: var(--sa-bg) !important;
+  background: transparent !important;
   color: var(--sa-ink) !important;
 }
 
@@ -1319,7 +1319,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --lms-app-card-bg: var(--student-route-card-bg);
   --lms-app-card-bg-raised: var(--student-route-card-bg-raised);
   --lms-app-card-shadow: var(--student-route-card-shadow);
-  background: var(--sa-bg) !important;
+  background: transparent !important;
   color: var(--sa-ink) !important;
 }
 
@@ -1629,8 +1629,6 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
 
 .student-app-shell .student-quiz-map-page :where(
   .student-lessons-course-card,
-  .student-lessons-detail-toolbar,
-  .student-lessons-filter-bar,
   .student-lessons-category__head,
   .student-lessons-lesson-list-shell,
   .student-lessons-lesson-row,
@@ -1643,10 +1641,13 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   color: var(--ink-strong) !important;
 }
 
+.student-app-shell .student-quiz-map-page .student-lessons-lesson-row:first-child {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
 :root[data-theme="light"] .student-app-shell .student-quiz-map-page :where(
   .student-lessons-course-card,
-  .student-lessons-detail-toolbar,
-  .student-lessons-filter-bar,
   .student-lessons-category__head,
   .student-lessons-lesson-list-shell,
   .student-lessons-lesson-row,
@@ -1977,7 +1978,6 @@ body.student-quiz-night-screen .student-app-shell :where(
   .lms-course-card,
   .student-course-card,
   .student-lessons-course-card,
-  .student-lessons-detail-toolbar,
   .student-lessons-filter-bar,
   .student-lessons-category__head,
   .student-lessons-lesson-list-shell,
@@ -2090,6 +2090,11 @@ body.student-quiz-night-screen :where(.lms-sidebar-brand-sub, .lms-sidebar-wordm
 .student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row {
   border: 1px solid var(--line-soft) !important;
   border-radius: var(--radius-md, 14px) !important;
+}
+
+.student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-lesson-row:first-child {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
 }
 
 .student-app-shell .student-lessons-page:not(.student-quiz-map-page) .student-lessons-category::before,

@@ -114,11 +114,6 @@
     contain: layout style;
   }
 
-  :root[data-visual-effects='balanced'] .portal-content__frame,
-  :root[data-visual-effects='balanced'] .lms-route-page {
-    contain: layout paint style;
-  }
-
   :root[data-visual-effects='balanced'] .motion-smooth,
   :root[data-visual-effects='balanced'] .card-interactive {
     transition-duration: 150ms !important;

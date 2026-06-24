@@ -29,10 +29,12 @@ const LandingPage  = lazyNamed(() => import('../surfaces/website/pages/LandingPa
 const RegisterPage = lazyNamed(() => import('../surfaces/website/auth/RegisterPage.jsx'),       'RegisterPage');
 const ForgotPasswordPage = lazyNamed(() => import('../surfaces/website/auth/ForgotPasswordPage.jsx'), 'ForgotPasswordPage');
 const ResetPasswordPage = lazyNamed(() => import('../surfaces/website/auth/ResetPasswordPage.jsx'), 'ResetPasswordPage');
+const VerifyEmailPage = lazyNamed(() => import('../surfaces/website/auth/VerifyEmailPage.jsx'), 'VerifyEmailPage');
 const TermsPage    = lazyNamed(() => import('../surfaces/website/pages/TermsPage.jsx'),                  'TermsPage');
 const PrivacyPolicyPage = lazyNamed(() => import('../surfaces/website/pages/PrivacyPolicyPage.jsx'),     'PrivacyPolicyPage');
 const RefundPolicyPage = lazyNamed(() => import('../surfaces/website/pages/RefundPolicyPage.jsx'),       'RefundPolicyPage');
 const CookiePolicyPage = lazyNamed(() => import('../surfaces/website/pages/CookiePolicyPage.jsx'),       'CookiePolicyPage');
+const DeleteAccountPage = lazyNamed(() => import('../surfaces/website/pages/DeleteAccountPage.jsx'),      'DeleteAccountPage');
 
 const CoursesPage = lazyNamed(() => import('../surfaces/admin/pages/courses/CoursesPage.jsx'), 'CoursesPage');
 const AdminDashboardPage = lazyNamed(() => import('../surfaces/admin/pages/dashboard/AdminDashboardPage.jsx'), 'AdminDashboardPage');
@@ -108,6 +110,7 @@ const roleRoutePreloaders = {
     ['/notifications', StudentNotificationsPage.preload],
     ['/study', StudentStudyPage.preload],
     ['/planner', StudyPlannerPage.preload],
+    ['/lessons', AiNotesListPage.preload],
     ['/ai-notes', AiNotesListPage.preload],
     ['/flashcards', StudentFlashcardsPage.preload],
     ['/quizzes', StudentQuizzesPage.preload],
@@ -129,7 +132,7 @@ function dynamicRoutePreloader(path) {
   if (/^\/results\/\d+$/.test(cleanPath)) return ResultPage.preload;
   if (/^\/review\/\d+$/.test(cleanPath)) return ReviewPage.preload;
   if (/^\/courses\/\d+$/.test(cleanPath)) return CourseDetailPage.preload;
-  if (/^\/ai-notes\/\d+$/.test(cleanPath)) return AiNotesPage.preload;
+  if (/^\/(?:ai-notes|lessons)\/\d+$/.test(cleanPath)) return AiNotesPage.preload;
   if (/^\/study\/lesson\/\d+$/.test(cleanPath)) return AiNotesPage.preload;
   return null;
 }
@@ -218,6 +221,7 @@ const STUDENT_ROUTE_NAMES = {
   '/app/exams': 'Exams',
   '/app/results': 'Results',
   '/app/ai-notes': 'Lessons',
+  '/app/lessons': 'Lessons',
   '/app/flashcards': 'Flashcards',
   '/app/planner': 'Planner',
   '/app/study': 'Study',
@@ -231,7 +235,7 @@ function routeFallbackName(pathname) {
   if (STUDENT_ROUTE_NAMES[pathname]) return STUDENT_ROUTE_NAMES[pathname];
   // dynamic detail routes
   if (/^\/app\/courses\/\d+/.test(pathname)) return 'Course';
-  if (/^\/app\/ai-notes\/\d+/.test(pathname) || /^\/app\/study\/lesson\/\d+/.test(pathname)) return 'Lesson';
+  if (/^\/app\/(?:ai-notes|lessons)\/\d+/.test(pathname) || /^\/app\/study\/lesson\/\d+/.test(pathname)) return 'Lesson';
   if (/^\/app\/quizzes\/\d+/.test(pathname) || /^\/app\/exams\/\d+/.test(pathname)) return 'Quiz';
   if (/^\/app\/results\/\d+/.test(pathname)) return 'Result';
   // nearest known section
@@ -300,6 +304,12 @@ function RoleSwitch({ admin, student, adminPermissions = [] }) {
     return admin;
   }
   return student;
+}
+
+function LegacyStudentLessonsRedirect() {
+  const location = useLocation();
+  const targetPath = location.pathname.replace('/ai-notes', '/lessons');
+  return <Navigate to={`${targetPath}${location.search}${location.hash}`} replace />;
 }
 
 function roleHomePath(user) {
@@ -585,10 +595,18 @@ const studentPanelRoutes = [
   },
   {
     path: 'ai-notes',
-    element: withSuspense(<AiNotesListPage />),
+    element: <LegacyStudentLessonsRedirect />,
   },
   {
     path: 'ai-notes/:id',
+    element: <LegacyStudentLessonsRedirect />,
+  },
+  {
+    path: 'lessons',
+    element: withSuspense(<AiNotesListPage routeBase="/lessons" headerTitle="Lessons" />),
+  },
+  {
+    path: 'lessons/:id',
     element: withSuspense(<AiNotesPage />, null),
   },
   {
@@ -664,6 +682,14 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: 'auth/verify-email',
+        element: withSuspense(
+          <PublicOnlyRoute>
+            <VerifyEmailPage />
+          </PublicOnlyRoute>
+        ),
+      },
+      {
         path: 'terms',
         element: withSuspense(<TermsPage />),
       },
@@ -678,6 +704,10 @@ const router = createBrowserRouter([
       {
         path: 'cookie-policy',
         element: withSuspense(<CookiePolicyPage />),
+      },
+      {
+        path: 'delete-account',
+        element: withSuspense(<DeleteAccountPage />),
       },
       {
         path: 'ai',
@@ -985,9 +1015,17 @@ const router = createBrowserRouter([
               <ProtectedRoute>
                 <RoleSwitch
                   admin={withSuspense(<AdminAiNotesListPage />)}
-                  student={withSuspense(<AiNotesListPage />)}
+                  student={<LegacyStudentLessonsRedirect />}
                   adminPermissions={['content.manage']}
                 />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'lessons',
+            element: (
+              <ProtectedRoute role="student">
+                {withSuspense(<AiNotesListPage routeBase="/lessons" headerTitle="Lessons" />)}
               </ProtectedRoute>
             ),
           },
@@ -997,9 +1035,17 @@ const router = createBrowserRouter([
               <ProtectedRoute>
                 <RoleSwitch
                   admin={withSuspense(<AdminAiNotesEditorPage />)}
-                  student={withSuspense(<AiNotesPage />, null)}
+                  student={<LegacyStudentLessonsRedirect />}
                   adminPermissions={['content.manage']}
                 />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'lessons/:id',
+            element: (
+              <ProtectedRoute role="student">
+                {withSuspense(<AiNotesPage />, null)}
               </ProtectedRoute>
             ),
           },

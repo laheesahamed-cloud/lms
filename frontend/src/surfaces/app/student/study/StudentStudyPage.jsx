@@ -5,16 +5,16 @@ import './StudentStudyPage.css';
 
 const studyItems = [
   {
-    to: '/app/ai-notes',
-    preload: '/ai-notes',
-    label: 'AI Notes',
-    eyebrow: 'Smart notes',
-    description: 'Generate and revise AI-powered study notes.',
-    tone: 'ai-notes',
+    to: '/app/lessons',
+    preload: '/lessons',
+    label: 'Lessons',
+    eyebrow: 'Learn',
+    description: 'Browse your courses and open their lessons.',
+    tone: 'lessons',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 3.5L13.6 8.4L18.5 10L13.6 11.6L12 16.5L10.4 11.6L5.5 10L10.4 8.4L12 3.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-        <path d="M18 16.5L18.7 18.3L20.5 19L18.7 19.7L18 21.5L17.3 19.7L15.5 19L17.3 18.3L18 16.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M5 5.5C5 4.7 5.7 4 6.5 4H18.5C19.3 4 20 4.7 20 5.5V18.5C20 19.3 19.3 20 18.5 20H6.5C5.7 20 5 19.3 5 18.5V5.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+        <path d="M8.5 8.5H16.5M8.5 12H16.5M8.5 15.5H13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       </svg>
     ),
   },

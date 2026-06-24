@@ -558,15 +558,15 @@
   width: min(100%, 1120px);
   max-width: 1120px;
   margin-inline: auto;
-  gap: 16px;
-  padding: clamp(14px, 2.5vw, 28px);
+  gap: 10px;
+  padding: 12px 0 24px;
   background: transparent;
 }
 
 .planner-native-topbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 10px;
   min-height: auto;
   border: 0;
@@ -574,14 +574,21 @@
 
 .planner-native-round-button {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-width: 0;
+  height: 42px;
+  padding: 0 15px;
   border: 1px solid var(--sa-border, rgba(119, 137, 165, 0.18));
-  border-radius: 999px;
+  border-radius: 12px;
   background: var(--sa-card-bg, var(--sa-surface, #fbfcff));
   color: var(--sa-ink, #172033);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
   box-shadow: var(--sa-shadow-soft, 0 10px 28px -22px rgba(22, 35, 56, 0.3));
   cursor: pointer;
   transition:
@@ -599,7 +606,9 @@
 }
 
 .planner-native-round-button.is-add {
-  color: var(--sa-primary, #2563eb);
+  border-color: transparent;
+  background: var(--sa-primary, #2563eb);
+  color: #fff;
 }
 
 .planner-native-round-button:focus-visible,
@@ -610,15 +619,28 @@
 
 .planner-native-plus,
 .planner-native-plus::after {
-  width: 24px;
-  height: 3px;
+  width: 14px;
+  height: 2px;
   background: currentColor;
+}
+
+.planner-native-plus {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.planner-native-plus::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: rotate(90deg);
 }
 
 .study-planner-page.planner-native-page .planner-summary-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   overflow: visible;
   padding: 0;
   scroll-snap-type: none;
@@ -627,7 +649,7 @@
 .study-planner-page.planner-native-page .planner-summary-strip article,
 .planner-native-stat {
   min-width: 0;
-  min-height: 92px;
+  min-height: 76px;
   border: 1px solid var(--sa-border, rgba(119, 137, 165, 0.18));
   border-radius: var(--radius-md);
   background: var(--sa-card-bg, var(--sa-surface, #fbfcff));
@@ -637,8 +659,8 @@
 .planner-native-stat {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  padding: 13px 14px;
 }
 
 .planner-native-stat > div {
@@ -694,8 +716,8 @@
 .planner-native-segment {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  height: 52px;
-  margin-top: 2px;
+  height: 48px;
+  margin-top: 0;
   border: 1px solid var(--sa-border, rgba(119, 137, 165, 0.18));
   border-radius: var(--radius-md);
   background: var(--sa-soft-tile-bg, rgba(119, 137, 165, 0.08));
@@ -704,7 +726,7 @@
 
 .planner-native-segment button {
   min-width: 0;
-  min-height: 44px;
+  min-height: 40px;
   border: 0;
   border-radius: 7px;
   background: transparent;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getFlashcardStats } from '../../../../shared/api/flashcards.api.js';
 import { localStats } from '../../../../shared/flashcards/localStore.js';
 
@@ -11,7 +12,9 @@ function Modal({ title, onClose, children }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal((
     <div className="xfc-modal-backdrop" onClick={onClose}>
       <div className="xfc-modal xfc-modal--wide" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
         <header className="xfc-modal-head">
@@ -23,7 +26,7 @@ function Modal({ title, onClose, children }) {
         <div className="xfc-modal-body">{children}</div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 function BarChart({ series, color, max }) {
@@ -93,5 +96,3 @@ export function StatsModal({ onClose }) {
     </Modal>
   );
 }
-
-export default StatsModal;

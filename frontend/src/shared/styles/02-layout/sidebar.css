@@ -116,7 +116,6 @@
       width var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
       padding-left var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1)),
       transform var(--lms-sidebar-duration, 220ms) var(--lms-ease-soft, cubic-bezier(0.22, 1, 0.36, 1));
-    contain: paint;
   }
 
   .lms-sidebar:not(.is-overlay-nav) {
@@ -149,6 +148,45 @@
   .lms-sidebar:not(.is-overlay-nav).is-animating {
     will-change: transform, opacity;
   }
+}
+
+html[data-lms-runtime="desktop"] .app-shell:not(.compact-focus-mode):not(.sidebar-hidden) .main-content {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+html[data-lms-runtime="desktop"] .app-shell:not(.compact-focus-mode):not(.sidebar-hidden).sidebar-collapsed .main-content {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+html[data-lms-runtime="desktop"] .lms-sidebar:not(.is-overlay-nav) {
+  width: var(--sidebar-w) !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
+html[data-lms-runtime="desktop"] .lms-sidebar--student-model:not(.is-overlay-nav) {
+  top: 24px !important;
+  bottom: 24px !important;
+  left: 24px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: calc(100dvh - 48px) !important;
+  border: 1px solid var(--student-sidebar-border) !important;
+  border-radius: 24px !important;
+}
+
+html[data-lms-runtime="desktop"] .lms-sidebar:not(.is-overlay-nav).is-collapsed {
+  width: var(--sidebar-w-collapsed) !important;
+}
+
+html[data-lms-runtime="desktop"] .lms-sidebar-brand > button[aria-label="Close navigation"],
+html[data-lms-runtime="desktop"] .lms-mobile-bottom-nav,
+html[data-lms-runtime="desktop"] .lms-mobile-bottom-nav.lms-mobile-bottom-nav--student,
+html[data-lms-runtime="desktop"] .lms-mobile-top-nav {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 @media (max-width: 900px) {

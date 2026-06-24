@@ -39,12 +39,18 @@ dependencies:
   dio: ^5.9.2
   flutter_secure_storage: ^10.3.1
   shared_preferences: ^2.5.5
-  google_fonts: ^8.1.0
+  google_sign_in: ^6.2.1
   flutter_svg: ^2.3.0
   shimmer: ^3.0.0
   flutter_staggered_animations: ^1.1.1
   connectivity_plus: ^7.1.1
   url_launcher: ^6.3.2
+  flutter_local_notifications: ^19.4.2
+  timezone: ^0.10.1
+  # NOTE: currently unused in Dart, but kept to avoid a CocoaPods re-sync in
+  # CI/automated builds. Remove from a terminal that has a working `pod`
+  # (run `flutter pub get` then `pod install` in ios/) when convenient.
+  webview_flutter: ^4.13.0
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +62,23 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# Pin path_provider_android to the last 2.2.x: 2.3.0+ switched its native
+# bridge to `jni`, which forces a full Android NDK download/build. 2.2.x uses
+# the plain platform channel, so the app builds with no NDK at all.
+dependency_overrides:
+  path_provider_android: 2.2.23
+
+# App icon = xyndrome logo on white (flattens the logo's transparency for iOS).
+flutter_launcher_icons:
+  ios: true
+  android: true
+  image_path: "assets/brand/icon-source.png"
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/brand/icon-source.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -71,6 +94,13 @@ flutter:
   assets:
     - assets/brand/
     - assets/medical/
+
+  # Plus Jakarta Sans bundled as a variable TTF (weights 200–800) so the app
+  # never downloads the font at runtime. Replaces the google_fonts package.
+  fonts:
+    - family: Plus Jakarta Sans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

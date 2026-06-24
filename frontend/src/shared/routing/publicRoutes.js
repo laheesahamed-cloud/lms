@@ -6,6 +6,7 @@ const PUBLIC_WEBSITE_PATHS = new Set([
   '/auth/register',
   '/auth/forgot-password',
   '/auth/reset-password',
+  '/auth/verify-email',
   '/terms',
   '/privacy-policy',
   '/refund-policy',

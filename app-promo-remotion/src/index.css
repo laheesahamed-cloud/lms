@@ -1,0 +1,548 @@
+@import "tailwindcss";
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+.scene {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.scene h1 {
+  font-size: 152px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  margin: 0;
+  max-width: 92%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.scene--logo {
+  background: #fff;
+}
+
+.logo-beat-ring {
+  background: radial-gradient(circle, rgba(10, 132, 255, 0.18), transparent 62%);
+  border-radius: 999px;
+  height: 760px;
+  position: absolute;
+  width: 760px;
+}
+
+.brand-logo {
+  height: auto;
+  width: 525px;
+}
+
+.course-scene {
+  align-items: center;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(0, 122, 255, 0.12), transparent 28%),
+    radial-gradient(circle at 78% 20%, rgba(175, 82, 222, 0.12), transparent 30%),
+    linear-gradient(135deg, #f8fafc 0%, #e8edf4 46%, #f5f7fb 100%);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.course-title-wrap {
+  display: flex;
+  justify-content: center;
+  left: 0;
+  position: absolute;
+  top: 50%;
+  width: 100%;
+}
+
+.course-title-wrap h1 {
+  color: #000;
+  font-size: 152px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  margin: 0;
+  max-width: 92%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.course-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(5, 260px);
+  margin-top: 285px;
+}
+
+.course-card {
+  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 34px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 30px 70px rgba(30, 41, 59, 0.16);
+  display: flex;
+  flex-direction: column;
+  height: 330px;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.course-card::before {
+  background: rgba(255, 255, 255, 0.22);
+  content: "";
+  height: 54%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+.course-icon {
+  height: 118px;
+  margin-bottom: 38px;
+  object-fit: contain;
+  position: relative;
+  width: 118px;
+}
+
+.course-card span {
+  color: #fff;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.1;
+  position: relative;
+  text-align: center;
+}
+
+.start-scene {
+  align-items: center;
+  background: #050816;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.start-scene h1 {
+  font-size: 156px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1;
+  margin: 0 0 70px;
+  text-align: center;
+}
+
+.continue-button {
+  background: linear-gradient(135deg, #06b6d4 0%, #2563eb 48%, #4f46e5 100%);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 28px 70px rgba(37, 99, 235, 0.38);
+  color: #fff;
+  font: inherit;
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  overflow: hidden;
+  padding: 34px 68px 38px;
+  position: relative;
+}
+
+.button-label {
+  position: relative;
+}
+
+.click-ripple {
+  background: rgba(255, 255, 255, 0.58);
+  border-radius: 999px;
+  height: 190px;
+  left: 64%;
+  pointer-events: none;
+  position: absolute;
+  top: 52%;
+  width: 190px;
+}
+
+.cursor {
+  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.35));
+  height: 68px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform-origin: 10px 8px;
+  width: 52px;
+}
+
+.progress-scene {
+  background: #fff;
+  color: #050816;
+  overflow: hidden;
+  padding: 0;
+}
+
+.progress-layout {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 100%;
+  padding: 0 150px;
+  width: 100%;
+}
+
+.progress-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  justify-self: start;
+  width: 700px;
+}
+
+.progress-row {
+  background: #f2f6fb;
+  border: 1px solid #e4eaf2;
+  border-radius: 28px;
+  box-shadow: 0 22px 56px rgba(15, 23, 42, 0.08);
+  padding: 30px 34px 34px;
+}
+
+.progress-meta {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.progress-meta span,
+.progress-meta strong {
+  color: #111827;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.progress-track {
+  background: #dce4ee;
+  border-radius: 999px;
+  height: 24px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  border-radius: inherit;
+  height: 100%;
+}
+
+.progress-title {
+  font-size: 142px;
+  font-weight: 850;
+  justify-self: end;
+  letter-spacing: 0;
+  line-height: 0.98;
+  margin: 0;
+  max-width: 680px;
+  text-align: left;
+}
+
+.learn-layout {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+.learn-layout h1 {
+  color: #050816;
+  font-size: 142px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1;
+  margin: 0 0 84px;
+  text-align: center;
+}
+
+.learn-card-grid {
+  display: grid;
+  gap: 34px;
+  grid-template-columns: repeat(3, 340px);
+}
+
+.learn-card {
+  align-items: center;
+  border-radius: 34px;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.13);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  height: 300px;
+  justify-content: center;
+}
+
+.video-card {
+  background: #0a84ff;
+}
+
+.pdf-card {
+  background: #ff3b30;
+}
+
+.quiz-card {
+  background: #34c759;
+}
+
+.learn-card span {
+  font-size: 34px;
+  font-weight: 850;
+  letter-spacing: 0;
+  margin-top: 30px;
+}
+
+.learn-visual {
+  align-items: center;
+  display: flex;
+  height: 112px;
+  justify-content: center;
+  width: 112px;
+}
+
+.play-visual {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  position: relative;
+}
+
+.play-visual::after {
+  border-bottom: 25px solid transparent;
+  border-left: 38px solid #fff;
+  border-top: 25px solid transparent;
+  content: "";
+  margin-left: 9px;
+}
+
+.pdf-visual {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 24px;
+  font-size: 32px;
+  font-weight: 900;
+}
+
+.quiz-visual {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 24px;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.quiz-visual i {
+  background: #fff;
+  border-radius: 999px;
+  height: 12px;
+  width: 66px;
+}
+
+.motivation-scene {
+  align-items: center;
+  background: #050816;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.motivation-scene h1 {
+  font-size: 146px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1;
+  margin: 0 0 82px;
+}
+
+.motivation-grid {
+  display: grid;
+  gap: 36px;
+  grid-template-columns: repeat(3, 340px);
+}
+
+.motivation-card {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 36px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  height: 320px;
+  justify-content: center;
+}
+
+.motivation-card strong {
+  font-size: 34px;
+  font-weight: 850;
+  letter-spacing: 0;
+  margin-top: 34px;
+}
+
+.motivation-visual {
+  align-items: center;
+  border-radius: 999px;
+  display: flex;
+  font-size: 74px;
+  font-weight: 900;
+  height: 132px;
+  justify-content: center;
+  width: 132px;
+}
+
+.badge-visual {
+  background: #ffcc00;
+  color: #3b2600;
+}
+
+.streak-visual {
+  background: #ff3b30;
+  color: #fff;
+}
+
+.completion-visual {
+  background: #34c759;
+  color: #fff;
+}
+
+.audience-scene {
+  align-items: center;
+  background: #000;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.audience-stack {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 46px;
+  justify-content: center;
+  width: 100%;
+}
+
+.audience-for {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 76px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.audience-pill-row {
+  align-items: center;
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  max-width: 90%;
+}
+
+.audience-pill-slot {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.audience-pill {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 28px 70px rgba(255, 255, 255, 0.15);
+  color: #050816;
+  display: flex;
+  font-size: 62px;
+  font-weight: 850;
+  height: 142px;
+  justify-content: center;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.instagram-scene {
+  align-items: center;
+  background: #fff;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.instagram-lockup {
+  align-items: center;
+  display: flex;
+  gap: 42px;
+}
+
+.instagram-logo {
+  align-items: center;
+  background: linear-gradient(135deg, #feda75 0%, #fa7e1e 28%, #d62976 54%, #962fbf 76%, #4f5bd5 100%);
+  border-radius: 44px;
+  display: flex;
+  height: 150px;
+  justify-content: center;
+  position: relative;
+  width: 150px;
+}
+
+.instagram-logo::before {
+  border: 11px solid #fff;
+  border-radius: 34px;
+  content: "";
+  height: 78px;
+  position: absolute;
+  width: 78px;
+}
+
+.instagram-logo::after {
+  background: #fff;
+  border-radius: 999px;
+  content: "";
+  height: 16px;
+  position: absolute;
+  right: 36px;
+  top: 35px;
+  width: 16px;
+}
+
+.instagram-logo div {
+  border: 11px solid #fff;
+  border-radius: 999px;
+  height: 38px;
+  width: 38px;
+}
+
+.instagram-lockup span {
+  color: #050816;
+  font-size: 82px;
+  font-weight: 850;
+  letter-spacing: 0;
+}

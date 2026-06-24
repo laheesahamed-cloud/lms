@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'tokens.dart';
 
 /// Builds light + dark [ThemeData] from the XYNDROME tokens.
-/// Body/display font = Plus Jakarta Sans (via google_fonts).
+/// Body/display font = Plus Jakarta Sans, bundled as a variable TTF
+/// (assets/fonts/PlusJakartaSans.ttf) — no runtime font download.
 class AppTheme {
+  static const _family = 'Plus Jakarta Sans';
+
   static ThemeData dark() => _build(AppColors.dark, Brightness.dark);
   static ThemeData light() => _build(AppColors.light, Brightness.light);
 
   static ThemeData _build(AppColors c, Brightness b) {
-    final base = ThemeData(brightness: b, useMaterial3: true);
-    final text = GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
-        .apply(bodyColor: c.inkStrong, displayColor: c.inkStrong);
+    final base =
+        ThemeData(brightness: b, useMaterial3: true, fontFamily: _family);
+    final text = base.textTheme
+        .apply(fontFamily: _family, bodyColor: c.inkStrong, displayColor: c.inkStrong);
 
     return base.copyWith(
       scaffoldBackgroundColor: c.page,
@@ -39,11 +42,11 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         foregroundColor: c.inkStrong,
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: const TextStyle(
+          fontFamily: _family,
           fontSize: 18,
           fontWeight: FontWeight.w800,
-          color: c.inkStrong,
-        ),
+        ).copyWith(color: c.inkStrong),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

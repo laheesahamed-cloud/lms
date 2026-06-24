@@ -11,7 +11,6 @@
     margin-left: 0 !important;
     padding-left: var(--lms-live-gutter-x) !important;
     padding-right: var(--lms-live-gutter-x) !important;
-    transform: translate3d(0, 0, 0) !important;
   }
 }
 
@@ -275,26 +274,6 @@ body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-
     line-height: 1.45 !important;
   }
 
-body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-question-utility-row) {
-    display: flex !important;
-    justify-content: flex-end !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-  }
-
-body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-start, .lms-quiz-action-primary) {
-    display: grid !important;
-    min-width: 0 !important;
-  }
-
-body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-review) {
-    display: grid !important;
-    grid-column: 1 / -1 !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-    min-width: 0 !important;
-  }
-
 body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-question-utility-row) {
     justify-content: flex-end !important;
     border: 0 !important;
@@ -396,26 +375,6 @@ body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-
     line-height: 1.45 !important;
   }
 
-body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid, .lms-question-utility-row) {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-    width: 100% !important;
-  }
-
-body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-start, .lms-quiz-action-primary) {
-    display: grid !important;
-    min-width: 0 !important;
-  }
-
-body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-review) {
-    display: grid !important;
-    grid-column: 1 / -1 !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-    min-width: 0 !important;
-  }
-
 body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-assessment-btn, .lms-question-utility-row button, .lms-mobile-quiz-actions button) {
     width: 100% !important;
     min-width: 0 !important;
@@ -496,21 +455,6 @@ body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-
     border-radius: 13px !important;
     padding: 11px !important;
     gap: 10px !important;
-  }
-
-body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-grid) {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 7px !important;
-    width: 100% !important;
-  }
-
-body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-quiz-action-start, .lms-quiz-action-review, .lms-quiz-action-primary) {
-    display: grid !important;
-    grid-column: auto !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    min-width: 0 !important;
-    order: initial !important;
   }
 
 body .student-app-shell.student-app-shell .lms-quiz-taking-page.lms-quiz-taking-page :where(.lms-assessment-btn) {
@@ -869,17 +813,6 @@ body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-revie
     color: #eff6ff !important;
   }
 
-body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-quiz-action-grid) {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 6px !important;
-    width: 100% !important;
-  }
-
-body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-quiz-action-start, .lms-quiz-action-review, .lms-quiz-action-primary) {
-    min-width: 0 !important;
-  }
-
 body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-assessment-btn, .lms-exam-main-footer button, .lms-review-nav-actions button, .lms-question-utility-row button) {
     min-width: 0 !important;
     min-height: 44px !important;
@@ -908,14 +841,6 @@ body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-revie
 }
 
 @media (max-width: 360px) {
-
-body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-quiz-action-grid) {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-quiz-action-review) {
-    grid-column: 1 / -1 !important;
-  }
 
 body .student-app-shell.student-app-shell :where(.lms-exam-page, .practice-review-page, .lms-review-page) :where(.lms-review-summary-grid) {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;

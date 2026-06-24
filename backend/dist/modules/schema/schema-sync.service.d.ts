@@ -4,6 +4,7 @@ export declare class SchemaSyncService implements OnModuleInit {
     private readonly db;
     private readonly logger;
     constructor(db: Pool);
+    private shouldRunSchemaSync;
     onModuleInit(): Promise<void>;
     private hashLegacyPlaintextPasswords;
     private backfillQuizTitles;

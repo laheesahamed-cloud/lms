@@ -225,86 +225,34 @@ function CoursePicker({ courses, onSelect, pageMode = 'practice' }) {
 }
 
 function getQuizScopeKey(quiz) {
+  if (quiz.lessonId || quiz.lessonTitle) return 'lesson';
   if (quiz.isGeneral) return 'full-course';
-  if (quiz.lessonId) return 'lesson';
   return 'subject';
 }
 
 const QUIZ_SCOPE_OPTIONS = [
   {
+    key: 'all',
+    title: 'All',
+  },
+  {
     key: 'lesson',
     title: 'Lesson-wise',
-    description: 'Practice sets attached to specific lessons.',
   },
   {
     key: 'subject',
     title: 'Subject-wise',
-    description: 'Mixed quiz from all lessons under one subject.',
   },
   {
     key: 'full-course',
-    title: 'Full course revision',
-    description: 'Mixed sets covering the whole course.',
+    title: 'Full course-wise',
   },
 ];
-
-function QuizScopePicker({ courseName, quizzes, onBack, onSelect, pageMode = 'practice' }) {
-  const isExamPage = pageMode === 'exam';
-  const setLabel = isExamPage ? 'exam set' : 'practice set';
-  const counts = quizzes.reduce((acc, quiz) => {
-    const key = getQuizScopeKey(quiz);
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
-
-  return (
-    <section className="student-lessons-detail space-y-4">
-      <div className="student-lessons-detail-toolbar">
-        <button type="button" className={cx(ui.secondaryButton, 'student-lessons-back-button')} onClick={onBack}>
-          <IcoChevronLeft />
-          <span>Back</span>
-        </button>
-        <div className="student-lessons-detail-course-name">
-          {courseName || 'General'}
-        </div>
-        <div className="student-lessons-detail-title">
-          <strong>Choose practice type</strong>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
-        {QUIZ_SCOPE_OPTIONS.map((option) => {
-          const count = counts[option.key] || 0;
-          return (
-            <button
-              type="button"
-              key={option.key}
-              className="glass-card student-lessons-course-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 focus-visible:ring-4 focus-visible:ring-brand-primary/22"
-              disabled={count === 0}
-              onClick={() => onSelect(option.key)}
-            >
-              <div className="student-lessons-course-card__top flex items-start justify-between gap-4 px-5 py-5">
-                <div className="min-w-0">
-                  <h2 className="m-0 text-[16px] font-black leading-tight text-ink-strong">{option.title}</h2>
-                  <p className="m-0 mt-1 text-[12.5px] font-semibold leading-relaxed text-ink-soft">{option.description}</p>
-                </div>
-                <div className="student-lessons-course-card__count shrink-0 text-right">
-                  <div className="text-[30px] font-extrabold leading-none text-ink-strong">{count}</div>
-                  <div className="mt-0.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">{setLabel}{count === 1 ? '' : 's'}</div>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode = 'practice' }) {
   const isExamPage = pageMode === 'exam';
   const title = getQuizRowLabel(quiz, index) || `Untitled ${isExamPage ? 'exam' : 'practice set'}`;
-  const statusLabel = quiz.accessLocked ? 'Locked' : quiz.isFree ? (isExamPage ? 'Free exam' : 'Free practice') : quiz.isFree === false ? 'Premium' : '';
+  const locked = quiz.accessLocked || (isExamPage ? quiz.canExamMode === false : quiz.canPracticeMode === false);
   const completed = isQuizDone(quiz);
   const actionPath = `/quizzes/${quiz.id}?mode=${isExamPage ? 'exam' : 'practice'}`;
 
@@ -346,18 +294,23 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
             </i>
           ) : null}
         </span>
-        {statusLabel ? <small data-status={quiz.accessLocked ? 'locked' : 'free'}>{statusLabel}</small> : null}
       </span>
       <span className="student-lessons-lesson-row__actions">
-        <button
-          type="button"
-          className={cx('student-lessons-lesson-row__save', bookmarked && 'is-saved')}
-          onClick={(event) => onBookmark(event, quiz.id)}
-          aria-label={bookmarked ? `Saved ${title}` : `Save ${title}`}
-          aria-pressed={bookmarked}
-        >
-          {bookmarked ? <IcoBookmarkFilled /> : <IcoBookmark />}
-        </button>
+        {locked ? (
+          <span className="student-lessons-lesson-row__save is-locked" aria-label={`Locked ${title}`} role="img">
+            <IcoLock />
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={cx('student-lessons-lesson-row__save', bookmarked && 'is-saved')}
+            onClick={(event) => onBookmark(event, quiz.id)}
+            aria-label={bookmarked ? `Saved ${title}` : `Save ${title}`}
+            aria-pressed={bookmarked}
+          >
+            {bookmarked ? <IcoBookmarkFilled /> : <IcoBookmark />}
+          </button>
+        )}
         <span className="student-lessons-lesson-row__chevron" aria-hidden="true">
           <IcoChevron />
         </span>
@@ -366,7 +319,7 @@ function QuizLessonRow({ quiz, index, bookmarked, onStart, onBookmark, pageMode 
   );
 }
 
-function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, onStartReady, pageMode, scope }) {
+function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookmark, onAccessNeeded, onStartReady, pageMode, scope, onScopeChange }) {
   const isExamPage = pageMode === 'exam';
   const setLabel = isExamPage ? 'Exam Set' : 'Practice Set';
   const setLabelLower = setLabel.toLowerCase();
@@ -377,18 +330,20 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
     const map = new Map();
     sortQuizzesByHierarchy(quizzes).forEach((quiz) => {
       const label = scope === 'lesson'
-        ? quiz.lessonTitle || quiz.subjectName || 'Lesson practice'
-        : quiz.subjectName || (quiz.isGeneral ? 'General / Full Course Revision' : 'General');
+        ? quiz.subjectName || quiz.topicName || quiz.lessonTitle || 'Lesson practice'
+        : scope === 'full-course'
+          ? quiz.courseTitle || courseName || 'Full course revision'
+          : quiz.subjectName || (quiz.isGeneral ? 'General / Full Course Revision' : 'General');
       if (!map.has(label)) map.set(label, []);
       map.get(label).push(quiz);
     });
     return [...map.entries()].map(([label, items]) => ({ label, quizzes: items }));
-  }, [quizzes, scope]);
+  }, [courseName, quizzes, scope]);
   const visibleSubjects = activeSubject ? subjects.filter(subject => subject.label === activeSubject) : subjects;
 
   useEffect(() => {
     setCollapsedSubjects(new Set());
-  }, [courseName, activeSubject]);
+  }, [courseName, activeSubject, scope]);
 
   function toggleSubject(key) {
     setCollapsedSubjects((current) => {
@@ -421,9 +376,20 @@ function QuizLessonDetail({ courseName, quizzes, onBack, bookmarkedIds, onBookma
         <div className="student-lessons-detail-course-name">
           {courseName || 'General'}
         </div>
-        <div className="student-lessons-detail-title">
-          <strong>{quizzes.length} {setLabel}{quizzes.length === 1 ? '' : 's'}</strong>
-        </div>
+        <label className="sr-only" htmlFor="quiz-scope-filter">View quizzes by</label>
+        <select
+          id="quiz-scope-filter"
+          className={cx(ui.secondaryButton, 'max-w-[150px] !min-h-9 !w-auto rounded-full px-3 pr-8 text-[12px] font-extrabold max-[520px]:!w-auto')}
+          value={scope}
+          onChange={(event) => {
+            setActiveSubject(null);
+            onScopeChange(event.target.value);
+          }}
+        >
+          {QUIZ_SCOPE_OPTIONS.map((option) => (
+            <option key={option.key} value={option.key}>{option.title}</option>
+          ))}
+        </select>
       </div>
 
       {subjects.length > 1 ? (
@@ -496,7 +462,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     (readStudyBookmarksCache() || []).filter(b => b.itemType === 'quiz').map(b => b.itemId)
   ));
   const [courseFilter,  setCourseFilter]  = useState('all');
-  const [scopeFilter, setScopeFilter] = useState('');
+  const [scopeFilter, setScopeFilter] = useState('all');
   const [accessPromptQuiz, setAccessPromptQuiz] = useState(null);
   const [startPrompt, setStartPrompt] = useState(null);
 
@@ -592,20 +558,12 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
 
   function handleSelectCourse(courseName) {
     setCourseFilter(courseName);
-    setScopeFilter('');
+    setScopeFilter('all');
   }
 
   function handleBackToCourses() {
     setCourseFilter('all');
-    setScopeFilter('');
-  }
-
-  function handleBackToScopes() {
-    setScopeFilter('');
-  }
-
-  function handleSelectScope(scope) {
-    setScopeFilter(scope);
+    setScopeFilter('all');
   }
 
   function handleRequestStart(quiz, title) {
@@ -647,7 +605,10 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     [modeQuizzes, courseFilter],
   );
   const scopedVisible = useMemo(
-    () => visible.filter((quiz) => !scopeFilter || getQuizScopeKey(quiz) === scopeFilter),
+    () => {
+      if (scopeFilter === 'all') return visible;
+      return visible.filter((quiz) => getQuizScopeKey(quiz) === scopeFilter);
+    },
     [scopeFilter, visible],
   );
 
@@ -664,69 +625,70 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
 
         {/* Q-Bank ⇄ Exams switch. On mobile/native the bottom tab bar has no
             Exams entry (it's grouped under Q-Bank), so this segmented control is
-            how students reach exams. Shown only ≤900px — desktop hides it
-            because the sidebar already lists Q-Bank and Exams separately. */}
-        <div className="mb-4 min-[901px]:hidden">
-          {PLATFORM.isNative ? (
-            <div className="relative flex w-full max-w-[420px] rounded-full border border-line-soft bg-surface-card p-1">
-              {/* Sliding thumb glides between the two segments — native polish. */}
-              <span
-                aria-hidden="true"
-                className={cx(
-                  'pointer-events-none absolute inset-y-1 left-1 w-[calc(50%_-_4px)] rounded-full bg-brand-primary transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none',
-                  isExamPage ? 'translate-x-full' : 'translate-x-0',
-                )}
-              />
-              <button
-                type="button"
-                aria-pressed={!isExamPage}
-                onClick={() => { if (isExamPage) navigate('/quizzes'); }}
-                className={cx(
-                  'relative z-[1] min-h-10 flex-1 appearance-none rounded-full border-0 bg-transparent text-[13px] font-extrabold transition-colors',
-                  isExamPage ? 'text-ink-soft' : 'text-white',
-                )}
-              >
-                Q-Bank
-              </button>
-              <button
-                type="button"
-                aria-pressed={isExamPage}
-                onClick={() => { if (!isExamPage) navigate('/exams'); }}
-                className={cx(
-                  'relative z-[1] min-h-10 flex-1 appearance-none rounded-full border-0 bg-transparent text-[13px] font-extrabold transition-colors',
-                  isExamPage ? 'text-white' : 'text-ink-soft',
-                )}
-              >
-                Exams
-              </button>
-            </div>
-          ) : (
-            <div className="grid w-full max-w-[420px] grid-cols-2 gap-1 rounded-full border border-line-soft bg-surface-card p-1">
-              <button
-                type="button"
-                aria-pressed={!isExamPage}
-                onClick={() => { if (isExamPage) navigate('/quizzes'); }}
-                className={cx(
-                  'min-h-10 appearance-none rounded-full border-0 px-4 text-[13px] font-extrabold transition-colors',
-                  isExamPage ? 'text-ink-soft' : 'bg-brand-primary text-white',
-                )}
-              >
-                Q-Bank
-              </button>
-              <button
-                type="button"
-                aria-pressed={isExamPage}
-                onClick={() => { if (!isExamPage) navigate('/exams'); }}
-                className={cx(
-                  'min-h-10 appearance-none rounded-full border-0 px-4 text-[13px] font-extrabold transition-colors',
-                  isExamPage ? 'bg-brand-primary text-white' : 'text-ink-soft',
-                )}
-              >
-                Exams
-              </button>
-            </div>
-          )}
-        </div>
+            how students reach exams from the first course-list page. */}
+        {courseFilter === 'all' ? (
+          <div className="mb-4 flex justify-center min-[901px]:hidden">
+            {PLATFORM.isNative ? (
+              <div className="relative flex w-full max-w-[420px] rounded-full border border-line-soft bg-surface-card p-1">
+                {/* Sliding thumb glides between the two segments — native polish. */}
+                <span
+                  aria-hidden="true"
+                  className={cx(
+                    'pointer-events-none absolute inset-y-1 left-1 w-[calc(50%_-_4px)] rounded-full bg-brand-primary transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none',
+                    isExamPage ? 'translate-x-full' : 'translate-x-0',
+                  )}
+                />
+                <button
+                  type="button"
+                  aria-pressed={!isExamPage}
+                  onClick={() => { if (isExamPage) navigate('/quizzes'); }}
+                  className={cx(
+                    'relative z-[1] min-h-10 flex-1 appearance-none rounded-full border-0 bg-transparent text-[13px] font-extrabold transition-colors',
+                    isExamPage ? 'text-ink-soft' : 'text-white',
+                  )}
+                >
+                  Q-Bank
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={isExamPage}
+                  onClick={() => { if (!isExamPage) navigate('/exams'); }}
+                  className={cx(
+                    'relative z-[1] min-h-10 flex-1 appearance-none rounded-full border-0 bg-transparent text-[13px] font-extrabold transition-colors',
+                    isExamPage ? 'text-white' : 'text-ink-soft',
+                  )}
+                >
+                  Exams
+                </button>
+              </div>
+            ) : (
+              <div className="grid w-full max-w-[420px] grid-cols-2 gap-1 rounded-full border border-line-soft bg-surface-card p-1">
+                <button
+                  type="button"
+                  aria-pressed={!isExamPage}
+                  onClick={() => { if (isExamPage) navigate('/quizzes'); }}
+                  className={cx(
+                    'min-h-10 appearance-none rounded-full border-0 px-4 text-[13px] font-extrabold transition-colors',
+                    isExamPage ? 'text-ink-soft' : 'bg-brand-primary text-white',
+                  )}
+                >
+                  Q-Bank
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={isExamPage}
+                  onClick={() => { if (!isExamPage) navigate('/exams'); }}
+                  className={cx(
+                    'min-h-10 appearance-none rounded-full border-0 px-4 text-[13px] font-extrabold transition-colors',
+                    isExamPage ? 'bg-brand-primary text-white' : 'text-ink-soft',
+                  )}
+                >
+                  Exams
+                </button>
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
@@ -747,26 +709,19 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
           ) : (
             <CoursePicker courses={courseCards} onSelect={handleSelectCourse} pageMode={pageMode} />
           )
-        ) : !scopeFilter ? (
-          <QuizScopePicker
-            courseName={courseFilter}
-            quizzes={visible}
-            onBack={handleBackToCourses}
-            onSelect={handleSelectScope}
-            pageMode={pageMode}
-          />
         ) : scopedVisible.length === 0 ? (
           <section>
             <QuizLessonDetail
               courseName={courseFilter}
               quizzes={scopedVisible}
-              onBack={handleBackToScopes}
+              onBack={handleBackToCourses}
               bookmarkedIds={bookmarkedIds}
               onBookmark={handleBookmark}
               onAccessNeeded={setAccessPromptQuiz}
               onStartReady={handleRequestStart}
               pageMode={pageMode}
               scope={scopeFilter}
+              onScopeChange={setScopeFilter}
             />
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
               <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'No matching exams mascot' : 'No matching Q-Bank sets mascot'} />
@@ -778,13 +733,14 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             <QuizLessonDetail
               courseName={courseFilter}
               quizzes={scopedVisible}
-              onBack={handleBackToScopes}
+              onBack={handleBackToCourses}
               bookmarkedIds={bookmarkedIds}
               onBookmark={handleBookmark}
               onAccessNeeded={setAccessPromptQuiz}
               onStartReady={handleRequestStart}
               pageMode={pageMode}
               scope={scopeFilter}
+              onScopeChange={setScopeFilter}
             />
           </section>
         )}
@@ -798,7 +754,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
 
       {accessPromptQuiz ? createPortal((
         <div
-          className="fixed inset-0 z-[1200] bg-[rgba(15,23,42,0.30)] backdrop-blur-md dark:bg-[rgba(2,6,23,0.66)]"
+          className="fixed inset-0 z-[11000] bg-[rgba(15,23,42,0.30)] backdrop-blur-md dark:bg-[rgba(2,6,23,0.66)]"
           onClick={() => setAccessPromptQuiz(null)}
         >
           <div

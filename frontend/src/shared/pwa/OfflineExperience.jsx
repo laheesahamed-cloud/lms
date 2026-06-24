@@ -1,5 +1,10 @@
-import { useEffect, useState } from 'react';
-import { SystemStatusOverlay } from '../ui/SystemStatusOverlay.jsx';
+import { Suspense, lazy, useEffect, useState } from 'react';
+
+const SystemStatusOverlay = lazy(() =>
+  import('../ui/SystemStatusOverlay.jsx').then((module) => ({
+    default: module.SystemStatusOverlay,
+  }))
+);
 
 function getOnlineState() {
   if (typeof navigator === 'undefined') {
@@ -30,5 +35,9 @@ export function OfflineExperience() {
     return null;
   }
 
-  return <SystemStatusOverlay variant="offline" zIndex={11000} />;
+  return (
+    <Suspense fallback={null}>
+      <SystemStatusOverlay variant="offline" zIndex={11000} />
+    </Suspense>
+  );
 }

@@ -28,24 +28,33 @@ class GlassCard extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: [Color(0x13C8D2DC), Color(0x0AB4C3D2), Color(0x04A0AFBE)],
           )
+        // Light = solid white card (Apple grouped look), not glass.
         : const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFAFFFFFF), Color(0xF5FAFDFF)],
+            colors: [Color(0xFFFFFFFF), Color(0xFFFFFFFF)],
           );
 
     final inner = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
         color: dark ? const Color(0xDB1C1E26) : null,
-        // No resting stroke — separation comes from glass + soft shadow.
+        // Dark separates via glass + deep shadow; light via a soft neutral
+        // shadow that lifts the white card off the gray page (Apple HIG).
         boxShadow: [
-          BoxShadow(
-            color: dark ? const Color(0x8A000000) : const Color(0x2E1E40AF),
-            blurRadius: dark ? 34 : 44,
-            spreadRadius: -26,
-            offset: const Offset(0, 14),
-          ),
+          dark
+              ? const BoxShadow(
+                  color: Color(0x8A000000),
+                  blurRadius: 34,
+                  spreadRadius: -26,
+                  offset: Offset(0, 14),
+                )
+              : const BoxShadow(
+                  color: Color(0x1A000000),
+                  blurRadius: 20,
+                  spreadRadius: -2,
+                  offset: Offset(0, 6),
+                ),
         ],
       ),
       child: DecoratedBox(

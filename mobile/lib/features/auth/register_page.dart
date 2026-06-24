@@ -81,10 +81,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                               color: c.inkStrong)),
                       const SizedBox(height: 4),
                       Text('Start free — upgrade anytime.',
-                          style: TextStyle(fontSize: 13, color: c.inkSoft)),
+                          style: TextStyle(fontSize: 14, color: c.inkSoft)),
                       AuthField(
                         label: 'Full name',
                         controller: _name,
+                        autofillHints: const [AutofillHints.name],
                         validator: (v) => (v == null || v.trim().isEmpty)
                             ? 'Enter your name'
                             : null,
@@ -93,6 +94,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         label: 'Email',
                         controller: _email,
                         keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [
+                          AutofillHints.username,
+                          AutofillHints.email
+                        ],
                         validator: (v) => (v == null || !v.contains('@'))
                             ? 'Enter a valid email'
                             : null,
@@ -101,6 +106,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         label: 'Password',
                         controller: _password,
                         obscure: _obscure,
+                        autofillHints: const [AutofillHints.newPassword],
                         onToggleObscure: () =>
                             setState(() => _obscure = !_obscure),
                         validator: (v) => (v == null || v.length < 10)
@@ -111,6 +117,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         label: 'Confirm password',
                         controller: _confirm,
                         obscure: _obscure,
+                        autofillHints: const [AutofillHints.newPassword],
                         validator: (v) =>
                             v != _password.text ? 'Passwords don\'t match' : null,
                       ),
@@ -122,7 +129,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       if (error != null) ...[
                         const SizedBox(height: 8),
                         Text(error,
-                            style: TextStyle(color: c.error, fontSize: 12.5)),
+                            style: TextStyle(color: c.error, fontSize: 13)),
                       ],
                       const SizedBox(height: 14),
                       AppButton('Create account',
@@ -136,7 +143,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           child: RichText(
                             text: TextSpan(
                               style:
-                                  TextStyle(fontSize: 12.5, color: c.inkSoft),
+                                  TextStyle(fontSize: 13, color: c.inkSoft),
                               children: [
                                 const TextSpan(
                                     text: 'Already have an account? '),
@@ -195,7 +202,7 @@ class _Terms extends StatelessWidget {
               child: RichText(
                 text: TextSpan(
                   style: TextStyle(
-                      fontSize: 11.5, color: c.inkSoft, height: 1.4),
+                      fontSize: 12, color: c.inkSoft, height: 1.4),
                   children: [
                     const TextSpan(text: 'I agree to the '),
                     TextSpan(

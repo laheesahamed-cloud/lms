@@ -266,7 +266,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -536,7 +536,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -806,7 +806,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -1076,7 +1076,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -1346,7 +1346,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -1616,7 +1616,7 @@ export declare class BootController {
             topicName: string | null;
             subtopicName: string | null;
             lessonTitle: string | null;
-            lessonProgressStatus: "in_progress" | "not_started" | "completed";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;

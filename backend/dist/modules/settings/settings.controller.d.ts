@@ -170,6 +170,9 @@ export declare class SettingsController {
         cancelUrl?: undefined;
         notifyUrl?: undefined;
         autoActivatePaidSubscriptions?: undefined;
+        appCheckoutMode?: undefined;
+        hasAppMerchantSecret?: undefined;
+        maskedAppMerchantSecret?: undefined;
         ok: boolean;
         provider: string;
         actionUrl: string;
@@ -190,6 +193,9 @@ export declare class SettingsController {
         cancelUrl: string;
         notifyUrl: string;
         autoActivatePaidSubscriptions: boolean;
+        appCheckoutMode: "native" | "web";
+        hasAppMerchantSecret: boolean;
+        maskedAppMerchantSecret: string;
         ok: boolean;
         provider: string;
         actionUrl: string;
@@ -223,7 +229,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -395,6 +401,9 @@ export declare class SettingsController {
         cancelUrl?: undefined;
         notifyUrl?: undefined;
         autoActivatePaidSubscriptions?: undefined;
+        appCheckoutMode?: undefined;
+        hasAppMerchantSecret?: undefined;
+        maskedAppMerchantSecret?: undefined;
         ok: boolean;
         provider: string;
         actionUrl: string;
@@ -415,6 +424,9 @@ export declare class SettingsController {
         cancelUrl: string;
         notifyUrl: string;
         autoActivatePaidSubscriptions: boolean;
+        appCheckoutMode: "native" | "web";
+        hasAppMerchantSecret: boolean;
+        maskedAppMerchantSecret: string;
         ok: boolean;
         provider: string;
         actionUrl: string;
@@ -453,7 +465,7 @@ export declare class SettingsController {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;

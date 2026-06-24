@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { fetchAttemptResult } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { cx, statusPill, ui } from '../../../../shared/styles/tailwindClasses.js';
@@ -35,18 +35,28 @@ function ScoreRing({ percentage, isPassed, score, totalMarks }) {
 export function ResultPage() {
   const { attemptId } = useParams();
   const navigate = useNavigate();
-  const [result, setResult] = useState(null);
+  const location = useLocation();
+  // The submit transition prefetches the result and hands it over via route
+  // state, so we render instantly without a second "Loading result..." screen.
+  const [result, setResult] = useState(() => location.state?.resultData || null);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (result) return undefined;
+    let cancelled = false;
     async function load() {
       try {
-        setResult(await fetchAttemptResult(attemptId));
+        const data = await fetchAttemptResult(attemptId);
+        if (!cancelled) setResult(data);
       } catch (loadError) {
-        setError(getErrorMessage(loadError, 'Unable to load result'));
+        if (!cancelled) setError(getErrorMessage(loadError, 'Unable to load result'));
       }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
 
   if (!result && !error) {

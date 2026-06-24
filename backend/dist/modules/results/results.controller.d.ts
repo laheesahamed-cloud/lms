@@ -97,6 +97,7 @@ export declare class ResultsController {
     }>;
     detail(attemptId: number, authorization?: string): Promise<{
         attemptId: number;
+        quizId: number;
         quizTitle: string;
         courseTitle: string;
         topicDisplay: string;

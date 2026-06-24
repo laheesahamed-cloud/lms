@@ -13,7 +13,7 @@ const STUDENT_HEADER_ROUTES = [
   { re: /^\/(?:app\/)?quizzes\/?$/, title: 'Q-Bank', subtitle: 'Practice question sets' },
   { re: /^\/(?:app\/)?exams\/?$/, title: 'Exams', subtitle: 'Timed exam sets' },
   { re: /^\/(?:app\/)?results\/?$/, title: 'Results', subtitle: 'Performance' },
-  { re: /^\/(?:app\/)?ai-notes\/?$/, title: 'Lessons', subtitle: 'Lesson Notes', compact: true },
+  { re: /^\/(?:app\/)?(?:lessons|ai-notes)\/?$/, title: 'Lessons', subtitle: 'Lesson Notes', compact: true },
   { re: /^\/(?:app\/)?flashcards\/?$/, title: 'Flashcards', subtitle: 'Spaced Review', compact: true },
   { re: /^\/(?:app\/)?planner\/?$/, title: 'Planner', subtitle: 'Study schedule', compact: true },
   { re: /^\/(?:app\/)?notes\/?$/, title: 'Notes', subtitle: 'Study Notebook' },

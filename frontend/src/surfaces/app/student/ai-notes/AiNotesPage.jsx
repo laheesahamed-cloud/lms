@@ -8,7 +8,7 @@ import { recordStudyActivity } from '../../../../shared/api/dashboard.api.js';
 import { updateStudentLessonProgress } from '../../../../shared/api/courses.api.js';
 import { getVideoEmbed } from '../../../../shared/utils/videoEmbed.js';
 import { detectPlatform } from '../../../../shared/platform/detect.js';
-import { safeNavigateBack, canNavigateBack } from '../../../../shared/routing/safeBack.js';
+import { canNavigateBack } from '../../../../shared/routing/safeBack.js';
 import { useEdgeSwipeBack } from '../../../../shared/hooks/useEdgeSwipeBack.js';
 import { ThemeToggle } from '../../../../shared/layout/ThemeToggle.jsx';
 import { cx } from '../../../../shared/styles/tailwindClasses.js';
@@ -1168,6 +1168,22 @@ function FloatingSticker({ s, editable, selected = false, autoFocus = false, onF
   );
 }
 
+// Device-pixel-ratio for the writing canvas. Boosted by zoom so ink stays crisp
+// when magnified, but capped so a zoomed-in note doesn't allocate a giant backing
+// store. Cap is 4 (was 6): at 3× zoom on a 2× retina iPad, dpr 6 turned an
+// ~800×1100 canvas into a ~126MB backing store PER layer that had to be
+// reallocated and fully redrawn on every zoom-settle — the main source of the
+// zoom-in/out hitch. dpr 4 keeps ink crisp while cutting that backing store ~55%.
+// At rest (scaleDpr=1) this is identical to before, so normal viewing/writing is
+// unaffected; the cap only bites past ~2× zoom.
+function computeCanvasDpr(width, height, zoomScale) {
+  const baseDpr = Math.max(1, (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1);
+  const scaleDpr = Math.max(1, Number(zoomScale) || 1);
+  const maxDprByArea = Math.sqrt(48000000 / Math.max(1, width * height));
+  const maxDprBySide = Math.min(16384 / width, 16384 / height);
+  return Math.max(1, Math.min(baseDpr * scaleDpr, 4, maxDprByArea, maxDprBySide));
+}
+
 const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
   parentRef,
   editable,
@@ -1227,11 +1243,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     const size = getHostLayoutSize();
     if (!size) return;
     const { width, height } = size;
-    const baseDpr = Math.max(1, window.devicePixelRatio || 1);
-    const scaleDpr = Math.max(1, Number(zoomScale) || 1);
-    const maxDprByArea = Math.sqrt(48000000 / Math.max(1, width * height));
-    const maxDprBySide = Math.min(16384 / width, 16384 / height);
-    const dpr = Math.max(1, Math.min(baseDpr * scaleDpr, 6, maxDprByArea, maxDprBySide));
+    const dpr = computeCanvasDpr(width, height, zoomScale);
     const inkCtx = prepareCanvas(inkCanvas, width, height, dpr);
     const highlightCtx = prepareCanvas(highlightCanvas, width, height, dpr);
     if (!inkCtx || !highlightCtx) return;
@@ -1271,7 +1283,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     inkBackRef.current = buf;
   }
 
-  function drawFastLiveStroke(stroke) {
+  function drawFastLiveStroke(stroke, predictedTail) {
     if (!stroke || stroke.tool === 'eraser') return;
     const inkCanvas = canvasEl.current;
     const hlCanvas  = highlightCanvasEl.current;
@@ -1285,11 +1297,7 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     const size = getHostLayoutSize();
     if (!size) return;
     const { width, height } = size;
-    const baseDpr      = Math.max(1, window.devicePixelRatio || 1);
-    const scaleDpr     = Math.max(1, Number(zoomScale) || 1);
-    const maxDprByArea = Math.sqrt(48000000 / Math.max(1, width * height));
-    const maxDprBySide = Math.min(16384 / width, 16384 / height);
-    const dpr          = Math.max(1, Math.min(baseDpr * scaleDpr, 6, maxDprByArea, maxDprBySide));
+    const dpr = computeCanvasDpr(width, height, zoomScale);
 
     const inkCtx = inkCanvas.getContext('2d');
     const hlCtx  = hlCanvas.getContext('2d');
@@ -1311,10 +1319,17 @@ const PersonalDrawingLayer = memo(function PersonalDrawingLayer({
     hlCtx.imageSmoothingEnabled = true;
     hlCtx.imageSmoothingQuality = 'high';
 
+    // Render-only predicted tail: extends the live stroke a few points ahead of
+    // the pen to mask WebView compositing latency. These points are never pushed
+    // onto stroke.points, so they vanish on the next frame and never get committed.
+    const renderStroke = (Array.isArray(predictedTail) && predictedTail.length)
+      ? { ...stroke, points: stroke.points.concat(predictedTail) }
+      : stroke;
+
     if (stroke.tool === 'highlighter') {
-      drawSmoothStroke(hlCtx, stroke, width, height);
+      drawSmoothStroke(hlCtx, renderStroke, width, height);
     } else {
-      drawSmoothStroke(inkCtx, stroke, width, height);
+      drawSmoothStroke(inkCtx, renderStroke, width, height);
     }
   }
 
@@ -1628,7 +1643,10 @@ function appendPointToCurrentStroke(event) {
       if (drawTool === 'eraser') updateEraserCursor(event);
       const stroke = currentStrokeRef.current;
       if (stroke?.tool !== 'eraser') {
-        drawFastLiveStroke(stroke);
+        const predictedTail = typeof event.getPredictedEvents === 'function'
+          ? event.getPredictedEvents().map(pointFromEvent).filter(Boolean)
+          : null;
+        drawFastLiveStroke(stroke, predictedTail);
       }
       appendedSegments.forEach(segment => {
         if (stroke?.tool === 'eraser') {
@@ -1696,10 +1714,60 @@ function appendPointToCurrentStroke(event) {
     setEraserCursor(null);
   }
 
+  // ── Native ink spike (iOS Apple Pencil latency test) ────────────────────────
+  // Throwaway: only renders on the iOS app, where the native `lmsNativeInk`
+  // bridge is registered. Tapping it drops a transparent PencilKit canvas over
+  // this exact canvas region so we can feel native Pencil latency vs the web
+  // canvas. The native side shows a "Done" button to dismiss. Remove once the
+  // PencilKit-vs-web decision is made.
+  const nativeInkAvailable = typeof window !== 'undefined'
+    && !!window.webkit?.messageHandlers?.lmsNativeInk;
+  function openNativeInkSpike() {
+    const node = parentRef.current;
+    const handler = window.webkit?.messageHandlers?.lmsNativeInk;
+    if (!node || !handler) return;
+    // Size the overlay to the VISIBLE viewport (the un-transformed zoom host),
+    // not the canvas element's on-screen rect. When the note is zoomed, that
+    // element rect is scaled (e.g. 3×), which made the native canvas giant and
+    // laggy. The zoom host keeps its 1× layout box regardless of zoom, so the
+    // user writes at screen scale (the "write at locked zoom" model).
+    const frameEl = node.closest('.lms-ai-zoom-host') || node;
+    const r = frameEl.getBoundingClientRect();
+    handler.postMessage({
+      action: 'show',
+      rect: { x: r.left, y: r.top, width: r.width, height: r.height },
+      dpr: window.devicePixelRatio || 1,
+      zoomScale: Number(zoomScale) || 1,
+      tool: drawTool,
+      color: penColor,
+      width: penWidth,
+    });
+  }
+
   const eraserDiameter = `${Math.round(eraserCursor?.size || pageStableWidth(Math.max(20, (Number(penWidth) || 5) * 8), 8))}px`;
 
   return (
     <>
+      {drawMode && editable && nativeInkAvailable && typeof document !== 'undefined' && createPortal(
+        <button
+          type="button"
+          onClick={openNativeInkSpike}
+          aria-label="Test native Apple Pencil writing"
+          style={{
+            position:'fixed',
+            bottom:'calc(env(safe-area-inset-bottom, 0px) + 96px)', right:16,
+            zIndex:2147483000,
+            padding:'9px 14px', borderRadius:999, border:'none',
+            font:'600 12px/1 -apple-system, system-ui, sans-serif',
+            color:'#fff', background:'rgba(37,99,235,.96)',
+            boxShadow:'0 8px 22px rgba(15,23,42,.28)',
+            WebkitUserSelect:'none', userSelect:'none', cursor:'pointer',
+          }}
+        >
+          ✏︎ Native test
+        </button>,
+        document.body
+      )}
       {drawMode && editable && drawTool === 'eraser' && eraserCursor && (
         <div
           aria-hidden="true"
@@ -2137,6 +2205,9 @@ function NativeZoomViewport({ enabled, storageKey = '', onZoomChange, children }
     const D = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     const M = t => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
     const onStart = e => {
+      // When native (WebKit) zoom is enabled, step aside completely so the pinch reaches
+      // WebKit's real zoom (crisp, like Safari) instead of our blurry CSS stretch-zoom.
+      if (typeof window !== 'undefined' && window.__lmsUseNativeZoom) return;
       if (e.touches.length !== 2) return;
       const r = host.getBoundingClientRect();
       const m = M(e.touches);
@@ -2174,12 +2245,25 @@ function NativeZoomViewport({ enabled, storageKey = '', onZoomChange, children }
     host.addEventListener('touchend', onEnd);
     host.addEventListener('touchcancel', onEnd);
     apply();
+    // Native-driven zoom hook (iOS PencilKit spike): the native PKCanvasView owns
+    // pinch-zoom/pan and calls this each frame so the web note background follows
+    // the ink. Apply the transform DIRECTLY (no React re-render → no canvas DPR
+    // re-render hitch). Coordinate spaces match because the native overlay frame
+    // == this zoom host: web transform = translate(-offset) scale(zoom).
+    window.__lmsNativeZoom = (z, ox, oy) => {
+      const scale = Math.max(1, Math.min(4, Number(z) || 1));
+      const tx = -(Number(ox) || 0);
+      const ty = -(Number(oy) || 0);
+      st.current = { scale, tx, ty };
+      inner.style.transform = `translate3d(${tx}px,${ty}px,0) scale(${scale})`;
+    };
     return () => {
       host.removeEventListener('touchstart', onStart);
       host.removeEventListener('touchmove', onMove);
       host.removeEventListener('touchend', onEnd);
       host.removeEventListener('touchcancel', onEnd);
       if (raf.current) cancelAnimationFrame(raf.current);
+      if (window.__lmsNativeZoom) delete window.__lmsNativeZoom;
     };
   }, [enabled, storageKey, onZoomChange]);
 
@@ -2579,7 +2663,7 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       navigate(-1);
       return;
     }
-    const fallback = location.state?.returnToPath || '/ai-notes';
+    const fallback = location.state?.returnToPath || '/lessons';
     navigate(fallback, { replace: true, state: location.state?.returnState || undefined });
   }
 
@@ -2968,7 +3052,20 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
       <div className="lms-ai-canvas-shell lms-ai-canvas-shell--solo mx-auto grid !max-w-[1160px] !grid-cols-[minmax(0,1fr)] gap-0 px-6 py-5 max-[1180px]:px-4 max-[640px]:px-0 max-[520px]:px-0">
         <section className="lms-ai-note-main min-w-0">
           <NativeZoomViewport enabled={platform.isNative && !isLocked} storageKey={nativeZoomStorageKey} onZoomChange={handleNativeZoomChange}>
-          <div ref={canvasRef} onPointerDown={() => { if (canEdit) setSelectedStickerId(''); }} style={{ position:'relative', minWidth:0, maxWidth:'100%' }}>
+          <div ref={canvasRef} onPointerDown={() => { if (canEdit) setSelectedStickerId(''); }} style={{
+            position:'relative', minWidth:0, maxWidth:'100%',
+            // EXPERIMENTAL warm-canvas design (2026-06-20): the note "paper" is a warm,
+            // dot-grid surface — distinct from the cooler page background — that zooms/writes.
+            // To revert: restore `style={{ position:'relative', minWidth:0, maxWidth:'100%' }}`.
+            background: isDark ? '#17150f' : '#faf3e6',
+            backgroundImage: isDark
+              ? 'radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)'
+              : 'radial-gradient(#e7dabf 1.1px, transparent 1px)',
+            backgroundSize: '18px 18px',
+            borderRadius: 18,
+            border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid #ecdfc6',
+            padding: 14,
+          }}>
             {nativeWritingEnabled && (
               <PersonalDrawingLayer
                 parentRef={canvasRef}

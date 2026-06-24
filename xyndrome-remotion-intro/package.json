@@ -24,7 +24,11 @@
     "dev": "remotion studio",
     "build": "remotion bundle",
     "render": "remotion render XyndromeIntro out/xyndrome-intro-9x16.mp4 --codec=h264 --crf=17 --browser-executable=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\"",
+    "render:qbanks": "remotion render QbanksPromo out/qbanks-promo-9x16.mp4 --codec=h264 --crf=12 --concurrency=1 --browser-executable=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\"",
+    "render:some-nights": "remotion render SomeNightsMedicine out/some-nights-medicine-16x9.mp4 --codec=h264 --crf=17 --concurrency=1 --browser-executable=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\"",
     "still": "remotion still XyndromeIntro out/preview-frame.png --frame=450 --browser-executable=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\"",
+    "still:qbanks": "remotion still QbanksPromo out/qbanks-promo-frame78.png --frame=78 --browser-executable=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\"",
+    "still:some-nights": "remotion still SomeNightsMedicine out/some-nights-medicine-16x9-frame90.png --frame=90 --browser-executable=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\"",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"
   },

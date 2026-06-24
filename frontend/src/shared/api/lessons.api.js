@@ -9,8 +9,3 @@ export async function updateLesson(id, payload) {
   const response = await apiClient.patch(`/admin/lessons/${id}`, payload);
   return response.data;
 }
-
-export async function fetchStudentLessons() {
-  const response = await apiClient.get('/student/lessons');
-  return response.data;
-}

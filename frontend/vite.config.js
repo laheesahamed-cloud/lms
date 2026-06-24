@@ -12,7 +12,7 @@ const appChunkFileName = 'assets/chunks/[name]-[hash].js';
 const appCssFileName = 'assets/css/[name]-[hash].css';
 
 export default defineConfig(({ command }) => ({
-  base: command === 'serve' ? '/lms/' : isCapacitorBuild ? '/' : isDesktopBuild ? './' : '/lms/frontend/dist/',
+  base: command === 'serve' ? (isDesktopBuild ? '/' : '/lms/') : isCapacitorBuild ? '/' : isDesktopBuild ? './' : '/lms/frontend/dist/',
   plugins: [react(), tailwindcss()],
   define: {
     'import.meta.env.VITE_ANDROID_FCM_CONFIGURED': JSON.stringify(hasAndroidFcmConfig ? 'true' : 'false'),

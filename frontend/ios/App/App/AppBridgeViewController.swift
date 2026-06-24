@@ -4,6 +4,40 @@ import Capacitor
 import CoreHaptics
 import AudioToolbox
 import AVFoundation
+import PencilKit
+import PDFKit
+
+// A PencilKit canvas that captures ONLY Apple Pencil touches and lets finger touches
+// fall through to the web view beneath it — so the web owns pinch-zoom, pan and the
+// fixed header, while the Pencil draws crisp native ink on top.
+final class PencilOnlyCanvasView: PKCanvasView {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        // Pass through ONLY when we're certain it's finger-only input (so the PDF view
+        // beneath gets pinch-zoom / scroll). For Pencil — or any ambiguous / empty
+        // event at touch-begin — keep the canvas hittable so the Pencil is never dropped.
+        if let touches = event?.allTouches, !touches.isEmpty,
+           touches.allSatisfy({ $0.type == .direct }) {
+            return nil
+        }
+        return super.hitTest(point, with: event)
+    }
+}
+
+// Apple's official crisp PencilKit-over-PDF overlay (iOS 16+). PDFKit asks us for a
+// drawing view per page and manages it (glued + crisp at any zoom). Logged so we can
+// confirm on-device whether it's actually being called.
+@available(iOS 16.0, *)
+extension AppBridgeViewController: PDFPageOverlayViewProvider {
+    func pdfView(_ view: PDFView, overlayViewFor page: PDFPage) -> UIView? {
+        NSLog("LMS-INK: overlayViewFor called -> creating PKCanvasView for a page")
+        let canvas = PKCanvasView()
+        canvas.backgroundColor = .clear
+        canvas.isOpaque = false
+        canvas.drawingPolicy = .pencilOnly
+        canvas.tool = PKInkingTool(.pen, color: nativeInkColor, width: nativeInkWidth)
+        return canvas
+    }
+}
 
 final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
     private var appBackground = UIColor(red: 0.862745098, green: 0.9019607843, blue: 0.9568627451, alpha: 1)
@@ -31,6 +65,13 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
     private var savedKeyboardGuardBounces: Bool?
     private var savedKeyboardGuardAlwaysBounceVertical: Bool?
     private var savedKeyboardGuardDismissMode: UIScrollView.KeyboardDismissMode?
+    private var nativeInkOverlay: PKCanvasView?
+    private var nativeInkDoneButton: UIButton?
+    private var nativeInkPdfView: PDFView?
+    private var nativeInkActive = false
+    private var nativeInkColor: UIColor = .systemBlue
+    private var nativeInkWidth: CGFloat = 4
+    private var nativeInkCommitting = false
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
         currentStatusBarStyle
@@ -42,6 +83,8 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
         configuration.userContentController.add(self, name: "lmsSecureContent")
         configuration.userContentController.add(self, name: "lmsChromeTheme")
         configuration.userContentController.add(self, name: "lmsKeyboardGuard")
+        configuration.userContentController.add(self, name: "lmsNativeInk")
+        configuration.userContentController.add(self, name: "lmsOpenLessonNote")
         configuration.userContentController.addUserScript(makeScribbleAudioUserScript())
         configuration.userContentController.addUserScript(makeKeyboardGuardUserScript())
         let webView = super.webView(with: frame, configuration: configuration)
@@ -441,7 +484,149 @@ final class AppBridgeViewController: CAPBridgeViewController, WKScriptMessageHan
 
         if message.name == "lmsKeyboardGuard" {
             applyKeyboardGuard(active: body["active"] as? Bool == true)
+            return
         }
+
+        if message.name == "lmsNativeInk" {
+            DispatchQueue.main.async { [weak self] in
+                self?.handleNativeInk(body)
+            }
+            return
+        }
+
+        if message.name == "lmsOpenLessonNote" {
+            DispatchQueue.main.async { [weak self] in
+                self?.handleOpenLessonNote(body)
+            }
+        }
+    }
+
+    // Presents the fully-native lesson note + Apple Pencil ink canvas. Driven
+    // from the Study → Lessons tab (web list) via the `lmsOpenLessonNote` bridge.
+    // The web AI Notes reader is unaffected — this is a separate native screen.
+    private func handleOpenLessonNote(_ body: [String: Any]) {
+        func intValue(_ key: String) -> Int {
+            if let n = body[key] as? NSNumber { return n.intValue }
+            if let s = body[key] as? String, let v = Int(s) { return v }
+            return 0
+        }
+        let lessonId = intValue("lessonId")
+        let aiNoteId = intValue("aiNoteId")
+        guard lessonId > 0 || aiNoteId > 0 else { return }
+        if presentedViewController is LessonNoteViewController { return }
+
+        let vc = LessonNoteViewController(
+            lessonId: lessonId,
+            aiNoteId: aiNoteId,
+            title: body["title"] as? String ?? "Lesson",
+            engine: body["engine"] as? String ?? "gemini",
+            token: body["token"] as? String ?? "",
+            apiBaseUrl: (body["apiBaseUrl"] as? String ?? "").trimmingCharacters(in: .whitespaces),
+            dark: body["dark"] as? Bool ?? (traitCollection.userInterfaceStyle == .dark)
+        )
+        present(vc, animated: true)
+    }
+
+    // MARK: - Native ink spike (Apple Pencil latency test)
+    // Throwaway: overlays a transparent PencilKit canvas on the real AI-notes
+    // canvas region so we can feel native Apple Pencil latency vs the web canvas.
+    // Driven from JS via the `lmsNativeInk` handler; dismissed by the floating
+    // Done button. Remove once the PencilKit-vs-web decision is made.
+    private func handleNativeInk(_ body: [String: Any]) {
+        let action = (body["action"] as? String ?? "show").lowercased()
+        if action == "hide" {
+            hideNativeInkOverlay()
+            return
+        }
+        guard let host = bridge?.webView else { return }
+        let rect = body["rect"] as? [String: Any]
+        func num(_ key: String) -> CGFloat {
+            if let n = rect?[key] as? NSNumber { return CGFloat(n.doubleValue) }
+            return 0
+        }
+        var frame = CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height"))
+        if frame.width < 1 || frame.height < 1 { frame = host.bounds }
+        showNativeInkOverlay(on: host, frame: frame, body: body)
+    }
+
+    private func showNativeInkOverlay(on host: UIView, frame: CGRect, body: [String: Any]) {
+        hideNativeInkOverlay()
+        guard let webView = bridge?.webView else { return }
+        let parent = host.superview ?? host
+
+        // SAFARI-ZOOM approach: turn ON WebKit's own pinch-zoom (re-renders the note text
+        // CRISP at any zoom, exactly like Safari) and tell the web to STOP its blurry CSS
+        // stretch-zoom so they don't fight. A Pencil canvas lives INSIDE the web view's
+        // scroll view, so PencilKit claims the Pencil while finger pinches reach WebKit's
+        // zoom (handled by the gesture system, not a fragile hit-test). Live, no PDF.
+        nativeInkActive = true
+        let widthValue = (body["width"] as? NSNumber).map { CGFloat($0.doubleValue) } ?? 4
+        nativeInkColor = uiColor(fromHex: body["color"] as? String) ?? .systemBlue
+        nativeInkWidth = min(12, max(2, widthValue))
+
+        // 1) Enable WebKit's real zoom + flip the web into "let WebKit zoom" mode.
+        webView.scrollView.minimumZoomScale = 1.0
+        webView.scrollView.maximumZoomScale = 5.0
+        webView.scrollView.bouncesZoom = true
+        let enable = "(function(){window.__lmsUseNativeZoom=true;var m=document.querySelector('meta[name=viewport]');if(m){if(window.__lmsOldViewport==null){window.__lmsOldViewport=m.getAttribute('content')||'';}m.setAttribute('content','width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, user-scalable=yes');}})();"
+        webView.evaluateJavaScript(enable, completionHandler: nil)
+
+        // 2) Pencil writing layer inside the scroll view's content (scrolls with the note).
+        let scrollView = webView.scrollView
+        let content = scrollView.contentSize
+        let canvasSize = CGSize(width: max(scrollView.bounds.width, content.width),
+                                height: max(scrollView.bounds.height, content.height))
+        let canvas = PKCanvasView(frame: CGRect(origin: .zero, size: canvasSize))
+        canvas.backgroundColor = .clear
+        canvas.isOpaque = false
+        canvas.isScrollEnabled = false
+        if #available(iOS 14.0, *) { canvas.drawingPolicy = .pencilOnly }
+        canvas.tool = PKInkingTool(.pen, color: nativeInkColor, width: nativeInkWidth)
+        canvas.contentScaleFactor = 4
+        scrollView.addSubview(canvas)
+        nativeInkOverlay = canvas
+
+        addNativeInkDoneButton(to: parent)
+    }
+
+    private func addNativeInkDoneButton(to parent: UIView) {
+        let done = UIButton(type: .system)
+        done.setTitle("✕  Done — native test", for: .normal)
+        done.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
+        done.setTitleColor(.white, for: .normal)
+        done.backgroundColor = UIColor(white: 0.12, alpha: 0.92)
+        done.layer.cornerRadius = 19
+        done.contentEdgeInsets = UIEdgeInsets(top: 10, left: 18, bottom: 10, right: 18)
+        done.translatesAutoresizingMaskIntoConstraints = false
+        done.addTarget(self, action: #selector(nativeInkDoneTapped), for: .touchUpInside)
+        parent.addSubview(done)
+        NSLayoutConstraint.activate([
+            done.centerXAnchor.constraint(equalTo: parent.centerXAnchor),
+            done.bottomAnchor.constraint(equalTo: parent.safeAreaLayoutGuide.bottomAnchor, constant: -26),
+        ])
+        nativeInkDoneButton = done
+    }
+
+    @objc private func nativeInkDoneTapped() {
+        hideNativeInkOverlay()
+    }
+
+    private func hideNativeInkOverlay() {
+        nativeInkActive = false
+        if let webView = bridge?.webView {
+            // Turn WebKit zoom back off, restore the web's own (CSS) zoom, reset to 1×.
+            let restore = "(function(){window.__lmsUseNativeZoom=false;var m=document.querySelector('meta[name=viewport]');if(m && window.__lmsOldViewport!=null){m.setAttribute('content', window.__lmsOldViewport);}})();"
+            webView.evaluateJavaScript(restore, completionHandler: nil)
+            webView.scrollView.setZoomScale(1, animated: false)
+            webView.scrollView.minimumZoomScale = 1.0
+            webView.scrollView.maximumZoomScale = 1.0
+        }
+        nativeInkPdfView?.removeFromSuperview()
+        nativeInkPdfView = nil
+        nativeInkOverlay?.removeFromSuperview()
+        nativeInkOverlay = nil
+        nativeInkDoneButton?.removeFromSuperview()
+        nativeInkDoneButton = nil
     }
 
     private func applyChromeTheme(_ payload: [String: Any]) {

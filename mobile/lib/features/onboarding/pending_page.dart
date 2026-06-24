@@ -34,7 +34,7 @@ class PendingPage extends ConsumerWidget {
                     'Your account is being reviewed. You’ll get a notification as soon as it’s approved.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 14, height: 1.5, color: c.inkSoft)),
+                        fontSize: 15.5, height: 1.5, color: c.inkSoft)),
                 const SizedBox(height: 26),
                 AppButton('Check again',
                     expand: true,

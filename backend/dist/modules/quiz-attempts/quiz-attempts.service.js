@@ -380,6 +380,7 @@ let QuizAttemptsService = class QuizAttemptsService {
         }
         return {
             attemptId,
+            quizId: Number(row.quiz_id),
             quizTitle: String(row.quiz_title),
             courseTitle: String(row.course_title || ''),
             topicDisplay: Number(row.is_general) === 1 ? 'General / Full Course Revision' : String(row.topic_name || 'No Topic'),

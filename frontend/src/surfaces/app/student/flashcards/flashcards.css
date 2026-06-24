@@ -322,7 +322,7 @@
 .xfc-deck-del { color: var(--color-error); }
 
 /* ── modal ─────────────────────────────────────────────────── */
-.xfc-modal-backdrop { position: fixed; inset: 0; z-index: 1300; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); animation: xfc-fade 0.15s ease; }
+.xfc-modal-backdrop { position: fixed; inset: 0; z-index: 11000; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); animation: xfc-fade 0.15s ease; }
 @keyframes xfc-fade { from { opacity: 0; } }
 .xfc-modal { width: min(520px, 100%); max-height: 88dvh; display: flex; flex-direction: column; border-radius: var(--ds-card-radius, 20px); border: 1px solid var(--line-soft); background: var(--surface-card); box-shadow: var(--ds-floating-shadow, 0 24px 60px rgba(0, 0, 0, 0.3)); overflow: hidden; }
 .xfc-modal--wide { width: min(720px, 100%); }

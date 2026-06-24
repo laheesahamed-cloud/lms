@@ -7,7 +7,7 @@ const mySubscriptionCache = createTimedApiCache({
   load: () => apiClient.get('/subscriptions/me').then((response) => response.data),
 });
 
-export function clearMySubscriptionCache() {
+function clearMySubscriptionCache() {
   mySubscriptionCache.clear();
 }
 

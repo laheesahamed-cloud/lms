@@ -37,7 +37,7 @@ function getCapacitorPlatform() {
   return typeof platform === 'string' ? platform : '';
 }
 
-export function isNativeShell() {
+function isNativeShell() {
   const win = getWindow();
   if (!win) return false;
 

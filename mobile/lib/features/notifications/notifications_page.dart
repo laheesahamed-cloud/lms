@@ -1,120 +1,181 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
+import 'notifications_repository.dart';
 
-class _Note {
-  final IconData icon;
-  final Color Function(AppColors) tint;
-  final String title;
-  final String body;
-  final String time;
-  final bool unread;
-  const _Note(this.icon, this.tint, this.title, this.body, this.time,
-      {this.unread = false});
-}
-
-class NotificationsPage extends StatelessWidget {
+class NotificationsPage extends ConsumerWidget {
   const NotificationsPage({super.key});
 
-  static final List<_Note> _items = [
-    _Note(Icons.local_fire_department_rounded, (c) => c.warning, 'Streak alert',
-        'You have 8 flashcards due today. Keep your 14-day streak!', 'Just now',
-        unread: true),
-    _Note(Icons.fact_check_outlined, (c) => c.accent, 'New quiz added',
-        'Cardiology — Heart failure (20 questions) is now live.', '2h ago',
-        unread: true),
-    _Note(Icons.workspace_premium_outlined, (c) => c.primary, 'Exam reminder',
-        'Renal mock exam closes tomorrow at 9:00 PM.', 'Yesterday'),
-    _Note(Icons.school_outlined, (c) => c.success, 'Result ready',
-        'Your Endocrine practice was graded — 64%.', '2 days ago'),
-    _Note(Icons.campaign_outlined, (c) => c.inkSoft, 'Announcement',
-        'New AI-notes for Respiratory have been published.', '3 days ago'),
-  ];
+  (IconData, Color) _visual(AppColors c, String kind) {
+    switch (kind) {
+      case 'subscription':
+        return (Icons.workspace_premium_outlined, c.primary);
+      case 'weak':
+        return (Icons.trending_up_rounded, c.warning);
+      default:
+        return (Icons.campaign_outlined, c.accent);
+    }
+  }
+
+  Future<void> _tap(WidgetRef ref, AppNotification n) async {
+    if (!n.canMarkRead) return;
+    try {
+      await markNotificationRead(ref.read(notificationsApiProvider), n.id);
+      ref.invalidate(notificationsProvider);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.c;
+    final notesAsync = ref.watch(notificationsProvider);
+
+    return SafeArea(
+      child: notesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text('Could not load notifications.\n$e',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: c.inkSoft, fontSize: 14)),
+          ),
+        ),
+        data: (items) => RefreshIndicator(
+          onRefresh: () async => ref.refresh(notificationsProvider.future),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 20, color: c.inkMedium),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                  const SizedBox(width: 10),
+                  Text('Notifications',
+                      style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: c.inkStrong,
+                          letterSpacing: -0.5)),
+                ],
+              ),
+              const SizedBox(height: 18),
+              if (items.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 60),
+                  child: Column(
+                    children: [
+                      Icon(Icons.notifications_none_rounded,
+                          size: 42, color: c.inkMuted),
+                      const SizedBox(height: 10),
+                      Text("You're all caught up.",
+                          style: TextStyle(color: c.inkSoft)),
+                    ],
+                  ),
+                ),
+              AnimationLimiter(
+                child: Column(
+                  children: AnimationConfiguration.toStaggeredList(
+                    duration: const Duration(milliseconds: 360),
+                    childAnimationBuilder: (w) => SlideAnimation(
+                        verticalOffset: 20, child: FadeInAnimation(child: w)),
+                    children: [
+                      for (final n in items)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _NoteCard(
+                            note: n,
+                            visual: _visual(c, n.kind),
+                            onTap: () => _tap(ref, n),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NoteCard extends StatelessWidget {
+  final AppNotification note;
+  final (IconData, Color) visual;
+  final VoidCallback onTap;
+  const _NoteCard(
+      {required this.note, required this.visual, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+    final (icon, tint) = visual;
+    return GlassCard(
+      onTap: onTap,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Notifications',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: c.inkStrong,
-                  letterSpacing: -0.5)),
-          const SizedBox(height: 18),
-          AnimationLimiter(
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 20, color: tint),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
-              children: AnimationConfiguration.toStaggeredList(
-                duration: const Duration(milliseconds: 360),
-                childAnimationBuilder: (w) => SlideAnimation(
-                    verticalOffset: 20, child: FadeInAnimation(child: w)),
-                children: [
-                  for (final n in _items)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: GlassCard(
-                        onTap: () {},
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: n.tint(c).withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(n.icon, size: 20, color: n.tint(c)),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(n.title,
-                                            style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w800,
-                                                color: c.inkStrong)),
-                                      ),
-                                      if (n.unread)
-                                        Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: BoxDecoration(
-                                              color: c.primary,
-                                              shape: BoxShape.circle),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(n.body,
-                                      style: TextStyle(
-                                          fontSize: 12.5,
-                                          height: 1.4,
-                                          color: c.inkSoft)),
-                                  const SizedBox(height: 5),
-                                  Text(n.time,
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: c.inkMuted)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(note.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight:
+                                  note.read ? FontWeight.w700 : FontWeight.w800,
+                              color: c.inkStrong)),
                     ),
+                    if (!note.read)
+                      Container(
+                        margin: const EdgeInsets.only(left: 8, top: 4),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                            color: c.primary, shape: BoxShape.circle),
+                      ),
+                  ],
+                ),
+                if (note.body.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(note.body,
+                      style: TextStyle(
+                          fontSize: 13, height: 1.4, color: c.inkSoft)),
                 ],
-              ),
+                if (note.ago.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(note.ago,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: c.inkMuted)),
+                ],
+              ],
             ),
           ),
         ],

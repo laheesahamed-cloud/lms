@@ -106,6 +106,10 @@ const PAYMENT_SETTING_KEYS = {
   supportText: 'payment_payhere_support_text',
   bankTransferDetails: 'payment_bank_transfer_details',
   autoActivatePaidSubscriptions: 'payment_payhere_auto_activate_paid_subscriptions',
+  // Mobile App SDK (native PayHere Flutter SDK): per-app merchant secret from
+  // PayHere whitelisting, and the app checkout mode ('native' | 'web').
+  appMerchantSecret: 'payment_payhere_app_merchant_secret',
+  appCheckoutMode: 'payment_payhere_app_checkout_mode',
 } as const;
 
 const SMTP_SETTING_KEYS = {
@@ -182,6 +186,8 @@ export type PayHerePaymentSettings = {
   supportText: string;
   bankTransferDetails: string;
   autoActivatePaidSubscriptions: boolean;
+  appMerchantSecret: string;
+  appCheckoutMode: 'native' | 'web';
 };
 
 export type SmtpSettings = {
@@ -523,6 +529,14 @@ export class SettingsService {
           ? this.normalizeOptionalValue(input.bankTransferDetails)
           : current.bankTransferDetails,
       autoActivatePaidSubscriptions: input.autoActivatePaidSubscriptions ?? current.autoActivatePaidSubscriptions,
+      appMerchantSecret:
+        input.appMerchantSecret !== undefined
+          ? this.normalizeSecretInput(input.appMerchantSecret) || current.appMerchantSecret
+          : current.appMerchantSecret,
+      appCheckoutMode:
+        input.appCheckoutMode !== undefined
+          ? (input.appCheckoutMode === 'web' ? 'web' : 'native')
+          : current.appCheckoutMode,
     };
 
     await Promise.all([
@@ -539,6 +553,8 @@ export class SettingsService {
       this.saveSettingValue(PAYMENT_SETTING_KEYS.supportText, next.supportText),
       this.saveSettingValue(PAYMENT_SETTING_KEYS.bankTransferDetails, next.bankTransferDetails),
       this.saveSettingValue(PAYMENT_SETTING_KEYS.autoActivatePaidSubscriptions, next.autoActivatePaidSubscriptions ? 'true' : 'false'),
+      this.saveSettingValue(PAYMENT_SETTING_KEYS.appMerchantSecret, this.encryptSecret(next.appMerchantSecret)),
+      this.saveSettingValue(PAYMENT_SETTING_KEYS.appCheckoutMode, next.appCheckoutMode),
     ]);
 
     return this.getPaymentSettings();
@@ -1080,6 +1096,8 @@ export class SettingsService {
   private async getRawPaymentSettings(): Promise<PayHerePaymentSettings> {
     const values = await this.getSettingMap(Object.values(PAYMENT_SETTING_KEYS));
     const encryptedMerchantSecret = values.get(PAYMENT_SETTING_KEYS.merchantSecret) || '';
+    const encryptedAppMerchantSecret = values.get(PAYMENT_SETTING_KEYS.appMerchantSecret) || '';
+    const appCheckoutMode = (values.get(PAYMENT_SETTING_KEYS.appCheckoutMode) || 'native') === 'web' ? 'web' : 'native';
     const currency = 'LKR';
 
     return {
@@ -1098,6 +1116,8 @@ export class SettingsService {
         'Sandbox payments are simulated by PayHere and no real card will be charged.',
       bankTransferDetails: values.get(PAYMENT_SETTING_KEYS.bankTransferDetails) || '',
       autoActivatePaidSubscriptions: this.parseBoolean(values.get(PAYMENT_SETTING_KEYS.autoActivatePaidSubscriptions), true),
+      appMerchantSecret: encryptedAppMerchantSecret ? this.decryptSecret(encryptedAppMerchantSecret) : '',
+      appCheckoutMode,
     };
   }
 
@@ -1334,6 +1354,10 @@ export class SettingsService {
       cancelUrl: settings.cancelUrl,
       notifyUrl: settings.notifyUrl,
       autoActivatePaidSubscriptions: settings.autoActivatePaidSubscriptions,
+      // Mobile App SDK (native PayHere Flutter SDK)
+      appCheckoutMode: settings.appCheckoutMode,
+      hasAppMerchantSecret: Boolean(settings.appMerchantSecret),
+      maskedAppMerchantSecret: settings.appMerchantSecret ? maskSecret(settings.appMerchantSecret) : '',
     };
   }
 

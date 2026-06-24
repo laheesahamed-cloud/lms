@@ -88,4 +88,15 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdatePaymentSettingsDto.prototype, "autoActivatePaidSubscriptions", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(255),
+    __metadata("design:type", String)
+], UpdatePaymentSettingsDto.prototype, "appMerchantSecret", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['native', 'web']),
+    __metadata("design:type", String)
+], UpdatePaymentSettingsDto.prototype, "appCheckoutMode", void 0);
 //# sourceMappingURL=update-payment-settings.dto.js.map

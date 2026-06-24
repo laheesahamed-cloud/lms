@@ -15,7 +15,6 @@ import {
   readStudentResultsCache,
 } from '../../../../shared/api/quizAttempts.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
-import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
 import { FeedbackNotice } from '../../../../shared/ui/FeedbackNotice.jsx';
 
 const COURSE_SUBJECT_PALETTES = [
@@ -972,7 +971,7 @@ export function CourseDetailPage({
         applyLessonProgressUpdate(lesson.id, result);
       }
 
-      navigate(`/ai-notes/${matchingNote.id}?view=study`, {
+      navigate(`/lessons/${matchingNote.id}?view=study`, {
         state: {
           returnToPath: coursesPath,
           returnState: { selectedCourseId: Number(courseId) },
@@ -1002,7 +1001,6 @@ export function CourseDetailPage({
     return (
       <main ref={pageRef} className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
         <section className="study-hub-shell course-detail-shell">
-          <AppHeader title={course?.courseTitle || seededCourse?.courseTitle || 'Course'} subtitle="Summary" compact />
           <div className="csum-loading" aria-label="Loading course summary">
             <div className="csum-skeleton csum-skeleton--title" />
             <div className="csum-skeleton csum-skeleton--line" />
@@ -1018,7 +1016,6 @@ export function CourseDetailPage({
     return (
       <main ref={pageRef} className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
         <section className="study-hub-shell course-detail-shell">
-          <AppHeader title="Course" subtitle="Summary" compact />
           <div className="csum-actions">
             <button type="button" className="csum-btn csum-btn--ghost" onClick={handleBackToCourses}>
               Back to courses
@@ -1037,8 +1034,6 @@ export function CourseDetailPage({
   return (
     <main ref={pageRef} className="dashboard-page study-hub-page lms-course-detail-page lms-course-summary-page">
       <section className="study-hub-shell course-detail-shell csum-shell">
-        <AppHeader title={course.courseTitle} subtitle="Summary" compact />
-
         {error ? <FeedbackNotice tone="error">{error}</FeedbackNotice> : null}
 
         <div className="csum-stack">

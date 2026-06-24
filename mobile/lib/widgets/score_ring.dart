@@ -66,7 +66,7 @@ class _ScoreRingState extends State<ScoreRing>
                           letterSpacing: -0.5)),
                   Text(widget.label.toUpperCase(),
                       style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: c.inkSoft,
                           letterSpacing: 1.2)),

@@ -75,5 +75,3 @@ export function TestimonialsMarquee() {
     </section>
   );
 }
-
-export default TestimonialsMarquee;

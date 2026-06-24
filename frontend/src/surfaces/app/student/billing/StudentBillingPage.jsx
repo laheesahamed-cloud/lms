@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchStudentCourses, readStudentCoursesCache } from '../../../../shared/api/courses.api.js';
 import { cancelPendingSubscriptionInvoice, fetchMySubscription, readMySubscriptionCache, requestSubscription } from '../../../../shared/api/subscriptions.api.js';
@@ -266,9 +267,6 @@ export function StudentBillingPage() {
   useEffect(() => {
     if (!shouldOpenCustomPlanner) return;
     setCustomModalOpen(true);
-    window.setTimeout(() => {
-      document.getElementById('custom-plan-builder')?.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: 'center' });
-    }, 120);
   }, [shouldOpenCustomPlanner]);
 
   async function load() {
@@ -603,7 +601,7 @@ export function StudentBillingPage() {
 
   return (
     <main className="dashboard-page study-hub-page student-billing-page">
-      <section className="study-hub-shell">
+      <section className="study-hub-shell grid">
         <AppHeader
           title="Subscriptions"
           breadcrumbPlacement="below"
@@ -684,8 +682,8 @@ export function StudentBillingPage() {
             <div className={ui.emptyBox}>No subscription has been assigned to your account yet.</div>
           ) : null}
           {!loading && current ? (
-            <article className="overflow-hidden rounded-lg border border-line-soft bg-surface-card shadow-sm">
-              <div className="grid gap-5 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-primary)_10%,var(--surface-card)),var(--surface-card)_48%,color-mix(in_srgb,var(--color-teal)_8%,var(--surface-card)))] p-5 max-[520px]:gap-4 max-[520px]:p-4">
+            <article className="grid gap-5 max-[520px]:gap-4">
+              <div className="grid gap-5 max-[520px]:gap-4">
                 <div className="flex flex-wrap items-start justify-between gap-4 max-[520px]:gap-3">
                   <div className="min-w-0">
                     <h3 className="mb-1 text-2xl font-extrabold leading-tight text-ink-strong max-[520px]:text-[20px]">{current.planName}</h3>
@@ -694,12 +692,12 @@ export function StudentBillingPage() {
                     </p>
                   </div>
                   {currentIsFreePlan ? (
-                    <div className="min-w-[190px] rounded-lg border border-brand-success/20 bg-brand-success/10 px-4 py-3 text-right shadow-xs max-[640px]:w-full max-[640px]:text-left">
+                    <div className="min-w-[190px] text-right max-[640px]:w-full max-[640px]:text-left">
                       <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand-success">Free Plan</span>
                       <strong className="mt-1 block text-2xl font-extrabold text-brand-success">Unlimited days</strong>
                     </div>
                   ) : (
-                    <div className="min-w-[190px] rounded-lg border border-line-soft bg-surface-card px-4 py-3 text-right shadow-xs max-[640px]:w-full max-[640px]:text-left">
+                    <div className="min-w-[190px] text-right max-[640px]:w-full max-[640px]:text-left">
                       <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Paid amount</span>
                       <strong className="mt-1 block text-2xl font-extrabold text-brand-primary">
                         {current.planCurrency} {Number(current.planEffectivePrice).toFixed(2)}
@@ -714,7 +712,7 @@ export function StudentBillingPage() {
                 </div>
 
                 {currentIsFreePlan ? (
-                  <div className="rounded-lg border border-brand-success/20 bg-brand-success/8 px-4 py-3">
+                  <div>
                     <strong className="block text-[14px] text-ink-strong">Free Plan access stays active.</strong>
                     <span className="mt-1 block text-[12px] font-semibold text-ink-soft">No payment, renewal, or countdown is needed for this plan.</span>
                   </div>
@@ -740,8 +738,8 @@ export function StudentBillingPage() {
               </div>
 
               {!currentIsFreePlan ? (
-                <div className="grid grid-cols-3 gap-3 p-5 max-[760px]:grid-cols-1 max-[520px]:p-4">
-                  <div className="hidden rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:grid max-[520px]:grid-cols-2 max-[520px]:gap-3">
+                <div className="grid grid-cols-3 gap-4 border-t border-line-soft pt-5 max-[760px]:grid-cols-1 max-[520px]:grid-cols-2 max-[520px]:gap-3 max-[520px]:pt-4">
+                  <div className="hidden max-[520px]:grid max-[520px]:grid-cols-2 max-[520px]:gap-3 max-[520px]:col-span-2">
                     <div className="min-w-0 border-r border-line-soft pr-3">
                       <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Start date</span>
                       <strong className="mt-1 block truncate text-[13px] text-ink-strong">{current.startDate || '-'}</strong>
@@ -751,15 +749,15 @@ export function StudentBillingPage() {
                       <strong className="mt-1 block truncate text-[13px] text-ink-strong">{current.endDate || '-'}</strong>
                     </div>
                   </div>
-                  <div className="rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:hidden">
+                  <div className="max-[520px]:hidden">
                     <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Start date</span>
                     <strong className="mt-1 block text-sm text-ink-strong">{current.startDate || '-'}</strong>
                   </div>
-                  <div className="rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:hidden">
+                  <div className="max-[520px]:hidden">
                     <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">End date</span>
                     <strong className="mt-1 block text-sm text-ink-strong">{current.endDate || '-'}</strong>
                   </div>
-                  <div className="rounded-lg border border-line-soft bg-surface-1 px-4 py-3 max-[520px]:hidden">
+                  <div className="max-[520px]:hidden">
                     <span className="block text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">Remaining</span>
                     <strong className="mt-1 block text-sm text-ink-strong">
                       {current.computedStatus === 'expired' ? 'Expired' : `${Math.max(0, Number(current.daysRemaining || 0))} day(s)`}
@@ -769,11 +767,11 @@ export function StudentBillingPage() {
               ) : null}
 
               {!currentIsFreePlan && current.computedStatus === 'expired' ? (
-                <div className="mx-5 rounded-md border border-brand-error/20 bg-brand-error/10 px-3 py-2 text-[13px] font-bold text-brand-error">
+                <div className="border-t border-brand-error/20 pt-3 text-[13px] font-bold text-brand-error">
                   This subscription has expired.
                 </div>
               ) : !currentIsFreePlan && current.isExpiringSoon ? (
-                <div className="mx-5 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[13px] font-bold text-amber-700 dark:text-amber-300 max-[520px]:hidden">
+                <div className="border-t border-amber-500/20 pt-3 text-[13px] font-bold text-amber-700 dark:text-amber-300 max-[520px]:hidden">
                   Expires in {currentDaysRemaining} day(s). Request renewal early.
                 </div>
               ) : null}
@@ -896,7 +894,7 @@ export function StudentBillingPage() {
           </div>
         </section>
 
-        {customModalOpen ? (
+        {customModalOpen ? (typeof document !== 'undefined' ? createPortal((
           <div id="custom-plan-builder" className={cx(ui.modalBackdrop, 'grid place-items-center p-4 max-[520px]:items-end max-[520px]:p-0')} role="dialog" aria-modal="true" aria-label="Customize subscription plan">
             <div className={cx(ui.entityModal, 'mx-auto max-h-[92dvh] w-full max-w-[980px] overflow-y-auto max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-10px)] max-[520px]:rounded-b-none')}>
               <div className={ui.entityModalTop}>
@@ -1038,7 +1036,7 @@ export function StudentBillingPage() {
               </div>
             </div>
           </div>
-        ) : null}
+        ), document.body) : null) : null}
 
         <section className={cx(ui.panelCard, 'max-[520px]:p-3.5')}>
           <div className={ui.panelTop}>

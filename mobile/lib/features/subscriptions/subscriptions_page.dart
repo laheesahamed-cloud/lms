@@ -1,96 +1,173 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme/tokens.dart';
-import '../../config/app_config.dart';
 import '../../widgets/glass_card.dart';
-import '../../widgets/app_button.dart';
-import '../../state/auth_controller.dart';
+import 'subscriptions_repository.dart';
 
-class _Plan {
-  final String id;
-  final String name;
-  final String price;
-  final String period;
-  final List<String> perks;
-  final bool popular;
-  const _Plan(this.id, this.name, this.price, this.period, this.perks,
-      {this.popular = false});
-}
-
-class SubscriptionsPage extends ConsumerWidget {
+/// Subscription screen — shows the user's current plan/status and what each
+/// plan includes.
+///
+/// ACCESS-ONLY by design: there is intentionally NO in-app purchase, price,
+/// checkout, or link to pay. Subscriptions are bought on the website, entirely
+/// outside the app; access is granted server-side and simply reflected here via
+/// `/subscriptions/me`. This keeps the app compliant with Apple Guideline 3.1.1
+/// and Google Play's billing policy (no in-app sale of digital goods and no
+/// steering to an external payment method).
+class SubscriptionsPage extends ConsumerStatefulWidget {
   const SubscriptionsPage({super.key});
 
-  static const _plans = [
-    _Plan('free', 'Free', 'Rs 0', 'forever', [
-      'Practice mode (limited)',
-      'Sample AI notes',
-      'Basic progress',
-    ]),
-    _Plan('pro-monthly', 'Pro', 'Rs 1,490', 'per month', [
-      'Unlimited Q-Bank & exams',
-      'All AI notes & flashcards',
-      'Full analytics & planner',
-      'Offline notes',
-    ], popular: true),
-    _Plan('pro-annual', 'Pro Annual', 'Rs 12,900', 'per year', [
-      'Everything in Pro',
-      'Save 28% vs monthly',
-      'Priority new content',
-    ]),
-  ];
+  @override
+  ConsumerState<SubscriptionsPage> createState() => _SubscriptionsPageState();
+}
 
-  Future<void> _checkout(BuildContext context, String planId) async {
-    final uri = Uri.parse(AppConfig.checkoutUrl(planId));
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open the checkout page.')));
+class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-check entitlement when returning to the app (e.g. after subscribing
+    // on the website in a separate browser) so unlocked access appears.
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(billingProvider);
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final c = context.c;
-    final current = (ref.watch(authControllerProvider).user?.plan ?? 'free')
-        .toLowerCase();
+    final billingAsync = ref.watch(billingProvider);
 
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+      child: billingAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text('Could not load your plan.\n$e',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: c.inkSoft, fontSize: 14)),
+          ),
+        ),
+        data: (billing) => RefreshIndicator(
+          onRefresh: () async => ref.refresh(billingProvider.future),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            children: [
+              Text('PLAN',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.4,
+                      color: c.accent)),
+              const SizedBox(height: 4),
+              Text('Subscription',
+                  style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: c.inkStrong,
+                      letterSpacing: -0.5)),
+              const SizedBox(height: 12),
+              _statusCard(c, billing.current),
+              const SizedBox(height: 18),
+              if (billing.plans.isNotEmpty)
+                Text("What's included",
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: c.inkStrong)),
+              const SizedBox(height: 10),
+              for (final p in billing.plans.take(4)) ...[
+                _PlanCard(
+                  plan: p,
+                  isCurrent: billing.current != null &&
+                      billing.current!.isActive &&
+                      billing.current!.planName.trim().toLowerCase() ==
+                          p.name.trim().toLowerCase(),
+                ),
+                const SizedBox(height: 14),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statusCard(AppColors c, CurrentSub? cur) {
+    if (cur == null) {
+      return _banner(c, c.inkSoft, Icons.info_outline_rounded, 'No active plan',
+          'You have free access to the app.');
+    }
+    if (cur.isFreePlan || cur.isUnlimitedAccess) {
+      return _banner(
+          c,
+          c.primary,
+          Icons.verified_outlined,
+          cur.planName.isEmpty ? 'Free access' : cur.planName,
+          cur.isFreePlan
+              ? 'You have full access — free of charge. Enjoy!'
+              : 'You have full access.');
+    }
+    if (cur.isActive) {
+      final days = cur.daysRemaining;
+      final sub = cur.isExpiringSoon
+          ? 'Expires in ${days ?? 0} day${days == 1 ? '' : 's'}'
+          : (days != null
+              ? '$days day${days == 1 ? '' : 's'} left${cur.endDate.isNotEmpty ? ' · until ${cur.endDate}' : ''}'
+              : (cur.endDate.isNotEmpty ? 'Active until ${cur.endDate}' : 'Active'));
+      final color = cur.isExpiringSoon ? const Color(0xFFF59E0B) : c.success;
+      return _banner(
+          c, color, Icons.workspace_premium_outlined, cur.planName, sub);
+    }
+    // expired / cancelled / pending
+    final label =
+        cur.status == 'pending' ? 'Payment pending' : 'Plan ${cur.status}';
+    final sub = cur.status == 'pending'
+        ? 'Your payment is being confirmed.'
+        : 'Your premium access has ended.';
+    return _banner(c, const Color(0xFFDC2626), Icons.error_outline_rounded,
+        cur.planName.isEmpty ? label : '${cur.planName} — $label', sub);
+  }
+
+  Widget _banner(
+      AppColors c, Color color, IconData icon, String title, String sub) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
         children: [
-          Text('PLANS',
-              style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.4,
-                  color: c.accent)),
-          const SizedBox(height: 4),
-          Text('Subscription',
-              style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: c.inkStrong,
-                  letterSpacing: -0.5)),
-          const SizedBox(height: 6),
-          Text('Upgrade unlocks the full question bank, AI notes and analytics.',
-              style: TextStyle(fontSize: 13.5, color: c.inkSoft)),
-          const SizedBox(height: 18),
-          for (final p in _plans) ...[
-            _PlanCard(
-              plan: p,
-              isCurrent: current.contains(p.id.split('-').first) &&
-                  (p.id == 'free') == (current == 'free'),
-              onChoose: () => _checkout(context, p.id),
+          Icon(icon, size: 24, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: c.inkStrong)),
+                const SizedBox(height: 2),
+                Text(sub, style: TextStyle(fontSize: 13, color: c.inkSoft)),
+              ],
             ),
-            const SizedBox(height: 14),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            'Payments are handled securely in your browser via PayHere.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11.5, color: c.inkMuted),
           ),
         ],
       ),
@@ -98,12 +175,12 @@ class SubscriptionsPage extends ConsumerWidget {
   }
 }
 
+/// Informational plan card — name, description, and feature bullets only.
+/// Deliberately shows NO price and NO purchase button (access-only).
 class _PlanCard extends StatelessWidget {
-  final _Plan plan;
+  final SubPlan plan;
   final bool isCurrent;
-  final VoidCallback onChoose;
-  const _PlanCard(
-      {required this.plan, required this.isCurrent, required this.onChoose});
+  const _PlanCard({required this.plan, required this.isCurrent});
 
   @override
   Widget build(BuildContext context) {
@@ -115,22 +192,26 @@ class _PlanCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(plan.name,
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: c.inkStrong)),
+              Flexible(
+                child: Text(plan.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: c.inkStrong)),
+              ),
               const SizedBox(width: 8),
-              if (plan.popular)
+              if (plan.recommended)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
                       color: c.primaryTint,
                       borderRadius: BorderRadius.circular(99)),
-                  child: Text('MOST POPULAR',
+                  child: Text('RECOMMENDED',
                       style: TextStyle(
-                          fontSize: 9.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.6,
                           color: c.primary)),
@@ -139,54 +220,31 @@ class _PlanCard extends StatelessWidget {
               if (isCurrent)
                 Text('Current',
                     style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: c.success)),
             ],
           ),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(plan.price,
-                  style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: c.inkStrong,
-                      letterSpacing: -0.5)),
-              const SizedBox(width: 6),
-              Text(plan.period,
-                  style: TextStyle(fontSize: 12.5, color: c.inkSoft)),
-            ],
-          ),
+          if (plan.description.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(plan.description,
+                style: TextStyle(fontSize: 13, color: c.inkSoft)),
+          ],
           const SizedBox(height: 12),
-          for (final perk in plan.perks)
+          for (final feat in plan.features.take(8))
             Padding(
               padding: const EdgeInsets.only(bottom: 7),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_rounded,
-                      size: 17, color: c.success),
+                  Icon(Icons.check_circle_rounded, size: 17, color: c.success),
                   const SizedBox(width: 9),
                   Expanded(
-                      child: Text(perk,
+                      child: Text(feat,
                           style:
-                              TextStyle(fontSize: 13, color: c.inkMedium))),
+                              TextStyle(fontSize: 14, color: c.inkMedium))),
                 ],
               ),
             ),
-          if (plan.id != 'free') ...[
-            const SizedBox(height: 8),
-            AppButton(
-              isCurrent ? 'Manage' : 'Upgrade',
-              kind: plan.popular
-                  ? AppButtonKind.primary
-                  : AppButtonKind.soft,
-              expand: true,
-              onPressed: onChoose,
-            ),
-          ],
         ],
       ),
     );

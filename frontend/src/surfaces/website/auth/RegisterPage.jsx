@@ -98,6 +98,13 @@ export function RegisterPage() {
     setStatus({ loading: true, error: '', success: '' });
     try {
       const data = await signUp(registration);
+      if (data?.emailVerificationRequired) {
+        const params = new URLSearchParams({ email: data.email || registration.email });
+        if (fromParam) params.set('from', fromParam);
+        setStatus({ loading: false, error: '', success: '' });
+        navigate(`/auth/verify-email?${params.toString()}`, { state: { devCode: data.devCode } });
+        return;
+      }
       const userName = data?.user?.fullName || registration.fullName || 'your account';
       setStatus({ loading: false, error: '', success: `Account created for ${userName}` });
       navigate(canonicalizeForwardPathForUser(requestedPath, data?.user) || data?.redirectPath || '/dashboard');

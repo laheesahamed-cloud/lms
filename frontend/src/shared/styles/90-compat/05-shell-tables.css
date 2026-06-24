@@ -20,11 +20,11 @@
 
   @media (min-width: 901px) {
     .lms-sidebar:not(.is-overlay-nav) {
-      inset-block: var(--sidebar-float-gap, 16px) !important;
-      left: var(--sidebar-float-gap, 16px) !important;
+      inset-block: 24px !important;
+      left: 24px !important;
       height: auto !important;
       min-height: 0 !important;
-      max-height: calc(100dvh - (var(--sidebar-float-gap, 16px) * 2)) !important;
+      max-height: calc(100dvh - 48px) !important;
       border: 1px solid var(--sidebar-border) !important;
       border-radius: 24px !important;
       box-shadow: 0 18px 46px rgba(15,23,42,0.11) !important;

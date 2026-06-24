@@ -275,7 +275,7 @@ function DeckRow({ node, depth, expanded, onToggle, onStart, onDelete }) {
   return (
     <>
       <div className={`xfc-deck-row xfc-deck-row--${node.type}`} style={{ '--xfc-depth': depth }}>
-        <button type="button" className="xfc-deck-main" onClick={() => (hasChildren ? onToggle(node.key) : onStart(node))}>
+        <button type="button" className="xfc-deck-main" onClick={() => (hasChildren ? onToggle(node) : onStart(node))}>
           {hasChildren ? <IcChevron open={open} /> : <span className="xfc-chevron-spacer" aria-hidden="true" />}
           <span className="xfc-deck-label">{node.label}</span>
           {node.locked ? <span className="xfc-lock" title="Locked"><IcLock /></span> : null}
@@ -346,10 +346,21 @@ function DeckListView({ onStart }) {
     flushReviews().then((res) => { setPending(res.pending); load(); });
   }, [load]);
 
-  const toggle = useCallback((key) => {
+  const toggle = useCallback((node) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      const keys = [node.key];
+      const stack = [...(node.children || [])];
+      while (stack.length) {
+        const child = stack.pop();
+        keys.push(child.key);
+        if (child.children?.length) stack.push(...child.children);
+      }
+      if (next.has(node.key)) {
+        keys.forEach((key) => next.delete(key));
+      } else {
+        keys.forEach((key) => next.add(key));
+      }
       return next;
     });
   }, []);
@@ -428,7 +439,7 @@ function DeckListView({ onStart }) {
             {!localTree.length ? (
               <div className="xfc-empty">
                 <h2>Your own decks</h2>
-                <p>Create personal flashcards — Basic, reversed, or cloze. They’re saved on this device and scheduled with the same FSRS engine.</p>
+                <p>Create your own flashcards. They stay on this device and show up when it is time to review.</p>
                 <button type="button" className="xfc-primary" onClick={() => setModal('add')}>Add your first card</button>
               </div>
             ) : (

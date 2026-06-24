@@ -51,7 +51,7 @@
     --sa-page-padding,
     calc(max(8px, env(safe-area-inset-top, 0px)) + 4px) 0 calc(var(--bottom-nav-height, var(--lms-mobile-content-bottom, 92px)) + 6px)
   );
-  touch-action: pan-y;
+  touch-action: auto;
   overscroll-behavior: auto;
 }
 
@@ -977,7 +977,6 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-dust-layer 
   height: 380px;
   /* Adapts to active accent (blue or violet) via --sa-primary-rgb */
   background: radial-gradient(circle at center, rgba(var(--sa-primary-rgb), 0.07) 0%, transparent 70%);
-  animation: study-blob-drift-a 22s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 }
 
 .dashboard-page::after,
@@ -988,15 +987,6 @@ html[data-lms-runtime="native"][data-lms-form-factor="phone"] .study-dust-layer 
   height: 340px;
   /* Secondary blob — adapts to active accent's secondary via --sa-purple-rgb */
   background: radial-gradient(circle at center, rgba(var(--sa-purple-rgb), 0.055) 0%, transparent 70%);
-  animation: study-blob-drift-b 26s cubic-bezier(0.45, 0.05, 0.55, 0.95) -10s infinite alternate;
-}
-
-/* Native/WebView: stop the infinite drift on these fixed, heavily-blurred
-   blobs. The continuous motion forces the compositor to re-rasterize a large
-   blur every frame — the main cause of dark-mode jank. The static blob stays. */
-html[data-lms-runtime="native"] :where(.dashboard-page, .student-route-page)::before,
-html[data-lms-runtime="native"] :where(.dashboard-page, .student-route-page)::after {
-  animation: none !important;
 }
 
 /* During a quiz/exam the screen stacks several backdrop-blur panels over these
@@ -1026,21 +1016,11 @@ html[data-lms-runtime="native"] .lms-quiz-taking-page .lms-exam-header {
 /* Lift visible content above the blobs */
 .study-hub-shell {
   position: relative;
-  z-index: 1;
-}
-
-@keyframes study-blob-drift-a {
-  0%   { transform: translate3d(0, 0, 0)         scale(1); }
-  100% { transform: translate3d(-32px, 28px, 0)  scale(1.08); }
-}
-@keyframes study-blob-drift-b {
-  0%   { transform: translate3d(0, 0, 0)        scale(1); }
-  100% { transform: translate3d(28px, -22px, 0) scale(1.1); }
 }
 
 @keyframes study-hero-mascot-float {
-  0%, 100% { transform: translate3d(0, 0, 0) scaleX(-1) rotate(-1deg); }
-  48% { transform: translate3d(0, -7px, 0) scaleX(-1) rotate(2deg); }
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-1deg); }
+  48% { transform: translate3d(0, -7px, 0) rotate(2deg); }
 }
 
 @keyframes study-hero-mascot-glow {
@@ -1261,7 +1241,7 @@ html[data-lms-runtime="pwa"][data-lms-form-factor="phone"] body.study-hub-screen
   --sa-warn-deep: #fbbf24;
   --sa-warn-rgb: 245, 158, 11;
   --sa-shadow-card: 0 18px 44px -30px rgba(2, 6, 12, 0.64);
-  background: var(--sa-bg) !important;
+  background: transparent !important;
   color: var(--sa-ink);
 }
 

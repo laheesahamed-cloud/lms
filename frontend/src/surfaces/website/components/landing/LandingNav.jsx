@@ -1,9 +1,11 @@
 /*
- * LandingNav — fixed, scroll-aware navbar for the v2 landing page.
- * Transparent over the dark hero; after 60px scroll → frosted white.
- * Brand echo: the CTA is the only element with solid indigo bg.
+ * LandingNav — fixed, theme-aware navbar for the v2 landing page.
+ * Transparent + white wordmark/logo while it sits over a dark section (the
+ * cinematic hero is pinned dark for ~8200px, plus the dark subjects gallery);
+ * solid white + dark wordmark over the light sections. The parent samples the
+ * colour under the bar and passes `overDark` so the bar never mismatches the
+ * section behind it. Brand echo: the CTA is the only element with solid indigo bg.
  */
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const ASSET = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
@@ -16,26 +18,21 @@ const NAV_LINKS = [
   { label: 'About', href: '#about' },
 ];
 
-export function LandingNav({ ctaTo = '/register', signInTo = '/login' }) {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    let frame = 0;
-    const update = () => { frame = 0; setScrolled(window.scrollY > 60); };
-    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    update();
-    return () => { window.removeEventListener('scroll', onScroll); if (frame) cancelAnimationFrame(frame); };
-  }, []);
+export function LandingNav({ ctaTo = '/register', signInTo = '/login', overDark = true }) {
+  // Frosted/dark-text only when the bar is NOT over a dark section.
+  const scrolled = !overDark;
 
   const linkColor = scrolled ? 'text-[#111118]/70 hover:text-[#111118]' : 'text-white/80 hover:text-white';
 
   return (
     <header
       className={[
-        'fixed inset-x-0 top-0 z-[20000] transition-[background-color,box-shadow,backdrop-filter,border-color] duration-300',
+        // pt = top safe-area inset so the bar's own background fills the iPhone
+        // notch strip (matching whatever section is behind it) instead of leaving
+        // an empty, mismatched gap above the bar.
+        'fixed inset-x-0 top-0 z-[20000] pt-[env(safe-area-inset-top,0px)] transition-[background-color,box-shadow,backdrop-filter,border-color] duration-300',
         scrolled
-          ? 'border-b border-[#111118]/8 bg-white/80 shadow-[0_4px_24px_rgba(17,17,24,0.06)] backdrop-blur-md'
+          ? 'border-b border-[#111118]/8 bg-white shadow-[0_4px_24px_rgba(17,17,24,0.06)]'
           : 'border-b border-transparent bg-transparent',
       ].join(' ')}
     >
@@ -86,5 +83,3 @@ export function LandingNav({ ctaTo = '/register', signInTo = '/login' }) {
     </header>
   );
 }
-
-export default LandingNav;

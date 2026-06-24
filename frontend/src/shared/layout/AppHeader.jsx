@@ -110,6 +110,17 @@ function ProfileIcon() {
   );
 }
 
+function SubscriptionIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="2" y="5" width="16" height="10.5" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2 9H18" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M5 13H9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="15" cy="13" r="1.25" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
 function LogoutIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -286,6 +297,7 @@ const breadcrumbRouteLabels = {
     '/planner': 'Planner',
     '/flashcards': 'Flashcards',
     '/study': 'Lessons',
+    '/lessons': 'Lessons',
     '/ai-notes': 'Lessons',
     '/results': 'Results',
     '/review': 'Review',
@@ -514,6 +526,7 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
 
   const settingsPath = isStaff && userHasPermission(user, 'settings.manage') ? rolePath('/settings', user?.role) : '';
   const profilePath = rolePath('/profile', user?.role);
+  const subscriptionPath = isStaff ? '' : rolePath('/subscriptions', user?.role);
   const profilePrimary = isStaff
     ? getAdminUserIdentifier(user, 'Signed in user')
     : user?.fullName || 'Signed in user';
@@ -1013,6 +1026,21 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
           <ProfileIcon />
           <span>Profile</span>
         </button>
+
+        {subscriptionPath ? (
+          <button
+            type="button"
+            role="menuitem"
+            className={topbarUi.menuItem}
+            onPointerDown={() => preloadRouteByPath(subscriptionPath, user?.role)}
+            onTouchStart={() => preloadRouteByPath(subscriptionPath, user?.role)}
+            onFocus={() => preloadRouteByPath(subscriptionPath, user?.role)}
+            onClick={() => handleNavigate(subscriptionPath)}
+          >
+            <SubscriptionIcon />
+            <span>Subscriptions</span>
+          </button>
+        ) : null}
 
         {settingsPath ? (
           <button type="button" role="menuitem" className={topbarUi.menuItem} onClick={() => handleNavigate(settingsPath)}>

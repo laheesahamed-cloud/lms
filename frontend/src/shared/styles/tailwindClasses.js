@@ -243,7 +243,7 @@ export const ui = {
   modalForm:    'min-w-0',
   formActions:  'justify-end pt-2',
   modalBackdrop:
-    'lms-modal-backdrop fixed inset-0 z-[110] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[640px]:p-3',
+    'lms-modal-backdrop fixed inset-0 z-[1200] grid place-items-center bg-[rgba(2,5,10,0.72)] p-6 backdrop-blur-[10px] max-[640px]:p-3',
   entityModal:
     'lms-modal-panel w-[min(860px,100%)] max-h-[min(88vh,920px)] overflow-y-auto rounded-[var(--radius-xl)] border border-line-soft bg-surface-card-elevated shadow-[var(--ds-floating-shadow)] animate-scaleIn',
   entityModalTop:

@@ -53,6 +53,8 @@ export type PayHerePaymentSettings = {
     supportText: string;
     bankTransferDetails: string;
     autoActivatePaidSubscriptions: boolean;
+    appMerchantSecret: string;
+    appCheckoutMode: 'native' | 'web';
 };
 export type SmtpSettings = {
     enabled: boolean;
@@ -293,6 +295,9 @@ export declare class SettingsService {
         cancelUrl?: undefined;
         notifyUrl?: undefined;
         autoActivatePaidSubscriptions?: undefined;
+        appCheckoutMode?: undefined;
+        hasAppMerchantSecret?: undefined;
+        maskedAppMerchantSecret?: undefined;
         ok: boolean;
         provider: string;
         actionUrl: string;
@@ -313,6 +318,9 @@ export declare class SettingsService {
         cancelUrl: string;
         notifyUrl: string;
         autoActivatePaidSubscriptions: boolean;
+        appCheckoutMode: "native" | "web";
+        hasAppMerchantSecret: boolean;
+        maskedAppMerchantSecret: string;
         ok: boolean;
         provider: string;
         actionUrl: string;
@@ -322,7 +330,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -346,7 +354,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -401,6 +409,9 @@ export declare class SettingsService {
         cancelUrl?: undefined;
         notifyUrl?: undefined;
         autoActivatePaidSubscriptions?: undefined;
+        appCheckoutMode?: undefined;
+        hasAppMerchantSecret?: undefined;
+        maskedAppMerchantSecret?: undefined;
     } | {
         enabled: boolean;
         sandboxMode: boolean;
@@ -417,6 +428,9 @@ export declare class SettingsService {
         cancelUrl: string;
         notifyUrl: string;
         autoActivatePaidSubscriptions: boolean;
+        appCheckoutMode: "native" | "web";
+        hasAppMerchantSecret: boolean;
+        maskedAppMerchantSecret: string;
     }>;
     getPayHereCheckoutSettings(): Promise<PayHerePaymentSettings>;
     updatePaymentSettings(input: Partial<PayHerePaymentSettings>): Promise<{
@@ -436,6 +450,9 @@ export declare class SettingsService {
         cancelUrl?: undefined;
         notifyUrl?: undefined;
         autoActivatePaidSubscriptions?: undefined;
+        appCheckoutMode?: undefined;
+        hasAppMerchantSecret?: undefined;
+        maskedAppMerchantSecret?: undefined;
         ok: boolean;
         provider: string;
         actionUrl: string;
@@ -456,6 +473,9 @@ export declare class SettingsService {
         cancelUrl: string;
         notifyUrl: string;
         autoActivatePaidSubscriptions: boolean;
+        appCheckoutMode: "native" | "web";
+        hasAppMerchantSecret: boolean;
+        maskedAppMerchantSecret: string;
         ok: boolean;
         provider: string;
         actionUrl: string;
@@ -465,7 +485,7 @@ export declare class SettingsService {
         enabled: boolean;
         host: string;
         port: number;
-        security: "ssl" | "starttls";
+        security: "starttls" | "ssl";
         username: string;
         fromName: string;
         fromEmail: string;
@@ -496,7 +516,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "all" | "landing" | "login" | "app";
         title: string;
         body: string;
         buttonLabel: string;

@@ -19,6 +19,7 @@ export declare class ResultsService {
     }[]>;
     detail(authorization: string | undefined, attemptId: number): Promise<{
         attemptId: number;
+        quizId: number;
         quizTitle: string;
         courseTitle: string;
         topicDisplay: string;

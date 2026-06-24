@@ -26,6 +26,9 @@ const auth_token_util_1 = require("./auth-token.util");
 const role_permissions_1 = require("./role-permissions");
 const ALLOWED_AVATAR_KEYS = new Set(['blue-tie', 'teal-coat', 'pink-necklace', 'violet-scarf', 'amber-coat', 'cyan-necklace']);
 const PASSWORD_RESET_TTL_MINUTES = 30;
+const EMAIL_OTP_TTL_MINUTES = 10;
+const EMAIL_OTP_MAX_ATTEMPTS = 5;
+const EMAIL_OTP_RESEND_COOLDOWN_SECONDS = 60;
 const SMTP_SETTING_KEYS = {
     enabled: 'smtp_enabled',
     host: 'smtp_host',
@@ -54,7 +57,7 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async login(loginDto) {
         const email = loginDto.email.trim().toLowerCase();
-        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
         const user = rows[0];
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid email or password');
@@ -66,6 +69,9 @@ let AuthService = AuthService_1 = class AuthService {
         }
         if ((0, role_permissions_1.isStaffRole)(user.role) && user.status !== 'active') {
             throw new common_1.UnauthorizedException('Your admin account is not active right now');
+        }
+        if (user.role === 'student' && !this.isEmailVerified(user)) {
+            return this.beginEmailVerification(user);
         }
         const sessionToken = (0, crypto_1.randomBytes)(32).toString('hex');
         const sessionTtlDays = (0, role_permissions_1.isStaffRole)(user.role) ? auth_token_util_1.ADMIN_SESSION_TTL_DAYS : auth_token_util_1.SESSION_TTL_DAYS;
@@ -96,22 +102,15 @@ let AuthService = AuthService_1 = class AuthService {
             throw new common_1.BadRequestException('An account with this email already exists');
         }
         const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-        const sessionToken = (0, crypto_1.randomBytes)(32).toString('hex');
-        const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status, session_token, session_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [fullName, email, hashedPassword, 'student', 'active', (0, auth_token_util_1.hashSessionToken)(sessionToken), (0, auth_token_util_1.createSessionExpiry)()]);
+        const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status, email_verified) VALUES (?, ?, ?, ?, ?, 0)', [fullName, email, hashedPassword, 'student', 'active']);
         await this.assignDefaultEntryPlan(result.insertId);
-        return {
-            ok: true,
-            sessionToken,
-            sessionTtlDays: auth_token_util_1.SESSION_TTL_DAYS,
-            redirectPath: this.getRedirectPath('student', 'active'),
-            user: await this.serializeUser({
-                id: result.insertId,
-                full_name: fullName,
-                email,
-                role: 'student',
-                status: 'active',
-            }),
-        };
+        return this.beginEmailVerification({
+            id: result.insertId,
+            full_name: fullName,
+            email,
+            role: 'student',
+            status: 'active',
+        });
     }
     async loginWithGoogle(googleLoginDto) {
         const profile = await this.verifyGoogleCredential(googleLoginDto.credential);
@@ -149,7 +148,7 @@ let AuthService = AuthService_1 = class AuthService {
         }
         const sessionToken = (0, crypto_1.randomBytes)(32).toString('hex');
         const sessionTtlDays = (0, role_permissions_1.isStaffRole)(user.role) ? auth_token_util_1.ADMIN_SESSION_TTL_DAYS : auth_token_util_1.SESSION_TTL_DAYS;
-        await this.db.execute('UPDATE users SET session_token = ?, session_expires_at = ? WHERE id = ?', [
+        await this.db.execute('UPDATE users SET session_token = ?, session_expires_at = ?, email_verified = 1 WHERE id = ?', [
             (0, auth_token_util_1.hashSessionToken)(sessionToken),
             (0, auth_token_util_1.createSessionExpiry)(sessionTtlDays),
             user.id,
@@ -284,6 +283,196 @@ let AuthService = AuthService_1 = class AuthService {
             ok: true,
             message: 'Password updated. You can sign in with your new password.',
         };
+    }
+    isEmailVerified(user) {
+        const raw = String(user.email_verified ?? '1').trim().toLowerCase();
+        return !['0', '', 'false', 'no'].includes(raw);
+    }
+    async beginEmailVerification(user) {
+        const { emailSent, code } = await this.issueEmailOtp(user);
+        const exposeDevCode = !emailSent && this.configService.get('NODE_ENV') !== 'production';
+        return {
+            ok: true,
+            emailVerificationRequired: true,
+            email: user.email,
+            emailSent,
+            expiresInMinutes: EMAIL_OTP_TTL_MINUTES,
+            message: emailSent
+                ? `We sent a 6-digit verification code to ${user.email}.`
+                : 'Enter the 6-digit verification code to continue.',
+            ...(exposeDevCode ? { devCode: code } : {}),
+        };
+    }
+    async issueEmailOtp(user) {
+        const code = String((0, crypto_1.randomInt)(0, 1_000_000)).padStart(6, '0');
+        await this.db.execute(`UPDATE users
+       SET email_otp_code = ?,
+           email_otp_expires_at = DATE_ADD(NOW(), INTERVAL ? MINUTE),
+           email_otp_attempts = 0,
+           email_otp_last_sent_at = NOW()
+       WHERE id = ?`, [(0, auth_token_util_1.hashSessionToken)(code), EMAIL_OTP_TTL_MINUTES, user.id]);
+        const settings = await this.getPasswordResetSmtpSettings();
+        const shouldSendEmail = settings.enabled && settings.configured;
+        if (!shouldSendEmail) {
+            this.logger.warn(`Email OTP not sent for user ${user.id}: SMTP ${settings.enabled ? 'incomplete' : 'disabled'}`);
+            return { emailSent: false, code };
+        }
+        const emailSent = await this.sendEmailVerificationOtp({ to: user.email, code, settings }).catch((error) => {
+            const errorCode = String(error?.code || error?.responseCode || error?.name || 'email_error');
+            this.logger.warn(`Email OTP send failed for user ${user.id}: ${errorCode}`);
+            return false;
+        });
+        return { emailSent, code };
+    }
+    async verifyEmailOtp(verifyEmailOtpDto) {
+        const email = verifyEmailOtpDto.email.trim().toLowerCase();
+        const code = String(verifyEmailOtpDto.code || '').trim();
+        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, status, avatar_key,
+              email_verified, email_otp_code, email_otp_expires_at, email_otp_attempts
+       FROM users
+       WHERE email = ? AND deleted_at IS NULL
+       LIMIT 1`, [email]);
+        const user = rows[0];
+        if (!user) {
+            throw new common_1.BadRequestException('Verification code is invalid or has expired');
+        }
+        if (this.isEmailVerified(user)) {
+            return this.issueSessionForUser(user);
+        }
+        const attempts = Number(user.email_otp_attempts || 0);
+        if (attempts >= EMAIL_OTP_MAX_ATTEMPTS) {
+            throw new common_1.BadRequestException('Too many attempts. Request a new code and try again.');
+        }
+        const expiresAt = user.email_otp_expires_at ? new Date(user.email_otp_expires_at) : null;
+        const expired = !user.email_otp_code || !expiresAt || expiresAt.getTime() <= Date.now();
+        if (expired) {
+            throw new common_1.BadRequestException('Verification code is invalid or has expired');
+        }
+        if ((0, auth_token_util_1.hashSessionToken)(code) !== user.email_otp_code) {
+            await this.db.execute('UPDATE users SET email_otp_attempts = email_otp_attempts + 1 WHERE id = ?', [user.id]);
+            const remaining = Math.max(0, EMAIL_OTP_MAX_ATTEMPTS - (attempts + 1));
+            throw new common_1.BadRequestException(remaining > 0
+                ? `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} left.`
+                : 'Incorrect code. Request a new code and try again.');
+        }
+        await this.db.execute(`UPDATE users
+       SET email_verified = 1,
+           email_otp_code = NULL,
+           email_otp_expires_at = NULL,
+           email_otp_attempts = 0
+       WHERE id = ?`, [user.id]);
+        return this.issueSessionForUser(user);
+    }
+    async resendEmailOtp(resendEmailOtpDto) {
+        const email = resendEmailOtpDto.email.trim().toLowerCase();
+        const [rows] = await this.db.execute(`SELECT id, email, role, email_verified, email_otp_last_sent_at
+       FROM users
+       WHERE email = ? AND deleted_at IS NULL
+       LIMIT 1`, [email]);
+        const user = rows[0];
+        const baseResponse = {
+            ok: true,
+            expiresInMinutes: EMAIL_OTP_TTL_MINUTES,
+            message: 'If your email still needs verification, a new code is on its way.',
+        };
+        if (!user || user.role !== 'student' || this.isEmailVerified(user)) {
+            return baseResponse;
+        }
+        const lastSentAt = user.email_otp_last_sent_at ? new Date(user.email_otp_last_sent_at) : null;
+        if (lastSentAt) {
+            const secondsSince = (Date.now() - lastSentAt.getTime()) / 1000;
+            if (secondsSince < EMAIL_OTP_RESEND_COOLDOWN_SECONDS) {
+                return { ...baseResponse, retryAfterSeconds: Math.ceil(EMAIL_OTP_RESEND_COOLDOWN_SECONDS - secondsSince) };
+            }
+        }
+        const { emailSent, code } = await this.issueEmailOtp(user);
+        const exposeDevCode = !emailSent && this.configService.get('NODE_ENV') !== 'production';
+        return {
+            ...baseResponse,
+            emailSent,
+            ...(exposeDevCode ? { devCode: code } : {}),
+        };
+    }
+    async issueSessionForUser(user) {
+        if ((0, role_permissions_1.isStaffRole)(user.role) && user.status !== 'active') {
+            throw new common_1.UnauthorizedException('Your admin account is not active right now');
+        }
+        const sessionToken = (0, crypto_1.randomBytes)(32).toString('hex');
+        const sessionTtlDays = (0, role_permissions_1.isStaffRole)(user.role) ? auth_token_util_1.ADMIN_SESSION_TTL_DAYS : auth_token_util_1.SESSION_TTL_DAYS;
+        await this.db.execute('UPDATE users SET session_token = ?, session_expires_at = ? WHERE id = ?', [
+            (0, auth_token_util_1.hashSessionToken)(sessionToken),
+            (0, auth_token_util_1.createSessionExpiry)(sessionTtlDays),
+            user.id,
+        ]);
+        return {
+            ok: true,
+            sessionToken,
+            sessionTtlDays,
+            redirectPath: this.getRedirectPath(user.role, user.status),
+            user: await this.serializeUser(user),
+        };
+    }
+    async sendEmailVerificationOtp(input) {
+        const { settings, code, to } = input;
+        const transporter = nodemailer.createTransport({
+            host: settings.host,
+            port: settings.port,
+            secure: settings.security === 'ssl',
+            auth: {
+                user: settings.username,
+                pass: settings.password,
+            },
+        });
+        await transporter.sendMail({
+            from: `"${settings.fromName.replace(/"/g, '')}" <${settings.fromEmail}>`,
+            to,
+            subject: `Your ${settings.fromName} verification code`,
+            text: this.renderEmailOtpText(settings, code),
+            html: this.renderEmailOtpHtml(settings, code),
+        });
+        return true;
+    }
+    renderEmailOtpText(settings, code) {
+        return `Verify your email
+
+Enter this 6-digit code to finish signing in to ${settings.fromName}:
+
+${code}
+
+This code expires in ${EMAIL_OTP_TTL_MINUTES} minutes.
+
+If you did not try to sign in, you can safely ignore this email.`;
+    }
+    renderEmailOtpHtml(settings, code) {
+        const safe = (value) => String(value || '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        }[char] || char));
+        const logoUrl = `${String(settings.publicUrl || '').replace(/\/+$/, '')}/landing/logo.png`;
+        const spacedCode = safe(code).split('').join('&#8201;');
+        return `
+      <div style="margin:0;padding:32px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+        <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:18px;overflow:hidden;box-shadow:0 18px 46px rgba(15,23,42,.10);">
+          <div style="padding:24px 28px 18px;background:#ffffff;text-align:center;">
+            <img src="${safe(logoUrl)}" alt="${safe(settings.fromName)}" width="160" style="display:inline-block;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;" />
+          </div>
+          <div style="padding:22px 28px;background:linear-gradient(135deg,#2563EB,#14B8A6);color:#ffffff;">
+            <h1 style="margin:0;font-size:26px;line-height:1.15;">Verify your email</h1>
+          </div>
+          <div style="padding:28px;">
+            <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#334155;">Enter this 6-digit code to finish signing in:</p>
+            <div style="text-align:center;margin:8px 0 22px;">
+              <span style="display:inline-block;font-size:34px;font-weight:900;letter-spacing:.32em;color:#0f172a;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:14px 22px;">${spacedCode}</span>
+            </div>
+            <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">This code expires in ${EMAIL_OTP_TTL_MINUTES} minutes.</p>
+          </div>
+          <div style="border-top:1px solid #e2e8f0;padding:18px 28px;font-size:12px;line-height:1.6;color:#64748b;background:#f8fafc;">If you did not try to sign in, you can safely ignore this email.</div>
+        </div>
+      </div>
+    `;
     }
     async updateProfile(authorization, updateProfileDto) {
         const user = await this.findUserByToken(this.extractToken(authorization));
@@ -513,7 +702,7 @@ ${settings.footer}`;
                 code,
                 client_id: clientId,
                 client_secret: clientSecret,
-                redirect_uri: redirectUri,
+                redirect_uri: 'postmessage',
                 grant_type: 'authorization_code',
             }),
         });

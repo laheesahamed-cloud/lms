@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { changePassword, updateProfile } from '../api/auth.api.js';
+import { useNavigate } from 'react-router-dom';
+import { changePassword, deleteAccount, updateProfile } from '../api/auth.api.js';
 import { getErrorMessage } from '../api/client.js';
 import { AppHeader } from '../layout/AppHeader.jsx';
+import { ThemeToggle } from '../layout/ThemeToggle.jsx';
 import { ProfileAvatar } from '../ui/ProfileAvatar.jsx';
 import { PROFILE_AVATARS } from '../ui/profileAvatarData.js';
 import { useAuthStore } from '../stores/authStore.js';
@@ -11,12 +13,17 @@ import { FeedbackNotice } from '../ui/FeedbackNotice.jsx';
 import { PasswordField } from '../ui/PasswordField.jsx';
 
 export function ProfilePage() {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
+  const signOut = useAuthStore((state) => state.signOut);
   const [profileForm, setProfileForm] = useState({ fullName: '', avatarKey: '' });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [profileStatus, setProfileStatus] = useState({ loading: false, error: '', success: '' });
   const [passwordStatus, setPasswordStatus] = useState({ loading: false, error: '', success: '' });
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteStatus, setDeleteStatus] = useState({ loading: false, error: '' });
   const isStaff = isStaffUser(user);
 
   useEffect(() => {
@@ -49,6 +56,20 @@ export function ProfilePage() {
     }
   }
 
+  async function handleDeleteAccount() {
+    setDeleteStatus({ loading: true, error: '' });
+
+    try {
+      await deleteAccount();
+      // signOut clears local session + caches; its logout call no-ops since the
+      // session is already gone server-side.
+      await signOut();
+      navigate('/auth/login');
+    } catch (error) {
+      setDeleteStatus({ loading: false, error: getErrorMessage(error, 'Unable to delete account') });
+    }
+  }
+
   return (
     <main className={ui.screenShell}>
       <section className={cx(ui.managementLayout, 'gap-section')}>
@@ -63,7 +84,23 @@ export function ProfilePage() {
             <h2 className="my-1.5 mb-1 text-[26px] text-ink-strong">{user?.fullName || 'Signed in user'}</h2>
             <p className="m-0 text-ink-soft">{user?.email}</p>
           </div>
-          <span className={cx('ml-auto max-[900px]:ml-0', statusPill(user?.status || 'active'))}>{user?.status || 'active'}</span>
+          <span className={cx('ml-auto max-[900px]:ml-0', statusPill(user?.status || 'active'))}>
+            {user?.status || 'active'}
+          </span>
+        </section>
+
+        <section className={cx(ui.dashboardCard, 'flex items-center justify-between gap-4 p-card max-[640px]:flex-col max-[640px]:items-start')}>
+          <div className="grid gap-2">
+            <span className={ui.eyebrow}>Appearance</span>
+            <h3 className="m-0 text-xl text-ink-strong">Theme</h3>
+            <p className="m-0 text-[13px] leading-relaxed text-ink-soft">
+              Switch between dark and light mode for your study workspace.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-line-soft bg-surface-2 px-3 py-2">
+            <span className="text-[12px] font-extrabold text-ink-soft">Dark / Light</span>
+            <ThemeToggle />
+          </div>
         </section>
 
         <div className="grid grid-cols-2 gap-section max-[900px]:grid-cols-1">
@@ -170,6 +207,62 @@ export function ProfilePage() {
             </button>
           </form>
         </div>
+
+        {!isStaff ? (
+          <section className="grid gap-4 rounded-xl border border-[var(--color-error)]/35 bg-[color-mix(in_srgb,var(--card-bg)_92%,var(--color-error))] p-card shadow-[var(--card-shadow)]">
+            <div className="grid gap-2">
+              <span className={cx(ui.eyebrow, 'text-[var(--color-error)]')}>Danger zone</span>
+              <h3 className="m-0 text-xl text-ink-strong">Delete account</h3>
+              <p className="m-0 max-w-prose text-[13px] leading-relaxed text-ink-soft">
+                This permanently deletes your account. Your name and email are removed and you will be
+                signed out. This cannot be undone.
+              </p>
+            </div>
+
+            {deleteStatus.error ? <FeedbackNotice tone="error">{deleteStatus.error}</FeedbackNotice> : null}
+
+            {!deleteOpen ? (
+              <button
+                type="button"
+                className={cx(ui.dangerAction ?? ui.primaryAction, 'justify-self-start')}
+                onClick={() => { setDeleteOpen(true); setDeleteConfirm(''); setDeleteStatus({ loading: false, error: '' }); }}
+              >
+                Delete my account
+              </button>
+            ) : (
+              <div className="grid gap-3">
+                <label className="grid gap-2 text-[13px] font-bold text-ink-medium">
+                  Type <span className="font-mono text-[var(--color-error)]">DELETE</span> to confirm
+                  <input
+                    className={ui.input}
+                    value={deleteConfirm}
+                    onChange={(event) => setDeleteConfirm(event.target.value)}
+                    autoComplete="off"
+                    placeholder="DELETE"
+                  />
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    className={cx(ui.dangerAction ?? ui.primaryAction, 'disabled:cursor-not-allowed disabled:opacity-60')}
+                    onClick={handleDeleteAccount}
+                    disabled={deleteStatus.loading || deleteConfirm.trim().toUpperCase() !== 'DELETE'}
+                  >
+                    {deleteStatus.loading ? 'Deleting...' : 'Permanently delete'}
+                  </button>
+                  <button
+                    type="button"
+                    className={ui.secondaryAction ?? ui.primaryAction}
+                    onClick={() => setDeleteOpen(false)}
+                    disabled={deleteStatus.loading}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        ) : null}
       </section>
     </main>
   );

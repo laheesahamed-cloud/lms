@@ -1,7 +1,7 @@
 /*
  * LandingPage (v2) — pastel editorial landing, told as one story:
  *   Hero (dark cinematic) → Problem "stop juggling 5 apps" (cream) → Feature
- *   deep-dives (Canvas, MCQs, Flashcards, AI Notes, Mocks) → Manifesto (why) →
+ *   deep-dives (Canvas, MCQs, Flashcards, Instant Notes, Mocks) → Manifesto (why) →
  *   Subjects gallery → Stats → Testimonials → Comparison → FAQ → Final CTA →
  *   Footer. Calm in-view reveals throughout (only the hero is scroll-pinned).
  *   Scoped under `.lpv2` so tokens/fonts don't leak into the app.
@@ -30,11 +30,24 @@ import { SiteFooter } from '../components/landing/SiteFooter.jsx';
 // Landing typefaces start loading as soon as the landing chunk arrives.
 ensureLandingFonts();
 
+// Relative luminance (0 = black, 1 = white) of a computed `rgb()/rgba()` string.
+// Drives whether the fixed nav sits over a dark section (white wordmark) or a
+// light one (dark wordmark). Unknown colours fall back to "light".
+const luminanceOf = (color) => {
+  const m = color.match(/^rgba?\(([^)]+)\)/);
+  if (!m) return 1;
+  const [r, g, b] = m[1].split(',').map((s) => parseFloat(s));
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+};
+
 export function LandingPage() {
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [heroAnimationReady, setHeroAnimationReady] = useState(false);
   const [subjectDarkModeActive, setSubjectDarkModeActive] = useState(false);
+  // The cinematic hero is pinned dark for ~8200px, so the nav must stay in its
+  // over-dark (white wordmark) state far longer than a fixed scroll threshold.
+  const [topIsDark, setTopIsDark] = useState(true);
   const handleBootFinished = useCallback(() => setHeroAnimationReady(true), []);
   const handleSubjectDarkModeChange = useCallback((active) => {
     setSubjectDarkModeActive((current) => current === active ? current : active);
@@ -48,6 +61,14 @@ export function LandingPage() {
     const meta = document.querySelector('meta[name="theme-color"]');
     const prevTheme = meta?.getAttribute('content') || '';
     const prevBodyBg = document.body.style.backgroundColor;
+    // CSS `scroll-behavior: smooth` (set by the "balanced" visual-effects
+    // profile) fights GSAP ScrollTrigger's scrub on the hero: the browser keeps
+    // animating toward each programmatic scroll target while GSAP reads/sets the
+    // position every frame, so scrubbed reveals flicker. Force instant scrolling
+    // for the duration of the landing page.
+    const rootEl = document.documentElement;
+    const prevScrollBehavior = rootEl.style.scrollBehavior;
+    rootEl.style.scrollBehavior = 'auto';
     const isOpaque = (c) => {
       if (!c || c === 'transparent') return false;
       const m = c.match(/^rgba?\(([^)]+)\)/);
@@ -78,6 +99,8 @@ export function LandingPage() {
       if (color) {
         meta?.setAttribute('content', color);
         document.body.style.backgroundColor = color;
+        const dark = luminanceOf(color) < 0.5;
+        setTopIsDark((cur) => (cur === dark ? cur : dark));
       }
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(run); };
@@ -90,6 +113,7 @@ export function LandingPage() {
       if (raf) cancelAnimationFrame(raf);
       if (meta && prevTheme) meta.setAttribute('content', prevTheme);
       document.body.style.backgroundColor = prevBodyBg;
+      rootEl.style.scrollBehavior = prevScrollBehavior;
     };
   }, []);
 
@@ -116,13 +140,13 @@ export function LandingPage() {
     <main className={`lpv2 relative isolate overflow-x-clip ${subjectDarkModeActive ? 'lpv2--subject-dark' : ''}`}>
       <PageMeta
         title="Medical Study Platform — Notes, MCQs, Flashcards & Mock Exams"
-        description="xyndrome puts your whole medical study workflow in one place: canvas notes, 10,000+ exam-style MCQs with doctor-written explanations, high-yield flashcards, AI notes, timed mock exams and subject mastery tracking — built for Sri Lankan medical students."
+        description="xyndrome puts your whole medical study workflow in one place: canvas notes, 10,000+ exam-style MCQs with doctor-written explanations, high-yield flashcards, instant lesson notes, timed mock exams and subject mastery tracking — built for Sri Lankan medical students."
         path="/"
       />
       <StructuredData id="landing" faqs={FAQ_ITEMS} />
 
       <BootLoader onFinished={handleBootFinished} />
-      <LandingNav ctaTo="/register" signInTo="/login" />
+      <LandingNav ctaTo="/register" signInTo="/login" overDark={topIsDark} />
 
       <CinematicHero animationReady={heroAnimationReady} secondaryCta={heroSecondaryCta} />
       <ProblemSolutionSection />

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-export const FOCUSABLE_SELECTOR = [
+const FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
   'textarea:not([disabled])',

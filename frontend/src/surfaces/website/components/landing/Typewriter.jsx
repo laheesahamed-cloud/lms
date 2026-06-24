@@ -91,5 +91,3 @@ export function Typewriter({
     </div>
   );
 }
-
-export default Typewriter;

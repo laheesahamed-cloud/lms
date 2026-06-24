@@ -680,6 +680,7 @@ let SubscriptionsService = class SubscriptionsService {
        LIMIT 12`, [userId]);
         const availablePlans = await this.plansService.findActive();
         const planMap = await this.loadSubscriptionPlanMap([...currentRows, ...historyRows]);
+        const paymentSettings = await this.settingsService.getPayHereCheckoutSettings();
         return {
             currentSubscription: currentRows[0] ? await this.mapSubscription(currentRows[0], planMap.get(Number(currentRows[0].plan_id))) : null,
             history: (await Promise.all(historyRows.map((row) => this.mapSubscription(row, planMap.get(Number(row.plan_id))))))
@@ -687,6 +688,7 @@ let SubscriptionsService = class SubscriptionsService {
             availablePlans,
             requests: await this.findStudentRequests(userId),
             payment: await this.settingsService.getStudentPaymentSettings(),
+            appCheckoutMode: paymentSettings.appCheckoutMode,
         };
     }
     async findCoupons() {
@@ -960,6 +962,7 @@ let SubscriptionsService = class SubscriptionsService {
             ok: true,
             provider: 'payhere',
             sandboxMode: settings.sandboxMode,
+            appMerchantSecret: settings.appMerchantSecret || '',
             actionUrl: settings.sandboxMode ? 'https://sandbox.payhere.lk/pay/checkout' : 'https://www.payhere.lk/pay/checkout',
             invoiceId,
             orderId,

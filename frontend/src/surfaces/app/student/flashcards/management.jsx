@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   listLocalDecks,
   createDeck,
@@ -38,7 +39,9 @@ function Modal({ title, onClose, children, footer, wide }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal((
     <div className="xfc-modal-backdrop" onClick={onClose}>
       <div className={`xfc-modal ${wide ? 'xfc-modal--wide' : ''}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}>
         <header className="xfc-modal-head">
@@ -51,7 +54,7 @@ function Modal({ title, onClose, children, footer, wide }) {
         {footer ? <footer className="xfc-modal-foot">{footer}</footer> : null}
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 /* ── Add / edit card ──────────────────────────────────────── */

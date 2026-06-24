@@ -21,7 +21,7 @@ function isPrivateLanHost(hostname) {
 }
 
 export const API_BASE_URL = resolveApiBaseUrl();
-export const API_BASE_URLS = resolveApiBaseUrls();
+const API_BASE_URLS = resolveApiBaseUrls();
 
 function clampNumber(value, fallback, min, max) {
   const numeric = Number(value);

@@ -36,14 +36,5 @@ export const submitFlashcardReviews = (reviews) => {
 export const undoFlashcardReview = (cardId) =>
   apiClient.post('/student/flashcards/reviews/undo', { cardId }).then((r) => r.data);
 
-export const setFlashcardFlags = (cardId, flags) =>
-  apiClient.post(`/student/flashcards/cards/${cardId}/flags`, flags).then((r) => r.data);
-
 export const getFlashcardStats = () =>
   apiClient.get('/student/flashcards/stats').then((r) => r.data || {});
-
-export const getFlashcardSettings = () =>
-  apiClient.get('/student/flashcards/settings').then((r) => r.data || {});
-
-export const updateFlashcardSettings = (patch) =>
-  apiClient.patch('/student/flashcards/settings', patch).then((r) => r.data || {});

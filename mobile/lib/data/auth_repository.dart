@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'api_client.dart';
 import 'models.dart';
@@ -16,7 +17,7 @@ class AuthRepository {
   Future<AuthResult> login(String email, String password) async {
     final r = await api.dio
         .post('/auth/login', data: {'email': email, 'password': password});
-    return _parse(r.data);
+    return _withCookieToken(r, _parse(r.data));
   }
 
   Future<AuthResult> register({
@@ -33,7 +34,14 @@ class AuthRepository {
       'confirmPassword': confirmPassword,
       'acceptedTerms': acceptedTerms,
     });
-    return _parse(r.data);
+    return _withCookieToken(r, _parse(r.data));
+  }
+
+  /// Signs in (or auto-creates the account) with a Google ID token, mirroring
+  /// the web flow. Same session handling as [login] (cookie -> Bearer).
+  Future<AuthResult> loginWithGoogle(String idToken) async {
+    final r = await api.dio.post('/auth/google', data: {'credential': idToken});
+    return _withCookieToken(r, _parse(r.data));
   }
 
   Future<AppUser> me() async {
@@ -43,12 +51,53 @@ class AuthRepository {
     return AppUser.fromJson(Map<String, dynamic>.from(u as Map));
   }
 
-  Future<void> forgotPassword(String email) =>
-      api.dio.post('/auth/forgot-password', data: {'email': email});
+  Future<AppUser> updateProfile({
+    required String fullName,
+    String? avatarKey,
+  }) async {
+    final r = await api.dio.patch('/auth/profile', data: {
+      'fullName': fullName,
+      if (avatarKey != null && avatarKey.isNotEmpty) 'avatarKey': avatarKey,
+    });
+    final data = r.data;
+    final u = (data is Map && data['user'] != null) ? data['user'] : data;
+    return AppUser.fromJson(Map<String, dynamic>.from(u as Map));
+  }
 
-  Future<void> resetPassword(String token, String password) =>
-      api.dio.post('/auth/reset-password',
-          data: {'token': token, 'password': password});
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) =>
+      api.dio.patch('/auth/password', data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'confirmPassword': confirmPassword,
+      });
+
+  /// Requests a reset link. Returns the backend's message (which is the same
+  /// privacy-safe copy the web app shows).
+  Future<String> forgotPassword(String email) async {
+    final r =
+        await api.dio.post('/auth/forgot-password', data: {'email': email.trim()});
+    final m = (r.data is Map) ? Map<String, dynamic>.from(r.data) : {};
+    return (m['message'] ??
+            'If an account exists for that email, a reset link is on its way.')
+        .toString();
+  }
+
+  /// Completes a reset. The backend (`ResetPasswordDto`) requires the new
+  /// password twice — sending `password` alone silently fails validation.
+  Future<void> resetPassword(
+    String token,
+    String newPassword,
+    String confirmPassword,
+  ) =>
+      api.dio.post('/auth/reset-password', data: {
+        'token': token,
+        'newPassword': newPassword,
+        'confirmPassword': confirmPassword,
+      });
 
   Future<void> logout() async {
     try {
@@ -58,11 +107,34 @@ class AuthRepository {
     }
   }
 
+  /// Permanently deletes the signed-in account (server soft-deletes: scrambles
+  /// the email + sets deleted_at, and clears the session cookie).
+  Future<void> deleteAccount() async {
+    await api.dio.delete('/auth/account');
+  }
+
   AuthResult _parse(dynamic data) {
     final m = Map<String, dynamic>.from(data as Map);
     final token = (m['sessionToken'] ?? m['token'] ?? '').toString();
     final u = m['user'] ?? m;
     return AuthResult(token, AppUser.fromJson(Map<String, dynamic>.from(u as Map)));
+  }
+
+  /// The backend strips `sessionToken` from the login/register body and only
+  /// sets the httpOnly `lms_session` cookie. A native HTTP client (unlike a
+  /// browser) can still read it from the `Set-Cookie` response header, and the
+  /// backend accepts it as `Authorization: Bearer <sessionToken>`. So when the
+  /// body has no token, fall back to the cookie value.
+  AuthResult _withCookieToken(Response r, AuthResult parsed) {
+    if (parsed.token.isNotEmpty) return parsed;
+    final cookies = r.headers.map['set-cookie'] ?? const <String>[];
+    for (final c in cookies) {
+      final m = RegExp(r'lms_session=([^;]+)').firstMatch(c);
+      if (m != null && m.group(1)!.isNotEmpty) {
+        return AuthResult(Uri.decodeComponent(m.group(1)!), parsed.user);
+      }
+    }
+    return parsed;
   }
 }
 

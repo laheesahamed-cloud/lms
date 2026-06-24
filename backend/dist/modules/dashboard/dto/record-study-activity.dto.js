@@ -16,7 +16,7 @@ class RecordStudyActivityDto {
 }
 exports.RecordStudyActivityDto = RecordStudyActivityDto;
 __decorate([
-    (0, class_validator_1.IsIn)(['ai_note_viewed', 'lesson_viewed', 'ai_note_protection_attempt', 'lesson_protection_attempt']),
+    (0, class_validator_1.IsIn)(['ai_note_viewed', 'lesson_viewed', 'practice_completed', 'ai_note_protection_attempt', 'lesson_protection_attempt']),
     __metadata("design:type", String)
 ], RecordStudyActivityDto.prototype, "activityType", void 0);
 __decorate([

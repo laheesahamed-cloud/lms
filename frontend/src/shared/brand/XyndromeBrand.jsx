@@ -74,7 +74,7 @@ export function XyndromeBrand({
       <XyndromeLogoMark className={markClassName} size={markSize} logoVariant={logoVariant} />
       <div className={cx('xyndrome-brand__copy', copyClassName)} aria-hidden="true">
         <span className={cx('xyndrome-brand__word', textClassName)}>
-          yndrome
+          xyndrome
         </span>
         {subtitle ? <span className={cx('xyndrome-brand__subtitle', subtitleClassName)}>{subtitle}</span> : null}
       </div>

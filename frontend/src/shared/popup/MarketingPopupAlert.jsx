@@ -14,7 +14,7 @@ const POPUP_MANIFEST_TIMEOUT_MS = 1200;
 // event still forces a live fetch.
 const POPUP_CACHE_TTL_MS = 10 * 60_000;
 const websiteProtectedPathPattern =
-  /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
+  /^\/(?:dashboard|pending|profile|courses|structure|users|questions|question-reports|quizzes|exams|subscriptions|finance|billing|bookmarks|notifications|planner|flashcards|notes|study|lessons|ai-notes|results|review|announcements|reports|setup|settings)(?:\/|$)/;
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -230,7 +230,7 @@ export function MarketingPopupAlert({ suppressed = false }) {
       window.clearTimeout(startupTimer);
       window.removeEventListener?.('lms:popup-alert-refresh', refreshPopupAlert);
     };
-  }, []);
+  }, [initialCacheEntry]);
 
   useEffect(() => {
     if (!shouldShowForPath(alert, location.pathname) || normalizePlacement(alert?.placement) !== 'landing') {

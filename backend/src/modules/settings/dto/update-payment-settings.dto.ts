@@ -61,4 +61,15 @@ export class UpdatePaymentSettingsDto {
   @IsOptional()
   @IsBoolean()
   autoActivatePaidSubscriptions?: boolean;
+
+  // Mobile App SDK: per-app PayHere secret (from app-package whitelisting) and
+  // the checkout mode the mobile app should use.
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  appMerchantSecret?: string;
+
+  @IsOptional()
+  @IsIn(['native', 'web'])
+  appCheckoutMode?: 'native' | 'web';
 }

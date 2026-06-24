@@ -66,6 +66,15 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'users', 'session_expires_at', 'DATETIME NULL AFTER session_token');
       await this.ensureColumn(connection, 'users', 'password_reset_token', 'VARCHAR(128) NULL AFTER session_expires_at');
       await this.ensureColumn(connection, 'users', 'password_reset_expires_at', 'DATETIME NULL AFTER password_reset_token');
+      await this.ensureColumn(connection, 'users', 'deleted_at', 'DATETIME NULL AFTER password_reset_expires_at');
+      // Onboarding email OTP verification (students). DEFAULT 1 grandfathers every
+      // existing/admin-created account as verified; register() inserts 0 explicitly
+      // so only self-signup students are forced through the 6-digit check.
+      await this.ensureColumn(connection, 'users', 'email_verified', 'TINYINT(1) NOT NULL DEFAULT 1 AFTER deleted_at');
+      await this.ensureColumn(connection, 'users', 'email_otp_code', 'VARCHAR(128) NULL AFTER email_verified');
+      await this.ensureColumn(connection, 'users', 'email_otp_expires_at', 'DATETIME NULL AFTER email_otp_code');
+      await this.ensureColumn(connection, 'users', 'email_otp_attempts', 'INT NOT NULL DEFAULT 0 AFTER email_otp_expires_at');
+      await this.ensureColumn(connection, 'users', 'email_otp_last_sent_at', 'DATETIME NULL AFTER email_otp_attempts');
       await this.ensureColumn(connection, 'study_planner_tasks', 'category', "ENUM('general','lesson','quiz','exam','review','flashcards') NOT NULL DEFAULT 'general' AFTER status");
       await this.ensureColumn(connection, 'study_planner_tasks', 'priority', "ENUM('low','medium','high') NOT NULL DEFAULT 'medium' AFTER category");
       await this.ensureColumn(connection, 'study_planner_tasks', 'estimated_minutes', 'INT NULL AFTER priority');

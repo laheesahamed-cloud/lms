@@ -68,6 +68,17 @@ const config: CapacitorConfig = {
       // behind the keyboard stays reachable by manual scroll.
       resize: KeyboardResize.None,
     },
+    SocialLogin: {
+      // Bundle only Google. Leaving Facebook enabled would link the Facebook SDK,
+      // which auto-initializes on launch and crashes without a configured App ID.
+      providers: {
+        google: true,
+        facebook: false,
+        apple: false,
+        twitter: false,
+      },
+      logLevel: 1,
+    },
   },
 };
 

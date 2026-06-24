@@ -16,6 +16,7 @@ export const FOCUS_HEADER_PATTERNS = [
   /^\/(?:app\/)?quizzes\/[^/]+\/practice-review$/,
   /^\/(?:app\/)?review\/[^/]+$/,
   /^\/(?:app\/|admin\/)?ai-notes\/[^/]+$/, // AI-notes reader
+  /^\/(?:app\/)?lessons\/[^/]+$/, // Lesson reader
   /^\/(?:app\/)?study\/lesson\/[^/]+$/,
 ];
 
@@ -25,6 +26,7 @@ const CHEVRON_PATTERNS = [
   /^\/(?:app\/)?courses\/[^/]+$/, // course detail
   /^\/(?:app\/)?results\/[^/]+$/, // result detail
   /^\/(?:app\/)?ai-notes\/?$/, // AI notes list (compact)
+  /^\/(?:app\/)?lessons\/?$/, // Study → Lessons list (compact)
   /^\/(?:app\/)?planner\/?$/, // planner (compact)
   /^\/(?:app\/)?flashcards\/?$/, // flashcards (compact)
   /^\/(?:app\/)?bookmarks\/?$/, // saved (compact)

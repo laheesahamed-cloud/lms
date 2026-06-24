@@ -220,6 +220,7 @@ export declare class QuizAttemptsController {
     }>;
     result(attemptId: number, authorization?: string): Promise<{
         attemptId: number;
+        quizId: number;
         quizTitle: string;
         courseTitle: string;
         topicDisplay: string;

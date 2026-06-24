@@ -30,7 +30,7 @@ export declare class SubscriptionsController {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -79,7 +79,7 @@ export declare class SubscriptionsController {
             featureKey: string;
             description: string;
             category: string;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             createdAt: string | null;
             updatedAt: string | null;
         }[];
@@ -100,7 +100,7 @@ export declare class SubscriptionsController {
         paymentReference: string;
         paymentDate: string | null;
         receiptUrl: string;
-        accessScope: "all" | "courses" | "lessons";
+        accessScope: "lessons" | "courses" | "all";
         courseIds: number[];
         lessonIds: number[];
         startDate: string;
@@ -151,7 +151,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "all" | "courses" | "lessons";
+            accessScope: "lessons" | "courses" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -202,7 +202,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "all" | "courses" | "lessons";
+            accessScope: "lessons" | "courses" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -250,7 +250,7 @@ export declare class SubscriptionsController {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -286,7 +286,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "rejected" | "pending" | "cancelled" | "approved";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -304,7 +304,7 @@ export declare class SubscriptionsController {
             paymentProofName: string;
             paymentProofMime: string;
             paymentProofDataUrl: string;
-            accessScope: "all" | "courses" | "lessons";
+            accessScope: "lessons" | "courses" | "all";
             courseIds: number[];
             lessonIds: number[];
             invoiceId: string;
@@ -333,6 +333,9 @@ export declare class SubscriptionsController {
             cancelUrl?: undefined;
             notifyUrl?: undefined;
             autoActivatePaidSubscriptions?: undefined;
+            appCheckoutMode?: undefined;
+            hasAppMerchantSecret?: undefined;
+            maskedAppMerchantSecret?: undefined;
         } | {
             enabled: boolean;
             sandboxMode: boolean;
@@ -349,7 +352,11 @@ export declare class SubscriptionsController {
             cancelUrl: string;
             notifyUrl: string;
             autoActivatePaidSubscriptions: boolean;
+            appCheckoutMode: "native" | "web";
+            hasAppMerchantSecret: boolean;
+            maskedAppMerchantSecret: string;
         };
+        appCheckoutMode: "native" | "web";
     }>;
     findAdminList(authorization?: string, limit?: string, page?: string, offset?: string): Promise<{
         id: number;
@@ -367,7 +374,7 @@ export declare class SubscriptionsController {
         paymentReference: string;
         paymentDate: string | null;
         receiptUrl: string;
-        accessScope: "all" | "courses" | "lessons";
+        accessScope: "lessons" | "courses" | "all";
         courseIds: number[];
         lessonIds: number[];
         startDate: string;
@@ -406,7 +413,7 @@ export declare class SubscriptionsController {
         id: number;
         userId: number;
         planId: number;
-        status: "pending" | "cancelled" | "approved" | "rejected";
+        status: "rejected" | "pending" | "cancelled" | "approved";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -424,7 +431,7 @@ export declare class SubscriptionsController {
         paymentProofName: string;
         paymentProofMime: string;
         paymentProofDataUrl: string;
-        accessScope: "all" | "courses" | "lessons";
+        accessScope: "lessons" | "courses" | "all";
         courseIds: number[];
         lessonIds: number[];
         invoiceId: string;
@@ -460,7 +467,7 @@ export declare class SubscriptionsController {
         discountType: "fixed" | "percent";
         discountValue: number;
         planIds: number[];
-        status: "inactive" | "active";
+        status: "active" | "inactive";
         startsAt: string;
         expiresAt: string;
         maxRedemptions: number | null;
@@ -592,6 +599,7 @@ export declare class SubscriptionsController {
         ok: boolean;
         provider: string;
         sandboxMode: boolean;
+        appMerchantSecret: string;
         actionUrl: string;
         invoiceId: string;
         orderId: string;
@@ -682,7 +690,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "all" | "courses" | "lessons";
+            accessScope: "lessons" | "courses" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -733,7 +741,7 @@ export declare class SubscriptionsController {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "all" | "courses" | "lessons";
+            accessScope: "lessons" | "courses" | "all";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -781,7 +789,7 @@ export declare class SubscriptionsController {
             currency: string;
             billingPeriod: string;
             durationDays: number;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             sortOrder: number;
             recommended: boolean;
             features: string[];
@@ -817,7 +825,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "rejected" | "pending" | "cancelled" | "approved";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -835,7 +843,7 @@ export declare class SubscriptionsController {
             paymentProofName: string;
             paymentProofMime: string;
             paymentProofDataUrl: string;
-            accessScope: "all" | "courses" | "lessons";
+            accessScope: "lessons" | "courses" | "all";
             courseIds: number[];
             lessonIds: number[];
             invoiceId: string;
@@ -864,6 +872,9 @@ export declare class SubscriptionsController {
             cancelUrl?: undefined;
             notifyUrl?: undefined;
             autoActivatePaidSubscriptions?: undefined;
+            appCheckoutMode?: undefined;
+            hasAppMerchantSecret?: undefined;
+            maskedAppMerchantSecret?: undefined;
         } | {
             enabled: boolean;
             sandboxMode: boolean;
@@ -880,7 +891,11 @@ export declare class SubscriptionsController {
             cancelUrl: string;
             notifyUrl: string;
             autoActivatePaidSubscriptions: boolean;
+            appCheckoutMode: "native" | "web";
+            hasAppMerchantSecret: boolean;
+            maskedAppMerchantSecret: string;
         };
+        appCheckoutMode: "native" | "web";
     }>;
     private parsePositiveNumber;
     private parseNonNegativeNumber;

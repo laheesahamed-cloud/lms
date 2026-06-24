@@ -32,7 +32,17 @@ class ApiClient {
       },
       onError: (e, handler) async {
         if (e.response?.statusCode == 401) {
-          onUnauthorized?.call();
+          // Only an authenticated session can "expire". A 401 on a sign-in
+          // attempt — or before any token exists (fresh install) — is the
+          // caller's error (e.g. wrong credentials), NOT an expired session.
+          final path = e.requestOptions.path;
+          final isAuthEndpoint = path.contains('/auth/login') ||
+              path.contains('/auth/register') ||
+              path.contains('/auth/forgot-password') ||
+              path.contains('/auth/reset-password');
+          if (_token != null && _token!.isNotEmpty && !isAuthEndpoint) {
+            onUnauthorized?.call();
+          }
           return handler.next(e);
         }
         final isTimeout = e.type == DioExceptionType.connectionTimeout ||

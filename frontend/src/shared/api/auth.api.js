@@ -95,6 +95,26 @@ export async function resetPassword(payload) {
   return response.data;
 }
 
+export async function verifyEmailOtp(payload) {
+  const native = detectPlatform().isNative;
+  const response = await apiClient.post('/auth/verify-email-otp', payload, {
+    headers: nativeAuthHeaders(),
+    params: nativeAuthParams(),
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
+    __skipTimeoutRetry: true,
+  });
+  return response.data;
+}
+
+export async function resendEmailOtp(payload) {
+  const native = detectPlatform().isNative;
+  const response = await apiClient.post('/auth/resend-email-otp', payload, {
+    timeout: native ? PASSWORD_RESET_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
+    __skipTimeoutRetry: true,
+  });
+  return response.data;
+}
+
 export async function updateProfile(payload) {
   const response = await apiClient.patch('/auth/profile', payload);
   return response.data;
@@ -102,5 +122,10 @@ export async function updateProfile(payload) {
 
 export async function changePassword(payload) {
   const response = await apiClient.patch('/auth/password', payload);
+  return response.data;
+}
+
+export async function deleteAccount() {
+  const response = await apiClient.delete('/auth/account');
   return response.data;
 }

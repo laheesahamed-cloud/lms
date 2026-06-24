@@ -6,6 +6,7 @@ class AppUser {
   final String role;
   final String? plan;
   final String? avatar;
+  final String avatarKey;
 
   const AppUser({
     required this.id,
@@ -14,7 +15,18 @@ class AppUser {
     this.role = 'student',
     this.plan,
     this.avatar,
+    this.avatarKey = '',
   });
+
+  AppUser copyWith({String? fullName, String? avatarKey}) => AppUser(
+        id: id,
+        fullName: fullName ?? this.fullName,
+        email: email,
+        role: role,
+        plan: plan,
+        avatar: avatar,
+        avatarKey: avatarKey ?? this.avatarKey,
+      );
 
   String get initials {
     final parts = fullName.trim().split(RegExp(r'\s+'));
@@ -31,7 +43,9 @@ class AppUser {
         fullName: (j['fullName'] ?? j['name'] ?? '').toString(),
         email: (j['email'] ?? '').toString(),
         role: (j['role'] ?? 'student').toString(),
-        plan: (j['plan'] ?? j['subscriptionPlan'])?.toString(),
+        plan: (j['plan'] ?? j['subscriptionPlan'] ?? j['currentPlanName'])
+            ?.toString(),
         avatar: j['avatar']?.toString(),
+        avatarKey: (j['avatarKey'] ?? j['avatar_key'] ?? '').toString(),
       );
 }

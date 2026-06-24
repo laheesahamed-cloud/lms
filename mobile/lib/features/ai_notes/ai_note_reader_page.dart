@@ -35,7 +35,7 @@ class AiNoteReaderPage extends StatelessWidget {
           ),
           Text('CARDIOLOGY · AI NOTES',
               style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                   color: c.accent)),
@@ -49,7 +49,7 @@ class AiNoteReaderPage extends StatelessWidget {
                   height: 1.15)),
           const SizedBox(height: 8),
           Text('12 min read · generated lesson',
-              style: TextStyle(fontSize: 12.5, color: c.inkSoft)),
+              style: TextStyle(fontSize: 13, color: c.inkSoft)),
           const SizedBox(height: 18),
           _Para(c,
               'Heart failure (HF) is a clinical syndrome where the heart cannot pump enough blood to meet metabolic demand, or can only do so at elevated filling pressures.'),
@@ -80,7 +80,7 @@ class _Para extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 14),
         child: Text(text,
-            style: TextStyle(fontSize: 15, height: 1.62, color: c.inkMedium)),
+            style: TextStyle(fontSize: 16, height: 1.62, color: c.inkMedium)),
       );
 }
 
@@ -117,7 +117,7 @@ class _Callout extends StatelessWidget {
               Expanded(
                 child: Text(text,
                     style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 14,
                         height: 1.5,
                         fontWeight: FontWeight.w600,
                         color: c.inkStrong)),

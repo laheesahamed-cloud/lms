@@ -8,6 +8,12 @@
       "cwd": "frontend",
       "port": 5174,
       "autoPort": false
+    },
+    {
+      "name": "dashmock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4599", "--directory", "/tmp/dash_mock"],
+      "port": 4599
     }
   ]
 }

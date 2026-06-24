@@ -218,6 +218,42 @@
   white-space: nowrap;
 }
 
+.student-app-shell .student-quiz-map-page .student-lessons-detail-toolbar {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.student-app-shell .student-quiz-map-page .student-lessons-back-button {
+  min-height: 38px;
+  border-radius: 999px;
+  padding-inline: 13px;
+}
+
+.student-app-shell .student-quiz-map-page .student-lessons-detail-course-name {
+  justify-self: center;
+  text-align: center;
+  font-size: 16px;
+}
+
+.student-app-shell .student-quiz-map-page #quiz-scope-filter {
+  display: block;
+  width: auto !important;
+  min-width: 132px;
+  max-width: 150px;
+  min-height: 38px !important;
+  justify-self: end;
+  border-radius: 999px !important;
+  padding-block: 0 !important;
+  padding-inline: 12px 30px !important;
+  font-size: 12px !important;
+  line-height: 1.1;
+}
+
 .student-app-shell .student-lessons-filter-bar {
   display: flex;
   max-width: 100%;
@@ -225,11 +261,11 @@
   align-items: center;
   gap: 8px;
   overflow-x: auto;
-  border: 1px solid var(--sa-border);
-  border-radius: 16px;
-  background: rgba(var(--sa-surface-rgb), 0.72);
-  padding: 7px;
-  box-shadow: var(--ds-card-shadow);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
@@ -603,10 +639,25 @@
   color: var(--sa-primary);
 }
 
+.student-app-shell .student-lessons-lesson-row__save.is-locked {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--sa-text-3);
+  cursor: default;
+}
+
+.student-app-shell .student-lessons-lesson-row__save.is-locked:active {
+  transform: none;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .student-app-shell .student-lessons-lesson-row__save:hover {
     background: rgba(var(--sa-primary-rgb), 0.1);
     color: var(--sa-primary);
+  }
+
+  .student-app-shell .student-lessons-lesson-row__save.is-locked:hover {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--sa-text-3);
   }
 }
 
@@ -653,7 +704,7 @@
   }
 
   .student-app-shell .student-lessons-filter-bar {
-    padding: 6px;
+    padding: 0;
   }
 
   .student-app-shell .student-lessons-filter-chip {
@@ -807,6 +858,8 @@
 }
 .student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row:first-child {
   border-top: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
 }
 @media (hover: hover) and (pointer: fine) {
   .student-app-shell :is(.student-lessons-page:not(.student-quiz-map-page), .student-lessons-detail) .student-lessons-lesson-row:hover {

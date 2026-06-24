@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import '../../../../shared/styles/04-pages/quiz-exam.css';
 import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  fetchAttemptResult,
   loadStudentQuiz,
   saveExamProgress,
   submitExam,
@@ -20,6 +21,7 @@ import { reviewPrimaryButtonClass, reviewSecondaryButtonClass } from '../results
 import { detectPlatform } from '../../../../shared/platform/detect.js';
 import { getPreferredScrollBehavior } from '../../../../shared/utils/scrollBehavior.js';
 import SubmitTransitionOverlay from './SubmitTransitionOverlay.jsx';
+import QuizLoadingOverlay from './QuizLoadingOverlay.jsx';
 
 const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
@@ -27,6 +29,10 @@ const DISPLAY_OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
    we hold each screen for these minimums so the animation reads as intentional. */
 const SUBMIT_MIN_MS = 1100;
 const SUBMIT_COMPLETE_HOLD_MS = 1100;
+
+/* Hold the quiz loader for at least one full intro loop so a fast (cached/warm)
+   load doesn't flash the animation. Matches the deck-in + first suction wave. */
+const QUIZ_LOADER_MIN_MS = 2600;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -389,7 +395,7 @@ const examLayoutClass = 'lms-exam-layout mx-auto grid w-full max-w-[1560px] gap-
 const practiceQuizScreenShellClass = `${ui.studentScreenShell} lms-quiz-taking-page lms-quiz-take lms-review-page practice-review-page`;
 const practiceQuizLayoutClass = 'practice-review-shell grid grid-cols-1 min-w-0 gap-[clamp(16px,2vw,24px)]';
 const practiceQuizWorkspaceClass =
-  'lms-review-workspace lms-practice-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)] items-start justify-center gap-[clamp(16px,2vw,24px)] max-[1199px]:grid-cols-1';
+  'lms-review-workspace lms-practice-workspace mx-auto grid w-full grid-cols-[minmax(220px,280px)_minmax(0,1040px)] items-start justify-center gap-[clamp(16px,2vw,24px)] pb-[calc(92px+env(safe-area-inset-bottom,0px))] max-[1199px]:grid-cols-1';
 const practiceQuizSidebarClass =
   'lms-review-sidebar lms-practice-quiz-sidebar sticky top-6 grid max-h-[calc(100dvh-48px)] gap-3.5 overflow-hidden max-[900px]:static max-[900px]:max-h-none max-[900px]:overflow-visible';
 const practiceQuizMainClass = 'lms-review-main lms-practice-question-main min-w-0';
@@ -420,12 +426,12 @@ const practiceQuizQuestionHeadClass = 'flex min-h-0 items-center justify-between
 const practiceQuizQuestionMetaClass = 'flex flex-wrap items-center gap-1.5';
 const practiceQuizQuestionNumberClass = 'text-[11px] font-extrabold uppercase leading-none tracking-[0.02em] text-ink-soft';
 const practiceQuizQuestionNavClass =
-  'lms-review-question-nav grid gap-3 rounded-[18px] border border-line-soft bg-surface-2 p-3.5 shadow-none max-[640px]:rounded-2xl max-[640px]:p-3';
+  'lms-review-question-nav lms-review-question-nav--fixed fixed inset-x-0 bottom-0 z-[10070] grid border-x-0 border-b-0 border-t border-[var(--line-soft)] bg-[var(--surface-card)] px-[clamp(16px,3vw,42px)] pb-[calc(10px+env(safe-area-inset-bottom,0px))] pt-2.5 shadow-[0_-12px_30px_-28px_rgba(15,23,42,.62)] [backface-visibility:hidden] [transform:translateZ(0)] will-change-transform';
 const practiceQuizQuestionNavActionsClass =
-  'lms-quiz-action-grid grid grid-cols-[minmax(112px,0.72fr)_minmax(0,1.35fr)_minmax(122px,0.86fr)] items-center gap-2.5 max-[820px]:grid-cols-2 max-[640px]:grid-cols-1';
-const quizActionStartGroupClass = 'lms-quiz-action-start flex min-w-0 items-center justify-end gap-2 max-[820px]:order-1';
-const quizActionReviewGroupClass = 'lms-quiz-action-review flex min-w-0 flex-wrap items-center justify-end gap-2 max-[820px]:order-3 max-[820px]:col-span-2 max-[820px]:justify-end max-[640px]:col-span-1';
-const quizActionPrimaryGroupClass = 'lms-quiz-action-primary flex min-w-0 items-center justify-end gap-2 max-[820px]:order-2 max-[640px]:justify-stretch max-[640px]:[&_button]:w-full';
+  'lms-quiz-action-grid mx-auto grid w-full max-w-[1040px] grid-cols-[minmax(132px,180px)_minmax(132px,180px)] items-center justify-between gap-4';
+const quizActionStartGroupClass = 'lms-quiz-action-start flex min-w-0 items-center justify-start gap-2 [&_button]:w-full';
+const quizActionReviewGroupClass = 'lms-quiz-action-review flex min-w-0 flex-wrap items-center justify-center gap-2 [&_button]:min-w-[132px] max-[640px]:[&_button]:w-full';
+const quizActionPrimaryGroupClass = 'lms-quiz-action-primary flex min-w-0 items-center justify-end gap-2 [&_button]:w-full max-[820px]:order-2 max-[640px]:justify-stretch';
 const practiceQuizOptionsGridClass = 'lms-review-options-grid grid gap-3 max-[640px]:gap-2.5';
 const practiceQuizOptionToplineClass = 'flex items-center justify-between gap-2.5 max-[640px]:flex-col max-[640px]:items-start';
 const practiceQuizOptionLeadClass = 'flex min-w-0 flex-auto items-start gap-2';
@@ -1551,6 +1557,8 @@ export function TakeQuizPage() {
   // timeout or unreachable API must offer a retry instead.
   const [errorIsAccess, setErrorIsAccess] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
+  // Stays false until the loader has shown for at least one full intro loop.
+  const [loaderMinElapsed, setLoaderMinElapsed] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [flaggedQuestionIds, setFlaggedQuestionIds] = useState(() => new Set());
@@ -1586,6 +1594,10 @@ export function TakeQuizPage() {
         .map((item) => Number(item.itemId))
         .filter(Boolean)
     );
+    // Restart the minimum-display window for each (re)load.
+    setLoaderMinElapsed(false);
+    const minTimer = setTimeout(() => setLoaderMinElapsed(true), QUIZ_LOADER_MIN_MS);
+
     async function load() {
       try {
         setError('');
@@ -1707,7 +1719,7 @@ export function TakeQuizPage() {
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(minTimer); };
   }, [quizId, mode, isSingleQuestionPractice, singleQuestionId, navigate, reloadNonce]);
 
   const retryQuizLoad = useCallback(() => {
@@ -2026,12 +2038,20 @@ export function TakeQuizPage() {
       clearExamDraft(quizId);
       setHasAutoSubmitted(true);
       exitBlockSuppressedRef.current = true;
-      // Keep the "submitting" screen up for a satisfying minimum, then show the
-      // success badge before handing off to the results page.
+      // Prefetch the result WHILE the "submitting" screen is up so the results
+      // page opens instantly with no second loading state. The submitting screen
+      // stays until this resolves (or SUBMIT_MIN_MS, whichever is longer). If the
+      // prefetch fails, the results page falls back to fetching it itself.
+      let resultData = null;
+      try {
+        resultData = await fetchAttemptResult(submittedAttemptId);
+      } catch {
+        resultData = null;
+      }
       await holdAtLeast(startedAt, SUBMIT_MIN_MS);
       setSubmitPhase('complete');
       await sleep(SUBMIT_COMPLETE_HOLD_MS);
-      navigate(`/results/${submittedAttemptId}`);
+      navigate(`/results/${submittedAttemptId}`, resultData ? { state: { resultData } } : undefined);
     } catch (e) {
       setSubmitPhase('idle');
       setError(getErrorMessage(e, 'Unable to submit exam'));
@@ -2324,12 +2344,9 @@ export function TakeQuizPage() {
     );
   }, [isSingleQuestionPractice, navigate, quizId, singleQuestionId]);
 
-  if (loading) return (
-    <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: 'var(--surface-0, #0a0a0f)' }}>
-      <div className={ui.quizLoadingSpinner} />
-      <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>Preparing your quiz…</p>
-    </main>
-  );
+  // Hold the loader until the data is ready AND one full intro loop has played,
+  // so a fast/warm load doesn't flash the animation. Errors bypass the hold.
+  if ((loading || !loaderMinElapsed) && !error) return <QuizLoadingOverlay />;
 
   if (!data || !currentQuestion) return (
     <main className={ui.studentScreenShell}>
@@ -2628,6 +2645,17 @@ export function TakeQuizPage() {
                   showStudySupport
                 />
 
+                <div className={quizActionReviewGroupClass}>
+                  <button
+                    className={reviewSecondaryButtonClass}
+                    type="button"
+                    onClick={revealCurrentAnswer}
+                    disabled={questionActionBusy || currentQuestionRevealed}
+                  >
+                    {questionActionBusy ? 'Loading...' : currentQuestionRevealed ? 'Shown' : 'Show answer'}
+                  </button>
+                </div>
+
                 <nav className={practiceQuizQuestionNavClass} aria-label="Practice question actions">
                   <div className={practiceQuizQuestionNavActionsClass}>
                     <div className={quizActionStartGroupClass}>
@@ -2639,17 +2667,6 @@ export function TakeQuizPage() {
                       >
                         Previous
                       </button>
-                    </div>
-
-                    <div className={quizActionReviewGroupClass}>
-                      <button
-	                        className={reviewSecondaryButtonClass}
-	                        type="button"
-	                        onClick={revealCurrentAnswer}
-	                        disabled={questionActionBusy || currentQuestionRevealed}
-	                      >
-	                        {questionActionBusy ? 'Loading...' : currentQuestionRevealed ? 'Shown' : 'Show answer'}
-	                      </button>
                     </div>
 
                     <div className={quizActionPrimaryGroupClass}>

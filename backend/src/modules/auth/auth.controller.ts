@@ -10,6 +10,8 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto';
+import { ResendEmailOtpDto } from './dto/resend-email-otp.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -25,8 +27,11 @@ export class AuthController {
     @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
-    const result = await this.authService.login(loginDto);
-    this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+    const result: any = await this.authService.login(loginDto);
+    // No session is issued when the student still needs to verify their email.
+    if (result.sessionToken) {
+      this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+    }
     if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;
     }
@@ -41,13 +46,37 @@ export class AuthController {
     @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
-    const result = await this.authService.register(registerDto);
+    const result: any = await this.authService.register(registerDto);
+    // New self-signup students must verify their email before a session is issued.
+    if (result.sessionToken) {
+      this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+    }
+    if (this.shouldExposeSessionToken(nativeHeader)) {
+      return result;
+    }
+    const { sessionToken: _sessionToken, ...safeResult } = result;
+    return safeResult;
+  }
+
+  @Post('verify-email-otp')
+  async verifyEmailOtp(
+    @Body() verifyEmailOtpDto: VerifyEmailOtpDto,
+    @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Req() request: any,
+    @Res({ passthrough: true }) response: any
+  ) {
+    const result: any = await this.authService.verifyEmailOtp(verifyEmailOtpDto);
     this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;
     }
     const { sessionToken: _sessionToken, ...safeResult } = result;
     return safeResult;
+  }
+
+  @Post('resend-email-otp')
+  resendEmailOtp(@Body() resendEmailOtpDto: ResendEmailOtpDto) {
+    return this.authService.resendEmailOtp(resendEmailOtpDto);
   }
 
   @Post('google')

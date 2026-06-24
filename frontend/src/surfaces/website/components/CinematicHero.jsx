@@ -498,5 +498,3 @@ export function CinematicHero({
     </div>
   );
 }
-
-export default CinematicHero;

@@ -11,7 +11,7 @@ const SITE_URL = String(import.meta.env.VITE_PUBLIC_WEBSITE_URL || '').trim().re
 export function StructuredData({
   id = 'ld-default',
   name = 'xyndrome',
-  description = 'A medical learning platform for Sri Lankan students — structured notes and canvas, exam-style MCQs with explanations, high-yield flashcards, AI notes, timed mock exams and subject mastery tracking, all in one place.',
+  description = 'A medical learning platform for Sri Lankan students — structured notes and canvas, exam-style MCQs with explanations, high-yield flashcards, instant lesson notes, timed mock exams and subject mastery tracking, all in one place.',
   faqs = [],
 }) {
   useEffect(() => {
@@ -69,5 +69,3 @@ export function StructuredData({
 
   return null;
 }
-
-export default StructuredData;

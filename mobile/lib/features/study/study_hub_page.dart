@@ -13,8 +13,8 @@ class StudyHubPage extends StatelessWidget {
     _ToolEntry(
       icon: Icons.menu_book_outlined,
       title: 'AI Notes & Lessons',
-      subtitle: 'Concise summaries across every system',
-      route: '/app/ai-notes',
+      subtitle: 'Browse by course, subject, then lesson',
+      route: '/app/courses',
       drillIn: false,
     ),
     _ToolEntry(
@@ -31,6 +31,13 @@ class StudyHubPage extends StatelessWidget {
       route: '/app/planner',
       drillIn: true,
     ),
+    _ToolEntry(
+      icon: Icons.bookmark_border_rounded,
+      title: 'Saved',
+      subtitle: 'Your bookmarked quizzes, notes and questions',
+      route: '/app/bookmarks',
+      drillIn: true,
+    ),
   ];
 
   @override
@@ -44,7 +51,7 @@ class StudyHubPage extends StatelessWidget {
           Text(
             'TOOLS',
             style: TextStyle(
-              fontSize: 11.5,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.4,
               color: c.accent,
@@ -145,7 +152,7 @@ class _ToolTile extends StatelessWidget {
                 Text(
                   entry.title,
                   style: TextStyle(
-                    fontSize: 16.5,
+                    fontSize: 17,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.2,
                     color: c.inkStrong,
@@ -157,7 +164,7 @@ class _ToolTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     height: 1.3,
                     color: c.inkSoft,
                   ),

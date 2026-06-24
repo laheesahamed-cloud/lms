@@ -18,6 +18,8 @@ const defaultForm = {
   supportText: 'Sandbox payments are simulated by PayHere and no real card will be charged.',
   bankTransferDetails: '',
   autoActivatePaidSubscriptions: true,
+  appMerchantSecret: '',
+  appCheckoutMode: 'native',
 };
 
 function toForm(data) {
@@ -36,6 +38,8 @@ function toForm(data) {
     supportText: data?.supportText || defaultForm.supportText,
     bankTransferDetails: data?.bankTransferDetails || '',
     autoActivatePaidSubscriptions: data?.autoActivatePaidSubscriptions !== false,
+    appMerchantSecret: '',
+    appCheckoutMode: data?.appCheckoutMode === 'web' ? 'web' : 'native',
   };
 }
 
@@ -76,6 +80,9 @@ export function AdminPaymentSettingsPanel() {
       const payload = { ...form, currency: 'LKR' };
       if (!payload.merchantSecret.trim()) {
         delete payload.merchantSecret;
+      }
+      if (!payload.appMerchantSecret.trim()) {
+        delete payload.appMerchantSecret;
       }
       const data = await updatePaymentSettings(payload);
       setSettings(data);
@@ -187,6 +194,35 @@ export function AdminPaymentSettingsPanel() {
                 Notify URL override
                 <input className={ui.input} value={form.notifyUrl} onChange={(event) => patchForm({ notifyUrl: event.target.value })} placeholder="Public URL required for PayHere callbacks" />
               </label>
+            </div>
+
+            <div>
+              <span className={ui.eyebrow}>Mobile app</span>
+              <h3 className="m-0 mt-2 text-base font-black text-ink-strong">App SDK (native PayHere checkout)</h3>
+              <p className="m-0 mt-1 text-sm text-ink-soft">
+                Used by the mobile app's in-app PayHere checkout. Whitelist your app package in PayHere
+                (Settings → Domains &amp; Credentials → Add App) to get the App merchant secret.
+              </p>
+            </div>
+
+            <div className={ui.formGrid}>
+              <label className={ui.formLabel}>
+                App checkout mode
+                <select
+                  className={ui.input}
+                  value={form.appCheckoutMode}
+                  onChange={(event) => patchForm({ appCheckoutMode: event.target.value })}
+                >
+                  <option value="native">Native — in-app PayHere SDK</option>
+                  <option value="web">Web — purchase on website (fallback)</option>
+                </select>
+              </label>
+              <PasswordField
+                label="App merchant secret"
+                value={form.appMerchantSecret}
+                onChange={(event) => patchForm({ appMerchantSecret: event.target.value })}
+                placeholder={settings?.hasAppMerchantSecret ? settings.maskedAppMerchantSecret : 'Paste the app-specific merchant secret'}
+              />
             </div>
 
             <div>

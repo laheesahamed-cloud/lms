@@ -7,6 +7,7 @@ import '../../widgets/app_button.dart';
 import '../../data/auth_repository.dart';
 import 'auth_background.dart';
 import 'auth_widgets.dart';
+import 'auth_error.dart';
 
 class ForgotPasswordPage extends ConsumerStatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -19,6 +20,8 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
   bool _sent = false;
+  String _message = '';
+  String? _error;
 
   @override
   void dispose() {
@@ -29,16 +32,25 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      await ref.read(authRepositoryProvider).forgotPassword(_email.text.trim());
-    } catch (_) {
-      // For privacy the API responds the same; always show the sent state.
-    }
-    if (mounted) {
+      final message =
+          await ref.read(authRepositoryProvider).forgotPassword(_email.text.trim());
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _sent = true;
+        _message = message;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      // A real failure (network / server) — surface it instead of faking success.
+      setState(() {
+        _loading = false;
+        _error = authErrorMessage(e, "Couldn't send the reset link. Try again.");
       });
     }
   }
@@ -70,10 +82,12 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                                   color: c.inkStrong)),
                           const SizedBox(height: 8),
                           Text(
-                              'If an account exists for ${_email.text.trim()}, we sent a reset link.',
+                              _message.isNotEmpty
+                                  ? _message
+                                  : 'If an account exists for ${_email.text.trim()}, we sent a reset link.',
                               textAlign: TextAlign.center,
                               style:
-                                  TextStyle(fontSize: 13.5, color: c.inkSoft)),
+                                  TextStyle(fontSize: 14, color: c.inkSoft)),
                           const SizedBox(height: 22),
                           AppButton('Back to log in',
                               expand: true,
@@ -94,7 +108,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                             Text(
                                 'Enter your email and we’ll send you a reset link.',
                                 style:
-                                    TextStyle(fontSize: 13, color: c.inkSoft)),
+                                    TextStyle(fontSize: 14, color: c.inkSoft)),
                             AuthField(
                               label: 'Email',
                               controller: _email,
@@ -103,6 +117,12 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                                   ? 'Enter a valid email'
                                   : null,
                             ),
+                            if (_error != null) ...[
+                              const SizedBox(height: 10),
+                              Text(_error!,
+                                  style:
+                                      TextStyle(color: c.error, fontSize: 13)),
+                            ],
                             const SizedBox(height: 18),
                             AppButton('Send reset link',
                                 expand: true,

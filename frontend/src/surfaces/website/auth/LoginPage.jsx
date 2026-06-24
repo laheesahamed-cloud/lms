@@ -16,6 +16,7 @@ import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../../../sha
 import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
 import { preloadRouteByPath } from '../../../app/routePreloading.js';
 import { useNativeAuthKeyboardAnchor } from './useNativeAuthKeyboardAnchor.js';
+import { ensureNativeGoogleAuth, isNativeGoogleCancellation, signInWithNativeGoogle } from '../../../shared/auth/nativeGoogleAuth.js';
 
 /* ── Animation keyframes ─────────────────────────────────────────────────────── */
 
@@ -448,6 +449,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const signIn   = useAuthStore((s) => s.signIn);
+  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const signInWithGoogleCode = useAuthStore((s) => s.signInWithGoogleCode);
   const authNotice = useAuthStore((s) => s.authNotice);
   const consumeAuthNotice = useAuthStore((s) => s.consumeAuthNotice);
@@ -549,6 +551,12 @@ export function LoginPage() {
         email: String(fd.get('email') || '').trim().toLowerCase(),
         password: String(fd.get('password') || ''),
       });
+      if (data?.emailVerificationRequired) {
+        const params = new URLSearchParams({ email: data.email || '' });
+        if (fromParam) params.set('from', fromParam);
+        navigate(`/auth/verify-email?${params.toString()}`, { state: { devCode: data.devCode } });
+        return;
+      }
       await completeSignIn(data, startedAt);
     } catch (err) {
       if (PLATFORM.isNative && PLATFORM.isIos) {
@@ -583,8 +591,32 @@ export function LoginPage() {
     }
   }, [completeSignIn, signInWithGoogleCode]);
 
+  const handleNativeGoogle = useCallback(async () => {
+    const startedAt = performance.now();
+    setStatus({ loading: true, error: '', success: '' });
+    try {
+      if (PLATFORM.isIos) showNativeDocument();
+      await ensureNativeGoogleAuth(googleClientId);
+      const credential = await signInWithNativeGoogle();
+      const data = await signInWithGoogle(credential);
+      await completeSignIn(data, startedAt);
+    } catch (err) {
+      if (PLATFORM.isIos) showNativeDocument();
+      if (isNativeGoogleCancellation(err)) {
+        setStatus({ loading: false, error: '', success: '' });
+        return;
+      }
+      setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in with Google'), success: '' });
+    }
+  }, [googleClientId, signInWithGoogle, completeSignIn]);
+
   function handleGoogleButtonClick() {
     if (status.loading) return;
+
+    if (PLATFORM.isNative) {
+      handleNativeGoogle();
+      return;
+    }
 
     if (googleConfigStatus.error && !googleClientId) {
       setStatus({ loading: false, error: googleConfigStatus.error, success: '' });
@@ -652,6 +684,8 @@ export function LoginPage() {
   }, []);
 
   useEffect(() => {
+    // Native uses the Google SDK plugin, not the web GIS script.
+    if (PLATFORM.isNative) return undefined;
     if (!googleClientId) {
       setGoogleSdk(null);
       googleCodeClientRef.current = null;
@@ -699,6 +733,7 @@ export function LoginPage() {
   }, [googleClientId]);
 
   useEffect(() => {
+    if (PLATFORM.isNative) return undefined;
     if (!googleClientId || !googleSdk?.accounts?.oauth2) {
       googleCodeClientRef.current = null;
       return undefined;

@@ -53,11 +53,11 @@ const hookWords = [
 ];
 
 const problemWords = [
-  { text: "Tired", start: 3.0, color: brand.ink },
-  { text: "of", start: 3.32, color: brand.muted },
-  { text: "PDFs,", start: 3.68, color: brand.violet },
-  { text: "printed notes,", start: 4.14, color: brand.ink },
-  { text: "screenshots?", start: 4.7, color: brand.blue },
+  { text: "Tired", start: 2.78, color: brand.ink },
+  { text: "of", start: 3.12, color: brand.muted },
+  { text: "PDFs,", start: 3.5, color: brand.violet },
+  { text: "printed notes,", start: 3.98, color: brand.ink },
+  { text: "screenshots?", start: 4.58, color: brand.blue },
 ];
 
 const problemTokens = [

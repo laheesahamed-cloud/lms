@@ -788,6 +788,7 @@ export function StudyPlannerPage() {
             onClick={revealTaskComposer}
           >
             <span className="planner-native-plus" aria-hidden="true" />
+            <span>Add task</span>
           </button>
         </section>
 

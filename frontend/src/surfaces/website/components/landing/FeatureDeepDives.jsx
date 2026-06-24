@@ -61,14 +61,14 @@ const FEATURES = [
     render: () => <FlashcardVisual />,
   },
   {
-    id: 'ai-notes',
-    eyebrow: 'AI notes',
+    id: 'instant-notes',
+    eyebrow: 'Instant notes',
     accent: '#ffe8d6',
     h2: 'Turn any lesson into clean notes, instantly.',
     lede:
-      'Let AI distil a dense topic into clear, structured, exam-ready notes — with the high-yield points highlighted — so you start revising in seconds instead of rewriting.',
+      'Distil a dense topic into clear, structured, exam-ready notes — with the high-yield points highlighted — so you start revising in seconds instead of rewriting.',
     bullets: [
-      'AI-structured notes with the key facts pulled to the top.',
+      'Auto-structured notes with the key facts pulled to the top.',
       'Highlights and recap built in, so revision is fast.',
       'Yours to edit — keep them in your own words on the canvas.',
     ],
@@ -175,7 +175,7 @@ export function FeatureDeepDives() {
             className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-[#6b7280] md:text-base"
             initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15, duration: 0.6 }}
           >
-            Notes, exam-style MCQs, flashcards, AI notes, mock exams and progress — built
+            Notes, exam-style MCQs, flashcards, instant lesson notes, mock exams and progress — built
             to work together, so nothing slips through the cracks.
           </motion.p>
         </div>
@@ -185,5 +185,3 @@ export function FeatureDeepDives() {
     </div>
   );
 }
-
-export default FeatureDeepDives;

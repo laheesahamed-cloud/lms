@@ -39,7 +39,7 @@ function clozeIndexes(text) {
 }
 
 /* ── derive cards from a note ─────────────────────────────── */
-export function cardsForNote(note) {
+function cardsForNote(note) {
   const base = {
     noteId: note.id,
     deckId: note.deckId,
@@ -141,13 +141,6 @@ export function createDeck(name, parentId = null) {
   return deck;
 }
 
-export function renameDeck(deckId, name) {
-  const db = load();
-  const deck = db.decks.find((d) => d.id === deckId);
-  if (deck) { deck.name = String(name || deck.name).trim() || deck.name; save(db); }
-  return deck;
-}
-
 export function deleteDeck(deckId) {
   const db = load();
   const ids = descendantDeckIds(db, deckId);
@@ -159,12 +152,6 @@ export function deleteDeck(deckId) {
 }
 
 /* ── notes ────────────────────────────────────────────────── */
-export function listNotes(deckId) {
-  const db = load();
-  const ids = deckId ? descendantDeckIds(db, deckId) : null;
-  return db.notes.filter((n) => !ids || ids.includes(n.deckId));
-}
-
 export function addNote(deckId, noteType, fields, tags = []) {
   const db = load();
   const note = {
@@ -288,14 +275,6 @@ export function undoLocalCard(cardId) {
   if (!st.log.length) { delete db.state[cardId]; save(db); return null; }
   save(db);
   return db.state[cardId];
-}
-
-export function setLocalCardFlags(cardId, flags) {
-  // suspend/bury live on the NOTE so all its cards toggle together
-  const db = load();
-  const noteId = String(cardId).split(':')[0];
-  const note = db.notes.find((n) => n.id === noteId);
-  if (note && flags.suspended != null) { note.suspended = !!flags.suspended; save(db); }
 }
 
 export function localStats() {

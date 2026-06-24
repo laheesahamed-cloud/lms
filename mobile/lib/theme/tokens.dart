@@ -67,22 +67,24 @@ class AppColors {
     error: Color(0xFFF87171),
   );
 
+  // Apple HIG "grouped" light surfaces: a light-gray page with pure-white cards
+  // raised by a soft shadow, so content never blends into the background.
   static const light = AppColors(
-    page: Color(0xFFF7F9FC),
-    surface1: Color(0xFFF3F6FA),
-    surface2: Color(0xFFEEF2F8),
-    card: Color(0xFFFBFCFF),
-    cardElevated: Color(0xFFFDFEFF),
-    inkStrong: Color(0xFF0F172A),
-    inkMedium: Color(0xFF475569),
-    inkSoft: Color(0xFF64748B),
-    inkMuted: Color(0xFF64748B),
-    line: Color(0xFFE7EDF5),
-    lineMedium: Color(0xFFCBD8E8),
-    lineStrong: Color(0xFF94A3B8),
-    primary: Color(0xFF2563EB),
+    page: Color(0xFFF2F2F7), // systemGroupedBackground (gray page)
+    surface1: Color(0xFFFFFFFF), // primary surface (white)
+    surface2: Color(0xFFEAEAEF), // grouped inset / chip gray
+    card: Color(0xFFFFFFFF), // white cards
+    cardElevated: Color(0xFFFFFFFF),
+    inkStrong: Color(0xFF1C1C1E), // Apple primary label
+    inkMedium: Color(0xFF3A3A3C),
+    inkSoft: Color(0xFF6C6C70), // secondary label
+    inkMuted: Color(0xFF8E8E93), // tertiary label / placeholder
+    line: Color(0xFFE5E5EA), // separator
+    lineMedium: Color(0xFFD1D1D6),
+    lineStrong: Color(0xFFC6C6C8), // opaque separator
+    primary: Color(0xFF2563EB), // XYNDROME brand blue (kept)
     primaryHover: Color(0xFF1D4ED8),
-    primaryTint: Color(0x1A2563EB),
+    primaryTint: Color(0x142563EB),
     accent: Color(0xFF7C3AED),
     success: Color(0xFF2E7D32),
     warning: Color(0xFFA16207),
@@ -90,12 +92,53 @@ class AppColors {
   );
 }
 
-/// The blue→indigo gradient — reserved for the single hero CTA (no glow).
+/// The blue→indigo gradient — used for the dashboard hero card + the hero CTA.
 const kHeroGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
   colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
 );
+
+/// Per-section colour identity for the "Tasteful Vibrant" dashboard.
+/// [color] is the solid accent (eyebrows, icon, tinted chip text + wash);
+/// [grad] is the full-fill gradient (Quick Action tiles use this — the one
+/// "bold" element on the dashboard).
+class SectionAccent {
+  final Color color;
+  final List<Color> grad;
+  const SectionAccent(this.color, this.grad);
+
+  LinearGradient get gradient => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: grad,
+      );
+
+  /// Tint background for a chip/wash on the given brightness.
+  Color tint(bool dark) => color.withValues(alpha: dark ? 0.14 : 0.12);
+
+  /// Accent text that stays readable on the tint in both modes.
+  Color textOn(bool dark) =>
+      dark ? color : Color.lerp(color, Colors.black, 0.42)!;
+}
+
+/// Curated dashboard accent palette (cool→warm, no rainbow cycling).
+class DashAccents {
+  static const violet = SectionAccent(
+      Color(0xFF8B5CF6), [Color(0xFF8B5CF6), Color(0xFF6366F1)]);
+  static const cyan = SectionAccent(
+      Color(0xFF38BDF8), [Color(0xFF38BDF8), Color(0xFF0EA5E9)]);
+  static const amber = SectionAccent(
+      Color(0xFFFBBF24), [Color(0xFFFBBF24), Color(0xFFF59E0B)]);
+  static const rose = SectionAccent(
+      Color(0xFFFB7185), [Color(0xFFFB7185), Color(0xFFF43F5E)]);
+  static const green = SectionAccent(
+      Color(0xFF34D399), [Color(0xFF34D399), Color(0xFF10B981)]);
+  static const blue = SectionAccent(
+      Color(0xFF60A5FA), [Color(0xFF60A5FA), Color(0xFF3B82F6)]);
+  static const gold = SectionAccent(
+      Color(0xFFF4B740), [Color(0xFFF4B740), Color(0xFFD97706)]);
+}
 
 /// 4px spacing grid.
 class AppSpace {

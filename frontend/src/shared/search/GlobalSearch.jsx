@@ -225,7 +225,7 @@ export function GlobalSearch({ onClose }) {
         id: n.id,
         title: n.title,
         sub: [n.courseTitle, n.topicName].filter(Boolean).join(' › '),
-        url: rolePath(`/ai-notes/${n.id}`, isAdmin),
+        url: rolePath(`${isAdmin ? '/ai-notes' : '/lessons'}/${n.id}`, isAdmin),
       }));
 
     const courseResults = courses

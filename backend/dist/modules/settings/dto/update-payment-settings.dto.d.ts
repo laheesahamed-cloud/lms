@@ -12,4 +12,6 @@ export declare class UpdatePaymentSettingsDto {
     supportText?: string;
     bankTransferDetails?: string;
     autoActivatePaidSubscriptions?: boolean;
+    appMerchantSecret?: string;
+    appCheckoutMode?: 'native' | 'web';
 }
