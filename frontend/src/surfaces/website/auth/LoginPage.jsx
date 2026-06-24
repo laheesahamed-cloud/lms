@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../../shared/api/client.js';
 import { fetchPublicSettings } from '../../../shared/api/settings.api.js';
 import { ThemeToggle } from '../../../shared/layout/ThemeToggle.jsx';
 import { detectPlatform } from '../../../shared/platform/detect.js';
+import { withRouterBasename } from '../../../shared/platform/config.js';
 import { XyndromeBrand } from '../../../shared/brand/XyndromeBrand.jsx';
 import { PageMeta } from '../../../shared/seo/PageMeta.jsx';
 import { useAuthStore } from '../../../shared/stores/authStore.js';
@@ -467,10 +468,10 @@ export function LoginPage() {
   // GIS redirect flow returns the browser here with ?code=...; this exact URL
   // must be registered in the OAuth client's "Authorized redirect URIs" and is
   // sent to the backend so its token exchange uses the identical redirect_uri.
-  // Derive it from the CURRENT login page URL (origin + path) so it works under
-  // any base path (this app is served under /lms/, e.g. https://host/lms/login)
-  // and matches on the return trip, which lands back on this same page.
-  const googleRedirectUri = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '';
+  // Pin ONE canonical value via the router basename (e.g. https://host/lms/auth/login)
+  // regardless of which login route the user is on (/login or /auth/login), so
+  // it always matches the single URI registered in Google Cloud Console.
+  const googleRedirectUri = typeof window !== 'undefined' ? `${window.location.origin}${withRouterBasename('/auth/login')}` : '';
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return undefined;
