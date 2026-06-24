@@ -100,11 +100,11 @@ const structureUi = {
   folderHeadCopy:
     'min-w-0 [&_h2]:m-0 [&_h2]:text-[19px] [&_h2]:font-black [&_h2]:uppercase [&_h2]:leading-tight [&_p]:m-0 [&_p]:mt-1 [&_p]:text-[13px] [&_p]:leading-relaxed [&_p]:text-ink-soft',
   folderGrid:
-    'grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3',
+    'grid grid-cols-[repeat(auto-fit,minmax(min(100%,250px),1fr))] gap-4 max-[520px]:gap-3',
   folderCard:
-    'glass-card group flex min-h-[132px] w-full cursor-pointer flex-col justify-center rounded-xl border border-line-soft bg-surface-card text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/22 hover:border-brand-primary/24 hover:shadow-md',
+    'glass-card group flex min-h-[132px] min-w-0 w-full cursor-pointer flex-col justify-center overflow-hidden rounded-xl border border-line-soft bg-surface-card text-left outline-none transition-[transform,border-color,box-shadow] duration-150 ease-[var(--ease-out)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-brand-primary/22 hover:border-brand-primary/24 hover:shadow-md',
   folderCardTop:
-    'flex items-start justify-between gap-4 px-5 py-5',
+    'grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 px-5 py-5 max-[520px]:grid-cols-1 max-[520px]:px-4 max-[520px]:py-4',
   folderIcon:
     'grid size-11 shrink-0 place-items-center rounded-xl border border-brand-primary/18 bg-[var(--color-primary-light)] text-brand-primary',
   folderTitle:
@@ -112,7 +112,7 @@ const structureUi = {
   folderMeta:
     'mt-1 text-[11px] font-semibold text-ink-muted',
   folderCount:
-    'shrink-0 text-right [&_strong]:block [&_strong]:text-[30px] [&_strong]:font-extrabold [&_strong]:leading-none [&_strong]:text-ink-strong [&_span]:mt-0.5 [&_span]:block [&_span]:text-[11px] [&_span]:font-extrabold [&_span]:uppercase [&_span]:tracking-[0.12em] [&_span]:text-ink-muted',
+    'shrink-0 text-right max-[520px]:text-left [&_strong]:block [&_strong]:text-[30px] [&_strong]:font-extrabold [&_strong]:leading-none [&_strong]:text-ink-strong max-[520px]:[&_strong]:text-[26px] [&_span]:mt-0.5 [&_span]:block [&_span]:text-[11px] [&_span]:font-extrabold [&_span]:uppercase [&_span]:tracking-[0.12em] [&_span]:text-ink-muted',
   cardActions:
     'flex shrink-0 items-center justify-end gap-2',
   folderToolbar:
@@ -132,17 +132,17 @@ const structureUi = {
   rowList:
     'grid gap-3',
   rowShell:
-    'glass-card grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 overflow-hidden rounded-xl border border-line-soft bg-surface-card pr-3 max-[700px]:grid-cols-1 max-[700px]:pr-0',
+    'glass-card grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 overflow-hidden rounded-xl border border-line-soft bg-surface-card pr-3 max-[920px]:grid-cols-1 max-[920px]:pr-0',
   folderRow:
-    'grid min-h-[76px] w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-0 bg-transparent px-4 py-3 text-left transition-[background] duration-150 ease-[var(--ease-out)] hover:bg-surface-2/70 active:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/22 max-[640px]:grid-cols-[auto_minmax(0,1fr)]',
+    'grid min-h-[76px] w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-0 bg-transparent px-4 py-3 text-left transition-[background] duration-150 ease-[var(--ease-out)] hover:bg-surface-2/70 active:bg-surface-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-primary/22 max-[760px]:grid-cols-[auto_minmax(0,1fr)] max-[420px]:gap-3 max-[420px]:px-3',
   rowIndex:
     'grid size-9 place-items-center rounded-full border border-line-soft bg-surface-2 text-[12px] font-extrabold text-ink-muted',
   rowBody:
     'grid min-w-0 gap-1 [&_strong]:truncate [&_strong]:text-[15px] [&_strong]:font-extrabold [&_strong]:text-ink-strong [&_span]:truncate [&_span]:text-[12px] [&_span]:font-semibold [&_span]:text-ink-muted',
   rowActions:
-    'flex flex-wrap items-center justify-end gap-2 max-[640px]:col-span-2 max-[640px]:justify-start max-[640px]:pl-[52px]',
+    'flex flex-wrap items-center justify-end gap-2 max-[760px]:col-span-2 max-[760px]:justify-start max-[760px]:pl-[52px] max-[420px]:pl-0',
   inlineActions:
-    'px-3 py-3 max-[700px]:justify-start max-[700px]:border-t max-[700px]:border-line-soft/70 max-[700px]:px-4',
+    'px-3 py-3 max-[920px]:justify-start max-[920px]:border-t max-[920px]:border-line-soft/70 max-[920px]:px-4',
 };
 
 function countActive(items) {
@@ -261,7 +261,7 @@ function FolderToolbar({ title, onBack, countLabel, actionLabel, onAction, bread
         <div className={structureUi.folderToolbarTitle}>{title || 'Structure'}</div>
         <StructureBreadcrumb items={breadcrumbItems || [title || 'Structure']} />
       </div>
-      <div className="flex items-center justify-end gap-2 max-[640px]:justify-start">
+      <div className="flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start">
         <span className={structureUi.countPill}>{countLabel}</span>
         {actionLabel ? (
           <button type="button" className={cx(ui.panelAddButton, 'min-h-9')} onClick={onAction}>
@@ -326,7 +326,7 @@ function FolderHeader({ eyebrow, title, description, countLabel, actionLabel, on
           <StructureBreadcrumb items={breadcrumbItems || [title]} />
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2 max-[640px]:justify-start">
         <span className={structureUi.countPill}>{countLabel}</span>
         <button type="button" className={cx(ui.panelAddButton, 'min-h-9')} onClick={onAction}>
           {actionLabel}
