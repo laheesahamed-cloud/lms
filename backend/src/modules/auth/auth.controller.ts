@@ -6,6 +6,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { GoogleCodeLoginDto } from './dto/google-code-login.dto';
+import { AppleLoginDto } from './dto/apple-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -114,6 +115,22 @@ export class AuthController {
       // so Google sign-in setup issues are diagnosable. (No secrets in message.)
       throw new InternalServerErrorException(`Google sign-in error: ${(err as any)?.message || err}`);
     }
+    this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+    if (this.shouldExposeSessionToken(nativeHeader)) {
+      return result;
+    }
+    const { sessionToken: _sessionToken, ...safeResult } = result;
+    return safeResult;
+  }
+
+  @Post('apple')
+  async appleLogin(
+    @Body() appleLoginDto: AppleLoginDto,
+    @Headers('x-lms-native') nativeHeader: string | undefined,
+    @Req() request: any,
+    @Res({ passthrough: true }) response: any
+  ) {
+    const result = await this.authService.loginWithApple(appleLoginDto);
     this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;

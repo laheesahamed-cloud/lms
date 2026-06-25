@@ -21,6 +21,7 @@ const login_dto_1 = require("./dto/login.dto");
 const register_dto_1 = require("./dto/register.dto");
 const google_login_dto_1 = require("./dto/google-login.dto");
 const google_code_login_dto_1 = require("./dto/google-code-login.dto");
+const apple_login_dto_1 = require("./dto/apple-login.dto");
 const update_profile_dto_1 = require("./dto/update-profile.dto");
 const change_password_dto_1 = require("./dto/change-password.dto");
 const forgot_password_dto_1 = require("./dto/forgot-password.dto");
@@ -85,6 +86,15 @@ let AuthController = class AuthController {
                 throw err;
             throw new common_1.InternalServerErrorException(`Google sign-in error: ${err?.message || err}`);
         }
+        this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+        if (this.shouldExposeSessionToken(nativeHeader)) {
+            return result;
+        }
+        const { sessionToken: _sessionToken, ...safeResult } = result;
+        return safeResult;
+    }
+    async appleLogin(appleLoginDto, nativeHeader, request, response) {
+        const result = await this.authService.loginWithApple(appleLoginDto);
         this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
             return result;
@@ -266,6 +276,16 @@ __decorate([
     __metadata("design:paramtypes", [google_code_login_dto_1.GoogleCodeLoginDto, Object, Object, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "googleCodeLogin", null);
+__decorate([
+    (0, common_1.Post)('apple'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('x-lms-native')),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [apple_login_dto_1.AppleLoginDto, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "appleLogin", null);
 __decorate([
     (0, common_1.Get)('me'),
     __param(0, (0, common_1.Headers)('authorization')),

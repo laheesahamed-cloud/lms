@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../data/api_client.dart';
 import '../data/auth_repository.dart';
+import '../data/apple_auth.dart';
 import '../data/google_auth.dart';
 import '../data/public_settings.dart';
 import '../data/models.dart';
@@ -97,10 +98,10 @@ class AuthController extends Notifier<AuthState> {
   /// ApiClient hook fires [_onUnauthorized] → the router sends us to login,
   /// without needing to close and reopen the app. A transient failure
   /// (timeout / server cold-start) is swallowed, so a flaky network never logs
-  /// the user out. No-op for the local demo session.
+  /// the user out.
   Future<void> revalidateSession() async {
     final token = state.token;
-    if (!state.isAuthenticated || token == null || token == 'demo') return;
+    if (!state.isAuthenticated || token == null) return;
     try {
       final user = await _repo.me();
       if (state.isAuthenticated) state = state.copyWith(user: user);
@@ -140,6 +141,24 @@ class AuthController extends Notifier<AuthState> {
       // Google accounts are pre-verified by Google, so they never hit the OTP
       // step — the backend always returns a live session here.
       await _applySession(await _repo.loginWithGoogle(idToken));
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: _msg(e));
+      return false;
+    }
+  }
+
+  /// Native Sign in with Apple: run the system sheet, exchange the identity
+  /// token at POST /auth/apple, then store the session like [login].
+  /// Returns false (with no error) if the user cancels the Apple sheet.
+  Future<bool> loginWithApple() async {
+    try {
+      final cred = await appleSignIn();
+      if (cred == null) return false; // user cancelled
+      // Apple verifies the email itself, so these accounts skip the OTP step —
+      // the backend always returns a live session here.
+      await _applySession(
+          await _repo.loginWithApple(cred.identityToken, fullName: cred.fullName));
       return true;
     } catch (e) {
       state = state.copyWith(error: _msg(e));
@@ -207,35 +226,11 @@ class AuthController extends Notifier<AuthState> {
     Push.onAuthenticated();
   }
 
-  /// Local demo sign-in — explore the app with demo data, no backend.
-  void enterDemo() {
-    state = const AuthState(
-      isHydrating: false,
-      isAuthenticated: true,
-      token: 'demo',
-      user: AppUser(
-        id: 'demo',
-        fullName: 'Emma Isabella',
-        email: 'emma@medschool.lk',
-        role: 'student',
-        plan: 'Free',
-      ),
-    );
-  }
-
   /// Edit profile. Returns null on success, or a user-facing error message.
   Future<String?> updateProfile({
     required String fullName,
     String? avatarKey,
   }) async {
-    // Demo mode never touches the backend.
-    if (state.token == 'demo') {
-      state = state.copyWith(
-        user: state.user?.copyWith(
-            fullName: fullName.trim(), avatarKey: avatarKey ?? ''),
-      );
-      return null;
-    }
     try {
       final user = await _repo.updateProfile(
         fullName: fullName.trim(),
@@ -254,7 +249,6 @@ class AuthController extends Notifier<AuthState> {
     required String newPassword,
     required String confirmPassword,
   }) async {
-    if (state.token == 'demo') return null;
     try {
       await _repo.changePassword(
         currentPassword: currentPassword,

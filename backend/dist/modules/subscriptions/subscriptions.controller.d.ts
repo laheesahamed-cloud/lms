@@ -286,7 +286,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "rejected" | "pending" | "approved" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -413,7 +413,7 @@ export declare class SubscriptionsController {
         id: number;
         userId: number;
         planId: number;
-        status: "pending" | "cancelled" | "approved" | "rejected";
+        status: "rejected" | "pending" | "approved" | "cancelled";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -825,7 +825,7 @@ export declare class SubscriptionsController {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "cancelled" | "approved" | "rejected";
+            status: "rejected" | "pending" | "approved" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;

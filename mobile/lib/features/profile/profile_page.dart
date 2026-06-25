@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
@@ -98,6 +99,11 @@ class ProfilePage extends ConsumerWidget {
             _Row(Icons.workspace_premium_outlined, 'Subscription',
                 () => context.push('/app/subscriptions')),
           ]),
+          const SizedBox(height: 12),
+          _Section(title: 'Support', rows: [
+            _Row(Icons.mail_outline_rounded, 'Contact support',
+                () => _contactSupport(context)),
+          ]),
           const SizedBox(height: 20),
           AppButton('Log out',
               kind: AppButtonKind.soft,
@@ -116,6 +122,23 @@ class ProfilePage extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Support contact (Guideline 1.5 — easy access to customer support). Opens the
+/// device mail composer; if no mail app is set up, the address is shown so the
+/// user (or App Review) can still reach support. Change [_supportEmail] to your
+/// real inbox.
+const String _supportEmail = 'support@xyndrome.lk';
+
+Future<void> _contactSupport(BuildContext context) async {
+  final uri = Uri.parse(
+      'mailto:$_supportEmail?subject=${Uri.encodeComponent('Xyndrome app support')}');
+  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Email us at $_supportEmail')),
     );
   }
 }

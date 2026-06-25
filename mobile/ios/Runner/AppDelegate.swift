@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Flutter
 import UIKit
 import UserNotifications
@@ -6,6 +7,7 @@ import UserNotifications
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var pushChannel: FlutterMethodChannel?
   private var pendingToken: String?
+  private var appleAuthHandler: AppleSignInHandler?
 
   override func application(
     _ application: UIApplication,
@@ -46,6 +48,35 @@ import UserNotifications
         channel.invokeMethod("apnsToken", arguments: token)
       }
     }
+
+    // Native Sign in with Apple. Flutter calls "signIn"; we run the system
+    // ASAuthorization flow and return { identityToken, fullName?, email? } — or
+    // nil if the user cancels. The backend (/auth/apple) verifies the token.
+    if let messenger = engineBridge.pluginRegistry.registrar(forPlugin: "XyndromeAppleAuth")?.messenger() {
+      let appleChannel = FlutterMethodChannel(name: "app.xyndrome.lk/apple_auth", binaryMessenger: messenger)
+      appleChannel.setMethodCallHandler { [weak self] call, result in
+        switch call.method {
+        case "signIn":
+          let handler = AppleSignInHandler { outcome in
+            DispatchQueue.main.async {
+              switch outcome {
+              case .success(let payload):
+                result(payload) // nil = cancelled, dict = signed in
+              case .failure(let error):
+                result(FlutterError(code: "apple_auth_failed",
+                                    message: error.localizedDescription,
+                                    details: nil))
+              }
+              self?.appleAuthHandler = nil
+            }
+          }
+          self?.appleAuthHandler = handler
+          handler.start()
+        default:
+          result(FlutterMethodNotImplemented)
+        }
+      }
+    }
   }
 
   override func application(
@@ -64,5 +95,64 @@ import UserNotifications
   ) {
     NSLog("APNs registration failed: \(error.localizedDescription)")
     super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+  }
+}
+
+/// Drives one native Sign in with Apple request. Held strongly by AppDelegate
+/// for the duration of the (async) system sheet, then released.
+final class AppleSignInHandler: NSObject, ASAuthorizationControllerDelegate,
+                                ASAuthorizationControllerPresentationContextProviding {
+  private let completion: (Result<[String: Any]?, Error>) -> Void
+  private var finished = false
+
+  init(completion: @escaping (Result<[String: Any]?, Error>) -> Void) {
+    self.completion = completion
+    super.init()
+  }
+
+  func start() {
+    let request = ASAuthorizationAppleIDProvider().createRequest()
+    request.requestedScopes = [.fullName, .email]
+    let controller = ASAuthorizationController(authorizationRequests: [request])
+    controller.delegate = self
+    controller.presentationContextProvider = self
+    controller.performRequests()
+  }
+
+  func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let keyWindow = scenes.flatMap { $0.windows }.first { $0.isKeyWindow }
+    return keyWindow ?? ASPresentationAnchor()
+  }
+
+  func authorizationController(controller: ASAuthorizationController,
+                               didCompleteWithAuthorization authorization: ASAuthorization) {
+    guard !finished else { return }
+    finished = true
+    guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+          let tokenData = credential.identityToken,
+          let token = String(data: tokenData, encoding: .utf8) else {
+      completion(.failure(NSError(domain: "apple_auth", code: -1,
+                                  userInfo: [NSLocalizedDescriptionKey: "No identity token returned"])))
+      return
+    }
+    var payload: [String: Any] = ["identityToken": token]
+    if let name = credential.fullName {
+      let parts = [name.givenName, name.familyName].compactMap { $0 }.filter { !$0.isEmpty }
+      if !parts.isEmpty { payload["fullName"] = parts.joined(separator: " ") }
+    }
+    if let email = credential.email, !email.isEmpty { payload["email"] = email }
+    completion(.success(payload))
+  }
+
+  func authorizationController(controller: ASAuthorizationController,
+                               didCompleteWithError error: Error) {
+    guard !finished else { return }
+    finished = true
+    if let authError = error as? ASAuthorizationError, authError.code == .canceled {
+      completion(.success(nil)) // user cancelled the sheet
+      return
+    }
+    completion(.failure(error))
   }
 }

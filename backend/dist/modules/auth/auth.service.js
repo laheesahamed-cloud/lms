@@ -55,6 +55,7 @@ let AuthService = AuthService_1 = class AuthService {
         this.db = db;
         this.configService = configService;
         this.logger = new common_1.Logger(AuthService_1.name);
+        this.appleKeysCache = null;
     }
     async login(loginDto) {
         const email = loginDto.email.trim().toLowerCase();
@@ -160,6 +161,117 @@ let AuthService = AuthService_1 = class AuthService {
             sessionTtlDays,
             redirectPath: this.getRedirectPath(user.role, user.status),
             user: await this.serializeUser(user),
+        };
+    }
+    async loginWithApple(appleLoginDto) {
+        const profile = await this.verifyAppleCredential(appleLoginDto.identityToken);
+        return this.loginWithAppleProfile(profile, appleLoginDto.fullName);
+    }
+    async loginWithAppleProfile(profile, providedName) {
+        const email = String(profile.email || '').trim().toLowerCase();
+        if (!email) {
+            throw new common_1.UnauthorizedException('Apple sign-in did not provide an email');
+        }
+        const fallbackName = email.includes('@') ? email.split('@')[0] : 'Student';
+        const fullName = (providedName || '').trim() || fallbackName;
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
+        let user = rows[0];
+        if (!user) {
+            const randomPassword = await bcrypt.hash(`apple:${profile.sub}:${(0, crypto_1.randomBytes)(16).toString('hex')}`, 10);
+            const [result] = await this.db.execute('INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, ?, ?)', [fullName, email, randomPassword, 'student', 'active']);
+            await this.assignDefaultEntryPlan(result.insertId);
+            user = {
+                id: result.insertId,
+                full_name: fullName,
+                email,
+                password: randomPassword,
+                role: 'student',
+                status: 'active',
+            };
+        }
+        if ((0, role_permissions_1.isStaffRole)(user.role) && user.status !== 'active') {
+            throw new common_1.UnauthorizedException('Your admin account is not active right now');
+        }
+        const sessionToken = (0, crypto_1.randomBytes)(32).toString('hex');
+        const sessionTtlDays = (0, role_permissions_1.isStaffRole)(user.role) ? auth_token_util_1.ADMIN_SESSION_TTL_DAYS : auth_token_util_1.SESSION_TTL_DAYS;
+        await this.db.execute('UPDATE users SET session_token = ?, session_expires_at = ?, email_verified = 1 WHERE id = ?', [
+            (0, auth_token_util_1.hashSessionToken)(sessionToken),
+            (0, auth_token_util_1.createSessionExpiry)(sessionTtlDays),
+            user.id,
+        ]);
+        return {
+            ok: true,
+            sessionToken,
+            sessionTtlDays,
+            redirectPath: this.getRedirectPath(user.role, user.status),
+            user: await this.serializeUser(user),
+        };
+    }
+    async getAppleSigningKeys() {
+        const now = Date.now();
+        if (this.appleKeysCache && now - this.appleKeysCache.fetchedAt < 6 * 60 * 60 * 1000) {
+            return this.appleKeysCache.keys;
+        }
+        const response = await fetch('https://appleid.apple.com/auth/keys');
+        if (!response.ok) {
+            throw new common_1.UnauthorizedException('Could not verify Apple sign-in right now');
+        }
+        const data = (await response.json());
+        const keys = Array.isArray(data.keys) ? data.keys : [];
+        this.appleKeysCache = { keys, fetchedAt: now };
+        return keys;
+    }
+    getAppleAllowedAudiences() {
+        const configured = String(this.configService.get('APPLE_CLIENT_IDS') ||
+            this.configService.get('APPLE_BUNDLE_ID') ||
+            'app.xyndrome.lk')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+        return configured.length ? configured : ['app.xyndrome.lk'];
+    }
+    async verifyAppleCredential(identityToken) {
+        const parts = String(identityToken || '').split('.');
+        if (parts.length !== 3) {
+            throw new common_1.UnauthorizedException('Invalid Apple identity token');
+        }
+        let header;
+        let payload;
+        try {
+            header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+            payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        }
+        catch {
+            throw new common_1.UnauthorizedException('Invalid Apple identity token');
+        }
+        if (header?.alg !== 'RS256' || !header?.kid) {
+            throw new common_1.UnauthorizedException('Unexpected Apple identity token format');
+        }
+        const keys = await this.getAppleSigningKeys();
+        const jwk = keys.find((key) => key.kid === header.kid);
+        if (!jwk) {
+            throw new common_1.UnauthorizedException('Apple signing key not found');
+        }
+        const publicKey = (0, crypto_1.createPublicKey)({ key: jwk, format: 'jwk' });
+        const signedContent = Buffer.from(`${parts[0]}.${parts[1]}`);
+        const signature = Buffer.from(parts[2], 'base64url');
+        const signatureValid = (0, crypto_1.verify)('RSA-SHA256', signedContent, publicKey, signature);
+        if (!signatureValid) {
+            throw new common_1.UnauthorizedException('Apple identity token signature is invalid');
+        }
+        if (payload.iss !== 'https://appleid.apple.com') {
+            throw new common_1.UnauthorizedException('Apple identity token issuer mismatch');
+        }
+        if (!this.getAppleAllowedAudiences().includes(String(payload.aud || ''))) {
+            throw new common_1.UnauthorizedException('Apple identity token audience mismatch');
+        }
+        if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now()) {
+            throw new common_1.UnauthorizedException('Apple identity token has expired');
+        }
+        return {
+            sub: String(payload.sub || ''),
+            email: String(payload.email || ''),
+            email_verified: payload.email_verified === true || payload.email_verified === 'true',
         };
     }
     async me(authorization) {

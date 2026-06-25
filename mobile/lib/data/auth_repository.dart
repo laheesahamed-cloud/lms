@@ -78,6 +78,17 @@ class AuthRepository {
     return _withCookieToken(r, _parse(r.data));
   }
 
+  /// Signs in (or auto-creates the account) with a native Sign in with Apple
+  /// identity token. [fullName] is sent only on the user's first Apple sign-in
+  /// (Apple omits it afterwards). Same session handling as [login].
+  Future<AuthResult> loginWithApple(String identityToken, {String? fullName}) async {
+    final r = await api.dio.post('/auth/apple', data: {
+      'identityToken': identityToken,
+      if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
+    });
+    return _withCookieToken(r, _parse(r.data));
+  }
+
   Future<AppUser> me() async {
     final r = await api.dio.get('/auth/me');
     final data = r.data;

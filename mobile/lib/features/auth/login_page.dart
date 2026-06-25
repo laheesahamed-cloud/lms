@@ -6,6 +6,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/brand_logo.dart';
 import '../../state/auth_controller.dart';
+import '../../data/apple_auth.dart';
 import '../../data/google_auth.dart';
 import 'auth_background.dart';
 import 'auth_widgets.dart';
@@ -23,6 +24,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _obscure = true;
   bool _loading = false;
   bool _googleLoading = false;
+  bool _appleLoading = false;
 
   @override
   void dispose() {
@@ -59,12 +61,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (ok && mounted) context.go('/app/dashboard');
   }
 
+  Future<void> _apple() async {
+    setState(() => _appleLoading = true);
+    final ok = await ref.read(authControllerProvider.notifier).loginWithApple();
+    if (mounted) setState(() => _appleLoading = false);
+    if (ok && mounted) context.go('/app/dashboard');
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.c;
     final error = ref.watch(authControllerProvider).error;
     // Visible instantly from baked client ids — no wait on /settings/public.
     final googleOk = googleButtonVisible();
+    final appleOk = appleButtonVisible();
     return Scaffold(
       body: AuthBackground(
         child: SafeArea(
@@ -138,10 +148,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           expand: true,
                           loading: _loading,
                           onPressed: _submit),
-                      if (googleOk) ...[
+                      if (appleOk || googleOk) ...[
                         const SizedBox(height: 14),
                         const OrDivider(),
                         const SizedBox(height: 14),
+                      ],
+                      if (appleOk) ...[
+                        AppButton(
+                          'Sign in with Apple',
+                          kind: AppButtonKind.ghost,
+                          expand: true,
+                          loading: _appleLoading,
+                          leading: Icon(Icons.apple,
+                              size: 20, color: c.inkStrong),
+                          onPressed: _apple,
+                        ),
+                        if (googleOk) const SizedBox(height: 10),
+                      ],
+                      if (googleOk) ...[
                         AppButton(
                           'Continue with Google',
                           kind: AppButtonKind.ghost,
@@ -173,21 +197,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ],
                             ),
                           ),
-                        ),
-                      ),
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            ref
-                                .read(authControllerProvider.notifier)
-                                .enterDemo();
-                            context.go('/app/dashboard');
-                          },
-                          child: Text('Explore the demo (no account)',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: c.inkSoft)),
                         ),
                       ),
                     ],

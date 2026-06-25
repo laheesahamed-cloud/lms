@@ -1,7 +1,7 @@
 import { BadRequestException, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
-import { randomBytes, randomInt } from 'crypto';
+import { randomBytes, randomInt, createPublicKey, verify as cryptoVerify } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import * as nodemailer from 'nodemailer';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
@@ -13,6 +13,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { GoogleCodeLoginDto } from './dto/google-code-login.dto';
+import { AppleLoginDto } from './dto/apple-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -61,6 +62,21 @@ type GoogleTokenInfo = {
   picture?: string;
   error?: string;
   error_description?: string;
+};
+
+type AppleTokenInfo = {
+  sub: string;
+  email: string;
+  email_verified: boolean;
+};
+
+type AppleJwk = {
+  kty: string;
+  kid: string;
+  use?: string;
+  alg?: string;
+  n: string;
+  e: string;
 };
 
 type GoogleTokenResponse = {
@@ -261,6 +277,153 @@ export class AuthService {
       sessionTtlDays,
       redirectPath: this.getRedirectPath(user.role, user.status),
       user: await this.serializeUser(user),
+    };
+  }
+
+  async loginWithApple(appleLoginDto: AppleLoginDto) {
+    const profile = await this.verifyAppleCredential(appleLoginDto.identityToken);
+    return this.loginWithAppleProfile(profile, appleLoginDto.fullName);
+  }
+
+  private async loginWithAppleProfile(profile: AppleTokenInfo, providedName?: string) {
+    const email = String(profile.email || '').trim().toLowerCase();
+    if (!email) {
+      // Native Sign in with Apple always includes the email claim; without it we
+      // can't match or create an account (the users table keys on email).
+      throw new UnauthorizedException('Apple sign-in did not provide an email');
+    }
+    const fallbackName = email.includes('@') ? email.split('@')[0] : 'Student';
+    const fullName = (providedName || '').trim() || fallbackName;
+
+    const [rows] = await this.db.execute<UserRow[]>(
+      'SELECT id, full_name, email, password, role, status, avatar_key FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+      [email]
+    );
+
+    let user = rows[0];
+    if (!user) {
+      const randomPassword = await bcrypt.hash(`apple:${profile.sub}:${randomBytes(16).toString('hex')}`, 10);
+      const [result] = await this.db.execute<ResultSetHeader>(
+        'INSERT INTO users (full_name, email, password, role, status) VALUES (?, ?, ?, ?, ?)',
+        [fullName, email, randomPassword, 'student', 'active']
+      );
+      await this.assignDefaultEntryPlan(result.insertId);
+      user = {
+        id: result.insertId,
+        full_name: fullName,
+        email,
+        password: randomPassword,
+        role: 'student',
+        status: 'active',
+      } as UserRow;
+    }
+
+    if (isStaffRole(user.role) && user.status !== 'active') {
+      throw new UnauthorizedException('Your admin account is not active right now');
+    }
+
+    // Apple verifies the email itself, so these accounts skip the OTP step and are
+    // flagged verified for any future email/password logins (mirrors Google).
+    const sessionToken = randomBytes(32).toString('hex');
+    const sessionTtlDays = isStaffRole(user.role) ? ADMIN_SESSION_TTL_DAYS : SESSION_TTL_DAYS;
+    await this.db.execute('UPDATE users SET session_token = ?, session_expires_at = ?, email_verified = 1 WHERE id = ?', [
+      hashSessionToken(sessionToken),
+      createSessionExpiry(sessionTtlDays),
+      user.id,
+    ]);
+
+    return {
+      ok: true,
+      sessionToken,
+      sessionTtlDays,
+      redirectPath: this.getRedirectPath(user.role, user.status),
+      user: await this.serializeUser(user),
+    };
+  }
+
+  /** Apple's published signing keys (JWKS), cached for 6h. */
+  private appleKeysCache: { keys: AppleJwk[]; fetchedAt: number } | null = null;
+
+  private async getAppleSigningKeys(): Promise<AppleJwk[]> {
+    const now = Date.now();
+    if (this.appleKeysCache && now - this.appleKeysCache.fetchedAt < 6 * 60 * 60 * 1000) {
+      return this.appleKeysCache.keys;
+    }
+    const response = await fetch('https://appleid.apple.com/auth/keys');
+    if (!response.ok) {
+      throw new UnauthorizedException('Could not verify Apple sign-in right now');
+    }
+    const data = (await response.json()) as { keys?: AppleJwk[] };
+    const keys = Array.isArray(data.keys) ? data.keys : [];
+    this.appleKeysCache = { keys, fetchedAt: now };
+    return keys;
+  }
+
+  private getAppleAllowedAudiences(): string[] {
+    const configured = String(
+      this.configService.get<string>('APPLE_CLIENT_IDS') ||
+        this.configService.get<string>('APPLE_BUNDLE_ID') ||
+        'app.xyndrome.lk'
+    )
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    return configured.length ? configured : ['app.xyndrome.lk'];
+  }
+
+  /**
+   * Verifies a native Sign in with Apple identity token end-to-end using Apple's
+   * public JWKS — no third-party JWT dependency (Node's built-in crypto only).
+   * Checks the RS256 signature plus the issuer, audience (app bundle id) and
+   * expiry claims before trusting the email/sub.
+   */
+  private async verifyAppleCredential(identityToken: string): Promise<AppleTokenInfo> {
+    const parts = String(identityToken || '').split('.');
+    if (parts.length !== 3) {
+      throw new UnauthorizedException('Invalid Apple identity token');
+    }
+
+    let header: any;
+    let payload: any;
+    try {
+      header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+      payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    } catch {
+      throw new UnauthorizedException('Invalid Apple identity token');
+    }
+
+    if (header?.alg !== 'RS256' || !header?.kid) {
+      throw new UnauthorizedException('Unexpected Apple identity token format');
+    }
+
+    const keys = await this.getAppleSigningKeys();
+    const jwk = keys.find((key) => key.kid === header.kid);
+    if (!jwk) {
+      throw new UnauthorizedException('Apple signing key not found');
+    }
+
+    const publicKey = createPublicKey({ key: jwk as any, format: 'jwk' });
+    const signedContent = Buffer.from(`${parts[0]}.${parts[1]}`);
+    const signature = Buffer.from(parts[2], 'base64url');
+    const signatureValid = cryptoVerify('RSA-SHA256', signedContent, publicKey, signature);
+    if (!signatureValid) {
+      throw new UnauthorizedException('Apple identity token signature is invalid');
+    }
+
+    if (payload.iss !== 'https://appleid.apple.com') {
+      throw new UnauthorizedException('Apple identity token issuer mismatch');
+    }
+    if (!this.getAppleAllowedAudiences().includes(String(payload.aud || ''))) {
+      throw new UnauthorizedException('Apple identity token audience mismatch');
+    }
+    if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now()) {
+      throw new UnauthorizedException('Apple identity token has expired');
+    }
+
+    return {
+      sub: String(payload.sub || ''),
+      email: String(payload.email || ''),
+      email_verified: payload.email_verified === true || payload.email_verified === 'true',
     };
   }
 
