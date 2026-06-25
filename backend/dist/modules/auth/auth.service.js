@@ -22,6 +22,7 @@ const nodemailer = require("nodemailer");
 const database_tokens_1 = require("../../database/database.tokens");
 const sql_safety_1 = require("../../database/sql-safety");
 const ai_provider_utils_1 = require("../../common/utils/ai-provider.utils");
+const subscription_catalog_1 = require("../plans/subscription-catalog");
 const auth_token_util_1 = require("./auth-token.util");
 const role_permissions_1 = require("./role-permissions");
 const ALLOWED_AVATAR_KEYS = new Set(['blue-tie', 'teal-coat', 'pink-necklace', 'violet-scarf', 'amber-coat', 'cyan-necklace']);
@@ -848,20 +849,17 @@ ${settings.footer}`;
     }
     async getActiveFeatureKeysForUser(userId) {
         const [rows] = await this.db.execute(`
-        SELECT sf.feature_key
+        SELECT us.id
         FROM user_subscriptions us
-        INNER JOIN subscription_plan_features spf
-          ON spf.plan_id = us.plan_id
-         AND spf.is_enabled = 1
-        INNER JOIN subscription_features sf
-          ON sf.id = spf.feature_id
-         AND sf.status = 'active'
         WHERE us.user_id = ?
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
+        LIMIT 1
       `, [userId]);
-        return Array.from(new Set(rows.map((row) => String(row.feature_key || '').trim()).filter(Boolean)));
+        if (rows.length === 0)
+            return [];
+        return Array.from(new Set(subscription_catalog_1.DEFAULT_SUBSCRIPTION_FEATURES.map((feature) => feature.featureKey)));
     }
     buildFeatureAccessMap(featureKeys) {
         const has = (featureKey) => featureKeys.includes(featureKey);

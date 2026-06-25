@@ -31,6 +31,19 @@ class Push {
     }).catchError((_) {});
   }
 
+  /// Ask iOS for notification permission and (if granted) register with APNs.
+  /// Called on demand when the user opts in via the priming sheet — never at
+  /// launch. Returns whether permission was granted.
+  static Future<bool> requestAuthorization() async {
+    if (!Platform.isIOS) return false;
+    try {
+      final granted = await _channel.invokeMethod<bool>('requestAuthorization');
+      return granted ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Call after a successful login / session restore.
   static void onAuthenticated() {
     _synced = false;

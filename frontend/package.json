@@ -12,7 +12,6 @@
     "build": "vite build",
     "postbuild": "node ../scripts/build/sync-root-index.mjs",
     "build:web": "VITE_LMS_BUILD_TARGET=web vite build --mode web",
-    "build:pwa": "VITE_LMS_BUILD_TARGET=pwa vite build --mode pwa",
     "build:cap": "VITE_LMS_BUILD_TARGET=native CAPACITOR_BUILD=1 vite build --mode capacitor",
     "build:desktop": "VITE_LMS_BUILD_TARGET=desktop vite build --mode desktop",
     "cap:sync": "npm run build:cap && RUBYOPT=-rlogger PATH=\"$HOME/.gem/ruby/2.6.0/bin:$PATH\" CAPACITOR_COCOAPODS_PATH=\"$HOME/.gem/ruby/2.6.0/bin/pod\" cap sync",

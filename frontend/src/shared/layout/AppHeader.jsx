@@ -5,7 +5,6 @@ import { fetchNotifications, markNotificationRead } from '../api/workspace.api.j
 import { useAuthStore } from '../stores/authStore.js';
 import { ProfileAvatar } from '../ui/ProfileAvatar.jsx';
 import { ThemeToggle } from './ThemeToggle.jsx';
-import { HeaderInstallAction } from './HeaderInstallAction.jsx';
 import { getStaffRoleLabel, isStaffUser, roleRouteMode, userHasPermission } from '../auth/roleAccess.js';
 import { cx } from '../styles/tailwindClasses.js';
 import { getAdminUserIdentifier, getAdminUserSecondaryIdentifier } from '../utils/userIdentity.js';
@@ -1428,7 +1427,6 @@ export function AppHeader({ title, subtitle, actions = null, className = '', bre
 
         <div className={cx('lms-topbar-right', topbarUi.right)}>
           <div className={topbarUi.utility}>
-            <HeaderInstallAction />
             <ThemeToggle />
 
             {user?.role === 'student' ? (

@@ -95,7 +95,9 @@ class FlashcardsPage extends ConsumerWidget {
                     child: _DeckRow(deck: r, onTap: () {
                       if (r.node.locked) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Upgrade to study this deck.')),
+                          const SnackBar(
+                              content: Text(
+                                  'This deck is included with a subscription.')),
                         );
                         return;
                       }

@@ -25,6 +25,18 @@ class AppConfig {
         '660151858831-jdgfe43ohnqvqicsspa775eql9bmngmi.apps.googleusercontent.com',
   );
 
+  /// WEB/server Google OAuth client id (the ID-token audience the backend
+  /// verifies). Baked in as an INSTANT fallback so the Google button shows and
+  /// works on the very first launch without waiting for `/settings/public`. The
+  /// live server value still takes over once it loads, so it can change without a
+  /// rebuild — only this fallback needs a rebuild if the id ever changes.
+  /// Override per-build with --dart-define=GOOGLE_WEB_CLIENT_ID=...
+  static const String googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+    defaultValue:
+        '660151858831-1d6dphmbff8ia7s285o21g4e1mjjf4u5.apps.googleusercontent.com',
+  );
+
   static const Duration apiTimeout = Duration(seconds: 10);
   static const int retryCount = 2;
   static const Duration retryDelay = Duration(milliseconds: 500);

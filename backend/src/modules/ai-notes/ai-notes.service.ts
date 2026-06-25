@@ -1291,36 +1291,28 @@ ${input.sourceText}`;
   private async getLessonAccessProfile(userId: number): Promise<LessonAccessProfile> {
     const [rows] = await this.db.execute<AccessScopeRow[]>(
       `
-        SELECT sf.feature_key, plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
+        SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
         FROM user_subscriptions us
         INNER JOIN plans ON plans.id = us.plan_id
-        INNER JOIN subscription_plan_features spf
-          ON spf.plan_id = us.plan_id
-         AND spf.is_enabled = 1
-        INNER JOIN subscription_features sf
-          ON sf.id = spf.feature_id
-         AND sf.status = 'active'
         WHERE us.user_id = ?
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
-          AND sf.feature_key IN ('lessons_access_full', 'lessons_access_limited', 'notes_canvas_study_mode')
       `,
       [userId],
     );
 
-    // One query now also resolves the notes-canvas feature flag (was a second
-    // hasFeatureAccess round-trip). Lesson-scope logic must ignore notes rows.
-    const lessonRows = rows.filter((row) => String(row.feature_key || '').trim() !== 'notes_canvas_study_mode');
+    // Any active subscription now unlocks lessons + the notes canvas. Access is
+    // limited only by the subscription's course/lesson scope below.
     const profile: LessonAccessProfile = {
-      hasAnyPaidLessonAccess: lessonRows.length > 0,
-      hasNotesCanvas: rows.some((row) => String(row.feature_key || '').trim() === 'notes_canvas_study_mode'),
+      hasAnyPaidLessonAccess: rows.length > 0,
+      hasNotesCanvas: rows.length > 0,
       hasFullAccess: false,
       courseIds: new Set<number>(),
       lessonIds: new Set<number>(),
     };
 
-    for (const row of lessonRows) {
+    for (const row of rows) {
       const courseIds = this.parseIdList(row.course_ids_json);
       const lessonIds = this.parseIdList(row.lesson_ids_json);
       const scope = this.resolveEffectiveAccessScope(row, courseIds, lessonIds);

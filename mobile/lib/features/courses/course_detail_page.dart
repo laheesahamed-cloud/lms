@@ -34,7 +34,8 @@ class CourseDetailPage extends ConsumerWidget {
   void _openLesson(BuildContext context, LessonItem l) {
     if (l.locked) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Upgrade to access this lesson.')),
+        const SnackBar(
+            content: Text('This lesson is included with a subscription.')),
       );
       return;
     }

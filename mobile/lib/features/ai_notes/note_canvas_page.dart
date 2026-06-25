@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +56,14 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
   bool _penDown = false;
   // Repaints the ink layer while drawing WITHOUT rebuilding the note (no flicker).
   final ValueNotifier<int> _tick = ValueNotifier<int>(0);
+  // Persisting re-serializes the whole stroke list, so we don't write on every
+  // pen-lift — a burst of strokes is coalesced into one save after writing stops.
+  Timer? _saveTimer;
+  bool _inkDirty = false;
+  // Bumped whenever the COMMITTED ink changes (commit/undo/clear/load). The
+  // committed painters repaint on a change of this — `_strokes` is mutated in
+  // place, so its identity/length can't tell the painter the ink changed.
+  int _inkGen = 0;
 
   // Pen palette — dark ink colours.
   static const _penPalette = [
@@ -168,6 +177,8 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
 
   @override
   void dispose() {
+    _saveTimer?.cancel();
+    if (_inkDirty) _saveInk(); // flush any pending ink before leaving
     _tick.dispose();
     super.dispose();
   }
@@ -230,11 +241,28 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
       final list = (jsonDecode(raw) as List)
           .map((m) => _Stroke.fromJson(Map<String, dynamic>.from(m as Map)))
           .toList();
-      if (mounted) setState(() => _strokes.addAll(list));
+      if (mounted) {
+        setState(() {
+          _strokes.addAll(list);
+          _inkGen++;
+        });
+      }
     } catch (_) {}
   }
 
+  // Coalesce rapid strokes: restart a short timer on each change and only write
+  // once writing pauses. dispose() flushes whatever is still pending.
+  void _scheduleSaveInk() {
+    _inkDirty = true;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 1200), () {
+      _saveTimer = null;
+      if (_inkDirty) _saveInk();
+    });
+  }
+
   Future<void> _saveInk() async {
+    _inkDirty = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
         _inkKey, jsonEncode([for (final s in _strokes) s.toJson()]));
@@ -261,20 +289,27 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
       _strokes.add(_active!);
       _active = null;
       _penDown = false;
+      _inkGen++;
     });
-    _saveInk();
+    _scheduleSaveInk();
   }
 
   void _undo() {
     if (_strokes.isEmpty) return;
-    setState(() => _strokes.removeLast());
-    _saveInk();
+    setState(() {
+      _strokes.removeLast();
+      _inkGen++;
+    });
+    _scheduleSaveInk();
   }
 
   void _clear() {
     if (_strokes.isEmpty) return;
-    setState(() => _strokes.clear());
-    _saveInk();
+    setState(() {
+      _strokes.clear();
+      _inkGen++;
+    });
+    _scheduleSaveInk();
   }
 
   @override
@@ -600,6 +635,9 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
       );
 
   Widget _canvas(AppColors c, bool dark, NoteDoc note) {
+    // The eraser is the only tool that must mutate the committed ink live; pen
+    // and highlighter draw their in-flight stroke on the cheap top layer only.
+    final erasing = _active?.tool == _Tool.eraser;
     return InteractiveViewer(
       constrained: false,
       minScale: 1.0,
@@ -616,15 +654,29 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
         child: Stack(
           children: [
             _NoteContent(note: note, dark: dark),
-            // Highlighter: blended onto the note below (multiply on a light
-            // page, screen on a dark one) so the text keeps its own colour.
-            // No RepaintBoundary here — the blend must see the note beneath it.
+            // Committed highlighter: blended onto the note below (multiply on a
+            // light page, screen on a dark one) so the text keeps its colour.
+            // No RepaintBoundary — the blend must see the note beneath it — so
+            // it deliberately does NOT repaint mid pen-stroke (only on commit,
+            // or live while erasing).
             Positioned.fill(
               child: CustomPaint(
-                  painter: _InkPainter(_strokes, _active,
-                      highlighter: true, dark: dark, repaint: _tick)),
+                  painter: _InkPainter(_strokes, erasing ? _active : null,
+                      highlighter: true, dark: dark, gen: _inkGen,
+                      repaint: erasing ? _tick : null)),
             ),
-            // Pen ink + stylus input on top, isolated for snappy drawing.
+            // Committed pen + eraser ink, cached in its own layer so it is not
+            // redrawn while writing.
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                    painter: _InkPainter(_strokes, erasing ? _active : null,
+                        highlighter: false, gen: _inkGen,
+                        repaint: erasing ? _tick : null)),
+              ),
+            ),
+            // Live layer: the in-flight stroke + stylus input. This is the ONLY
+            // thing that repaints per pointer move, so ink stays on the pen tip.
             Positioned.fill(
               child: Listener(
                 behavior: HitTestBehavior.translucent,
@@ -633,8 +685,8 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
                 onPointerUp: _onUp,
                 child: RepaintBoundary(
                   child: CustomPaint(
-                      painter: _InkPainter(_strokes, _active,
-                          highlighter: false, repaint: _tick)),
+                      painter: _LivePainter(erasing ? null : _active,
+                          dark: dark, repaint: _tick)),
                 ),
               ),
             ),
@@ -645,13 +697,65 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
   }
 }
 
+// ---- Ink drawing helpers (shared by the committed + live painters) ----
+
+Paint _linePaint(Color color, double width) => Paint()
+  ..color = color
+  ..style = PaintingStyle.stroke
+  ..strokeWidth = width
+  ..strokeCap = StrokeCap.round
+  ..strokeJoin = StrokeJoin.round
+  ..isAntiAlias = true;
+
+Paint _eraserPaint(double width) => Paint()
+  ..blendMode = BlendMode.clear
+  ..style = PaintingStyle.stroke
+  ..strokeWidth = width
+  ..strokeCap = StrokeCap.round
+  ..strokeJoin = StrokeJoin.round;
+
+void _drawStroke(Canvas canvas, _Stroke s, Paint paint) {
+  if (s.points.length == 1) {
+    canvas.drawCircle(s.points.first, s.width / 2,
+        Paint()..color = paint.color..blendMode = paint.blendMode);
+    return;
+  }
+  canvas.drawPath(_smoothPath(s.points), paint);
+}
+
+// Quadratic-bezier smoothing through point midpoints — crisp, no jagged joints.
+Path _smoothPath(List<Offset> pts) {
+  final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+  if (pts.length < 3) {
+    for (final o in pts.skip(1)) {
+      path.lineTo(o.dx, o.dy);
+    }
+    return path;
+  }
+  for (var i = 1; i < pts.length - 1; i++) {
+    final mid = Offset(
+        (pts[i].dx + pts[i + 1].dx) / 2, (pts[i].dy + pts[i + 1].dy) / 2);
+    path.quadraticBezierTo(pts[i].dx, pts[i].dy, mid.dx, mid.dy);
+  }
+  path.lineTo(pts.last.dx, pts.last.dy);
+  return path;
+}
+
+/// Paints the COMMITTED ink only (one layer per call: highlighter or pen).
+/// Critically, this does NOT repaint while a pen/highlighter stroke is in
+/// flight — the live stroke lives on [_LivePainter] above it — so the costly
+/// whole-page highlighter blend and the redraw of every existing stroke happen
+/// once per stroke (on commit), not once per pointer move. That is what keeps
+/// the pen tip from outrunning the ink. The eraser is the one exception: it
+/// must cut into committed ink, so it is fed here and follows [repaint] live.
 class _InkPainter extends CustomPainter {
   final List<_Stroke> strokes;
-  final _Stroke? active;
+  final _Stroke? active; // only an in-flight eraser is fed here, for a live cut
   final bool highlighter; // this painter's layer
   final bool dark;
+  final int gen; // committed-ink generation; changes => content changed
   _InkPainter(this.strokes, this.active,
-      {required this.highlighter, this.dark = false, super.repaint});
+      {required this.highlighter, this.dark = false, this.gen = 0, super.repaint});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -673,9 +777,9 @@ class _InkPainter extends CustomPainter {
         if (s.tool == _Tool.highlighter) {
           // Translucent ink so the multiply layer tints the paper while dark
           // text/ink underneath stays crisp (real-highlighter look).
-          _stroke(canvas, s, _line(s.color.withValues(alpha: 0.4), s.width));
+          _drawStroke(canvas, s, _linePaint(s.color.withValues(alpha: 0.4), s.width));
         } else if (s.tool == _Tool.eraser) {
-          _stroke(canvas, s, _eraser(s.width));
+          _drawStroke(canvas, s, _eraserPaint(s.width));
         }
       }
       canvas.restore();
@@ -688,58 +792,56 @@ class _InkPainter extends CustomPainter {
     for (final s in all) {
       if (s.points.isEmpty) continue;
       if (s.tool == _Tool.pen) {
-        _stroke(canvas, s, _line(s.color, s.width));
+        _drawStroke(canvas, s, _linePaint(s.color, s.width));
       } else if (s.tool == _Tool.eraser) {
-        _stroke(canvas, s, _eraser(s.width));
+        _drawStroke(canvas, s, _eraserPaint(s.width));
       }
     }
     if (hasEraser) canvas.restore();
   }
 
-  Paint _line(Color color, double width) => Paint()
-    ..color = color
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = width
-    ..strokeCap = StrokeCap.round
-    ..strokeJoin = StrokeJoin.round
-    ..isAntiAlias = true;
+  // Repaint only when the committed ink actually changes (a stroke committed,
+  // undo/clear, load, theme flip) — NOT when only `_penDown` toggled. `gen`
+  // carries that signal because `strokes` is mutated in place (its identity and
+  // length stay equal across a commit). Live erasing still repaints because it
+  // is driven by the `repaint` listenable, which bypasses this check.
+  @override
+  bool shouldRepaint(_InkPainter old) =>
+      old.gen != gen ||
+      !identical(old.active, active) ||
+      old.dark != dark ||
+      old.highlighter != highlighter;
+}
 
-  Paint _eraser(double width) => Paint()
-    ..blendMode = BlendMode.clear
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = width
-    ..strokeCap = StrokeCap.round
-    ..strokeJoin = StrokeJoin.round;
+/// Paints ONLY the in-progress stroke, isolated inside a [RepaintBoundary] on a
+/// cheap top layer that repaints every pointer move (via [repaint]). Because it
+/// is the only thing that repaints mid-stroke, the ink stays glued to the pen
+/// tip. The eraser is handled by [_InkPainter] (it must cut into committed ink),
+/// so nothing is drawn here for it.
+class _LivePainter extends CustomPainter {
+  final _Stroke? active;
+  final bool dark;
+  _LivePainter(this.active, {required this.dark, super.repaint});
 
-  void _stroke(Canvas canvas, _Stroke s, Paint paint) {
-    if (s.points.length == 1) {
-      canvas.drawCircle(s.points.first, s.width / 2,
-          Paint()..color = paint.color..blendMode = paint.blendMode);
-      return;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = active;
+    if (s == null || s.points.isEmpty) return;
+    switch (s.tool) {
+      case _Tool.pen:
+        _drawStroke(canvas, s, _linePaint(s.color, s.width));
+      case _Tool.highlighter:
+        // "Wet" preview: a translucent marker while the stroke is in flight.
+        // On release it commits to the multiply/screen layer and snaps to the
+        // exact GoodNotes look (text crisp underneath).
+        _drawStroke(canvas, s, _linePaint(s.color.withValues(alpha: 0.4), s.width));
+      case _Tool.eraser:
+        break;
     }
-    canvas.drawPath(_smooth(s.points), paint);
-  }
-
-  // Quadratic-bezier smoothing through point midpoints — crisp, no jagged joints.
-  Path _smooth(List<Offset> pts) {
-    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-    if (pts.length < 3) {
-      for (final o in pts.skip(1)) {
-        path.lineTo(o.dx, o.dy);
-      }
-      return path;
-    }
-    for (var i = 1; i < pts.length - 1; i++) {
-      final mid = Offset(
-          (pts[i].dx + pts[i + 1].dx) / 2, (pts[i].dy + pts[i + 1].dy) / 2);
-      path.quadraticBezierTo(pts[i].dx, pts[i].dy, mid.dx, mid.dy);
-    }
-    path.lineTo(pts.last.dx, pts.last.dy);
-    return path;
   }
 
   @override
-  bool shouldRepaint(_InkPainter old) => true;
+  bool shouldRepaint(_LivePainter old) => true;
 }
 
 /// The warm dot-grid "paper" with the note content rendered as widgets.

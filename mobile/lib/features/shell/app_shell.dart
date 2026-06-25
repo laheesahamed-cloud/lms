@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/brand_logo.dart';
+import '../notifications/notification_priming.dart';
 
 class NavDest {
   final String label;
@@ -45,19 +46,21 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Gate the shell so the notification priming sheet appears once after login.
+    final gatedChild = NotificationPrimingGate(child: child);
     final width = MediaQuery.sizeOf(context).width;
     if (width >= Breakpoints.desktop) {
       return Scaffold(
         body: Row(
           children: [
             _SideBar(location: location),
-            Expanded(child: child),
+            Expanded(child: gatedChild),
           ],
         ),
       );
     }
     return Scaffold(
-      body: child,
+      body: gatedChild,
       bottomNavigationBar: _BottomNav(index: _index),
     );
   }

@@ -8,14 +8,55 @@ import '../../widgets/glass_card.dart';
 import '../bookmarks/bookmark_button.dart';
 import 'quizzes_repository.dart';
 
-/// One course's quiz sets, grouped by subject — `/app/qbank/course/:courseId`.
-class QuizCoursePage extends ConsumerWidget {
+/// One course's quiz sets — `/app/qbank/course/:courseId`.
+///
+/// Mirrors the web Q-Bank detail screen: a "view by" categorization dropdown
+/// (All / Lesson-wise / Subject-wise / Full course-wise), per-group filter
+/// chips, collapsible group sections, and numbered "Quiz N" rows.
+class QuizCoursePage extends ConsumerStatefulWidget {
   final String courseId;
   final bool examMode;
-  const QuizCoursePage({super.key, required this.courseId, this.examMode = false});
+  const QuizCoursePage(
+      {super.key, required this.courseId, this.examMode = false});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<QuizCoursePage> createState() => _QuizCoursePageState();
+}
+
+class _QuizCoursePageState extends ConsumerState<QuizCoursePage> {
+  QuizScope _scope = QuizScope.all;
+  String? _activeGroup; // null = show every group
+  final Set<String> _collapsed = <String>{};
+
+  bool get _exam => widget.examMode;
+
+  void _onScopeChanged(QuizScope s) {
+    setState(() {
+      _scope = s;
+      _activeGroup = null; // a new scope re-groups, so clear the chip filter
+      _collapsed.clear();
+    });
+  }
+
+  void _onChipTap(String? label) {
+    setState(() {
+      _activeGroup = _activeGroup == label ? null : label;
+      _collapsed.clear();
+    });
+  }
+
+  void _toggleCollapse(String key) {
+    setState(() {
+      if (_collapsed.contains(key)) {
+        _collapsed.remove(key);
+      } else {
+        _collapsed.add(key);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.c;
     final quizzesAsync = ref.watch(quizListProvider);
 
@@ -31,12 +72,16 @@ class QuizCoursePage extends ConsumerWidget {
         ),
         data: (all) {
           final mine = all
-              .where((q) => q.courseId == courseId)
-              .where((q) => examMode ? true : !q.examModeOnly)
+              .where((q) => q.courseId == widget.courseId)
+              .where((q) => _exam ? true : !q.examModeOnly)
               .toList();
           final courseName =
               mine.isNotEmpty ? mine.first.courseTitle : 'Course';
-          final subjects = groupQuizzesBySubject(mine);
+          final scoped = filterQuizzesByScope(mine, _scope);
+          final groups = groupQuizzesByScope(scoped, _scope, courseName);
+          final visibleGroups = _activeGroup == null
+              ? groups
+              : groups.where((g) => g.label == _activeGroup).toList();
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
@@ -51,7 +96,7 @@ class QuizCoursePage extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(examMode ? 'EXAM SETS' : 'PRACTICE SETS',
+              Text(_exam ? 'EXAM SETS' : 'PRACTICE SETS',
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
@@ -67,38 +112,46 @@ class QuizCoursePage extends ConsumerWidget {
                       height: 1.15)),
               const SizedBox(height: 4),
               Text(
-                  '${subjects.length} subject${subjects.length == 1 ? '' : 's'} · ${mine.length} ${examMode ? 'exam' : 'set'}${mine.length == 1 ? '' : 's'}',
+                  '${groups.length} ${_scope.groupingNoun}${groups.length == 1 ? '' : 's'} · ${mine.length} ${_exam ? 'exam' : 'set'}${mine.length == 1 ? '' : 's'}',
                   style: TextStyle(fontSize: 14, color: c.inkSoft)),
-              const SizedBox(height: 18),
-              if (subjects.isEmpty)
+              const SizedBox(height: 14),
+              if (mine.isNotEmpty) _scopeBar(c),
+              const SizedBox(height: 14),
+              if (mine.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 30),
                   child: Text('No quiz sets in this course yet.',
                       style: TextStyle(color: c.inkSoft)),
-                ),
-              AnimationLimiter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: AnimationConfiguration.toStaggeredList(
-                    duration: const Duration(milliseconds: 320),
-                    childAnimationBuilder: (w) => SlideAnimation(
-                      verticalOffset: 20,
-                      child: FadeInAnimation(child: w),
+                )
+              else ...[
+                if (groups.length > 1) ...[
+                  _filterChips(c, groups),
+                  const SizedBox(height: 14),
+                ],
+                if (visibleGroups.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 24),
+                    child: Text('No sets match your filters.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: c.inkSoft)),
+                  )
+                else
+                  AnimationLimiter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: AnimationConfiguration.toStaggeredList(
+                        duration: const Duration(milliseconds: 320),
+                        childAnimationBuilder: (w) => SlideAnimation(
+                          verticalOffset: 20,
+                          child: FadeInAnimation(child: w),
+                        ),
+                        children: [
+                          for (final g in visibleGroups) _groupSection(c, g),
+                        ],
+                      ),
                     ),
-                    children: [
-                      for (final s in subjects) ...[
-                        _subjectHeader(c, s),
-                        for (final q in s.quizzes)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _QuizCard(quiz: q, exam: examMode),
-                          ),
-                        const SizedBox(height: 10),
-                      ],
-                    ],
                   ),
-                ),
-              ),
+              ],
             ],
           );
         },
@@ -106,32 +159,159 @@ class QuizCoursePage extends ConsumerWidget {
     );
   }
 
-  Widget _subjectHeader(AppColors c, QuizSubjectGroup s) => Padding(
-        padding: const EdgeInsets.only(bottom: 10, top: 2),
-        child: Row(
-          children: [
-            Container(
-              width: 6,
-              height: 18,
-              decoration: BoxDecoration(
-                color: c.primary,
-                borderRadius: BorderRadius.circular(3),
+  /// The "view by" categorization dropdown (mirrors the web `<select>`).
+  Widget _scopeBar(AppColors c) {
+    return Row(
+      children: [
+        Icon(Icons.tune_rounded, size: 16, color: c.inkSoft),
+        const SizedBox(width: 6),
+        Text('View by',
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w700, color: c.inkSoft)),
+        const Spacer(),
+        Container(
+          decoration: BoxDecoration(
+            color: c.surface2,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: c.line),
+          ),
+          padding: const EdgeInsets.only(left: 14, right: 8),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<QuizScope>(
+              value: _scope,
+              isDense: true,
+              borderRadius: BorderRadius.circular(AppRadius.compact),
+              dropdownColor: c.cardElevated,
+              icon: Icon(Icons.expand_more_rounded, color: c.inkSoft, size: 18),
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: c.inkStrong),
+              items: [
+                for (final s in QuizScope.values)
+                  DropdownMenuItem(
+                    value: s,
+                    child: Text(s.label,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: c.inkStrong)),
+                  ),
+              ],
+              onChanged: (v) {
+                if (v != null) _onScopeChanged(v);
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Horizontal "All {noun}s" + per-group filter chips.
+  Widget _filterChips(AppColors c, List<QuizScopeGroup> groups) {
+    Widget chip(String label, bool active, VoidCallback onTap) => GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: AppDur.hover,
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: active ? c.primary : c.surface2,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(color: active ? c.primary : c.line),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: active ? Colors.white : c.inkMedium)),
+          ),
+        );
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          chip('All ${_scope.groupingNoun}s', _activeGroup == null,
+              () => _onChipTap(null)),
+          for (final g in groups)
+            chip(g.label, _activeGroup == g.label, () => _onChipTap(g.label)),
+        ],
+      ),
+    );
+  }
+
+  /// A collapsible group with its header and numbered quiz rows.
+  Widget _groupSection(AppColors c, QuizScopeGroup g) {
+    final collapsed = _collapsed.contains(g.label);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _toggleCollapse(g.label),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10, top: 2),
+              child: Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: c.primary,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(g.label,
+                        style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: c.inkStrong)),
+                  ),
+                  Text(
+                      '${g.quizzes.length} ${_exam ? 'exam' : 'set'}${g.quizzes.length == 1 ? '' : 's'}',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: c.inkSoft)),
+                  const SizedBox(width: 4),
+                  AnimatedRotation(
+                    turns: collapsed ? 0 : 0.25,
+                    duration: AppDur.dropdown,
+                    curve: AppCurves.easeOut,
+                    child: Icon(Icons.chevron_right_rounded,
+                        size: 20, color: c.inkMuted),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(s.subjectName,
-                  style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: c.inkStrong)),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Column(
+              children: [
+                for (var i = 0; i < g.quizzes.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _QuizRow(quiz: g.quizzes[i], index: i, exam: _exam),
+                  ),
+              ],
             ),
-            Text('${s.quizzes.length}',
-                style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700, color: c.inkSoft)),
-          ],
-        ),
-      );
+            crossFadeState:
+                collapsed ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            duration: AppDur.dropdown,
+            sizeCurve: AppCurves.easeOut,
+          ),
+          const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
 
   Widget _back(BuildContext context, AppColors c, Widget child) => ListView(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
@@ -148,19 +328,30 @@ class QuizCoursePage extends ConsumerWidget {
       );
 }
 
-class _QuizCard extends StatelessWidget {
+class _QuizRow extends StatelessWidget {
   final QuizListItem quiz;
+  final int index;
   final bool exam;
-  const _QuizCard({required this.quiz, required this.exam});
+  const _QuizRow({required this.quiz, required this.index, required this.exam});
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final locked = quiz.locked;
+    final label = quiz.rowLabel(index);
+    final meta = '${quiz.totalQuestions} questions'
+        '${exam && quiz.timeLimit > 0 ? ' · ${quiz.timeLimit} min' : ''}'
+        '${quiz.isFree ? ' · Free' : ''}'
+        '${quiz.isCompleted ? ' · Attempted' : ''}';
+
     return GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       onTap: () {
-        if (quiz.locked) {
+        if (locked) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Upgrade to access this question bank.')),
+            const SnackBar(
+                content: Text(
+                    'This question bank is included with a subscription.')),
           );
           return;
         }
@@ -168,51 +359,52 @@ class _QuizCard extends StatelessWidget {
       },
       child: Row(
         children: [
+          // Order position — the "Quiz 1, Quiz 2…" sequence number.
           Container(
-            width: 38,
-            height: 38,
+            width: 34,
+            height: 34,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: c.surface2,
               borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(exam ? Icons.timer_outlined : Icons.quiz_outlined,
-                size: 18, color: c.inkMedium),
+            child: Text('${index + 1}',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: locked ? c.inkSoft : c.inkStrong)),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(quiz.title,
+                Text(label,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: quiz.locked ? c.inkSoft : c.inkStrong)),
+                        color: locked ? c.inkSoft : c.inkStrong)),
                 const SizedBox(height: 3),
-                Text(
-                  '${quiz.totalQuestions} questions'
-                  '${exam && quiz.timeLimit > 0 ? ' · ${quiz.timeLimit} min' : ''}'
-                  '${quiz.isFree ? ' · Free' : ''}'
-                  '${quiz.isCompleted ? ' · Attempted' : ''}',
-                  style: TextStyle(fontSize: 13, color: c.inkSoft),
-                ),
+                Text(meta, style: TextStyle(fontSize: 13, color: c.inkSoft)),
               ],
             ),
           ),
           const SizedBox(width: 4),
-          if (quiz.isCompleted && !quiz.locked) ...[
+          if (quiz.isCompleted && !locked) ...[
             const _CompletedTick(),
             const SizedBox(width: 6),
           ],
-          Icon(quiz.locked ? Icons.lock_outline_rounded : Icons.chevron_right,
-              size: 20, color: c.inkMuted),
-          // Save icon last, so it's always in the same column on every row.
-          if (!quiz.locked)
+          // Locked rows show only the lock; otherwise: save button, then the
+          // chevron sits at the very end of the row.
+          if (locked)
+            Icon(Icons.lock_outline_rounded, size: 20, color: c.inkMuted)
+          else ...[
             BookmarkButton(
                 itemType: 'quiz', itemId: int.tryParse(quiz.id) ?? 0),
+            Icon(Icons.chevron_right, size: 20, color: c.inkMuted),
+          ],
         ],
       ),
     );

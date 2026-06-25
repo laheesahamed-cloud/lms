@@ -176,7 +176,7 @@ export declare class PlansService {
         id: number;
     }>;
     getActiveFeatureKeysForUser(userId: number): Promise<string[]>;
-    hasFeatureAccess(userId: number, featureKey: string): Promise<boolean>;
+    hasFeatureAccess(userId: number, _featureKey: string): Promise<boolean>;
     private listPlans;
     private getFeatures;
     private getPlanFeatureMap;

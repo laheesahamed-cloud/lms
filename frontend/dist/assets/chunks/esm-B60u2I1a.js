@@ -1,1 +1,0 @@
-import{C as e}from"./vendor-LgMtN77Y.js";export{e as App};

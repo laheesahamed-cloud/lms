@@ -9,18 +9,34 @@ class AuthResult {
   AuthResult(this.token, this.user);
 }
 
+/// Result of a login/register call: EITHER a live session, OR a pending email
+/// verification (the backend withholds the session until the student confirms a
+/// 6-digit code — mirrors the web flow).
+class AuthOutcome {
+  final AuthResult? session;
+  final String? verifyEmail; // non-null when OTP verification is required
+  final String? devCode; // dev/local only (no SMTP) — backend echoes the code
+
+  const AuthOutcome.session(AuthResult this.session)
+      : verifyEmail = null,
+        devCode = null;
+  const AuthOutcome.verify(this.verifyEmail, this.devCode) : session = null;
+
+  bool get needsVerification => verifyEmail != null;
+}
+
 /// Talks to the existing NestJS auth endpoints (§4 / §8). Same backend + DB.
 class AuthRepository {
   final ApiClient api;
   AuthRepository(this.api);
 
-  Future<AuthResult> login(String email, String password) async {
+  Future<AuthOutcome> login(String email, String password) async {
     final r = await api.dio
         .post('/auth/login', data: {'email': email, 'password': password});
-    return _withCookieToken(r, _parse(r.data));
+    return _outcome(r);
   }
 
-  Future<AuthResult> register({
+  Future<AuthOutcome> register({
     required String fullName,
     required String email,
     required String password,
@@ -34,7 +50,25 @@ class AuthRepository {
       'confirmPassword': confirmPassword,
       'acceptedTerms': acceptedTerms,
     });
+    return _outcome(r);
+  }
+
+  /// Verify the 6-digit onboarding code. On success the backend returns a normal
+  /// session payload (token via body or `lms_session` cookie), exactly like login.
+  Future<AuthResult> verifyEmailOtp(String email, String code) async {
+    final r = await api.dio
+        .post('/auth/verify-email-otp', data: {'email': email, 'code': code});
     return _withCookieToken(r, _parse(r.data));
+  }
+
+  /// Re-send the verification code. Returns `retryAfterSeconds` when the backend
+  /// is still within its resend cooldown, otherwise null.
+  Future<int?> resendEmailOtp(String email) async {
+    final r =
+        await api.dio.post('/auth/resend-email-otp', data: {'email': email});
+    final m = (r.data is Map) ? Map<String, dynamic>.from(r.data) : {};
+    final retry = m['retryAfterSeconds'];
+    return (retry is num) ? retry.toInt() : null;
   }
 
   /// Signs in (or auto-creates the account) with a Google ID token, mirroring
@@ -111,6 +145,18 @@ class AuthRepository {
   /// the email + sets deleted_at, and clears the session cookie).
   Future<void> deleteAccount() async {
     await api.dio.delete('/auth/account');
+  }
+
+  /// Distinguishes a verification-required response from a real session.
+  AuthOutcome _outcome(Response r) {
+    final m = (r.data is Map) ? Map<String, dynamic>.from(r.data) : {};
+    if (m['emailVerificationRequired'] == true) {
+      return AuthOutcome.verify(
+        (m['email'] ?? '').toString(),
+        m['devCode']?.toString(),
+      );
+    }
+    return AuthOutcome.session(_withCookieToken(r, _parse(r.data)));
   }
 
   AuthResult _parse(dynamic data) {

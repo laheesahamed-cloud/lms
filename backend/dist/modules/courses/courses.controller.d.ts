@@ -41,7 +41,7 @@ export declare class CoursesController {
     updateStudentLessonProgress(lessonId: number, dto: UpdateStudentLessonProgressDto, authorization?: string): Promise<{
         ok: boolean;
         lessonId: number;
-        status: "not_started" | "in_progress" | "completed";
+        status: "in_progress" | "not_started" | "completed";
         progressPercent: number;
         actionLabel: string;
     }>;
@@ -77,25 +77,25 @@ export declare class CoursesController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft" | "in_review" | "archived";
+        workflowState: "draft" | "in_review" | "published" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
 }

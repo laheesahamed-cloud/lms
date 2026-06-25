@@ -5,7 +5,6 @@ import '../../theme/tokens.dart';
 Future<bool?> showQuizStartDialog(
   BuildContext context, {
   required bool exam,
-  required String title,
   required int totalQuestions,
   required int timeLimitMinutes,
 }) {
@@ -27,10 +26,6 @@ Future<bool?> showQuizStartDialog(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: TextStyle(
-                  fontWeight: FontWeight.w700, color: c.inkStrong, fontSize: 15.5)),
-          const SizedBox(height: 8),
           for (final l in lines)
             Padding(
               padding: const EdgeInsets.only(bottom: 3),

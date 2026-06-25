@@ -1108,20 +1108,13 @@ let QuizzesService = class QuizzesService {
     }
     async getQuizAccessProfile(userId) {
         const [rows] = await this.db.execute(`
-        SELECT sf.feature_key, plans.slug AS plan_slug, us.access_scope, us.course_ids_json
+        SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json
         FROM user_subscriptions us
         INNER JOIN plans ON plans.id = us.plan_id
-        INNER JOIN subscription_plan_features spf
-          ON spf.plan_id = us.plan_id
-         AND spf.is_enabled = 1
-        INNER JOIN subscription_features sf
-          ON sf.id = spf.feature_id
-         AND sf.status = 'active'
         WHERE us.user_id = ?
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
-          AND sf.feature_key IN ('question_bank_full', 'question_bank_limited', 'practice_mode', 'exam_mode')
       `, [userId]);
         const profile = {
             hasAnyPaidQuizAccess: rows.length > 0,

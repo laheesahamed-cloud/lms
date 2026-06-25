@@ -3,12 +3,12 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../config/app_config.dart';
 
 /// Whether to show the "Continue with Google" button.
-/// [serverGoogleConfigured] comes live from the server (`/settings/public`).
-/// iOS additionally needs its own client id baked into the build (Info.plist).
-bool googleButtonVisible(bool serverGoogleConfigured) {
-  if (!serverGoogleConfigured) return false;
+/// Decided purely from the BAKED client ids so the button is visible instantly
+/// on first launch (and stays visible regardless of the live `/settings/public`
+/// call). iOS uses its own client id; Android uses the web/server client id.
+bool googleButtonVisible() {
   if (Platform.isIOS) return AppConfig.googleIosClientId.isNotEmpty;
-  return true; // Android signs in with the server (web) client id only
+  return AppConfig.googleWebClientId.isNotEmpty;
 }
 
 /// Runs native Google sign-in and returns a fresh Google ID token for

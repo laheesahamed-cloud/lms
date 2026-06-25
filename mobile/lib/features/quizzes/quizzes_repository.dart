@@ -17,6 +17,13 @@ class QuizListItem {
   final String subjectName;
   final String courseTitle;
   final String lessonTitle;
+  final String lessonId;
+  // Hierarchy fields used for categorization + ordering (mirror the web LMS).
+  final String topicName;
+  final String subtopicName;
+  final int quizNumber;
+  final String displayTitleMode; // 'number' → "Quiz N", else show the title
+  final bool isGeneral;
   final int totalQuestions;
   final int timeLimit;
   final int passingMarks;
@@ -35,6 +42,12 @@ class QuizListItem {
     required this.subjectName,
     required this.courseTitle,
     required this.lessonTitle,
+    required this.lessonId,
+    required this.topicName,
+    required this.subtopicName,
+    required this.quizNumber,
+    required this.displayTitleMode,
+    required this.isGeneral,
     required this.totalQuestions,
     required this.timeLimit,
     required this.passingMarks,
@@ -56,6 +69,13 @@ class QuizListItem {
       subjectName: _s(m['subjectName'] ?? m['subtopicName']),
       courseTitle: _s(m['courseTitle']),
       lessonTitle: _s(m['lessonTitle']),
+      lessonId: _s(m['lessonId'] ?? m['lesson_id']),
+      topicName: _s(m['topicName']),
+      subtopicName: _s(m['subtopicName']),
+      quizNumber: _i(m['quizNumber'] ?? m['quiz_number']),
+      // Backend defaults anything that isn't explicitly 'title' to number mode.
+      displayTitleMode: m['displayTitleMode'] == 'title' ? 'title' : 'number',
+      isGeneral: _b(m['isGeneral'] ?? m['is_general']),
       totalQuestions: _i(m['totalQuestions']),
       timeLimit: _i(m['timeLimit']),
       passingMarks: _i(m['passingMarks']),
@@ -66,6 +86,29 @@ class QuizListItem {
       isFree: _b(m['isFree']),
       isCompleted: _b(m['isCompleted']),
     );
+  }
+
+  /// The student-facing name shown consistently everywhere a quiz is named
+  /// (Q-Bank list, the dashboard "Continue" card, …) — mirrors the web
+  /// frontend label: "Quiz N" in number mode, otherwise the real title.
+  String get displayName {
+    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
+    return title.trim().isNotEmpty ? title.trim() : 'Quiz';
+  }
+
+  /// The row label, mirroring the web `getQuizRowLabel`: [displayName] with a
+  /// positional fallback ("Practice set N") when a set has no title.
+  String rowLabel(int index) {
+    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
+    return title.trim().isNotEmpty ? title.trim() : 'Practice set ${index + 1}';
+  }
+
+  /// Which categorization bucket this quiz falls into (mirror web
+  /// `getQuizScopeKey`): a lesson set, a full-course revision set, or a subject.
+  String get scopeKey {
+    if (lessonId.trim().isNotEmpty || lessonTitle.trim().isNotEmpty) return 'lesson';
+    if (isGeneral) return 'full-course';
+    return 'subject';
   }
 }
 
@@ -258,25 +301,120 @@ List<QuizCourseGroup> groupQuizzesByCourse(List<QuizListItem> quizzes) {
   return order.map((k) => QuizCourseGroup(k, map[k]!)).toList();
 }
 
-/// Quizzes grouped by subject (used inside one course).
-class QuizSubjectGroup {
-  final String subjectName;
-  final List<QuizListItem> quizzes;
-  QuizSubjectGroup(this.subjectName, this.quizzes);
+// ---------------------------------------------------------------------------
+// CATEGORIZATION — the course-detail "view by" scopes (mirror the web LMS
+// QUIZ_SCOPE_OPTIONS + getQuizScopeKey + sortQuizzesByHierarchy).
+// ---------------------------------------------------------------------------
+
+/// How the course-detail page groups/filters its quiz sets.
+enum QuizScope { all, lesson, subject, fullCourse }
+
+extension QuizScopeMeta on QuizScope {
+  /// Matches `QuizListItem.scopeKey` for filtering.
+  String get key => switch (this) {
+        QuizScope.all => 'all',
+        QuizScope.lesson => 'lesson',
+        QuizScope.subject => 'subject',
+        QuizScope.fullCourse => 'full-course',
+      };
+
+  /// Dropdown label.
+  String get label => switch (this) {
+        QuizScope.all => 'All',
+        QuizScope.lesson => 'Lesson-wise',
+        QuizScope.subject => 'Subject-wise',
+        QuizScope.fullCourse => 'Full course-wise',
+      };
+
+  /// Singular noun for the "All {x}s" filter chip.
+  String get groupingNoun => switch (this) {
+        QuizScope.lesson => 'lesson',
+        QuizScope.fullCourse => 'revision group',
+        _ => 'subject',
+      };
 }
 
-List<QuizSubjectGroup> groupQuizzesBySubject(List<QuizListItem> quizzes) {
+/// One categorized group of quizzes shown under a header.
+class QuizScopeGroup {
+  final String label;
+  final List<QuizListItem> quizzes;
+  QuizScopeGroup(this.label, this.quizzes);
+}
+
+String? _firstNonEmpty(List<String> values) {
+  for (final v in values) {
+    if (v.trim().isNotEmpty) return v.trim();
+  }
+  return null;
+}
+
+/// Numeric-aware compare so "Quiz 2" sorts before "Quiz 10" (mirrors the web
+/// `localeCompare(..., {numeric: true, sensitivity: 'base'})`).
+int _naturalCompare(String a, String b) {
+  final chunk = RegExp(r'\d+|\D+');
+  final pa = chunk.allMatches(a).map((m) => m.group(0)!).toList();
+  final pb = chunk.allMatches(b).map((m) => m.group(0)!).toList();
+  final n = pa.length < pb.length ? pa.length : pb.length;
+  for (var i = 0; i < n; i++) {
+    final x = pa[i], y = pb[i];
+    final nx = int.tryParse(x), ny = int.tryParse(y);
+    final cmp = (nx != null && ny != null)
+        ? nx.compareTo(ny)
+        : x.toLowerCase().compareTo(y.toLowerCase());
+    if (cmp != 0) return cmp;
+  }
+  return pa.length.compareTo(pb.length);
+}
+
+/// Order quizzes by hierarchy then quiz number (mirror sortQuizzesByHierarchy).
+List<QuizListItem> sortQuizzesByHierarchy(List<QuizListItem> items) {
+  String key(QuizListItem q) => [
+        q.topicName,
+        q.subtopicName,
+        q.lessonTitle,
+        q.quizNumber > 0 ? '${q.quizNumber}' : '',
+        q.title,
+      ].where((s) => s.trim().isNotEmpty).join('');
+  final copy = [...items]..sort((a, b) => _naturalCompare(key(a), key(b)));
+  return copy;
+}
+
+/// Keep only the quizzes that belong to the selected scope.
+List<QuizListItem> filterQuizzesByScope(
+    List<QuizListItem> quizzes, QuizScope scope) {
+  if (scope == QuizScope.all) return quizzes;
+  return quizzes.where((q) => q.scopeKey == scope.key).toList();
+}
+
+String _scopeGroupLabel(QuizListItem q, QuizScope scope, String courseName) {
+  switch (scope) {
+    case QuizScope.lesson:
+      return _firstNonEmpty([q.subjectName, q.topicName, q.lessonTitle]) ??
+          'Lesson practice';
+    case QuizScope.fullCourse:
+      return _firstNonEmpty([q.courseTitle, courseName]) ??
+          'Full course revision';
+    case QuizScope.subject:
+    case QuizScope.all:
+      if (q.subjectName.trim().isNotEmpty) return q.subjectName.trim();
+      return q.isGeneral ? 'General / Full Course Revision' : 'General';
+  }
+}
+
+/// Group quizzes for the selected scope, preserving hierarchy order.
+List<QuizScopeGroup> groupQuizzesByScope(
+    List<QuizListItem> quizzes, QuizScope scope, String courseName) {
   final order = <String>[];
   final map = <String, List<QuizListItem>>{};
-  for (final q in quizzes) {
-    final key = q.subjectName.trim().isEmpty ? 'General' : q.subjectName.trim();
-    if (!map.containsKey(key)) {
-      order.add(key);
-      map[key] = [];
+  for (final q in sortQuizzesByHierarchy(quizzes)) {
+    final label = _scopeGroupLabel(q, scope, courseName);
+    if (!map.containsKey(label)) {
+      order.add(label);
+      map[label] = [];
     }
-    map[key]!.add(q);
+    map[label]!.add(q);
   }
-  return order.map((k) => QuizSubjectGroup(k, map[k]!)).toList();
+  return order.map((l) => QuizScopeGroup(l, map[l]!)).toList();
 }
 
 /// The Q-Bank / exam quiz list.

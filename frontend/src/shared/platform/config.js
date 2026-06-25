@@ -122,20 +122,6 @@ export function shouldBlockDirectAppHost(platform = detectPlatform()) {
   return isAppOnlyHost() && !platform.isNativeShell;
 }
 
-export function shouldRegisterServiceWorker(platform = detectPlatform()) {
-  if (platform.isNative || platform.isDesktopApp) return false;
-  return import.meta.env.VITE_ENABLE_PWA !== 'false';
-}
-
-export function shouldMountPwaExperiences(platform = detectPlatform()) {
-  return !platform.isNative && !platform.isDesktopApp;
-}
-
-export function shouldShowPwaInstallPrompt(platform = detectPlatform()) {
-  if (platform.isNative || platform.isDesktopApp) return false;
-  return import.meta.env.VITE_ENABLE_PWA !== 'false';
-}
-
 export function shouldUseNativeRepaintFix(platform = detectPlatform()) {
   return platform.isNative && platform.isIos;
 }
@@ -144,7 +130,7 @@ export function shouldUseOverlayNavigation(platform = detectPlatform()) {
   if (typeof window === 'undefined') return false;
 
   if (window.innerWidth <= 900) return true;
-  return Boolean(platform.isPhone && (platform.isPwa || platform.isNative));
+  return Boolean(platform.isPhone && platform.isNative);
 }
 
 export function resolveApiBaseUrl() {
@@ -232,9 +218,6 @@ export function getPlatformConfig(platform = detectPlatform()) {
     routerBasename: getRouterBasename(platform),
     appOnlyHost: isAppOnlyHost(),
     blockDirectAppHost: shouldBlockDirectAppHost(platform),
-    registerServiceWorker: shouldRegisterServiceWorker(platform),
-    mountPwaExperiences: shouldMountPwaExperiences(platform),
-    showPwaInstallPrompt: shouldShowPwaInstallPrompt(platform),
     useNativeRepaintFix: shouldUseNativeRepaintFix(platform),
     useOverlayNavigation: shouldUseOverlayNavigation(platform),
   };

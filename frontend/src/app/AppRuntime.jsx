@@ -2,20 +2,19 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { AppProviders } from './providers.jsx';
 import { AppErrorBoundary } from './AppErrorBoundary.jsx';
 import { PlatformProvider } from '../shared/platform/PlatformProvider.jsx';
-import { usePlatform } from '../shared/platform/PlatformContext.js';
 import { getPlatformConfig } from '../shared/platform/config.js';
 import { AppOnlyBrowserGate } from '../shared/platform/AppOnlyBrowserGate.jsx';
 import { AppRouter } from './router.jsx';
 import { isPublicWebsiteRoute } from '../shared/routing/publicRoutes.js';
 
-const OfflineExperience = lazy(() => import('../shared/pwa/OfflineExperience.jsx').then((module) => ({ default: module.OfflineExperience })));
+const OfflineExperience = lazy(() => import('../shared/ui/OfflineExperience.jsx').then((module) => ({ default: module.OfflineExperience })));
 
 function isCurrentPublicWebsiteRoute() {
   if (typeof window === 'undefined') return false;
   return isPublicWebsiteRoute(window.location.pathname || '/');
 }
 
-function useShouldMountPwaRouteEffects() {
+function useShouldMountRuntimeEffects() {
   const [shouldMount, setShouldMount] = useState(() => !isCurrentPublicWebsiteRoute());
 
   useEffect(() => {
@@ -38,7 +37,7 @@ function useShouldMountPwaRouteEffects() {
 }
 
 export function AppRuntime() {
-  const shouldMountPwaRouteEffects = useShouldMountPwaRouteEffects();
+  const shouldMountRuntimeEffects = useShouldMountRuntimeEffects();
 
   useEffect(() => {
     document.body?.classList.remove('app-booting');
@@ -58,17 +57,15 @@ export function AppRuntime() {
               <AppRouter />
             </Suspense>
           </AppErrorBoundary>
-          <PwaRuntimeEffects enabled={shouldMountPwaRouteEffects} />
+          <RuntimeEffects enabled={shouldMountRuntimeEffects} />
         </AppProviders>
       </PlatformProvider>
     </>
   );
 }
 
-function PwaRuntimeEffects({ enabled }) {
-  const { mountPwaExperiences } = usePlatform();
-
-  if (!enabled || !mountPwaExperiences) {
+function RuntimeEffects({ enabled }) {
+  if (!enabled) {
     return null;
   }
 

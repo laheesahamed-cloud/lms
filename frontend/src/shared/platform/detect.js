@@ -46,15 +46,6 @@ function isNativeShell() {
     win.Capacitor?.isNativePlatform?.() === true;
 }
 
-export function isStandalonePwaDisplay() {
-  const win = getWindow();
-  if (!win) return false;
-
-  return matchesMedia('(display-mode: standalone)') ||
-    matchesMedia('(display-mode: window-controls-overlay)') ||
-    win.navigator?.standalone === true;
-}
-
 function getOs() {
   const nav = getNavigator();
   const ua = nav?.userAgent || '';
@@ -127,8 +118,6 @@ function getRuntimeKind(buildTarget) {
   if (buildTarget === 'native') return 'native';
   if (isNativeShell()) return 'native';
   if (buildTarget === 'desktop') return 'desktop';
-  if (buildTarget === 'pwa') return 'pwa';
-  if (isStandalonePwaDisplay()) return 'pwa';
   return 'web';
 }
 
@@ -143,12 +132,6 @@ function getTargetKey({ runtime, os, formFactor }) {
     if (os === 'windows') return 'desktop-windows';
     if (os === 'macos') return 'desktop-macos';
     return 'desktop';
-  }
-
-  if (runtime === 'pwa') {
-    if (formFactor === 'tablet') return 'web-pwa-tablet';
-    if (formFactor === 'phone') return 'web-pwa-phone';
-    return 'web-pwa-desktop';
   }
 
   if (formFactor === 'tablet') return 'web-tablet';
@@ -172,7 +155,6 @@ export function detectPlatform() {
     target,
     isNativeShell: nativeShell,
     isNative: runtime === 'native',
-    isPwa: runtime === 'pwa',
     isWebsite: runtime === 'web',
     isDesktopApp: runtime === 'desktop',
     isPhone: formFactor === 'phone',
@@ -194,7 +176,6 @@ export function applyPlatformAttributes(platform = detectPlatform()) {
   root.dataset.lmsOs = platform.os;
   root.dataset.lmsFormFactor = platform.formFactor;
   root.dataset.lmsTarget = platform.target;
-  root.dataset.lmsPwa = platform.isPwa ? 'true' : 'false';
   return platform;
 }
 
@@ -204,7 +185,6 @@ function getPlatformSnapshot(platform) {
     platform.os,
     platform.formFactor,
     platform.target,
-    platform.isPwa ? 'pwa' : 'browser',
   ].join('|');
 }
 
@@ -251,8 +231,6 @@ export function installPlatformAttributeSync(onChange) {
     };
   }
 
-  const standaloneQuery = win.matchMedia?.('(display-mode: standalone)');
-  const overlayQuery = win.matchMedia?.('(display-mode: window-controls-overlay)');
   let frame = 0;
   const sync = () => {
     win.cancelAnimationFrame(frame);
@@ -266,8 +244,6 @@ export function installPlatformAttributeSync(onChange) {
   win.addEventListener('orientationchange', sync);
   win.addEventListener('pageshow', sync);
   win.visualViewport?.addEventListener?.('resize', sync);
-  standaloneQuery?.addEventListener?.('change', sync);
-  overlayQuery?.addEventListener?.('change', sync);
 
   platformSyncCleanup = () => {
     win.cancelAnimationFrame(frame);
@@ -275,8 +251,6 @@ export function installPlatformAttributeSync(onChange) {
     win.removeEventListener('orientationchange', sync);
     win.removeEventListener('pageshow', sync);
     win.visualViewport?.removeEventListener?.('resize', sync);
-    standaloneQuery?.removeEventListener?.('change', sync);
-    overlayQuery?.removeEventListener?.('change', sync);
     platformSyncSubscribers.clear();
     platformSyncCleanup = null;
     lastPlatformSnapshot = '';

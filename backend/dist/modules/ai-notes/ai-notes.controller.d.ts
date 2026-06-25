@@ -74,7 +74,7 @@ export declare class AiNotesController {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "in_progress" | "not_started" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -95,9 +95,9 @@ export declare class AiNotesController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "approved" | "rejected";
+        status: "approved" | "rejected" | "draft";
         sortOrder: number;
-        generatedBy: "ai" | "manual";
+        generatedBy: "manual" | "ai";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -112,9 +112,9 @@ export declare class AiNotesController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "approved" | "rejected";
+        status: "approved" | "rejected" | "draft";
         sortOrder: number;
-        generatedBy: "ai" | "manual";
+        generatedBy: "manual" | "ai";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -137,9 +137,9 @@ export declare class AiNotesController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "approved" | "rejected";
+            status: "approved" | "rejected" | "draft";
             sortOrder: number;
-            generatedBy: "ai" | "manual";
+            generatedBy: "manual" | "ai";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;
@@ -155,9 +155,9 @@ export declare class AiNotesController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "draft" | "approved" | "rejected";
+        status: "approved" | "rejected" | "draft";
         sortOrder: number;
-        generatedBy: "ai" | "manual";
+        generatedBy: "manual" | "ai";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -195,7 +195,7 @@ export declare class AiNotesController {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "in_progress" | "not_started" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -231,7 +231,7 @@ export declare class AiNotesController {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "in_progress" | "not_started" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -250,9 +250,9 @@ export declare class AiNotesController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "draft" | "approved" | "rejected";
+            status: "approved" | "rejected" | "draft";
             sortOrder: number;
-            generatedBy: "ai" | "manual";
+            generatedBy: "manual" | "ai";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;

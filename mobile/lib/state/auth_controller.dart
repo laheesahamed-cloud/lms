@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_config.dart';
 import '../data/api_client.dart';
 import '../data/auth_repository.dart';
 import '../data/google_auth.dart';
@@ -39,6 +40,15 @@ class AuthState {
         token: token ?? this.token,
         error: error,
       );
+}
+
+/// Outcome the auth pages branch on: signed in, needs email verification, or
+/// failed (with the error already surfaced via [AuthState.error]).
+class AuthAttempt {
+  final bool signedIn;
+  final String? verifyEmail; // non-null → route to the verify-email screen
+  final String? devCode;
+  const AuthAttempt({this.signedIn = false, this.verifyEmail, this.devCode});
 }
 
 class AuthController extends Notifier<AuthState> {
@@ -99,21 +109,18 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<AuthAttempt> login(String email, String password) async {
     try {
-      final res = await _repo.login(email.trim(), password);
-      await SecureStore.writeToken(res.token);
-      _api.setToken(res.token);
-      state = AuthState(
-          isHydrating: false,
-          isAuthenticated: true,
-          user: res.user,
-          token: res.token);
-      Push.onAuthenticated();
-      return true;
+      final out = await _repo.login(email.trim(), password);
+      if (out.needsVerification) {
+        state = state.copyWith(error: null);
+        return AuthAttempt(verifyEmail: out.verifyEmail, devCode: out.devCode);
+      }
+      _applySession(out.session!);
+      return const AuthAttempt(signedIn: true);
     } catch (e) {
       state = state.copyWith(error: _msg(e));
-      return false;
+      return const AuthAttempt();
     }
   }
 
@@ -122,20 +129,17 @@ class AuthController extends Notifier<AuthState> {
   /// Returns false (with no error) if the user cancels the Google picker.
   Future<bool> loginWithGoogle() async {
     try {
-      // Web/server client id read LIVE from the server (not hardcoded).
-      final settings = await ref.read(publicAuthSettingsProvider.future);
-      final idToken =
-          await googleSignInIdToken(serverClientId: settings.googleClientId);
+      // Instant: use the live server client id if it has already loaded,
+      // otherwise the baked fallback — never block on /settings/public.
+      final loaded = ref.read(publicAuthSettingsProvider).asData?.value;
+      final clientId = (loaded != null && loaded.googleClientId.isNotEmpty)
+          ? loaded.googleClientId
+          : AppConfig.googleWebClientId;
+      final idToken = await googleSignInIdToken(serverClientId: clientId);
       if (idToken == null) return false; // user cancelled
-      final res = await _repo.loginWithGoogle(idToken);
-      await SecureStore.writeToken(res.token);
-      _api.setToken(res.token);
-      state = AuthState(
-          isHydrating: false,
-          isAuthenticated: true,
-          user: res.user,
-          token: res.token);
-      Push.onAuthenticated();
+      // Google accounts are pre-verified by Google, so they never hit the OTP
+      // step — the backend always returns a live session here.
+      await _applySession(await _repo.loginWithGoogle(idToken));
       return true;
     } catch (e) {
       state = state.copyWith(error: _msg(e));
@@ -143,7 +147,7 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  Future<bool> register({
+  Future<AuthAttempt> register({
     required String fullName,
     required String email,
     required String password,
@@ -151,26 +155,56 @@ class AuthController extends Notifier<AuthState> {
     required bool acceptedTerms,
   }) async {
     try {
-      final res = await _repo.register(
+      final out = await _repo.register(
         fullName: fullName.trim(),
         email: email.trim(),
         password: password,
         confirmPassword: confirmPassword,
         acceptedTerms: acceptedTerms,
       );
-      await SecureStore.writeToken(res.token);
-      _api.setToken(res.token);
-      state = AuthState(
-          isHydrating: false,
-          isAuthenticated: true,
-          user: res.user,
-          token: res.token);
-      Push.onAuthenticated();
-      return true;
+      if (out.needsVerification) {
+        state = state.copyWith(error: null);
+        return AuthAttempt(verifyEmail: out.verifyEmail, devCode: out.devCode);
+      }
+      _applySession(out.session!);
+      return const AuthAttempt(signedIn: true);
     } catch (e) {
       state = state.copyWith(error: _msg(e));
-      return false;
+      return const AuthAttempt();
     }
+  }
+
+  /// Verify the 6-digit onboarding code, then sign in. Returns null on success,
+  /// or a user-facing error message.
+  Future<String?> verifyEmail(
+      {required String email, required String code}) async {
+    try {
+      _applySession(await _repo.verifyEmailOtp(email.trim(), code.trim()));
+      return null;
+    } catch (e) {
+      return _msg(e);
+    }
+  }
+
+  /// Re-send the verification code. Returns the cooldown seconds (if any) and an
+  /// error message (null on success).
+  Future<({String? error, int? retryAfter})> resendEmail(String email) async {
+    try {
+      return (error: null, retryAfter: await _repo.resendEmailOtp(email.trim()));
+    } catch (e) {
+      return (error: _msg(e), retryAfter: null);
+    }
+  }
+
+  Future<void> _applySession(AuthResult res) async {
+    await SecureStore.writeToken(res.token);
+    _api.setToken(res.token);
+    state = AuthState(
+        isHydrating: false,
+        isAuthenticated: true,
+        user: res.user,
+        token: res.token);
+    Push.onAuthenticated();
   }
 
   /// Local demo sign-in — explore the app with demo data, no backend.

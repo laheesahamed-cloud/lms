@@ -431,7 +431,7 @@ class _ContinueCard extends ConsumerWidget {
                   children: [
                     Text(
                         recQuiz != null
-                            ? recQuiz.title
+                            ? recQuiz.displayName
                             : (recNote != null ? recNote.title : 'Start studying'),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,

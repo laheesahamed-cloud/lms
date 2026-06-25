@@ -67,7 +67,7 @@ export declare class CoursesService {
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
     findStudentCourses(authorization?: string): Promise<{
         subjectCount: any;
@@ -103,7 +103,7 @@ export declare class CoursesService {
     updateStudentLessonProgress(lessonId: number, dto: UpdateStudentLessonProgressDto, authorization?: string): Promise<{
         ok: boolean;
         lessonId: number;
-        status: "not_started" | "in_progress" | "completed";
+        status: "in_progress" | "not_started" | "completed";
         progressPercent: number;
         actionLabel: string;
     }>;

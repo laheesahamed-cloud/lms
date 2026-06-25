@@ -7,6 +7,7 @@ import * as nodemailer from 'nodemailer';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { sqlPlaceholders } from '../../database/sql-safety';
 import { decryptSecret } from '../../common/utils/ai-provider.utils';
+import { DEFAULT_SUBSCRIPTION_FEATURES } from '../plans/subscription-catalog';
 import { ADMIN_SESSION_TTL_DAYS, SESSION_TTL_DAYS, createSessionExpiry, extractBearerToken, hashSessionToken, isValidSessionTokenFormat } from './auth-token.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -1153,26 +1154,27 @@ ${settings.footer}`;
     };
   }
 
+  // Any active subscription unlocks every feature. We no longer gate by the
+  // plan's individual feature flags — content is limited only by the
+  // subscription's course/lesson scope. So an active subscriber gets the full
+  // feature-key catalogue; everyone else gets none.
   private async getActiveFeatureKeysForUser(userId: number) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `
-        SELECT sf.feature_key
+        SELECT us.id
         FROM user_subscriptions us
-        INNER JOIN subscription_plan_features spf
-          ON spf.plan_id = us.plan_id
-         AND spf.is_enabled = 1
-        INNER JOIN subscription_features sf
-          ON sf.id = spf.feature_id
-         AND sf.status = 'active'
         WHERE us.user_id = ?
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
+        LIMIT 1
       `,
       [userId]
     );
 
-    return Array.from(new Set(rows.map((row) => String(row.feature_key || '').trim()).filter(Boolean)));
+    if (rows.length === 0) return [];
+
+    return Array.from(new Set(DEFAULT_SUBSCRIPTION_FEATURES.map((feature) => feature.featureKey)));
   }
 
   private buildFeatureAccessMap(featureKeys: string[]) {

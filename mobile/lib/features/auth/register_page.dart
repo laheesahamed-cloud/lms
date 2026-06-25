@@ -1,6 +1,8 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/app_button.dart';
@@ -42,15 +44,24 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     }
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
-    final ok = await ref.read(authControllerProvider.notifier).register(
+    final res = await ref.read(authControllerProvider.notifier).register(
           fullName: _name.text,
           email: _email.text,
           password: _password.text,
           confirmPassword: _confirm.text,
           acceptedTerms: _terms,
         );
-    if (mounted) setState(() => _loading = false);
-    if (ok && mounted) context.go('/app/dashboard');
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (res.verifyEmail != null) {
+      // New self-signup students must confirm the emailed 6-digit code.
+      context.push(
+        '/auth/verify-email?email=${Uri.encodeComponent(res.verifyEmail!)}',
+        extra: res.devCode,
+      );
+    } else if (res.signedIn) {
+      context.go('/app/dashboard');
+    }
   }
 
   @override
@@ -80,7 +91,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                               fontWeight: FontWeight.w800,
                               color: c.inkStrong)),
                       const SizedBox(height: 4),
-                      Text('Start free — upgrade anytime.',
+                      Text('Start learning for free.',
                           style: TextStyle(fontSize: 14, color: c.inkSoft)),
                       AuthField(
                         label: 'Full name',
@@ -169,15 +180,54 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 }
 
-class _Terms extends StatelessWidget {
+/// Canonical legal pages. The live web app is served under the
+/// `/lms/frontend/dist/` base path (the bare apex is a parked registrar page),
+/// so these absolute URLs must include that prefix to resolve.
+const String _termsUrl = 'https://xyndrome.lk/lms/frontend/dist/terms';
+const String _privacyUrl =
+    'https://xyndrome.lk/lms/frontend/dist/privacy-policy';
+
+class _Terms extends StatefulWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
   const _Terms({required this.value, required this.onChanged});
   @override
+  State<_Terms> createState() => _TermsState();
+}
+
+class _TermsState extends State<_Terms> {
+  late final TapGestureRecognizer _termsTap;
+  late final TapGestureRecognizer _privacyTap;
+
+  @override
+  void initState() {
+    super.initState();
+    _termsTap = TapGestureRecognizer()..onTap = () => _open(_termsUrl);
+    _privacyTap = TapGestureRecognizer()..onTap = () => _open(_privacyUrl);
+  }
+
+  @override
+  void dispose() {
+    _termsTap.dispose();
+    _privacyTap.dispose();
+    super.dispose();
+  }
+
+  Future<void> _open(String url) async {
+    final ok = await launchUrl(Uri.parse(url),
+        mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Couldn\'t open $url')),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.c;
     return GestureDetector(
-      onTap: () => onChanged(!value),
+      onTap: () => widget.onChanged(!widget.value),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -186,12 +236,12 @@ class _Terms extends StatelessWidget {
             width: 20,
             height: 20,
             decoration: BoxDecoration(
-              color: value ? c.primaryTint : Colors.transparent,
+              color: widget.value ? c.primaryTint : Colors.transparent,
               border: Border.all(
-                  color: value ? c.primary : c.lineStrong, width: 1.5),
+                  color: widget.value ? c.primary : c.lineStrong, width: 1.5),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: value
+            child: widget.value
                 ? Icon(Icons.check, size: 13, color: c.primary)
                 : null,
           ),
@@ -208,12 +258,14 @@ class _Terms extends StatelessWidget {
                     TextSpan(
                         text: 'Terms',
                         style: TextStyle(
-                            color: c.primary, fontWeight: FontWeight.w700)),
+                            color: c.primary, fontWeight: FontWeight.w700),
+                        recognizer: _termsTap),
                     const TextSpan(text: ' & '),
                     TextSpan(
                         text: 'Privacy Policy',
                         style: TextStyle(
-                            color: c.primary, fontWeight: FontWeight.w700)),
+                            color: c.primary, fontWeight: FontWeight.w700),
+                        recognizer: _privacyTap),
                     const TextSpan(text: '.'),
                   ],
                 ),

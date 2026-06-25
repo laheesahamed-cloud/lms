@@ -11,6 +11,7 @@ import '../features/auth/login_page.dart';
 import '../features/auth/register_page.dart';
 import '../features/auth/forgot_password_page.dart';
 import '../features/auth/reset_password_page.dart';
+import '../features/auth/verify_email_page.dart';
 import '../features/onboarding/pending_page.dart';
 import '../features/results/review_page.dart';
 import '../features/ai_notes/note_canvas_page.dart';
@@ -95,6 +96,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           key: s.pageKey,
           child: ResetPasswordPage(
               token: s.uri.queryParameters['token'] ?? ''),
+        ),
+      ),
+      GoRoute(
+        path: '/auth/verify-email',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: VerifyEmailPage(
+            email: s.uri.queryParameters['email'] ?? '',
+            devCode: s.extra as String?,
+          ),
         ),
       ),
       GoRoute(

@@ -56,7 +56,7 @@ export function applyPerformanceProfile() {
   const root = document.documentElement;
   const runtime = root.dataset.lmsRuntime || 'web';
   const nativeRuntime = runtime === 'native';
-  const installedRuntime = nativeRuntime || runtime === 'pwa';
+  const installedRuntime = nativeRuntime;
   const lowSpec = isLowSpecDevice();
   const balancedEffects = nativeRuntime || (!installedRuntime && shouldUseBalancedVisualEffects());
   const browserProfile = getBrowserPerformanceProfile();

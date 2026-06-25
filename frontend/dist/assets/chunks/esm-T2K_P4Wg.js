@@ -1,0 +1,1 @@
+import{C as e}from"./vendor-CvCAYPoT.js";export{e as App};

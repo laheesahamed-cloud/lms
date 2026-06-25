@@ -18,7 +18,7 @@ function shouldUseMobileNavigation(platform = detectPlatform()) {
   if (typeof window === 'undefined') return false;
   if (platform.isDesktopApp) return false;
   const widthIsMobile = window.matchMedia?.(SIDEBAR_MOBILE_QUERY)?.matches || window.innerWidth <= 900;
-  return widthIsMobile || ((platform.isPwa || platform.isNative) && platform.isPhone);
+  return widthIsMobile || (platform.isNative && platform.isPhone);
 }
 
 const shellUi = {

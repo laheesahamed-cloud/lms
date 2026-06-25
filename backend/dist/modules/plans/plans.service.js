@@ -200,23 +200,16 @@ let PlansService = class PlansService {
       `, [userId]);
         return Array.from(new Set(rows.map((row) => String(row.feature_key || '').trim()).filter(Boolean)));
     }
-    async hasFeatureAccess(userId, featureKey) {
+    async hasFeatureAccess(userId, _featureKey) {
         const [rows] = await this.db.execute(`
-        SELECT sf.id
+        SELECT us.id
         FROM user_subscriptions us
-        INNER JOIN subscription_plan_features spf
-          ON spf.plan_id = us.plan_id
-         AND spf.is_enabled = 1
-        INNER JOIN subscription_features sf
-          ON sf.id = spf.feature_id
-         AND sf.status = 'active'
         WHERE us.user_id = ?
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
-          AND sf.feature_key = ?
         LIMIT 1
-      `, [userId, featureKey]);
+      `, [userId]);
         return rows.length > 0;
     }
     async listPlans(activeOnly, planId) {

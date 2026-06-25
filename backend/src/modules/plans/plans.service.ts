@@ -283,25 +283,22 @@ export class PlansService {
     return Array.from(new Set(rows.map((row) => String(row.feature_key || '').trim()).filter(Boolean)));
   }
 
-  async hasFeatureAccess(userId: number, featureKey: string) {
+  // Every feature is now available to any active subscriber. Access is limited
+  // only by the subscription's course/lesson scope, not by per-feature flags, so
+  // this resolves purely to "does the user have an active subscription?".
+  // The featureKey is kept for call-site compatibility but no longer consulted.
+  async hasFeatureAccess(userId: number, _featureKey: string) {
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `
-        SELECT sf.id
+        SELECT us.id
         FROM user_subscriptions us
-        INNER JOIN subscription_plan_features spf
-          ON spf.plan_id = us.plan_id
-         AND spf.is_enabled = 1
-        INNER JOIN subscription_features sf
-          ON sf.id = spf.feature_id
-         AND sf.status = 'active'
         WHERE us.user_id = ?
           AND us.status = 'active'
           AND us.start_date <= CURDATE()
           AND us.end_date >= CURDATE()
-          AND sf.feature_key = ?
         LIMIT 1
       `,
-      [userId, featureKey]
+      [userId]
     );
 
     return rows.length > 0;

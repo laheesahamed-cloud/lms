@@ -1,32 +1,29 @@
 import ReactDOM from 'react-dom/client';
 import { App } from './app/App.jsx';
 import { applyPlatformAttributes, installPlatformAttributeSync } from './shared/platform/detect.js';
-import { shouldRegisterServiceWorker } from './shared/platform/config.js';
 import { requestSpaNavigation } from './shared/routing/spaNavigation.js';
 import { applyPerformanceProfile, installMotionResourceGuards } from './shared/utils/performanceProfile.js';
-import { installPwaRegistration, uninstallPwaRegistration } from './shared/utils/pwaRegistration.js';
 import './shared/styles/index.css';
 
 const NATIVE_RECOVERY_LINK_HOSTS = new Set(['xyndrome.lk', 'www.xyndrome.lk']);
 const NATIVE_RECOVERY_ROUTE_PATTERN = /^\/auth\/(?:forgot-password|reset-password)(?:\/|$)/;
 const NATIVE_RECOVERY_LINK_SCHEMES = new Set(['xyndrome:']);
 
-function isPwaMode() {
-  return document.documentElement.dataset.lmsPwa === 'true';
-}
-
-function isEditableTarget(target) {
-  return Boolean(target?.closest?.('input, textarea, select, [contenteditable="true"]'));
-}
-
-function installPwaTouchGuards() {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
-  document.addEventListener('contextmenu', (event) => {
-    if (!isPwaMode() || isEditableTarget(event.target)) return;
-    if (event.target?.closest?.('a, button, [role="button"]')) {
-      event.preventDefault();
-    }
-  }, { capture: true });
+// The web app is no longer a PWA. Tear down any service worker a previous visit
+// installed (and its caches) so returning visitors aren't pinned to stale cached
+// assets by an orphaned worker. Runs on the website only — native loads locally.
+function removeLegacyServiceWorkers() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.getRegistrations()
+    .then((registrations) => registrations.forEach((registration) => registration.unregister()))
+    .catch(() => {});
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((key) => key.toLowerCase().includes('lms')).map((key) => caches.delete(key))
+      ))
+      .catch(() => {});
+  }
 }
 
 function getNativeRecoveryRoute(rawUrl) {
@@ -81,16 +78,13 @@ async function installNativeRecoveryLinkHandler() {
 const initialPlatform = applyPlatformAttributes();
 if (typeof window !== 'undefined') {
   installMotionResourceGuards();
-  installPwaTouchGuards();
   installPlatformAttributeSync(() => applyPerformanceProfile());
 }
 
 // Start user/session hydration while the boot loader is still covering the app.
 applyPerformanceProfile();
-if (shouldRegisterServiceWorker(initialPlatform)) {
-  installPwaRegistration();
-} else {
-  uninstallPwaRegistration();
+if (!initialPlatform.isNative) {
+  removeLegacyServiceWorkers();
 }
 
 if (initialPlatform.isNative) {

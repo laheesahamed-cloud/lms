@@ -7,7 +7,6 @@ import '../../widgets/app_button.dart';
 import '../../widgets/brand_logo.dart';
 import '../../state/auth_controller.dart';
 import '../../data/google_auth.dart';
-import '../../data/public_settings.dart';
 import 'auth_background.dart';
 import 'auth_widgets.dart';
 
@@ -36,12 +35,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
-    final ok = await ref
+    final res = await ref
         .read(authControllerProvider.notifier)
         .login(_email.text, _password.text);
-    if (mounted) setState(() => _loading = false);
-    // success → router redirect handles navigation
-    if (ok && mounted) context.go('/app/dashboard');
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (res.verifyEmail != null) {
+      // Unverified student — go confirm the emailed 6-digit code first.
+      context.push(
+        '/auth/verify-email?email=${Uri.encodeComponent(res.verifyEmail!)}',
+        extra: res.devCode,
+      );
+    } else if (res.signedIn) {
+      context.go('/app/dashboard');
+    }
   }
 
   Future<void> _google() async {
@@ -56,9 +63,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     final c = context.c;
     final error = ref.watch(authControllerProvider).error;
-    final googleOk = ref.watch(publicAuthSettingsProvider).maybeWhen(
-        data: (s) => googleButtonVisible(s.googleConfigured),
-        orElse: () => false);
+    // Visible instantly from baked client ids — no wait on /settings/public.
+    final googleOk = googleButtonVisible();
     return Scaffold(
       body: AuthBackground(
         child: SafeArea(
@@ -67,7 +73,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
-                child: Form(
+                child: AutofillGroup(
+                  child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -185,6 +192,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     ],
                   ),
+                ),
                 ),
               ),
             ),

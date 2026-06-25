@@ -83,7 +83,6 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
 
   /// Show the start-confirm popup once the quiz meta is known.
   Future<void> _promptStart({
-    required String title,
     required int totalQuestions,
     required int timeLimitMinutes,
     required int timerSeconds,
@@ -92,7 +91,6 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
     final ok = await showQuizStartDialog(
       context,
       exam: _exam,
-      title: title,
       totalQuestions: totalQuestions,
       timeLimitMinutes: timeLimitMinutes,
     );
@@ -215,7 +213,6 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && !_started && !_startPrompting) {
                   _promptStart(
-                    title: quiz.title,
                     totalQuestions: quiz.questions.length,
                     timeLimitMinutes: 0,
                     timerSeconds: 0,
@@ -283,7 +280,6 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && !_started && !_startPrompting) {
                   _promptStart(
-                    title: load.title,
                     totalQuestions: load.questions.length,
                     timeLimitMinutes: load.timeLimit,
                     timerSeconds: load.session.secondsRemaining ??

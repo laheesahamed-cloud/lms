@@ -2,11 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   createPlan,
-  createPlanFeature,
   deletePlan,
   fetchAdminPlans,
   updatePlan,
-  updatePlanFeature,
 } from '../../../../shared/api/plans.api.js';
 import {
   assignSubscription,
@@ -46,38 +44,10 @@ const subscriptionUi = {
   overviewValue: 'text-[24px] max-[640px]:text-[20px] leading-none text-ink-strong',
   overviewText: 'm-0 text-[12.5px] text-ink-soft',
   adminGrid: `${ui.managementGrid} items-start`,
-  featureEditor: 'grid gap-3.5',
   templateRow: 'flex flex-wrap gap-2.5',
   planLibrary: 'grid gap-4',
-  featurePanel: 'grid gap-3.5 rounded-xl border border-line-soft bg-surface-glass-subtle p-[18px]',
-  featureGroups: 'grid gap-4',
-  featureGroup: 'grid gap-3',
-  featureGroupTitle: 'm-0 text-lg text-ink-strong',
-  featureGroupText: 'm-0 mt-1 text-[13px] text-ink-soft',
-  featureGrid: 'grid grid-cols-2 gap-3 max-[900px]:grid-cols-1',
-  featureCheck:
-    'flex items-start gap-3 rounded-lg border border-line-soft bg-surface-2 p-3.5 [&_input]:mt-0.5 [&_span]:grid [&_span]:gap-1 [&_strong]:text-[13px] [&_strong]:text-ink-strong [&_small]:text-[11.5px] [&_small]:text-ink-soft',
-  featureCheckbox: 'mt-0.5 size-4 shrink-0 cursor-pointer accent-brand-primary',
-  miniStats: 'flex items-center gap-2',
-  selectedList: 'flex flex-col gap-2.5',
-  featureChip: 'flex items-center justify-between gap-3.5 rounded-lg border border-line-soft bg-surface-2 px-4 py-3.5 max-[900px]:flex-col max-[900px]:items-stretch',
-  featureCopy: 'grid min-w-0 gap-1.5',
-  featureTitle: 'break-words text-[13px] font-bold leading-[1.55] text-ink-strong',
-  featureKey: 'break-words text-[13px] leading-[1.55] text-ink-medium',
-  featureMeta: 'break-words text-[11.5px] leading-[1.55] text-ink-soft',
   metaGrid: 'grid grid-cols-4 gap-3.5 max-[900px]:grid-cols-1',
   toggleGrid: 'grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2.5',
-  planGrid: 'grid grid-cols-2 gap-3 max-[900px]:grid-cols-1',
-  planCard:
-    'relative grid gap-3.5 rounded-lg border border-line-soft bg-[linear-gradient(160deg,color-mix(in_srgb,var(--color-primary)_6%,var(--surface-card)),var(--surface-card)_58%,color-mix(in_srgb,var(--color-teal)_4%,var(--surface-card)))] p-[22px] shadow-md',
-  planCardRecommended: 'border-brand-primary/30 shadow-[0_20px_40px_rgba(37,99,235,0.12)]',
-  planTop: 'flex items-start justify-between gap-4 max-[640px]:flex-col',
-  planTitle: 'm-0 text-lg font-extrabold text-ink-strong',
-  planDescription: 'm-0 mt-1 text-[13px] leading-relaxed text-ink-soft',
-  planPriceRow: 'flex items-baseline gap-3',
-  planPrice: 'text-[34px] max-[640px]:text-[28px] font-extrabold leading-none text-ink-strong',
-  planPriceStrike: 'text-[13px] text-ink-soft line-through',
-  planFeatureList: 'flex flex-wrap gap-2.5',
   assignDurationPanel: 'grid gap-2 rounded-lg border border-line-soft bg-surface-2 p-3',
   durationButtons: 'grid grid-cols-4 gap-2 max-[700px]:grid-cols-2',
   durationButton:
@@ -112,15 +82,6 @@ const emptyPlanForm = {
   durationDays: 30,
   sortOrder: 0,
   recommended: false,
-  status: 'active',
-  featureIds: [],
-};
-
-const emptyFeatureForm = {
-  featureName: '',
-  featureKey: '',
-  description: '',
-  category: 'Learning Access',
   status: 'active',
 };
 
@@ -230,14 +191,6 @@ const planTemplates = [
       sortOrder: 1,
       recommended: false,
       status: 'active',
-      featureKeys: [
-        'courses_access',
-        'subject_access',
-        'lessons_access_limited',
-        'question_bank_limited',
-        'practice_mode',
-        'progress_tracking_basic',
-      ],
     },
   },
   {
@@ -255,21 +208,6 @@ const planTemplates = [
       sortOrder: 2,
       recommended: true,
       status: 'active',
-      featureKeys: [
-        'courses_access',
-        'subject_access',
-        'topic_access',
-        'lessons_access_full',
-        'question_bank_full',
-        'practice_mode',
-        'exam_mode',
-        'results_tracking',
-        'past_paper_access',
-        'mock_paper_access',
-        'notes_canvas_study_mode',
-        'report_question',
-        'progress_tracking_basic',
-      ],
     },
   },
   {
@@ -287,55 +225,9 @@ const planTemplates = [
       sortOrder: 3,
       recommended: false,
       status: 'active',
-      featureKeys: [
-        'courses_access',
-        'subject_access',
-        'topic_access',
-        'lessons_access_full',
-        'question_bank_full',
-        'past_paper_access',
-        'mock_paper_access',
-        'practice_mode',
-        'exam_mode',
-        'results_tracking',
-        'report_question',
-        'notes_canvas_study_mode',
-        'ai_quiz_generator',
-        'dynamic_quiz_randomization',
-        'performance_analytics',
-        'weak_area_analysis',
-        'progress_tracking_advanced',
-        'priority_support',
-        'future_premium_tools',
-      ],
     },
   },
 ];
-
-const FEATURE_PAGE_LABELS = {
-  courses_access: 'Courses page',
-  subject_access: 'Subject navigation',
-  topic_access: 'Topic navigation',
-  lessons_access_limited: 'Limited lesson access',
-  lessons_access_full: 'Full lessons access',
-  question_bank_limited: 'Limited Q-Bank',
-  question_bank_full: 'Full Q-Bank',
-  past_paper_access: 'Past papers',
-  mock_paper_access: 'Mock papers',
-  practice_mode: 'Practice mode',
-  exam_mode: 'Exam mode',
-  dynamic_quiz_randomization: 'Dynamic quiz randomization',
-  results_tracking: 'Results page',
-  report_question: 'Report question',
-  notes_canvas_study_mode: 'Lessons',
-  progress_tracking_basic: 'Basic progress',
-  progress_tracking_advanced: 'Advanced progress',
-  performance_analytics: 'Performance analytics',
-  weak_area_analysis: 'Weak area analysis',
-  ai_quiz_generator: 'AI quiz generator',
-  priority_support: 'Priority support',
-  future_premium_tools: 'Future premium tools',
-};
 
 function slugify(value) {
   return String(value || '')
@@ -468,69 +360,6 @@ function BankTransferProofPreview({ request }) {
   );
 }
 
-function getFeatureDisplay(feature) {
-  return FEATURE_PAGE_LABELS[feature?.featureKey] || feature?.featureName || 'Feature';
-}
-
-function summarizePlanExperience(plan) {
-  const enabledFeatures = Array.isArray(plan?.enabledFeatures) ? plan.enabledFeatures : [];
-  const labels = [];
-
-  if (enabledFeatures.some((feature) => ['courses_access', 'subject_access', 'topic_access'].includes(feature.featureKey))) {
-    labels.push('Courses');
-  }
-  if (enabledFeatures.some((feature) => ['lessons_access_limited', 'lessons_access_full'].includes(feature.featureKey))) {
-    labels.push('Lessons');
-  }
-  if (enabledFeatures.some((feature) => ['question_bank_limited', 'question_bank_full', 'past_paper_access', 'mock_paper_access'].includes(feature.featureKey))) {
-    labels.push('Q-Bank');
-  }
-  if (enabledFeatures.some((feature) => ['practice_mode', 'exam_mode'].includes(feature.featureKey))) {
-    labels.push('Practice / Exam');
-  }
-  if (enabledFeatures.some((feature) => feature.featureKey === 'notes_canvas_study_mode')) {
-    labels.push('Lessons');
-  }
-  if (enabledFeatures.some((feature) => ['results_tracking', 'progress_tracking_basic', 'progress_tracking_advanced', 'performance_analytics', 'weak_area_analysis'].includes(feature.featureKey))) {
-    labels.push('Analytics');
-  }
-  if (enabledFeatures.some((feature) => feature.featureKey === 'ai_quiz_generator')) {
-    labels.push('AI Tools');
-  }
-
-  return labels;
-}
-
-function PlanFeatureChecklist({ groupedFeatures, selectedIds, onToggle }) {
-  return (
-    <div className={subscriptionUi.featureGroups}>
-      {groupedFeatures.map(({ category, features }) => (
-        <section className={subscriptionUi.featureGroup} key={category}>
-          <div>
-            <h3 className={subscriptionUi.featureGroupTitle}>{category}</h3>
-            <p className={subscriptionUi.featureGroupText}>{features.length} feature option(s)</p>
-          </div>
-          <div className={subscriptionUi.featureGrid}>
-            {features.map((feature) => (
-              <label className={subscriptionUi.featureCheck} key={feature.id}>
-                <input className={subscriptionUi.featureCheckbox}
-                  type="checkbox"
-                  checked={selectedIds.includes(feature.id)}
-                  onChange={() => onToggle(feature.id)}
-                />
-                <span>
-                  <strong>{getFeatureDisplay(feature)}</strong>
-                  <small>{feature.description || feature.featureKey}</small>
-                </span>
-              </label>
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
 function StudentSearchSelect({ students, value, onChange }) {
   const selectedStudent = students.find((student) => String(student.id) === String(value));
   const [query, setQuery] = useState('');
@@ -615,20 +444,17 @@ export function AdminSubscriptionsPage() {
   const [requests, setRequests] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [auditEvents, setAuditEvents] = useState([]);
-  const [meta, setMeta] = useState({ students: [], plans: [], courses: [], lessons: [], features: [], featureCategories: [] });
+  const [meta, setMeta] = useState({ students: [], plans: [], courses: [], lessons: [] });
   const [planForm, setPlanForm] = useState(emptyPlanForm);
-  const [featureForm, setFeatureForm] = useState(emptyFeatureForm);
   const [assignForm, setAssignForm] = useState(emptyAssignForm);
   const [couponForm, setCouponForm] = useState(emptyCouponForm);
   const [editingPlanId, setEditingPlanId] = useState(null);
-  const [editingFeatureId, setEditingFeatureId] = useState(null);
   const [editingCouponId, setEditingCouponId] = useState(null);
   const [planModalOpen, setPlanModalOpen] = useState(false);
-  const [featureModalOpen, setFeatureModalOpen] = useState(false);
   const [subscriptionView, setSubscriptionView] = useState('students');
   const [loading, setLoading] = useState(true);
   const [savingPlan, setSavingPlan] = useState(false);
-  const [savingFeature, setSavingFeature] = useState(false);
+  const [togglingOffers, setTogglingOffers] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [savingCoupon, setSavingCoupon] = useState(false);
   const [actionBusyId, setActionBusyId] = useState('');
@@ -652,11 +478,6 @@ export function AdminSubscriptionsPage() {
   const safeStudents = useMemo(() => (Array.isArray(meta.students) ? meta.students : []).filter(Boolean), [meta.students]);
   const safeCourses = useMemo(() => (Array.isArray(meta.courses) ? meta.courses : []).filter(Boolean), [meta.courses]);
   const safeLessons = useMemo(() => (Array.isArray(meta.lessons) ? meta.lessons : []).filter(Boolean), [meta.lessons]);
-  const safeFeatures = useMemo(() => (Array.isArray(meta.features) ? meta.features : []).filter(Boolean), [meta.features]);
-  const safeFeatureCategories = useMemo(
-    () => (Array.isArray(meta.featureCategories) ? meta.featureCategories : []),
-    [meta.featureCategories]
-  );
 
   const courseTitleById = useMemo(
     () => new Map(safeCourses.map((course) => [Number(course.id), course.courseTitle])),
@@ -670,14 +491,6 @@ export function AdminSubscriptionsPage() {
     () => new Map(safeLessons.map((lesson) => [Number(lesson.id), `${lesson.courseTitle} - ${lesson.lessonTitle}`])),
     [safeLessons]
   );
-
-  const groupedFeatures = useMemo(() => {
-    const categories = safeFeatureCategories;
-    return categories.map((category) => ({
-      category,
-      features: safeFeatures.filter((feature) => feature?.category === category),
-    }));
-  }, [safeFeatureCategories, safeFeatures]);
 
   const filteredSubscriptions = useMemo(() => {
     const search = subscriptionFilters.search.trim().toLowerCase();
@@ -722,8 +535,6 @@ export function AdminSubscriptionsPage() {
         plans: Array.isArray(metaData?.plans) ? metaData.plans : [],
         courses: Array.isArray(metaData?.courses) ? metaData.courses : [],
         lessons: Array.isArray(metaData?.lessons) ? metaData.lessons : [],
-        features: Array.isArray(metaData?.features) ? metaData.features : [],
-        featureCategories: Array.isArray(metaData?.featureCategories) ? metaData.featureCategories : [],
       });
       setSubscriptions(Array.isArray(subscriptionRows) ? subscriptionRows : []);
       setRequests(Array.isArray(requestRows) ? requestRows : []);
@@ -742,28 +553,10 @@ export function AdminSubscriptionsPage() {
     setPlanModalOpen(false);
   }
 
-  function resetFeatureForm() {
-    setEditingFeatureId(null);
-    setFeatureForm({
-      ...emptyFeatureForm,
-      category: safeFeatureCategories[0] || emptyFeatureForm.category,
-    });
-    setFeatureModalOpen(false);
-  }
-
   function handleOpenCreatePlan() {
     setEditingPlanId(null);
     setPlanForm(emptyPlanForm);
     setPlanModalOpen(true);
-  }
-
-  function handleOpenCreateFeature() {
-    setEditingFeatureId(null);
-    setFeatureForm({
-      ...emptyFeatureForm,
-      category: safeFeatureCategories[0] || emptyFeatureForm.category,
-    });
-    setFeatureModalOpen(true);
   }
 
   function handlePlanChange(event) {
@@ -772,11 +565,6 @@ export function AdminSubscriptionsPage() {
       ...current,
       [name]: type === 'checkbox' ? checked : value,
     }));
-  }
-
-  function handleFeatureChange(event) {
-    const { name, value } = event.target;
-    setFeatureForm((current) => ({ ...current, [name]: value }));
   }
 
   function handleAssignChange(event) {
@@ -856,20 +644,7 @@ export function AdminSubscriptionsPage() {
     setAssignForm((current) => ({ ...current, ...nextDates }));
   }
 
-  function togglePlanFeature(featureId) {
-    setPlanForm((current) => ({
-      ...current,
-      featureIds: current.featureIds.includes(featureId)
-        ? current.featureIds.filter((id) => id !== featureId)
-        : [...current.featureIds, featureId],
-    }));
-  }
-
   function applyPlanTemplate(template) {
-    const featureIds = safeFeatures
-      .filter((feature) => template.values.featureKeys.includes(feature.featureKey))
-      .map((feature) => feature.id);
-
     setEditingPlanId(null);
     setPlanForm({
       name: template.values.name,
@@ -883,7 +658,6 @@ export function AdminSubscriptionsPage() {
       sortOrder: template.values.sortOrder,
       recommended: template.values.recommended,
       status: template.values.status,
-      featureIds,
     });
   }
 
@@ -901,21 +675,8 @@ export function AdminSubscriptionsPage() {
       sortOrder: plan.sortOrder,
       recommended: Boolean(plan.recommended),
       status: plan.status,
-      featureIds: plan.featureIds || [],
     });
     setPlanModalOpen(true);
-  }
-
-  function startEditFeature(feature) {
-    setEditingFeatureId(feature.id);
-    setFeatureForm({
-      featureName: feature.featureName,
-      featureKey: feature.featureKey,
-      description: feature.description,
-      category: feature.category,
-      status: feature.status,
-    });
-    setFeatureModalOpen(true);
   }
 
   async function handlePlanSubmit(event) {
@@ -937,7 +698,6 @@ export function AdminSubscriptionsPage() {
         sortOrder: Number(planForm.sortOrder),
         recommended: Boolean(planForm.recommended),
         status: planForm.status,
-        featureIds: planForm.featureIds,
       };
 
       if (editingPlanId) {
@@ -959,40 +719,43 @@ export function AdminSubscriptionsPage() {
     }
   }
 
-  async function handleFeatureSubmit(event) {
-    event.preventDefault();
-    setSavingFeature(true);
+  async function handleToggleAllOffers() {
+    const enabling = !safePlans.some((plan) => plan.offerEnabled);
+    const targets = enabling
+      ? safePlans.filter((plan) => plan.offerPrice !== null && plan.offerPrice !== '' && Number(plan.offerPrice) > 0 && !plan.offerEnabled)
+      : safePlans.filter((plan) => plan.offerEnabled);
+
+    if (!targets.length) {
+      setSuccess('');
+      setError(enabling
+        ? 'No plans have a discount price set, so there is nothing to enable.'
+        : 'No plans are currently showing a discount price.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      enabling
+        ? `Show the discount price on ${targets.length} plan(s)? Students will be charged the discounted price.`
+        : `Switch ${targets.length} plan(s) back to their usual price? The discount will stop showing.`
+    );
+    if (!confirmed) return;
+
+    setTogglingOffers(true);
     setError('');
     setSuccess('');
 
     try {
-      const payload = {
-        featureName: featureForm.featureName,
-        featureKey: featureForm.featureKey || slugify(featureForm.featureName),
-        description: featureForm.description,
-        category: featureForm.category,
-        status: featureForm.status,
-      };
-
-      if (editingFeatureId) {
-        await updatePlanFeature(editingFeatureId, payload);
-        setSuccess('Subscription feature updated successfully.');
-      } else {
-        await createPlanFeature(payload);
-        setSuccess('Subscription feature created successfully.');
+      for (const plan of targets) {
+        await updatePlan(plan.id, { offerEnabled: enabling });
       }
-
-      setFeatureModalOpen(false);
-      setEditingFeatureId(null);
-      setFeatureForm({
-        ...emptyFeatureForm,
-        category: safeFeatureCategories[0] || emptyFeatureForm.category,
-      });
+      setSuccess(enabling
+        ? 'Discount price is now active on all eligible plans.'
+        : 'All plans are now showing their usual price.');
       await loadAll();
-    } catch (saveError) {
-      setError(getErrorMessage(saveError, 'Unable to save subscription feature'));
+    } catch (toggleError) {
+      setError(getErrorMessage(toggleError, 'Unable to update plan pricing'));
     } finally {
-      setSavingFeature(false);
+      setTogglingOffers(false);
     }
   }
 
@@ -1206,8 +969,19 @@ export function AdminSubscriptionsPage() {
               </button>
               {manageToolsVisible ? (
                 <>
+                  <button
+                    type="button"
+                    className={ui.secondaryAction}
+                    onClick={handleToggleAllOffers}
+                    disabled={togglingOffers}
+                  >
+                    {togglingOffers
+                      ? 'Updating prices...'
+                      : safePlans.some((plan) => plan.offerEnabled)
+                        ? 'Switch all to usual price'
+                        : 'Enable all discounts'}
+                  </button>
                   <button type="button" className={ui.primaryAction} onClick={handleOpenCreatePlan}>Add Plan</button>
-                  <button type="button" className={ui.secondaryAction} onClick={handleOpenCreateFeature}>Add Feature</button>
                 </>
               ) : null}
             </div>
@@ -1224,9 +998,9 @@ export function AdminSubscriptionsPage() {
             <p className={subscriptionUi.overviewText}>{manageToolsVisible ? 'Subscription plans currently configured in the LMS.' : 'Student accounts available for subscription assignment.'}</p>
           </article>
           <article className={subscriptionUi.overviewCard}>
-            <span className={subscriptionUi.overviewLabel}>{manageToolsVisible ? 'Features' : 'Pending Requests'}</span>
-            <strong className={subscriptionUi.overviewValue}>{manageToolsVisible ? safeFeatures.length : pendingRequests.length}</strong>
-            <p className={subscriptionUi.overviewText}>{manageToolsVisible ? 'Master features available for checkbox-based plan allocation.' : 'Student requests waiting for admin decision.'}</p>
+            <span className={subscriptionUi.overviewLabel}>{manageToolsVisible ? 'Coupons' : 'Pending Requests'}</span>
+            <strong className={subscriptionUi.overviewValue}>{manageToolsVisible ? safeCoupons.length : pendingRequests.length}</strong>
+            <p className={subscriptionUi.overviewText}>{manageToolsVisible ? 'Bank-transfer coupon codes currently configured.' : 'Student requests waiting for admin decision.'}</p>
           </article>
           <article className={subscriptionUi.overviewCard}>
             <span className={subscriptionUi.overviewLabel}>Active Subs</span>
@@ -1242,37 +1016,6 @@ export function AdminSubscriptionsPage() {
 
         {manageToolsVisible ? (
           <>
-        <div className={subscriptionUi.adminGrid}>
-          <section className={cx(ui.panelCard, subscriptionUi.featureEditor)}>
-            <div className={ui.panelTop}>
-              <div>
-                <h2>Feature catalog</h2>
-                <p>These are the LMS capabilities your plans can unlock. Edit or add features without crowding the plan list.</p>
-              </div>
-              <div className={ui.buttonRow}>
-                <button type="button" className={ui.secondaryAction} onClick={handleOpenCreateFeature}>
-                  Add feature
-                </button>
-              </div>
-            </div>
-
-            <div className={subscriptionUi.selectedList}>
-              {safeFeatures.map((feature) => (
-                <article className={subscriptionUi.featureChip} key={feature.id}>
-                  <div className={subscriptionUi.featureCopy}>
-                    <strong className={subscriptionUi.featureTitle}>{getFeatureDisplay(feature)}</strong>
-                    <span className={subscriptionUi.featureKey}>{feature.featureKey}</span>
-                    <small className={subscriptionUi.featureMeta}>{feature.category} • {feature.status}{feature.description ? ` • ${feature.description}` : ''}</small>
-                  </div>
-                  <button type="button" className={ui.iconButton} onClick={() => startEditFeature(feature)} aria-label={`Edit feature ${feature.featureName}`}>
-                    <EditActionIcon />
-                  </button>
-                </article>
-              ))}
-            </div>
-          </section>
-        </div>
-
         <section className={cx(ui.panelCard, subscriptionUi.planLibrary)}>
           <div className={ui.panelTop}>
             <div>
@@ -1283,54 +1026,53 @@ export function AdminSubscriptionsPage() {
 
           {loading ? <div className={ui.emptyBox}>Loading plans...</div> : null}
           {!loading && safePlans.length === 0 ? <div className={ui.emptyBox}>No subscription plans created yet.</div> : null}
-          {!loading ? (
-            <div className={subscriptionUi.planGrid}>
-              {safePlans.map((plan) => (
-                <article className={cx(subscriptionUi.planCard, plan.recommended && subscriptionUi.planCardRecommended)} key={plan.id}>
-                  <div className={subscriptionUi.planTop}>
-                    <div>
-                      <div className={ui.buttonRow}>
-                        <span className={statusPill(plan.status)}>{plan.status}</span>
-                        {plan.recommended ? <span className={ui.tablePill}>Recommended</span> : null}
-                      </div>
-                      <h3 className={subscriptionUi.planTitle}>{plan.name}</h3>
-                      <p className={subscriptionUi.planDescription}>{plan.description || 'Subscription plan description.'}</p>
-                    </div>
-                    <div className={ui.iconRow}>
-                      <button type="button" className={ui.iconButton} aria-label={`Edit ${plan.name}`} title="Edit plan" onClick={() => startEditPlan(plan)}>
-                        <EditActionIcon />
-                      </button>
-                      <button type="button" className={ui.dangerIconButton} aria-label={`Delete ${plan.name}`} title="Delete plan" onClick={() => handlePlanDelete(plan)}>
-                        <DeleteActionIcon />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className={subscriptionUi.planPriceRow}>
-                    <strong className={subscriptionUi.planPrice}>{plan.currency} {Number(plan.effectivePrice).toFixed(2)}</strong>
-                    {plan.offerEnabled && plan.offerPrice !== null ? (
-                      <span className={subscriptionUi.planPriceStrike}>{plan.currency} {Number(plan.regularPrice).toFixed(2)}</span>
-                    ) : null}
-                  </div>
-
-                  <div className={ui.tableSubtext}>{plan.durationDays} days • Sort {plan.sortOrder}</div>
-
-                  <div className={ui.buttonRow}>
-                    {summarizePlanExperience(plan).map((label) => (
-                      <span className={ui.tablePill} key={`${plan.id}-${label}`}>{label}</span>
-                    ))}
-                  </div>
-
-                  <div className={subscriptionUi.planFeatureList}>
-                    {(Array.isArray(plan.enabledFeatures) ? plan.enabledFeatures : []).slice(0, 8).map((feature) => (
-                      <span className={ui.tablePill} key={feature.id}>{getFeatureDisplay(feature)}</span>
-                    ))}
-                    {(Array.isArray(plan.enabledFeatures) ? plan.enabledFeatures : []).length > 8 ? (
-                      <span className={ui.tableSubtext}>+{(Array.isArray(plan.enabledFeatures) ? plan.enabledFeatures : []).length - 8} more</span>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
+          {!loading && safePlans.length ? (
+            <div className={ui.tableShell}>
+              <table className={ui.modernTable}>
+                <thead>
+                  <tr>
+                    <th className={ui.tableHeadCell}>Plan</th>
+                    <th className={ui.tableHeadCell}>Price</th>
+                    <th className={ui.tableHeadCell}>Duration</th>
+                    <th className={ui.tableHeadCell}>Status</th>
+                    <th className={ui.tableHeadCell}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {safePlans.map((plan) => (
+                    <tr key={plan.id}>
+                      <td className={ui.tableCell}>
+                        <div className={ui.buttonRow}>
+                          <strong>{plan.name}</strong>
+                          {plan.recommended ? <span className={ui.tablePill}>Recommended</span> : null}
+                        </div>
+                        <div className={ui.tableSubtext}>{plan.description || 'Subscription plan description.'}</div>
+                      </td>
+                      <td className={ui.tableCell}>
+                        <strong>{plan.currency} {Number(plan.effectivePrice).toFixed(2)}</strong>
+                        {plan.offerEnabled && plan.offerPrice !== null ? (
+                          <div className={cx(ui.tableSubtext, 'line-through')}>{plan.currency} {Number(plan.regularPrice).toFixed(2)}</div>
+                        ) : null}
+                      </td>
+                      <td className={ui.tableCell}>
+                        <strong>{plan.durationDays} days</strong>
+                        <div className={ui.tableSubtext}>Sort {plan.sortOrder}</div>
+                      </td>
+                      <td className={ui.tableCell}><span className={statusPill(plan.status)}>{plan.status}</span></td>
+                      <td className={ui.tableCell}>
+                        <div className={ui.iconRow}>
+                          <button type="button" className={ui.iconButton} aria-label={`Edit ${plan.name}`} title="Edit plan" onClick={() => startEditPlan(plan)}>
+                            <EditActionIcon />
+                          </button>
+                          <button type="button" className={ui.dangerIconButton} aria-label={`Delete ${plan.name}`} title="Delete plan" onClick={() => handlePlanDelete(plan)}>
+                            <DeleteActionIcon />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : null}
         </section>
@@ -1806,7 +1548,7 @@ export function AdminSubscriptionsPage() {
                     </label>
                   ) : (
                     <div className={subscriptionUi.accessHint}>
-                      The subscription behaves like a normal plan and unlocks every paid lesson included by its features.
+                      The subscription behaves like a normal plan and unlocks every paid lesson within its course/lesson scope.
                     </div>
                   )}
                 </div>
@@ -2042,74 +1784,11 @@ export function AdminSubscriptionsPage() {
               </label>
             </div>
 
-            <div className={subscriptionUi.featurePanel}>
-              <div className={ui.panelTop}>
-                <div>
-                  <h2>Feature checklist</h2>
-                  <p>These features are labeled to match the pages and tools inside your LMS.</p>
-                </div>
-                <div className={subscriptionUi.miniStats}>
-                  <span className={ui.tablePill}>{planForm.featureIds.length} selected</span>
-                </div>
-              </div>
-
-              <PlanFeatureChecklist groupedFeatures={groupedFeatures} selectedIds={planForm.featureIds} onToggle={togglePlanFeature} />
-            </div>
-
             <div className={ui.buttonRow}>
               <button type="submit" className={ui.primaryAction} disabled={savingPlan}>
                 {savingPlan ? 'Saving...' : editingPlanId ? 'Update plan' : 'Create plan'}
               </button>
               <button type="button" className={ui.secondaryAction} onClick={resetPlanForm} disabled={savingPlan}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        </EntityModal>
-
-        <EntityModal
-          open={featureModalOpen}
-          onClose={resetFeatureForm}
-          title={editingFeatureId ? 'Edit feature' : 'Add feature'}
-          subtitle="Feature Library"
-        >
-          <form className={cx(ui.stackForm, ui.modalForm, 'question-modal-form gap-[18px]')} onSubmit={handleFeatureSubmit}>
-            <div className={subscriptionUi.metaGrid}>
-              <label className={ui.formLabel}>
-                Feature name
-                <input className={ui.input} name="featureName" value={featureForm.featureName} onChange={handleFeatureChange} required />
-              </label>
-              <label className={ui.formLabel}>
-                Feature key
-                <input className={ui.input} name="featureKey" value={featureForm.featureKey} onChange={handleFeatureChange} placeholder="ai_quiz_generator" required />
-              </label>
-              <label className={ui.formLabel}>
-                Category
-                <select className={ui.input} name="category" value={featureForm.category} onChange={handleFeatureChange}>
-                  {safeFeatureCategories.map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </label>
-              <label className={ui.formLabel}>
-                Status
-                <select className={ui.input} name="status" value={featureForm.status} onChange={handleFeatureChange}>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </label>
-            </div>
-
-            <label className={ui.formLabel}>
-              Description
-              <textarea className={ui.textarea} name="description" rows="2" value={featureForm.description} onChange={handleFeatureChange} />
-            </label>
-
-            <div className={ui.buttonRow}>
-              <button type="submit" className={ui.primaryAction} disabled={savingFeature}>
-                {savingFeature ? 'Saving...' : editingFeatureId ? 'Update feature' : 'Create feature'}
-              </button>
-              <button type="button" className={ui.secondaryAction} onClick={resetFeatureForm} disabled={savingFeature}>
                 Cancel
               </button>
             </div>

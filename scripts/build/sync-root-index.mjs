@@ -9,8 +9,6 @@ const distIndex = path.join(repoRoot, 'frontend', 'dist', 'index.html');
 const rootIndex = path.join(repoRoot, 'index.html');
 const publicDir = path.join(repoRoot, 'frontend', 'public');
 const rootPublicFiles = [
-  ['sw.js', 'sw.js'],
-  ['manifest.webmanifest', 'manifest.webmanifest'],
   ['robots.txt', 'robots.txt'],
   ['sitemap.xml', 'sitemap.xml'],
   ['apple-touch-icon.png', 'apple-touch-icon.png'],
@@ -53,8 +51,8 @@ if (!mainCss) {
 const mainCssHref = `/lms/frontend/dist/assets/css/${mainCss}`;
 if (!html.includes(mainCssHref)) {
   html = html.replace(
-    '<link rel="manifest"',
-    `<link rel="stylesheet" href="${mainCssHref}" />\n    <link rel="manifest"`
+    '<link rel="shortcut icon"',
+    `<link rel="stylesheet" href="${mainCssHref}" />\n    <link rel="shortcut icon"`
   );
 }
 if (!html.includes(mainCssHref)) {
@@ -116,4 +114,4 @@ for (const [sourceName, targetName] of wellKnownPublicFiles) {
 }
 
 console.log(`Synced ${path.relative(repoRoot, rootIndex)} to ${path.relative(repoRoot, distIndex)} (main CSS linked, CSP hashes: ${inlineScripts.length} script / ${inlineStyles.length} style)`);
-console.log('Synced root service worker, manifest, and app association files from frontend/public');
+console.log('Synced root robots/sitemap, icons, and app association files from frontend/public');

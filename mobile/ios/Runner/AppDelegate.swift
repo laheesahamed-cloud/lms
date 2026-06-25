@@ -11,14 +11,9 @@ import UserNotifications
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Ask for notification permission, then register with APNs to get a token.
-    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-      if granted {
-        DispatchQueue.main.async {
-          application.registerForRemoteNotifications()
-        }
-      }
-    }
+    // Do NOT ask for notification permission at launch — that prompts before the
+    // user has any context. The app requests it on demand (after login, via a
+    // priming sheet) by calling the "requestAuthorization" method channel below.
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -27,9 +22,21 @@ import UserNotifications
     if let messenger = engineBridge.pluginRegistry.registrar(forPlugin: "XyndromePush")?.messenger() {
       let channel = FlutterMethodChannel(name: "app.xyndrome.lk/push", binaryMessenger: messenger)
       channel.setMethodCallHandler { [weak self] call, result in
-        if call.method == "getApnsToken" {
+        switch call.method {
+        case "getApnsToken":
           result(self?.pendingToken)
-        } else {
+        case "requestAuthorization":
+          // Triggered when the user opts in (priming sheet → Enable). Show the
+          // OS dialog, then register with APNs so we can receive push tokens.
+          UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+            DispatchQueue.main.async {
+              if granted {
+                UIApplication.shared.registerForRemoteNotifications()
+              }
+              result(granted)
+            }
+          }
+        default:
           result(FlutterMethodNotImplemented)
         }
       }

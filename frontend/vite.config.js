@@ -47,7 +47,7 @@ export default defineConfig(({ command }) => ({
           }
           // Group only the small always-loaded shared tail; layout/search/popup/
           // launch/account/seo stay route-driven so routes don't pay for them eagerly.
-          if (/\/src\/shared\/(api|platform|utils|stores|pwa|routing|auth|security|hooks|brand|components|notifications|ui)\//.test(id)) return 'app-shared';
+          if (/\/src\/shared\/(api|platform|utils|stores|routing|auth|security|hooks|brand|components|notifications|ui)\//.test(id)) return 'app-shared';
         },
       },
     },

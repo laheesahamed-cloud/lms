@@ -1,0 +1,1 @@
+import{u as e}from"./vendor-CvCAYPoT.js";export{e as SocialLogin};
