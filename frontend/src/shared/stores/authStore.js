@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { clearAllTimedApiCaches } from '../api/cache.js';
 import { setUnauthorizedHandler } from '../api/client.js';
-import { fetchCurrentUser, login, loginWithGoogle, loginWithGoogleCode, logout, register, verifyEmailOtp } from '../api/auth.api.js';
+import { fetchCurrentUser, login, loginWithApple, loginWithGoogle, loginWithGoogleCode, logout, register, verifyEmailOtp } from '../api/auth.api.js';
 import { detectPlatform } from '../platform/detect.js';
 import { clearStoredAuth, getAuthToken, getBootstrapAuth, setAuthToken, setStoredAuthUser } from './authToken.js';
 import { getCurrentForwardPath } from '../utils/routeForwarding.js';
@@ -290,6 +290,25 @@ export const useAuthStore = create((set, get) => ({
 
   signInWithGoogleCode: async (payload) => {
     const data = await resolveAuthPayload(await loginWithGoogleCode(payload), 'Google sign-in');
+    authMutationVersion += 1;
+    clearAllTimedApiCaches();
+    setAuthToken(data.sessionToken || '');
+    setStoredAuthUser(data.user);
+    set({
+      token: data.sessionToken || '',
+      user: data.user,
+      isAuthenticated: true,
+      isHydrating: false,
+      isSigningOut: false,
+      authNotice: null,
+      sessionExpiredLock: null,
+    });
+    syncNativePushAfterAuth();
+    return data;
+  },
+
+  signInWithApple: async (payload) => {
+    const data = await resolveAuthPayload(await loginWithApple(payload), 'Apple sign-in');
     authMutationVersion += 1;
     clearAllTimedApiCaches();
     setAuthToken(data.sessionToken || '');

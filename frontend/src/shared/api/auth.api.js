@@ -60,6 +60,20 @@ export async function loginWithGoogleCode(payload) {
   return response.data;
 }
 
+// Sign in with Apple (web): exchanges the Apple identity token at /auth/apple,
+// which verifies it against Apple's JWKS and returns a session (same shape as
+// Google). `payload` = { identityToken, fullName? }.
+export async function loginWithApple(payload) {
+  const native = detectPlatform().isNative;
+  const response = await apiClient.post('/auth/apple', payload, {
+    headers: nativeAuthHeaders(),
+    params: nativeAuthParams(),
+    timeout: native ? NATIVE_AUTH_TIMEOUT_MS : WEB_AUTH_TIMEOUT_MS,
+    __skipTimeoutRetry: true,
+  });
+  return response.data;
+}
+
 export async function fetchCurrentUser(options = {}) {
   const response = await apiClient.get('/auth/me', {
     __skipNetworkActivity: Boolean(options.silent),
