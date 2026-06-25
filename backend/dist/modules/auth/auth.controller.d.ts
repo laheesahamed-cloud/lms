@@ -143,6 +143,10 @@ export declare class AuthController {
             };
         };
     }>;
+    appleWebCallbackPost(body: any, request: any, response: any): Promise<any>;
+    appleWebCallbackGet(query: any, request: any, response: any): Promise<any>;
+    private handleAppleWebCallback;
+    private readCookie;
     me(authorization?: string, cookie?: string): Promise<{
         ok: boolean;
         user: {

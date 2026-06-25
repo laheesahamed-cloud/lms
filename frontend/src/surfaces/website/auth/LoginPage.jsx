@@ -18,7 +18,7 @@ import { AuthFeedbackNotice } from './AuthFeedbackNotice.jsx';
 import { preloadRouteByPath } from '../../../app/routePreloading.js';
 import { useNativeAuthKeyboardAnchor } from './useNativeAuthKeyboardAnchor.js';
 import { ensureNativeGoogleAuth, isNativeGoogleCancellation, signInWithNativeGoogle } from '../../../shared/auth/nativeGoogleAuth.js';
-import { appleSignInConfigured, isAppleCancellation, signInWithApplePopup } from '../../../shared/auth/appleAuth.js';
+import { appleSignInConfigured, isAppleCancellation, startAppleRedirect } from '../../../shared/auth/appleAuth.js';
 
 /* ── Animation keyframes ─────────────────────────────────────────────────────── */
 
@@ -455,7 +455,6 @@ export function LoginPage() {
   const signIn   = useAuthStore((s) => s.signIn);
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const signInWithGoogleCode = useAuthStore((s) => s.signInWithGoogleCode);
-  const signInWithApple = useAuthStore((s) => s.signInWithApple);
   const authNotice = useAuthStore((s) => s.authNotice);
   const consumeAuthNotice = useAuthStore((s) => s.consumeAuthNotice);
 
@@ -661,18 +660,17 @@ export function LoginPage() {
 
   async function handleAppleButtonClick() {
     if (status.loading) return;
-    const startedAt = performance.now();
     setStatus({ loading: true, error: '', success: '' });
     try {
-      const credential = await signInWithApplePopup();
-      const data = await signInWithApple(credential);
-      await completeSignIn(data, startedAt);
+      // Full-page redirect to Apple; the backend callback finishes the sign-in
+      // and returns the browser to the dashboard (same-page flow, like Google).
+      await startAppleRedirect();
     } catch (err) {
       if (isAppleCancellation(err)) {
         setStatus({ loading: false, error: '', success: '' });
         return;
       }
-      setStatus({ loading: false, error: getErrorMessage(err, 'Unable to sign in with Apple'), success: '' });
+      setStatus({ loading: false, error: getErrorMessage(err, 'Unable to start Apple sign-in'), success: '' });
     }
   }
 

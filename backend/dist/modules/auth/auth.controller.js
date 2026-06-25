@@ -102,6 +102,48 @@ let AuthController = class AuthController {
         const { sessionToken: _sessionToken, ...safeResult } = result;
         return safeResult;
     }
+    appleWebCallbackPost(body, request, response) {
+        return this.handleAppleWebCallback(body || {}, request, response);
+    }
+    appleWebCallbackGet(query, request, response) {
+        return this.handleAppleWebCallback(query || {}, request, response);
+    }
+    async handleAppleWebCallback(payload, request, response) {
+        const successUrl = String(this.configService.get('APPLE_WEB_SUCCESS_URL') || 'https://xyndrome.lk/lms/frontend/dist/dashboard');
+        const failureUrl = String(this.configService.get('APPLE_WEB_FAILURE_URL') || 'https://xyndrome.lk/lms/frontend/dist/auth/login?apple=failed');
+        try {
+            const expectedState = this.readCookie(request, 'xy_apple_state');
+            response.clearCookie('xy_apple_state', { path: '/' });
+            if (payload.error || !payload.state || !expectedState || payload.state !== expectedState) {
+                return response.redirect(302, failureUrl);
+            }
+            let fullName = '';
+            if (payload.user) {
+                try {
+                    const parsed = typeof payload.user === 'string' ? JSON.parse(payload.user) : payload.user;
+                    fullName = [parsed?.name?.firstName, parsed?.name?.lastName].filter(Boolean).join(' ').trim();
+                }
+                catch {
+                }
+            }
+            const result = await this.authService.loginWithApple({
+                identityToken: String(payload.id_token || ''),
+                fullName: fullName || undefined,
+            });
+            this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+            return response.redirect(302, successUrl);
+        }
+        catch {
+            return response.redirect(302, failureUrl);
+        }
+    }
+    readCookie(request, name) {
+        return String(request?.headers?.cookie || '')
+            .split(';')
+            .map((part) => part.trim())
+            .find((part) => part.startsWith(`${name}=`))
+            ?.slice(name.length + 1) || '';
+    }
     me(authorization, cookie) {
         return this.authService.me(authorization || this.authorizationFromCookie(cookie));
     }
@@ -286,6 +328,24 @@ __decorate([
     __metadata("design:paramtypes", [apple_login_dto_1.AppleLoginDto, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "appleLogin", null);
+__decorate([
+    (0, common_1.Post)('apple/callback'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "appleWebCallbackPost", null);
+__decorate([
+    (0, common_1.Get)('apple/callback'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "appleWebCallbackGet", null);
 __decorate([
     (0, common_1.Get)('me'),
     __param(0, (0, common_1.Headers)('authorization')),

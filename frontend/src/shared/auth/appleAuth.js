@@ -1,10 +1,12 @@
-// Web Sign in with Apple via Apple's official JS SDK (AppleID.auth), popup flow.
-// Config comes from build-time env so it can be pasted into the web app's .env:
-//   VITE_APPLE_SERVICES_ID   — the Services ID you create in the Apple portal
-//   VITE_APPLE_REDIRECT_URI  — the HTTPS return URL registered on that Services ID
-// The button stays hidden until VITE_APPLE_SERVICES_ID is set (same gating as
-// the Google button). On success we hand the id_token to /auth/apple, which
-// verifies it server-side.
+// Web Sign in with Apple via Apple's official JS SDK (AppleID.auth), using the
+// REDIRECT flow (same page, like Google) — NOT a popup. Apple form-POSTs the
+// result to the backend callback (VITE_APPLE_REDIRECT_URI), which sets the
+// session and redirects to the dashboard. Config comes from build-time env so
+// it can be pasted into the web app's .env:
+//   VITE_APPLE_SERVICES_ID   — the Services ID created in the Apple portal
+//   VITE_APPLE_REDIRECT_URI  — the backend callback, e.g.
+//                              https://xyndrome.lk/api/auth/apple/callback
+// The button stays hidden until VITE_APPLE_SERVICES_ID is set.
 
 const APPLE_SERVICES_ID = String(import.meta.env.VITE_APPLE_SERVICES_ID || '').trim();
 const APPLE_REDIRECT_URI = String(import.meta.env.VITE_APPLE_REDIRECT_URI || '').trim();
@@ -17,7 +19,7 @@ export function appleSignInConfigured() {
   return Boolean(APPLE_SERVICES_ID);
 }
 
-/** The user closed the Apple popup — treat as a silent cancel, not an error. */
+/** The user cancelled at Apple — treat as a silent cancel, not an error. */
 export function isAppleCancellation(err) {
   const code = String(err?.error || err?.code || '').toLowerCase();
   return code === 'popup_closed_by_user' || code === 'user_cancelled_authorize' || code === 'user_trigger_new_signin_flow';
@@ -45,32 +47,32 @@ function loadAppleScript() {
   });
 }
 
+function randomState() {
+  return (window.crypto?.randomUUID?.() || `${Date.now()}.${Math.random().toString(36).slice(2)}`);
+}
+
 /**
- * Runs the Apple popup sign-in. Returns { identityToken, fullName? } — fullName
- * is present only on the user's FIRST Apple sign-in (Apple never resends it).
- * Throws on failure; check isAppleCancellation() to ignore user cancels.
+ * Starts the Apple redirect sign-in (same-page, like Google). Sets a short-lived
+ * CSRF state cookie that the backend callback validates, then navigates the whole
+ * page to Apple. Does not resolve normally — the browser leaves this page.
  */
-export async function signInWithApplePopup() {
+export async function startAppleRedirect() {
   if (!APPLE_SERVICES_ID) throw new Error('Apple sign-in is not configured.');
   await loadAppleScript();
 
-  const redirectURI = APPLE_REDIRECT_URI ||
-    (typeof window !== 'undefined' ? `${window.location.origin}/auth/login` : '');
+  // SameSite=None so the cookie survives Apple's cross-site POST back to us.
+  const state = randomState();
+  document.cookie = `xy_apple_state=${state}; path=/; max-age=600; SameSite=None; Secure`;
 
   window.AppleID.auth.init({
     clientId: APPLE_SERVICES_ID,
     scope: 'name email',
-    redirectURI,
-    usePopup: true,
+    redirectURI: APPLE_REDIRECT_URI,
+    usePopup: false,
+    state,
   });
 
-  const res = await window.AppleID.auth.signIn();
-  const idToken = res?.authorization?.id_token;
-  if (!idToken) throw new Error('Apple sign-in did not return a token.');
-
-  let fullName = '';
-  if (res.user?.name) {
-    fullName = [res.user.name.firstName, res.user.name.lastName].filter(Boolean).join(' ').trim();
-  }
-  return { identityToken: idToken, fullName: fullName || undefined };
+  // With usePopup:false this performs a full-page redirect to Apple; the promise
+  // typically never resolves because we navigate away.
+  await window.AppleID.auth.signIn();
 }

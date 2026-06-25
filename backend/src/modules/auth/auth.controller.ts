@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, HttpException, InternalServerErrorException, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpException, InternalServerErrorException, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { SESSION_TTL_DAYS } from './auth-token.util';
@@ -137,6 +137,61 @@ export class AuthController {
     }
     const { sessionToken: _sessionToken, ...safeResult } = result;
     return safeResult;
+  }
+
+  // Web "Sign in with Apple" (same-page redirect flow, like Google). Apple
+  // form-POSTs the result HERE (not back to the SPA), so we verify it, set the
+  // session cookie, and 302 the browser to the dashboard. A short-lived state
+  // cookie (SameSite=None so it survives Apple's cross-site POST) guards CSRF.
+  @Post('apple/callback')
+  appleWebCallbackPost(@Body() body: any, @Req() request: any, @Res() response: any) {
+    return this.handleAppleWebCallback(body || {}, request, response);
+  }
+
+  @Get('apple/callback')
+  appleWebCallbackGet(@Query() query: any, @Req() request: any, @Res() response: any) {
+    return this.handleAppleWebCallback(query || {}, request, response);
+  }
+
+  private async handleAppleWebCallback(payload: any, request: any, response: any) {
+    const successUrl = String(this.configService.get<string>('APPLE_WEB_SUCCESS_URL') || 'https://xyndrome.lk/lms/frontend/dist/dashboard');
+    const failureUrl = String(this.configService.get<string>('APPLE_WEB_FAILURE_URL') || 'https://xyndrome.lk/lms/frontend/dist/auth/login?apple=failed');
+    try {
+      // CSRF: the state we set before redirecting must echo back from Apple.
+      const expectedState = this.readCookie(request, 'xy_apple_state');
+      response.clearCookie('xy_apple_state', { path: '/' });
+      if (payload.error || !payload.state || !expectedState || payload.state !== expectedState) {
+        return response.redirect(302, failureUrl);
+      }
+
+      // The `user` blob (first sign-in only) carries the name as JSON.
+      let fullName = '';
+      if (payload.user) {
+        try {
+          const parsed = typeof payload.user === 'string' ? JSON.parse(payload.user) : payload.user;
+          fullName = [parsed?.name?.firstName, parsed?.name?.lastName].filter(Boolean).join(' ').trim();
+        } catch {
+          // Malformed user blob — fall back to an email-derived name server-side.
+        }
+      }
+
+      const result = await this.authService.loginWithApple({
+        identityToken: String(payload.id_token || ''),
+        fullName: fullName || undefined,
+      } as AppleLoginDto);
+      this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
+      return response.redirect(302, successUrl);
+    } catch {
+      return response.redirect(302, failureUrl);
+    }
+  }
+
+  private readCookie(request: any, name: string) {
+    return String(request?.headers?.cookie || '')
+      .split(';')
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${name}=`))
+      ?.slice(name.length + 1) || '';
   }
 
   @Get('me')
