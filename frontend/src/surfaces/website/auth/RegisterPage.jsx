@@ -189,7 +189,7 @@ export function RegisterPage() {
             ariaDescribedBy={feedbackId}
           />
           <label className={ui.checkboxRow}>
-            <input className="shrink-0" name="acceptedTerms" type="checkbox" defaultChecked />
+            <input className="shrink-0" name="acceptedTerms" type="checkbox" required />
             <span>
               I agree to the <Link to="/terms" className={auth.inlineLink}>terms and conditions</Link> and <Link to="/privacy-policy" className={auth.inlineLink}>privacy policy</Link>, and understand some features may be locked until I upgrade.
               {' '}I also understand the <Link to="/refund-policy" className={auth.inlineLink}>refund policy</Link> and <Link to="/cookie-policy" className={auth.inlineLink}>cookie policy</Link>.
