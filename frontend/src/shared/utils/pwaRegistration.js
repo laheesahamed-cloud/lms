@@ -58,6 +58,15 @@ export function installPwaRegistration() {
 
   registrationListenerInstalled = true;
   runOnWindowLoad(() => {
+    // Whether a service worker was ALREADY controlling this page at load. On a
+    // first visit it is null: the SW we register below installs, activates and
+    // clients.claim()s the page, firing a one-off `controllerchange`. That first
+    // claim must NOT reload — the page already holds the latest network assets,
+    // and reloading on it is exactly what makes the landing "open, reload, then
+    // open again" (replaying the boot screen) on first visit. Only an UPDATE — a
+    // new SW replacing an existing controller — warrants a reload for new code.
+    const hadControllerAtStart = !!navigator.serviceWorker.controller;
+
     const registerWhenSafe = () => {
       if (serviceWorkerRegistrationStarted || isAuthRoute()) {
         return;
@@ -72,6 +81,7 @@ export function installPwaRegistration() {
     };
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadControllerAtStart) return;
       if (wasServiceWorkerReloadRecent()) return;
       if (isAuthRoute() || hasRecentAuthSuccess()) return;
       markServiceWorkerReload();

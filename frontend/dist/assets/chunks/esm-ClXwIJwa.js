@@ -1,1 +1,0 @@
-import{C as e}from"./vendor-DeMWpId1.js";export{e as App};

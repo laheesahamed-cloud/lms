@@ -30,8 +30,12 @@ export function BootLoader({ onFinished }) {
       return undefined;
     }
 
+    // Claim the once-per-session slot the moment the loader starts, not when it
+    // finishes — otherwise a reload or client-side nav during the ~3.4s sequence
+    // leaves the flag unset and the boot screen replays.
+    markPlayed();
+
     if (reduced) {
-      markPlayed();
       const t = setTimeout(() => { setShow(false); onFinished?.(); }, 500);
       return () => clearTimeout(t);
     }
@@ -47,7 +51,7 @@ export function BootLoader({ onFinished }) {
       };
       raf = requestAnimationFrame(tick);
     }, 1100);
-    const t3 = setTimeout(() => { markPlayed(); setShow(false); onFinished?.(); }, 1100 + PROGRESS_MS + 550);
+    const t3 = setTimeout(() => { setShow(false); onFinished?.(); }, 1100 + PROGRESS_MS + 550);
 
     return () => {
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); cancelAnimationFrame(raf);
