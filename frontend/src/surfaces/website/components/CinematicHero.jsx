@@ -161,6 +161,31 @@ const INJECTED_STYLES = `
       .cinhero .cin-aurora span, .cinhero .cin-med, .cinhero .cin-ecg path { animation: none !important; }
       .cinhero .cin-ecg path { stroke-dashoffset: 0; }
   }
+
+  /* Touch / mobile (Android in particular): the desktop hero stacks several
+     effects that each force the browser into an offscreen blend/blur buffer —
+     a full-screen feTurbulence film grain blended with mix-blend-mode:overlay,
+     three blurred mix-blend-mode:screen aurora blobs, a backdrop-filter on the
+     glass badges, and per-icon drop-shadows. Compositing those over the scrubbed
+     pin animation is what makes the page stutter on phones. Strip them down to
+     cheap, GPU-friendly equivalents on coarse-pointer devices; pointer devices
+     keep the full treatment. */
+  @media (hover: none) and (pointer: coarse) {
+      .cinhero .film-grain { display: none; }
+      .cinhero .cin-aurora { filter: none; }
+      .cinhero .cin-aurora span { mix-blend-mode: normal; will-change: auto; }
+      .cinhero .cin-aurora .a3 { display: none; }
+      .cinhero .card-sheen { display: none; }
+      .cinhero .cin-med { filter: brightness(0) invert(1); }
+      .cinhero .floating-ui-badge {
+          backdrop-filter: none; -webkit-backdrop-filter: none;
+          background: linear-gradient(135deg, rgba(38,32,66,0.94) 0%, rgba(20,16,38,0.94) 100%);
+      }
+      .cinhero .premium-depth-card {
+          box-shadow: 0 24px 60px -22px rgba(0,0,0,0.85), inset 0 1px 2px rgba(255,255,255,0.12);
+      }
+      .cinhero .browser-mock { box-shadow: 0 20px 44px -16px rgba(0,0,0,0.8); }
+  }
 `;
 
 function PlayIcon() {
@@ -286,12 +311,18 @@ export function CinematicHero({
       }
 
       const isMobile = window.innerWidth < 768;
+      // Touch devices (Android especially) choke when the scrubbed pin animates
+      // CSS `filter: blur()` every frame — it forces a full GPU re-rasterize of
+      // large layers per scroll tick. Keep the opacity/scale moves, drop the
+      // per-frame blur there. Pointer devices keep the full cinematic blur.
+      const isTouch = window.matchMedia?.('(hover: none), (pointer: coarse)').matches;
+      const scrubBlur = (px) => (isTouch ? {} : { filter: `blur(${px})` });
       gsap.set('.text-track', { autoAlpha: 0, y: 60, scale: 0.85, filter: 'blur(20px)', rotationX: -20 });
       gsap.set('.text-days', { autoAlpha: 1, clipPath: 'inset(0 100% 0 0)' });
       gsap.set('.hero-accents', { autoAlpha: 0, y: 24 });
       gsap.set('.main-card', { y: window.innerHeight + 200, autoAlpha: 1 });
       gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 0 });
-      gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 0.8, filter: 'blur(30px)' });
+      gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 0.8, ...scrubBlur('30px') });
 
       gsap.timeline({ delay: 0.3 })
         .to('.text-track', { duration: 1.8, autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', rotationX: 0, ease: 'expo.out' })
@@ -301,7 +332,7 @@ export function CinematicHero({
       gsap.timeline({
         scrollTrigger: { trigger: root, start: 'top top', end: '+=8200', pin: true, scrub: 1.25, anticipatePin: 1 },
       })
-        .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { scale: 1.15, filter: 'blur(20px)', opacity: 0.12, ease: 'power2.inOut', duration: 2.4 }, 0)
+        .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { scale: 1.15, ...scrubBlur('20px'), opacity: 0.12, ease: 'power2.inOut', duration: 2.4 }, 0)
         .to('.main-card', { y: 0, ease: 'power3.inOut', duration: 2.4 }, 0)
         .to('.main-card', { width: '100%', height: '100%', borderRadius: '0px', ease: 'power3.inOut', duration: 1.9 })
         .fromTo('.mockup-scroll-wrapper',
@@ -318,7 +349,7 @@ export function CinematicHero({
         .to(['.mockup-scroll-wrapper', '.floating-badge', '.card-left-text', '.card-right-text'], { scale: 0.9, y: -40, z: -200, autoAlpha: 0, ease: 'power2.inOut', duration: 1.9, stagger: 0.08 })
         .set('.cta-wrapper', { autoAlpha: 1 })
         .to('.main-card', { width: isMobile ? '92vw' : '85vw', height: isMobile ? '92vh' : '85vh', borderRadius: isMobile ? '32px' : '40px', ease: 'expo.inOut', duration: 2.2 }, 'pullback')
-        .to('.cta-wrapper', { scale: 1, filter: 'blur(0px)', ease: 'expo.out', duration: 1.5 }, 'pullback+=0.15')
+        .to('.cta-wrapper', { scale: 1, ...scrubBlur('0px'), ease: 'expo.out', duration: 1.5 }, 'pullback+=0.15')
         .to({}, { duration: 2.5 })
         .to('.main-card', { y: -window.innerHeight - 300, ease: 'power2.inOut', duration: 2.3 })
         .to('.cta-wrapper', { y: -80, autoAlpha: 0, ease: 'power2.inOut', duration: 2.0 }, '<');

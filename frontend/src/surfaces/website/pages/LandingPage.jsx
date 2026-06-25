@@ -92,9 +92,20 @@ export function LandingPage() {
       }
       return '';
     };
+    // `sampleTopColor` does an elementFromPoint×3 + a getComputedStyle tree-walk,
+    // which forces a synchronous style/layout recalc. Running it every scroll
+    // frame is the single biggest scroll-jank source on Android, and the
+    // notch/overscroll colour does not need per-frame precision — so throttle to
+    // at most once per SAMPLE_MS, with a trailing sample so the resting colour is
+    // always correct.
+    const SAMPLE_MS = 120;
+    const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
     let raf = 0;
+    let trailTimer = 0;
+    let lastRun = 0;
     const run = () => {
       raf = 0;
+      lastRun = nowMs();
       const color = sampleTopColor();
       if (color) {
         meta?.setAttribute('content', color);
@@ -103,14 +114,23 @@ export function LandingPage() {
         setTopIsDark((cur) => (cur === dark ? cur : dark));
       }
     };
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(run); };
+    const schedule = () => {
+      if (raf || trailTimer) return;
+      const elapsed = nowMs() - lastRun;
+      if (elapsed >= SAMPLE_MS) {
+        raf = requestAnimationFrame(run);
+      } else {
+        trailTimer = setTimeout(() => { trailTimer = 0; raf = requestAnimationFrame(run); }, SAMPLE_MS - elapsed);
+      }
+    };
     run();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll, { passive: true });
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
     return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
       if (raf) cancelAnimationFrame(raf);
+      if (trailTimer) clearTimeout(trailTimer);
       if (meta && prevTheme) meta.setAttribute('content', prevTheme);
       document.body.style.backgroundColor = prevBodyBg;
       rootEl.style.scrollBehavior = prevScrollBehavior;
