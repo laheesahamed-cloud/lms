@@ -5,6 +5,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
+import '../../widgets/skeletons.dart';
 import 'note_models.dart';
 import 'notes_repository.dart';
 
@@ -18,7 +19,7 @@ class AiNotesListPage extends ConsumerWidget {
     final notesAsync = ref.watch(notesListProvider);
     return SafeArea(
       child: notesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const NoteListSkeleton(),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),

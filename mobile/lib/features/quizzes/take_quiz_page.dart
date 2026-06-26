@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/quiz_loading_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -206,7 +207,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       backgroundColor: c.page,
       body: SafeArea(
         child: quizAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const QuizLoadingView(),
           error: (e, _) => _errorView(c, e),
           data: (quiz) {
             if (quiz.questions.isEmpty) return _empty(c);
@@ -221,7 +222,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
                 }
               });
             }
-            if (!_started) return const Center(child: CircularProgressIndicator());
+            if (!_started) return const QuizLoadingView();
             final i = _index.clamp(0, quiz.questions.length - 1);
             final q = quiz.questions[i];
             final revealed = _revealed.contains(q.id);
@@ -263,7 +264,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       backgroundColor: c.page,
       body: SafeArea(
         child: examAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const QuizLoadingView(),
           error: (e, _) => _errorView(c, e),
           data: (load) {
             // Already submitted on the server → jump straight to the result.
@@ -289,7 +290,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
                 }
               });
             }
-            if (!_started) return const Center(child: CircularProgressIndicator());
+            if (!_started) return const QuizLoadingView();
             final i = _index.clamp(0, load.questions.length - 1);
             final q = load.questions[i];
             return Stack(
@@ -322,8 +323,8 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
                 if (_submitting)
                   Positioned.fill(
                     child: ColoredBox(
-                      color: Colors.black54,
-                      child: const Center(child: CircularProgressIndicator()),
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      child: const QuizLoadingView(label: 'Submitting your answers…'),
                     ),
                   ),
               ],

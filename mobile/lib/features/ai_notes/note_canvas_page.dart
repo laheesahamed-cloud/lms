@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/locked_view.dart';
+import '../../widgets/skeletons.dart';
 import '../bookmarks/bookmark_button.dart';
 import 'note_models.dart';
 import 'notes_repository.dart';
@@ -326,7 +327,7 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
             _toolStrip(c),
             Expanded(
               child: noteAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const NoteSkeleton(),
                 error: (e, _) => _error(c, e),
                 data: (note) => note.locked
                     ? LockedView(
