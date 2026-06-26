@@ -21,6 +21,7 @@ import {
   upsertTheoryRecap,
 } from '../../../../shared/api/theoryRecap.api.js';
 import { hasUnsafeFileNameCharacters } from '../../../../shared/utils/fileValidation.js';
+import { optimizeImageFile, IMAGE_OPTIMIZER_MAX_BYTES } from '../../../../shared/utils/imageOptimizer.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import {
   generateQuestionExplanation,
@@ -125,6 +126,7 @@ function buildDefaultForm() {
     questionText: '',
     keywordsText: '',
     explanation: '',
+    explanationImageUrl: '',
     status: 'active',
     options: buildOptions('sba'),
   };
@@ -145,6 +147,7 @@ function mapQuestionToForm(question) {
     questionText: question.questionText || '',
     keywordsText: question.keywordsText || '',
     explanation: question.explanation || '',
+    explanationImageUrl: question.explanationImageUrl || '',
     status: question.status || 'active',
     options: buildOptions(questionType, question.options || []),
   };
@@ -704,6 +707,31 @@ export function QuestionsPage() {
     }
   }
 
+  async function handleExplanationImageFile(file) {
+    if (!file) return;
+    if (!file.type?.startsWith('image/')) {
+      setError('Choose a PNG, JPG, WebP, or GIF image for the explanation.');
+      return;
+    }
+    try {
+      const image = await optimizeImageFile(file);
+      if (!image.src || image.size > IMAGE_OPTIMIZER_MAX_BYTES) {
+        setError('Could not reduce this image below 1 MB. Try a simpler JPG/WebP around 1200 x 800 px.');
+        return;
+      }
+      setForm((current) => ({ ...current, explanationImageUrl: image.src }));
+      showToast(image.optimized
+        ? `Explanation image compressed to ${Math.max(1, Math.round(image.size / 1024))} KB.`
+        : `Explanation image added (${Math.max(1, Math.round(image.size / 1024))} KB).`);
+    } catch {
+      setError('Could not process that image. Try a PNG, JPG, WebP, or GIF.');
+    }
+  }
+
+  function handleRemoveExplanationImage() {
+    setForm((current) => ({ ...current, explanationImageUrl: '' }));
+  }
+
   async function handleSaveQuestion(event) {
     event.preventDefault();
     setSaving(true);
@@ -722,6 +750,7 @@ export function QuestionsPage() {
         questionText: form.questionText,
         keywordsText: form.keywordsText,
         explanation: form.explanation,
+        explanationImageUrl: form.explanationImageUrl || null,
         status: form.status,
         options: form.options,
       };
@@ -1404,6 +1433,8 @@ export function QuestionsPage() {
           onGenerateExplanation={handleGenerateExplanation}
           onGenerateWhyIncorrect={handleGenerateWhyIncorrect}
           onGenerateLearningContent={handleGenerateLearningContent}
+          onExplanationImageFile={handleExplanationImageFile}
+          onRemoveExplanationImage={handleRemoveExplanationImage}
           explanationGenerating={explanationGenerating}
           whyGenerating={whyGenerating}
           learningContentGenerating={learningContentGenerating}
@@ -1827,6 +1858,8 @@ function QuestionEditModal({
   onGenerateExplanation,
   onGenerateWhyIncorrect,
   onGenerateLearningContent,
+  onExplanationImageFile,
+  onRemoveExplanationImage,
   explanationGenerating,
   whyGenerating,
   learningContentGenerating,
@@ -1987,6 +2020,37 @@ function QuestionEditModal({
             Main explanation
             <textarea className={ui.textarea} name="explanation" rows="3" value={form.explanation} onChange={onFormChange} />
           </label>
+
+          <div className={ui.formLabel}>
+            Explanation image (optional)
+            <div className="grid gap-2.5">
+              {form.explanationImageUrl ? (
+                <div className="relative overflow-hidden rounded-xl border border-line-soft bg-surface-2">
+                  <img src={form.explanationImageUrl} alt="Explanation" className="block max-h-64 w-full object-contain" />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 rounded-lg bg-black/55 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur"
+                    onClick={onRemoveExplanationImage}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : null}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="text-xs text-ink-soft file:mr-3 file:rounded-lg file:border-0 file:bg-brand-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-brand-primary hover:file:bg-brand-primary/15"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) onExplanationImageFile(file);
+                  event.target.value = '';
+                }}
+              />
+              <span className="text-[11px] leading-snug text-ink-soft">
+                Auto-compressed to WebP under ~240 KB. Shown beside the answer explanation in review.
+              </span>
+            </div>
+          </div>
 
           <div className="grid items-center gap-3 rounded-2xl border border-brand-primary/20 bg-[linear-gradient(135deg,rgba(37,99,235,0.05),transparent_54%),var(--surface-2)] p-3.5 min-[721px]:grid-cols-[minmax(0,1fr)_auto]">
             <div>

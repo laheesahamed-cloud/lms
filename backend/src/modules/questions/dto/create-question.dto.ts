@@ -74,6 +74,10 @@ export class CreateQuestionDto {
   @IsString()
   explanation?: string;
 
+  @IsOptional()
+  @IsString()
+  explanationImageUrl?: string | null;
+
   @IsString()
   @IsIn(['active', 'inactive'])
   status!: 'active' | 'inactive';

@@ -61,6 +61,7 @@ type QuestionRow = RowDataPacket & {
   question_type: 'sba' | 'true_false';
   question_text: string;
   explanation: string | null;
+  explanation_image_url?: string | null;
   status: 'active' | 'inactive';
   updated_at?: string | Date | null;
 };
@@ -899,6 +900,7 @@ export class QuizAttemptsService {
             q.question_type,
             q.question_text,
             q.explanation,
+            q.explanation_image_url,
             q.status,
             q.updated_at
           FROM questions q
@@ -923,6 +925,7 @@ export class QuizAttemptsService {
             q.question_type,
             q.question_text,
             q.explanation,
+            q.explanation_image_url,
             q.status,
             q.updated_at
           FROM questions q
@@ -1818,6 +1821,7 @@ export class QuizAttemptsService {
       questionType: question.question_type,
       questionText: question.question_text,
       explanation: question.explanation || '',
+      explanationImageUrl: question.explanation_image_url || '',
       contentTrace: {
         source: question.contentSourceLabel,
         sourceId: question.id,

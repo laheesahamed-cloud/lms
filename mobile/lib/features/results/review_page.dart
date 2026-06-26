@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/content_image.dart';
 import '../../widgets/glass_card.dart';
 import '../quizzes/quizzes_repository.dart';
 
@@ -141,6 +142,10 @@ class _ReviewCard extends StatelessWidget {
                 wrongChosen: item.selectedOptionIds.contains(o.id) &&
                     !q.correctOptionIds.contains(o.id),
               ),
+          if (q.explanationImageUrl.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ContentImage(q.explanationImageUrl),
+          ],
           if (q.explanation.trim().isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(

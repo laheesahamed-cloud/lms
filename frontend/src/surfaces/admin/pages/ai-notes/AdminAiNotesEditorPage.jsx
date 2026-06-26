@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NoteCanvas } from '../../../app/student/ai-notes/NoteCanvas.jsx';
+import { optimizeImageFile, IMAGE_OPTIMIZER_MAX_BYTES } from '../../../../shared/utils/imageOptimizer.js';
 import {
   adminCreateLessonFlashcard,
   adminDeleteLessonFlashcard,
@@ -62,14 +63,8 @@ function getNoteDataSize(data) {
   return JSON.stringify(data).length;
 }
 
-const FLASHCARD_IMAGE_MAX_BYTES = 1024 * 1024;
-const FLASHCARD_IMAGE_TARGET_BYTES = 900 * 1024;
+const FLASHCARD_IMAGE_MAX_BYTES = IMAGE_OPTIMIZER_MAX_BYTES; // hard ceiling (backend enforces this too)
 const FLASHCARD_IMAGE_LIMIT = 3;
-
-function dataUrlByteLength(dataUrl) {
-  const base64 = String(dataUrl || '').split(',')[1] || '';
-  return Math.ceil((base64.length * 3) / 4);
-}
 
 function normalizeFlashcardImageUrls(card) {
   const rawItems = Array.isArray(card?.imageUrls) ? card.imageUrls : [card?.imageUrl];
@@ -79,71 +74,8 @@ function normalizeFlashcardImageUrls(card) {
   return Array.from(new Set(urls)).slice(0, FLASHCARD_IMAGE_LIMIT);
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Image read failed'));
-    reader.readAsDataURL(file);
-  });
-}
-
-function canvasToDataUrl(canvas, type, quality) {
-  const dataUrl = canvas.toDataURL(type, quality);
-  return type === 'image/webp' && !dataUrl.startsWith('data:image/webp')
-    ? canvas.toDataURL('image/jpeg', quality)
-    : dataUrl;
-}
-
-async function optimizeFlashcardImage(file) {
-  const original = await readFileAsDataUrl(file);
-  if (file.size <= FLASHCARD_IMAGE_MAX_BYTES && dataUrlByteLength(original) <= FLASHCARD_IMAGE_MAX_BYTES) {
-    return { src: original, optimized: false, size: file.size };
-  }
-
-  const url = URL.createObjectURL(file);
-  try {
-    const image = await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('Image load failed'));
-      img.src = url;
-    });
-
-    const attempts = [
-      [1400, 0.92],
-      [1400, 0.88],
-      [1200, 0.9],
-      [1200, 0.86],
-      [1000, 0.88],
-      [1000, 0.82],
-      [800, 0.84],
-    ];
-
-    let best = '';
-    for (const [maxWidth, quality] of attempts) {
-      let width = image.naturalWidth || image.width;
-      let height = image.naturalHeight || image.height;
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext('2d', { alpha: true }).drawImage(image, 0, 0, width, height);
-      const next = canvasToDataUrl(canvas, 'image/webp', quality);
-      if (!best || dataUrlByteLength(next) < dataUrlByteLength(best)) best = next;
-      if (dataUrlByteLength(next) <= FLASHCARD_IMAGE_TARGET_BYTES) {
-        return { src: next, optimized: true, size: dataUrlByteLength(next), width, height };
-      }
-    }
-
-    return { src: best, optimized: true, size: dataUrlByteLength(best) };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
+// Shrinks the picked image to WebP under ~240 KB before we store it inline.
+const optimizeFlashcardImage = (file) => optimizeImageFile(file);
 
 function flashcardStatusClass(status) {
   if (status === 'approved') return 'border-brand-success/28 bg-[var(--color-success-light)] text-brand-success';
@@ -647,8 +579,8 @@ export function AdminAiNotesEditorPage({
         return { ...card, imageUrl: imageUrls[0] || '', imageUrls, dirty: true };
       }));
       setFlashcardMessage(image.optimized
-        ? `Image optimized to ${Math.max(1, Math.round(image.size / 1024))} KB. Save the flashcard to keep it.`
-        : 'Image is already under 1 MB. Save the flashcard to keep it.');
+        ? `Image compressed to ${Math.max(1, Math.round(image.size / 1024))} KB. Save the flashcard to keep it.`
+        : `Image kept at ${Math.max(1, Math.round(image.size / 1024))} KB (already compact). Save the flashcard to keep it.`);
     } catch {
       setFlashcardMessage('Could not optimize that image. Try a PNG, JPG, WebP, or GIF under 1 MB.');
     }

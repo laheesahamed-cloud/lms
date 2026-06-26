@@ -208,6 +208,7 @@ class PracticeQuestion {
   final String type; // 'sba' | 'true_false'
   final String text;
   final String explanation;
+  final String explanationImageUrl;
   final List<QOption> options;
   final Set<int> correctOptionIds;
   final TheoryRecap? recap;
@@ -217,6 +218,7 @@ class PracticeQuestion {
     required this.type,
     required this.text,
     required this.explanation,
+    required this.explanationImageUrl,
     required this.options,
     required this.correctOptionIds,
     required this.recap,
@@ -243,6 +245,7 @@ class PracticeQuestion {
       type: _s(m['questionType'].toString().isEmpty ? 'sba' : m['questionType']),
       text: _s(m['questionText'] ?? m['text']),
       explanation: _s(m['explanation']),
+      explanationImageUrl: _s(m['explanationImageUrl']),
       options: options,
       correctOptionIds: correct,
       recap: TheoryRecap.fromJson(m['theoryRecap']),

@@ -69,6 +69,7 @@ let QuestionsService = class QuestionsService {
         q.question_text,
         q.keywords_text,
         q.explanation,
+        q.explanation_image_url,
         q.status,
         q.created_at,
         c.course_title,
@@ -308,6 +309,7 @@ let QuestionsService = class QuestionsService {
           q.question_text,
           q.keywords_text,
           q.explanation,
+          q.explanation_image_url,
           q.status,
           q.created_at,
           c.course_title,
@@ -632,8 +634,8 @@ let QuestionsService = class QuestionsService {
             const [result] = await connection.execute(`
           INSERT INTO questions (
             course_id, topic_id, subtopic_id, lesson_id, paper_id, subtopic, category, question_category, question_type,
-            question_text, keywords_text, explanation, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            question_text, keywords_text, explanation, explanation_image_url, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
                 createQuestionDto.courseId,
                 createQuestionDto.subjectId,
@@ -647,6 +649,7 @@ let QuestionsService = class QuestionsService {
                 createQuestionDto.questionText.trim(),
                 this.normalizeKeywords(createQuestionDto.keywordsText),
                 (createQuestionDto.explanation || '').trim(),
+                this.cleanExplanationImage(createQuestionDto.explanationImageUrl),
                 createQuestionDto.status,
             ]);
             await this.replaceOptions(connection, result.insertId, createQuestionDto.options, createQuestionDto.questionType);
@@ -686,6 +689,9 @@ let QuestionsService = class QuestionsService {
             questionText: updateQuestionDto.questionText ?? existing.questionText,
             keywordsText: updateQuestionDto.keywordsText ?? existing.keywordsText ?? '',
             explanation: updateQuestionDto.explanation ?? existing.explanation ?? '',
+            explanationImageUrl: updateQuestionDto.explanationImageUrl !== undefined
+                ? updateQuestionDto.explanationImageUrl
+                : existing.explanationImageUrl ?? null,
             status: updateQuestionDto.status ?? existing.status,
             options: updateQuestionDto.options ??
                 existing.options.map((option) => ({
@@ -719,6 +725,7 @@ let QuestionsService = class QuestionsService {
             question_text = ?,
             keywords_text = ?,
             explanation = ?,
+            explanation_image_url = ?,
             status = ?
           WHERE id = ?
         `, [
@@ -734,6 +741,7 @@ let QuestionsService = class QuestionsService {
                 merged.questionText.trim(),
                 this.normalizeKeywords(merged.keywordsText),
                 (merged.explanation || '').trim(),
+                this.cleanExplanationImage(merged.explanationImageUrl),
                 merged.status,
                 id,
             ]);
@@ -1023,6 +1031,7 @@ let QuestionsService = class QuestionsService {
             questionText: question.questionText,
             keywordsText: this.normalizeKeywords(question.keywordsText),
             explanation: question.explanation || '',
+            explanationImageUrl: question.explanationImageUrl || null,
             status: question.status,
             options: (question.options || []).map((option) => ({
                 optionLabel: option.optionLabel,
@@ -1045,6 +1054,7 @@ let QuestionsService = class QuestionsService {
             questionText: question.questionText,
             keywordsText: question.keywordsText || '',
             explanation: question.explanation || '',
+            explanationImageUrl: question.explanationImageUrl || null,
             status,
             options: question.options.map((option) => ({
                 optionLabel: option.optionLabel,
@@ -1109,6 +1119,7 @@ let QuestionsService = class QuestionsService {
           question_text = ?,
           keywords_text = ?,
           explanation = ?,
+          explanation_image_url = ?,
           status = ?
         WHERE id = ?
       `, [
@@ -1124,6 +1135,7 @@ let QuestionsService = class QuestionsService {
             question.questionText.trim(),
             this.normalizeKeywords(question.keywordsText),
             (question.explanation || '').trim(),
+            this.cleanExplanationImage(question.explanationImageUrl),
             question.status,
             id,
         ]);
@@ -1633,6 +1645,19 @@ let QuestionsService = class QuestionsService {
             await connection.execute('INSERT IGNORE INTO question_keyword_map (question_id, keyword_id) VALUES (?, ?)', [questionId, Number(keywordRows[0].id)]);
         }
     }
+    cleanExplanationImage(value) {
+        const raw = String(value ?? '').trim();
+        if (!raw)
+            return null;
+        if (raw.length > 1_500_000) {
+            throw new common_1.BadRequestException('Explanation image is too large. Use a compressed image under 1 MB.');
+        }
+        if (/^https?:\/\/\S+$/i.test(raw))
+            return raw;
+        if (/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(raw))
+            return raw.replace(/\s+/g, '');
+        throw new common_1.BadRequestException('Explanation image must be an http(s) image URL or a PNG/JPG/WebP/GIF image.');
+    }
     mapQuestionSummary(row) {
         const normalizedCategory = row.question_category === 'ai' || row.category === 'ai'
             ? 'ai'
@@ -1652,6 +1677,7 @@ let QuestionsService = class QuestionsService {
             questionText: row.question_text,
             keywordsText: row.keywords_text || '',
             explanation: row.explanation || '',
+            explanationImageUrl: row.explanation_image_url || '',
             status: row.status,
             createdAt: row.created_at || null,
             courseTitle: row.course_title || '',

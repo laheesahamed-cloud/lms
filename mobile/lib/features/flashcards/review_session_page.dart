@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
+import '../../widgets/content_image.dart';
 import 'flashcards_repository.dart';
 
 /// FSRS review session: front → reveal answer → grade (Again/Hard/Good/Easy),
@@ -284,17 +285,7 @@ class _ReviewSessionPageState extends ConsumerState<ReviewSessionPage>
                         color: c.inkStrong)),
               ]
             : [
-                if (qc.card.imageUrl.startsWith('http')) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(qc.card.imageUrl,
-                        fit: qc.card.imageFit == 'cover'
-                            ? BoxFit.cover
-                            : BoxFit.contain,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink()),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                _flashcardImage(qc.card),
                 Text(qc.card.question,
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -303,6 +294,19 @@ class _ReviewSessionPageState extends ConsumerState<ReviewSessionPage>
                         fontWeight: FontWeight.w700,
                         color: c.inkStrong)),
               ],
+      ),
+    );
+  }
+
+  // Flashcard images are stored as http(s) URLs or base64 data: URIs; ContentImage
+  // handles both (and downsamples on decode to cap memory).
+  Widget _flashcardImage(FlashCard card) {
+    if (card.imageUrl.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: ContentImage(
+        card.imageUrl,
+        fit: card.imageFit == 'cover' ? BoxFit.cover : BoxFit.contain,
       ),
     );
   }

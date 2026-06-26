@@ -23,7 +23,7 @@ export declare class TheoryRecapService {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -45,7 +45,7 @@ export declare class TheoryRecapService {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;
@@ -67,7 +67,7 @@ export declare class TheoryRecapService {
         keyPoints: string[];
         mnemonic: string;
         generatedBy: "ai" | "manual";
-        reviewedStatus: "approved" | "rejected" | "pending";
+        reviewedStatus: "pending" | "approved" | "rejected";
         createdAt: string;
         updatedAt: string;
     } | null>;

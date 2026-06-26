@@ -1,1 +1,0 @@
-import{Ui as e}from"./app-shared-CupjN1VB.js";/* empty css                        */import{PanelLayout as t}from"./PanelLayout-CbBcpcIu.js";var n=e();function r(){return(0,n.jsx)(t,{})}export{r as StudentPanelLayout};

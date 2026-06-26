@@ -54,7 +54,7 @@ export declare class AiNotesService {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "in_progress" | "not_started" | "completed";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -82,7 +82,7 @@ export declare class AiNotesService {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "in_progress" | "not_started" | "completed";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -151,7 +151,7 @@ export declare class AiNotesService {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -229,7 +229,7 @@ export declare class AiNotesService {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "in_progress" | "not_started" | "completed";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -259,7 +259,7 @@ export declare class AiNotesService {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "in_progress" | "not_started" | "completed";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -289,7 +289,7 @@ export declare class AiNotesService {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "in_progress" | "not_started" | "completed";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;

@@ -287,6 +287,15 @@ function getQuestionExplanationText(question) {
   ]) || '');
 }
 
+function getQuestionExplanationImage(question) {
+  return String(firstNonEmptyValue([
+    question?.explanationImageUrl,
+    question?.explanation_image_url,
+    question?.explanationImage,
+    question?.explanation_image,
+  ]) || '').trim();
+}
+
 function getQuestionRecapPayload(question) {
   const direct = firstNonEmptyValue([
     question?.theoryRecap,
@@ -591,6 +600,8 @@ const quizReviewExplanationHeaderClass =
 const quizReviewExplanationGridClass = 'grid grid-cols-1 gap-3.5';
 const quizReviewExplanationCopyClass =
   'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15.5px] [&_p]:font-normal [&_p]:leading-[1.72] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[15.5px] max-[640px]:[&_p]:leading-[1.68]';
+const quizReviewExplanationImageClass =
+  'overflow-hidden rounded-[14px] border border-[color-mix(in_srgb,var(--color-primary)_14%,var(--line-soft))] bg-surface-1 [&_img]:block [&_img]:max-h-[420px] [&_img]:w-full [&_img]:object-contain';
 const quizReviewIncorrectListClass =
   'overflow-hidden rounded-[14px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-2))]';
 const quizReviewIncorrectItemClass =
@@ -1398,6 +1409,7 @@ function hasQuestionAnswerPayload(question) {
 function hasQuestionLearningDetailPayload(question) {
   return Boolean(
     getQuestionExplanationText(question).trim() ||
+    getQuestionExplanationImage(question) ||
     getIncorrectOptionReasons(question).length ||
     hasQuickTheoryRecapContent(normalizeQuickTheoryRecap(getQuestionRecapPayload(question)))
   );
@@ -1448,6 +1460,7 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
   const answerKeyItems = getAnswerKeyItems(currentQuestion);
   const incorrectReasons = getIncorrectOptionReasons(currentQuestion);
   const explanationBlocks = formatPrimaryExplanationBlocks(getQuestionExplanationText(currentQuestion), incorrectReasons.length > 0);
+  const explanationImage = getQuestionExplanationImage(currentQuestion);
   const hasStudySupport = showStudySupport && hasQuickTheoryRecapContent(normalizeQuickTheoryRecap(getQuestionRecapPayload(currentQuestion)));
   const explanationTitle = explanationBlocks.length
     ? 'Explanation'
@@ -1456,7 +1469,7 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
       : 'Explanation';
 
   if (!currentQuestionRevealed) return null;
-  if (!answerKeyItems.length && !explanationBlocks.length && !incorrectReasons.length && !hasStudySupport) return null;
+  if (!answerKeyItems.length && !explanationBlocks.length && !explanationImage && !incorrectReasons.length && !hasStudySupport) return null;
 
   return (
     <div className={cx(practiceLearningSupportClass, className)}>
@@ -1481,17 +1494,24 @@ function PracticeInlineLearningSupport({ currentQuestion, currentQuestionReveale
         </section>
       ) : null}
 
-      {explanationBlocks.length ? (
+      {explanationBlocks.length || explanationImage ? (
         <section className={quizReviewExplanationClass} aria-label="Answer explanation">
           <div className={quizReviewExplanationHeaderClass}>
             <h3>Explanation</h3>
           </div>
           <div className={quizReviewExplanationGridClass}>
-            <div className={quizReviewExplanationCopyClass}>
-              {explanationBlocks.map((part, index) => (
-                <MedicalText as="p" key={`${index}-${part.slice(0, 24)}`} text={part} />
-              ))}
-            </div>
+            {explanationImage ? (
+              <div className={quizReviewExplanationImageClass}>
+                <img src={explanationImage} alt="Explanation figure" loading="lazy" />
+              </div>
+            ) : null}
+            {explanationBlocks.length ? (
+              <div className={quizReviewExplanationCopyClass}>
+                {explanationBlocks.map((part, index) => (
+                  <MedicalText as="p" key={`${index}-${part.slice(0, 24)}`} text={part} />
+                ))}
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}

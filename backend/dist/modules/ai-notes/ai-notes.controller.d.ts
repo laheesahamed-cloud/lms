@@ -62,7 +62,7 @@ export declare class AiNotesController {
         title: string;
         rawText: string | null;
         noteData: unknown;
-        engineKey: "gemini" | "openai";
+        engineKey: "openai" | "gemini";
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
@@ -74,7 +74,7 @@ export declare class AiNotesController {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "in_progress" | "not_started" | "completed";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -95,9 +95,9 @@ export declare class AiNotesController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "approved" | "rejected" | "draft";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -112,9 +112,9 @@ export declare class AiNotesController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "approved" | "rejected" | "draft";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -123,7 +123,7 @@ export declare class AiNotesController {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -137,9 +137,9 @@ export declare class AiNotesController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "approved" | "rejected" | "draft";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
-            generatedBy: "manual" | "ai";
+            generatedBy: "ai" | "manual";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;
@@ -155,9 +155,9 @@ export declare class AiNotesController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "approved" | "rejected" | "draft";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -183,7 +183,7 @@ export declare class AiNotesController {
         title: string;
         rawText: string | null;
         noteData: unknown;
-        engineKey: "gemini" | "openai";
+        engineKey: "openai" | "gemini";
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
@@ -195,7 +195,7 @@ export declare class AiNotesController {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "in_progress" | "not_started" | "completed";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -219,7 +219,7 @@ export declare class AiNotesController {
         id: number;
         title: string;
         rawText: string | null;
-        engineKey: "gemini" | "openai";
+        engineKey: "openai" | "gemini";
         courseId: number | null;
         topicId: number | null;
         subtopicId: number | null;
@@ -231,7 +231,7 @@ export declare class AiNotesController {
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
-        lessonProgressStatus: "in_progress" | "not_started" | "completed";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -250,9 +250,9 @@ export declare class AiNotesController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "approved" | "rejected" | "draft";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
-            generatedBy: "manual" | "ai";
+            generatedBy: "ai" | "manual";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;

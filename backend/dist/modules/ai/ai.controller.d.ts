@@ -9,11 +9,11 @@ export declare class AiController {
     generateQuiz(dto: GenerateAiQuizDto, engine: string, includeExplanations?: string, includeWhyIncorrect?: string): Promise<{
         ok: boolean;
         experimental: boolean;
-        source: "gemini" | "openai" | "claude" | "openrouter";
+        source: "openai" | "gemini" | "claude" | "openrouter";
         generatedAt: string;
         provider: {
             id: number | null;
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
             source: "settings" | "env";
@@ -23,9 +23,9 @@ export declare class AiController {
             subject: string;
             topic: string;
             lesson: string;
-            category: "ai" | "past_paper" | "mock";
+            category: "past_paper" | "mock" | "ai";
             questionType: "sba" | "true_false";
-            difficulty: "medium" | "easy" | "hard";
+            difficulty: "easy" | "medium" | "hard";
             numberOfQuestions: number;
             instruction: string;
         };
@@ -37,8 +37,8 @@ export declare class AiController {
             subject: string;
             topic: string;
             lesson: string;
-            category: "ai" | "past_paper" | "mock";
-            difficulty: "medium" | "easy" | "hard";
+            category: "past_paper" | "mock" | "ai";
+            difficulty: "easy" | "medium" | "hard";
             explanation: string;
             question_text: string;
         } | {
@@ -51,8 +51,8 @@ export declare class AiController {
             subject: string;
             topic: string;
             lesson: string;
-            category: "ai" | "past_paper" | "mock";
-            difficulty: "medium" | "easy" | "hard";
+            category: "past_paper" | "mock" | "ai";
+            difficulty: "easy" | "medium" | "hard";
             explanation: string;
             question_text: string;
         })[];
@@ -60,11 +60,11 @@ export declare class AiController {
     beautifyLesson(dto: BeautifyLessonDto): Promise<{
         ok: boolean;
         experimental: boolean;
-        source: "gemini" | "openai" | "claude" | "openrouter";
+        source: "openai" | "gemini" | "claude" | "openrouter";
         generatedAt: string;
         provider: {
             id: number | null;
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
             source: "settings" | "env";
@@ -75,13 +75,13 @@ export declare class AiController {
     }>;
     generateWhyIncorrect(dto: GenerateWhyIncorrectDto, questionType?: 'sba' | 'true_false'): Promise<{
         ok: boolean;
-        source: "gemini" | "openai" | "claude" | "openrouter";
+        source: "openai" | "gemini" | "claude" | "openrouter";
         generatedAt: string;
         items: any;
     }>;
     generateExplanation(dto: GenerateExplanationDto): Promise<{
         ok: boolean;
-        source: "gemini" | "openai" | "claude" | "openrouter";
+        source: "openai" | "gemini" | "claude" | "openrouter";
         generatedAt: string;
         explanation: string;
     }>;

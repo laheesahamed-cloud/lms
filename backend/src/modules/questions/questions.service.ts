@@ -22,6 +22,7 @@ type QuestionRow = RowDataPacket & {
   question_text: string;
   keywords_text: string | null;
   explanation: string | null;
+  explanation_image_url?: string | null;
   status: 'active' | 'inactive';
   created_at?: string | null;
   course_title?: string | null;
@@ -140,6 +141,7 @@ export class QuestionsService {
         q.question_text,
         q.keywords_text,
         q.explanation,
+        q.explanation_image_url,
         q.status,
         q.created_at,
         c.course_title,
@@ -424,6 +426,7 @@ export class QuestionsService {
           q.question_text,
           q.keywords_text,
           q.explanation,
+          q.explanation_image_url,
           q.status,
           q.created_at,
           c.course_title,
@@ -810,8 +813,8 @@ export class QuestionsService {
         `
           INSERT INTO questions (
             course_id, topic_id, subtopic_id, lesson_id, paper_id, subtopic, category, question_category, question_type,
-            question_text, keywords_text, explanation, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            question_text, keywords_text, explanation, explanation_image_url, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           createQuestionDto.courseId,
@@ -826,6 +829,7 @@ export class QuestionsService {
           createQuestionDto.questionText.trim(),
           this.normalizeKeywords(createQuestionDto.keywordsText),
           (createQuestionDto.explanation || '').trim(),
+          this.cleanExplanationImage(createQuestionDto.explanationImageUrl),
           createQuestionDto.status,
         ]
       );
@@ -868,6 +872,10 @@ export class QuestionsService {
       questionText: updateQuestionDto.questionText ?? existing.questionText,
       keywordsText: updateQuestionDto.keywordsText ?? existing.keywordsText ?? '',
       explanation: updateQuestionDto.explanation ?? existing.explanation ?? '',
+      explanationImageUrl:
+        updateQuestionDto.explanationImageUrl !== undefined
+          ? updateQuestionDto.explanationImageUrl
+          : existing.explanationImageUrl ?? null,
       status: updateQuestionDto.status ?? existing.status,
       options:
         updateQuestionDto.options ??
@@ -906,6 +914,7 @@ export class QuestionsService {
             question_text = ?,
             keywords_text = ?,
             explanation = ?,
+            explanation_image_url = ?,
             status = ?
           WHERE id = ?
         `,
@@ -922,6 +931,7 @@ export class QuestionsService {
           merged.questionText.trim(),
           this.normalizeKeywords(merged.keywordsText),
           (merged.explanation || '').trim(),
+          this.cleanExplanationImage(merged.explanationImageUrl),
           merged.status,
           id,
         ]
@@ -1268,6 +1278,7 @@ export class QuestionsService {
       questionText: question.questionText,
       keywordsText: this.normalizeKeywords(question.keywordsText),
       explanation: question.explanation || '',
+      explanationImageUrl: question.explanationImageUrl || null,
       status: question.status,
       options: (question.options || []).map((option) => ({
         optionLabel: option.optionLabel,
@@ -1291,6 +1302,7 @@ export class QuestionsService {
       questionText: question.questionText,
       keywordsText: question.keywordsText || '',
       explanation: question.explanation || '',
+      explanationImageUrl: question.explanationImageUrl || null,
       status,
       options: question.options.map((option) => ({
         optionLabel: option.optionLabel,
@@ -1368,6 +1380,7 @@ export class QuestionsService {
           question_text = ?,
           keywords_text = ?,
           explanation = ?,
+          explanation_image_url = ?,
           status = ?
         WHERE id = ?
       `,
@@ -1384,6 +1397,7 @@ export class QuestionsService {
         question.questionText.trim(),
         this.normalizeKeywords(question.keywordsText),
         (question.explanation || '').trim(),
+        this.cleanExplanationImage(question.explanationImageUrl),
         question.status,
         id,
       ]
@@ -2043,6 +2057,20 @@ export class QuestionsService {
     }
   }
 
+  // Explanation images are stored inline (http(s) URL or a base64 data: URI the
+  // admin uploader produces). Validate + normalize; the client already compresses
+  // to WebP, so this is a safety net, not the optimizer.
+  private cleanExplanationImage(value: unknown): string | null {
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+    if (raw.length > 1_500_000) {
+      throw new BadRequestException('Explanation image is too large. Use a compressed image under 1 MB.');
+    }
+    if (/^https?:\/\/\S+$/i.test(raw)) return raw;
+    if (/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(raw)) return raw.replace(/\s+/g, '');
+    throw new BadRequestException('Explanation image must be an http(s) image URL or a PNG/JPG/WebP/GIF image.');
+  }
+
   private mapQuestionSummary(row: QuestionRow) {
     const normalizedCategory =
       row.question_category === 'ai' || row.category === 'ai'
@@ -2064,6 +2092,7 @@ export class QuestionsService {
       questionText: row.question_text,
       keywordsText: row.keywords_text || '',
       explanation: row.explanation || '',
+      explanationImageUrl: row.explanation_image_url || '',
       status: row.status,
       createdAt: row.created_at || null,
       courseTitle: row.course_title || '',

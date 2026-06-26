@@ -354,7 +354,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "landing" | "login" | "app";
+        placement: "all" | "login" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -516,7 +516,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "landing" | "login" | "app";
+        placement: "all" | "login" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -559,7 +559,7 @@ export declare class SettingsService {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -575,7 +575,7 @@ export declare class SettingsService {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -612,7 +612,7 @@ export declare class SettingsService {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -628,7 +628,7 @@ export declare class SettingsService {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -656,7 +656,7 @@ export declare class SettingsService {
         apiKey?: string;
     }): Promise<{
         ok: boolean;
-        providerKey: "gemini" | "openai" | "claude" | "openrouter";
+        providerKey: "openai" | "gemini" | "claude" | "openrouter";
         providerLabel: string;
         message: string;
         modeOptions: any;
@@ -677,7 +677,7 @@ export declare class SettingsService {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -693,7 +693,7 @@ export declare class SettingsService {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -720,7 +720,7 @@ export declare class SettingsService {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -736,7 +736,7 @@ export declare class SettingsService {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -763,7 +763,7 @@ export declare class SettingsService {
         ok: boolean;
         providers: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;
@@ -779,7 +779,7 @@ export declare class SettingsService {
         activeProviderId: number | null;
         activeProvider: {
             id: number;
-            providerKey: "gemini" | "openai" | "claude" | "openrouter";
+            providerKey: "openai" | "gemini" | "claude" | "openrouter";
             providerLabel: string;
             baseUrl: string;
             model: string;

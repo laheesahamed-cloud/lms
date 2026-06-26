@@ -57,6 +57,7 @@ export declare class ResultsService {
             questionType: "sba" | "true_false";
             questionText: string;
             explanation: string;
+            explanationImageUrl: string;
             contentTrace: {
                 source: string;
                 sourceId: number;

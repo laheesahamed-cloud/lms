@@ -96,6 +96,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateQuestionDto.prototype, "explanation", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", Object)
+], CreateQuestionDto.prototype, "explanationImageUrl", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsIn)(['active', 'inactive']),
     __metadata("design:type", String)

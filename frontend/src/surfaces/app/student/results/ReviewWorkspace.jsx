@@ -57,6 +57,15 @@ function getQuestionExplanationText(question) {
   ]) || '');
 }
 
+function getQuestionExplanationImage(question) {
+  return String(firstNonEmptyValue([
+    question?.explanationImageUrl,
+    question?.explanation_image_url,
+    question?.explanationImage,
+    question?.explanation_image,
+  ]) || '').trim();
+}
+
 function getQuestionRecapPayload(question) {
   const direct = firstNonEmptyValue([
     question?.theoryRecap,
@@ -158,6 +167,8 @@ const reviewUi = {
   explanationGrid: 'grid grid-cols-1 gap-3.5',
   explanationCopy:
     'lms-reading-explanation grid gap-2.5 text-left [&_p]:m-0 [&_p]:max-w-[78ch] [&_p]:whitespace-pre-line [&_p]:text-[15.5px] [&_p]:font-normal [&_p]:leading-[1.72] [&_p]:tracking-normal [&_p]:text-ink-medium [&_p]:[text-wrap:pretty] max-[640px]:[&_p]:text-[15.5px] max-[640px]:[&_p]:leading-[1.68]',
+  explanationImage:
+    'overflow-hidden rounded-[14px] border border-[color-mix(in_srgb,var(--color-primary)_14%,var(--line-soft))] bg-surface-1 [&_img]:block [&_img]:max-h-[420px] [&_img]:w-full [&_img]:object-contain',
   studyList: 'm-0 grid list-none gap-2 p-0',
   incorrectList:
     'overflow-hidden rounded-[14px] border border-[color-mix(in_srgb,var(--color-warning)_18%,var(--line-soft))] bg-[color-mix(in_srgb,var(--color-warning)_5%,var(--surface-2))]',
@@ -453,12 +464,13 @@ function ReviewAnswerGrid({ question }) {
 
 function hasReviewExplanation(question) {
   const hasDatabaseExplanation = getQuestionExplanationText(question).trim();
+  const hasExplanationImage = getQuestionExplanationImage(question);
   const isTrueFalse = question?.questionType === 'true_false' || question?.question_type === 'true_false';
   const hasIncorrectReasons = (question.options || []).some(
     (option) => (isTrueFalse || !isCorrectOption(option)) && getOptionIncorrectReason(option)
   );
 
-  return Boolean(hasDatabaseExplanation || hasIncorrectReasons);
+  return Boolean(hasDatabaseExplanation || hasExplanationImage || hasIncorrectReasons);
 }
 
 function ReviewStudySupport({ question }) {
@@ -516,7 +528,8 @@ function ReviewExplanation({ question }) {
       text: option.optionText,
       reason: getOptionIncorrectReason(option),
     }));
-  if (explanationBlocks.length === 0 && incorrectReasons.length === 0) return null;
+  const explanationImage = getQuestionExplanationImage(question);
+  if (explanationBlocks.length === 0 && incorrectReasons.length === 0 && !explanationImage) return null;
   const explanationTitle = explanationBlocks.length
     ? 'Explanation'
     : incorrectReasons.length
@@ -525,17 +538,24 @@ function ReviewExplanation({ question }) {
 
   return (
     <div className="grid gap-3">
-      {explanationBlocks.length ? (
+      {explanationBlocks.length || explanationImage ? (
         <section className={reviewUi.explanation} aria-label="Answer explanation">
           <div className={reviewUi.explanationHeader}>
             <h3>Explanation</h3>
           </div>
           <div className={reviewUi.explanationGrid}>
-            <div className={reviewUi.explanationCopy}>
-              {explanationBlocks.map((block, index) => (
-                <MedicalText as="p" key={`${index}-${block.slice(0, 16)}`} text={block} />
-              ))}
-            </div>
+            {explanationImage ? (
+              <div className={reviewUi.explanationImage}>
+                <img src={explanationImage} alt="Explanation figure" loading="lazy" />
+              </div>
+            ) : null}
+            {explanationBlocks.length ? (
+              <div className={reviewUi.explanationCopy}>
+                {explanationBlocks.map((block, index) => (
+                  <MedicalText as="p" key={`${index}-${block.slice(0, 16)}`} text={block} />
+                ))}
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}

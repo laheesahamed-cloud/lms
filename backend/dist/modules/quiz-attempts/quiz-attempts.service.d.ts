@@ -106,7 +106,7 @@ export declare class QuizAttemptsService {
         };
         examSession: {
             id: number;
-            status: "expired" | "in_progress" | "submitted";
+            status: "in_progress" | "submitted" | "expired";
             startedAt: string | null;
             deadlineAt: string | null;
             serverTime: string | null;
@@ -159,6 +159,7 @@ export declare class QuizAttemptsService {
             questionType: "sba" | "true_false";
             questionText: string;
             explanation: string;
+            explanationImageUrl: string;
             contentTrace: {
                 source: string;
                 sourceId: number;
@@ -265,6 +266,7 @@ export declare class QuizAttemptsService {
             questionType: "sba" | "true_false";
             questionText: string;
             explanation: string;
+            explanationImageUrl: string;
             contentTrace: {
                 source: string;
                 sourceId: number;

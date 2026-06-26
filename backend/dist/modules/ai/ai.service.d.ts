@@ -44,11 +44,11 @@ export declare class AiService {
     generateQuiz(dto: GenerateAiQuizDto, engineKeyRaw?: string): Promise<{
         ok: boolean;
         experimental: boolean;
-        source: "gemini" | "openai" | "claude" | "openrouter";
+        source: "openai" | "gemini" | "claude" | "openrouter";
         generatedAt: string;
         provider: {
             id: number | null;
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
             source: "settings" | "env";
@@ -58,7 +58,7 @@ export declare class AiService {
             subject: string;
             topic: string;
             lesson: string;
-            category: "ai" | "past_paper" | "mock";
+            category: "past_paper" | "mock" | "ai";
             questionType: "sba" | "true_false";
             difficulty: "easy" | "medium" | "hard";
             numberOfQuestions: number;
@@ -72,7 +72,7 @@ export declare class AiService {
             subject: string;
             topic: string;
             lesson: string;
-            category: "ai" | "past_paper" | "mock";
+            category: "past_paper" | "mock" | "ai";
             difficulty: "easy" | "medium" | "hard";
             explanation: string;
             question_text: string;
@@ -86,7 +86,7 @@ export declare class AiService {
             subject: string;
             topic: string;
             lesson: string;
-            category: "ai" | "past_paper" | "mock";
+            category: "past_paper" | "mock" | "ai";
             difficulty: "easy" | "medium" | "hard";
             explanation: string;
             question_text: string;
@@ -95,11 +95,11 @@ export declare class AiService {
     beautifyLesson(dto: BeautifyLessonDto): Promise<{
         ok: boolean;
         experimental: boolean;
-        source: "gemini" | "openai" | "claude" | "openrouter";
+        source: "openai" | "gemini" | "claude" | "openrouter";
         generatedAt: string;
         provider: {
             id: number | null;
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
             source: "settings" | "env";
@@ -110,13 +110,13 @@ export declare class AiService {
     }>;
     generateWhyIncorrect(dto: GenerateWhyIncorrectDto): Promise<{
         ok: boolean;
-        source: "gemini" | "openai" | "claude" | "openrouter";
+        source: "openai" | "gemini" | "claude" | "openrouter";
         generatedAt: string;
         items: any;
     }>;
     generateExplanation(dto: GenerateExplanationDto): Promise<{
         ok: boolean;
-        source: "gemini" | "openai" | "claude" | "openrouter";
+        source: "openai" | "gemini" | "claude" | "openrouter";
         generatedAt: string;
         explanation: string;
     }>;

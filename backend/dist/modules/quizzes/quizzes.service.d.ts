@@ -216,7 +216,7 @@ export declare class QuizzesService {
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        workflowState: "draft" | "published";
     }>;
     private validateQuiz;
     private cleanQuestionIds;

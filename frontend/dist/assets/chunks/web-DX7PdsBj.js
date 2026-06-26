@@ -1,1 +1,0 @@
-import{x as e}from"./vendor-CvCAYPoT.js";export{e as HapticsWeb};

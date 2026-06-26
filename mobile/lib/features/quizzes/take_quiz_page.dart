@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
+import '../../widgets/content_image.dart';
 import '../../widgets/locked_view.dart';
 import '../dashboard/dashboard_repository.dart';
 import 'quizzes_repository.dart';
@@ -765,14 +766,26 @@ class _QuestionView extends StatelessWidget {
               ],
             ),
           ),
-          if (question.explanation.isNotEmpty)
+          if (question.explanationImageUrl.isNotEmpty ||
+              question.explanation.isNotEmpty)
             _RevealBlock(
               icon: Icons.notes_rounded,
               title: 'Explanation',
               accent: c.primary,
-              child: Text(question.explanation,
-                  style:
-                      TextStyle(fontSize: 15.5, height: 1.5, color: c.inkMedium)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (question.explanationImageUrl.isNotEmpty) ...[
+                    ContentImage(question.explanationImageUrl),
+                    if (question.explanation.isNotEmpty)
+                      const SizedBox(height: 10),
+                  ],
+                  if (question.explanation.isNotEmpty)
+                    Text(question.explanation,
+                        style: TextStyle(
+                            fontSize: 15.5, height: 1.5, color: c.inkMedium)),
+                ],
+              ),
             ),
           _whyWrong(c),
           if (question.recap != null) _recapTrigger(context, c, question.recap!),
