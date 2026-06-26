@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var AuthController_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
@@ -28,10 +29,11 @@ const forgot_password_dto_1 = require("./dto/forgot-password.dto");
 const reset_password_dto_1 = require("./dto/reset-password.dto");
 const verify_email_otp_dto_1 = require("./dto/verify-email-otp.dto");
 const resend_email_otp_dto_1 = require("./dto/resend-email-otp.dto");
-let AuthController = class AuthController {
+let AuthController = AuthController_1 = class AuthController {
     constructor(authService, configService) {
         this.authService = authService;
         this.configService = configService;
+        this.logger = new common_1.Logger(AuthController_1.name);
     }
     async login(loginDto, nativeHeader, request, response) {
         const result = await this.authService.login(loginDto);
@@ -102,21 +104,30 @@ let AuthController = class AuthController {
         const { sessionToken: _sessionToken, ...safeResult } = result;
         return safeResult;
     }
-    appleWebCallbackPost(body, request, response) {
-        return this.handleAppleWebCallback(body || {}, request, response);
+    async appleWebCallbackPost(body, request, response) {
+        await this.handleAppleWebCallback(body || {}, request, response);
     }
-    appleWebCallbackGet(query, request, response) {
-        return this.handleAppleWebCallback(query || {}, request, response);
+    async appleWebCallbackGet(query, request, response) {
+        await this.handleAppleWebCallback(query || {}, request, response);
     }
     async handleAppleWebCallback(payload, request, response) {
         const successUrl = String(this.configService.get('APPLE_WEB_SUCCESS_URL') || 'https://xyndrome.lk/lms/frontend/dist/dashboard');
-        const failureUrl = String(this.configService.get('APPLE_WEB_FAILURE_URL') || 'https://xyndrome.lk/lms/frontend/dist/auth/login?apple=failed');
+        const failureBase = String(this.configService.get('APPLE_WEB_FAILURE_URL') || 'https://xyndrome.lk/lms/frontend/dist/auth/login?apple=failed');
+        const fail = (reason) => this.redirectTo(response, this.appendParam(failureBase, 'reason', reason));
         try {
             const expectedState = this.readCookie(request, 'xy_apple_state');
-            response.clearCookie('xy_apple_state', { path: '/' });
-            if (payload.error || !payload.state || !expectedState || payload.state !== expectedState) {
-                return response.redirect(302, failureUrl);
+            try {
+                response.clearCookie('xy_apple_state', { path: '/' });
             }
+            catch { }
+            if (payload.error)
+                return fail('apple_error');
+            if (payload.state && expectedState && payload.state !== expectedState) {
+                this.logger.warn('Apple callback state mismatch — rejecting');
+                return fail('state');
+            }
+            if (!payload.id_token)
+                return fail('no_token');
             let fullName = '';
             if (payload.user) {
                 try {
@@ -131,11 +142,29 @@ let AuthController = class AuthController {
                 fullName: fullName || undefined,
             });
             this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
-            return response.redirect(302, successUrl);
+            return this.redirectTo(response, successUrl);
+        }
+        catch (err) {
+            this.logger.error(`Apple web callback failed: ${err?.message || err}`);
+            return fail('verify');
+        }
+    }
+    redirectTo(response, url) {
+        try {
+            response.redirect(302, url);
         }
         catch {
-            return response.redirect(302, failureUrl);
+            try {
+                response.statusCode = 302;
+                response.setHeader('Location', url);
+                response.end();
+            }
+            catch {
+            }
         }
+    }
+    appendParam(url, key, value) {
+        return url + (url.includes('?') ? '&' : '?') + `${key}=${encodeURIComponent(value)}`;
     }
     readCookie(request, name) {
         return String(request?.headers?.cookie || '')
@@ -335,7 +364,7 @@ __decorate([
     __param(2, (0, common_1.Res)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AuthController.prototype, "appleWebCallbackPost", null);
 __decorate([
     (0, common_1.Get)('apple/callback'),
@@ -344,7 +373,7 @@ __decorate([
     __param(2, (0, common_1.Res)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AuthController.prototype, "appleWebCallbackGet", null);
 __decorate([
     (0, common_1.Get)('me'),
@@ -404,7 +433,7 @@ __decorate([
     __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "changePassword", null);
-exports.AuthController = AuthController = __decorate([
+exports.AuthController = AuthController = AuthController_1 = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService,
         config_1.ConfigService])

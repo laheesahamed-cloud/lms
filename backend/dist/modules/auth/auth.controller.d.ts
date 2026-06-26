@@ -14,6 +14,7 @@ import { ResendEmailOtpDto } from './dto/resend-email-otp.dto';
 export declare class AuthController {
     private readonly authService;
     private readonly configService;
+    private readonly logger;
     constructor(authService: AuthService, configService: ConfigService);
     login(loginDto: LoginDto, nativeHeader: string | undefined, request: any, response: any): Promise<any>;
     register(registerDto: RegisterDto, nativeHeader: string | undefined, request: any, response: any): Promise<any>;
@@ -143,9 +144,11 @@ export declare class AuthController {
             };
         };
     }>;
-    appleWebCallbackPost(body: any, request: any, response: any): Promise<any>;
-    appleWebCallbackGet(query: any, request: any, response: any): Promise<any>;
+    appleWebCallbackPost(body: any, request: any, response: any): Promise<void>;
+    appleWebCallbackGet(query: any, request: any, response: any): Promise<void>;
     private handleAppleWebCallback;
+    private redirectTo;
+    private appendParam;
     private readCookie;
     me(authorization?: string, cookie?: string): Promise<{
         ok: boolean;

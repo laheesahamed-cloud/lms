@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, HttpException, InternalServerErrorException, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpException, InternalServerErrorException, Logger, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { SESSION_TTL_DAYS } from './auth-token.util';
@@ -16,6 +16,8 @@ import { ResendEmailOtpDto } from './dto/resend-email-otp.dto';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService
@@ -144,25 +146,35 @@ export class AuthController {
   // session cookie, and 302 the browser to the dashboard. A short-lived state
   // cookie (SameSite=None so it survives Apple's cross-site POST) guards CSRF.
   @Post('apple/callback')
-  appleWebCallbackPost(@Body() body: any, @Req() request: any, @Res() response: any) {
-    return this.handleAppleWebCallback(body || {}, request, response);
+  async appleWebCallbackPost(@Body() body: any, @Req() request: any, @Res() response: any) {
+    await this.handleAppleWebCallback(body || {}, request, response);
   }
 
   @Get('apple/callback')
-  appleWebCallbackGet(@Query() query: any, @Req() request: any, @Res() response: any) {
-    return this.handleAppleWebCallback(query || {}, request, response);
+  async appleWebCallbackGet(@Query() query: any, @Req() request: any, @Res() response: any) {
+    await this.handleAppleWebCallback(query || {}, request, response);
   }
 
   private async handleAppleWebCallback(payload: any, request: any, response: any) {
     const successUrl = String(this.configService.get<string>('APPLE_WEB_SUCCESS_URL') || 'https://xyndrome.lk/lms/frontend/dist/dashboard');
-    const failureUrl = String(this.configService.get<string>('APPLE_WEB_FAILURE_URL') || 'https://xyndrome.lk/lms/frontend/dist/auth/login?apple=failed');
+    const failureBase = String(this.configService.get<string>('APPLE_WEB_FAILURE_URL') || 'https://xyndrome.lk/lms/frontend/dist/auth/login?apple=failed');
+    const fail = (reason: string) => this.redirectTo(response, this.appendParam(failureBase, 'reason', reason));
+
     try {
       // CSRF: the state we set before redirecting must echo back from Apple.
       const expectedState = this.readCookie(request, 'xy_apple_state');
-      response.clearCookie('xy_apple_state', { path: '/' });
-      if (payload.error || !payload.state || !expectedState || payload.state !== expectedState) {
-        return response.redirect(302, failureUrl);
+      try { response.clearCookie('xy_apple_state', { path: '/' }); } catch { /* non-fatal */ }
+
+      if (payload.error) return fail('apple_error');
+      // Best-effort CSRF: only reject on an actual state MISMATCH. Some browsers
+      // (notably Safari/ITP) drop the SameSite=None state cookie on Apple's
+      // cross-site POST; when the cookie is absent we proceed and rely on the
+      // Apple-signed, audience-bound id_token (which prevents token forgery).
+      if (payload.state && expectedState && payload.state !== expectedState) {
+        this.logger.warn('Apple callback state mismatch — rejecting');
+        return fail('state');
       }
+      if (!payload.id_token) return fail('no_token');
 
       // The `user` blob (first sign-in only) carries the name as JSON.
       let fullName = '';
@@ -180,10 +192,31 @@ export class AuthController {
         fullName: fullName || undefined,
       } as AppleLoginDto);
       this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
-      return response.redirect(302, successUrl);
-    } catch {
-      return response.redirect(302, failureUrl);
+      return this.redirectTo(response, successUrl);
+    } catch (err) {
+      // Never bubble a 500 to the browser — log the real reason and redirect.
+      this.logger.error(`Apple web callback failed: ${(err as any)?.message || err}`);
+      return fail('verify');
     }
+  }
+
+  /** Redirect that won't throw even if res.redirect is unavailable. */
+  private redirectTo(response: any, url: string) {
+    try {
+      response.redirect(302, url);
+    } catch {
+      try {
+        response.statusCode = 302;
+        response.setHeader('Location', url);
+        response.end();
+      } catch {
+        /* last resort — nothing more we can do */
+      }
+    }
+  }
+
+  private appendParam(url: string, key: string, value: string) {
+    return url + (url.includes('?') ? '&' : '?') + `${key}=${encodeURIComponent(value)}`;
   }
 
   private readCookie(request: any, name: string) {
