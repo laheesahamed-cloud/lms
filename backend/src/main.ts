@@ -527,6 +527,15 @@ export async function configureApp(app: INestApplication) {
   });
 
   app.use((req: any, res: any, next: any) => {
+    // Sign in with Apple (web) form-POSTs to /api/auth/apple/callback from
+    // appleid.apple.com — a legitimate cross-site origin. That request is
+    // authenticated by the Apple-signed identity token plus a state cookie, so
+    // it must bypass the same-origin CSRF guard below (which would 403 it).
+    if (String(req.path || req.url || '').endsWith('/auth/apple/callback')) {
+      next();
+      return;
+    }
+
     const method = String(req.method || 'GET').toUpperCase();
     const unsafeMethod = isUnsafeMethod(method);
     const origin = String(req.headers?.origin || '');

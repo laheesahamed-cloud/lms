@@ -485,6 +485,10 @@ async function configureApp(app) {
         next();
     });
     app.use((req, res, next) => {
+        if (String(req.path || req.url || '').endsWith('/auth/apple/callback')) {
+            next();
+            return;
+        }
         const method = String(req.method || 'GET').toUpperCase();
         const unsafeMethod = isUnsafeMethod(method);
         const origin = String(req.headers?.origin || '');
