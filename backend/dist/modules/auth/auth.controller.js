@@ -120,7 +120,7 @@ let AuthController = AuthController_1 = class AuthController {
         await this.handleAppleWebCallback(query || {}, request, response);
     }
     async handleAppleWebCallback(payload, request, response) {
-        const successUrl = String(this.configService.get('APPLE_WEB_SUCCESS_URL') || 'https://xyndrome.lk/lms/frontend/dist/dashboard');
+        const successUrl = String(this.configService.get('APPLE_WEB_SUCCESS_URL') || 'https://xyndrome.lk/lms/frontend/dist/auth/login?apple=success');
         const failureBase = String(this.configService.get('APPLE_WEB_FAILURE_URL') || 'https://xyndrome.lk/lms/frontend/dist/auth/login?apple=failed');
         const fail = (reason) => this.redirectTo(response, this.appendParam(failureBase, 'reason', reason));
         try {
