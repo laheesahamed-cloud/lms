@@ -685,7 +685,7 @@ async function configureApp(app) {
             callback(null, true);
             return;
         }
-        callback(new Error(`CORS blocked for origin: ${origin}`), false);
+        callback(null, false);
     };
     app.setGlobalPrefix('api');
     app.enableCors({

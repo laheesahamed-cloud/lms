@@ -758,7 +758,12 @@ export async function configureApp(app: INestApplication) {
       return;
     }
 
-    callback(new Error(`CORS blocked for origin: ${origin}`), false);
+    // Do NOT throw for a disallowed origin — throwing turns every cross-origin
+    // request into a 500, including Apple's legitimate Sign in with Apple
+    // form-POST from https://appleid.apple.com. Returning `false` simply omits
+    // the CORS headers (the browser still blocks disallowed XHR responses), and
+    // the CSRF origin guard already 403s cross-origin *unsafe* requests.
+    callback(null, false);
   };
 
   app.setGlobalPrefix('api');
