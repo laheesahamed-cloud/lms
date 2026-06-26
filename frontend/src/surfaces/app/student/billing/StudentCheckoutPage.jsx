@@ -135,7 +135,9 @@ export function StudentCheckoutPage() {
   const invoiceAutoCreatePlanRef = useRef('');
   const [form, setForm] = useState({
     billingName: user?.fullName || '',
-    billingEmail: user?.email || '',
+    // Billing email is NOT pre-filled from the account — the student types the
+    // address they want the invoice/receipt sent to.
+    billingEmail: '',
     phone: '',
     address: '',
     city: 'Colombo',
@@ -150,9 +152,8 @@ export function StudentCheckoutPage() {
     setForm((current) => ({
       ...current,
       billingName: current.billingName || user?.fullName || '',
-      billingEmail: current.billingEmail || user?.email || '',
     }));
-  }, [user?.fullName, user?.email]);
+  }, [user?.fullName]);
 
   async function load() {
     setLoading(true);
@@ -637,7 +638,7 @@ export function StudentCheckoutPage() {
                       </label>
                       <label className={ui.formLabel}>
                         Phone
-                        <input className={ui.input} name="phone" value={form.phone} onChange={handleChange} placeholder="0771234567" autoComplete="tel" />
+                        <input className={ui.input} name="phone" type="tel" value={form.phone} onChange={handleChange} required placeholder="0771234567" autoComplete="tel" />
                       </label>
                       <label className={ui.formLabel}>
                         City
