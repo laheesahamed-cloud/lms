@@ -96,7 +96,16 @@ let AuthController = AuthController_1 = class AuthController {
         return safeResult;
     }
     async appleLogin(appleLoginDto, nativeHeader, request, response) {
-        const result = await this.authService.loginWithApple(appleLoginDto);
+        let result;
+        try {
+            result = await this.authService.loginWithApple(appleLoginDto);
+        }
+        catch (err) {
+            if (err instanceof common_1.HttpException)
+                throw err;
+            this.logger.error(`Apple sign-in error: ${err?.message || err}`);
+            throw new common_1.InternalServerErrorException(`Apple sign-in error: ${err?.message || err}`);
+        }
         this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
         if (this.shouldExposeSessionToken(nativeHeader)) {
             return result;

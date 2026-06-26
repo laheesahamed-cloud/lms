@@ -132,7 +132,15 @@ export class AuthController {
     @Req() request: any,
     @Res({ passthrough: true }) response: any
   ) {
-    const result = await this.authService.loginWithApple(appleLoginDto);
+    let result: any;
+    try {
+      result = await this.authService.loginWithApple(appleLoginDto);
+    } catch (err) {
+      // Surface the real reason instead of an opaque 500 (diagnosable; no secrets).
+      if (err instanceof HttpException) throw err;
+      this.logger.error(`Apple sign-in error: ${(err as any)?.message || err}`);
+      throw new InternalServerErrorException(`Apple sign-in error: ${(err as any)?.message || err}`);
+    }
     this.setSessionCookie(response, request, result.sessionToken, result.sessionTtlDays);
     if (this.shouldExposeSessionToken(nativeHeader)) {
       return result;
