@@ -96,8 +96,8 @@ export function TextRevealManifesto() {
   return (
     <section id="about" className="relative z-0 bg-[#faf9f6]">
       <div ref={trackRef} className="relative h-[235vh]">
-        <div className="sticky top-16 mx-auto flex h-[calc(100vh-4rem)] max-w-4xl flex-col items-center justify-center px-5 sm:px-8">
-          <p className="font-display flex flex-wrap justify-center gap-x-1 sm:gap-x-2 text-[clamp(22px,4.5vw,48px)] leading-[1.3] text-[#111118]">
+        <div className="sticky top-16 mx-auto flex h-[calc(100vh-4rem)] max-w-4xl flex-col items-center justify-center overflow-hidden px-5 sm:px-8">
+          <p className="font-display flex flex-wrap justify-center gap-x-1 sm:gap-x-2 text-[clamp(15px,5vw,48px)] leading-[1.3] text-[#111118]">
             {words.map((w, i) => {
               const isLast = i === words.length - 1;
               return (
@@ -122,7 +122,7 @@ export function TextRevealManifesto() {
             })}
           </p>
 
-          <div ref={tagsRef} className="mt-10 flex flex-wrap justify-center gap-2 sm:gap-3">
+          <div ref={tagsRef} className="mt-8 hidden sm:flex flex-wrap justify-center gap-2 sm:gap-3">
             {TRUST_TAGS.map((t, i) => (
               <span
                 key={t.label}
