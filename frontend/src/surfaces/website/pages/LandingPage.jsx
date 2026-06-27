@@ -159,7 +159,7 @@ export function LandingPage() {
   return (
     <main className={`lpv2 relative isolate overflow-x-clip ${subjectDarkModeActive ? 'lpv2--subject-dark' : ''}`}>
       <PageMeta
-        title="Study App for Sri Lankan Medical Students: Notes, Q-Bank, Flashcards & Mock Exams"
+        title="xyndrome | Medical Learning Platform — MBBS, KDU, ERPM"
         description="The all-in-one study app for Sri Lankan medical students, for MBBS, KDU and licensing-exam prep. Write on your own notes, practise a teaching Q-Bank that explains why wrong answers are wrong, build your own flashcards, sit timed mock exams and plan revision with reminders, all in one place."
         path="/"
       />
