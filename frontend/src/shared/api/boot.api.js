@@ -12,11 +12,6 @@
 import { apiClient } from './client.js';
 import { getTimedApiCacheEpoch } from './cache.js';
 import { setBootPromise, resetBootChannel } from './bootChannel.js';
-import { seedStudentDashboard } from './dashboard.api.js';
-import { seedNotifications, seedPlannerAgenda } from './workspace.api.js';
-import { seedStudentQuizzes } from './quizAttempts.api.js';
-import { seedStudyBookmarks } from './studyBookmarks.api.js';
-import { seedStudentAiNotes } from './aiNotes.api.js';
 
 let primedForUser = null;
 
@@ -27,9 +22,15 @@ export function ensureStudentBoot(userId) {
   primedForUser = userKey;
 
   const epochAtStart = getTimedApiCacheEpoch();
-  const request = apiClient
-    .get('/student/boot', { params: { engine: 'gemini' } })
-    .then(({ data }) => {
+  const request = Promise.all([
+    apiClient.get('/student/boot', { params: { engine: 'gemini' } }),
+    import('./dashboard.api.js'),
+    import('./workspace.api.js'),
+    import('./quizAttempts.api.js'),
+    import('./studyBookmarks.api.js'),
+    import('./aiNotes.api.js'),
+  ])
+    .then(([{ data }, { seedStudentDashboard }, { seedNotifications, seedPlannerAgenda }, { seedStudentQuizzes }, { seedStudyBookmarks }, { seedStudentAiNotes }]) => {
       // a logout while the batch was in flight voids the payload
       if (epochAtStart !== getTimedApiCacheEpoch()) return null;
       seedStudentDashboard(data?.dashboard);
