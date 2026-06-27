@@ -1,6 +1,7 @@
 import { detectPlatform } from './detect.js';
 
-const APP_BASENAME = '/lms';
+const APP_BASENAME = '/';
+const LEGACY_APP_BASENAME = '/lms';
 const LEGACY_BUILD_BASENAME = '/lms/frontend/dist';
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
 const LOOPBACK_API_BASE_URL = 'http://127.0.0.1:3000/api';
@@ -97,13 +98,21 @@ export function normalizeLegacyBuildPath(platform = detectPlatform()) {
   const { pathname, search, hash } = location;
   if (hash.startsWith('#/')) {
     window.history.replaceState(null, '', `${withRouterBasename(hash.slice(1), platform)}${search}`);
-  } else if (!import.meta.env.DEV && (pathname === LEGACY_BUILD_BASENAME || pathname.startsWith(`${LEGACY_BUILD_BASENAME}/`))) {
-    const cleanPath = pathname.slice(LEGACY_BUILD_BASENAME.length) || '/';
-    window.history.replaceState(null, '', `${APP_BASENAME}${cleanPath}${search}${hash}`);
+    return;
+  }
+  if (import.meta.env.DEV) return;
+  // Forward legacy /lms and /lms/frontend/dist URLs (old bookmarks, indexed
+  // links) to the apex root so they don't dead-end after the move to "/".
+  for (const legacy of [LEGACY_BUILD_BASENAME, LEGACY_APP_BASENAME]) {
+    if (pathname === legacy || pathname.startsWith(`${legacy}/`)) {
+      const cleanPath = pathname.slice(legacy.length) || '/';
+      window.history.replaceState(null, '', `${cleanPath}${search}${hash}`);
+      return;
+    }
   }
 }
 
-export function isAppOnlyHost() {
+function isAppOnlyHost() {
   const hostname = getLocation()?.hostname?.toLowerCase() || '';
   if (!hostname) return false;
 
@@ -118,15 +127,15 @@ export function isAppOnlyHost() {
   }
 }
 
-export function shouldBlockDirectAppHost(platform = detectPlatform()) {
+function shouldBlockDirectAppHost(platform = detectPlatform()) {
   return isAppOnlyHost() && !platform.isNativeShell;
 }
 
-export function shouldUseNativeRepaintFix(platform = detectPlatform()) {
+function shouldUseNativeRepaintFix(platform = detectPlatform()) {
   return platform.isNative && platform.isIos;
 }
 
-export function shouldUseOverlayNavigation(platform = detectPlatform()) {
+function shouldUseOverlayNavigation(platform = detectPlatform()) {
   if (typeof window === 'undefined') return false;
 
   if (window.innerWidth <= 900) return true;
@@ -208,7 +217,7 @@ export function resolveApiBaseUrls() {
 }
 
 export function getLoginPath(platform = detectPlatform()) {
-  return platform.isNative || platform.isDesktopApp ? '/auth/login' : '/lms/auth/login';
+  return '/auth/login';
 }
 
 export function getPlatformConfig(platform = detectPlatform()) {

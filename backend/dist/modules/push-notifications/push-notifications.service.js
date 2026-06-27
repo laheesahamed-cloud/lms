@@ -102,8 +102,8 @@ let PushNotificationsService = PushNotificationsService_1 = class PushNotificati
                 reason: this.summarizeNativePushError(String(row.last_error || '')),
                 failedAt: row.failed_at || row.updated_at || null,
             })),
-            defaultIcon: '/lms/pwa-icon.svg',
-            defaultBadge: '/lms/pwa-maskable.svg',
+            defaultIcon: '/pwa-icon-192.png',
+            defaultBadge: '/pwa-icon-512.png',
         };
     }
     summarizeNativePushError(raw) {
@@ -281,8 +281,8 @@ let PushNotificationsService = PushNotificationsService_1 = class PushNotificati
             title: payload.title || 'xyndrome',
             body: payload.body || 'You have a new notification.',
             url: this.safeInternalPath(payload.url || '/notifications'),
-            icon: payload.icon || '/lms/pwa-icon.svg',
-            badge: payload.badge || '/lms/pwa-maskable.svg',
+            icon: payload.icon || '/pwa-icon-192.png',
+            badge: payload.badge || '/pwa-icon-512.png',
             tag: payload.tag || 'erpm-lms-notification',
             channelId,
             data: { ...data, channelId },

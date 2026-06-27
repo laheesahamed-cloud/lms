@@ -47,7 +47,7 @@ export class AppErrorBoundary extends Component {
     if (!this.recoveryTimer) {
       this.recoveryTimer = window.setTimeout(() => {
         this.setState({ error: null, recovering: false });
-        requestSpaNavigation(PLATFORM.isNative ? '/dashboard' : '/lms/dashboard', { replace: true });
+        requestSpaNavigation('/dashboard', { replace: true });
       }, 1400);
     }
   }

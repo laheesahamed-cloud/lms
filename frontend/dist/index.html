@@ -3,29 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>xyndrome | Medical Study Platform</title>
-    <meta name="description" content="xyndrome helps medical students study with structured lessons, Q-Bank practice, exams, revision notes, bookmarks, subscriptions, and progress analytics." />
+    <title>xyndrome | Study App for Sri Lankan Medical Students</title>
+    <meta name="description" content="xyndrome is the all-in-one study app for Sri Lankan medical students — MBBS, KDU and licensing-exam prep. Write on your own notes, practise a teaching Q-Bank with explanations, build your own flashcards, sit timed mock exams and plan revision with reminders." />
+    <meta name="keywords" content="medical study app Sri Lanka, MBBS Sri Lanka, KDU medicine, medical licensing exam, ERPM, medical MCQ Q-Bank, medical flashcards, mock exams, study planner, revision notes" />
     <meta name="robots" content="index,follow" />
-    <link rel="canonical" href="https://xyndrome.lk/lms/" />
-    <meta property="og:title" content="xyndrome | Medical Study Platform" />
-    <meta property="og:description" content="Structured medical lessons, Q-Bank practice, exams, revision notes, subscriptions, and progress analytics." />
+    <link rel="canonical" href="https://xyndrome.lk/" />
+    <meta property="og:title" content="xyndrome | Study App for Sri Lankan Medical Students" />
+    <meta property="og:description" content="The all-in-one study app for Sri Lankan medical students: write-on notes, a teaching Q-Bank with explanations, your own flashcards, timed mock exams and a study planner with reminders." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://xyndrome.lk/lms/" />
-    <meta property="og:image" content="https://xyndrome.lk/lms/pwa-icon-512.png" />
+    <meta property="og:url" content="https://xyndrome.lk/" />
+    <meta property="og:image" content="https://xyndrome.lk/pwa-icon-512.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="xyndrome | Medical Study Platform" />
-    <meta name="twitter:description" content="Structured medical lessons, Q-Bank practice, exams, revision notes, subscriptions, and progress analytics." />
-    <meta name="twitter:image" content="https://xyndrome.lk/lms/pwa-icon-512.png" />
+    <meta name="twitter:title" content="xyndrome | Study App for Sri Lankan Medical Students" />
+    <meta name="twitter:description" content="The all-in-one study app for Sri Lankan medical students: write-on notes, a teaching Q-Bank with explanations, your own flashcards, timed mock exams and a study planner with reminders." />
+    <meta name="twitter:image" content="https://xyndrome.lk/pwa-icon-512.png" />
     <meta name="theme-color" content="#05070d" />
     <meta name="color-scheme" content="light dark" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-    <link rel="preload" as="font" type="font/woff2" href="/lms/frontend/dist/assets/pjs-v12-latin.woff2" crossorigin />
-    <link rel="stylesheet" href="/lms/frontend/dist/assets/css/main-BXB4RKuS.css" />
-    <link rel="shortcut icon" type="image/png" href="/lms/favicon-light-32.png"  />
-    <link rel="icon" type="image/png" sizes="32x32" href="/lms/favicon-light-32.png"  />
-    <link rel="icon" type="image/png" sizes="192x192" href="/lms/favicon-light-192.png"  />
-    <link rel="apple-touch-icon" sizes="180x180" href="/lms/favicon-light-180.png"  />
-    <script src="/lms/frontend/dist/boot.js" ></script>
+    <link rel="icon" href="/favicon.ico" sizes="any"  />
+    <link rel="preload" as="font" type="font/woff2" href="/assets/pjs-v12-latin.woff2" crossorigin />
+    <link rel="stylesheet" href="/assets/css/main-DSJKpw_A.css" />
+    <link rel="shortcut icon" type="image/png" href="/favicon-light-32.png"  />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-light-32.png"  />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-light-192.png"  />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon-light-180.png"  />
+    <script src="/boot.js" ></script>
     <style>
       html,
       body,
@@ -44,6 +46,17 @@
       html[data-lms-runtime="native"][data-theme="dark"] body,
       html[data-lms-runtime="native"][data-theme="dark"] #root {
         background: #02030a;
+      }
+      /* Dark public landing (apex "/"): the page is dark, but the app defaults to
+         a light theme. Once React removes `.app-booting`, body falls back to the
+         light --app-bg for the moment the lazy landing chunk is still loading —
+         a white flash before the dark BootLoader paints. boot.js sets
+         data-lms-dark-boot on the landing route so the document stays dark
+         through that gap. Higher specificity than `html,body{--app-bg}`. */
+      html[data-lms-dark-boot="on"],
+      html[data-lms-dark-boot="on"] body,
+      html[data-lms-dark-boot="on"] #root {
+        background: #05070d !important;
       }
       /* Boot splash (M7): contentful first paint on app surfaces before any
          JS/CSS arrives. Shown only when the boot script sets
@@ -78,10 +91,10 @@
         #lms-boot-splash strong { animation: none; }
       }
     </style>
-    <script type="module" crossorigin src="/lms/frontend/dist/assets/app-CuSGeN3T.js"></script>
-    <link rel="modulepreload" crossorigin href="/lms/frontend/dist/assets/chunks/rolldown-runtime-BrjrVDNH.js">
-    <link rel="modulepreload" crossorigin href="/lms/frontend/dist/assets/chunks/app-shared-BeAiWhLF.js">
-    <link rel="stylesheet" crossorigin href="/lms/frontend/dist/assets/css/app-shared-CxEX09Xr.css">
+    <script type="module" crossorigin src="/assets/app-DRcPNJXK.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/chunks/rolldown-runtime-BrjrVDNH.js">
+    <link rel="modulepreload" crossorigin href="/assets/chunks/app-shared-CatD_i8I.js">
+    <link rel="stylesheet" crossorigin href="/assets/css/app-shared-CxEX09Xr.css">
   </head>
   <body class="app-booting">
     <div id="root"><div id="lms-boot-splash" aria-hidden="true"><strong>xyndrome</strong></div></div>

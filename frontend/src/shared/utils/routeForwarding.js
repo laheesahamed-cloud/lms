@@ -1,6 +1,6 @@
 import { isStaffUser } from '../auth/roleAccess.js';
 
-const APP_BASENAME = '/lms';
+const LEGACY_APP_BASENAME = '/lms';
 const LEGACY_BUILD_BASENAME = '/lms/frontend/dist';
 
 const protectedLegacyPathPattern =
@@ -27,9 +27,9 @@ function stripKnownBasename(path) {
   if (path.startsWith(`${LEGACY_BUILD_BASENAME}/`)) {
     return path.slice(LEGACY_BUILD_BASENAME.length) || '/';
   }
-  if (path === APP_BASENAME) return '/';
-  if (path.startsWith(`${APP_BASENAME}/`)) {
-    return path.slice(APP_BASENAME.length) || '/';
+  if (path === LEGACY_APP_BASENAME) return '/';
+  if (path.startsWith(`${LEGACY_APP_BASENAME}/`)) {
+    return path.slice(LEGACY_APP_BASENAME.length) || '/';
   }
   return path;
 }

@@ -28,7 +28,7 @@ body:has(main.lpv2) {
   --brand-grad: linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%);
 
   /* Typography */
-  --lpv2-font-display: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+  --lpv2-font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
   --lpv2-font-ui: 'Plus Jakarta Sans', system-ui, sans-serif;
   --lpv2-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 
@@ -43,8 +43,15 @@ body:has(main.lpv2) {
   transition: background-color 0.75s var(--lpv2-expo), color 0.75s var(--lpv2-expo);
 }
 
-.lpv2 .font-display { font-family: var(--lpv2-font-display); font-weight: 400; letter-spacing: -0.01em; }
+.lpv2 .font-display { font-family: var(--lpv2-font-display); font-weight: 800; letter-spacing: -0.02em; }
 .lpv2 .font-mono { font-family: var(--lpv2-font-mono); }
+
+/* Feature-section headings. Defined here (not as Tailwind `text-[clamp(...)]`
+   utilities) because Tailwind v4 does not generate arbitrary values that
+   contain commas, so the clamp() utilities silently fell back to the inherited
+   18px — making these headings unreadably small. */
+.lpv2 .lpv2-features-h2 { font-size: clamp(40px, 6.4vw, 72px); line-height: 1.02; letter-spacing: -0.02em; }
+.lpv2 .lpv2-feature-h2 { font-size: clamp(34px, 5.4vw, 58px); line-height: 1.04; letter-spacing: -0.02em; }
 
 /* Tactile press shared by landing buttons (Emil Kowalski) */
 .lpv2 .lpv2-press {

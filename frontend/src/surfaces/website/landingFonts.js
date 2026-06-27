@@ -1,8 +1,9 @@
-// Landing-only typefaces (DM Serif Display + JetBrains Mono) load with the
-// landing chunk instead of the global shell, so app/admin routes never pay
-// for their stylesheet. Plus Jakarta Sans stays global in index.html.
+// Landing-only typeface (JetBrains Mono, used by the boot loader + hero browser
+// chrome) loads with the landing chunk instead of the global shell, so app/admin
+// routes never pay for its stylesheet. Headings/body use the brand font (Plus
+// Jakarta Sans), which is self-hosted globally.
 const LANDING_FONTS_HREF =
-  'https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=optional';
+  'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=optional';
 
 let injected = false;
 

@@ -456,7 +456,6 @@ export function LoginPage() {
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const signInWithGoogleCode = useAuthStore((s) => s.signInWithGoogleCode);
   const hydrate = useAuthStore((s) => s.hydrate);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authNotice = useAuthStore((s) => s.authNotice);
   const consumeAuthNotice = useAuthStore((s) => s.consumeAuthNotice);
 
@@ -586,7 +585,7 @@ export function LoginPage() {
       if (data?.emailVerificationRequired) {
         const params = new URLSearchParams({ email: data.email || '' });
         if (fromParam) params.set('from', fromParam);
-        navigate(`/auth/verify-email?${params.toString()}`, { state: { devCode: data.devCode } });
+        navigate(`/auth/verify-email?${params.toString()}`);
         return;
       }
       await completeSignIn(data, startedAt);
@@ -834,7 +833,7 @@ export function LoginPage() {
     appleReturnHandledRef.current = true;
     try { window.history.replaceState({}, '', window.location.pathname); } catch { /* ignore */ }
     (async () => {
-      try { await hydrate(); } catch { /* fall through to the auth check below */ }
+      try { await hydrate({ force: true }); } catch { /* fall through to the auth check below */ }
       if (useAuthStore.getState().isAuthenticated) {
         navigate('/dashboard', { replace: true });
       } else {

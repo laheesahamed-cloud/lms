@@ -23,7 +23,7 @@ export function FinalCTA({ primaryTo = '/register' }) {
           <img src={`${ASSET}landing/logo.png`} alt="xyndrome" width="120" height="92" className="mx-auto mb-7 h-16 w-auto" />
           <h2 className="font-display text-[clamp(40px,8vw,80px)] leading-[1.02] text-[#111118]">Start your free trial.</h2>
           <p className="mx-auto mt-5 max-w-md text-[15px] text-[#6b7280] md:text-base">
-            Try the LMS with structured notes, MCQs, mock exams, and progress tracking. No credit card required.
+            Try write-on notes, a teaching Q-Bank, your own flashcards, mock exams and a study planner, all in one app. No credit card required.
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">

@@ -829,7 +829,7 @@ export function AdminSubscriptionsPage() {
         label: couponForm.label,
         couponMode: couponForm.couponMode,
         discountType: couponForm.discountType,
-        discountValue: couponForm.couponMode === 'package' ? 0 : Number(couponForm.discountValue),
+        discountValue: Number(couponForm.discountValue),
         planIds: couponForm.couponMode === 'package' ? couponForm.planIds : [],
         status: couponForm.status,
         startsAt: couponForm.startsAt || undefined,
@@ -1102,21 +1102,18 @@ export function AdminSubscriptionsPage() {
                   <option value="package">Package only</option>
                 </select>
               </label>
-              {couponForm.couponMode === 'discount' ? (
-                <>
-                  <label className={ui.formLabel}>
-                    Discount type
-                    <select className={ui.input} name="discountType" value={couponForm.discountType} onChange={handleCouponChange}>
-                      <option value="percent">Percent</option>
-                      <option value="fixed">Fixed amount</option>
-                    </select>
-                  </label>
-                  <label className={ui.formLabel}>
-                    Discount value
-                    <input className={ui.input} type="number" min="0" step="0.01" name="discountValue" value={couponForm.discountValue} onChange={handleCouponChange} placeholder="25" required />
-                  </label>
-                </>
-              ) : (
+              <label className={ui.formLabel}>
+                Discount type
+                <select className={ui.input} name="discountType" value={couponForm.discountType} onChange={handleCouponChange}>
+                  <option value="percent">Percent</option>
+                  <option value="fixed">Fixed amount</option>
+                </select>
+              </label>
+              <label className={ui.formLabel}>
+                Discount value
+                <input className={ui.input} type="number" min="0" step="0.01" name="discountValue" value={couponForm.discountValue} onChange={handleCouponChange} placeholder="25" required />
+              </label>
+              {couponForm.couponMode === 'package' ? (
                 <label className={ui.formLabel}>
                   Packages
                   <select className={ui.input} name="planIds" value={couponForm.planIds.map(String)} onChange={handleCouponPlanChange} multiple required>
@@ -1125,7 +1122,7 @@ export function AdminSubscriptionsPage() {
                     ))}
                   </select>
                 </label>
-              )}
+              ) : null}
               <label className={ui.formLabel}>
                 Starts
                 <input className={ui.input} type="date" name="startsAt" value={couponForm.startsAt} onChange={handleCouponChange} />
@@ -1182,13 +1179,12 @@ export function AdminSubscriptionsPage() {
                           {coupon.label ? <div className={ui.tableSubtext}>{coupon.label}</div> : null}
                         </td>
                         <td className={ui.tableCell}>
-                          <strong>{coupon.couponMode === 'package' ? 'Package only' : 'Reduce money'}</strong>
+                          <strong>{coupon.couponMode === 'package' ? 'Package + discount' : 'Reduce money'}</strong>
                           <div className={ui.tableSubtext}>
-                            {coupon.couponMode === 'package'
-                              ? (Array.isArray(coupon.planIds) && coupon.planIds.length
-                                ? coupon.planIds.map((planId) => planNameById.get(Number(planId)) || `Plan #${planId}`).join(', ')
-                                : 'No package selected')
-                              : (coupon.discountType === 'percent' ? `${Number(coupon.discountValue).toFixed(2)}% off` : `Fixed ${Number(coupon.discountValue).toFixed(2)} off`)}
+                            {coupon.discountType === 'percent' ? `${Number(coupon.discountValue).toFixed(2)}% off` : `Fixed ${Number(coupon.discountValue).toFixed(2)} off`}
+                            {coupon.couponMode === 'package' && Array.isArray(coupon.planIds) && coupon.planIds.length
+                              ? ` · ${coupon.planIds.map((planId) => planNameById.get(Number(planId)) || `Plan #${planId}`).join(', ')}`
+                              : null}
                           </div>
                         </td>
                         <td className={ui.tableCell}>

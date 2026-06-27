@@ -12,65 +12,66 @@ import {
   NotesReviewVisual,
   MockExamVisual,
   MasteryVisual,
+  PlannerVisual,
 } from './featureVisuals.jsx';
 
 const FEATURES = [
   {
     id: 'canvas',
-    eyebrow: 'Notes & Canvas',
+    eyebrow: 'Notes you can write on',
     accent: '#e8f5e9',
-    h2: 'Your notes, your way — on one infinite canvas.',
+    h2: 'Notes you can actually write on, not just read.',
     lede:
-      'No more switching between a notes app, a PDF annotator, and a pile of sticky notes. Write, draw, and organise everything for a topic in one place — the way your brain actually works.',
+      'The lesson is your canvas. Write, draw and highlight right on top.',
     bullets: [
-      'Type clean structured notes, or scribble freehand — your choice.',
-      'Drop sticky notes, highlight, draw and design right on the page.',
-      'Everything stays organised by lesson, ready when you revise.',
+      'Type or scribble on the lesson',
+      'Highlights & sticky notes anywhere',
+      'Saved by lesson, ready to revise',
     ],
     replaces: 'Replaces your notes app + PDF annotator + sticky notes',
     render: () => <CanvasNotesVisual />,
   },
   {
     id: 'mcqs',
-    eyebrow: 'Smart MCQs',
+    eyebrow: 'A Q-Bank that teaches',
     accent: '#d6ffe8',
-    h2: 'Every question makes you a better doctor.',
+    h2: 'A question bank that teaches you, not just tests you.',
     lede:
-      'Practise 10,000+ exam-style MCQs — but the real value is what happens after you answer. Each question teaches, so you never just memorise the answer key.',
+      'Every answer comes with the key point and a quick theory recap at once, plus why every other option is right or wrong.',
     bullets: [
-      'A full, doctor-written explanation and the key points to remember.',
-      'See exactly why every wrong option is wrong — not just the right one.',
-      'One-tap theory recap right beside the question — without leaving the page.',
+      'Key point + quick theory recap together',
+      'Why each other option is right or wrong',
+      'Relaxed Practice or timed Exam mode',
     ],
-    replaces: 'Replaces your question bank + flipping through textbooks mid-practice',
+    replaces: 'Replaces a plain question bank + flipping through textbooks mid-practice',
     render: () => <MCQVisual />,
   },
   {
     id: 'flashcards',
-    eyebrow: 'High-yield flashcards',
+    eyebrow: 'Flashcards you build',
     accent: '#ffd6f0',
-    h2: 'Lock it in — and actually keep it.',
+    h2: 'Flashcards you can build yourself, not just ours.',
     lede:
-      'Spaced repetition that brings each fact back exactly when you’re about to forget it. High-yield decks, kept up to date, built from the very topics you’re studying.',
+      'Use our decks or add your own. Each fact returns right before you forget it.',
     bullets: [
-      'Anki-style spaced repetition, with Again / Hard / Good / Easy grading.',
-      'High-yield decks that stay current with the exams.',
-      'Cards auto-built from your lessons, so there’s nothing to set up.',
+      'Ready-made decks + your own cards',
+      'Anki-style spaced repetition',
+      'Auto-built from your lessons',
     ],
     replaces: 'Replaces a separate flashcard app and hours of deck-making',
     render: () => <FlashcardVisual />,
   },
   {
     id: 'instant-notes',
-    eyebrow: 'Instant notes',
+    eyebrow: 'Instant lesson notes',
     accent: '#ffe8d6',
     h2: 'Turn any lesson into clean notes, instantly.',
     lede:
-      'Distil a dense topic into clear, structured, exam-ready notes — with the high-yield points highlighted — so you start revising in seconds instead of rewriting.',
+      'Dense topic in, exam-ready notes out, with high-yield points already flagged.',
     bullets: [
-      'Auto-structured notes with the key facts pulled to the top.',
-      'Highlights and recap built in, so revision is fast.',
-      'Yours to edit — keep them in your own words on the canvas.',
+      'Auto-structured, key facts on top',
+      'Highlights & recap built in',
+      'Yours to edit on the canvas',
     ],
     replaces: 'Replaces hours of rewriting and re-summarising',
     render: () => <NotesReviewVisual />,
@@ -81,11 +82,11 @@ const FEATURES = [
     accent: '#fff3d6',
     h2: 'Walk into the real exam already calm.',
     lede:
-      'Sit timed mock exams that feel like the real thing, get a predicted score, then watch your mastery climb subject by subject — so you always know what to study next.',
+      'Timed mocks that feel real, a predicted score, mastery climbing subject by subject.',
     bullets: [
-      'Realistic timed mocks with a predicted score when you finish.',
-      'Subject-by-subject mastery, so weak spots can’t hide.',
-      'Clear next steps — never guess what to revise again.',
+      'Realistic mocks + predicted score',
+      'Subject-by-subject mastery',
+      'Always know what to study next',
     ],
     replaces: 'Replaces guesswork with a plan',
     render: () => (
@@ -94,6 +95,21 @@ const FEATURES = [
         <div className="mx-auto w-full max-w-[20rem] sm:ml-auto sm:mr-0"><MasteryVisual /></div>
       </div>
     ),
+  },
+  {
+    id: 'planner',
+    eyebrow: 'Planner & reminders',
+    accent: '#e8d6ff',
+    h2: 'Plan your week, and actually get reminded.',
+    lede:
+      'Map your revision, set priorities and get nudged, right beside your lessons.',
+    bullets: [
+      'Tasks with subjects & due dates',
+      'Reminders before each session',
+      'Open to today’s agenda',
+    ],
+    replaces: 'Replaces scattered to-do apps and forgotten revision',
+    render: () => <PlannerVisual />,
   },
 ];
 
@@ -114,15 +130,15 @@ function Feature({ f, index }) {
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
           <motion.div
             className={flip ? 'lg:order-2' : ''}
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ y: 28 }}
+            whileInView={{ y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
             <span className="mb-4 inline-block rounded-full px-3.5 py-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[#111118]" style={{ background: f.accent }}>
               {f.eyebrow}
             </span>
-            <h2 id={`feat-${f.id}`} className="font-display text-[clamp(28px,4.2vw,44px)] leading-[1.1] text-[#111118]">{f.h2}</h2>
+            <h2 id={`feat-${f.id}`} className="font-display lpv2-feature-h2 text-[#111118]">{f.h2}</h2>
             <p className="mt-4 max-w-md text-[15px] leading-relaxed text-[#4b5563] md:text-base">{f.lede}</p>
             <ul className="mt-6 space-y-3">
               {f.bullets.map((b) => (
@@ -166,17 +182,17 @@ export function FeatureDeepDives() {
             Everything in one place
           </motion.span>
           <motion.h2
-            className="font-display mx-auto max-w-3xl text-[clamp(32px,5vw,52px)] leading-tight text-[#111118]"
-            initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="font-display lpv2-features-h2 mx-auto max-w-4xl text-[#111118]"
+            initial={{ y: 18 }} whileInView={{ y: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           >
-            One platform for your whole study workflow.
+            Six study tools. One app. Built to work together.
           </motion.h2>
           <motion.p
             className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-[#6b7280] md:text-base"
             initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15, duration: 0.6 }}
           >
-            Notes, exam-style MCQs, flashcards, instant lesson notes, mock exams and progress — built
-            to work together, so nothing slips through the cracks.
+            Write-on notes, a teaching Q-Bank, your own flashcards, instant lesson notes, timed mock
+            exams and a study planner, all in one place, so nothing slips through the cracks.
           </motion.p>
         </div>
       </div>

@@ -14,7 +14,7 @@ const defaultForm = {
   password: '',
   fromName: 'xyndrome',
   fromEmail: '',
-  publicUrl: 'http://localhost/lms',
+  publicUrl: 'http://localhost',
   subject: 'Reset your xyndrome password',
   heading: 'Reset your password',
   intro: 'We received a request to reset your xyndrome password.',
@@ -151,7 +151,7 @@ export function AdminSmtpSettingsPanel() {
               />
               <label className={ui.formLabel}>
                 Public app URL
-                <input className={ui.input} value={form.publicUrl} onChange={(event) => patchForm({ publicUrl: event.target.value })} placeholder="https://yourdomain.com/lms" />
+                <input className={ui.input} value={form.publicUrl} onChange={(event) => patchForm({ publicUrl: event.target.value })} placeholder="https://yourdomain.com" />
               </label>
             </div>
 

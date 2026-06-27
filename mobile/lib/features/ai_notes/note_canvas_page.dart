@@ -27,25 +27,46 @@ enum _Tool { pen, highlighter, eraser }
 class _Stroke {
   final _Tool tool;
   final Color color;
-  final double width;
+  final double width; // base width; the pen scales this per point by pressure
   final List<Offset> points;
-  _Stroke(this.tool, this.color, this.width, [List<Offset>? pts])
-      : points = pts ?? [];
+  // Normalised 0..1 stylus pressure, one per point. Empty for legacy strokes and
+  // for devices/fingers with no pressure → those render at a flat [width]. Only
+  // the pen varies width by pressure; the highlighter and eraser stay fixed.
+  final List<double> pressures;
+  _Stroke(this.tool, this.color, this.width,
+      {List<Offset>? points, List<double>? pressures})
+      : points = points ?? [],
+        pressures = pressures ?? [];
+
+  void add(Offset o, double pressure) {
+    points.add(o);
+    pressures.add(pressure);
+  }
+
+  // Effective half-stretch of the pen at point [i] (0.4..1.0 of base width), so a
+  // light touch tapers and a firm press fills out — the natural-pen feel.
+  double widthAt(int i) =>
+      i < pressures.length ? width * (0.4 + 0.6 * pressures[i]) : width;
 
   Map<String, dynamic> toJson() => {
         't': tool.index,
         'c': color.toARGB32(),
         'w': width,
         'p': [for (final o in points) [o.dx, o.dy]],
+        if (pressures.isNotEmpty) 'pr': pressures,
       };
 
   factory _Stroke.fromJson(Map<String, dynamic> m) => _Stroke(
         _Tool.values[(m['t'] as num).toInt()],
         Color((m['c'] as num).toInt()),
         (m['w'] as num).toDouble(),
-        [
+        points: [
           for (final p in (m['p'] as List))
             Offset((p[0] as num).toDouble(), (p[1] as num).toDouble())
+        ],
+        pressures: [
+          for (final v in ((m['pr'] as List?) ?? const []))
+            (v as num).toDouble()
         ],
       );
 }
@@ -169,6 +190,24 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
   String get _inkKey => 'lms.ink.${widget.lessonId}';
   static const _toolsKey = 'lms.inktools.v4';
 
+  // The note body is the most expensive subtree and never changes while drawing.
+  // Cache the built widget instance so a pen-down/up setState (which only flips
+  // pen/ink state) reuses the SAME widget object — Flutter then skips rebuilding
+  // the whole note tree, killing the per-stroke hitch.
+  Widget? _noteCache;
+  NoteDoc? _noteCacheKey;
+  bool _noteCacheDark = false;
+  Widget _noteContent(NoteDoc note, bool dark) {
+    if (_noteCache == null ||
+        !identical(_noteCacheKey, note) ||
+        _noteCacheDark != dark) {
+      _noteCacheKey = note;
+      _noteCacheDark = dark;
+      _noteCache = _NoteContent(note: note, dark: dark);
+    }
+    return _noteCache!;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -269,18 +308,31 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
         _inkKey, jsonEncode([for (final s in _strokes) s.toJson()]));
   }
 
+  // Normalise raw stylus pressure into 0..1 across the device's own range. Pens
+  // with no pressure (or a finger) report min == max → flat 1.0.
+  static double _norm(PointerEvent e) {
+    final range = e.pressureMax - e.pressureMin;
+    if (range <= 0) return 1.0;
+    return ((e.pressure - e.pressureMin) / range).clamp(0.0, 1.0);
+  }
+
   void _onDown(PointerDownEvent e) {
     if (e.kind != PointerDeviceKind.stylus) return;
+    final s = _Stroke(_tool, _activeColor, _activeSize)
+      ..add(e.localPosition, _norm(e));
     setState(() {
       _penDown = true;
-      _active = _Stroke(_tool, _activeColor, _activeSize)
-        ..points.add(e.localPosition);
+      _active = s;
     });
   }
 
   void _onMove(PointerMoveEvent e) {
     if (_active == null || e.kind != PointerDeviceKind.stylus) return;
-    _active!.points.add(e.localPosition);
+    final p = e.localPosition;
+    // Skip sub-pixel jitter: fewer points → cheaper paint per frame, cheaper
+    // commit redraw, and a smaller saved blob, with no visible quality loss.
+    if ((p - _active!.points.last).distanceSquared < 0.8) return;
+    _active!.add(p, _norm(e));
     _tick.value++; // repaint ink only — no widget rebuild (kills the flicker)
   }
 
@@ -352,7 +404,10 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
               icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: c.inkMedium),
             ),
             Expanded(
-              child: Text('AI Notes',
+              child: Text(
+                  (note?.title.trim().isNotEmpty ?? false) ? note!.title : 'Lesson',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
             ),
@@ -654,7 +709,7 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage> {
         width: MediaQuery.of(context).size.width,
         child: Stack(
           children: [
-            _NoteContent(note: note, dark: dark),
+            _noteContent(note, dark),
             // Committed highlighter: blended onto the note below (multiply on a
             // light page, screen on a dark one) so the text keeps its colour.
             // No RepaintBoundary — the blend must see the note beneath it — so
@@ -722,6 +777,41 @@ void _drawStroke(Canvas canvas, _Stroke s, Paint paint) {
     return;
   }
   canvas.drawPath(_smoothPath(s.points), paint);
+}
+
+// Pen rendering with per-point pressure. When the stroke carries pressure we draw
+// it as a UNION OF FILLED CIRCLES — one per point, radius = that point's pressure.
+// The union has naturally smooth EDGES (no bumpy per-segment joints) and a clean
+// pressure taper, and because each circle is independent, streaming in new points
+// never disturbs the ink already drawn (no tip shimmer). Consecutive points are
+// resampled so circles always overlap — no gaps even on a fast stroke. Opaque, so
+// overlaps don't darken.
+void _drawPen(Canvas canvas, _Stroke s, Color color) {
+  final pts = s.points;
+  final n = pts.length;
+  if (n == 0) return;
+  final fill = Paint()
+    ..color = color
+    ..style = PaintingStyle.fill
+    ..isAntiAlias = true;
+  final flat = s.pressures.length != n;
+  double rad(int i) => (flat ? s.width : s.widthAt(i)) / 2;
+  canvas.drawCircle(pts.first, rad(0), fill);
+  for (var i = 1; i < n; i++) {
+    final a = pts[i - 1], b = pts[i];
+    final ra = rad(i - 1), rb = rad(i);
+    final dist = (b - a).distance;
+    final minR = ra < rb ? ra : rb;
+    final step = minR * 0.5 < 0.75 ? 0.75 : minR * 0.5; // dense enough to overlap
+    final steps = dist <= step ? 1 : (dist / step).ceil();
+    for (var k = 1; k <= steps; k++) {
+      final t = k / steps;
+      canvas.drawCircle(
+          Offset(a.dx + (b.dx - a.dx) * t, a.dy + (b.dy - a.dy) * t),
+          ra + (rb - ra) * t,
+          fill);
+    }
+  }
 }
 
 // Quadratic-bezier smoothing through point midpoints — crisp, no jagged joints.
@@ -793,7 +883,7 @@ class _InkPainter extends CustomPainter {
     for (final s in all) {
       if (s.points.isEmpty) continue;
       if (s.tool == _Tool.pen) {
-        _drawStroke(canvas, s, _linePaint(s.color, s.width));
+        _drawPen(canvas, s, s.color);
       } else if (s.tool == _Tool.eraser) {
         _drawStroke(canvas, s, _eraserPaint(s.width));
       }
@@ -830,7 +920,7 @@ class _LivePainter extends CustomPainter {
     if (s == null || s.points.isEmpty) return;
     switch (s.tool) {
       case _Tool.pen:
-        _drawStroke(canvas, s, _linePaint(s.color, s.width));
+        _drawPen(canvas, s, s.color);
       case _Tool.highlighter:
         // "Wet" preview: a translucent marker while the stroke is in flight.
         // On release it commits to the multiply/screen layer and snaps to the

@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 
 const DEFAULT_TITLE = 'xyndrome';
 const DEFAULT_DESCRIPTION =
-  'xyndrome is a medical learning platform for lessons, quizzes, revision notes, subscriptions, and progress tracking.';
-const DEFAULT_IMAGE = '/lms/pwa-icon-512.png';
+  'xyndrome is the all-in-one study app for Sri Lankan medical students — write-on notes, a teaching Q-Bank, your own flashcards, timed mock exams and a study planner with reminders.';
+const DEFAULT_IMAGE = '/pwa-icon-512.png';
 const PUBLIC_WEBSITE_URL = String(import.meta.env.VITE_PUBLIC_WEBSITE_URL || '').trim().replace(/\/+$/, '');
 
 function upsertMeta(selector, attributes) {
@@ -46,7 +46,7 @@ function publicPath(path = '/') {
 }
 
 function publicAssetPath(path = '/') {
-  return String(path || '/').replace(/^\/lms\/?/, '').replace(/^\/+/, '');
+  return String(path || '/').replace(/^\/lms\/?/, '/').replace(/^\/+/, '');
 }
 
 function publicUrl(path = '/') {
@@ -54,7 +54,7 @@ function publicUrl(path = '/') {
     return absoluteUrl(publicPath(path), `${PUBLIC_WEBSITE_URL}/`);
   }
 
-  return absoluteUrl(`/lms${path === '/' ? '/' : path}`);
+  return absoluteUrl(path === '/' ? '/' : path);
 }
 
 export function PageMeta({

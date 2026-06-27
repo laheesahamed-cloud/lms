@@ -158,12 +158,10 @@ function financePaymentAmount(subscription) {
 }
 
 function formatCouponDiscount(coupon) {
-  if (coupon.couponMode === 'package') {
-    return 'Package only';
-  }
-  return coupon.discountType === 'percent'
+  const discount = coupon.discountType === 'percent'
     ? `${coupon.discountValue}%`
     : formatCurrency(PAYMENT_CURRENCY, coupon.discountValue || 0);
+  return coupon.couponMode === 'package' ? `${discount} (package)` : discount;
 }
 
 function parseDate(value) {
@@ -820,7 +818,7 @@ export function AdminFinancePage() {
                 <div className={financeUi.row} key={coupon.id}>
                   <div className={financeUi.rowMain}>
                     <strong>{coupon.code}</strong>
-                    <span>{coupon.label || (coupon.couponMode === 'package' ? 'Package-only coupon' : `${formatCouponDiscount(coupon)} off`)}</span>
+                    <span>{coupon.label || `${formatCouponDiscount(coupon)} off`}</span>
                   </div>
                   <div className={financeUi.rowStat}>
                     <strong>{coupon.redemptionCount}{coupon.maxRedemptions ? ` / ${coupon.maxRedemptions}` : ''}</strong>

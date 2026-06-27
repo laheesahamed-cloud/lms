@@ -38,7 +38,7 @@ const jsMatch = html.match(/src="([^"]*\/assets\/app-[^"]+\.js)"/);
 if (!jsMatch) {
   throw new Error('Built frontend index does not contain the expected versioned app JS asset.');
 }
-await assertExists(path.join(repoRoot, jsMatch[1].replace(/^\/lms\//, '')), 'Built app JS');
+await assertExists(path.join(repoRoot, 'frontend', 'dist', jsMatch[1].replace(/^\//, '')), 'Built app JS');
 
 // Link the main stylesheet from the HTML head (M6). The bundler injects CSS
 // from JS, which serializes the entire stylesheet download behind JS boot;
@@ -48,7 +48,7 @@ const mainCss = (await readdir(cssDir)).find((name) => name.startsWith('main-') 
 if (!mainCss) {
   throw new Error('Built CSS directory does not contain the main stylesheet.');
 }
-const mainCssHref = `/lms/frontend/dist/assets/css/${mainCss}`;
+const mainCssHref = `/assets/css/${mainCss}`;
 if (!html.includes(mainCssHref)) {
   html = html.replace(
     '<link rel="shortcut icon"',
@@ -67,7 +67,7 @@ const latinFont = (await readdir(assetsDir)).find((name) => name.startsWith('pjs
 if (!latinFont) {
   throw new Error('Built assets do not contain the self-hosted PJS latin woff2.');
 }
-const fontHref = `/lms/frontend/dist/assets/${latinFont}`;
+const fontHref = `/assets/${latinFont}`;
 if (!html.includes(fontHref)) {
   html = html.replace(
     `<link rel="stylesheet" href="${mainCssHref}" />`,

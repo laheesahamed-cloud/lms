@@ -93,12 +93,20 @@
   root.style.colorScheme = theme;
   root.style.backgroundColor = isNativeShell ? (theme === 'dark' ? '#02030a' : '#dce6f4') : '#05070d';
 
+  // Dark public landing (apex "/") on the web: keep the document dark through
+  // the gap after React removes `.app-booting` but before the lazy landing
+  // chunk + dark BootLoader paint. Without this the light --app-bg flashes
+  // white. Only the marketing landing is dark; app/auth routes stay light.
+  if (!isNativeShell && window.location.pathname === '/') {
+    root.dataset.lmsDarkBoot = 'on';
+  }
+
   // App-shell prerender + API preload (M6/M7): only on signed-in app
   // surfaces. The splash carries NO user data (the shell is cached and
   // shared, see report sec 13.4); the preload merely warms the same
   // /auth/me request the app fires first, with matching credentials.
-  var appPath = /^\/lms\/(?:app|admin|dashboard|login)(?:\/|$)/.test(window.location.pathname);
-  // The native shell boots from the scheme root ("/"), so the /lms/ web-path
+  var appPath = /^\/(?:app|admin|dashboard|login)(?:\/|$)/.test(window.location.pathname);
+  // The native shell boots from the scheme root ("/"), so the web-path
   // test never matches there. Without the splash gate the cold first launch
   // (slow WKWebView JS compile, nothing cached) shows a bare dark screen until
   // React mounts — the "blank screen on first open" bug. Always gate it on
@@ -106,7 +114,7 @@
   if (appPath || isNativeShell) {
     root.dataset.lmsBootSplash = 'on';
   }
-  if (appPath && window.location.pathname !== '/lms/login') {
+  if (appPath && window.location.pathname !== '/login') {
     try {
       var apiHost = window.location.hostname;
       var apiBase = (apiHost === 'localhost' || apiHost === '127.0.0.1' || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(apiHost))

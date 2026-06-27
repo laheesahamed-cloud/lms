@@ -1172,23 +1172,35 @@ export class SettingsService {
 
     const logoUrl = `${String(settings.publicUrl || '').replace(/\/+$/, '')}/landing/logo.png`;
 
-    return `
-      <div style="margin:0;padding:28px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
-        <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:16px;overflow:hidden;">
-          <div style="padding:22px 24px 16px;background:#ffffff;text-align:center;">
-            <img src="${safe(logoUrl)}" alt="${safe(settings.fromName)}" width="150" style="display:inline-block;max-width:150px;height:auto;border:0;outline:none;text-decoration:none;" />
-          </div>
-          <div style="padding:20px 24px;background:#2563eb;color:#ffffff;">
-            <h1 style="margin:0;font-size:24px;line-height:1.2;">SMTP test email</h1>
-          </div>
-          <div style="padding:24px;font-size:14px;line-height:1.7;color:#334155;">
-            <p style="margin:0 0 14px;">Your xyndrome SMTP settings can send email successfully.</p>
-            <p style="margin:0;color:#64748b;">Sent at: ${safe(sentAt.toISOString())}</p>
-            <p style="margin:8px 0 0;color:#64748b;">From: ${safe(settings.fromName)} &lt;${safe(settings.fromEmail)}&gt;</p>
-          </div>
+    return `<!DOCTYPE html>
+<html lang="en" style="color-scheme:light only;supported-color-schemes:light only;">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light only" />
+    <meta name="supported-color-schemes" content="light only" />
+    <style>
+      :root { color-scheme: light only; supported-color-schemes: light only; }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f7fb;">
+    <div style="margin:0;padding:28px;background:#f4f7fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+      <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #dbe4ef;border-radius:16px;overflow:hidden;">
+        <div style="padding:22px 24px 16px;background:#ffffff;text-align:center;">
+          <img src="${safe(logoUrl)}" alt="${safe(settings.fromName)}" width="150" style="display:inline-block;max-width:150px;height:auto;border:0;outline:none;text-decoration:none;" />
+        </div>
+        <div style="padding:20px 24px;background:#2563eb;color:#ffffff;">
+          <h1 style="margin:0;font-size:24px;line-height:1.2;color:#ffffff;">SMTP test email</h1>
+        </div>
+        <div style="padding:24px;font-size:14px;line-height:1.7;color:#334155;">
+          <p style="margin:0 0 14px;color:#334155;">Your xyndrome SMTP settings can send email successfully.</p>
+          <p style="margin:0;color:#64748b;">Sent at: ${safe(sentAt.toISOString())}</p>
+          <p style="margin:8px 0 0;color:#64748b;">From: ${safe(settings.fromName)} &lt;${safe(settings.fromEmail)}&gt;</p>
         </div>
       </div>
-    `;
+    </div>
+  </body>
+</html>`;
   }
 
   private async getRawPopupAlertSettings(): Promise<PopupAlertSettings> {

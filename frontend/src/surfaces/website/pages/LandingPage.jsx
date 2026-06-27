@@ -159,8 +159,8 @@ export function LandingPage() {
   return (
     <main className={`lpv2 relative isolate overflow-x-clip ${subjectDarkModeActive ? 'lpv2--subject-dark' : ''}`}>
       <PageMeta
-        title="Medical Study Platform — Notes, MCQs, Flashcards & Mock Exams"
-        description="xyndrome puts your whole medical study workflow in one place: canvas notes, 10,000+ exam-style MCQs with doctor-written explanations, high-yield flashcards, instant lesson notes, timed mock exams and subject mastery tracking — built for Sri Lankan medical students."
+        title="Study App for Sri Lankan Medical Students: Notes, Q-Bank, Flashcards & Mock Exams"
+        description="The all-in-one study app for Sri Lankan medical students, for MBBS, KDU and licensing-exam prep. Write on your own notes, practise a teaching Q-Bank that explains why wrong answers are wrong, build your own flashcards, sit timed mock exams and plan revision with reminders, all in one place."
         path="/"
       />
       <StructuredData id="landing" faqs={FAQ_ITEMS} />

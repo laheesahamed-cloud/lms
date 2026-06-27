@@ -154,7 +154,7 @@ export const useAuthStore = create((set, get) => ({
   authNotice: null,
   sessionExpiredLock: null,
 
-  hydrate: async () => {
+  hydrate: async ({ force = false } = {}) => {
     if (hydratePromise) {
       return hydratePromise;
     }
@@ -165,14 +165,14 @@ export const useAuthStore = create((set, get) => ({
         const current = get();
         const token = current.token || getAuthToken();
         const hasLocalAuthSnapshot = Boolean(current.isAuthenticated || current.user || token);
-        if (!hasLocalAuthSnapshot && isPublicAuthRoute()) {
+        if (!force && !hasLocalAuthSnapshot && isPublicAuthRoute()) {
           finishSignedOut(set);
           return;
         }
 
         const data = await fetchCurrentUser({
-          silent: isPublicAuthRoute(),
-          timeout: isPublicAuthRoute() ? PUBLIC_AUTH_HYDRATE_TIMEOUT_MS : 5000,
+          silent: !force && isPublicAuthRoute(),
+          timeout: !force && isPublicAuthRoute() ? PUBLIC_AUTH_HYDRATE_TIMEOUT_MS : 5000,
         });
         if (hydrateVersion !== authMutationVersion) {
           return;
@@ -207,7 +207,7 @@ export const useAuthStore = create((set, get) => ({
     // Unverified students receive no session — the caller routes them to the
     // email OTP screen instead of completing sign-in.
     if (raw?.emailVerificationRequired) {
-      return { emailVerificationRequired: true, email: raw.email || payload.email, devCode: raw.devCode };
+      return { emailVerificationRequired: true, email: raw.email || payload.email };
     }
     const data = await resolveAuthPayload(raw, 'sign-in');
     authMutationVersion += 1;
@@ -230,7 +230,7 @@ export const useAuthStore = create((set, get) => ({
   signUp: async (payload) => {
     const raw = await register(payload);
     if (raw?.emailVerificationRequired) {
-      return { emailVerificationRequired: true, email: raw.email || payload.email, devCode: raw.devCode };
+      return { emailVerificationRequired: true, email: raw.email || payload.email };
     }
     const data = await resolveAuthPayload(raw, 'registration');
     authMutationVersion += 1;

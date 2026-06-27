@@ -6,10 +6,10 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 
 const STATS = [
-  { value: 4, suffix: '', label: 'Core LMS workflows', bg: '#d6ffe8' },
-  { value: 10000, suffix: '+', label: 'Exam-style MCQs', bg: '#d6f0ff' },
-  { value: 25, suffix: '+', label: 'Clinical subjects', bg: '#e8d6ff' },
-  { value: 3, suffix: '', label: 'Practice modes', bg: '#fff3d6' },
+  { value: 6, suffix: '', label: 'Study tools in one app', bg: '#d6ffe8' },
+  { value: 4, suffix: '', label: 'Ways every MCQ teaches you', bg: '#d6f0ff' },
+  { value: 2, suffix: '', label: 'Exam modes: timed & practice', bg: '#e8d6ff' },
+  { value: 3, suffix: '', label: 'Platforms: Web, iOS & Android', bg: '#fff3d6' },
 ];
 
 function CountUp({ value, suffix, active }) {

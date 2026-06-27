@@ -6,10 +6,10 @@
 const PASTELS = ['#ffd6d6', '#d6f0ff', '#e8d6ff', '#d6ffe8', '#fff3d6', '#ffd6f0', '#e8f5e9', '#ffe8d6'];
 
 const TESTIMONIALS = [
-  { name: 'Tharushi M.', uni: 'Faculty of Medicine, Kelaniya', quote: 'The MCQ explanations are unreal — every wrong answer actually teaches you something. I went from failing mocks to 87% in 3 months.' },
+  { name: 'Tharushi M.', uni: 'Faculty of Medicine, Kelaniya', quote: 'The MCQ explanations are unreal. Every wrong answer actually teaches you something. I went from failing mocks to 87% in 3 months.' },
   { name: 'Ravindu P.', uni: 'University of Colombo', quote: 'Having all subjects in one place with real progress tracking changed everything. No more guessing what to study next.' },
-  { name: 'Amali F.', uni: 'Sabaragamuwa University', quote: 'The streak system kept me consistent when I had zero motivation. Pharmacology used to scare me — now it’s my best subject.' },
-  { name: 'Dilan W.', uni: 'University of Peradeniya', quote: 'Mock exam mode is incredibly realistic. The timer pressure, the interface — it prepared me mentally for the real thing.' },
+  { name: 'Amali F.', uni: 'Sabaragamuwa University', quote: 'The streak system kept me consistent when I had zero motivation. Pharmacology used to scare me, now it’s my best subject.' },
+  { name: 'Dilan W.', uni: 'University of Peradeniya', quote: 'Mock exam mode is incredibly realistic. The timer pressure and the interface prepared me mentally for the real thing.' },
   { name: 'Nethmi K.', uni: 'University of Ruhuna', quote: 'I tried the free trial for a week. Subscribed the next day. The quality of the explanations is unlike anything I’ve seen.' },
   { name: 'Chathura S.', uni: 'NSBM Green University', quote: 'The Pathology explanations read like a senior doctor is sitting next to you. That’s the level of detail I needed.' },
   { name: 'Shanika R.', uni: 'University of Jaffna', quote: 'I’ve told every single batchmate about xyndrome. When something works this well, you just share it.' },

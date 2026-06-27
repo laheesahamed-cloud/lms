@@ -4,8 +4,14 @@
   RewriteCond %{HTTP_HOST} ^www\.xyndrome\.lk$ [NC]
   RewriteRule ^ https://xyndrome.lk%{REQUEST_URI} [R=301,L]
 
-  RewriteBase /lms/frontend/dist/
+  RewriteBase /
   RewriteRule ^index\.html$ - [L]
+
+  # Forward legacy /lms (and the old /lms/frontend/dist build path) to the
+  # apex root so previously-indexed/bookmarked app URLs don't 404.
+  RewriteRule ^lms/frontend/dist/(.*)$ /$1 [R=301,L]
+  RewriteRule ^lms/(.*)$ /$1 [R=301,L]
+  RewriteRule ^lms$ / [R=301,L]
 
   RewriteCond %{REQUEST_URI} \.(?:js|mjs|css|map|json|webmanifest|txt|xml|png|jpe?g|gif|webp|svg|ico|woff2?|ttf)$ [NC]
   RewriteCond %{REQUEST_FILENAME} !-f
@@ -13,7 +19,7 @@
 
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /lms/frontend/dist/index.html [L]
+  RewriteRule . /index.html [L]
 </IfModule>
 
 <IfModule mod_mime.c>
@@ -68,8 +74,8 @@
   # THE_REQUEST survives mod_rewrite's internal redirect to dist/index.html
   # (Request_URI/SetEnvIf do not — they re-evaluate against the rewritten
   # path), so the tier is decided on the ORIGINAL navigation URL.
-  Header set Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com ; style-src 'self' 'sha256-s/CnSihqIXcbpHEBeeYJkPudxGrZP7oRllZYyLfX6ac='; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://accounts.google.com http://localhost:3000 http://127.0.0.1:3000; frame-src 'self' https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com" "expr=%{THE_REQUEST} =~ m#\s/lms/(app|login)([/?\s])# && %{CONTENT_TYPE} =~ m#text/html#"
-  Header set Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com ; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://api.dicebear.com; connect-src 'self' https://accounts.google.com http://localhost:3000 http://127.0.0.1:3000; frame-src 'self' https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com" "expr=!(%{THE_REQUEST} =~ m#\s/lms/(app|login)([/?\s])#) && %{CONTENT_TYPE} =~ m#text/html#"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com https://appleid.cdn-apple.com ; style-src 'self' 'sha256-cD9sCQZUIRI3nwTOcKesBYk3Y0vzw/hiYIVXcASo8JE='; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://accounts.google.com https://appleid.apple.com http://localhost:3000 http://127.0.0.1:3000; frame-src 'self' https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com https://appleid.apple.com" "expr=%{THE_REQUEST} =~ m#\s/(app|login)([/?\s])# && %{CONTENT_TYPE} =~ m#text/html#"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com https://appleid.cdn-apple.com ; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://api.dicebear.com; connect-src 'self' https://accounts.google.com https://appleid.apple.com http://localhost:3000 http://127.0.0.1:3000; frame-src 'self' https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self' https://accounts.google.com https://appleid.apple.com" "expr=!(%{THE_REQUEST} =~ m#\s/(app|login)([/?\s])#) && %{CONTENT_TYPE} =~ m#text/html#"
   <FilesMatch "^index\.html$">
     Header set X-Content-Type-Options "nosniff"
     Header set Referrer-Policy "no-referrer"

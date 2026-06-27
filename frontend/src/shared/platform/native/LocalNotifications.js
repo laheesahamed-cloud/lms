@@ -148,8 +148,8 @@ async function spawnWebNotification({ title, body, url }) {
   const options = {
     body: body || 'You have a new notification.',
     data: { url },
-    icon: '/lms/pwa-icon-192.png',
-    badge: '/lms/favicon-light-192.png',
+    icon: '/pwa-icon-192.png',
+    badge: '/favicon-light-192.png',
     tag: `local-${url}`,
   };
 
@@ -174,15 +174,6 @@ async function spawnWebNotification({ title, body, url }) {
   };
 }
 
-/** Cancel a previously scheduled local notification by id (native only). */
-export async function cancelLocalNotification(id) {
-  if (!isNative()) return;
-  const numeric = Number(id);
-  if (!Number.isInteger(numeric) || numeric <= 0) return;
-  const { LocalNotifications } = await import('@capacitor/local-notifications');
-  await LocalNotifications.cancel({ notifications: [{ id: numeric }] }).catch(() => {});
-}
-
 /** Cancel several scheduled local notifications. */
 export async function cancelLocalNotifications(ids = []) {
   if (!isNative()) return;
@@ -193,14 +184,6 @@ export async function cancelLocalNotifications(ids = []) {
   if (!notifications.length) return;
   const { LocalNotifications } = await import('@capacitor/local-notifications');
   await LocalNotifications.cancel({ notifications }).catch(() => {});
-}
-
-/** Ids of notifications currently scheduled on the device (native only). */
-export async function getPendingLocalNotificationIds() {
-  if (!isNative()) return [];
-  const { LocalNotifications } = await import('@capacitor/local-notifications');
-  const pending = await LocalNotifications.getPending().catch(() => null);
-  return (pending?.notifications || []).map((n) => Number(n.id)).filter((id) => Number.isInteger(id));
 }
 
 /** Install the tap handler that deep-links into the SPA. Idempotent. */

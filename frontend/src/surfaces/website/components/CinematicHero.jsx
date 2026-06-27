@@ -71,7 +71,10 @@ const INJECTED_STYLES = `
 
   /* Floating medical icons */
   .cinhero .cin-med { position: absolute; z-index: 4; pointer-events: none; opacity: 0; filter: brightness(0) invert(1) drop-shadow(0 0 16px rgba(82,116,243,0.5)); will-change: transform; }
-  .cinhero.cin-ready .cin-med { opacity: 0.18; transition: opacity 1.2s ease; }
+  /* 0.34 (was 0.18): Safari often drops the drop-shadow glow from the chained
+     filter on an <img> SVG, and 18% white with no glow is invisible on the dark
+     hero. A higher base opacity keeps the icons readable even without the glow. */
+  .cinhero.cin-ready .cin-med { opacity: 0.34; transition: opacity 1.2s ease; }
   .cinhero .cin-med img { width: 100%; height: 100%; display: block; }
 
   /* Animated ECG line */
@@ -177,6 +180,15 @@ const INJECTED_STYLES = `
       .cinhero .cin-aurora .a3 { display: none; }
       .cinhero .card-sheen { display: none; }
       .cinhero .cin-med { filter: brightness(0) invert(1); }
+      /* Stop the continuously-running decorative animations on phones — they
+         repaint every frame and fight the scrubbed pin for the compositor,
+         which is the main remaining source of Android scroll jank. The aurora
+         glow and floating icons stay visible, just static. The important flag
+         is needed to beat the per-icon inline animation style. */
+      .cinhero .cin-aurora span,
+      .cinhero .cin-med,
+      .cinhero .cin-ecg path { animation: none !important; }
+      .cinhero .cin-ecg path { stroke-dashoffset: 0; }
       .cinhero .floating-ui-badge {
           backdrop-filter: none; -webkit-backdrop-filter: none;
           background: linear-gradient(135deg, rgba(38,32,66,0.94) 0%, rgba(20,16,38,0.94) 100%);
@@ -225,15 +237,15 @@ export function CinematicHero({
   cardHeading = "Built for Sri Lanka's medical students.",
   cardDescription = (
     <>
-      <span className="font-semibold text-white">xyndrome</span> is a medical LMS
-      for structured notes, exam-style MCQs, mock exams, and subject mastery
-      tracking — all in one place.
+      <span className="font-semibold text-white">xyndrome</span> is the all-in-one
+      study app for Sri Lankan medical students: write-on notes, a teaching
+      Q-Bank, your own flashcards, mock exams and a study planner, in one place.
     </>
   ),
-  metricValue = 25,
-  metricLabel = 'Clinical Subjects',
+  metricValue = 6,
+  metricLabel = 'Study tools, one app',
   ctaHeading = 'Your exam prep starts now.',
-  ctaDescription = 'Notes, MCQs, mock exams, and progress tracking in one medical LMS.',
+  ctaDescription = 'Notes, MCQs, flashcards, mock exams and a study planner, all in one app.',
   primaryCta = { label: 'Start Free Trial', to: '/register' },
   secondaryCta = { label: 'Sign In', to: '/login' },
   className,
@@ -290,15 +302,22 @@ export function CinematicHero({
     return () => { window.removeEventListener('mousemove', handleMouseMove); cancelAnimationFrame(requestRef.current); };
   }, []);
 
-  // Cinematic scroll timeline (or static frame for reduced motion).
+  // Cinematic scroll timeline (or static frame for reduced motion / phones).
   useEffect(() => {
     if (!animationReady) return undefined;
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const root = containerRef.current;
+    // Phones (low-end Android especially) cannot run the scrubbed pin timeline:
+    // it animates the card's width/height/border-radius every scroll frame, which
+    // forces a full layout reflow per tick and stutters badly. Stripping the
+    // decorative effects wasn't enough. So phones get the same pin-free static
+    // hero as reduced-motion; tablets and desktop keep the full cinematic.
+    const isPhone = (typeof document !== 'undefined' && document.documentElement.dataset.lmsFormFactor === 'phone')
+      || (window.matchMedia?.('(hover: none) and (pointer: coarse)').matches && window.innerWidth < 768);
     root?.classList.add('cin-ready');
 
     const ctx = gsap.context(() => {
-      if (prefersReducedMotion) {
+      if (prefersReducedMotion || isPhone) {
         gsap.set('.gsap-reveal', { visibility: 'visible' });
         gsap.set('.hero-text-wrapper', { autoAlpha: 0 });
         gsap.set('.cta-wrapper', { autoAlpha: 0 });
@@ -330,7 +349,11 @@ export function CinematicHero({
         .to('.hero-accents', { duration: 1.4, autoAlpha: 1, y: 0, ease: 'power3.out' }, '-=0.9');
 
       gsap.timeline({
-        scrollTrigger: { trigger: root, start: 'top top', end: '+=8200', pin: true, scrub: 1.25, anticipatePin: 1 },
+        // Lower scrub smoothing on touch: the card's width/height tween forces a
+        // layout recalc every catch-up frame, so a long 1.25s smoothing tail
+        // keeps reflowing for over a second after the finger lifts (the "lag").
+        // A short tail ties the timeline more tightly to the actual scroll.
+        scrollTrigger: { trigger: root, start: 'top top', end: '+=8200', pin: true, scrub: isTouch ? 0.5 : 1.25, anticipatePin: 1 },
       })
         .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { scale: 1.15, ...scrubBlur('20px'), opacity: 0.12, ease: 'power2.inOut', duration: 2.4 }, 0)
         .to('.main-card', { y: 0, ease: 'power3.inOut', duration: 2.4 }, 0)
@@ -396,11 +419,11 @@ export function CinematicHero({
         <h1 className="text-days gsap-reveal text-grad-cta text-5xl md:text-7xl lg:text-[6rem] font-extrabold tracking-tighter">{tagline2}</h1>
         <div className="hero-accents gsap-reveal mt-6 flex flex-col items-center gap-4">
           <p className="max-w-xl text-sm font-medium leading-relaxed text-white/65 md:text-base">
-            A medical LMS for Sri Lankan students: structured notes, exam-style MCQs,
-            mock exams, and progress tracking.
+            The all-in-one study app for Sri Lankan medical students: write-on notes, a
+            teaching Q-Bank, your own flashcards, mock exams and a study planner.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2.5 text-[13px] font-semibold">
-            {[{ icon: <GlyphPulse />, label: '10,000+ exam-style MCQs' }, { icon: <GlyphChart />, label: '25+ clinical subjects' }].map((p) => (
+            {[{ icon: <GlyphPulse />, label: 'Q-Bank that explains every answer' }, { icon: <GlyphChart />, label: 'Notes you can write on' }].map((p) => (
               <span key={p.label} className="inline-flex items-center gap-2 rounded-full border border-[#8a7bf0]/26 bg-[#5274f3]/10 px-3.5 py-1.5 text-[#d6cdff]">
                 <span className="w-4 h-4 text-[#a99cff] [&_svg]:w-full [&_svg]:h-full">{p.icon}</span>{p.label}
               </span>

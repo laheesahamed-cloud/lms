@@ -1193,8 +1193,8 @@ export class SubscriptionsService {
     const orderId = invoiceId;
     const amountFormatted = this.formatAmount(payableAmount);
     const baseFrontendUrl = this.resolveFrontendUrl();
-    const returnUrl = settings.returnUrl || `${baseFrontendUrl}/lms/#/subscriptions?payment=return&order_id=${encodeURIComponent(orderId)}`;
-    const cancelUrl = settings.cancelUrl || `${baseFrontendUrl}/lms/#/subscriptions?payment=cancel&order_id=${encodeURIComponent(orderId)}`;
+    const returnUrl = settings.returnUrl || `${baseFrontendUrl}/#/subscriptions?payment=return&order_id=${encodeURIComponent(orderId)}`;
+    const cancelUrl = settings.cancelUrl || `${baseFrontendUrl}/#/subscriptions?payment=cancel&order_id=${encodeURIComponent(orderId)}`;
     const notifyUrl = this.resolvePayHereNotifyUrl(settings.notifyUrl);
     const billingName = String(checkoutInput.billingName || student.fullName || '').trim() || student.fullName;
     const billingEmail = String(checkoutInput.billingEmail || student.email || '').trim() || student.email;
@@ -2235,10 +2235,10 @@ export class SubscriptionsService {
     const couponMode = dto.couponMode === 'package' ? 'package' : 'discount';
     const discountType = dto.discountType === 'fixed' ? 'fixed' : 'percent';
     const discountValue = Number(dto.discountValue || 0);
-    if (couponMode === 'discount' && (!Number.isFinite(discountValue) || discountValue <= 0)) {
+    if (!Number.isFinite(discountValue) || discountValue <= 0) {
       throw new BadRequestException('Coupon discount must be greater than zero');
     }
-    if (couponMode === 'discount' && discountType === 'percent' && discountValue > 100) {
+    if (discountType === 'percent' && discountValue > 100) {
       throw new BadRequestException('Percent coupon cannot exceed 100%');
     }
     const planIds = this.cleanIdList(Array.isArray(dto.planIds) ? dto.planIds : []);
@@ -2257,7 +2257,7 @@ export class SubscriptionsService {
       label: String(dto.label || '').trim() || null,
       couponMode,
       discountType,
-      discountValue: couponMode === 'package' ? 0 : discountValue,
+      discountValue,
       planIds: couponMode === 'package' ? planIds : [],
       status: dto.status === 'inactive' ? 'inactive' : 'active',
       startsAt,
@@ -2333,9 +2333,9 @@ export class SubscriptionsService {
     }
 
     const value = Number(coupon.discount_value || 0);
-    const discountAmount = couponMode === 'discount'
-      ? (coupon.discount_type === 'fixed' ? Math.min(amount, value) : Math.min(amount, amount * (value / 100)))
-      : 0;
+    const discountAmount = coupon.discount_type === 'fixed'
+      ? Math.min(amount, value)
+      : Math.min(amount, amount * (value / 100));
     return {
       code: String(coupon.code || '').trim(),
       couponMode,

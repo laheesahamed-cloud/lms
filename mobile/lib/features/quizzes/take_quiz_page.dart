@@ -11,6 +11,7 @@ import '../../widgets/locked_view.dart';
 import '../dashboard/dashboard_repository.dart';
 import 'quizzes_repository.dart';
 import 'quiz_dialogs.dart';
+import 'submit_transition_overlay.dart';
 
 /// Take a quiz. Practice mode: pick an answer, reveal the correct option with
 /// the full explanation. Exam mode: a real timed exam session whose answers are
@@ -32,7 +33,12 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
   final Set<int> _revealed = {}; // questionId (practice reveal)
   bool _started = false; // gated behind the start-confirm popup
   bool _startPrompting = false;
-  bool _submitting = false; // exam submit in-flight
+  bool _submitting = false; // exam submit / practice finish in-flight
+  // Drives the two-screen "Badge verify" submit transition (see
+  // SubmitTransitionOverlay). Snappier than the web: 700ms + 800ms holds.
+  SubmitPhase _submitPhase = SubmitPhase.idle;
+  static const int _submitMinMs = 700; // min "submitting" hold (or network)
+  static const int _completeHoldMs = 800; // "complete" hold before leaving
   int _secondsLeft = 0;
   Timer? _timer;
 
@@ -112,6 +118,11 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
     final answered = _answeredCount(questions);
     final ok = await showQuizFinishDialog(context, exam: false, answered: answered);
     if (ok != true) return;
+    if (_submitting) return;
+    setState(() {
+      _submitting = true;
+      _submitPhase = SubmitPhase.submitting;
+    });
     // Only a fully-answered practice counts toward the daily streak (isolated
     // event, does not affect scores). Fire-and-forget so finishing never blocks.
     final id = int.tryParse(widget.quizId);
@@ -132,6 +143,12 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       }
     }
     ref.invalidate(studentDashboardProvider);
+    // Practice has nothing to wait on, so just hold the "submitting" phase for
+    // the minimum, pop the badge, hold, then leave — same beats as the exam.
+    await Future.delayed(const Duration(milliseconds: _submitMinMs));
+    if (!mounted) return;
+    setState(() => _submitPhase = SubmitPhase.complete);
+    await Future.delayed(const Duration(milliseconds: _completeHoldMs));
     if (mounted) context.pop();
   }
 
@@ -148,7 +165,10 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
   Future<void> _submitExam(List<PracticeQuestion> questions) async {
     if (_submitting) return;
     _timer?.cancel();
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _submitPhase = SubmitPhase.submitting;
+    });
     final answers = <String, dynamic>{};
     for (final q in questions) {
       if (q.type == 'true_false') {
@@ -165,6 +185,9 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       }
     }
     try {
+      // The submit runs underneath the "submitting" spinner; the spinner shows
+      // for exactly as long as the real server submit takes (no padded hold).
+      // Then pop the badge, hold briefly, and leave for the result.
       final attemptId = await submitExam(ref, widget.quizId, answers);
       if (!mounted) return;
       // Refresh the list (completed tick), the results history, and the
@@ -172,10 +195,16 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       ref.invalidate(quizListProvider);
       ref.invalidate(resultsListProvider);
       ref.invalidate(studentDashboardProvider);
+      setState(() => _submitPhase = SubmitPhase.complete);
+      await Future.delayed(const Duration(milliseconds: _completeHoldMs));
+      if (!mounted) return;
       context.pushReplacement('/app/exam-complete/$attemptId');
     } catch (e) {
       if (!mounted) return;
-      setState(() => _submitting = false);
+      setState(() {
+        _submitting = false;
+        _submitPhase = SubmitPhase.idle;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not submit exam. ${_short(e)}')),
       );
@@ -226,27 +255,37 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
             final i = _index.clamp(0, quiz.questions.length - 1);
             final q = quiz.questions[i];
             final revealed = _revealed.contains(q.id);
-            return Column(
+            return Stack(
               children: [
-                _topBar(c, quiz.title, i, quiz.questions, showTimer: false),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    child: _QuestionView(
-                      key: ValueKey(q.id),
-                      question: q,
-                      selectedOptionId: _selected[q.id],
-                      tfMarks: _tf[q.id],
-                      revealed: revealed,
-                      selectable: !revealed,
-                      showRevealButton: !revealed,
-                      onSelect: (optId) => setState(() => _selected[q.id] = optId),
-                      onTfSelect: (optId, isTrue) => _setTf(q.id, optId, isTrue),
-                      onReveal: () => setState(() => _revealed.add(q.id)),
+                Column(
+                  children: [
+                    _topBar(c, quiz.title, i, quiz.questions, showTimer: false),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        child: _QuestionView(
+                          key: ValueKey(q.id),
+                          question: q,
+                          selectedOptionId: _selected[q.id],
+                          tfMarks: _tf[q.id],
+                          revealed: revealed,
+                          selectable: !revealed,
+                          showRevealButton: !revealed,
+                          onSelect: (optId) =>
+                              setState(() => _selected[q.id] = optId),
+                          onTfSelect: (optId, isTrue) => _setTf(q.id, optId, isTrue),
+                          onReveal: () => setState(() => _revealed.add(q.id)),
+                        ),
+                      ),
                     ),
-                  ),
+                    _bottomBar(c, quiz.questions.length, isExam: false),
+                  ],
                 ),
-                _bottomBar(c, quiz.questions.length, isExam: false),
+                SubmitTransitionOverlay(
+                  phase: _submitPhase,
+                  submittingLabel: 'Your practice is submitting…',
+                  completeLabel: 'All done — great work!',
+                ),
               ],
             );
           },
@@ -320,13 +359,11 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
                     _bottomBar(c, load.questions.length, isExam: true),
                   ],
                 ),
-                if (_submitting)
-                  Positioned.fill(
-                    child: ColoredBox(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: const QuizLoadingView(label: 'Submitting your answers…'),
-                    ),
-                  ),
+                SubmitTransitionOverlay(
+                  phase: _submitPhase,
+                  submittingLabel: 'Your quiz is submitting…',
+                  completeLabel: 'Submission complete!',
+                ),
               ],
             );
           },
