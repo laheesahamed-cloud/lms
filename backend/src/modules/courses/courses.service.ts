@@ -90,6 +90,31 @@ export class CoursesService {
     private readonly plansService: PlansService,
   ) {}
 
+  async getLandingSummary() {
+    const [topics] = await this.db.execute<RowDataPacket[]>(
+      `SELECT t.id, t.topic_name, COUNT(q.id) AS question_count
+       FROM topics t
+       LEFT JOIN questions q ON q.topic_id = t.id
+       WHERE t.status = 'active'
+       GROUP BY t.id, t.topic_name
+       ORDER BY question_count DESC`
+    );
+    const [courses] = await this.db.execute<RowDataPacket[]>(
+      "SELECT id, course_title FROM courses WHERE status = 'active' ORDER BY course_title ASC"
+    );
+    return {
+      topics: (topics as RowDataPacket[]).map((r) => ({
+        id: r['id'] as number,
+        name: r['topic_name'] as string,
+        questionCount: Number(r['question_count']),
+      })),
+      courses: (courses as RowDataPacket[]).map((r) => ({
+        id: r['id'] as number,
+        title: r['course_title'] as string,
+      })),
+    };
+  }
+
   async findAll() {
     const [rows] = await this.db.execute<CourseRow[]>(
       'SELECT id, course_title, course_code, description, exam_type, status, created_at FROM courses ORDER BY course_title ASC'

@@ -26,6 +26,9 @@ let CoursesController = class CoursesController {
         this.coursesService = coursesService;
         this.authService = authService;
     }
+    getLandingSummary() {
+        return this.coursesService.getLandingSummary();
+    }
     findStudentCourses(authorization) {
         return this.coursesService.findStudentCourses(authorization);
     }
@@ -71,6 +74,12 @@ let CoursesController = class CoursesController {
     }
 };
 exports.CoursesController = CoursesController;
+__decorate([
+    (0, common_1.Get)('landing-summary'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], CoursesController.prototype, "getLandingSummary", null);
 __decorate([
     (0, common_1.Get)('student'),
     __param(0, (0, common_1.Headers)('authorization')),

@@ -14,6 +14,11 @@ export class CoursesController {
     private readonly authService: AuthService,
   ) {}
 
+  @Get('landing-summary')
+  getLandingSummary() {
+    return this.coursesService.getLandingSummary();
+  }
+
   @Get('student')
   findStudentCourses(@Headers('authorization') authorization?: string) {
     return this.coursesService.findStudentCourses(authorization);
