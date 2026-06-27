@@ -49,7 +49,7 @@ export function FinalCTA() {
           </p>
 
           {/* Instagram */}
-          <div className="mt-7 inline-flex items-center gap-2.5 rounded-full bg-white px-5 py-2.5 shadow-[0_4px_18px_-6px_rgba(17,17,24,0.14)] ring-1 ring-black/5">
+          <a href="https://www.instagram.com/xyndrome.med" target="_blank" rel="noopener noreferrer" className="mt-7 inline-flex items-center gap-2.5 rounded-full bg-white px-5 py-2.5 shadow-[0_4px_18px_-6px_rgba(17,17,24,0.14)] ring-1 ring-black/5 no-underline transition-shadow hover:shadow-[0_6px_24px_-6px_rgba(17,17,24,0.22)]">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
               stroke="url(#igGrad)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <defs>
@@ -66,7 +66,7 @@ export function FinalCTA() {
               <circle cx="17.5" cy="6.5" r="1" fill="#dc2743" stroke="none"/>
             </svg>
             <span className="text-[14px] font-bold text-[#111118]">@xyndrome.med</span>
-          </div>
+          </a>
 
           <p className="mt-5 text-[12.5px] font-medium text-[#6b7280]">
             Secure access&nbsp;&nbsp;·&nbsp;&nbsp;Made for Sri Lanka&nbsp;&nbsp;·&nbsp;&nbsp;iOS &amp; Android
