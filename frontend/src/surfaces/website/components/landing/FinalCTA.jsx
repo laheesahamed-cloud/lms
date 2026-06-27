@@ -44,7 +44,8 @@ export function FinalCTA() {
           </div>
           <p className="mt-4 text-[13.5px] font-medium italic text-[#6b7280]">
             coming soon — in progress. very slowly. but in progress.<br />
-            we start Monday. <span className="font-semibold text-[#111118]">(every Monday.)</span>
+            we start Monday. <span className="font-semibold text-[#111118]">(every Monday.)</span><br />
+            and sometimes we go out and eat the budget money as well.
           </p>
 
           {/* Instagram */}
