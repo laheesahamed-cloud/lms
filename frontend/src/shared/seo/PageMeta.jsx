@@ -76,6 +76,8 @@ export function PageMeta({
       content: noindex ? 'noindex,nofollow' : 'index,follow',
     });
     upsertLink('link[rel="canonical"]', { rel: 'canonical', href: canonicalUrl });
+    upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: 'xyndrome' });
+    upsertMeta('meta[property="og:locale"]', { property: 'og:locale', content: 'en_US' });
     upsertMeta('meta[property="og:title"]', { property: 'og:title', content: fullTitle });
     upsertMeta('meta[property="og:description"]', { property: 'og:description', content: description });
     upsertMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' });

@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { canonicalizeForwardPathForUser, getSafeForwardPath } from '../utils/routeForwarding.js';
 import { isStaffUser, userHasPermissions } from './roleAccess.js';
+import { NotFoundPage } from '../pages/NotFoundPage.jsx';
 
 const SystemStatusOverlay = lazy(() =>
   import('../ui/SystemStatusOverlay.jsx').then((module) => ({
@@ -49,7 +50,7 @@ function getRoleHome(user) {
   return '/dashboard';
 }
 
-export function ProtectedRoute({ children, role, allowPending = false, requiredFeature = '', requiredPermissions = [] }) {
+export function ProtectedRoute({ children, role, allowPending = false, requiredFeature = '', requiredPermissions = [], notFound = false }) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -61,6 +62,7 @@ export function ProtectedRoute({ children, role, allowPending = false, requiredF
   }
 
   if (!isAuthenticated || !user) {
+    if (notFound) return <NotFoundPage />;
     if (sessionExpiredLock) {
       return <SessionExpiredLock lock={sessionExpiredLock} />;
     }
@@ -70,15 +72,15 @@ export function ProtectedRoute({ children, role, allowPending = false, requiredF
   }
 
   if (role === 'admin' && !isStaffUser(user)) {
-    return <Navigate to={getRoleHome(user)} replace />;
+    return notFound ? <NotFoundPage /> : <Navigate to={getRoleHome(user)} replace />;
   }
 
   if (role && role !== 'admin' && user.role !== role && !isStaffUser(user)) {
-    return <Navigate to={getRoleHome(user)} replace />;
+    return notFound ? <NotFoundPage /> : <Navigate to={getRoleHome(user)} replace />;
   }
 
   if (role === 'admin' && requiredPermissions.length && !userHasPermissions(user, requiredPermissions)) {
-    return <Navigate to={getRoleHome(user)} replace />;
+    return notFound ? <NotFoundPage /> : <Navigate to={getRoleHome(user)} replace />;
   }
 
   if (user.role === 'student' && !allowPending && user.status !== 'active') {

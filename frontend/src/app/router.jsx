@@ -82,8 +82,6 @@ const StudentPanelLayout = lazyNamed(() => import('../shared/layout/StudentPanel
 
 const commonRoutePreloaders = new Map([
   ['/profile', ProfilePage.preload],
-  ['/ai/gemini', AiQuizGeneratorPage.preload],
-  ['/ai/chatgpt', AiQuizGeneratorPage.preload],
 ]);
 
 const roleRoutePreloaders = {
@@ -475,6 +473,48 @@ const adminPanelRoutes = [
     ),
   },
   {
+    path: 'ai',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']} notFound>
+        <AiQuizGeneratorPage
+          engineKey="gemini"
+          generatorLabel="Gemini"
+          heroEyebrow="AI Question Builder"
+          heroTitle="Gemini Quiz Generator"
+          heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
+        />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'ai/gemini',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']} notFound>
+        <AiQuizGeneratorPage
+          engineKey="gemini"
+          generatorLabel="Gemini"
+          heroEyebrow="AI Question Builder"
+          heroTitle="Gemini Quiz Generator"
+          heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
+        />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'ai/chatgpt',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']} notFound>
+        <AiQuizGeneratorPage
+          engineKey="openai"
+          generatorLabel="ChatGPT"
+          heroEyebrow="AI Question Builder"
+          heroTitle="ChatGPT Quiz Generator"
+          heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
+        />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: 'announcements',
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['notifications.manage']}>
@@ -708,42 +748,6 @@ const router = createBrowserRouter([
       {
         path: 'delete-account',
         element: withSuspense(<DeleteAccountPage />),
-      },
-      {
-        path: 'ai',
-        element: withSuspense(
-          <AiQuizGeneratorPage
-            engineKey="gemini"
-            generatorLabel="Gemini"
-            heroEyebrow="AI Question Builder"
-            heroTitle="Gemini Quiz Generator"
-            heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
-          />
-        ),
-      },
-      {
-        path: 'ai/gemini',
-        element: withSuspense(
-          <AiQuizGeneratorPage
-            engineKey="gemini"
-            generatorLabel="Gemini"
-            heroEyebrow="AI Question Builder"
-            heroTitle="Gemini Quiz Generator"
-            heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
-          />
-        ),
-      },
-      {
-        path: 'ai/chatgpt',
-        element: withSuspense(
-          <AiQuizGeneratorPage
-            engineKey="openai"
-            generatorLabel="ChatGPT"
-            heroEyebrow="AI Question Builder"
-            heroTitle="ChatGPT Quiz Generator"
-            heroDescription="Generate draft SBA and True/False questions, review the output, and save approved items into the LMS question bank."
-          />
-        ),
       },
       {
         path: 'launch-preview/:mode',

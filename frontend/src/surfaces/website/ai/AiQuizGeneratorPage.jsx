@@ -654,7 +654,7 @@ export function AiQuizGeneratorPage({
       <PageMeta
         title={heroTitle}
         description={heroDescription}
-        path={engineKey === 'openai' ? '/ai/chatgpt' : '/ai/gemini'}
+        path={engineKey === 'openai' ? '/admin/ai/chatgpt' : '/admin/ai/gemini'}
         noindex
       />
       <section className={ui.managementLayout}>
