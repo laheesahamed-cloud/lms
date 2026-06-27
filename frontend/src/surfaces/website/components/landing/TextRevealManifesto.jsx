@@ -12,7 +12,7 @@
 import { useEffect, useRef } from 'react';
 
 const MANIFESTO =
-  'We\'re medical students who were tired of the mess. Notes photocopied, PDFs scattered across chat groups, and a different app for everything: flashcards, Q-banks, revision, timetables. More time spent switching apps than studying. So we built xyndrome.';
+  'We\'re medical students who were tired of the mess. Notes photocopied, PDFs scattered across chat groups, and a different app for everything. More time spent switching apps than studying. So we built xyndrome.';
 
 const TRUST_TAGS = [
   { label: 'Built in Sri Lanka', bg: '#d6f0ff' },
@@ -96,7 +96,7 @@ export function TextRevealManifesto() {
   return (
     <section id="about" className="relative z-0 bg-[#faf9f6]">
       <div ref={trackRef} className="relative h-[235vh]">
-        <div className="sticky top-0 mx-auto flex h-screen max-w-4xl flex-col items-center justify-center px-5 sm:px-8">
+        <div className="sticky top-16 mx-auto flex h-[calc(100vh-4rem)] max-w-4xl flex-col items-center justify-center px-5 sm:px-8">
           <p className="font-display flex flex-wrap justify-center gap-x-1 sm:gap-x-2 text-[clamp(22px,4.5vw,48px)] leading-[1.3] text-[#111118]">
             {words.map((w, i) => {
               const isLast = i === words.length - 1;
