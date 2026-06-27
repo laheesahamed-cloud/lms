@@ -40,9 +40,10 @@ export function ScrollRevealText({ text, highlight, className, dim = 0.14, under
       frame = 0;
       const vh = window.innerHeight || 1;
       const rect = el.getBoundingClientRect();
-      // 0 as the line enters from the bottom, 1 once it has risen ~half a
-      // viewport up — so the words finish lighting up on the way past.
-      const progress = clamp01((vh * 0.85 - rect.top) / (vh * 0.55));
+      // 0 as the line enters from bottom, 1 exactly when the text hits viewport
+      // centre (rect.top = 0.50vh) — fully revealed between the card above and
+      // the next section below.
+      const progress = clamp01((vh * 0.85 - rect.top) / (vh * 0.35));
       for (let i = 0; i < slotCount; i++) {
         const span = slotRefs.current[i];
         if (!span) continue;
