@@ -10,9 +10,6 @@
  * pin natively, so it never JS-traps or clamps the page. Off-white bg, DM Serif.
  */
 import { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-
-const ASSET = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
 
 const MANIFESTO =
   'We\'re medical students who were tired of the mess. Notes photocopied, PDFs scattered across chat groups, and a different app for everything: flashcards, Q-banks, revision, timetables. More time spent switching apps than studying. So we built xyndrome.';
@@ -29,7 +26,27 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 export function TextRevealManifesto() {
   const trackRef = useRef(null);
   const wordRefs = useRef([]);
+  const tagsRef = useRef(null);
   const words = MANIFESTO.split(' ');
+
+  // Reveal trust tags once they scroll into view.
+  useEffect(() => {
+    const container = tagsRef.current;
+    if (!container) return undefined;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        container.querySelectorAll('.manifesto-tag').forEach((el) => {
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+        });
+        io.disconnect();
+      },
+      { rootMargin: '-80px' }
+    );
+    io.observe(container);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
     const track = trackRef.current;
@@ -39,6 +56,9 @@ export function TextRevealManifesto() {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     if (reduce) {
       wordRefs.current.forEach((s) => { if (s) s.style.opacity = '1'; });
+      tagsRef.current?.querySelectorAll('.manifesto-tag').forEach((el) => {
+        el.style.opacity = '1'; el.style.transform = 'translateY(0)';
+      });
       return undefined;
     }
 
@@ -76,17 +96,18 @@ export function TextRevealManifesto() {
   return (
     <section id="about" className="relative z-0 bg-[#faf9f6]">
       <div ref={trackRef} className="relative h-[235vh]">
-        <div className="sticky top-0 mx-auto flex h-screen max-w-4xl flex-col items-center justify-center px-6">
-          <p className="font-display flex flex-wrap justify-center text-[clamp(28px,5vw,48px)] leading-[1.25] text-[#111118]">
+        <div className="sticky top-0 mx-auto flex h-screen max-w-4xl flex-col items-center justify-center px-5 sm:px-8">
+          <p className="font-display flex flex-wrap justify-center gap-x-1 sm:gap-x-2 text-[clamp(22px,4.5vw,48px)] leading-[1.3] text-[#111118]">
             {words.map((w, i) => {
               const isLast = i === words.length - 1;
               return (
                 <span
                   key={`${w}-${i}`}
                   ref={(node) => { wordRefs.current[i] = node; }}
-                  className="mx-1.5 inline-block lg:mx-2"
+                  className="inline-block"
                   style={{
                     opacity: DIM,
+                    willChange: 'opacity',
                     ...(isLast ? {
                       background: 'linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%)',
                       WebkitBackgroundClip: 'text',
@@ -101,19 +122,20 @@ export function TextRevealManifesto() {
             })}
           </p>
 
-          <div className="mt-12 flex flex-wrap justify-center gap-3">
+          <div ref={tagsRef} className="mt-10 flex flex-wrap justify-center gap-2 sm:gap-3">
             {TRUST_TAGS.map((t, i) => (
-              <motion.span
+              <span
                 key={t.label}
-                className="rounded-full px-4 py-1.5 text-sm font-semibold text-[#111118] ring-1 ring-black/5"
-                style={{ background: t.bg }}
-                initial={{ opacity: 0, y: 14 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-80px' }}
-                transition={{ delay: 0.1 * i, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="manifesto-tag rounded-full px-4 py-1.5 text-xs sm:text-sm font-semibold text-[#111118] ring-1 ring-black/5"
+                style={{
+                  background: t.bg,
+                  opacity: 0,
+                  transform: 'translateY(14px)',
+                  transition: `opacity 0.5s cubic-bezier(0.16,1,0.3,1) ${0.1 * i}s, transform 0.5s cubic-bezier(0.16,1,0.3,1) ${0.1 * i}s`,
+                }}
               >
                 {t.label}
-              </motion.span>
+              </span>
             ))}
           </div>
         </div>

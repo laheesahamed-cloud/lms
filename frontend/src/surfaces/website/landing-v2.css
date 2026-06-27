@@ -14,6 +14,7 @@ html:has(main.lpv2),
 body:has(main.lpv2) {
   overflow-x: clip !important;
   overflow-y: visible !important;
+  overscroll-behavior-y: none;
 }
 
 .lpv2 {

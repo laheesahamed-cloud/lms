@@ -312,9 +312,7 @@ export function CinematicHero({
 
     const ctx = gsap.context(() => {
       if (prefersReducedMotion) {
-        gsap.set('.gsap-reveal', { visibility: 'visible' });
-        gsap.set('.hero-text-wrapper', { autoAlpha: 0 });
-        gsap.set('.cta-wrapper', { autoAlpha: 0 });
+        gsap.set('.gsap-reveal', { visibility: 'visible', autoAlpha: 1 });
         gsap.set('.main-card', { y: 0, autoAlpha: 1 });
         gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 1 });
         gsap.set('.progress-ring', { strokeDashoffset: 110 });
@@ -323,55 +321,32 @@ export function CinematicHero({
         return;
       }
 
-      const isMobile = window.innerWidth < 768;
-      // Touch devices (Android especially) choke when the scrubbed pin animates
-      // CSS `filter: blur()` every frame — it forces a full GPU re-rasterize of
-      // large layers per scroll tick. Keep the opacity/scale moves, drop the
-      // per-frame blur there. Pointer devices keep the full cinematic blur.
-      const isTouch = window.matchMedia?.('(hover: none), (pointer: coarse)').matches;
-      const scrubBlur = (px) => (isTouch ? {} : { filter: `blur(${px})` });
       gsap.set('.text-track', { autoAlpha: 0, y: 60, scale: 0.85, filter: 'blur(20px)', rotationX: -20 });
       gsap.set('.text-days', { autoAlpha: 1, clipPath: 'inset(0 100% 0 0)' });
       gsap.set('.hero-accents', { autoAlpha: 0, y: 24 });
-      if (isTouch) {
-        // Pre-size to full viewport so we only animate transform (no layout reflow).
-        gsap.set('.main-card', { width: '100%', height: '100%', borderRadius: '32px', scale: 0.92, y: window.innerHeight + 200, autoAlpha: 1 });
-      } else {
-        gsap.set('.main-card', { y: window.innerHeight + 200, autoAlpha: 1 });
-      }
+      gsap.set('.main-card', { y: window.innerHeight + 200, autoAlpha: 1 });
       gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 0 });
-      gsap.set('.cta-wrapper', { autoAlpha: 0, scale: 0.8, ...scrubBlur('30px') });
+      gsap.set('.cta-wrapper', { autoAlpha: 0 });
 
+      // Opening entrance — kept exactly as before.
       gsap.timeline({ delay: 0.3 })
         .to('.text-track', { duration: 1.8, autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', rotationX: 0, ease: 'expo.out' })
         .to('.text-days', { duration: 1.7, clipPath: 'inset(0 0% 0 0)', ease: 'power4.inOut' }, '-=1.0')
         .to('.hero-accents', { duration: 1.4, autoAlpha: 1, y: 0, ease: 'power3.out' }, '-=0.9');
 
+      // Lightweight scroll exit — no pin, no blur, no layout tweens.
+      // Only opacity + transform (GPU-only). scrub:true = zero catch-up lag.
       gsap.timeline({
-        // Lower scrub smoothing on touch: the card's width/height tween forces a
-        // layout recalc every catch-up frame, so a long 1.25s smoothing tail
-        // keeps reflowing for over a second after the finger lifts (the "lag").
-        // A short tail ties the timeline more tightly to the actual scroll.
-        scrollTrigger: { trigger: root, start: 'top top', end: '+=6000', pin: true, scrub: isTouch ? 0.4 : 1.25, anticipatePin: 1 },
+        scrollTrigger: { trigger: root, start: 'top top', end: '+=80%', scrub: true },
       })
-        .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { scale: 1.15, ...scrubBlur('20px'), opacity: 0.12, ease: 'power2.inOut', duration: 2.4 }, 0)
-        .to('.main-card', { y: 0, ease: 'power3.inOut', duration: 2.4 }, 0)
-        .to('.main-card', isTouch
-          ? { scale: 1, borderRadius: '0px', ease: 'power3.inOut', duration: 1.9 }
-          : { width: '100%', height: '100%', borderRadius: '0px', ease: 'power3.inOut', duration: 1.9 })
-        .fromTo('.mockup-scroll-wrapper',
-          { y: 300, z: -500, rotationX: 40, rotationY: -22, autoAlpha: 0, scale: 0.6 },
-          { y: 0, z: 0, rotationX: 0, rotationY: 0, autoAlpha: 1, scale: 1, ease: 'expo.out', duration: 2.5 }, '-=0.8')
-        .fromTo('.phone-widget', { y: 40, autoAlpha: 0, scale: 0.95 }, { y: 0, autoAlpha: 1, scale: 1, stagger: 0.12, ease: 'back.out(1.2)', duration: 1.4 }, '-=1.6')
-        .to('.progress-ring', { strokeDashoffset: 110, duration: 2, ease: 'power3.inOut' }, '-=1.4')
-        .to('.counter-val', { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 2.2, ease: 'expo.out' }, '-=2.0')
-        .fromTo('.floating-badge', { y: 100, autoAlpha: 0, scale: 0.7, rotationZ: -10 }, { y: 0, autoAlpha: 1, scale: 1, rotationZ: 0, ease: 'back.out(1.5)', duration: 1.5, stagger: 0.2 }, '-=2.0')
-        .fromTo('.card-left-text', { x: -50, autoAlpha: 0 }, { x: 0, autoAlpha: 1, ease: 'power4.out', duration: 1.5 }, '-=1.5')
-        .fromTo('.card-right-text', { x: 50, autoAlpha: 0, scale: 0.8 }, { x: 0, autoAlpha: 1, scale: 1, ease: 'expo.out', duration: 1.5 }, '<')
-        .to({}, { duration: 2.5 })
-        .set('.hero-text-wrapper', { autoAlpha: 0 })
-        .to(['.mockup-scroll-wrapper', '.floating-badge', '.card-left-text', '.card-right-text'], { scale: 0.9, y: -40, z: -200, autoAlpha: 0, ease: 'power2.inOut', duration: 1.9, stagger: 0.08 })
-        .set('.cta-wrapper', { autoAlpha: 1 })
+        .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { autoAlpha: 0, y: -20, ease: 'power1.in', duration: 0.45 }, 0)
+        .to('.main-card', { y: 0, ease: 'power2.out', duration: 0.6 }, 0)
+        .to(['.mockup-scroll-wrapper', '.card-left-text', '.card-right-text'], { autoAlpha: 1, ease: 'none', duration: 0.3 }, 0.4)
+        .to('.phone-widget', { autoAlpha: 1, stagger: 0.04, ease: 'none', duration: 0.2 }, 0.5)
+        .to('.floating-badge', { autoAlpha: 1, stagger: 0.06, ease: 'none', duration: 0.2 }, 0.5)
+        .to('.counter-val', { innerHTML: metricValue, snap: { innerHTML: 1 }, ease: 'none', duration: 0.2 }, 0.5)
+        .to('.progress-ring', { strokeDashoffset: 110, ease: 'none', duration: 0.2 }, 0.5)
+        .to(root, { autoAlpha: 0, y: -30, ease: 'power1.in', duration: 0.35 }, 0.7)
         .to('.main-card', isTouch
           ? { scale: 0.92, borderRadius: '32px', ease: 'expo.inOut', duration: 2.2 }
           : { width: isMobile ? '92vw' : '85vw', height: isMobile ? '92vh' : '85vh', borderRadius: isMobile ? '32px' : '40px', ease: 'expo.inOut', duration: 2.2 }, 'pullback')
