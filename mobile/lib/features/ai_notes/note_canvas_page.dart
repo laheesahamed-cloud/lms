@@ -780,37 +780,30 @@ void _drawStroke(Canvas canvas, _Stroke s, Paint paint) {
 }
 
 // Pen rendering with per-point pressure. When the stroke carries pressure we draw
-// it as a UNION OF FILLED CIRCLES — one per point, radius = that point's pressure.
-// The union has naturally smooth EDGES (no bumpy per-segment joints) and a clean
-// pressure taper, and because each circle is independent, streaming in new points
-// never disturbs the ink already drawn (no tip shimmer). Consecutive points are
-// resampled so circles always overlap — no gaps even on a fast stroke. Opaque, so
-// overlaps don't darken.
+// it as variable-width, round-capped line segments through the points. A
+// round-capped line is always continuous (a thin pen can never "bead" into
+// separate circles the way stamped circles can when the radius is below the
+// stamp spacing), and the round caps/joins keep a smooth pressure taper.
 void _drawPen(Canvas canvas, _Stroke s, Color color) {
   final pts = s.points;
   final n = pts.length;
   if (n == 0) return;
-  final fill = Paint()
-    ..color = color
-    ..style = PaintingStyle.fill
-    ..isAntiAlias = true;
   final flat = s.pressures.length != n;
-  double rad(int i) => (flat ? s.width : s.widthAt(i)) / 2;
-  canvas.drawCircle(pts.first, rad(0), fill);
+  double dia(int i) => flat ? s.width : s.widthAt(i); // diameter = width
+  if (n == 1) {
+    canvas.drawCircle(pts.first, dia(0) / 2,
+        Paint()..color = color..isAntiAlias = true);
+    return;
+  }
+  final paint = Paint()
+    ..color = color
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..isAntiAlias = true;
   for (var i = 1; i < n; i++) {
-    final a = pts[i - 1], b = pts[i];
-    final ra = rad(i - 1), rb = rad(i);
-    final dist = (b - a).distance;
-    final minR = ra < rb ? ra : rb;
-    final step = minR * 0.5 < 0.75 ? 0.75 : minR * 0.5; // dense enough to overlap
-    final steps = dist <= step ? 1 : (dist / step).ceil();
-    for (var k = 1; k <= steps; k++) {
-      final t = k / steps;
-      canvas.drawCircle(
-          Offset(a.dx + (b.dx - a.dx) * t, a.dy + (b.dy - a.dy) * t),
-          ra + (rb - ra) * t,
-          fill);
-    }
+    paint.strokeWidth = (dia(i - 1) + dia(i)) / 2; // avg width of the segment
+    canvas.drawLine(pts[i - 1], pts[i], paint);
   }
 }
 
