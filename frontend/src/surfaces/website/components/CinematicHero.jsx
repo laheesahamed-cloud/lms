@@ -402,48 +402,9 @@ export function CinematicHero({
             ))}
           </div>
 
-          {/* Store badges */}
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">Available on</p>
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
-            <a href="https://play.google.com/store" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/8 px-3.5 py-2 no-underline backdrop-blur-sm transition-colors hover:bg-white/14">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M3.18 23.76c.42.23.9.27 1.35.12L16.2 12 13.02 8.82 3.18 23.76z" fill="#EA4335"/>
-                <path d="M20.54 10.27 17.7 8.64 14.22 12l3.48 3.48 2.82-1.62a2 2 0 0 0 0-3.6z" fill="#FBBC04"/>
-                <path d="M4.53 23.88 16.2 12 13.02 8.82 4.53.24A2 2 0 0 0 3.18.36v23.28c0 .09.01.17.02.24.1.07.21.12.33.12.01 0 .01 0 1-.12z" fill="#34A853"/>
-                <path d="M3.18.36A2 2 0 0 0 2 2.16v19.68a2 2 0 0 0 1.18 1.8c-.01-.07-.02-.15-.02-.24V.36z" fill="#4285F4"/>
-              </svg>
-              <div className="text-left leading-none">
-                <p className="text-[8px] font-medium text-white/50">GET IT ON</p>
-                <p className="text-[12px] font-bold text-white">Google Play</p>
-              </div>
-            </a>
-            <a href="https://apps.apple.com" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/8 px-3.5 py-2 no-underline backdrop-blur-sm transition-colors hover:bg-white/14">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-              </svg>
-              <div className="text-left leading-none">
-                <p className="text-[8px] font-medium text-white/50">DOWNLOAD ON THE</p>
-                <p className="text-[12px] font-bold text-white">App Store</p>
-              </div>
-            </a>
-          </div>
-
-          {/* Instagram + Sign In */}
-          <div className="flex items-center gap-4">
-            <a href="https://instagram.com/xyndrome.med" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 no-underline transition-opacity hover:opacity-75">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="white" stroke="none"/>
-              </svg>
-              <span className="text-[12px] font-semibold text-white/60">@xyndrome.med</span>
-            </a>
-            <span className="text-white/20">·</span>
-            <Link to={secondaryCta.to} className="btn-ghost-dark inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-bold no-underline focus:no-underline hover:no-underline focus:outline-none">
-              <span>{secondaryCta.label}</span>
-            </Link>
-          </div>
+          <Link to={secondaryCta.to} className="btn-ghost-dark inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold no-underline focus:no-underline hover:no-underline focus:outline-none">
+            <span>{secondaryCta.label}</span>
+          </Link>
         </div>
       </div>
 

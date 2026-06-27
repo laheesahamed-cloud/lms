@@ -26,24 +26,34 @@ export function FinalCTA({ primaryTo = '/register' }) {
             Try write-on notes, a teaching Q-Bank, your own flashcards, mock exams and a study planner, all in one app. No credit card required.
           </p>
 
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              to={primaryTo}
-              className="lpv2-press inline-flex items-center gap-2 rounded-2xl bg-[#2563eb] px-8 py-4 text-[15px] font-bold text-white no-underline hover:no-underline shadow-[0_18px_40px_-18px_rgba(37,99,235,0.6)] hover:bg-[#1d4fd7] hover:shadow-[0_26px_50px_-18px_rgba(37,99,235,0.7)]"
-            >
-              Start Free Trial
-              <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </Link>
-            <a
-              href="#subjects"
-              className="lpv2-press inline-flex items-center gap-2 rounded-2xl border-[1.5px] border-[#111118] bg-white/40 px-8 py-4 text-[15px] font-bold text-[#111118] no-underline hover:no-underline backdrop-blur-sm hover:bg-white/70"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.54.84l10.5-6.86a1 1 0 0 0 0-1.68L9.54 4.3A1 1 0 0 0 8 5.14z" /></svg>
-              Watch Demo
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <a href="https://play.google.com/store" target="_blank" rel="noopener noreferrer" className="lpv2-press inline-block no-underline">
+              <img
+                src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+                alt="Get it on Google Play"
+                height="56"
+                className="h-14 w-auto"
+              />
+            </a>
+            <a href="https://apps.apple.com" target="_blank" rel="noopener noreferrer" className="lpv2-press inline-block no-underline">
+              <img
+                src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                alt="Download on the App Store"
+                height="56"
+                className="h-14 w-auto"
+              />
             </a>
           </div>
 
-          <p className="mt-7 text-[12.5px] font-medium text-[#6b7280]">
+          <a href="https://instagram.com/xyndrome.med" target="_blank" rel="noopener noreferrer"
+            className="mt-5 inline-flex items-center gap-2 no-underline transition-opacity hover:opacity-70">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="#6b7280" stroke="none"/>
+            </svg>
+            <span className="text-[13px] font-semibold text-[#6b7280]">@xyndrome.med</span>
+          </a>
+
+          <p className="mt-4 text-[12.5px] font-medium text-[#6b7280]">
             Secure access&nbsp;&nbsp;·&nbsp;&nbsp;Made for Sri Lanka&nbsp;&nbsp;·&nbsp;&nbsp;iOS &amp; Android
           </p>
         </div>
