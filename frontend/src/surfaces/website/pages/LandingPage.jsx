@@ -173,6 +173,7 @@ export function LandingPage() {
       <FeatureDeepDives />
       <TextRevealManifesto />
       <SubjectGallery3D darkModeActive={subjectDarkModeActive} onDarkModeChange={handleSubjectDarkModeChange} />
+      <StatsSection />
       <TestimonialsMarquee />
       <FeatureComparison />
       <FaqSection />
