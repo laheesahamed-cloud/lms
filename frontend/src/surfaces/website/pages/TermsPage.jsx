@@ -55,7 +55,7 @@ const sections = [
   },
   {
     title: '13. Account Decisions',
-    body: 'The admin may approve, limit, suspend, or deactivate accounts when needed to protect the LMS, course content, payments, students, or learning environment.',
+    body: 'The admin may approve, limit, suspend, or deactivate accounts when needed to protect the LMS, course content, payments, students, or learning environment. A subscription gives you access to everything xyndrome has to offer — how far you go with it is entirely in your hands.',
   },
   {
     title: '14. Limitation of Liability',
