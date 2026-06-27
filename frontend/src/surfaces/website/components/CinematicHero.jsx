@@ -17,7 +17,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
   gsap.ticker.lagSmoothing(0);
-  gsap.ticker.fps(120);
+  gsap.ticker.fps(240);
 }
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
@@ -323,33 +323,37 @@ export function CinematicHero({
         return;
       }
 
-      gsap.set('.text-track', { autoAlpha: 0, y: 60, scale: 0.85, filter: 'blur(20px)', rotationX: -20 });
-      gsap.set('.text-days', { autoAlpha: 1, clipPath: 'inset(0 100% 0 0)' });
-      gsap.set('.hero-accents', { autoAlpha: 0, y: 24 });
-      gsap.set('.main-card', { y: window.innerHeight + 200, autoAlpha: 1 });
-      gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { autoAlpha: 0 });
-      gsap.set('.cta-wrapper', { autoAlpha: 0 });
+      // Prime GPU layers on elements that will be scroll-animated — prevents
+      // the compositor from promoting them mid-animation (which causes flicker).
+      gsap.set(['.hero-text-wrapper', '.main-card', '.med-float', '.bg-grid-theme'], { force3D: true, backfaceVisibility: 'hidden' });
+      gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { force3D: true });
 
-      // Opening entrance — kept exactly as before.
+      gsap.set('.text-track', { opacity: 0, visibility: 'visible', y: 60, scale: 0.85, filter: 'blur(20px)', rotationX: -20 });
+      gsap.set('.text-days', { opacity: 1, visibility: 'visible', clipPath: 'inset(0 100% 0 0)' });
+      gsap.set('.hero-accents', { opacity: 0, visibility: 'visible', y: 24 });
+      gsap.set('.main-card', { y: window.innerHeight + 200, opacity: 1, visibility: 'visible' });
+      gsap.set(['.card-left-text', '.card-right-text', '.mockup-scroll-wrapper', '.floating-badge', '.phone-widget'], { opacity: 0, visibility: 'visible' });
+      gsap.set('.cta-wrapper', { opacity: 0, visibility: 'visible' });
+
+      // Opening entrance.
       gsap.timeline({ delay: 0.3 })
-        .to('.text-track', { duration: 1.8, autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', rotationX: 0, ease: 'expo.out' })
+        .to('.text-track', { duration: 1.8, opacity: 1, y: 0, scale: 1, filter: 'blur(0px)', rotationX: 0, ease: 'expo.out', force3D: true })
         .to('.text-days', { duration: 1.7, clipPath: 'inset(0 0% 0 0)', ease: 'power4.inOut' }, '-=1.0')
-        .to('.hero-accents', { duration: 1.4, autoAlpha: 1, y: 0, ease: 'power3.out' }, '-=0.9');
+        .to('.hero-accents', { duration: 1.4, opacity: 1, y: 0, ease: 'power3.out', force3D: true }, '-=0.9');
 
-      // CSS sticky keeps the hero in viewport for the full scroll track (200vh).
-      // Watch the outer wrapper (.cin-scroll-track) — end:'bottom bottom' = 100vh
-      // of scrolling, giving the card animation room before cream section arrives.
+      // Scroll timeline — use opacity (not autoAlpha) so visibility never toggles
+      // during scrub, which is the primary cause of mid-animation flicker.
       gsap.timeline({
-        scrollTrigger: { trigger: root.parentElement, start: 'top top', end: 'bottom bottom', scrub: 1.5 },
+        scrollTrigger: { trigger: root.parentElement, start: 'top top', end: 'bottom bottom', scrub: 1.5, invalidateOnRefresh: true },
       })
-        .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { autoAlpha: 0, y: -20, ease: 'power1.in', duration: 0.45 }, 0)
-        .to('.main-card', { y: 0, ease: 'power2.out', duration: 0.6 }, 0)
-        .to(['.mockup-scroll-wrapper', '.card-left-text', '.card-right-text'], { autoAlpha: 1, ease: 'none', duration: 0.3 }, 0.4)
-        .to('.phone-widget', { autoAlpha: 1, stagger: 0.04, ease: 'none', duration: 0.2 }, 0.5)
-        .to('.floating-badge', { autoAlpha: 1, stagger: 0.06, ease: 'none', duration: 0.2 }, 0.5)
+        .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { opacity: 0, y: -20, ease: 'power1.in', duration: 0.45, force3D: true }, 0)
+        .to('.main-card', { y: 0, ease: 'power2.out', duration: 0.6, force3D: true }, 0)
+        .to(['.mockup-scroll-wrapper', '.card-left-text', '.card-right-text'], { opacity: 1, ease: 'none', duration: 0.3, force3D: true }, 0.4)
+        .to('.phone-widget', { opacity: 1, stagger: 0.04, ease: 'none', duration: 0.2, force3D: true }, 0.5)
+        .to('.floating-badge', { opacity: 1, stagger: 0.06, ease: 'none', duration: 0.2, force3D: true }, 0.5)
         .to('.counter-val', { innerHTML: metricValue, snap: { innerHTML: 1 }, ease: 'none', duration: 0.2 }, 0.5)
         .to('.progress-ring', { strokeDashoffset: 110, ease: 'none', duration: 0.2 }, 0.5)
-        .to(root, { autoAlpha: 0, y: -30, ease: 'power1.in', duration: 0.35 }, 0.7);
+        .to(root, { opacity: 0, y: -30, ease: 'power1.in', duration: 0.35, force3D: true }, 0.7);
     }, containerRef);
 
     const refreshId = requestAnimationFrame(() => ScrollTrigger.refresh());
