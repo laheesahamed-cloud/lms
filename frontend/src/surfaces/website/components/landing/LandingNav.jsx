@@ -71,8 +71,8 @@ export function LandingNav({ ctaTo = '/register', signInTo = '/login', overDark 
           </Link>
           <Link
             to={ctaTo}
-            className="lpv2-press hidden min-[375px]:inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[14px] font-bold text-white no-underline shadow-[0_8px_20px_-8px_rgba(82,116,243,0.55)]"
-            style={{ background: 'linear-gradient(135deg,#4aa3f4 0%,#5274f3 52%,#6d35df 100%)' }}
+            className="hidden min-[375px]:inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[14px] font-bold text-white no-underline transition-shadow duration-300 hover:shadow-[0_0_28px_rgba(82,116,243,0.7),0_0_8px_rgba(74,163,244,0.4)]"
+            style={{ background: 'linear-gradient(135deg,#4aa3f4 0%,#5274f3 52%,#6d35df 100%)', boxShadow: '0 0 18px rgba(82,116,243,0.5), 0 0 6px rgba(74,163,244,0.3)' }}
           >
             Get Started
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
