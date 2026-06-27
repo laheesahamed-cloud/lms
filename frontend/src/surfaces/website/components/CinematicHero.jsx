@@ -64,6 +64,12 @@ const INJECTED_STYLES = `
       -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
   }
 
+  /* GPU layers pre-promoted — prevents compositor promotion mid-scroll (flicker) */
+  .cinhero .hero-text-wrapper { will-change: transform, opacity; }
+  .cinhero .main-card         { will-change: transform, opacity; }
+  .cinhero .med-float         { will-change: opacity; }
+  .cinhero .bg-grid-theme     { will-change: opacity; }
+
   /* Drifting aurora */
   .cinhero .cin-aurora { position: absolute; inset: -20% -10%; z-index: 0; pointer-events: none; filter: blur(8px); }
   .cinhero .cin-aurora span { position: absolute; border-radius: 999px; mix-blend-mode: screen; will-change: transform; }
@@ -344,7 +350,7 @@ export function CinematicHero({
       // Scroll timeline — use opacity (not autoAlpha) so visibility never toggles
       // during scrub, which is the primary cause of mid-animation flicker.
       gsap.timeline({
-        scrollTrigger: { trigger: root.parentElement, start: 'top top', end: 'bottom bottom', scrub: 1.5, invalidateOnRefresh: true },
+        scrollTrigger: { trigger: root.parentElement, start: 'top top', end: 'bottom bottom', scrub: 0.5, invalidateOnRefresh: true },
       })
         .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { opacity: 0, y: -20, ease: 'power1.in', duration: 0.45, force3D: true }, 0)
         .to('.main-card', { y: 0, ease: 'power2.out', duration: 0.6, force3D: true }, 0)
