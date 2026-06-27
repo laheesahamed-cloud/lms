@@ -12,12 +12,14 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
+const ASSET = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
+
 const MANIFESTO =
   'We\'re medical students who were tired of the mess. Notes photocopied, PDFs scattered across chat groups, and a different app for everything: flashcards, Q-banks, revision, timetables. More time spent switching apps than studying. So we built xyndrome.';
 
 const TRUST_TAGS = [
   { label: 'Built in Sri Lanka', bg: '#d6f0ff' },
-  { label: 'Doctor-reviewed content', bg: '#d6ffe8' },
+  { label: 'Up-to-date content', bg: '#d6ffe8' },
   { label: 'Updated for current exams', bg: '#fff3d6' },
 ];
 
@@ -76,16 +78,32 @@ export function TextRevealManifesto() {
       <div ref={trackRef} className="relative h-[235vh]">
         <div className="sticky top-0 mx-auto flex h-screen max-w-4xl flex-col items-center justify-center px-6">
           <p className="font-display flex flex-wrap justify-center text-[clamp(28px,5vw,48px)] leading-[1.25] text-[#111118]">
-            {words.map((w, i) => (
-              <span
-                key={`${w}-${i}`}
-                ref={(node) => { wordRefs.current[i] = node; }}
-                className="mx-1.5 inline-block lg:mx-2"
-                style={{ opacity: DIM }}
-              >
-                {w}
-              </span>
-            ))}
+            {words.map((w, i) => {
+              const isLast = i === words.length - 1;
+              return (
+                <>
+                  {isLast && <span key="break" className="basis-full" />}
+                  <span
+                    key={`${w}-${i}`}
+                    ref={(node) => { wordRefs.current[i] = node; }}
+                    className={`mx-1.5 lg:mx-2 ${isLast ? 'inline-flex items-center gap-2' : 'inline-block'}`}
+                    style={{ opacity: DIM }}
+                  >
+                    {isLast ? (
+                      <>
+                        <img src={`${ASSET}brand/xyndrome-logo-mark-light.webp`} alt="" aria-hidden="true" style={{ height: '0.85em', width: 'auto' }} />
+                        <span style={{
+                          background: 'linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                        }}>{w}</span>
+                      </>
+                    ) : w}
+                  </span>
+                </>
+              );
+            })}
           </p>
 
           <div className="mt-12 flex flex-wrap justify-center gap-3">
