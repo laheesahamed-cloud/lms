@@ -16,6 +16,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
+  gsap.ticker.lagSmoothing(0);
+  gsap.ticker.fps(120);
 }
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
@@ -338,7 +340,7 @@ export function CinematicHero({
       // Watch the outer wrapper (.cin-scroll-track) — end:'bottom bottom' = 100vh
       // of scrolling, giving the card animation room before cream section arrives.
       gsap.timeline({
-        scrollTrigger: { trigger: root.parentElement, start: 'top top', end: 'bottom bottom', scrub: true },
+        scrollTrigger: { trigger: root.parentElement, start: 'top top', end: 'bottom bottom', scrub: 1.5 },
       })
         .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { autoAlpha: 0, y: -20, ease: 'power1.in', duration: 0.45 }, 0)
         .to('.main-card', { y: 0, ease: 'power2.out', duration: 0.6 }, 0)

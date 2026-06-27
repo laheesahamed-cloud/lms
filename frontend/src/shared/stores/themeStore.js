@@ -31,8 +31,13 @@ function commitTheme(theme, options = {}) {
 
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
-  document.documentElement.style.backgroundColor = CHROME_THEME_COLORS[theme];
-  document.body.style.backgroundColor = CHROME_THEME_COLORS[theme];
+  // Don't overwrite the dark bg that boot.js locks in for the landing page —
+  // setting #dce6f4 here is what causes the white flash before BootLoader renders.
+  const isLanding = window.location.pathname === '/' || window.location.pathname.startsWith('/lms/frontend/dist');
+  if (!isLanding) {
+    document.documentElement.style.backgroundColor = CHROME_THEME_COLORS[theme];
+    document.body.style.backgroundColor = CHROME_THEME_COLORS[theme];
+  }
   document.documentElement.classList.toggle('dark', theme === 'dark');
   document.body.classList.toggle('dark', theme === 'dark');
   document.body.classList.toggle('dark-bg', theme === 'dark');

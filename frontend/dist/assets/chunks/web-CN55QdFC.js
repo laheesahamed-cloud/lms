@@ -1,1 +1,0 @@
-import{x as e}from"./vendor-BBoCWdBk.js";export{e as HapticsWeb};
