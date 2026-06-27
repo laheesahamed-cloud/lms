@@ -13,7 +13,7 @@ import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 const MANIFESTO =
-  'xyndrome was built because Sri Lankan medical students deserved better than photocopied notes and scattered PDFs. So we built the all-in-one study tool we wished existed.';
+  'We\'re medical students who were tired of the mess. Notes photocopied, PDFs scattered across chat groups, and a different app for everything: flashcards, Q-banks, revision, timetables. More time spent switching apps than studying. So we built xyndrome.';
 
 const TRUST_TAGS = [
   { label: 'Built in Sri Lanka', bg: '#d6f0ff' },

@@ -302,22 +302,15 @@ export function CinematicHero({
     return () => { window.removeEventListener('mousemove', handleMouseMove); cancelAnimationFrame(requestRef.current); };
   }, []);
 
-  // Cinematic scroll timeline (or static frame for reduced motion / phones).
+  // Cinematic scroll timeline (or static frame for reduced motion only).
   useEffect(() => {
     if (!animationReady) return undefined;
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const root = containerRef.current;
-    // Phones (low-end Android especially) cannot run the scrubbed pin timeline:
-    // it animates the card's width/height/border-radius every scroll frame, which
-    // forces a full layout reflow per tick and stutters badly. Stripping the
-    // decorative effects wasn't enough. So phones get the same pin-free static
-    // hero as reduced-motion; tablets and desktop keep the full cinematic.
-    const isPhone = (typeof document !== 'undefined' && document.documentElement.dataset.lmsFormFactor === 'phone')
-      || (window.matchMedia?.('(hover: none) and (pointer: coarse)').matches && window.innerWidth < 768);
     root?.classList.add('cin-ready');
 
     const ctx = gsap.context(() => {
-      if (prefersReducedMotion || isPhone) {
+      if (prefersReducedMotion) {
         gsap.set('.gsap-reveal', { visibility: 'visible' });
         gsap.set('.hero-text-wrapper', { autoAlpha: 0 });
         gsap.set('.cta-wrapper', { autoAlpha: 0 });
