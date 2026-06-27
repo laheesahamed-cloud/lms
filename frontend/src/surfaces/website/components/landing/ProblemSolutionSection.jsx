@@ -151,7 +151,7 @@ export function ProblemSolutionSection() {
         <ScrollRevealText
           text="So we built one place for all of it."
           highlight="one place for all of it."
-          className="font-display mt-12 max-w-2xl text-[clamp(22px,3.4vw,34px)] leading-[1.2] text-[#111118]"
+          className="font-display mt-24 max-w-2xl text-[clamp(22px,3.4vw,34px)] leading-[1.2] text-[#111118]"
         />
       </div>
     </section>
