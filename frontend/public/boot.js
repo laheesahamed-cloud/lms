@@ -97,7 +97,7 @@
   // the gap after React removes `.app-booting` but before the lazy landing
   // chunk + dark BootLoader paint. Without this the light --app-bg flashes
   // white. Only the marketing landing is dark; app/auth routes stay light.
-  if (!isNativeShell && window.location.pathname === '/') {
+  if (!isNativeShell && (window.location.pathname === '/' || window.location.pathname.startsWith('/lms/frontend/dist'))) {
     root.dataset.lmsDarkBoot = 'on';
   }
 
