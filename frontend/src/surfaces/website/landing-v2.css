@@ -17,6 +17,16 @@ body:has(main.lpv2) {
   overscroll-behavior-y: none;
 }
 
+/* The student-app dark-theme rule in theme.css overrides .bg-white globally
+   (not scoped to .student-app-shell), so it bleeds onto landing page cards
+   when the user has dark mode active. Reset all bg-* utilities inside .lpv2
+   to their true colours. */
+:root[data-theme="dark"] .lpv2 .bg-white { background-color: #ffffff !important; }
+:root[data-theme="dark"] .lpv2 [class*="bg-white/"] { background-color: revert !important; }
+:root[data-theme="dark"] .lpv2 .bg-\[\#fafaf7\],
+:root[data-theme="dark"] .lpv2 .bg-\[\#faf9f6\],
+:root[data-theme="dark"] .lpv2 .bg-\[\#f5f4f0\] { background-color: revert !important; }
+
 .lpv2 {
   /* Base canvas */
   --lpv2-cream: #fafaf7;
