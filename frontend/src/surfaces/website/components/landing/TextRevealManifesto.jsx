@@ -81,27 +81,22 @@ export function TextRevealManifesto() {
             {words.map((w, i) => {
               const isLast = i === words.length - 1;
               return (
-                <>
-                  {isLast && <span key="break" className="basis-full" />}
-                  <span
-                    key={`${w}-${i}`}
-                    ref={(node) => { wordRefs.current[i] = node; }}
-                    className={`mx-1.5 lg:mx-2 ${isLast ? 'inline-flex items-center gap-2' : 'inline-block'}`}
-                    style={{ opacity: DIM }}
-                  >
-                    {isLast ? (
-                      <>
-                        <img src={`${ASSET}brand/xyndrome-logo-mark-light.webp`} alt="" aria-hidden="true" style={{ height: '0.85em', width: 'auto' }} />
-                        <span style={{
-                          background: 'linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%)',
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                          backgroundClip: 'text',
-                        }}>{w}</span>
-                      </>
-                    ) : w}
-                  </span>
-                </>
+                <span
+                  key={`${w}-${i}`}
+                  ref={(node) => { wordRefs.current[i] = node; }}
+                  className="mx-1.5 inline-block lg:mx-2"
+                  style={{
+                    opacity: DIM,
+                    ...(isLast ? {
+                      background: 'linear-gradient(135deg, #4aa3f4 0%, #5274f3 52%, #6d35df 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                    } : {}),
+                  }}
+                >
+                  {w}
+                </span>
               );
             })}
           </p>
