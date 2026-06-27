@@ -174,7 +174,7 @@ export function LandingPage() {
       <TextRevealManifesto />
       <SubjectGallery3D darkModeActive={subjectDarkModeActive} onDarkModeChange={handleSubjectDarkModeChange} />
       <StatsSection />
-      <TestimonialsMarquee />
+      {/* <TestimonialsMarquee /> */}
       <FeatureComparison />
       <FaqSection />
       <FinalCTA primaryTo="/register" />
