@@ -51,30 +51,22 @@ const sections = [
   },
   {
     title: '11. Educational Use',
-    body: 'xyndrome is an educational study platform. Content may support exam preparation and learning, but it is not a substitute for professional medical advice, clinical supervision, university requirements, or official examination guidance.',
+    body: 'xyndrome is an educational study platform. To ensure completeness and depth of coverage, some study materials are developed with the help of advanced technology tools and reviewed by qualified medical professionals before being published. This means the content you study is checked for accuracy and relevance to your curriculum, not simply generated and released. That said, xyndrome is a preparation aid — your results will always reflect your own effort, consistency, and readiness. The platform is not a substitute for professional medical advice, clinical supervision, university requirements, or official examination guidance.',
   },
   {
-    title: '12. AI-Assisted Content',
-    body: 'Some study materials on xyndrome, including question explanations, notes, and topic summaries, are developed with the assistance of artificial intelligence tools. All AI-assisted content is reviewed and verified by qualified medical professionals before being made available on the platform, to ensure accuracy and relevance to your curriculum.',
-  },
-  {
-    title: '13. No Guarantee of Examination Results',
-    body: 'A subscription to xyndrome gives you access to high-quality, professionally reviewed study materials designed to support your exam preparation. Academic outcomes depend on each student\'s individual effort, consistency, and readiness. While xyndrome is built to give you the best possible preparation, we are unable to guarantee specific examination results, grades, or academic performance.',
-  },
-  {
-    title: '15. Account Decisions',
+    title: '13. Account Decisions',
     body: 'The admin may approve, limit, suspend, or deactivate accounts when needed to protect the LMS, course content, payments, students, or learning environment.',
   },
   {
-    title: '16. Limitation of Liability',
+    title: '14. Limitation of Liability',
     body: 'To the fullest extent permitted by law, xyndrome is not responsible for indirect, incidental, or consequential losses arising from platform use, delayed access, payment-provider delays, internet problems, device issues, or reliance on study material beyond its educational purpose.',
   },
   {
-    title: '17. Changes to These Terms',
+    title: '15. Changes to These Terms',
     body: 'These Terms and Conditions may be updated when platform features, payment flows, legal requirements, or operating practices change. The latest version will be posted on this page.',
   },
   {
-    title: '18. Contact',
+    title: '16. Contact',
     body: 'For account, subscription, payment, or policy questions, contact the xyndrome admin or support channel shown on the platform or website.',
   },
 ];
