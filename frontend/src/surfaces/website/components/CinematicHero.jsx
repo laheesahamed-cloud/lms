@@ -334,10 +334,11 @@ export function CinematicHero({
         .to('.text-days', { duration: 1.7, clipPath: 'inset(0 0% 0 0)', ease: 'power4.inOut' }, '-=1.0')
         .to('.hero-accents', { duration: 1.4, autoAlpha: 1, y: 0, ease: 'power3.out' }, '-=0.9');
 
-      // Lightweight scroll exit — no pin, no blur, no layout tweens.
-      // Only opacity + transform (GPU-only). scrub:true = zero catch-up lag.
+      // CSS sticky keeps the hero in viewport for the full scroll track (200vh).
+      // Watch the outer wrapper (.cin-scroll-track) — end:'bottom bottom' = 100vh
+      // of scrolling, giving the card animation room before cream section arrives.
       gsap.timeline({
-        scrollTrigger: { trigger: root, start: 'top top', end: '+=80%', scrub: true },
+        scrollTrigger: { trigger: root.parentElement, start: 'top top', end: 'bottom bottom', scrub: true },
       })
         .to(['.hero-text-wrapper', '.bg-grid-theme', '.med-float'], { autoAlpha: 0, y: -20, ease: 'power1.in', duration: 0.45 }, 0)
         .to('.main-card', { y: 0, ease: 'power2.out', duration: 0.6 }, 0)
@@ -354,9 +355,9 @@ export function CinematicHero({
   }, [animationReady, metricValue]);
 
   return (
-    <div
+    <div className="cin-scroll-track relative" style={{ height: '200vh' }}><div
       ref={containerRef}
-      className={cx('cinhero relative w-screen h-screen overflow-hidden flex items-center justify-center bg-[#070310] text-white font-sans antialiased', className)}
+      className={cx('cinhero sticky top-0 w-screen h-screen overflow-hidden flex items-center justify-center bg-[#070310] text-white font-sans antialiased', className)}
       style={{ perspective: '1500px' }}
       {...props}
     >
@@ -520,6 +521,6 @@ export function CinematicHero({
           </div>
         </div>
       </div>
-    </div>
+    </div></div>
   );
 }
