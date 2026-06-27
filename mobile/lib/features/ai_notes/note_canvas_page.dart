@@ -780,10 +780,11 @@ void _drawStroke(Canvas canvas, _Stroke s, Paint paint) {
 }
 
 // Pen rendering with per-point pressure. When the stroke carries pressure we draw
-// it as variable-width, round-capped line segments through the points. A
-// round-capped line is always continuous (a thin pen can never "bead" into
-// separate circles the way stamped circles can when the radius is below the
-// stamp spacing), and the round caps/joins keep a smooth pressure taper.
+// it as a smooth Catmull-Rom curve THROUGH the points, sampled densely with
+// round-capped sub-segments. The curve passes through every captured point (so it
+// sticks to the pen and never corner-cuts), and densely subdividing it — more
+// samples = smoother, like higher FPS — keeps fast strokes (sparse points) from
+// looking angular. Round caps make it continuous (no beading) with a clean taper.
 void _drawPen(Canvas canvas, _Stroke s, Color color) {
   final pts = s.points;
   final n = pts.length;
@@ -801,9 +802,38 @@ void _drawPen(Canvas canvas, _Stroke s, Color color) {
     ..strokeCap = StrokeCap.round
     ..strokeJoin = StrokeJoin.round
     ..isAntiAlias = true;
-  for (var i = 1; i < n; i++) {
-    paint.strokeWidth = (dia(i - 1) + dia(i)) / 2; // avg width of the segment
-    canvas.drawLine(pts[i - 1], pts[i], paint);
+  if (n == 2) {
+    paint.strokeWidth = (dia(0) + dia(1)) / 2;
+    canvas.drawLine(pts[0], pts[1], paint);
+    return;
+  }
+  var prev = pts[0];
+  for (var i = 0; i < n - 1; i++) {
+    final p0 = pts[i == 0 ? 0 : i - 1];
+    final p1 = pts[i];
+    final p2 = pts[i + 1];
+    final p3 = pts[i + 2 >= n ? n - 1 : i + 2];
+    final d1 = dia(i), d2 = dia(i + 1);
+    // ~1 sub-segment per 4px — enough to look smooth (the curve does the shaping)
+    // while keeping the per-frame draw count low so long strokes don't lag.
+    final steps = ((p2 - p1).distance / 4).ceil().clamp(1, 8);
+    for (var k = 1; k <= steps; k++) {
+      final t = k / steps, t2 = t * t, t3 = t2 * t;
+      final x = 0.5 *
+          ((2 * p1.dx) +
+              (-p0.dx + p2.dx) * t +
+              (2 * p0.dx - 5 * p1.dx + 4 * p2.dx - p3.dx) * t2 +
+              (-p0.dx + 3 * p1.dx - 3 * p2.dx + p3.dx) * t3);
+      final y = 0.5 *
+          ((2 * p1.dy) +
+              (-p0.dy + p2.dy) * t +
+              (2 * p0.dy - 5 * p1.dy + 4 * p2.dy - p3.dy) * t2 +
+              (-p0.dy + 3 * p1.dy - 3 * p2.dy + p3.dy) * t3);
+      final cur = Offset(x, y);
+      paint.strokeWidth = d1 + (d2 - d1) * t;
+      canvas.drawLine(prev, cur, paint);
+      prev = cur;
+    }
   }
 }
 
