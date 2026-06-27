@@ -42,6 +42,9 @@ export function FinalCTA() {
               />
             </div>
           </div>
+          <p className="mt-3 text-[12px] italic text-[#9ca3af]">
+            coming soon — in progress. very slowly. but in progress. we start Monday. (every Monday.)
+          </p>
 
           {/* Instagram */}
           <div className="mt-6 flex items-center justify-center gap-2">
