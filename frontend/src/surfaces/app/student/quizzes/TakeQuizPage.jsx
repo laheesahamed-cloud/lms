@@ -1980,10 +1980,7 @@ export function TakeQuizPage() {
         setSecondsRemaining(0);
       }
       return Boolean(result?.success || result?.submitted || result?.timeExpired);
-    } catch (e) {
-      if (!silent) {
-        setError(getErrorMessage(e, 'Unable to auto-save exam progress'));
-      }
+    } catch {
       scheduleExamAutosaveRetry(nextIndex);
       return false;
     } finally {
@@ -2129,8 +2126,7 @@ export function TakeQuizPage() {
         else next.delete(currentQuestion.id);
         return next;
       });
-    } catch (bookmarkError) {
-      setError(getErrorMessage(bookmarkError, 'Unable to update question bookmark'));
+    } catch {
     } finally {
       setQuestionActionBusy(false);
     }
@@ -2149,8 +2145,7 @@ export function TakeQuizPage() {
         comment: comment.trim() || `Student reported question #${currentQuestion.id}`,
       });
       window.alert(`Question #${currentQuestion.id} was reported to admin.`);
-    } catch (reportError) {
-      setError(getErrorMessage(reportError, 'Unable to report question'));
+    } catch {
     } finally {
       setQuestionActionBusy(false);
     }
@@ -2216,8 +2211,7 @@ export function TakeQuizPage() {
           scrollQuestionContentIntoView(revealTarget || questionContentRef.current);
         });
       });
-    } catch (revealError) {
-      setError(getErrorMessage(revealError, 'Unable to show this answer'));
+    } catch {
     } finally {
       setQuestionActionBusy(false);
     }

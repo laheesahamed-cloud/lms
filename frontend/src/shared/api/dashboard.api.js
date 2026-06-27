@@ -3,12 +3,12 @@ import { createTimedApiCache } from './cache.js';
 import { claimBootSlice } from './bootChannel.js';
 
 const adminDashboardCache = createTimedApiCache({
-  ttlMs: 10000,
+  ttlMs: 3600000,
   load: () => apiClient.get('/admin/dashboard').then((response) => response.data),
 });
 
 const studentDashboardCache = createTimedApiCache({
-  ttlMs: 15000,
+  ttlMs: 3600000,
   persistKey: 'student.dashboard',
   load: async () =>
     (await claimBootSlice('dashboard')) ??

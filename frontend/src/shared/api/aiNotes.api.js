@@ -74,7 +74,7 @@ export const adminDeleteLessonFlashcard = (noteId, cardId, options = {}) =>
   apiClient.delete(`/admin/ai-notes/${noteId}/flashcards/${cardId}`, withEngine({}, options.engine)).then((r) => r.data);
 
 const studentAiNotesCache = createTimedApiCache({
-  ttlMs: 30000,
+  ttlMs: 3600000,
   persistKey: 'student.aiNotes',
   key: (options = {}) => options.engine || 'gemini',
   load: async (options = {}) => {

@@ -2,7 +2,7 @@ import { apiClient } from './client.js';
 import { createTimedApiCache } from './cache.js';
 
 const mySubscriptionCache = createTimedApiCache({
-  ttlMs: 30_000,
+  ttlMs: 3600000,
   persistKey: 'student.subscription',
   load: () => apiClient.get('/subscriptions/me').then((response) => response.data),
 });

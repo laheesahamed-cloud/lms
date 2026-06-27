@@ -3,9 +3,9 @@ import { createTimedApiCache } from './cache.js';
 import { claimBootSlice } from './bootChannel.js';
 import { clearDashboardCache } from './dashboard.api.js';
 
-const STUDENT_QUIZZES_CACHE_MS = 30_000;
-const STUDENT_RESULTS_CACHE_MS = 15_000;
-const STUDENT_PRACTICE_QUIZ_PAYLOAD_CACHE_MS = 60_000;
+const STUDENT_QUIZZES_CACHE_MS = 3600000;
+const STUDENT_RESULTS_CACHE_MS = 3600000;
+const STUDENT_PRACTICE_QUIZ_PAYLOAD_CACHE_MS = 3600000;
 // Shared hosting can cold-boot the Node app on the first request after idle,
 // which routinely takes longer than 12s. Allow more headroom (and let the
 // client retry) so a cold start doesn't surface as "cannot reach API".

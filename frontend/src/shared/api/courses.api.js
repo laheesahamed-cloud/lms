@@ -1,8 +1,8 @@
 import { apiClient } from './client.js';
 import { createTimedApiCache } from './cache.js';
 
-const STUDENT_COURSES_CACHE_MS = 60_000;
-const STUDENT_COURSE_DETAIL_CACHE_MS = 60_000;
+const STUDENT_COURSES_CACHE_MS = 3600000;
+const STUDENT_COURSE_DETAIL_CACHE_MS = 3600000;
 const studentCoursesCache = createTimedApiCache({
   ttlMs: STUDENT_COURSES_CACHE_MS,
   persistKey: 'student.courses',

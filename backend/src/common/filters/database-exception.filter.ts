@@ -10,12 +10,20 @@ const DATABASE_AVAILABILITY_ERROR_CODES = new Set([
   'ECONNABORTED',
   'ETIMEDOUT',
   'EHOSTUNREACH',
+  'EHOSTDOWN',
   'ENOTFOUND',
   'ER_CON_COUNT_ERROR',
   'ER_SERVER_SHUTDOWN',
   'ER_SERVER_GONE_ERROR',
   'CR_SERVER_GONE_ERROR',
   'CR_SERVER_LOST',
+  // errors that surface on the first request after a cold-boot / pool recovery
+  'ER_QUERY_INTERRUPTED',
+  'ER_LOCK_DEADLOCK',
+  'ER_LOCK_WAIT_TIMEOUT',
+  'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR',
+  'PROTOCOL_ENQUEUE_AFTER_QUIT',
+  'POOL_CLOSED',
 ]);
 
 function getErrorCode(error: unknown) {

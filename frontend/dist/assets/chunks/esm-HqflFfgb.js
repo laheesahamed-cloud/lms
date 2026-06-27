@@ -1,0 +1,1 @@
+import{C as e}from"./vendor-CmIXtuG7.js";export{e as App};

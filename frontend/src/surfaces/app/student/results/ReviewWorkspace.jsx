@@ -696,8 +696,7 @@ export function ReviewWorkspace({
         else next.delete(activeQuestion.id);
         return next;
       });
-    } catch (error) {
-      setQuestionActionError(getErrorMessage(error, 'Unable to update question bookmark'));
+    } catch {
     } finally {
       setQuestionActionBusy(false);
     }
@@ -716,8 +715,7 @@ export function ReviewWorkspace({
         comment: comment.trim() || `Student reported question #${activeQuestion.id}`,
       });
       window.alert(`Question #${activeQuestion.id} was reported to admin.`);
-    } catch (error) {
-      setQuestionActionError(getErrorMessage(error, 'Unable to report question'));
+    } catch {
     } finally {
       setQuestionActionBusy(false);
     }

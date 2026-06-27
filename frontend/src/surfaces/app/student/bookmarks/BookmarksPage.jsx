@@ -97,8 +97,7 @@ export function BookmarksPage() {
     try {
       await toggleStudyBookmark({ itemType: item.itemType, itemId: item.itemId });
       setItems(prev => prev.filter(b => !(b.itemType === item.itemType && b.itemId === item.itemId)));
-    } catch (err) {
-      setError(getErrorMessage(err, 'Could not remove bookmark'));
+    } catch {
     }
   }
 

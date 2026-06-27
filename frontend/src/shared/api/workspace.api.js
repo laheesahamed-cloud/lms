@@ -10,7 +10,7 @@ export const deleteAnnouncement = (id) => apiClient.delete(`/admin/announcements
 // Short-TTL cache: the header bell and the dashboard panel both fetch at
 // boot (previously two identical requests); mutations clear it.
 const notificationsCache = createTimedApiCache({
-  ttlMs: 15000,
+  ttlMs: 3600000,
   persistKey: 'student.notifications',
   load: async () =>
     (await claimBootSlice('notifications')) ??
@@ -26,7 +26,7 @@ export const markNotificationRead = (id) => apiClient.post(`/student/notificatio
 
 export const fetchPlannerTasks = () => apiClient.get('/student/planner').then((r) => r.data);
 const plannerAgendaCache = createTimedApiCache({
-  ttlMs: 15000,
+  ttlMs: 3600000,
   persistKey: 'student.agenda',
   load: async () =>
     (await claimBootSlice('agenda')) ??

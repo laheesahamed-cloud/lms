@@ -3,7 +3,7 @@ import { createTimedApiCache } from './cache.js';
 import { claimBootSlice } from './bootChannel.js';
 
 const studyBookmarksCache = createTimedApiCache({
-  ttlMs: 30000,
+  ttlMs: 3600000,
   persistKey: 'student.bookmarks',
   load: async () =>
     (await claimBootSlice('bookmarks')) ??

@@ -10,6 +10,8 @@ import { getCurrentForwardPath } from '../utils/routeForwarding.js';
 const LOCAL_API_BASE_URL = 'http://localhost:3000/api';
 const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 const API_RECOVERY_STORAGE_KEY = 'lms_api_recovery_settings';
+const SERVER_RECOVERY_MAX_RETRIES = 4;
+const SERVER_RECOVERY_BASE_DELAY_MS = 2000;
 let unauthorizedHandler = null;
 
 export function setUnauthorizedHandler(handler) {
@@ -295,6 +297,24 @@ apiClient.interceptors.response.use(
       }
     }
 
+    const status = error?.response?.status;
+    const isDatabaseUnavailable = responseHasDatabaseUnavailableSignal(error?.response);
+    const isServerRecoveryResponse =
+      !requestConfig?.__skipServerRecoveryRetry &&
+      requestConfig &&
+      (isDatabaseUnavailable || isUnavailableProxyStatus(status));
+    const serverRecoveryRetryCount = Number(requestConfig?.__serverRecoveryRetryCount || 0);
+
+    if (isServerRecoveryResponse && serverRecoveryRetryCount < SERVER_RECOVERY_MAX_RETRIES) {
+      const delay = SERVER_RECOVERY_BASE_DELAY_MS * Math.pow(2, serverRecoveryRetryCount);
+      await wait(delay);
+      return apiClient.request({
+        ...requestConfig,
+        __serverRecoveryRetryCount: serverRecoveryRetryCount + 1,
+        __networkActivityFinalized: false,
+      });
+    }
+
     if (nextApiFallbackUrl) {
       return apiClient.request({
         ...requestConfig,
@@ -316,8 +336,6 @@ apiClient.interceptors.response.use(
       });
     }
 
-    const status = error?.response?.status;
-    const isDatabaseUnavailable = responseHasDatabaseUnavailableSignal(error?.response);
     const isLikelyServerNotResponding =
       !requestConfig?.__suppressServerStatus &&
       typeof navigator !== 'undefined' &&
@@ -388,13 +406,13 @@ export function getErrorMessage(error, fallback = 'Something went wrong') {
       return nativeApiMessage();
     }
 
-    return `The LMS API at ${apiBaseUrl} is taking too long to respond after automatic recovery.`;
+    return "Can't reach the server. Please check your connection and try again.";
   }
 
   if (error?.code === 'ERR_CANCELED' || error?.name === 'AbortError') {
     return platform.isNative
       ? nativeApiMessage()
-      : `The LMS API at ${API_BASE_URL} did not finish the request. Check that the API server is reachable.`;
+      : "Can't reach the server. Please check your connection and try again.";
   }
 
   if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {
@@ -405,7 +423,7 @@ export function getErrorMessage(error, fallback = 'Something went wrong') {
       return nativeApiMessage();
     }
 
-    return `Cannot reach the LMS API. Tried: ${formatApiBaseUrlList()}. Make sure the API server is running on port 3000.`;
+    return "Can't reach the server. Please check your connection and try again.";
   }
 
   return redactSensitiveValue(error?.message || fallback);

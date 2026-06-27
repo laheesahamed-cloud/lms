@@ -983,8 +983,7 @@ export function CourseDetailPage({
           lessonId: lesson.id,
         },
       });
-    } catch (openError) {
-      setError(getErrorMessage(openError, 'Unable to open lesson'));
+    } catch {
     }
   }
 

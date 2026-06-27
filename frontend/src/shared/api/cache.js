@@ -48,8 +48,8 @@ export function createTimedApiCache({ ttlMs = 15000, key = () => 'default', load
   const entries = new Map();
   // Stale-while-revalidate only kicks in for persisted (opt-in) caches on
   // native; everywhere else behavior is unchanged (blocking refetch when stale).
-  const effectiveTtl = persistKey && IS_NATIVE ? Math.max(ttlMs, NATIVE_MIN_TTL_MS) : ttlMs;
-  const swrMs = persistKey && IS_NATIVE ? NATIVE_SWR_MS : 0;
+  const effectiveTtl = persistKey ? Math.max(ttlMs, NATIVE_MIN_TTL_MS) : ttlMs;
+  const swrMs = persistKey ? NATIVE_SWR_MS : 0;
   const storageName = persistKey ? `${STORAGE_PREFIX}${persistKey}` : null;
 
   function canStore(data, args = []) {
