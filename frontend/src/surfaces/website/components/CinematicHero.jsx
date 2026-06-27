@@ -346,14 +346,7 @@ export function CinematicHero({
         .to('.floating-badge', { autoAlpha: 1, stagger: 0.06, ease: 'none', duration: 0.2 }, 0.5)
         .to('.counter-val', { innerHTML: metricValue, snap: { innerHTML: 1 }, ease: 'none', duration: 0.2 }, 0.5)
         .to('.progress-ring', { strokeDashoffset: 110, ease: 'none', duration: 0.2 }, 0.5)
-        .to(root, { autoAlpha: 0, y: -30, ease: 'power1.in', duration: 0.35 }, 0.7)
-        .to('.main-card', isTouch
-          ? { scale: 0.92, borderRadius: '32px', ease: 'expo.inOut', duration: 2.2 }
-          : { width: isMobile ? '92vw' : '85vw', height: isMobile ? '92vh' : '85vh', borderRadius: isMobile ? '32px' : '40px', ease: 'expo.inOut', duration: 2.2 }, 'pullback')
-        .to('.cta-wrapper', { scale: 1, ...scrubBlur('0px'), ease: 'expo.out', duration: 1.5 }, 'pullback+=0.15')
-        .to({}, { duration: 2.5 })
-        .to('.main-card', { y: -window.innerHeight - 300, ease: 'power2.inOut', duration: 2.3 })
-        .to('.cta-wrapper', { y: -80, autoAlpha: 0, ease: 'power2.inOut', duration: 2.0 }, '<');
+        .to(root, { autoAlpha: 0, y: -30, ease: 'power1.in', duration: 0.35 }, 0.7);
     }, containerRef);
 
     const refreshId = requestAnimationFrame(() => ScrollTrigger.refresh());
