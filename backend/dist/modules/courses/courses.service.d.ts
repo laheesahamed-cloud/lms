@@ -16,6 +16,17 @@ export declare class CoursesService {
     private readonly authService;
     private readonly plansService;
     constructor(db: Pool, authService: AuthService, plansService: PlansService);
+    getLandingSummary(): Promise<{
+        topics: {
+            id: number;
+            name: string;
+            questionCount: number;
+        }[];
+        courses: {
+            id: number;
+            title: string;
+        }[];
+    }>;
     findAll(): Promise<{
         id: number;
         courseTitle: string;
@@ -67,7 +78,7 @@ export declare class CoursesService {
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published";
+        workflowState: "published" | "draft";
     }>;
     findStudentCourses(authorization?: string): Promise<{
         subjectCount: any;

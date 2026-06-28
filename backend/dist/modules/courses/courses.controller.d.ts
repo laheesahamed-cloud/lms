@@ -7,6 +7,17 @@ export declare class CoursesController {
     private readonly coursesService;
     private readonly authService;
     constructor(coursesService: CoursesService, authService: AuthService);
+    getLandingSummary(): Promise<{
+        topics: {
+            id: number;
+            name: string;
+            questionCount: number;
+        }[];
+        courses: {
+            id: number;
+            title: string;
+        }[];
+    }>;
     findStudentCourses(authorization?: string): Promise<{
         subjectCount: any;
         progressPercent: any;
@@ -77,25 +88,25 @@ export declare class CoursesController {
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "in_review" | "published" | "archived";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     submitForReview(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "in_review" | "published" | "archived";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     publish(authorization: string | undefined, id: number): Promise<{
         ok: boolean;
         id: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "in_review" | "published" | "archived";
+        workflowState: "published" | "draft" | "in_review" | "archived";
     }>;
     rollback(authorization: string | undefined, id: number, versionNumber: number): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published";
+        workflowState: "published" | "draft";
     }>;
 }

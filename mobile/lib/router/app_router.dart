@@ -37,6 +37,7 @@ import '../features/notifications/notifications_page.dart';
 import '../features/bookmarks/bookmarks_page.dart';
 import '../features/planner/planner_page.dart';
 import '../features/subscriptions/subscriptions_page.dart';
+import '../features/drugs/drug_randomizer_page.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -242,6 +243,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/app/flashcards',
             pageBuilder: (c, s) =>
                 fadePage(key: s.pageKey, child: const FlashcardsPage()),
+          ),
+          GoRoute(
+            path: '/app/drugs',
+            pageBuilder: (c, s) =>
+                slidePage(key: s.pageKey, child: const DrugRandomizerPage()),
           ),
           GoRoute(
             path: '/app/ai-notes',

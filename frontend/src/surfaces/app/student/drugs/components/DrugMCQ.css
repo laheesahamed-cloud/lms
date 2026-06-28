@@ -1,0 +1,95 @@
+.mcq-root {
+  animation: mcq-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes mcq-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.mcq-drug-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: center;
+  margin: 0 0 6px;
+  letter-spacing: -0.3px;
+}
+
+.mcq-question {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  text-align: center;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.mcq-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mcq-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border, rgba(0,0,0,.1));
+  background: var(--color-bg-card, #fff);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s, opacity 0.2s;
+}
+
+.mcq-option:hover:not(:disabled) {
+  border-color: var(--color-accent, #3b82f6);
+  background: var(--color-accent-soft, rgba(59,130,246,.06));
+}
+
+.mcq-option-letter {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--color-bg-recessed, rgba(0,0,0,.05));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.mcq-option-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.mcq-tick, .mcq-cross {
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* states */
+.mcq-option--correct {
+  border-color: #22c55e !important;
+  background: rgba(34,197,94,.08) !important;
+}
+.mcq-option--correct .mcq-option-letter { background: rgba(34,197,94,.15); color: #16a34a; }
+.mcq-option--correct .mcq-tick { color: #16a34a; }
+
+.mcq-option--wrong {
+  border-color: #ef4444 !important;
+  background: rgba(239,68,68,.08) !important;
+}
+.mcq-option--wrong .mcq-option-letter { background: rgba(239,68,68,.15); color: #dc2626; }
+.mcq-option--wrong .mcq-cross { color: #dc2626; }
+
+.mcq-option--dim { opacity: 0.4; }

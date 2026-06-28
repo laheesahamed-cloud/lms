@@ -75,6 +75,10 @@
   --student-study-tone: #10b981;
 }
 
+.student-study-row.is-drugs {
+  --student-study-tone: #e11d48;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .student-study-row:hover {
     background: color-mix(in srgb, var(--surface-card) 90%, var(--student-study-tone, var(--color-primary)) 10%);

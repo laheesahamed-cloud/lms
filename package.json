@@ -74,5 +74,10 @@
   "devDependencies": {
     "electron": "^42.0.0",
     "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "mysql2": "^3.22.5",
+    "node-fetch": "^2.7.0",
+    "xlsx": "^0.18.5"
   }
 }

@@ -273,6 +273,8 @@ function rewriteApiBoundary(path, method) {
         if (resource === 'lessons') {
             return method === 'GET' && !rest.length ? '/api/lessons/admin' : `/api/lessons${restPath}`;
         }
+        if (resource === 'drugs')
+            return `/api/admin/drugs${restPath}`;
         if (resource && ['courses', 'topics', 'subtopics', 'questions', 'quizzes', 'users', 'settings', 'setup', 'papers', 'theory-recap', 'smart-notes', 'ai'].includes(resource)) {
             return `/api/${resource}${restPath}`;
         }
@@ -318,6 +320,8 @@ function rewriteApiBoundary(path, method) {
         }
         if (resource === 'flashcards')
             return `/api/flashcards${restPath}`;
+        if (resource === 'drugs')
+            return `/api/drugs${restPath}`;
         if (resource === 'bookmarks')
             return `/api/study-bookmarks${restPath}`;
         if (resource === 'notifications')

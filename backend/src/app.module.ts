@@ -29,6 +29,7 @@ import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { PushNotificationsModule } from './modules/push-notifications/push-notifications.module';
 import { ContentGovernanceModule } from './modules/content-governance/content-governance.module';
 import { BootModule } from './modules/boot/boot.module';
+import { DrugsModule } from './modules/drugs/drugs.module';
 import databaseConfig from './config/database.config';
 import { DatabaseModule } from './database/database.module';
 
@@ -67,6 +68,7 @@ import { DatabaseModule } from './database/database.module';
     ContentGovernanceModule,
     WorkspaceModule,
     BootModule,
+    DrugsModule,
   ],
   controllers: [HealthController],
 })

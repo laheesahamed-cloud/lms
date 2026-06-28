@@ -94,9 +94,9 @@ export declare class SubscriptionsService {
         planId: number;
         assignedBy: number | null;
         notes: string;
-        status: "active" | "expired" | "pending" | "cancelled";
-        computedStatus: "active" | "expired" | "pending" | "cancelled";
-        paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+        status: "active" | "pending" | "expired" | "cancelled";
+        computedStatus: "active" | "pending" | "expired" | "cancelled";
+        paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
         isFreePlan: boolean;
         isUnlimitedAccess: boolean;
         amountPaid: number | null;
@@ -104,7 +104,7 @@ export declare class SubscriptionsService {
         paymentReference: string;
         paymentDate: string | null;
         receiptUrl: string;
-        accessScope: "courses" | "lessons" | "all";
+        accessScope: "all" | "courses" | "lessons";
         courseIds: number[];
         lessonIds: number[];
         startDate: string;
@@ -200,7 +200,7 @@ export declare class SubscriptionsService {
         id: number;
         userId: number;
         planId: number;
-        status: "pending" | "approved" | "rejected" | "cancelled";
+        status: "rejected" | "pending" | "approved" | "cancelled";
         message: string;
         adminNote: string;
         requestedAt: string | null;
@@ -218,7 +218,7 @@ export declare class SubscriptionsService {
         paymentProofName: string;
         paymentProofMime: string;
         paymentProofDataUrl: string;
-        accessScope: "courses" | "lessons" | "all";
+        accessScope: "all" | "courses" | "lessons";
         courseIds: number[];
         lessonIds: number[];
         invoiceId: string;
@@ -243,9 +243,9 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "expired" | "pending" | "cancelled";
-            computedStatus: "active" | "expired" | "pending" | "cancelled";
-            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+            status: "active" | "pending" | "expired" | "cancelled";
+            computedStatus: "active" | "pending" | "expired" | "cancelled";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -253,7 +253,7 @@ export declare class SubscriptionsService {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "courses" | "lessons" | "all";
+            accessScope: "all" | "courses" | "lessons";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -294,9 +294,9 @@ export declare class SubscriptionsService {
             planId: number;
             assignedBy: number | null;
             notes: string;
-            status: "active" | "expired" | "pending" | "cancelled";
-            computedStatus: "active" | "expired" | "pending" | "cancelled";
-            paymentStatus: "manual" | "paid" | "unpaid" | "free_plan";
+            status: "active" | "pending" | "expired" | "cancelled";
+            computedStatus: "active" | "pending" | "expired" | "cancelled";
+            paymentStatus: "free_plan" | "manual" | "paid" | "unpaid";
             isFreePlan: boolean;
             isUnlimitedAccess: boolean;
             amountPaid: number | null;
@@ -304,7 +304,7 @@ export declare class SubscriptionsService {
             paymentReference: string;
             paymentDate: string | null;
             receiptUrl: string;
-            accessScope: "courses" | "lessons" | "all";
+            accessScope: "all" | "courses" | "lessons";
             courseIds: number[];
             lessonIds: number[];
             startDate: string;
@@ -388,7 +388,7 @@ export declare class SubscriptionsService {
             id: number;
             userId: number;
             planId: number;
-            status: "pending" | "approved" | "rejected" | "cancelled";
+            status: "rejected" | "pending" | "approved" | "cancelled";
             message: string;
             adminNote: string;
             requestedAt: string | null;
@@ -406,7 +406,7 @@ export declare class SubscriptionsService {
             paymentProofName: string;
             paymentProofMime: string;
             paymentProofDataUrl: string;
-            accessScope: "courses" | "lessons" | "all";
+            accessScope: "all" | "courses" | "lessons";
             courseIds: number[];
             lessonIds: number[];
             invoiceId: string;

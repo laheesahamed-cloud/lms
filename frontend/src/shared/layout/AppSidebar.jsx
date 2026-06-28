@@ -157,6 +157,13 @@ const Icons = {
       <path d="M5.5 10.5H11M5.5 13H8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     </svg>
   ),
+  Drugs: () => (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <rect x="3.5" y="9" width="13" height="8.5" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M7 9V6.5a3 3 0 0 1 6 0V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="10" cy="13.25" r="1.5" stroke="currentColor" strokeWidth="1.4"/>
+    </svg>
+  ),
 };
 
 function ChevronIcon() {
@@ -188,6 +195,7 @@ const adminLinks = [
   { to: '/subscriptions', label: 'Subscriptions', icon: 'Billing', requiredPermissions: ['subscriptions.manage'] },
   { to: '/finance',       label: 'Finance',       icon: 'Finance', requiredPermissions: ['subscriptions.manage', 'reports.view'] },
   { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes', requiredPermissions: ['content.manage'] },
+  { to: '/drugs',         label: 'Drug Randomizer', icon: 'Drugs', requiredPermissions: ['content.manage'] },
   { to: '/users',         label: 'Users',         icon: 'Users', requiredPermissions: ['students.manage'] },
   { to: '/announcements', label: 'Announcements', icon: 'Bell', requiredPermissions: ['notifications.manage'] },
   { to: '/reports',       label: 'Reports',       icon: 'Results', requiredPermissions: ['reports.view'] },

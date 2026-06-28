@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
-/// The xyndrome mark — dark-mode logo (the student app runs dark by default).
 class BrandLogo extends StatelessWidget {
   final double size;
   const BrandLogo({super.key, this.size = 44});
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset('assets/brand/xyndrome-logo-mark-dark.webp',
-        width: size, height: size, fit: BoxFit.contain);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final asset = isDark
+        ? 'assets/brand/xyndrome-logo-mark-dark.webp'
+        : 'assets/brand/xyndrome-logo-mark-light.webp';
+    return Image.asset(asset, width: size, height: size, fit: BoxFit.contain);
   }
 }
 

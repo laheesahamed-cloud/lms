@@ -25,26 +25,22 @@ let CoursesService = class CoursesService {
         this.plansService = plansService;
     }
     async getLandingSummary() {
-        const [topics] = await this.db.execute(
-            `SELECT t.id, t.topic_name, COUNT(q.id) AS question_count
-             FROM topics t
-             LEFT JOIN questions q ON q.topic_id = t.id
-             WHERE t.status = 'active'
-             GROUP BY t.id, t.topic_name
-             ORDER BY question_count DESC`
-        );
-        const [courses] = await this.db.execute(
-            "SELECT id, course_title FROM courses WHERE status = 'active' ORDER BY course_title ASC"
-        );
+        const [topics] = await this.db.execute(`SELECT t.id, t.topic_name, COUNT(q.id) AS question_count
+       FROM topics t
+       LEFT JOIN questions q ON q.topic_id = t.id
+       WHERE t.status = 'active'
+       GROUP BY t.id, t.topic_name
+       ORDER BY question_count DESC`);
+        const [courses] = await this.db.execute("SELECT id, course_title FROM courses WHERE status = 'active' ORDER BY course_title ASC");
         return {
             topics: topics.map((r) => ({
-                id: r.id,
-                name: r.topic_name,
-                questionCount: Number(r.question_count),
+                id: r['id'],
+                name: r['topic_name'],
+                questionCount: Number(r['question_count']),
             })),
             courses: courses.map((r) => ({
-                id: r.id,
-                title: r.course_title,
+                id: r['id'],
+                title: r['course_title'],
             })),
         };
     }

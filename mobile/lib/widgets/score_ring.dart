@@ -60,16 +60,16 @@ class _ScoreRingState extends State<ScoreRing>
                 children: [
                   Text('${(v * 100).round()}%',
                       style: TextStyle(
-                          fontSize: 30,
+                          fontSize: (widget.size * 0.22).clamp(14.0, 30.0),
                           fontWeight: FontWeight.w800,
                           color: c.inkStrong,
                           letterSpacing: -0.5)),
                   Text(widget.label.toUpperCase(),
                       style: TextStyle(
-                          fontSize: 11,
+                          fontSize: (widget.size * 0.09).clamp(8.0, 11.0),
                           fontWeight: FontWeight.w700,
                           color: c.inkSoft,
-                          letterSpacing: 1.2)),
+                          letterSpacing: 1.0)),
                 ],
               ),
             ),

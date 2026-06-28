@@ -62,6 +62,8 @@ const StudentNotificationsPage = lazyNamed(() => import('../surfaces/app/student
 const StudyPlannerPage = lazyNamed(() => import('../surfaces/app/student/planner/StudyPlannerPage.jsx'), 'StudyPlannerPage');
 const StudentFlashcardsPage = lazyNamed(() => import('../surfaces/app/student/flashcards/StudentFlashcardsPage.jsx'), 'StudentFlashcardsPage');
 const StudentStudyPage = lazyNamed(() => import('../surfaces/app/student/study/StudentStudyPage.jsx'), 'StudentStudyPage');
+const DrugRandomizerPage = lazyNamed(() => import('../surfaces/app/student/drugs/DrugRandomizerPage.jsx'), 'DrugRandomizerPage');
+const AdminDrugsPage = lazyNamed(() => import('../surfaces/admin/pages/drugs/AdminDrugsPage.jsx'), 'AdminDrugsPage');
 const AiNotesPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
 const AiNotesListPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesListPage.jsx'), 'AiNotesListPage');
 const AdminAiNotesListPage = lazyNamed(() => import('../surfaces/admin/pages/ai-notes/AdminAiNotesListPage.jsx'), 'AdminAiNotesListPage');
@@ -107,6 +109,7 @@ const roleRoutePreloaders = {
     ['/courses', StudentCoursesPage.preload],
     ['/notifications', StudentNotificationsPage.preload],
     ['/study', StudentStudyPage.preload],
+    ['/drugs', DrugRandomizerPage.preload],
     ['/planner', StudyPlannerPage.preload],
     ['/lessons', AiNotesListPage.preload],
     ['/ai-notes', AiNotesListPage.preload],
@@ -223,6 +226,7 @@ const STUDENT_ROUTE_NAMES = {
   '/app/flashcards': 'Flashcards',
   '/app/planner': 'Planner',
   '/app/study': 'Study',
+  '/app/drugs': 'Drug Randomizer',
   '/app/bookmarks': 'Saved',
   '/app/notifications': 'Notifications',
   '/app/subscriptions': 'Subscriptions',
@@ -531,6 +535,14 @@ const adminPanelRoutes = [
     ),
   },
   {
+    path: 'drugs',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
+        <AdminDrugsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: 'setup',
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
@@ -628,6 +640,10 @@ const studentPanelRoutes = [
   {
     path: 'flashcards',
     element: withSuspense(<StudentFlashcardsPage />),
+  },
+  {
+    path: 'drugs',
+    element: withSuspense(<DrugRandomizerPage />),
   },
   {
     path: 'study/lesson/:lessonId',

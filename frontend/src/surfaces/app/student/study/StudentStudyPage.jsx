@@ -60,6 +60,21 @@ const studyItems = [
       </svg>
     ),
   },
+  {
+    to: '/app/drugs',
+    preload: '/drugs',
+    label: 'Drug Randomizer',
+    eyebrow: 'Pharmacology',
+    description: 'Spin for a random drug, answer a quiz, see the full drug card.',
+    tone: 'drugs',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="11" width="18" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        <circle cx="12" cy="16" r="1.5" fill="currentColor" />
+      </svg>
+    ),
+  },
 ];
 
 export function StudentStudyPage() {

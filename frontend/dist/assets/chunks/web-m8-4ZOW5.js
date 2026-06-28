@@ -1,1 +1,0 @@
-import{c as e}from"./vendor--JwALnZt.js";export{e as SocialLoginWeb};

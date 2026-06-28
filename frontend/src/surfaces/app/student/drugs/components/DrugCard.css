@@ -1,0 +1,117 @@
+.dc-root {
+  animation: dc-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes dc-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dc-name-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.dc-pill {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--color-accent-soft, rgba(59,130,246,.12));
+  color: var(--color-accent, #3b82f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dc-pill svg { width: 20px; height: 20px; }
+
+.dc-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 2px;
+  letter-spacing: -0.3px;
+}
+.dc-sub {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* ── Cards grid ── */
+.dc-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dc-card {
+  border-radius: 12px;
+  background: var(--surface-card, var(--color-bg-card, #fff));
+  border: 1px solid var(--color-border, rgba(0,0,0,.07));
+  overflow: hidden;
+}
+
+.dc-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--color-border, rgba(0,0,0,.05));
+}
+.dc-card-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--dc-tone, var(--color-text-secondary));
+}
+.dc-card-icon svg { width: 16px; height: 16px; }
+
+.dc-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--dc-tone, var(--color-text-secondary));
+}
+
+.dc-card-single {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  margin: 0;
+  padding: 10px 14px 12px;
+}
+
+.dc-card-list {
+  margin: 0;
+  padding: 8px 14px 12px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  list-style: disc;
+}
+.dc-card-item {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text-primary);
+}
+
+/* ── Tone variants ── */
+.dc-card--class      { --dc-tone: var(--color-accent, #3b82f6); }
+.dc-card--brands     { --dc-tone: #64748b; }
+.dc-card--uses       { --dc-tone: #0ea5e9; }
+.dc-card--dosage     { --dc-tone: #10b981; }
+.dc-card--warn-amber { --dc-tone: #d97706; }
+.dc-card--warn-red   { --dc-tone: #dc2626; }
+.dc-card--warn-orange{ --dc-tone: #ea580c; }
+.dc-card--pregnancy  { --dc-tone: #7c3aed; }
+
+.dc-card--warn-red    { border-color: rgba(220,38,38,.15); background: rgba(220,38,38,.03); }
+.dc-card--warn-amber  { border-color: rgba(217,119,6,.15);  background: rgba(217,119,6,.03); }
+.dc-card--warn-orange { border-color: rgba(234,88,12,.15);  background: rgba(234,88,12,.03); }
+.dc-card--pregnancy   { border-color: rgba(124,58,237,.15); background: rgba(124,58,237,.03); }

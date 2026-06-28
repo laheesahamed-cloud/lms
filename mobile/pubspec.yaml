@@ -47,9 +47,6 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_local_notifications: ^19.4.2
   timezone: ^0.10.1
-  # NOTE: currently unused in Dart, but kept to avoid a CocoaPods re-sync in
-  # CI/automated builds. Remove from a terminal that has a working `pod`
-  # (run `flutter pub get` then `pod install` in ios/) when convenient.
   webview_flutter: ^4.13.0
 
 dev_dependencies:
@@ -94,6 +91,7 @@ flutter:
   assets:
     - assets/brand/
     - assets/medical/
+    - assets/mascots/
 
   # Plus Jakarta Sans bundled as a variable TTF (weights 200–800) so the app
   # never downloads the font at runtime. Replaces the google_fonts package.

@@ -1,0 +1,180 @@
+.dr-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+.dr-usage-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px 4px;
+}
+
+.dr-usage-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  min-width: 130px;
+}
+
+.dr-usage-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--color-bg-recessed, rgba(0,0,0,.07));
+  overflow: hidden;
+}
+
+.dr-usage-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--color-accent, #3b82f6);
+  transition: width 0.4s ease;
+}
+
+.dr-body {
+  flex: 1;
+  padding: 16px 20px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── idle / spinning ── */
+.dr-spin-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding-top: 24px;
+}
+
+.dr-spin-hero {
+  text-align: center;
+}
+
+.dr-dice-icon {
+  font-size: 56px;
+  margin-bottom: 12px;
+  display: block;
+  animation: dr-float 3s ease-in-out infinite;
+}
+
+@keyframes dr-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+.dr-spin-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 8px;
+  letter-spacing: -0.3px;
+}
+
+.dr-spin-sub {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 300px;
+}
+
+.dr-error {
+  font-size: 14px;
+  color: #dc2626;
+  text-align: center;
+  margin: 0;
+}
+
+.dr-spin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 48px;
+  border-radius: 16px;
+  background: var(--color-accent, #3b82f6);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  letter-spacing: -0.2px;
+  transition: opacity 0.15s, transform 0.1s;
+  box-shadow: 0 4px 16px rgba(59,130,246,.3);
+  min-width: 160px;
+  min-height: 56px;
+}
+
+.dr-spin-btn:hover:not(:disabled)  { opacity: 0.88; }
+.dr-spin-btn:active:not(:disabled) { transform: scale(0.97); }
+.dr-spin-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.dr-spin-btn__loader {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: dr-spin 0.7s linear infinite;
+}
+
+@keyframes dr-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── mcq ── */
+.dr-mcq-area {
+  padding-top: 12px;
+}
+
+/* ── card ── */
+.dr-card-area {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dr-result-badge {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 30px;
+  align-self: center;
+}
+
+.dr-result-badge--correct {
+  background: rgba(34,197,94,.12);
+  color: #16a34a;
+}
+
+.dr-result-badge--wrong {
+  background: rgba(239,68,68,.1);
+  color: #dc2626;
+}
+
+.dr-again-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 15px;
+  border-radius: 14px;
+  background: var(--color-accent, #3b82f6);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-top: 4px;
+}
+
+.dr-again-btn:hover { opacity: 0.88; }
