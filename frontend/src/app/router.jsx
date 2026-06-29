@@ -479,7 +479,7 @@ const adminPanelRoutes = [
   {
     path: 'ai',
     element: withSuspense(
-      <ProtectedRoute role="admin" requiredPermissions={['content.manage']} notFound>
+      <ProtectedRoute role="admin" requiredPermissions={['ai.manage']} notFound>
         <AiQuizGeneratorPage
           engineKey="gemini"
           generatorLabel="Gemini"
@@ -493,7 +493,7 @@ const adminPanelRoutes = [
   {
     path: 'ai/gemini',
     element: withSuspense(
-      <ProtectedRoute role="admin" requiredPermissions={['content.manage']} notFound>
+      <ProtectedRoute role="admin" requiredPermissions={['ai.manage']} notFound>
         <AiQuizGeneratorPage
           engineKey="gemini"
           generatorLabel="Gemini"
@@ -507,7 +507,7 @@ const adminPanelRoutes = [
   {
     path: 'ai/chatgpt',
     element: withSuspense(
-      <ProtectedRoute role="admin" requiredPermissions={['content.manage']} notFound>
+      <ProtectedRoute role="admin" requiredPermissions={['ai.manage']} notFound>
         <AiQuizGeneratorPage
           engineKey="openai"
           generatorLabel="ChatGPT"
@@ -769,6 +769,9 @@ const router = createBrowserRouter([
         path: 'launch-preview/:mode',
         element: withSuspense(<LaunchModePreviewPage />),
       },
+      { path: 'ai/gemini',  element: <Navigate to="/admin/ai/gemini"  replace /> },
+      { path: 'ai/chatgpt', element: <Navigate to="/admin/ai/chatgpt" replace /> },
+      { path: 'ai',         element: <Navigate to="/admin/ai/gemini"  replace /> },
       {
         path: 'admin',
         element: withLayoutSuspense(

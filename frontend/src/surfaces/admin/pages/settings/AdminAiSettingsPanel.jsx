@@ -217,11 +217,11 @@ function ProviderCard({ provider, onEdit, onActivate, onDelete, activatingId, de
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button className={ui.primaryAction}
+        <button
           type="button"
           onClick={() => onActivate(provider.id)}
           disabled={provider.isActive || busy}
-          className={provider.isActive ? ui.secondaryAction : ''}
+          className={provider.isActive ? ui.secondaryAction : ui.primaryAction}
         >
           {activatingId === provider.id ? 'Activating…' : provider.isActive ? 'In use' : 'Use now'}
         </button>

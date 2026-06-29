@@ -734,22 +734,39 @@ let AiService = class AiService {
                     source: 'env',
                 };
             }
-            throw new common_1.InternalServerErrorException('No OpenAI provider is configured for the ChatGPT quiz generator. Save an OpenAI key in admin settings or set OPENAI_API_KEY in backend/.env.');
+        } else {
+            const envGeminiKey = String(this.configService.get('GEMINI_API_KEY') || '').trim();
+            if (envGeminiKey) {
+                return {
+                    id: null,
+                    providerKey: 'gemini',
+                    providerLabel: 'Gemini (.env fallback)',
+                    apiKey: envGeminiKey,
+                    apiCode: '',
+                    baseUrl: '',
+                    model: String(this.configService.get('GEMINI_MODEL') || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim(),
+                    source: 'env',
+                };
+            }
         }
-        const envGeminiKey = String(this.configService.get('GEMINI_API_KEY') || '').trim();
-        if (envGeminiKey) {
+        const activeProvider = await this.getActiveAiProviderFromSettings();
+        if (activeProvider) {
+            return activeProvider;
+        }
+        const envOpenRouterKey = String(this.configService.get('OPENROUTER_API_KEY') || '').trim();
+        if (envOpenRouterKey) {
             return {
                 id: null,
-                providerKey: 'gemini',
-                providerLabel: 'Gemini (.env fallback)',
-                apiKey: envGeminiKey,
+                providerKey: 'openrouter',
+                providerLabel: 'OpenRouter (.env fallback)',
+                apiKey: envOpenRouterKey,
                 apiCode: '',
-                baseUrl: '',
-                model: String(this.configService.get('GEMINI_MODEL') || (0, ai_provider_utils_1.getDefaultModelForProvider)('gemini')).trim(),
+                baseUrl: (0, ai_provider_utils_1.getDefaultBaseUrlForProvider)('openrouter'),
+                model: String(this.configService.get('OPENROUTER_MODEL') || (0, ai_provider_utils_1.getDefaultModelForProvider)('openrouter')).trim(),
                 source: 'env',
             };
         }
-        throw new common_1.InternalServerErrorException('No Gemini provider is configured for the Gemini quiz generator. Save a Gemini key in admin settings or set GEMINI_API_KEY in backend/.env.');
+        throw new common_1.InternalServerErrorException('No AI provider is configured. Add a Gemini or OpenAI key in Admin → Settings → AI, or set GEMINI_API_KEY / OPENAI_API_KEY in backend/.env.');
     }
     async getActiveAiProviderFromSettings() {
         const [rows] = await this.db.execute(`

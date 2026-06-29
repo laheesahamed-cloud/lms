@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { generateAiQuiz, generateWhyIncorrectExplanations } from '../../../shared/api/ai.api.js';
 import { getErrorMessage } from '../../../shared/api/client.js';
 import { createQuestion, fetchQuestionsMeta } from '../../../shared/api/questions.api.js';
@@ -32,6 +32,14 @@ const defaultForm = {
 
 const LESSON_CONTEXT_CHAR_LIMIT = 8000;
 const MAX_QUESTIONS_PER_AI_CALL = 5;
+
+function BackIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
 
 const aiPageUi = {
   hero:
@@ -278,6 +286,7 @@ export function AiQuizGeneratorPage({
   heroDescription = 'Generate draft medical questions, review the output, and save approved items into the LMS question bank.',
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const lessonQuiz = location.state?.lessonQuiz || null;
   const isLessonQuizMode = Boolean(lessonQuiz?.lessonId);
   const [form, setForm] = useState(defaultForm);
@@ -659,6 +668,13 @@ export function AiQuizGeneratorPage({
       />
       <section className={ui.managementLayout}>
         <div className={aiPageUi.hero}>
+          <button
+            type="button"
+            className={cx(ui.secondaryAction, 'mb-3 px-3 py-1.5 text-[13px]')}
+            onClick={() => navigate(-1)}
+          >
+            <BackIcon /> Back
+          </button>
           <span className={ui.eyebrow}>{heroEyebrow}</span>
           <h1>{heroTitle}</h1>
           <p>{heroDescription}</p>

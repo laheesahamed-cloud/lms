@@ -903,27 +903,44 @@ export class AiService {
           source: 'env',
         };
       }
-      throw new InternalServerErrorException(
-        'No OpenAI provider is configured for the ChatGPT quiz generator. Save an OpenAI key in admin settings or set OPENAI_API_KEY in backend/.env.'
-      );
+    } else {
+      const envGeminiKey = String(this.configService.get<string>('GEMINI_API_KEY') || '').trim();
+      if (envGeminiKey) {
+        return {
+          id: null,
+          providerKey: 'gemini',
+          providerLabel: 'Gemini (.env fallback)',
+          apiKey: envGeminiKey,
+          apiCode: '',
+          baseUrl: '',
+          model: String(this.configService.get<string>('GEMINI_MODEL') || getDefaultModelForProvider('gemini')).trim(),
+          source: 'env',
+        };
+      }
     }
 
-    const envGeminiKey = String(this.configService.get<string>('GEMINI_API_KEY') || '').trim();
-    if (envGeminiKey) {
+    // Fall back to whichever active provider is configured rather than hard-failing
+    const activeProvider = await this.getActiveAiProviderFromSettings();
+    if (activeProvider) {
+      return activeProvider;
+    }
+
+    const envOpenRouterKey = String(this.configService.get<string>('OPENROUTER_API_KEY') || '').trim();
+    if (envOpenRouterKey) {
       return {
         id: null,
-        providerKey: 'gemini',
-        providerLabel: 'Gemini (.env fallback)',
-        apiKey: envGeminiKey,
+        providerKey: 'openrouter',
+        providerLabel: 'OpenRouter (.env fallback)',
+        apiKey: envOpenRouterKey,
         apiCode: '',
-        baseUrl: '',
-        model: String(this.configService.get<string>('GEMINI_MODEL') || getDefaultModelForProvider('gemini')).trim(),
+        baseUrl: getDefaultBaseUrlForProvider('openrouter'),
+        model: String(this.configService.get<string>('OPENROUTER_MODEL') || getDefaultModelForProvider('openrouter')).trim(),
         source: 'env',
       };
     }
 
     throw new InternalServerErrorException(
-      'No Gemini provider is configured for the Gemini quiz generator. Save a Gemini key in admin settings or set GEMINI_API_KEY in backend/.env.'
+      'No AI provider is configured. Add a Gemini or OpenAI key in Admin → Settings → AI, or set GEMINI_API_KEY / OPENAI_API_KEY in backend/.env.'
     );
   }
 
