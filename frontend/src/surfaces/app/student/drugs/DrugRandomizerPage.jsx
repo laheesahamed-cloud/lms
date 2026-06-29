@@ -105,10 +105,11 @@ export function DrugRandomizerPage() {
     if (cached) {
       queueRef.current  = cached.drugs;
       useCountRef.current = cached.useCount ?? 0;
-      metaRef.current   = { useCount: cached.useCount ?? 0, freeLimit: cached.freeLimit ?? 5, hasSub: !!cached.hasSub };
+      // Never restore hasSub from cache — cache is per-browser not per-user, stale value causes limit bypass
+      metaRef.current   = { useCount: cached.useCount ?? 0, freeLimit: cached.freeLimit ?? 5, hasSub: false };
       setUseCount(cached.useCount ?? 0);
       setFreeLimit(cached.freeLimit ?? 5);
-      setHasSub(!!cached.hasSub);
+      setHasSub(false);
       setReady(true);
 
       // Top up if cache is low — but fetch fresh useCount from server too
