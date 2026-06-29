@@ -58,11 +58,13 @@ class DrugQueueNotifier extends Notifier<DrugQueueState> {
         if (isInit) state = state.copyWith(ready: true);
         return;
       }
+      // Always trust server for hasSub — stale state from a different user can bypass the limit
+      final serverCount = data.useCount;
       state = state.copyWith(
         queue:     [...state.queue, ...data.drugs],
-        useCount:  isInit ? data.useCount      : state.useCount,
-        freeLimit: isInit ? data.freeLimit     : state.freeLimit,
-        hasSub:    isInit ? data.hasSubscription : state.hasSub,
+        useCount:  serverCount > state.useCount ? serverCount : state.useCount,
+        freeLimit: isInit ? data.freeLimit : state.freeLimit,
+        hasSub:    data.hasSubscription,
         ready:     true,
       );
     } catch (_) {
@@ -80,8 +82,19 @@ class DrugQueueNotifier extends Notifier<DrugQueueState> {
     final newQueue = state.queue.sublist(1);
     state = state.copyWith(queue: newQueue, useCount: state.useCount + 1);
 
-    // Record on server — fire-and-forget
-    ref.read(drugRandomizerRepositoryProvider).recordSpin();
+    // Record on server and sync authoritative count back
+    ref.read(drugRandomizerRepositoryProvider).recordSpin().then((res) {
+      if (res == null) return;
+      if (res['ok'] == false && res['reason'] == 'limit_reached') {
+        final cap = (res['freeLimit'] as num?)?.toInt() ?? state.freeLimit;
+        state = state.copyWith(useCount: cap, hasSub: false);
+      } else {
+        final serverCount = (res['useCount'] as num?)?.toInt();
+        if (serverCount != null && serverCount > state.useCount) {
+          state = state.copyWith(useCount: serverCount);
+        }
+      }
+    });
 
     // Silently refill when low
     if (newQueue.length <= _refillAt && !_fetching) {

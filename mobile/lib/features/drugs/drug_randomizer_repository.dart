@@ -62,11 +62,13 @@ class DrugRandomizerRepository {
     return DrugBatchResult.fromJson(res.data as Map<String, dynamic>);
   }
 
-  // Fire-and-forget — never awaited by caller
-  Future<void> recordSpin() async {
+  Future<Map<String, dynamic>?> recordSpin() async {
     try {
-      await _client.dio.post('/student/drugs/record');
-    } catch (_) {}
+      final res = await _client.dio.post('/student/drugs/record');
+      return res.data as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
   }
 }
 
