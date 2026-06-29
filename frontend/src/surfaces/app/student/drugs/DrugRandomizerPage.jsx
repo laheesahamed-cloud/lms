@@ -79,10 +79,16 @@ export function DrugRandomizerPage() {
         setUseCount(serverCount);
       }
 
+      // Always trust server for hasSub — cache can have stale value from a different user on same browser
+      if (data.hasSubscription !== undefined) {
+        const sub = !!data.hasSubscription;
+        metaRef.current.hasSub = sub;
+        setHasSub(sub);
+      }
+
       if (isInit) {
         metaRef.current = { useCount: useCountRef.current, freeLimit: data.freeLimit ?? 5, hasSub: !!data.hasSubscription };
         setFreeLimit(data.freeLimit ?? 5);
-        setHasSub(!!data.hasSubscription);
         setReady(true);
       }
       persistQueue();
@@ -109,13 +115,18 @@ export function DrugRandomizerPage() {
       const needed = BATCH_SIZE - cached.drugs.length;
       if (needed > 0) void fetchBatch(needed, false);
       else {
-        // Sync useCount from server — use Math.max so a stale server value can't reset a higher local count
+        // Sync from server — use Math.max for count; always trust server for hasSub
         batchFetchDrugs(0).then(d => {
           if (!d?.blocked) {
             const synced = Math.max(d.useCount ?? 0, useCountRef.current);
             useCountRef.current = synced;
             metaRef.current.useCount = synced;
             setUseCount(synced);
+            if (d.hasSubscription !== undefined) {
+              const sub = !!d.hasSubscription;
+              metaRef.current.hasSub = sub;
+              setHasSub(sub);
+            }
           }
         }).catch(() => {});
       }
