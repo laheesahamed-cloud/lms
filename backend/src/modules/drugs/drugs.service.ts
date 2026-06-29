@@ -97,8 +97,15 @@ export class DrugsService implements OnModuleInit {
   }
 
   // ── record a spin (fire-and-forget from client) ──
+  async getSpinCount(userId: number): Promise<number> {
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      `SELECT drug_spins_used FROM users WHERE id = ?`, [userId],
+    );
+    return Number((rows[0] as any)?.drug_spins_used ?? 0);
+  }
+
   async recordSpin(userId: number) {
-    void this.db.execute(
+    await this.db.execute(
       `UPDATE users SET drug_spins_used = drug_spins_used + 1 WHERE id = ?`, [userId],
     );
   }
@@ -152,14 +159,6 @@ export class DrugsService implements OnModuleInit {
 
   async toggleDrug(id: number) {
     await this.db.execute(`UPDATE drugs SET is_active = 1 - is_active WHERE id = ?`, [id]);
-  }
-
-  async getUsageCount(userId: number): Promise<number> {
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      `SELECT drug_spins_used FROM users WHERE id = ?`,
-      [userId],
-    );
-    return Number((rows[0] as any)?.drug_spins_used ?? 0);
   }
 
   async importDrugs(buffer: Buffer, filename: string): Promise<{ inserted: number; skipped: number }> {

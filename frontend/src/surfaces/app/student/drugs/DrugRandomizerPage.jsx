@@ -70,11 +70,17 @@ export function DrugRandomizerPage() {
       const data = await batchFetchDrugs(count);
       if (data.blocked) return;
       queueRef.current = [...queueRef.current, ...(data.drugs || [])];
+
+      // Always take the server count upward — never let a stale server count decrease the local value
+      const serverCount = data.useCount ?? 0;
+      if (serverCount > useCountRef.current) {
+        useCountRef.current = serverCount;
+        metaRef.current.useCount = serverCount;
+        setUseCount(serverCount);
+      }
+
       if (isInit) {
-        // Server is source of truth for useCount on fresh load
-        useCountRef.current = data.useCount ?? 0;
-        metaRef.current = { useCount: data.useCount ?? 0, freeLimit: data.freeLimit ?? 5, hasSub: !!data.hasSubscription };
-        setUseCount(data.useCount ?? 0);
+        metaRef.current = { useCount: useCountRef.current, freeLimit: data.freeLimit ?? 5, hasSub: !!data.hasSubscription };
         setFreeLimit(data.freeLimit ?? 5);
         setHasSub(!!data.hasSubscription);
         setReady(true);
@@ -103,12 +109,13 @@ export function DrugRandomizerPage() {
       const needed = BATCH_SIZE - cached.drugs.length;
       if (needed > 0) void fetchBatch(needed, false);
       else {
-        // Still sync useCount from server silently (might have changed on another device)
+        // Sync useCount from server — use Math.max so a stale server value can't reset a higher local count
         batchFetchDrugs(0).then(d => {
           if (!d?.blocked) {
-            useCountRef.current = d.useCount ?? useCountRef.current;
-            metaRef.current.useCount = useCountRef.current;
-            setUseCount(useCountRef.current);
+            const synced = Math.max(d.useCount ?? 0, useCountRef.current);
+            useCountRef.current = synced;
+            metaRef.current.useCount = synced;
+            setUseCount(synced);
           }
         }).catch(() => {});
       }
@@ -144,7 +151,21 @@ export function DrugRandomizerPage() {
     metaRef.current.useCount = useCountRef.current;
     setUseCount(useCountRef.current);
 
-    void recordDrugSpin(); // fire-and-forget
+    // Record on server; sync authoritative count back when the response arrives
+    recordDrugSpin().then(res => {
+      if (!res) return;
+      if (res.ok === false && res.reason === 'limit_reached') {
+        // Server rejected it — count was already at limit (local check raced); force to limit
+        const cap = res.freeLimit ?? freeLimit;
+        useCountRef.current = cap;
+        metaRef.current.useCount = cap;
+        setUseCount(cap);
+      } else if (res.useCount > useCountRef.current) {
+        useCountRef.current = res.useCount;
+        metaRef.current.useCount = res.useCount;
+        setUseCount(res.useCount);
+      }
+    });
 
     if (queueRef.current.length <= REFILL_AT) {
       void fetchBatch(REFILL_COUNT, false);

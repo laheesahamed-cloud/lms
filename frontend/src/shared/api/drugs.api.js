@@ -4,7 +4,7 @@ export const batchFetchDrugs = (count = 10) =>
   apiClient.get('/student/drugs/batch', { params: { count } }).then((r) => r.data);
 
 export const recordDrugSpin = () =>
-  apiClient.post('/student/drugs/record').catch(() => {}); // fire-and-forget, never throws
+  apiClient.post('/student/drugs/record').then((r) => r.data).catch(() => null);
 
 // Admin
 export const adminListDrugs = (page = 1, limit = 30, search = '') =>

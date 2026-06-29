@@ -74,8 +74,12 @@ let DrugsService = DrugsService_1 = class DrugsService {
             enabled: this.settingsCache.enabled,
         };
     }
+    async getSpinCount(userId) {
+        const [rows] = await this.db.execute(`SELECT drug_spins_used FROM users WHERE id = ?`, [userId]);
+        return Number(rows[0]?.drug_spins_used ?? 0);
+    }
     async recordSpin(userId) {
-        void this.db.execute(`UPDATE users SET drug_spins_used = drug_spins_used + 1 WHERE id = ?`, [userId]);
+        await this.db.execute(`UPDATE users SET drug_spins_used = drug_spins_used + 1 WHERE id = ?`, [userId]);
     }
     async listDrugs(page, limit, search) {
         const offset = (page - 1) * limit;
@@ -107,10 +111,6 @@ let DrugsService = DrugsService_1 = class DrugsService {
     }
     async toggleDrug(id) {
         await this.db.execute(`UPDATE drugs SET is_active = 1 - is_active WHERE id = ?`, [id]);
-    }
-    async getUsageCount(userId) {
-        const [rows] = await this.db.execute(`SELECT drug_spins_used FROM users WHERE id = ?`, [userId]);
-        return Number(rows[0]?.drug_spins_used ?? 0);
     }
     async importDrugs(buffer, filename) {
         const XLSX = require('xlsx');

@@ -33,8 +33,14 @@ let DrugsController = class DrugsController {
     }
     async record(auth) {
         const student = await this.authService.requireStudent(auth);
+        const hasSubscription = !!student.hasActiveSubscription;
+        const settings = this.svc.getSettings();
+        const useCount = await this.svc.getSpinCount(student.id);
+        if (!hasSubscription && useCount >= settings.freeLimit) {
+            return { ok: false, reason: 'limit_reached', useCount, freeLimit: settings.freeLimit };
+        }
         await this.svc.recordSpin(student.id);
-        return { ok: true };
+        return { ok: true, useCount: useCount + 1, freeLimit: settings.freeLimit };
     }
 };
 exports.DrugsController = DrugsController;
