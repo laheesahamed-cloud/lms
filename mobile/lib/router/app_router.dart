@@ -15,6 +15,7 @@ import '../features/auth/verify_email_page.dart';
 import '../features/onboarding/pending_page.dart';
 import '../features/results/review_page.dart';
 import '../features/ai_notes/note_canvas_page.dart';
+import '../features/ai_notes/note_canvas_flutter_page.dart';
 import '../features/shell/app_shell.dart';
 import '../features/dashboard/dashboard_page.dart';
 import '../features/courses/courses_page.dart';
@@ -121,12 +122,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           child: NoteCanvasPage(lessonId: s.uri.queryParameters['lessonId'] ?? '1'),
         ),
       ),
-      // study -> lesson -> full native AI notes
+      // study -> lesson -> 100% Flutter canvas
       GoRoute(
         path: '/app/study/lesson/:lessonId',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
-          child: NoteCanvasPage(lessonId: s.pathParameters['lessonId']!),
+          child: NoteCanvasFlutterPage(lessonId: s.pathParameters['lessonId']!),
         ),
       ),
 

@@ -252,16 +252,9 @@ class DashboardPage extends ConsumerWidget {
       const SizedBox(height: 14),
       const _QuickActions(),
       const SizedBox(height: 14),
-      IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: const [
-            Expanded(child: _StudyPlanCard()),
-            SizedBox(width: 10),
-            Expanded(child: _AnalyticsCard()),
-          ],
-        ),
-      ),
+      const _StudyPlanCard(),
+      const SizedBox(height: 14),
+      const _AnalyticsCard(),
       const SizedBox(height: 14),
       const _DailyQuestionCard(),
       const SizedBox(height: 14),

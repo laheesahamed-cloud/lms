@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
+import '../drugs/drug_queue_service.dart';
 
-/// Study hub — a calm launcher for the three core study tools.
-class StudyHubPage extends StatelessWidget {
+/// Study hub — launcher for all core study tools.
+class StudyHubPage extends ConsumerWidget {
   const StudyHubPage({super.key});
 
   static const _tools = <_ToolEntry>[
@@ -41,8 +43,9 @@ class StudyHubPage extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.c;
+    final drugState = ref.watch(drugQueueProvider);
 
     return SafeArea(
       child: ListView(
@@ -77,6 +80,10 @@ class StudyHubPage extends StatelessWidget {
                   child: FadeInAnimation(child: w),
                 ),
                 children: [
+                  // Drug Randomizer — featured card with live spin stats
+                  _DrugRandomizerTile(state: drugState),
+                  const SizedBox(height: AppSpace.x3),
+
                   for (final tool in _tools) ...[
                     _ToolTile(
                       entry: tool,
@@ -95,6 +102,160 @@ class StudyHubPage extends StatelessWidget {
     );
   }
 }
+
+// ── Drug Randomizer featured tile ──────────────────────────────────────────
+
+class _DrugRandomizerTile extends StatelessWidget {
+  final DrugQueueState state;
+  const _DrugRandomizerTile({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final spinsUsed  = state.useCount.clamp(0, state.freeLimit);
+    final freeLimit  = state.freeLimit;
+    final hasSub     = state.hasSub;
+    final progress   = hasSub ? 1.0 : (spinsUsed / freeLimit).clamp(0.0, 1.0);
+
+    return GlassCard(
+      onTap: () => context.push('/app/drugs'),
+      padding: const EdgeInsets.all(AppSpace.x4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Icon container — same gradient as other tiles but teal/purple accent
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.inner),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      c.accent.withValues(alpha: 0.22),
+                      c.primary.withValues(alpha: 0.14),
+                    ],
+                  ),
+                ),
+                child: Icon(Icons.medication_outlined, size: 24, color: c.primary),
+              ),
+              const SizedBox(width: AppSpace.x4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Drugs',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                        color: c.inkStrong,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.x1),
+                    Text(
+                      'Spin a random drug, answer a quick MCQ',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 14, height: 1.3, color: c.inkSoft),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpace.x3),
+              Icon(Icons.chevron_right_rounded, size: 22, color: c.inkMuted),
+            ],
+          ),
+
+          // Stats row
+          const SizedBox(height: AppSpace.x4),
+          Row(
+            children: [
+              // Spins stat
+              _StatChip(
+                label: hasSub ? 'Unlimited' : '$spinsUsed / $freeLimit spins',
+                icon: Icons.shuffle_rounded,
+                c: c,
+              ),
+              const SizedBox(width: AppSpace.x2),
+              // Queue ready stat
+              _StatChip(
+                label: state.ready ? 'Ready' : 'Loading…',
+                icon: state.ready
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.hourglass_empty_rounded,
+                c: c,
+              ),
+              if (!hasSub) ...[
+                const Spacer(),
+                // Mini progress bar
+                SizedBox(
+                  width: 56,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 5,
+                          backgroundColor: c.inkMuted.withValues(alpha: 0.15),
+                          valueColor: AlwaysStoppedAnimation(
+                            progress >= 1 ? Colors.orange : c.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final AppColors c;
+  const _StatChip({required this.label, required this.icon, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: c.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: c.primary),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: c.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Standard tool tile ──────────────────────────────────────────────────────
 
 class _ToolEntry {
   final IconData icon;

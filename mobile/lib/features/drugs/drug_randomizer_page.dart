@@ -1,8 +1,8 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/tokens.dart';
+import '../../widgets/glass_card.dart';
 import 'drug_queue_service.dart';
 import 'drug_randomizer_repository.dart';
 import 'widgets/lottery_spinner.dart';
@@ -27,11 +27,9 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
 
   void _spin() {
     if (_phase == _Phase.spinning) return;
-
     final svc = ref.read(drugQueueProvider.notifier);
     final st  = ref.read(drugQueueProvider);
 
-    // Check free spin limit client-side
     if (!st.hasSub && st.useCount >= st.freeLimit) {
       showModalBottomSheet(
         context: context,
@@ -44,7 +42,7 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
 
     final item = svc.pop();
     if (item == null) {
-      setState(() => _error = 'Could not load a drug — please try again.');
+      setState(() => _error = 'Could not load — please try again.');
       return;
     }
 
@@ -56,78 +54,57 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
     });
   }
 
-  void _onSpinDone() {
-    if (mounted) setState(() => _phase = _Phase.mcq);
-  }
-
-  void _onMCQAnswered(bool correct) {
-    setState(() { _mcqCorrect = correct; _phase = _Phase.card; });
-  }
-
-  void _spinAgain() {
-    setState(() { _phase = _Phase.idle; _current = null; _mcqCorrect = null; _error = null; });
-  }
+  void _onSpinDone()           { if (mounted) setState(() => _phase = _Phase.mcq); }
+  void _onMCQAnswered(bool ok) => setState(() { _mcqCorrect = ok; _phase = _Phase.card; });
+  void _spinAgain()            => setState(() { _phase = _Phase.idle; _current = null; _mcqCorrect = null; _error = null; });
 
   @override
   Widget build(BuildContext context) {
     final c  = context.c;
     final st = ref.watch(drugQueueProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Drug Randomizer'),
-        centerTitle: false,
-        bottom: (!st.hasSub)
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(28),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${min(st.useCount, st.freeLimit)} / ${st.freeLimit} free spins',
-                        style: TextStyle(fontSize: 12, color: c.inkSoft),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: (st.useCount / st.freeLimit).clamp(0.0, 1.0),
-                            minHeight: 4,
-                            backgroundColor: c.inkMuted.withValues(alpha: 0.15),
-                            valueColor: AlwaysStoppedAnimation(c.primary),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            : null,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          child: _buildBody(c, st),
-        ),
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+        children: [
+          Text('STUDY TOOL',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4, color: c.accent)),
+          const SizedBox(height: 5),
+          Text('Drugs',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5, color: c.inkStrong)),
+          const SizedBox(height: 14),
+
+          if (!st.hasSub) ...[
+            _SpinProgress(used: st.useCount, limit: st.freeLimit, c: c),
+            const SizedBox(height: 16),
+          ],
+
+          _buildPhase(c, st),
+        ],
       ),
     );
   }
 
-  Widget _buildBody(dynamic c, DrugQueueState st) {
+  Widget _buildPhase(AppColors c, DrugQueueState st) {
     switch (_phase) {
       case _Phase.idle:
-        return _IdleView(
-          ready: st.ready,
-          error: _error ?? st.error,
-          onSpin: _spin,
-        );
+        return _IdleCard(ready: st.ready, error: _error, onSpin: _spin, c: c);
 
       case _Phase.spinning:
-        return LotterySpinner(
-          drugName: _current!.drug['name'] as String,
-          onDone: _onSpinDone,
+        return Column(
+          children: [
+            const SizedBox(height: 32),
+            Text('Drawing a drug…',
+                style: TextStyle(fontSize: 16, color: c.inkSoft),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            LotterySpinner(
+              drugName: _current!.drug['name'] as String,
+              onDone: _onSpinDone,
+            ),
+          ],
         );
 
       case _Phase.mcq:
@@ -140,8 +117,9 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
 
       case _Phase.card:
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ResultBadge(correct: _mcqCorrect ?? false),
+            _ResultBadge(correct: _mcqCorrect ?? false, c: c),
             const SizedBox(height: 16),
             DrugInfoCard(drug: _current!.drug),
             const SizedBox(height: 20),
@@ -149,8 +127,9 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: _spinAgain,
-                icon: const Text('🎲', style: TextStyle(fontSize: 18)),
-                label: const Text('Spin Again'),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Spin Again',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -164,85 +143,137 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
   }
 }
 
-class _IdleView extends StatelessWidget {
+// ── Idle card ───────────────────────────────────────────────────────────────
+
+class _IdleCard extends StatelessWidget {
   final bool ready;
   final String? error;
   final VoidCallback onSpin;
-  const _IdleView({required this.ready, this.error, required this.onSpin});
+  final AppColors c;
+  const _IdleCard({required this.ready, this.error, required this.onSpin, required this.c});
 
   @override
   Widget build(BuildContext context) {
-    final c = context.c;
-    return Column(
-      children: [
-        const SizedBox(height: 32),
-        const Text('🎲', style: TextStyle(fontSize: 64)),
-        const SizedBox(height: 16),
-        Text('Ready to study?',
-            style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: c.inkStrong,
-                letterSpacing: -0.3)),
-        const SizedBox(height: 8),
-        Text(
-          'Spin to get a random drug, answer a quick question,\nthen see the full drug card.',
-          style: TextStyle(fontSize: 14, color: c.inkSoft, height: 1.5),
-          textAlign: TextAlign.center,
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 16),
-          Text(error!, style: const TextStyle(color: Colors.red, fontSize: 14)),
-        ],
-        const SizedBox(height: 32),
-        SizedBox(
-          width: 180,
-          child: FilledButton.icon(
-            onPressed: ready ? onSpin : null,
-            icon: !ready
-                ? const SizedBox(
-                    width: 18, height: 18,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : const Text('🎲', style: TextStyle(fontSize: 20)),
-            label: Text(
-              ready ? 'Spin' : 'Loading…',
-              style: const TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w700),
+    return Column(children: [
+      const SizedBox(height: 24),
+      GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(children: [
+          Container(
+            width: 72, height: 72,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  c.accent.withValues(alpha: 0.22),
+                  c.primary.withValues(alpha: 0.14),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
             ),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+            child: Icon(Icons.medication_outlined, size: 36, color: c.primary),
+          ),
+          const SizedBox(height: 20),
+          Text('Ready to study?',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700,
+                  color: c.inkStrong, letterSpacing: -0.3),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Text(
+            'Spin to get a random drug, answer a quick question, then see the full drug card.',
+            style: TextStyle(fontSize: 14, color: c.inkSoft, height: 1.5),
+            textAlign: TextAlign.center,
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 12),
+            Text(error!, style: const TextStyle(color: Colors.red, fontSize: 14),
+                textAlign: TextAlign.center),
+          ],
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: ready ? onSpin : null,
+              icon: ready
+                  ? const Icon(Icons.shuffle_rounded)
+                  : const SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white)),
+              label: Text(ready ? 'Spin' : 'Loading…',
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
             ),
           ),
-        ),
-      ],
-    );
+        ]),
+      ),
+    ]);
   }
 }
 
-class _ResultBadge extends StatelessWidget {
-  final bool correct;
-  const _ResultBadge({required this.correct});
+// ── Progress bar ────────────────────────────────────────────────────────────
+
+class _SpinProgress extends StatelessWidget {
+  final int used, limit;
+  final AppColors c;
+  const _SpinProgress({required this.used, required this.limit, required this.c});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: correct
-            ? Colors.green.withValues(alpha: 0.12)
-            : Colors.red.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Text(
-        correct ? '✓ Correct!' : '✗ Not quite — here\'s the full answer',
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: correct ? Colors.green.shade700 : Colors.red.shade600,
+    final clamped = used.clamp(0, limit);
+    return Row(children: [
+      Text('$clamped / $limit free spins',
+          style: TextStyle(fontSize: 13, color: c.inkSoft)),
+      const SizedBox(width: 12),
+      Expanded(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: (clamped / limit).clamp(0.0, 1.0),
+            minHeight: 5,
+            backgroundColor: c.inkMuted.withValues(alpha: 0.15),
+            valueColor: AlwaysStoppedAnimation(
+                clamped >= limit ? Colors.orange : c.primary),
+          ),
         ),
+      ),
+    ]);
+  }
+}
+
+// ── Result badge ────────────────────────────────────────────────────────────
+
+class _ResultBadge extends StatelessWidget {
+  final bool correct;
+  final AppColors c;
+  const _ResultBadge({required this.correct, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = correct ? Colors.green : Colors.red;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(correct ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
+              size: 18, color: color),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              correct ? 'Correct!' : 'Not quite — see the full answer below',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color),
+            ),
+          ),
+        ],
       ),
     );
   }

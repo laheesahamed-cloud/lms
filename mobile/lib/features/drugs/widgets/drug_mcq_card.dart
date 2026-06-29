@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../theme/tokens.dart';
-import '../../../widgets/glass_card.dart';
 
 const _questionLabels = {
   'drug_class':     'What class does this drug belong to?',
@@ -125,9 +124,9 @@ class _DrugMCQCardState extends State<DrugMCQCard> {
                                 color: c.inkStrong)),
                       ),
                       if (_selected != null && isCorrect)
-                        const Text('✓', style: TextStyle(fontSize: 18, color: Colors.green)),
+                        const Icon(Icons.check_circle_outline_rounded, size: 18, color: Colors.green),
                       if (_selected != null && isSelected && !isCorrect)
-                        const Text('✗', style: TextStyle(fontSize: 18, color: Colors.red)),
+                        const Icon(Icons.cancel_outlined, size: 18, color: Colors.red),
                     ],
                   ),
                 ),

@@ -22,12 +22,6 @@ import UserNotifications
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
-    // Native PencilKit + WebView note canvas — one registration; each UiKitView
-    // instance gets its own NoteCanvasView via the factory.
-    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "XyndromeNoteCanvas") {
-      let factory = NoteCanvasViewFactory(messenger: registrar.messenger())
-      registrar.register(factory, withId: "app.xyndrome.lk/note_canvas")
-    }
     if let messenger = engineBridge.pluginRegistry.registrar(forPlugin: "XyndromePush")?.messenger() {
       let channel = FlutterMethodChannel(name: "app.xyndrome.lk/push", binaryMessenger: messenger)
       channel.setMethodCallHandler { [weak self] call, result in

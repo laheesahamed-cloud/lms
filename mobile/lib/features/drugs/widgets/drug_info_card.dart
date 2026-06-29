@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 import '../../../theme/tokens.dart';
+import '../../../widgets/glass_card.dart';
 
 const _sections = [
-  {'key': 'drug_class',        'label': 'Drug Class',        'icon': '⬡'},
-  {'key': 'sl_brand_names',    'label': 'SL Brands',         'icon': '🏷'},
-  {'key': 'dosage_adult',      'label': 'Adult Dosage',      'icon': '💊'},
-  {'key': 'dosage_pediatric',  'label': 'Pediatric Dosage',  'icon': '🧒'},
-  {'key': 'uses',              'label': 'Uses',               'icon': '✚'},
-  {'key': 'side_effects',      'label': 'Side Effects',       'icon': '⚠'},
-  {'key': 'warnings',          'label': 'Warnings',           'icon': '🔴'},
-  {'key': 'drug_interactions', 'label': 'Drug Interactions',  'icon': '↔'},
-  {'key': 'pregnancy_info',    'label': 'Pregnancy',          'icon': '♥'},
+  _Section('drug_class',        'Drug Class',        Icons.category_outlined),
+  _Section('sl_brand_names',    'SL Brand Names',    Icons.local_pharmacy_outlined),
+  _Section('uses',              'Uses',               Icons.add_circle_outline_rounded),
+  _Section('dosage_adult',      'Adult Dosage',      Icons.person_outline_rounded),
+  _Section('dosage_pediatric',  'Pediatric Dosage',  Icons.child_care_outlined),
+  _Section('side_effects',      'Side Effects',      Icons.warning_amber_rounded),
+  _Section('warnings',          'Warnings',          Icons.error_outline_rounded),
+  _Section('drug_interactions', 'Drug Interactions', Icons.compare_arrows_rounded),
+  _Section('pregnancy_info',    'Pregnancy',         Icons.favorite_border_rounded),
 ];
 
-final _sectionColors = {
-  'warnings':          const Color(0xFFFEE2E2),
-  'side_effects':      const Color(0xFFFEF3C7),
-  'pregnancy_info':    const Color(0xFFF3E8FF),
-  'drug_interactions': const Color(0xFFFFF7ED),
-};
+class _Section {
+  final String key;
+  final String label;
+  final IconData icon;
+  const _Section(this.key, this.label, this.icon);
+}
 
 class DrugInfoCard extends StatelessWidget {
   final Map<String, dynamic> drug;
@@ -28,28 +29,30 @@ class DrugInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.c;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: c.surface1,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: c.inkMuted.withValues(alpha: 0.1)),
-      ),
+    return GlassCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // header
+          // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             child: Row(
               children: [
                 Container(
                   width: 48, height: 48,
                   decoration: BoxDecoration(
-                    color: c.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        c.accent.withValues(alpha: 0.22),
+                        c.primary.withValues(alpha: 0.14),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.inner),
                   ),
-                  alignment: Alignment.center,
-                  child: const Text('💊', style: TextStyle(fontSize: 22)),
+                  child: Icon(Icons.medication_outlined, size: 24, color: c.primary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -58,8 +61,12 @@ class DrugInfoCard extends StatelessWidget {
                     children: [
                       Text(
                         (drug['name'] as String?) ?? '',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700,
-                            color: c.inkStrong, letterSpacing: -0.3),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: c.inkStrong,
+                          letterSpacing: -0.3,
+                        ),
                       ),
                       if ((drug['drug_class'] as String?)?.isNotEmpty == true)
                         Text(
@@ -72,20 +79,21 @@ class DrugInfoCard extends StatelessWidget {
               ],
             ),
           ),
-          Divider(height: 1, color: c.inkMuted.withValues(alpha: 0.1)),
 
-          // sections
+          Divider(height: 1, color: c.inkMuted.withValues(alpha: 0.12)),
+
+          // Sections
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
             child: Column(
               children: [
                 for (final sec in _sections)
-                  if ((drug[sec['key']] as String?)?.isNotEmpty == true)
-                    _SectionTile(
-                      icon: sec['icon']!,
-                      label: sec['label']!,
-                      body: drug[sec['key']] as String,
-                      bgColor: _sectionColors[sec['key']],
+                  if ((drug[sec.key] as String?)?.isNotEmpty == true)
+                    _SectionRow(
+                      icon: sec.icon,
+                      label: sec.label,
+                      body: drug[sec.key] as String,
+                      c: c,
                     ),
               ],
             ),
@@ -96,43 +104,46 @@ class DrugInfoCard extends StatelessWidget {
   }
 }
 
-class _SectionTile extends StatelessWidget {
-  final String icon;
+class _SectionRow extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String body;
-  final Color? bgColor;
-  const _SectionTile({required this.icon, required this.label, required this.body, this.bgColor});
+  final AppColors c;
+  const _SectionRow({required this.icon, required this.label, required this.body, required this.c});
 
   @override
   Widget build(BuildContext context) {
-    final c = context.c;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 2),
-      decoration: bgColor != null
-          ? BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(10))
-          : null,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
             child: Row(
               children: [
-                Text(icon, style: const TextStyle(fontSize: 14)),
+                Icon(icon, size: 14, color: c.inkSoft),
                 const SizedBox(width: 6),
                 Text(
                   label.toUpperCase(),
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                      letterSpacing: 0.06, color: c.inkSoft),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: c.inkSoft,
+                  ),
                 ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-            child: Text(body,
-                style: TextStyle(fontSize: 13, color: c.inkStrong, height: 1.5)),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Text(
+              body,
+              style: TextStyle(fontSize: 13, color: c.inkStrong, height: 1.5),
+            ),
           ),
+          Divider(height: 1, color: c.inkMuted.withValues(alpha: 0.08)),
         ],
       ),
     );
