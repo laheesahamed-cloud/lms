@@ -21,7 +21,6 @@ import UserNotifications
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-
     if let messenger = engineBridge.pluginRegistry.registrar(forPlugin: "XyndromePush")?.messenger() {
       let channel = FlutterMethodChannel(name: "app.xyndrome.lk/push", binaryMessenger: messenger)
       channel.setMethodCallHandler { [weak self] call, result in

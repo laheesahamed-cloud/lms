@@ -1,15 +1,7 @@
-.dr-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  min-height: 100dvh;
-}
-
 .dr-usage-bar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 20px 4px;
 }
 
 .dr-usage-label {
@@ -36,8 +28,6 @@
 }
 
 .dr-body {
-  flex: 1;
-  padding: 16px 20px 32px;
   display: flex;
   flex-direction: column;
 }
@@ -56,17 +46,6 @@
   text-align: center;
 }
 
-.dr-dice-icon {
-  font-size: 56px;
-  margin-bottom: 12px;
-  display: block;
-  animation: dr-float 3s ease-in-out infinite;
-}
-
-@keyframes dr-float {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-8px); }
-}
 
 .dr-spin-title {
   font-size: 22px;

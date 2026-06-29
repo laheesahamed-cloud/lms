@@ -15,7 +15,6 @@ import '../features/auth/verify_email_page.dart';
 import '../features/onboarding/pending_page.dart';
 import '../features/results/review_page.dart';
 import '../features/ai_notes/note_canvas_page.dart';
-import '../features/ai_notes/note_canvas_flutter_page.dart';
 import '../features/shell/app_shell.dart';
 import '../features/dashboard/dashboard_page.dart';
 import '../features/courses/courses_page.dart';
@@ -38,7 +37,6 @@ import '../features/notifications/notifications_page.dart';
 import '../features/bookmarks/bookmarks_page.dart';
 import '../features/planner/planner_page.dart';
 import '../features/subscriptions/subscriptions_page.dart';
-import '../features/drugs/drug_randomizer_page.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -122,12 +120,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           child: NoteCanvasPage(lessonId: s.uri.queryParameters['lessonId'] ?? '1'),
         ),
       ),
-      // study -> lesson -> 100% Flutter canvas
+      // study -> lesson -> full native AI notes
       GoRoute(
         path: '/app/study/lesson/:lessonId',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
-          child: NoteCanvasFlutterPage(lessonId: s.pathParameters['lessonId']!),
+          child: NoteCanvasPage(lessonId: s.pathParameters['lessonId']!),
         ),
       ),
 
@@ -244,11 +242,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/app/flashcards',
             pageBuilder: (c, s) =>
                 fadePage(key: s.pageKey, child: const FlashcardsPage()),
-          ),
-          GoRoute(
-            path: '/app/drugs',
-            pageBuilder: (c, s) =>
-                slidePage(key: s.pageKey, child: const DrugRandomizerPage()),
           ),
           GoRoute(
             path: '/app/ai-notes',

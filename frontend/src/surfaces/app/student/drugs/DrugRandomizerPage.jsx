@@ -176,86 +176,87 @@ export function DrugRandomizerPage() {
   const isSpinning = phase === PHASE.SPINNING;
 
   return (
-    <main className="dr-page">
-      <AppHeader title="Drug Randomizer" subtitle="Spin to study a random drug" />
+    <main className="dashboard-page study-hub-page">
+      <div className="study-hub-shell">
+        <AppHeader title="Drugs" subtitle="Spin to study a random drug" />
 
-      {!hasSub && (
-        <div className="dr-usage-bar">
-          <span className="dr-usage-label">
-            {Math.min(useCount, freeLimit)} / {freeLimit} free spins used
-          </span>
-          <div className="dr-usage-track">
-            <div
-              className="dr-usage-fill"
-              style={{ width: `${Math.min((useCount / freeLimit) * 100, 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="dr-body">
-        {(phase === PHASE.IDLE || isSpinning) && (
-          <div className="dr-spin-area">
-            <div className="dr-spin-hero">
-              <div className="dr-dice-icon" aria-hidden="true">🎲</div>
-              <h2 className="dr-spin-title">
-                {phase === PHASE.IDLE ? 'Ready to study?' : 'Drawing a drug…'}
-              </h2>
-              <p className="dr-spin-sub">
-                {phase === PHASE.IDLE
-                  ? 'Hit spin to get a random drug, answer a quick question, then see the full drug card.'
-                  : ''}
-              </p>
-            </div>
-
-            {isSpinning && data && (
-              <LotterySpinner
-                spinning={isSpinning}
-                finalName={data.drug.name}
-                onDone={handleSpinDone}
+        {!hasSub && (
+          <div className="dr-usage-bar">
+            <span className="dr-usage-label">
+              {Math.min(useCount, freeLimit)} / {freeLimit} free spins used
+            </span>
+            <div className="dr-usage-track">
+              <div
+                className="dr-usage-fill"
+                style={{ width: `${Math.min((useCount / freeLimit) * 100, 100)}%` }}
               />
-            )}
-
-            {error && <p className="dr-error" role="alert">{error}</p>}
-
-            {!isSpinning && (
-              <button
-                className="dr-spin-btn"
-                onClick={handleSpin}
-                disabled={!ready}
-                aria-label="Spin for a random drug"
-              >
-                🎲 Spin
-              </button>
-            )}
-          </div>
-        )}
-
-        {phase === PHASE.MCQ && data && (
-          <div className="dr-mcq-area">
-            <DrugMCQ
-              drug={data.drug}
-              distractors={data.distractors}
-              questionType={data.questionType}
-              onAnswered={handleMCQAnswered}
-            />
-          </div>
-        )}
-
-        {phase === PHASE.CARD && data && (
-          <div className="dr-card-area">
-            <div className={`dr-result-badge dr-result-badge--${mcqCorrect ? 'correct' : 'wrong'}`}>
-              {mcqCorrect ? '✓ Correct!' : '✗ Not quite — here\'s the full answer'}
             </div>
-            <DrugCard drug={data.drug} />
-            <button className="dr-again-btn" onClick={handleSpinAgain}>
-              🎲 Spin Again
-            </button>
           </div>
         )}
-      </div>
 
-      {showUpgrade && <UpgradePrompt freeLimit={freeLimit} />}
+        <div className="dr-body">
+          {(phase === PHASE.IDLE || isSpinning) && (
+            <div className="dr-spin-area">
+              <div className="dr-spin-hero">
+                <h2 className="dr-spin-title">
+                  {phase === PHASE.IDLE ? 'Ready to study?' : 'Drawing a drug…'}
+                </h2>
+                <p className="dr-spin-sub">
+                  {phase === PHASE.IDLE
+                    ? 'Hit spin to get a random drug, answer a quick question, then see the full drug card.'
+                    : ''}
+                </p>
+              </div>
+
+              {isSpinning && data && (
+                <LotterySpinner
+                  spinning={isSpinning}
+                  finalName={data.drug.name}
+                  onDone={handleSpinDone}
+                />
+              )}
+
+              {error && <p className="dr-error" role="alert">{error}</p>}
+
+              {!isSpinning && (
+                <button
+                  className="dr-spin-btn"
+                  onClick={handleSpin}
+                  disabled={!ready}
+                  aria-label="Spin for a random drug"
+                >
+                  Spin
+                </button>
+              )}
+            </div>
+          )}
+
+          {phase === PHASE.MCQ && data && (
+            <div className="dr-mcq-area">
+              <DrugMCQ
+                drug={data.drug}
+                distractors={data.distractors}
+                questionType={data.questionType}
+                onAnswered={handleMCQAnswered}
+              />
+            </div>
+          )}
+
+          {phase === PHASE.CARD && data && (
+            <div className="dr-card-area">
+              <div className={`dr-result-badge dr-result-badge--${mcqCorrect ? 'correct' : 'wrong'}`}>
+                {mcqCorrect ? 'Correct!' : 'Not quite — here\'s the full answer'}
+              </div>
+              <DrugCard drug={data.drug} />
+              <button className="dr-again-btn" onClick={handleSpinAgain}>
+                Spin Again
+              </button>
+            </div>
+          )}
+        </div>
+
+        {showUpgrade && <UpgradePrompt freeLimit={freeLimit} />}
+      </div>
     </main>
   );
 }
