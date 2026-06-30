@@ -1,0 +1,1 @@
+import{ua as e}from"./app-shared-hEp-PSEh.js";/* empty css                        */import{PanelLayout as t}from"./PanelLayout-DoSPCS8c.js";var n=e();function r(){return(0,n.jsx)(t,{})}export{r as StudentPanelLayout};

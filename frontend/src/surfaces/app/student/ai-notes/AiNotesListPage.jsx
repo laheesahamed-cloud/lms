@@ -93,12 +93,20 @@ function buildHierarchy(notes) {
     if (!map.has(ck)) map.set(ck, { label: n.courseTitle || null, examType: n.examType || null, subjects: new Map() });
     const course = map.get(ck);
     const sk = n.topicName || '__none__';
-    if (!course.subjects.has(sk)) course.subjects.set(sk, { label: n.topicName || null, notes: [] });
-    course.subjects.get(sk).notes.push(n);
+    if (!course.subjects.has(sk)) course.subjects.set(sk, { label: n.topicName || null, topics: new Map() });
+    const subject = course.subjects.get(sk);
+    const tk = n.subtopicName || '__none__';
+    if (!subject.topics.has(tk)) subject.topics.set(tk, { label: n.subtopicName || null, notes: [] });
+    subject.topics.get(tk).notes.push(n);
   }
   return [...map.entries()]
     .sort(([a], [b]) => a === '__none__' ? 1 : b === '__none__' ? -1 : a.localeCompare(b))
     .map(([, v]) => v);
+}
+
+// Flat notes list for a subject (used for counts/filtering)
+function subjectNotes(subject) {
+  return [...subject.topics.values()].flatMap((t) => t.notes);
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -132,7 +140,7 @@ function RowChevronIcon() {
 // ── Course card (hub view) ────────────────────────────────────────────────────
 function CourseCard({ course, onClick }) {
   const subjects = [...course.subjects.values()];
-  const count = subjects.reduce((n, s) => n + s.notes.length, 0);
+  const count = subjects.reduce((n, s) => n + subjectNotes(s).length, 0);
 
   return (
     <button
@@ -234,7 +242,7 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
   const [activeSubj, setActiveSubj] = useState(null);
   const [collapsedSubjects, setCollapsedSubjects] = useState(new Set());
   const visibleSubjects = activeSubj ? subjects.filter(s => s.label === activeSubj) : subjects;
-  const visibleNotes = visibleSubjects.flatMap((subject) => subject.notes);
+  const visibleNotes = visibleSubjects.flatMap(subjectNotes);
 
   useEffect(() => {
     setCollapsedSubjects(new Set());
@@ -292,6 +300,8 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
           const subjectKey = subject.label || `general-${subjectIndex}`;
           const palette = p(getMed(subject.label), isDark);
           const isCollapsed = collapsedSubjects.has(subjectKey);
+          const topics = [...subject.topics.values()];
+          const noteCount = subjectNotes(subject).length;
           return (
             <section
               className={cx('student-lessons-category', isCollapsed && 'is-collapsed')}
@@ -312,32 +322,44 @@ function CourseDetail({ course, onBack, bookmarkedIds, onToggleBookmark, routeBa
                   <LessonHeaderTitle label={subject.label} />
                 </div>
                 <small>
-                  {subject.notes.length} {subject.notes.length === 1 ? 'lesson' : 'lessons'}
+                  {noteCount} {noteCount === 1 ? 'lesson' : 'lessons'}
                   <ChevronIcon open={!isCollapsed} />
                 </small>
               </button>
 
               <div className="student-lessons-lesson-list-shell" aria-hidden={isCollapsed}>
                 <div className="student-lessons-lesson-list">
-                  {subject.notes.map((note, index) => (
-                    <LessonTextRow key={note.id} note={note} index={index}
-                      isSaved={bookmarkedIds.has(note.id)}
-                      onSave={onToggleBookmark}
-                      style={{ '--lesson-row-delay': `${Math.min(index, 8) * 18}ms` }}
-                      onStart={disableOpen
-                        ? () => { if (isNativeLessonNoteAvailable()) openNativeLessonNote(note); }
-                        : () => navigate(`${routeBase}/${note.id}${note.engine ? `?engine=${encodeURIComponent(note.engine)}` : ''}`, {
-                        state: {
-                          engineKey: note.engine || null,
-                          lessonId: note.lessonId || null,
-                          lessonTitle: note.title || note.lessonTitle || null,
-                          returnToPath: `${routeBase}${course.label ? `?course=${encodeURIComponent(course.label)}` : ''}`,
-                          returnTo: 'list',
-                          sourceCourse: course.label || null,
-                        },
-                      })}
-                    />
-                  ))}
+                  {topics.map((topic, topicIndex) => {
+                    let runningIndex = topics.slice(0, topicIndex).reduce((sum, t) => sum + t.notes.length, 0);
+                    return (
+                      <div key={topic.label || `topic-${topicIndex}`}>
+                        {topic.label ? (
+                          <div className="student-lessons-topic-divider">
+                            <span>{topic.label}</span>
+                          </div>
+                        ) : null}
+                        {topic.notes.map((note, noteIndex) => (
+                          <LessonTextRow key={note.id} note={note} index={runningIndex + noteIndex}
+                            isSaved={bookmarkedIds.has(note.id)}
+                            onSave={onToggleBookmark}
+                            style={{ '--lesson-row-delay': `${Math.min(runningIndex + noteIndex, 8) * 18}ms` }}
+                            onStart={disableOpen
+                              ? () => { if (isNativeLessonNoteAvailable()) openNativeLessonNote(note); }
+                              : () => navigate(`${routeBase}/${note.id}${note.engine ? `?engine=${encodeURIComponent(note.engine)}` : ''}`, {
+                              state: {
+                                engineKey: note.engine || null,
+                                lessonId: note.lessonId || null,
+                                lessonTitle: note.title || note.lessonTitle || null,
+                                returnToPath: `${routeBase}${course.label ? `?course=${encodeURIComponent(course.label)}` : ''}`,
+                                returnTo: 'list',
+                                sourceCourse: course.label || null,
+                              },
+                            })}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </section>
