@@ -42,6 +42,9 @@ import '../features/drugs/drug_randomizer_page.dart';
 import '../features/ecg/ecg_page.dart';
 import '../features/ecg/ecg_topic_page.dart';
 import '../features/ecg/ecg_quiz_page.dart';
+import '../features/auscultation/auscultation_page.dart';
+import '../features/auscultation/auscultation_topic_page.dart';
+import '../features/auscultation/auscultation_quiz_page.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -233,6 +236,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           child: const Scaffold(body: EcgQuizPage()),
         ),
       ),
+      GoRoute(
+        path: '/app/auscultation/topic/:topicId',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: Scaffold(
+              body: AuscultationTopicPage(
+                  topicId: int.tryParse(s.pathParameters['topicId'] ?? '') ?? 0)),
+        ),
+      ),
+      GoRoute(
+        path: '/app/auscultation/quiz',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: Scaffold(
+              body: AuscultationQuizPage(
+                  category: s.uri.queryParameters['category'] == 'lung' ? 'lung' : 'heart')),
+        ),
+      ),
 
       // Primary destinations — wrapped in the responsive shell.
       ShellRoute(
@@ -283,6 +304,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/app/ecg',
             pageBuilder: (c, s) =>
                 fadePage(key: s.pageKey, child: const EcgPage()),
+          ),
+          GoRoute(
+            path: '/app/auscultation',
+            pageBuilder: (c, s) =>
+                fadePage(key: s.pageKey, child: const AuscultationPage()),
           ),
           GoRoute(
             path: '/app/ai-notes',

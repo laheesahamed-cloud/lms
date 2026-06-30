@@ -34,6 +34,7 @@ const _kSideStudy = [
   NavDest('Flashcards', Icons.style_outlined, '/app/flashcards'),
   NavDest('Drugs', Icons.medication_outlined, '/app/drugs'),
   NavDest('ECG', Icons.monitor_heart_outlined, '/app/ecg'),
+  NavDest('Auscultation', Icons.headphones_rounded, '/app/auscultation'),
   NavDest('Planner', Icons.event_note_outlined, '/app/planner'),
   NavDest('Saved', Icons.bookmark_border_rounded, '/app/bookmarks'),
 ];

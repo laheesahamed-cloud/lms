@@ -34,6 +34,13 @@ class StudyHubPage extends ConsumerWidget {
       drillIn: true,
     ),
     _ToolEntry(
+      icon: Icons.headphones_rounded,
+      title: 'Auscultation',
+      subtitle: 'Heart & lung sounds, then quiz yourself',
+      route: '/app/auscultation',
+      drillIn: true,
+    ),
+    _ToolEntry(
       icon: Icons.event_note_outlined,
       title: 'Planner',
       subtitle: 'Map your rotations and exam countdown',
