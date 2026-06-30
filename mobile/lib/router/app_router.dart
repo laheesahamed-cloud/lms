@@ -30,6 +30,7 @@ import '../features/flashcards/review_session_page.dart';
 import '../features/study/study_hub_page.dart';
 import '../features/ai_notes/ai_notes_list_page.dart';
 import '../features/ai_notes/ai_note_reader_page.dart';
+import '../features/ai_notes/notes_course_detail_page.dart';
 import '../features/profile/profile_page.dart';
 import '../features/profile/edit_profile_page.dart';
 import '../features/profile/change_password_page.dart';
@@ -37,6 +38,7 @@ import '../features/notifications/notifications_page.dart';
 import '../features/bookmarks/bookmarks_page.dart';
 import '../features/planner/planner_page.dart';
 import '../features/subscriptions/subscriptions_page.dart';
+import '../features/drugs/drug_randomizer_page.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -187,6 +189,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/app/ai-notes/course/:courseKey',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: Scaffold(
+            body: NotesCourseDetailPage(
+                courseKey: s.pathParameters['courseKey']!),
+          ),
+        ),
+      ),
+      GoRoute(
         path: '/app/ai-notes/:noteId',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
@@ -242,6 +254,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/app/flashcards',
             pageBuilder: (c, s) =>
                 fadePage(key: s.pageKey, child: const FlashcardsPage()),
+          ),
+          GoRoute(
+            path: '/app/drugs',
+            pageBuilder: (c, s) =>
+                fadePage(key: s.pageKey, child: const DrugRandomizerPage()),
           ),
           GoRoute(
             path: '/app/ai-notes',

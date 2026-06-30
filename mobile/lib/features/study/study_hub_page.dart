@@ -14,9 +14,9 @@ class StudyHubPage extends ConsumerWidget {
   static const _tools = <_ToolEntry>[
     _ToolEntry(
       icon: Icons.menu_book_outlined,
-      title: 'AI Notes & Lessons',
+      title: 'Lessons',
       subtitle: 'Browse by course, subject, then lesson',
-      route: '/app/courses',
+      route: '/app/ai-notes',
       drillIn: false,
     ),
     _ToolEntry(

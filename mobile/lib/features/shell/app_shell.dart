@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/brand_logo.dart';
+import '../../state/auth_controller.dart';
 import '../notifications/notification_priming.dart';
 
 class NavDest {
@@ -28,7 +30,7 @@ const _kSideMain = [
   NavDest('Results', Icons.bar_chart_rounded, '/app/results'),
 ];
 const _kSideStudy = [
-  NavDest('AI Notes', Icons.auto_stories_outlined, '/app/ai-notes'),
+  NavDest('Lessons', Icons.auto_stories_outlined, '/app/ai-notes'),
   NavDest('Flashcards', Icons.style_outlined, '/app/flashcards'),
   NavDest('Drugs', Icons.medication_outlined, '/app/drugs'),
   NavDest('Planner', Icons.event_note_outlined, '/app/planner'),
@@ -158,14 +160,15 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _SideBar extends StatelessWidget {
+class _SideBar extends ConsumerWidget {
   final String location;
   const _SideBar({required this.location});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final user = ref.watch(authControllerProvider).user;
     // Floating, curved side rail — a detached rounded card on the page gutter
     // (mirrors the LMS student desktop sidebar), not an edge-to-edge bar.
     return Container(
@@ -192,9 +195,30 @@ class _SideBar extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 6, bottom: 18),
-                    child: BrandWordmark(),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6, bottom: 18),
+                    child: Row(
+                      children: [
+                        const BrandLogo(size: 44),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('xyndrome',
+                                style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.2,
+                                    color: c.inkStrong)),
+                            Text('Student Portal',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: c.inkSoft)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                   Expanded(
                     child: SingleChildScrollView(
@@ -211,11 +235,7 @@ class _SideBar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 12),
-                    child: Text('Medical Student',
-                        style: TextStyle(fontSize: 13, color: c.inkMuted)),
-                  ),
+                  _SideBarFooter(user: user, c: c),
                 ],
               ),
             ),
@@ -261,6 +281,67 @@ class _SideBar extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SideBarFooter extends StatelessWidget {
+  final dynamic user; // AppUser?
+  final AppColors c;
+  const _SideBarFooter({required this.user, required this.c});
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    return parts
+        .where((p) => p.isNotEmpty)
+        .take(2)
+        .map((p) => p[0].toUpperCase())
+        .join();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (user?.fullName as String?)?.trim().isNotEmpty == true
+        ? user!.fullName as String
+        : 'Student';
+    final initials = _initials(name);
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.primaryTint,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Text(initials,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: c.primary)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: c.inkStrong)),
+                Text('Medical Student',
+                    style: TextStyle(fontSize: 11, color: c.inkMuted)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

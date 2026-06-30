@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { fetchStudentCourses, readStudentCoursesCache } from '../../../../shared/api/courses.api.js';
 import { cancelPendingSubscriptionInvoice, fetchMySubscription, readMySubscriptionCache, requestSubscription } from '../../../../shared/api/subscriptions.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { AppHeader } from '../../../../shared/layout/AppHeader.jsx';
@@ -40,7 +38,7 @@ const comparisonRows = [
   { label: 'AI tools', note: 'AI quiz generation tools', keys: ['ai_quiz_generator'] },
 ];
 
-const recommendedPlanSlugs = ['quick-revision-7d', 'monthly-prep-1m', 'complete-prep-3m', 'master-prep-6m'];
+const recommendedPlanSlugs = ['quick-revision-7d', 'monthly-prep-1m', 'complete-prep-3m', 'master-prep-6m', 'single-course-3m'];
 
 const planMarketing = {
   'quick-revision-7d': {
@@ -65,24 +63,6 @@ const planMarketing = {
   },
 };
 
-const customCourseOptions = [
-  { value: 'single', label: 'One Course', note: 'Best when one course needs focused work.' },
-  { value: 'multi', label: '3 Courses', note: 'Good for a few weaker courses.' },
-  { value: 'all', label: 'All Courses', note: 'Full ERPM course coverage.' },
-];
-
-const customContentOptions = [
-  { value: 'mcq', label: 'MCQ Only', note: 'Questions, quizzes, practice, and exam mode.' },
-  { value: 'lessons', label: 'Lessons Only', note: 'Lessons, notes, and study mode.' },
-  { value: 'full', label: 'Lessons + MCQ', note: 'Complete learning and revision.' },
-];
-
-const customDurationOptions = [
-  { value: '7d', label: '7 Days' },
-  { value: '1m', label: '1 Month' },
-  { value: '3m', label: '3 Months' },
-  { value: '6m', label: '6 Months' },
-];
 
 function planHasAnyFeature(plan, keys) {
   const planKeys = Array.isArray(plan?.featureKeys) ? plan.featureKeys : [];
@@ -230,23 +210,10 @@ function normalizeBillingData(data) {
   };
 }
 
-function getCourseOptions(courses) {
-  const courseItems = (Array.isArray(courses) ? courses : [])
-    .map((course) => ({
-      id: Number(course.id),
-      label: course.courseTitle || course.title || course.name || `Course ${course.id}`,
-      subtitle: course.description || '',
-    }))
-    .filter((course) => course.id > 0 && course.label);
-  return Array.from(new Map(courseItems.map((course) => [course.id, course])).values());
-}
 
 export function StudentBillingPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const customPlanSearch = new URLSearchParams(location.search);
-  const shouldOpenCustomPlanner = customPlanSearch.get('custom') === '1';
-  const customRequestMode = customPlanSearch.get('request') === '1';
   const [billing, setBilling] = useState(() => normalizeBillingData(readMySubscriptionCache()));
   const [loading, setLoading] = useState(() => readMySubscriptionCache() === undefined);
   const [error, setError] = useState('');
@@ -254,20 +221,9 @@ export function StudentBillingPage() {
   const [requestingPlanId, setRequestingPlanId] = useState(null);
   const [payingPlanId, setPayingPlanId] = useState(null);
   const [cancellingInvoiceId, setCancellingInvoiceId] = useState(null);
-  const [customPlan, setCustomPlan] = useState({ subject: 'all', content: 'full', duration: '3m' });
-  const [customCourseIds, setCustomCourseIds] = useState([]);
-  const [courseOptions, setCourseOptions] = useState(() => getCourseOptions(readStudentCoursesCache()));
-  const [customModalOpen, setCustomModalOpen] = useState(false);
-
   useEffect(() => {
     load();
-    loadCourseOptions();
   }, []);
-
-  useEffect(() => {
-    if (!shouldOpenCustomPlanner) return;
-    setCustomModalOpen(true);
-  }, [shouldOpenCustomPlanner]);
 
   async function load() {
     try {
@@ -277,15 +233,6 @@ export function StudentBillingPage() {
       setError(getErrorMessage(loadError, 'Unable to load subscription details'));
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function loadCourseOptions() {
-    try {
-      const courses = await fetchStudentCourses();
-      setCourseOptions(getCourseOptions(courses));
-    } catch {
-      setCourseOptions([]);
     }
   }
 
@@ -318,11 +265,6 @@ export function StudentBillingPage() {
       .map((slug) => availablePlans.find((plan) => plan?.slug === slug))
       .filter(Boolean);
   }, [availablePlans]);
-
-  const selectedCustomPlan = useMemo(() => {
-    const slug = `custom-${customPlan.subject}-${customPlan.content}-${customPlan.duration}`;
-    return availablePlans.find((plan) => plan?.slug === slug) || null;
-  }, [availablePlans, customPlan]);
 
   const comparisonPlans = recommendedPlans.length ? recommendedPlans : availablePlans.slice(0, 4);
   const recommendedCarouselPlans = recommendedPlans.length ? recommendedPlans : availablePlans.filter((plan) => plan.slug !== 'free').slice(0, 4);
@@ -370,41 +312,6 @@ export function StudentBillingPage() {
     }
   }
 
-  function selectedCourseLimit(courseScope = customPlan.subject) {
-    if (courseScope === 'single') return 1;
-    if (courseScope === 'multi') return 3;
-    return 0;
-  }
-
-  const selectedCourseNames = useMemo(() => {
-    const selected = new Set(customCourseIds.map(Number));
-    return courseOptions.filter((course) => selected.has(Number(course.id))).map((course) => course.label);
-  }, [customCourseIds, courseOptions]);
-
-  const customSelectionNote = useMemo(() => {
-    if (!selectedCustomPlan) return '';
-    if (customPlan.subject === 'all') return 'Selected courses: All courses';
-    return selectedCourseNames.length ? `Selected courses: ${selectedCourseNames.join(', ')}` : '';
-  }, [customPlan.subject, selectedCustomPlan, selectedCourseNames]);
-
-  function handleCustomCourseToggle(courseId) {
-    const limit = selectedCourseLimit();
-    setCustomCourseIds((current) => {
-      const exists = current.includes(courseId);
-      if (exists) return current.filter((id) => id !== courseId);
-      if (limit && current.length >= limit) return [...current.slice(1), courseId];
-      return [...current, courseId];
-    });
-  }
-
-  function handleCustomScopeChange(value) {
-    setCustomPlan((current) => ({ ...current, subject: value }));
-    setCustomCourseIds((current) => {
-      const limit = selectedCourseLimit(value);
-      return limit ? current.slice(0, limit) : [];
-    });
-  }
-
   const purchaseCheckoutState = useMemo(() => {
     if (purchaseScope === 'courses' && purchaseCourseIds.length) {
       return {
@@ -424,24 +331,6 @@ export function StudentBillingPage() {
     }
     return {};
   }, [purchaseCourseIds, purchaseLessonIds, purchaseScope, purchaseSelectionNote]);
-
-  const customCheckoutState = useMemo(() => {
-    if (!selectedCustomPlan) return {};
-    if (customPlan.subject === 'all') {
-      return {
-        accessScope: 'all',
-        courseIds: [],
-        lessonIds: [],
-        customSelectionNote,
-      };
-    }
-    return {
-      accessScope: 'courses',
-      courseIds: customCourseIds,
-      lessonIds: [],
-      customSelectionNote,
-    };
-  }, [customCourseIds, customPlan.subject, customSelectionNote, selectedCustomPlan]);
 
   function handleCheckoutPlan(plan, extraState = {}) {
     const pendingInvoice = pendingInvoiceByPlanId.get(Number(plan.id));
@@ -797,9 +686,6 @@ export function StudentBillingPage() {
               <button type="button" className={ui.secondaryAction} onClick={scrollToComparison}>
                 Compare plans
               </button>
-              <button type="button" className={ui.secondaryAction} onClick={() => setCustomModalOpen(true)}>
-                Create custom plan
-              </button>
             </div>
           ) : null}
           {!loading ? (
@@ -894,149 +780,6 @@ export function StudentBillingPage() {
           </div>
         </section>
 
-        {customModalOpen ? (typeof document !== 'undefined' ? createPortal((
-          <div id="custom-plan-builder" className={cx(ui.modalBackdrop, 'grid place-items-center p-4 max-[520px]:items-end max-[520px]:p-0')} role="dialog" aria-modal="true" aria-label="Customize subscription plan">
-            <div className={cx(ui.entityModal, 'mx-auto max-h-[92dvh] w-full max-w-[980px] overflow-y-auto max-[520px]:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-10px)] max-[520px]:rounded-b-none')}>
-              <div className={ui.entityModalTop}>
-                <div>
-                  <h2 className={ui.entityModalTitle}>{customRequestMode ? 'Create your custom subscription' : 'Build your custom plan'}</h2>
-                  <p className={ui.entityModalText}>{customRequestMode ? 'Choose the courses, content, and duration you need. Send it to admin for a package made around your study plan.' : 'Choose the access, content, and duration. Tick the option you want.'}</p>
-                </div>
-                <button type="button" className={ui.iconButton} onClick={() => setCustomModalOpen(false)} aria-label="Close custom plan popup">x</button>
-              </div>
-              <div className="grid gap-4 px-6 pb-[calc(24px+env(safe-area-inset-bottom,0px))] pt-5 max-[640px]:px-4 max-[520px]:gap-3 max-[520px]:pt-4">
-                <div className="grid gap-5 max-[520px]:gap-4">
-                  <div className="grid gap-2">
-                    <strong className="text-[13px] text-ink-strong">1. Course access</strong>
-                    <div className="grid grid-cols-3 gap-3 max-[760px]:grid-cols-1">
-                      {customCourseOptions.map((option) => {
-                        const isSelected = customPlan.subject === option.value;
-                        return (
-                          <label className={optionCardClass(isSelected)} key={option.value}>
-                            <input
-                              className="sr-only"
-                              type="radio"
-                              name="custom-course-access"
-                              checked={isSelected}
-                              onChange={() => handleCustomScopeChange(option.value)}
-                            />
-                            <span className={optionTickClass(isSelected)}>✓</span>
-                            <span className="grid gap-1">
-                              <span className="text-[13px] font-extrabold text-ink-strong">{option.label}</span>
-                              <span className="text-[12px] leading-relaxed text-ink-soft">{option.note}</span>
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <strong className="text-[13px] text-ink-strong">2. Content access</strong>
-                    <div className="grid grid-cols-3 gap-3 max-[760px]:grid-cols-1">
-                      {customContentOptions.map((option) => {
-                        const isSelected = customPlan.content === option.value;
-                        return (
-                          <label className={optionCardClass(isSelected)} key={option.value}>
-                            <input
-                              className="sr-only"
-                              type="radio"
-                              name="custom-content-access"
-                              checked={isSelected}
-                              onChange={() => setCustomPlan((current) => ({ ...current, content: option.value }))}
-                            />
-                            <span className={optionTickClass(isSelected)}>✓</span>
-                            <span className="grid gap-1">
-                              <span className="text-[13px] font-extrabold text-ink-strong">{option.label}</span>
-                              <span className="text-[12px] leading-relaxed text-ink-soft">{option.note}</span>
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <strong className="text-[13px] text-ink-strong">3. Duration</strong>
-                    <div className="grid grid-cols-4 gap-3 max-[760px]:grid-cols-2 max-[420px]:grid-cols-1">
-                      {customDurationOptions.map((option) => {
-                        const isSelected = customPlan.duration === option.value;
-                        return (
-                          <label className={cx(optionCardClass(isSelected), 'min-h-[58px] items-center')} key={option.value}>
-                            <input
-                              className="sr-only"
-                              type="radio"
-                              name="custom-duration"
-                              checked={isSelected}
-                              onChange={() => setCustomPlan((current) => ({ ...current, duration: option.value }))}
-                            />
-                            <span className={optionTickClass(isSelected)}>✓</span>
-                            <span className="text-[13px] font-extrabold text-ink-strong">{option.label}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                    <span className={ui.tableSubtext}>The price updates from your selected combination.</span>
-                  </div>
-                </div>
-
-                {customPlan.subject !== 'all' ? (
-                  <div className="grid gap-3 rounded-lg border border-line-soft bg-surface-glass-subtle p-4">
-                    <div>
-                      <strong className="text-[13px] text-ink-strong">
-                        Choose {selectedCourseLimit() === 1 ? '1 course' : 'up to 3 courses'}
-                      </strong>
-                      <p className="m-0 mt-1 text-[12px] leading-relaxed text-ink-soft">
-                        Selected: {selectedCourseNames.length ? selectedCourseNames.join(', ') : 'None yet'}
-                      </p>
-                    </div>
-                    {courseOptions.length ? (
-                      <div className="grid grid-cols-2 gap-2 max-[640px]:grid-cols-1">
-                        {courseOptions.map((course) => (
-                          <label className={optionCardClass(customCourseIds.includes(course.id))} key={course.id}>
-                            <input
-                              className="sr-only"
-                              type="checkbox"
-                              checked={customCourseIds.includes(course.id)}
-                              onChange={() => handleCustomCourseToggle(course.id)}
-                            />
-                            <span className={optionTickClass(customCourseIds.includes(course.id))}>✓</span>
-                            <span className="grid gap-1">
-                              <span className="text-[13px] font-extrabold text-ink-strong">{course.label}</span>
-                              {course.subtitle ? <small className="text-[11px] text-ink-soft">{course.subtitle}</small> : null}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className={ui.emptyBox}>No active courses could be loaded. You can still continue and admin can confirm the course manually.</div>
-                    )}
-                  </div>
-                ) : null}
-
-                {selectedCustomPlan ? (
-                  <div className="mx-auto grid w-full max-w-[440px]">
-                    {customPlan.subject !== 'all' && selectedCourseLimit() && selectedCourseNames.length === 0 ? (
-                      <div className={ui.emptyBox}>Select the course first, then continue to checkout.</div>
-                    ) : renderPlanCard(selectedCustomPlan, {
-                      badge: 'Custom plan',
-                      headline: customRequestMode ? 'Send this selection to admin for confirmation.' : customSelectionNote || 'Your selected custom package.',
-                      checkoutState: customCheckoutState,
-                      requestOnly: customRequestMode,
-                      requestLabel: 'Create my custom package',
-                      requestMessage: [
-                        current ? `Requesting custom upgrade from ${current.planName || 'current plan'} to ${selectedCustomPlan.name}.` : `Requesting custom subscription: ${selectedCustomPlan.name}.`,
-                        customSelectionNote,
-                      ].filter(Boolean).join(' '),
-                    })}
-                  </div>
-                ) : (
-                  <div className={ui.emptyBox}>This custom plan combination is not available yet.</div>
-                )}
-              </div>
-            </div>
-          </div>
-        ), document.body) : null) : null}
 
         <section className={cx(ui.panelCard, 'max-[520px]:p-3.5')}>
           <div className={ui.panelTop}>

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
+import '../../state/current_user.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -12,6 +13,7 @@ class CourseCard {
   final String title;
   final String code;
   final String description;
+  final String examType;
   final double progressPercent;
   final int totalLessons;
   final int subjectCount;
@@ -21,6 +23,7 @@ class CourseCard {
     required this.title,
     required this.code,
     required this.description,
+    required this.examType,
     required this.progressPercent,
     required this.totalLessons,
     required this.subjectCount,
@@ -33,6 +36,7 @@ class CourseCard {
       title: _s(m['courseTitle'] ?? m['course_title'] ?? m['title'] ?? 'Course'),
       code: _s(m['courseCode'] ?? m['course_code']),
       description: _s(m['description']),
+      examType: _s(m['examType'] ?? m['exam_type'] ?? ''),
       progressPercent: _d(m['progressPercent']),
       totalLessons: _i(m['totalLessonsCount'] ?? m['totalLessons']),
       subjectCount: _i(m['subjectCount']),
@@ -152,7 +156,8 @@ class CourseDetail {
 }
 
 /// Student course library.
-final studentCoursesProvider = FutureProvider<List<CourseCard>>((ref) async {
+final studentCoursesProvider = FutureProvider.autoDispose<List<CourseCard>>((ref) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/courses/student');
   final data = res.data;
@@ -166,7 +171,8 @@ final studentCoursesProvider = FutureProvider<List<CourseCard>>((ref) async {
 
 /// One course's subject-wise detail.
 final courseDetailProvider =
-    FutureProvider.family<CourseDetail, String>((ref, courseId) async {
+    FutureProvider.autoDispose.family<CourseDetail, String>((ref, courseId) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/courses/student/$courseId');
   return CourseDetail.fromJson(res.data);

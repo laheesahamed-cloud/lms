@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/api_client.dart';
+import '../../state/current_user.dart';
 
 int _i(dynamic v) =>
     v is int ? v : (v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? 0);
@@ -378,7 +379,8 @@ class StudentDashboard {
 }
 
 /// Single source of truth for the streak / daily-goal / weak-topic widgets.
-final studentDashboardProvider = FutureProvider<StudentDashboard>((ref) async {
+final studentDashboardProvider = FutureProvider.autoDispose<StudentDashboard>((ref) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/student/dashboard');
   return StudentDashboard.fromJson(res.data);

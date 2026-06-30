@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
+import '../../state/current_user.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -125,7 +126,8 @@ class Billing {
 
 
 /// Current subscription + available plans in one call (`GET /subscriptions/me`).
-final billingProvider = FutureProvider<Billing>((ref) async {
+final billingProvider = FutureProvider.autoDispose<Billing>((ref) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/subscriptions/me');
   return Billing.fromJson(res.data);

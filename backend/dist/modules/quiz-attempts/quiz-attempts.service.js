@@ -548,7 +548,7 @@ let QuizAttemptsService = class QuizAttemptsService {
     }
     resolveEffectiveAccessScope(row, courseIds) {
         const planSlug = String(row.plan_slug || '').trim();
-        if (planSlug.startsWith('custom-single-') || planSlug.startsWith('custom-multi-')) {
+        if (planSlug.startsWith('custom-single-') || planSlug.startsWith('custom-multi-') || planSlug === 'single-course-3m') {
             return 'courses';
         }
         return row.access_scope || (courseIds.length ? 'courses' : 'all');

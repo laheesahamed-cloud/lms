@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
+import '../../state/current_user.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -427,7 +428,8 @@ List<QuizScopeGroup> groupQuizzesByScope(
 }
 
 /// The Q-Bank / exam quiz list.
-final quizListProvider = FutureProvider<List<QuizListItem>>((ref) async {
+final quizListProvider = FutureProvider.autoDispose<List<QuizListItem>>((ref) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/quiz-attempts/quizzes');
   final data = res.data;
@@ -439,7 +441,8 @@ final quizListProvider = FutureProvider<List<QuizListItem>>((ref) async {
 
 /// Load a quiz in practice mode (answers + explanations inline for the reveal).
 final practiceQuizProvider =
-    FutureProvider.family<PracticeQuiz, String>((ref, quizId) async {
+    FutureProvider.autoDispose.family<PracticeQuiz, String>((ref, quizId) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
     '/quiz-attempts/quiz/$quizId',
@@ -524,7 +527,8 @@ class ExamLoad {
 
 /// Load a quiz in exam mode — creates/returns the server exam session.
 final examQuizProvider =
-    FutureProvider.family<ExamLoad, String>((ref, quizId) async {
+    FutureProvider.autoDispose.family<ExamLoad, String>((ref, quizId) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
     '/quiz-attempts/quiz/$quizId',
@@ -619,7 +623,8 @@ class AttemptResult {
 }
 
 final attemptResultProvider =
-    FutureProvider.family<AttemptResult, String>((ref, attemptId) async {
+    FutureProvider.autoDispose.family<AttemptResult, String>((ref, attemptId) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/quiz-attempts/result/$attemptId');
   return AttemptResult.fromJson(res.data);
@@ -677,7 +682,8 @@ class ResultListItem {
   }
 }
 
-final resultsListProvider = FutureProvider<List<ResultListItem>>((ref) async {
+final resultsListProvider = FutureProvider.autoDispose<List<ResultListItem>>((ref) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/quiz-attempts/results');
   final data = res.data;
@@ -764,7 +770,8 @@ class AttemptReview {
 }
 
 final attemptReviewProvider =
-    FutureProvider.family<AttemptReview, String>((ref, attemptId) async {
+    FutureProvider.autoDispose.family<AttemptReview, String>((ref, attemptId) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/quiz-attempts/review/$attemptId');
   return AttemptReview.fromJson(res.data);

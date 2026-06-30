@@ -822,7 +822,7 @@ class _QuickActions extends StatelessWidget {
     (Icons.assignment_outlined, 'Exams', '/app/exams', DashAccents.blue),
     (Icons.event_note_outlined, 'Planner', '/app/planner', DashAccents.amber),
     (Icons.quiz_outlined, 'Q-Bank', '/app/quizzes', DashAccents.violet),
-    (Icons.sticky_note_2_outlined, 'Notes', '/app/ai-notes', DashAccents.cyan),
+    (Icons.sticky_note_2_outlined, 'Lessons', '/app/ai-notes', DashAccents.cyan),
     (Icons.bookmark_outline_rounded, 'Saved', '/app/bookmarks', DashAccents.rose),
     (Icons.insights_outlined, 'Results', '/app/results', DashAccents.green),
   ];

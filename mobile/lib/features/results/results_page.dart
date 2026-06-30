@@ -72,10 +72,10 @@ class ResultsPage extends ConsumerWidget {
                         child: FadeInAnimation(child: w),
                       ),
                       children: <Widget>[
-                        for (final a in items)
+                        for (var i = 0; i < items.length; i++)
                           Padding(
                             padding: const EdgeInsets.only(bottom: AppSpace.x3),
-                            child: _AttemptCard(attempt: a),
+                            child: _AttemptCard(attempt: items[i], index: i),
                           ),
                       ],
                     ),
@@ -109,8 +109,19 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _AttemptCard extends StatelessWidget {
-  const _AttemptCard({required this.attempt});
+  const _AttemptCard({required this.attempt, required this.index});
   final ResultListItem attempt;
+  final int index;
+
+  String get _subtitle {
+    final parts = <String>[];
+    if (attempt.courseTitle.isNotEmpty) parts.add(attempt.courseTitle);
+    if (attempt.topicDisplay.isNotEmpty &&
+        attempt.topicDisplay != attempt.courseTitle) {
+      parts.add(attempt.topicDisplay);
+    }
+    return parts.join(' / ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -126,19 +137,18 @@ class _AttemptCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text(attempt.quizTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: c.inkStrong,
-                        letterSpacing: -0.2)),
+                Text(
+                  attempt.quizTitle.isNotEmpty ? attempt.quizTitle : 'Quiz ${index + 1}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: c.inkStrong,
+                      letterSpacing: -0.2)),
                 const SizedBox(height: AppSpace.x1),
                 Text(
-                  attempt.courseTitle.isNotEmpty
-                      ? attempt.courseTitle
-                      : attempt.topicDisplay,
+                  _subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

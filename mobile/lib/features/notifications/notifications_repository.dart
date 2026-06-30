@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
+import '../../state/current_user.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 bool _b(dynamic v) => v == true || v == 1 || v == '1' || v == 'true';
@@ -52,7 +53,8 @@ class AppNotification {
   }
 }
 
-final notificationsProvider = FutureProvider<List<AppNotification>>((ref) async {
+final notificationsProvider = FutureProvider.autoDispose<List<AppNotification>>((ref) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/student/notifications');
   final data = res.data;

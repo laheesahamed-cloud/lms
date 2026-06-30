@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
+import '../../state/current_user.dart';
 import 'note_models.dart';
 
 /// Fetches the AI note for a lesson. The authoritative backend route is
@@ -9,7 +10,8 @@ import 'note_models.dart';
 /// `locked == true` (the canvas shows the upgrade screen). No mock content —
 /// an accessible lesson with no generated note returns an empty NoteDoc.
 final lessonNoteProvider =
-    FutureProvider.family<NoteDoc, String>((ref, lessonId) async {
+    FutureProvider.autoDispose.family<NoteDoc, String>((ref, lessonId) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
 
   Future<NoteDoc?> tryGet(String path) async {
@@ -29,11 +31,15 @@ final lessonNoteProvider =
   if (a != null && (a.locked || !a.isEmpty)) return a;
   final b = await tryGet('/student/ai-notes/lesson/$lessonId');
   if (b != null && (b.locked || !b.isEmpty)) return b;
-  return a ?? b ?? NoteDoc.empty();
+  // Fallback: id may be the note's own id (topic-level notes without a lesson link)
+  final c = await tryGet('/ai-notes/$lessonId');
+  if (c != null && (c.locked || !c.isEmpty)) return c;
+  return a ?? b ?? c ?? NoteDoc.empty();
 });
 
 /// The student's AI-notes list — `GET /student/ai-notes`.
-final notesListProvider = FutureProvider<List<NoteListItem>>((ref) async {
+final notesListProvider = FutureProvider.autoDispose<List<NoteListItem>>((ref) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
     '/student/ai-notes',

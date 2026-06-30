@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
+import '../../state/current_user.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -49,7 +50,8 @@ class PlannerTask {
   }
 }
 
-final plannerTasksProvider = FutureProvider<List<PlannerTask>>((ref) async {
+final plannerTasksProvider = FutureProvider.autoDispose<List<PlannerTask>>((ref) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/student/planner');
   final data = res.data;

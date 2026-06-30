@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
+import '../../state/current_user.dart';
 
 String _s(dynamic v) => v == null ? '' : v.toString();
 int _i(dynamic v) => v == null ? 0 : (v is int ? v : int.tryParse(v.toString()) ?? 0);
@@ -173,7 +174,8 @@ class DecksResult {
 }
 
 /// Deck tree with New / Learning / Due counts.
-final flashDecksProvider = FutureProvider<DecksResult>((ref) async {
+final flashDecksProvider = FutureProvider.autoDispose<DecksResult>((ref) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get('/student/flashcards/decks');
   return DecksResult.fromJson(res.data);
@@ -181,7 +183,8 @@ final flashDecksProvider = FutureProvider<DecksResult>((ref) async {
 
 /// The review queue for a deck scope (comma-separated note ids).
 final flashQueueProvider =
-    FutureProvider.family<QueueResult, String>((ref, noteIdsCsv) async {
+    FutureProvider.autoDispose.family<QueueResult, String>((ref, noteIdsCsv) async {
+  ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
     '/student/flashcards/queue',

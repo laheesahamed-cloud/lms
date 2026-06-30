@@ -9,6 +9,8 @@ import '../data/public_settings.dart';
 import '../data/models.dart';
 import '../data/secure_store.dart';
 import '../services/push.dart';
+import '../services/study_reminders.dart';
+import 'user_data_reset.dart';
 
 /// Mirrors the web authStore keys (§8): token, user, isAuthenticated,
 /// isHydrating, error.
@@ -74,6 +76,7 @@ class AuthController extends Notifier<AuthState> {
     _api.setToken(token);
     try {
       final user = await _repo.me();
+      StudyReminders.userId = user.id;
       state = AuthState(
           isHydrating: false,
           isAuthenticated: true,
@@ -90,6 +93,9 @@ class AuthController extends Notifier<AuthState> {
   void _onUnauthorized() {
     SecureStore.clear();
     _api.setToken(null);
+    StudyReminders.cancelScheduled();
+    StudyReminders.userId = 'anon';
+    resetUserScopedData(ref);
     state = const AuthState(isHydrating: false, error: 'Your session expired.');
   }
 
@@ -218,6 +224,10 @@ class AuthController extends Notifier<AuthState> {
   Future<void> _applySession(AuthResult res) async {
     await SecureStore.writeToken(res.token);
     _api.setToken(res.token);
+    // Clear any data cached for a previously signed-in account before the new
+    // user's screens read these providers.
+    resetUserScopedData(ref);
+    StudyReminders.userId = res.user.id;
     state = AuthState(
         isHydrating: false,
         isAuthenticated: true,
@@ -265,6 +275,9 @@ class AuthController extends Notifier<AuthState> {
     await _repo.logout();
     await SecureStore.clear();
     _api.setToken(null);
+    await StudyReminders.cancelScheduled();
+    StudyReminders.userId = 'anon';
+    resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);
   }
 
@@ -278,6 +291,9 @@ class AuthController extends Notifier<AuthState> {
     }
     await SecureStore.clear();
     _api.setToken(null);
+    await StudyReminders.cancelScheduled();
+    StudyReminders.userId = 'anon';
+    resetUserScopedData(ref);
     state = const AuthState(isHydrating: false);
     return null;
   }

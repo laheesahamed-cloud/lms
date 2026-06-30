@@ -54,8 +54,13 @@ class StudyReminderPrefs {
 }
 
 class StudyReminders {
-  static const _prefsKey = 'lms_study_reminder_prefs';
-  static const _idsKey = 'lms_study_reminder_ids';
+  // The signed-in user's id, set by the auth controller on login/hydrate and
+  // reset to 'anon' on sign-out. Reminder prefs and the scheduled-id batch are
+  // namespaced by it so each account keeps its own settings and never sees (or
+  // gets notifications built from) another user's planner tasks.
+  static String userId = 'anon';
+  static String get _prefsKey => 'lms_study_reminder_prefs.$userId';
+  static String get _idsKey => 'lms_study_reminder_ids.$userId';
   static const _plannerIdBase = 700000000;
   static const _plannerIdSpan = 100000;
   static const _customId = 690000001;
@@ -74,6 +79,21 @@ class StudyReminders {
   static Future<void> savePrefs(StudyReminderPrefs p) async {
     final sp = await SharedPreferences.getInstance();
     await sp.setString(_prefsKey, jsonEncode(p.toJson()));
+  }
+
+  /// Cancel the current user's scheduled reminder batch on sign-out so none fire
+  /// for the next account on this device. The user's saved [_prefsKey] settings
+  /// are kept (namespaced) so they return intact on next login. Also clears the
+  /// legacy un-namespaced batch scheduled before reminders were per-user.
+  static Future<void> cancelScheduled() async {
+    final sp = await SharedPreferences.getInstance();
+    for (final key in [_idsKey, 'lms_study_reminder_ids']) {
+      for (final s in sp.getStringList(key) ?? const <String>[]) {
+        final id = int.tryParse(s);
+        if (id != null) await Notifications.cancel(id);
+      }
+      await sp.remove(key);
+    }
   }
 
   static DateTime? _nextDaily(String time) {

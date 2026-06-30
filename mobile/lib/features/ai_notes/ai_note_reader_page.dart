@@ -33,7 +33,7 @@ class AiNoteReaderPage extends StatelessWidget {
               ),
             ],
           ),
-          Text('CARDIOLOGY · AI NOTES',
+          Text('CARDIOLOGY · LESSONS',
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,

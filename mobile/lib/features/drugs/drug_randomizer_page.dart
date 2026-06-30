@@ -157,6 +157,30 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Back button row
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: _spinAgain,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.arrow_back_ios_new_rounded,
+                            size: 16, color: c.inkSoft),
+                        const SizedBox(width: 4),
+                        Text('Back',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: c.inkSoft)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             _ResultBadge(correct: _mcqCorrect ?? false, c: c),
             const SizedBox(height: 16),
             DrugInfoCard(drug: _current!.drug),
