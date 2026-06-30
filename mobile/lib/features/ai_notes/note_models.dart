@@ -10,6 +10,12 @@ List<String> _strList(dynamic v) => (v is List)
     ? v.map((e) => e?.toString() ?? '').where((e) => e.trim().isNotEmpty).toList()
     : <String>[];
 
+double? _numOrNull(dynamic v) {
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v.trim());
+  return null;
+}
+
 class NoteDoc {
   final String title;
   final String subtitle;
@@ -109,12 +115,23 @@ class NoteListItem {
   final String id;
   final String lessonId;
   final String title;
-  final String subtitle;
-  NoteListItem(
-      {required this.id,
-      required this.lessonId,
-      required this.title,
-      required this.subtitle});
+  final String courseTitle;
+  final String courseId;
+  final String examType;
+  final String subjectName;
+
+  NoteListItem({
+    required this.id,
+    required this.lessonId,
+    required this.title,
+    required this.courseTitle,
+    required this.courseId,
+    required this.examType,
+    required this.subjectName,
+  });
+
+  // Keep subtitle as alias so existing code that reads it still compiles.
+  String get subtitle => courseTitle;
 
   factory NoteListItem.fromJson(dynamic raw) {
     final n = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
@@ -122,7 +139,107 @@ class NoteListItem {
       id: _str(n['id'] ?? n['noteId']),
       lessonId: _str(n['lessonId'] ?? n['lesson_id'] ?? n['id']),
       title: _str(n['lessonTitle'] ?? n['title'] ?? 'Untitled note'),
-      subtitle: _str(n['courseTitle'] ?? n['subjectName'] ?? n['subject'] ?? ''),
+      courseTitle: _str(n['courseTitle'] ?? ''),
+      courseId: _str(n['courseId'] ?? n['course_id'] ?? ''),
+      examType: _str(n['examType'] ?? ''),
+      // API returns topicName (the "subject" level in the hierarchy)
+      subjectName: _str(n['topicName'] ?? n['topic_name'] ?? n['subjectName'] ?? n['subject'] ?? ''),
+    );
+  }
+}
+
+/// Notes grouped by course — used for the course-card list view.
+class NoteCourseGroup {
+  final String courseTitle;
+  final String courseId;
+  final String examType;
+  final List<NoteListItem> lessons;
+  const NoteCourseGroup({
+    required this.courseTitle,
+    required this.courseId,
+    required this.examType,
+    required this.lessons,
+  });
+  int get lessonCount => lessons.length;
+}
+
+/// Notes grouped by subject — used inside a course detail page.
+class NoteSubjectGroup {
+  final String subjectName;
+  final List<NoteListItem> lessons;
+  const NoteSubjectGroup({required this.subjectName, required this.lessons});
+}
+
+/// Groups a flat list of notes into per-course buckets, preserving order.
+List<NoteCourseGroup> groupNotesByCourse(List<NoteListItem> items) {
+  final map = <String, NoteCourseGroup>{};
+  final order = <String>[];
+  for (final item in items) {
+    final key = item.courseId.isNotEmpty ? item.courseId : item.courseTitle;
+    if (!map.containsKey(key)) {
+      order.add(key);
+      map[key] = NoteCourseGroup(
+        courseTitle: item.courseTitle.isNotEmpty ? item.courseTitle : 'General',
+        courseId: item.courseId,
+        examType: item.examType,
+        lessons: [],
+      );
+    }
+    map[key]!.lessons.add(item);
+  }
+  return order.map((k) => map[k]!).toList();
+}
+
+/// Groups lessons within a course by subject, preserving order.
+List<NoteSubjectGroup> groupNotesBySubject(List<NoteListItem> lessons) {
+  final map = <String, List<NoteListItem>>{};
+  final order = <String>[];
+  for (final item in lessons) {
+    final key = item.subjectName.isNotEmpty ? item.subjectName : 'General';
+    if (!map.containsKey(key)) {
+      order.add(key);
+      map[key] = [];
+    }
+    map[key]!.add(item);
+  }
+  return order.map((k) => NoteSubjectGroup(subjectName: k, lessons: map[k]!)).toList();
+}
+
+/// An image attached to a TEXT section (`section.sectionImage`). Mirrors the web
+/// nested object: { src, caption, position, imageWidth, imageHeight, imageFit }.
+class SectionImage {
+  final String src; // URL or base64 data: URI
+  final String caption;
+  final String position; // 'top'|'bottom'|'left'|'right' (default 'bottom')
+  final double? imageWidth;
+  final double? imageHeight;
+  final String imageFit; // 'contain'|'cover'
+
+  const SectionImage({
+    required this.src,
+    required this.caption,
+    required this.position,
+    required this.imageWidth,
+    required this.imageHeight,
+    required this.imageFit,
+  });
+
+  static SectionImage? fromJson(dynamic raw) {
+    if (raw is! Map) return null;
+    final m = Map<String, dynamic>.from(raw);
+    final src = _str(m['src']);
+    if (src.isEmpty) return null;
+    var pos = _str(m['position']);
+    if (pos.isEmpty) pos = 'bottom';
+    var fit = _str(m['imageFit']);
+    if (fit.isEmpty) fit = 'contain';
+    return SectionImage(
+      src: src,
+      caption: _str(m['caption']),
+      position: pos,
+      imageWidth: _numOrNull(m['imageWidth']),
+      imageHeight: _numOrNull(m['imageHeight']),
+      imageFit: fit,
     );
   }
 }
@@ -134,7 +251,13 @@ class NoteSection {
   final String span; // 'half' | 'wide' | 'full'
   final String type; // 'text' | 'image' | 'image-explained'
   final String callout;
-  final String? imageSrc;
+  final String? imageSrc; // direct src for type 'image'/'image-explained'
+  final String caption; // image / image-explained title
+  final String explanation; // image-explained body (\n-separated paragraphs)
+  final double? imageWidth;
+  final double? imageHeight;
+  final String imageFit; // 'contain'|'cover'
+  final SectionImage? sectionImage; // image embedded inside a text section
 
   NoteSection({
     required this.heading,
@@ -144,12 +267,20 @@ class NoteSection {
     required this.type,
     required this.callout,
     required this.imageSrc,
+    required this.caption,
+    required this.explanation,
+    required this.imageWidth,
+    required this.imageHeight,
+    required this.imageFit,
+    required this.sectionImage,
   });
 
   factory NoteSection.fromJson(dynamic raw) {
     final s = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     final ac = s['accentColor'];
-    final img = s['src'] ?? (s['sectionImage'] is Map ? (s['sectionImage'] as Map)['src'] : null);
+    final directSrc = _str(s['src']);
+    var fit = _str(s['imageFit']);
+    if (fit.isEmpty) fit = 'contain';
     return NoteSection(
       heading: _str(s['heading'] ?? s['title']),
       bullets: _strList(s['bullets']),
@@ -157,7 +288,13 @@ class NoteSection {
       span: _str(s['span'].toString().isEmpty ? 'half' : s['span']),
       type: _str((s['type'] ?? 'text').toString().isEmpty ? 'text' : s['type']),
       callout: _str(s['callout']),
-      imageSrc: (img is String && img.isNotEmpty) ? img : null,
+      imageSrc: directSrc.isNotEmpty ? directSrc : null,
+      caption: _str(s['caption']),
+      explanation: _str(s['explanation']),
+      imageWidth: _numOrNull(s['imageWidth']),
+      imageHeight: _numOrNull(s['imageHeight']),
+      imageFit: fit,
+      sectionImage: SectionImage.fromJson(s['sectionImage']),
     );
   }
 

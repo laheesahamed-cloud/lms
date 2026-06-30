@@ -317,7 +317,7 @@ let AiNotesService = class AiNotesService {
              slp.progress_percent AS lesson_progress_percent,
              slp.completed_at AS lesson_completed_at,
              (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.note_id = n.id AND lf.status = 'approved') AS approved_flashcard_count,
-             c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
+             c.course_title, c.exam_type, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
       FROM ai_illustrated_notes n
       LEFT JOIN lessons  l ON l.id = n.lesson_id
       LEFT JOIN student_lesson_progress slp ON slp.lesson_id = n.lesson_id AND slp.user_id = ?
@@ -1070,6 +1070,7 @@ ${input.sourceText}`;
             isFree: Number(row.effective_is_free ?? row.is_free) === 1,
             status: row.status ?? 'active',
             courseTitle: row.course_title ?? null,
+            examType: row.exam_type ?? null,
             topicName: row.topic_name ?? null,
             subtopicName: row.subtopic_name ?? null,
             lessonTitle: row.lesson_title ?? null,

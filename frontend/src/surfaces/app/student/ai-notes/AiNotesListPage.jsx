@@ -90,7 +90,7 @@ function buildHierarchy(notes) {
   const map = new Map();
   for (const n of notes) {
     const ck = n.courseTitle || '__none__';
-    if (!map.has(ck)) map.set(ck, { label: n.courseTitle || null, subjects: new Map() });
+    if (!map.has(ck)) map.set(ck, { label: n.courseTitle || null, examType: n.examType || null, subjects: new Map() });
     const course = map.get(ck);
     const sk = n.topicName || '__none__';
     if (!course.subjects.has(sk)) course.subjects.set(sk, { label: n.topicName || null, notes: [] });
@@ -369,6 +369,7 @@ export function AiNotesListPage({
   }, [navigate]);
   useEdgeSwipeBack({ containerRef: pageRef, onBack: handleSwipeBack });
   const [searchParams, setSearchParams] = useSearchParams();
+  const [examTypeFilter, setExamTypeFilter] = useState('all');
   const [notes, setNotes] = useState(() => readAiNotesCache({ engine: engineKey }) || []);
   const [bookmarkedIds, setBookmarkedIds] = useState(() => new Set(
     (readStudyBookmarksCache() || []).filter(b => b.itemType === 'ai_note').map(b => b.itemId)
@@ -428,9 +429,20 @@ export function AiNotesListPage({
   }, []);
 
   const hierarchy = useMemo(() => buildHierarchy(notes), [notes]);
+
+  const examTypes = useMemo(() => {
+    const types = new Set(hierarchy.map(c => c.examType).filter(Boolean));
+    return [...types].sort();
+  }, [hierarchy]);
+
+  const filteredHierarchy = useMemo(
+    () => examTypeFilter === 'all' ? hierarchy : hierarchy.filter(c => c.examType === examTypeFilter),
+    [hierarchy, examTypeFilter],
+  );
+
   const activeCourse = useMemo(
-    () => hierarchy.find(c => c.label === selectedCourse) || null,
-    [hierarchy, selectedCourse]
+    () => filteredHierarchy.find(c => c.label === selectedCourse) || null,
+    [filteredHierarchy, selectedCourse]
   );
 
   // During the transition to a lesson, React Router swaps the URL to the lesson
@@ -450,6 +462,7 @@ export function AiNotesListPage({
   function selectCourse(label) {
     const next = new URLSearchParams(searchParams);
     label ? next.set('course', label) : next.delete('course');
+    if (!label) setExamTypeFilter('all');
     setSearchParams(next, { replace: false });
   }
 
@@ -509,11 +522,32 @@ export function AiNotesListPage({
                   </div>
                 </div>
                 <span className="student-lessons-count-pill rounded-full border border-line-soft bg-surface-2 px-3 py-1 text-[11px] font-extrabold text-ink-muted">
-                  {hierarchy.length} {hierarchy.length === 1 ? 'course' : 'courses'}
+                  {filteredHierarchy.length} {filteredHierarchy.length === 1 ? 'course' : 'courses'}
                 </span>
               </div>
+              {examTypes.length > 1 ? (
+                <div className="student-lessons-filter-bar mb-4">
+                  <button
+                    type="button"
+                    className={cx('student-lessons-filter-chip', examTypeFilter === 'all' && 'is-active')}
+                    onClick={() => setExamTypeFilter('all')}
+                  >
+                    All
+                  </button>
+                  {examTypes.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      className={cx('student-lessons-filter-chip', examTypeFilter === type && 'is-active')}
+                      onClick={() => setExamTypeFilter(type)}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="student-lessons-course-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4 max-[900px]:grid-cols-1 max-[520px]:gap-3">
-                {hierarchy.map((course, i) => (
+                {filteredHierarchy.map((course, i) => (
                   <CourseCard key={i} course={course} onClick={() => selectCourse(course.label)} />
                 ))}
               </div>
