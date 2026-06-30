@@ -27,6 +27,13 @@ class StudyHubPage extends ConsumerWidget {
       drillIn: false,
     ),
     _ToolEntry(
+      icon: Icons.monitor_heart_outlined,
+      title: 'ECG',
+      subtitle: 'Read ECGs topic by topic, then quiz yourself',
+      route: '/app/ecg',
+      drillIn: true,
+    ),
+    _ToolEntry(
       icon: Icons.event_note_outlined,
       title: 'Planner',
       subtitle: 'Map your rotations and exam countdown',

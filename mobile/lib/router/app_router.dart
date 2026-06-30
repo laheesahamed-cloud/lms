@@ -39,6 +39,9 @@ import '../features/bookmarks/bookmarks_page.dart';
 import '../features/planner/planner_page.dart';
 import '../features/subscriptions/subscriptions_page.dart';
 import '../features/drugs/drug_randomizer_page.dart';
+import '../features/ecg/ecg_page.dart';
+import '../features/ecg/ecg_topic_page.dart';
+import '../features/ecg/ecg_quiz_page.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -214,6 +217,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               body: ReviewPage(attemptId: s.pathParameters['attemptId']!)),
         ),
       ),
+      GoRoute(
+        path: '/app/ecg/topic/:topicId',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: Scaffold(
+              body: EcgTopicPage(
+                  topicId: int.tryParse(s.pathParameters['topicId'] ?? '') ?? 0)),
+        ),
+      ),
+      GoRoute(
+        path: '/app/ecg/quiz',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: const Scaffold(body: EcgQuizPage()),
+        ),
+      ),
 
       // Primary destinations — wrapped in the responsive shell.
       ShellRoute(
@@ -259,6 +278,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/app/drugs',
             pageBuilder: (c, s) =>
                 fadePage(key: s.pageKey, child: const DrugRandomizerPage()),
+          ),
+          GoRoute(
+            path: '/app/ecg',
+            pageBuilder: (c, s) =>
+                fadePage(key: s.pageKey, child: const EcgPage()),
           ),
           GoRoute(
             path: '/app/ai-notes',
