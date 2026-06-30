@@ -144,10 +144,17 @@ const Icons = {
   ),
   AiNotes: () => (
     <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-      <path d="M11.5 2.5H6C5.17 2.5 4.5 3.17 4.5 4V16C4.5 16.83 5.17 17.5 6 17.5H14C14.83 17.5 15.5 16.83 15.5 16V6.5L11.5 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-      <path d="M11.5 2.5V6.5H15.5" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-      <path d="M7 11H9.5M7 13.5H8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-      <path d="M13 9L13.75 11L15.5 10.5L13.75 12L13 14L12.25 12L10.5 10.5L12.25 11L13 9Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+      <path d="M3.5 5C5.5 5 8 5.5 10 7C12 5.5 14.5 5 16.5 5V15.5C14.5 15.5 12 16 10 17.5C8 16 5.5 15.5 3.5 15.5V5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M10 7V17.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      <path d="M5.5 9H8.5M5.5 11.5H8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  ),
+  Planner: () => (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <rect x="3" y="4.5" width="14" height="13" rx="1.75" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M3 9H17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      <path d="M7 2.5V5.5M13 2.5V5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M6.5 12.5H10.5M6.5 15H9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     </svg>
   ),
   Flashcards: () => (
@@ -204,15 +211,16 @@ const adminLinks = [
 ];
 
 const studentLinks = [
-  { to: '/dashboard',     label: 'Study Hub',     icon: 'Mission'    },
+  { to: '/dashboard',     label: 'Study Hub',     icon: 'Dashboard'  },
   { to: '/courses',       label: 'Courses',       icon: 'Courses'    },
   { to: '/quizzes',       label: 'Q-Bank',        icon: 'Quizzes'    },
   { to: '/results',       label: 'Results',       icon: 'Results'    },
   { section: 'Study' },
   { to: '/lessons',       label: 'Lessons',       icon: 'AiNotes'    },
   { to: '/flashcards',    label: 'Flashcards',    icon: 'Flashcards' },
-  { to: '/planner',       label: 'Planner',       icon: 'Results'    },
+  { to: '/planner',       label: 'Planner',       icon: 'Planner'    },
   { to: '/bookmarks',     label: 'Saved',         icon: 'Bookmarks'  },
+  { to: '/drugs',         label: 'Drugs',         icon: 'Drugs'      },
 ];
 
 const END_EXACT = new Set([
@@ -630,11 +638,11 @@ const mobileNavItems = [
     matchPaths: ['/quizzes', '/exams'],
     preloadPaths: ['/quizzes', '/exams'],
   },
-  { to: '/dashboard', label: 'Study Hub', icon: 'Mission' },
+  { to: '/dashboard', label: 'Study Hub', icon: 'Dashboard' },
   {
     to: '/study',
     label: 'Study',
-    icon: 'Notes',
+    icon: 'AiNotes',
     matchPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/lessons', '/ai-notes'],
     preloadPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/lessons'],
   },

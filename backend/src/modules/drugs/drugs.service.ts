@@ -101,7 +101,8 @@ export class DrugsService implements OnModuleInit {
     const [rows] = await this.db.execute<RowDataPacket[]>(
       `SELECT COUNT(*) AS cnt FROM user_subscriptions
        WHERE user_id = ? AND status = 'active'
-         AND start_date <= CURDATE() AND end_date >= CURDATE()`,
+         AND start_date <= CURDATE() AND end_date >= CURDATE()
+         AND payment_status != 'free_plan'`,
       [userId],
     );
     return Number((rows[0] as any)?.cnt ?? 0) > 0;

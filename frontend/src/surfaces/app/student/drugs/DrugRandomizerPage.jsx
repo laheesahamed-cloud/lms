@@ -282,7 +282,7 @@ export function DrugRandomizerPage() {
           )}
         </div>
 
-        {showUpgrade && <UpgradePrompt freeLimit={freeLimit} />}
+        {showUpgrade && <UpgradePrompt freeLimit={freeLimit} onDismiss={() => setShowUpgrade(false)} />}
       </div>
     </main>
   );
