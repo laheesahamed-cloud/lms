@@ -104,6 +104,13 @@ class ProfilePage extends ConsumerWidget {
             _Row(Icons.mail_outline_rounded, 'Contact support',
                 () => _contactSupport(context)),
           ]),
+          const SizedBox(height: 12),
+          _Section(title: 'Legal', rows: [
+            _Row(Icons.privacy_tip_outlined, 'Privacy Policy',
+                () => _openUrl(context, _privacyUrl)),
+            _Row(Icons.description_outlined, 'Terms & Conditions',
+                () => _openUrl(context, _termsUrl)),
+          ]),
           const SizedBox(height: 20),
           AppButton('Log out',
               kind: AppButtonKind.soft,
@@ -139,6 +146,20 @@ Future<void> _contactSupport(BuildContext context) async {
   if (!ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Email us at $_supportEmail')),
+    );
+  }
+}
+
+/// Legal links (Guideline 5.1.1(i) — Privacy Policy must be reachable in-app,
+/// not just at registration). Same URLs as register_page.dart.
+const String _privacyUrl = 'https://xyndrome.lk/lms/frontend/dist/privacy-policy';
+const String _termsUrl = 'https://xyndrome.lk/lms/frontend/dist/terms';
+
+Future<void> _openUrl(BuildContext context, String url) async {
+  final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Could not open $url')),
     );
   }
 }

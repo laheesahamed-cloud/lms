@@ -51,7 +51,7 @@ const sections = [
   },
   {
     title: '11. Educational Use',
-    body: 'xyndrome is an educational study platform. To ensure completeness and depth of coverage, some study materials are developed with the help of advanced technology tools and reviewed by qualified medical professionals before being published. This means the content you study is checked for accuracy and relevance to your curriculum, not simply generated and released. That said, xyndrome is a preparation aid — your results will always reflect your own effort, consistency, and readiness. The platform is not a substitute for professional medical advice, clinical supervision, university requirements, or official examination guidance.',
+    body: 'xyndrome is an educational study platform. To ensure completeness and depth of coverage, some study materials are developed with the help of advanced technology tools and reviewed by qualified medical professionals before being published. This means the content you study is checked for accuracy and relevance to your curriculum, not simply generated and released. That said, xyndrome is a preparation aid — your results will always reflect your own effort, consistency, and readiness. The platform is not a substitute for professional medical advice, clinical supervision, university requirements, or official examination guidance. Reference tools such as the Drug Reference, ECG Library, and Auscultation (heart and lung sounds) library are provided strictly for study and exam preparation. They are not intended for clinical diagnosis or treatment, are not a substitute for a qualified healthcare professional, and must never be used to make decisions about an actual patient.',
   },
   {
     title: '13. Account Decisions',
