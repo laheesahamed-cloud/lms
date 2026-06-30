@@ -1,0 +1,1 @@
+import{S as e}from"./vendor-Pw4BVWxP.js";export{e as AppWeb};

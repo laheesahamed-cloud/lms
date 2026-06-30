@@ -67,6 +67,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureQuestionTheoryRecapsTable(connection);
             await this.ensureContentGovernanceTables(connection);
             await this.ensureAdminAuditEventsTable(connection);
+            await this.ensureEcgTables(connection);
             await this.ensureUserRoleColumnSupportsStaff(connection);
             await this.ensureStudyActivityEventTypes(connection);
             await this.ensureColumn(connection, 'users', 'avatar_key', "VARCHAR(64) NULL AFTER status");
@@ -657,6 +658,52 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         setting_value TEXT NULL,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
+    `);
+    }
+    async ensureEcgTables(connection) {
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS ecg_topics (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NULL,
+        position INT NOT NULL DEFAULT 0,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_ecg_topics_active (is_active),
+        INDEX idx_ecg_topics_position (position)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS ecg_cards (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        topic_id INT UNSIGNED NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        image_url LONGTEXT NULL,
+        explanation TEXT NULL,
+        position INT NOT NULL DEFAULT 0,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_ecg_cards_topic (topic_id),
+        INDEX idx_ecg_cards_active (is_active),
+        INDEX idx_ecg_cards_position (position)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+        await connection.execute(`
+      CREATE TABLE IF NOT EXISTS ecg_quiz_questions (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        question_text VARCHAR(500) NOT NULL DEFAULT 'What does this ECG show?',
+        image_url LONGTEXT NULL,
+        options_json JSON NULL,
+        explanation TEXT NULL,
+        position INT NOT NULL DEFAULT 0,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_ecg_quiz_active (is_active),
+        INDEX idx_ecg_quiz_position (position)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     }
     async ensureAiProviderConfigsTable(connection) {

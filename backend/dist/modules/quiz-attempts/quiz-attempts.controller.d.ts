@@ -26,6 +26,7 @@ export declare class QuizAttemptsController {
         hidePassingMarks: boolean;
         updatedAt: string | Date | null;
         courseTitle: string;
+        examType: any;
         subjectName: string;
         topicName: string;
         subtopicName: string;

@@ -39,6 +39,7 @@ const push_notifications_module_1 = require("./modules/push-notifications/push-n
 const content_governance_module_1 = require("./modules/content-governance/content-governance.module");
 const boot_module_1 = require("./modules/boot/boot.module");
 const drugs_module_1 = require("./modules/drugs/drugs.module");
+const ecg_module_1 = require("./modules/ecg/ecg.module");
 const database_config_1 = require("./config/database.config");
 const database_module_1 = require("./database/database.module");
 let AppModule = class AppModule {
@@ -81,6 +82,7 @@ exports.AppModule = AppModule = __decorate([
             workspace_module_1.WorkspaceModule,
             boot_module_1.BootModule,
             drugs_module_1.DrugsModule,
+            ecg_module_1.EcgModule,
         ],
         controllers: [health_controller_1.HealthController],
     })

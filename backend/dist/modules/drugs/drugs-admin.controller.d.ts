@@ -41,6 +41,10 @@ export declare class DrugsAdminController {
             sl_brand_names: any;
         };
     }>;
+    importDrugs(file: Express.Multer.File, auth?: string): Promise<{
+        inserted: number;
+        skipped: number;
+    }>;
     getOne(id: number, auth?: string): Promise<import("mysql2").RowDataPacket>;
     create(body: CreateDrugDto, auth?: string): Promise<{
         id: any;

@@ -45,6 +45,7 @@ const mcqFeatureKeys = [
     'results_tracking',
     'report_question',
 ];
+const premiumExamFeatureKeys = ['dynamic_quiz_randomization'];
 const lessonFeatureKeys = [
     ...baseFeatureKeys,
     'lessons_access_full',

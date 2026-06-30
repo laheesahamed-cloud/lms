@@ -17,7 +17,6 @@ type DrugRow = RowDataPacket & {
     pregnancy_info: string | null;
     sl_brand_names: string | null;
     is_active: number;
-    use_count: number;
 };
 export declare class DrugsService implements OnModuleInit {
     private readonly db;
@@ -28,14 +27,19 @@ export declare class DrugsService implements OnModuleInit {
     onModuleInit(): void;
     private refreshSettings;
     getSettings(): DrugsSettings;
-    spin(userId: number): Promise<{
-        drug: DrugRow;
+    getBatch(userId: number, count: number): Promise<{
+        drugs: {
+            drug: DrugRow;
+            distractors: string[];
+            questionType: "drug_class";
+        }[];
         useCount: number;
         freeLimit: number;
         enabled: boolean;
-        distractors: string[];
-        questionType: string;
     }>;
+    checkSubscription(userId: number): Promise<boolean>;
+    getSpinCount(userId: number): Promise<number>;
+    recordSpin(userId: number): Promise<void>;
     listDrugs(page: number, limit: number, search: string): Promise<{
         drugs: RowDataPacket[];
         total: number;
@@ -48,7 +52,10 @@ export declare class DrugsService implements OnModuleInit {
     }>;
     updateDrug(id: number, data: Record<string, any>): Promise<void>;
     toggleDrug(id: number): Promise<void>;
-    getUsageCount(userId: number): Promise<number>;
+    importDrugs(buffer: Buffer, filename: string): Promise<{
+        inserted: number;
+        skipped: number;
+    }>;
     deleteDrug(id: number): Promise<void>;
     updateFeatureSettings(enabled: boolean, freeLimit: number): Promise<void>;
 }

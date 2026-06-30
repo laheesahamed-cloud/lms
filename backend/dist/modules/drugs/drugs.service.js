@@ -75,7 +75,10 @@ let DrugsService = DrugsService_1 = class DrugsService {
         };
     }
     async checkSubscription(userId) {
-        const [rows] = await this.db.execute(`SELECT COUNT(*) AS cnt FROM user_subscriptions WHERE user_id = ? AND status = 'active' AND start_date <= CURDATE() AND end_date >= CURDATE() AND payment_status != 'free_plan'`, [userId]);
+        const [rows] = await this.db.execute(`SELECT COUNT(*) AS cnt FROM user_subscriptions
+       WHERE user_id = ? AND status = 'active'
+         AND start_date <= CURDATE() AND end_date >= CURDATE()
+         AND payment_status != 'free_plan'`, [userId]);
         return Number(rows[0]?.cnt ?? 0) > 0;
     }
     async getSpinCount(userId) {
@@ -118,13 +121,23 @@ let DrugsService = DrugsService_1 = class DrugsService {
     }
     async importDrugs(buffer, filename) {
         const XLSX = require('xlsx');
+        let rows;
         const ext = filename.toLowerCase().split('.').pop();
-        const wb = XLSX.read(buffer, { type: 'buffer' });
-        const sheet = (ext !== 'csv' && wb.Sheets['drugs']) ? wb.Sheets['drugs'] : wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
+        if (ext === 'csv') {
+            const wb = XLSX.read(buffer, { type: 'buffer' });
+            rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        }
+        else {
+            const wb = XLSX.read(buffer, { type: 'buffer' });
+            const sheet = wb.Sheets['drugs'] ?? wb.Sheets[wb.SheetNames[0]];
+            rows = XLSX.utils.sheet_to_json(sheet);
+        }
         let inserted = 0, skipped = 0;
         for (const r of rows) {
-            if (!r.name) { skipped++; continue; }
+            if (!r.name) {
+                skipped++;
+                continue;
+            }
             try {
                 const [res] = await this.db.execute(`INSERT IGNORE INTO drugs
              (name,drug_class,uses,dosage_adult,dosage_pediatric,
@@ -134,9 +147,14 @@ let DrugsService = DrugsService_1 = class DrugsService {
                     r.side_effects || null, r.warnings || null,
                     r.drug_interactions || null, r.pregnancy_info || null,
                     r.sl_brand_names || null]);
-                if (res.affectedRows > 0) inserted++; else skipped++;
+                if (res.affectedRows > 0)
+                    inserted++;
+                else
+                    skipped++;
             }
-            catch { skipped++; }
+            catch {
+                skipped++;
+            }
         }
         return { inserted, skipped };
     }

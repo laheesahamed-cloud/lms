@@ -1,1 +1,0 @@
-import{c as e}from"./vendor-mvePeDiT.js";export{e as SocialLoginWeb};

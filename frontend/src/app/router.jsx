@@ -64,6 +64,10 @@ const StudentFlashcardsPage = lazyNamed(() => import('../surfaces/app/student/fl
 const StudentStudyPage = lazyNamed(() => import('../surfaces/app/student/study/StudentStudyPage.jsx'), 'StudentStudyPage');
 const DrugRandomizerPage = lazyNamed(() => import('../surfaces/app/student/drugs/DrugRandomizerPage.jsx'), 'DrugRandomizerPage');
 const AdminDrugsPage = lazyNamed(() => import('../surfaces/admin/pages/drugs/AdminDrugsPage.jsx'), 'AdminDrugsPage');
+const EcgPage = lazyNamed(() => import('../surfaces/app/student/ecg/EcgPage.jsx'), 'EcgPage');
+const EcgTopicPage = lazyNamed(() => import('../surfaces/app/student/ecg/EcgTopicPage.jsx'), 'EcgTopicPage');
+const EcgQuizPage = lazyNamed(() => import('../surfaces/app/student/ecg/EcgQuizPage.jsx'), 'EcgQuizPage');
+const AdminEcgPage = lazyNamed(() => import('../surfaces/admin/pages/ecg/AdminEcgPage.jsx'), 'AdminEcgPage');
 const AiNotesPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
 const AiNotesListPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesListPage.jsx'), 'AiNotesListPage');
 const AdminAiNotesListPage = lazyNamed(() => import('../surfaces/admin/pages/ai-notes/AdminAiNotesListPage.jsx'), 'AdminAiNotesListPage');
@@ -110,6 +114,7 @@ const roleRoutePreloaders = {
     ['/notifications', StudentNotificationsPage.preload],
     ['/study', StudentStudyPage.preload],
     ['/drugs', DrugRandomizerPage.preload],
+    ['/ecg', EcgPage.preload],
     ['/planner', StudyPlannerPage.preload],
     ['/lessons', AiNotesListPage.preload],
     ['/ai-notes', AiNotesListPage.preload],
@@ -227,6 +232,7 @@ const STUDENT_ROUTE_NAMES = {
   '/app/planner': 'Planner',
   '/app/study': 'Study',
   '/app/drugs': 'Drug Randomizer',
+  '/app/ecg': 'ECG',
   '/app/bookmarks': 'Saved',
   '/app/notifications': 'Notifications',
   '/app/subscriptions': 'Subscriptions',
@@ -543,6 +549,14 @@ const adminPanelRoutes = [
     ),
   },
   {
+    path: 'ecg',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
+        <AdminEcgPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: 'setup',
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
@@ -644,6 +658,18 @@ const studentPanelRoutes = [
   {
     path: 'drugs',
     element: withSuspense(<DrugRandomizerPage />),
+  },
+  {
+    path: 'ecg',
+    element: withSuspense(<EcgPage />),
+  },
+  {
+    path: 'ecg/topic/:id',
+    element: withSuspense(<EcgTopicPage />),
+  },
+  {
+    path: 'ecg/quiz',
+    element: withSuspense(<EcgQuizPage />),
   },
   {
     path: 'study/lesson/:lessonId',

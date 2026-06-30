@@ -734,7 +734,8 @@ let AiService = class AiService {
                     source: 'env',
                 };
             }
-        } else {
+        }
+        else {
             const envGeminiKey = String(this.configService.get('GEMINI_API_KEY') || '').trim();
             if (envGeminiKey) {
                 return {

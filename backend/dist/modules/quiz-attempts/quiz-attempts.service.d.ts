@@ -47,6 +47,7 @@ export declare class QuizAttemptsService {
         hidePassingMarks: boolean;
         updatedAt: string | Date | null;
         courseTitle: string;
+        examType: any;
         subjectName: string;
         topicName: string;
         subtopicName: string;

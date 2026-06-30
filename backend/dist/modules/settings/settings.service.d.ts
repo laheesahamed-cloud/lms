@@ -354,7 +354,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "login" | "all" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;
@@ -516,7 +516,7 @@ export declare class SettingsService {
         };
         note: string;
         enabled: boolean;
-        placement: "all" | "login" | "landing" | "app";
+        placement: "login" | "all" | "landing" | "app";
         title: string;
         body: string;
         buttonLabel: string;

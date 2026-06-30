@@ -1,0 +1,1 @@
+import{C as e}from"./vendor-Pw4BVWxP.js";export{e as App};

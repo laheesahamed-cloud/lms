@@ -30,6 +30,7 @@ import { PushNotificationsModule } from './modules/push-notifications/push-notif
 import { ContentGovernanceModule } from './modules/content-governance/content-governance.module';
 import { BootModule } from './modules/boot/boot.module';
 import { DrugsModule } from './modules/drugs/drugs.module';
+import { EcgModule } from './modules/ecg/ecg.module';
 import databaseConfig from './config/database.config';
 import { DatabaseModule } from './database/database.module';
 
@@ -69,6 +70,7 @@ import { DatabaseModule } from './database/database.module';
     WorkspaceModule,
     BootModule,
     DrugsModule,
+    EcgModule,
   ],
   controllers: [HealthController],
 })

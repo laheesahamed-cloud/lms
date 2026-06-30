@@ -51,6 +51,7 @@ export declare class AiNotesService {
         isFree: boolean;
         status: "active" | "inactive";
         courseTitle: string | null;
+        examType: any;
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
@@ -79,6 +80,7 @@ export declare class AiNotesService {
         isFree: boolean;
         status: "active" | "inactive";
         courseTitle: string | null;
+        examType: any;
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
@@ -226,6 +228,7 @@ export declare class AiNotesService {
         isFree: boolean;
         status: "active" | "inactive";
         courseTitle: string | null;
+        examType: any;
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
@@ -256,6 +259,7 @@ export declare class AiNotesService {
         isFree: boolean;
         status: "active" | "inactive";
         courseTitle: string | null;
+        examType: any;
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
@@ -286,6 +290,7 @@ export declare class AiNotesService {
         isFree: boolean;
         status: "active" | "inactive";
         courseTitle: string | null;
+        examType: any;
         topicName: string | null;
         subtopicName: string | null;
         lessonTitle: string | null;
