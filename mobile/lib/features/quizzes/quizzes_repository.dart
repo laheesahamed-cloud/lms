@@ -16,6 +16,7 @@ class QuizListItem {
   final String description;
   final String subjectName;
   final String courseTitle;
+  final String examType;
   final String lessonTitle;
   final String lessonId;
   // Hierarchy fields used for categorization + ordering (mirror the web LMS).
@@ -41,6 +42,7 @@ class QuizListItem {
     required this.description,
     required this.subjectName,
     required this.courseTitle,
+    required this.examType,
     required this.lessonTitle,
     required this.lessonId,
     required this.topicName,
@@ -68,6 +70,7 @@ class QuizListItem {
       description: _s(m['quizDescription']),
       subjectName: _s(m['subjectName'] ?? m['subtopicName']),
       courseTitle: _s(m['courseTitle']),
+      examType: _s(m['examType']),
       lessonTitle: _s(m['lessonTitle']),
       lessonId: _s(m['lessonId'] ?? m['lesson_id']),
       topicName: _s(m['topicName']),
@@ -282,8 +285,9 @@ class PracticeQuiz {
 /// Quizzes grouped under one course (web CoursePicker structure).
 class QuizCourseGroup {
   final String courseName;
+  final String examType;
   final List<QuizListItem> quizzes;
-  QuizCourseGroup(this.courseName, this.quizzes);
+  QuizCourseGroup(this.courseName, this.examType, this.quizzes);
 
   int get subjectCount =>
       quizzes.map((q) => q.subjectName.isEmpty ? 'General' : q.subjectName).toSet().length;
@@ -293,15 +297,17 @@ class QuizCourseGroup {
 List<QuizCourseGroup> groupQuizzesByCourse(List<QuizListItem> quizzes) {
   final order = <String>[];
   final map = <String, List<QuizListItem>>{};
+  final examTypeMap = <String, String>{};
   for (final q in quizzes) {
     final key = q.courseTitle.trim().isEmpty ? 'General' : q.courseTitle.trim();
     if (!map.containsKey(key)) {
       order.add(key);
       map[key] = [];
+      examTypeMap[key] = q.examType;
     }
     map[key]!.add(q);
   }
-  return order.map((k) => QuizCourseGroup(k, map[k]!)).toList();
+  return order.map((k) => QuizCourseGroup(k, examTypeMap[k] ?? '', map[k]!)).toList();
 }
 
 // ---------------------------------------------------------------------------

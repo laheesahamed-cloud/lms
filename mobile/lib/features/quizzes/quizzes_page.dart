@@ -17,6 +17,7 @@ class QuizzesPage extends ConsumerStatefulWidget {
 
 class _QuizzesPageState extends ConsumerState<QuizzesPage> {
   late bool _exam = widget.examMode;
+  String _examTypeFilter = 'all';
 
   static const List<Color> _accents = <Color>[
     Color(0xFFF43F5E),
@@ -45,7 +46,16 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
         ),
         data: (all) {
           final list = _exam ? all : all.where((q) => !q.examModeOnly).toList();
-          final groups = groupQuizzesByCourse(list);
+          final allGroups = groupQuizzesByCourse(list);
+          final examTypes = allGroups
+              .map((g) => g.examType)
+              .where((t) => t.trim().isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
+          final groups = _examTypeFilter == 'all'
+              ? allGroups
+              : allGroups.where((g) => g.examType == _examTypeFilter).toList();
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
             children: [
@@ -71,6 +81,10 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
                     : 'Pick a course, then a subject set to practise with answers.',
                 style: TextStyle(fontSize: 14, color: c.inkSoft),
               ),
+              if (examTypes.length > 1) ...[
+                const SizedBox(height: 14),
+                _examTypeChips(c, examTypes),
+              ],
               const SizedBox(height: 16),
               if (groups.isEmpty)
                 Padding(
@@ -104,6 +118,48 @@ class _QuizzesPageState extends ConsumerState<QuizzesPage> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _examTypeChips(AppColors c, List<String> types) {
+    final all = ['all', ...types];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final type in all)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => setState(() {
+                  _examTypeFilter = type;
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _examTypeFilter == type ? c.primary : c.surface2,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _examTypeFilter == type
+                          ? c.primary
+                          : c.inkMuted.withValues(alpha: 0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    type == 'all' ? 'All' : type,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _examTypeFilter == type ? Colors.white : c.inkMedium,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

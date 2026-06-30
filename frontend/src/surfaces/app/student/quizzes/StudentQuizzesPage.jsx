@@ -461,6 +461,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
   const [bookmarkedIds, setBookmarkedIds] = useState(() => new Set(
     (readStudyBookmarksCache() || []).filter(b => b.itemType === 'quiz').map(b => b.itemId)
   ));
+  const [examTypeFilter, setExamTypeFilter] = useState('all');
   const [courseFilter,  setCourseFilter]  = useState('all');
   const [scopeFilter, setScopeFilter] = useState('all');
   const [accessPromptQuiz, setAccessPromptQuiz] = useState(null);
@@ -566,6 +567,12 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     setScopeFilter('all');
   }
 
+  function handleExamTypeFilter(type) {
+    setExamTypeFilter(type);
+    setCourseFilter('all');
+    setScopeFilter('all');
+  }
+
   function handleRequestStart(quiz, title) {
     if (!quiz.accessLocked && !isExamPage) {
       prefetchStudentQuiz(quiz.id, { mode: 'practice' });
@@ -590,19 +597,29 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
     [isExamPage, quizzes],
   );
 
+  const examTypes = useMemo(() => {
+    const types = new Set(modeQuizzes.map(q => q.examType).filter(Boolean));
+    return [...types].sort();
+  }, [modeQuizzes]);
+
+  const examTypeQuizzes = useMemo(
+    () => examTypeFilter === 'all' ? modeQuizzes : modeQuizzes.filter(q => q.examType === examTypeFilter),
+    [modeQuizzes, examTypeFilter],
+  );
+
   const courseCards = useMemo(() => {
     const map = new Map();
-    modeQuizzes.forEach((q) => {
+    examTypeQuizzes.forEach((q) => {
       const name = q.courseTitle || 'General';
       if (!map.has(name)) map.set(name, { name, quizzes: [] });
       map.get(name).quizzes.push(q);
     });
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [modeQuizzes]);
+  }, [examTypeQuizzes]);
 
   const visible = useMemo(
-    () => modeQuizzes.filter(q => courseFilter === 'all' || (q.courseTitle || 'General') === courseFilter),
-    [modeQuizzes, courseFilter],
+    () => examTypeQuizzes.filter(q => courseFilter === 'all' || (q.courseTitle || 'General') === courseFilter),
+    [examTypeQuizzes, courseFilter],
   );
   const scopedVisible = useMemo(
     () => {
@@ -699,7 +716,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             ))}
           </div>
         ) : courseFilter === 'all' ? (
-          courseCards.length === 0 ? (
+          courseCards.length === 0 && examTypes.length === 0 ? (
             <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
               <StudyMascot variant="review" mood="review" size="lg" label={isExamPage ? 'Empty exams mascot' : 'Empty Q-Bank mascot'} />
               <p className="m-0 text-center">
@@ -707,7 +724,37 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
               </p>
             </div>
           ) : (
-            <CoursePicker courses={courseCards} onSelect={handleSelectCourse} pageMode={pageMode} />
+            <>
+              {examTypes.length > 1 ? (
+                <div className="student-lessons-filter-bar mb-4">
+                  <button
+                    type="button"
+                    className={cx('student-lessons-filter-chip', examTypeFilter === 'all' && 'is-active')}
+                    onClick={() => handleExamTypeFilter('all')}
+                  >
+                    All
+                  </button>
+                  {examTypes.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      className={cx('student-lessons-filter-chip', examTypeFilter === type && 'is-active')}
+                      onClick={() => handleExamTypeFilter(type)}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {courseCards.length === 0 ? (
+                <div className={cx(ui.emptyBox, 'grid justify-items-center gap-3 py-10')}>
+                  <StudyMascot variant="review" mood="review" size="lg" label="No courses mascot" />
+                  <p className="m-0 text-center">No courses for this exam type.</p>
+                </div>
+              ) : (
+                <CoursePicker courses={courseCards} onSelect={handleSelectCourse} pageMode={pageMode} />
+              )}
+            </>
           )
         ) : scopedVisible.length === 0 ? (
           <section>
