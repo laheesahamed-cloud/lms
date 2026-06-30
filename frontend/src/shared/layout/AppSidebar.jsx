@@ -176,6 +176,13 @@ const Icons = {
       <path d="M2 10.5H5L6.5 6L9 14L11.5 8L13 10.5H18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
+  Auscultation: () => (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+      <path d="M5 2.5V7a3.5 3.5 0 0 0 7 0V2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M8.5 10.2V12a4 4 0 0 0 8 0v-1.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="16.5" cy="9.5" r="1.6" stroke="currentColor" strokeWidth="1.4"/>
+    </svg>
+  ),
 };
 
 function ChevronIcon() {
@@ -209,6 +216,7 @@ const adminLinks = [
   { to: '/ai-notes',      label: 'Lessons',       icon: 'AiNotes', requiredPermissions: ['content.manage'] },
   { to: '/drugs',         label: 'Drug Randomizer', icon: 'Drugs', requiredPermissions: ['content.manage'] },
   { to: '/ecg',           label: 'ECG Library',   icon: 'Ecg', requiredPermissions: ['content.manage'] },
+  { to: '/auscultation',  label: 'Auscultation',  icon: 'Auscultation', requiredPermissions: ['content.manage'] },
   { to: '/users',         label: 'Users',         icon: 'Users', requiredPermissions: ['students.manage'] },
   { to: '/announcements', label: 'Announcements', icon: 'Bell', requiredPermissions: ['notifications.manage'] },
   { to: '/reports',       label: 'Reports',       icon: 'Results', requiredPermissions: ['reports.view'] },
@@ -228,6 +236,7 @@ const studentLinks = [
   { to: '/bookmarks',     label: 'Saved',         icon: 'Bookmarks'  },
   { to: '/drugs',         label: 'Drugs',         icon: 'Drugs'      },
   { to: '/ecg',           label: 'ECG',           icon: 'Ecg'        },
+  { to: '/auscultation',  label: 'Auscultation',  icon: 'Auscultation' },
 ];
 
 const END_EXACT = new Set([
@@ -650,7 +659,7 @@ const mobileNavItems = [
     to: '/study',
     label: 'Study',
     icon: 'AiNotes',
-    matchPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/lessons', '/ai-notes', '/ecg', '/drugs'],
+    matchPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/lessons', '/ai-notes', '/ecg', '/drugs', '/auscultation'],
     preloadPaths: ['/study', '/planner', '/flashcards', '/bookmarks', '/lessons'],
   },
   { to: '/results',   label: 'Results',   icon: 'Results' },

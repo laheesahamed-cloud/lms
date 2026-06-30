@@ -1,0 +1,1 @@
+import{Ja as e}from"./app-shared-BsA1SrWD.js";/* empty css                        */import{PanelLayout as t}from"./PanelLayout-ConthJJu.js";var n=e();function r(){return(0,n.jsx)(t,{})}export{r as StudentPanelLayout};

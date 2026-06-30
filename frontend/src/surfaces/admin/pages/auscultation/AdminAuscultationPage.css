@@ -1,0 +1,72 @@
+.auscadm-cat {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  margin-bottom: 18px;
+}
+.auscadm-cat--inline { margin-bottom: 0; }
+.auscadm-cat-btn {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.auscadm-cat-btn.is-active { background: var(--surface-card); color: var(--ink-strong); box-shadow: var(--ds-card-shadow); }
+
+.auscadm-audio-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 7px;
+  width: fit-content;
+}
+
+/* Quiz audio source toggle */
+.auscadm-source-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  margin-bottom: 4px;
+}
+.auscadm-source-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.auscadm-source-btn.is-active { background: var(--surface-card); color: var(--ink-strong); box-shadow: var(--ds-card-shadow); }
+
+.auscadm-sound-select {
+  padding: 11px 13px;
+  border-radius: 11px;
+  border: 1.5px solid var(--line-soft);
+  background: var(--surface-2);
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-family: inherit;
+  width: 100%;
+}
+.auscadm-sound-select:focus { outline: none; border-color: var(--color-primary); background: var(--surface-card); }
+.auscadm-audio-badge.has { background: color-mix(in srgb, var(--color-success, #1e8449) 14%, transparent); color: var(--color-success-text, #145a32); }
+.auscadm-audio-badge.no { background: color-mix(in srgb, var(--color-warning, #b9770e) 16%, transparent); color: var(--color-warning-text, #9a6400); }
+
+.auscadm-audio-picked { display: grid; gap: 8px; }
+.auscadm-audio-el { width: 100%; height: 40px; }
+.auscadm-audio-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.auscadm-audio-name { font-size: 12.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

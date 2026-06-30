@@ -68,6 +68,10 @@ const EcgPage = lazyNamed(() => import('../surfaces/app/student/ecg/EcgPage.jsx'
 const EcgTopicPage = lazyNamed(() => import('../surfaces/app/student/ecg/EcgTopicPage.jsx'), 'EcgTopicPage');
 const EcgQuizPage = lazyNamed(() => import('../surfaces/app/student/ecg/EcgQuizPage.jsx'), 'EcgQuizPage');
 const AdminEcgPage = lazyNamed(() => import('../surfaces/admin/pages/ecg/AdminEcgPage.jsx'), 'AdminEcgPage');
+const AuscultationPage = lazyNamed(() => import('../surfaces/app/student/auscultation/AuscultationPage.jsx'), 'AuscultationPage');
+const AuscTopicPage = lazyNamed(() => import('../surfaces/app/student/auscultation/AuscTopicPage.jsx'), 'AuscTopicPage');
+const AuscQuizPage = lazyNamed(() => import('../surfaces/app/student/auscultation/AuscQuizPage.jsx'), 'AuscQuizPage');
+const AdminAuscultationPage = lazyNamed(() => import('../surfaces/admin/pages/auscultation/AdminAuscultationPage.jsx'), 'AdminAuscultationPage');
 const AiNotesPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesPage.jsx'), 'AiNotesPage');
 const AiNotesListPage = lazyNamed(() => import('../surfaces/app/student/ai-notes/AiNotesListPage.jsx'), 'AiNotesListPage');
 const AdminAiNotesListPage = lazyNamed(() => import('../surfaces/admin/pages/ai-notes/AdminAiNotesListPage.jsx'), 'AdminAiNotesListPage');
@@ -115,6 +119,7 @@ const roleRoutePreloaders = {
     ['/study', StudentStudyPage.preload],
     ['/drugs', DrugRandomizerPage.preload],
     ['/ecg', EcgPage.preload],
+    ['/auscultation', AuscultationPage.preload],
     ['/planner', StudyPlannerPage.preload],
     ['/lessons', AiNotesListPage.preload],
     ['/ai-notes', AiNotesListPage.preload],
@@ -233,6 +238,7 @@ const STUDENT_ROUTE_NAMES = {
   '/app/study': 'Study',
   '/app/drugs': 'Drug Randomizer',
   '/app/ecg': 'ECG',
+  '/app/auscultation': 'Auscultation',
   '/app/bookmarks': 'Saved',
   '/app/notifications': 'Notifications',
   '/app/subscriptions': 'Subscriptions',
@@ -557,6 +563,14 @@ const adminPanelRoutes = [
     ),
   },
   {
+    path: 'auscultation',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['content.manage']}>
+        <AdminAuscultationPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: 'setup',
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['settings.manage']}>
@@ -670,6 +684,18 @@ const studentPanelRoutes = [
   {
     path: 'ecg/quiz',
     element: withSuspense(<EcgQuizPage />),
+  },
+  {
+    path: 'auscultation',
+    element: withSuspense(<AuscultationPage />),
+  },
+  {
+    path: 'auscultation/topic/:id',
+    element: withSuspense(<AuscTopicPage />),
+  },
+  {
+    path: 'auscultation/quiz',
+    element: withSuspense(<AuscQuizPage />),
   },
   {
     path: 'study/lesson/:lessonId',

@@ -277,6 +277,8 @@ function rewriteApiBoundary(path, method) {
             return `/api/admin/drugs${restPath}`;
         if (resource === 'ecg')
             return `/api/admin/ecg${restPath}`;
+        if (resource === 'auscultation')
+            return `/api/admin/auscultation${restPath}`;
         if (resource && ['courses', 'topics', 'subtopics', 'questions', 'quizzes', 'users', 'settings', 'setup', 'papers', 'theory-recap', 'smart-notes', 'ai'].includes(resource)) {
             return `/api/${resource}${restPath}`;
         }
@@ -326,6 +328,8 @@ function rewriteApiBoundary(path, method) {
             return `/api/drugs${restPath}`;
         if (resource === 'ecg')
             return `/api/ecg${restPath}`;
+        if (resource === 'auscultation')
+            return `/api/auscultation${restPath}`;
         if (resource === 'bookmarks')
             return `/api/study-bookmarks${restPath}`;
         if (resource === 'notifications')

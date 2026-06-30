@@ -1,0 +1,1 @@
+import{x as e}from"./vendor-Q6n4keow.js";export{e as HapticsWeb};

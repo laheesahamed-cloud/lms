@@ -1,0 +1,38 @@
+.ausc-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin: 0 0 16px; padding: 7px 14px 7px 10px;
+  border-radius: 999px; border: 1px solid var(--line-soft);
+  background: var(--surface-card); color: var(--ink-soft);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ausc-back:hover { background: var(--surface-2); color: var(--ink-strong); }
+
+.ausc-card-stack { display: grid; gap: 16px; }
+
+.ausc-snd-card {
+  border-radius: var(--ds-card-radius, 20px);
+  background: var(--surface-card);
+  border: 1px solid var(--line-soft);
+  box-shadow: var(--ds-card-shadow);
+  padding: 16px 18px 18px;
+}
+.ausc-snd-card--skeleton {
+  height: 150px;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%; animation: ausc-shimmer 1.3s infinite;
+}
+@keyframes ausc-shimmer { to { background-position: -200% 0; } }
+
+.ausc-snd-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.ausc-snd-num {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border-radius: 9px; background: var(--color-primary-light); color: var(--color-primary);
+  font-size: 13px; font-weight: 800; flex-shrink: 0;
+}
+.ausc-snd-title { font-size: 16.5px; font-weight: 800; color: var(--ink-strong); margin: 0; letter-spacing: -0.3px; }
+
+.ausc-snd-explanation { margin: 14px 0 0; font-size: 14.5px; line-height: 1.62; color: var(--ink-soft); }
+
+.ausc-error { color: var(--color-error-text, #c0392b); font-size: 14px; margin: 8px 0; }
+.ausc-empty { color: var(--ink-soft); font-size: 14px; text-align: center; padding: 40px 0; }

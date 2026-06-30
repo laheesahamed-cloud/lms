@@ -1,0 +1,108 @@
+.auscp {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+}
+.auscp--heart { --auscp-accent: #e0567b; }
+.auscp--lung  { --auscp-accent: #2f9e8f; }
+
+.auscp-btn {
+  width: 52px; height: 52px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: none;
+  background: var(--auscp-accent);
+  color: #fff;
+  display: grid; place-items: center;
+  cursor: pointer;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--auscp-accent) 40%, transparent);
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+.auscp-btn:hover { transform: scale(1.05); }
+.auscp-btn:active { transform: scale(0.97); }
+.auscp-btn:disabled { opacity: 0.6; cursor: default; }
+
+.auscp-spin {
+  width: 20px; height: 20px;
+  border: 2.5px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: auscp-rot 0.7s linear infinite;
+}
+@keyframes auscp-rot { to { transform: rotate(360deg); } }
+
+.auscp-main { flex: 1; min-width: 0; display: grid; gap: 7px; }
+.auscp-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.auscp-title { font-size: 13.5px; font-weight: 700; color: var(--ink-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auscp-cat { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; color: var(--ink-soft); flex-shrink: 0; }
+.auscp-cat svg { color: var(--auscp-accent); }
+
+/* ── Visualizer ── */
+.auscp-viz {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 2px;
+}
+.auscp-bar {
+  flex: 1;
+  min-width: 3px;
+  height: 18%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--auscp-accent) 55%, transparent);
+  transform-origin: center;
+}
+/* idle = flat-ish; playing = animated */
+.auscp.is-playing .auscp-bar {
+  background: var(--auscp-accent);
+}
+
+/* Heart: sharp, syncopated beat */
+.auscp--heart.is-playing .auscp-bar {
+  animation: auscp-beat 0.85s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.06s);
+}
+@keyframes auscp-beat {
+  0%, 100% { height: 16%; }
+  12% { height: 92%; }
+  22% { height: 30%; }
+  34% { height: 64%; }
+  50% { height: 18%; }
+}
+
+/* Lung: slow, smooth breathing swell */
+.auscp--lung.is-playing .auscp-bar {
+  animation: auscp-breathe 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.12s);
+}
+@keyframes auscp-breathe {
+  0%, 100% { height: 22%; }
+  50% { height: 80%; }
+}
+
+.auscp-progress { display: grid; gap: 3px; }
+.auscp-seek {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px;
+  border-radius: 999px;
+  background: var(--line-medium, var(--line-soft));
+  cursor: pointer;
+}
+.auscp-seek::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--auscp-accent); cursor: pointer; border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.auscp-seek::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--auscp-accent); cursor: pointer; border: 2px solid #fff;
+}
+.auscp-time { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+
+.auscp-error { font-size: 12px; color: var(--color-error-text, #c0392b); }

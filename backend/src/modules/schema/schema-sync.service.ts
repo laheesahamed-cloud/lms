@@ -61,6 +61,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureContentGovernanceTables(connection);
       await this.ensureAdminAuditEventsTable(connection);
       await this.ensureEcgTables(connection);
+      await this.ensureAuscultationTables(connection);
       await this.ensureUserRoleColumnSupportsStaff(connection);
       await this.ensureStudyActivityEventTypes(connection);
       await this.ensureColumn(connection, 'users', 'avatar_key', "VARCHAR(64) NULL AFTER status");
@@ -734,6 +735,63 @@ export class SchemaSyncService implements OnModuleInit {
         INDEX idx_ecg_quiz_position (position)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+  }
+
+  private async ensureAuscultationTables(connection: PoolConnection) {
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS auscultation_topics (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        category    ENUM('heart','lung') NOT NULL DEFAULT 'heart',
+        title       VARCHAR(255) NOT NULL,
+        description TEXT NULL,
+        position    INT NOT NULL DEFAULT 0,
+        is_active   TINYINT(1) NOT NULL DEFAULT 1,
+        created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_ausc_topics_cat (category),
+        INDEX idx_ausc_topics_active (is_active),
+        INDEX idx_ausc_topics_position (position)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS auscultation_cards (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        topic_id    INT UNSIGNED NOT NULL,
+        title       VARCHAR(255) NOT NULL,
+        audio_file  VARCHAR(255) NULL,
+        audio_mime  VARCHAR(80) NULL,
+        explanation TEXT NULL,
+        position    INT NOT NULL DEFAULT 0,
+        is_active   TINYINT(1) NOT NULL DEFAULT 1,
+        created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_ausc_cards_topic (topic_id),
+        INDEX idx_ausc_cards_active (is_active),
+        INDEX idx_ausc_cards_position (position)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS auscultation_quiz_questions (
+        id            INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        category      ENUM('heart','lung') NOT NULL DEFAULT 'heart',
+        question_text VARCHAR(500) NOT NULL DEFAULT 'What is this sound?',
+        audio_file    VARCHAR(255) NULL,
+        audio_mime    VARCHAR(80) NULL,
+        source_card_id INT UNSIGNED NULL,
+        options_json  JSON NULL,
+        explanation   TEXT NULL,
+        position      INT NOT NULL DEFAULT 0,
+        is_active     TINYINT(1) NOT NULL DEFAULT 1,
+        created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_ausc_quiz_cat (category),
+        INDEX idx_ausc_quiz_active (is_active),
+        INDEX idx_ausc_quiz_position (position)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await this.ensureColumn(connection, 'auscultation_quiz_questions', 'source_card_id', 'INT UNSIGNED NULL AFTER audio_mime');
   }
 
   private async ensureAiProviderConfigsTable(connection: PoolConnection) {
