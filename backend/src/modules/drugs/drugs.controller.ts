@@ -22,8 +22,11 @@ export class DrugsController {
       return { blocked: true, reason: 'feature_disabled' };
     }
 
-    const hasSubscription = !!student.hasActiveSubscription;
-    const result = await this.svc.getBatch(student.id, Number(count));
+    // Check subscription directly from DB — session cache can be stale
+    const [hasSubscription, result] = await Promise.all([
+      this.svc.checkSubscription(student.id),
+      this.svc.getBatch(student.id, Number(count)),
+    ]);
 
     return {
       ...result,
@@ -35,7 +38,8 @@ export class DrugsController {
   @Post('record')
   async record(@Headers('authorization') auth?: string) {
     const student = await this.authService.requireStudent(auth);
-    const hasSubscription = !!student.hasActiveSubscription;
+    // Check subscription directly from DB — never trust session hasActiveSubscription
+    const hasSubscription = await this.svc.checkSubscription(student.id);
     const settings = this.svc.getSettings();
 
     const useCount = await this.svc.getSpinCount(student.id);

@@ -74,6 +74,10 @@ let DrugsService = DrugsService_1 = class DrugsService {
             enabled: this.settingsCache.enabled,
         };
     }
+    async checkSubscription(userId) {
+        const [rows] = await this.db.execute(`SELECT COUNT(*) AS cnt FROM user_subscriptions WHERE user_id = ? AND status = 'active' AND start_date <= CURDATE() AND end_date >= CURDATE()`, [userId]);
+        return Number(rows[0]?.cnt ?? 0) > 0;
+    }
     async getSpinCount(userId) {
         const [rows] = await this.db.execute(`SELECT drug_spins_used FROM users WHERE id = ?`, [userId]);
         return Number(rows[0]?.drug_spins_used ?? 0);

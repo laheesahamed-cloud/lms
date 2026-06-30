@@ -74,29 +74,30 @@ class DrugQueueNotifier extends Notifier<DrugQueueState> {
     }
   }
 
-  // Returns next drug instantly from queue, triggers refill if low
-  DrugItem? pop() {
+  // Awaits server confirmation before consuming the item.
+  // Returns the drug item on success, null if limit reached or queue empty.
+  Future<DrugItem?> pop() async {
     if (state.queue.isEmpty) return null;
 
-    final item     = state.queue.first;
+    final item = state.queue.first;
+
+    // Server is the single source of truth — check before consuming
+    final res = await ref.read(drugRandomizerRepositoryProvider).recordSpin();
+
+    if (res != null && res['ok'] == false && res['reason'] == 'limit_reached') {
+      final cap = (res['freeLimit'] as num?)?.toInt() ?? state.freeLimit;
+      state = state.copyWith(useCount: cap, hasSub: false);
+      return null; // signal: limit reached
+    }
+
+    // Accepted — consume item and update count from server
+    final serverCount = (res?['useCount'] as num?)?.toInt();
     final newQueue = state.queue.sublist(1);
-    state = state.copyWith(queue: newQueue, useCount: state.useCount + 1);
+    state = state.copyWith(
+      queue: newQueue,
+      useCount: serverCount ?? state.useCount + 1,
+    );
 
-    // Record on server and sync authoritative count back
-    ref.read(drugRandomizerRepositoryProvider).recordSpin().then((res) {
-      if (res == null) return;
-      if (res['ok'] == false && res['reason'] == 'limit_reached') {
-        final cap = (res['freeLimit'] as num?)?.toInt() ?? state.freeLimit;
-        state = state.copyWith(useCount: cap, hasSub: false);
-      } else {
-        final serverCount = (res['useCount'] as num?)?.toInt();
-        if (serverCount != null && serverCount > state.useCount) {
-          state = state.copyWith(useCount: serverCount);
-        }
-      }
-    });
-
-    // Silently refill when low
     if (newQueue.length <= _refillAt && !_fetching) {
       Future.microtask(() => _fetchBatch(_refillCount));
     }

@@ -145,46 +145,38 @@ export function DrugRandomizerPage() {
     setMcqCorrect(null);
     setResult(null);
 
-    if (!hasSub && useCountRef.current >= freeLimit) {
-      setShowUpgrade(true);
-      return;
-    }
-
     let item = queueRef.current.shift();
-
     if (!item) {
-      // Queue empty — wait for fetch (rare edge case)
       await fetchBatch(BATCH_SIZE, !ready);
       item = queueRef.current.shift();
       if (!item) { setError('Could not load a drug. Please try again.'); return; }
     }
 
-    useCountRef.current += 1;
-    metaRef.current.useCount = useCountRef.current;
-    setUseCount(useCountRef.current);
+    // Server is the single source of truth — await before spinning
+    const res = await recordDrugSpin();
+    if (res && res.ok === false && res.reason === 'limit_reached') {
+      // Put item back so it can be used after upgrade
+      queueRef.current.unshift(item);
+      const cap = res.freeLimit ?? freeLimit;
+      useCountRef.current = cap;
+      metaRef.current.useCount = cap;
+      metaRef.current.hasSub = false;
+      setUseCount(cap);
+      setHasSub(false);
+      setShowUpgrade(true);
+      return;
+    }
 
-    // Record on server; sync authoritative count back when the response arrives
-    recordDrugSpin().then(res => {
-      if (!res) return;
-      if (res.ok === false && res.reason === 'limit_reached') {
-        // Server rejected it — cap count and correct hasSub so the next spin is blocked
-        const cap = res.freeLimit ?? freeLimit;
-        useCountRef.current = cap;
-        metaRef.current.useCount = cap;
-        metaRef.current.hasSub = false;
-        setUseCount(cap);
-        setHasSub(false);
-      } else if (res.useCount > useCountRef.current) {
-        useCountRef.current = res.useCount;
-        metaRef.current.useCount = res.useCount;
-        setUseCount(res.useCount);
-      }
-    });
+    // Accepted — update count from server response
+    const newCount = (res?.useCount) ?? (useCountRef.current + 1);
+    useCountRef.current = newCount;
+    metaRef.current.useCount = newCount;
+    setUseCount(newCount);
 
     if (queueRef.current.length <= REFILL_AT) {
       void fetchBatch(REFILL_COUNT, false);
     } else {
-      persistQueue(); // update cache with popped item
+      persistQueue();
     }
 
     spinDataRef.current = item;

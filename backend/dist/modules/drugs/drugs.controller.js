@@ -27,13 +27,15 @@ let DrugsController = class DrugsController {
         if (!settings.enabled) {
             return { blocked: true, reason: 'feature_disabled' };
         }
-        const hasSubscription = !!student.hasActiveSubscription;
-        const result = await this.svc.getBatch(student.id, Number(count));
+        const [hasSubscription, result] = await Promise.all([
+            this.svc.checkSubscription(student.id),
+            this.svc.getBatch(student.id, Number(count)),
+        ]);
         return { ...result, hasSubscription };
     }
     async record(auth) {
         const student = await this.authService.requireStudent(auth);
-        const hasSubscription = !!student.hasActiveSubscription;
+        const hasSubscription = await this.svc.checkSubscription(student.id);
         const settings = this.svc.getSettings();
         const useCount = await this.svc.getSpinCount(student.id);
         if (!hasSubscription && useCount >= settings.freeLimit) {
