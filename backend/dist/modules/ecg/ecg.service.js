@@ -21,11 +21,10 @@ let EcgService = class EcgService {
     }
     async listTopics() {
         const [rows] = await this.db.execute(`SELECT t.id, t.title, t.description, t.position,
-              COUNT(c.id) AS card_count
+              (SELECT COUNT(*) FROM ecg_cards c
+                WHERE c.topic_id = t.id AND c.is_active = 1) AS card_count
          FROM ecg_topics t
-         LEFT JOIN ecg_cards c ON c.topic_id = t.id AND c.is_active = 1
         WHERE t.is_active = 1
-        GROUP BY t.id
         ORDER BY t.position ASC, t.id ASC`);
         return rows.map((r) => ({
             id: r.id,
@@ -150,10 +149,8 @@ let EcgService = class EcgService {
     async listTopicsAdmin() {
         const [rows] = await this.db.execute(`SELECT t.id, t.title, t.description, t.position, t.is_active,
               t.created_at, t.updated_at,
-              COUNT(c.id) AS card_count
+              (SELECT COUNT(*) FROM ecg_cards c WHERE c.topic_id = t.id) AS card_count
          FROM ecg_topics t
-         LEFT JOIN ecg_cards c ON c.topic_id = t.id
-        GROUP BY t.id
         ORDER BY t.position ASC, t.id ASC`);
         return rows;
     }
