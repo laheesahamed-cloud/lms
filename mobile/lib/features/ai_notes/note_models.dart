@@ -112,9 +112,10 @@ class NoteDoc {
 
 /// A row in the AI-notes list (`GET /student/ai-notes`).
 class NoteListItem {
-  final String id;
-  final String lessonId;
-  final String title;
+  final String id;          // note's own id — always set
+  final String lessonId;    // linked lesson id — empty for topic-level notes
+  final String lessonTitle; // raw lesson title from API — empty when lesson was deleted
+  final String title;       // display title (lessonTitle ?? note title)
   final String courseTitle;
   final String courseId;
   final String examType;
@@ -123,6 +124,7 @@ class NoteListItem {
   NoteListItem({
     required this.id,
     required this.lessonId,
+    required this.lessonTitle,
     required this.title,
     required this.courseTitle,
     required this.courseId,
@@ -130,19 +132,25 @@ class NoteListItem {
     required this.subjectName,
   });
 
-  // Keep subtitle as alias so existing code that reads it still compiles.
   String get subtitle => courseTitle;
+
+  // True when this note's linked lesson still exists (or it's a topic-level note)
+  bool get lessonExists => lessonId.isEmpty || lessonTitle.isNotEmpty;
+
+  // Best id for canvas navigation: real lessonId when present, else note's own id
+  String get canvasId => lessonId.isNotEmpty ? lessonId : id;
 
   factory NoteListItem.fromJson(dynamic raw) {
     final n = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final rawLessonTitle = _str(n['lessonTitle'] ?? n['lesson_title'] ?? '');
     return NoteListItem(
       id: _str(n['id'] ?? n['noteId']),
-      lessonId: _str(n['lessonId'] ?? n['lesson_id'] ?? n['id']),
-      title: _str(n['lessonTitle'] ?? n['title'] ?? 'Untitled note'),
+      lessonId: _str(n['lessonId'] ?? n['lesson_id'] ?? ''),
+      lessonTitle: rawLessonTitle,
+      title: rawLessonTitle.isNotEmpty ? rawLessonTitle : _str(n['title'] ?? 'Untitled note'),
       courseTitle: _str(n['courseTitle'] ?? ''),
       courseId: _str(n['courseId'] ?? n['course_id'] ?? ''),
       examType: _str(n['examType'] ?? ''),
-      // API returns topicName (the "subject" level in the hierarchy)
       subjectName: _str(n['topicName'] ?? n['topic_name'] ?? n['subjectName'] ?? n['subject'] ?? ''),
     );
   }

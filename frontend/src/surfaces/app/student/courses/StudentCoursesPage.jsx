@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchStudentCourses, fetchStudentCourseDetail, readStudentCoursesCache } from '../../../../shared/api/courses.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
@@ -179,6 +179,7 @@ export function StudentCoursesPage() {
   const [courses, setCourses] = useState(() => readStudentCoursesCache() || []);
   const [loading, setLoading] = useState(() => readStudentCoursesCache() === undefined);
   const [error, setError] = useState('');
+  const [examTypeFilter, setExamTypeFilter] = useState('all');
   const [selectedCourseId, setSelectedCourseId] = useState(() => location.state?.selectedCourseId || null);
   const [courseDetailCache, setCourseDetailCache] = useState({});
 
@@ -266,6 +267,16 @@ export function StudentCoursesPage() {
     });
   }, []);
 
+  const examTypes = useMemo(() => {
+    const types = new Set(courses.map(c => c.examType).filter(Boolean));
+    return [...types].sort();
+  }, [courses]);
+
+  const visibleCourses = useMemo(
+    () => examTypeFilter === 'all' ? courses : courses.filter(c => c.examType === examTypeFilter),
+    [courses, examTypeFilter],
+  );
+
   if (selectedCourseId) {
     return (
       <CourseDetailPage
@@ -295,22 +306,44 @@ export function StudentCoursesPage() {
 
             {!loading ? (
               <span className="rounded-full border border-line-soft bg-surface-card px-3 py-1.5 text-[12px] font-extrabold text-ink-medium dark:border-white/10 dark:bg-white/[0.04]">
-                {courses.length} {courses.length === 1 ? 'course' : 'courses'}
+                {visibleCourses.length} {visibleCourses.length === 1 ? 'course' : 'courses'}
               </span>
             ) : null}
           </div>
 
+          {!loading && examTypes.length > 0 ? (
+            <div className="student-lessons-filter-bar">
+              <button
+                type="button"
+                className={cx('student-lessons-filter-chip', examTypeFilter === 'all' && 'is-active')}
+                onClick={() => setExamTypeFilter('all')}
+              >
+                All
+              </button>
+              {examTypes.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  className={cx('student-lessons-filter-chip', examTypeFilter === type && 'is-active')}
+                  onClick={() => setExamTypeFilter(type)}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-3 max-[520px]:grid-cols-1 max-[520px]:gap-2">
             {loading ? [1, 2, 3, 4, 5, 6].map((item) => <CourseSkeleton key={item} />) : null}
 
-            {!loading && courses.length === 0 ? (
+            {!loading && visibleCourses.length === 0 ? (
               <div className={cx(ui.emptyBox, 'col-span-full')}>
                 No active courses are available yet.
               </div>
             ) : null}
 
             {!loading
-              ? courses.map((course) => (
+              ? visibleCourses.map((course) => (
                   <CourseCard
                     key={course.id}
                     course={course}

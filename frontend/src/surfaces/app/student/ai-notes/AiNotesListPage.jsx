@@ -525,7 +525,7 @@ export function AiNotesListPage({
                   {filteredHierarchy.length} {filteredHierarchy.length === 1 ? 'course' : 'courses'}
                 </span>
               </div>
-              {examTypes.length > 1 ? (
+              {examTypes.length > 0 ? (
                 <div className="student-lessons-filter-bar mb-4">
                   <button
                     type="button"
