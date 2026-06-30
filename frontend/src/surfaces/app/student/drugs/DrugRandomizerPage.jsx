@@ -167,11 +167,13 @@ export function DrugRandomizerPage() {
     recordDrugSpin().then(res => {
       if (!res) return;
       if (res.ok === false && res.reason === 'limit_reached') {
-        // Server rejected it — count was already at limit (local check raced); force to limit
+        // Server rejected it — cap count and correct hasSub so the next spin is blocked
         const cap = res.freeLimit ?? freeLimit;
         useCountRef.current = cap;
         metaRef.current.useCount = cap;
+        metaRef.current.hasSub = false;
         setUseCount(cap);
+        setHasSub(false);
       } else if (res.useCount > useCountRef.current) {
         useCountRef.current = res.useCount;
         metaRef.current.useCount = res.useCount;
