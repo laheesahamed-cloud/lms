@@ -644,7 +644,7 @@ export function StudentQuizzesPage({ pageMode = 'practice' }) {
             Exams entry (it's grouped under Q-Bank), so this segmented control is
             how students reach exams from the first course-list page. */}
         {courseFilter === 'all' ? (
-          <div className="mb-4 flex justify-center xl:hidden">
+          <div className="mb-4 flex justify-center">
             {PLATFORM.isNative ? (
               <div className="relative flex w-full max-w-[420px] rounded-full border border-line-soft bg-surface-card p-1">
                 {/* Sliding thumb glides between the two segments — native polish. */}
