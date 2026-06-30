@@ -2,6 +2,33 @@ import 'package:flutter/material.dart';
 import '../../../theme/tokens.dart';
 import '../../../widgets/glass_card.dart';
 
+const _maxPoints   = 6;
+const _maxPointLen = 180;
+
+// Mirror of web DrugCard splitPoints logic
+List<String> _splitPoints(String text) {
+  // 1. Try semicolon split (how import script joins items)
+  List<String> parts = text.split(RegExp(r';\s*')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+  // 2. Fall back to sentence boundaries
+  if (parts.length == 1) {
+    parts = text.split(RegExp(r'(?<=\.)\s+')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  }
+
+  // 3. Strip leading section numbers like "1.1 SECTION HEADER "
+  final sectionPrefix = RegExp(r'^\d+(\.\d+)?\s+[A-Z][A-Z\s,()/\-]+\s+');
+  parts = parts.map((s) => s.replaceFirst(sectionPrefix, '').trim()).where((s) => s.isNotEmpty).toList();
+
+  // 4. Limit count and length
+  return parts
+      .take(_maxPoints)
+      .map((s) => s.length > _maxPointLen ? '${s.substring(0, _maxPointLen).trimRight()}…' : s)
+      .toList();
+}
+
+String _stripTag(String text) =>
+    text.replaceAll(RegExp(r'\s*\[EPC\]|\s*\[MoA\]|\s*\[PE\]|\s*\[CS\]'), '').trim();
+
 const _sections = [
   _Section('drug_class',        'Drug Class',        Icons.category_outlined),
   _Section('sl_brand_names',    'SL Brand Names',    Icons.local_pharmacy_outlined),
@@ -92,7 +119,9 @@ class DrugInfoCard extends StatelessWidget {
                     _SectionRow(
                       icon: sec.icon,
                       label: sec.label,
-                      body: drug[sec.key] as String,
+                      body: sec.key == 'drug_class'
+                          ? _stripTag(drug[sec.key] as String)
+                          : drug[sec.key] as String,
                       c: c,
                     ),
               ],
@@ -113,6 +142,8 @@ class _SectionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final points = _splitPoints(body);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Column(
@@ -138,10 +169,40 @@ class _SectionRow extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            child: Text(
-              body,
-              style: TextStyle(fontSize: 13, color: c.inkStrong, height: 1.5),
-            ),
+            child: points.length == 1
+                ? Text(points[0],
+                    style: TextStyle(fontSize: 13, color: c.inkStrong, height: 1.5))
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: points
+                        .map((pt) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 5, right: 6),
+                                    child: Container(
+                                      width: 5,
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        color: c.primary.withValues(alpha: 0.7),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(pt,
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: c.inkStrong,
+                                            height: 1.5)),
+                                  ),
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                  ),
           ),
           Divider(height: 1, color: c.inkMuted.withValues(alpha: 0.08)),
         ],
