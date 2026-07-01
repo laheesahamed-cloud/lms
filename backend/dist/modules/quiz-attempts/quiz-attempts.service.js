@@ -1078,20 +1078,10 @@ let QuizAttemptsService = class QuizAttemptsService {
     async ensureExamSession(userId, quizId, quiz) {
         let session = await this.getLatestExamSession(userId, quizId);
         if (session?.status === 'in_progress' && this.isExamSessionExpired(session)) {
-            const questions = await this.loadQuestionsForExamSession(quiz, session);
-            const attemptId = await this.finalizeExpiredExamSession(userId, quizId, session.id, questions);
+            const expiredQuestions = await this.loadQuestionsForExamSession(quiz, session);
+            await this.finalizeExpiredExamSession(userId, quizId, session.id, expiredQuestions);
+            // Re-fetch so the next block sees status='expired' and creates a fresh session.
             session = await this.getLatestExamSession(userId, quizId);
-            if (!session) {
-                throw new common_1.NotFoundException('Exam session not found');
-            }
-            return {
-                session: this.mapExamSession({
-                    ...session,
-                    status: 'expired',
-                    submitted_attempt_id: attemptId,
-                }),
-                questions,
-            };
         }
         if (!session || session.status !== 'in_progress') {
             const questionIds = this.isDynamicQuiz(quiz) ? await this.generateDynamicQuestionIds(quiz) : [];
