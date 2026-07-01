@@ -773,14 +773,23 @@ class _StreakHeatmapCard extends ConsumerWidget {
       orElse: () => <String>{},
     );
     final now = DateTime.now();
-    final todayIndex = (now.weekday + 6) % 7; // Mon=0 … Sun=6
+    // Monday of the current week
+    final monday = now.subtract(Duration(days: now.weekday - 1));
     const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    // Build date key for each of the last 7 days (index 0 = 6 days ago, 6 = today)
+    // Date key for each day of the current week (Mon=0 … Sun=6)
     String dayKey(int i) {
-      final d = now.subtract(Duration(days: 6 - i));
+      final d = monday.add(Duration(days: i));
       return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     }
-    final activeDaysCount = activeDaySet.length;
+    bool isFuture(int i) => monday.add(Duration(days: i)).isAfter(now);
+    bool isToday(int i) {
+      final d = monday.add(Duration(days: i));
+      return d.year == now.year && d.month == now.month && d.day == now.day;
+    }
+    // Count active days so far this week
+    final activeDaysCount = List.generate(7, (i) => i)
+        .where((i) => !isFuture(i) && activeDaySet.contains(dayKey(i)))
+        .length;
     return GlassCard(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -811,16 +820,17 @@ class _StreakHeatmapCard extends ConsumerWidget {
               for (int i = 0; i < labels.length; i++)
                 _HeatCell(
                   label: labels[i],
-                  active: activeDaySet.contains(dayKey(i)),
-                  isToday: i == todayIndex,
+                  active: !isFuture(i) && activeDaySet.contains(dayKey(i)),
+                  isToday: isToday(i),
+                  isFuture: isFuture(i),
                 ),
             ],
           ),
           const SizedBox(height: 10),
           Text(
               activeDaysCount > 0
-                  ? 'Active $activeDaysCount of the last 7 days.'
-                  : 'Start your first streak today.',
+                  ? '$activeDaysCount day${activeDaysCount == 1 ? '' : 's'} active this week.'
+                  : 'No activity yet this week.',
               style: TextStyle(fontSize: 13, color: c.inkSoft)),
         ],
       ),
@@ -832,8 +842,9 @@ class _HeatCell extends StatelessWidget {
   final String label;
   final bool active;
   final bool isToday;
+  final bool isFuture;
   const _HeatCell(
-      {required this.label, required this.active, required this.isToday});
+      {required this.label, required this.active, required this.isToday, this.isFuture = false});
   @override
   Widget build(BuildContext context) {
     final c = context.c;
@@ -845,10 +856,9 @@ class _HeatCell extends StatelessWidget {
           height: 26,
           decoration: BoxDecoration(
             gradient: active ? green.gradient : null,
-            color: active ? null : c.surface2,
+            color: active ? null : isFuture ? c.surface2.withValues(alpha: 0.4) : c.surface2,
             shape: BoxShape.circle,
-            border:
-                isToday ? Border.all(color: green.color, width: 1.8) : null,
+            border: isToday ? Border.all(color: green.color, width: 1.8) : null,
           ),
           child: active
               ? const Icon(Icons.check_rounded, size: 15, color: Colors.white)
@@ -859,7 +869,11 @@ class _HeatCell extends StatelessWidget {
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: isToday ? green.color : c.inkSoft)),
+                color: isToday
+                    ? green.color
+                    : isFuture
+                        ? c.inkMuted
+                        : c.inkSoft)),
       ],
     );
   }

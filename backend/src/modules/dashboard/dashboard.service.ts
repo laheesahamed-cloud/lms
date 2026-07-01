@@ -656,7 +656,7 @@ export class DashboardService {
            UNION
            SELECT DISTINCT DATE(created_at) AS attempt_day
            FROM study_activity_events
-           WHERE user_id = ? AND activity_type = 'practice_completed'
+           WHERE user_id = ? AND activity_type IN ('practice_completed', 'ai_note_viewed')
          ) AS days
          ORDER BY attempt_day DESC`,
         [student.id, student.id]
