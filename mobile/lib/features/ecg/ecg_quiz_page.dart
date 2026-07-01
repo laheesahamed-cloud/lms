@@ -93,7 +93,7 @@ class _EcgQuizPageState extends ConsumerState<EcgQuizPage> {
   }
 
   Widget _buildBody(AppColors c) {
-    if (_loading) return _Skeleton(c: c);
+    if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return _ErrorBox(c: c, onRetry: _load);
     }
@@ -385,22 +385,6 @@ class _Result extends StatelessWidget {
 }
 
 // ── States ────────────────────────────────────────────────────────────────────
-
-class _Skeleton extends StatelessWidget {
-  final AppColors c;
-  const _Skeleton({required this.c});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 380,
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: c.line),
-      ),
-    );
-  }
-}
 
 class _EmptyBox extends StatelessWidget {
   final AppColors c;

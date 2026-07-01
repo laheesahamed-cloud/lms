@@ -75,7 +75,7 @@ class _AuscultationPageState extends ConsumerState<AuscultationPage> {
                 const SizedBox(height: AppSpace.x4),
 
                 topicsAsync.when(
-                  loading: () => _skeleton(c),
+                  loading: () => const Center(child: CircularProgressIndicator()),
                   error: (e, _) => _errorBox(c, () => ref.refresh(auscTopicsProvider(_category))),
                   data: (topics) {
                     if (topics.isEmpty) {
@@ -109,11 +109,6 @@ class _AuscultationPageState extends ConsumerState<AuscultationPage> {
       ),
     );
   }
-
-  Widget _skeleton(AppColors c) => Column(children: List.generate(3, (_) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpace.x3),
-    child: Container(height: 84, decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(AppRadius.card), border: Border.all(color: c.line))),
-  )));
 
   Widget _errorBox(AppColors c, VoidCallback onRetry) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 40),

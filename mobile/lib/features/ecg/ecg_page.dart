@@ -60,7 +60,7 @@ class EcgPage extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 topicsAsync.when(
-                  loading: () => const _TopicSkeleton(),
+                  loading: () => const Center(child: CircularProgressIndicator()),
                   error: (e, _) => _ErrorBox(
                     c: c,
                     onRetry: () => ref.refresh(ecgTopicsProvider),
@@ -212,27 +212,6 @@ class _TopicTile extends StatelessWidget {
 }
 
 // ── States ────────────────────────────────────────────────────────────────────
-
-class _TopicSkeleton extends StatelessWidget {
-  const _TopicSkeleton();
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    return Column(
-      children: List.generate(4, (_) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpace.x3),
-        child: Container(
-          height: 84,
-          decoration: BoxDecoration(
-            color: c.card,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: c.line),
-          ),
-        ),
-      )),
-    );
-  }
-}
 
 class _EmptyBox extends StatelessWidget {
   final AppColors c;
