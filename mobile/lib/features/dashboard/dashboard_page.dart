@@ -148,6 +148,7 @@ class DashboardPage extends ConsumerWidget {
           orElse: () => 'Loading your study snapshot…',
         );
     final reduced = MediaQuery.of(context).disableAnimations;
+    final isPortrait = MediaQuery.orientationOf(context) == Orientation.portrait;
     final mascotAsset = _kMascots[DateTime.now().day % _kMascots.length];
     final kids = <Widget>[
       // Top bar: notifications + profile
@@ -226,23 +227,26 @@ class DashboardPage extends ConsumerWidget {
       const SizedBox(height: 4),
       Text(goalLine, style: TextStyle(fontSize: 14, color: c.inkSoft)),
       const SizedBox(height: 14),
-      // Hero + Study Mood in one row — mood card is 1/4 the width.
-      IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 3,
-              child: _ContinueCard(name: name, mascotAsset: mascotAsset),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 1,
-              child: const _StudyMoodCard(),
-            ),
-          ],
+      // Portrait: hero card full-width, mood card hidden. Landscape: side by side.
+      if (isPortrait)
+        _ContinueCard(name: name, mascotAsset: mascotAsset)
+      else
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 3,
+                child: _ContinueCard(name: name, mascotAsset: mascotAsset),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 1,
+                child: const _StudyMoodCard(),
+              ),
+            ],
+          ),
         ),
-      ),
       const SizedBox(height: 14),
       const _MetricRow(),
       const SizedBox(height: 14),
@@ -1675,7 +1679,7 @@ class _RecentResults extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(r.quizTitle,
+                  Text(r.displayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
