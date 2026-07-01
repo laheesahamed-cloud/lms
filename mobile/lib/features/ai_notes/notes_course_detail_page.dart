@@ -326,9 +326,33 @@ class _LessonRow extends StatelessWidget {
                     color: c.inkStrong)),
           ),
           const SizedBox(width: 4),
+          if (lesson.lessonCompleted) ...[
+            const _CompletedTick(),
+            const SizedBox(width: 4),
+          ],
           Icon(Icons.chevron_right_rounded, size: 20, color: c.inkMuted),
         ],
       ),
+    );
+  }
+}
+
+/// Small green check badge — same pattern as quiz course page.
+class _CompletedTick extends StatelessWidget {
+  const _CompletedTick();
+  static const _green = Color(0xFF16A34A);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _green.withValues(alpha: 0.16),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.check_rounded, size: 15, color: _green),
     );
   }
 }

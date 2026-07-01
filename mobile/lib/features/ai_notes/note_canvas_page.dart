@@ -328,7 +328,11 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
     setState(() => _completionBusy = true);
     try {
       await markLessonComplete(ref.read(apiClientProvider), widget.lessonId);
-      if (mounted) setState(() { _lessonCompleted = true; _completionBusy = false; });
+      if (mounted) {
+        setState(() { _lessonCompleted = true; _completionBusy = false; });
+        // Invalidate the notes list so the green tick shows when the user pops back.
+        ref.invalidate(notesListProvider);
+      }
     } catch (_) {
       if (mounted) setState(() => _completionBusy = false);
       if (mounted) {

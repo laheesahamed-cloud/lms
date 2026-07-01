@@ -127,6 +127,7 @@ class NoteListItem {
   final String examType;
   final String subjectName; // topicName from API (subject grouping)
   final String topicName;   // subtopicName from API (divider within subject)
+  final bool lessonCompleted;
 
   NoteListItem({
     required this.id,
@@ -138,6 +139,7 @@ class NoteListItem {
     required this.examType,
     required this.subjectName,
     required this.topicName,
+    this.lessonCompleted = false,
   });
 
   String get subtitle => courseTitle;
@@ -161,6 +163,7 @@ class NoteListItem {
       examType: _str(n['examType'] ?? ''),
       subjectName: _str(n['topicName'] ?? n['topic_name'] ?? n['subjectName'] ?? n['subject'] ?? ''),
       topicName: _str(n['subtopicName'] ?? n['subtopic_name'] ?? ''),
+      lessonCompleted: n['lessonCompleted'] == true || n['lesson_progress_status'] == 'completed',
     );
   }
 }
