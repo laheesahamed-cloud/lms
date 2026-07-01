@@ -580,6 +580,7 @@ export class DashboardService {
       missedPatternsResult,
       todayQuizRowsResult,
       todayNoteRowsResult,
+      todayResultViewRowsResult,
       questionOfDay,
       courseProgress,
     ] = await Promise.all([
@@ -740,6 +741,12 @@ export class DashboardService {
          ORDER BY n.id DESC`,
         [student.id]
       ),
+      this.db.execute<RowDataPacket[]>(
+        `SELECT 1 FROM study_activity_events
+         WHERE user_id = ? AND activity_type = 'result_viewed' AND DATE(created_at) = CURDATE()
+         LIMIT 1`,
+        [student.id]
+      ),
       this.getRandomDashboardQuestion(student.id),
       this.coursesService.findStudentCourses(authorization),
     ]);
@@ -753,6 +760,7 @@ export class DashboardService {
     const [missedPatterns] = missedPatternsResult;
     const [todayQuizRows] = todayQuizRowsResult;
     const [todayNoteRows] = todayNoteRowsResult;
+    const [todayResultViewRows] = todayResultViewRowsResult;
     const summary = summaryRows[0];
     const courseProgressSummary = this.buildCourseProgressSummary(courseProgress);
 
@@ -854,6 +862,7 @@ export class DashboardService {
       recommendedNoteTitle: smartNotes[0]?.title || '',
       todayQuizCount: todayQuizRows.length,
       todayNoteCount: todayNoteRows.length,
+      todayResultViewCount: todayResultViewRows.length,
     });
     return {
       user: {
@@ -1068,12 +1077,14 @@ export class DashboardService {
     recommendedNoteTitle,
     todayQuizCount,
     todayNoteCount,
+    todayResultViewCount,
   }: {
     totalAttempts: number;
     weakestTopic: { topicName: string; courseTitle: string; averagePercentage: number; attemptsCount: number } | null;
     recommendedNoteTitle: string;
     todayQuizCount: number;
     todayNoteCount: number;
+    todayResultViewCount: number;
   }) {
     if (totalAttempts === 0) {
       return [
@@ -1089,7 +1100,7 @@ export class DashboardService {
           title: 'Review immediately',
           description: 'Open the result after your first quiz and mark the questions that felt uncertain.',
           actionType: 'results',
-          status: 'queued',
+          status: todayResultViewCount > 0 ? 'done' : 'queued',
         },
         {
           key: 'lesson-primer',
@@ -1125,7 +1136,7 @@ export class DashboardService {
         title: 'Close the feedback loop',
         description: 'Open your latest result and compare missed questions with the lesson notes.',
         actionType: 'results',
-        status: todayQuizCount > 0 ? 'done' : 'queued',
+        status: todayResultViewCount > 0 || todayQuizCount > 0 ? 'done' : 'queued',
       },
     ];
   }

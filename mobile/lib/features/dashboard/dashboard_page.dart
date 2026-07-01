@@ -147,8 +147,10 @@ class DashboardPage extends ConsumerWidget {
           },
           orElse: () => 'Loading your study snapshot…',
         );
-    final reduced = MediaQuery.of(context).disableAnimations;
-    final isPortrait = MediaQuery.orientationOf(context) == Orientation.portrait;
+    final mq = MediaQuery.of(context);
+    final reduced = mq.disableAnimations;
+    final isPortrait = mq.orientation == Orientation.portrait;
+    final isPhonePortrait = isPortrait && mq.size.width < 600;
     final mascotAsset = _kMascots[DateTime.now().day % _kMascots.length];
     final kids = <Widget>[
       // Top bar: notifications + profile
@@ -227,8 +229,9 @@ class DashboardPage extends ConsumerWidget {
       const SizedBox(height: 4),
       Text(goalLine, style: TextStyle(fontSize: 14, color: c.inkSoft)),
       const SizedBox(height: 14),
-      // Portrait: hero card full-width, mood card hidden. Landscape: side by side.
-      if (isPortrait)
+      // Phone portrait: hero full-width, mood card hidden.
+      // iPad portrait + landscape: side by side.
+      if (isPhonePortrait)
         _ContinueCard(name: name, mascotAsset: mascotAsset)
       else
         IntrinsicHeight(
@@ -256,9 +259,22 @@ class DashboardPage extends ConsumerWidget {
       const SizedBox(height: 14),
       const _QuickActions(),
       const SizedBox(height: 14),
-      const _StudyPlanCard(),
-      const SizedBox(height: 14),
-      const _AnalyticsCard(),
+      if (mq.size.width >= 600)
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: const [
+              Expanded(child: _StudyPlanCard()),
+              SizedBox(width: 14),
+              Expanded(child: _AnalyticsCard()),
+            ],
+          ),
+        )
+      else ...[
+        const _StudyPlanCard(),
+        const SizedBox(height: 14),
+        const _AnalyticsCard(),
+      ],
       const SizedBox(height: 14),
       const _DailyQuestionCard(),
       const SizedBox(height: 14),

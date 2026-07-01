@@ -5,6 +5,7 @@ import '../../data/api_client.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/content_image.dart';
 import '../../widgets/glass_card.dart';
+import '../dashboard/dashboard_repository.dart';
 import '../quizzes/quizzes_repository.dart';
 
 /// Per-question review of a submitted attempt — real answers + explanations
@@ -20,6 +21,22 @@ class ReviewPage extends ConsumerStatefulWidget {
 class _ReviewPageState extends ConsumerState<ReviewPage> {
   bool _reviewed = false;
   bool _markingBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Record that the student viewed a result today so the dashboard
+    // study plan can mark the Review step as done.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(apiClientProvider).dio.post(
+        '/dashboard/student/activity',
+        data: {'activityType': 'result_viewed'},
+      ).then((_) {
+        if (mounted) ref.invalidate(studentDashboardProvider);
+      }).catchError((_) {});
+    });
+  }
 
   Future<void> _markReviewed() async {
     if (_markingBusy || _reviewed) return;

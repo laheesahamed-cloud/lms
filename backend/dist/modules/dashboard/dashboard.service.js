@@ -373,7 +373,7 @@ let DashboardService = class DashboardService {
         const student = await this.findActiveStudentByToken(this.extractToken(authorization));
         const serverNow = new Date();
         const serverClock = this.buildServerClock(serverNow);
-        const [summaryResult, recentAttemptsResult, topicRowsResult, smartNotesResult, attemptDaysResult, performanceWindowsResult, missedPatternsResult, todayQuizRowsResult, todayNoteRowsResult, questionOfDay, courseProgress,] = await Promise.all([
+        const [summaryResult, recentAttemptsResult, topicRowsResult, smartNotesResult, attemptDaysResult, performanceWindowsResult, missedPatternsResult, todayQuizRowsResult, todayNoteRowsResult, todayResultViewRowsResult, questionOfDay, courseProgress,] = await Promise.all([
             this.db.execute(`SELECT
           (SELECT COUNT(*) FROM quizzes WHERE status = 'active') AS total_quizzes,
           (SELECT COUNT(*) FROM quiz_attempts WHERE user_id = ?) AS total_attempts,
@@ -501,6 +501,7 @@ let DashboardService = class DashboardService {
            AND e.activity_type = 'ai_note_viewed'
            AND DATE(e.created_at) = CURDATE()
          ORDER BY n.id DESC`, [student.id]),
+            this.db.execute(`SELECT 1 FROM study_activity_events WHERE user_id = ? AND activity_type = 'result_viewed' AND DATE(created_at) = CURDATE() LIMIT 1`, [student.id]),
             this.getRandomDashboardQuestion(student.id),
             this.coursesService.findStudentCourses(authorization),
         ]);
@@ -513,6 +514,7 @@ let DashboardService = class DashboardService {
         const [missedPatterns] = missedPatternsResult;
         const [todayQuizRows] = todayQuizRowsResult;
         const [todayNoteRows] = todayNoteRowsResult;
+        const [todayResultViewRows] = todayResultViewRowsResult;
         const summary = summaryRows[0];
         const courseProgressSummary = this.buildCourseProgressSummary(courseProgress);
         const totalAttempts = Number(summary?.total_attempts || 0);
@@ -600,6 +602,7 @@ let DashboardService = class DashboardService {
             recommendedNoteTitle: smartNotes[0]?.title || '',
             todayQuizCount: todayQuizRows.length,
             todayNoteCount: todayNoteRows.length,
+            todayResultViewCount: todayResultViewRows.length,
         });
         return {
             user: {
@@ -763,7 +766,7 @@ let DashboardService = class DashboardService {
             sourceLabel: 'Course lesson progress',
         };
     }
-    buildStudentAdaptivePlan({ totalAttempts, weakestTopic, recommendedNoteTitle, todayQuizCount, todayNoteCount, }) {
+    buildStudentAdaptivePlan({ totalAttempts, weakestTopic, recommendedNoteTitle, todayQuizCount, todayNoteCount, todayResultViewCount, }) {
         if (totalAttempts === 0) {
             return [
                 {
@@ -778,7 +781,7 @@ let DashboardService = class DashboardService {
                     title: 'Review immediately',
                     description: 'Open the result after your first quiz and mark the questions that felt uncertain.',
                     actionType: 'results',
-                    status: 'queued',
+                    status: todayResultViewCount > 0 ? 'done' : 'queued',
                 },
                 {
                     key: 'lesson-primer',
@@ -813,7 +816,7 @@ let DashboardService = class DashboardService {
                 title: 'Close the feedback loop',
                 description: 'Open your latest result and compare missed questions with the lesson notes.',
                 actionType: 'results',
-                status: todayQuizCount > 0 ? 'done' : 'queued',
+                status: todayResultViewCount > 0 || todayQuizCount > 0 ? 'done' : 'queued',
             },
         ];
     }
