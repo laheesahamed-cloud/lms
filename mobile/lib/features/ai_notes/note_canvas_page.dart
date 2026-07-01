@@ -12,7 +12,6 @@ import '../../state/auth_controller.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/content_image.dart';
 import '../../widgets/locked_view.dart';
-import '../../widgets/skeletons.dart';
 import '../bookmarks/bookmark_button.dart';
 import 'note_models.dart';
 import 'notes_repository.dart';
@@ -804,7 +803,7 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
             _toolStrip(c),
             Expanded(
               child: noteAsync.when(
-                loading: () => const NoteSkeleton(),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => _error(c, e),
                 data: (note) => note.locked
                     ? LockedView(
