@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
@@ -81,12 +82,24 @@ class _AuscultationPageState extends ConsumerState<AuscultationPage> {
                       return Padding(padding: const EdgeInsets.symmetric(vertical: 40),
                         child: Center(child: Text('No $_category sound topics yet.', style: TextStyle(fontSize: 14, color: c.inkSoft))));
                     }
-                    return Column(children: [
-                      for (var i = 0; i < topics.length; i++) ...[
-                        _TopicTile(index: i, topic: topics[i], c: c, onTap: () => context.push('/app/auscultation/topic/${topics[i].id}')),
-                        const SizedBox(height: AppSpace.x3),
-                      ],
-                    ]);
+                    return AnimationLimiter(
+                      child: Column(
+                        children: AnimationConfiguration.toStaggeredList(
+                          duration: const Duration(milliseconds: 375),
+                          childAnimationBuilder: (w) => SlideAnimation(
+                            verticalOffset: 22,
+                            child: FadeInAnimation(child: w),
+                          ),
+                          children: [
+                            for (var i = 0; i < topics.length; i++)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: AppSpace.x3),
+                                child: _TopicTile(index: i, topic: topics[i], c: c, onTap: () => context.push('/app/auscultation/topic/${topics[i].id}')),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
                   },
                 ),
               ],

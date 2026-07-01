@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
@@ -68,18 +69,28 @@ class EcgPage extends ConsumerWidget {
                     if (topics.isEmpty) {
                       return _EmptyBox(c: c, text: 'No ECG topics yet. Check back soon.');
                     }
-                    return Column(
-                      children: [
-                        for (var i = 0; i < topics.length; i++) ...[
-                          _TopicTile(
-                            index: i,
-                            topic: topics[i],
-                            c: c,
-                            onTap: () => context.push('/app/ecg/topic/${topics[i].id}'),
+                    return AnimationLimiter(
+                      child: Column(
+                        children: AnimationConfiguration.toStaggeredList(
+                          duration: const Duration(milliseconds: 375),
+                          childAnimationBuilder: (w) => SlideAnimation(
+                            verticalOffset: 22,
+                            child: FadeInAnimation(child: w),
                           ),
-                          const SizedBox(height: AppSpace.x3),
-                        ],
-                      ],
+                          children: [
+                            for (var i = 0; i < topics.length; i++)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: AppSpace.x3),
+                                child: _TopicTile(
+                                  index: i,
+                                  topic: topics[i],
+                                  c: c,
+                                  onTap: () => context.push('/app/ecg/topic/${topics[i].id}'),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),
