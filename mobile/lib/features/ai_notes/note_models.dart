@@ -27,6 +27,8 @@ class NoteDoc {
   final bool locked; // subscription doesn't include this lesson
   final String lockReason;
   final int noteId; // ai_illustrated_notes id (for bookmarking); 0 if unknown
+  final bool lessonCompleted;
+  final String lessonProgressStatus; // 'not_started' | 'in_progress' | 'completed'
 
   NoteDoc({
     required this.title,
@@ -39,6 +41,8 @@ class NoteDoc {
     this.locked = false,
     this.lockReason = '',
     this.noteId = 0,
+    this.lessonCompleted = false,
+    this.lessonProgressStatus = 'not_started',
   });
 
   /// No note generated for an accessible lesson.
@@ -101,6 +105,8 @@ class NoteDoc {
       noteId: int.tryParse(
               '${note['id'] ?? note['noteId'] ?? note['aiNoteId'] ?? ''}') ??
           0,
+      lessonCompleted: note['lessonCompleted'] == true || note['lesson_progress_status'] == 'completed',
+      lessonProgressStatus: _str(note['lessonProgressStatus'] ?? note['lesson_progress_status'] ?? 'not_started'),
     );
   }
 

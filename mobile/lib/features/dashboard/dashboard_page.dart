@@ -226,8 +226,6 @@ class DashboardPage extends ConsumerWidget {
       const SizedBox(height: 4),
       Text(goalLine, style: TextStyle(fontSize: 14, color: c.inkSoft)),
       const SizedBox(height: 14),
-      const _MetricRow(),
-      const SizedBox(height: 14),
       // Hero + Study Mood in one row — mood card is 1/4 the width.
       IntrinsicHeight(
         child: Row(
@@ -245,6 +243,8 @@ class DashboardPage extends ConsumerWidget {
           ],
         ),
       ),
+      const SizedBox(height: 14),
+      const _MetricRow(),
       const SizedBox(height: 14),
       const _CourseProgressCard(),
       const SizedBox(height: 14),

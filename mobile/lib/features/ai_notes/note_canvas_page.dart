@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../data/api_client.dart';
 import '../../state/auth_controller.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/content_image.dart';
@@ -300,6 +301,10 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
   String get _inkKey => 'lms.ink.$_uid.${widget.lessonId}';
   static const _toolsKey = 'lms.inktools.v4';
 
+  // ── Lesson completion ────────────────────────────────────────────────────────
+  bool _lessonCompleted = false;
+  bool _completionBusy = false;
+
   // The note body is the most expensive subtree and never changes while drawing.
   // Cache the built widget instance so a pen-down/up setState (which only flips
   // pen/ink state) reuses the SAME widget object — Flutter then skips rebuilding
@@ -316,6 +321,22 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
       _noteCache = _NoteContent(note: note, dark: dark);
     }
     return _noteCache!;
+  }
+
+  Future<void> _markComplete() async {
+    if (_completionBusy || _lessonCompleted) return;
+    setState(() => _completionBusy = true);
+    try {
+      await markLessonComplete(ref.read(apiClientProvider), widget.lessonId);
+      if (mounted) setState(() { _lessonCompleted = true; _completionBusy = false; });
+    } catch (_) {
+      if (mounted) setState(() => _completionBusy = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not mark lesson complete'), duration: Duration(seconds: 2)),
+        );
+      }
+    }
   }
 
   @override
@@ -763,6 +784,13 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
     final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final noteAsync = ref.watch(lessonNoteProvider(widget.lessonId));
+    // Sync completed state from the server response (only once, before user acts).
+    ref.listen(lessonNoteProvider(widget.lessonId), (_, next) {
+      final note = next.asData?.value;
+      if (note != null && note.lessonCompleted && !_lessonCompleted) {
+        setState(() => _lessonCompleted = true);
+      }
+    });
     return Scaffold(
       backgroundColor: c.page,
       body: SafeArea(
@@ -804,6 +832,13 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
                   style: TextStyle(
                       fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
             ),
+            if (note != null && !note.locked && widget.lessonId.isNotEmpty)
+              _CompleteButton(
+                completed: _lessonCompleted,
+                busy: _completionBusy,
+                onTap: _markComplete,
+                c: c,
+              ),
             if (note != null && !note.locked && note.noteId > 0)
               BookmarkButton(itemType: 'ai_note', itemId: note.noteId),
           ],
@@ -1440,6 +1475,52 @@ class _LivePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LivePainter old) => true;
+}
+
+/// Compact "Mark Complete" / "Done" pill button for the note header.
+class _CompleteButton extends StatelessWidget {
+  final bool completed;
+  final bool busy;
+  final VoidCallback onTap;
+  final AppColors c;
+  const _CompleteButton({required this.completed, required this.busy, required this.onTap, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = completed ? const Color(0xFF10B981) : c.primary;
+    return GestureDetector(
+      onTap: (completed || busy) ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.13),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (busy)
+              SizedBox(
+                width: 13, height: 13,
+                child: CircularProgressIndicator(strokeWidth: 1.8, color: color),
+              )
+            else
+              Icon(
+                completed ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded,
+                size: 15, color: color,
+              ),
+            const SizedBox(width: 5),
+            Text(
+              completed ? 'Done' : 'Mark Complete',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// The warm dot-grid "paper" with the note content rendered as widgets.

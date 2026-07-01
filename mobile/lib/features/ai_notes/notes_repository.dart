@@ -37,6 +37,14 @@ final lessonNoteProvider =
   return a ?? b ?? c ?? NoteDoc.empty();
 });
 
+/// Marks a lesson as completed via PATCH /courses/student/lessons/:id/progress.
+Future<void> markLessonComplete(ApiClient api, String lessonId) async {
+  await api.dio.patch(
+    '/courses/student/lessons/$lessonId/progress',
+    data: {'status': 'completed', 'progressPercent': 100},
+  );
+}
+
 /// The student's AI-notes list — `GET /student/ai-notes`.
 final notesListProvider = FutureProvider.autoDispose<List<NoteListItem>>((ref) async {
   ref.watch(currentUserIdProvider);
