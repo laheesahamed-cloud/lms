@@ -788,10 +788,20 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
     final dark = Theme.of(context).brightness == Brightness.dark;
     final noteAsync = ref.watch(lessonNoteProvider(widget.lessonId));
     // Sync completed state from the server response (only once, before user acts).
+    // Also record ai_note_viewed activity on first successful load so the
+    // dashboard study plan can detect that the student opened a lesson today.
+    bool _activityLogged = false;
     ref.listen(lessonNoteProvider(widget.lessonId), (_, next) {
       final note = next.asData?.value;
       if (note != null && note.lessonCompleted && !_lessonCompleted) {
         setState(() => _lessonCompleted = true);
+      }
+      if (!_activityLogged && note != null && !note.locked && note.noteId > 0) {
+        _activityLogged = true;
+        ref.read(apiClientProvider).dio.post(
+          '/dashboard/student/activity',
+          data: {'activityType': 'ai_note_viewed', 'itemId': note.noteId},
+        ).catchError((_) {});
       }
     });
     return Scaffold(

@@ -951,13 +951,11 @@ class _StudyPlanCard extends ConsumerWidget {
     final recNote = notes.isNotEmpty ? notes.first : null;
     final latestAttempt = (d != null && d.recentAttempts.isNotEmpty) ? d.recentAttempts.first : null;
 
-    // Completion detection — mirrors web's hasCompletedStudyItem logic
-    final doneText = (d?.adaptivePlan ?? [])
+    // Completion detection via actionType — avoids fragile keyword collisions.
+    final doneTypes = (d?.adaptivePlan ?? [])
         .where((s) => s.status == 'done')
-        .expand((s) => [s.key, s.title, s.description, s.actionType])
-        .join(' ')
-        .toLowerCase();
-    bool hasDone(List<String> kw) => kw.any((k) => doneText.contains(k));
+        .map((s) => s.actionType)
+        .toSet();
 
     final practiceToday = latestAttempt != null &&
         DateTime.now()
@@ -979,7 +977,7 @@ class _StudyPlanCard extends ConsumerWidget {
                     .where((s) => s.isNotEmpty)
                     .join(' · ')
                 : 'Use any short set you can finish today'),
-        done: practiceToday || hasDone(['quiz', 'practice', 'question', 'weak']),
+        done: practiceToday || doneTypes.contains('quiz'),
         route: recQuiz != null ? '/app/quizzes/${recQuiz.id}' : '/app/quizzes',
       ),
       _PlanItem(
@@ -991,7 +989,7 @@ class _StudyPlanCard extends ConsumerWidget {
         detail: latestAttempt != null
             ? '${latestAttempt.quizTitle} · ${latestAttempt.percentage.round()}%'
             : 'Complete an exam to see results',
-        done: hasDone(['review', 'result', 'answers']),
+        done: doneTypes.contains('results'),
         route: latestAttempt != null
             ? '/app/results/${latestAttempt.id}'
             : '/app/results',
@@ -1001,7 +999,7 @@ class _StudyPlanCard extends ConsumerWidget {
         icon: Icons.menu_book_rounded,
         title: recNote?.title ?? 'Open one lesson note',
         detail: recNote != null ? 'Lesson note' : 'Study one topic in depth',
-        done: hasDone(['note', 'lesson', 'read']),
+        done: doneTypes.contains('note'),
         route: recNote != null
             ? '/app/study/lesson/${recNote.lessonId}'
             : '/app/ai-notes',

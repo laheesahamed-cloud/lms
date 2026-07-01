@@ -1125,7 +1125,7 @@ export class DashboardService {
         title: 'Close the feedback loop',
         description: 'Open your latest result and compare missed questions with the lesson notes.',
         actionType: 'results',
-        status: todayQuizCount > 0 ? 'next' : 'queued',
+        status: todayQuizCount > 0 ? 'done' : 'queued',
       },
     ];
   }
