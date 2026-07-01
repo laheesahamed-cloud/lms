@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
@@ -125,7 +126,7 @@ class _NavItem extends StatelessWidget {
       flex: active ? 5 : 2,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => context.go(dest.route),
+        onTap: () { HapticFeedback.selectionClick(); context.go(dest.route); },
         child: Center(
           child: AnimatedContainer(
             duration: AppDur.hover,

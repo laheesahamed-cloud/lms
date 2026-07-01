@@ -65,7 +65,7 @@ class Notifications {
     await _plugin.show(
       999000001,
       'Test reminder',
-      'Local notifications are working ✅',
+      'Local notifications are working',
       _details,
     );
   }

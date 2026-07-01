@@ -384,6 +384,7 @@ class _MetricRow extends ConsumerWidget {
                 value: streak,
                 label: 'STREAK',
                 hint: 'days',
+                icon: Icons.local_fire_department_rounded,
                 accent: DashAccents.amber)),
       ],
     );
@@ -394,9 +395,10 @@ class _MetricChip extends StatelessWidget {
   final String value;
   final String label;
   final String hint;
+  final IconData? icon;
   final SectionAccent? accent;
   const _MetricChip(
-      {required this.value, required this.label, this.hint = '', this.accent});
+      {required this.value, required this.label, this.hint = '', this.icon, this.accent});
   @override
   Widget build(BuildContext context) {
     final c = context.c;
@@ -412,7 +414,22 @@ class _MetricChip extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(value,
+          if (icon != null)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: valueColor),
+                const SizedBox(width: 3),
+                Text(value,
+                    style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        color: valueColor)),
+              ],
+            )
+          else
+            Text(value,
               style: TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
@@ -749,12 +766,21 @@ class _StreakHeatmapCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.c;
-    final streak = ref
-        .watch(studentDashboardProvider)
-        .maybeWhen(data: (d) => d.quizDayStreak, orElse: () => 0);
-    final activeDays = streak.clamp(0, 7);
-    final todayIndex = (DateTime.now().weekday + 6) % 7; // Mon=0 … Sun=6
+    final dash = ref.watch(studentDashboardProvider);
+    final streak = dash.maybeWhen(data: (d) => d.quizDayStreak, orElse: () => 0);
+    final activeDaySet = dash.maybeWhen(
+      data: (d) => Set<String>.from(d.recentActiveDays),
+      orElse: () => <String>{},
+    );
+    final now = DateTime.now();
+    final todayIndex = (now.weekday + 6) % 7; // Mon=0 … Sun=6
     const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    // Build date key for each of the last 7 days (index 0 = 6 days ago, 6 = today)
+    String dayKey(int i) {
+      final d = now.subtract(Duration(days: 6 - i));
+      return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    }
+    final activeDaysCount = activeDaySet.length;
     return GlassCard(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -762,6 +788,9 @@ class _StreakHeatmapCard extends ConsumerWidget {
         children: [
           Row(
             children: [
+              Icon(Icons.local_fire_department_rounded,
+                  size: 18, color: streak > 0 ? const Color(0xFFFF6B35) : c.inkMuted),
+              const SizedBox(width: 6),
               Text('Daily streak',
                   style: TextStyle(
                       fontSize: 14,
@@ -772,7 +801,7 @@ class _StreakHeatmapCard extends ConsumerWidget {
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: DashAccents.green.color)),
+                      color: streak > 0 ? const Color(0xFFFF6B35) : c.inkMuted)),
             ],
           ),
           const SizedBox(height: 14),
@@ -782,15 +811,15 @@ class _StreakHeatmapCard extends ConsumerWidget {
               for (int i = 0; i < labels.length; i++)
                 _HeatCell(
                   label: labels[i],
-                  active: activeDays > 0 && i >= labels.length - activeDays,
+                  active: activeDaySet.contains(dayKey(i)),
                   isToday: i == todayIndex,
                 ),
             ],
           ),
           const SizedBox(height: 10),
           Text(
-              activeDays > 0
-                  ? 'Active $activeDays of the last 7 days.'
+              activeDaysCount > 0
+                  ? 'Active $activeDaysCount of the last 7 days.'
                   : 'Start your first streak today.',
               style: TextStyle(fontSize: 13, color: c.inkSoft)),
         ],

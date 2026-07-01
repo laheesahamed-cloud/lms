@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -52,9 +53,11 @@ class _AuscultationQuizPageState extends ConsumerState<AuscultationQuizPage> {
 
   void _pick(String opt) {
     if (_picked != null) return;
+    final correct = opt == _questions[_idx].answer;
+    correct ? HapticFeedback.mediumImpact() : HapticFeedback.heavyImpact();
     setState(() {
       _picked = opt;
-      if (opt == _questions[_idx].answer) _score++;
+      if (correct) _score++;
     });
   }
 

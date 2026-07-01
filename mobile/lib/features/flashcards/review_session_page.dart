@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -75,6 +76,7 @@ class _ReviewSessionPageState extends ConsumerState<ReviewSessionPage>
   }
 
   void _grade(QueueCard qc, int rating) {
+    rating == 1 ? HapticFeedback.heavyImpact() : HapticFeedback.mediumImpact();
     final api = ref.read(flashcardsApiProvider);
     _uidSeq++;
     final uid = '${DateTime.now().microsecondsSinceEpoch}-${qc.card.id}-$_uidSeq';
@@ -172,7 +174,7 @@ class _ReviewSessionPageState extends ConsumerState<ReviewSessionPage>
     final hint = (_drag.dx.abs() / threshold).clamp(0.0, 1.0);
 
     return GestureDetector(
-      onTap: () => setState(() => _flipped = !_flipped),
+      onTap: () { HapticFeedback.lightImpact(); setState(() => _flipped = !_flipped); },
       onHorizontalDragUpdate: _flipped && !_swipe.isAnimating
           ? (d) => setState(() => _drag += Offset(d.delta.dx, d.delta.dy * 0.3))
           : null,
@@ -385,7 +387,7 @@ class _ReviewSessionPageState extends ConsumerState<ReviewSessionPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(didReview ? '🎉' : '✅', style: const TextStyle(fontSize: 48)),
+            Icon(didReview ? Icons.celebration_rounded : Icons.check_circle_rounded, size: 48),
             const SizedBox(height: 14),
             Text(didReview ? 'Session complete' : 'Nothing due here',
                 style: TextStyle(

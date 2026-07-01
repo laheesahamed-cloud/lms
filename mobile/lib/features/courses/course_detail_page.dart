@@ -107,7 +107,7 @@ class CourseDetailPage extends ConsumerWidget {
                 )
               else
                 Center(
-                  child: Text('Course complete 🎉',
+                  child: Text('Course complete',
                       style: TextStyle(
                           fontSize: 15.5,
                           fontWeight: FontWeight.w700,

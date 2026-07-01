@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/tokens.dart';
@@ -189,6 +190,7 @@ class _PlannerPageState extends ConsumerState<PlannerPage> {
   }
 
   Future<void> _toggle(PlannerTask t) async {
+    HapticFeedback.mediumImpact();
     final api = ref.read(plannerApiProvider);
     try {
       await setPlannerTaskDone(api, t.id, !t.done);
@@ -703,7 +705,7 @@ class _ReminderSettingsSheetState extends State<_ReminderSettingsSheet> {
     await Notifications.testNow();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Test notification sent ✅')));
+        const SnackBar(content: Text('Test notification sent')));
   }
 
   Future<void> _pickCustomTime() async {

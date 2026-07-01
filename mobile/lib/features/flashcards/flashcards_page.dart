@@ -72,7 +72,7 @@ class FlashcardsPage extends ConsumerWidget {
                           : () => _study(context, allNotes.join(','), 'All decks'),
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: Text(dueNow + result.totalNew == 0
-                          ? 'Nothing due today 🎉'
+                          ? 'Nothing due today'
                           : 'Study ${dueNow + result.totalNew} card${dueNow + result.totalNew == 1 ? '' : 's'}'),
                     ),
                   ),

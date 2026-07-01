@@ -166,6 +166,9 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
   Matrix4 _startMatrix = Matrix4.identity();
   Offset _startFocal = Offset.zero;
   double _startDist = 1.0;
+  // Axis lock for single-finger pan — determined once after a small movement
+  // threshold and held for the entire gesture to prevent jumps on curves.
+  String? _panAxis; // 'x', 'y', or null (undecided)
 
   // ── Inertial fling (native momentum scroll after a flick) ───────────────────
   // A single-finger pan tracks velocity; on lift, the canvas keeps gliding with
@@ -679,6 +682,7 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
 
   void _snapshotGesture() {
     _startMatrix = _matrix.clone();
+    _panAxis = null; // reset axis lock for new gesture
     final pts = _touches.values.toList();
     if (pts.isEmpty) return;
     _startFocal = pts.length >= 2 ? _centroid(pts) : pts.first;
@@ -699,12 +703,18 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
 
     var dFocal = focal - _startFocal;
     if (!twoFinger) {
-      // Single-finger pan: lock to the dominant axis (no diagonal jitter; matches
-      // the old PanAxis.aligned feel). Horizontal slack only exists once zoomed.
-      if (dFocal.dx.abs() > dFocal.dy.abs()) {
+      // Single-finger pan: lock to the dominant axis to prevent diagonal jitter.
+      // The axis is decided ONCE after a threshold and held for the whole gesture
+      // so circular/curved motions don't cause the canvas to jump mid-gesture.
+      if (_panAxis == null && dFocal.distance > 6.0) {
+        _panAxis = dFocal.dx.abs() > dFocal.dy.abs() ? 'x' : 'y';
+      }
+      if (_panAxis == 'x') {
         dFocal = Offset(dFocal.dx, 0);
-      } else {
+      } else if (_panAxis == 'y') {
         dFocal = Offset(0, dFocal.dy);
+      } else {
+        dFocal = Offset.zero; // threshold not yet crossed — hold still
       }
     }
 
@@ -2055,7 +2065,7 @@ class _SectionCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('⚡', style: TextStyle(fontSize: 15.5)),
+          const Icon(Icons.bolt_rounded, size: 16, color: Colors.amber),
           const SizedBox(width: 8),
           Expanded(
             child: Column(

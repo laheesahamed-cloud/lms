@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/tokens.dart';
@@ -33,6 +34,7 @@ class BookmarkButton extends ConsumerWidget {
       onPressed: itemId <= 0
           ? null
           : () async {
+              HapticFeedback.lightImpact();
               try {
                 await toggleBookmark(ref, itemType, itemId);
                 ref.invalidate(bookmarksProvider);

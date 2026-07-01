@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../widgets/quiz_loading_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -58,6 +59,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
       questions.where(_isAnswered).length;
 
   void _setTf(int questionId, int optionId, bool isTrue) {
+    HapticFeedback.selectionClick();
     setState(() => (_tf[questionId] ??= {})[optionId] = isTrue);
   }
 
@@ -271,8 +273,10 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
                           revealed: revealed,
                           selectable: !revealed,
                           showRevealButton: !revealed,
-                          onSelect: (optId) =>
-                              setState(() => _selected[q.id] = optId),
+                          onSelect: (optId) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _selected[q.id] = optId);
+                          },
                           onTfSelect: (optId, isTrue) => _setTf(q.id, optId, isTrue),
                           onReveal: () => setState(() => _revealed.add(q.id)),
                         ),
@@ -349,8 +353,10 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
                           revealed: false, // never reveal during a live exam
                           selectable: !_submitting,
                           showRevealButton: false,
-                          onSelect: (optId) =>
-                              setState(() => _selected[q.id] = optId),
+                          onSelect: (optId) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _selected[q.id] = optId);
+                          },
                           onTfSelect: (optId, isTrue) => _setTf(q.id, optId, isTrue),
                           onReveal: () {},
                         ),
@@ -895,7 +901,7 @@ class _QuestionView extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('🧠 ', style: TextStyle(fontSize: 15.5)),
+            const Icon(Icons.psychology_rounded, size: 16),
             Expanded(
               child: Text(r.mnemonic,
                   style: TextStyle(

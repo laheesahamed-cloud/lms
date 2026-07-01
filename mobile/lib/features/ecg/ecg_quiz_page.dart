@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -55,9 +56,11 @@ class _EcgQuizPageState extends ConsumerState<EcgQuizPage> {
 
   void _pick(String opt) {
     if (_picked != null) return;
+    final correct = opt == _questions[_idx].answer;
+    correct ? HapticFeedback.mediumImpact() : HapticFeedback.heavyImpact();
     setState(() {
       _picked = opt;
-      if (opt == _questions[_idx].answer) _score++;
+      if (correct) _score++;
     });
   }
 
@@ -340,7 +343,7 @@ class _Result extends StatelessWidget {
   Widget build(BuildContext context) {
     final pct = total == 0 ? 0 : score / total;
     final label = pct == 1
-        ? 'Perfect! 🎉'
+        ? 'Perfect!'
         : pct >= 0.7
             ? 'Great work!'
             : pct >= 0.4

@@ -278,6 +278,7 @@ class QuestionOfDay {
 class StudentDashboard {
   final String fullName;
   final int quizDayStreak;
+  final List<String> recentActiveDays; // YYYY-MM-DD strings for last 7 days
   final num avgScore; // 0–100
   final num passRate; // 0–100
   final int totalAttempts;
@@ -299,6 +300,7 @@ class StudentDashboard {
   StudentDashboard({
     required this.fullName,
     required this.quizDayStreak,
+    required this.recentActiveDays,
     required this.avgScore,
     required this.passRate,
     required this.totalAttempts,
@@ -348,6 +350,9 @@ class StudentDashboard {
     return StudentDashboard(
       fullName: _s(user['fullName']),
       quizDayStreak: _i(m['quizDayStreak']),
+      recentActiveDays: (m['recentActiveDays'] is List)
+          ? List<String>.from(m['recentActiveDays'])
+          : <String>[],
       avgScore: _n(m['avgScore']),
       passRate: _n(m['passRate']),
       totalAttempts: _i(m['totalAttempts']),

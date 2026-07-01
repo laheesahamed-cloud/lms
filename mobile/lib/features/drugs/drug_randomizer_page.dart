@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/tokens.dart';
@@ -27,6 +28,7 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
 
   Future<void> _spin() async {
     if (_phase == _Phase.spinning) return;
+    HapticFeedback.heavyImpact();
     final svc = ref.read(drugQueueProvider.notifier);
 
     if (ref.read(drugQueueProvider).queue.isEmpty) {

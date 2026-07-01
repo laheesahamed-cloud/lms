@@ -522,6 +522,17 @@ let DashboardService = class DashboardService {
         const averagePercentage = Number(summary?.average_percentage || 0);
         const passRate = totalAttempts > 0 ? (totalPassed / totalAttempts) * 100 : 0;
         const quizDayStreak = this.calculateQuizDayStreak(attemptDays.map((row) => row.attempt_day));
+        const activityDaySet = new Set(attemptDays.map((row) => {
+            const d = row.attempt_day;
+            return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+        }));
+        const todayMidnight = new Date();
+        todayMidnight.setHours(0, 0, 0, 0);
+        const recentActiveDays = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(todayMidnight);
+            d.setDate(d.getDate() - (6 - i));
+            return d.toISOString().slice(0, 10);
+        }).filter((day) => activityDaySet.has(day));
         const insights = topicRows
             .filter((row) => row.topic_name)
             .map((row) => ({
@@ -614,6 +625,7 @@ let DashboardService = class DashboardService {
             totalCourses: courseProgress.length,
             totalAttempts,
             quizDayStreak,
+            recentActiveDays,
             avgScore: Number(averagePercentage.toFixed(2)),
             totalPassed,
             passRate: Number(passRate.toFixed(2)),
