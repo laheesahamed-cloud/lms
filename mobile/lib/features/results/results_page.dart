@@ -159,7 +159,11 @@ class _AttemptCard extends StatelessWidget {
                 const SizedBox(height: AppSpace.x3),
                 Row(
                   children: <Widget>[
-                    _StatusChip(attempt: attempt),
+                    _PassChip(passed: attempt.passed),
+                    if (!attempt.passed) ...[
+                      const SizedBox(width: AppSpace.x2),
+                      _ReviewChip(reviewed: attempt.reviewed),
+                    ],
                     const SizedBox(width: AppSpace.x2),
                     Text('${attempt.correctAnswers} correct',
                         style: TextStyle(
@@ -179,38 +183,50 @@ class _AttemptCard extends StatelessWidget {
   }
 }
 
-/// Status chip — mirrors the web's getAttemptReviewStatus logic:
-/// Passed → green | Needs review → amber | Reviewed → teal | Failed → red
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.attempt});
-  final ResultListItem attempt;
+class _PassChip extends StatelessWidget {
+  const _PassChip({required this.passed});
+  final bool passed;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final tint = passed ? c.success : c.error;
+    return _Chip(
+      icon: passed ? Icons.check_circle_outline : Icons.cancel_outlined,
+      label: passed ? 'Passed' : 'Failed',
+      tint: tint,
+    );
+  }
+}
 
-    late final Color tint;
-    late final IconData icon;
-    late final String label;
+class _ReviewChip extends StatelessWidget {
+  const _ReviewChip({required this.reviewed});
+  final bool reviewed;
 
-    if (attempt.passed) {
-      tint = c.success;
-      icon = Icons.check_circle_outline;
-      label = 'Passed';
-    } else if (attempt.percentage < 40) {
-      tint = c.error;
-      icon = Icons.cancel_outlined;
-      label = 'Failed';
-    } else if (attempt.reviewed) {
-      tint = const Color(0xFF0D9488); // teal
-      icon = Icons.task_alt_rounded;
-      label = 'Reviewed';
-    } else {
-      tint = const Color(0xFFD97706); // amber
-      icon = Icons.rate_review_outlined;
-      label = 'Needs review';
-    }
+  @override
+  Widget build(BuildContext context) {
+    return reviewed
+        ? const _Chip(
+            icon: Icons.task_alt_rounded,
+            label: 'Reviewed',
+            tint: Color(0xFF0D9488),
+          )
+        : const _Chip(
+            icon: Icons.rate_review_outlined,
+            label: 'Needs review',
+            tint: Color(0xFFD97706),
+          );
+  }
+}
 
+class _Chip extends StatelessWidget {
+  const _Chip({required this.icon, required this.label, required this.tint});
+  final IconData icon;
+  final String label;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpace.x2, vertical: AppSpace.x1),
