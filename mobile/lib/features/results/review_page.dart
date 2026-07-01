@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/api_client.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/content_image.dart';
 import '../../widgets/glass_card.dart';
@@ -8,14 +9,42 @@ import '../quizzes/quizzes_repository.dart';
 
 /// Per-question review of a submitted attempt — real answers + explanations
 /// (`GET /quiz-attempts/review/:attemptId`).
-class ReviewPage extends ConsumerWidget {
+class ReviewPage extends ConsumerStatefulWidget {
   final String attemptId;
   const ReviewPage({super.key, required this.attemptId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReviewPage> createState() => _ReviewPageState();
+}
+
+class _ReviewPageState extends ConsumerState<ReviewPage> {
+  bool _reviewed = false;
+  bool _markingBusy = false;
+
+  Future<void> _markReviewed() async {
+    if (_markingBusy || _reviewed) return;
+    setState(() => _markingBusy = true);
+    try {
+      await ref.read(apiClientProvider).dio.post(
+            '/quiz-attempts/review/${widget.attemptId}/complete',
+          );
+      if (mounted) setState(() { _reviewed = true; _markingBusy = false; });
+      // Invalidate results list so the badge updates when the user goes back.
+      ref.invalidate(resultsListProvider);
+    } catch (_) {
+      if (mounted) setState(() => _markingBusy = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save review'), duration: Duration(seconds: 2)),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.c;
-    final reviewAsync = ref.watch(attemptReviewProvider(attemptId));
+    final reviewAsync = ref.watch(attemptReviewProvider(widget.attemptId));
     return SafeArea(
       child: reviewAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -67,9 +96,80 @@ class ReviewPage extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _ReviewCard(index: qi, item: review.questions[qi]),
                 ),
+              const SizedBox(height: 4),
+              _FinishReviewButton(
+                reviewed: _reviewed,
+                busy: _markingBusy,
+                onTap: _markReviewed,
+              ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Finish Review button — prominent when unreviewed, muted tick when done.
+class _FinishReviewButton extends StatelessWidget {
+  final bool reviewed;
+  final bool busy;
+  final VoidCallback onTap;
+  const _FinishReviewButton({required this.reviewed, required this.busy, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    if (reviewed) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_rounded, size: 18, color: c.success),
+            const SizedBox(width: 7),
+            Text('Review complete',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: c.success)),
+          ],
+        ),
+      );
+    }
+    return SizedBox(
+      width: double.infinity,
+      child: GestureDetector(
+        onTap: busy ? null : onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          decoration: BoxDecoration(
+            color: c.primary,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            boxShadow: [
+              BoxShadow(
+                color: c.primary.withValues(alpha: 0.35),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Center(
+            child: busy
+                ? const SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                  )
+                : const Text(
+                    'Finish Review',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.2),
+                  ),
+          ),
+        ),
       ),
     );
   }

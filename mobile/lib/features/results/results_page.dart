@@ -159,7 +159,7 @@ class _AttemptCard extends StatelessWidget {
                 const SizedBox(height: AppSpace.x3),
                 Row(
                   children: <Widget>[
-                    _PassChip(passed: attempt.passed),
+                    _StatusChip(attempt: attempt),
                     const SizedBox(width: AppSpace.x2),
                     Text('${attempt.correctAnswers} correct',
                         style: TextStyle(
@@ -179,14 +179,38 @@ class _AttemptCard extends StatelessWidget {
   }
 }
 
-class _PassChip extends StatelessWidget {
-  const _PassChip({required this.passed});
-  final bool passed;
+/// Status chip — mirrors the web's getAttemptReviewStatus logic:
+/// Passed → green | Needs review → amber | Reviewed → teal | Failed → red
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.attempt});
+  final ResultListItem attempt;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final tint = passed ? c.success : c.error;
+
+    late final Color tint;
+    late final IconData icon;
+    late final String label;
+
+    if (attempt.passed) {
+      tint = c.success;
+      icon = Icons.check_circle_outline;
+      label = 'Passed';
+    } else if (attempt.percentage < 40) {
+      tint = c.error;
+      icon = Icons.cancel_outlined;
+      label = 'Failed';
+    } else if (attempt.reviewed) {
+      tint = const Color(0xFF0D9488); // teal
+      icon = Icons.task_alt_rounded;
+      label = 'Reviewed';
+    } else {
+      tint = const Color(0xFFD97706); // amber
+      icon = Icons.rate_review_outlined;
+      label = 'Needs review';
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpace.x2, vertical: AppSpace.x1),
@@ -197,10 +221,9 @@ class _PassChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(passed ? Icons.check_circle_outline : Icons.cancel_outlined,
-              size: 13, color: tint),
+          Icon(icon, size: 13, color: tint),
           const SizedBox(width: AppSpace.x1),
-          Text(passed ? 'Passed' : 'Failed',
+          Text(label,
               style: TextStyle(
                   fontSize: 12, fontWeight: FontWeight.w700, color: tint)),
         ],
