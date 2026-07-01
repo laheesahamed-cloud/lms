@@ -71,6 +71,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
             children: [
               Expanded(
                 child: ListView(
+                  physics: const ClampingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                   children: [
                     Row(
