@@ -67,40 +67,49 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
         data: (review) {
           final correct =
               review.questions.where((q) => q.status == 'correct').length;
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+          return Column(
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => context.pop(),
-                    icon: Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 18, color: c.inkMedium),
-                  ),
-                  Text('Review',
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: c.inkStrong)),
-                  const Spacer(),
-                  Text('$correct/${review.questions.length} correct',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: c.inkSoft)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              for (int qi = 0; qi < review.questions.length; qi++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _ReviewCard(index: qi, item: review.questions[qi]),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => context.pop(),
+                          icon: Icon(Icons.arrow_back_ios_new_rounded,
+                              size: 18, color: c.inkMedium),
+                        ),
+                        Text('Review',
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: c.inkStrong)),
+                        const Spacer(),
+                        Text('$correct/${review.questions.length} correct',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: c.inkSoft)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    for (int qi = 0; qi < review.questions.length; qi++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ReviewCard(index: qi, item: review.questions[qi]),
+                      ),
+                  ],
                 ),
-              const SizedBox(height: 4),
-              _FinishReviewButton(
-                reviewed: _reviewed,
-                busy: _markingBusy,
-                onTap: _markReviewed,
+              ),
+              // Fixed bottom bar — never scrolls or bounces with the list.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: _FinishReviewButton(
+                  reviewed: _reviewed,
+                  busy: _markingBusy,
+                  onTap: _markReviewed,
+                ),
               ),
             ],
           );
