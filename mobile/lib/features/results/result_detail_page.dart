@@ -145,7 +145,7 @@ class _ScoreCard extends StatelessWidget {
                   color: c.inkStrong,
                   letterSpacing: -0.4)),
           const SizedBox(height: AppSpace.x1),
-          Text(result.quizTitle,
+          Text(result.displayName,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 14,

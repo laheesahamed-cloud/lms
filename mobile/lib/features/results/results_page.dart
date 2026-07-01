@@ -138,7 +138,7 @@ class _AttemptCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  attempt.quizTitle.isNotEmpty ? attempt.quizTitle : 'Quiz ${index + 1}',
+                  attempt.displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

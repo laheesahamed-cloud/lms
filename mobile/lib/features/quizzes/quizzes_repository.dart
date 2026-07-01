@@ -569,6 +569,8 @@ class AttemptResult {
   final int attemptId;
   final int quizId;
   final String quizTitle;
+  final String displayTitleMode;
+  final int quizNumber;
   final String courseTitle;
   final String topicDisplay;
   final String passStatus; // pass | fail
@@ -581,10 +583,17 @@ class AttemptResult {
   final num percentage;
   final num passingMarks;
 
+  String get displayName {
+    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
+    return quizTitle.trim().isNotEmpty ? quizTitle.trim() : 'Quiz';
+  }
+
   AttemptResult({
     required this.attemptId,
     required this.quizId,
     required this.quizTitle,
+    required this.displayTitleMode,
+    required this.quizNumber,
     required this.courseTitle,
     required this.topicDisplay,
     required this.passStatus,
@@ -607,6 +616,8 @@ class AttemptResult {
       attemptId: _i(m['attemptId']),
       quizId: _i(m['quizId']),
       quizTitle: _s(m['quizTitle']),
+      displayTitleMode: m['displayTitleMode'] == 'title' ? 'title' : 'number',
+      quizNumber: _i(m['quizNumber'] ?? m['quiz_number']),
       courseTitle: _s(m['courseTitle']),
       topicDisplay: _s(m['topicDisplay']),
       passStatus: _s(m['passStatus'].toString().isEmpty ? 'fail' : m['passStatus']),
@@ -635,6 +646,8 @@ class ResultListItem {
   final int attemptId;
   final int quizId;
   final String quizTitle;
+  final String displayTitleMode;
+  final int quizNumber;
   final String courseTitle;
   final String topicDisplay;
   final num score;
@@ -645,10 +658,18 @@ class ResultListItem {
   final String submittedAt;
   final bool reviewed;
 
+  /// Display name matching the quiz list: "Quiz N" in number mode, else the title.
+  String get displayName {
+    if (displayTitleMode == 'number' && quizNumber > 0) return 'Quiz $quizNumber';
+    return quizTitle.trim().isNotEmpty ? quizTitle.trim() : 'Quiz';
+  }
+
   ResultListItem({
     required this.attemptId,
     required this.quizId,
     required this.quizTitle,
+    required this.displayTitleMode,
+    required this.quizNumber,
     required this.courseTitle,
     required this.topicDisplay,
     required this.score,
@@ -669,6 +690,8 @@ class ResultListItem {
       attemptId: _i(m['attemptId']),
       quizId: _i(m['quizId']),
       quizTitle: _s(m['quizTitle']),
+      displayTitleMode: m['displayTitleMode'] == 'title' ? 'title' : 'number',
+      quizNumber: _i(m['quizNumber'] ?? m['quiz_number']),
       courseTitle: _s(m['courseTitle']),
       topicDisplay: _s(m['topicDisplay']),
       score: n(m['score']),
