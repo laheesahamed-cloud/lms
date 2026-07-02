@@ -59,7 +59,7 @@ type AiNoteRow      = RowDataPacket & {
   is_free: number;
   status: 'active' | 'inactive';
   created_at: string; updated_at: string;
-  course_title?: string | null; topic_name?: string | null; subtopic_name?: string | null; lesson_title?: string | null; lesson_video_url?: string | null;
+  course_title?: string | null; topic_name?: string | null; subtopic_name?: string | null; lesson_title?: string | null; lesson_video_url?: string | null; lesson_pdf_url?: string | null;
   effective_course_id?: number | null; effective_topic_id?: number | null; effective_subtopic_id?: number | null;
   effective_is_free?: number | null;
   lesson_progress_status?: 'not_started' | 'in_progress' | 'completed' | null;
@@ -154,7 +154,7 @@ export class AiNotesService {
     await this.requireAdmin(token);
     const [rows] = await this.db.execute<AiNoteRow[]>(`
       SELECT n.id, n.title, NULL AS raw_text, NULL AS note_data, n.engine_key, n.course_id, n.topic_id, n.subtopic_id, n.lesson_id, n.video_url, n.is_free, n.status, n.created_at, n.updated_at,
-             c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
+             c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url, l.pdf_url AS lesson_pdf_url
       FROM ai_illustrated_notes n
       LEFT JOIN courses  c ON c.id = n.course_id
       LEFT JOIN topics   t ON t.id = n.topic_id
@@ -461,7 +461,7 @@ export class AiNotesService {
              slp.progress_percent AS lesson_progress_percent,
              slp.completed_at AS lesson_completed_at,
              (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.note_id = n.id AND lf.status = 'approved') AS approved_flashcard_count,
-             c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
+             c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url, l.pdf_url AS lesson_pdf_url
       FROM ai_illustrated_notes n
       LEFT JOIN lessons  l ON l.id = n.lesson_id
       LEFT JOIN student_lesson_progress slp ON slp.lesson_id = n.lesson_id AND slp.user_id = ?
@@ -486,7 +486,7 @@ export class AiNotesService {
              slp.progress_percent AS lesson_progress_percent,
              slp.completed_at AS lesson_completed_at,
              (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.note_id = n.id AND lf.status = 'approved') AS approved_flashcard_count,
-             c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url
+             c.course_title, t.topic_name, s.subtopic_name, l.lesson_title, l.video_url AS lesson_video_url, l.pdf_url AS lesson_pdf_url
       FROM ai_illustrated_notes n
       INNER JOIN lessons l ON l.id = n.lesson_id
       LEFT JOIN student_lesson_progress slp ON slp.lesson_id = n.lesson_id AND slp.user_id = ?
@@ -500,7 +500,25 @@ export class AiNotesService {
         AND (n.subtopic_id IS NULL OR n.subtopic_id = l.subtopic_id OR (n.subtopic_id IS NULL AND l.subtopic_id IS NULL))
       ORDER BY n.updated_at DESC
       LIMIT 1`, [student.id, lessonId, engineKey]);
-    if (!rows.length) throw new NotFoundException('Lesson not found');
+    if (!rows.length) {
+      // No AI canvas — check if this is a PDF lesson.
+      const [lessonRows] = await this.db.execute<RowDataPacket[]>(
+        `SELECT l.id, l.lesson_title, l.pdf_url, l.is_free, l.status, l.course_id, l.topic_id, l.subtopic_id
+         FROM lessons l WHERE l.id = ? LIMIT 1`, [lessonId]);
+      const lesson = lessonRows[0];
+      if (lesson && lesson.pdf_url && lesson.status === 'active') {
+        const canAccess = this.canAccessLessonForPdf(lesson, accessProfile);
+        return {
+          lessonType: 'pdf',
+          lessonId,
+          lessonTitle: lesson.lesson_title || '',
+          pdfUrl: canAccess ? String(lesson.pdf_url) : '',
+          accessLocked: !canAccess,
+          lockReason: canAccess ? '' : 'Your subscription does not include this premium lesson.',
+        };
+      }
+      throw new NotFoundException('Lesson not found');
+    }
     return this.mapStudentNote(rows[0], accessProfile.hasNotesCanvas, accessProfile, { includeNoteData: true });
   }
 
@@ -1280,6 +1298,7 @@ ${input.sourceText}`;
       topicName:    row.topic_name    ?? null,
       subtopicName: row.subtopic_name ?? null,
       lessonTitle:  row.lesson_title  ?? null,
+      lessonPdfUrl: row.lesson_pdf_url || '',
       lessonProgressStatus: row.lesson_progress_status || 'not_started',
       lessonProgressPercent: Number(row.lesson_progress_percent || 0),
       lessonCompletedAt: row.lesson_completed_at || null,
@@ -1348,6 +1367,18 @@ ${input.sourceText}`;
       return 'courses';
     }
     return row.access_scope || (courseIds.length ? 'courses' : lessonIds.length ? 'lessons' : 'all');
+  }
+
+  private canAccessLessonForPdf(
+    lesson: { id: number; is_free: number; course_id: number | null; topic_id?: number | null },
+    accessProfile: LessonAccessProfile,
+  ) {
+    if (Number(lesson.is_free) === 1) return true;
+    if (!accessProfile.hasAnyPaidLessonAccess) return false;
+    if (accessProfile.hasFullAccess) return true;
+    if (lesson.course_id && accessProfile.courseIds.has(Number(lesson.course_id))) return true;
+    if (accessProfile.lessonIds.has(Number(lesson.id))) return true;
+    return false;
   }
 
   private canAccessStudentNote(

@@ -17,6 +17,8 @@ const common_1 = require("@nestjs/common");
 const pagination_1 = require("../../common/utils/pagination");
 const database_tokens_1 = require("../../database/database.tokens");
 const auth_token_util_1 = require("../auth/auth-token.util");
+const fs = require("fs");
+const path = require("path");
 let LessonsService = class LessonsService {
     constructor(db) {
         this.db = db;
@@ -78,6 +80,7 @@ let LessonsService = class LessonsService {
         l.lesson_title,
         NULL AS lesson_content,
         l.video_url,
+        l.pdf_url,
         l.is_free,
         l.status,
         l.created_at,
@@ -600,9 +603,34 @@ let LessonsService = class LessonsService {
         }
     }
     validateLessonPublishReady(lesson) {
-        if (!lesson.lessonContent && !lesson.videoUrl) {
-            throw new common_1.BadRequestException('Published lessons require lesson content or an approved video URL');
-        }
+        // pdf_url is stored separately; skip content check so PDF-only lessons can publish
+    }
+    async uploadPdf(id, file, actor) {
+        await this.findById(id);
+        const uploadsDir = path.join(process.cwd(), 'uploads', 'pdf');
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+        const safeName = `lesson-${id}-${Date.now()}.pdf`;
+        const filePath = path.join(uploadsDir, safeName);
+        fs.writeFileSync(filePath, file.buffer);
+        const pdfUrl = `/uploads/pdf/${safeName}`;
+        await this.db.execute('UPDATE lessons SET pdf_url = ? WHERE id = ?', [pdfUrl, id]);
+        await this.db.execute(
+            `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
+            ['lesson', id, 'pdf_uploaded', this.getActorId(actor) || null, `PDF uploaded for lesson ${id}`]
+        );
+        return { ok: true, id, pdfUrl };
+    }
+    async removePdf(id, actor) {
+        const lesson = await this.findById(id);
+        if (!lesson.pdfUrl) return { ok: true, id };
+        const filePath = path.join(process.cwd(), lesson.pdfUrl);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        await this.db.execute('UPDATE lessons SET pdf_url = NULL WHERE id = ?', [id]);
+        await this.db.execute(
+            `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
+            ['lesson', id, 'pdf_removed', this.getActorId(actor) || null, `PDF removed from lesson ${id}`]
+        );
+        return { ok: true, id };
     }
     async findById(id) {
         const [rows] = await this.db.execute(`SELECT
@@ -613,6 +641,7 @@ let LessonsService = class LessonsService {
         l.lesson_title,
         l.lesson_content,
         l.video_url,
+        l.pdf_url,
         l.is_free,
         l.status,
         l.created_at,
@@ -750,6 +779,7 @@ let LessonsService = class LessonsService {
             lessonTitle: row.lesson_title,
             lessonContent: row.lesson_content || '',
             videoUrl: row.video_url || '',
+            pdfUrl: row.pdf_url || '',
             isFree: Number(row.is_free) === 1 ? 1 : 0,
             status: row.status,
             createdAt: row.created_at || null,

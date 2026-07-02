@@ -15,6 +15,7 @@ import '../../widgets/locked_view.dart';
 import '../bookmarks/bookmark_button.dart';
 import 'note_models.dart';
 import 'notes_repository.dart';
+import 'pdf_lesson_page.dart';
 
 /// Full AI-notes screen (100% Flutter).
 /// Fixed chrome (header + tool strip) sits OUTSIDE the canvas; the warm "canvas"
@@ -55,6 +56,67 @@ class _Stroke {
   void add(Offset o, double pressure) {
     points.add(o);
     pressures.add(pressure);
+  }
+
+  // ── Live-render cache (transient; never serialized) ─────────────────────────
+  // The in-flight stroke is re-drawn on every pointer move. Rebuilding the whole
+  // smoothed cubic path each time makes per-move cost grow with stroke length
+  // (the drag felt on long strokes). The binomial smoother is STABLE — a point
+  // settles once its neighbours are in and never moves again — so all but the
+  // last few segments are final. We bake those into [_liveFrozen] once and, each
+  // move, only rebuild the short unsettled tail on top. Geometry is identical to
+  // a full [_smoothPath] rebuild, so the committed bake on lift never shifts.
+  Path? _liveFrozen; // cached cubic path for the settled leading segments
+  int _liveFrozenSegs = 0; // how many segments are baked into _liveFrozen
+
+  // Once a stroke is committed its points never change, so its full smoothed path
+  // can be computed ONCE and reused on every re-bake (commit of a later stroke,
+  // undo, dark-mode/size flip). Without this, each pen-lift re-smooths every
+  // stroke on the page → a hitch that grows with ink. Only cached when committed;
+  // the in-flight eraser (which mutates) recomputes fresh each frame.
+  bool committed = false;
+  Path? _baked;
+  Path get bakedPath {
+    final cached = _baked;
+    if (committed && cached != null) return cached;
+    final p = _smoothPath(_smoothN(points, 2));
+    if (committed) _baked = p;
+    return p;
+  }
+
+  /// The smoothed cubic path for the current in-flight points — built
+  /// incrementally. Byte-identical in shape to `_smoothPath(_smoothN(points,2))`.
+  Path livePath() {
+    final sm = _smoothN(points, 2);
+    final n = sm.length;
+    if (n < 3) {
+      _liveFrozen = null;
+      _liveFrozenSegs = 0;
+      final p = Path()..moveTo(sm.first.dx, sm.first.dy);
+      for (final o in sm.skip(1)) {
+        p.lineTo(o.dx, o.dy);
+      }
+      return p;
+    }
+    // Segment i uses sm[i-1..i+2]; with two binomial passes sm[k] settles once
+    // length >= k+3, so segment i is mathematically final at i <= n-5. We keep a
+    // generous safety margin — the last [liveTail] segments stay live and are
+    // rebuilt every move — so the frozen prefix is provably settled and can never
+    // drift from the full bake. The tail is a small constant → per-move cost stays
+    // flat regardless of stroke length.
+    const liveTail = 12;
+    final freezeCount = n - 1 - liveTail < 0 ? 0 : n - 1 - liveTail;
+    _liveFrozen ??= Path()..moveTo(sm.first.dx, sm.first.dy);
+    for (var i = _liveFrozenSegs; i < freezeCount; i++) {
+      _crSegment(_liveFrozen!, sm, i, n);
+    }
+    if (freezeCount > _liveFrozenSegs) _liveFrozenSegs = freezeCount;
+    // Frozen prefix (bulk-copied) + the live tail rebuilt from the settled edge.
+    final path = Path.from(_liveFrozen!);
+    for (var i = _liveFrozenSegs; i < n - 1; i++) {
+      _crSegment(path, sm, i, n);
+    }
+    return path;
   }
 
   Map<String, dynamic> toJson() => {
@@ -332,6 +394,11 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
       await markLessonComplete(ref.read(apiClientProvider), widget.lessonId);
       if (mounted) {
         setState(() { _lessonCompleted = true; _completionBusy = false; });
+        // Record lesson completion as activity so it counts toward streak + active days.
+        ref.read(apiClientProvider).dio.post(
+          '/dashboard/student/activity',
+          data: {'activityType': 'ai_note_viewed', 'itemId': widget.lessonId},
+        ).catchError((_) {});
         // Invalidate the notes list so the green tick shows when the user pops back.
         ref.invalidate(notesListProvider);
       }
@@ -464,7 +531,8 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
     if (raw == null) return;
     try {
       final list = (jsonDecode(raw) as List)
-          .map((m) => _Stroke.fromJson(Map<String, dynamic>.from(m as Map)))
+          .map((m) => _Stroke.fromJson(Map<String, dynamic>.from(m as Map))
+            ..committed = true) // loaded strokes are final → cache their paths
           .toList();
       if (mounted) {
         _strokes.addAll(list);
@@ -656,6 +724,7 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
     final wasEraser = s.tool == _Tool.eraser;
     _active = null;
     if (commit) {
+      s.committed = true; // points are final now → cache its baked path
       _strokes.add(s);
       _inkGen.value++; // advance generation (painters replay next frame)
       _refreshPics(); // rebuild the committed picture NOW (no setState on commit)
@@ -798,20 +867,10 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
     final dark = Theme.of(context).brightness == Brightness.dark;
     final noteAsync = ref.watch(lessonNoteProvider(widget.lessonId));
     // Sync completed state from the server response (only once, before user acts).
-    // Also record ai_note_viewed activity on first successful load so the
-    // dashboard study plan can detect that the student opened a lesson today.
-    bool _activityLogged = false;
     ref.listen(lessonNoteProvider(widget.lessonId), (_, next) {
       final note = next.asData?.value;
       if (note != null && note.lessonCompleted && !_lessonCompleted) {
         setState(() => _lessonCompleted = true);
-      }
-      if (!_activityLogged && note != null && !note.locked && note.noteId > 0) {
-        _activityLogged = true;
-        ref.read(apiClientProvider).dio.post(
-          '/dashboard/student/activity',
-          data: {'activityType': 'ai_note_viewed', 'itemId': note.noteId},
-        ).catchError((_) {});
       }
     });
     return Scaffold(
@@ -828,9 +887,15 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
                 data: (note) => note.locked
                     ? LockedView(
                         title: 'Lesson locked', reason: note.lockReason)
-                    : note.isEmpty
-                        ? _emptyNote(c)
-                        : _canvas(c, dark, note),
+                    : note.pdfUrl.isNotEmpty
+                        ? PdfLessonPage(
+                            lessonId: widget.lessonId,
+                            pdfUrl: note.pdfUrl,
+                            title: note.title.isNotEmpty ? note.title : 'Lesson',
+                          )
+                        : note.isEmpty
+                            ? _emptyNote(c)
+                            : _canvas(c, dark, note),
               ),
             ),
           ],
@@ -1281,7 +1346,22 @@ void _drawStroke(Canvas canvas, _Stroke s, Paint paint) {
   // repositions points every frame). Applied IDENTICALLY to the live preview and
   // the committed bake → no snap/drift on lift, at any ink size or zoom. The first
   // and last points are anchored, so the tip stays exactly on the pen (no lag).
-  canvas.drawPath(_smoothPath(_smoothN(s.points, 2)), paint);
+  // Committed strokes reuse their cached [bakedPath] (computed once); the in-flight
+  // eraser recomputes fresh each frame as it grows.
+  canvas.drawPath(s.bakedPath, paint);
+}
+
+// Live-preview draw for the in-flight stroke — same result as [_drawStroke] but
+// uses the stroke's INCREMENTAL [livePath] cache, so per-move cost stays flat as
+// the stroke grows (only the unsettled tail is rebuilt). Geometry is identical to
+// the full bake, so the stroke doesn't shift when it commits on lift.
+void _drawLive(Canvas canvas, _Stroke s, Paint paint) {
+  if (s.points.length == 1) {
+    canvas.drawCircle(s.points.first, s.width / 2,
+        Paint()..color = paint.color..blendMode = paint.blendMode);
+    return;
+  }
+  canvas.drawPath(s.livePath(), paint);
 }
 
 // Apply the (¼,½,¼) binomial smoother N times. Interior only; first + last points
@@ -1328,32 +1408,37 @@ Path _smoothPath(List<Offset> pts) {
     }
     return path;
   }
-  // CENTRIPETAL Catmull-Rom (alpha = 0.5). Unlike uniform CR (fixed /6 tangents),
-  // the tangent magnitude derives from actual knot spacing (dt = |Δp|^0.5), so the
-  // curve provably cannot overshoot or self-intersect (Yuksel 2011) — removing the
-  // sub-pixel outer-edge bulges uniform CR manufactures on sharp/uneven turns
-  // (those are what a 2nd smoothing pass was hiding). Still passes through every
-  // knot with C1 joins and emits real cubicTo for analytic tessellation at zoom.
-  const alpha = 0.5;
-  const eps = 1e-6;
   for (var i = 0; i < n - 1; i++) {
-    final p0 = pts[i == 0 ? 0 : i - 1];
-    final p1 = pts[i];
-    final p2 = pts[i + 1];
-    final p3 = pts[i + 2 >= n ? n - 1 : i + 2];
-
-    final t01 = math.pow((p0 - p1).distance, alpha).toDouble() + eps;
-    final t12 = math.pow((p1 - p2).distance, alpha).toDouble() + eps;
-    final t23 = math.pow((p2 - p3).distance, alpha).toDouble() + eps;
-
-    // Non-uniform CR tangents (Barry–Goldman), converted to Bézier handles (/3).
-    final m1 = (p2 - p1) + ((p1 - p0) / t01 - (p2 - p0) / (t01 + t12)) * t12;
-    final m2 = (p2 - p1) + ((p3 - p2) / t23 - (p3 - p1) / (t12 + t23)) * t12;
-    final c1 = p1 + m1 / 3.0;
-    final c2 = p2 - m2 / 3.0;
-    path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
+    _crSegment(path, pts, i, n);
   }
   return path;
+}
+
+// One CENTRIPETAL Catmull-Rom (alpha = 0.5) cubic segment pts[i]→pts[i+1],
+// appended to [path] (continues from its current point == pts[i]). Unlike uniform
+// CR (fixed /6 tangents), the tangent magnitude derives from actual knot spacing
+// (dt = |Δp|^0.5), so the curve provably cannot overshoot or self-intersect
+// (Yuksel 2011). Passes through every knot with C1 joins and emits a real cubicTo
+// for analytic tessellation at any zoom. Shared by the full [_smoothPath] bake and
+// the incremental live path so the two are byte-identical (no shift on commit).
+// alpha is fixed 0.5, so |Δp|^0.5 is sqrt(|Δp|) — sqrt is far cheaper than pow.
+void _crSegment(Path path, List<Offset> pts, int i, int n) {
+  const eps = 1e-6;
+  final p0 = pts[i == 0 ? 0 : i - 1];
+  final p1 = pts[i];
+  final p2 = pts[i + 1];
+  final p3 = pts[i + 2 >= n ? n - 1 : i + 2];
+
+  final t01 = math.sqrt((p0 - p1).distance) + eps;
+  final t12 = math.sqrt((p1 - p2).distance) + eps;
+  final t23 = math.sqrt((p2 - p3).distance) + eps;
+
+  // Non-uniform CR tangents (Barry–Goldman), converted to Bézier handles (/3).
+  final m1 = (p2 - p1) + ((p1 - p0) / t01 - (p2 - p0) / (t01 + t12)) * t12;
+  final m2 = (p2 - p1) + ((p3 - p2) / t23 - (p3 - p1) / (t12 + t23)) * t12;
+  final c1 = p1 + m1 / 3.0;
+  final c2 = p2 - m2 / 3.0;
+  path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
 }
 
 // ── Committed-layer drawing (shared by the picture recorder + eraser fallback) ──
@@ -1470,12 +1555,12 @@ class _LivePainter extends CustomPainter {
     if (s == null || s.points.isEmpty) return;
     switch (s.tool) {
       case _Tool.pen:
-        _drawPen(canvas, s, s.color);
+        _drawLive(canvas, s, _linePaint(s.color, s.width));
       case _Tool.highlighter:
         // "Wet" preview: a translucent marker while the stroke is in flight.
         // On release it commits to the multiply/screen layer and snaps to the
         // exact GoodNotes look (text crisp underneath).
-        _drawStroke(
+        _drawLive(
             canvas, s, _linePaint(s.color.withValues(alpha: 0.4), s.width));
       case _Tool.eraser:
         // Brush cursor — a ringed circle at the tip showing the erase size. The

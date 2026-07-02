@@ -14,6 +14,8 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LessonsController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
+const multer_1 = require("multer");
 const admin_guard_1 = require("../auth/admin.guard");
 const auth_service_1 = require("../auth/auth.service");
 const permissions_decorator_1 = require("../auth/permissions.decorator");
@@ -71,6 +73,17 @@ let LessonsController = class LessonsController {
     async remove(authorization, id) {
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.remove(id, actor);
+    }
+    async uploadPdf(authorization, id, file) {
+        if (!file) throw new common_1.BadRequestException('No file uploaded');
+        if (file.mimetype !== 'application/pdf') throw new common_1.BadRequestException('Only PDF files are allowed');
+        if (file.size > 50 * 1024 * 1024) throw new common_1.BadRequestException('PDF must be under 50 MB');
+        const actor = await this.authService.requireAdmin(authorization);
+        return this.lessonsService.uploadPdf(id, file, actor);
+    }
+    async removePdf(authorization, id) {
+        const actor = await this.authService.requireAdmin(authorization);
+        return this.lessonsService.removePdf(id, actor);
     }
     listVersions(id) {
         return this.lessonsService.listVersions(id);
@@ -213,6 +226,28 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", Promise)
 ], LessonsController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)(':id/pdf'),
+    (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
+    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', { storage: (0, multer_1.memoryStorage)() })),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number, Object]),
+    __metadata("design:returntype", Promise)
+], LessonsController.prototype, "uploadPdf", null);
+__decorate([
+    (0, common_1.Delete)(':id/pdf'),
+    (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
+    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", Promise)
+], LessonsController.prototype, "removePdf", null);
 __decorate([
     (0, common_1.Get)(':id/versions'),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),

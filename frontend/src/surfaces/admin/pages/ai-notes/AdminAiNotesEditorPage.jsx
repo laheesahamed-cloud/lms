@@ -15,7 +15,7 @@ import {
   adminUpdateAiNote,
   adminUpdateLessonFlashcard,
 } from '../../../../shared/api/aiNotes.api.js';
-import { createLesson, updateLesson } from '../../../../shared/api/lessons.api.js';
+import { createLesson, updateLesson, uploadLessonPdf, removeLessonPdf } from '../../../../shared/api/lessons.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { BreadcrumbTrail } from '../../../../shared/ui/BreadcrumbTrail.jsx';
@@ -228,6 +228,10 @@ export function AdminAiNotesEditorPage({
   const [flashcardMessage, setFlashcardMessage] = useState('');
   const [savingCardId, setSavingCardId] = useState(null);
   const [bulkApprovingFlashcards, setBulkApprovingFlashcards] = useState(false);
+  const [lessonPdfUrl, setLessonPdfUrl] = useState('');
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfRemoving,  setPdfRemoving]  = useState(false);
+  const [pdfMessage,   setPdfMessage]   = useState('');
 
   useEffect(() => (
     () => {
@@ -255,6 +259,7 @@ export function AdminAiNotesEditorPage({
         setSelTopic(data.topicId ? String(data.topicId) : '');
         setSelSubtopic(data.subtopicId ? String(data.subtopicId) : '');
         setLinkedLessonId(data.lessonId || null);
+        setLessonPdfUrl(data.lessonPdfUrl || '');
       })
       .catch(() => setError('Failed to load lesson.'))
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -909,6 +914,58 @@ export function AdminAiNotesEditorPage({
                       onClick={handleSaveMeta} disabled={metaSaving}>
                 {metaSaving ? 'Saving…' : 'Save Settings'}
               </button>
+
+              {/* PDF upload */}
+              {linkedLessonId && (
+                <div className={cx(editorUi.categoryPanel, 'mt-3')}>
+                  <p className={editorUi.categoryTitle}>PDF Lesson (optional)</p>
+                  {lessonPdfUrl ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-line-soft bg-surface-1 px-3 py-2 text-[12px]">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 text-brand-error"><rect x="2" y="1" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4.5 4.5h5M4.5 6.5h5M4.5 8.5h3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>
+                        <a href={lessonPdfUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-semibold text-brand-primary hover:underline">
+                          {lessonPdfUrl.split('/').pop()}
+                        </a>
+                        <button type="button" disabled={pdfRemoving}
+                          className="ml-1 shrink-0 text-[11px] font-bold text-brand-error opacity-70 hover:opacity-100 disabled:opacity-40"
+                          onClick={async () => {
+                            if (!confirm('Remove this PDF?')) return;
+                            setPdfRemoving(true); setPdfMessage('');
+                            try {
+                              await removeLessonPdf(linkedLessonId);
+                              setLessonPdfUrl('');
+                              setPdfMessage('PDF removed.');
+                            } catch { setPdfMessage('Failed to remove PDF.'); }
+                            finally { setPdfRemoving(false); }
+                          }}>
+                          {pdfRemoving ? 'Removing…' : 'Remove'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] border border-dashed border-line-medium bg-surface-1 px-3 py-2 text-[12px] font-semibold text-ink-soft hover:border-brand-primary hover:text-brand-primary transition-colors">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M4 6l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      {pdfUploading ? 'Uploading…' : 'Upload PDF for this lesson'}
+                      <input type="file" accept=".pdf,application/pdf" className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setPdfUploading(true); setPdfMessage('');
+                          try {
+                            const res = await uploadLessonPdf(linkedLessonId, file);
+                            setLessonPdfUrl(res.pdfUrl || '');
+                            setPdfMessage('PDF uploaded.');
+                          } catch { setPdfMessage('Upload failed. Max 50 MB.'); }
+                          finally { setPdfUploading(false); e.target.value = ''; }
+                        }}
+                        disabled={pdfUploading}
+                      />
+                    </label>
+                  )}
+                  {pdfMessage && <p className="mt-1 text-[11px] font-semibold text-ink-soft">{pdfMessage}</p>}
+                  <p className="mt-1 text-[11px] text-ink-muted">When a PDF is attached, students see the PDF viewer instead of the AI canvas for this lesson.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

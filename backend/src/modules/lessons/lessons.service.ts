@@ -1,5 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import * as fs from 'fs';
+import * as path from 'path';
 import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
 import { extractBearerToken, hashSessionToken } from '../auth/auth-token.util';
@@ -16,6 +18,7 @@ type LessonRow = RowDataPacket & {
   lesson_title: string;
   lesson_content: string | null;
   video_url: string | null;
+  pdf_url: string | null;
   is_free: number;
   status: 'active' | 'inactive';
   created_at: string | null;
@@ -171,6 +174,7 @@ export class LessonsService {
         l.lesson_title,
         NULL AS lesson_content,
         l.video_url,
+        l.pdf_url,
         l.is_free,
         l.status,
         l.created_at,
@@ -571,6 +575,44 @@ export class LessonsService {
     };
   }
 
+  async uploadPdf(id: number, file: Express.Multer.File, actor?: ContentActorInput) {
+    await this.findById(id); // ensure lesson exists
+
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'pdf');
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+    const safeName = `lesson-${id}-${Date.now()}.pdf`;
+    const filePath = path.join(uploadsDir, safeName);
+    fs.writeFileSync(filePath, file.buffer);
+
+    const pdfUrl = `/uploads/pdf/${safeName}`;
+    await this.db.execute('UPDATE lessons SET pdf_url = ? WHERE id = ?', [pdfUrl, id]);
+
+    await this.db.execute(
+      `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
+      ['lesson', id, 'pdf_uploaded', this.getActorId(actor) || null, `PDF uploaded for lesson ${id}`],
+    );
+
+    return { ok: true, id, pdfUrl };
+  }
+
+  async removePdf(id: number, actor?: ContentActorInput) {
+    const lesson = await this.findById(id);
+    if (!lesson.pdfUrl) return { ok: true, id };
+
+    const filePath = path.join(process.cwd(), lesson.pdfUrl);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+    await this.db.execute('UPDATE lessons SET pdf_url = NULL WHERE id = ?', [id]);
+
+    await this.db.execute(
+      `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
+      ['lesson', id, 'pdf_removed', this.getActorId(actor) || null, `PDF removed from lesson ${id}`],
+    );
+
+    return { ok: true, id };
+  }
+
   private async transitionWorkflow(
     id: number,
     input: {
@@ -827,9 +869,8 @@ export class LessonsService {
   }
 
   private validateLessonPublishReady(lesson: LessonSnapshot) {
-    if (!lesson.lessonContent && !lesson.videoUrl) {
-      throw new BadRequestException('Published lessons require lesson content or an approved video URL');
-    }
+    // pdf_url is not in the snapshot (it's stored separately via uploadPdf), so we
+    // skip the content check — the admin may publish a PDF-only lesson with no text content.
   }
 
   private async findById(id: number) {
@@ -842,6 +883,7 @@ export class LessonsService {
         l.lesson_title,
         l.lesson_content,
         l.video_url,
+        l.pdf_url,
         l.is_free,
         l.status,
         l.created_at,
@@ -1008,6 +1050,7 @@ export class LessonsService {
       lessonTitle: row.lesson_title,
       lessonContent: row.lesson_content || '',
       videoUrl: row.video_url || '',
+      pdfUrl: row.pdf_url || '',
       isFree: Number(row.is_free) === 1 ? 1 : 0,
       status: row.status,
       createdAt: row.created_at || null,

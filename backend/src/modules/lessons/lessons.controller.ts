@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { AdminGuard } from '../auth/admin.guard';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../auth/permissions.decorator';
@@ -119,6 +121,33 @@ export class LessonsController {
   async remove(@Headers('authorization') authorization: string | undefined, @Param('id', ParseIntPipe) id: number) {
     const actor = await this.authService.requireAdmin(authorization);
     return this.lessonsService.remove(id, actor);
+  }
+
+  @Post(':id/pdf')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async uploadPdf(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    if (file.mimetype !== 'application/pdf') throw new BadRequestException('Only PDF files are allowed');
+    if (file.size > 50 * 1024 * 1024) throw new BadRequestException('PDF must be under 50 MB');
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.uploadPdf(id, file, actor);
+  }
+
+  @Delete(':id/pdf')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  async removePdf(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.removePdf(id, actor);
   }
 
   @Get(':id/versions')

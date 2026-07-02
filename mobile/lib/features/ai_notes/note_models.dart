@@ -30,6 +30,8 @@ class NoteDoc {
   final bool lessonCompleted;
   final String lessonProgressStatus; // 'not_started' | 'in_progress' | 'completed'
 
+  final String pdfUrl;
+
   NoteDoc({
     required this.title,
     required this.subtitle,
@@ -43,6 +45,7 @@ class NoteDoc {
     this.noteId = 0,
     this.lessonCompleted = false,
     this.lessonProgressStatus = 'not_started',
+    this.pdfUrl = '',
   });
 
   /// No note generated for an accessible lesson.
@@ -54,6 +57,7 @@ class NoteDoc {
         sections: const [],
         keyPoints: const [],
         summaryBox: '',
+        pdfUrl: '',
       );
 
   factory NoteDoc.fromApi(dynamic raw) {
@@ -92,6 +96,9 @@ class NoteDoc {
         ? note['lockReason']
         : note['upgradeLabel']);
 
+    // PDF-only lesson: backend returns { lessonType: 'pdf', pdfUrl: '...' }
+    final pdfUrl = _str(note['pdfUrl'] ?? note['pdf_url'] ?? note['lessonPdfUrl'] ?? '');
+
     return NoteDoc(
       title: _str(first['title'] ?? note['lessonTitle'] ?? note['title'] ?? 'Note'),
       subtitle: _str(first['subtitle'] ?? first['subject'] ?? note['courseTitle'] ?? ''),
@@ -107,6 +114,7 @@ class NoteDoc {
           0,
       lessonCompleted: note['lessonCompleted'] == true || note['lesson_progress_status'] == 'completed',
       lessonProgressStatus: _str(note['lessonProgressStatus'] ?? note['lesson_progress_status'] ?? 'not_started'),
+      pdfUrl: pdfUrl,
     );
   }
 
