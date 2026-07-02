@@ -76,7 +76,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -97,7 +97,7 @@ export declare class LessonsService {
         lessonTitle: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -115,7 +115,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         updatedAt: string | null;
         courseTitle: string;
@@ -126,7 +126,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -139,7 +139,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -152,7 +152,7 @@ export declare class LessonsService {
         id: number;
         lessonId: number;
         userId: number;
-        type: "note" | "highlight";
+        type: "highlight" | "note";
         selectedText: string;
         startOffset: number;
         endOffset: number;
@@ -187,27 +187,27 @@ export declare class LessonsService {
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     submitForReview(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     publish(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
-        status: "active" | "inactive";
-        workflowState: "published" | "draft";
+        status: "inactive" | "active";
+        workflowState: "draft" | "published";
     }>;
     uploadPdf(id: number, file: Express.Multer.File, actor?: ContentActorInput): Promise<{
         ok: boolean;
@@ -271,7 +271,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -300,7 +300,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -451,7 +451,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;
@@ -485,7 +485,7 @@ export declare class LessonsService {
         videoUrl: string;
         pdfUrl: string;
         isFree: boolean;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         isPublic: boolean;
         courseTitle: string | null;
         examType: string | null;

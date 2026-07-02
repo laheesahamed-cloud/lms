@@ -208,8 +208,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/app/lessons/:noteId',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
-          child: Scaffold(
-              body: LessonReaderPage(noteId: s.pathParameters['noteId']!)),
+          child: LessonCanvasPage(lessonId: s.pathParameters['noteId']!),
         ),
       ),
       GoRoute(

@@ -1078,7 +1078,7 @@ let LessonsService = class LessonsService {
       LEFT JOIN courses c ON c.id = l.course_id
       LEFT JOIN topics t ON t.id = l.topic_id
       LEFT JOIN subtopics s ON s.id = l.subtopic_id
-      WHERE l.is_public = 1 AND l.note_data IS NOT NULL AND l.status = 'active' AND l.engine_key = ?
+      WHERE l.is_public = 1 AND (l.note_data IS NOT NULL OR l.pdf_url IS NOT NULL) AND l.status = 'active' AND l.engine_key = ?
       ORDER BY c.course_title ASC, t.topic_name ASC, l.updated_at DESC`, [student.id, engineKey]);
         return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
     }

@@ -326,6 +326,11 @@ class _LessonRow extends StatelessWidget {
                     color: c.inkStrong)),
           ),
           const SizedBox(width: 4),
+          if (lesson.hasPdf && !lesson.hasNote)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Icon(Icons.picture_as_pdf_outlined, size: 18, color: c.inkMuted),
+            ),
           if (lesson.lessonCompleted) ...[
             const _CompletedTick(),
             const SizedBox(width: 4),

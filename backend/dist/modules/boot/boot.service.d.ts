@@ -274,7 +274,7 @@ export declare class BootService {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -550,7 +550,7 @@ export declare class BootService {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -826,7 +826,7 @@ export declare class BootService {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -1102,7 +1102,7 @@ export declare class BootService {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -1378,7 +1378,7 @@ export declare class BootService {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -1654,7 +1654,7 @@ export declare class BootService {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;

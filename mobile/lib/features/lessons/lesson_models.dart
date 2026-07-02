@@ -136,6 +136,8 @@ class LessonListItem {
   final String subjectName; // topicName from API (subject grouping)
   final String topicName;   // subtopicName from API (divider within subject)
   final bool lessonCompleted;
+  final bool hasPdf;
+  final bool hasNote;
 
   LessonListItem({
     required this.id,
@@ -148,6 +150,8 @@ class LessonListItem {
     required this.subjectName,
     required this.topicName,
     this.lessonCompleted = false,
+    this.hasPdf = false,
+    this.hasNote = false,
   });
 
   String get subtitle => courseTitle;
@@ -172,6 +176,8 @@ class LessonListItem {
       subjectName: _str(n['topicName'] ?? n['topic_name'] ?? n['subjectName'] ?? n['subject'] ?? ''),
       topicName: _str(n['subtopicName'] ?? n['subtopic_name'] ?? ''),
       lessonCompleted: n['lessonCompleted'] == true || n['lesson_progress_status'] == 'completed',
+      hasPdf: _str(n['pdfUrl'] ?? n['pdf_url'] ?? n['lessonPdfUrl'] ?? '').isNotEmpty,
+      hasNote: n['noteData'] != null || n['note_data'] != null,
     );
   }
 }
