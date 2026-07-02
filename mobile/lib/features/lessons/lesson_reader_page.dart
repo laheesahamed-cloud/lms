@@ -3,9 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
 
-class AiNoteReaderPage extends StatelessWidget {
+class LessonReaderPage extends StatelessWidget {
   final String noteId;
-  const AiNoteReaderPage({super.key, required this.noteId});
+  const LessonReaderPage({super.key, required this.noteId});
 
   @override
   Widget build(BuildContext context) {

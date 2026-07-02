@@ -35,7 +35,7 @@ class _BookmarksPageState extends ConsumerState<BookmarksPage> {
         context.push('/app/quizzes/${b.itemId}${b.examModeOnly ? '?exam=1' : ''}');
         break;
       case 'ai_note':
-        context.push('/app/ai-notes/${b.itemId}');
+        context.push('/app/lessons/${b.itemId}');
         break;
       case 'question':
         if (b.quizId != null) context.push('/app/quizzes/${b.quizId}');

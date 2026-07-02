@@ -5,23 +5,23 @@ import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
-import 'note_models.dart';
-import 'notes_repository.dart';
+import 'lesson_models.dart';
+import 'lessons_repository.dart';
 
 /// Lessons inside one course grouped by subject — `/app/ai-notes/course/:courseKey`.
 /// Mirrors the Q-Bank `QuizCoursePage` pattern: collapsible subject sections
 /// with numbered lesson rows inside each.
-class NotesCourseDetailPage extends ConsumerStatefulWidget {
+class LessonsCourseDetailPage extends ConsumerStatefulWidget {
   final String courseKey;
-  const NotesCourseDetailPage({super.key, required this.courseKey});
+  const LessonsCourseDetailPage({super.key, required this.courseKey});
 
   @override
-  ConsumerState<NotesCourseDetailPage> createState() =>
+  ConsumerState<LessonsCourseDetailPage> createState() =>
       _NotesCourseDetailPageState();
 }
 
 class _NotesCourseDetailPageState
-    extends ConsumerState<NotesCourseDetailPage> {
+    extends ConsumerState<LessonsCourseDetailPage> {
   final Set<String> _collapsed = {};
   String? _subject; // null = All
 
@@ -36,7 +36,7 @@ class _NotesCourseDetailPageState
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final notesAsync = ref.watch(notesListProvider);
+    final notesAsync = ref.watch(lessonsListProvider);
 
     return SafeArea(
       child: notesAsync.when(
@@ -64,7 +64,7 @@ class _NotesCourseDetailPageState
                   : decoded)
               : decoded;
 
-          final allGroups = groupNotesBySubject(lessons);
+          final allGroups = groupLessonsBySubject(lessons);
           final subjects = allGroups.map((g) => g.subjectName).toList();
           final groups = _subject == null
               ? allGroups
@@ -148,12 +148,12 @@ class _NotesCourseDetailPageState
     );
   }
 
-  Widget _subjectSection(AppColors c, NoteSubjectGroup g) {
+  Widget _subjectSection(AppColors c, LessonSubjectGroup g) {
     final collapsed = _collapsed.contains(g.subjectName);
 
     // Group lessons by topicName to show dividers
     final topicOrder = <String>[];
-    final topicMap = <String, List<NoteListItem>>{};
+    final topicMap = <String, List<LessonListItem>>{};
     for (final lesson in g.lessons) {
       final key = lesson.topicName.isNotEmpty ? lesson.topicName : '';
       if (!topicMap.containsKey(key)) {
@@ -289,7 +289,7 @@ class _TopicDivider extends StatelessWidget {
 }
 
 class _LessonRow extends StatelessWidget {
-  final NoteListItem lesson;
+  final LessonListItem lesson;
   final int index;
   const _LessonRow({required this.lesson, required this.index});
 

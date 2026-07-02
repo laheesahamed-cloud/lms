@@ -14,7 +14,7 @@ import '../features/auth/reset_password_page.dart';
 import '../features/auth/verify_email_page.dart';
 import '../features/onboarding/pending_page.dart';
 import '../features/results/review_page.dart';
-import '../features/ai_notes/note_canvas_page.dart';
+import '../features/lessons/lesson_canvas_page.dart';
 import '../features/shell/app_shell.dart';
 import '../features/dashboard/dashboard_page.dart';
 import '../features/courses/courses_page.dart';
@@ -28,9 +28,9 @@ import '../features/results/result_detail_page.dart';
 import '../features/flashcards/flashcards_page.dart';
 import '../features/flashcards/review_session_page.dart';
 import '../features/study/study_hub_page.dart';
-import '../features/ai_notes/ai_notes_list_page.dart';
-import '../features/ai_notes/ai_note_reader_page.dart';
-import '../features/ai_notes/notes_course_detail_page.dart';
+import '../features/lessons/lessons_list_page.dart';
+import '../features/lessons/lesson_reader_page.dart';
+import '../features/lessons/lessons_course_detail_page.dart';
 import '../features/profile/profile_page.dart';
 import '../features/profile/edit_profile_page.dart';
 import '../features/profile/change_password_page.dart';
@@ -125,7 +125,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/app/canvas',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
-          child: NoteCanvasPage(lessonId: s.uri.queryParameters['lessonId'] ?? '1'),
+          child: LessonCanvasPage(lessonId: s.uri.queryParameters['lessonId'] ?? '1'),
         ),
       ),
       // study -> lesson -> full native AI notes
@@ -133,7 +133,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/app/study/lesson/:lessonId',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
-          child: NoteCanvasPage(lessonId: s.pathParameters['lessonId']!),
+          child: LessonCanvasPage(lessonId: s.pathParameters['lessonId']!),
         ),
       ),
 
@@ -195,21 +195,21 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '/app/ai-notes/course/:courseKey',
+        path: '/app/lessons/course/:courseKey',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
           child: Scaffold(
-            body: NotesCourseDetailPage(
+            body: LessonsCourseDetailPage(
                 courseKey: s.pathParameters['courseKey']!),
           ),
         ),
       ),
       GoRoute(
-        path: '/app/ai-notes/:noteId',
+        path: '/app/lessons/:noteId',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
           child: Scaffold(
-              body: AiNoteReaderPage(noteId: s.pathParameters['noteId']!)),
+              body: LessonReaderPage(noteId: s.pathParameters['noteId']!)),
         ),
       ),
       GoRoute(
@@ -311,9 +311,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 fadePage(key: s.pageKey, child: const AuscultationPage()),
           ),
           GoRoute(
-            path: '/app/ai-notes',
+            path: '/app/lessons',
             pageBuilder: (c, s) =>
-                fadePage(key: s.pageKey, child: const AiNotesListPage()),
+                fadePage(key: s.pageKey, child: const LessonsListPage()),
           ),
           GoRoute(
             path: '/app/planner',

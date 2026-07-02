@@ -16,7 +16,7 @@ class StudyHubPage extends ConsumerWidget {
       icon: Icons.menu_book_outlined,
       title: 'Lessons',
       subtitle: 'Browse by course, subject, then lesson',
-      route: '/app/ai-notes',
+      route: '/app/lessons',
       drillIn: false,
     ),
     _ToolEntry(

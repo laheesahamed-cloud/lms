@@ -13,8 +13,8 @@ import '../../theme/tokens.dart';
 import '../../widgets/content_image.dart';
 import '../../widgets/locked_view.dart';
 import '../bookmarks/bookmark_button.dart';
-import 'note_models.dart';
-import 'notes_repository.dart';
+import 'lesson_models.dart';
+import 'lessons_repository.dart';
 import 'pdf_lesson_page.dart';
 
 /// Full AI-notes screen (100% Flutter).
@@ -23,11 +23,11 @@ import 'pdf_lesson_page.dart';
 /// vector-crisp at every level and the header never moves. A single top-level
 /// Listener routes pointers: Apple Pencil draws, fingers pan/zoom — they can
 /// never happen at once, so the ink never drifts off the pen tip.
-class NoteCanvasPage extends ConsumerStatefulWidget {
+class LessonCanvasPage extends ConsumerStatefulWidget {
   final String lessonId;
-  const NoteCanvasPage({super.key, required this.lessonId});
+  const LessonCanvasPage({super.key, required this.lessonId});
   @override
-  ConsumerState<NoteCanvasPage> createState() => _NoteCanvasPageState();
+  ConsumerState<LessonCanvasPage> createState() => _NoteCanvasPageState();
 }
 
 enum _Tool { pen, highlighter, eraser }
@@ -190,7 +190,7 @@ class _OneEuro {
   }
 }
 
-class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
+class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     with SingleTickerProviderStateMixin {
   final List<_Stroke> _strokes = [];
   _Stroke? _active;
@@ -374,9 +374,9 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
   // pen/ink state) reuses the SAME widget object — Flutter then skips rebuilding
   // the whole note tree, killing the per-stroke hitch.
   Widget? _noteCache;
-  NoteDoc? _noteCacheKey;
+  LessonDoc? _noteCacheKey;
   bool _noteCacheDark = false;
-  Widget _noteContent(NoteDoc note, bool dark) {
+  Widget _noteContent(LessonDoc note, bool dark) {
     if (_noteCache == null ||
         !identical(_noteCacheKey, note) ||
         _noteCacheDark != dark) {
@@ -400,7 +400,7 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
           data: {'activityType': 'ai_note_viewed', 'itemId': widget.lessonId},
         ).catchError((_) {});
         // Invalidate the notes list so the green tick shows when the user pops back.
-        ref.invalidate(notesListProvider);
+        ref.invalidate(lessonsListProvider);
       }
     } catch (_) {
       if (mounted) setState(() => _completionBusy = false);
@@ -865,9 +865,9 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
   Widget build(BuildContext context) {
     final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final noteAsync = ref.watch(lessonNoteProvider(widget.lessonId));
+    final noteAsync = ref.watch(lessonDocProvider(widget.lessonId));
     // Sync completed state from the server response (only once, before user acts).
-    ref.listen(lessonNoteProvider(widget.lessonId), (_, next) {
+    ref.listen(lessonDocProvider(widget.lessonId), (_, next) {
       final note = next.asData?.value;
       if (note != null && note.lessonCompleted && !_lessonCompleted) {
         setState(() => _lessonCompleted = true);
@@ -904,7 +904,7 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
     );
   }
 
-  Widget _header(AppColors c, NoteDoc? note) => Padding(
+  Widget _header(AppColors c, LessonDoc? note) => Padding(
         padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
         child: Row(
           children: [
@@ -1206,7 +1206,7 @@ class _NoteCanvasPageState extends ConsumerState<NoteCanvasPage>
         ),
       );
 
-  Widget _canvas(AppColors c, bool dark, NoteDoc note) {
+  Widget _canvas(AppColors c, bool dark, LessonDoc note) {
     // The eraser is the only tool that must mutate the committed ink live; pen
     // and highlighter draw their in-flight stroke on the cheap top layer only.
     final erasing = _active?.tool == _Tool.eraser;
@@ -1633,7 +1633,7 @@ class _CompleteButton extends StatelessWidget {
 
 /// The warm dot-grid "paper" with the note content rendered as widgets.
 class _NoteContent extends StatelessWidget {
-  final NoteDoc note;
+  final LessonDoc note;
   final bool dark;
   const _NoteContent({required this.note, required this.dark});
 
@@ -1975,7 +1975,7 @@ Widget _inlineText(String raw, TextStyle base,
 }
 
 class _SectionCard extends StatelessWidget {
-  final NoteSection section;
+  final LessonSection section;
   final int index;
   final Color ink;
   final Color muted;

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../features/ai_notes/notes_repository.dart';
+import '../features/lessons/lessons_repository.dart';
 import '../features/bookmarks/bookmarks_repository.dart';
 import '../features/courses/courses_repository.dart';
 import '../features/dashboard/dashboard_repository.dart';
@@ -18,8 +18,8 @@ import '../features/subscriptions/subscriptions_repository.dart';
 /// alone.
 void resetUserScopedData(Ref ref) {
   // AI notes
-  ref.invalidate(notesListProvider);
-  ref.invalidate(lessonNoteProvider);
+  ref.invalidate(lessonsListProvider);
+  ref.invalidate(lessonDocProvider);
   // Courses
   ref.invalidate(studentCoursesProvider);
   ref.invalidate(courseDetailProvider);

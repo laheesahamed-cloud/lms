@@ -5,17 +5,17 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../../theme/tokens.dart';
 import '../../widgets/glass_card.dart';
-import 'note_models.dart';
-import 'notes_repository.dart';
+import 'lesson_models.dart';
+import 'lessons_repository.dart';
 
-class AiNotesListPage extends ConsumerStatefulWidget {
-  const AiNotesListPage({super.key});
+class LessonsListPage extends ConsumerStatefulWidget {
+  const LessonsListPage({super.key});
 
   @override
-  ConsumerState<AiNotesListPage> createState() => _AiNotesListPageState();
+  ConsumerState<LessonsListPage> createState() => _LessonsListPageState();
 }
 
-class _AiNotesListPageState extends ConsumerState<AiNotesListPage> {
+class _LessonsListPageState extends ConsumerState<LessonsListPage> {
   String? _examType; // null = All
 
   static const List<Color> _accents = [
@@ -30,7 +30,7 @@ class _AiNotesListPageState extends ConsumerState<AiNotesListPage> {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final notesAsync = ref.watch(notesListProvider);
+    final notesAsync = ref.watch(lessonsListProvider);
 
     return SafeArea(
       child: notesAsync.when(
@@ -45,7 +45,7 @@ class _AiNotesListPageState extends ConsumerState<AiNotesListPage> {
         ),
         data: (notes) {
           final valid = notes.where((n) => n.lessonExists).toList();
-          final allGroups = groupNotesByCourse(valid);
+          final allGroups = groupLessonsByCourse(valid);
 
           // Distinct exam types
           final examTypes = allGroups
@@ -55,7 +55,7 @@ class _AiNotesListPageState extends ConsumerState<AiNotesListPage> {
             ..sort();
 
           // Group all courses by exam type
-          final byExam = <String, List<NoteCourseGroup>>{};
+          final byExam = <String, List<LessonCourseGroup>>{};
           for (final g in allGroups) {
             final key = g.examType.isNotEmpty ? g.examType : 'General';
             byExam.putIfAbsent(key, () => []).add(g);
@@ -150,7 +150,7 @@ class _AiNotesListPageState extends ConsumerState<AiNotesListPage> {
 
 sealed class _ListItem {}
 class _SectionHeader extends _ListItem { final String label; _SectionHeader(this.label); }
-class _CourseItem extends _ListItem { final NoteCourseGroup group; final int accentIndex; _CourseItem(this.group, this.accentIndex); }
+class _CourseItem extends _ListItem { final LessonCourseGroup group; final int accentIndex; _CourseItem(this.group, this.accentIndex); }
 
 class _ExamDivider extends StatelessWidget {
   final String label;
@@ -237,7 +237,7 @@ class _ExamDropdown extends StatelessWidget {
 }
 
 class _CourseCard extends StatelessWidget {
-  final NoteCourseGroup group;
+  final LessonCourseGroup group;
   final Color accent;
   const _CourseCard({required this.group, required this.accent});
 
@@ -248,7 +248,7 @@ class _CourseCard extends StatelessWidget {
         ? group.courseId
         : Uri.encodeComponent(group.courseTitle);
     return GlassCard(
-      onTap: () => context.push('/app/ai-notes/course/$key'),
+      onTap: () => context.push('/app/lessons/course/$key'),
       child: Row(children: [
         Container(
           width: 48, height: 48,

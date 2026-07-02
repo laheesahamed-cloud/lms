@@ -12,8 +12,8 @@ import '../../state/auth_controller.dart';
 import '../notifications/notifications_popup.dart';
 import '../quizzes/quizzes_repository.dart';
 import '../flashcards/flashcards_repository.dart';
-import '../ai_notes/notes_repository.dart';
-import '../ai_notes/note_models.dart';
+import '../lessons/lessons_repository.dart';
+import '../lessons/lesson_models.dart';
 import 'dashboard_repository.dart';
 
 String _timeAgo(String iso) {
@@ -467,8 +467,8 @@ class _ContinueCard extends ConsumerWidget {
         .watch(quizListProvider)
         .maybeWhen(data: (x) => x, orElse: () => const <QuizListItem>[]);
     final notes = ref
-        .watch(notesListProvider)
-        .maybeWhen(data: (x) => x, orElse: () => const <NoteListItem>[]);
+        .watch(lessonsListProvider)
+        .maybeWhen(data: (x) => x, orElse: () => const <LessonListItem>[]);
 
     final weak = (d != null && d.weakTopics.isNotEmpty) ? d.weakTopics.first : null;
     final recQuiz = _pickQuiz(quizzes, weak);
@@ -885,7 +885,7 @@ class _QuickActions extends StatelessWidget {
     (Icons.assignment_outlined, 'Exams', '/app/exams', DashAccents.blue),
     (Icons.event_note_outlined, 'Planner', '/app/planner', DashAccents.amber),
     (Icons.quiz_outlined, 'Q-Bank', '/app/quizzes', DashAccents.violet),
-    (Icons.sticky_note_2_outlined, 'Lessons', '/app/ai-notes', DashAccents.cyan),
+    (Icons.sticky_note_2_outlined, 'Lessons', '/app/lessons', DashAccents.cyan),
     (Icons.bookmark_outline_rounded, 'Saved', '/app/bookmarks', DashAccents.rose),
     (Icons.insights_outlined, 'Results', '/app/results', DashAccents.green),
   ];
@@ -1006,8 +1006,8 @@ class _StudyPlanCard extends ConsumerWidget {
         .watch(quizListProvider)
         .maybeWhen(data: (x) => x, orElse: () => const <QuizListItem>[]);
     final notes = ref
-        .watch(notesListProvider)
-        .maybeWhen(data: (x) => x, orElse: () => const <NoteListItem>[]);
+        .watch(lessonsListProvider)
+        .maybeWhen(data: (x) => x, orElse: () => const <LessonListItem>[]);
 
     final weak = (d != null && d.weakTopics.isNotEmpty) ? d.weakTopics.first : null;
     final recQuiz = _pickQuiz(quizzes, weak);
@@ -1065,7 +1065,7 @@ class _StudyPlanCard extends ConsumerWidget {
         done: doneTypes.contains('note'),
         route: recNote != null
             ? '/app/study/lesson/${recNote.lessonId}'
-            : '/app/ai-notes',
+            : '/app/lessons',
       ),
     ];
 

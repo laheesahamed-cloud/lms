@@ -1,21 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api_client.dart';
 import '../../state/current_user.dart';
-import 'note_models.dart';
+import 'lesson_models.dart';
 
 /// Fetches the AI note for a lesson via GET /lessons/:id/note.
-final lessonNoteProvider =
-    FutureProvider.autoDispose.family<NoteDoc, String>((ref, lessonId) async {
+final lessonDocProvider =
+    FutureProvider.autoDispose.family<LessonDoc, String>((ref, lessonId) async {
   ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
 
-  Future<NoteDoc?> tryGet(String path) async {
+  Future<LessonDoc?> tryGet(String path) async {
     try {
       final res = await api.dio.get(
         path,
         queryParameters: const {'engine': 'gemini'},
       );
-      return NoteDoc.fromApi(res.data);
+      return LessonDoc.fromApi(res.data);
     } catch (_) {
       return null;
     }
@@ -23,7 +23,7 @@ final lessonNoteProvider =
 
   final a = await tryGet('/lessons/$lessonId/note');
   if (a != null && (a.locked || !a.isEmpty)) return a;
-  return a ?? NoteDoc.empty();
+  return a ?? LessonDoc.empty();
 });
 
 /// Marks a lesson as completed via PATCH /courses/student/lessons/:id/progress.
@@ -35,7 +35,7 @@ Future<void> markLessonComplete(ApiClient api, String lessonId) async {
 }
 
 /// The student's lessons notes list — GET /lessons/canvas/student/notes.
-final notesListProvider = FutureProvider.autoDispose<List<NoteListItem>>((ref) async {
+final lessonsListProvider = FutureProvider.autoDispose<List<LessonListItem>>((ref) async {
   ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
@@ -48,5 +48,5 @@ final notesListProvider = FutureProvider.autoDispose<List<NoteListItem>>((ref) a
       : (data is Map
           ? (data['notes'] ?? data['aiNotes'] ?? data['items'] ?? data['data'] ?? const [])
           : const []);
-  return (rows as List).map(NoteListItem.fromJson).toList();
+  return (rows as List).map(LessonListItem.fromJson).toList();
 });

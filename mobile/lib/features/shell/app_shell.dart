@@ -31,7 +31,7 @@ const _kSideMain = [
   NavDest('Results', Icons.bar_chart_rounded, '/app/results'),
 ];
 const _kSideStudy = [
-  NavDest('Lessons', Icons.auto_stories_outlined, '/app/ai-notes'),
+  NavDest('Lessons', Icons.auto_stories_outlined, '/app/lessons'),
   NavDest('Flashcards', Icons.style_outlined, '/app/flashcards'),
   NavDest('Drugs', Icons.medication_outlined, '/app/drugs'),
   NavDest('ECG', Icons.monitor_heart_outlined, '/app/ecg'),

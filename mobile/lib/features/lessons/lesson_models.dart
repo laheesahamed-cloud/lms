@@ -1,4 +1,4 @@
-/// Note document model — parses the JSON from `GET /student/ai-notes/lesson/:lessonId`.
+/// Note document model — parses the JSON from `GET /lessons/:id/note`.
 /// Defensive: the canvas content can be at the top level, under `noteData`/`note_data`,
 /// or wrapped in `pages[]` (web `normalizeNoteData`). Mirrors the web NoteCanvas shape:
 /// sections[{heading, bullets, accentColor, span, type, callout}], key_points, summary_box.
@@ -16,12 +16,12 @@ double? _numOrNull(dynamic v) {
   return null;
 }
 
-class NoteDoc {
+class LessonDoc {
   final String title;
   final String subtitle;
   final String layout; // '1col' | '2col' | '3col'
   final List<String> tags;
-  final List<NoteSection> sections;
+  final List<LessonSection> sections;
   final List<String> keyPoints;
   final String summaryBox;
   final bool locked; // subscription doesn't include this lesson
@@ -32,7 +32,7 @@ class NoteDoc {
 
   final String pdfUrl;
 
-  NoteDoc({
+  LessonDoc({
     required this.title,
     required this.subtitle,
     required this.layout,
@@ -49,7 +49,7 @@ class NoteDoc {
   });
 
   /// No note generated for an accessible lesson.
-  factory NoteDoc.empty() => NoteDoc(
+  factory LessonDoc.empty() => LessonDoc(
         title: '',
         subtitle: '',
         layout: '1col',
@@ -60,7 +60,7 @@ class NoteDoc {
         pdfUrl: '',
       );
 
-  factory NoteDoc.fromApi(dynamic raw) {
+  factory LessonDoc.fromApi(dynamic raw) {
     final note = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     final data =
         note['noteData'] ?? note['note_data'] ?? note['data'] ?? note['canvas'] ?? note;
@@ -77,12 +77,12 @@ class NoteDoc {
         .toList();
     final first = pageMaps.first;
 
-    final sections = <NoteSection>[];
+    final sections = <LessonSection>[];
     final keyPoints = <String>[];
     final summaries = <String>[];
     for (final p in pageMaps) {
       if (p['sections'] is List) {
-        sections.addAll((p['sections'] as List).map(NoteSection.fromJson));
+        sections.addAll((p['sections'] as List).map(LessonSection.fromJson));
       }
       keyPoints.addAll(_strList(p['key_points']));
       final sb = _str(p['summary_box']).trim();
@@ -99,7 +99,7 @@ class NoteDoc {
     // PDF-only lesson: backend returns { lessonType: 'pdf', pdfUrl: '...' }
     final pdfUrl = _str(note['pdfUrl'] ?? note['pdf_url'] ?? note['lessonPdfUrl'] ?? '');
 
-    return NoteDoc(
+    return LessonDoc(
       title: _str(first['title'] ?? note['lessonTitle'] ?? note['title'] ?? 'Note'),
       subtitle: _str(first['subtitle'] ?? first['subject'] ?? note['courseTitle'] ?? ''),
       layout: _str(first['layout'] ?? '2col'),
@@ -110,7 +110,7 @@ class NoteDoc {
       locked: locked,
       lockReason: lockReason,
       noteId: int.tryParse(
-              '${note['id'] ?? note['noteId'] ?? note['aiNoteId'] ?? ''}') ??
+              '${note['id'] ?? note['noteId'] ?? note['lessonId'] ?? ''}') ??
           0,
       lessonCompleted: note['lessonCompleted'] == true || note['lesson_progress_status'] == 'completed',
       lessonProgressStatus: _str(note['lessonProgressStatus'] ?? note['lesson_progress_status'] ?? 'not_started'),
@@ -124,8 +124,8 @@ class NoteDoc {
 
 }
 
-/// A row in the AI-notes list (`GET /student/ai-notes`).
-class NoteListItem {
+/// A row in the AI-notes list (`GET /lessons/canvas/student/notes`).
+class LessonListItem {
   final String id;          // note's own id — always set
   final String lessonId;    // linked lesson id — empty for topic-level notes
   final String lessonTitle; // raw lesson title from API — empty when lesson was deleted
@@ -137,7 +137,7 @@ class NoteListItem {
   final String topicName;   // subtopicName from API (divider within subject)
   final bool lessonCompleted;
 
-  NoteListItem({
+  LessonListItem({
     required this.id,
     required this.lessonId,
     required this.lessonTitle,
@@ -158,10 +158,10 @@ class NoteListItem {
   // Best id for canvas navigation: real lessonId when present, else note's own id
   String get canvasId => lessonId.isNotEmpty ? lessonId : id;
 
-  factory NoteListItem.fromJson(dynamic raw) {
+  factory LessonListItem.fromJson(dynamic raw) {
     final n = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     final rawLessonTitle = _str(n['lessonTitle'] ?? n['lesson_title'] ?? '');
-    return NoteListItem(
+    return LessonListItem(
       id: _str(n['id'] ?? n['noteId']),
       lessonId: _str(n['lessonId'] ?? n['lesson_id'] ?? ''),
       lessonTitle: rawLessonTitle,
@@ -177,12 +177,12 @@ class NoteListItem {
 }
 
 /// Notes grouped by course — used for the course-card list view.
-class NoteCourseGroup {
+class LessonCourseGroup {
   final String courseTitle;
   final String courseId;
   final String examType;
-  final List<NoteListItem> lessons;
-  const NoteCourseGroup({
+  final List<LessonListItem> lessons;
+  const LessonCourseGroup({
     required this.courseTitle,
     required this.courseId,
     required this.examType,
@@ -192,21 +192,21 @@ class NoteCourseGroup {
 }
 
 /// Notes grouped by subject — used inside a course detail page.
-class NoteSubjectGroup {
+class LessonSubjectGroup {
   final String subjectName;
-  final List<NoteListItem> lessons;
-  const NoteSubjectGroup({required this.subjectName, required this.lessons});
+  final List<LessonListItem> lessons;
+  const LessonSubjectGroup({required this.subjectName, required this.lessons});
 }
 
 /// Groups a flat list of notes into per-course buckets, preserving order.
-List<NoteCourseGroup> groupNotesByCourse(List<NoteListItem> items) {
-  final map = <String, NoteCourseGroup>{};
+List<LessonCourseGroup> groupLessonsByCourse(List<LessonListItem> items) {
+  final map = <String, LessonCourseGroup>{};
   final order = <String>[];
   for (final item in items) {
     final key = item.courseId.isNotEmpty ? item.courseId : item.courseTitle;
     if (!map.containsKey(key)) {
       order.add(key);
-      map[key] = NoteCourseGroup(
+      map[key] = LessonCourseGroup(
         courseTitle: item.courseTitle.isNotEmpty ? item.courseTitle : 'General',
         courseId: item.courseId,
         examType: item.examType,
@@ -219,8 +219,8 @@ List<NoteCourseGroup> groupNotesByCourse(List<NoteListItem> items) {
 }
 
 /// Groups lessons within a course by subject, preserving order.
-List<NoteSubjectGroup> groupNotesBySubject(List<NoteListItem> lessons) {
-  final map = <String, List<NoteListItem>>{};
+List<LessonSubjectGroup> groupLessonsBySubject(List<LessonListItem> lessons) {
+  final map = <String, List<LessonListItem>>{};
   final order = <String>[];
   for (final item in lessons) {
     final key = item.subjectName.isNotEmpty ? item.subjectName : 'General';
@@ -230,7 +230,7 @@ List<NoteSubjectGroup> groupNotesBySubject(List<NoteListItem> lessons) {
     }
     map[key]!.add(item);
   }
-  return order.map((k) => NoteSubjectGroup(subjectName: k, lessons: map[k]!)).toList();
+  return order.map((k) => LessonSubjectGroup(subjectName: k, lessons: map[k]!)).toList();
 }
 
 /// An image attached to a TEXT section (`section.sectionImage`). Mirrors the web
@@ -272,7 +272,7 @@ class SectionImage {
   }
 }
 
-class NoteSection {
+class LessonSection {
   final String heading;
   final List<String> bullets;
   final String? accentColor; // hex like '#2563eb'
@@ -287,7 +287,7 @@ class NoteSection {
   final String imageFit; // 'contain'|'cover'
   final SectionImage? sectionImage; // image embedded inside a text section
 
-  NoteSection({
+  LessonSection({
     required this.heading,
     required this.bullets,
     required this.accentColor,
@@ -303,13 +303,13 @@ class NoteSection {
     required this.sectionImage,
   });
 
-  factory NoteSection.fromJson(dynamic raw) {
+  factory LessonSection.fromJson(dynamic raw) {
     final s = (raw is Map) ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     final ac = s['accentColor'];
     final directSrc = _str(s['src']);
     var fit = _str(s['imageFit']);
     if (fit.isEmpty) fit = 'contain';
-    return NoteSection(
+    return LessonSection(
       heading: _str(s['heading'] ?? s['title']),
       bullets: _strList(s['bullets']),
       accentColor: (ac is String && ac.isNotEmpty) ? ac : null,
