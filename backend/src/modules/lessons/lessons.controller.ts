@@ -193,6 +193,128 @@ export class LessonsController {
     return this.lessonsService.rollback(id, versionNumber, actor);
   }
 
+  // ─── Canvas (AI Notes) routes ────────────────────────────────────────────
+
+  @Post('canvas/generate')
+  canvasGenerate(@Headers('authorization') auth: string, @Body('text') text: string) {
+    return this.lessonsService.canvasGenerate(text, this.bearerToken(auth));
+  }
+
+  @Get('canvas/admin')
+  canvasAdminList(@Headers('authorization') auth: string, @Query('engineKey') engineKey?: string) {
+    return this.lessonsService.canvasAdminList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+  }
+
+  @Get('canvas/hierarchy/courses')
+  canvasGetCourses(@Headers('authorization') auth: string) {
+    return this.lessonsService.getCourses(this.bearerToken(auth));
+  }
+
+  @Get('canvas/hierarchy/topics')
+  canvasGetTopics(@Headers('authorization') auth: string, @Query('courseId') courseId?: string) {
+    return this.lessonsService.getTopics(courseId ? Number(courseId) : undefined, this.bearerToken(auth));
+  }
+
+  @Get('canvas/hierarchy/subtopics')
+  canvasGetSubtopics(@Headers('authorization') auth: string, @Query('topicId') topicId?: string) {
+    return this.lessonsService.getSubtopics(topicId ? Number(topicId) : undefined, this.bearerToken(auth));
+  }
+
+  @Get('canvas/admin/:id')
+  canvasAdminFindOne(
+    @Headers('authorization') auth: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Query('engineKey') engineKey?: string,
+  ) {
+    return this.lessonsService.canvasAdminFindOne(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+  }
+
+  @Patch('canvas/admin/:id')
+  canvasAdminUpdate(
+    @Headers('authorization') auth: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: Record<string, unknown>,
+    @Query('engineKey') engineKey?: string,
+  ) {
+    return this.lessonsService.canvasAdminUpdate(
+      id,
+      { title: body.title as string, rawText: body.rawText as string, noteData: body.noteData, status: body.status as string, courseId: body.courseId != null ? Number(body.courseId) : undefined, topicId: body.topicId != null ? Number(body.topicId) : undefined, subtopicId: body.subtopicId != null ? Number(body.subtopicId) : undefined, videoUrl: body.videoUrl as string, isFree: body.isFree != null ? Number(body.isFree) : undefined },
+      this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey),
+    );
+  }
+
+  @Delete('canvas/admin/:id')
+  canvasAdminRemove(
+    @Headers('authorization') auth: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Query('engineKey') engineKey?: string,
+  ) {
+    return this.lessonsService.canvasAdminRemove(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+  }
+
+  @Get('canvas/admin/:id/flashcards')
+  canvasAdminListFlashcards(@Headers('authorization') auth: string, @Param('id', ParseIntPipe) id: number) {
+    return this.lessonsService.canvasAdminListFlashcards(id, this.bearerToken(auth));
+  }
+
+  @Post('canvas/admin/:id/flashcards')
+  canvasAdminCreateFlashcard(@Headers('authorization') auth: string, @Param('id', ParseIntPipe) id: number, @Body() body: Record<string, unknown>) {
+    return this.lessonsService.canvasAdminCreateFlashcard(id, body as never, this.bearerToken(auth));
+  }
+
+  @Post('canvas/admin/:id/flashcards/generate')
+  canvasAdminGenerateFlashcards(@Headers('authorization') auth: string, @Param('id', ParseIntPipe) id: number, @Body() body: { count?: number }) {
+    return this.lessonsService.canvasAdminGenerateFlashcards(id, body, this.bearerToken(auth));
+  }
+
+  @Patch('canvas/admin/:id/flashcards/:cardId')
+  canvasAdminUpdateFlashcard(
+    @Headers('authorization') auth: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('cardId', ParseIntPipe) cardId: number,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.lessonsService.canvasAdminUpdateFlashcard(id, cardId, body as never, this.bearerToken(auth));
+  }
+
+  @Delete('canvas/admin/:id/flashcards/:cardId')
+  canvasAdminRemoveFlashcard(
+    @Headers('authorization') auth: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('cardId', ParseIntPipe) cardId: number,
+  ) {
+    return this.lessonsService.canvasAdminRemoveFlashcard(id, cardId, this.bearerToken(auth));
+  }
+
+  @Get('canvas/student/notes')
+  canvasStudentList(@Headers('authorization') auth: string, @Query('engineKey') engineKey?: string) {
+    return this.lessonsService.canvasStudentList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+  }
+
+  @Get(':id/note')
+  canvasStudentFindNote(
+    @Headers('authorization') auth: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Query('engineKey') engineKey?: string,
+  ) {
+    return this.lessonsService.canvasStudentFindNote(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+  }
+
+  @Get(':id/flashcards')
+  canvasStudentFlashcards(
+    @Headers('authorization') auth: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Query('engineKey') engineKey?: string,
+  ) {
+    return this.lessonsService.canvasStudentFlashcards(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+  }
+
+  private bearerToken(auth: string | undefined) {
+    if (!auth) return '';
+    const m = /^Bearer\s+(.+)$/i.exec(auth.trim());
+    return m ? m[1].trim() : '';
+  }
+
   private parsePositiveNumber(raw?: string) {
     const value = Number(raw);
     if (!Number.isFinite(value) || value <= 0) {

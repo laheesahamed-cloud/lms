@@ -33,7 +33,6 @@ export declare class SchemaSyncService implements OnModuleInit {
     private ensureAuscultationTables;
     private ensureAiProviderConfigsTable;
     private ensureSmartNotesTable;
-    private ensureAiIllustratedNotesTable;
     private ensureLessonFlashcardsTable;
     private ensureLessonFlashcardReviewsTable;
     private ensureQuestionTheoryRecapsTable;

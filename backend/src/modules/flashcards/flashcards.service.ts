@@ -1,7 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
-import { AiNotesService } from '../ai-notes/ai-notes.service';
+import { LessonsService } from '../lessons/lessons.service';
 import {
   CardState,
   DEFAULT_FSRS_SETTINGS,
@@ -74,7 +74,7 @@ export class FlashcardsService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Pool,
     private readonly scheduler: FlashcardSchedulerService,
-    private readonly aiNotes: AiNotesService,
+    private readonly aiNotes: LessonsService,
   ) {}
 
   // ── settings (stored in system_settings, no new table) ─────
@@ -347,7 +347,7 @@ export class FlashcardsService {
   }
 
   private async loadAccessibleNotes(token: string) {
-    const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.studentList(token, engine)));
+    const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.canvasStudentList(token, engine)));
     const merged = new Map<number, ReturnType<typeof normalizeNote>>();
     for (const list of lists) {
       for (const note of list) {

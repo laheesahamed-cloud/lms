@@ -1,4 +1,5 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -9,6 +10,12 @@ import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { CreateLessonAnnotationDto } from './dto/create-lesson-annotation.dto';
 import { UpdateLessonAnnotationDto } from './dto/update-lesson-annotation.dto';
+import {
+  AI_PROVIDER_LABELS, AiProviderKey, decryptSecret,
+  getDefaultBaseUrlForProvider, getDefaultModelForProvider,
+  isAiProviderKey, normalizeAiProviderBaseUrl,
+} from '../../common/utils/ai-provider.utils';
+import { fetchWithRetry } from '../../common/utils/fetch-with-retry';
 
 type LessonRow = RowDataPacket & {
   id: number;
@@ -91,9 +98,53 @@ type LessonSnapshot = {
   status: 'active' | 'inactive';
 };
 
+const AI_NOTES_REQUEST_TIMEOUT_MS = 240_000;
+const FLASHCARD_IMAGE_LIMIT = 3;
+const GEMINI_MODELS = ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview'];
+
+export type CanvasEngineKey = 'gemini' | 'openai';
+type CanvasAccessProfile = {
+  hasAnyPaidLessonAccess: boolean;
+  hasNotesCanvas: boolean;
+  hasFullAccess: boolean;
+  courseIds: Set<number>;
+  lessonIds: Set<number>;
+};
+type LessonFlashcardStatus = 'draft' | 'approved' | 'rejected';
+type LessonFlashcardGeneratedBy = 'ai' | 'manual';
+type LessonFlashcardDraft = { question: string; answer: string; sourceHint: string };
+type RuntimeCanvasProvider = {
+  providerKey: AiProviderKey; providerLabel: string; apiKey: string; model: string; baseUrl: string;
+};
+type CanvasLessonRow = RowDataPacket & {
+  id: number; lesson_title: string;
+  raw_text: string | null; note_data: string | null; engine_key: CanvasEngineKey;
+  course_id: number | null; topic_id: number | null; subtopic_id: number | null;
+  video_url: string | null; pdf_url: string | null; is_free: number; status: 'active' | 'inactive';
+  is_public: number; created_at: string; updated_at: string;
+  course_title?: string | null; topic_name?: string | null; subtopic_name?: string | null;
+  exam_type?: string | null;
+  lesson_progress_status?: 'not_started' | 'in_progress' | 'completed' | null;
+  lesson_progress_percent?: number | null; lesson_completed_at?: string | null;
+  approved_flashcard_count?: number | null;
+};
+type CanvasFlashcardRow = RowDataPacket & {
+  id: number; lesson_id: number; question: string; answer: string;
+  source_hint: string | null; image_url: string | null; image_fit: 'contain' | 'cover' | null;
+  status: LessonFlashcardStatus; sort_order: number; generated_by: LessonFlashcardGeneratedBy;
+  reviewed_by: number | null; created_at: string; updated_at: string;
+};
+export interface NoteSection { heading: string; bullets: string[]; callout: string; sticky_note: string; mnemonic: string; }
+export interface NoteResult { title: string; subtitle: string; sections: NoteSection[]; summary_box: string; key_points: string[]; visual_style?: { theme: string; look: string; colors: string[] }; }
+export interface NoteCanvas { pages: NoteResult[]; }
+const FALLBACK_COLORS = ['#A7D8FF', '#FFE680', '#FFB3B3', '#C7F0BD', '#CE93D8', '#80DEEA', '#F48FB1', '#FFCC80'];
+
 @Injectable()
 export class LessonsService {
-  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Pool) {}
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Pool,
+    private readonly config: ConfigService,
+  ) {}
 
   async getMeta() {
     const [courses] = await this.db.execute<LookupRow[]>(
@@ -1144,6 +1195,708 @@ export class LessonsService {
       .replace(/\n{3,}/g, '\n\n')
       .replace(/[ \t]{2,}/g, ' ')
       .trim();
+  }
+
+  // \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // CANVAS (formerly ai-notes) \u2014 all queries now hit `lessons` directly
+  // \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+  normalizeEngineKey(value: string | undefined): CanvasEngineKey {
+    return value === 'openai' ? 'openai' : 'gemini';
+  }
+
+  private async resolveToken(token: string) {
+    if (!token) throw new UnauthorizedException('Missing auth token');
+    const [rows] = await this.db.execute<UserRow[]>(
+      `SELECT id, role, status FROM users WHERE session_token = ? AND session_expires_at > NOW() LIMIT 1`,
+      [hashSessionToken(token)],
+    );
+    if (!rows.length) throw new UnauthorizedException('Invalid or expired session');
+    return rows[0];
+  }
+
+  private async requireAdminToken(token: string) {
+    const u = await this.resolveToken(token);
+    if (u.role !== 'admin' || u.status !== 'active') throw new ForbiddenException('Active admin account required');
+    return u;
+  }
+
+  private async requireStudentToken(token: string) {
+    const u = await this.resolveToken(token);
+    if (u.role !== 'student' || u.status !== 'active') throw new ForbiddenException('Active student account required');
+    return u;
+  }
+
+  private canvasLessonSelect(includeNoteData: boolean) {
+    return `
+      l.id, l.lesson_title, l.engine_key, l.is_free, l.status, l.is_public,
+      l.course_id, l.topic_id, l.subtopic_id, l.video_url, l.pdf_url,
+      l.created_at, l.updated_at,
+      ${includeNoteData ? 'l.note_data, l.raw_text,' : 'NULL AS note_data, NULL AS raw_text,'}
+      c.course_title, c.exam_type, t.topic_name, s.subtopic_name
+    `;
+  }
+
+  async canvasAdminList(token: string, engineKey: CanvasEngineKey = 'gemini') {
+    await this.requireAdminToken(token);
+    const [rows] = await this.db.execute<CanvasLessonRow[]>(`
+      SELECT ${this.canvasLessonSelect(false)},
+             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+      FROM lessons l
+      LEFT JOIN courses c ON c.id = l.course_id
+      LEFT JOIN topics t ON t.id = l.topic_id
+      LEFT JOIN subtopics s ON s.id = l.subtopic_id
+      WHERE l.is_public = 1 AND l.engine_key = ?
+      ORDER BY l.updated_at DESC`, [engineKey]);
+    return rows.map(r => this.deserializeCanvas(r));
+  }
+
+  async canvasAdminFindOne(id: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
+    await this.requireAdminToken(token);
+    const [rows] = await this.db.execute<CanvasLessonRow[]>(`
+      SELECT ${this.canvasLessonSelect(true)},
+             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+      FROM lessons l
+      LEFT JOIN courses c ON c.id = l.course_id
+      LEFT JOIN topics t ON t.id = l.topic_id
+      LEFT JOIN subtopics s ON s.id = l.subtopic_id
+      WHERE l.id = ? AND l.is_public = 1 AND l.engine_key = ?`, [id, engineKey]);
+    if (!rows.length) throw new NotFoundException('Lesson not found');
+    return this.deserializeCanvas(rows[0]);
+  }
+
+  async canvasAdminUpdate(
+    id: number,
+    patch: { title?: string; rawText?: string; noteData?: unknown; status?: string; courseId?: number | null; topicId?: number | null; subtopicId?: number | null; videoUrl?: string | null; isFree?: number | null },
+    token: string,
+    engineKey: CanvasEngineKey = 'gemini',
+  ) {
+    await this.requireAdminToken(token);
+    const [existing] = await this.db.execute<CanvasLessonRow[]>(
+      'SELECT id FROM lessons WHERE id = ? AND is_public = 1 AND engine_key = ?', [id, engineKey],
+    );
+    if (!existing.length) throw new NotFoundException('Lesson not found');
+
+    if (patch.courseId && (!patch.topicId || !patch.subtopicId)) {
+      const fallback = await this.ensureDefaultLessonHierarchy(Number(patch.courseId));
+      patch.topicId = patch.topicId || fallback.topicId;
+      patch.subtopicId = patch.subtopicId || fallback.subtopicId;
+    }
+
+    const fields: string[] = [];
+    const values: (string | number | null)[] = [];
+    if (patch.title      !== undefined) { fields.push('lesson_title = ?'); values.push(patch.title); }
+    if (patch.rawText    !== undefined) { fields.push('raw_text = ?');     values.push(patch.rawText); }
+    if (patch.status     !== undefined) { fields.push('status = ?');       values.push(patch.status === 'active' ? 'active' : 'inactive'); }
+    if ('courseId'   in patch)          { fields.push('course_id = ?');    values.push(patch.courseId   ?? null); }
+    if ('topicId'    in patch)          { fields.push('topic_id = ?');     values.push(patch.topicId    ?? null); }
+    if ('subtopicId' in patch)          { fields.push('subtopic_id = ?');  values.push(patch.subtopicId ?? null); }
+    if ('videoUrl'   in patch)          { fields.push('video_url = ?');    values.push(String(patch.videoUrl || '').trim() || null); }
+    if ('isFree'     in patch)          { fields.push('is_free = ?');      values.push(Number(patch.isFree) === 1 ? 1 : 0); }
+
+    if (patch.noteData !== undefined) {
+      const serialized = JSON.stringify(patch.noteData);
+      if (Buffer.byteLength(serialized, 'utf8') > 60 * 1024 * 1024)
+        throw new BadRequestException('Lesson data exceeds the 60 MB save limit.');
+      fields.push('note_data = ?');
+      values.push(serialized);
+    }
+    if (!fields.length) return { id };
+
+    values.push(id);
+    try {
+      await this.db.execute(`UPDATE lessons SET ${fields.join(', ')} WHERE id = ?`, values);
+    } catch (err: unknown) {
+      const e = err as { code?: string; errno?: number };
+      if (e?.code === 'ER_NET_PACKET_TOO_LARGE' || e?.errno === 1153)
+        throw new BadRequestException('Lesson data is too large for the database.');
+      throw err;
+    }
+    return { id };
+  }
+
+  async canvasAdminRemove(id: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
+    await this.requireAdminToken(token);
+    await this.db.execute(
+      `UPDATE lessons SET note_data = NULL, raw_text = NULL, is_public = 0 WHERE id = ? AND engine_key = ?`, [id, engineKey]
+    );
+    return { deleted: true };
+  }
+
+  async canvasAdminListFlashcards(id: number, token: string) {
+    await this.requireAdminToken(token);
+    await this.findCanvasLessonRow(id);
+    return this.findFlashcardsForLesson(id);
+  }
+
+  async canvasAdminCreateFlashcard(
+    id: number,
+    payload: { question?: string; answer?: string; sourceHint?: string; imageUrl?: string; imageUrls?: string[]; imageFit?: 'contain' | 'cover'; status?: LessonFlashcardStatus },
+    token: string,
+  ) {
+    const admin = await this.requireAdminToken(token);
+    await this.findCanvasLessonRow(id);
+    const clean = this.normalizeFlashcardInput(payload);
+    const status = this.normalizeFlashcardStatus(payload.status || 'draft');
+    this.assertValidFlashcard(clean.question, clean.answer);
+    const sortOrder = await this.getNextFlashcardSortOrder(id);
+    const [result] = await this.db.execute<ResultSetHeader>(
+      `INSERT INTO lesson_flashcards (lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)`,
+      [id, clean.question, clean.answer, clean.sourceHint || null,
+       this.serializeFlashcardImageUrls(clean.imageUrls), clean.imageFit, status, sortOrder,
+       status === 'approved' ? admin.id : null],
+    );
+    return this.findFlashcardById(result.insertId, id);
+  }
+
+  async canvasAdminUpdateFlashcard(
+    id: number, cardId: number,
+    patch: { question?: string; answer?: string; sourceHint?: string; imageUrl?: string; imageUrls?: string[]; imageFit?: 'contain' | 'cover'; status?: LessonFlashcardStatus; sortOrder?: number },
+    token: string,
+  ) {
+    const admin = await this.requireAdminToken(token);
+    await this.findCanvasLessonRow(id);
+    const existing = await this.findFlashcardById(cardId, id);
+    const question   = patch.question   !== undefined ? this.cleanFlashcardText(patch.question, 1000)   : existing.question;
+    const answer     = patch.answer     !== undefined ? this.cleanFlashcardText(patch.answer, 3000)     : existing.answer;
+    const sourceHint = patch.sourceHint !== undefined ? this.cleanFlashcardText(patch.sourceHint, 500)  : existing.sourceHint;
+    const imageUrls  = patch.imageUrls !== undefined || patch.imageUrl !== undefined
+      ? this.cleanFlashcardImageUrls(patch.imageUrls ?? patch.imageUrl) : existing.imageUrls;
+    const imageFit   = patch.imageFit   !== undefined ? this.normalizeFlashcardImageFit(patch.imageFit) : existing.imageFit;
+    const status     = patch.status     !== undefined ? this.normalizeFlashcardStatus(patch.status)     : existing.status;
+    const sortOrder  = Number.isFinite(Number(patch.sortOrder)) ? Number(patch.sortOrder) : existing.sortOrder;
+    this.assertValidFlashcard(question, answer);
+    await this.db.execute(
+      `UPDATE lesson_flashcards SET question=?, answer=?, source_hint=?, image_url=?, image_fit=?, status=?, sort_order=?, reviewed_by=?
+       WHERE id = ? AND lesson_id = ?`,
+      [question, answer, sourceHint || null, this.serializeFlashcardImageUrls(imageUrls), imageFit, status, sortOrder,
+       status === 'approved' ? admin.id : existing.reviewedBy || null, cardId, id],
+    );
+    return this.findFlashcardById(cardId, id);
+  }
+
+  async canvasAdminRemoveFlashcard(id: number, cardId: number, token: string) {
+    await this.requireAdminToken(token);
+    await this.findFlashcardById(cardId, id);
+    await this.db.execute('DELETE FROM lesson_flashcards WHERE id = ? AND lesson_id = ?', [cardId, id]);
+    return { ok: true, id: cardId };
+  }
+
+  async canvasAdminGenerateFlashcards(id: number, options: { count?: number }, token: string) {
+    await this.requireAdminToken(token);
+    const note = await this.findCanvasLessonRow(id);
+    const sourceText = this.extractFlashcardSourceText(note);
+    if (sourceText.length < 40) throw new BadRequestException('Add lesson notes before generating flashcards.');
+    const count = Math.max(6, Math.min(60, Number(options.count || 24) || 24));
+    const provider = await this.resolveActiveCanvasProvider();
+    const rawPayload = await this.runFlashcardJsonPrompt(
+      this.buildFlashcardPrompt({ title: note.lesson_title || 'Lesson', course: note.course_title || '', subject: note.topic_name || '', topic: note.subtopic_name || '', sourceText, count }),
+      provider,
+    );
+    const generated = this.normalizeGeneratedFlashcards(rawPayload).slice(0, count);
+    if (!generated.length) throw new ServiceUnavailableException(`${provider.providerLabel} did not return usable Q&A flashcards.`);
+    const existingRows = await this.findFlashcardRowsForLesson(id);
+    const seen = new Set(existingRows.map(r => this.flashcardSignature(r.question, r.answer)));
+    const fresh = generated.filter(item => {
+      const sig = this.flashcardSignature(item.question, item.answer);
+      if (!sig || seen.has(sig)) return false;
+      seen.add(sig); return true;
+    });
+    if (fresh.length > 0) await this.insertGeneratedFlashcards(id, fresh);
+    return { ok: true, createdCount: fresh.length, provider: { key: provider.providerKey, label: provider.providerLabel, model: provider.model }, items: await this.findFlashcardsForLesson(id) };
+  }
+
+  async canvasGenerate(text: string, token: string): Promise<NoteCanvas> {
+    await this.requireAdminToken(token);
+    if (!text || text.trim().length < 10) throw new BadRequestException('Text must be at least 10 characters');
+    const provider = await this.resolveActiveCanvasProvider();
+    return this.generateWithProvider(this.buildPrompt(text), provider);
+  }
+
+  async canvasStudentList(token: string, engineKey: CanvasEngineKey = 'gemini') {
+    const student = await this.requireStudentToken(token);
+    const accessProfile = await this.getCanvasAccessProfile(student.id);
+    const [rows] = await this.db.execute<CanvasLessonRow[]>(`
+      SELECT ${this.canvasLessonSelect(false)},
+             slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
+             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+      FROM lessons l
+      LEFT JOIN student_lesson_progress slp ON slp.lesson_id = l.id AND slp.user_id = ?
+      LEFT JOIN courses c ON c.id = l.course_id
+      LEFT JOIN topics t ON t.id = l.topic_id
+      LEFT JOIN subtopics s ON s.id = l.subtopic_id
+      WHERE l.is_public = 1 AND l.note_data IS NOT NULL AND l.status = 'active' AND l.engine_key = ?
+      ORDER BY c.course_title ASC, t.topic_name ASC, l.updated_at DESC`, [student.id, engineKey]);
+    return rows.map(row => this.mapCanvasStudentNote(row, accessProfile, false));
+  }
+
+  async canvasStudentFindNote(id: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
+    const student = await this.requireStudentToken(token);
+    const accessProfile = await this.getCanvasAccessProfile(student.id);
+    const [rows] = await this.db.execute<CanvasLessonRow[]>(`
+      SELECT ${this.canvasLessonSelect(true)},
+             slp.status AS lesson_progress_status, slp.progress_percent AS lesson_progress_percent, slp.completed_at AS lesson_completed_at,
+             (SELECT COUNT(*) FROM lesson_flashcards lf WHERE lf.lesson_id = l.id AND lf.status = 'approved') AS approved_flashcard_count
+      FROM lessons l
+      LEFT JOIN student_lesson_progress slp ON slp.lesson_id = l.id AND slp.user_id = ?
+      LEFT JOIN courses c ON c.id = l.course_id
+      LEFT JOIN topics t ON t.id = l.topic_id
+      LEFT JOIN subtopics s ON s.id = l.subtopic_id
+      WHERE l.id = ? AND l.is_public = 1 AND l.status = 'active' AND l.engine_key = ?`, [student.id, id, engineKey]);
+    if (!rows.length) {
+      // PDF-only lesson fallback
+      const [lr] = await this.db.execute<RowDataPacket[]>(
+        `SELECT id, lesson_title, pdf_url, is_free, status, course_id FROM lessons WHERE id = ? LIMIT 1`, [id]);
+      const lesson = lr[0];
+      if (lesson && lesson.pdf_url && lesson.status === 'active') {
+        const canAccess = this.canAccessCanvasLesson({ courseId: lesson.course_id, isFree: lesson.is_free, id: lesson.id }, accessProfile);
+        return { lessonType: 'pdf', lessonId: id, lessonTitle: lesson.lesson_title || '', pdfUrl: canAccess ? String(lesson.pdf_url) : '', accessLocked: !canAccess, lockReason: canAccess ? '' : 'Your subscription does not include this premium lesson.' };
+      }
+      throw new NotFoundException('Lesson not found');
+    }
+    return this.mapCanvasStudentNote(rows[0], accessProfile, true);
+  }
+
+  async canvasStudentFlashcards(id: number, token: string, engineKey: CanvasEngineKey = 'gemini') {
+    const student = await this.requireStudentToken(token);
+    const accessProfile = await this.getCanvasAccessProfile(student.id);
+    const [rows] = await this.db.execute<CanvasLessonRow[]>(
+      `SELECT l.id, l.course_id, l.is_free, l.engine_key, l.status, l.is_public
+       FROM lessons l WHERE l.id = ? AND l.is_public = 1 AND l.status = 'active' AND l.engine_key = ?`, [id, engineKey]);
+    if (!rows.length) throw new NotFoundException('Lesson not found');
+    const canAccess = this.canAccessCanvasLesson({ courseId: rows[0].course_id, isFree: rows[0].is_free, id: rows[0].id }, accessProfile);
+    return { flashcards: canAccess ? await this.findApprovedFlashcardsForLesson(id) : [] };
+  }
+
+  async getCourses(token: string) {
+    await this.requireAdminToken(token);
+    const [rows] = await this.db.execute<RowDataPacket[]>("SELECT id, course_title AS name FROM courses WHERE status = 'active' ORDER BY course_title ASC");
+    return rows;
+  }
+
+  async getTopics(courseId: number | undefined, token: string) {
+    await this.requireAdminToken(token);
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      courseId ? "SELECT id, topic_name AS name FROM topics WHERE course_id = ? AND status = 'active' ORDER BY topic_name ASC"
+               : "SELECT id, topic_name AS name FROM topics WHERE status = 'active' ORDER BY topic_name ASC",
+      courseId ? [courseId] : [],
+    );
+    return rows;
+  }
+
+  async getSubtopics(topicId: number | undefined, token: string) {
+    await this.requireAdminToken(token);
+    const [rows] = await this.db.execute<RowDataPacket[]>(
+      topicId ? "SELECT id, subtopic_name AS name FROM subtopics WHERE topic_id = ? AND status = 'active' ORDER BY subtopic_name ASC"
+              : "SELECT id, subtopic_name AS name FROM subtopics WHERE status = 'active' ORDER BY subtopic_name ASC",
+      topicId ? [topicId] : [],
+    );
+    return rows;
+  }
+
+  private async ensureDefaultLessonHierarchy(courseId: number) {
+    const [tr] = await this.db.execute<RowDataPacket[]>(`SELECT id FROM topics WHERE course_id = ? AND topic_name = 'General lessons' LIMIT 1`, [courseId]);
+    let topicId = tr[0]?.id ? Number(tr[0].id) : 0;
+    if (!topicId) {
+      const [r] = await this.db.execute<ResultSetHeader>(`INSERT INTO topics (course_id, topic_name, topic_description, status) VALUES (?, 'General lessons', 'Auto-created bucket for course-level lessons.', 'active')`, [courseId]);
+      topicId = r.insertId;
+    }
+    const [sr] = await this.db.execute<RowDataPacket[]>(`SELECT id FROM subtopics WHERE topic_id = ? AND subtopic_name = 'Overview' LIMIT 1`, [topicId]);
+    let subtopicId = sr[0]?.id ? Number(sr[0].id) : 0;
+    if (!subtopicId) {
+      const [r] = await this.db.execute<ResultSetHeader>(`INSERT INTO subtopics (topic_id, subtopic_name, status) VALUES (?, 'Overview', 'active')`, [topicId]);
+      subtopicId = r.insertId;
+    }
+    return { topicId, subtopicId };
+  }
+
+  private async findCanvasLessonRow(id: number) {
+    const [rows] = await this.db.execute<CanvasLessonRow[]>(`
+      SELECT l.*, c.course_title, t.topic_name, s.subtopic_name
+      FROM lessons l
+      LEFT JOIN courses c ON c.id = l.course_id
+      LEFT JOIN topics t ON t.id = l.topic_id
+      LEFT JOIN subtopics s ON s.id = l.subtopic_id
+      WHERE l.id = ? AND l.is_public = 1 LIMIT 1`, [id]);
+    if (!rows[0]) throw new NotFoundException('Lesson not found');
+    return rows[0];
+  }
+
+  private async findFlashcardRowsForLesson(lessonId: number) {
+    const [rows] = await this.db.execute<CanvasFlashcardRow[]>(
+      `SELECT id, lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by, created_at, updated_at
+       FROM lesson_flashcards WHERE lesson_id = ? ORDER BY status='approved' DESC, sort_order ASC, id ASC`, [lessonId]);
+    return rows;
+  }
+
+  private async findFlashcardsForLesson(lessonId: number) {
+    return (await this.findFlashcardRowsForLesson(lessonId)).map(r => this.mapFlashcard(r));
+  }
+
+  private async findApprovedFlashcardsForLesson(lessonId: number) {
+    const [rows] = await this.db.execute<CanvasFlashcardRow[]>(
+      `SELECT id, lesson_id, question, answer, source_hint, NULL AS image_url, 'contain' AS image_fit, status, sort_order, generated_by, reviewed_by, created_at, updated_at
+       FROM lesson_flashcards WHERE lesson_id = ? AND status = 'approved' ORDER BY sort_order ASC, id ASC`, [lessonId]);
+    return rows.map(r => this.mapFlashcard(r));
+  }
+
+  private async findFlashcardById(cardId: number, lessonId: number) {
+    const [rows] = await this.db.execute<CanvasFlashcardRow[]>(
+      `SELECT id, lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by, created_at, updated_at
+       FROM lesson_flashcards WHERE id = ? AND lesson_id = ? LIMIT 1`, [cardId, lessonId]);
+    if (!rows[0]) throw new NotFoundException('Flashcard not found');
+    return this.mapFlashcard(rows[0]);
+  }
+
+  private async getNextFlashcardSortOrder(lessonId: number) {
+    const [rows] = await this.db.execute<RowDataPacket[]>('SELECT COALESCE(MAX(sort_order), 0) + 1 AS next_order FROM lesson_flashcards WHERE lesson_id = ?', [lessonId]);
+    return Number(rows[0]?.next_order || 1);
+  }
+
+  private async insertGeneratedFlashcards(lessonId: number, rows: LessonFlashcardDraft[]) {
+    let sortOrder = await this.getNextFlashcardSortOrder(lessonId);
+    for (const row of rows) {
+      await this.db.execute(
+        `INSERT INTO lesson_flashcards (lesson_id, question, answer, source_hint, status, sort_order, generated_by) VALUES (?, ?, ?, ?, 'draft', ?, 'ai')`,
+        [lessonId, row.question, row.answer, row.sourceHint || null, sortOrder],
+      );
+      sortOrder += 1;
+    }
+  }
+
+  private mapFlashcard(row: CanvasFlashcardRow) {
+    const imageUrls = this.parseFlashcardImageUrls(row.image_url);
+    return {
+      id: row.id, lessonId: row.lesson_id, noteId: row.lesson_id,
+      question: row.question, answer: row.answer, sourceHint: row.source_hint || '',
+      imageUrl: imageUrls[0] || '', imageUrls,
+      imageFit: this.normalizeFlashcardImageFit(row.image_fit || 'contain'),
+      status: row.status, sortOrder: Number(row.sort_order || 0),
+      generatedBy: row.generated_by || 'ai', reviewedBy: row.reviewed_by ?? null,
+      createdAt: row.created_at, updatedAt: row.updated_at,
+    };
+  }
+
+  private deserializeCanvas(row: CanvasLessonRow) {
+    let noteData: unknown = null;
+    try { noteData = row.note_data ? JSON.parse(row.note_data) : null; } catch { noteData = null; }
+    return {
+      id: row.id, title: row.lesson_title, lessonTitle: row.lesson_title,
+      rawText: row.raw_text, noteData, engineKey: row.engine_key || 'gemini',
+      courseId: row.course_id ?? null, topicId: row.topic_id ?? null, subtopicId: row.subtopic_id ?? null,
+      lessonId: row.id, videoUrl: row.video_url || '', pdfUrl: row.pdf_url || '',
+      isFree: Number(row.is_free) === 1,
+      status: row.status ?? 'active', isPublic: Number(row.is_public) === 1,
+      courseTitle: row.course_title ?? null, examType: row.exam_type ?? null,
+      topicName: row.topic_name ?? null, subtopicName: row.subtopic_name ?? null,
+      lessonPdfUrl: row.pdf_url || '',
+      lessonProgressStatus: row.lesson_progress_status || 'not_started',
+      lessonProgressPercent: Number(row.lesson_progress_percent || 0),
+      lessonCompletedAt: row.lesson_completed_at || null,
+      lessonCompleted: row.lesson_progress_status === 'completed',
+      approvedFlashcardCount: Math.max(0, Number(row.approved_flashcard_count || 0)),
+      createdAt: row.created_at, updatedAt: row.updated_at,
+    };
+  }
+
+  private mapCanvasStudentNote(row: CanvasLessonRow, accessProfile: CanvasAccessProfile, includeNoteData: boolean) {
+    const note = this.deserializeCanvas(row);
+    const canAccess = this.canAccessCanvasLesson({ courseId: row.course_id, isFree: row.is_free, id: row.id }, accessProfile);
+    const hasStudyMode = accessProfile.hasAnyPaidLessonAccess || note.isFree;
+    return {
+      ...note,
+      cardCount: note.approvedFlashcardCount,
+      canAccess, accessLocked: !canAccess,
+      upgradeLabel: hasStudyMode ? 'Not included in your course package' : 'Available in Standard plan',
+      lockReason: !canAccess ? (hasStudyMode ? 'Your package only unlocks selected course or lesson content.' : 'Upgrade to access this feature') : '',
+      noteData: includeNoteData && canAccess ? note.noteData : null,
+    };
+  }
+
+  private async getCanvasAccessProfile(userId: number): Promise<CanvasAccessProfile> {
+    const [rows] = await this.db.execute<AccessScopeRow[]>(
+      `SELECT plans.slug AS plan_slug, us.access_scope, us.course_ids_json, us.lesson_ids_json
+       FROM user_subscriptions us INNER JOIN plans ON plans.id = us.plan_id
+       WHERE us.user_id = ? AND us.status = 'active' AND us.start_date <= CURDATE() AND us.end_date >= CURDATE()`, [userId]);
+    const profile: CanvasAccessProfile = { hasAnyPaidLessonAccess: rows.length > 0, hasNotesCanvas: rows.length > 0, hasFullAccess: false, courseIds: new Set(), lessonIds: new Set() };
+    for (const row of rows) {
+      const courseIds = this.parseIdList(row.course_ids_json);
+      const lessonIds = this.parseIdList(row.lesson_ids_json);
+      const scope = this.resolveEffectiveAccessScope(row, courseIds, lessonIds);
+      if (scope === 'all' && !courseIds.length && !lessonIds.length) { profile.hasFullAccess = true; }
+      else if (scope === 'courses') { courseIds.forEach(id => profile.courseIds.add(id)); }
+      else if (scope === 'lessons') { lessonIds.forEach(id => profile.lessonIds.add(id)); }
+    }
+    return profile;
+  }
+
+  private canAccessCanvasLesson(lesson: { courseId: number | null; isFree: number; id: number }, profile: CanvasAccessProfile) {
+    if (Number(lesson.isFree) === 1) return true;
+    if (!profile.hasAnyPaidLessonAccess) return false;
+    if (profile.hasFullAccess) return true;
+    if (lesson.courseId && profile.courseIds.has(Number(lesson.courseId))) return true;
+    if (profile.lessonIds.has(Number(lesson.id))) return true;
+    return false;
+  }
+
+  // \u2500\u2500 AI generation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+  private async resolveActiveCanvasProvider(): Promise<RuntimeCanvasProvider> {
+    const [rows] = await this.db.execute<(RowDataPacket & { provider_key: string; provider_label: string | null; api_key_encrypted: string | null; base_url: string | null; model: string | null })[]>(
+      `SELECT provider_key, provider_label, api_key_encrypted, base_url, model FROM ai_provider_configs WHERE status = 'active' AND api_key_encrypted IS NOT NULL AND api_key_encrypted <> '' ORDER BY is_active DESC, updated_at DESC, id DESC LIMIT 1`
+    );
+    const row = rows[0];
+    if (row) {
+      const rawKey = String(row.provider_key || '').trim().toLowerCase();
+      if (!isAiProviderKey(rawKey)) throw new ServiceUnavailableException('The active AI provider is invalid.');
+      return { providerKey: rawKey, providerLabel: String(row.provider_label || '').trim() || AI_PROVIDER_LABELS[rawKey], apiKey: this.safeDecryptSecret(String(row.api_key_encrypted || '')), model: String(row.model || '').trim() || getDefaultModelForProvider(rawKey), baseUrl: normalizeAiProviderBaseUrl(rawKey, row.base_url) };
+    }
+    const envKey = String(this.config.get<string>('OPENROUTER_API_KEY') || '').trim();
+    if (envKey) return { providerKey: 'openrouter', providerLabel: 'OpenRouter (.env fallback)', apiKey: envKey, model: String(this.config.get<string>('OPENROUTER_MODEL') || getDefaultModelForProvider('openrouter')).trim(), baseUrl: getDefaultBaseUrlForProvider('openrouter') };
+    throw new ServiceUnavailableException('No active AI provider configured. Go to Admin \u2192 Settings \u2192 AI.');
+  }
+
+  private safeDecryptSecret(value: string) {
+    try {
+      const key = String(this.config.get<string>('SETTINGS_ENCRYPTION_KEY') || '').trim() || 'lms-dev-settings-key-change-me';
+      return decryptSecret(value, key);
+    } catch { return ''; }
+  }
+
+  private async generateWithProvider(prompt: string, provider: RuntimeCanvasProvider): Promise<NoteCanvas> {
+    if (!provider.apiKey) throw new ServiceUnavailableException(`No API key for ${provider.providerLabel}.`);
+    if (provider.providerKey === 'gemini') return this.generateWithGeminiProvider(prompt, provider);
+    return this.generateWithChatProvider(prompt, provider);
+  }
+
+  private async generateWithGeminiProvider(prompt: string, provider: RuntimeCanvasProvider): Promise<NoteCanvas> {
+    const modelCandidates = Array.from(new Set([String(provider.model || getDefaultModelForProvider('gemini')).trim(), ...GEMINI_MODELS].filter(Boolean)));
+    const errors: string[] = [];
+    for (const model of modelCandidates) {
+      const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
+      try {
+        const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json' }, contents: [{ parts: [{ text: prompt }] }] }) });
+        if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); continue; }
+        const json = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+        const raw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
+        if (!raw) { errors.push(`${model}: empty`); continue; }
+        return this.splitIntoPages(this.validate(JSON.parse(raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim())));
+      } catch (err) {
+        if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`${model}: ${msg.includes('abort') || msg.includes('timeout') ? `timed out (${AI_NOTES_REQUEST_TIMEOUT_MS / 1000}s)` : msg}`);
+      } finally { clearTimeout(t); }
+    }
+    throw new ServiceUnavailableException(`Gemini lesson generation failed: ${errors.join(' | ')}`);
+  }
+
+  private async generateWithChatProvider(prompt: string, provider: RuntimeCanvasProvider): Promise<NoteCanvas> {
+    const ctrl = new AbortController(); const timeout = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
+    try {
+      let text = '';
+      try { text = await this.sendChatCanvasPrompt(provider, prompt, ctrl.signal, true); }
+      catch (error) { const m = error instanceof Error ? error.message : String(error); if (!this.isUnsupportedOpenAiJsonModeError(m)) throw error; text = await this.sendChatCanvasPrompt(provider, prompt, ctrl.signal, false); }
+      if (!text) throw new ServiceUnavailableException(`${provider.providerLabel} returned empty`);
+      return this.splitIntoPages(this.validate(JSON.parse(text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim())));
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof ServiceUnavailableException) throw error;
+      const message = error instanceof Error ? error.message : String(error); const n = message.toLowerCase();
+      throw new ServiceUnavailableException(n.includes('abort') || n.includes('timeout') ? `${provider.providerLabel} timed out` : n.includes('econnreset') || n.includes('fetch failed') ? `${provider.providerLabel} could not be reached` : `${provider.providerLabel} failed: ${message}`);
+    } finally { clearTimeout(timeout); }
+  }
+
+  private async sendChatCanvasPrompt(provider: RuntimeCanvasProvider, prompt: string, signal: AbortSignal, useJsonMode: boolean): Promise<string> {
+    if (provider.providerKey === 'claude') {
+      const res = await fetchWithRetry(normalizeAiProviderBaseUrl('claude', provider.baseUrl), { method: 'POST', headers: { 'x-api-key': provider.apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, max_tokens: 4096, temperature: 0.7, system: 'Return ONLY raw valid JSON.', messages: [{ role: 'user', content: prompt }] }) });
+      const p = await res.json().catch(() => null);
+      if (!res.ok) throw new ServiceUnavailableException(`${provider.providerLabel}: ${(p as { error?: { message?: string } })?.error?.message || 'error'}`);
+      const content = (p as { content?: Array<{ type?: string; text?: string }> })?.content;
+      return Array.isArray(content) ? content.map(c => c?.type === 'text' ? c.text || '' : '').join('').trim() : '';
+    }
+    const res = await fetchWithRetry(normalizeAiProviderBaseUrl(provider.providerKey === 'openrouter' ? 'openrouter' : 'openai', provider.baseUrl), { method: 'POST', headers: { Authorization: `Bearer ${provider.apiKey}`, 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ model: provider.model, temperature: 0.7, top_p: 0.9, ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}), messages: [{ role: 'system', content: 'Return valid JSON only.' }, { role: 'user', content: prompt }] }) });
+    const p = await res.json().catch(() => null);
+    if (!res.ok) throw new ServiceUnavailableException(`${provider.providerLabel}: ${(p as { error?: { message?: string } })?.error?.message || 'error'}`);
+    const content = (p as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]?.message?.content;
+    return typeof content === 'string' ? content.trim() : '';
+  }
+
+  private isUnsupportedOpenAiJsonModeError(msg: string) {
+    const n = String(msg || '').toLowerCase();
+    return n.includes('response_format') && (n.includes('not supported') || n.includes('invalid parameter'));
+  }
+
+  // \u2500\u2500 Flashcard AI helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+  private async runFlashcardJsonPrompt(prompt: string, provider: RuntimeCanvasProvider) {
+    if (!provider.apiKey) throw new ServiceUnavailableException(`No API key for ${provider.providerLabel}.`);
+    if (provider.providerKey === 'gemini') {
+      const modelCandidates = Array.from(new Set([String(provider.model || getDefaultModelForProvider('gemini')).trim(), ...GEMINI_MODELS].filter(Boolean)));
+      const errors: string[] = [];
+      for (const model of modelCandidates) {
+        const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
+        try {
+          const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(provider.apiKey)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify({ generationConfig: { responseMimeType: 'application/json' }, contents: [{ parts: [{ text: prompt }] }] }) });
+          if (!res.ok) { let d = ''; try { const b = await res.json() as { error?: { message?: string } }; d = b?.error?.message || ''; } catch { /**/ } errors.push(`${model}: HTTP ${res.status}${d ? ` \u2014 ${d}` : ''}`); continue; }
+          const json = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+          const raw = json?.candidates?.[0]?.content?.parts?.find(p => typeof p?.text === 'string')?.text?.trim();
+          if (!raw) { errors.push(`${model}: empty`); continue; }
+          return this.parseJsonResponse(raw, provider.providerLabel);
+        } catch (err) { const msg = err instanceof Error ? err.message : String(err); errors.push(`${model}: ${msg}`); }
+        finally { clearTimeout(t); }
+      }
+      throw new ServiceUnavailableException(`${provider.providerLabel} flashcard generation failed: ${errors.join(' | ')}`);
+    }
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), AI_NOTES_REQUEST_TIMEOUT_MS);
+    try {
+      let text = '';
+      try { text = await this.sendChatCanvasPrompt(provider, prompt, ctrl.signal, true); }
+      catch (e) { const m = e instanceof Error ? e.message : String(e); if (!this.isUnsupportedOpenAiJsonModeError(m)) throw e; text = await this.sendChatCanvasPrompt(provider, prompt, ctrl.signal, false); }
+      if (!text) throw new ServiceUnavailableException(`${provider.providerLabel} returned empty flashcard response`);
+      return this.parseJsonResponse(text, provider.providerLabel);
+    } finally { clearTimeout(t); }
+  }
+
+  private parseJsonResponse(text: string, label: string) {
+    const s = String(text || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const start = s.indexOf('{'); const end = s.lastIndexOf('}');
+    try { return JSON.parse(start >= 0 && end > start ? s.slice(start, end + 1) : s); }
+    catch { throw new ServiceUnavailableException(`${label} returned invalid flashcard JSON.`); }
+  }
+
+  private buildFlashcardPrompt(input: { title: string; course: string; subject: string; topic: string; sourceText: string; count: number }) {
+    return `You are a senior medical educator creating reviewed flashcard drafts.\nReturn ONLY valid JSON: {"items":[{"question":"...","answer":"...","source_hint":"..."}]}\nRules:\n- Create up to ${input.count} high-yield Q&A flashcards.\n- Do NOT create SBA/MCQ/true-false.\n- Answer under 70 words unless list necessary.\nLesson: ${input.title}\nCourse: ${input.course || 'Not specified'}\nSubject: ${input.subject || 'Not specified'}\nTopic: ${input.topic || 'Not specified'}\nSOURCE NOTES:\n${input.sourceText}`;
+  }
+
+  private extractFlashcardSourceText(row: CanvasLessonRow) {
+    let noteData: unknown = null;
+    try { noteData = row.note_data ? JSON.parse(row.note_data) : null; } catch { noteData = null; }
+    const parts: string[] = [];
+    const pages = Array.isArray((noteData as { pages?: unknown[] } | null)?.pages) ? (noteData as { pages: unknown[] }).pages : noteData ? [noteData] : [];
+    for (const page of pages) {
+      const p = page as { title?: unknown; subtitle?: unknown; sections?: Array<{ heading?: unknown; bullets?: unknown[]; callout?: unknown; sticky_note?: unknown; mnemonic?: unknown }>; summary_box?: unknown; key_points?: unknown[] };
+      [p.title, p.subtitle].forEach(v => { const t = this.cleanFlashcardText(v, 500); if (t) parts.push(t); });
+      if (Array.isArray(p.sections)) for (const s of p.sections) {
+        const h = this.cleanFlashcardText(s.heading, 500); if (h) parts.push(`## ${h}`);
+        if (Array.isArray(s.bullets)) s.bullets.map(b => this.cleanFlashcardText(b, 600)).filter(Boolean).forEach(b => parts.push(`- ${b}`));
+        [s.callout, s.sticky_note, s.mnemonic].map(v => this.cleanFlashcardText(v, 600)).filter(Boolean).forEach(t => parts.push(`- ${t}`));
+      }
+      const sum = this.cleanFlashcardText(p.summary_box, 1000); if (sum) parts.push(`Summary: ${sum}`);
+      if (Array.isArray(p.key_points)) p.key_points.map(kp => this.cleanFlashcardText(kp, 600)).filter(Boolean).forEach(kp => parts.push(`Key point: ${kp}`));
+    }
+    if (parts.length < 4 && row.raw_text) parts.push(this.cleanFlashcardText(row.raw_text, 16000));
+    return parts.join('\n').slice(0, 16000).trim();
+  }
+
+  private normalizeGeneratedFlashcards(payload: unknown): LessonFlashcardDraft[] {
+    const rawItems = Array.isArray((payload as { items?: unknown[] } | null)?.items) ? (payload as { items: unknown[] }).items : Array.isArray(payload) ? payload as unknown[] : [];
+    const seen = new Set<string>(); const items: LessonFlashcardDraft[] = [];
+    for (const raw of rawItems) {
+      const item = raw as Record<string, unknown>;
+      const question = this.cleanFlashcardText(item.question ?? item.front ?? item.q, 1000);
+      const answer   = this.cleanFlashcardText(item.answer ?? item.back ?? item.a ?? item.explanation, 3000);
+      const sourceHint = this.cleanFlashcardText(item.source_hint ?? item.sourceHint ?? item.topic ?? item.heading, 500);
+      try { this.assertValidFlashcard(question, answer); } catch { continue; }
+      const sig = this.flashcardSignature(question, answer);
+      if (!sig || seen.has(sig)) continue;
+      seen.add(sig); items.push({ question, answer, sourceHint });
+    }
+    return items;
+  }
+
+  // \u2500\u2500 Flashcard helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+  private normalizeFlashcardInput(payload: { question?: string; answer?: string; sourceHint?: string; imageUrl?: string; imageUrls?: string[]; imageFit?: string }) {
+    return { question: this.cleanFlashcardText(payload.question, 1000), answer: this.cleanFlashcardText(payload.answer, 3000), sourceHint: this.cleanFlashcardText(payload.sourceHint, 500), imageUrls: this.cleanFlashcardImageUrls(payload.imageUrls ?? payload.imageUrl), imageFit: this.normalizeFlashcardImageFit(payload.imageFit) };
+  }
+
+  private normalizeFlashcardImageFit(v: unknown): 'contain' | 'cover' { return v === 'cover' ? 'cover' : 'contain'; }
+  private normalizeFlashcardStatus(v: string | undefined): LessonFlashcardStatus { return v === 'approved' || v === 'rejected' ? v : 'draft'; }
+
+  private cleanFlashcardText(value: unknown, limit = 2000) {
+    return String(value || '').replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, limit).trim();
+  }
+
+  private cleanFlashcardImageUrl(value: unknown) {
+    const raw = String(value || '').trim(); if (!raw) return '';
+    if (raw.length > 1_500_000) throw new BadRequestException('Flashcard image is too large.');
+    if (/^https?:\/\/\S+$/i.test(raw)) return raw;
+    if (/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(raw)) return raw.replace(/\s+/g, '');
+    throw new BadRequestException('Flashcard image must be http(s) URL or base64 PNG/JPG/WebP/GIF.');
+  }
+
+  private cleanFlashcardImageUrls(value: unknown) {
+    const items = Array.isArray(value) ? value : [value];
+    const unique = new Set<string>();
+    for (const item of items) { const c = this.cleanFlashcardImageUrl(item); if (c) { unique.add(c); if (unique.size >= FLASHCARD_IMAGE_LIMIT) break; } }
+    return Array.from(unique);
+  }
+
+  private parseFlashcardImageUrls(value: unknown) {
+    const raw = String(value || '').trim(); if (!raw) return [];
+    if (raw.startsWith('[')) { try { return this.cleanFlashcardImageUrls(JSON.parse(raw)); } catch { return []; } }
+    return this.cleanFlashcardImageUrls(raw);
+  }
+
+  private serializeFlashcardImageUrls(value: unknown) {
+    const urls = this.cleanFlashcardImageUrls(value); if (!urls.length) return null;
+    return urls.length === 1 ? urls[0] : JSON.stringify(urls);
+  }
+
+  private assertValidFlashcard(question: string, answer: string) {
+    const q = this.cleanFlashcardText(question, 1000); const a = this.cleanFlashcardText(answer, 3000);
+    if (q.length < 8) throw new BadRequestException('Flashcard question is too short.');
+    if (a.length < 12) throw new BadRequestException('Flashcard answer is too short.');
+    if (q.toLowerCase() === a.toLowerCase()) throw new BadRequestException('Question and answer must be different.');
+    if (/^(true|false)\s*[:.-]/i.test(q) || /\b(select|choose)\s+(the\s+)?(correct|best)\s+answer\b/i.test(q)) throw new BadRequestException('Use direct Q&A flashcards, not MCQ or true/false.');
+  }
+
+  private flashcardSignature(question: string, answer: string) {
+    return `${this.cleanFlashcardText(question, 500)}::${this.cleanFlashcardText(answer, 1000)}`.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  // \u2500\u2500 Canvas JSON builder \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+  private splitIntoPages(result: NoteResult): NoteCanvas {
+    const sections = result.sections;
+    if (sections.length <= 5) return { pages: [result] };
+    const pageGroups: NoteSection[][] = [];
+    for (let i = 0; i < sections.length; i += 5) pageGroups.push(sections.slice(i, i + 5));
+    const kp = result.key_points; const n = pageGroups.length;
+    return { pages: pageGroups.map((group, i) => ({ title: i === 0 ? result.title : this.derivePageTitle(group, i), subtitle: i === 0 ? result.subtitle : '', sections: group, summary_box: i === n - 1 ? result.summary_box : '', key_points: kp.slice(Math.floor(i * kp.length / n), i === n - 1 ? kp.length : Math.floor((i + 1) * kp.length / n)), ...(i === 0 ? { visual_style: result.visual_style } : {}) })) };
+  }
+
+  private derivePageTitle(sections: NoteSection[], idx: number): string {
+    const h = sections[0]?.heading?.toLowerCase() || '';
+    if (/clinical|feature|sign|symptom|presentation/.test(h)) return 'CLINICAL APPROACH';
+    if (/investig|diagnos|lab|imaging|test/.test(h)) return 'INVESTIGATIONS';
+    if (/manag|treat|therap|drug|rx|medic|surg/.test(h)) return 'MANAGEMENT';
+    if (/complic|prognos|outcome|special|follow/.test(h)) return 'COMPLICATIONS & CONTEXT';
+    return `PART ${idx + 1}`;
+  }
+
+  private validate(d: unknown): NoteResult {
+    const data = (d ?? {}) as Record<string, unknown>;
+    return {
+      title: String(data?.title || 'Lesson').trim().slice(0, 120),
+      subtitle: String(data?.subtitle || '').trim().slice(0, 200),
+      sections: (Array.isArray(data?.sections) ? data.sections : []).slice(0, 12).map((s: unknown) => {
+        const sec = (s ?? {}) as Record<string, unknown>;
+        return { heading: String(sec?.heading || '').trim(), bullets: (Array.isArray(sec?.bullets) ? sec.bullets : []).map(String).slice(0, 16), callout: String(sec?.callout || '').trim().slice(0, 300), sticky_note: String(sec?.sticky_note || '').trim().slice(0, 200), mnemonic: String(sec?.mnemonic || '').trim().slice(0, 300) };
+      }).filter(s => s.heading || s.bullets.length > 0),
+      summary_box: String(data?.summary_box || '').trim().slice(0, 600),
+      key_points: (Array.isArray(data?.key_points) ? data.key_points : []).map(String).slice(0, 10),
+      visual_style: { theme: 'notebook', look: 'hand-drawn academic', colors: this.normalizePalette((data?.visual_style as Record<string, unknown> | undefined)?.colors) },
+    };
+  }
+
+  private normalizePalette(value: unknown): string[] {
+    const colors = Array.isArray(value) ? value.map(c => String(c || '').trim()).filter(c => /^#[0-9a-f]{6}$/i.test(c)) : [];
+    return Array.from(new Set([...colors, ...FALLBACK_COLORS])).slice(0, 8);
+  }
+
+  private buildPrompt(text: string): string {
+    return `You are a senior medical educator writing high-yield lessons for ERPM/SLMC exams.\n\nCOVERAGE RULE: Cover EVERY topic in the source text. Generate MORE sections if needed (up to 12).\n\n\u2501\u2501\u2501 BULLET RULES \u2501\u2501\u2501\n- Every bullet = ONE clinical fact, MAX 13 WORDS\n- ==double equals== \u2192 highlight key terms\n- **double asterisks** \u2192 bold drug+dose, lab cut-offs\n\nReturn ONLY this JSON (no markdown, no code fences):\n{"title":"TOPIC IN CAPS","subtitle":"one fragment","sections":[{"heading":"1. Definition","bullets":["fact"],"callout":"[EXAM TRAP] fragment","sticky_note":"key fact","mnemonic":""}],"summary_box":"fragment \u00b7 fragment","key_points":["==Term==: value"],"visual_style":{"theme":"notebook","look":"hand-drawn academic","colors":["#A7D8FF","#FFE680","#FFB3B3","#C7F0BD","#CE93D8","#80DEEA","#F48FB1","#FFCC80"]}}\n\nMedical text:\n${text.slice(0, 12000)}`;
   }
 
 }

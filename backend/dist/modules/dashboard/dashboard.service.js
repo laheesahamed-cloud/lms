@@ -494,14 +494,16 @@ let DashboardService = class DashboardService {
            c.course_title,
            t.topic_name
          FROM study_activity_events e
-         INNER JOIN ai_illustrated_notes n ON n.id = e.item_id
+         INNER JOIN lessons n ON n.id = e.item_id
          LEFT JOIN courses c ON c.id = n.course_id
          LEFT JOIN topics t ON t.id = n.topic_id
          WHERE e.user_id = ?
            AND e.activity_type = 'ai_note_viewed'
            AND DATE(e.created_at) = CURDATE()
          ORDER BY n.id DESC`, [student.id]),
-            this.db.execute(`SELECT 1 FROM study_activity_events WHERE user_id = ? AND activity_type = 'result_viewed' AND DATE(created_at) = CURDATE() LIMIT 1`, [student.id]),
+            this.db.execute(`SELECT 1 FROM study_activity_events
+         WHERE user_id = ? AND activity_type = 'result_viewed' AND DATE(created_at) = CURDATE()
+         LIMIT 1`, [student.id]),
             this.getRandomDashboardQuestion(student.id),
             this.coursesService.findStudentCourses(authorization),
         ]);

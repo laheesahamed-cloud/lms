@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FlashcardsService = void 0;
 const common_1 = require("@nestjs/common");
 const database_tokens_1 = require("../../database/database.tokens");
-const ai_notes_service_1 = require("../ai-notes/ai-notes.service");
+const lessons_service_1 = require("../lessons/lessons.service");
 const flashcard_scheduler_service_1 = require("./flashcard-scheduler.service");
 const FSRS_SETTINGS_KEY = 'flashcard_fsrs';
 const ENGINE_KEYS = ['gemini', 'openai'];
@@ -269,7 +269,7 @@ let FlashcardsService = class FlashcardsService {
         return r === 1 || r === 2 || r === 4 ? r : 3;
     }
     async loadAccessibleNotes(token) {
-        const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.studentList(token, engine)));
+        const lists = await Promise.all(ENGINE_KEYS.map((engine) => this.aiNotes.canvasStudentList(token, engine)));
         const merged = new Map();
         for (const list of lists) {
             for (const note of list) {
@@ -353,7 +353,7 @@ exports.FlashcardsService = FlashcardsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(database_tokens_1.DATABASE_CONNECTION)),
     __metadata("design:paramtypes", [Object, flashcard_scheduler_service_1.FlashcardSchedulerService,
-        ai_notes_service_1.AiNotesService])
+        lessons_service_1.LessonsService])
 ], FlashcardsService);
 function normalizeNote(note) {
     return {

@@ -27,6 +27,7 @@ const AUDITABLE_PATH_PATTERNS = [
     /^\/api\/ai/,
     /^\/api\/admin(?:\/|$)/,
     /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|boot)(?:\/|$)/,
+    /^\/api\/lessons\/(?:canvas\/student|[0-9]+\/(?:note|flashcards))(?:\/|$)/,
 ];
 function extractCookieValue(cookieHeader, name) {
     return String(cookieHeader || '')
@@ -158,7 +159,7 @@ function isAuditablePath(path) {
     return AUDITABLE_PATH_PATTERNS.some((pattern) => pattern.test(path));
 }
 function isStudentContentPath(path) {
-    return /^\/api\/(?:student\/)?(?:lessons\/student|ai-notes(?:\/student)?|quiz-attempts|courses\/student|dashboard\/student\/activity)(?:\/|$)/.test(path) ||
+    return /^\/api\/(?:student\/)?(?:lessons(?:\/student|\/canvas\/student|\/[0-9]+\/(?:note|flashcards))?|ai-notes(?:\/student)?|quiz-attempts|courses\/student|dashboard\/student\/activity)(?:\/|$)/.test(path) ||
         /^\/api\/student\/(?:lessons|ai-notes|quiz-attempts|quizzes|results|courses|boot)(?:\/|$)/.test(path);
 }
 function normalizeRateLimitPath(path) {
@@ -246,8 +247,8 @@ function rewriteApiBoundary(path, method) {
             return `/api/dashboard/admin${restPath}`;
         if (resource === 'ai-notes') {
             if (rest[0] === 'generate')
-                return '/api/ai-notes/generate';
-            return `/api/ai-notes/admin${restPath}`;
+                return '/api/lessons/canvas/generate';
+            return `/api/lessons/canvas/admin${restPath}`;
         }
         if (resource === 'announcements')
             return `/api/announcements/admin${restPath}`;
@@ -300,8 +301,12 @@ function rewriteApiBoundary(path, method) {
             return `/api/lessons/student${restPath}`;
         if (resource === 'ai-notes') {
             if (rest[0] === 'lesson' && rest[1])
-                return `/api/ai-notes/student/lesson/${rest[1]}`;
-            return `/api/ai-notes${restPath}`;
+                return `/api/lessons/${rest[1]}/note`;
+            if (rest[1] === 'flashcards')
+                return `/api/lessons/${rest[0]}/flashcards`;
+            if (rest[0] && !rest[1])
+                return `/api/lessons/${rest[0]}/note`;
+            return '/api/lessons/canvas/student/notes';
         }
         if (resource === 'quizzes') {
             return rest.length ? `/api/quiz-attempts/quiz/${rest[0]}` : '/api/quiz-attempts/quizzes';

@@ -18,7 +18,6 @@ import { SchemaModule } from './modules/schema/schema.module';
 import { AiModule } from './modules/ai/ai.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { SmartNotesModule } from './modules/smart-notes/smart-notes.module';
-import { AiNotesModule } from './modules/ai-notes/ai-notes.module';
 import { FlashcardsModule } from './modules/flashcards/flashcards.module';
 import { PlansModule } from './modules/plans/plans.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
@@ -59,7 +58,6 @@ import { DatabaseModule } from './database/database.module';
     UploadsModule,
     PapersModule,
     SmartNotesModule,
-    AiNotesModule,
     FlashcardsModule,
     PlansModule,
     SubscriptionsModule,

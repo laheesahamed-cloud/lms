@@ -732,7 +732,7 @@ export class DashboardService {
            c.course_title,
            t.topic_name
          FROM study_activity_events e
-         INNER JOIN ai_illustrated_notes n ON n.id = e.item_id
+         INNER JOIN lessons n ON n.id = e.item_id
          LEFT JOIN courses c ON c.id = n.course_id
          LEFT JOIN topics t ON t.id = n.topic_id
          WHERE e.user_id = ?
@@ -773,7 +773,7 @@ export class DashboardService {
     // Build the set of active day keys from all attempt days for heatmap use
     const activityDaySet = new Set(attemptDays.map((row) => {
       const d = row.attempt_day;
-      return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      return (d as unknown) instanceof Date ? (d as unknown as Date).toISOString().slice(0, 10) : String(d).slice(0, 10);
     }));
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);

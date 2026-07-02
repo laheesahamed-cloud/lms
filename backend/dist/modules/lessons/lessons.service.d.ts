@@ -1,4 +1,5 @@
-import { Pool } from 'mysql2/promise';
+import { ConfigService } from '@nestjs/config';
+import { Pool, RowDataPacket } from 'mysql2/promise';
 import { PaginationInput } from '../../common/utils/pagination';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
@@ -11,9 +12,35 @@ type ContentActor = {
 };
 type ContentActorInput = ContentActor | number | undefined;
 type ContentWorkflowState = 'draft' | 'in_review' | 'published' | 'archived';
+export type CanvasEngineKey = 'gemini' | 'openai';
+type LessonFlashcardStatus = 'draft' | 'approved' | 'rejected';
+type LessonFlashcardGeneratedBy = 'ai' | 'manual';
+export interface NoteSection {
+    heading: string;
+    bullets: string[];
+    callout: string;
+    sticky_note: string;
+    mnemonic: string;
+}
+export interface NoteResult {
+    title: string;
+    subtitle: string;
+    sections: NoteSection[];
+    summary_box: string;
+    key_points: string[];
+    visual_style?: {
+        theme: string;
+        look: string;
+        colors: string[];
+    };
+}
+export interface NoteCanvas {
+    pages: NoteResult[];
+}
 export declare class LessonsService {
     private readonly db;
-    constructor(db: Pool);
+    private readonly config;
+    constructor(db: Pool, config: ConfigService);
     getMeta(): Promise<{
         courses: {
             id: number;
@@ -47,6 +74,7 @@ export declare class LessonsService {
         lessonTitle: string;
         lessonContent: string;
         videoUrl: string;
+        pdfUrl: string;
         isFree: number;
         status: "active" | "inactive";
         createdAt: string | null;
@@ -67,6 +95,7 @@ export declare class LessonsService {
         topicId: number;
         subtopicId: number;
         lessonTitle: string;
+        pdfUrl: string;
         isFree: number;
         status: "active" | "inactive";
         createdAt: string | null;
@@ -84,6 +113,7 @@ export declare class LessonsService {
         lessonTitle: string;
         lessonContent: string;
         videoUrl: string;
+        pdfUrl: string;
         isFree: number;
         status: "active" | "inactive";
         createdAt: string | null;
@@ -177,7 +207,16 @@ export declare class LessonsService {
         id: number;
         rolledBackToVersion: number;
         status: "active" | "inactive";
-        workflowState: "draft" | "published";
+        workflowState: "published" | "draft";
+    }>;
+    uploadPdf(id: number, file: Express.Multer.File, actor?: ContentActorInput): Promise<{
+        ok: boolean;
+        id: number;
+        pdfUrl: string;
+    }>;
+    removePdf(id: number, actor?: ContentActorInput): Promise<{
+        ok: boolean;
+        id: number;
     }>;
     private transitionWorkflow;
     private buildLessonSnapshot;
@@ -213,5 +252,322 @@ export declare class LessonsService {
     private findActiveStudentByToken;
     private toExcerpt;
     private toPlainText;
+    normalizeEngineKey(value: string | undefined): CanvasEngineKey;
+    private resolveToken;
+    private requireAdminToken;
+    private requireStudentToken;
+    private canvasLessonSelect;
+    canvasAdminList(token: string, engineKey?: CanvasEngineKey): Promise<{
+        id: number;
+        title: string;
+        lessonTitle: string;
+        rawText: string | null;
+        noteData: unknown;
+        engineKey: CanvasEngineKey;
+        courseId: number | null;
+        topicId: number | null;
+        subtopicId: number | null;
+        lessonId: number;
+        videoUrl: string;
+        pdfUrl: string;
+        isFree: boolean;
+        status: "active" | "inactive";
+        isPublic: boolean;
+        courseTitle: string | null;
+        examType: string | null;
+        topicName: string | null;
+        subtopicName: string | null;
+        lessonPdfUrl: string;
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressPercent: number;
+        lessonCompletedAt: string | null;
+        lessonCompleted: boolean;
+        approvedFlashcardCount: number;
+        createdAt: string;
+        updatedAt: string;
+    }[]>;
+    canvasAdminFindOne(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
+        id: number;
+        title: string;
+        lessonTitle: string;
+        rawText: string | null;
+        noteData: unknown;
+        engineKey: CanvasEngineKey;
+        courseId: number | null;
+        topicId: number | null;
+        subtopicId: number | null;
+        lessonId: number;
+        videoUrl: string;
+        pdfUrl: string;
+        isFree: boolean;
+        status: "active" | "inactive";
+        isPublic: boolean;
+        courseTitle: string | null;
+        examType: string | null;
+        topicName: string | null;
+        subtopicName: string | null;
+        lessonPdfUrl: string;
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressPercent: number;
+        lessonCompletedAt: string | null;
+        lessonCompleted: boolean;
+        approvedFlashcardCount: number;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+    canvasAdminUpdate(id: number, patch: {
+        title?: string;
+        rawText?: string;
+        noteData?: unknown;
+        status?: string;
+        courseId?: number | null;
+        topicId?: number | null;
+        subtopicId?: number | null;
+        videoUrl?: string | null;
+        isFree?: number | null;
+    }, token: string, engineKey?: CanvasEngineKey): Promise<{
+        id: number;
+    }>;
+    canvasAdminRemove(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
+        deleted: boolean;
+    }>;
+    canvasAdminListFlashcards(id: number, token: string): Promise<{
+        id: number;
+        lessonId: number;
+        noteId: number;
+        question: string;
+        answer: string;
+        sourceHint: string;
+        imageUrl: string;
+        imageUrls: string[];
+        imageFit: "contain" | "cover";
+        status: LessonFlashcardStatus;
+        sortOrder: number;
+        generatedBy: LessonFlashcardGeneratedBy;
+        reviewedBy: number | null;
+        createdAt: string;
+        updatedAt: string;
+    }[]>;
+    canvasAdminCreateFlashcard(id: number, payload: {
+        question?: string;
+        answer?: string;
+        sourceHint?: string;
+        imageUrl?: string;
+        imageUrls?: string[];
+        imageFit?: 'contain' | 'cover';
+        status?: LessonFlashcardStatus;
+    }, token: string): Promise<{
+        id: number;
+        lessonId: number;
+        noteId: number;
+        question: string;
+        answer: string;
+        sourceHint: string;
+        imageUrl: string;
+        imageUrls: string[];
+        imageFit: "contain" | "cover";
+        status: LessonFlashcardStatus;
+        sortOrder: number;
+        generatedBy: LessonFlashcardGeneratedBy;
+        reviewedBy: number | null;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+    canvasAdminUpdateFlashcard(id: number, cardId: number, patch: {
+        question?: string;
+        answer?: string;
+        sourceHint?: string;
+        imageUrl?: string;
+        imageUrls?: string[];
+        imageFit?: 'contain' | 'cover';
+        status?: LessonFlashcardStatus;
+        sortOrder?: number;
+    }, token: string): Promise<{
+        id: number;
+        lessonId: number;
+        noteId: number;
+        question: string;
+        answer: string;
+        sourceHint: string;
+        imageUrl: string;
+        imageUrls: string[];
+        imageFit: "contain" | "cover";
+        status: LessonFlashcardStatus;
+        sortOrder: number;
+        generatedBy: LessonFlashcardGeneratedBy;
+        reviewedBy: number | null;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+    canvasAdminRemoveFlashcard(id: number, cardId: number, token: string): Promise<{
+        ok: boolean;
+        id: number;
+    }>;
+    canvasAdminGenerateFlashcards(id: number, options: {
+        count?: number;
+    }, token: string): Promise<{
+        ok: boolean;
+        createdCount: number;
+        provider: {
+            key: "gemini" | "openai" | "claude" | "openrouter";
+            label: string;
+            model: string;
+        };
+        items: {
+            id: number;
+            lessonId: number;
+            noteId: number;
+            question: string;
+            answer: string;
+            sourceHint: string;
+            imageUrl: string;
+            imageUrls: string[];
+            imageFit: "contain" | "cover";
+            status: LessonFlashcardStatus;
+            sortOrder: number;
+            generatedBy: LessonFlashcardGeneratedBy;
+            reviewedBy: number | null;
+            createdAt: string;
+            updatedAt: string;
+        }[];
+    }>;
+    canvasGenerate(text: string, token: string): Promise<NoteCanvas>;
+    canvasStudentList(token: string, engineKey?: CanvasEngineKey): Promise<{
+        cardCount: number;
+        canAccess: boolean;
+        accessLocked: boolean;
+        upgradeLabel: string;
+        lockReason: string;
+        noteData: unknown;
+        id: number;
+        title: string;
+        lessonTitle: string;
+        rawText: string | null;
+        engineKey: CanvasEngineKey;
+        courseId: number | null;
+        topicId: number | null;
+        subtopicId: number | null;
+        lessonId: number;
+        videoUrl: string;
+        pdfUrl: string;
+        isFree: boolean;
+        status: "active" | "inactive";
+        isPublic: boolean;
+        courseTitle: string | null;
+        examType: string | null;
+        topicName: string | null;
+        subtopicName: string | null;
+        lessonPdfUrl: string;
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressPercent: number;
+        lessonCompletedAt: string | null;
+        lessonCompleted: boolean;
+        approvedFlashcardCount: number;
+        createdAt: string;
+        updatedAt: string;
+    }[]>;
+    canvasStudentFindNote(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
+        cardCount: number;
+        canAccess: boolean;
+        accessLocked: boolean;
+        upgradeLabel: string;
+        lockReason: string;
+        noteData: unknown;
+        id: number;
+        title: string;
+        lessonTitle: string;
+        rawText: string | null;
+        engineKey: CanvasEngineKey;
+        courseId: number | null;
+        topicId: number | null;
+        subtopicId: number | null;
+        lessonId: number;
+        videoUrl: string;
+        pdfUrl: string;
+        isFree: boolean;
+        status: "active" | "inactive";
+        isPublic: boolean;
+        courseTitle: string | null;
+        examType: string | null;
+        topicName: string | null;
+        subtopicName: string | null;
+        lessonPdfUrl: string;
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressPercent: number;
+        lessonCompletedAt: string | null;
+        lessonCompleted: boolean;
+        approvedFlashcardCount: number;
+        createdAt: string;
+        updatedAt: string;
+    } | {
+        lessonType: string;
+        lessonId: number;
+        lessonTitle: any;
+        pdfUrl: string;
+        accessLocked: boolean;
+        lockReason: string;
+    }>;
+    canvasStudentFlashcards(id: number, token: string, engineKey?: CanvasEngineKey): Promise<{
+        flashcards: {
+            id: number;
+            lessonId: number;
+            noteId: number;
+            question: string;
+            answer: string;
+            sourceHint: string;
+            imageUrl: string;
+            imageUrls: string[];
+            imageFit: "contain" | "cover";
+            status: LessonFlashcardStatus;
+            sortOrder: number;
+            generatedBy: LessonFlashcardGeneratedBy;
+            reviewedBy: number | null;
+            createdAt: string;
+            updatedAt: string;
+        }[];
+    }>;
+    getCourses(token: string): Promise<RowDataPacket[]>;
+    getTopics(courseId: number | undefined, token: string): Promise<RowDataPacket[]>;
+    getSubtopics(topicId: number | undefined, token: string): Promise<RowDataPacket[]>;
+    private ensureDefaultLessonHierarchy;
+    private findCanvasLessonRow;
+    private findFlashcardRowsForLesson;
+    private findFlashcardsForLesson;
+    private findApprovedFlashcardsForLesson;
+    private findFlashcardById;
+    private getNextFlashcardSortOrder;
+    private insertGeneratedFlashcards;
+    private mapFlashcard;
+    private deserializeCanvas;
+    private mapCanvasStudentNote;
+    private getCanvasAccessProfile;
+    private canAccessCanvasLesson;
+    private resolveActiveCanvasProvider;
+    private safeDecryptSecret;
+    private generateWithProvider;
+    private generateWithGeminiProvider;
+    private generateWithChatProvider;
+    private sendChatCanvasPrompt;
+    private isUnsupportedOpenAiJsonModeError;
+    private runFlashcardJsonPrompt;
+    private parseJsonResponse;
+    private buildFlashcardPrompt;
+    private extractFlashcardSourceText;
+    private normalizeGeneratedFlashcards;
+    private normalizeFlashcardInput;
+    private normalizeFlashcardImageFit;
+    private normalizeFlashcardStatus;
+    private cleanFlashcardText;
+    private cleanFlashcardImageUrl;
+    private cleanFlashcardImageUrls;
+    private parseFlashcardImageUrls;
+    private serializeFlashcardImageUrls;
+    private assertValidFlashcard;
+    private flashcardSignature;
+    private splitIntoPages;
+    private derivePageTitle;
+    private validate;
+    private normalizePalette;
+    private buildPrompt;
 }
 export {};

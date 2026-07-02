@@ -84,6 +84,7 @@ export declare class DashboardController {
         totalCourses: number;
         totalAttempts: number;
         quizDayStreak: number;
+        recentActiveDays: string[];
         avgScore: number;
         totalPassed: number;
         passRate: number;

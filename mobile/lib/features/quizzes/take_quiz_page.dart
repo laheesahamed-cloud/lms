@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +33,39 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
   // True/False: questionId -> { optionId -> markedTrue }
   final Map<int, Map<int, bool>> _tf = {};
   final Set<int> _revealed = {}; // questionId (practice reveal)
+
+  // Shuffled questions — initialised once on first data load, never again.
+  List<PracticeQuestion>? _shuffled;
+  final _rng = Random();
+  static const _optLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+
+  List<PracticeQuestion> _shuffleOnce(List<PracticeQuestion> questions) {
+    if (_shuffled != null) return _shuffled!;
+    _shuffled = questions.map((q) {
+      final opts = [...q.options]..shuffle(_rng);
+      final relabeled = opts.asMap().entries.map((e) {
+        final o = e.value;
+        return QOption(
+          id: o.id,
+          label: e.key < _optLabels.length ? _optLabels[e.key] : '${e.key + 1}',
+          text: o.text,
+          isCorrect: o.isCorrect,
+          whyIncorrect: o.whyIncorrect,
+        );
+      }).toList();
+      return PracticeQuestion(
+        id: q.id,
+        type: q.type,
+        text: q.text,
+        explanation: q.explanation,
+        explanationImageUrl: q.explanationImageUrl,
+        options: relabeled,
+        correctOptionIds: q.correctOptionIds, // IDs never change
+        recap: q.recap,
+      );
+    }).toList();
+    return _shuffled!;
+  }
   bool _started = false; // gated behind the start-confirm popup
   bool _startPrompting = false;
   bool _submitting = false; // exam submit / practice finish in-flight
@@ -242,11 +276,12 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
           error: (e, _) => _errorView(c, e),
           data: (quiz) {
             if (quiz.questions.isEmpty) return _empty(c);
+            final questions = _shuffleOnce(quiz.questions);
             if (!_started && !_startPrompting) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && !_started && !_startPrompting) {
                   _promptStart(
-                    totalQuestions: quiz.questions.length,
+                    totalQuestions: questions.length,
                     timeLimitMinutes: 0,
                     timerSeconds: 0,
                   );
@@ -254,14 +289,14 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
               });
             }
             if (!_started) return const QuizLoadingView();
-            final i = _index.clamp(0, quiz.questions.length - 1);
-            final q = quiz.questions[i];
+            final i = _index.clamp(0, questions.length - 1);
+            final q = questions[i];
             final revealed = _revealed.contains(q.id);
             return Stack(
               children: [
                 Column(
                   children: [
-                    _topBar(c, quiz.title, i, quiz.questions, showTimer: false),
+                    _topBar(c, quiz.title, i, questions, showTimer: false),
                     Expanded(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -282,7 +317,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
                         ),
                       ),
                     ),
-                    _bottomBar(c, quiz.questions.length, isExam: false),
+                    _bottomBar(c, questions.length, isExam: false),
                   ],
                 ),
                 SubmitTransitionOverlay(
@@ -321,11 +356,12 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
               return const Center(child: CircularProgressIndicator());
             }
             if (load.questions.isEmpty) return _empty(c);
+            final questions = _shuffleOnce(load.questions);
             if (!_started && !_startPrompting) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && !_started && !_startPrompting) {
                   _promptStart(
-                    totalQuestions: load.questions.length,
+                    totalQuestions: questions.length,
                     timeLimitMinutes: load.timeLimit,
                     timerSeconds: load.session.secondsRemaining ??
                         load.timeLimit * 60,
@@ -334,13 +370,13 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
               });
             }
             if (!_started) return const QuizLoadingView();
-            final i = _index.clamp(0, load.questions.length - 1);
-            final q = load.questions[i];
+            final i = _index.clamp(0, questions.length - 1);
+            final q = questions[i];
             return Stack(
               children: [
                 Column(
                   children: [
-                    _topBar(c, load.title, i, load.questions,
+                    _topBar(c, load.title, i, questions,
                         showTimer: load.timeLimit > 0),
                     Expanded(
                       child: SingleChildScrollView(
@@ -362,7 +398,7 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
                         ),
                       ),
                     ),
-                    _bottomBar(c, load.questions.length, isExam: true),
+                    _bottomBar(c, questions.length, isExam: true),
                   ],
                 ),
                 SubmitTransitionOverlay(

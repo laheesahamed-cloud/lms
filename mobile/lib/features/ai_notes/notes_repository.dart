@@ -3,12 +3,7 @@ import '../../data/api_client.dart';
 import '../../state/current_user.dart';
 import 'note_models.dart';
 
-/// Fetches the AI note for a lesson. The authoritative backend route is
-/// `GET /ai-notes/student/lesson/:lessonId` (controller `@Controller('ai-notes')`);
-/// the web's `/student/ai-notes/lesson/:lessonId` is tried as a fallback.
-/// Honors subscription gating: a locked lesson returns a NoteDoc with
-/// `locked == true` (the canvas shows the upgrade screen). No mock content —
-/// an accessible lesson with no generated note returns an empty NoteDoc.
+/// Fetches the AI note for a lesson via GET /lessons/:id/note.
 final lessonNoteProvider =
     FutureProvider.autoDispose.family<NoteDoc, String>((ref, lessonId) async {
   ref.watch(currentUserIdProvider);
@@ -26,15 +21,9 @@ final lessonNoteProvider =
     }
   }
 
-  // Prefer a result that is locked or has real content over an empty one.
-  final a = await tryGet('/ai-notes/student/lesson/$lessonId');
+  final a = await tryGet('/lessons/$lessonId/note');
   if (a != null && (a.locked || !a.isEmpty)) return a;
-  final b = await tryGet('/student/ai-notes/lesson/$lessonId');
-  if (b != null && (b.locked || !b.isEmpty)) return b;
-  // Fallback: id may be the note's own id (topic-level notes without a lesson link)
-  final c = await tryGet('/ai-notes/$lessonId');
-  if (c != null && (c.locked || !c.isEmpty)) return c;
-  return a ?? b ?? c ?? NoteDoc.empty();
+  return a ?? NoteDoc.empty();
 });
 
 /// Marks a lesson as completed via PATCH /courses/student/lessons/:id/progress.
@@ -45,12 +34,12 @@ Future<void> markLessonComplete(ApiClient api, String lessonId) async {
   );
 }
 
-/// The student's AI-notes list — `GET /student/ai-notes`.
+/// The student's lessons notes list — GET /lessons/canvas/student/notes.
 final notesListProvider = FutureProvider.autoDispose<List<NoteListItem>>((ref) async {
   ref.watch(currentUserIdProvider);
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get(
-    '/student/ai-notes',
+    '/lessons/canvas/student/notes',
     queryParameters: const {'engine': 'gemini'},
   );
   final data = res.data;

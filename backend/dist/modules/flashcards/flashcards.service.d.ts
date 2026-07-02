@@ -1,5 +1,5 @@
 import { Pool, RowDataPacket } from 'mysql2/promise';
-import { AiNotesService } from '../ai-notes/ai-notes.service';
+import { LessonsService } from '../lessons/lessons.service';
 import { CardState, FlashcardFsrsSettings, FlashcardSchedulerService } from './flashcard-scheduler.service';
 type CardContentRow = RowDataPacket & {
     id: number;
@@ -22,7 +22,7 @@ export declare class FlashcardsService {
     private readonly db;
     private readonly scheduler;
     private readonly aiNotes;
-    constructor(db: Pool, scheduler: FlashcardSchedulerService, aiNotes: AiNotesService);
+    constructor(db: Pool, scheduler: FlashcardSchedulerService, aiNotes: LessonsService);
     getSettings(): Promise<FlashcardFsrsSettings & {
         newPerDay: number;
         reviewsPerDay: number;

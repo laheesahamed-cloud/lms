@@ -1080,7 +1080,6 @@ let QuizAttemptsService = class QuizAttemptsService {
         if (session?.status === 'in_progress' && this.isExamSessionExpired(session)) {
             const expiredQuestions = await this.loadQuestionsForExamSession(quiz, session);
             await this.finalizeExpiredExamSession(userId, quizId, session.id, expiredQuestions);
-            // Re-fetch so the next block sees status='expired' and creates a fresh session.
             session = await this.getLatestExamSession(userId, quizId);
         }
         if (!session || session.status !== 'in_progress') {

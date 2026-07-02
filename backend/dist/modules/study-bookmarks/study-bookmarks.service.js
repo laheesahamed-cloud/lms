@@ -43,7 +43,7 @@ let StudyBookmarksService = class StudyBookmarksService {
        LEFT JOIN quizzes q ON b.item_type = 'quiz' AND q.id = b.item_id
        LEFT JOIN courses qc ON qc.id = q.course_id
        LEFT JOIN topics qt ON qt.id = q.topic_id
-       LEFT JOIN ai_illustrated_notes n ON b.item_type = 'ai_note' AND n.id = b.item_id
+       LEFT JOIN lessons n ON b.item_type = 'ai_note' AND n.id = b.item_id
        LEFT JOIN courses nc ON nc.id = n.course_id
        LEFT JOIN topics nt ON nt.id = n.topic_id
        LEFT JOIN questions qn ON b.item_type = 'question' AND qn.id = b.item_id
@@ -94,7 +94,7 @@ let StudyBookmarksService = class StudyBookmarksService {
             }
             return;
         }
-        const [rows] = await this.db.execute("SELECT id FROM ai_illustrated_notes WHERE id = ? AND is_public = 1 AND status = 'active' LIMIT 1", [itemId]);
+        const [rows] = await this.db.execute("SELECT id FROM lessons WHERE id = ? AND is_public = 1 AND status = 'active' LIMIT 1", [itemId]);
         if (rows.length === 0) {
             throw new common_1.BadRequestException('Lesson not found');
         }

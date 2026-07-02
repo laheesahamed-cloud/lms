@@ -6,6 +6,8 @@ export declare class ResultsController {
         attemptId: number;
         quizId: number;
         quizTitle: string;
+        displayTitleMode: string;
+        quizNumber: number | null;
         subtopic: string;
         courseTitle: string;
         topicDisplay: string;
@@ -100,6 +102,8 @@ export declare class ResultsController {
         attemptId: number;
         quizId: number;
         quizTitle: string;
+        displayTitleMode: string;
+        quizNumber: number | null;
         courseTitle: string;
         topicDisplay: string;
         passStatus: string;

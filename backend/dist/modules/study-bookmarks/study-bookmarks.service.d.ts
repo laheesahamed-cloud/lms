@@ -6,7 +6,7 @@ export declare class StudyBookmarksService {
     list(userId: number): Promise<{
         id: number;
         userId: number;
-        itemType: "question" | "quiz" | "ai_note";
+        itemType: "quiz" | "ai_note" | "question";
         itemId: number;
         title: string;
         examModeOnly: boolean;

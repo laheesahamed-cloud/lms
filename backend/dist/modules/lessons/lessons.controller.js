@@ -75,9 +75,12 @@ let LessonsController = class LessonsController {
         return this.lessonsService.remove(id, actor);
     }
     async uploadPdf(authorization, id, file) {
-        if (!file) throw new common_1.BadRequestException('No file uploaded');
-        if (file.mimetype !== 'application/pdf') throw new common_1.BadRequestException('Only PDF files are allowed');
-        if (file.size > 50 * 1024 * 1024) throw new common_1.BadRequestException('PDF must be under 50 MB');
+        if (!file)
+            throw new common_1.BadRequestException('No file uploaded');
+        if (file.mimetype !== 'application/pdf')
+            throw new common_1.BadRequestException('Only PDF files are allowed');
+        if (file.size > 50 * 1024 * 1024)
+            throw new common_1.BadRequestException('PDF must be under 50 MB');
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.uploadPdf(id, file, actor);
     }
@@ -103,6 +106,60 @@ let LessonsController = class LessonsController {
     async rollback(authorization, id, versionNumber) {
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.rollback(id, versionNumber, actor);
+    }
+    canvasGenerate(auth, text) {
+        return this.lessonsService.canvasGenerate(text, this.bearerToken(auth));
+    }
+    canvasAdminList(auth, engineKey) {
+        return this.lessonsService.canvasAdminList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    }
+    canvasGetCourses(auth) {
+        return this.lessonsService.getCourses(this.bearerToken(auth));
+    }
+    canvasGetTopics(auth, courseId) {
+        return this.lessonsService.getTopics(courseId ? Number(courseId) : undefined, this.bearerToken(auth));
+    }
+    canvasGetSubtopics(auth, topicId) {
+        return this.lessonsService.getSubtopics(topicId ? Number(topicId) : undefined, this.bearerToken(auth));
+    }
+    canvasAdminFindOne(auth, id, engineKey) {
+        return this.lessonsService.canvasAdminFindOne(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    }
+    canvasAdminUpdate(auth, id, body, engineKey) {
+        return this.lessonsService.canvasAdminUpdate(id, { title: body.title, rawText: body.rawText, noteData: body.noteData, status: body.status, courseId: body.courseId != null ? Number(body.courseId) : undefined, topicId: body.topicId != null ? Number(body.topicId) : undefined, subtopicId: body.subtopicId != null ? Number(body.subtopicId) : undefined, videoUrl: body.videoUrl, isFree: body.isFree != null ? Number(body.isFree) : undefined }, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    }
+    canvasAdminRemove(auth, id, engineKey) {
+        return this.lessonsService.canvasAdminRemove(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    }
+    canvasAdminListFlashcards(auth, id) {
+        return this.lessonsService.canvasAdminListFlashcards(id, this.bearerToken(auth));
+    }
+    canvasAdminCreateFlashcard(auth, id, body) {
+        return this.lessonsService.canvasAdminCreateFlashcard(id, body, this.bearerToken(auth));
+    }
+    canvasAdminGenerateFlashcards(auth, id, body) {
+        return this.lessonsService.canvasAdminGenerateFlashcards(id, body, this.bearerToken(auth));
+    }
+    canvasAdminUpdateFlashcard(auth, id, cardId, body) {
+        return this.lessonsService.canvasAdminUpdateFlashcard(id, cardId, body, this.bearerToken(auth));
+    }
+    canvasAdminRemoveFlashcard(auth, id, cardId) {
+        return this.lessonsService.canvasAdminRemoveFlashcard(id, cardId, this.bearerToken(auth));
+    }
+    canvasStudentList(auth, engineKey) {
+        return this.lessonsService.canvasStudentList(this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    }
+    canvasStudentFindNote(auth, id, engineKey) {
+        return this.lessonsService.canvasStudentFindNote(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    }
+    canvasStudentFlashcards(auth, id, engineKey) {
+        return this.lessonsService.canvasStudentFlashcards(id, this.bearerToken(auth), this.lessonsService.normalizeEngineKey(engineKey));
+    }
+    bearerToken(auth) {
+        if (!auth)
+            return '';
+        const m = /^Bearer\s+(.+)$/i.exec(auth.trim());
+        return m ? m[1].trim() : '';
     }
     parsePositiveNumber(raw) {
         const value = Number(raw);
@@ -298,6 +355,144 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number, Number]),
     __metadata("design:returntype", Promise)
 ], LessonsController.prototype, "rollback", null);
+__decorate([
+    (0, common_1.Post)('canvas/generate'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)('text')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasGenerate", null);
+__decorate([
+    (0, common_1.Get)('canvas/admin'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('engineKey')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminList", null);
+__decorate([
+    (0, common_1.Get)('canvas/hierarchy/courses'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasGetCourses", null);
+__decorate([
+    (0, common_1.Get)('canvas/hierarchy/topics'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('courseId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasGetTopics", null);
+__decorate([
+    (0, common_1.Get)('canvas/hierarchy/subtopics'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('topicId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasGetSubtopics", null);
+__decorate([
+    (0, common_1.Get)('canvas/admin/:id'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Query)('engineKey')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminFindOne", null);
+__decorate([
+    (0, common_1.Patch)('canvas/admin/:id'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Query)('engineKey')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, Object, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminUpdate", null);
+__decorate([
+    (0, common_1.Delete)('canvas/admin/:id'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Query)('engineKey')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminRemove", null);
+__decorate([
+    (0, common_1.Get)('canvas/admin/:id/flashcards'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminListFlashcards", null);
+__decorate([
+    (0, common_1.Post)('canvas/admin/:id/flashcards'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, Object]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminCreateFlashcard", null);
+__decorate([
+    (0, common_1.Post)('canvas/admin/:id/flashcards/generate'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, Object]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminGenerateFlashcards", null);
+__decorate([
+    (0, common_1.Patch)('canvas/admin/:id/flashcards/:cardId'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Param)('cardId', common_1.ParseIntPipe)),
+    __param(3, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, Number, Object]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminUpdateFlashcard", null);
+__decorate([
+    (0, common_1.Delete)('canvas/admin/:id/flashcards/:cardId'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Param)('cardId', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, Number]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasAdminRemoveFlashcard", null);
+__decorate([
+    (0, common_1.Get)('canvas/student/notes'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Query)('engineKey')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasStudentList", null);
+__decorate([
+    (0, common_1.Get)(':id/note'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Query)('engineKey')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasStudentFindNote", null);
+__decorate([
+    (0, common_1.Get)(':id/flashcards'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Query)('engineKey')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, String]),
+    __metadata("design:returntype", void 0)
+], LessonsController.prototype, "canvasStudentFlashcards", null);
 exports.LessonsController = LessonsController = __decorate([
     (0, common_1.Controller)('lessons'),
     __metadata("design:paramtypes", [lessons_service_1.LessonsService,

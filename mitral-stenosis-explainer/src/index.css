@@ -1,0 +1,377 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-rounded,
+    "Avenir Next",
+    "Trebuchet MS",
+    Inter,
+    system-ui,
+    sans-serif;
+}
+
+.ms-video {
+  overflow: hidden;
+  background: #fff9ef;
+  color: #17212f;
+  font-family:
+    ui-rounded,
+    "Avenir Next",
+    "Trebuchet MS",
+    Inter,
+    system-ui,
+    sans-serif;
+  letter-spacing: 0;
+}
+
+.ms-bg-wash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(245, 200, 76, 0.2), transparent 28%),
+    radial-gradient(circle at 76% 32%, rgba(143, 229, 244, 0.24), transparent 30%),
+    linear-gradient(135deg, #fff9ef 0%, #f7ead8 100%);
+}
+
+.ms-bg-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.28;
+}
+
+.ms-bg-grid path {
+  fill: none;
+  stroke: rgba(23, 33, 47, 0.13);
+  stroke-width: 2;
+}
+
+.ms-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 249, 239, 0.9), transparent 18%, transparent 78%, rgba(255, 249, 239, 0.84)),
+    linear-gradient(180deg, rgba(255, 249, 239, 0.92), transparent 18%, transparent 84%, rgba(255, 249, 239, 0.96));
+}
+
+.ms-top {
+  position: absolute;
+  z-index: 8;
+  top: 44px;
+  left: 58px;
+  right: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ms-logo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #17212f;
+  font-size: 34px;
+  font-weight: 900;
+}
+
+.ms-step {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 360px;
+  justify-content: flex-end;
+  font-size: 24px;
+}
+
+.ms-step span {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 4px solid #17212f;
+  border-radius: 50%;
+  background: #fff;
+  font-weight: 950;
+}
+
+.ms-step b {
+  max-width: 440px;
+  color: #9b4d68;
+  font-weight: 950;
+  line-height: 1.1;
+  text-align: right;
+}
+
+.ms-rail {
+  position: absolute;
+  z-index: 8;
+  left: 58px;
+  right: 58px;
+  bottom: 34px;
+  height: 30px;
+}
+
+.ms-rail-track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 10px;
+  overflow: hidden;
+  border: 3px solid #17212f;
+  border-radius: 999px;
+  background: #fff;
+  transform: translateY(-50%);
+}
+
+.ms-rail-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e35d5b, #f5c84c, #55b884);
+}
+
+.ms-rail-dot {
+  position: absolute;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  border: 4px solid #17212f;
+  border-radius: 50%;
+}
+
+.ms-scene {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+}
+
+.ms-main-diagram {
+  position: absolute;
+  left: 50%;
+  top: 51%;
+  width: 1260px;
+  height: 810px;
+  overflow: visible;
+  transform: translate(-50%, -50%);
+}
+
+.ms-caption {
+  position: absolute;
+  z-index: 7;
+  left: 72px;
+  bottom: 96px;
+  width: 610px;
+  min-height: 220px;
+  padding: 30px 34px 32px;
+  border: 6px solid #17212f;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 14px 14px 0 rgba(23, 33, 47, 0.12);
+}
+
+.ms-caption-kicker {
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #fff0b7;
+  color: #9b4d68;
+  font-size: 22px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.ms-caption h1 {
+  margin: 0;
+  color: #17212f;
+  font-size: 48px;
+  font-weight: 950;
+  line-height: 0.98;
+}
+
+.ms-caption p {
+  margin: 16px 0 0;
+  color: #4a5568;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.22;
+}
+
+.ms-floating-note {
+  position: absolute;
+  z-index: 6;
+  width: 360px;
+  padding: 18px 22px;
+  border: 5px solid currentColor;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 10px 10px 0 rgba(23, 33, 47, 0.1);
+  font-size: 28px;
+  font-weight: 950;
+  line-height: 1.08;
+  transform-origin: center;
+}
+
+.ms-big-number {
+  position: absolute;
+  z-index: 6;
+  right: 150px;
+  top: 205px;
+  width: 370px;
+  padding: 26px 28px;
+  border: 6px solid #17212f;
+  border-radius: 34px;
+  background: #fff0b7;
+  box-shadow: 12px 12px 0 rgba(23, 33, 47, 0.12);
+  text-align: center;
+}
+
+.ms-big-number b {
+  display: block;
+  color: #b83a3a;
+  font-size: 86px;
+  font-weight: 950;
+  line-height: 0.9;
+}
+
+.ms-big-number span {
+  display: block;
+  margin-top: 14px;
+  color: #17212f;
+  font-size: 27px;
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+.ms-traffic-dots {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+}
+
+.ms-traffic-dots span {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 4px solid #17212f;
+  border-radius: 50%;
+  box-shadow: 4px 4px 0 rgba(23, 33, 47, 0.12);
+}
+
+.ms-svg-label {
+  fill: #17212f;
+  font-family:
+    ui-rounded,
+    "Avenir Next",
+    "Trebuchet MS",
+    Inter,
+    system-ui,
+    sans-serif;
+  font-size: 34px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.ms-svg-small {
+  fill: #64748b;
+  font-family:
+    ui-rounded,
+    "Avenir Next",
+    "Trebuchet MS",
+    Inter,
+    system-ui,
+    sans-serif;
+  font-size: 24px;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.ms-svg-card-title {
+  fill: #17212f;
+  font-family:
+    ui-rounded,
+    "Avenir Next",
+    "Trebuchet MS",
+    Inter,
+    system-ui,
+    sans-serif;
+  font-size: 27px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.ms-svg-node-title {
+  fill: #17212f;
+  font-family:
+    ui-rounded,
+    "Avenir Next",
+    "Trebuchet MS",
+    Inter,
+    system-ui,
+    sans-serif;
+  font-size: 28px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.ms-svg-pill {
+  fill: #17212f;
+  font-family:
+    ui-rounded,
+    "Avenir Next",
+    "Trebuchet MS",
+    Inter,
+    system-ui,
+    sans-serif;
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.ms-svg-bubble {
+  fill: #fff;
+  font-family:
+    ui-rounded,
+    "Avenir Next",
+    "Trebuchet MS",
+    Inter,
+    system-ui,
+    sans-serif;
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.ms-monitor-text {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.ms-blood-path {
+  fill: none;
+  stroke: #b83a3a;
+  stroke-width: 26;
+  stroke-linecap: round;
+}
+
+.ms-flow-line {
+  fill: none;
+  stroke: #17212f;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ms-scar-line {
+  fill: none;
+  stroke: #b83a3a;
+  stroke-width: 12;
+  stroke-linecap: round;
+}

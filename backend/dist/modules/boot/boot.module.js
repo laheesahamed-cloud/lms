@@ -9,7 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BootModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
-const ai_notes_module_1 = require("../ai-notes/ai-notes.module");
+const lessons_module_1 = require("../lessons/lessons.module");
 const dashboard_module_1 = require("../dashboard/dashboard.module");
 const quiz_attempts_module_1 = require("../quiz-attempts/quiz-attempts.module");
 const study_bookmarks_module_1 = require("../study-bookmarks/study-bookmarks.module");
@@ -21,7 +21,7 @@ let BootModule = class BootModule {
 exports.BootModule = BootModule;
 exports.BootModule = BootModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, dashboard_module_1.DashboardModule, workspace_module_1.WorkspaceModule, quiz_attempts_module_1.QuizAttemptsModule, study_bookmarks_module_1.StudyBookmarksModule, ai_notes_module_1.AiNotesModule],
+        imports: [auth_module_1.AuthModule, dashboard_module_1.DashboardModule, workspace_module_1.WorkspaceModule, quiz_attempts_module_1.QuizAttemptsModule, study_bookmarks_module_1.StudyBookmarksModule, lessons_module_1.LessonsModule],
         controllers: [boot_controller_1.BootController],
         providers: [boot_service_1.BootService],
     })

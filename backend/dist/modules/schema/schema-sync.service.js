@@ -58,7 +58,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureSystemSettingsTable(connection);
             await this.ensureAiProviderConfigsTable(connection);
             await this.ensureSmartNotesTable(connection);
-            await this.ensureAiIllustratedNotesTable(connection);
             await this.ensureLessonFlashcardsTable(connection);
             await this.ensureLessonFlashcardReviewsTable(connection);
             await this.ensureQuestionKeywordsTables(connection);
@@ -84,14 +83,11 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureColumn(connection, 'study_planner_tasks', 'category', "ENUM('general','lesson','quiz','exam','review','flashcards') NOT NULL DEFAULT 'general' AFTER status");
             await this.ensureColumn(connection, 'study_planner_tasks', 'priority', "ENUM('low','medium','high') NOT NULL DEFAULT 'medium' AFTER category");
             await this.ensureColumn(connection, 'study_planner_tasks', 'estimated_minutes', 'INT NULL AFTER priority');
-            await this.ensureColumn(connection, 'ai_illustrated_notes', 'is_public', "TINYINT NOT NULL DEFAULT 1");
-            await this.ensureColumn(connection, 'ai_illustrated_notes', 'course_id', 'INT NULL');
-            await this.ensureColumn(connection, 'ai_illustrated_notes', 'topic_id', 'INT NULL');
-            await this.ensureColumn(connection, 'ai_illustrated_notes', 'subtopic_id', 'INT NULL');
-            await this.ensureColumn(connection, 'ai_illustrated_notes', 'status', "ENUM('active','inactive') NOT NULL DEFAULT 'active'");
-            await this.ensureColumn(connection, 'ai_illustrated_notes', 'lesson_id', 'INT NULL');
-            await this.ensureColumn(connection, 'ai_illustrated_notes', 'engine_key', "VARCHAR(32) NOT NULL DEFAULT 'gemini' AFTER raw_text");
-            await this.ensureColumn(connection, 'ai_illustrated_notes', 'video_url', 'VARCHAR(1000) NULL AFTER lesson_id');
+            await this.ensureColumn(connection, 'lessons', 'note_data', 'LONGTEXT NULL');
+            await this.ensureColumn(connection, 'lessons', 'raw_text', 'LONGTEXT NULL');
+            await this.ensureColumn(connection, 'lessons', 'engine_key', "VARCHAR(32) NOT NULL DEFAULT 'gemini'");
+            await this.ensureColumn(connection, 'lessons', 'is_public', 'TINYINT NOT NULL DEFAULT 1');
+            await this.ensureColumn(connection, 'lessons', 'pdf_url', 'VARCHAR(500) NULL');
             await this.ensureColumn(connection, 'lesson_flashcards', 'image_url', 'LONGTEXT NULL AFTER source_hint');
             await this.ensureColumn(connection, 'lesson_flashcards', 'image_fit', "ENUM('contain','cover') NOT NULL DEFAULT 'contain' AFTER image_url");
             await this.ensureColumn(connection, 'questions', 'subtopic_id', 'INT NULL AFTER topic_id');
@@ -121,7 +117,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureColumn(connection, 'quizzes', 'blueprint_json', 'LONGTEXT NULL AFTER quiz_description');
             await this.ensureColumn(connection, 'quizzes', 'randomization_mode', "VARCHAR(20) NOT NULL DEFAULT 'static' AFTER blueprint_json");
             await this.ensureColumn(connection, 'lessons', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER video_url');
-            await this.ensureColumn(connection, 'ai_illustrated_notes', 'is_free', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_public');
             await this.ensureColumn(connection, 'plans', 'slug', 'VARCHAR(160) NULL AFTER name');
             await this.ensureColumn(connection, 'plans', 'regular_price', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00 AFTER description');
             await this.ensureColumn(connection, 'plans', 'offer_price', 'DECIMAL(10, 2) NULL AFTER regular_price');
@@ -212,9 +207,8 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureIndex(connection, 'study_planner_tasks', 'idx_study_planner_user_due', 'user_id, due_date');
             await this.ensureIndex(connection, 'study_activity_events', 'idx_study_activity_user_type_created', 'user_id, activity_type, created_at');
             await this.ensureIndex(connection, 'smart_notes', 'idx_smart_notes_user_updated', 'user_id, updated_at');
-            await this.ensureIndex(connection, 'ai_illustrated_notes', 'idx_ai_notes_public_status_course', 'is_public, status, course_id, topic_id');
-            await this.ensureIndex(connection, 'ai_illustrated_notes', 'idx_ai_notes_lesson_pub_status', 'lesson_id, is_public, status, engine_key');
-            await this.ensureIndex(connection, 'ai_illustrated_notes', 'idx_ai_notes_engine_pub_status', 'engine_key, is_public, status, updated_at');
+            await this.ensureIndex(connection, 'lessons', 'idx_lessons_public_status_course', 'is_public, status, course_id, topic_id');
+            await this.ensureIndex(connection, 'lessons', 'idx_lessons_engine_pub_status', 'engine_key, is_public, status, updated_at');
             await this.ensureIndex(connection, 'question_review_items', 'idx_question_review_items_status', 'status');
             await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_note_status', 'note_id, status');
             await this.ensureIndex(connection, 'lesson_flashcards', 'idx_lesson_flashcards_lesson_status', 'lesson_id, status');
@@ -799,21 +793,6 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
     `);
         await this.ensureColumn(connection, 'smart_notes', 'representative_image_data', 'LONGTEXT NULL AFTER infographic_elements');
         await this.ensureColumn(connection, 'smart_notes', 'representative_image_prompt', 'TEXT NULL AFTER representative_image_data');
-    }
-    async ensureAiIllustratedNotesTable(connection) {
-        await connection.execute(`
-      CREATE TABLE IF NOT EXISTS ai_illustrated_notes (
-        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        title VARCHAR(255) NOT NULL DEFAULT 'Untitled Note',
-        raw_text LONGTEXT NULL,
-        engine_key VARCHAR(32) NOT NULL DEFAULT 'gemini',
-        note_data LONGTEXT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_ai_illustrated_notes_user (user_id)
-      )
-    `);
     }
     async ensureLessonFlashcardsTable(connection) {
         await connection.execute(`
