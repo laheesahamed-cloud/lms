@@ -1,38 +1,55 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../state/auth_controller.dart';
 import '../../theme/tokens.dart';
 
-/// GoodNotes-style PDF viewer with per-page ink annotation.
-/// Opened automatically when a lesson's NoteDoc has a non-empty pdfUrl.
-///
-/// Ink is stored per-page in SharedPreferences under
-/// `lms.pdf.ink.$uid.$lessonId.$pageIndex` — same namespace model as canvas ink.
-class PdfLessonPage extends ConsumerStatefulWidget {
+/// PDF viewer body — no Scaffold, no header, no toolbar.
+/// Dropped into the Expanded slot of LessonCanvasPage, which already owns the
+/// header (back + title) and the tool strip (pen / hl / eraser / color / size).
+/// Tool state is passed in from the canvas; zoom/pan mirrors the canvas matrix.
+class PdfLessonPage extends StatefulWidget {
   final String lessonId;
   final String pdfUrl;
-  final String title;
+  /// Tool index matching _Tool in lesson_canvas_page: 0=pen, 1=highlighter, 2=eraser
+  final int toolIndex;
+  final Color penColor;
+  final Color hlColor;
+  final double penSize;
+  final double hlSize;
+  final double eraserSize;
+  final String uid;
+
   const PdfLessonPage({
     super.key,
     required this.lessonId,
     required this.pdfUrl,
-    required this.title,
+    required this.toolIndex,
+    required this.penColor,
+    required this.hlColor,
+    required this.penSize,
+    required this.hlSize,
+    required this.eraserSize,
+    required this.uid,
   });
+
   @override
-  ConsumerState<PdfLessonPage> createState() => _PdfLessonPageState();
+  State<PdfLessonPage> createState() => _PdfLessonPageState();
 }
 
 enum _PdfTool { pen, highlighter, eraser }
 
+// ── Stroke model ───────────────────────────────────────────────────────────────
+
 class _PdfStroke {
   final _PdfTool tool;
   final Color color;
-  final double width;
-  final List<Offset> points; // normalised 0..1 on the page dimensions
+  final double width; // content-space width (base / zoom at draw time)
+  final List<Offset> points; // normalised 0..1 within the page rect
 
   _PdfStroke(this.tool, this.color, this.width) : points = [];
 
@@ -61,11 +78,11 @@ class _PdfStroke {
 
 // ── Ink painter ────────────────────────────────────────────────────────────────
 
-class _InkPainter extends CustomPainter {
+class _PdfInkPainter extends CustomPainter {
   final List<_PdfStroke> strokes;
   final _PdfStroke? active;
   final bool dark;
-  _InkPainter(this.strokes, this.active, this.dark) : super();
+  _PdfInkPainter(this.strokes, this.active, this.dark);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -78,125 +95,143 @@ class _InkPainter extends CustomPainter {
   void _paintStroke(Canvas canvas, Size size, _PdfStroke s) {
     if (s.points.length < 2) return;
     final pts = [for (final p in s.points) Offset(p.dx * size.width, p.dy * size.height)];
-    if (s.tool == _PdfTool.highlighter) {
-      final paint = Paint()
-        ..color = s.color.withValues(alpha: 0.35)
-        ..strokeWidth = s.width
-        ..strokeCap = StrokeCap.square
-        ..style = PaintingStyle.stroke
-        ..blendMode = dark ? BlendMode.screen : BlendMode.multiply;
-      final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-      for (var i = 1; i < pts.length; i++) path.lineTo(pts[i].dx, pts[i].dy);
-      canvas.drawPath(path, paint);
-    } else if (s.tool == _PdfTool.eraser) {
-      final paint = Paint()
-        ..color = Colors.white
-        ..strokeWidth = s.width
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke
-        ..blendMode = BlendMode.clear;
-      final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-      for (var i = 1; i < pts.length; i++) path.lineTo(pts[i].dx, pts[i].dy);
-      canvas.drawPath(path, paint);
-    } else {
-      // Pen: union of overlapping filled circles (same technique as canvas)
-      final r = s.width / 2;
-      final paint = Paint()..color = s.color..style = PaintingStyle.fill;
-      canvas.drawCircle(pts.first, r, paint);
-      for (var i = 1; i < pts.length; i++) {
-        final a = pts[i - 1], b = pts[i];
-        final dist = (b - a).distance;
-        if (dist < 0.5) continue;
-        final steps = math.max(1, (dist / r).ceil());
-        for (var j = 0; j <= steps; j++) {
-          final t = j / steps;
-          canvas.drawCircle(Offset.lerp(a, b, t)!, r, paint);
+    switch (s.tool) {
+      case _PdfTool.highlighter:
+        final paint = Paint()
+          ..color = s.color.withValues(alpha: 0.35)
+          ..strokeWidth = s.width
+          ..strokeCap = StrokeCap.square
+          ..style = PaintingStyle.stroke
+          ..blendMode = dark ? BlendMode.screen : BlendMode.multiply;
+        final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+        for (var i = 1; i < pts.length; i++) {
+          path.lineTo(pts[i].dx, pts[i].dy);
         }
-      }
+        canvas.drawPath(path, paint);
+      case _PdfTool.eraser:
+        final paint = Paint()
+          ..color = Colors.white
+          ..strokeWidth = s.width
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke
+          ..blendMode = BlendMode.clear;
+        final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+        for (var i = 1; i < pts.length; i++) {
+          path.lineTo(pts[i].dx, pts[i].dy);
+        }
+        canvas.drawPath(path, paint);
+      case _PdfTool.pen:
+        // Union of overlapping filled circles — same technique as canvas pen.
+        final r = s.width / 2;
+        final paint = Paint()..color = s.color..style = PaintingStyle.fill;
+        canvas.drawCircle(pts.first, r, paint);
+        for (var i = 1; i < pts.length; i++) {
+          final a = pts[i - 1], b = pts[i];
+          final dist = (b - a).distance;
+          if (dist < 0.5) continue;
+          final steps = math.max(1, (dist / r).ceil());
+          for (var j = 0; j <= steps; j++) {
+            canvas.drawCircle(Offset.lerp(a, b, j / steps)!, r, paint);
+          }
+        }
     }
   }
 
   @override
-  bool shouldRepaint(_InkPainter old) => true;
+  bool shouldRepaint(_PdfInkPainter old) => true;
 }
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
-class _PdfLessonPageState extends ConsumerState<PdfLessonPage> {
+class _PdfLessonPageState extends State<PdfLessonPage>
+    with SingleTickerProviderStateMixin {
   PdfDocument? _doc;
   String? _error;
   bool _loading = true;
 
-  _PdfTool _tool = _PdfTool.pen;
-  Color _penColor = const Color(0xFF1a1a2e);
-  Color _hlColor = const Color(0xFFFFEB3B);
-  double _penWidth = 3.0;
-  double _hlWidth = 18.0;
-  double _eraserWidth = 28.0;
-
-  // Per-page strokes: pageIndex → list
+  // Per-page ink
   final Map<int, List<_PdfStroke>> _pageStrokes = {};
-  // Active stroke (currently drawing)
   _PdfStroke? _active;
   int _activePageIndex = -1;
-  // Page repaint notifiers
   final Map<int, ValueNotifier<int>> _pageNotifiers = {};
 
-  String _uid = 'anon';
-  String _inkKey(int pageIndex) => 'lms.pdf.ink.$_uid.${widget.lessonId}.$pageIndex';
+  // Page layout rects in CONTENT (document) space
+  List<Rect> _pageRects = [];
+  double _contentH = 0;
 
-  static const List<Color> _penPalette = [
-    Color(0xFF1a1a2e),
-    Color(0xFF2563EB),
-    Color(0xFFDC2626),
-    Color(0xFF16A34A),
-    Color(0xFF9333EA),
-    Color(0xFFF97316),
-  ];
-  static const List<Color> _hlPalette = [
-    Color(0xFFFFEB3B),
-    Color(0xFF86EFAC),
-    Color(0xFF93C5FD),
-    Color(0xFFFCA5A5),
-    Color(0xFFF9A8D4),
-    Color(0xFFF9FAFB),
-  ];
+  // Zoom / pan (same approach as LessonCanvasPage)
+  Matrix4 _matrix = Matrix4.identity();
+  Matrix4 _invMatrix = Matrix4.identity();
+  final ValueNotifier<int> _xform = ValueNotifier<int>(0);
+  Size _viewport = Size.zero;
+  final Map<int, Offset> _touches = {};
+  Matrix4 _startMatrix = Matrix4.identity();
+  Offset _startFocal = Offset.zero;
+  double _startDist = 1.0;
+  String? _panAxis;
+
+  // Inertial fling
+  VelocityTracker? _vt;
+  Ticker? _fling;
+  Offset _flingVel = Offset.zero;
+  Duration? _flingPrev;
+  static const double _flingDecel = 2.6;
+
+  // Tool accessors (read from widget so they're always up-to-date)
+  _PdfTool get _tool => _PdfTool.values[widget.toolIndex.clamp(0, 2)];
+  Color get _activeColor =>
+      _tool == _PdfTool.highlighter ? widget.hlColor : widget.penColor;
+  double get _baseSize {
+    switch (_tool) {
+      case _PdfTool.pen:        return widget.penSize;
+      case _PdfTool.highlighter: return widget.hlSize;
+      case _PdfTool.eraser:     return widget.eraserSize;
+    }
+  }
+
+  String _inkKey(int pageIndex) =>
+      'lms.pdf.ink.${widget.uid}.${widget.lessonId}.$pageIndex';
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
-    _uid = ref.read(authControllerProvider).user?.id ?? 'anon';
     _openPdf();
   }
 
   @override
   void dispose() {
     _doc?.dispose();
+    _xform.dispose();
     for (final n in _pageNotifiers.values) n.dispose();
+    _stopFling();
+    _fling?.dispose();
     super.dispose();
   }
+
+  // ── PDF loading ────────────────────────────────────────────────────────────
 
   Future<void> _openPdf() async {
     final baseUrl = const String.fromEnvironment('API_BASE_URL',
         defaultValue: 'https://xyndrome.lk/api');
-    // pdfUrl is relative like /uploads/pdf/file.pdf.
-    // Prepend the API base (e.g. https://xyndrome.lk/api) so the request
-    // goes through the API proxy path, which is always forwarded to the
-    // Node backend regardless of the host's static-file routing.
     final fullUrl = widget.pdfUrl.startsWith('http')
         ? widget.pdfUrl
         : '$baseUrl${widget.pdfUrl}';
     try {
       final doc = await PdfDocument.openUri(Uri.parse(fullUrl));
-      if (mounted) setState(() { _doc = doc; _loading = false; });
-      // Pre-load ink for all pages
-      for (var i = 0; i < doc.pages.length; i++) {
-        await _loadPageInk(i);
+      if (mounted) {
+        setState(() { _doc = doc; _loading = false; });
+        for (var i = 0; i < doc.pages.length; i++) {
+          await _loadPageInk(i);
+        }
       }
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
   }
+
+  // ── Ink persistence ────────────────────────────────────────────────────────
 
   Future<void> _loadPageInk(int pageIndex) async {
     final prefs = await SharedPreferences.getInstance();
@@ -206,9 +241,7 @@ class _PdfLessonPageState extends ConsumerState<PdfLessonPage> {
       final list = (jsonDecode(raw) as List)
           .map((m) => _PdfStroke.fromJson(Map<String, dynamic>.from(m as Map)))
           .toList();
-      if (mounted) {
-        setState(() { _pageStrokes[pageIndex] = list; });
-      }
+      if (mounted) setState(() { _pageStrokes[pageIndex] = list; });
     } catch (_) {}
   }
 
@@ -218,50 +251,15 @@ class _PdfLessonPageState extends ConsumerState<PdfLessonPage> {
     if (strokes.isEmpty) {
       await prefs.remove(_inkKey(pageIndex));
     } else {
-      await prefs.setString(
-          _inkKey(pageIndex), jsonEncode([for (final s in strokes) s.toJson()]));
+      await prefs.setString(_inkKey(pageIndex),
+          jsonEncode([for (final s in strokes) s.toJson()]));
     }
   }
 
-  ValueNotifier<int> _notifierFor(int pageIndex) =>
-      _pageNotifiers.putIfAbsent(pageIndex, () => ValueNotifier<int>(0));
+  ValueNotifier<int> _notifierFor(int i) =>
+      _pageNotifiers.putIfAbsent(i, () => ValueNotifier<int>(0));
 
-  void _bumpPage(int pageIndex) {
-    final n = _notifierFor(pageIndex);
-    n.value++;
-  }
-
-  Color get _activeColor => _tool == _PdfTool.highlighter ? _hlColor : _penColor;
-  double get _activeWidth {
-    switch (_tool) {
-      case _PdfTool.pen: return _penWidth;
-      case _PdfTool.highlighter: return _hlWidth;
-      case _PdfTool.eraser: return _eraserWidth;
-    }
-  }
-
-  void _startStroke(int pageIndex) {
-    _active = _PdfStroke(_tool, _activeColor, _activeWidth);
-    _activePageIndex = pageIndex;
-  }
-
-  void _addPoint(Offset normPt) {
-    if (_active == null) return;
-    _active!.add(normPt);
-    _bumpPage(_activePageIndex);
-  }
-
-  void _endStroke() {
-    if (_active == null) return;
-    final s = _active!;
-    _active = null;
-    if (s.points.length < 2) { _activePageIndex = -1; return; }
-    _pageStrokes.putIfAbsent(_activePageIndex, () => []).add(s);
-    _bumpPage(_activePageIndex);
-    final idx = _activePageIndex;
-    _activePageIndex = -1;
-    _savePageInk(idx);
-  }
+  void _bumpPage(int i) => _notifierFor(i).value++;
 
   void _undoPage(int pageIndex) {
     final strokes = _pageStrokes[pageIndex];
@@ -271,67 +269,271 @@ class _PdfLessonPageState extends ConsumerState<PdfLessonPage> {
     _savePageInk(pageIndex);
   }
 
+  // ── Layout ─────────────────────────────────────────────────────────────────
+
+  static const double _vPad = 12.0;
+  static const double _hPad = 12.0;
+  static const double _pageGap = 6.0;
+
+  void _computeLayout(double viewW) {
+    final doc = _doc;
+    if (doc == null) return;
+    if (_pageRects.isNotEmpty &&
+        (_pageRects.isNotEmpty &&
+            (_pageRects.first.width - (viewW - _hPad * 2)).abs() < 0.5)) {
+      return; // already computed for this width
+    }
+    final pageW = viewW - _hPad * 2;
+    final rects = <Rect>[];
+    double y = _vPad;
+    for (final page in doc.pages) {
+      final h = page.height * (pageW / page.width);
+      rects.add(Rect.fromLTWH(_hPad, y, pageW, h));
+      y += h + _pageGap;
+    }
+    _pageRects = rects;
+    _contentH = y - _pageGap + _vPad;
+  }
+
+  // ── Zoom / pan (mirrors LessonCanvasPage exactly) ─────────────────────────
+
+  void _setMatrix(Matrix4 m) {
+    _matrix = _clampMatrix(m);
+    _invMatrix = Matrix4.inverted(_matrix);
+    _xform.value++;
+  }
+
+  Matrix4 _clampMatrix(Matrix4 m) {
+    final s = m.getMaxScaleOnAxis();
+    final t = m.getTranslation();
+    final viewW = _viewport.width, viewH = _viewport.height;
+    final cW = _viewport.width * s;
+    final cH = _contentH * s;
+    const vMargin = 48.0;
+
+    double x;
+    if (cW <= viewW) {
+      x = (viewW - cW) / 2;
+    } else {
+      x = t.x.clamp(viewW - cW, 0.0);
+    }
+
+    double y;
+    if (_contentH <= 0) {
+      y = t.y;
+    } else {
+      final minY = cH <= viewH ? 0.0 : viewH - cH;
+      y = t.y.clamp(minY - vMargin, vMargin);
+    }
+    return m.clone()..setTranslationRaw(x, y, 0);
+  }
+
+  Offset _centroid(List<Offset> p) =>
+      p.fold(Offset.zero, (a, b) => a + b) / p.length.toDouble();
+
+  void _snapshotGesture() {
+    _startMatrix = _matrix.clone();
+    _panAxis = null;
+    final pts = _touches.values.toList();
+    if (pts.isEmpty) return;
+    _startFocal = pts.length >= 2 ? _centroid(pts) : pts.first;
+    _startDist = pts.length >= 2 ? (pts[0] - pts[1]).distance : 1.0;
+  }
+
+  void _applyTransform() {
+    final pts = _touches.values.toList();
+    if (pts.isEmpty) return;
+    final twoFinger = pts.length >= 2;
+    final focal = twoFinger ? _centroid(pts) : pts.first;
+    final curDist = twoFinger ? (pts[0] - pts[1]).distance : _startDist;
+
+    final startScale = _startMatrix.getMaxScaleOnAxis();
+    double factor = (twoFinger && _startDist > 0) ? curDist / _startDist : 1.0;
+    final target = (startScale * factor).clamp(1.0, 5.0);
+    factor = startScale == 0 ? 1.0 : target / startScale;
+
+    var dFocal = focal - _startFocal;
+    if (!twoFinger) {
+      if (_panAxis == null && dFocal.distance > 6.0) {
+        _panAxis = dFocal.dx.abs() > dFocal.dy.abs() ? 'x' : 'y';
+      }
+      if (_panAxis == 'x') {
+        dFocal = Offset(dFocal.dx, 0);
+      } else if (_panAxis == 'y') {
+        dFocal = Offset(0, dFocal.dy);
+      } else {
+        dFocal = Offset.zero;
+      }
+    }
+
+    final m = Matrix4.translationValues(focal.dx, focal.dy, 0)
+      ..multiply(Matrix4.diagonal3Values(factor, factor, 1))
+      ..multiply(Matrix4.translationValues(-focal.dx, -focal.dy, 0))
+      ..multiply(Matrix4.translationValues(dFocal.dx, dFocal.dy, 0))
+      ..multiply(_startMatrix);
+    _setMatrix(m);
+  }
+
+  // ── Inertial fling ─────────────────────────────────────────────────────────
+
+  void _startFling(Offset velocity) {
+    var v = velocity.dx.abs() > velocity.dy.abs()
+        ? Offset(velocity.dx, 0)
+        : Offset(0, velocity.dy);
+    const maxV = 8000.0;
+    if (v.distance > maxV) v = v * (maxV / v.distance);
+    if (v.distance < 80) return;
+    _flingVel = v;
+    _flingPrev = null;
+    _fling ??= createTicker(_onFlingTick);
+    _fling!.start();
+  }
+
+  void _onFlingTick(Duration elapsed) {
+    final prev = _flingPrev;
+    _flingPrev = elapsed;
+    if (prev == null) return;
+    var dt = (elapsed - prev).inMicroseconds / 1e6;
+    if (dt <= 0) return;
+    if (dt > 0.05) dt = 0.05;
+
+    final before = _matrix.getTranslation();
+    _setMatrix(Matrix4.translationValues(_flingVel.dx * dt, _flingVel.dy * dt, 0)
+      ..multiply(_matrix));
+    final after = _matrix.getTranslation();
+
+    if ((after.x - before.x).abs() < 0.01) _flingVel = Offset(0, _flingVel.dy);
+    if ((after.y - before.y).abs() < 0.01) _flingVel = Offset(_flingVel.dx, 0);
+
+    _flingVel = _flingVel * math.exp(-_flingDecel * dt);
+    if (_flingVel.distance < 30) _stopFling();
+  }
+
+  void _stopFling() {
+    if (_fling?.isActive ?? false) _fling!.stop();
+    _flingPrev = null;
+    _flingVel = Offset.zero;
+  }
+
+  // ── Ink hit-test ───────────────────────────────────────────────────────────
+
+  // Map a viewport-space point → (pageIndex, normalised offset within page).
+  (int, Offset)? _hitTestPage(Offset viewportPt) {
+    if (_pageRects.isEmpty) return null;
+    final contentPt = MatrixUtils.transformPoint(_invMatrix, viewportPt);
+    for (var i = 0; i < _pageRects.length; i++) {
+      final r = _pageRects[i];
+      if (r.contains(contentPt)) {
+        return (
+          i,
+          Offset((contentPt.dx - r.left) / r.width,
+              (contentPt.dy - r.top) / r.height)
+        );
+      }
+    }
+    return null;
+  }
+
+  // ── Pointer routing ────────────────────────────────────────────────────────
+
+  void _onPointerDown(PointerDownEvent e) {
+    _stopFling();
+    if (e.kind == PointerDeviceKind.stylus) {
+      _startInkStroke(e.localPosition);
+      return;
+    }
+    if (_active != null) return; // ink in progress → fingers inert
+    _touches[e.pointer] = e.localPosition;
+    if (_touches.length == 1) {
+      _vt = VelocityTracker.withKind(e.kind)
+        ..addPosition(e.timeStamp, e.localPosition);
+    } else {
+      _vt = null;
+    }
+    _snapshotGesture();
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    if (e.kind == PointerDeviceKind.stylus) {
+      _extendInkStroke(e.localPosition);
+      return;
+    }
+    if (_active != null || !_touches.containsKey(e.pointer)) return;
+    _touches[e.pointer] = e.localPosition;
+    if (_touches.length == 1) _vt?.addPosition(e.timeStamp, e.localPosition);
+    _applyTransform();
+  }
+
+  void _onPointerUp(PointerEvent e) {
+    if (e.kind == PointerDeviceKind.stylus) {
+      _commitInkStroke();
+      return;
+    }
+    final wasSinglePan = _touches.length == 1 && _vt != null;
+    _touches.remove(e.pointer);
+    if (wasSinglePan && _touches.isEmpty) {
+      final v = _vt!.getVelocity().pixelsPerSecond;
+      _vt = null;
+      _startFling(v);
+    } else {
+      _vt = null;
+      _snapshotGesture();
+    }
+  }
+
+  void _onPointerCancel(PointerEvent e) {
+    if (e.kind == PointerDeviceKind.stylus) {
+      _commitInkStroke();
+      return;
+    }
+    _touches.remove(e.pointer);
+    _vt = null;
+    _snapshotGesture();
+  }
+
+  // ── Ink stroke handlers ────────────────────────────────────────────────────
+
+  void _startInkStroke(Offset viewportPt) {
+    final hit = _hitTestPage(viewportPt);
+    if (hit == null) return;
+    final (pageIndex, normPt) = hit;
+    final scale = _matrix.getMaxScaleOnAxis();
+    _active = _PdfStroke(_tool, _activeColor, _baseSize / scale)..add(normPt);
+    _activePageIndex = pageIndex;
+    _bumpPage(pageIndex);
+  }
+
+  void _extendInkStroke(Offset viewportPt) {
+    if (_active == null || _activePageIndex < 0) return;
+    final contentPt = MatrixUtils.transformPoint(_invMatrix, viewportPt);
+    final r = _pageRects[_activePageIndex];
+    final norm = Offset(
+      ((contentPt.dx - r.left) / r.width).clamp(0.0, 1.0),
+      ((contentPt.dy - r.top) / r.height).clamp(0.0, 1.0),
+    );
+    _active!.add(norm);
+    _bumpPage(_activePageIndex);
+  }
+
+  void _commitInkStroke() {
+    final s = _active;
+    if (s == null) return;
+    _active = null;
+    if (s.points.length < 2) { _activePageIndex = -1; return; }
+    _pageStrokes.putIfAbsent(_activePageIndex, () => []).add(s);
+    _bumpPage(_activePageIndex);
+    final idx = _activePageIndex;
+    _activePageIndex = -1;
+    _savePageInk(idx);
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = context.c;
 
-    return Scaffold(
-      backgroundColor: c.surface1,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(c, dark),
-            Expanded(child: _buildBody(c, dark)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(AppColors c, bool dark) {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: c.surface1,
-        border: Border(bottom: BorderSide(color: c.line, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: c.inkMedium),
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-          Expanded(
-            child: Text(
-              widget.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: c.inkStrong),
-            ),
-          ),
-          // Tool buttons
-          _ToolBtn(icon: Icons.draw_rounded, active: _tool == _PdfTool.pen, color: c, onTap: () => setState(() => _tool = _PdfTool.pen)),
-          _ToolBtn(icon: Icons.highlight_rounded, active: _tool == _PdfTool.highlighter, color: c, onTap: () => setState(() => _tool = _PdfTool.highlighter)),
-          _ToolBtn(icon: Icons.auto_fix_high_rounded, active: _tool == _PdfTool.eraser, color: c, onTap: () => setState(() => _tool = _PdfTool.eraser)),
-          const SizedBox(width: 4),
-          // Color picker for current tool
-          if (_tool != _PdfTool.eraser)
-            _ColorPicker(
-              palette: _tool == _PdfTool.highlighter ? _hlPalette : _penPalette,
-              selected: _tool == _PdfTool.highlighter ? _hlColor : _penColor,
-              onSelect: (col) => setState(() {
-                if (_tool == _PdfTool.highlighter) _hlColor = col;
-                else _penColor = col;
-              }),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBody(AppColors c, bool dark) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return Center(
@@ -343,191 +545,114 @@ class _PdfLessonPageState extends ConsumerState<PdfLessonPage> {
         ),
       );
     }
+
     final doc = _doc!;
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      itemCount: doc.pages.length,
-      itemBuilder: (ctx, i) => _buildPage(ctx, i, doc.pages[i], dark),
-    );
-  }
 
-  Widget _buildPage(BuildContext ctx, int pageIndex, PdfPage page, bool dark) {
-    final pageW = page.width;
-    final pageH = page.height;
-    final screenW = MediaQuery.of(ctx).size.width - 24;
-    final scale = screenW / pageW;
-    final renderH = pageH * scale;
+    return LayoutBuilder(builder: (ctx, cons) {
+      _viewport = cons.biggest;
+      _computeLayout(_viewport.width);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          width: screenW,
-          height: renderH,
-          color: Colors.white,
+      // Pages as absolutely-positioned children of a fixed-size content box
+      // (same OverflowBox + Transform pattern as the canvas).
+      final content = OverflowBox(
+        alignment: Alignment.topLeft,
+        minWidth: 0,
+        maxWidth: double.infinity,
+        minHeight: 0,
+        maxHeight: double.infinity,
+        child: SizedBox(
+          width: _viewport.width,
+          height: _contentH,
           child: Stack(
             children: [
-              // PDF page render
-              PdfPageView(
-                document: _doc!,
-                pageNumber: pageIndex + 1,
-                alignment: Alignment.topLeft,
-              ),
-              // Ink layer
-              ValueListenableBuilder<int>(
-                valueListenable: _notifierFor(pageIndex),
-                builder: (_, __, ___) => RepaintBoundary(
-                  child: CustomPaint(
-                    size: Size(screenW, renderH),
-                    painter: _InkPainter(
-                      _pageStrokes[pageIndex] ?? const [],
-                      _activePageIndex == pageIndex ? _active : null,
-                      dark,
-                    ),
+              for (var i = 0; i < doc.pages.length; i++)
+                if (i < _pageRects.length)
+                  Positioned(
+                    left: _pageRects[i].left,
+                    top: _pageRects[i].top,
+                    width: _pageRects[i].width,
+                    height: _pageRects[i].height,
+                    child: _buildPage(i, doc.pages[i], dark),
                   ),
-                ),
-              ),
-              // Gesture layer
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onPanStart: (d) {
-                    _startStroke(pageIndex);
-                    final norm = Offset(d.localPosition.dx / screenW, d.localPosition.dy / renderH);
-                    _addPoint(norm);
-                  },
-                  onPanUpdate: (d) {
-                    final norm = Offset(d.localPosition.dx / screenW, d.localPosition.dy / renderH);
-                    _addPoint(norm);
-                  },
-                  onPanEnd: (_) => _endStroke(),
-                  onPanCancel: () => _endStroke(),
-                ),
-              ),
-              // Page number + undo
-              Positioned(
-                bottom: 6,
-                right: 8,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: () => _undoPage(pageIndex),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.undo_rounded, size: 13, color: Colors.white),
-                            const SizedBox(width: 3),
-                            Text('${pageIndex + 1} / ${_doc!.pages.length}',
-                                style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
+      );
 
-// ── Small widgets ──────────────────────────────────────────────────────────────
-
-class _ToolBtn extends StatelessWidget {
-  final IconData icon;
-  final bool active;
-  final AppColors color;
-  final VoidCallback onTap;
-  const _ToolBtn({required this.icon, required this.active, required this.color, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 36, height: 36,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          color: active ? color.accent.withValues(alpha: 0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, size: 20, color: active ? color.accent : color.inkMuted),
-      ),
-    );
-  }
-}
-
-class _ColorPicker extends StatelessWidget {
-  final List<Color> palette;
-  final Color selected;
-  final ValueChanged<Color> onSelect;
-  const _ColorPicker({required this.palette, required this.selected, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showSheet(context),
-      child: Container(
-        width: 26, height: 26,
-        margin: const EdgeInsets.only(right: 4),
-        decoration: BoxDecoration(
-          color: selected,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.black.withValues(alpha: 0.18), width: 1.5),
-        ),
-      ),
-    );
-  }
-
-  void _showSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Wrap(
-              spacing: 12, runSpacing: 12,
-              children: [
-                for (final col in palette)
-                  GestureDetector(
-                    onTap: () { Navigator.pop(context); onSelect(col); },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(
-                        color: col,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: col == selected
-                              ? Colors.black.withValues(alpha: 0.55)
-                              : Colors.black.withValues(alpha: 0.12),
-                          width: col == selected ? 2.5 : 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+      return Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerUp,
+        onPointerCancel: _onPointerCancel,
+        child: ClipRect(
+          child: ValueListenableBuilder<int>(
+            valueListenable: _xform,
+            child: content,
+            builder: (_, _, child) => Transform(
+              transform: _matrix,
+              alignment: Alignment.topLeft,
+              child: child,
             ),
-            const SizedBox(height: 8),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildPage(int pageIndex, PdfPage page, bool dark) {
+    final r = _pageRects[pageIndex];
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        color: Colors.white,
+        child: Stack(
+          children: [
+            // PDF raster
+            PdfPageView(
+              document: _doc!,
+              pageNumber: pageIndex + 1,
+              alignment: Alignment.topLeft,
+            ),
+            // Ink overlay
+            ValueListenableBuilder<int>(
+              valueListenable: _notifierFor(pageIndex),
+              builder: (_, __, ___) => CustomPaint(
+                size: Size(r.width, r.height),
+                painter: _PdfInkPainter(
+                  _pageStrokes[pageIndex] ?? const [],
+                  _activePageIndex == pageIndex ? _active : null,
+                  dark,
+                ),
+              ),
+            ),
+            // Page pill: page number + undo
+            Positioned(
+              bottom: 6,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => _undoPage(pageIndex),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.undo_rounded, size: 13, color: Colors.white),
+                      const SizedBox(width: 3),
+                      Text('${pageIndex + 1} / ${_doc!.pages.length}',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

@@ -891,7 +891,13 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
                         ? PdfLessonPage(
                             lessonId: widget.lessonId,
                             pdfUrl: note.pdfUrl,
-                            title: note.title.isNotEmpty ? note.title : 'Lesson',
+                            toolIndex: _tool.index,
+                            penColor: _penFavs[_penSel],
+                            hlColor: _hlFavs[_hlSel],
+                            penSize: _penSizes[_penSizeSel],
+                            hlSize: _hlSizes[_hlSizeSel],
+                            eraserSize: _erSizes[_erSizeSel],
+                            uid: _uid,
                           )
                         : note.isEmpty
                             ? _emptyNote(c)
