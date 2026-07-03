@@ -103,30 +103,21 @@ export function AdminAiNotesListPage({
   async function handleCreate(e) {
     e.preventDefault();
     const title = newTitle.trim();
-    if (!title) return;
+    if (!title || !selCourse || !selTopic || !selSubtopic) {
+      setError('Please select a course, subject, and topic before creating a lesson.');
+      return;
+    }
     try {
       setCreating(true);
-      let lessonId;
-      if (selCourse && selTopic && selSubtopic) {
-        const lesson = await createLesson({
-          courseId: Number(selCourse),
-          topicId: Number(selTopic),
-          subtopicId: Number(selSubtopic),
-          lessonTitle: title,
-          isFree: isFree ? 1 : 0,
-          status: 'active',
-        });
-        lessonId = lesson.id;
-      }
-      const { id } = await adminCreateAiNote({
-        title,
-        courseId:   selCourse   ? Number(selCourse)   : undefined,
-        topicId:    selTopic    ? Number(selTopic)     : undefined,
-        subtopicId: selSubtopic ? Number(selSubtopic)  : undefined,
-        lessonId,
+      const lesson = await createLesson({
+        courseId: Number(selCourse),
+        topicId: Number(selTopic),
+        subtopicId: Number(selSubtopic),
+        lessonTitle: title,
         isFree: isFree ? 1 : 0,
-      }, { engine: engineKey });
-      navigate(`${routeBase}/${id}`);
+        status: 'active',
+      });
+      navigate(`${routeBase}/${lesson.id}`);
     } catch { setError('Failed to create lesson.'); setCreating(false); }
   }
 
@@ -219,17 +210,17 @@ export function AdminAiNotesListPage({
           <h3>New Lesson</h3>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <select className={cx(ui.input, 'min-w-0 flex-[1_1_160px]')} value={selCourse} onChange={e => setSelCourse(e.target.value)} aria-label="New lesson course">
-              <option value="">— Course (optional) —</option>
+              <option value="">— Course —</option>
               {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <select className={cx(ui.input, 'min-w-0 flex-[1_1_160px]')} value={selTopic} onChange={e => setSelTopic(e.target.value)}
                     disabled={!selCourse} aria-label="New lesson subject">
-              <option value="">— Subject (optional) —</option>
+              <option value="">— Subject —</option>
               {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
             <select className={cx(ui.input, 'min-w-0 flex-[1_1_160px]')} value={selSubtopic} onChange={e => setSelSubtopic(e.target.value)}
                     disabled={!selTopic} aria-label="New lesson topic">
-              <option value="">— Topic (optional) —</option>
+              <option value="">— Topic —</option>
               {subtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>

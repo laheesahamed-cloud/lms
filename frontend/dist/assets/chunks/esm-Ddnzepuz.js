@@ -1,1 +1,0 @@
-import{C as e}from"./vendor-BeQSdefi.js";export{e as App};
