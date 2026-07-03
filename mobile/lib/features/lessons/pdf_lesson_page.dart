@@ -9,13 +9,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/tokens.dart';
 
 /// PDF viewer body — no Scaffold, no header, no toolbar.
-/// Dropped into the Expanded slot of LessonCanvasPage, which already owns the
-/// header (back + title) and the tool strip (pen / hl / eraser / color / size).
-/// Tool state is passed in from the canvas; zoom/pan mirrors the canvas matrix.
+/// Dropped into the Expanded slot of LessonCanvasPage, which owns the header
+/// and tool strip. Tool state is forwarded from the canvas; zoom/pan mirrors
+/// the canvas matrix system exactly.
+///
+/// Memory safety: only pages within one viewport-height of the current scroll
+/// position are rendered as PdfPageView bitmaps. Out-of-range pages show as
+/// white placeholders (ink overlay still drawn). The visible range updates
+/// lazily (only when it actually changes) so smooth panning is never blocked.
 class PdfLessonPage extends StatefulWidget {
   final String lessonId;
   final String pdfUrl;
-  /// Tool index matching _Tool in lesson_canvas_page: 0=pen, 1=highlighter, 2=eraser
+  /// 0 = pen, 1 = highlighter, 2 = eraser — matches _Tool.index in lesson_canvas_page.dart
   final int toolIndex;
   final Color penColor;
   final Color hlColor;
@@ -41,18 +46,19 @@ class PdfLessonPage extends StatefulWidget {
   State<PdfLessonPage> createState() => _PdfLessonPageState();
 }
 
-enum _PdfTool { pen, highlighter, eraser }
+// ── Stroke ────────────────────────────────────────────────────────────────────
 
-// ── Stroke model ───────────────────────────────────────────────────────────────
+enum _PdfTool { pen, highlighter, eraser }
 
 class _PdfStroke {
   final _PdfTool tool;
   final Color color;
-  final double width; // content-space width (base / zoom at draw time)
-  final List<Offset> points; // normalised 0..1 within the page rect
+  /// Content-space width (base size ÷ zoom at draw time) — same convention as canvas.
+  final double width;
+  /// Normalised 0..1 within the page rect.
+  final List<Offset> points;
 
   _PdfStroke(this.tool, this.color, this.width) : points = [];
-
   void add(Offset p) => points.add(p);
 
   Map<String, dynamic> toJson() => {
@@ -76,7 +82,7 @@ class _PdfStroke {
   }
 }
 
-// ── Ink painter ────────────────────────────────────────────────────────────────
+// ── Painter ───────────────────────────────────────────────────────────────────
 
 class _PdfInkPainter extends CustomPainter {
   final List<_PdfStroke> strokes;
@@ -86,9 +92,7 @@ class _PdfInkPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final s in strokes) {
-      _paintStroke(canvas, size, s);
-    }
+    for (final s in strokes) _paintStroke(canvas, size, s);
     if (active != null) _paintStroke(canvas, size, active!);
   }
 
@@ -104,9 +108,7 @@ class _PdfInkPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..blendMode = dark ? BlendMode.screen : BlendMode.multiply;
         final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (var i = 1; i < pts.length; i++) {
-          path.lineTo(pts[i].dx, pts[i].dy);
-        }
+        for (var i = 1; i < pts.length; i++) path.lineTo(pts[i].dx, pts[i].dy);
         canvas.drawPath(path, paint);
       case _PdfTool.eraser:
         final paint = Paint()
@@ -116,12 +118,9 @@ class _PdfInkPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..blendMode = BlendMode.clear;
         final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (var i = 1; i < pts.length; i++) {
-          path.lineTo(pts[i].dx, pts[i].dy);
-        }
+        for (var i = 1; i < pts.length; i++) path.lineTo(pts[i].dx, pts[i].dy);
         canvas.drawPath(path, paint);
       case _PdfTool.pen:
-        // Union of overlapping filled circles — same technique as canvas pen.
         final r = s.width / 2;
         final paint = Paint()..color = s.color..style = PaintingStyle.fill;
         canvas.drawCircle(pts.first, r, paint);
@@ -141,10 +140,10 @@ class _PdfInkPainter extends CustomPainter {
   bool shouldRepaint(_PdfInkPainter old) => true;
 }
 
-// ── State ──────────────────────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────────────────────────────
 
 class _PdfLessonPageState extends State<PdfLessonPage>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   PdfDocument? _doc;
   String? _error;
   bool _loading = true;
@@ -158,11 +157,16 @@ class _PdfLessonPageState extends State<PdfLessonPage>
   // Page layout rects in CONTENT (document) space
   List<Rect> _pageRects = [];
   double _contentH = 0;
+  double _lastLayoutW = 0;
 
   // Zoom / pan (same approach as LessonCanvasPage)
   Matrix4 _matrix = Matrix4.identity();
   Matrix4 _invMatrix = Matrix4.identity();
+  // Bumped on every pan/zoom — rebuilds ONLY the Transform subtree.
   final ValueNotifier<int> _xform = ValueNotifier<int>(0);
+  // Updated only when the visible page range actually changes — rebuilds the
+  // page stack so out-of-range pages lose their PdfPageView (memory freed).
+  final ValueNotifier<(int, int)> _visibleRange = ValueNotifier<(int, int)>((0, 1));
   Size _viewport = Size.zero;
   final Map<int, Offset> _touches = {};
   Matrix4 _startMatrix = Matrix4.identity();
@@ -177,15 +181,16 @@ class _PdfLessonPageState extends State<PdfLessonPage>
   Duration? _flingPrev;
   static const double _flingDecel = 2.6;
 
-  // Tool accessors (read from widget so they're always up-to-date)
+  // Tool accessors — always read from widget so tool-strip changes take effect
+  // immediately on the next stroke, without setState.
   _PdfTool get _tool => _PdfTool.values[widget.toolIndex.clamp(0, 2)];
   Color get _activeColor =>
       _tool == _PdfTool.highlighter ? widget.hlColor : widget.penColor;
   double get _baseSize {
     switch (_tool) {
-      case _PdfTool.pen:        return widget.penSize;
+      case _PdfTool.pen:         return widget.penSize;
       case _PdfTool.highlighter: return widget.hlSize;
-      case _PdfTool.eraser:     return widget.eraserSize;
+      case _PdfTool.eraser:      return widget.eraserSize;
     }
   }
 
@@ -204,6 +209,7 @@ class _PdfLessonPageState extends State<PdfLessonPage>
   void dispose() {
     _doc?.dispose();
     _xform.dispose();
+    _visibleRange.dispose();
     for (final n in _pageNotifiers.values) n.dispose();
     _stopFling();
     _fling?.dispose();
@@ -220,11 +226,23 @@ class _PdfLessonPageState extends State<PdfLessonPage>
         : '$baseUrl${widget.pdfUrl}';
     try {
       final doc = await PdfDocument.openUri(Uri.parse(fullUrl));
+      if (!mounted) return;
+      // Load ALL ink before triggering a rebuild so we only setState once.
+      final allStrokes = <int, List<_PdfStroke>>{};
+      for (var i = 0; i < doc.pages.length; i++) {
+        final s = await _readPageInk(i);
+        if (s != null) allStrokes[i] = s;
+      }
       if (mounted) {
-        setState(() { _doc = doc; _loading = false; });
-        for (var i = 0; i < doc.pages.length; i++) {
-          await _loadPageInk(i);
-        }
+        setState(() {
+          _doc = doc;
+          _loading = false;
+          _pageStrokes.addAll(allStrokes);
+        });
+        // After the frame _viewport and _pageRects are populated.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _maybeUpdateVisibleRange();
+        });
       }
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
@@ -233,16 +251,17 @@ class _PdfLessonPageState extends State<PdfLessonPage>
 
   // ── Ink persistence ────────────────────────────────────────────────────────
 
-  Future<void> _loadPageInk(int pageIndex) async {
+  Future<List<_PdfStroke>?> _readPageInk(int pageIndex) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_inkKey(pageIndex));
-    if (raw == null) return;
+    if (raw == null) return null;
     try {
-      final list = (jsonDecode(raw) as List)
+      return (jsonDecode(raw) as List)
           .map((m) => _PdfStroke.fromJson(Map<String, dynamic>.from(m as Map)))
           .toList();
-      if (mounted) setState(() { _pageStrokes[pageIndex] = list; });
-    } catch (_) {}
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _savePageInk(int pageIndex) async {
@@ -277,12 +296,8 @@ class _PdfLessonPageState extends State<PdfLessonPage>
 
   void _computeLayout(double viewW) {
     final doc = _doc;
-    if (doc == null) return;
-    if (_pageRects.isNotEmpty &&
-        (_pageRects.isNotEmpty &&
-            (_pageRects.first.width - (viewW - _hPad * 2)).abs() < 0.5)) {
-      return; // already computed for this width
-    }
+    if (doc == null || (viewW - _lastLayoutW).abs() < 0.5) return;
+    _lastLayoutW = viewW;
     final pageW = viewW - _hPad * 2;
     final rects = <Rect>[];
     double y = _vPad;
@@ -295,41 +310,65 @@ class _PdfLessonPageState extends State<PdfLessonPage>
     _contentH = y - _pageGap + _vPad;
   }
 
+  // ── Visible-page range ────────────────────────────────────────────────────
+  // Pages within one viewport height above/below the current scroll position
+  // get a real PdfPageView; all others show a white placeholder (ink still
+  // drawn). Range is only updated when it actually changes so smooth panning
+  // doesn't trigger Stack rebuilds.
+
+  (int, int) _computeVisibleRange() {
+    if (_pageRects.isEmpty || _viewport == Size.zero) return (0, 0);
+    final scale = _matrix.getMaxScaleOnAxis();
+    final ty = _matrix.getTranslation().y;
+    final buffer = _viewport.height;
+    int start = _pageRects.length, end = -1;
+    for (var i = 0; i < _pageRects.length; i++) {
+      final r = _pageRects[i];
+      final top = r.top * scale + ty;
+      final bot = r.bottom * scale + ty;
+      if (bot >= -buffer && top <= _viewport.height + buffer) {
+        if (i < start) start = i;
+        if (i > end) end = i;
+      }
+    }
+    if (end < 0) return (0, math.min(_pageRects.length - 1, 1));
+    return (start, end);
+  }
+
+  void _maybeUpdateVisibleRange() {
+    final next = _computeVisibleRange();
+    if (next != _visibleRange.value) _visibleRange.value = next;
+  }
+
   // ── Zoom / pan (mirrors LessonCanvasPage exactly) ─────────────────────────
 
   void _setMatrix(Matrix4 m) {
     _matrix = _clampMatrix(m);
     _invMatrix = Matrix4.inverted(_matrix);
     _xform.value++;
+    _maybeUpdateVisibleRange();
   }
 
   Matrix4 _clampMatrix(Matrix4 m) {
     final s = m.getMaxScaleOnAxis();
     final t = m.getTranslation();
     final viewW = _viewport.width, viewH = _viewport.height;
-    final cW = _viewport.width * s;
-    final cH = _contentH * s;
+    final cW = viewW * s, cH = _contentH * s;
     const vMargin = 48.0;
 
-    double x;
-    if (cW <= viewW) {
-      x = (viewW - cW) / 2;
-    } else {
-      x = t.x.clamp(viewW - cW, 0.0);
-    }
+    final x = cW <= viewW
+        ? (viewW - cW) / 2
+        : t.x.clamp(viewW - cW, 0.0);
 
-    double y;
-    if (_contentH <= 0) {
-      y = t.y;
-    } else {
-      final minY = cH <= viewH ? 0.0 : viewH - cH;
-      y = t.y.clamp(minY - vMargin, vMargin);
-    }
+    final y = _contentH <= 0
+        ? t.y
+        : t.y.clamp((cH <= viewH ? 0.0 : viewH - cH) - vMargin, vMargin);
+
     return m.clone()..setTranslationRaw(x, y, 0);
   }
 
-  Offset _centroid(List<Offset> p) =>
-      p.fold(Offset.zero, (a, b) => a + b) / p.length.toDouble();
+  Offset _centroid(List<Offset> pts) =>
+      pts.fold(Offset.zero, (a, b) => a + b) / pts.length.toDouble();
 
   void _snapshotGesture() {
     _startMatrix = _matrix.clone();
@@ -357,13 +396,11 @@ class _PdfLessonPageState extends State<PdfLessonPage>
       if (_panAxis == null && dFocal.distance > 6.0) {
         _panAxis = dFocal.dx.abs() > dFocal.dy.abs() ? 'x' : 'y';
       }
-      if (_panAxis == 'x') {
-        dFocal = Offset(dFocal.dx, 0);
-      } else if (_panAxis == 'y') {
-        dFocal = Offset(0, dFocal.dy);
-      } else {
-        dFocal = Offset.zero;
-      }
+      dFocal = _panAxis == 'x'
+          ? Offset(dFocal.dx, 0)
+          : _panAxis == 'y'
+              ? Offset(0, dFocal.dy)
+              : Offset.zero;
     }
 
     final m = Matrix4.translationValues(focal.dx, focal.dy, 0)
@@ -396,15 +433,13 @@ class _PdfLessonPageState extends State<PdfLessonPage>
     var dt = (elapsed - prev).inMicroseconds / 1e6;
     if (dt <= 0) return;
     if (dt > 0.05) dt = 0.05;
-
     final before = _matrix.getTranslation();
-    _setMatrix(Matrix4.translationValues(_flingVel.dx * dt, _flingVel.dy * dt, 0)
-      ..multiply(_matrix));
+    _setMatrix(
+        Matrix4.translationValues(_flingVel.dx * dt, _flingVel.dy * dt, 0)
+          ..multiply(_matrix));
     final after = _matrix.getTranslation();
-
     if ((after.x - before.x).abs() < 0.01) _flingVel = Offset(0, _flingVel.dy);
     if ((after.y - before.y).abs() < 0.01) _flingVel = Offset(_flingVel.dx, 0);
-
     _flingVel = _flingVel * math.exp(-_flingDecel * dt);
     if (_flingVel.distance < 30) _stopFling();
   }
@@ -417,18 +452,14 @@ class _PdfLessonPageState extends State<PdfLessonPage>
 
   // ── Ink hit-test ───────────────────────────────────────────────────────────
 
-  // Map a viewport-space point → (pageIndex, normalised offset within page).
   (int, Offset)? _hitTestPage(Offset viewportPt) {
     if (_pageRects.isEmpty) return null;
     final contentPt = MatrixUtils.transformPoint(_invMatrix, viewportPt);
     for (var i = 0; i < _pageRects.length; i++) {
       final r = _pageRects[i];
       if (r.contains(contentPt)) {
-        return (
-          i,
-          Offset((contentPt.dx - r.left) / r.width,
-              (contentPt.dy - r.top) / r.height)
-        );
+        return (i, Offset((contentPt.dx - r.left) / r.width,
+            (contentPt.dy - r.top) / r.height));
       }
     }
     return null;
@@ -442,7 +473,7 @@ class _PdfLessonPageState extends State<PdfLessonPage>
       _startInkStroke(e.localPosition);
       return;
     }
-    if (_active != null) return; // ink in progress → fingers inert
+    if (_active != null) return;
     _touches[e.pointer] = e.localPosition;
     if (_touches.length == 1) {
       _vt = VelocityTracker.withKind(e.kind)
@@ -507,11 +538,10 @@ class _PdfLessonPageState extends State<PdfLessonPage>
     if (_active == null || _activePageIndex < 0) return;
     final contentPt = MatrixUtils.transformPoint(_invMatrix, viewportPt);
     final r = _pageRects[_activePageIndex];
-    final norm = Offset(
+    _active!.add(Offset(
       ((contentPt.dx - r.left) / r.width).clamp(0.0, 1.0),
       ((contentPt.dy - r.top) / r.height).clamp(0.0, 1.0),
-    );
-    _active!.add(norm);
+    ));
     _bumpPage(_activePageIndex);
   }
 
@@ -552,29 +582,37 @@ class _PdfLessonPageState extends State<PdfLessonPage>
       _viewport = cons.biggest;
       _computeLayout(_viewport.width);
 
-      // Pages as absolutely-positioned children of a fixed-size content box
-      // (same OverflowBox + Transform pattern as the canvas).
-      final content = OverflowBox(
-        alignment: Alignment.topLeft,
-        minWidth: 0,
-        maxWidth: double.infinity,
-        minHeight: 0,
-        maxHeight: double.infinity,
-        child: SizedBox(
-          width: _viewport.width,
-          height: _contentH,
-          child: Stack(
-            children: [
-              for (var i = 0; i < doc.pages.length; i++)
-                if (i < _pageRects.length)
-                  Positioned(
-                    left: _pageRects[i].left,
-                    top: _pageRects[i].top,
-                    width: _pageRects[i].width,
-                    height: _pageRects[i].height,
-                    child: _buildPage(i, doc.pages[i], dark),
-                  ),
-            ],
+      // Two-layer ValueListenableBuilder pattern:
+      //  • _xform   → rebuilt on every pan/zoom tick  → only updates the Transform
+      //  • _visibleRange → rebuilt only when the on-screen page set changes → updates the Stack
+      // The inner VLB is the `child` of the outer, so it is NOT rebuilt by _xform changes.
+      final pageStack = ValueListenableBuilder<(int, int)>(
+        valueListenable: _visibleRange,
+        builder: (_, range, ___) => OverflowBox(
+          alignment: Alignment.topLeft,
+          minWidth: 0,
+          maxWidth: double.infinity,
+          minHeight: 0,
+          maxHeight: double.infinity,
+          child: SizedBox(
+            width: _viewport.width,
+            height: _contentH,
+            child: Stack(
+              children: [
+                for (var i = 0; i < doc.pages.length; i++)
+                  if (i < _pageRects.length)
+                    Positioned(
+                      left: _pageRects[i].left,
+                      top: _pageRects[i].top,
+                      width: _pageRects[i].width,
+                      height: _pageRects[i].height,
+                      child: _buildPage(
+                        i, doc.pages[i], dark,
+                        renderPdf: i >= range.$1 && i <= range.$2,
+                      ),
+                    ),
+              ],
+            ),
           ),
         ),
       );
@@ -588,8 +626,8 @@ class _PdfLessonPageState extends State<PdfLessonPage>
         child: ClipRect(
           child: ValueListenableBuilder<int>(
             valueListenable: _xform,
-            child: content,
-            builder: (_, _, child) => Transform(
+            child: pageStack,
+            builder: (_, __, child) => Transform(
               transform: _matrix,
               alignment: Alignment.topLeft,
               child: child,
@@ -600,7 +638,8 @@ class _PdfLessonPageState extends State<PdfLessonPage>
     });
   }
 
-  Widget _buildPage(int pageIndex, PdfPage page, bool dark) {
+  Widget _buildPage(int pageIndex, PdfPage page, bool dark,
+      {required bool renderPdf}) {
     final r = _pageRects[pageIndex];
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
@@ -608,13 +647,14 @@ class _PdfLessonPageState extends State<PdfLessonPage>
         color: Colors.white,
         child: Stack(
           children: [
-            // PDF raster
-            PdfPageView(
-              document: _doc!,
-              pageNumber: pageIndex + 1,
-              alignment: Alignment.topLeft,
-            ),
-            // Ink overlay
+            // Only render the bitmap for visible/near pages.
+            if (renderPdf)
+              PdfPageView(
+                document: _doc!,
+                pageNumber: pageIndex + 1,
+                alignment: Alignment.topLeft,
+              ),
+            // Ink overlay — always present so strokes survive scroll.
             ValueListenableBuilder<int>(
               valueListenable: _notifierFor(pageIndex),
               builder: (_, __, ___) => CustomPaint(
@@ -626,7 +666,7 @@ class _PdfLessonPageState extends State<PdfLessonPage>
                 ),
               ),
             ),
-            // Page pill: page number + undo
+            // Page number pill with undo
             Positioned(
               bottom: 6,
               right: 8,
