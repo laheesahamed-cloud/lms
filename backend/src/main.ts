@@ -394,15 +394,19 @@ export async function configureApp(app: INestApplication) {
     res.status(404).json({ message: 'File not found' });
   });
 
-  app.use('/uploads', express.static(uploadsRoot, {
+  const uploadsStaticOpts = {
     index: false,
-    dotfiles: 'deny',
+    dotfiles: 'deny' as const,
     setHeaders: (res: any) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.setHeader('Content-Disposition', 'attachment');
+      res.setHeader('Content-Disposition', 'inline');
     },
-  }));
+  };
+  app.use('/uploads', express.static(uploadsRoot, uploadsStaticOpts));
+  // Also serve under /api/uploads so mobile apps can reach files through
+  // the API proxy path (which is always forwarded to this backend process).
+  app.use('/api/uploads', express.static(uploadsRoot, uploadsStaticOpts));
 
   app.use(restoreApiPrefixForMountedApp);
 

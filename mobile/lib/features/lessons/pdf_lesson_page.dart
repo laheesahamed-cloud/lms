@@ -179,11 +179,13 @@ class _PdfLessonPageState extends ConsumerState<PdfLessonPage> {
   Future<void> _openPdf() async {
     final baseUrl = const String.fromEnvironment('API_BASE_URL',
         defaultValue: 'https://xyndrome.lk/api');
-    // pdfUrl is relative like /uploads/pdf/file.pdf — resolve against server root
-    final serverRoot = baseUrl.replaceAll(RegExp(r'/api$'), '');
+    // pdfUrl is relative like /uploads/pdf/file.pdf.
+    // Prepend the API base (e.g. https://xyndrome.lk/api) so the request
+    // goes through the API proxy path, which is always forwarded to the
+    // Node backend regardless of the host's static-file routing.
     final fullUrl = widget.pdfUrl.startsWith('http')
         ? widget.pdfUrl
-        : '$serverRoot${widget.pdfUrl}';
+        : '$baseUrl${widget.pdfUrl}';
     try {
       final doc = await PdfDocument.openUri(Uri.parse(fullUrl));
       if (mounted) setState(() { _doc = doc; _loading = false; });

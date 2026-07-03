@@ -386,15 +386,17 @@ async function configureApp(app) {
     app.use('/uploads/payment-proofs', (_req, res) => {
         res.status(404).json({ message: 'File not found' });
     });
-    app.use('/uploads', express.static(uploadsRoot, {
+    const uploadsStaticOpts = {
         index: false,
         dotfiles: 'deny',
         setHeaders: (res) => {
             res.setHeader('X-Content-Type-Options', 'nosniff');
             res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-            res.setHeader('Content-Disposition', 'attachment');
+            res.setHeader('Content-Disposition', 'inline');
         },
-    }));
+    };
+    app.use('/uploads', express.static(uploadsRoot, uploadsStaticOpts));
+    app.use('/api/uploads', express.static(uploadsRoot, uploadsStaticOpts));
     app.use(restoreApiPrefixForMountedApp);
     app.use((req, res, next) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');
