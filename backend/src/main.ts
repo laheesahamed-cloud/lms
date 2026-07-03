@@ -280,6 +280,7 @@ function rewriteApiBoundary(path: string, method: string) {
     if (resource === 'dashboard') return `/api/dashboard/admin${restPath}`;
     if (resource === 'ai-notes') {
       if (rest[0] === 'generate') return '/api/lessons/canvas/generate';
+      if (rest[0] === 'hierarchy') return `/api/lessons/canvas${restPath}`;
       return `/api/lessons/canvas/admin${restPath}`;
     }
     if (resource === 'announcements') return `/api/announcements/admin${restPath}`;
