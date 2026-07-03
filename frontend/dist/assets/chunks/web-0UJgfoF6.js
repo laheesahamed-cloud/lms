@@ -1,0 +1,1 @@
+import{c as e}from"./vendor-BeQSdefi.js";export{e as SocialLoginWeb};

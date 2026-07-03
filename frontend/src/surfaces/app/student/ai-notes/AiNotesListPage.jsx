@@ -137,6 +137,9 @@ function LockIcon() {
 function RowChevronIcon() {
   return <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
+function PdfIcon() {
+  return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="1.5" width="9" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M5 5.5h6M5 8h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M11.5 9.5l2 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>;
+}
 // ── Course card (hub view) ────────────────────────────────────────────────────
 function CourseCard({ course, onClick }) {
   const subjects = [...course.subjects.values()];
@@ -175,6 +178,7 @@ function LessonTextRow({ note, index, isSaved, onStart, onSave, style }) {
   const title = note.title || note.lessonTitle || 'Untitled lesson';
   const locked = Boolean(note.accessLocked);
   const isCompleted = note.lessonCompleted || note.lessonProgressStatus === 'completed' || Number(note.lessonProgressPercent || 0) >= 100;
+  const isPdfOnly = Boolean(note.pdfUrl || note.lessonPdfUrl) && !note.noteData;
 
   function handleKeyDown(event) {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -196,6 +200,11 @@ function LessonTextRow({ note, index, isSaved, onStart, onSave, style }) {
       <span className="student-lessons-lesson-row__title">
         <span className="student-lessons-lesson-row__title-line">
           <span className="student-lessons-lesson-row__title-text">{title}</span>
+          {isPdfOnly ? (
+            <i className="student-lessons-lesson-row__pdf" aria-label="PDF lesson" style={{ display:'inline-flex', alignItems:'center', marginLeft:5, opacity:0.55 }}>
+              <PdfIcon />
+            </i>
+          ) : null}
           {isCompleted ? (
             <i className="student-lessons-lesson-row__done" aria-label="Completed">
               <CheckIcon />

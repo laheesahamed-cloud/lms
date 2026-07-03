@@ -3104,6 +3104,14 @@ export function AiNotesPage({ engineKey='gemini', headerTitle: _headerTitle='Les
                 <button className="inline-flex items-center justify-center" onClick={() => navigate('/subscriptions',{state:{from:location.pathname}})}
                   style={{ background:isDark?'rgba(167,139,250,.14)':'#f5f3ff', color:isDark?'#ddd6fe':'#6d28d9', borderRadius:12, padding:'10px 20px', fontSize:12, fontWeight:800, border:`1px solid ${isDark?'rgba(167,139,250,.28)':'rgba(124,58,237,.24)'}`, cursor:'pointer' }}>View access options</button>
               </div>
+            ) : note.pdfUrl && pages.length === 0 ? (
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, minHeight:400 }}>
+                <iframe
+                  src={note.pdfUrl}
+                  title={note.title || note.lessonTitle || 'Lesson PDF'}
+                  style={{ width:'100%', minHeight:'80vh', border:'none', borderRadius:16 }}
+                />
+              </div>
             ) : pages.length > 0 ? (
               <NoteCanvas data={studentCanvasData} editable={false} />
             ) : (

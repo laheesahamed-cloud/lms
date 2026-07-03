@@ -258,7 +258,7 @@ export function AdminAiNotesEditorPage({
         setSelCourse(data.courseId ? String(data.courseId) : '');
         setSelTopic(data.topicId ? String(data.topicId) : '');
         setSelSubtopic(data.subtopicId ? String(data.subtopicId) : '');
-        setLinkedLessonId(data.lessonId || null);
+        setLinkedLessonId(data.lessonId || Number(id) || null);
         setLessonPdfUrl(data.lessonPdfUrl || '');
       })
       .catch(() => setError('Failed to load lesson.'))
@@ -1202,7 +1202,15 @@ export function AdminAiNotesEditorPage({
             </div>
           )}
 
-          {!processing && !hasCanvas && (
+          {!processing && !hasCanvas && lessonPdfUrl && (
+            <iframe
+              src={lessonPdfUrl}
+              title="Lesson PDF"
+              style={{ width: '100%', minHeight: '80vh', border: 'none', borderRadius: 12 }}
+            />
+          )}
+
+          {!processing && !hasCanvas && !lessonPdfUrl && (
             <div className={editorUi.emptyState}>
               <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
                 <rect x="8"  y="8"  width="24" height="24" rx="5" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.4"/>
