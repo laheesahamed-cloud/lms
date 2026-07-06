@@ -72,6 +72,48 @@ let UsersService = class UsersService {
             studentUsers: Number(row.student_users || 0),
         };
     }
+    async listStaff(actor) {
+        this.assertActiveStaff(actor);
+        this.assertCanManageStaffAccess(actor);
+        const [rows] = await this.db.execute(`SELECT id, full_name, email, role, permissions, status, created_at
+       FROM users
+       WHERE role <> 'student' AND deleted_at IS NULL
+       ORDER BY FIELD(role, 'admin') DESC, status DESC, id ASC`);
+        return rows.map((row) => this.mapStaffUser(row));
+    }
+    async updateAccess(actor, id, dto) {
+        this.assertActiveStaff(actor);
+        this.assertCanManageStaffAccess(actor);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, role, permissions, status, created_at FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1', [id]);
+        const user = rows[0];
+        if (!user) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        if (user.role === 'student') {
+            throw new common_1.BadRequestException('Manage student accounts from the Users page');
+        }
+        const nextRole = dto.role === 'admin' ? 'admin' : 'staff';
+        if (id === actor.id && nextRole !== 'admin') {
+            throw new common_1.ForbiddenException('Administrators cannot restrict their own account');
+        }
+        if (user.role === 'admin' && nextRole !== 'admin') {
+            await this.assertAnotherActiveAdminExists(id);
+        }
+        const nextPermissions = nextRole === 'admin' ? null : JSON.stringify((0, role_permissions_1.sanitizePermissions)(dto.permissions ?? []));
+        await this.db.execute('UPDATE users SET role = ?, permissions = ? WHERE id = ?', [nextRole, nextPermissions, id]);
+        await this.logAdminAuditEvent({
+            eventType: 'user.access_changed',
+            actorId: actor.id,
+            targetType: 'user',
+            targetId: id,
+            summary: `Updated admin access for user ${id} (${nextRole})`,
+            metadata: {
+                before: { role: user.role, permissions: (0, role_permissions_1.parseStoredPermissions)(user.permissions) },
+                after: { role: nextRole, permissions: (0, role_permissions_1.parseStoredPermissions)(nextPermissions) },
+            },
+        });
+        return this.mapStaffUser({ ...user, role: nextRole, permissions: nextPermissions });
+    }
     async detail(actor, id) {
         this.assertActiveStaff(actor);
         const [userRows] = await this.db.execute('SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1', [id]);
@@ -218,6 +260,10 @@ let UsersService = class UsersService {
         if (updateUserDto.role) {
             updates.push('role = ?');
             params.push(updateUserDto.role);
+            if (updateUserDto.role !== 'staff') {
+                updates.push('permissions = ?');
+                params.push(null);
+            }
         }
         if (updateUserDto.password) {
             updates.push('password = ?');
@@ -333,6 +379,18 @@ let UsersService = class UsersService {
             createdAt: row.created_at || null,
         };
     }
+    mapStaffUser(row) {
+        return {
+            id: row.id,
+            fullName: row.full_name,
+            email: row.email,
+            role: row.role,
+            status: row.status,
+            createdAt: row.created_at || null,
+            permissions: (0, role_permissions_1.parseStoredPermissions)(row.permissions),
+            effectivePermissions: (0, role_permissions_1.effectivePermissions)(row.role, row.permissions),
+        };
+    }
     async assignDefaultEntryPlan(userId) {
         const [planRows] = await this.db.execute(`SELECT id
        FROM plans
@@ -363,6 +421,11 @@ let UsersService = class UsersService {
     }
     canManageStaff(actor) {
         return actor.role === 'admin';
+    }
+    assertCanManageStaffAccess(actor) {
+        if (actor.role !== 'admin') {
+            throw new common_1.ForbiddenException('Only administrators can manage staff access');
+        }
     }
     resolveVisibleRoleFilter(actor, requestedRole) {
         if (!this.canManageStaff(actor)) {

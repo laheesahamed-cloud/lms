@@ -21,7 +21,7 @@ export declare class PlansController {
         currency: string;
         billingPeriod: string;
         durationDays: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         sortOrder: number;
         recommended: boolean;
         features: string[];
@@ -66,7 +66,7 @@ export declare class PlansController {
         currency: string;
         billingPeriod: string;
         durationDays: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         sortOrder: number;
         recommended: boolean;
         features: string[];
@@ -106,7 +106,7 @@ export declare class PlansController {
             featureKey: string;
             description: string;
             category: string;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             createdAt: string | null;
             updatedAt: string | null;
         }[];

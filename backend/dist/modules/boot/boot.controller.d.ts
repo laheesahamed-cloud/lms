@@ -264,7 +264,7 @@ export declare class BootController {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -540,7 +540,7 @@ export declare class BootController {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -816,7 +816,7 @@ export declare class BootController {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -1092,7 +1092,7 @@ export declare class BootController {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -1368,7 +1368,7 @@ export declare class BootController {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;
@@ -1644,7 +1644,7 @@ export declare class BootController {
             videoUrl: string;
             pdfUrl: string;
             isFree: boolean;
-            status: "inactive" | "active";
+            status: "active" | "inactive";
             isPublic: boolean;
             courseTitle: string | null;
             examType: string | null;

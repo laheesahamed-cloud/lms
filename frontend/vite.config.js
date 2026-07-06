@@ -54,5 +54,13 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     port: 5174,
+    proxy: {
+      // Local dev: forward API calls to the Nest backend so `npm run dev` works
+      // same-origin (prod is served behind Apache, which proxies /api itself).
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
 }));

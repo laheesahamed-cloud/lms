@@ -5,6 +5,7 @@ import { RequirePermissions } from '../auth/permissions.decorator';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserAccessDto } from './dto/update-user-access.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 
 @Controller('users')
@@ -41,6 +42,22 @@ export class UsersController {
   async summary(@Headers('authorization') authorization?: string) {
     const actor = await this.authService.requireAdmin(authorization);
     return this.usersService.summary(actor);
+  }
+
+  @Get('staff')
+  async listStaff(@Headers('authorization') authorization?: string) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.usersService.listStaff(actor);
+  }
+
+  @Patch(':id/access')
+  async updateAccess(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateUserAccessDto: UpdateUserAccessDto,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.usersService.updateAccess(actor, id, updateUserAccessDto);
   }
 
   @Get(':id/detail')

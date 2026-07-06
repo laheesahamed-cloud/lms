@@ -48,6 +48,7 @@ const BulkQuestionInputPage = lazyNamed(() => import('../surfaces/admin/pages/qu
 const StructurePage = lazyNamed(() => import('../surfaces/admin/pages/structure/StructurePage.jsx'), 'StructurePage');
 const UsersPage = lazyNamed(() => import('../surfaces/admin/pages/users/UsersPage.jsx'), 'UsersPage');
 const AdminStudentDetailPage = lazyNamed(() => import('../surfaces/admin/pages/users/AdminStudentDetailPage.jsx'), 'AdminStudentDetailPage');
+const AdminRolesPage = lazyNamed(() => import('../surfaces/admin/pages/roles/AdminRolesPage.jsx'), 'AdminRolesPage');
 const AdminSettingsPage = lazyNamed(() => import('../surfaces/admin/pages/settings/AdminSettingsPage.jsx'), 'AdminSettingsPage');
 const AdminSetupPage = lazyNamed(() => import('../surfaces/admin/pages/setup/AdminSetupPage.jsx'), 'AdminSetupPage');
 const AdminAnnouncementsPage = lazyNamed(() => import('../surfaces/admin/pages/announcements/AdminAnnouncementsPage.jsx'), 'AdminAnnouncementsPage');
@@ -413,6 +414,14 @@ const adminPanelRoutes = [
     element: withSuspense(
       <ProtectedRoute role="admin" requiredPermissions={['students.manage']}>
         <AdminStudentDetailPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'roles',
+    element: withSuspense(
+      <ProtectedRoute role="admin" requiredPermissions={['students.manage']}>
+        <AdminRolesPage />
       </ProtectedRoute>
     ),
   },

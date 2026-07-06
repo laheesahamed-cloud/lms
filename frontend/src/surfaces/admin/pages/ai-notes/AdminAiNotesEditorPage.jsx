@@ -15,7 +15,7 @@ import {
   adminUpdateAiNote,
   adminUpdateLessonFlashcard,
 } from '../../../../shared/api/aiNotes.api.js';
-import { createLesson, updateLesson, uploadLessonPdf, removeLessonPdf } from '../../../../shared/api/lessons.api.js';
+import { createLesson, updateLesson, uploadLessonPdf, removeLessonPdf, uploadLessonVideo, removeLessonVideo } from '../../../../shared/api/lessons.api.js';
 import { getErrorMessage } from '../../../../shared/api/client.js';
 import { cx, ui } from '../../../../shared/styles/tailwindClasses.js';
 import { BreadcrumbTrail } from '../../../../shared/ui/BreadcrumbTrail.jsx';
@@ -232,6 +232,9 @@ export function AdminAiNotesEditorPage({
   const [pdfUploading, setPdfUploading] = useState(false);
   const [pdfRemoving,  setPdfRemoving]  = useState(false);
   const [pdfMessage,   setPdfMessage]   = useState('');
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoRemoving,  setVideoRemoving]  = useState(false);
+  const [videoMessage,   setVideoMessage]   = useState('');
 
   useEffect(() => (
     () => {
@@ -888,13 +891,64 @@ export function AdminAiNotesEditorPage({
                 <option value="">— Topic (optional) —</option>
                 {subtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-              <input className={cx(ui.input, editorUi.compactInput)}
-                type="url"
-                value={videoUrl}
-                onChange={handleVideoUrlChange}
-                placeholder="Video link for students (YouTube/Vimeo/MP4)"
-                aria-label="Student video link"
-              />
+              {/* Video: uploaded file takes priority; otherwise show text input + upload button */}
+              {videoUrl && videoUrl.startsWith('/uploads/video/') ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-line-soft bg-surface-1 px-3 py-2 text-[12px]">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 text-brand-primary"><rect x="1" y="3" width="9" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M10 5.5l3-2v7l-3-2V5.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+                    <span className="min-w-0 flex-1 truncate font-semibold text-ink-medium">{videoUrl.split('/').pop()}</span>
+                    <button type="button" disabled={videoRemoving}
+                      className="ml-1 shrink-0 text-[11px] font-bold text-brand-error opacity-70 hover:opacity-100 disabled:opacity-40"
+                      onClick={async () => {
+                        if (!confirm('Remove this video?')) return;
+                        setVideoRemoving(true); setVideoMessage('');
+                        try {
+                          await removeLessonVideo(linkedLessonId);
+                          setVideoUrl('');
+                          scheduleSave({ videoUrl: '' });
+                          setVideoMessage('Video removed.');
+                        } catch { setVideoMessage('Failed to remove video.'); }
+                        finally { setVideoRemoving(false); }
+                      }}>
+                      {videoRemoving ? 'Removing…' : 'Remove'}
+                    </button>
+                  </div>
+                  {videoMessage && <p className="mt-1 text-[11px] font-semibold text-ink-soft">{videoMessage}</p>}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <input className={cx(ui.input, editorUi.compactInput)}
+                    type="url"
+                    value={videoUrl}
+                    onChange={handleVideoUrlChange}
+                    placeholder="YouTube / Vimeo / external link"
+                    aria-label="Student video link"
+                  />
+                  {linkedLessonId && (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] border border-dashed border-line-medium bg-surface-1 px-3 py-2 text-[12px] font-semibold text-ink-soft hover:border-brand-primary hover:text-brand-primary transition-colors">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M4 6l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      {videoUploading ? 'Uploading…' : 'Or upload an MP4 / WebM video'}
+                      <input type="file" accept="video/mp4,video/webm,video/quicktime,video/ogg,.mp4,.webm,.mov,.ogg" className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setVideoUploading(true); setVideoMessage('');
+                          try {
+                            const res = await uploadLessonVideo(linkedLessonId, file);
+                            const url = res.videoUrl || '';
+                            setVideoUrl(url);
+                            scheduleSave({ videoUrl: url });
+                            setVideoMessage('Video uploaded.');
+                          } catch { setVideoMessage('Upload failed. Max 500 MB.'); }
+                          finally { setVideoUploading(false); e.target.value = ''; }
+                        }}
+                        disabled={videoUploading}
+                      />
+                    </label>
+                  )}
+                  {videoMessage && <p className="mt-1 text-[11px] font-semibold text-ink-soft">{videoMessage}</p>}
+                </div>
+              )}
               <div className={editorUi.statusRow}>
                 <label className={editorUi.statusLabel}>Status</label>
                 <button className={cx(editorUi.statusPill, status === 'active' ? editorUi.statusActive : editorUi.statusInactive)}

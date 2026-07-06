@@ -150,6 +150,34 @@ export class LessonsController {
     return this.lessonsService.removePdf(id, actor);
   }
 
+  @Post(':id/video')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async uploadVideo(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    const allowed = ['video/mp4', 'video/webm', 'video/quicktime', 'video/ogg'];
+    if (!allowed.includes(file.mimetype)) throw new BadRequestException('Only MP4, WebM, MOV or OGG videos are allowed');
+    if (file.size > 500 * 1024 * 1024) throw new BadRequestException('Video must be under 500 MB');
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.uploadVideo(id, file, actor);
+  }
+
+  @Delete(':id/video')
+  @UseGuards(AdminGuard)
+  @RequirePermissions('content.manage')
+  async removeVideo(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const actor = await this.authService.requireAdmin(authorization);
+    return this.lessonsService.removeVideo(id, actor);
+  }
+
   @Get(':id/versions')
   @UseGuards(AdminGuard)
   @RequirePermissions('content.manage')

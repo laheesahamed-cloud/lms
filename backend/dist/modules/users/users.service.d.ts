@@ -3,6 +3,7 @@ import { PaginationInput } from '../../common/utils/pagination';
 import { UserRole } from '../auth/role-permissions';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserAccessDto } from './dto/update-user-access.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 type UserManagementActor = {
     id: number;
@@ -20,8 +21,8 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
-        status: "active" | "inactive";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        status: "inactive" | "active";
         createdAt: string | null;
     }[]>;
     summary(actor: UserManagementActor): Promise<{
@@ -31,13 +32,33 @@ export declare class UsersService {
         adminUsers: number;
         studentUsers: number;
     }>;
+    listStaff(actor: UserManagementActor): Promise<{
+        id: number;
+        fullName: string;
+        email: string;
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        status: "inactive" | "active";
+        createdAt: string | null;
+        permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
+        effectivePermissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
+    }[]>;
+    updateAccess(actor: UserManagementActor, id: number, dto: UpdateUserAccessDto): Promise<{
+        id: number;
+        fullName: string;
+        email: string;
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        status: "inactive" | "active";
+        createdAt: string | null;
+        permissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[] | null;
+        effectivePermissions: ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
+    }>;
     detail(actor: UserManagementActor, id: number): Promise<{
         user: {
             id: number;
             fullName: string;
             email: string;
-            role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
-            status: "active" | "inactive";
+            role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+            status: "inactive" | "active";
             createdAt: string | null;
         };
         progress: {
@@ -74,19 +95,19 @@ export declare class UsersService {
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         status: string;
     }>;
     update(actor: UserManagementActor, id: number, updateUserDto: UpdateUserDto): Promise<{
         id: number;
         fullName: string;
         email: string;
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
-        status: "active" | "inactive";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
+        status: "inactive" | "active";
         createdAt: string | null;
     } | {
-        status: "active" | "inactive";
-        role: "student" | "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support";
+        status: "inactive" | "active";
+        role: "admin" | "content_editor" | "reviewer" | "tutor" | "finance" | "support" | "staff" | "student";
         email: string;
         fullName: string;
         ok: boolean;
@@ -102,9 +123,11 @@ export declare class UsersService {
         id: number;
     }>;
     private mapUser;
+    private mapStaffUser;
     private assignDefaultEntryPlan;
     private assertActiveStaff;
     private canManageStaff;
+    private assertCanManageStaffAccess;
     private resolveVisibleRoleFilter;
     private assertCanManageTarget;
     private assertCanAssignRole;

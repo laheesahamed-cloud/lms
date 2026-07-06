@@ -218,6 +218,7 @@ const adminLinks = [
   { to: '/ecg',           label: 'ECG Library',   icon: 'Ecg', requiredPermissions: ['content.manage'] },
   { to: '/auscultation',  label: 'Auscultation',  icon: 'Auscultation', requiredPermissions: ['content.manage'] },
   { to: '/users',         label: 'Users',         icon: 'Users', requiredPermissions: ['students.manage'] },
+  { to: '/roles',         label: 'Roles & Access', icon: 'Users', requiredPermissions: ['students.manage'] },
   { to: '/announcements', label: 'Announcements', icon: 'Bell', requiredPermissions: ['notifications.manage'] },
   { to: '/reports',       label: 'Reports',       icon: 'Results', requiredPermissions: ['reports.view'] },
   { to: '/setup',         label: 'Setup',         icon: 'Setup', requiredPermissions: ['settings.manage'] },
@@ -242,7 +243,7 @@ const studentLinks = [
 const END_EXACT = new Set([
   '/dashboard',
   '/bookmarks', '/subscriptions', '/finance', '/exams', '/flashcards',
-  '/structure', '/users', '/setup', '/settings', '/announcements',
+  '/structure', '/users', '/roles', '/setup', '/settings', '/announcements',
   '/question-reports',
   '/reports', '/notifications', '/planner',
   '/ai/gemini', '/ai/chatgpt',
@@ -876,6 +877,14 @@ export function MobileTopNav({ isOpen = false, isExamFocusMode = false, onClose 
 
         <nav className="lms-mobile-top-nav__list">
           {items.map((item) => {
+            if (item.section) {
+              return (
+                <span className="lms-mobile-top-nav__group-label" key={item.section}>
+                  {item.section}
+                </span>
+              );
+            }
+
             if (item.group) {
               const ParentIcon = Icons[item.icon] || Icons.AI;
               return (

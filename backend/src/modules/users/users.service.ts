@@ -3,9 +3,17 @@ import { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as bcrypt from 'bcryptjs';
 import { normalizePagination, PaginationInput } from '../../common/utils/pagination';
 import { DATABASE_CONNECTION } from '../../database/database.tokens';
-import { isStaffRole, USER_ROLES, UserRole } from '../auth/role-permissions';
+import {
+  effectivePermissions,
+  isStaffRole,
+  parseStoredPermissions,
+  sanitizePermissions,
+  USER_ROLES,
+  UserRole,
+} from '../auth/role-permissions';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserAccessDto } from './dto/update-user-access.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 
 type UserRow = RowDataPacket & {
@@ -13,6 +21,7 @@ type UserRow = RowDataPacket & {
   full_name: string;
   email: string;
   role: UserRole;
+  permissions?: string | null;
   status: 'active' | 'inactive';
   created_at?: string | null;
 };
@@ -83,6 +92,62 @@ export class UsersService {
       adminUsers: Number(row.admin_users || 0),
       studentUsers: Number(row.student_users || 0),
     };
+  }
+
+  async listStaff(actor: UserManagementActor) {
+    this.assertActiveStaff(actor);
+    this.assertCanManageStaffAccess(actor);
+    const [rows] = await this.db.execute<UserRow[]>(
+      `SELECT id, full_name, email, role, permissions, status, created_at
+       FROM users
+       WHERE role <> 'student' AND deleted_at IS NULL
+       ORDER BY FIELD(role, 'admin') DESC, status DESC, id ASC`
+    );
+    return rows.map((row) => this.mapStaffUser(row));
+  }
+
+  async updateAccess(actor: UserManagementActor, id: number, dto: UpdateUserAccessDto) {
+    this.assertActiveStaff(actor);
+    this.assertCanManageStaffAccess(actor);
+
+    const [rows] = await this.db.execute<UserRow[]>(
+      'SELECT id, full_name, email, role, permissions, status, created_at FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+      [id]
+    );
+    const user = rows[0];
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.role === 'student') {
+      throw new BadRequestException('Manage student accounts from the Users page');
+    }
+
+    const nextRole: UserRole = dto.role === 'admin' ? 'admin' : 'staff';
+
+    if (id === actor.id && nextRole !== 'admin') {
+      throw new ForbiddenException('Administrators cannot restrict their own account');
+    }
+    if (user.role === 'admin' && nextRole !== 'admin') {
+      await this.assertAnotherActiveAdminExists(id);
+    }
+
+    // Administrators are full-access (no stored grant); staff store exactly what was ticked.
+    const nextPermissions = nextRole === 'admin' ? null : JSON.stringify(sanitizePermissions(dto.permissions ?? []));
+
+    await this.db.execute('UPDATE users SET role = ?, permissions = ? WHERE id = ?', [nextRole, nextPermissions, id]);
+    await this.logAdminAuditEvent({
+      eventType: 'user.access_changed',
+      actorId: actor.id,
+      targetType: 'user',
+      targetId: id,
+      summary: `Updated admin access for user ${id} (${nextRole})`,
+      metadata: {
+        before: { role: user.role, permissions: parseStoredPermissions(user.permissions) },
+        after: { role: nextRole, permissions: parseStoredPermissions(nextPermissions) },
+      },
+    });
+
+    return this.mapStaffUser({ ...user, role: nextRole, permissions: nextPermissions } as UserRow);
   }
 
   async detail(actor: UserManagementActor, id: number) {
@@ -276,6 +341,12 @@ export class UsersService {
     if (updateUserDto.role) {
       updates.push('role = ?');
       params.push(updateUserDto.role);
+      // Administrators are always full-access and students have none — only custom
+      // "staff" accounts keep a per-user permission grant, so clear it otherwise.
+      if (updateUserDto.role !== 'staff') {
+        updates.push('permissions = ?');
+        params.push(null);
+      }
     }
 
     if (updateUserDto.password) {
@@ -410,6 +481,21 @@ export class UsersService {
     };
   }
 
+  private mapStaffUser(row: UserRow) {
+    return {
+      id: row.id,
+      fullName: row.full_name,
+      email: row.email,
+      role: row.role,
+      status: row.status,
+      createdAt: row.created_at || null,
+      // Custom grant stored for this account (null = follows role defaults / full admin).
+      permissions: parseStoredPermissions(row.permissions),
+      // Resolved set actually enforced at request time — what the toggles should reflect.
+      effectivePermissions: effectivePermissions(row.role, row.permissions),
+    };
+  }
+
   private async assignDefaultEntryPlan(userId: number) {
     const [planRows] = await this.db.execute<RowDataPacket[]>(
       `SELECT id
@@ -449,6 +535,12 @@ export class UsersService {
 
   private canManageStaff(actor: UserManagementActor) {
     return actor.role === 'admin';
+  }
+
+  private assertCanManageStaffAccess(actor: UserManagementActor) {
+    if (actor.role !== 'admin') {
+      throw new ForbiddenException('Only administrators can manage staff access');
+    }
   }
 
   private resolveVisibleRoleFilter(actor: UserManagementActor, requestedRole?: string) {

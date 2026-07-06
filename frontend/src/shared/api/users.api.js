@@ -36,3 +36,13 @@ export async function updateUserStatus(id, status) {
   const response = await apiClient.patch(`/admin/users/${id}/status`, { status });
   return response.data;
 }
+
+export async function fetchStaffUsers() {
+  const response = await apiClient.get('/admin/users/staff');
+  return response.data;
+}
+
+export async function updateUserAccess(id, { role, permissions }) {
+  const response = await apiClient.patch(`/admin/users/${id}/access`, { role, permissions });
+  return response.data;
+}

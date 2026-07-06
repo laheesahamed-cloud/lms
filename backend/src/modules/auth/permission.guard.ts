@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Unauthor
 import { Reflector } from '@nestjs/core';
 import { AuthService } from './auth.service';
 import { REQUIRED_PERMISSIONS_KEY } from './permissions.decorator';
-import { isStaffRole, Permission, roleHasPermission } from './role-permissions';
+import { isStaffRole, Permission } from './role-permissions';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -25,7 +25,8 @@ export class PermissionGuard implements CanActivate {
       throw new UnauthorizedException('Admin access is required');
     }
 
-    const missing = permissions.filter((permission) => !roleHasPermission(user.role, permission));
+    const granted = new Set(user.permissions ?? []);
+    const missing = permissions.filter((permission) => !granted.has(permission));
 
     if (missing.length) {
       throw new ForbiddenException('Your role does not have permission for this action');

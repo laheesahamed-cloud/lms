@@ -664,6 +664,47 @@ export class LessonsService {
     return { ok: true, id };
   }
 
+  async uploadVideo(id: number, file: Express.Multer.File, actor?: ContentActorInput) {
+    await this.findById(id);
+
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'video');
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+    const ext = file.originalname.split('.').pop()?.toLowerCase() || 'mp4';
+    const safeName = `lesson-${id}-${Date.now()}.${ext}`;
+    const filePath = path.join(uploadsDir, safeName);
+    fs.writeFileSync(filePath, file.buffer);
+
+    const videoUrl = `/uploads/video/${safeName}`;
+    await this.db.execute('UPDATE lessons SET video_url = ? WHERE id = ?', [videoUrl, id]);
+
+    await this.db.execute(
+      `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
+      ['lesson', id, 'video_uploaded', this.getActorId(actor) || null, `Video uploaded for lesson ${id}`],
+    );
+
+    return { ok: true, id, videoUrl };
+  }
+
+  async removeVideo(id: number, actor?: ContentActorInput) {
+    const lesson = await this.findById(id);
+    if (!lesson.videoUrl) return { ok: true, id };
+
+    if (lesson.videoUrl.startsWith('/uploads/video/')) {
+      const filePath = path.join(process.cwd(), lesson.videoUrl);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+
+    await this.db.execute('UPDATE lessons SET video_url = NULL WHERE id = ?', [id]);
+
+    await this.db.execute(
+      `INSERT INTO content_audit_events (entity_type, entity_id, action, actor_id, summary) VALUES (?, ?, ?, ?, ?)`,
+      ['lesson', id, 'video_removed', this.getActorId(actor) || null, `Video removed from lesson ${id}`],
+    );
+
+    return { ok: true, id };
+  }
+
   private async transitionWorkflow(
     id: number,
     input: {

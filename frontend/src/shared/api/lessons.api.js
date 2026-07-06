@@ -23,3 +23,17 @@ export async function removeLessonPdf(id) {
   const response = await apiClient.delete(`/admin/lessons/${id}/pdf`);
   return response.data;
 }
+
+export async function uploadLessonVideo(id, file) {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await apiClient.post(`/admin/lessons/${id}/video`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+export async function removeLessonVideo(id) {
+  const response = await apiClient.delete(`/admin/lessons/${id}/video`);
+  return response.data;
+}

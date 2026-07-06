@@ -1,4 +1,4 @@
-const STAFF_ROLES = new Set(['admin', 'content_editor', 'reviewer', 'tutor', 'finance', 'support']);
+const STAFF_ROLES = new Set(['admin', 'content_editor', 'reviewer', 'tutor', 'finance', 'support', 'staff']);
 
 export function isStaffRole(role) {
   return STAFF_ROLES.has(String(role || ''));

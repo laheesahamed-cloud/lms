@@ -64,6 +64,9 @@
    theme.css stays global — admin and website depend on it. */
 @import "./02-layout/bottom-nav.css";
 @import "./01-base/theme.css";
+/* After theme.css so its .lms-mobile-top-nav color rules keep the same cascade
+   order they had when these rules lived in student-app.css (loaded post-theme). */
+@import "./02-layout/top-nav.css";
 
 @config "../../../tailwind.config.js";
 @source "../../**/*.{js,jsx,ts,tsx}";

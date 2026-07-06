@@ -60,7 +60,7 @@ export declare class QuizzesService {
         hideTimeLimit: number;
         passingMarks: number;
         hidePassingMarks: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         courseTitle: string;
         subjectName: string;
@@ -166,7 +166,7 @@ export declare class QuizzesService {
         hideTimeLimit: number;
         passingMarks: number;
         hidePassingMarks: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
         courseTitle: string;
         subjectName: string;
@@ -196,26 +196,26 @@ export declare class QuizzesService {
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     submitForReview(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     publish(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: "draft" | "published";
     }>;
     private validateQuiz;

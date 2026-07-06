@@ -218,6 +218,15 @@ export declare class LessonsService {
         ok: boolean;
         id: number;
     }>;
+    uploadVideo(id: number, file: Express.Multer.File, actor?: ContentActorInput): Promise<{
+        ok: boolean;
+        id: number;
+        videoUrl: string;
+    }>;
+    removeVideo(id: number, actor?: ContentActorInput): Promise<{
+        ok: boolean;
+        id: number;
+    }>;
     private transitionWorkflow;
     private buildLessonSnapshot;
     private buildLessonSnapshotFromEntity;
@@ -278,7 +287,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "in_progress" | "completed" | "not_started";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -307,7 +316,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "in_progress" | "completed" | "not_started";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -409,7 +418,7 @@ export declare class LessonsService {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "gemini" | "openai" | "claude" | "openrouter";
+            key: "openai" | "gemini" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -458,7 +467,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "in_progress" | "completed" | "not_started";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -492,7 +501,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "not_started" | "in_progress" | "completed";
+        lessonProgressStatus: "in_progress" | "completed" | "not_started";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;

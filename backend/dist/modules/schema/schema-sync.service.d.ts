@@ -26,6 +26,7 @@ export declare class SchemaSyncService implements OnModuleInit {
     private ensureStudyPlannerTasksTable;
     private ensureUserRoleColumnSupportsStaff;
     private ensureQuestionCategoryColumns;
+    private ensureCriticalTables;
     private ensureContentGovernanceTables;
     private ensureAdminAuditEventsTable;
     private ensureSystemSettingsTable;

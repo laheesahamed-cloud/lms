@@ -33,7 +33,7 @@ export declare class CoursesService {
         courseCode: string;
         description: string;
         examType: string;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
     }[]>;
     create(createCourseDto: CreateCourseDto, actor?: ContentActorInput): Promise<{
@@ -58,26 +58,26 @@ export declare class CoursesService {
     markDraft(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     submitForReview(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     publish(id: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: ContentWorkflowState;
     }>;
     rollback(id: number, versionNumber: number, actor?: ContentActorInput): Promise<{
         ok: boolean;
         id: number;
         rolledBackToVersion: number;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         workflowState: "draft" | "published";
     }>;
     findStudentCourses(authorization?: string): Promise<{
@@ -91,7 +91,7 @@ export declare class CoursesService {
         courseCode: string;
         description: string;
         examType: string;
-        status: "active" | "inactive";
+        status: "inactive" | "active";
         createdAt: string | null;
     }[]>;
     findStudentCourseDetail(courseId: number, authorization?: string): Promise<{
@@ -106,7 +106,7 @@ export declare class CoursesService {
             courseCode: string;
             description: string;
             examType: string;
-            status: "active" | "inactive";
+            status: "inactive" | "active";
             createdAt: string | null;
         };
         subjects: any;
@@ -114,7 +114,7 @@ export declare class CoursesService {
     updateStudentLessonProgress(lessonId: number, dto: UpdateStudentLessonProgressDto, authorization?: string): Promise<{
         ok: boolean;
         lessonId: number;
-        status: "not_started" | "in_progress" | "completed";
+        status: "in_progress" | "completed" | "not_started";
         progressPercent: number;
         actionLabel: string;
     }>;

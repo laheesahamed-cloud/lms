@@ -88,6 +88,21 @@ let LessonsController = class LessonsController {
         const actor = await this.authService.requireAdmin(authorization);
         return this.lessonsService.removePdf(id, actor);
     }
+    async uploadVideo(authorization, id, file) {
+        if (!file)
+            throw new common_1.BadRequestException('No file uploaded');
+        const allowed = ['video/mp4', 'video/webm', 'video/quicktime', 'video/ogg'];
+        if (!allowed.includes(file.mimetype))
+            throw new common_1.BadRequestException('Only MP4, WebM, MOV or OGG videos are allowed');
+        if (file.size > 500 * 1024 * 1024)
+            throw new common_1.BadRequestException('Video must be under 500 MB');
+        const actor = await this.authService.requireAdmin(authorization);
+        return this.lessonsService.uploadVideo(id, file, actor);
+    }
+    async removeVideo(authorization, id) {
+        const actor = await this.authService.requireAdmin(authorization);
+        return this.lessonsService.removeVideo(id, actor);
+    }
     listVersions(id) {
         return this.lessonsService.listVersions(id);
     }
@@ -305,6 +320,28 @@ __decorate([
     __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", Promise)
 ], LessonsController.prototype, "removePdf", null);
+__decorate([
+    (0, common_1.Post)(':id/video'),
+    (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
+    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', { storage: (0, multer_1.memoryStorage)() })),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number, Object]),
+    __metadata("design:returntype", Promise)
+], LessonsController.prototype, "uploadVideo", null);
+__decorate([
+    (0, common_1.Delete)(':id/video'),
+    (0, common_1.UseGuards)(admin_guard_1.AdminGuard),
+    (0, permissions_decorator_1.RequirePermissions)('content.manage'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", Promise)
+], LessonsController.prototype, "removeVideo", null);
 __decorate([
     (0, common_1.Get)(':id/versions'),
     (0, common_1.UseGuards)(admin_guard_1.AdminGuard),

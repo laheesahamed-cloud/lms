@@ -32,7 +32,8 @@ let PermissionGuard = class PermissionGuard {
         if ((0, role_permissions_1.isStaffRole)(user.role) && user.status !== 'active') {
             throw new common_1.UnauthorizedException('Admin access is required');
         }
-        const missing = permissions.filter((permission) => !(0, role_permissions_1.roleHasPermission)(user.role, permission));
+        const granted = new Set(user.permissions ?? []);
+        const missing = permissions.filter((permission) => !granted.has(permission));
         if (missing.length) {
             throw new common_1.ForbiddenException('Your role does not have permission for this action');
         }

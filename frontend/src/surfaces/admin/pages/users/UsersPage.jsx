@@ -405,6 +405,7 @@ export function UsersPage() {
               <select className="min-h-control rounded-md border border-line-medium bg-input-bg px-3 text-sm font-semibold normal-case tracking-normal text-ink-strong outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/20" name="role" value={filters.role} onChange={handleChange}>
                 <option value="">All</option>
                 <option value="admin">Admin</option>
+                <option value="staff">Staff</option>
                 <option value="student">Student</option>
               </select>
             </label>
@@ -487,7 +488,8 @@ export function UsersPage() {
               Role
               <select className={ui.input} name="role" value={userForm.role} onChange={handleUserFormChange}>
                 <option value="student">Student</option>
-                <option value="admin">Admin</option>
+                <option value="staff">Staff (custom access)</option>
+                <option value="admin">Admin (full access)</option>
               </select>
             </label>
 

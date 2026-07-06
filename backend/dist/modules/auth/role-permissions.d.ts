@@ -1,5 +1,5 @@
-export declare const STAFF_ROLES: readonly ["admin", "content_editor", "reviewer", "tutor", "finance", "support"];
-export declare const USER_ROLES: readonly ["student", "admin", "content_editor", "reviewer", "tutor", "finance", "support"];
+export declare const STAFF_ROLES: readonly ["admin", "content_editor", "reviewer", "tutor", "finance", "support", "staff"];
+export declare const USER_ROLES: readonly ["student", "admin", "content_editor", "reviewer", "tutor", "finance", "support", "staff"];
 export type UserRole = (typeof USER_ROLES)[number];
 export type StaffRole = (typeof STAFF_ROLES)[number];
 export declare const PERMISSIONS: readonly ["admin.access", "content.manage", "content.review", "students.manage", "questions.manage", "quizzes.manage", "subscriptions.manage", "plans.manage", "settings.manage", "ai.manage", "notifications.manage", "reports.view"];
@@ -8,3 +8,6 @@ export declare function normalizeRole(role: string | null | undefined): UserRole
 export declare function permissionsForRole(role: string | null | undefined): ("admin.access" | "content.manage" | "content.review" | "students.manage" | "questions.manage" | "quizzes.manage" | "subscriptions.manage" | "plans.manage" | "settings.manage" | "ai.manage" | "notifications.manage" | "reports.view")[];
 export declare function roleHasPermission(role: string | null | undefined, permission: Permission): boolean;
 export declare function isStaffRole(role: string | null | undefined): boolean;
+export declare function sanitizePermissions(input: unknown): Permission[];
+export declare function parseStoredPermissions(raw: string | null | undefined): Permission[] | null;
+export declare function effectivePermissions(role: string | null | undefined, storedRaw?: string | null): Permission[];

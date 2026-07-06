@@ -26,6 +26,14 @@ export class SchemaSyncService implements OnModuleInit {
   async onModuleInit() {
     let connection: PoolConnection | null = null;
 
+    // These small governance/audit tables are written to by core flows (lesson
+    // create/update, staff access changes). A missing one throws mid-transaction
+    // and surfaces as a 500 ("internal server error"). They must exist even when
+    // the full schema sync is skipped for fast boot (SCHEMA_SYNC=0 on prod), so
+    // ensure them unconditionally — CREATE TABLE IF NOT EXISTS is metadata-only
+    // (near-zero cost) when they already exist.
+    await this.ensureCriticalTables();
+
     if (!this.shouldRunSchemaSync()) {
       this.logger.log('Schema sync skipped for fast boot (set SCHEMA_SYNC=1 to run it).');
       return;
@@ -76,6 +84,7 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'users', 'email_otp_expires_at', 'DATETIME NULL AFTER email_otp_code');
       await this.ensureColumn(connection, 'users', 'email_otp_attempts', 'INT NOT NULL DEFAULT 0 AFTER email_otp_expires_at');
       await this.ensureColumn(connection, 'users', 'email_otp_last_sent_at', 'DATETIME NULL AFTER email_otp_attempts');
+      await this.ensureColumn(connection, 'users', 'permissions', 'TEXT NULL AFTER role');
       await this.ensureColumn(connection, 'study_planner_tasks', 'category', "ENUM('general','lesson','quiz','exam','review','flashcards') NOT NULL DEFAULT 'general' AFTER status");
       await this.ensureColumn(connection, 'study_planner_tasks', 'priority', "ENUM('low','medium','high') NOT NULL DEFAULT 'medium' AFTER category");
       await this.ensureColumn(connection, 'study_planner_tasks', 'estimated_minutes', 'INT NULL AFTER priority');
@@ -608,6 +617,24 @@ export class SchemaSyncService implements OnModuleInit {
       await connection.execute("UPDATE questions SET question_category = 'past_paper' WHERE question_category = 'past'");
     } catch (error) {
       this.logger.warn(`Could not widen question category columns: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Runs on every boot regardless of the SCHEMA_SYNC flag. Keep this limited to
+  // the few tables that core write paths depend on, so it stays cheap.
+  private async ensureCriticalTables() {
+    let connection: PoolConnection | null = null;
+    try {
+      connection = await this.db.getConnection();
+      // Read on EVERY authenticated request (session serialization selects it), so a
+      // missing column would break all auth — not just the Roles & Access feature.
+      await this.ensureColumn(connection, 'users', 'permissions', 'TEXT NULL AFTER role');
+      await this.ensureContentGovernanceTables(connection);
+      await this.ensureAdminAuditEventsTable(connection);
+    } catch (error) {
+      this.logger.error('Failed to ensure critical governance tables on boot', error as Error);
+    } finally {
+      if (connection) connection.release();
     }
   }
 

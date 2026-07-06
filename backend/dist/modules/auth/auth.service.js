@@ -59,7 +59,7 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async login(loginDto) {
         const email = loginDto.email.trim().toLowerCase();
-        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, status, avatar_key, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
+        const [rows] = await this.db.execute('SELECT id, full_name, email, password, role, permissions, status, avatar_key, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1', [email]);
         const user = rows[0];
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid email or password');
@@ -678,7 +678,7 @@ If you did not try to sign in, you can safely ignore this email.`;
         return token;
     }
     async findUserByToken(sessionToken) {
-        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, status, avatar_key, session_token, session_expires_at
+        const [rows] = await this.db.execute(`SELECT id, full_name, email, password, role, permissions, status, avatar_key, session_token, session_expires_at
        FROM users
        WHERE session_token = ?
          AND session_expires_at > NOW()
@@ -906,7 +906,7 @@ ${settings.footer}`;
             fullName: user.full_name,
             email: user.email,
             role: user.role,
-            permissions: (0, role_permissions_1.permissionsForRole)(user.role),
+            permissions: (0, role_permissions_1.effectivePermissions)(user.role, user.permissions),
             status: user.status,
             avatarKey: user.avatar_key || '',
             hasActiveSubscription: accessProfile.hasActiveSubscription,

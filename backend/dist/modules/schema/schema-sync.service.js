@@ -34,6 +34,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
     }
     async onModuleInit() {
         let connection = null;
+        await this.ensureCriticalTables();
         if (!this.shouldRunSchemaSync()) {
             this.logger.log('Schema sync skipped for fast boot (set SCHEMA_SYNC=1 to run it).');
             return;
@@ -80,6 +81,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureColumn(connection, 'users', 'email_otp_expires_at', 'DATETIME NULL AFTER email_otp_code');
             await this.ensureColumn(connection, 'users', 'email_otp_attempts', 'INT NOT NULL DEFAULT 0 AFTER email_otp_expires_at');
             await this.ensureColumn(connection, 'users', 'email_otp_last_sent_at', 'DATETIME NULL AFTER email_otp_attempts');
+            await this.ensureColumn(connection, 'users', 'permissions', 'TEXT NULL AFTER role');
             await this.ensureColumn(connection, 'study_planner_tasks', 'category', "ENUM('general','lesson','quiz','exam','review','flashcards') NOT NULL DEFAULT 'general' AFTER status");
             await this.ensureColumn(connection, 'study_planner_tasks', 'priority', "ENUM('low','medium','high') NOT NULL DEFAULT 'medium' AFTER category");
             await this.ensureColumn(connection, 'study_planner_tasks', 'estimated_minutes', 'INT NULL AFTER priority');
@@ -587,6 +589,22 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
         }
         catch (error) {
             this.logger.warn(`Could not widen question category columns: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    async ensureCriticalTables() {
+        let connection = null;
+        try {
+            connection = await this.db.getConnection();
+            await this.ensureColumn(connection, 'users', 'permissions', 'TEXT NULL AFTER role');
+            await this.ensureContentGovernanceTables(connection);
+            await this.ensureAdminAuditEventsTable(connection);
+        }
+        catch (error) {
+            this.logger.error('Failed to ensure critical governance tables on boot', error);
+        }
+        finally {
+            if (connection)
+                connection.release();
         }
     }
     async ensureContentGovernanceTables(connection) {

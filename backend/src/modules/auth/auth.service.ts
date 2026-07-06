@@ -20,7 +20,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto';
 import { ResendEmailOtpDto } from './dto/resend-email-otp.dto';
-import { isStaffRole, permissionsForRole, UserRole } from './role-permissions';
+import { effectivePermissions, isStaffRole, UserRole } from './role-permissions';
 
 type UserRow = RowDataPacket & {
   id: number;
@@ -28,6 +28,7 @@ type UserRow = RowDataPacket & {
   email: string;
   password: string;
   role: UserRole;
+  permissions?: string | null;
   status: 'active' | 'inactive';
   avatar_key?: string | null;
   session_token?: string | null;
@@ -90,7 +91,7 @@ type GoogleTokenResponse = {
   error_description?: string;
 };
 
-type AuthUser = Pick<UserRow, 'id' | 'full_name' | 'email' | 'role' | 'status' | 'avatar_key'>;
+type AuthUser = Pick<UserRow, 'id' | 'full_name' | 'email' | 'role' | 'permissions' | 'status' | 'avatar_key'>;
 
 const ALLOWED_AVATAR_KEYS = new Set(['blue-tie', 'teal-coat', 'pink-necklace', 'violet-scarf', 'amber-coat', 'cyan-necklace']);
 const PASSWORD_RESET_TTL_MINUTES = 30;
@@ -130,7 +131,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const email = loginDto.email.trim().toLowerCase();
     const [rows] = await this.db.execute<UserRow[]>(
-      'SELECT id, full_name, email, password, role, status, avatar_key, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+      'SELECT id, full_name, email, password, role, permissions, status, avatar_key, email_verified FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [email]
     );
 
@@ -962,7 +963,7 @@ If you did not try to sign in, you can safely ignore this email.`;
 
   private async findUserByToken(sessionToken: string) {
     const [rows] = await this.db.execute<UserRow[]>(
-      `SELECT id, full_name, email, password, role, status, avatar_key, session_token, session_expires_at
+      `SELECT id, full_name, email, password, role, permissions, status, avatar_key, session_token, session_expires_at
        FROM users
        WHERE session_token = ?
          AND session_expires_at > NOW()
@@ -1256,7 +1257,7 @@ ${settings.footer}`;
       fullName: user.full_name,
       email: user.email,
       role: user.role,
-      permissions: permissionsForRole(user.role),
+      permissions: effectivePermissions(user.role, user.permissions),
       status: user.status,
       avatarKey: user.avatar_key || '',
       hasActiveSubscription: accessProfile.hasActiveSubscription,

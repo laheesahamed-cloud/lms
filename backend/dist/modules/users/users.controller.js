@@ -20,6 +20,7 @@ const permissions_decorator_1 = require("../auth/permissions.decorator");
 const users_service_1 = require("./users.service");
 const create_user_dto_1 = require("./dto/create-user.dto");
 const update_user_dto_1 = require("./dto/update-user.dto");
+const update_user_access_dto_1 = require("./dto/update-user-access.dto");
 const update_user_status_dto_1 = require("./dto/update-user-status.dto");
 let UsersController = class UsersController {
     constructor(usersService, authService) {
@@ -40,6 +41,14 @@ let UsersController = class UsersController {
     async summary(authorization) {
         const actor = await this.authService.requireAdmin(authorization);
         return this.usersService.summary(actor);
+    }
+    async listStaff(authorization) {
+        const actor = await this.authService.requireAdmin(authorization);
+        return this.usersService.listStaff(actor);
+    }
+    async updateAccess(authorization, id, updateUserAccessDto) {
+        const actor = await this.authService.requireAdmin(authorization);
+        return this.usersService.updateAccess(actor, id, updateUserAccessDto);
     }
     async detail(authorization, id) {
         const actor = await this.authService.requireAdmin(authorization);
@@ -97,6 +106,22 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "summary", null);
+__decorate([
+    (0, common_1.Get)('staff'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "listStaff", null);
+__decorate([
+    (0, common_1.Patch)(':id/access'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number, update_user_access_dto_1.UpdateUserAccessDto]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "updateAccess", null);
 __decorate([
     (0, common_1.Get)(':id/detail'),
     __param(0, (0, common_1.Headers)('authorization')),
