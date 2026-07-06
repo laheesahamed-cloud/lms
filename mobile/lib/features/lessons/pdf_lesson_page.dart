@@ -82,6 +82,97 @@ class _PdfStroke {
   }
 }
 
+// ── Rendering helpers (ported verbatim from lesson_canvas_page.dart) ──────────
+
+class _OneEuro {
+  final double minCutoff;
+  final double beta;
+  final double dCutoff;
+  Offset? _x;
+  Offset _dx = Offset.zero;
+  Duration? _t;
+
+  _OneEuro({this.minCutoff = 1.0, this.beta = 0.7, this.dCutoff = 1.0});
+
+  static double _alpha(double cutoff, double dt) {
+    final tau = 1.0 / (2 * math.pi * cutoff);
+    return 1.0 / (1.0 + tau / dt);
+  }
+
+  Offset filter(Offset x, Duration t, {double scale = 1.0}) {
+    if (_x == null) { _x = x; _t = t; return x; }
+    var dt = (t - _t!).inMicroseconds / 1e6;
+    if (dt <= 0 || dt > 0.1) dt = 1 / 120.0;
+    _t = t;
+    final dxRaw = (x - _x!) / dt;
+    final aD = _alpha(dCutoff, dt);
+    _dx = _dx + (dxRaw - _dx) * aD;
+    final cutoff = minCutoff + beta * (_dx.distance * scale);
+    final a = _alpha(cutoff, dt);
+    final xHat = _x! + (x - _x!) * a;
+    _x = xHat;
+    return xHat;
+  }
+}
+
+Paint _linePaint(Color color, double width) => Paint()
+  ..color = color
+  ..style = PaintingStyle.stroke
+  ..strokeWidth = width
+  ..strokeCap = StrokeCap.round
+  ..strokeJoin = StrokeJoin.round
+  ..isAntiAlias = true;
+
+Paint _eraserPaint(double width) => Paint()
+  ..blendMode = BlendMode.clear
+  ..style = PaintingStyle.stroke
+  ..strokeWidth = width
+  ..strokeCap = StrokeCap.round
+  ..strokeJoin = StrokeJoin.round;
+
+List<Offset> _smoothN(List<Offset> pts, int passes) {
+  var cur = pts;
+  for (var k = 0; k < passes; k++) {
+    final n = cur.length;
+    if (n < 3) return cur;
+    final out = List<Offset>.of(cur);
+    for (var i = 1; i < n - 1; i++) {
+      final a = cur[i - 1], b = cur[i], c = cur[i + 1];
+      out[i] = Offset(a.dx * 0.25 + b.dx * 0.5 + c.dx * 0.25,
+          a.dy * 0.25 + b.dy * 0.5 + c.dy * 0.25);
+    }
+    cur = out;
+  }
+  return cur;
+}
+
+void _crSegment(Path path, List<Offset> pts, int i, int n) {
+  const eps = 1e-6;
+  final p0 = pts[i == 0 ? 0 : i - 1];
+  final p1 = pts[i];
+  final p2 = pts[i + 1];
+  final p3 = pts[i + 2 >= n ? n - 1 : i + 2];
+  final t01 = math.sqrt((p0 - p1).distance) + eps;
+  final t12 = math.sqrt((p1 - p2).distance) + eps;
+  final t23 = math.sqrt((p2 - p3).distance) + eps;
+  final m1 = (p2 - p1) + ((p1 - p0) / t01 - (p2 - p0) / (t01 + t12)) * t12;
+  final m2 = (p2 - p1) + ((p3 - p2) / t23 - (p3 - p1) / (t12 + t23)) * t12;
+  final c1 = p1 + m1 / 3.0;
+  final c2 = p2 - m2 / 3.0;
+  path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
+}
+
+Path _smoothPath(List<Offset> pts) {
+  final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+  final n = pts.length;
+  if (n < 3) {
+    for (final o in pts.skip(1)) path.lineTo(o.dx, o.dy);
+    return path;
+  }
+  for (var i = 0; i < n - 1; i++) _crSegment(path, pts, i, n);
+  return path;
+}
+
 // ── Painter ───────────────────────────────────────────────────────────────────
 
 class _PdfInkPainter extends CustomPainter {
@@ -92,52 +183,173 @@ class _PdfInkPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final s in strokes) _paintStroke(canvas, size, s);
-    if (active != null) _paintStroke(canvas, size, active!);
+    _paintHighlighterLayer(canvas, size);
+    _paintPenLayer(canvas, size);
   }
 
-  void _paintStroke(Canvas canvas, Size size, _PdfStroke s) {
-    if (s.points.length < 2) return;
+  void _drawStroke(Canvas canvas, Size size, _PdfStroke s, Paint paint) {
     final pts = [for (final p in s.points) Offset(p.dx * size.width, p.dy * size.height)];
-    switch (s.tool) {
-      case _PdfTool.highlighter:
-        final paint = Paint()
-          ..color = s.color.withValues(alpha: 0.35)
-          ..strokeWidth = s.width
-          ..strokeCap = StrokeCap.square
-          ..style = PaintingStyle.stroke
-          ..blendMode = dark ? BlendMode.screen : BlendMode.multiply;
-        final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (var i = 1; i < pts.length; i++) path.lineTo(pts[i].dx, pts[i].dy);
-        canvas.drawPath(path, paint);
-      case _PdfTool.eraser:
-        final paint = Paint()
-          ..color = Colors.white
-          ..strokeWidth = s.width
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke
-          ..blendMode = BlendMode.clear;
-        final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-        for (var i = 1; i < pts.length; i++) path.lineTo(pts[i].dx, pts[i].dy);
-        canvas.drawPath(path, paint);
-      case _PdfTool.pen:
-        final r = s.width / 2;
-        final paint = Paint()..color = s.color..style = PaintingStyle.fill;
-        canvas.drawCircle(pts.first, r, paint);
-        for (var i = 1; i < pts.length; i++) {
-          final a = pts[i - 1], b = pts[i];
-          final dist = (b - a).distance;
-          if (dist < 0.5) continue;
-          final steps = math.max(1, (dist / r).ceil());
-          for (var j = 0; j <= steps; j++) {
-            canvas.drawCircle(Offset.lerp(a, b, j / steps)!, r, paint);
-          }
-        }
+    if (pts.length == 1) {
+      canvas.drawCircle(pts.first, s.width / 2,
+          Paint()..color = paint.color..blendMode = paint.blendMode);
+      return;
     }
+    canvas.drawPath(_smoothPath(_smoothN(pts, 2)), paint);
+  }
+
+  void _paintHighlighterLayer(Canvas canvas, Size size) {
+    final all = active == null ? strokes : [...strokes, active!];
+    if (!all.any((s) => s.tool == _PdfTool.highlighter)) return;
+    canvas.saveLayer(Offset.zero & size,
+        Paint()..blendMode = dark ? BlendMode.screen : BlendMode.multiply);
+    for (final s in all) {
+      if (s.points.isEmpty) continue;
+      if (s.tool == _PdfTool.highlighter) {
+        _drawStroke(canvas, size, s, _linePaint(s.color.withValues(alpha: 0.4), s.width));
+      } else if (s.tool == _PdfTool.eraser) {
+        _drawStroke(canvas, size, s, _eraserPaint(s.width));
+      }
+    }
+    canvas.restore();
+  }
+
+  void _paintPenLayer(Canvas canvas, Size size) {
+    final all = active == null ? strokes : [...strokes, active!];
+    final hasPen = all.any((s) => s.tool == _PdfTool.pen);
+    final hasEraser = all.any((s) => s.tool == _PdfTool.eraser);
+    if (!hasPen && !hasEraser) return;
+    if (hasEraser) canvas.saveLayer(Offset.zero & size, Paint());
+    for (final s in all) {
+      if (s.points.isEmpty) continue;
+      if (s.tool == _PdfTool.pen) {
+        _drawStroke(canvas, size, s, _linePaint(s.color, s.width));
+      } else if (s.tool == _PdfTool.eraser) {
+        _drawStroke(canvas, size, s, _eraserPaint(s.width));
+      }
+    }
+    if (hasEraser) canvas.restore();
   }
 
   @override
   bool shouldRepaint(_PdfInkPainter old) => true;
+}
+
+// ── Scrollbar painter ─────────────────────────────────────────────────────────
+
+class _ScrollbarPainter extends CustomPainter {
+  final double scale;
+  final double ty;
+  final double contentH;
+  final double viewH;
+  final bool dark;
+  final bool grabbed;
+
+  const _ScrollbarPainter({
+    required this.scale,
+    required this.ty,
+    required this.contentH,
+    required this.viewH,
+    required this.dark,
+    this.grabbed = false,
+  });
+
+  static const double _rightPad = 5.0;
+  static const double _topPad   = 6.0;
+  static const double _minThumb = 40.0;
+
+  // Returns (thumbTop, thumbH, trackH) for the current scroll state.
+  (double, double, double) _geometry() {
+    final totalH = contentH * scale;
+    final trackH = viewH - _topPad * 2;
+    final thumbH = (viewH / totalH * trackH).clamp(_minThumb, trackH);
+    final frac = (-ty).clamp(0.0, totalH - viewH) / (totalH - viewH);
+    final thumbTop = _topPad + frac * (trackH - thumbH);
+    return (thumbTop, thumbH, trackH);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final totalH = contentH * scale;
+    if (totalH <= viewH + 4) return;
+
+    final thumbW  = grabbed ? 10.0 : 4.0;
+    final trackW  = grabbed ? 10.0 : 4.0;
+    final (thumbTop, thumbH, trackH) = _geometry();
+    final x = size.width - _rightPad - trackW;
+
+    final trackColor = dark ? const Color(0x18FFFFFF) : const Color(0x12000000);
+    final thumbColor = grabbed
+        ? (dark ? const Color(0xEEFFFFFF) : const Color(0xCC000000))
+        : (dark ? const Color(0x80FFFFFF) : const Color(0x66000000));
+
+    // Track
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          Rect.fromLTWH(x, _topPad, trackW, trackH),
+          Radius.circular(trackW / 2)),
+      Paint()..color = trackColor,
+    );
+    // Thumb
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          Rect.fromLTWH(x, thumbTop, thumbW, thumbH),
+          Radius.circular(thumbW / 2)),
+      Paint()..color = thumbColor,
+    );
+    // Three handle-grip lines when grabbed
+    if (grabbed) {
+      final gripColor = dark
+          ? const Color(0x55000000)
+          : const Color(0x55FFFFFF);
+      final gp = Paint()..color = gripColor..strokeWidth = 1.5
+          ..strokeCap = StrokeCap.round;
+      final cx = x + thumbW / 2;
+      final cy = thumbTop + thumbH / 2;
+      for (var i = -1; i <= 1; i++) {
+        final gy = cy + i * 3.5;
+        canvas.drawLine(Offset(cx - 2.5, gy), Offset(cx + 2.5, gy), gp);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ScrollbarPainter old) =>
+      scale != old.scale || ty != old.ty || contentH != old.contentH ||
+      viewH != old.viewH || dark != old.dark || grabbed != old.grabbed;
+}
+
+// Eraser cursor ring — shown at the stylus position when the eraser tool is active.
+class _EraserCursorPainter extends CustomPainter {
+  final Offset pos;
+  final double radius;
+
+  const _EraserCursorPainter({required this.pos, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = math.max(radius, 6.0);
+    // Soft white fill so the ring is visible on dark ink
+    canvas.drawCircle(pos, r,
+        Paint()..color = const Color(0x22FFFFFF)..style = PaintingStyle.fill);
+    // Dark outer ring
+    canvas.drawCircle(pos, r,
+        Paint()
+          ..color = const Color(0xAA000000)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..isAntiAlias = true);
+    // White inner ring (contrast on dark pages)
+    canvas.drawCircle(pos, r - 1.5,
+        Paint()
+          ..color = const Color(0x99FFFFFF)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0
+          ..isAntiAlias = true);
+  }
+
+  @override
+  bool shouldRepaint(_EraserCursorPainter old) =>
+      pos != old.pos || radius != old.radius;
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -151,6 +363,7 @@ class _PdfLessonPageState extends State<PdfLessonPage>
   // Per-page ink
   final Map<int, List<_PdfStroke>> _pageStrokes = {};
   _PdfStroke? _active;
+  _OneEuro? _euro;
   int _activePageIndex = -1;
   final Map<int, ValueNotifier<int>> _pageNotifiers = {};
 
@@ -172,7 +385,6 @@ class _PdfLessonPageState extends State<PdfLessonPage>
   Matrix4 _startMatrix = Matrix4.identity();
   Offset _startFocal = Offset.zero;
   double _startDist = 1.0;
-  String? _panAxis;
 
   // Inertial fling
   VelocityTracker? _vt;
@@ -180,6 +392,16 @@ class _PdfLessonPageState extends State<PdfLessonPage>
   Offset _flingVel = Offset.zero;
   Duration? _flingPrev;
   static const double _flingDecel = 2.6;
+
+  // Scrollbar drag — activated immediately on touch in the right-edge hit zone
+  final ValueNotifier<bool> _sbGrabbed = ValueNotifier<bool>(false);
+  int? _sbPointer;
+  Offset _sbPointerStart = Offset.zero;
+  double _sbDragStartY = 0;
+  double _sbDragStartTy = 0;
+
+  // Eraser cursor — tracks the stylus position while the eraser tool is active
+  final ValueNotifier<Offset?> _eraserPos = ValueNotifier<Offset?>(null);
 
   // Tool accessors — always read from widget so tool-strip changes take effect
   // immediately on the next stroke, without setState.
@@ -210,6 +432,8 @@ class _PdfLessonPageState extends State<PdfLessonPage>
     _doc?.dispose();
     _xform.dispose();
     _visibleRange.dispose();
+    _sbGrabbed.dispose();
+    _eraserPos.dispose();
     for (final n in _pageNotifiers.values) n.dispose();
     _stopFling();
     _fling?.dispose();
@@ -372,7 +596,6 @@ class _PdfLessonPageState extends State<PdfLessonPage>
 
   void _snapshotGesture() {
     _startMatrix = _matrix.clone();
-    _panAxis = null;
     final pts = _touches.values.toList();
     if (pts.isEmpty) return;
     _startFocal = pts.length >= 2 ? _centroid(pts) : pts.first;
@@ -391,17 +614,7 @@ class _PdfLessonPageState extends State<PdfLessonPage>
     final target = (startScale * factor).clamp(1.0, 5.0);
     factor = startScale == 0 ? 1.0 : target / startScale;
 
-    var dFocal = focal - _startFocal;
-    if (!twoFinger) {
-      if (_panAxis == null && dFocal.distance > 6.0) {
-        _panAxis = dFocal.dx.abs() > dFocal.dy.abs() ? 'x' : 'y';
-      }
-      dFocal = _panAxis == 'x'
-          ? Offset(dFocal.dx, 0)
-          : _panAxis == 'y'
-              ? Offset(0, dFocal.dy)
-              : Offset.zero;
-    }
+    final dFocal = focal - _startFocal;
 
     final m = Matrix4.translationValues(focal.dx, focal.dy, 0)
       ..multiply(Matrix4.diagonal3Values(factor, factor, 1))
@@ -467,12 +680,81 @@ class _PdfLessonPageState extends State<PdfLessonPage>
 
   // ── Pointer routing ────────────────────────────────────────────────────────
 
-  void _onPointerDown(PointerDownEvent e) {
+  // ── Scrollbar drag handlers ────────────────────────────────────────────────
+  // Right-edge 44px strip is the scrollbar hit zone. A long-press (200 ms) within
+  // that zone activates drag; normal swipes fall through untouched.
+
+  static const double _sbHitW = 44.0;
+
+  bool _inSbZone(Offset pt) => pt.dx >= _viewport.width - _sbHitW;
+
+  void _sbPointerDown(PointerDownEvent e) {
+    // Only grab if the touch lands on the actual visible thumb, not anywhere on the strip.
+    final scale = _matrix.getMaxScaleOnAxis();
+    final totalH = _contentH * scale;
+    final viewH  = _viewport.height;
+    const topPad   = _ScrollbarPainter._topPad;
+    const minThumb = _ScrollbarPainter._minThumb;
+    final trackH = viewH - topPad * 2;
+    final thumbH = (viewH / totalH * trackH).clamp(minThumb, trackH);
+    final frac = (-_matrix.getTranslation().y).clamp(0.0, totalH - viewH) /
+        ((totalH - viewH).clamp(1.0, double.infinity));
+    final thumbTop = topPad + frac * (trackH - thumbH);
+    final touchY = e.localPosition.dy;
+    const hitPad = 16.0; // extra tap tolerance around the thumb
+    if (touchY < thumbTop - hitPad || touchY > thumbTop + thumbH + hitPad) return;
+
     _stopFling();
+    _sbPointer = e.pointer;
+    _sbPointerStart = e.localPosition;
+    _sbDragStartY = e.localPosition.dy;
+    _sbDragStartTy = _matrix.getTranslation().y;
+    _sbGrabbed.value = true;
+  }
+
+  void _sbPointerMove(PointerMoveEvent e) {
+    if (e.pointer != _sbPointer) return;
+    if (!_sbGrabbed.value) return;
+    // Drag: map pointer-Y to scroll position
+    final scale = _matrix.getMaxScaleOnAxis();
+    final totalH = _contentH * scale;
+    final viewH  = _viewport.height;
+    if (totalH <= viewH) return;
+    const topPad = _ScrollbarPainter._topPad;
+    const minThumb = _ScrollbarPainter._minThumb;
+    final trackH = viewH - topPad * 2;
+    final thumbH = (viewH / totalH * trackH).clamp(minThumb, trackH);
+    final usable = trackH - thumbH;
+    if (usable <= 0) return;
+    final dy = e.localPosition.dy - _sbDragStartY;
+    final newTy = _sbDragStartTy - dy / usable * (totalH - viewH);
+    final m = _matrix.clone()..setTranslationRaw(_matrix.getTranslation().x, newTy, 0);
+    _setMatrix(m);
+  }
+
+  void _sbPointerUp(PointerEvent e) {
+    if (e.pointer != _sbPointer) return;
+    _sbPointer = null;
+    if (_sbGrabbed.value) _sbGrabbed.value = false;
+  }
+
+  // ── Main pointer routing ───────────────────────────────────────────────────
+
+  void _onPointerDown(PointerDownEvent e) {
     if (e.kind == PointerDeviceKind.stylus) {
-      _startInkStroke(e.localPosition);
+      // Stylus never stops fling or pans — ink only.
+      // Cancel any finger pan in progress (palm rejection).
+      if (_touches.isNotEmpty) {
+        _touches.clear();
+        _vt = null;
+        _snapshotGesture();
+      }
+      if (_tool == _PdfTool.eraser) _eraserPos.value = e.localPosition;
+      _startInkStroke(e);
       return;
     }
+    // Finger: stop any fling, blocked while a stylus stroke is active.
+    _stopFling();
     if (_active != null) return;
     _touches[e.pointer] = e.localPosition;
     if (_touches.length == 1) {
@@ -486,17 +768,27 @@ class _PdfLessonPageState extends State<PdfLessonPage>
 
   void _onPointerMove(PointerMoveEvent e) {
     if (e.kind == PointerDeviceKind.stylus) {
-      _extendInkStroke(e.localPosition);
+      if (_tool == _PdfTool.eraser) _eraserPos.value = e.localPosition;
+      _extendInkStroke(e);
       return;
     }
+    if (_sbGrabbed.value) return; // scrollbar drag owns the gesture
+    // Block finger pan while stylus ink is active.
     if (_active != null || !_touches.containsKey(e.pointer)) return;
     _touches[e.pointer] = e.localPosition;
     if (_touches.length == 1) _vt?.addPosition(e.timeStamp, e.localPosition);
     _applyTransform();
   }
 
+  void _onPointerHover(PointerHoverEvent e) {
+    if (e.kind == PointerDeviceKind.stylus && _tool == _PdfTool.eraser) {
+      _eraserPos.value = e.localPosition;
+    }
+  }
+
   void _onPointerUp(PointerEvent e) {
     if (e.kind == PointerDeviceKind.stylus) {
+      _eraserPos.value = null;
       _commitInkStroke();
       return;
     }
@@ -514,6 +806,7 @@ class _PdfLessonPageState extends State<PdfLessonPage>
 
   void _onPointerCancel(PointerEvent e) {
     if (e.kind == PointerDeviceKind.stylus) {
+      _eraserPos.value = null;
       _commitInkStroke();
       return;
     }
@@ -524,23 +817,34 @@ class _PdfLessonPageState extends State<PdfLessonPage>
 
   // ── Ink stroke handlers ────────────────────────────────────────────────────
 
-  void _startInkStroke(Offset viewportPt) {
-    final hit = _hitTestPage(viewportPt);
+  void _startInkStroke(PointerDownEvent e) {
+    final hit = _hitTestPage(e.localPosition);
     if (hit == null) return;
     final (pageIndex, normPt) = hit;
     final scale = _matrix.getMaxScaleOnAxis();
+    _euro = _OneEuro(minCutoff: 3.0, beta: 1.4, dCutoff: 1.2);
+    final contentPt = MatrixUtils.transformPoint(_invMatrix, e.localPosition);
+    _euro!.filter(contentPt, e.timeStamp, scale: scale); // seed filter
     _active = _PdfStroke(_tool, _activeColor, _baseSize / scale)..add(normPt);
     _activePageIndex = pageIndex;
     _bumpPage(pageIndex);
   }
 
-  void _extendInkStroke(Offset viewportPt) {
+  void _extendInkStroke(PointerMoveEvent e) {
     if (_active == null || _activePageIndex < 0) return;
-    final contentPt = MatrixUtils.transformPoint(_invMatrix, viewportPt);
+    final scale = _matrix.getMaxScaleOnAxis();
+    final contentPt = MatrixUtils.transformPoint(_invMatrix, e.localPosition);
+    final filtered = _euro!.filter(contentPt, e.timeStamp, scale: scale);
     final r = _pageRects[_activePageIndex];
+    // Same 0.6 on-screen pixel density threshold as the canvas.
+    if (_active!.points.isNotEmpty) {
+      final last = _active!.points.last;
+      final lastContent = Offset(last.dx * r.width + r.left, last.dy * r.height + r.top);
+      if ((filtered - lastContent).distance * scale < 0.6) return;
+    }
     _active!.add(Offset(
-      ((contentPt.dx - r.left) / r.width).clamp(0.0, 1.0),
-      ((contentPt.dy - r.top) / r.height).clamp(0.0, 1.0),
+      ((filtered.dx - r.left) / r.width).clamp(0.0, 1.0),
+      ((filtered.dy - r.top) / r.height).clamp(0.0, 1.0),
     ));
     _bumpPage(_activePageIndex);
   }
@@ -617,24 +921,80 @@ class _PdfLessonPageState extends State<PdfLessonPage>
         ),
       );
 
-      return Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: _onPointerDown,
-        onPointerMove: _onPointerMove,
-        onPointerUp: _onPointerUp,
-        onPointerCancel: _onPointerCancel,
-        child: ClipRect(
-          child: ValueListenableBuilder<int>(
-            valueListenable: _xform,
-            child: pageStack,
-            builder: (_, __, child) => Transform(
-              transform: _matrix,
-              alignment: Alignment.topLeft,
-              child: child,
+      return Stack(children: [
+        // ── Main pan/zoom + ink canvas ───────────────────────────────────────
+        Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _onPointerDown,
+          onPointerMove: _onPointerMove,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          onPointerHover: _onPointerHover,
+          child: ClipRect(
+            child: ValueListenableBuilder<int>(
+              valueListenable: _xform,
+              child: pageStack,
+              builder: (_, __, child) => Transform(
+                transform: _matrix,
+                alignment: Alignment.topLeft,
+                child: child,
+              ),
             ),
           ),
         ),
-      );
+
+        // ── Scrollbar (visual + drag hit zone) ───────────────────────────────
+        // The visual layer sits on top and reads _xform + _sbGrabbed.
+        IgnorePointer(
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _sbGrabbed,
+            builder: (_, grabbed, __) => ValueListenableBuilder<int>(
+              valueListenable: _xform,
+              builder: (_, __, ___) => CustomPaint(
+                painter: _ScrollbarPainter(
+                  scale: _matrix.getMaxScaleOnAxis(),
+                  ty: _matrix.getTranslation().y,
+                  contentH: _contentH,
+                  viewH: _viewport.height,
+                  dark: dark,
+                  grabbed: grabbed,
+                ),
+                size: _viewport,
+              ),
+            ),
+          ),
+        ),
+        // The interactive layer: right-edge hit zone for long-press drag.
+        Positioned(
+          top: 0, right: 0, bottom: 0,
+          width: _sbHitW,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: _sbPointerDown,
+            onPointerMove: _sbPointerMove,
+            onPointerUp: _sbPointerUp,
+            onPointerCancel: _sbPointerUp,
+            child: const SizedBox.expand(),
+          ),
+        ),
+
+        // ── Eraser cursor ring ────────────────────────────────────────────────
+        IgnorePointer(
+          child: ValueListenableBuilder<Offset?>(
+            valueListenable: _eraserPos,
+            builder: (_, pos, __) {
+              if (pos == null) return const SizedBox.expand();
+              return CustomPaint(
+                painter: _EraserCursorPainter(
+                  pos: pos,
+                  radius: widget.eraserSize / 2,
+                ),
+                size: _viewport,
+              );
+            },
+          ),
+        ),
+      ]);
     });
   }
 

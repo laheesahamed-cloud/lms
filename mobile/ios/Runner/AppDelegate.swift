@@ -8,6 +8,8 @@ import UserNotifications
   private var pushChannel: FlutterMethodChannel?
   private var pendingToken: String?
   private var appleAuthHandler: AppleSignInHandler?
+  private var pencilChannel: FlutterMethodChannel?
+  private var pencilInteraction: UIPencilInteraction?
 
   override func application(
     _ application: UIApplication,
@@ -47,6 +49,13 @@ import UserNotifications
       if let token = pendingToken {
         channel.invokeMethod("apnsToken", arguments: token)
       }
+    }
+
+    // Apple Pencil double-tap → send "doubleTap" to Dart for eraser toggle.
+    if let messenger = engineBridge.pluginRegistry.registrar(forPlugin: "XyndromePencil")?.messenger() {
+      let ch = FlutterMethodChannel(name: "app.xyndrome.lk/pencil", binaryMessenger: messenger)
+      pencilChannel = ch
+      DispatchQueue.main.async { self.attachPencilInteraction() }
     }
 
     // Native Sign in with Apple. Flutter calls "signIn"; we run the system
@@ -95,6 +104,23 @@ import UserNotifications
   ) {
     NSLog("APNs registration failed: \(error.localizedDescription)")
     super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+  }
+
+  func attachPencilInteraction() {
+    let interaction = UIPencilInteraction()
+    interaction.delegate = self
+    UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+      .first { $0.isKeyWindow }?
+      .addInteraction(interaction)
+    pencilInteraction = interaction
+  }
+}
+
+extension AppDelegate: UIPencilInteractionDelegate {
+  func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
+    pencilChannel?.invokeMethod("doubleTap", arguments: nil)
   }
 }
 

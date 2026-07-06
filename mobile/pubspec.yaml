@@ -48,6 +48,7 @@ dependencies:
   flutter_local_notifications: ^19.4.2
   timezone: ^0.10.1
   webview_flutter: ^4.13.0
+  webview_flutter_wkwebview: ^3.26.0
   audioplayers: ^6.1.0
   path_provider: ^2.1.5
   pdfrx: ^1.0.0

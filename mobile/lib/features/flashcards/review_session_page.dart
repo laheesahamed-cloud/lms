@@ -278,16 +278,18 @@ class _ReviewSessionPageState extends ConsumerState<ReviewSessionPage>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: back
             ? [
-                Text(qc.card.answer,
+                Text('ANSWER',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 17,
-                        height: 1.5,
-                        fontWeight: FontWeight.w600,
-                        color: c.inkStrong)),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.4,
+                        color: c.accent)),
+                const SizedBox(height: 14),
+                _flashcardImage(qc.card),
+                _answerBody(c, qc.card.answer),
               ]
             : [
-                _flashcardImage(qc.card),
                 Text(qc.card.question,
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -295,13 +297,74 @@ class _ReviewSessionPageState extends ConsumerState<ReviewSessionPage>
                         height: 1.45,
                         fontWeight: FontWeight.w700,
                         color: c.inkStrong)),
+                const SizedBox(height: 14),
+                Text('Tap to reveal answer',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: c.inkMuted)),
               ],
       ),
     );
   }
 
-  // Flashcard images are stored as http(s) URLs or base64 data: URIs; ContentImage
-  // handles both (and downsamples on decode to cap memory).
+  Widget _answerBody(AppColors c, String answer) {
+    final lines = answer.split('\n');
+    final widgets = <Widget>[];
+    for (final raw in lines) {
+      final line = raw.trimRight();
+      if (line.trim().isEmpty) {
+        widgets.add(const SizedBox(height: 6));
+        continue;
+      }
+      final trimmed = line.trimLeft();
+      final isBullet = trimmed.startsWith('•') ||
+          trimmed.startsWith('-') ||
+          trimmed.startsWith('*');
+      if (isBullet) {
+        final text = trimmed.replaceFirst(RegExp(r'^[•\-\*]\s*'), '');
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('• ',
+                  style: TextStyle(
+                      fontSize: 16,
+                      height: 1.5,
+                      fontWeight: FontWeight.w800,
+                      color: c.primary)),
+              Expanded(
+                child: Text(text,
+                    style: TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                        color: c.inkStrong)),
+              ),
+            ],
+          ),
+        ));
+      } else {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Text(line,
+              style: TextStyle(
+                  fontSize: 16,
+                  height: 1.5,
+                  fontWeight: FontWeight.w600,
+                  color: c.inkStrong)),
+        ));
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
+  }
+
+  // Images are stored as http(s) URLs or base64 data: URIs.
   Widget _flashcardImage(FlashCard card) {
     if (card.imageUrl.trim().isEmpty) return const SizedBox.shrink();
     return Padding(

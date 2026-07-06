@@ -16,16 +16,12 @@ class EcgPage extends ConsumerWidget {
     final c = context.c;
     final topicsAsync = ref.watch(ecgTopicsProvider);
     final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
-    final hPad = isLandscape ? 24.0 : 16.0;
 
     return SafeArea(
       child: RefreshIndicator(
         onRefresh: () async => ref.refresh(ecgTopicsProvider.future),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
+        child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
               children: [
                 if (!isLandscape) ...[
                   Text('STUDY TOOL',
@@ -97,9 +93,7 @@ class EcgPage extends ConsumerWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
+        );
   }
 }
 

@@ -29,7 +29,6 @@ import '../features/flashcards/flashcards_page.dart';
 import '../features/flashcards/review_session_page.dart';
 import '../features/study/study_hub_page.dart';
 import '../features/lessons/lessons_list_page.dart';
-import '../features/lessons/lesson_reader_page.dart';
 import '../features/lessons/lessons_course_detail_page.dart';
 import '../features/profile/profile_page.dart';
 import '../features/profile/edit_profile_page.dart';
@@ -45,6 +44,11 @@ import '../features/ecg/ecg_quiz_page.dart';
 import '../features/auscultation/auscultation_page.dart';
 import '../features/auscultation/auscultation_topic_page.dart';
 import '../features/auscultation/auscultation_quiz_page.dart';
+import '../features/personal_notes/personal_notes_page.dart';
+import '../features/personal_notes/personal_note_canvas_page.dart';
+import '../features/personal_flashcards/personal_flashcards_page.dart';
+import '../features/personal_flashcards/personal_deck_page.dart';
+import '../features/personal_flashcards/personal_review_page.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -157,6 +161,26 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/app/my-flashcards/:deckId',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: PersonalDeckPage(
+            deckId: s.pathParameters['deckId']!,
+            title: s.uri.queryParameters['title'] ?? 'My Deck',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/app/my-flashcards/:deckId/review',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: PersonalReviewPage(
+            deckId: s.pathParameters['deckId']!,
+            title: s.uri.queryParameters['title'] ?? 'Review',
+          ),
+        ),
+      ),
+      GoRoute(
         path: '/app/qbank/course/:courseId',
         pageBuilder: (c, s) => slidePage(
           key: s.pageKey,
@@ -175,6 +199,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           child: TakeQuizPage(
             quizId: s.pathParameters['quizId']!,
             examMode: s.uri.queryParameters['exam'] == '1',
+            questionId: s.uri.queryParameters['questionId'],
           ),
         ),
       ),
@@ -251,6 +276,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           child: Scaffold(
               body: AuscultationQuizPage(
                   category: s.uri.queryParameters['category'] == 'lung' ? 'lung' : 'heart')),
+        ),
+      ),
+
+      GoRoute(
+        path: '/app/my-notes/:noteId',
+        pageBuilder: (c, s) => slidePage(
+          key: s.pageKey,
+          child: PersonalNoteCanvasPage(
+            noteId: s.pathParameters['noteId']!,
+            title: Uri.decodeComponent(s.uri.queryParameters['title'] ?? 'My Note'),
+            initialPageCount: int.tryParse(s.uri.queryParameters['pages'] ?? '1') ?? 1,
+          ),
         ),
       ),
 
@@ -348,6 +385,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/app/profile/password',
             pageBuilder: (c, s) =>
                 fadePage(key: s.pageKey, child: const ChangePasswordPage()),
+          ),
+          GoRoute(
+            path: '/app/my-notes',
+            pageBuilder: (c, s) =>
+                fadePage(key: s.pageKey, child: const PersonalNotesPage()),
+          ),
+          GoRoute(
+            path: '/app/my-flashcards',
+            pageBuilder: (c, s) =>
+                fadePage(key: s.pageKey, child: const PersonalFlashcardsPage()),
           ),
         ],
       ),

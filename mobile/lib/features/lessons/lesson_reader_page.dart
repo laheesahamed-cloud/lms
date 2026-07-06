@@ -12,7 +12,7 @@ class LessonReaderPage extends StatelessWidget {
     final c = context.c;
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
         children: [
           Row(
             children: [
@@ -23,7 +23,7 @@ class LessonReaderPage extends StatelessWidget {
               ),
               const Spacer(),
               IconButton(
-                onPressed: () => context.push('/app/canvas'),
+                onPressed: () => context.push('/app/canvas?lessonId=$noteId'),
                 icon: Icon(Icons.draw_outlined, size: 20, color: c.inkMedium),
               ),
               IconButton(

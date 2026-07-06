@@ -65,7 +65,7 @@ class CourseDetailPage extends ConsumerWidget {
           final frac = total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
             children: [
               Row(children: [
                 IconButton(
@@ -201,7 +201,7 @@ class CourseDetailPage extends ConsumerWidget {
   }
 
   Widget _back(BuildContext context, AppColors c, Widget child) => ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
         children: [
           Row(children: [
             IconButton(

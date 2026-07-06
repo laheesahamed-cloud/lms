@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +17,7 @@ import '../bookmarks/bookmark_button.dart';
 import 'lesson_models.dart';
 import 'lessons_repository.dart';
 import 'pdf_lesson_page.dart';
+import 'watch_video_modal.dart';
 
 /// Full AI-notes screen (100% Flutter).
 /// Fixed chrome (header + tool strip) sits OUTSIDE the canvas; the warm "canvas"
@@ -25,7 +27,20 @@ import 'pdf_lesson_page.dart';
 /// never happen at once, so the ink never drifts off the pen tip.
 class LessonCanvasPage extends ConsumerStatefulWidget {
   final String lessonId;
-  const LessonCanvasPage({super.key, required this.lessonId});
+  final bool isPersonal;
+  final String? personalTitle;
+  final Widget? pageNav; // widget shown in header (personal notes only)
+  /// Number of pages in the personal note. Each page adds one A4-height section
+  /// to the canvas; a page-break line is drawn between sections.
+  final int personalPageCount;
+  const LessonCanvasPage({
+    super.key,
+    required this.lessonId,
+    this.isPersonal = false,
+    this.personalTitle,
+    this.pageNav,
+    this.personalPageCount = 1,
+  });
   @override
   ConsumerState<LessonCanvasPage> createState() => _NoteCanvasPageState();
 }
@@ -196,6 +211,9 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   _Stroke? _active;
   _OneEuro? _euro; // per-stroke input filter (recreated on each pen-down)
   _Tool _tool = _Tool.pen;
+  _Tool? _prevTool; // last non-eraser tool before pencil double-tap
+
+  static const _pencilChannel = MethodChannel('app.xyndrome.lk/pencil');
   // Repaints the LIVE ink layer while drawing WITHOUT rebuilding anything (no
   // flicker). Bumped on every pointer move + on stroke start/commit so the live
   // layer clears the in-flight stroke the same frame the committed layer adopts it.
@@ -216,6 +234,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   // stroke, drawing can NEVER pan the canvas (no gesture-arena race, no drift).
   Matrix4 _matrix = Matrix4.identity();
   Matrix4 _invMatrix = Matrix4.identity(); // cached inverse for screen→doc mapping
+  bool _personalZoomInit = false; // initial zoom-out applied once
   // Bumped to rebuild ONLY the Transform subtree on pan/zoom (the painters and
   // note tree are passed as a const `child` and are not rebuilt).
   final ValueNotifier<int> _xform = ValueNotifier<int>(0);
@@ -377,6 +396,26 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   LessonDoc? _noteCacheKey;
   bool _noteCacheDark = false;
   Widget _noteContent(LessonDoc note, bool dark) {
+    // Personal notes: continuous tall canvas — one section per page, page-break
+    // lines between them, all on one scrollable white paper (GoodNotes style).
+    if (widget.isPersonal) {
+      const dot   = Color(0xFFCECED6);
+      final pageH = _viewport.width * 1.41; // A4 ratio per page
+      const gap   = _kPageGap;
+      // Total height = n pages + (n-1) gaps — gaps are real dead space.
+      final h = widget.personalPageCount * (pageH + gap) - gap;
+      return SizedBox(
+        height: h,
+        child: CustomPaint(
+          foregroundPainter: _PersonalPaperPainter(
+            dot: dot,
+            pageH: pageH,
+            pageCount: widget.personalPageCount,
+          ),
+          child: Container(color: Colors.white),
+        ),
+      );
+    }
     if (_noteCache == null ||
         !identical(_noteCacheKey, note) ||
         _noteCacheDark != dark) {
@@ -418,10 +457,37 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _uid = ref.read(authControllerProvider).user?.id ?? 'anon';
     _loadInk();
     _loadTools();
+    _pencilChannel.setMethodCallHandler(_onPencilEvent);
+  }
+
+  @override
+  void didUpdateWidget(LessonCanvasPage old) {
+    super.didUpdateWidget(old);
+    // When pages are added, force a re-measure on the next frame.
+    if (old.personalPageCount != widget.personalPageCount) {
+      _measuredAt = Size.zero;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeMeasure());
+    }
+  }
+
+  Future<void> _onPencilEvent(MethodCall call) async {
+    if (!mounted) return;
+    if (call.method == 'doubleTap') {
+      setState(() {
+        if (_tool == _Tool.eraser) {
+          _tool = _prevTool ?? _Tool.pen;
+          _prevTool = null;
+        } else {
+          _prevTool = _tool;
+          _tool = _Tool.eraser;
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    _pencilChannel.setMethodCallHandler(null);
     _saveTimer?.cancel();
     if (_inkDirty) _saveInk(); // flush any pending ink before leaving
     _tick.dispose();
@@ -575,10 +641,23 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   Offset _toDoc(Offset viewportPt) =>
       MatrixUtils.transformPoint(_invMatrix, viewportPt);
 
+  // Returns true if the pointer is inside a personal-note page-break gap.
+  bool _inPersonalGap(Offset localPos) {
+    if (!widget.isPersonal || _viewport.width <= 0) return false;
+    final docY = _toDoc(localPos).dy;
+    if (docY < 0) return false;
+    final pageH = _viewport.width * 1.41;
+    const gap   = _kPageGap;
+    final rem = docY % (pageH + gap);
+    return rem >= pageH; // true → in the gap band
+  }
+
   // ── Pointer routing — ONE listener, pencil vs finger by kind ────────────────
   void _onPointerDown(PointerDownEvent e) {
     _stopFling(); // any new contact (or the pen) cancels an in-flight glide
     if (e.kind == PointerDeviceKind.stylus) {
+      // Stylus: reject if in a page-break gap — finger pan must still work freely.
+      if (_inPersonalGap(e.localPosition)) return;
       _startStroke(e);
       return;
     }
@@ -707,6 +786,11 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
   void _extendStroke(PointerMoveEvent e) {
     final s = _active;
     if (s == null) return;
+    // Commit and stop the stroke if the pointer crosses into a gap.
+    if (_inPersonalGap(e.localPosition)) {
+      _endStroke(commit: true);
+      return;
+    }
     // 1€-filter the RAW point first (kills slow-speed jitter with ~zero lag at
     // writing speed), THEN decimate the FILTERED output — never the other way, or
     // the filter's speed estimate starves at slow speed.
@@ -739,7 +823,7 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     if (wasEraser || (commit && _strokes.length == 1)) setState(() {});
   }
 
-  // ── Transform math (finger pan + pinch zoom, clamp scale to [1,5]) ───────────
+  // ── Transform math (finger pan + pinch zoom, clamp scale to [minScale,5]) ────
   void _setMatrix(Matrix4 m) {
     _matrix = _clamp(m);
     _invMatrix = Matrix4.inverted(_matrix);
@@ -767,7 +851,9 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
     final startScale = _startMatrix.getMaxScaleOnAxis();
     double factor = (twoFinger && _startDist > 0) ? curDist / _startDist : 1.0;
-    final target = (startScale * factor).clamp(1.0, 5.0);
+    // Personal notes allow zooming out below 1× to see the desk margins.
+    final minScale = widget.isPersonal ? 0.3 : 1.0;
+    final target = (startScale * factor).clamp(minScale, 5.0);
     factor = startScale == 0 ? 1.0 : target / startScale;
 
     var dFocal = focal - _startFocal;
@@ -861,10 +947,41 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     _scheduleSaveInk();
   }
 
+  // Double-tap: zoom to fit width (scale=1 — standard GoodNotes writing view).
+  void _fitToPage() {
+    _setMatrix(Matrix4.diagonal3Values(1, 1, 1));
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.c;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    // Personal notes skip the API entirely — blank canvas only.
+    if (widget.isPersonal) {
+      const desk = Color(0xFF2B2B2F); // dark desk behind the paper
+      return Scaffold(
+        backgroundColor: c.page,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _personalHeader(c),
+              _toolStrip(c),
+              Expanded(
+                child: ColoredBox(
+                  color: desk,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onDoubleTap: _fitToPage,
+                    child: _canvas(c, dark, LessonDoc.empty()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final noteAsync = ref.watch(lessonDocProvider(widget.lessonId));
     // Sync completed state from the server response (only once, before user acts).
     ref.listen(lessonDocProvider(widget.lessonId), (_, next) {
@@ -910,6 +1027,31 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
     );
   }
 
+  // Header for personal notes — always white text on dark chrome.
+  Widget _personalHeader(AppColors c) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: c.inkStrong),
+            ),
+            Expanded(
+              child: Text(
+                widget.personalTitle?.trim().isNotEmpty == true
+                    ? widget.personalTitle!
+                    : 'My Note',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: c.inkStrong),
+              ),
+            ),
+            if (widget.pageNav != null) widget.pageNav!,
+          ],
+        ),
+      );
+
   Widget _header(AppColors c, LessonDoc? note) => Padding(
         padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
         child: Row(
@@ -920,20 +1062,25 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
             ),
             Expanded(
               child: Text(
-                  (note?.title.trim().isNotEmpty ?? false) ? note!.title : 'Lesson',
+                  widget.isPersonal
+                      ? (widget.personalTitle?.trim().isNotEmpty == true ? widget.personalTitle! : 'My Note')
+                      : (note?.title.trim().isNotEmpty ?? false) ? note!.title : 'Lesson',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontSize: 17, fontWeight: FontWeight.w800, color: c.inkStrong)),
             ),
-            if (note != null && !note.locked && widget.lessonId.isNotEmpty)
+            if (widget.isPersonal && widget.pageNav != null) widget.pageNav!,
+            if (!widget.isPersonal && note != null && !note.locked)
+              _VideoButton(videoUrl: note.videoUrl, c: c),
+            if (!widget.isPersonal && note != null && !note.locked && widget.lessonId.isNotEmpty)
               _CompleteButton(
                 completed: _lessonCompleted,
                 busy: _completionBusy,
                 onTap: _markComplete,
                 c: c,
               ),
-            if (note != null && !note.locked && note.noteId > 0)
+            if (!widget.isPersonal && note != null && !note.locked && note.noteId > 0)
               BookmarkButton(itemType: 'ai_note', itemId: note.noteId),
           ],
         ),
@@ -1219,7 +1366,22 @@ class _NoteCanvasPageState extends ConsumerState<LessonCanvasPage>
 
     return LayoutBuilder(builder: (ctx, cons) {
       _viewport = cons.biggest;
-      _maybeMeasure();
+      // For personal notes the height is deterministic — set it directly so
+      // pan bounds are correct the instant a page is added (no frame delay).
+      if (widget.isPersonal && _viewport.width > 0) {
+        final ph = _viewport.width * 1.41;
+        _contentH = widget.personalPageCount * (ph + _kPageGap) - _kPageGap;
+        _measuredAt = _viewport; // suppress the key-based measure
+        // Apply initial zoom-out once so the desk margin is visible around the page.
+        if (!_personalZoomInit) {
+          _personalZoomInit = true;
+          const s = 0.88;
+          _matrix = _clamp(Matrix4.diagonal3Values(s, s, 1));
+          _invMatrix = Matrix4.inverted(_matrix);
+        }
+      } else {
+        _maybeMeasure();
+      }
       // Content size in document space (width is fixed; height is the measured
       // note height, or the viewport until measured). Drives the committed-ink
       // pictures' bounds and is kept fresh for off-build refreshes.
@@ -1591,6 +1753,44 @@ class _LivePainter extends CustomPainter {
   bool shouldRepaint(_LivePainter old) => true;
 }
 
+/// Video pill button — opens WatchVideoModal on tap.
+class _VideoButton extends StatelessWidget {
+  final String videoUrl;
+  final AppColors c;
+  const _VideoButton({required this.videoUrl, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasVideo = videoUrl.isNotEmpty;
+    return Opacity(
+      opacity: hasVideo ? 1.0 : 0.38,
+      child: GestureDetector(
+        onTap: hasVideo ? () => WatchVideoModal.show(context, videoUrl) : null,
+        child: Container(
+          margin: const EdgeInsets.only(right: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border.all(color: c.line),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.play_circle_outline_rounded, size: 14, color: c.primary),
+              const SizedBox(width: 4),
+              Text('Video',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: c.primary)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Compact "Mark Complete" / "Done" pill button for the note header.
 class _CompleteButton extends StatelessWidget {
   final bool completed;
@@ -1819,6 +2019,9 @@ class _NoteContent extends StatelessWidget {
     );
   }
 }
+
+/// Height of the dark desk band between personal-note pages (coordinate space).
+const _kPageGap = 28.0;
 
 /// Section accent palette (web NoteCanvas `PALETTE`) — cycled by section index
 /// so each card gets a distinct colour, exactly like the web note.
@@ -2221,4 +2424,47 @@ class _DotGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DotGridPainter old) => old.dot != dot;
+}
+
+/// Dot grid + page-break bands for personal notes.
+/// Layout: page 0 → gap → page 1 → gap → page 2 …
+/// Gap bands are REAL dead space in the coordinate system (no writable area).
+class _PersonalPaperPainter extends CustomPainter {
+  final Color dot;
+  final double pageH;
+  final int pageCount;
+  const _PersonalPaperPainter({
+    required this.dot,
+    required this.pageH,
+    required this.pageCount,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const gap  = _kPageGap;
+    final step = pageH + gap;
+    final bp   = Paint()..color = const Color(0xFF2B2B2F);
+    final dp   = Paint()..color = dot;
+
+    // Draw gap bands between pages (band top = i * (pageH + gap) + pageH).
+    for (var i = 1; i < pageCount; i++) {
+      final top = i * step - gap; // = i*pageH + (i-1)*gap
+      if (top >= size.height) break;
+      canvas.drawRect(Rect.fromLTWH(0, top, size.width, gap), bp);
+    }
+
+    // Dot grid — skip any y that falls inside a gap band.
+    const dotStep = 18.0;
+    for (var y = 10.0; y < size.height; y += dotStep) {
+      final rem = y % step;
+      if (rem >= pageH) continue; // inside a gap
+      for (var x = 10.0; x < size.width; x += dotStep) {
+        canvas.drawCircle(Offset(x, y), 1.1, dp);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PersonalPaperPainter old) =>
+      old.dot != dot || old.pageH != pageH || old.pageCount != pageCount;
 }

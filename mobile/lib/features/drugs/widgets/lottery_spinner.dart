@@ -20,6 +20,7 @@ class _LotterySpinnerState extends State<LotterySpinner> with SingleTickerProvid
 
   late final FixedExtentScrollController _ctrl;
   late final AnimationController _anim;
+  late final CurvedAnimation _curved;
   late final List<String> _items;
 
   @override
@@ -28,21 +29,17 @@ class _LotterySpinnerState extends State<LotterySpinner> with SingleTickerProvid
     _items = [..._dummies, ..._dummies, widget.drugName];
     _ctrl = FixedExtentScrollController();
     _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 2500));
+    _curved = CurvedAnimation(parent: _anim, curve: Curves.easeOutQuart);
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _startSpin());
   }
 
   void _startSpin() {
     final target = (_items.length - 1).toDouble();
-    final curved = CurvedAnimation(parent: _anim, curve: Curves.easeOutQuart);
-
-    curved.addListener(() {
-      final idx = (curved.value * target).round().clamp(0, _items.length - 1);
-      if (_ctrl.hasClients) {
-        _ctrl.jumpToItem(idx);
-      }
+    _curved.addListener(() {
+      final idx = (_curved.value * target).round().clamp(0, _items.length - 1);
+      if (_ctrl.hasClients) _ctrl.jumpToItem(idx);
     });
-
     _anim.forward().then((_) {
       if (mounted) widget.onDone();
     });
@@ -50,6 +47,7 @@ class _LotterySpinnerState extends State<LotterySpinner> with SingleTickerProvid
 
   @override
   void dispose() {
+    _curved.dispose();
     _anim.dispose();
     _ctrl.dispose();
     super.dispose();

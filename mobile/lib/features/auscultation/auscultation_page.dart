@@ -21,17 +21,13 @@ class _AuscultationPageState extends ConsumerState<AuscultationPage> {
     final c = context.c;
     final topicsAsync = ref.watch(auscTopicsProvider(_category));
     final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
-    final hPad = isLandscape ? 24.0 : 16.0;
     final accent = _category == 'lung' ? const Color(0xFF2F9E8F) : const Color(0xFFE0567B);
 
     return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: RefreshIndicator(
+      child: RefreshIndicator(
             onRefresh: () async => ref.refresh(auscTopicsProvider(_category).future),
             child: ListView(
-              padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
               children: [
                 if (!isLandscape) ...[
                   Text('STUDY TOOL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.4, color: c.accent)),
@@ -105,9 +101,7 @@ class _AuscultationPageState extends ConsumerState<AuscultationPage> {
               ],
             ),
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Widget _errorBox(AppColors c, VoidCallback onRetry) => Padding(

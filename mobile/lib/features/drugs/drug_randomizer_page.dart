@@ -9,7 +9,6 @@ import 'drug_randomizer_repository.dart';
 import 'widgets/lottery_spinner.dart';
 import 'widgets/drug_mcq_card.dart';
 import 'widgets/drug_info_card.dart';
-import 'widgets/upgrade_prompt.dart';
 
 enum _Phase { idle, spinning, mcq, card }
 
@@ -40,17 +39,7 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
     final item = await svc.pop();
     if (!mounted) return;
 
-    if (item == null) {
-      // limit_reached — hasSub + count already corrected in service
-      final st = ref.read(drugQueueProvider);
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => UpgradePrompt(freeLimit: st.freeLimit),
-      );
-      return;
-    }
+    if (item == null) { _showLimitSheet(); return; }
 
     setState(() {
       _current    = item;
@@ -58,6 +47,62 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
       _error      = null;
       _mcqCorrect = null;
     });
+  }
+
+  void _showLimitSheet() {
+    final c = context.c;
+    final limit = ref.read(drugQueueProvider).freeLimit;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: c.surface1,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+            28, 28, 28, 28 + MediaQuery.of(context).padding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                  color: c.line, borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 22),
+            Icon(Icons.medication_outlined, size: 38, color: c.inkMuted),
+            const SizedBox(height: 14),
+            Text(
+              "You've used your free spins",
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700,
+                  color: c.inkStrong, letterSpacing: -0.3),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You\'ve used all $limit spins available on your free account.',
+              style: TextStyle(fontSize: 14, color: c.inkSoft, height: 1.55),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Got it',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _onSpinDone()           { if (mounted) setState(() => _phase = _Phase.mcq); }
@@ -71,11 +116,10 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
     final c         = context.c;
     final st        = ref.watch(drugQueueProvider);
     final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
-    final hPad      = isLandscape ? 24.0 : 16.0;
 
     return SafeArea(
       child: ListView(
-        padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
         children: [
           // Header — compact in landscape
           if (!isLandscape) ...[
@@ -117,9 +161,13 @@ class _DrugRandomizerPageState extends ConsumerState<DrugRandomizerPage> {
   Widget _buildPhase(AppColors c, DrugQueueState st, bool isLandscape) {
     switch (_phase) {
       case _Phase.idle:
+        final limitReached = !st.hasSub && st.useCount >= st.freeLimit;
         return _IdleCard(
-          ready: st.ready, error: _error, onSpin: _spin,
-          c: c, landscape: isLandscape,
+          ready: limitReached ? true : st.ready,
+          error: _error,
+          onSpin: limitReached ? _showLimitSheet : _spin,
+          c: c,
+          landscape: isLandscape,
         );
 
       case _Phase.spinning:

@@ -43,7 +43,7 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
     super.initState();
     _type = AnimationController(
       vsync: this,
-      duration: Motion.of(context, Duration(milliseconds: _line1.length * 150)),
+      duration: Duration(milliseconds: _line1.length * 150),
     );
     _chars = StepTween(begin: 0, end: _line1.length).animate(
       CurvedAnimation(parent: _type, curve: Curves.linear),
@@ -54,7 +54,7 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
     )..repeat(reverse: true);
     _word = AnimationController(
       vsync: this,
-      duration: Motion.of(context, const Duration(milliseconds: 1500)),
+      duration: const Duration(milliseconds: 1500),
     );
 
     _type.addStatusListener((s) {
@@ -69,6 +69,13 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
       if (s == AnimationStatus.completed) _cycleMotivations();
     });
     _type.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _type.duration = Motion.of(context, Duration(milliseconds: _line1.length * 150));
+    _word.duration = Motion.of(context, const Duration(milliseconds: 1500));
   }
 
   /// "Welcome to xyndrome" stays; cycle each motivation below it.

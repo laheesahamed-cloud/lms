@@ -17,42 +17,42 @@ class StudyHubPage extends ConsumerWidget {
       title: 'Lessons',
       subtitle: 'Browse by course, subject, then lesson',
       route: '/app/lessons',
-      drillIn: false,
     ),
     _ToolEntry(
       icon: Icons.style_outlined,
       title: 'Flashcards',
       subtitle: 'Spaced repetition for high-yield recall',
       route: '/app/flashcards',
-      drillIn: false,
     ),
     _ToolEntry(
       icon: Icons.monitor_heart_outlined,
       title: 'ECG',
       subtitle: 'Read ECGs topic by topic, then quiz yourself',
       route: '/app/ecg',
-      drillIn: true,
     ),
     _ToolEntry(
       icon: Icons.headphones_rounded,
       title: 'Auscultation',
       subtitle: 'Heart & lung sounds, then quiz yourself',
       route: '/app/auscultation',
-      drillIn: true,
     ),
     _ToolEntry(
       icon: Icons.event_note_outlined,
       title: 'Planner',
       subtitle: 'Map your rotations and exam countdown',
       route: '/app/planner',
-      drillIn: true,
     ),
     _ToolEntry(
       icon: Icons.bookmark_border_rounded,
       title: 'Saved',
       subtitle: 'Your bookmarked quizzes, notes and questions',
       route: '/app/bookmarks',
-      drillIn: true,
+    ),
+    _ToolEntry(
+      icon: Icons.edit_note_rounded,
+      title: 'My Notes',
+      subtitle: 'Your own canvas notebooks — write anything',
+      route: '/app/my-notes',
     ),
   ];
 
@@ -101,9 +101,7 @@ class StudyHubPage extends ConsumerWidget {
                   for (final tool in _tools) ...[
                     _ToolTile(
                       entry: tool,
-                      onTap: () => tool.drillIn
-                          ? context.push(tool.route)
-                          : context.go(tool.route),
+                      onTap: () => context.go(tool.route),
                     ),
                     const SizedBox(height: AppSpace.x3),
                   ],
@@ -132,7 +130,7 @@ class _DrugRandomizerTile extends StatelessWidget {
     final progress   = hasSub ? 1.0 : (spinsUsed / freeLimit).clamp(0.0, 1.0);
 
     return GlassCard(
-      onTap: () => context.push('/app/drugs'),
+      onTap: () => context.go('/app/drugs'),
       padding: const EdgeInsets.all(AppSpace.x4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,14 +274,12 @@ class _ToolEntry {
   final String title;
   final String subtitle;
   final String route;
-  final bool drillIn;
 
   const _ToolEntry({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.route,
-    required this.drillIn,
   });
 }
 

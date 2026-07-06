@@ -21,7 +21,8 @@ import 'submit_transition_overlay.dart';
 class TakeQuizPage extends ConsumerStatefulWidget {
   final String quizId;
   final bool examMode;
-  const TakeQuizPage({super.key, required this.quizId, this.examMode = false});
+  final String? questionId; // when set, show only this single question
+  const TakeQuizPage({super.key, required this.quizId, this.examMode = false, this.questionId});
 
   @override
   ConsumerState<TakeQuizPage> createState() => _TakeQuizPageState();
@@ -64,6 +65,10 @@ class _TakeQuizPageState extends ConsumerState<TakeQuizPage> {
         recap: q.recap,
       );
     }).toList();
+    // Single-question mode: filter down to the bookmarked question only.
+    if (widget.questionId != null) {
+      _shuffled = _shuffled!.where((q) => q.id.toString() == widget.questionId).toList();
+    }
     return _shuffled!;
   }
   bool _started = false; // gated behind the start-confirm popup

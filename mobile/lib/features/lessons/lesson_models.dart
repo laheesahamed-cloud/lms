@@ -31,6 +31,7 @@ class LessonDoc {
   final String lessonProgressStatus; // 'not_started' | 'in_progress' | 'completed'
 
   final String pdfUrl;
+  final String videoUrl;
 
   LessonDoc({
     required this.title,
@@ -46,6 +47,7 @@ class LessonDoc {
     this.lessonCompleted = false,
     this.lessonProgressStatus = 'not_started',
     this.pdfUrl = '',
+    this.videoUrl = '',
   });
 
   /// No note generated for an accessible lesson.
@@ -58,6 +60,7 @@ class LessonDoc {
         keyPoints: const [],
         summaryBox: '',
         pdfUrl: '',
+        videoUrl: '',
       );
 
   factory LessonDoc.fromApi(dynamic raw) {
@@ -96,8 +99,8 @@ class LessonDoc {
         ? note['lockReason']
         : note['upgradeLabel']);
 
-    // PDF-only lesson: backend returns { lessonType: 'pdf', pdfUrl: '...' }
-    final pdfUrl = _str(note['pdfUrl'] ?? note['pdf_url'] ?? note['lessonPdfUrl'] ?? '');
+    final pdfUrl   = _str(note['pdfUrl']   ?? note['pdf_url']   ?? note['lessonPdfUrl']   ?? '');
+    final videoUrl = _str(note['videoUrl'] ?? note['video_url'] ?? note['lessonVideoUrl'] ?? '');
 
     return LessonDoc(
       title: _str(first['title'] ?? note['lessonTitle'] ?? note['title'] ?? 'Note'),
@@ -115,6 +118,7 @@ class LessonDoc {
       lessonCompleted: note['lessonCompleted'] == true || note['lesson_progress_status'] == 'completed',
       lessonProgressStatus: _str(note['lessonProgressStatus'] ?? note['lesson_progress_status'] ?? 'not_started'),
       pdfUrl: pdfUrl,
+      videoUrl: videoUrl,
     );
   }
 
