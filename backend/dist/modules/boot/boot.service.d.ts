@@ -13,64 +13,7 @@ export declare class BootService {
     private readonly lessonsService;
     constructor(authService: AuthService, dashboardService: DashboardService, workspaceService: WorkspaceService, quizAttemptsService: QuizAttemptsService, studyBookmarksService: StudyBookmarksService, lessonsService: LessonsService);
     getStudentBoot(authorization: string | undefined, engineKey?: string): Promise<{
-        dashboard: ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
-        } | {
-            id: string;
-            kind: string;
-            title: string;
-            body: string;
-            read: boolean;
-            createdAt: any;
-            actionPath: string;
-        })[] | {
-            generatedAt: string;
-            items: {
-                id: string;
-                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
-                sourceId: number | null;
-                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-                title: string;
-                course: string;
-                subject: string;
-                topic: string;
-                lesson: string;
-                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
-                dueAt: string | null;
-                completedAt: unknown;
-                progress: number | null;
-                actionUrl: string;
-                actionLabel: string;
-                locked: boolean;
-                accessMessage: string;
-                priority: number;
-                meta?: Record<string, unknown>;
-            }[];
-            filters: {
-                courses: string[];
-                subjects: string[];
-                topics: string[];
-                lessons: string[];
-            };
-            summary: {
-                today: number;
-                overdue: number;
-                upcoming: number;
-                completed: number;
-                total: number;
-            };
-        } | {
+        dashboard: {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
@@ -96,7 +39,7 @@ export declare class BootService {
             topicName: string | null;
             subtopicName: string | null;
             lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "completed" | "not_started";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -239,6 +182,63 @@ export declare class BootService {
             }[];
             progressTone: string;
             progressNote: string;
+        } | ({
+            kind: string;
+            read: boolean;
+            actionPath: string;
+            id: number;
+            title: string;
+            body: string;
+            targetRole: string;
+            status: string;
+            publishAt: any;
+            createdByName: string;
+            createdAt: any;
+            updatedAt: any;
+        } | {
+            id: string;
+            kind: string;
+            title: string;
+            body: string;
+            read: boolean;
+            createdAt: any;
+            actionPath: string;
+        })[] | {
+            generatedAt: string;
+            items: {
+                id: string;
+                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
+                sourceId: number | null;
+                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
+                title: string;
+                course: string;
+                subject: string;
+                topic: string;
+                lesson: string;
+                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
+                dueAt: string | null;
+                completedAt: unknown;
+                progress: number | null;
+                actionUrl: string;
+                actionLabel: string;
+                locked: boolean;
+                accessMessage: string;
+                priority: number;
+                meta?: Record<string, unknown>;
+            }[];
+            filters: {
+                courses: string[];
+                subjects: string[];
+                topics: string[];
+                lessons: string[];
+            };
+            summary: {
+                today: number;
+                overdue: number;
+                upcoming: number;
+                completed: number;
+                total: number;
+            };
         } | {
             id: number;
             courseId: number;
@@ -289,64 +289,7 @@ export declare class BootService {
             topicName: string;
             createdAt: string | null;
         }[] | null;
-        notifications: ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
-        } | {
-            id: string;
-            kind: string;
-            title: string;
-            body: string;
-            read: boolean;
-            createdAt: any;
-            actionPath: string;
-        })[] | {
-            generatedAt: string;
-            items: {
-                id: string;
-                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
-                sourceId: number | null;
-                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-                title: string;
-                course: string;
-                subject: string;
-                topic: string;
-                lesson: string;
-                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
-                dueAt: string | null;
-                completedAt: unknown;
-                progress: number | null;
-                actionUrl: string;
-                actionLabel: string;
-                locked: boolean;
-                accessMessage: string;
-                priority: number;
-                meta?: Record<string, unknown>;
-            }[];
-            filters: {
-                courses: string[];
-                subjects: string[];
-                topics: string[];
-                lessons: string[];
-            };
-            summary: {
-                today: number;
-                overdue: number;
-                upcoming: number;
-                completed: number;
-                total: number;
-            };
-        } | {
+        notifications: {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
@@ -372,7 +315,7 @@ export declare class BootService {
             topicName: string | null;
             subtopicName: string | null;
             lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "completed" | "not_started";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -515,6 +458,63 @@ export declare class BootService {
             }[];
             progressTone: string;
             progressNote: string;
+        } | ({
+            kind: string;
+            read: boolean;
+            actionPath: string;
+            id: number;
+            title: string;
+            body: string;
+            targetRole: string;
+            status: string;
+            publishAt: any;
+            createdByName: string;
+            createdAt: any;
+            updatedAt: any;
+        } | {
+            id: string;
+            kind: string;
+            title: string;
+            body: string;
+            read: boolean;
+            createdAt: any;
+            actionPath: string;
+        })[] | {
+            generatedAt: string;
+            items: {
+                id: string;
+                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
+                sourceId: number | null;
+                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
+                title: string;
+                course: string;
+                subject: string;
+                topic: string;
+                lesson: string;
+                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
+                dueAt: string | null;
+                completedAt: unknown;
+                progress: number | null;
+                actionUrl: string;
+                actionLabel: string;
+                locked: boolean;
+                accessMessage: string;
+                priority: number;
+                meta?: Record<string, unknown>;
+            }[];
+            filters: {
+                courses: string[];
+                subjects: string[];
+                topics: string[];
+                lessons: string[];
+            };
+            summary: {
+                today: number;
+                overdue: number;
+                upcoming: number;
+                completed: number;
+                total: number;
+            };
         } | {
             id: number;
             courseId: number;
@@ -565,64 +565,7 @@ export declare class BootService {
             topicName: string;
             createdAt: string | null;
         }[] | null;
-        agenda: ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
-        } | {
-            id: string;
-            kind: string;
-            title: string;
-            body: string;
-            read: boolean;
-            createdAt: any;
-            actionPath: string;
-        })[] | {
-            generatedAt: string;
-            items: {
-                id: string;
-                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
-                sourceId: number | null;
-                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-                title: string;
-                course: string;
-                subject: string;
-                topic: string;
-                lesson: string;
-                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
-                dueAt: string | null;
-                completedAt: unknown;
-                progress: number | null;
-                actionUrl: string;
-                actionLabel: string;
-                locked: boolean;
-                accessMessage: string;
-                priority: number;
-                meta?: Record<string, unknown>;
-            }[];
-            filters: {
-                courses: string[];
-                subjects: string[];
-                topics: string[];
-                lessons: string[];
-            };
-            summary: {
-                today: number;
-                overdue: number;
-                upcoming: number;
-                completed: number;
-                total: number;
-            };
-        } | {
+        agenda: {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
@@ -648,7 +591,7 @@ export declare class BootService {
             topicName: string | null;
             subtopicName: string | null;
             lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "completed" | "not_started";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -791,6 +734,63 @@ export declare class BootService {
             }[];
             progressTone: string;
             progressNote: string;
+        } | ({
+            kind: string;
+            read: boolean;
+            actionPath: string;
+            id: number;
+            title: string;
+            body: string;
+            targetRole: string;
+            status: string;
+            publishAt: any;
+            createdByName: string;
+            createdAt: any;
+            updatedAt: any;
+        } | {
+            id: string;
+            kind: string;
+            title: string;
+            body: string;
+            read: boolean;
+            createdAt: any;
+            actionPath: string;
+        })[] | {
+            generatedAt: string;
+            items: {
+                id: string;
+                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
+                sourceId: number | null;
+                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
+                title: string;
+                course: string;
+                subject: string;
+                topic: string;
+                lesson: string;
+                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
+                dueAt: string | null;
+                completedAt: unknown;
+                progress: number | null;
+                actionUrl: string;
+                actionLabel: string;
+                locked: boolean;
+                accessMessage: string;
+                priority: number;
+                meta?: Record<string, unknown>;
+            }[];
+            filters: {
+                courses: string[];
+                subjects: string[];
+                topics: string[];
+                lessons: string[];
+            };
+            summary: {
+                today: number;
+                overdue: number;
+                upcoming: number;
+                completed: number;
+                total: number;
+            };
         } | {
             id: number;
             courseId: number;
@@ -841,64 +841,7 @@ export declare class BootService {
             topicName: string;
             createdAt: string | null;
         }[] | null;
-        quizzes: ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
-        } | {
-            id: string;
-            kind: string;
-            title: string;
-            body: string;
-            read: boolean;
-            createdAt: any;
-            actionPath: string;
-        })[] | {
-            generatedAt: string;
-            items: {
-                id: string;
-                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
-                sourceId: number | null;
-                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-                title: string;
-                course: string;
-                subject: string;
-                topic: string;
-                lesson: string;
-                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
-                dueAt: string | null;
-                completedAt: unknown;
-                progress: number | null;
-                actionUrl: string;
-                actionLabel: string;
-                locked: boolean;
-                accessMessage: string;
-                priority: number;
-                meta?: Record<string, unknown>;
-            }[];
-            filters: {
-                courses: string[];
-                subjects: string[];
-                topics: string[];
-                lessons: string[];
-            };
-            summary: {
-                today: number;
-                overdue: number;
-                upcoming: number;
-                completed: number;
-                total: number;
-            };
-        } | {
+        quizzes: {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
@@ -924,7 +867,7 @@ export declare class BootService {
             topicName: string | null;
             subtopicName: string | null;
             lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "completed" | "not_started";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -1067,6 +1010,63 @@ export declare class BootService {
             }[];
             progressTone: string;
             progressNote: string;
+        } | ({
+            kind: string;
+            read: boolean;
+            actionPath: string;
+            id: number;
+            title: string;
+            body: string;
+            targetRole: string;
+            status: string;
+            publishAt: any;
+            createdByName: string;
+            createdAt: any;
+            updatedAt: any;
+        } | {
+            id: string;
+            kind: string;
+            title: string;
+            body: string;
+            read: boolean;
+            createdAt: any;
+            actionPath: string;
+        })[] | {
+            generatedAt: string;
+            items: {
+                id: string;
+                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
+                sourceId: number | null;
+                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
+                title: string;
+                course: string;
+                subject: string;
+                topic: string;
+                lesson: string;
+                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
+                dueAt: string | null;
+                completedAt: unknown;
+                progress: number | null;
+                actionUrl: string;
+                actionLabel: string;
+                locked: boolean;
+                accessMessage: string;
+                priority: number;
+                meta?: Record<string, unknown>;
+            }[];
+            filters: {
+                courses: string[];
+                subjects: string[];
+                topics: string[];
+                lessons: string[];
+            };
+            summary: {
+                today: number;
+                overdue: number;
+                upcoming: number;
+                completed: number;
+                total: number;
+            };
         } | {
             id: number;
             courseId: number;
@@ -1117,64 +1117,7 @@ export declare class BootService {
             topicName: string;
             createdAt: string | null;
         }[] | null;
-        bookmarks: ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
-        } | {
-            id: string;
-            kind: string;
-            title: string;
-            body: string;
-            read: boolean;
-            createdAt: any;
-            actionPath: string;
-        })[] | {
-            generatedAt: string;
-            items: {
-                id: string;
-                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
-                sourceId: number | null;
-                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-                title: string;
-                course: string;
-                subject: string;
-                topic: string;
-                lesson: string;
-                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
-                dueAt: string | null;
-                completedAt: unknown;
-                progress: number | null;
-                actionUrl: string;
-                actionLabel: string;
-                locked: boolean;
-                accessMessage: string;
-                priority: number;
-                meta?: Record<string, unknown>;
-            }[];
-            filters: {
-                courses: string[];
-                subjects: string[];
-                topics: string[];
-                lessons: string[];
-            };
-            summary: {
-                today: number;
-                overdue: number;
-                upcoming: number;
-                completed: number;
-                total: number;
-            };
-        } | {
+        bookmarks: {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
@@ -1200,7 +1143,7 @@ export declare class BootService {
             topicName: string | null;
             subtopicName: string | null;
             lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "completed" | "not_started";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -1343,6 +1286,63 @@ export declare class BootService {
             }[];
             progressTone: string;
             progressNote: string;
+        } | ({
+            kind: string;
+            read: boolean;
+            actionPath: string;
+            id: number;
+            title: string;
+            body: string;
+            targetRole: string;
+            status: string;
+            publishAt: any;
+            createdByName: string;
+            createdAt: any;
+            updatedAt: any;
+        } | {
+            id: string;
+            kind: string;
+            title: string;
+            body: string;
+            read: boolean;
+            createdAt: any;
+            actionPath: string;
+        })[] | {
+            generatedAt: string;
+            items: {
+                id: string;
+                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
+                sourceId: number | null;
+                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
+                title: string;
+                course: string;
+                subject: string;
+                topic: string;
+                lesson: string;
+                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
+                dueAt: string | null;
+                completedAt: unknown;
+                progress: number | null;
+                actionUrl: string;
+                actionLabel: string;
+                locked: boolean;
+                accessMessage: string;
+                priority: number;
+                meta?: Record<string, unknown>;
+            }[];
+            filters: {
+                courses: string[];
+                subjects: string[];
+                topics: string[];
+                lessons: string[];
+            };
+            summary: {
+                today: number;
+                overdue: number;
+                upcoming: number;
+                completed: number;
+                total: number;
+            };
         } | {
             id: number;
             courseId: number;
@@ -1393,64 +1393,7 @@ export declare class BootService {
             topicName: string;
             createdAt: string | null;
         }[] | null;
-        aiNotes: ({
-            kind: string;
-            read: boolean;
-            actionPath: string;
-            id: number;
-            title: string;
-            body: string;
-            targetRole: string;
-            status: string;
-            publishAt: any;
-            createdByName: string;
-            createdAt: any;
-            updatedAt: any;
-        } | {
-            id: string;
-            kind: string;
-            title: string;
-            body: string;
-            read: boolean;
-            createdAt: any;
-            actionPath: string;
-        })[] | {
-            generatedAt: string;
-            items: {
-                id: string;
-                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
-                sourceId: number | null;
-                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
-                title: string;
-                course: string;
-                subject: string;
-                topic: string;
-                lesson: string;
-                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
-                dueAt: string | null;
-                completedAt: unknown;
-                progress: number | null;
-                actionUrl: string;
-                actionLabel: string;
-                locked: boolean;
-                accessMessage: string;
-                priority: number;
-                meta?: Record<string, unknown>;
-            }[];
-            filters: {
-                courses: string[];
-                subjects: string[];
-                topics: string[];
-                lessons: string[];
-            };
-            summary: {
-                today: number;
-                overdue: number;
-                upcoming: number;
-                completed: number;
-                total: number;
-            };
-        } | {
+        aiNotes: {
             cardCount: number;
             canAccess: boolean;
             accessLocked: boolean;
@@ -1476,7 +1419,7 @@ export declare class BootService {
             topicName: string | null;
             subtopicName: string | null;
             lessonPdfUrl: string;
-            lessonProgressStatus: "in_progress" | "completed" | "not_started";
+            lessonProgressStatus: "not_started" | "in_progress" | "completed";
             lessonProgressPercent: number;
             lessonCompletedAt: string | null;
             lessonCompleted: boolean;
@@ -1619,6 +1562,63 @@ export declare class BootService {
             }[];
             progressTone: string;
             progressNote: string;
+        } | ({
+            kind: string;
+            read: boolean;
+            actionPath: string;
+            id: number;
+            title: string;
+            body: string;
+            targetRole: string;
+            status: string;
+            publishAt: any;
+            createdByName: string;
+            createdAt: any;
+            updatedAt: any;
+        } | {
+            id: string;
+            kind: string;
+            title: string;
+            body: string;
+            read: boolean;
+            createdAt: any;
+            actionPath: string;
+        })[] | {
+            generatedAt: string;
+            items: {
+                id: string;
+                source: "planner_task" | "lesson_progress" | "quiz" | "review_signal";
+                sourceId: number | null;
+                type: "task" | "lesson" | "quiz" | "exam" | "review" | "flashcards";
+                title: string;
+                course: string;
+                subject: string;
+                topic: string;
+                lesson: string;
+                status: "due_today" | "overdue" | "upcoming" | "in_progress" | "completed" | "locked" | "optional";
+                dueAt: string | null;
+                completedAt: unknown;
+                progress: number | null;
+                actionUrl: string;
+                actionLabel: string;
+                locked: boolean;
+                accessMessage: string;
+                priority: number;
+                meta?: Record<string, unknown>;
+            }[];
+            filters: {
+                courses: string[];
+                subjects: string[];
+                topics: string[];
+                lessons: string[];
+            };
+            summary: {
+                today: number;
+                overdue: number;
+                upcoming: number;
+                completed: number;
+                total: number;
+            };
         } | {
             id: number;
             courseId: number;

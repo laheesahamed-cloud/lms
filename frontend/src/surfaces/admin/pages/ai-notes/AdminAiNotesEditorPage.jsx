@@ -343,11 +343,11 @@ export function AdminAiNotesEditorPage({
     saveTimer.current = setTimeout(async () => {
       try {
         await adminUpdateAiNote(Number(id), patch, undefined, { engine: engineKey });
-        if (linkedLessonId && selCourse && selTopic && selSubtopic) {
+        if (linkedLessonId && selCourse && selTopic) {
           await updateLesson(linkedLessonId, {
             courseId: Number(selCourse),
             topicId: Number(selTopic),
-            subtopicId: Number(selSubtopic),
+            subtopicId: selSubtopic ? Number(selSubtopic) : null,
             lessonTitle: (patch.title ?? title).trim() || 'Untitled Lesson',
             lessonContent: typeof patch.rawText === 'string' ? patch.rawText : rawText,
             videoUrl: cleanVideoUrl(typeof patch.videoUrl === 'string' ? patch.videoUrl : videoUrl),
@@ -380,12 +380,12 @@ export function AdminAiNotesEditorPage({
     nextTopic = selTopic,
     nextSubtopic = selSubtopic,
   } = {}) {
-    if (!nextCourse || !nextTopic || !nextSubtopic) return linkedLessonId;
+    if (!nextCourse || !nextTopic) return linkedLessonId;
 
     const payload = {
       courseId: Number(nextCourse),
       topicId: Number(nextTopic),
-      subtopicId: Number(nextSubtopic),
+      subtopicId: nextSubtopic ? Number(nextSubtopic) : null,
       lessonTitle: nextTitle.trim() || 'Untitled Lesson',
       lessonContent: nextRawText,
       videoUrl: cleanVideoUrl(videoUrl),
@@ -410,7 +410,7 @@ export function AdminAiNotesEditorPage({
     setMetaSaving(true);
     try {
       let lessonId = linkedLessonId;
-      if (selCourse && selTopic && selSubtopic) {
+      if (selCourse && selTopic) {
         lessonId = await ensureLinkedLesson();
       } else if (selCourse && linkedLessonId) {
         lessonId = linkedLessonId;
@@ -455,7 +455,7 @@ export function AdminAiNotesEditorPage({
       if (nd.pages[0]?.title && (title === 'Untitled Lesson' || title === 'Untitled Canvas' || !title)) setTitle(firstTitle);
       setProcessMsg('Saving generated lesson…');
       let lessonId = linkedLessonId;
-      if (selCourse && selTopic && selSubtopic) {
+      if (selCourse && selTopic) {
         lessonId = await ensureLinkedLesson({ nextTitle: firstTitle, nextRawText: rawText });
       }
       await adminUpdateAiNote(Number(id), { title: firstTitle, rawText, noteData: cleanData, lessonId: lessonId ?? null, videoUrl: cleanVideoUrl(videoUrl) }, { timeout: 60000 }, { engine: engineKey });
@@ -483,7 +483,7 @@ export function AdminAiNotesEditorPage({
       }
 
       let lessonId = linkedLessonId;
-      if (selCourse && selTopic && selSubtopic) {
+      if (selCourse && selTopic) {
         lessonId = await ensureLinkedLesson();
       }
       await adminUpdateAiNote(Number(id), { title, noteData: cleanData, lessonId: lessonId ?? null, videoUrl: cleanVideoUrl(videoUrl) }, { timeout: 60000 }, { engine: engineKey });
@@ -503,7 +503,7 @@ export function AdminAiNotesEditorPage({
     setSaveStatus('');
     try {
       let lessonId = linkedLessonId;
-      if (selCourse && selTopic && selSubtopic) {
+      if (selCourse && selTopic) {
         lessonId = await ensureLinkedLesson();
       }
 
@@ -706,7 +706,7 @@ export function AdminAiNotesEditorPage({
     setFlashcardMessage(`Creating Q&A drafts with ${generatorLabel}...`);
     try {
       let lessonId = linkedLessonId;
-      if (selCourse && selTopic && selSubtopic) {
+      if (selCourse && selTopic) {
         lessonId = await ensureLinkedLesson();
       }
       const cleanData = noteData ? cleanNoteDataForSave(noteData) : null;

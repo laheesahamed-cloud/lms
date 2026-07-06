@@ -7,8 +7,10 @@ export class CreateLessonDto {
   @IsInt()
   topicId!: number;
 
+  // Optional — a lesson can live directly under a subject (course + subject is enough).
+  @IsOptional()
   @IsInt()
-  subtopicId!: number;
+  subtopicId?: number;
 
   @IsString()
   lessonTitle!: string;

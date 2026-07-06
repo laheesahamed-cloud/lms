@@ -210,7 +210,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -242,7 +242,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -266,9 +266,9 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "approved" | "rejected" | "draft";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -283,9 +283,9 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "approved" | "rejected" | "draft";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -296,7 +296,7 @@ export declare class LessonsController {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "openai" | "gemini" | "claude" | "openrouter";
+            key: "gemini" | "openai" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -310,9 +310,9 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "approved" | "rejected" | "draft";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
-            generatedBy: "manual" | "ai";
+            generatedBy: "ai" | "manual";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;
@@ -328,9 +328,9 @@ export declare class LessonsController {
         imageUrl: string;
         imageUrls: string[];
         imageFit: "contain" | "cover";
-        status: "approved" | "rejected" | "draft";
+        status: "draft" | "approved" | "rejected";
         sortOrder: number;
-        generatedBy: "manual" | "ai";
+        generatedBy: "ai" | "manual";
         reviewedBy: number | null;
         createdAt: string;
         updatedAt: string;
@@ -365,7 +365,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -399,7 +399,7 @@ export declare class LessonsController {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -425,9 +425,9 @@ export declare class LessonsController {
             imageUrl: string;
             imageUrls: string[];
             imageFit: "contain" | "cover";
-            status: "approved" | "rejected" | "draft";
+            status: "draft" | "approved" | "rejected";
             sortOrder: number;
-            generatedBy: "manual" | "ai";
+            generatedBy: "ai" | "manual";
             reviewedBy: number | null;
             createdAt: string;
             updatedAt: string;

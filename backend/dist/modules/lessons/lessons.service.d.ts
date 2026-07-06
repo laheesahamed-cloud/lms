@@ -287,7 +287,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -316,7 +316,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -418,7 +418,7 @@ export declare class LessonsService {
         ok: boolean;
         createdCount: number;
         provider: {
-            key: "openai" | "gemini" | "claude" | "openrouter";
+            key: "gemini" | "openai" | "claude" | "openrouter";
             label: string;
             model: string;
         };
@@ -467,7 +467,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;
@@ -501,7 +501,7 @@ export declare class LessonsService {
         topicName: string | null;
         subtopicName: string | null;
         lessonPdfUrl: string;
-        lessonProgressStatus: "in_progress" | "completed" | "not_started";
+        lessonProgressStatus: "not_started" | "in_progress" | "completed";
         lessonProgressPercent: number;
         lessonCompletedAt: string | null;
         lessonCompleted: boolean;

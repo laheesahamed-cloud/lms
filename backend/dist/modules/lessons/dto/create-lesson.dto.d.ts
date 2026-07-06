@@ -1,7 +1,7 @@
 export declare class CreateLessonDto {
     courseId: number;
     topicId: number;
-    subtopicId: number;
+    subtopicId?: number;
     lessonTitle: string;
     lessonContent?: string;
     videoUrl?: string;
