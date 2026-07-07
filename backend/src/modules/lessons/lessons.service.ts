@@ -931,7 +931,7 @@ export class LessonsService {
 
   private canReviewContent(actor?: ContentActorInput) {
     if (!actor || typeof actor === 'number') return true;
-    return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review'));
+    return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review')) || Boolean(actor.permissions?.includes('content.manage'));
   }
 
   private assertCanSaveStatus(actor: ContentActorInput, status: 'active' | 'inactive') {
@@ -1336,11 +1336,11 @@ export class LessonsService {
     if (patch.title      !== undefined) { fields.push('lesson_title = ?'); values.push(patch.title); }
     if (patch.rawText    !== undefined) { fields.push('raw_text = ?');     values.push(patch.rawText); }
     if (patch.status     !== undefined) { fields.push('status = ?');       values.push(patch.status === 'active' ? 'active' : 'inactive'); }
-    if ('courseId'   in patch)          { fields.push('course_id = ?');    values.push(patch.courseId   ?? null); }
-    if ('topicId'    in patch)          { fields.push('topic_id = ?');     values.push(patch.topicId    ?? null); }
-    if ('subtopicId' in patch)          { fields.push('subtopic_id = ?');  values.push(patch.subtopicId ?? null); }
-    if ('videoUrl'   in patch)          { fields.push('video_url = ?');    values.push(String(patch.videoUrl || '').trim() || null); }
-    if ('isFree'     in patch)          { fields.push('is_free = ?');      values.push(Number(patch.isFree) === 1 ? 1 : 0); }
+    if (patch.courseId   !== undefined)  { fields.push('course_id = ?');    values.push(patch.courseId   ?? null); }
+    if (patch.topicId    !== undefined)  { fields.push('topic_id = ?');     values.push(patch.topicId    ?? null); }
+    if (patch.subtopicId !== undefined)  { fields.push('subtopic_id = ?');  values.push(patch.subtopicId ?? null); }
+    if (patch.videoUrl   !== undefined)  { fields.push('video_url = ?');    values.push(String(patch.videoUrl || '').trim() || null); }
+    if (patch.isFree     !== undefined)  { fields.push('is_free = ?');      values.push(Number(patch.isFree) === 1 ? 1 : 0); }
 
     if (patch.noteData !== undefined) {
       const serialized = JSON.stringify(patch.noteData);

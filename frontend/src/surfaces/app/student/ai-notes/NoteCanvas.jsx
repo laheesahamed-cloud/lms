@@ -46,7 +46,7 @@ const noteCanvasUi = {
   bulletDot: 'mt-[5px] size-[7px] shrink-0 rounded-full dark:shadow-[0_0_6px_currentColor]',
   summaryFrags: 'flex flex-wrap items-center gap-2',
   summaryFrag:
-    "min-w-0 max-w-full break-words rounded-md border border-blue-700/15 bg-blue-700/[0.08] px-2.5 py-1 text-[13px] leading-[1.5] text-[#1e3a5f] dark:border-white/10 dark:bg-white/[0.06] dark:text-[rgba(220,230,255,0.92)]",
+    "min-w-0 max-w-full break-words rounded-[10px] border border-black/[0.07] px-3 py-1.5 text-[13px] font-medium leading-[1.5] text-slate-700 dark:border-white/10 dark:text-[rgba(220,230,255,0.92)]",
   wrapOuter: 'relative',
   canvas:
     "relative mx-auto w-full max-w-[1120px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-[#fffdf8] bg-[radial-gradient(circle,rgba(87,69,39,0.055)_1.2px,transparent_1.2px)] bg-[length:22px_22px] text-[#3b465f] shadow-[0_1px_3px_rgba(91,64,35,0.05)] dark:border-white/10 dark:bg-[#111827] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.082)_1.2px,transparent_1.2px)] dark:text-[#dce6ff] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] max-[640px]:max-w-none max-[640px]:rounded-none max-[640px]:border-0 max-[640px]:shadow-none max-[640px]:dark:shadow-none print:max-w-full print:rounded-none print:shadow-none",
@@ -180,9 +180,9 @@ const noteCanvasUi = {
     "max-w-full break-words rounded-lg border border-black/[0.05] px-3 py-1.5 text-[14px] font-bold text-slate-700 shadow-[0_1px_4px_rgba(91,64,35,0.08)] dark:text-[#e5ecff] dark:shadow-[0_2px_8px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.09)] max-[520px]:text-[14.5px]",
   keyChipEdit: 'cursor-text focus:outline focus:outline-2 focus:outline-white/50',
   summary:
-    'relative mx-5 mb-5 overflow-hidden rounded-[14px] border border-cyan-600/20 px-5 py-4 dark:border-white/[0.14] max-[520px]:mx-2 max-[520px]:px-3',
+    'relative mx-5 mb-5 overflow-hidden rounded-[14px] border border-indigo-500/20 px-5 py-4 dark:border-indigo-400/20 max-[520px]:mx-2 max-[520px]:px-3',
   summaryLabel:
-    "mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.8px] text-blue-700/65 dark:text-[rgba(150,180,255,0.7)]",
+    "mb-3 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-[1px] text-indigo-600 dark:text-indigo-300",
   footer:
     'border-t border-black/[0.06] px-[22px] py-2.5 text-right text-[11px] tracking-[0.3px] text-slate-500/55 dark:border-t-white/[0.06] dark:text-white/20',
   toolbar:
@@ -216,6 +216,17 @@ const noteCanvasUi = {
   stickerControlButton:
     'flex size-[26px] cursor-pointer items-center justify-center rounded-[7px] border border-black/10 bg-surface-2 p-0 text-xs font-bold text-ink-medium transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:bg-[color-mix(in_srgb,var(--color-primary,#2563eb)_10%,var(--surface-2,#f8fafc))] active:scale-[0.98]',
   stickerDeleteButton: '!border-red-500/20 !bg-red-50 !text-red-500 hover:!bg-red-100',
+  tableWrap: 'overflow-x-auto rounded-b-[10px] px-3.5 pb-3.5 pt-1 max-[520px]:px-2.5',
+  table: 'w-full min-w-0 border-collapse text-left',
+  thead: '',
+  th: 'border-b border-black/[0.08] px-2.5 py-1.5 font-[var(--type-font-body)] text-[11.5px] font-extrabold uppercase tracking-[0.06em] dark:border-white/[0.12]',
+  tbody: '',
+  tr: 'border-b border-black/[0.04] last:border-0 transition-colors dark:border-white/[0.06]',
+  trHover: 'hover:bg-black/[0.025] dark:hover:bg-white/[0.03]',
+  td: 'px-2.5 py-1.5 font-[var(--type-font-body)] text-[13.5px] leading-[1.5] text-slate-700 dark:text-[#c8d4f0] max-[520px]:text-[14px]',
+  tableEditRow: 'flex items-center gap-1.5 mt-1',
+  tableEditCell: 'min-w-0 flex-1',
+  tableAddRowBtn: 'mx-3.5 mb-2.5 mt-1 flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-black/15 bg-transparent px-2.5 py-1 font-sans text-[11.5px] font-semibold text-ink-muted transition-[background] duration-100 hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/[0.04]',
   compressToast:
     'my-1.5 flex items-center gap-[7px] self-start rounded-full border border-line-soft bg-surface-glass px-3.5 py-1.5 font-sans text-xs text-ink-muted',
   compressSpin: 'animate-[spin_0.9s_linear_infinite]',
@@ -960,13 +971,22 @@ function dottedCardBackground(accentColor, theme, surface) {
 /* ══════════════════════════════════════════════════════════════
    SUMMARY FRAGMENTS
 ══════════════════════════════════════════════════════════════ */
-function SummaryFragments({ text, highlightColors, accentColor }) {
+function SummaryFragments({ text, highlightColors, accentColor, colors, theme }) {
   if (!text) return null;
   const frags = text.split(/\s*[·|]\s*|\s*→\s+/).filter(Boolean);
+  const isDark = theme === 'dark';
   if (frags.length <= 1) return <RichText text={text} highlightColors={highlightColors} accentColor={accentColor}/>;
   return (
     <div className={noteCanvasUi.summaryFrags}>
-      {frags.map((f, i) => <span key={i} className={noteCanvasUi.summaryFrag}><RichText text={f.trim()} highlightColors={highlightColors} accentColor={accentColor} highlightIndex={i}/></span>)}
+      {frags.map((f, i) => {
+        const chipColor = colors ? colors[i % colors.length] : accentColor;
+        return (
+          <span key={i} className={noteCanvasUi.summaryFrag}
+            style={{ background: `${chipColor}${isDark ? '2e' : '1e'}`, borderColor: `${chipColor}${isDark ? '44' : '30'}` }}>
+            <RichText text={f.trim()} highlightColors={highlightColors} accentColor={chipColor} highlightIndex={i}/>
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -1024,6 +1044,7 @@ const LAYOUT_PATTERNS = [
 function estimateSectionWeight(section) {
   if (section.type === 'image-explained') return 9;
   if (section.type === 'image') return section.src ? 7 : 4;
+  if (section.type === 'table') return 8;
 
   const heading = String(section.heading || '').toLowerCase();
   const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
@@ -1043,6 +1064,10 @@ function estimateSectionHeight(section) {
     return (section.height || 220) + Math.ceil(String(section.explanation || '').length / 55) * 18 + 72;
   }
   if (section.type === 'image') return (section.height || 200) + (section.caption ? 32 : 12);
+  if (section.type === 'table') {
+    const rows = Array.isArray(section.rows) ? section.rows.length : 0;
+    return 58 + rows * 30;
+  }
 
   const bullets = Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [];
   const bulletLines = bullets.reduce((sum, line) => sum + Math.max(1, Math.ceil(String(line).length / 42)), 0);
@@ -1930,7 +1955,7 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
                   <div className={noteCanvasUi.mnemonicLabel}>MNEMONIC</div>
                   {editable
                     ? <EField value={section.mnemonic} onChange={v => onSectionChange('mnemonic', v)} placeholder="Mnemonic or acronym…" className={noteCanvasUi.mnemonicText}/>
-                    : <div className={noteCanvasUi.mnemonicText}>{section.mnemonic}</div>}
+                    : <div className={noteCanvasUi.mnemonicText}><RichText text={section.mnemonic} accentColor={accentColor} highlightColors={richColors} highlightIndex={colorIndex}/></div>}
                 </div>
               )}
               {section.sticky_note && (
@@ -1976,6 +2001,145 @@ function SectionCard({ section, colorIndex, totalSections, colors, highlightColo
 }
 
 /* ══════════════════════════════════════════════════════════════
+   TABLE SECTION CARD
+══════════════════════════════════════════════════════════════ */
+function TableSectionCard({ section, colorIndex, colors, editable, onSectionChange, onMoveUp, onMoveDown, onDelete, theme }) {
+  const baseColor   = colors[colorIndex % colors.length] || '#A7D8FF';
+  const accentColor = section.accentColor || baseColor;
+  const span        = section.span === 'single' ? 'full' : section.span || 'full';
+
+  const headers = Array.isArray(section.headers) ? section.headers : ['Column 1', 'Column 2'];
+  const rows    = Array.isArray(section.rows)    ? section.rows    : [];
+
+  function patchHeaders(next) { onSectionChange('headers', next); }
+  function patchRows(next)    { onSectionChange('rows', next); }
+
+  function updateHeader(ci, val) {
+    const next = [...headers]; next[ci] = val; patchHeaders(next);
+  }
+  function updateCell(ri, ci, val) {
+    const next = rows.map((r, i) => i === ri ? r.map((c, j) => j === ci ? val : c) : r);
+    patchRows(next);
+  }
+  function addRow() {
+    patchRows([...rows, headers.map(() => '')]);
+  }
+  function removeRow(ri) {
+    patchRows(rows.filter((_, i) => i !== ri));
+  }
+  function addCol() {
+    patchHeaders([...headers, `Col ${headers.length + 1}`]);
+    patchRows(rows.map(r => [...r, '']));
+  }
+  function removeCol(ci) {
+    if (headers.length <= 1) return;
+    patchHeaders(headers.filter((_, i) => i !== ci));
+    patchRows(rows.map(r => r.filter((_, i) => i !== ci)));
+  }
+
+  return (
+    <div
+      data-canvas-card
+      className={noteCanvasUi.section}
+      style={{ background: canvasCardBackground(accentColor, theme) }}
+    >
+      {editable && (
+        <div className={noteCanvasUi.sectionActions}>
+          <div style={{ display:'flex', gap:3 }}>
+            <button className={noteCanvasUi.sectionButton} onClick={onMoveUp}  disabled={colorIndex === 0}>↑</button>
+            <button className={noteCanvasUi.sectionButton} onClick={onMoveDown}>↓</button>
+          </div>
+          <div style={{ display:'flex', gap:3 }}>
+            <button className={noteCanvasUi.sectionButton} onClick={addCol} title="Add column" style={{ fontSize:11 }}>+Col</button>
+            <button className={cx(noteCanvasUi.sectionButton, span === 'full' && noteCanvasUi.sectionButtonOn)}
+              style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'full')} title="Full width">⬛</button>
+            <button className={cx(noteCanvasUi.sectionButton, span === 'wide' && noteCanvasUi.sectionButtonOn)}
+              style={{ fontSize:11, width:32 }} onClick={() => onSectionChange('span', 'wide')} title="Wide card">⅔</button>
+            <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)} onClick={onDelete}>✕</button>
+          </div>
+        </div>
+      )}
+
+      <div className={noteCanvasUi.sectionHeading}>
+        {editable
+          ? <EField value={section.heading} onChange={v => onSectionChange('heading', v)}
+              placeholder="Table heading" className={noteCanvasUi.headingText}
+              style={{ color: accentColor, background: accentColor + '18', border: `1px solid ${accentColor}38` }}/>
+          : <h3 className={noteCanvasUi.headingText}
+              style={{ color: accentColor, background: accentColor + '18', border: `1px solid ${accentColor}38` }}>
+              {section.heading}
+            </h3>}
+      </div>
+
+      <div className={noteCanvasUi.tableWrap}>
+        {editable ? (
+          <>
+            <table className={noteCanvasUi.table}>
+              <thead className={noteCanvasUi.thead}>
+                <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
+                  {headers.map((h, ci) => (
+                    <th key={ci} className={noteCanvasUi.th} style={{ color: accentColor }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:3 }}>
+                        <EField value={h} onChange={v => updateHeader(ci, v)}
+                          placeholder={`Col ${ci + 1}`} style={{ fontSize:11, fontWeight:800, width:'100%' }}/>
+                        {headers.length > 1 && (
+                          <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)}
+                            type="button" onClick={() => removeCol(ci)}
+                            style={{ flexShrink:0, width:16, height:16, fontSize:9 }}>✕</button>
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className={noteCanvasUi.tbody}>
+                {rows.map((row, ri) => (
+                  <tr key={ri} className={noteCanvasUi.tr}>
+                    {headers.map((_, ci) => (
+                      <td key={ci} className={noteCanvasUi.td}>
+                        <EField value={row[ci] || ''} onChange={v => updateCell(ri, ci, v)}
+                          placeholder="—" style={{ width:'100%', fontSize:13 }}/>
+                      </td>
+                    ))}
+                    <td style={{ width:20, paddingLeft:4 }}>
+                      <button className={cx(noteCanvasUi.sectionButton, noteCanvasUi.sectionDeleteButton)}
+                        type="button" onClick={() => removeRow(ri)}
+                        style={{ width:16, height:16, fontSize:9 }}>✕</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button className={noteCanvasUi.tableAddRowBtn} type="button" onClick={addRow}>
+              + Add row
+            </button>
+          </>
+        ) : (
+          <table className={noteCanvasUi.table}>
+            <thead className={noteCanvasUi.thead}>
+              <tr style={{ borderBottom: `1.5px solid ${accentColor}44` }}>
+                {headers.map((h, ci) => (
+                  <th key={ci} className={noteCanvasUi.th} style={{ color: accentColor }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className={noteCanvasUi.tbody}>
+              {rows.map((row, ri) => (
+                <tr key={ri} className={cx(noteCanvasUi.tr, noteCanvasUi.trHover)}>
+                  {headers.map((_, ci) => (
+                    <td key={ci} className={noteCanvasUi.td}><RichText text={row[ci] || ''} accentColor={accentColor} /></td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    STICKER PICKER POPUP
 ══════════════════════════════════════════════════════════════ */
 function StickerPicker({ onAdd, onClose }) {
@@ -1997,7 +2161,7 @@ function StickerPicker({ onAdd, onClose }) {
 /* ══════════════════════════════════════════════════════════════
    CANVAS TOOLBAR
 ══════════════════════════════════════════════════════════════ */
-function CanvasToolbar({ data, onPatch, onAddTextSection, onAddImageSection, onAddImageExplained, onBgChange, onLayoutChange, onApplyLayoutPattern, onSmartArrange }) {
+function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onAddImageSection, onAddImageExplained, onBgChange, onLayoutChange, onApplyLayoutPattern, onSmartArrange }) {
   const [stickerOpen,  setStickerOpen]  = useState(false);
   const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const ref = useRef(null);
@@ -2029,6 +2193,14 @@ function CanvasToolbar({ data, onPatch, onAddTextSection, onAddImageSection, onA
       <button className={cx(ui.secondaryButton, noteCanvasUi.toolbarButton)} onClick={onAddTextSection}>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
         Text Block
+      </button>
+
+      <button className={cx(ui.secondaryButton, noteCanvasUi.toolbarButton)} onClick={onAddTableSection}>
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <rect x="1" y="1" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+          <path d="M1 4.5h11M4.5 4.5v7.5" stroke="currentColor" strokeWidth="1.1"/>
+        </svg>
+        Table Block
       </button>
 
       <button className={cx(ui.secondaryButton, noteCanvasUi.toolbarButton)} onClick={onAddImageSection}>
@@ -2197,6 +2369,10 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   /* ── section management ────────────────────────────────── */
   function addTextSection() {
     patch({ sections: [...sections, { heading:'New Section', bullets:['Enter your content here'], callout:'', mnemonic:'', sticky_note:'' }] });
+  }
+
+  function addTableSection() {
+    patch({ sections: [...sections, { type:'table', heading:'New Table', headers:['Column 1','Column 2','Column 3'], rows:[['','',''],['','',''],['','','']], span:'full' }] });
   }
 
   function addImageSection(src = '', meta = {}) {
@@ -2404,6 +2580,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
           data={data}
           onPatch={patch}
           onAddTextSection={addTextSection}
+          onAddTableSection={addTableSection}
           onAddImageSection={() => addImageSection('')}
           onAddImageExplained={() => addImageExplainedSection('')}
           onBgChange={c => patch({ canvasBg: c })}
@@ -2564,6 +2741,35 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
                   </MasonryItem>
                 );
               }
+              if (section.type === 'table') {
+                return (
+                  <MasonryItem
+                    key={i}
+                    span={section.span || 'full'}
+                    columns={columnCount}
+                    editable={editable}
+                    dragEnabled={editable && !isMobileCanvas}
+                    index={i}
+                    draggingIndex={draggingIndex}
+                    onDragStart={handleCardDragStart}
+                    onDragOver={handleCardDragOver}
+                    onDrop={handleCardDrop}
+                    onDragEnd={() => setDraggingIndex(null)}
+                  >
+                    <TableSectionCard
+                      section={section}
+                      colorIndex={i}
+                      colors={colors}
+                      editable={editable}
+                      onSectionChange={(field, val) => patchSection(i, field, val)}
+                      onMoveUp={() => moveSection(i, -1)}
+                      onMoveDown={() => moveSection(i, 1)}
+                      onDelete={() => deleteSection(i)}
+                      theme={theme}
+                    />
+                  </MasonryItem>
+                );
+              }
               return (
                 <MasonryItem
                   key={i}
@@ -2634,11 +2840,11 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
           <div
             className={noteCanvasUi.summary}
             style={{
-              background: dottedCardBackground('#0891b2', theme, theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(236,254,255,0.82)'),
+              background: dottedCardBackground('#6366f1', theme, theme === 'dark' ? 'rgba(99,102,241,0.07)' : 'rgba(238,242,255,0.92)'),
               backgroundSize: 'auto, auto, 18px 18px, auto',
             }}
           >
-            {!editable && <MedicalMiniIcon index={sections.length + 5} color="#0891b2" theme={theme} />}
+            {!editable && <MedicalMiniIcon index={sections.length + 5} color="#6366f1" theme={theme} />}
             <div className={noteCanvasUi.summaryLabel}>
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
                 <rect x="1" y="1" width="11" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.5"/>
@@ -2648,7 +2854,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
             </div>
             {editable
               ? <EArea value={data.summary_box} onChange={v => patch({ summary_box:v })} placeholder="Summary (use · or | to separate fragments)…"/>
-              : <SummaryFragments text={data.summary_box} highlightColors={highlightColors} accentColor="#0891b2"/>}
+              : <SummaryFragments text={data.summary_box} highlightColors={highlightColors} accentColor="#6366f1" colors={colors} theme={theme}/>}
           </div>
         )}
 

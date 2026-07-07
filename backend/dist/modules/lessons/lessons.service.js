@@ -638,7 +638,7 @@ let LessonsService = class LessonsService {
     canReviewContent(actor) {
         if (!actor || typeof actor === 'number')
             return true;
-        return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review'));
+        return actor.role === 'admin' || Boolean(actor.permissions?.includes('content.review')) || Boolean(actor.permissions?.includes('content.manage'));
     }
     assertCanSaveStatus(actor, status) {
         if (status === 'active' && !this.canReviewContent(actor)) {
@@ -978,23 +978,23 @@ let LessonsService = class LessonsService {
             fields.push('status = ?');
             values.push(patch.status === 'active' ? 'active' : 'inactive');
         }
-        if ('courseId' in patch) {
+        if (patch.courseId !== undefined) {
             fields.push('course_id = ?');
             values.push(patch.courseId ?? null);
         }
-        if ('topicId' in patch) {
+        if (patch.topicId !== undefined) {
             fields.push('topic_id = ?');
             values.push(patch.topicId ?? null);
         }
-        if ('subtopicId' in patch) {
+        if (patch.subtopicId !== undefined) {
             fields.push('subtopic_id = ?');
             values.push(patch.subtopicId ?? null);
         }
-        if ('videoUrl' in patch) {
+        if (patch.videoUrl !== undefined) {
             fields.push('video_url = ?');
             values.push(String(patch.videoUrl || '').trim() || null);
         }
-        if ('isFree' in patch) {
+        if (patch.isFree !== undefined) {
             fields.push('is_free = ?');
             values.push(Number(patch.isFree) === 1 ? 1 : 0);
         }
