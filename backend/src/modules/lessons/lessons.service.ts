@@ -1318,10 +1318,17 @@ export class LessonsService {
     );
     if (!existing.length) throw new NotFoundException('Lesson not found');
 
-    if (patch.courseId && (!patch.topicId || !patch.subtopicId)) {
-      const fallback = await this.ensureDefaultLessonHierarchy(Number(patch.courseId));
-      patch.topicId = patch.topicId || fallback.topicId;
-      patch.subtopicId = patch.subtopicId || fallback.subtopicId;
+    // Subtopic (the "Topic" field) is intentionally optional — course + subject is
+    // enough. Only fall back to an auto-created bucket when the subject itself
+    // ("topicId") is missing; never overwrite an explicit (possibly null) subtopicId.
+    if (patch.courseId && !patch.topicId) {
+      try {
+        const fallback = await this.ensureDefaultLessonHierarchy(Number(patch.courseId));
+        patch.topicId = fallback.topicId;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new BadRequestException(`Could not resolve a default subject for this course: ${message}`);
+      }
     }
 
     const fields: string[] = [];
@@ -1536,6 +1543,11 @@ export class LessonsService {
     return rows;
   }
 
+  // Only used as a fallback when a caller sends courseId with no topicId (subject)
+  // at all — normal saves always include a subject, since it's a required field.
+  // Subtopic ("Topic") is intentionally left for the caller to set or leave null;
+  // this never auto-creates one, avoiding the unique_topic_subtopic race that used
+  // to throw a raw 500 when two saves for the same course landed concurrently.
   private async ensureDefaultLessonHierarchy(courseId: number) {
     const [tr] = await this.db.execute<RowDataPacket[]>(`SELECT id FROM topics WHERE course_id = ? AND topic_name = 'General lessons' LIMIT 1`, [courseId]);
     let topicId = tr[0]?.id ? Number(tr[0].id) : 0;
@@ -1543,13 +1555,7 @@ export class LessonsService {
       const [r] = await this.db.execute<ResultSetHeader>(`INSERT INTO topics (course_id, topic_name, topic_description, status) VALUES (?, 'General lessons', 'Auto-created bucket for course-level lessons.', 'active')`, [courseId]);
       topicId = r.insertId;
     }
-    const [sr] = await this.db.execute<RowDataPacket[]>(`SELECT id FROM subtopics WHERE topic_id = ? AND subtopic_name = 'Overview' LIMIT 1`, [topicId]);
-    let subtopicId = sr[0]?.id ? Number(sr[0].id) : 0;
-    if (!subtopicId) {
-      const [r] = await this.db.execute<ResultSetHeader>(`INSERT INTO subtopics (topic_id, subtopic_name, status) VALUES (?, 'Overview', 'active')`, [topicId]);
-      subtopicId = r.insertId;
-    }
-    return { topicId, subtopicId };
+    return { topicId };
   }
 
   private async findCanvasLessonRow(id: number) {

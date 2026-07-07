@@ -954,10 +954,15 @@ let LessonsService = class LessonsService {
         const [existing] = await this.db.execute('SELECT id FROM lessons WHERE id = ? AND is_public = 1 AND engine_key = ?', [id, engineKey]);
         if (!existing.length)
             throw new common_1.NotFoundException('Lesson not found');
-        if (patch.courseId && (!patch.topicId || !patch.subtopicId)) {
-            const fallback = await this.ensureDefaultLessonHierarchy(Number(patch.courseId));
-            patch.topicId = patch.topicId || fallback.topicId;
-            patch.subtopicId = patch.subtopicId || fallback.subtopicId;
+        if (patch.courseId && !patch.topicId) {
+            try {
+                const fallback = await this.ensureDefaultLessonHierarchy(Number(patch.courseId));
+                patch.topicId = fallback.topicId;
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                throw new common_1.BadRequestException(`Could not resolve a default subject for this course: ${message}`);
+            }
         }
         const fields = [];
         const values = [];
@@ -1167,13 +1172,7 @@ let LessonsService = class LessonsService {
             const [r] = await this.db.execute(`INSERT INTO topics (course_id, topic_name, topic_description, status) VALUES (?, 'General lessons', 'Auto-created bucket for course-level lessons.', 'active')`, [courseId]);
             topicId = r.insertId;
         }
-        const [sr] = await this.db.execute(`SELECT id FROM subtopics WHERE topic_id = ? AND subtopic_name = 'Overview' LIMIT 1`, [topicId]);
-        let subtopicId = sr[0]?.id ? Number(sr[0].id) : 0;
-        if (!subtopicId) {
-            const [r] = await this.db.execute(`INSERT INTO subtopics (topic_id, subtopic_name, status) VALUES (?, 'Overview', 'active')`, [topicId]);
-            subtopicId = r.insertId;
-        }
-        return { topicId, subtopicId };
+        return { topicId };
     }
     async findCanvasLessonRow(id) {
         const [rows] = await this.db.execute(`
