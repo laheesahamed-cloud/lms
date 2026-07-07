@@ -598,6 +598,7 @@ let SchemaSyncService = SchemaSyncService_1 = class SchemaSyncService {
             await this.ensureColumn(connection, 'users', 'permissions', 'TEXT NULL AFTER role');
             await this.ensureContentGovernanceTables(connection);
             await this.ensureAdminAuditEventsTable(connection);
+            await this.ensureAiProviderConfigsTable(connection);
         }
         catch (error) {
             this.logger.error('Failed to ensure critical governance tables on boot', error);

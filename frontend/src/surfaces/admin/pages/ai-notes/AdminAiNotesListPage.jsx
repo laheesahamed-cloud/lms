@@ -103,8 +103,8 @@ export function AdminAiNotesListPage({
   async function handleCreate(e) {
     e.preventDefault();
     const title = newTitle.trim();
-    if (!title || !selCourse || !selTopic || !selSubtopic) {
-      setError('Please select a course, subject, and topic before creating a lesson.');
+    if (!title || !selCourse || !selTopic) {
+      setError('Please select a course and subject before creating a lesson.');
       return;
     }
     try {
@@ -112,7 +112,7 @@ export function AdminAiNotesListPage({
       const lesson = await createLesson({
         courseId: Number(selCourse),
         topicId: Number(selTopic),
-        subtopicId: Number(selSubtopic),
+        subtopicId: selSubtopic ? Number(selSubtopic) : null,
         lessonTitle: title,
         isFree: isFree ? 1 : 0,
         status: 'active',
@@ -220,7 +220,7 @@ export function AdminAiNotesListPage({
             </select>
             <select className={cx(ui.input, 'min-w-0 flex-[1_1_160px]')} value={selSubtopic} onChange={e => setSelSubtopic(e.target.value)}
                     disabled={!selTopic} aria-label="New lesson topic">
-              <option value="">— Topic —</option>
+              <option value="">— Topic (optional) —</option>
               {subtopics.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>

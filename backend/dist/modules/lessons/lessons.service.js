@@ -1304,7 +1304,14 @@ let LessonsService = class LessonsService {
         return false;
     }
     async resolveActiveCanvasProvider() {
-        const [rows] = await this.db.execute(`SELECT provider_key, provider_label, api_key_encrypted, base_url, model FROM ai_provider_configs WHERE status = 'active' AND api_key_encrypted IS NOT NULL AND api_key_encrypted <> '' ORDER BY is_active DESC, updated_at DESC, id DESC LIMIT 1`);
+        let rows;
+        try {
+            [rows] = await this.db.execute(`SELECT provider_key, provider_label, api_key_encrypted, base_url, model FROM ai_provider_configs WHERE status = 'active' AND api_key_encrypted IS NOT NULL AND api_key_encrypted <> '' ORDER BY is_active DESC, updated_at DESC, id DESC LIMIT 1`);
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new common_1.ServiceUnavailableException(`Could not look up the AI provider configuration: ${message}`);
+        }
         const row = rows[0];
         if (row) {
             const rawKey = String(row.provider_key || '').trim().toLowerCase();
@@ -1648,8 +1655,13 @@ let LessonsService = class LessonsService {
             subtitle: String(data?.subtitle || '').trim().slice(0, 200),
             sections: (Array.isArray(data?.sections) ? data.sections : []).slice(0, 12).map((s) => {
                 const sec = (s ?? {});
+                if (String(sec?.type || '') === 'table') {
+                    const headers = (Array.isArray(sec?.headers) ? sec.headers : []).map(String).slice(0, 10);
+                    const rows = (Array.isArray(sec?.rows) ? sec.rows : []).slice(0, 20).map((r) => (Array.isArray(r) ? r : []).map(String).slice(0, 10));
+                    return { type: 'table', heading: String(sec?.heading || '').trim().slice(0, 120), headers, rows, span: String(sec?.span || 'full'), bullets: [], callout: '', sticky_note: '', mnemonic: '' };
+                }
                 return { heading: String(sec?.heading || '').trim(), bullets: (Array.isArray(sec?.bullets) ? sec.bullets : []).map(String).slice(0, 16), callout: String(sec?.callout || '').trim().slice(0, 300), sticky_note: String(sec?.sticky_note || '').trim().slice(0, 200), mnemonic: String(sec?.mnemonic || '').trim().slice(0, 300) };
-            }).filter(s => s.heading || s.bullets.length > 0),
+            }).filter(s => s.heading || s.bullets.length > 0 || (s.type === 'table' && (s.headers?.length ?? 0) > 0)),
             summary_box: String(data?.summary_box || '').trim().slice(0, 600),
             key_points: (Array.isArray(data?.key_points) ? data.key_points : []).map(String).slice(0, 10),
             visual_style: { theme: 'notebook', look: 'hand-drawn academic', colors: this.normalizePalette(data?.visual_style?.colors) },
@@ -1660,7 +1672,7 @@ let LessonsService = class LessonsService {
         return Array.from(new Set([...colors, ...FALLBACK_COLORS])).slice(0, 8);
     }
     buildPrompt(text) {
-        return `You are a senior medical educator writing high-yield lessons for ERPM/SLMC exams.\n\nCOVERAGE RULE: Cover EVERY topic in the source text. Generate MORE sections if needed (up to 12).\n\n\u2501\u2501\u2501 BULLET RULES \u2501\u2501\u2501\n- Every bullet = ONE clinical fact, MAX 13 WORDS\n- ==double equals== \u2192 highlight key terms\n- **double asterisks** \u2192 bold drug+dose, lab cut-offs\n\nReturn ONLY this JSON (no markdown, no code fences):\n{"title":"TOPIC IN CAPS","subtitle":"one fragment","sections":[{"heading":"1. Definition","bullets":["fact"],"callout":"[EXAM TRAP] fragment","sticky_note":"key fact","mnemonic":""}],"summary_box":"fragment \u00b7 fragment","key_points":["==Term==: value"],"visual_style":{"theme":"notebook","look":"hand-drawn academic","colors":["#A7D8FF","#FFE680","#FFB3B3","#C7F0BD","#CE93D8","#80DEEA","#F48FB1","#FFCC80"]}}\n\nMedical text:\n${text.slice(0, 12000)}`;
+        return `You are a senior medical educator writing high-yield lessons for ERPM/SLMC exams.\n\nCOVERAGE RULE: Cover EVERY topic in the source text. Generate MORE sections if needed (up to 12).\n\n\u2501\u2501\u2501 BULLET RULES \u2501\u2501\u2501\n- Every bullet = ONE clinical fact, MAX 13 WORDS\n- ==double equals== \u2192 highlight key terms\n- **double asterisks** \u2192 bold drug+dose, lab cut-offs\n\n\u2501\u2501\u2501 TABLE RULE \u2501\u2501\u2501\n- When content is a comparison (e.g. drug classes, differentials, stages, classification), use a table section instead of bullets\n- Table sections use: {"type":"table","heading":"Heading","headers":["Col1","Col2"],"rows":[["a","b"],["c","d"]],"span":"full"}\n- Keep headers \u2264 5 words, cells \u2264 6 words; 2\u20136 columns, 2\u201310 rows\n\nReturn ONLY this JSON (no markdown, no code fences):\n{"title":"TOPIC IN CAPS","subtitle":"one fragment","sections":[{"heading":"1. Definition","bullets":["fact"],"callout":"[EXAM TRAP] fragment","sticky_note":"key fact","mnemonic":""},{"type":"table","heading":"2. Comparison","headers":["Item","Detail"],"rows":[["a","b"]],"span":"full"}],"summary_box":"fragment \u00b7 fragment","key_points":["==Term==: value"],"visual_style":{"theme":"notebook","look":"hand-drawn academic","colors":["#A7D8FF","#FFE680","#FFB3B3","#C7F0BD","#CE93D8","#80DEEA","#F48FB1","#FFCC80"]}}\n\nMedical text:\n${text.slice(0, 12000)}`;
     }
 };
 exports.LessonsService = LessonsService;

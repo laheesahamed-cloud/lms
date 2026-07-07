@@ -21,6 +21,10 @@ export interface NoteSection {
     callout: string;
     sticky_note: string;
     mnemonic: string;
+    type?: string;
+    headers?: string[];
+    rows?: string[][];
+    span?: string;
 }
 export interface NoteResult {
     title: string;

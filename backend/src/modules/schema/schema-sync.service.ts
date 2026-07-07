@@ -631,6 +631,9 @@ export class SchemaSyncService implements OnModuleInit {
       await this.ensureColumn(connection, 'users', 'permissions', 'TEXT NULL AFTER role');
       await this.ensureContentGovernanceTables(connection);
       await this.ensureAdminAuditEventsTable(connection);
+      // Read directly (no try/catch) by resolveActiveCanvasProvider() on every
+      // "Generate Lesson" call — missing on prod would throw a raw, unhandled 500.
+      await this.ensureAiProviderConfigsTable(connection);
     } catch (error) {
       this.logger.error('Failed to ensure critical governance tables on boot', error as Error);
     } finally {
