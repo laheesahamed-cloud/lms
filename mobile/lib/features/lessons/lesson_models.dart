@@ -142,6 +142,8 @@ class LessonListItem {
   final bool lessonCompleted;
   final bool hasPdf;
   final bool hasNote;
+  final bool locked; // subscription doesn't include this lesson
+  final String lockReason;
 
   LessonListItem({
     required this.id,
@@ -156,6 +158,8 @@ class LessonListItem {
     this.lessonCompleted = false,
     this.hasPdf = false,
     this.hasNote = false,
+    this.locked = false,
+    this.lockReason = '',
   });
 
   String get subtitle => courseTitle;
@@ -182,6 +186,10 @@ class LessonListItem {
       lessonCompleted: n['lessonCompleted'] == true || n['lesson_progress_status'] == 'completed',
       hasPdf: _str(n['pdfUrl'] ?? n['pdf_url'] ?? n['lessonPdfUrl'] ?? '').isNotEmpty,
       hasNote: n['noteData'] != null || n['note_data'] != null,
+      // Subscription gating: the backend sets accessLocked/canAccess per item,
+      // same as the Q-Bank quiz list.
+      locked: n['accessLocked'] == true || n['canAccess'] == false,
+      lockReason: _str(_str(n['lockReason']).isNotEmpty ? n['lockReason'] : n['upgradeLabel']),
     );
   }
 }

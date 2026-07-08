@@ -296,9 +296,21 @@ class _LessonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final locked = lesson.locked;
     return GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      onTap: () => context.push('/app/study/lesson/${lesson.canvasId}'),
+      onTap: () {
+        if (locked) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(lesson.lockReason.isNotEmpty
+                    ? lesson.lockReason
+                    : 'This lesson is included with a subscription.')),
+          );
+          return;
+        }
+        context.push('/app/study/lesson/${lesson.canvasId}');
+      },
       child: Row(
         children: [
           Container(
@@ -313,7 +325,7 @@ class _LessonRow extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: c.inkStrong)),
+                    color: locked ? c.inkSoft : c.inkStrong)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -323,19 +335,25 @@ class _LessonRow extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: c.inkStrong)),
+                    color: locked ? c.inkSoft : c.inkStrong)),
           ),
           const SizedBox(width: 4),
-          if (lesson.hasPdf && !lesson.hasNote)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Icon(Icons.picture_as_pdf_outlined, size: 18, color: c.inkMuted),
-            ),
-          if (lesson.lessonCompleted) ...[
-            const _CompletedTick(),
-            const SizedBox(width: 4),
+          // Locked rows show only the lock; otherwise: pdf/completed badges,
+          // then the chevron sits at the very end of the row.
+          if (locked)
+            Icon(Icons.lock_outline_rounded, size: 20, color: c.inkMuted)
+          else ...[
+            if (lesson.hasPdf && !lesson.hasNote)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Icon(Icons.picture_as_pdf_outlined, size: 18, color: c.inkMuted),
+              ),
+            if (lesson.lessonCompleted) ...[
+              const _CompletedTick(),
+              const SizedBox(width: 4),
+            ],
+            Icon(Icons.chevron_right_rounded, size: 20, color: c.inkMuted),
           ],
-          Icon(Icons.chevron_right_rounded, size: 20, color: c.inkMuted),
         ],
       ),
     );
