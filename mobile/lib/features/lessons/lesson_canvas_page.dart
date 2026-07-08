@@ -2244,6 +2244,7 @@ Widget _inlineText(String raw, TextStyle base,
   final hlBg = dark ? const Color(0xFFD9B24A) : const Color(0xFFE6C25A);
   final boldColor = dark ? const Color(0xFFB8CBFF) : const Color(0xFF1D4ED8);
   final hlText = dark ? const Color(0xFFFDF6E3) : const Color(0xFF3A342A);
+  final muted = (base.color ?? const Color(0xFF6A6A70)).withValues(alpha: 0.6);
   final children = <TextSpan>[];
   for (final r in runs) {
     if (r.highlight) {
@@ -2261,7 +2262,15 @@ Widget _inlineText(String raw, TextStyle base,
         style: base.copyWith(fontWeight: FontWeight.w800, color: boldColor),
       ));
     } else {
-      children.add(TextSpan(text: r.text, style: base));
+      // Grey parenthetical reasons like "(screens for anaemia)" — secondary info.
+      final re = RegExp(r'\([^)]*\)');
+      var last = 0;
+      for (final m in re.allMatches(r.text)) {
+        if (m.start > last) children.add(TextSpan(text: r.text.substring(last, m.start), style: base));
+        children.add(TextSpan(text: m.group(0), style: base.copyWith(color: muted)));
+        last = m.end;
+      }
+      if (last < r.text.length) children.add(TextSpan(text: r.text.substring(last), style: base));
     }
   }
   return RichText(text: TextSpan(style: base, children: children));
@@ -2333,7 +2342,7 @@ class _SectionCard extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
-                      color: dark ? accent : _darken(accent))),
+                      color: dark ? Color.lerp(accent, Colors.white, 0.4)! : _darken(accent))),
             ),
           // Image / image-explained section: render the image (figure body below).
           if (section.isImage && section.imageSrc != null) ...[
@@ -2401,7 +2410,58 @@ class _SectionCard extends StatelessWidget {
     final rows = section.tableRows;
     if (headers.isEmpty) return const SizedBox.shrink();
     final dividerColor = accent.withValues(alpha: dark ? 0.18 : 0.12);
-    final headerColor = dark ? accent.withValues(alpha: 0.85) : _darken(accent);
+    final headerColor = dark ? Color.lerp(accent, Colors.white, 0.35)! : _darken(accent);
+
+    // Phones can't fit a 3+ column table — words snap mid-word. Stack each row
+    // into its own block: first cell = title, remaining cells = "HEADER: value".
+    if (headers.length > 2) {
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: rows.map((cells) {
+            final title = cells.isNotEmpty ? cells[0] : '';
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: dark ? 0.06 : 0.05),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: accent.withValues(alpha: dark ? 0.22 : 0.18)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (title.isNotEmpty)
+                    _inlineText(
+                      title,
+                      TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w700, color: headerColor),
+                      accent: accent, dark: dark,
+                    ),
+                  for (var ci = 1; ci < headers.length; ci++)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 92,
+                            child: Text(headers[ci].toUpperCase(),
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.3, height: 1.6, color: headerColor.withValues(alpha: 0.75))),
+                          ),
+                          Expanded(
+                            child: _inlineText(ci < cells.length ? cells[ci] : '', TextStyle(fontSize: 13, height: 1.45, color: ink), accent: accent, dark: dark),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      );
+    }
 
     // Use Column+Row with Expanded columns — avoids IntrinsicColumnWidth
     // inside SingleChildScrollView which causes infinite layout loops.

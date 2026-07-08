@@ -596,11 +596,23 @@ function RichText({ text, highlightColors, accentColor, highlightIndex = 0 }) {
   const markColors = getHighlightPalette(highlightColors, accentColor);
   const parts = [];
   let s = String(text), k = 0, markIndex = 0;
+  const renderPlain = (str) => {
+    const out = [];
+    const re = /\([^)]*\)/g;
+    let last = 0, m;
+    while ((m = re.exec(str))) {
+      if (m.index > last) out.push(str.slice(last, m.index));
+      out.push(<span key={`pp${k++}`} style={{ opacity: 0.6 }}>{m[0]}</span>);
+      last = m.index + m[0].length;
+    }
+    if (last < str.length) out.push(str.slice(last));
+    return out;
+  };
   while (s.length) {
     const hi = s.indexOf('=='), bd = s.indexOf('**');
     const next = Math.min(hi === -1 ? Infinity : hi, bd === -1 ? Infinity : bd);
-    if (next === Infinity) { parts.push(s); break; }
-    if (next > 0) { parts.push(s.slice(0, next)); s = s.slice(next); k++; }
+    if (next === Infinity) { parts.push(...renderPlain(s)); break; }
+    if (next > 0) { parts.push(...renderPlain(s.slice(0, next))); s = s.slice(next); k++; }
     if (s.startsWith('==')) {
       const e = s.indexOf('==', 2); if (e === -1) { parts.push(s); break; }
       const color = HIGHLIGHT_COLOR;
