@@ -1389,9 +1389,9 @@ export class LessonsService {
     this.assertValidFlashcard(clean.question, clean.answer);
     const sortOrder = await this.getNextFlashcardSortOrder(id);
     const [result] = await this.db.execute<ResultSetHeader>(
-      `INSERT INTO lesson_flashcards (lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)`,
-      [id, clean.question, clean.answer, clean.sourceHint || null,
+      `INSERT INTO lesson_flashcards (note_id, lesson_id, question, answer, source_hint, image_url, image_fit, status, sort_order, generated_by, reviewed_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)`,
+      [id, id, clean.question, clean.answer, clean.sourceHint || null,
        this.serializeFlashcardImageUrls(clean.imageUrls), clean.imageFit, status, sortOrder,
        status === 'approved' ? admin.id : null],
     );
@@ -1693,8 +1693,8 @@ export class LessonsService {
     let sortOrder = await this.getNextFlashcardSortOrder(lessonId);
     for (const row of rows) {
       await this.db.execute(
-        `INSERT INTO lesson_flashcards (lesson_id, question, answer, source_hint, status, sort_order, generated_by) VALUES (?, ?, ?, ?, 'draft', ?, 'ai')`,
-        [lessonId, row.question, row.answer, row.sourceHint || null, sortOrder],
+        `INSERT INTO lesson_flashcards (note_id, lesson_id, question, answer, source_hint, status, sort_order, generated_by) VALUES (?, ?, ?, ?, ?, 'draft', ?, 'ai')`,
+        [lessonId, lessonId, row.question, row.answer, row.sourceHint || null, sortOrder],
       );
       sortOrder += 1;
     }
