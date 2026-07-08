@@ -112,10 +112,7 @@ class ProfilePage extends ConsumerWidget {
                 () => _openUrl(context, _termsUrl)),
           ]),
           const SizedBox(height: 20),
-          AppButton('Log out',
-              kind: AppButtonKind.soft,
-              expand: true,
-              onPressed: () => ref.read(authControllerProvider.notifier).logout()),
+          const _LogoutButton(),
           const SizedBox(height: 8),
           Center(
             child: TextButton(
@@ -300,6 +297,42 @@ class _Row extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Log-out button that shows a spinner while the session is being cleared, so
+/// the tap gives immediate feedback and can't be double-fired.
+class _LogoutButton extends ConsumerStatefulWidget {
+  const _LogoutButton();
+
+  @override
+  ConsumerState<_LogoutButton> createState() => _LogoutButtonState();
+}
+
+class _LogoutButtonState extends ConsumerState<_LogoutButton> {
+  bool _loading = false;
+
+  Future<void> _logout() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await ref.read(authControllerProvider.notifier).logout();
+    } finally {
+      // The router redirects to login once signed out, which may dispose this
+      // widget — guard the setState.
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppButton(
+      'Log out',
+      kind: AppButtonKind.soft,
+      expand: true,
+      loading: _loading,
+      onPressed: _logout,
     );
   }
 }

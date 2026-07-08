@@ -2342,10 +2342,12 @@ class _SectionCard extends StatelessWidget {
     final accent =
         _parseHex(section.accentColor) ?? _kPalette[index % _kPalette.length];
     final surface = dark ? const Color(0xFF1B1B1E) : Colors.white;
-    // Accent fade in the top-left and bottom-right corners (like the web card),
-    // a touch stronger in dark mode; the middle stays the flat surface.
-    final glowTL = Color.alphaBlend(accent.withValues(alpha: dark ? 0.09 : 0.05), surface);
-    final glowBR = Color.alphaBlend(accent.withValues(alpha: dark ? 0.12 : 0.07), surface);
+    // Only a faint DESATURATED accent fade in the top-left + bottom-right corners
+    // (low saturation + low opacity) — no strong colour/yellow cast on the card.
+    final ghsl = HSLColor.fromColor(accent);
+    final glowAccent = ghsl.withSaturation((ghsl.saturation * 0.3).clamp(0.0, 1.0)).toColor();
+    final glowTL = Color.alphaBlend(glowAccent.withValues(alpha: dark ? 0.07 : 0.04), surface);
+    final glowBR = Color.alphaBlend(glowAccent.withValues(alpha: dark ? 0.10 : 0.055), surface);
 
     // Image embedded inside a text section (renders before bullets when
     // position == 'top', otherwise after). Left/right collapse to stacked, which
@@ -2374,7 +2376,7 @@ class _SectionCard extends StatelessWidget {
           stops: const [0.0, 0.5, 1.0],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withValues(alpha: 0.18)),
+        border: Border.all(color: glowAccent.withValues(alpha: dark ? 0.16 : 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
