@@ -2326,7 +2326,7 @@ function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onA
 
       {/* Layout toggle */}
       <div className={noteCanvasUi.layoutToggle}>
-        <button className={cx(noteCanvasUi.layoutButton, (data.layout || '2col') === '1col' && noteCanvasUi.layoutButtonOn)}
+        <button className={cx(noteCanvasUi.layoutButton, (data.layout || '1col') === '1col' && noteCanvasUi.layoutButtonOn)}
          
           onClick={() => onLayoutChange('1col')}
           title="Single column"
@@ -2338,7 +2338,7 @@ function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onA
           </svg>
           1 Col
         </button>
-        <button className={cx(noteCanvasUi.layoutButton, (data.layout || '2col') === '2col' && noteCanvasUi.layoutButtonOn)}
+        <button className={cx(noteCanvasUi.layoutButton, (data.layout || '1col') === '2col' && noteCanvasUi.layoutButtonOn)}
          
           onClick={() => onLayoutChange('2col')}
           title="Two columns"
@@ -2349,7 +2349,7 @@ function CanvasToolbar({ data, onPatch, onAddTextSection, onAddTableSection, onA
           </svg>
           2 Col
         </button>
-        <button className={cx(noteCanvasUi.layoutButton, (data.layout || '2col') === '3col' && noteCanvasUi.layoutButtonOn)}
+        <button className={cx(noteCanvasUi.layoutButton, (data.layout || '1col') === '3col' && noteCanvasUi.layoutButtonOn)}
           onClick={() => onLayoutChange('3col')}
           title="Three columns"
         >
@@ -2387,7 +2387,7 @@ export const NoteCanvas = memo(forwardRef(function NoteCanvas({ data, editable =
   const colors   = theme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
   const highlightColors = normalizeVisualStyleColors(data?.visual_style?.colors);
   const sections = data.sections || [];
-  const layout = data.layout || '2col';
+  const layout = data.layout || '1col';
   const firstTextSectionIndex = sections.findIndex(section => section.type !== 'image' && section.type !== 'image-explained');
   const viewportWidth = useViewportWidth();
   const isMobileCanvas = viewportWidth <= 700;

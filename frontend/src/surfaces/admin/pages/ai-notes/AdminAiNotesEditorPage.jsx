@@ -1296,7 +1296,7 @@ export function AdminAiNotesEditorPage({
                   <NoteCanvas
                     data={{
                       ...pageData,
-                      layout: pageData.layout || '3col',
+                      layout: pageData.layout || '1col',
                     }}
                     editable={editMode}
                     onDataChange={newData => handlePageDataChange(i, newData)}
